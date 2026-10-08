@@ -3,22 +3,26 @@ import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowReportPhase, Space } from '@fg2/shared-types/v1';
-import { exportFilename, fileSize, isBuilding, useAskExport, useDownloadExport, useExport } from '@/api/exports';
+import { exportFilename, useAskExport, useDownloadExport } from '@/api/exports';
+import { useGrowPhotoLines } from '@/api/entries';
 import { useGrowReport } from '@/api/grows';
+import { isBuilding, useMedia } from '@/api/media';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
 import { useCorrecting } from '@/log/corrections';
 import { durationFigure } from '@/ui/age';
-import { decimalFigure } from '@/ui/figures';
+import { dayNightFigure, decimalFigure, fileSize } from '@/ui/figures';
 import { growDayOf } from '@/ui/entries';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { PictureViewer } from '@/ui/PictureViewer';
 import { useZone } from '@/ui/zone';
-import { pictureCaption, picturesOf, useGrowPhotoLines } from './photos';
+import { pictureCaption, picturesOf } from './photos';
 import { useShape } from '@/app/shell/shape';
-import { standsIn } from '@/ui/session-access';
+import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
+import { stageLabel } from '@/ui/presets';
+import { placeName } from './placement';
 import styles from './Report.module.css';
 
 /**
@@ -83,7 +87,6 @@ export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spac
           grow={grow}
           people={report.data.people}
           spaces={spaces}
-          measurements={grow.measurements}
           explainBand={chapter === bandTeacher}
         />
       ))}
@@ -107,7 +110,7 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
   const { t } = useTranslation();
   const ask = useAskExport(growId);
   const [mediaId, setMediaId] = useState<string | null>(null);
-  const job = useExport(mediaId);
+  const job = useMedia(mediaId);
   const download = useDownloadExport();
 
   if (!mayOwn) return null;
@@ -188,14 +191,12 @@ function Chapter({
   grow,
   people,
   spaces,
-  measurements,
   explainBand,
 }: {
   chapter: GrowReportPhase;
   grow: GrowListItem;
   people: { id: string; handle: string }[];
   spaces: Space[];
-  measurements: GrowListItem['measurements'];
   /** The first chapter that states its share in band, which says once what the band is. */
   explainBand: boolean;
 }) {
@@ -204,13 +205,13 @@ function Chapter({
   const cover = chapter.coverMediaId ? mediaUrl(chapter.coverMediaId, THUMBNAIL_WIDTH.cover * 2) : null;
   const temperature = chapter.climate.find(row => row.metric === 'temperature');
   const humidity = chapter.climate.find(row => row.metric === 'humidity');
-  const where = (chapter.spaceIds ?? []).map(id => spaces.find(space => space.id === id)?.name ?? '…').join(', ');
+  const where = (chapter.spaceIds ?? []).map(id => placeName(t, spaces, id)).join(', ');
 
   return (
     <article className={styles.chapter}>
       <span className={styles.cover}>{cover ? <img src={cover} alt="" loading="lazy" /> : <Leaf size={22} strokeWidth={1.5} aria-hidden />}</span>
       <div className={styles.chapterText}>
-        <h2 className={styles.chapterTitle}>{chapter.preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${chapter.stage}`)}</h2>
+        <h2 className={styles.chapterTitle}>{stageLabel(t, chapter.stage, chapter.preset)}</h2>
         <p className={`mono ${styles.chapterMeta}`}>
           {chapter.dayTo === null
             ? t('grow.report.dayFromToToday', { from: chapter.dayFrom })
@@ -225,9 +226,7 @@ function Chapter({
             the day and night split this line is already drawn from. */}
         {temperature ? (
           <p className={`mono ${styles.chapterMeta}`}>
-            {temperature.dayAverage !== null
-              ? `${decimalFigure(temperature.dayAverage, 1)} / ${temperature.nightAverage === null ? '–' : decimalFigure(temperature.nightAverage, 1)} °C`
-              : `${temperature.averageValue === null ? '–' : decimalFigure(temperature.averageValue, 1)} °C`}
+            {`${dayNightFigure(temperature, 1)} °C`}
             {humidity?.averageValue !== null && humidity !== undefined ? ` · ${decimalFigure(humidity.averageValue, 0)} %` : ''}
             {chapter.lightHours !== null ? ` · ${durationFigure(decimalFigure(chapter.lightHours, 0), 'h')}` : ''}
             {chapter.inBandPercent !== null ? (
@@ -253,14 +252,9 @@ function Chapter({
                 entry={entry}
                 people={people}
                 picture={mediaUrl}
-                measurements={measurements}
+                measurements={grow.measurements}
                 day={growDayOf(grow, entry.occurredAt)}
-                onOpen={correcting(entry, {
-                  label: grow.name,
-                  dayNumber: growDayOf(grow, entry.occurredAt),
-                  ownerId: grow.ownerId,
-                  spaceId: standsIn(grow),
-                })}
+                onOpen={correcting(entry, { label: grow.name, dayNumber: growDayOf(grow, entry.occurredAt), ...growStanding(grow) })}
               />
             ))}
           </ul>

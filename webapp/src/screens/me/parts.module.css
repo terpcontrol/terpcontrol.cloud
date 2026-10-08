@@ -30,11 +30,8 @@
 }
 
 .title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
   flex: 1 1 auto;
   min-width: 0;
-  line-height: var(--line-tight);
 }
 
 /* The trail, kept for the width that has room for it; on a phone the chevron

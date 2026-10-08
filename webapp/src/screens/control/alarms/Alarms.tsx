@@ -1,4 +1,5 @@
 import { CloudOff, Droplets, DropletOff, Refrigerator, ThermometerSnowflake, ThermometerSun, type LucideIcon } from 'lucide-react';
+import { useAccountMe } from '@/api/account';
 import { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,39 +7,28 @@ import { Link, useSearchParams } from 'react-router';
 import { controlPath } from '@/app/places';
 import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { useMe } from '@/api/account';
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
-import { useSession } from '@/api/session';
 import { useSpaceOverview } from '@/api/spaces';
-import { durationLabel } from '@/screens/devices/sockets';
-import { targetFigure } from '@/screens/home/units';
+import type { Translate } from '@/i18n/i18n';
+import { targetWithUnit } from '@/ui/units';
+import { channelsLabel, routedChannels, severityReaches } from '@/screens/notifications/reach';
 import { timeOf } from '@/screens/notifications/settings';
+import { durationLabel } from '@/ui/age';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { maintenanceQuiet } from '@/ui/maintenance';
 import { useNow } from '@/ui/useNow';
 import { clock, zoneOf } from '@/ui/zone';
+import { AddDeviceNote } from '../AddDeviceNote';
 import { RuleSheet } from './RuleSheet';
 import { ruleFor, templateBody, templatesFor, type AlarmTemplate, type TemplateKey } from './templates';
-import {
-  boundLabel,
-  channelsLabel,
-  groupRules,
-  heldBackBy,
-  missingSensor,
-  repeatsEvery,
-  routedChannels,
-  ruleTitle,
-  type Translate,
-  unitOf,
-  watchable,
-  watchLabel,
-} from './rules';
+import { boundLabel, groupRules, heldBackBy, missingSensor, repeatsEvery, ruleTitle, watchable, watchLabel } from './rules';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import styles from './Alarms.module.css';
-import { deviceName } from '@/screens/devices/naming';
+import { deviceName } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
 
 /**
@@ -86,10 +76,9 @@ export function Alarms({
   back?: 'targets' | 'plan';
 }) {
   const { t } = useTranslation();
-  const { user } = useSession();
   const now = useNow();
   const overview = useSpaceOverview(spaceId);
-  const me = useMe(false, user !== null && user.isDemo !== true);
+  const me = useAccountMe();
   const [params] = useSearchParams();
 
   // The same reads the lists below make, asked once here so that a device
@@ -100,9 +89,7 @@ export function Alarms({
   const grow = overview.data?.grows[0] ?? null;
   // An account no alarm reaches at all is told so once, over the list, with
   // the one-tap fix - rather than "erreicht dich nicht" under every card.
-  const reachesNoOne =
-    me.data !== undefined &&
-    !(['critical', 'warning'] as const).some(severity => routedChannels(me.data!, severity).some(routed => routed.configured));
+  const reachesNoOne = me.data !== undefined && !(['critical', 'warning'] as const).some(severity => severityReaches(me.data!, severity));
 
   return (
     <div className={styles.page}>
@@ -121,12 +108,7 @@ export function Alarms({
       {watched.length === 0 && held.isPending ? (
         <Waiting lines={3} />
       ) : watched.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>
-          {t('alarms.noController')}{' '}
-          <Link to="/claim" className={styles.addDevice}>
-            {t('alarms.addDevice')}
-          </Link>
-        </p>
+        <AddDeviceNote>{t('alarms.noController')}</AddDeviceNote>
       ) : (
         watched.map(device => (
           <DeviceRules
@@ -327,7 +309,7 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
           const line =
             watch.kind === 'reading'
               ? t(`alarms.template.${watch.edge}`, {
-                  value: `${targetFigure(watch.value, watch.metric)} ${unitOf({ kind: 'reading', metric: watch.metric, upper: null, lower: null })}`,
+                  value: targetWithUnit(watch.value, watch.metric),
                   length,
                 })
               : t('alarms.template.runs', { length });
@@ -358,14 +340,10 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
 }
 
 /**
- * That this device is being worked on, and until when.
- *
- * Nothing in the app read `maintenanceUntil`, so the state that decides what
- * every rule below will do was drawn nowhere: the switches stood armed, the
- * triggered dots stood lit, and the engine was refusing every turn on the
- * device. A rule silenced one at a time says so on its own card, two lines
- * down, which is what makes the silence of the whole device read as an
- * oversight rather than a decision.
+ * That this device is being worked on, and until when: the state that decides
+ * what every rule below will do, while their switches still stand armed. A rule
+ * silenced one at a time says so on its own card, so the silence of the whole
+ * device is said too, or it would read as an oversight rather than a decision.
  *
  * Both halves are named because they end at different times. The hardware is
  * let go when the window runs out; the alarms are held for the settling after
@@ -490,17 +468,7 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
             the tent; the switch that changes it belongs to whoever manages the
             device, so the other reader is given the fact and not the control. */}
         {mayManage ? (
-          <button
-            type="button"
-            className={ui.switch}
-            role="switch"
-            aria-checked={rule.enabled}
-            aria-label={t('alarms.enable', { name: title })}
-            disabled={missing !== null || busy}
-            onClick={() => onToggle(!rule.enabled)}
-          >
-            <span className={ui.knob} aria-hidden />
-          </button>
+          <Switch label={t('alarms.enable', { name: title })} on={rule.enabled} disabled={missing !== null || busy} onChange={onToggle} />
         ) : (
           <span className={`mono ${styles.state}`}>{t(rule.enabled ? 'misc.on' : 'misc.off')}</span>
         )}
@@ -601,4 +569,4 @@ const reachesNobody = (rule: AlarmRule, me: Me | undefined, now: DateTime): bool
   rule.delivery.mode === 'routing' &&
   rule.severity !== 'info' &&
   heldBackBy(me, rule.severity, now) === null &&
-  !routedChannels(me, rule.severity).some(routed => routed.configured);
+  !severityReaches(me, rule.severity);

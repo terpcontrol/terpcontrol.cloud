@@ -1,9 +1,10 @@
 import { ChartLine, Cpu, House, Plus, SlidersHorizontal, type LucideIcon } from 'lucide-react';
 import { useLocation } from 'react-router';
-import { useMayLog } from '@/log/log-context';
+import { FROM_PLACE, openedFrom } from '@/app/places';
+import { useMayLogIn } from '@/ui/session-access';
 import { useShape, type Shape } from './shape';
 
-export interface Tab {
+interface Tab {
   path: string;
   labelKey: string;
   Icon: LucideIcon;
@@ -50,7 +51,7 @@ export const tabsOf = (shape: Pick<Shape, 'diary' | 'devices'> & Partial<Pick<Sh
   return [...others.slice(0, middle), LOG, ...others.slice(middle)];
 };
 
-export const useTabs = (): Tab[] => tabsOf(useShape(), useMayLog());
+export const useTabs = (): Tab[] => tabsOf(useShape(), useMayLogIn());
 
 /**
  * Whether a tab is the one the address is on: its own path, or one of the pages
@@ -59,7 +60,7 @@ export const useTabs = (): Tab[] => tabsOf(useShape(), useMayLog());
  */
 export const useIsOn = (): ((tab: Tab) => boolean) => {
   const { pathname, state } = useLocation();
-  const fromPlace = pathname.startsWith('/cameras/') && (state as { from?: string } | null)?.from === 'place';
+  const fromPlace = pathname.startsWith('/cameras/') && openedFrom(state, FROM_PLACE);
 
   return tab => {
     if (fromPlace) return tab.path === '/';
@@ -69,6 +70,3 @@ export const useIsOn = (): ((tab: Tab) => boolean) => {
     );
   };
 };
-
-/** Two letters of the handle, which is the only name anyone is shown. */
-export const initials = (handle: string): string => handle.slice(0, 2).toUpperCase();

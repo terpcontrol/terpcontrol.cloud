@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
 updated: 2026-10-08
-source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; checked against the code 2026-10-08
+source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -115,8 +115,12 @@ way and what the code has to respect. Internal notes on the camera exist.
 
 ## RTSP capture (`capture.service.ts`, `stream-url.ts`)
 - ffmpeg grabs the next keyframe without stream analysis (`-fflags nobuffer -flags low_delay -probesize 32
-  -analyzeduration 0 -skip_frame nokey`), at most 90 s a run; on "Could not find codec parameters" one retry with a
-  full probe (PR #88).
+  -analyzeduration 0 -skip_frame nokey`, `stillArgs`), at most 90 s a run; on "Could not find codec parameters" one
+  retry with a full probe (PR #88). A Terp Cam's keyframe is not read this way; it is decoded from a pipe.
+- An HTTP(S) address is read without `-fflags nobuffer`, which drops what ffmpeg reads while it probes the input: a
+  snapshot URL's one JPEG, so ffmpeg 8 (the server image's 8.1.2) encodes nothing ("Output file is empty"), with
+  either probe. A live stream only loses its first packets. CI's Ubuntu ffmpeg is older and returns the picture
+  either way, so only the unit test pinning both command lines (`capture-budget.spec.ts`) catches it (2026-10-08).
 - A connection dropped mid-frame (common through a tunnel) makes ffmpeg write a smeared frame and exit 0; stderr at
   `-loglevel warning` matching `FFMPEG_CORRUPT_FRAME_PATTERN` discards it as `CorruptFrameError`, which does not grow
   the backoff - the camera answered. Error text is stripped of URL credentials before logs, diary or `lastError`.
@@ -134,13 +138,14 @@ way and what the code has to respect. Internal notes on the camera exist.
   backoff and reads at once. `PATCH` refuses less than 30 s (`still_interval_too_short`); `POST /v1/cameras` does not,
   and a camera created with less is read on every 5 s pass (code reading, 2026-10-08). The pauses are in
   [device-protocol 9](../device-protocol.md#9-the-still-cycle); only cameras read through a device are skipped while
-  it is offline (Chris, 2026-10-02).
+  it is offline (Chris, 2026-10-02). Which those are is `readsThroughDevice` (`shared-types/src/v1/capture.ts`),
+  which the camera page reads too: change it there, not on one side.
 - The test button joins a read in flight (a Terp Cam read is the device's camera whatever the settings; an RTSP test
   with other settings reads on its own), and the poller leaves the button's read alone: a device bridges one relay
   at a time. Tests run asynchronously (202, polled every 2 s for 210 s), so no proxy needs a long timeout.
-- ffmpeg lanes (`ffmpeg-slots.ts`): one shared pool let Terp Cam decodes queue behind hanging streams past the test
-  button's wait. Hanging RTSP cameras can still delay other RTSP reads (90 s each), inside the reader's budget.
-  `p-limit` stays at ^3.1.0 (4+ is ESM-only).
+- ffmpeg lanes (`ffmpeg.ts`, beside `runFfmpeg`, which every still, decode and film runs through): one shared pool let
+  Terp Cam decodes queue behind hanging streams past the test button's wait. Hanging RTSP cameras can still delay
+  other RTSP reads (90 s each), inside the reader's budget. `p-limit` stays at ^3.1.0 (4+ is ESM-only).
 - A missed dial-in is an ordinary failed attempt (Chris, 2026-09-30, PR #119): the former 15-min hold made a slow
   link, a busy device or a server restart look like firmware without the relay.
 
@@ -154,7 +159,8 @@ way and what the code has to respect. Internal notes on the camera exist.
 - Giving a device up (`releaseClaim`) tombstones its cameras and clears `deviceId`, `uid`, `ip` and `secret` but
   keeps `did`, so the same person pairing again gets the row and its entitlement back.
 - `did`, `uid`, `ip`, `url` and `state.lastError` are served to owner and admins only; members, links and the demo
-  get them redacted. A removed camera stays as a tombstone so its pictures keep their link.
+  get them redacted. A removed camera stays as a tombstone so its pictures keep their link, and nothing reads from
+  it: the poller passes it by, and a test capture is 404 `camera_not_found` (`withSecret` finds live rows only).
 - The old app stored a paired Terp Cam as `terpcam://<did>` (earlier `okam://<did>`) in its RTSP field; only
   migration `008-cameras` reads that (`TERPCAM_STREAM_PREFIXES` in `server/src/migrations/legacy.ts`), and it dates
   `state.lastStillAt` by the newest legacy still.
@@ -163,12 +169,19 @@ way and what the code has to respect. Internal notes on the camera exist.
 - `lit`: the controller's light output at capture time, else `false` for a picture too dark to show anything (mean
   luma under 24), else null, which counts as lit. Pictures meant to show plants (week, home, cockpit and grow cards)
   query `lit != false`; a week's day takes the lit still nearest midday.
+- `monochrome` (since 2026-10-08, server-side only): whether the still came out grey - the camera's night (IR) mode,
+  or a black tent - measured once when stored (`monochromeOf`, `still-light.ts`: channels under 4 of 255 apart on a
+  192-pixel copy; night stills measure 0, day stills 20-53 on the development cameras); null for an unreadable
+  picture, absent on older stills, both unknown, never backfilled. A smart plug without a schedule takes its VPD's
+  day and night from it: the newest measured still of any camera in its space speaks for its camera for ten
+  intervals plus the gap thinning has left by its age (`StillDaylightService`; Chris, 2026-10-08,
+  [ADR 0006](../adr/0006-day-and-night-by-the-device-clock.md)).
 - The camera burns its own local time into the picture; the app shows the account's zone, so a mismatch means the
   account's zone is wrong (Me > Appearance), not the app.
-- Thinning, once a day after the films: older than 1 day one per minute, 7 days one per 5 min, 30 days one per 15
-  min, 90 days one per hour (`THINNING_TIERS`). Stills the previous release still holds rows for are left alone
-  until the release that drops `legacy_*`. Stills go after 3 years; cameras without Premium only earlier where the
-  install switches that on.
+- Thinning, once a day after the films: older than 1 day one per minute, 7 days one per 5 min, 30 days one per 15 min,
+  90 days one per hour (`THINNING_TIERS`, `still-thinning.ts`). Stills the previous release still holds rows for are
+  left alone until the release that drops `legacy_*`. Stills go after 3 years; cameras without Premium only earlier
+  where the install switches that on.
 
 ## Timelapses (`timelapse.service.ts`)
 - The builder runs 60 s after start, then an hour after its previous pass ends: queued renders first (also woken
@@ -190,15 +203,20 @@ way and what the code has to respect. Internal notes on the camera exist.
 - A good pass logs nothing; check `media` rows of kind `timelapse` per `window` instead.
 
 ## Health, diary, app
+- A camera is aged by the stills it has missed, not by `VALUE_AGE`: live up to 2, stale up to 10, then stopped
+  (`CAMERA_STILLS`, `shared-types/src/v1/value-age.ts`). The camera rows, the admin health card and `camera_stale`
+  all count by it; only the alarm adds a floor of 600 s.
 - `camera_stale` (`alarm-health.service.ts`): one warning when a camera is quiet for max(interval x 10, 600 s); not
   judged without a first still, with `staleWarning` off (opt-out), `nightOff`, in maintenance with `maintenanceOff`,
   or while the device is offline; not raised under `workmode: off`. The alert's value is the quiet span in seconds.
 - A failed scheduled read writes `message-rtsp-stream-error` to the diary only with `logErrors` on (default off).
   Firmware older than the relay logs `message-cam-capture:*` and `message-aux-command-failed:cam_capture`: the
   ingest drops `...:ok` always and the failures unless `logErrors` is on (`device-ingest.service.ts`).
-- The app names a stored error with the contract's `captureFailureOf`, as the server names a failed test; the raw
-  text is owner-only, it can name the tunnel's address. The day view reads frames in pages of 200 up to 15 pages and
-  refetches every 30 s from its newest picture only (`webapp/src/api/cameras.ts`).
+- The app names a stored error with the contract's `captureFailureOf`, as the server names a failed test; the raw text
+  is owner-only, it can name the tunnel's address. A failed film stores one of the `RENDER_FAILURE_TEXT` sentences
+  (`capture.ts`) and the app names it by the whole sentence (`renderFailureOf`): reworded, films that failed before
+  show `unknown`. The day view reads frames in pages of 200 up to 15 pages and refetches every 30 s from its newest
+  picture only (`webapp/src/api/cameras.ts`).
 
 ## Configuration
 - `TERPCAM_RELAY_URL`: `docker-compose.yaml` defaults it to `${API_URL_EXTERNAL}/terpcam/relay` - defaults belong

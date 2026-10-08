@@ -1,4 +1,4 @@
-import { GridFSBucket, MongoClient, ObjectId } from 'mongodb';
+import { mongo } from 'mongoose';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -9,8 +9,8 @@ import { context, Session } from './api';
  * operator's shell do - a webcam still at a chosen age, a device in the public
  * demo. The assertions still go through HTTP; this only puts the state there.
  */
-const withDatabase = async <T>(use: (database: import('mongodb').Db) => Promise<T>): Promise<T> => {
-  const client = new MongoClient(context.mongoUri);
+const withDatabase = async <T>(use: (database: mongo.Db) => Promise<T>): Promise<T> => {
+  const client = new mongo.MongoClient(context.mongoUri);
   try {
     await client.connect();
     return await use(client.db('terpcontrol_test'));
@@ -18,10 +18,6 @@ const withDatabase = async <T>(use: (database: import('mongodb').Db) => Promise<
     await client.close();
   }
 };
-
-export interface StoredStill {
-  imageId: string;
-}
 
 /**
  * Puts a device into the public demo. There is no API for it - an operator sets
@@ -53,33 +49,6 @@ const BUCKET_NAME = 'imagedata';
 /** Whether the bytes of a picture are in the image store, which is where they live. */
 export const storedImageExists = (imageId: string): Promise<boolean> =>
   withDatabase(async database => (await database.collection(`${BUCKET_NAME}.files`).countDocuments({ _id: imageId as never })) > 0);
-
-/**
- * Stores a webcam still for a device, as the RTSP poller would have: the bytes
- * in the image store under the id the document names, and the size the document
- * serves a Content-Length from.
- */
-export const storeWebcamStill = (deviceId: string, data: Buffer, timestamp: number): Promise<StoredStill> =>
-  withDatabase(async database => {
-    const imageId = randomUUID();
-
-    // A stored file carries the image_id as its `_id`, where the driver's types
-    // expect an ObjectId - the server writes it the same way.
-    await pipeline(
-      Readable.from(data),
-      new GridFSBucket(database, { bucketName: BUCKET_NAME }).openUploadStreamWithId(imageId as unknown as ObjectId, imageId),
-    );
-
-    await database.collection('images').insertOne({
-      image_id: imageId,
-      device_id: deviceId,
-      format: 'jpeg',
-      timestamp,
-      size: data.length,
-    });
-
-    return { imageId };
-  });
 
 /**
  * A read-only share link on a grow. Making one is the sharing round's route; a
@@ -137,9 +106,11 @@ export const storeCameraStill = (cameraId: string, data: Buffer, capturedAt: Dat
   withDatabase(async database => {
     const id = randomUUID();
 
+    // A stored file carries the id as its `_id`, where the driver's types
+    // expect an ObjectId - the server writes it the same way.
     await pipeline(
       Readable.from(data),
-      new GridFSBucket(database, { bucketName: BUCKET_NAME }).openUploadStreamWithId(id as unknown as ObjectId, id),
+      new mongo.GridFSBucket(database, { bucketName: BUCKET_NAME }).openUploadStreamWithId(id as unknown as mongo.ObjectId, id),
     );
 
     await database.collection('media').insertOne({

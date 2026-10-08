@@ -1,10 +1,11 @@
 import { Model } from 'mongoose';
-import type { Entry, EntryKind, GrowReadingNames, Person } from '@fg2/shared-types/v1';
+import type { Entry, EntryKind, EntryReading, GrowReadingNames } from '@fg2/shared-types/v1';
 import { entryKind } from '@fg2/shared-types/v1-schemas';
+import { Grant } from '@common/v1/access.types';
 import { serialiseEntry } from '@common/v1/entries';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
-import { StoredUser } from '@database/schemas/v1/users.schema';
+import { demoEntry } from '@utils/demo';
 import { Redaction } from '../grow/grow-serialiser';
 
 /**
@@ -15,8 +16,10 @@ import { Redaction } from '../grow/grow-serialiser';
  * of the answer. This is what that comes to line by line, so that one read of
  * the diary cannot leak what the grow screen and the public page both hide.
  */
-export const serialiseDiaryEntry = (entry: EntryDocument, hide: Redaction, includeCameras: boolean): Entry => {
-  const told = serialiseEntry(entry);
+export const serialiseDiaryEntry = (entry: EntryDocument, hide: Redaction, grant: Pick<Grant, 'grantee' | 'includeCameras'>): Entry => {
+  // The demo tour shows a stranger's tent to anybody, and a device's line
+  // quotes the URLs it was configured with.
+  const told = grant.grantee === 'demo' ? demoEntry(serialiseEntry(entry)) : serialiseEntry(entry);
 
   return {
     ...told,
@@ -41,7 +44,7 @@ export const serialiseDiaryEntry = (entry: EntryDocument, hide: Redaction, inclu
     // A link that was not made to carry pictures is not told which camera a line
     // was about; the pictures themselves are refused per picture, by the same
     // decision, where they are fetched.
-    cameraId: includeCameras ? told.cameraId : null,
+    cameraId: grant.includeCameras ? told.cameraId : null,
     values: valuesOf(told.values, hide),
   };
 };
@@ -104,6 +107,9 @@ export const diaryMovedAt = async (entries: Model<EntryDocument>, growIds: strin
 /** The kinds that carry readings of the grow's own measurements. */
 export const READING_KINDS = ['water', 'feed', 'measurement'] as const;
 
+/** The readings an entry carries, which only the kinds above do. */
+export const readingsIn = (entry: Pick<EntryDocument, 'values'>): EntryReading[] => ('readings' in entry.values ? entry.values.readings : []);
+
 /**
  * What each grow calls its own measurements, for the answers whose lines belong
  * to several grows at once.
@@ -120,13 +126,3 @@ export const readingNamesOf = (grows: readonly Pick<GrowDocument, 'id' | 'measur
     growId: grow.id,
     readings: grow.measurements.map(measurement => ({ key: measurement.key, name: measurement.name, unit: measurement.unit })),
   }));
-
-/** Everyone a set of entries names, so a card can say who watered without a read of its own. */
-export const peopleOf = (entries: readonly Entry[], users: readonly Pick<StoredUser, 'id' | 'handle'>[]): Person[] => {
-  const named = new Set(entries.flatMap(entry => (entry.authorId ? [entry.authorId] : [])));
-
-  return users.flatMap(user => (named.has(user.id) ? [{ id: user.id, handle: user.handle }] : []));
-};
-
-/** The ids to look those people up by. */
-export const authorIdsOf = (entries: readonly Entry[]): string[] => [...new Set(entries.flatMap(entry => (entry.authorId ? [entry.authorId] : [])))];

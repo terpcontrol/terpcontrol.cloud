@@ -22,6 +22,8 @@
  * One table per type, so that settings for different hardware are added in
  * different places. No schema, so a client imports it without pulling zod in.
  */
+import type { z } from 'zod';
+import type { timerWindow } from './devices.js';
 export interface NumberField {
     kind: 'number';
     path: string;
@@ -57,11 +59,7 @@ export interface WindowsField {
     /** The longest a window may run, in minutes. */
     longest: number;
 }
-/** One window of a timer: `ontime` in seconds past midnight UTC, `duration` in minutes. */
-export interface TimerWindow {
-    ontime: number;
-    duration: number;
-}
+export type TimerWindow = z.infer<typeof timerWindow>;
 export type ConfigurationField = NumberField | SwitchField | ChoiceField | WindowsField;
 /** What a field is set to: a figure, on or off, one of its options, or a list of windows. */
 export type FieldSetting = number | boolean | string | readonly TimerWindow[];
@@ -131,6 +129,20 @@ export declare const CONFIGURATION_FIELDS: Readonly<Record<string, Configuration
 /** The fields a type of device offers; none for a type this table does not know. */
 export declare const configurationFieldsOf: (type: string) => ConfigurationFields;
 type Document = Readonly<Record<string, unknown>> | null | undefined;
+/** Whether a value of a document is a section of it: an object of keys, not a list. */
+export declare const isSection: (value: unknown) => value is Record<string, unknown>;
+export declare const sectionOf: (document: Document, key: string) => Readonly<Record<string, unknown>> | null;
+export declare const finiteOrNull: (value: unknown) => number | null;
+/** A value of a document by its dotted path, nested as the firmware writes it, or undefined where the document does not reach it. */
+export declare const nestedAt: (document: unknown, path: string) => unknown;
+/**
+ * A value of a document by its dotted path, nested as the firmware writes it or
+ * flat as an older client did. Both mean the same thing; the nested one is read
+ * first, the server's and every screen's reading alike.
+ */
+export declare const valueAt: (document: Document, path: string) => unknown;
+/** A figure of a document by its dotted path (`valueAt`), or null where it states none. */
+export declare const figureAt: (document: Document, path: string) => number | null;
 /**
  * The AIR fan a smart socket slows down while it doses CO2, and how far. The
  * socket keeps it under `fan` as a JSON string the firmware stores and never

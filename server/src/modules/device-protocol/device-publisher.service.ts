@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { DeviceCommand, DeviceConfiguration, SocketRole } from '@fg2/shared-types/v1';
+import { DeviceCommand, DeviceConfiguration, Socket, SocketRole } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES, TIMED_SOCKET_ROLES } from '@fg2/shared-types/v1-schemas';
 import { badRequest, conflict, notFound, serviceUnavailable, unprocessable } from '@common/v1/problem';
 import { isOffline } from '@common/v1/value-age';
@@ -29,7 +29,7 @@ import { deviceTopic } from './topics';
  */
 
 /** What a caller learns about a command that went out. MQTT hands back no receipt. */
-export interface CommandPublished {
+interface CommandPublished {
   publishedAt: Date;
   /** Whether the device had been heard from inside the offline window when the command went out. */
   deviceOnline: boolean;
@@ -53,9 +53,7 @@ export class DevicePublisherService {
    * answer says whether anybody was listening.
    */
   public async command(deviceId: string, command: DeviceCommand): Promise<CommandPublished> {
-    const device = await this.devices.findOne({ id: deviceId }).lean();
-    if (!device) throw notFound('device_not_found', 'There is no device with that id.');
-
+    const device = await this.deviceOf(deviceId);
     const payload = this.payloadFor(device, command);
 
     // Before the publish rather than after it. The device suppresses its own
@@ -66,7 +64,7 @@ export class DevicePublisherService {
 
     this.publishCommand(deviceId, payload);
 
-    return { publishedAt: new Date(), deviceOnline: !isOffline(device.state.lastSeenAt) };
+    return sentTo(device);
   }
 
   /**
@@ -116,20 +114,17 @@ export class DevicePublisherService {
    * reports no table, where every row answers to the slot -1.
    */
   public async socketAction(deviceId: string, action: 'socket_remove' | 'socket_test', target: number | SocketRole): Promise<CommandPublished> {
-    const device = await this.devices.findOne({ id: deviceId }).lean();
-    if (!device) throw notFound('device_not_found', 'There is no device with that id.');
-
-    const sockets = decodeSockets(device.state.hardware);
+    const device = await this.deviceOf(deviceId);
 
     if (typeof target === 'string') {
       // A role is only an address where the device reports one under it.
       // Anything else would be a command the firmware drops without a word.
-      if (!sockets.some(socket => socket.role === target)) {
+      if (!decodeSockets(device.state.hardware).some(socket => socket.role === target)) {
         throw notFound('socket_unknown', `This device reports no socket with the role ${target || 'unassigned'}.`);
       }
 
       this.publishCommand(deviceId, { action, role: target });
-      return { publishedAt: new Date(), deviceOnline: !isOffline(device.state.lastSeenAt) };
+      return sentTo(device);
     }
 
     // Every row of a build that reports no table answers to the slot -1, so the
@@ -138,12 +133,9 @@ export class DevicePublisherService {
       throw badRequest('no_socket_table', 'This device reports no socket table, so a socket is addressed by its role.');
     }
 
-    const socket = sockets.find(candidate => candidate.slot === target);
-    if (!socket) throw notFound('socket_unknown', `This device reports no socket in slot ${target}.`);
+    this.publishCommand(deviceId, { action, role: this.socketIn(device, target).role, slot: target });
 
-    this.publishCommand(deviceId, { action, role: socket.role, slot: target });
-
-    return { publishedAt: new Date(), deviceOnline: !isOffline(device.state.lastSeenAt) };
+    return sentTo(device);
   }
 
   /**
@@ -162,11 +154,6 @@ export class DevicePublisherService {
     return this.mqtt.publish(deviceTopic(deviceId, 'firmware'), firmwareId);
   }
 
-  /** One frame into the tunnel a device holds open. */
-  public tunnelWrite(deviceId: string, message: string): boolean {
-    return this.mqtt.publish(deviceTopic(deviceId, 'tunnel_write'), message);
-  }
-
   /**
    * Asks the device to bridge its Terp Cam to the cloud: it dials `url` back as
    * an HTTP upgrade and carries the camera's P2P over it. Not gated by type like
@@ -175,6 +162,13 @@ export class DevicePublisherService {
    */
   public requestRelay(deviceId: string, relay: { url: string; token: string; key: string }): boolean {
     return this.mqtt.publish(deviceTopic(deviceId, 'command'), JSON.stringify({ action: 'cam_relay', ...relay }));
+  }
+
+  private async deviceOf(deviceId: string): Promise<StoredDevice> {
+    const device = await this.devices.findOne({ id: deviceId }).lean<StoredDevice>();
+    if (!device) throw notFound('device_not_found', 'There is no device with that id.');
+
+    return device;
   }
 
   private publishCommand(deviceId: string, payload: Record<string, unknown>): void {
@@ -255,10 +249,14 @@ export class DevicePublisherService {
       throw badRequest('socket_unknown', 'A socket is named by the slot it sits in, which is a row of the table the device reports.');
     }
 
+    return this.socketIn(device, slot).slot;
+  }
+
+  private socketIn(device: StoredDevice, slot: number): Socket {
     const socket = decodeSockets(device.state.hardware).find(candidate => candidate.slot === slot);
     if (!socket) throw notFound('socket_unknown', `This device reports no socket in slot ${slot}.`);
 
-    return slot;
+    return socket;
   }
 
   /**
@@ -315,6 +313,9 @@ export class DevicePublisherService {
     }
   }
 }
+
+/** Taken after the publish, so the instant is when the command went out. */
+const sentTo = (device: StoredDevice): CommandPublished => ({ publishedAt: new Date(), deviceOnline: !isOffline(device.state.lastSeenAt) });
 
 /** The device counts maintenance in whole minutes, so that is what it is told. */
 const maintenancePayload = (forSeconds: number): Record<string, unknown> => ({

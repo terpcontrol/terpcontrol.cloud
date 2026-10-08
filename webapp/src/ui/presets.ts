@@ -1,5 +1,6 @@
 import type { GrowthStage } from '@fg2/shared-types/v1';
-import { PRESETS_OF_STAGE, STAGES_WITH_CLIMATE as CLIMATE_STAGES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import type { Translate } from '@/i18n/i18n';
+import { PRESETS_OF_STAGE, STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 
 /**
  * The climate presets the screens offer on top of a stage.
@@ -22,15 +23,11 @@ import { PRESETS_OF_STAGE, STAGES_WITH_CLIMATE as CLIMATE_STAGES } from '@fg2/sh
  */
 
 /**
- * The stages a tent's climate is written for.
- *
- * `curing` is not among them, and that is the whole reason this list exists:
- * jars are not steered, the server has no row for the stage, and applying it
- * leaves every controller exactly as it was. A screen that did not know would
- * report a change the tent never made.
+ * Whether a stage writes a tent's climate. `curing` does not: jars are not
+ * steered, the server has no row for the stage, and applying it leaves every
+ * controller exactly as it was, so a screen that did not know would report a
+ * change the tent never made.
  */
-export const STAGES_WITH_CLIMATE: readonly GrowthStage[] = CLIMATE_STAGES;
-
 export const writesClimate = (stage: GrowthStage): boolean => STAGES_WITH_CLIMATE.includes(stage);
 
 /** The presets that refine this stage, if any. The stage on its own is always an option and is not one of them. */
@@ -71,11 +68,13 @@ export const CLIMATE_CHOICES: readonly ClimateChoice[] = (() => {
  */
 const NAMED_BY_LIGHT: readonly GrowthStage[] = ['germination', 'seedling'];
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /** "Keimung · dunkel", "Sämling · mit Licht", "Blüte": a stage as it is offered wherever one is chosen. */
 export const stageChoiceName = (t: Translate, stage: GrowthStage): string =>
   t(NAMED_BY_LIGHT.includes(stage) ? `home.stageChoice.${stage}` : `home.stage.${stage}`);
+
+/** "Late flower" for flowering refined by `late_flowering`, and the stage's own name otherwise: what a phase or a week is called. */
+export const stageLabel = (t: Translate, stage: GrowthStage, preset: string | null): string =>
+  preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${stage}`);
 
 /** "Keimung · dunkel", "Late flower", "Auto · Flower": what a climate is called wherever it is offered. */
 export const climateChoiceName = (t: Translate, choice: ClimateChoice): string => {

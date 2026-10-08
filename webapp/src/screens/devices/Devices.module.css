@@ -16,12 +16,6 @@
   gap: var(--space-3);
 }
 
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
-}
-
 .list,
 .column {
   display: flex;
@@ -244,16 +238,6 @@
 /* Why the two are greyed out, under them. */
 .actions + p {
   margin-top: var(--space-2);
-}
-
-/* A two-line action and the (i) that says more about it. Two share a line
-   where the card is wide enough, and stack on a phone. */
-.withHelp {
-  display: flex;
-  flex: 1 1 15rem;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
 }
 
 .technical {

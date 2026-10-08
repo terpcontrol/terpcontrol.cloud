@@ -1,19 +1,14 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import i18next from 'i18next';
+import { screen } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, SpaceOverview } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import { PlacePage } from '@/screens/place/PlacePage';
 import { useFreshness } from '@/ui/freshness';
-import { LaterRound } from '@/ui/LaterRound';
 import { LogProvider } from '@/log/LogProvider';
+import { drawAt } from './harness';
+import { translate } from './translations';
 
 // A picture's address needs the session's media token, and what a screen offers
 // depends on who is looking, so both are answered here rather than reached for.
@@ -30,10 +25,10 @@ vi.mock('@/api/session', async importOriginal => {
  */
 const account = vi.hoisted(() => ({ zone: null as string | null }));
 
-vi.mock('@/api/account', async importOriginal => ({
-  ...(await importOriginal<object>()),
-  useMe: () => ({ data: account.zone === null ? undefined : { preferences: { timezone: account.zone } } }),
-}));
+vi.mock('@/api/account', async importOriginal => {
+  const me = () => ({ data: account.zone === null ? undefined : { preferences: { timezone: account.zone } } });
+  return { ...(await importOriginal<object>()), useMe: me, useAccountMe: me };
+});
 
 beforeEach(() => {
   account.zone = null;
@@ -198,23 +193,7 @@ const overview: SpaceOverview = {
   people: [{ id: 'user-anna', handle: 'anna' }],
 };
 
-// Every card can log: the sheet and the toast live above the screens, so a
-// screen drawn on its own is drawn inside them.
-const draw = (node: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <LogProvider>{node}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 /**
  * Being taken out of somebody's tent while standing in it.
@@ -227,16 +206,13 @@ beforeAll(async () => {
  */
 describe('a tent that is no longer shared with the reader', () => {
   const drawPage = () =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/spaces/space-1']}>
-          <LogProvider>
-            <Routes>
-              <Route path="/spaces/:spaceId" element={<PlacePage />} />
-            </Routes>
-          </LogProvider>
-        </MemoryRouter>
-      </QueryClientProvider>,
+    drawAt(
+      <LogProvider>
+        <Routes>
+          <Route path="/spaces/:spaceId" element={<PlacePage />} />
+        </Routes>
+      </LogProvider>,
+      { at: '/spaces/space-1' },
     );
 
   it('says so, and offers the way home rather than a retry that can never work', () => {
@@ -265,16 +241,13 @@ describe('a tent that is no longer shared with the reader', () => {
  */
 describe('the banner over a page that could not refresh', () => {
   const drawPage = () =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/spaces/space-1']}>
-          <LogProvider>
-            <Routes>
-              <Route path="/spaces/:spaceId" element={<PlacePage />} />
-            </Routes>
-          </LogProvider>
-        </MemoryRouter>
-      </QueryClientProvider>,
+    drawAt(
+      <LogProvider>
+        <Routes>
+          <Route path="/spaces/:spaceId" element={<PlacePage />} />
+        </Routes>
+      </LogProvider>,
+      { at: '/spaces/space-1' },
     );
 
   it('dates itself by the half that failed, not by the half that has already come back', () => {
@@ -312,17 +285,14 @@ describe('how old a place´s page says it is', () => {
   }
 
   const drawPage = () =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/spaces/space-1']}>
-          <LogProvider>
-            <Routes>
-              <Route path="/spaces/:spaceId" element={<PlacePage />} />
-            </Routes>
-            <Reported />
-          </LogProvider>
-        </MemoryRouter>
-      </QueryClientProvider>,
+    drawAt(
+      <LogProvider>
+        <Routes>
+          <Route path="/spaces/:spaceId" element={<PlacePage />} />
+        </Routes>
+        <Reported />
+      </LogProvider>,
+      { at: '/spaces/space-1' },
     );
 
   it('leaves the line under the wordmark empty, because the pill already says how old the readings are', () => {
@@ -335,14 +305,5 @@ describe('how old a place´s page says it is', () => {
     drawPage();
 
     expect(screen.getByTestId('freshness')).toHaveTextContent('nothing');
-  });
-});
-
-describe('a tab of a later round', () => {
-  it('says which round rather than showing an empty screen', () => {
-    draw(<LaterRound round={13} what="space.later.members" />);
-
-    expect(screen.getByText('Arrives with round 13')).toBeInTheDocument();
-    expect(screen.getByText(/Who can log and who can manage/)).toBeInTheDocument();
   });
 });

@@ -1,19 +1,14 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
-import i18next from 'i18next';
+import { screen, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Me, PremiumFree } from '@fg2/shared-types/v1';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
-import { countdownDays, renewalDue } from '@/screens/me/premium/entitlement';
+import { countdownDays } from '@/screens/me/premium/entitlement';
 import { Premium } from '@/screens/me/premium/Premium';
 import { Privacy } from '@/screens/me/privacy/Privacy';
-import { spacePage, spaceWhere } from './session';
+import { drawAt, json, NOT_FOUND } from './harness';
+import { meWith, spacePage, spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * Me › Premium, and the marks a camera carries elsewhere.
@@ -50,34 +45,17 @@ vi.mock('@/ui/useNow', () => ({ useNow: () => NOW }));
 /** The install's own figures where it has set them all, as the hosted install would answer. */
 const CONFIGURED: PremiumFree = { stillWidth: 640, stillDays: 90, timelapseDays: 30 };
 
-const me = (premium: Partial<Me['premium']> = {}): Me => ({
-  id: 'user-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  email: 'login@example.org',
-  isAdmin: false,
-  isActive: true,
-  handle: 'chrisgrows',
-  bio: null,
-  avatarMediaId: null,
-  publicProfile: false,
-  privacy: { hideWeights: false, hideCounts: false },
-  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
-  retention: { climateDays: null },
-  climateRetention: { installDays: null, appliesDays: null },
-  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
-  deletionStartedAt: null,
-  premium: {
-    enforced: true,
-    extendUrl: 'https://shop.example.org/premium',
-    priceLabel: '€ 29 / year',
-    free: { stillWidth: null, stillDays: null, timelapseDays: null },
-    ...premium,
-  },
-  pushPublicKey: null,
-  telegramAvailable: false,
-  pushSubscribed: false,
-  layers: { diary: true },
-});
+const me = (premium: Partial<Me['premium']> = {}): Me =>
+  meWith({
+    handle: 'chrisgrows',
+    premium: {
+      enforced: true,
+      extendUrl: 'https://shop.example.org/premium',
+      priceLabel: '€ 29 / year',
+      free: { stillWidth: null, stillDays: null, timelapseDays: null },
+      ...premium,
+    },
+  });
 
 const camera = (over: Partial<Camera> & { entitlement: Camera['entitlement'] }): Camera => ({
   id: `camera-${over.name ?? 'x'}`,
@@ -111,7 +89,7 @@ const ahead = (days: number) => NOW.plus({ days }).toISO()!;
 
 const included = camera({
   name: 'Terp Cam 1',
-  entitlement: { validUntil: ahead(300), grant: 'included', tier: 'premium', renewalVisible: true },
+  entitlement: { validUntil: ahead(300), grant: 'included', tier: 'premium', renewalVisible: false },
 });
 
 const migrated = camera({
@@ -123,7 +101,7 @@ const bought = camera({
   name: 'Tapo C200',
   kind: 'rtsp',
   url: 'rtsp://192.168.1.40/stream1',
-  entitlement: { validUntil: ahead(400), grant: 'purchase', tier: 'premium', renewalVisible: true },
+  entitlement: { validUntil: ahead(400), grant: 'purchase', tier: 'premium', renewalVisible: false },
 });
 
 const rtsp = camera({
@@ -136,8 +114,6 @@ const rtsp = camera({
 
 const server = { me: me(), cameras: [] as Camera[] };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const url = String(input);
 
@@ -145,19 +121,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   if (url.endsWith('/v1/cameras')) return json({ items: server.cameras, nextCursor: null });
   if (url.endsWith('/v1/spaces')) return json(spacePage(spaceWhere('own'), spaceWhere('own', { id: 'space-2', name: 'Tent 2' })));
   if (url.endsWith('/v1/devices')) return json({ items: [], nextCursor: null });
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
-const client = () => new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-
-const draw = () =>
-  render(
-    <QueryClientProvider client={client()}>
-      <MemoryRouter initialEntries={['/me/premium']}>
-        <Premium />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = () => drawAt(<Premium />, { at: '/me/premium' });
 
 const drawLoaded = async () => {
   draw();
@@ -178,12 +145,7 @@ const tableSays = () =>
         .map(cell => (cell.querySelector('svg') ? '✓' : cell.textContent)),
     );
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
@@ -349,21 +311,12 @@ describe('an install that enforces Premium', () => {
     expect(card('Old cam').getByRole('link', { name: /Extend Premium/ })).toHaveTextContent(/^Extend Premium$/);
   });
 
-  it('has no offer where the install names nowhere to extend, and says once whom to ask', async () => {
+  it('has no offer while the account it was read with names nowhere to extend', async () => {
     server.me = me({ extendUrl: null });
     server.cameras = [migrated, rtsp];
     await drawLoaded();
 
     expect(screen.queryByRole('link', { name: /Extend Premium|Get Premium/ })).toBeNull();
-    expect(screen.getAllByText('This installation names no place to extend Premium from; ask whoever runs it.')).toHaveLength(1);
-  });
-
-  it('says nothing about where to extend while no camera is due', async () => {
-    server.me = me({ extendUrl: null });
-    server.cameras = [included];
-    await drawLoaded();
-
-    expect(screen.queryByText(/names no place to extend/)).toBeNull();
   });
 });
 
@@ -468,14 +421,7 @@ describe('what Premium covers', () => {
 });
 
 describe('the two screens that describe the free tier', () => {
-  const drawPrivacy = () =>
-    render(
-      <QueryClientProvider client={client()}>
-        <MemoryRouter initialEntries={['/me/privacy']}>
-          <Privacy />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  const drawPrivacy = () => drawAt(<Privacy />, { at: '/me/privacy' });
 
   it('agree that nothing of a free camera is deleted where the install names no window', async () => {
     server.me = me({ enforced: false, extendUrl: null, priceLabel: null });
@@ -497,24 +443,12 @@ describe('the two screens that describe the free tier', () => {
 });
 
 describe('when the renewal is due', () => {
-  it('is never before the server allows a notice', () => {
-    expect(renewalDue({ entitlement: { validUntil: ahead(5), grant: 'included', tier: 'premium', renewalVisible: false } }, NOW)).toBe(false);
-    expect(renewalDue({ entitlement: { validUntil: null, grant: null, tier: 'free', renewalVisible: false } }, NOW)).toBe(false);
-  });
-
-  it('is inside the last sixty days, or at once for a camera without Premium', () => {
-    expect(renewalDue({ entitlement: { validUntil: ahead(61), grant: 'included', tier: 'premium', renewalVisible: true } }, NOW)).toBe(false);
-    expect(renewalDue({ entitlement: { validUntil: ahead(60), grant: 'included', tier: 'premium', renewalVisible: true } }, NOW)).toBe(true);
-    expect(renewalDue({ entitlement: { validUntil: null, grant: null, tier: 'free', renewalVisible: true } }, NOW)).toBe(true);
-  });
-
   it('counts whole days down to today and stops once the year is over', () => {
     expect(countdownDays({ entitlement: { validUntil: ahead(60), grant: 'included', tier: 'premium', renewalVisible: true } }, NOW)).toBe(60);
     expect(
       countdownDays({ entitlement: { validUntil: NOW.plus({ hours: 5 }).toISO()!, grant: 'included', tier: 'premium', renewalVisible: true } }, NOW),
     ).toBe(0);
     expect(countdownDays({ entitlement: { validUntil: ahead(-1), grant: 'included', tier: 'free', renewalVisible: true } }, NOW)).toBeNull();
-    expect(countdownDays({ entitlement: { validUntil: ahead(90), grant: 'included', tier: 'premium', renewalVisible: true } }, NOW)).toBeNull();
   });
 });
 
@@ -522,14 +456,7 @@ describe('the camera page', () => {
   // The camera page works out what this reader may do with this camera and
   // hands it down as two answers: its settings are `manage` where it stands,
   // and taking it off the account is `own`.
-  const drawSettings = (one: Camera) =>
-    render(
-      <QueryClientProvider client={client()}>
-        <MemoryRouter>
-          <CameraSettings camera={one} mayManage={false} mayOwn={false} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  const drawSettings = (one: Camera) => drawAt(<CameraSettings camera={one} mayManage={false} mayOwn={false} />);
 
   it('lets a camera without Premium say what it misses on this install, with the door to what Premium covers', async () => {
     drawSettings(rtsp);

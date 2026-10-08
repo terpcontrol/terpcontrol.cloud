@@ -1,8 +1,5 @@
 import { jest } from '@jest/globals';
-import { Model } from 'mongoose';
-import { MODEL_V1 } from '@database/models';
-import { StoredAlarmRule, alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
-import { StoredAlert, alertsSchema } from '@database/schemas/v1/alerts.schema';
+import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { AlarmDeliveryService } from '@modules/alarm/alarm-delivery.service';
 import { AlarmEngineService } from '@modules/alarm/alarm-engine.service';
@@ -12,7 +9,7 @@ import { DataService, DeviceSince, NewestSamples } from '@modules/data/data.serv
 import { FluxRow } from '@modules/data/flux';
 import { MailService } from '@modules/mail/mail.service';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
-import { V1TestDatabase, startV1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The alarm health loop against a fleet the size of a real one, and against a
@@ -45,9 +42,7 @@ const QUIET = 218;
 /** Ten minutes of silence is what counts as gone. */
 const GONE_MS = 11 * 60 * 1000;
 
-let db: V1TestDatabase;
-let rules: Model<StoredAlarmRule>;
-let alerts: Model<StoredAlert>;
+const db = useV1TestDatabase();
 let health: AlarmHealthService;
 
 /** Which devices the stand-in store declines to answer for, and when the rest last wrote. */
@@ -84,16 +79,6 @@ const buildFleet = async (): Promise<void> => {
   ]);
 };
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-  rules = db.connection.model<StoredAlarmRule>(MODEL_V1.alarmRule, alarmRulesSchema);
-  alerts = db.connection.model<StoredAlert>(MODEL_V1.alert, alertsSchema);
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
   refuses = new Set();
@@ -116,9 +101,9 @@ beforeEach(async () => {
     },
   } as unknown as DataService;
 
-  const episodes = new AlertService(alerts, entries, delivery, null);
-  const engine = new AlarmEngineService(rules, db.devices, data, episodes);
-  health = new AlarmHealthService(db.devices, rules, db.cameras, engine, episodes, data);
+  const episodes = new AlertService(db.alerts, entries, delivery, null);
+  const engine = new AlarmEngineService(db.alarmRules, db.devices, data, episodes);
+  health = new AlarmHealthService(db.devices, db.alarmRules, db.cameras, engine, episodes, data);
 });
 
 describe('a pass over a fleet the size of the one the loop failed on', () => {
@@ -131,7 +116,7 @@ describe('a pass over a fleet the size of the one the loop failed on', () => {
     expect(pass).toEqual({ devices: FLEET, unjudged: QUIET });
     // The rule upkeep needs no store at all, and is exactly what a pass that
     // died in its first read never reached.
-    expect(await rules.countDocuments({ origin: 'always', 'watch.metric': 'offline' })).toBe(FLEET);
+    expect(await db.alarmRules.countDocuments({ origin: 'always', 'watch.metric': 'offline' })).toBe(FLEET);
   });
 
   /**
@@ -145,7 +130,7 @@ describe('a pass over a fleet the size of the one the loop failed on', () => {
 
     await health.run(new Date());
 
-    expect(await alerts.countDocuments({ kind: 'offline' })).toBe(0);
+    expect(await db.alerts.countDocuments({ kind: 'offline' })).toBe(0);
   });
 
   it('raises for the devices it could ask about, and leaves the ones it could not exactly as they stood', async () => {
@@ -158,9 +143,9 @@ describe('a pass over a fleet the size of the one the loop failed on', () => {
     const pass = await health.run(new Date());
 
     expect(pass).toEqual({ devices: FLEET, unjudged: 20 });
-    expect(await alerts.countDocuments({ kind: 'offline' })).toBe(QUIET - 20 - 3);
-    for (const index of [0, 1, 2]) expect(await alerts.countDocuments({ deviceId: quietId(index) })).toBe(0);
-    expect(await alerts.countDocuments({ deviceId: quietId(QUIET - 1) })).toBe(0);
+    expect(await db.alerts.countDocuments({ kind: 'offline' })).toBe(QUIET - 20 - 3);
+    for (const index of [0, 1, 2]) expect(await db.alerts.countDocuments({ deviceId: quietId(index) })).toBe(0);
+    expect(await db.alerts.countDocuments({ deviceId: quietId(QUIET - 1) })).toBe(0);
   });
 
   /**
@@ -192,7 +177,7 @@ describe('a pass over a fleet the size of the one the loop failed on', () => {
     await health.run(new Date());
 
     expect(await db.cameras.countDocuments({ staleWarning: { $exists: false } })).toBe(0);
-    expect(await alerts.findOne({ kind: 'camera_stale' }).lean<StoredAlert>()).toMatchObject({ cameraId: 'camera-old', ruleId: null });
+    expect(await db.alerts.findOne({ kind: 'camera_stale' }).lean<StoredAlert>()).toMatchObject({ cameraId: 'camera-old', ruleId: null });
   });
 
   /** A store answering for the whole fleet: the alarm the install exists for, on every device that really is silent. */
@@ -202,7 +187,7 @@ describe('a pass over a fleet the size of the one the loop failed on', () => {
     const pass = await health.run(new Date());
 
     expect(pass).toEqual({ devices: FLEET, unjudged: 0 });
-    expect(await alerts.countDocuments({ kind: 'offline' })).toBe(QUIET);
+    expect(await db.alerts.countDocuments({ kind: 'offline' })).toBe(QUIET);
     expect(asked[0]).toHaveLength(QUIET);
   });
 

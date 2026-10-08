@@ -16,8 +16,8 @@ import { carrierOf } from '../stream';
  * What is shown while a write is on its way is what was asked for.
  */
 function Tunnel({ camera, devices, mayManage }: CameraContext) {
-  const update = useUpdateCamera(camera.id);
-  const asked: CameraUpdate | undefined = update.isPending ? update.variables : undefined;
+  const update = useUpdateCamera();
+  const asked = update.isPending ? update.variables?.body : undefined;
   const on = asked?.tunnel ?? camera.tunnel;
   const carrier = carrierOf({ deviceId: asked?.deviceId ?? camera.deviceId }, devices);
   if (!carrier) return null;
@@ -31,10 +31,15 @@ function Tunnel({ camera, devices, mayManage }: CameraContext) {
         on={on}
         carrier={carrier}
         disabled={!mayManage || update.isPending}
-        onChange={next => update.mutate(next ? through(carrier.id) : { tunnel: false })}
+        onChange={next => update.mutate({ cameraId: camera.id, body: next ? through(carrier.id) : { tunnel: false } })}
       />
       {on && devices.length > 1 ? (
-        <CarrierRow devices={devices} chosen={carrier.id} disabled={!mayManage || update.isPending} onChoose={id => update.mutate(through(id))} />
+        <CarrierRow
+          devices={devices}
+          chosen={carrier.id}
+          disabled={!mayManage || update.isPending}
+          onChoose={id => update.mutate({ cameraId: camera.id, body: through(id) })}
+        />
       ) : null}
       <Refused error={update.error} />
     </>
@@ -42,8 +47,8 @@ function Tunnel({ camera, devices, mayManage }: CameraContext) {
 }
 
 function Transport({ camera, mayManage }: CameraContext) {
-  const update = useUpdateCamera(camera.id);
-  const asked = update.isPending ? update.variables?.transport : undefined;
+  const update = useUpdateCamera();
+  const asked = update.isPending ? update.variables?.body.transport : undefined;
   const value: CameraTransport = asked ?? camera.transport ?? 'tcp';
 
   return (
@@ -52,7 +57,7 @@ function Transport({ camera, mayManage }: CameraContext) {
         value={value}
         tunnel={camera.tunnel}
         disabled={!mayManage || update.isPending}
-        onChange={next => update.mutate({ transport: next })}
+        onChange={next => update.mutate({ cameraId: camera.id, body: { transport: next } })}
       />
       <Refused error={update.error} />
     </>

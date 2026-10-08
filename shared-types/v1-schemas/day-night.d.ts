@@ -21,14 +21,24 @@
  * (`daynight.linearChange`, which the server always writes); a controller
  * switches them with the clock.
  *
- * No schema and no imports, so a client and the simulator can share the
- * arithmetic without pulling zod and the whole contract in.
+ * A smart plug compares the same two times the same way, and acts on them only
+ * where its document says to (`plugScheduleOf`).
+ *
+ * No schema, and nothing imported but the schema-free reading of a document,
+ * so a client and the simulator can share the arithmetic without pulling zod
+ * and the whole contract in.
  */
 export declare const DAY_SECONDS: number;
-/** The window the firmware runs where its document states none: on at 06:00, off at 22:00 UTC. */
+/** Seconds round the clock: 25:00 is 01:00, and an hour before 00:30 is 23:30. */
+export declare const roundTheClock: (seconds: number) => number;
+/**
+ * The window every firmware - a fridge's, a controller's, a socket's, a fan's
+ * and a lamp's - runs where its document states none: on at 06:00, off at
+ * 22:00 UTC.
+ */
 export declare const FIRMWARE_LIGHTS_ON: number;
 export declare const FIRMWARE_LIGHTS_OFF: number;
-/** Minutes of each dimming ramp where the document states none. */
+/** Minutes of each dimming ramp where a fridge's or a controller's document states none. */
 export declare const FIRMWARE_RAMP_MINUTES = 15;
 /**
  * How long after a switch between day and night the climate is given to follow
@@ -42,6 +52,23 @@ export declare const FIRMWARE_RAMP_MINUTES = 15;
  * bands is on target; one outside both is not.
  */
 export declare const SETTLE_SECONDS: number;
+/**
+ * Where 24 hours of light are written: both times past any time of day, the
+ * night one second before the day.
+ *
+ * The firmware cannot be told "always" in so many words. Two equal times are
+ * always night, and a window one second short of a day - what was written for
+ * 24 hours before - left two seconds of night a day, with the evening ramp
+ * dimming the lamp to nothing before them and the morning ramp bringing it back
+ * after: a dip of half an hour every day, the fridge gliding its targets towards
+ * the night meanwhile and its CO2 stopping. With the day starting after the
+ * night and the night beyond any second of the clock, its own comparisons find
+ * every second to be day, the evening ramp never begins (the night is further
+ * away than any ramp is long) and the morning ramp's factor overflows to full.
+ * The hour the light came on is kept in the times, so going back to a
+ * photoperiod starts from it.
+ */
+export declare const ALWAYS_LIT_FROM: number;
 /** The light schedule as a person sets it. */
 export interface LightWindow {
     /** When the light comes on, in seconds past midnight UTC. */
@@ -74,7 +101,13 @@ export declare const lightWindowTimes: (window: LightWindow) => {
     day: number;
     night: number;
 };
-/** When the light goes off, in seconds past midnight UTC: the hour it comes on again for a light that never goes off, or never comes on. */
+/**
+ * When the light goes off, in seconds past midnight UTC, for saying it and for
+ * drawing it: the hour it comes on again for a light that never goes off, or
+ * never comes on. The times a document is written with are another matter - a
+ * whole day, no day and a light off at midnight UTC each have their own form
+ * there (`lightWindowTimes`).
+ */
 export declare const lightsOffOf: (window: LightWindow) => number;
 /** What the firmware decides a fridge's or a controller's day and night from, as its document states it. */
 export interface Cycle {
@@ -89,6 +122,12 @@ export interface Cycle {
     /** Whether the targets glide between the halves while the lamp ramps: a fridge with `daynight.linearChange`. */
     glides: boolean;
 }
+/**
+ * The modes that run a day and a night by the clock. The firmware treats any
+ * word it does not know as off, and the fridge's experimental mode runs the
+ * clock with every output off.
+ */
+export declare const SCHEDULED_MODES: readonly string[];
 /** The cycle a document runs, or null for hardware that keeps none and for no document at all. */
 export declare const cycleOf: (type: string, configuration: Record<string, unknown> | null | undefined) => Cycle | null;
 /**
@@ -105,6 +144,22 @@ export declare const cycleKindOf: (cycle: Cycle) => CycleKind;
 export declare const utcSecondsOf: (at: number) => number;
 /** Whether the firmware calls this second of the clock day, by its own strict comparisons. Only the times; the work mode is the caller's. */
 export declare const isDayAt: (cycle: Pick<Cycle, "day" | "night">, seconds: number) => boolean;
+/**
+ * The day and night a smart plug keeps, or null where it keeps none: the two
+ * times of its document, to be read with `isDayAt`.
+ *
+ * Its firmware works its day out about once a second with the comparisons
+ * above, in every work mode, from `daynight.day` and `daynight.night` (on at
+ * 06:00 and off at 22:00 UTC where the document states none). Only with
+ * `usedaynight` does anything follow it - the night's switch points after dark,
+ * and CO2 dosed by day only. Without it, the firmware's default, the plug holds
+ * its day's switch points round the clock and its day is a figure nothing
+ * reads, so it is no schedule here either.
+ *
+ * A plug has no lamp, and this is what tells its VPD the day from the night
+ * where it has one.
+ */
+export declare const plugScheduleOf: (type: string, configuration: Record<string, unknown> | null | undefined) => Pick<Cycle, "day" | "night"> | null;
 /**
  * How far the morning and the evening ramp have come at this second of the
  * day: 1 is the lamp at full and a fridge on its day's figures. Worked out as

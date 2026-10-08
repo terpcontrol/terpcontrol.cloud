@@ -1,38 +1,40 @@
-import { Camera as CameraIcon, ChevronDown, ChevronRight, Cpu, Pencil } from 'lucide-react';
+import { Camera as CameraIcon, ChevronRight, Cpu, Pencil } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath, placePath } from '@/app/places';
-import type { ActuatorRuns, Camera, ClimateVerdict, Device, Firmware, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
+import type { ActuatorRuns, Camera, ClimateVerdict, Device, OutputMetric, SocketPage, SocketRole } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
+import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { useCameras, useLatestStills } from '@/api/cameras';
 import { fetchedAt, serverNow } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
-import { ageAttribute, ageLabel, deviceLiveness, heardAt, offlineLabel } from '@/ui/age';
+import type { Translate } from '@/i18n/i18n';
+import { ageAttribute, ageLabel, deviceLiveness, LIVENESS_RANK, offlineLabel, sinceLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { Help, Term } from '@/ui/Help';
+import { darkReasonOf } from '@/ui/climate-hardware';
 import { maintenanceQuiet, parksAnything } from '@/ui/maintenance';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, useMayManage, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { offsetOf } from '@/ui/wall-clock';
 import { calendarDay, clock, useZone } from '@/ui/zone';
 import { ownFactOf } from '@/screens/control/devices/own-summary';
-import { offsetOf } from '@/screens/control/targets/targets-draft';
-import { clockLabel } from '@/screens/notifications/settings';
 import { cameraFreshness } from './cameras';
 import { DeviceAdvanced } from './DeviceAdvanced';
 import { DeviceSettingsSheet } from './DeviceSettingsSheet';
 import { movesAnywhere } from './moving';
-import { Fact, Facts } from './Facts';
+import { Expand, Fact, Facts } from './RowParts';
 import { isLightRole, lightOutputOf } from './lights';
 import { LightOutputRow } from './LightOutputRow';
 import { ControlButton } from './ControlSwitch';
 import { MaintenanceButton, RebootButton } from './Maintenance';
-import { cameraTitle, deviceName, deviceTitle } from './naming';
+import { buildLabel, cameraTitle, deviceName, deviceTitle, typeName } from '@/ui/naming';
 import { rowsOf, type SocketRowModel } from './sockets';
 import { SocketRow } from './SocketRow';
 import { PairSocketRow } from './SocketSheets';
@@ -74,8 +76,9 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
   const reads = useLiveReads(here.map(device => device.id));
   const spokeAt = (device: Device): string | null => heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
   // The device that is talking is the one somebody came here for; one that has
-  // gone quiet keeps its row, its place and its age, further down.
-  const mine = [...here].sort((one, other) => RANK[deviceLiveness(spokeAt(one), now)] - RANK[deviceLiveness(spokeAt(other), now)]);
+  // gone quiet keeps its row, its place and its age, further down; two of a
+  // kind keep the order the server gave them.
+  const mine = [...here].sort((one, other) => LIVENESS_RANK[deviceLiveness(spokeAt(one), now)] - LIVENESS_RANK[deviceLiveness(spokeAt(other), now)]);
   const shown = cameras.data?.items ?? [];
   const tables = useSocketTables(mine.map(device => device.id));
   const stills = useLatestStills(shown.map(camera => camera.id));
@@ -230,8 +233,15 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
           const unheard = deviceLiveness(spokeAt(device), now) === 'offline' ? t('devices.socket.offline') : null;
           const needsFirmware = !table.capabilities.socketOverride ? t('devices.socket.needsFirmware') : null;
           const refusal = unheard ?? needsFirmware;
-          const refusals = [unheard, needsFirmware].filter((one): one is string => one !== null);
-          const place = placeOf(device.spaceId) ?? deviceTitle(device, t, devices.data!.items);
+          const notes = [unheard, needsFirmware]
+            .filter((one): one is string => one !== null)
+            .map(one => (
+              <p key={one} className={ui.note}>
+                {one}
+              </p>
+            ));
+          const title = deviceTitle(device, t, devices.data!.items);
+          const place = placeOf(device.spaceId) ?? title;
           // A socket and the lamp above it are this device's configuration, which
           // is `manage` where the device stands.
           const mayManage = enough(mayWith(device), 'manage');
@@ -248,7 +258,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
                 runs={runsOf(verdicts.get(device.spaceId ?? ''), row.role)}
                 now={now}
                 capabilities={table.capabilities}
-                deviceName={deviceTitle(device, t, devices.data!.items)}
+                deviceName={title}
               />
             ));
 
@@ -259,7 +269,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
               <details className={socketStyles.listAdvanced}>
                 {/* Named for what it holds: right under a socket's own Erweitert, a second one said nothing of which was which. */}
                 <summary className="label">{t('socketForm.pair.another')}</summary>
-                <PairSocketRow deviceId={device.id} deviceName={deviceTitle(device, t, devices.data!.items)} capabilities={table.capabilities} />
+                <PairSocketRow deviceId={device.id} deviceName={title} capabilities={table.capabilities} />
               </details>
             ) : null;
 
@@ -270,13 +280,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
                   <span className="label">
                     {t('devices.lights')} · {place}
                   </span>
-                  {mayManage && lamps.length > 0
-                    ? refusals.map(one => (
-                        <p key={one} className={ui.note}>
-                          {one}
-                        </p>
-                      ))
-                    : null}
+                  {mayManage && lamps.length > 0 ? notes : null}
                   <ul className={ui.group}>
                     {light ? (
                       <LightOutputRow
@@ -301,13 +305,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
                     {t('devices.sockets')} · {place}
                     {explainSockets ? <Help topic="socketRoles" /> : null}
                   </span>
-                  {mayManage
-                    ? refusals.map(one => (
-                        <p key={one} className={ui.note}>
-                          {one}
-                        </p>
-                      ))
-                    : null}
+                  {mayManage ? notes : null}
                   <ul className={ui.group}>{plugs(rest)}</ul>
                   {pairing}
                 </section>
@@ -410,7 +408,7 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
       : liveness === 'stale' && spokeAt
         ? t('devices.panel.connectedLate', { age: ageLabel(spokeAt, now) })
         : spokeAt
-          ? t('devices.panel.offlineSince', { time: clockLabel(spokeAt, now, zone) })
+          ? t('devices.panel.offlineSince', { time: sinceLabel(spokeAt, now, zone) })
           : t('devices.panel.neverHeard');
 
   // The pill says offline in the words Start and the alerts use for it.
@@ -460,16 +458,14 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
             {spokeAt ? ` · ${ageLabel(spokeAt, now)}` : ''}
           </span>
         )}
-        <button type="button" className={styles.expand} aria-expanded={open} aria-label={t('devices.details', { name: title })}>
-          {open ? <ChevronDown size={16} strokeWidth={2} aria-hidden /> : <ChevronRight size={16} strokeWidth={2} aria-hidden />}
-        </button>
+        <Expand open={open} label={t('devices.details', { name: title })} />
       </div>
 
       {open ? (
         <div className={styles.panel}>
           <Facts>
             <Fact label={t('devices.panel.connection')} value={connection} />
-            {device.control ? <Fact label={t('climateControl.label')} value={t(`climateControl.state.${controlState(device.control)}`)} /> : null}
+            {device.control ? <Fact label={t('climateControl.label')} value={t(`climateControl.state.${darkReasonOf(device) ?? 'on'}`)} /> : null}
             {own && device.spaceId ? (
               <Fact
                 label={own.label}
@@ -537,18 +533,18 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
               for it with the reason under them rather than vanishing. */}
           {mayCorrect ? (
             <div className={styles.actions}>
-              <span className={styles.withHelp}>
+              <span className={ui.withHelp}>
                 <RebootButton device={device} name={title} disabled={offline} />
                 <Help topic="reboot" />
               </span>
               {parksAnything(device) ? (
-                <span className={styles.withHelp}>
+                <span className={ui.withHelp}>
                   <MaintenanceButton devices={[device]} now={now} disabled={offline} />
                   <Help topic="maintenance" />
                 </span>
               ) : null}
               {device.control ? (
-                <span className={styles.withHelp}>
+                <span className={ui.withHelp}>
                   <ControlButton device={device} offline={offline} />
                   <Help topic="climateControl" />
                 </span>
@@ -580,7 +576,7 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
               {/* Through the catalogue, like every other place that prints a
                   type: it is a contract key and not a word. A type from a newer
                   contract than this build still prints, rather than a missing key. */}
-              <Fact label={t('devices.fact.type')} value={t(`devices.type.${device.type}`, { defaultValue: device.type })} />
+              <Fact label={t('devices.fact.type')} value={typeName(device.type, t)} />
               <Fact label={t('devices.fact.build')} value={buildLabel(build) ?? '—'} />
               {owedLabel ? <Fact label={t('devices.fact.owed')} value={owedLabel} /> : null}
               {drivesSockets && sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
@@ -654,24 +650,6 @@ function Thumb({ stillId }: { stillId: string | null }) {
   );
 }
 
-/**
- * Which build a device is on, in the words that say which one.
- *
- * `version` comes first because it is the only field that tells two builds of
- * one class apart: the build container stamps it with the commit and the branch
- * it came from, while every build carried over from the old cloud is *named*
- * after its class, so two fridges on two different builds both read "fridge".
- * With neither there is nothing to say, and nothing is said - the uuid the
- * device reports means nothing to a grower and cannot be compared with
- * anything.
- */
-const buildLabel = (build: Firmware | undefined): string | null => build?.version || build?.name || null;
-
-/** Live first, then the ones that have gone quiet; two of a kind keep the order the server gave them. */
-const RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /** What the build announced it takes. A build that announced nothing is sent nothing new, and this is where that is read. */
 const capabilityLine = (t: Translate, sockets: SocketPage): string => {
   const can = [
@@ -697,7 +675,3 @@ const runsOf = (verdict: ClimateVerdict | undefined, role: SocketRole): Actuator
 
   return (output && verdict?.actuators.find(one => one.output === output)) || null;
 };
-
-/** Whether a device regulates, and where it does so in a mode that keeps it dark: drying, or germination. */
-const controlState = (control: NonNullable<Device['control']>): 'on' | 'off' | 'drying' | 'germination' =>
-  !control.running ? 'off' : control.drying ? 'drying' : control.mode === 'germination' ? 'germination' : 'on';

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UNSAFE_DataRouterContext, useBlocker, type Location } from 'react-router';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import styles from './Targets.module.css';
 
@@ -16,11 +16,10 @@ export interface Unsaved {
  * The question asked before targets nobody saved are left behind.
  *
  * A draft lives in the page, so walking away from it - another tab, the bell,
- * the alarm row under the targets, the switcher to another place - used to
- * drop it without a word, and the grower who had set the light to come on at
- * ten went on believing it would. The save bar cannot stand in the way of all
- * of those, so leaving asks instead: save and go on, throw the change away and
- * go on, or stay. Only a move to another page or another place is asked about;
+ * the alarm row under the targets, the switcher to another place - would drop
+ * it without a word. The save bar cannot stand in the way of all of those, so
+ * leaving asks instead: save and go on, throw the change away and go on, or
+ * stay. Only a move to another page or another place is asked about;
  * the "Nacht ›" jump inside the page changes nothing but the hash.
  *
  * Closing the browser tab is the browser's own question, which is the most a

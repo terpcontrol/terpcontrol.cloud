@@ -7,7 +7,7 @@ import { Migration } from '@fg2/shared-types/v1';
  * keeps whatever that migration counted, rows moved and rows rejected, and is not
  * typed: every migration counts something else.
  */
-export type MigrationDocument = Omit<Migration, 'createdAt' | 'appliedAt'> & {
+type MigrationDocument = Omit<Migration, 'createdAt' | 'appliedAt'> & {
   createdAt: Date;
   appliedAt: Date;
   rejects: MigrationRejectDocument[];
@@ -26,10 +26,12 @@ export type MigrationDocument = Omit<Migration, 'createdAt' | 'appliedAt'> & {
 export interface MigrationRejectDocument {
   /** The collection the document was read from. */
   source: string;
+  /** Whatever names it there: its id, or its `_id` when it has no other. */
   id: string;
   reason: string;
   /** False when the document was written anyway and only the part named in `reason` was left out. */
   dropped: boolean;
+  /** The value that could not be taken, where keeping it is what makes the reject actionable. */
   detail: string | null;
 }
 

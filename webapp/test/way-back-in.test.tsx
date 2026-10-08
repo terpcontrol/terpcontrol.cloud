@@ -1,11 +1,5 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { fireEvent, screen } from '@testing-library/react';
+import { Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DevicePage, Problem } from '@fg2/shared-types/v1';
 import { LinkEnded, OldDevice, OldLogin } from '@/app/OldAddresses';
@@ -14,6 +8,8 @@ import { Activate } from '@/screens/Activate';
 import { Recover } from '@/screens/Recover';
 import { SignIn } from '@/screens/SignIn';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { drawAt, json } from './harness';
+import { translate } from './translations';
 
 /**
  * The ways back into an account that the old app had and the rewrite had not:
@@ -22,7 +18,6 @@ import { ThemeProvider } from '@/theme/ThemeProvider';
  * what is asserted is what went on the wire and where the reader lands.
  */
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const problem = (status: number, code: string): Problem => ({ status, code, title: 'Refused', detail: '', errors: [] });
 
 const server = { wrote: [] as { method: string; path: string; body: unknown }[], redeem: 204, activate: 204, devices: [] as Device[] };
@@ -56,34 +51,26 @@ function Landed() {
 }
 
 const draw = (at: string | { pathname: string; state: unknown }) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <ThemeProvider>
-          <Routes>
-            <Route path="/sign-in" element={<SignIn />} />
-            <Route path="/recover" element={<Recover />} />
-            <Route path="/recover/:token" element={<Recover />} />
-            <Route path="/activate" element={<Activate />} />
-            <Route path="/activate/:code" element={<Activate />} />
-            <Route path="/login" element={<OldLogin />} />
-            <Route path="/device/:deviceId/:page?" element={<OldDevice />} />
-            <Route path="/link-expired" element={<LinkEnded />} />
-            <Route path="*" element={<Landed />} />
-          </Routes>
-        </ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <ThemeProvider>
+      <Routes>
+        <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/recover" element={<Recover />} />
+        <Route path="/recover/:token" element={<Recover />} />
+        <Route path="/activate" element={<Activate />} />
+        <Route path="/activate/:code" element={<Activate />} />
+        <Route path="/login" element={<OldLogin />} />
+        <Route path="/device/:deviceId/:page?" element={<OldDevice />} />
+        <Route path="/link-expired" element={<LinkEnded />} />
+        <Route path="*" element={<Landed />} />
+      </Routes>
+    </ThemeProvider>,
+    { at },
   );
 
 const fillIn = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

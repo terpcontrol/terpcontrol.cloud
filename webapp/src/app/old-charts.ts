@@ -1,4 +1,5 @@
-import { instant } from '@/screens/charts/span';
+import { zoomValue } from '@/screens/charts/address';
+import { instant, WIDTHS, type Width } from '@/screens/charts/span';
 
 /**
  * What a bookmark of the old charts page asked for, in the words the Charts
@@ -12,7 +13,7 @@ import { instant } from '@/screens/charts/span';
  * the messages are filtered by four plain kinds of line now.
  */
 
-const TIMESPANS: Record<string, string> = {
+const TIMESPANS: Record<string, Width> = {
   '20m': '20m',
   '1h': '1h',
   '6h': '6h',
@@ -26,24 +27,6 @@ const TIMESPANS: Record<string, string> = {
   '6m': '180d',
   '1y': '1y',
   '3y': '3y',
-};
-
-/** How long each of them was, to place a window the old page dated by its start. */
-const DAY_MS = 24 * 60 * 60 * 1000;
-const TIMESPAN_MS: Record<string, number> = {
-  '20m': 20 * 60 * 1000,
-  '1h': 60 * 60 * 1000,
-  '6h': 6 * 60 * 60 * 1000,
-  '12h': 12 * 60 * 60 * 1000,
-  '1d': DAY_MS,
-  '3d': 3 * DAY_MS,
-  '1w': 7 * DAY_MS,
-  '2w': 14 * DAY_MS,
-  '1m': 30 * DAY_MS,
-  '3m': 90 * DAY_MS,
-  '6m': 180 * DAY_MS,
-  '1y': 365 * DAY_MS,
-  '3y': 3 * 365 * DAY_MS,
 };
 
 const INTERVALS: Record<string, number> = {
@@ -86,8 +69,8 @@ const instantOf = (value: string | null): number | null => {
 
 export const chartsAddressOf = (spaceId: string, old: URLSearchParams): string => {
   const next = new URLSearchParams({ space: spaceId });
-  const timespan = old.get('timespan') ?? '';
-  if (TIMESPANS[timespan]) next.set('range', TIMESPANS[timespan]);
+  const range = TIMESPANS[old.get('timespan') ?? ''];
+  if (range) next.set('range', range);
 
   const measures = (old.get('measures') ?? '').split(',').filter(Boolean);
   const shown = measures.flatMap(name => (MEASURES[name] ? [MEASURES[name]] : []));
@@ -104,8 +87,8 @@ export const chartsAddressOf = (spaceId: string, old: URLSearchParams): string =
   // Two dates were a stretch of the old page's own; one was where a timespan started.
   const from = instantOf(old.get('date'));
   const to = instantOf(old.get('dateEnd'));
-  if (from !== null && to !== null && from < to) next.set('zoom', `${instant(from)}~${instant(to)}`);
-  else if (from !== null && TIMESPAN_MS[timespan]) next.set('at', instant(from + TIMESPAN_MS[timespan]));
+  if (from !== null && to !== null && from < to) next.set('zoom', zoomValue({ from, to }));
+  else if (from !== null && range) next.set('at', instant(from + WIDTHS[range]));
 
   return `/charts?${next.toString()}`;
 };

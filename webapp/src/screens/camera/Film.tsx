@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Media } from '@fg2/shared-types/v1';
-import { useMe } from '@/api/account';
-import { useMedia } from '@/api/cameras';
-import { mediaUrl, useSession } from '@/api/session';
+import { filmStatus, useMedia } from '@/api/media';
+import { mediaUrl } from '@/api/session';
 import ui from '@/ui/ui.module.css';
-import { DATED_CLOCK, DAY_IN_YEAR, zoned, zoneOf } from '@/ui/zone';
+import { DATED_CLOCK, DAY_IN_YEAR, useZone, zoned } from '@/ui/zone';
 import { filmCauseOf } from './capture-failure';
 import styles from './CameraPage.module.css';
 
@@ -29,8 +28,7 @@ import styles from './CameraPage.module.css';
  */
 export function Film({ mediaId, collapsed, mayOwn = false }: { mediaId: string; collapsed?: boolean; mayOwn?: boolean }) {
   const { t } = useTranslation();
-  const { user } = useSession();
-  const me = useMe(false, user?.isDemo !== true);
+  const zone = useZone();
   const media = useMedia(mediaId);
   // A film plays where it is listed: opening the file in a tab of its own left the app, with the media token in its address.
   const [playing, setPlaying] = useState(false);
@@ -44,7 +42,7 @@ export function Film({ mediaId, collapsed, mayOwn = false }: { mediaId: string; 
   }
 
   const film = media.data;
-  const status = film.render?.status ?? 'ready';
+  const status = filmStatus(film);
   const source = status === 'ready' ? mediaUrl(film.id) : null;
 
   return (
@@ -54,7 +52,7 @@ export function Film({ mediaId, collapsed, mayOwn = false }: { mediaId: string; 
             of one day - the day's own and one composed in HD with the day
             counter on it - were two rows reading the same two clock times. */}
         <span className={styles.filmTitle}>
-          {t(`camera.film.kind.${film.window ?? 'custom'}`)} · {spanLabel(film, zoneOf(me.data))}
+          {t(`camera.film.kind.${film.window ?? 'custom'}`)} · {spanLabel(film, zone)}
         </span>
         <span className={`mono ${styles.filmStatus}`} data-status={status}>
           {t(`camera.film.${status}`)}

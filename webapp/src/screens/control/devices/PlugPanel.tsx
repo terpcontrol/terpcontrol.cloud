@@ -12,16 +12,19 @@ import {
   type PlugSwitching,
   type TimerWindow,
 } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { DAY_SECONDS, FIRMWARE_LIGHTS_OFF, FIRMWARE_LIGHTS_ON } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { Help } from '@/ui/Help';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { offsetOf, secondsOf, wallClock } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
-import type { Unsaved } from '../targets/LeaveGuard';
-import { TargetRow } from '../targets/TargetRow';
-import { offsetOf, secondsOf, wallClock } from '../targets/targets-draft';
+import { TimeInput } from '../TimeInput';
 import { useFieldsDraft, type FieldsDraft } from './fields-draft';
-import { OwnPanel, TimeRow } from './OwnPanel';
+import { OwnPanel, TimeRow, type OwnPanelProps } from './OwnPanel';
+import { PLUG_READING, RISING } from './own-summary';
+import { TargetRow } from './TargetRow';
 import styles from './Own.module.css';
 
 /**
@@ -36,24 +39,7 @@ import styles from './Own.module.css';
  * not show is kept, because only what was changed is sent.
  */
 
-const DAY_SECONDS = 24 * 60 * 60;
-
-/** The firmware's own defaults, for a document that never stated a figure. */
-const DEFAULT_DAY = 21600;
-const DEFAULT_NIGHT = 79200;
 const DEFAULT_WINDOW: TimerWindow = { ontime: 10 * 3600, duration: 10 };
-
-/** Which way a mode switches: on below its point and off above it, or the other way round. */
-const RISING: readonly string[] = ['heater', 'humidify', 'co2'];
-
-/** The reading a mode's points are figures of. */
-const UNIT: Record<PlugSwitching | 'co2', 'temperature' | 'humidity' | 'co2'> = {
-  heater: 'temperature',
-  cooler: 'temperature',
-  humidify: 'humidity',
-  dehumidify: 'humidity',
-  co2: 'co2',
-};
 
 const CO2_RANGE = { min: 300, max: 3000, step: 50 };
 
@@ -70,14 +56,7 @@ const FIELDS = [
   ),
 ];
 
-export function PlugPanel(props: {
-  device: Device;
-  name: string;
-  titled: boolean;
-  mayManage: boolean;
-  report: (deviceId: string, entry: Unsaved | null) => void;
-  asking: boolean;
-}) {
+export function PlugPanel(props: OwnPanelProps) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
@@ -117,17 +96,12 @@ export function PlugPanel(props: {
             {t(mode === 'co2' ? 'plugSettings.dayOnly' : 'plugSettings.dayNight')}
             <Help topic="plugDayNight" />
           </span>
-          <button
-            type="button"
-            className={ui.switch}
-            role="switch"
-            aria-checked={dayNight}
-            aria-label={t(mode === 'co2' ? 'plugSettings.dayOnly' : 'plugSettings.dayNight')}
+          <Switch
+            label={t(mode === 'co2' ? 'plugSettings.dayOnly' : 'plugSettings.dayNight')}
+            on={dayNight}
             disabled={readOnly}
-            onClick={() => draft.set('dayNight', !dayNight)}
-          >
-            <span className={ui.knob} aria-hidden />
-          </button>
+            onChange={on => draft.set('dayNight', on)}
+          />
           <p className={`${ui.note} ${styles.switchNote}`}>
             {t(
               mode === 'co2'
@@ -147,7 +121,7 @@ export function PlugPanel(props: {
           <TimeRow
             id={`plug-${props.device.id}-day`}
             label={t('plugSettings.dayFrom')}
-            seconds={draft.value<number>('dayFrom', DEFAULT_DAY)}
+            seconds={draft.value<number>('dayFrom', FIRMWARE_LIGHTS_ON)}
             offset={offset}
             disabled={readOnly}
             onChange={seconds => draft.set('dayFrom', seconds)}
@@ -155,7 +129,7 @@ export function PlugPanel(props: {
           <TimeRow
             id={`plug-${props.device.id}-night`}
             label={t('plugSettings.nightFrom')}
-            seconds={draft.value<number>('nightFrom', DEFAULT_NIGHT)}
+            seconds={draft.value<number>('nightFrom', FIRMWARE_LIGHTS_OFF)}
             offset={offset}
             disabled={readOnly}
             onChange={seconds => draft.set('nightFrom', seconds)}
@@ -217,7 +191,7 @@ function Points({
   disabled: boolean;
 }) {
   const { t } = useTranslation();
-  const unit = UNIT[mode];
+  const unit = PLUG_READING[mode];
   const range = mode === 'co2' ? CO2_RANGE : SWITCH_POINT_RANGE[mode];
   const field = (edge: 'on' | 'off') => (mode === 'co2' ? (edge === 'on' ? 'co2On' : 'co2Off') : switchPointName(mode, when, edge));
   const label = titled ? t(`plugSettings.${when}`) : t('plugSettings.points');
@@ -311,28 +285,21 @@ function WindowRow({
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
-  const [typing, setTyping] = useState<string | null>(null);
   const [minutes, setMinutes] = useState<string | null>(null);
-  const ends = wallClock((window.ontime + window.duration * 60) % DAY_SECONDS, offset);
+  const ends = wallClock(window.ontime + window.duration * 60, offset);
 
   return (
     <div className={styles.window}>
       <label className={styles.windowPart}>
         <span className={styles.windowWord}>{t('plugSettings.windows.at')}</span>
-        <input
+        <TimeInput
           id={id}
           className={`mono ${ui.input} ${styles.windowTime}`}
-          type="time"
           aria-label={t('plugSettings.windows.atLabel', { number })}
-          value={typing ?? wallClock(window.ontime, offset)}
+          seconds={window.ontime}
+          offset={offset}
           disabled={disabled}
-          onChange={event => {
-            const time = event.target.value;
-            setTyping(document.activeElement === event.target ? time : null);
-            const seconds = secondsOf(time, offset);
-            if (seconds !== null) onChange({ ...window, ontime: seconds });
-          }}
-          onBlur={() => setTyping(null)}
+          onChange={ontime => onChange({ ...window, ontime })}
         />
       </label>
       <label className={styles.windowPart}>

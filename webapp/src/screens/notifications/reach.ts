@@ -1,7 +1,9 @@
 import type { DateTime } from 'luxon';
-import type { Me, NotificationCategory } from '@fg2/shared-types/v1';
-import { isConfigured, routedChannels } from '@/screens/control/alarms/rules';
+import type { Me, NotificationCategory, NotificationChannel, Severity } from '@fg2/shared-types/v1';
+import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
+import type { Translate } from '@/i18n/i18n';
 import { isAhead } from '@/ui/age';
+import { CHANNELS } from './settings';
 
 /**
  * Whether anything reaches this account when something goes wrong.
@@ -12,8 +14,47 @@ import { isAhead } from '@/ui/age';
  * notice that says so, and the claim step that offers the fix, are drawn from.
  */
 
+/** What a screen says about a channel: its name, and whether the account has it to be reached on at all. */
+interface RoutedChannel {
+  channel: NotificationChannel;
+  configured: boolean;
+}
+
+/** A channel is configured when the account has given it something to deliver to; push, when some browser of it is subscribed. */
+export const isConfigured = (me: Me, channel: NotificationChannel): boolean =>
+  channel === 'push' ? me.pushSubscribed : me.notifications.channels[channel] !== null;
+
+/**
+ * Where a routed rule of this severity goes, read off the account's own grid.
+ * Which row that is belongs to the contract rather than to this screen, so the
+ * server announcing and the screen saying so cannot drift apart.
+ *
+ * A row may name a channel the account cannot be reached on - push before any
+ * browser has subscribed, e-mail before an address is confirmed - and that is
+ * carried rather than hidden: saying "push" of a rule nothing would arrive from
+ * is the one thing an alarm screen must not do.
+ */
+export const routedChannels = (me: Me | undefined, severity: Severity): RoutedChannel[] => {
+  const category = alertCategory(severity);
+  const named = me && category ? (me.notifications.routing[category] ?? []) : [];
+
+  return CHANNELS.filter(channel => named.includes(channel)).map(channel => ({ channel, configured: me !== undefined && isConfigured(me, channel) }));
+};
+
+/** Whether a routed alarm of this severity arrives on a channel this account can be reached on. */
+export const severityReaches = (me: Me, severity: Severity): boolean => routedChannels(me, severity).some(routed => routed.configured);
+
+/** "push + e-mail", with a channel the account has not set up marked as the dead end it is. */
+export const channelsLabel = (t: Translate, channels: RoutedChannel[]): string =>
+  channels
+    .map(routed => {
+      const name = t(`alarms.channel.${routed.channel}`);
+      return routed.configured ? name : t('alarms.channelOff', { channel: name });
+    })
+    .join(' + ');
+
 /** Whether a critical alarm - a device gone offline, a tent too warm - reaches this account on a channel it can be reached on. */
-export const alarmsReach = (me: Me): boolean => routedChannels(me, 'critical').some(channel => channel.configured);
+export const alarmsReach = (me: Me): boolean => severityReaches(me, 'critical');
 
 /** The channels a critical alarm actually arrives on. */
 export const reachedBy = (me: Me) => routedChannels(me, 'critical').filter(channel => channel.configured);
@@ -35,7 +76,7 @@ export const putAway = (me: Me, now: DateTime): boolean => isAhead(me.preference
  * a diary. Somebody who keeps a diary without a device has no critical alarm
  * that could ever reach them, and was offered only that.
  */
-export interface Callers {
+interface Callers {
   steering: boolean;
   cameras: boolean;
   diary: boolean;

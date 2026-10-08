@@ -7,7 +7,7 @@ import { useUpdateDevice } from '@/api/devices';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import type { HelpTopic } from '@/ui/explain';
-import { decimalFigure } from '@/ui/figures';
+import { decimalFigure, typedFigure } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import styles from './SensorFactors.module.css';
@@ -124,7 +124,7 @@ function LuxFactor({ device, mayManage }: DeviceContext) {
   const [typed, setTyped] = useState<string | null>(null);
   const stored = setting.value('ppfdLuxFactor');
   const shown = typed ?? factorFigure(stored);
-  const wanted = Number(shown.replace(',', '.'));
+  const wanted = typedFigure(shown) ?? Number.NaN;
   const off = !mayManage || setting.pending;
   const { min, max } = DEVICE_SETTING_RANGES.ppfdLuxFactor;
 

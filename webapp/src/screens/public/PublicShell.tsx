@@ -2,8 +2,11 @@ import { Moon, Sun } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { noLongerThere } from '@/api/problem';
 import { useTheme } from '@/theme/theme-context';
 import { Logo } from '@/ui/Logo';
+import { LoadFailed, Waiting } from '@/ui/PageState';
+import { Nothing } from './Nothing';
 import styles from './Public.module.css';
 
 /**
@@ -46,6 +49,35 @@ export function PublicShell({ title, children }: { title?: string; children: Rea
         </Link>
       </footer>
     </div>
+  );
+}
+
+/**
+ * A public page whose read has nothing to draw yet: still waiting, an address
+ * that leads nowhere - said in that page's own words - or a read that failed,
+ * with a way to try again.
+ */
+export function PublicUnread({
+  read,
+  lines,
+  titleKey,
+  bodyKey,
+}: {
+  read: { isPending: boolean; error: unknown; refetch: () => unknown };
+  lines: number;
+  titleKey: string;
+  bodyKey: string;
+}) {
+  return (
+    <PublicShell>
+      {read.isPending ? (
+        <Waiting lines={lines} />
+      ) : noLongerThere(read.error) ? (
+        <Nothing titleKey={titleKey} bodyKey={bodyKey} />
+      ) : (
+        <LoadFailed retry={() => void read.refetch()} />
+      )}
+    </PublicShell>
   );
 }
 

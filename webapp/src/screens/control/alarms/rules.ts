@@ -1,7 +1,9 @@
 import type { DateTime } from 'luxon';
+import type { Translate } from '@/i18n/i18n';
 import { headersOf } from '@/ui/headers';
 import type {
   AlarmDelivery,
+  AlarmDeliveryChannel,
   AlarmOrigin,
   AlarmRule,
   AlarmRuleCreate,
@@ -9,14 +11,19 @@ import type {
   Device,
   Me,
   Metric,
-  NotificationChannel,
   OutputMetric,
-  QuietHours,
   Severity,
   WebhookMethod,
 } from '@fg2/shared-types/v1';
-import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
-import { UNIT, targetFigure } from '@/screens/home/units';
+import {
+  CRITICAL_REPEAT_SECONDS,
+  inQuietWindow,
+  mailFloorSecondsOf,
+  repeatSecondsOf,
+  silenceOf,
+} from '@fg2/shared-types/v1-schemas/alert-routing.js';
+import { UNIT, targetFigure } from '@/ui/units';
+import { CO2_HOLDERS, hasCo2Sensor, outputWord } from '@/ui/climate-hardware';
 import { looseFigure } from '@/ui/figures';
 import { isAhead } from '@/ui/age';
 import { zoneOf } from '@/ui/zone';
@@ -38,19 +45,15 @@ import { zoneOf } from '@/ui/zone';
 export const watchable = (device: Device): boolean => readingsOf(device).length > 0 || outputsOf(device).length > 0;
 
 /** The order the groups are drawn in: what the stage wrote, what the cloud keeps, what the firmware asked for, and what was written here. */
-export const ORIGINS: AlarmOrigin[] = ['preset', 'always', 'device', 'human'];
+const ORIGINS: AlarmOrigin[] = ['preset', 'always', 'device', 'human'];
 
 export const groupRules = (rules: AlarmRule[]): { origin: AlarmOrigin; rules: AlarmRule[] }[] =>
   ORIGINS.map(origin => ({ origin, rules: rules.filter(rule => rule.origin === origin) })).filter(group => group.rules.length > 0);
 
-/** The always-on watch: the health loop decides it, so it has no line to cross and cannot be pointed at anything else. */
-/** An e-mail is never repeated more often than this, whatever its rule says: the server's floor for a mail. */
-const MAIL_REPEAT_FLOOR_SECONDS = 300;
-
 /** How often a rule really repeats: its own interval, or the mail floor for a rule that e-mails. */
-export const repeatsEvery = (rule: AlarmRule): number =>
-  rule.delivery.custom?.channel === 'email' ? Math.max(rule.repeatSeconds, MAIL_REPEAT_FLOOR_SECONDS) : rule.repeatSeconds;
+export const repeatsEvery = (rule: AlarmRule): number => Math.max(rule.repeatSeconds, mailFloorSecondsOf(rule.delivery));
 
+/** The always-on watch: the health loop decides it, so it has no line to cross and cannot be pointed at anything else. */
 export const watchesOffline = (watch: AlarmWatch | RuleDraft['watch']): boolean => watch.kind === 'reading' && watch.metric === 'offline';
 
 /**
@@ -114,15 +117,9 @@ const OUTPUTS_OF: Record<string, OutputMetric[]> = {
 
 export const outputsOf = (device: Device): OutputMetric[] => OUTPUTS_OF[device.type] ?? [];
 
-/**
- * What an output is called, on this kind of hardware: one name per machine
- * wherever it is met. A fridge module's dehumidifier output is its compressor,
- * which cools and dries at once - "Kompressor" on the cockpit, in the Timeline
- * and in the maintenance sheet - so a rule about it says so too, and "Kompressor
- * läuft dauerhaft" is found where it is looked for.
- */
+/** What an output is called on this kind of hardware, so "Kompressor läuft dauerhaft" is found where it is looked for. */
 export const outputName = (t: Translate, output: OutputMetric, deviceType: string | null): string =>
-  t(`alarms.output.${deviceType === 'fridge' && output === 'dehumidifier' ? 'compressor' : output}`, { defaultValue: output });
+  t(`alarms.output.${outputWord(output, deviceType === 'fridge')}`, { defaultValue: output });
 
 /**
  * The readings a device reports: what its kind of hardware measures, narrowed
@@ -131,7 +128,7 @@ export const outputName = (t: Translate, output: OutputMetric, deviceType: strin
  * the device says which. `offline` is the health loop's own and is never
  * offered for a rule written here.
  */
-export type Sensor = 'co2' | 'leaf' | 'light';
+type Sensor = 'co2' | 'leaf' | 'light';
 
 const SENSOR_OF: Partial<Record<Metric, Sensor>> = { co2: 'co2', leafTemperature: 'leaf', lux: 'light', ppfd: 'light' };
 
@@ -146,12 +143,7 @@ const HARDWARE_KEY: Record<Sensor, string> = { co2: 'co2', leaf: 'leaf_temp', li
  * where the device says so.
  */
 const isFitted = (device: Device, sensor: Sensor): boolean =>
-  sensor === 'co2' && CLIMATE_HOLDERS.includes(device.type)
-    ? device.state.hardware.co2 !== 'off'
-    : device.state.hardware[HARDWARE_KEY[sensor]] === 'on';
-
-/** The hardware whose CO2 the cockpit and the targets assume until it says otherwise; a plug's sensor is an extra. */
-const CLIMATE_HOLDERS: readonly string[] = ['controller', 'fridge'];
+  sensor === 'co2' && CO2_HOLDERS.includes(device.type) ? hasCo2Sensor(device) : device.state.hardware[HARDWARE_KEY[sensor]] === 'on';
 
 /** The sensor a rule needs and the device does not have, or null where it reports what the rule watches. */
 export const missingSensor = (watch: AlarmWatch, device: Device): Sensor | null => {
@@ -167,17 +159,6 @@ export const missingSensor = (watch: AlarmWatch, device: Device): Sensor | null 
  * 5.4. Every type but the camera carries a temperature and a humidity sensor,
  * and VPD follows from those two, so the climate of a place with nothing in it
  * but a fan is measured by that fan.
- *
- * It used to be decided by a two-name list, "controller and fridge", on the
- * grounds that a plug, a fan and a lamp report nothing but what they are
- * driving. They do: the one fan in Place 2 was drawing that place's whole
- * climate on Home and on the space overview - 22.5 °C, 42 %, 1.59 kPa, live -
- * while the sheet for writing a rule on it offered no reading at all. Worse,
- * opening a temperature rule that already existed on the same device did offer
- * one, because the sheet adds a rule's own metric back; so the one climate in
- * that tent could be alarmed on only by somebody who already had an alarm on
- * it, and the server, the engine and every card handled the rule perfectly once
- * it existed.
  *
  * The optional sensors are still asked about rather than assumed, because
  * whether one is fitted is the device's own answer and not its type's.
@@ -199,15 +180,8 @@ export const readingsOf = (device: Device): Metric[] =>
 /**
  * What an output's series actually carries, from `docs/device-protocol.md`
  * section 5.4, which lists it output by output because the outputs disagree
- * with one another.
- *
- * The screens used to sort them into "the light" and "everything else": the
- * sheet told anybody writing a rule on a fan that its level was a fraction of
- * the time it runs, the card printed the saved bound with no unit at all, and
- * the inbox printed the reading beside it as a percent. A fan runs at 100, so
- * somebody who typed the 0.5 the sheet asked for got a rule that was out of
- * band on every sample for ever. One answer per output, taken from what that
- * output sends.
+ * with one another: a fan runs at 100 where a heater runs at 1, so one answer
+ * per output, taken from what that output sends.
  */
 type OutputScale = 'percent' | 'fraction' | 'switch' | 'ticks';
 
@@ -224,7 +198,7 @@ const SCALE_OF: Partial<Record<OutputMetric, OutputScale>> = {
 };
 
 /** A level this build has never heard of is described as the commonest of them rather than as a percent, which is the reading that misleads. */
-export const scaleOf = (output: OutputMetric): OutputScale => SCALE_OF[output] ?? 'fraction';
+const scaleOf = (output: OutputMetric): OutputScale => SCALE_OF[output] ?? 'fraction';
 
 /** What the sheet says a level means, where the figure alone does not say it. A percentage says it with its own sign. */
 export const scaleNote = (output: OutputMetric): string | null => {
@@ -239,23 +213,14 @@ export const scaleNote = (output: OutputMetric): string | null => {
  * that send 0 to 100, and nothing for a fraction, a switch or a count of valve
  * openings, none of which is a quantity with a sign.
  */
-const MORE_UNITS: Partial<Record<Metric, string>> = { leafTemperature: '°C', lux: 'lx', ppfd: 'µmol/m²/s' };
-
 export const unitOf = (watch: AlarmWatch): string => {
-  if (watch.kind === 'reading') return UNIT[watch.metric] ?? MORE_UNITS[watch.metric] ?? '';
+  if (watch.kind === 'reading') return UNIT[watch.metric] ?? '';
 
   return scaleOf(watch.output) === 'percent' ? '%' : '';
 };
 
-/**
- * A level as the screens write it: as exactly as it was sent, in the reader's
- * own decimals. Rounding it to whole numbers is what turned a heater watched at
- * half power into a rule about "1", on a series that never leaves the range
- * nought to one.
- */
-export const levelFigure = (value: number): string => looseFigure(value);
-
-const figureOf = (watch: AlarmWatch, value: number): string => (watch.kind === 'reading' ? targetFigure(value, watch.metric) : levelFigure(value));
+/** A level is written as exactly as it was sent: a heater runs between nought and one, so a rounded figure would say nothing. */
+const figureOf = (watch: AlarmWatch, value: number): string => (watch.kind === 'reading' ? targetFigure(value, watch.metric) : looseFigure(value));
 
 /** The two bounds of a rule as figures with their unit, "30 °C", each null where the rule sets none; an output watched for running sets neither. */
 export const boundsOf = (watch: AlarmWatch): { upper: string | null; lower: string | null } => {
@@ -280,78 +245,31 @@ export const boundLabel = (t: Translate, watch: AlarmWatch): string => {
     .join(' · ');
 };
 
-/** The order the channels are named in, whatever order the grid holds them in. */
-const CHANNELS: NotificationChannel[] = ['push', 'telegram', 'email', 'webhook'];
-
-/** What a screen says about a channel: its name, and whether the account has it to be reached on at all. */
-export interface RoutedChannel {
-  channel: NotificationChannel;
-  configured: boolean;
-}
-
-/** A channel is configured when the account has given it something to deliver to; push, when some browser of it is subscribed. */
-export const isConfigured = (me: Me, channel: NotificationChannel): boolean =>
-  channel === 'push' ? me.pushSubscribed : me.notifications.channels[channel] !== null;
-
-/**
- * Where a routed rule of this severity goes, read off the account's own grid.
- * Which row that is belongs to the contract rather than to this screen, so the
- * server announcing and the screen saying so cannot drift apart.
- *
- * A row may name a channel the account cannot be reached on - push before any
- * browser has subscribed, e-mail before an address is confirmed - and that is
- * carried rather than hidden: saying "push" of a rule nothing would arrive from
- * is the one thing an alarm screen must not do.
- */
-export const routedChannels = (me: Me | undefined, severity: Severity): RoutedChannel[] => {
-  const category = alertCategory(severity);
-  const named = me && category ? (me.notifications.routing[category] ?? []) : [];
-
-  return CHANNELS.filter(channel => named.includes(channel)).map(channel => ({ channel, configured: me !== undefined && isConfigured(me, channel) }));
-};
-
 /**
  * Why nothing at all would be said right now, or null while the account is
  * being listened to.
  *
  * Routing is only half of what decides whether a rule reaches anybody: the
- * server holds every message back while the account is muted, whatever the
- * severity and whatever the grid says, and holds back everything short of
- * critical during quiet hours. A rules page that reads only the grid therefore
- * promised "goes to you by e-mail · repeats every 30 min" for an account that
- * had muted itself a tab away and would have been sent nothing at all.
+ * server holds every message back while the account is muted and everything
+ * short of critical during quiet hours, by the contract's `silenceOf`. A rules
+ * page that reads only the grid therefore promised "goes to you by e-mail ·
+ * repeats every 30 min" for an account that had muted itself a tab away and
+ * would have been sent nothing at all.
  *
- * It mirrors `heldBack` in the server's NotificationService, down to a mute
- * being absolute and a critical alarm being worth waking somebody for, and is
- * read in the account's own zone because that is the zone the window was set
- * in and the one the server reads it in. Only a rule routed through the
- * account's grid is subject to it: a rule delivering to a target of its own
- * goes out through the alarm's own delivery and is unaffected by either.
+ * Quiet hours are read in the account's own zone, because that is the zone the
+ * window was set in and the one the server reads it in, and not on the
+ * browser's clock. Only a rule routed through the account's grid is subject to
+ * it: a rule delivering to a target of its own goes out through the alarm's own
+ * delivery and is unaffected by either.
  */
 export const heldBackBy = (me: Me | undefined, severity: Severity, now: DateTime): 'muted' | 'quiet' | null => {
   if (!me) return null;
-  if (isAhead(me.notifications.mutedUntil ?? null, now)) return 'muted';
-  if (severity === 'critical') return null;
-
-  return inQuietHours(me.notifications.quietHours ?? null, zoneOf(me), now) ? 'quiet' : null;
-};
-
-/**
- * Quiet hours are minutes from the account's own midnight, so the window is
- * read on that clock and not on the browser's. A window that runs past
- * midnight has its start after its end, which is what the two branches are.
- */
-const inQuietHours = (quiet: QuietHours | null, zone: string | null, now: DateTime): boolean => {
-  if (!quiet) return false;
+  const zone = zoneOf(me);
   const local = zone ? now.setZone(zone) : now;
-  const minute = local.hour * 60 + local.minute;
+  const quiet = inQuietWindow(me.notifications.quietHours, local.hour * 60 + local.minute);
 
-  return quiet.fromMinute <= quiet.toMinute
-    ? minute >= quiet.fromMinute && minute < quiet.toMinute
-    : minute >= quiet.fromMinute || minute < quiet.toMinute;
+  return silenceOf(severity, isAhead(me.notifications.mutedUntil ?? null, now), quiet);
 };
-
-export type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What a rule watches, where its title does not already say it.
@@ -365,15 +283,6 @@ export type Translate = (key: string, options?: Record<string, unknown>) => stri
 export const watchLabel = (t: Translate, watch: AlarmWatch, deviceType: string | null = null): string | null =>
   watch.kind === 'output_running' ? t('alarms.watchRunning', { output: outputName(t, watch.output, deviceType) }) : null;
 
-/** "push + e-mail", with a channel the account has not set up marked as the dead end it is. */
-export const channelsLabel = (t: Translate, channels: RoutedChannel[]): string =>
-  channels
-    .map(routed => {
-      const name = t(`alarms.channel.${routed.channel}`);
-      return routed.configured ? name : t('alarms.channelOff', { channel: name });
-    })
-    .join(' + ');
-
 /**
  * The sheet's answers, in the shape its fields hold them: a bound is a string
  * because an empty field is "no bound", which is not a number, and the times
@@ -386,7 +295,7 @@ export interface RuleDraft {
   lower: string;
   forMinutes: number;
   severity: Severity;
-  tellBy: 'routing' | 'email' | 'webhook';
+  tellBy: 'routing' | AlarmDeliveryChannel;
   email: string;
   url: string;
   method: WebhookMethod;
@@ -401,14 +310,6 @@ export interface RuleDraft {
 }
 
 /**
- * How often a critical rule says itself again while it lasts. The same half
- * hour the server writes into the rule the cloud keeps and into every critical
- * rule a stage applies: something that wakes somebody is worth hearing twice,
- * and anything quieter is said once and read when there is time.
- */
-const CRITICAL_REPEAT_MINUTES = 30;
-
-/**
  * The repeat a severity comes with. Changing the severity brings its repeat
  * with it, because the two are one decision - how bad is this, and how often
  * should it be said - and a critical rule that announces itself once and then
@@ -416,7 +317,7 @@ const CRITICAL_REPEAT_MINUTES = 30;
  * a change, so a repeat typed by hand survives it.
  */
 export const withSeverity = (draft: RuleDraft, severity: Severity): RuleDraft =>
-  severity === draft.severity ? draft : { ...draft, severity, repeatMinutes: severity === 'critical' ? CRITICAL_REPEAT_MINUTES : 0 };
+  severity === draft.severity ? draft : { ...draft, severity, repeatMinutes: repeatSecondsOf(severity) / 60 };
 
 /**
  * What a new rule starts out watching: the first reading the device measures,
@@ -455,7 +356,7 @@ export const emptyDraft = (watch: RuleDraft['watch']): RuleDraft => ({
   reportErrors: true,
   tunnel: false,
   includeDetails: true,
-  repeatMinutes: CRITICAL_REPEAT_MINUTES,
+  repeatMinutes: CRITICAL_REPEAT_SECONDS / 60,
 });
 
 const bound = (value: number | null): string => (value === null ? '' : String(value));
@@ -510,7 +411,7 @@ export const watchOf = (draft: RuleDraft): AlarmWatch => {
   return { kind: 'output_running', output: draft.watch.output };
 };
 
-export const deliveryOf = (draft: RuleDraft): AlarmDelivery => {
+const deliveryOf = (draft: RuleDraft): AlarmDelivery => {
   if (draft.tellBy === 'routing') return { mode: 'routing', custom: null };
   if (draft.tellBy === 'email')
     return { mode: 'custom', custom: { channel: 'email', target: draft.email.trim(), includeDetails: draft.includeDetails, webhook: null } };

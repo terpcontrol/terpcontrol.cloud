@@ -1,18 +1,14 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
+import { drawAt } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
+import { translate } from './translations';
 
 /**
  * One plant's page: what is true of this plant and of no other.
@@ -23,7 +19,7 @@ import { spaceWhere, THE_HOST, YOU } from './session';
  * it would have carried - what the curve is made of is asserted elsewhere.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 vi.mock('@/charts/Chart', () => ({ Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} /> }));
@@ -143,30 +139,28 @@ const answers = (path: string) => {
 };
 
 const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/grows/grow-1/plants/plant-1']}>
-        <LogProvider>
-          <Routes>
-            <Route path="/grows/:growId/plants/:plantId" element={<PlantPage />} />
-          </Routes>
-        </LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <LogProvider>
+      <Routes>
+        <Route path="/grows/:growId/plants/:plantId" element={<PlantPage />} />
+      </Routes>
+    </LogProvider>,
+    { at: '/grows/grow-1/plants/plant-1' },
   );
 
 const drawLoaded = async () => {
   draw();
   await screen.findByRole('heading', { name: 'Amnesia 1' });
-  await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining('/series'), undefined, expect.anything()));
+  await waitFor(() =>
+    expect(api.get).toHaveBeenCalledWith(
+      expect.stringContaining('/series'),
+      expect.objectContaining({ measurements: expect.any(Array) }),
+      expect.anything(),
+    ),
+  );
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   who.demo = false;

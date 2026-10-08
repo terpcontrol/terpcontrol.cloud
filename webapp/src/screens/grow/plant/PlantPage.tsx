@@ -1,27 +1,29 @@
-import { ChevronLeft, Move, Scissors, Split } from 'lucide-react';
+import { Move, Scissors, Split } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import type { Entry, GrowListItem, GrowSeries, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
-import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
-import { useGrow, useGrowPlants, useGrowSeries, usePlantEntries } from '@/api/grows';
+import { useGrow, useGrowPlants, useMeasurementSeries, usePlantEntries } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
+import type { Translate } from '@/i18n/i18n';
 import { useCorrecting } from '@/log/corrections';
-import { authorOf, headlineOf, KIND_ICON, readingFigure } from '@/ui/entries';
+import { authorOf, growDayOf, headlineOf, KIND_ICON } from '@/ui/entries';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { zoned, NARROW_DAY, useZone } from '@/ui/zone';
+import { BackLink } from '@/ui/BackLink';
 import { HarvestSheet } from '../HarvestSheet';
 import { withUnit } from '../measurements/definitions';
 import { MoveSheet } from '../MoveSheet';
 import { SplitSheet } from '../SplitSheet';
 import { PlantChart } from './PlantChart';
 import { RenameSheet } from './RenameSheet';
+import { looseFigure } from '@/ui/figures';
 import styles from './Plant.module.css';
 
 /** How many lines of its own a plant shows before the rest are left to the timeline. */
@@ -38,18 +40,13 @@ const LINES = 12;
  */
 export function PlantPage() {
   const { growId = '', plantId = '' } = useParams();
-
-  return <PlantScreen growId={growId} plantId={plantId} />;
-}
-
-function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
   const { t } = useTranslation();
   const now = useNow();
   const grow = useGrow(growId);
   const plants = useGrowPlants(growId);
   const entries = usePlantEntries(plantId);
   const perPlant = (grow.data?.measurements ?? []).filter(definition => definition.perPlant);
-  const series = useGrowSeries(
+  const series = useMeasurementSeries(
     growId,
     'grow',
     perPlant.map(definition => definition.key),
@@ -85,7 +82,7 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
 
   // Moving, splitting, harvesting and renaming a plant are the grow's own
   // moves, which are `manage` where the grow stands today.
-  const youMay = mayWith({ ownerId: grow.data.ownerId, spaceId: standsIn(grow.data) });
+  const youMay = mayWith(growStanding(grow.data));
   const mayManage = enough(youMay, 'manage');
   const lines = entries.data?.items ?? [];
   const photos = lines.filter(entry => entry.mediaIds.length > 0);
@@ -93,11 +90,9 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <Link to={`/grows/${growId}/plants`} className={`${ui.back} ${styles.back}`} aria-label={t('grow.plant.back')}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to={`/grows/${growId}/plants`} label={t('grow.plant.back')} className={styles.back} />
         <div className={styles.titles}>
-          <h1 className={styles.title}>{plant.label}</h1>
+          <h1>{plant.label}</h1>
           <p className={styles.subtitle}>{subtitle(t, grow.data, plant)}</p>
         </div>
         <span className={`mono ${styles.corner}`}>
@@ -157,7 +152,7 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
       ) : (
         <ul className={styles.lines} aria-label={t('grow.plant.ownEntries')}>
           {lines.slice(0, LINES).map(entry => (
-            <Line key={entry.id} entry={entry} grow={grow.data!} plant={plant} measurements={grow.data!.measurements} />
+            <Line key={entry.id} entry={entry} grow={grow.data!} plant={plant} />
           ))}
         </ul>
       )}
@@ -209,8 +204,6 @@ type PlantSheet = 'move' | 'split' | 'harvest' | 'rename';
 /** Still in the ground, which is what the harvest sheet means by a plant it can cut. */
 const standing = (plant: Plant): boolean => plant.status === 'active' && plant.harvest === null;
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /** The strain, the stage this plant is in - its own where a split gave it one - and what has become of it. */
 const subtitle = (t: Translate, grow: GrowListItem, plant: Plant): string => {
   const stage = grow.summary.groups.find(group => group.plantIds.includes(plant.id))?.stage ?? grow.summary.stage;
@@ -231,7 +224,7 @@ function Hero({ plant, photos, grow }: { plant: Plant; photos: Entry[]; grow: Gr
 
   return (
     <figure className={styles.hero}>
-      <img src={src} alt={t('grow.plant.photoAlt', { label: plant.label, day: dayOfEntry(grow, newest) ?? '—' })} loading="lazy" />
+      <img src={src} alt={t('grow.plant.photoAlt', { label: plant.label, day: growDayOf(grow, newest.occurredAt) ?? '—' })} loading="lazy" />
       <figcaption className={`${ui.photoCaption} ${styles.heroChip}`}>{t('grow.plant.photos', { count: photos.length })}</figcaption>
     </figure>
   );
@@ -257,12 +250,12 @@ function Figures({ grow, plant, entries, definitions, series }: FiguresProps) {
   const newest = points[points.length - 1];
   const before = points[points.length - 2];
   const training = entries.find(entry => entry.kind === 'training');
-  const trainedOn = training ? dayOfEntry(grow, training) : null;
+  const trainedOn = training ? growDayOf(grow, training.occurredAt) : null;
 
   return (
     <dl className={ui.strip}>
       {newest && definition ? (
-        <Figure value={readingFigure(newest.value)} label={[definition.unit, movement(t, newest, before)].filter(Boolean).join(' · ')} />
+        <Figure value={looseFigure(newest.value)} label={[definition.unit, movement(t, newest, before)].filter(Boolean).join(' · ')} />
       ) : null}
       {training && trainedOn !== null ? <Figure value={t('grow.dayShort', { day: trainedOn })} label={t('grow.plant.lastTraining')} /> : null}
       <Figure value={String(entries.length)} label={t('grow.plant.entryCount')} />
@@ -286,7 +279,6 @@ interface LineProps {
   entry: Entry;
   grow: GrowListItem;
   plant: Plant;
-  measurements: MeasurementDefinition[];
 }
 
 /**
@@ -304,17 +296,17 @@ interface LineProps {
  * this row has to agree with - otherwise a member taps somebody else's reading,
  * fills the sheet in and is refused on save.
  */
-function Line({ entry, grow, plant, measurements }: LineProps) {
+function Line({ entry, grow, plant }: LineProps) {
   const { t, i18n } = useTranslation();
   const zone = useZone();
   const { user } = useSession();
   const correcting = useCorrecting();
   const Icon = KIND_ICON[entry.kind];
-  const day = dayOfEntry(grow, entry);
+  const day = growDayOf(grow, entry.occurredAt);
   const readings = 'readings' in entry.values ? entry.values.readings : [];
   // The plant's own label rather than the grow's: a line drawn here is about
   // this plant, and the toast that acknowledges the correction says so.
-  const open = correcting(entry, { label: plant.label, dayNumber: day, ownerId: grow.ownerId, spaceId: standsIn(grow) });
+  const open = correcting(entry, { label: plant.label, dayNumber: day, ...growStanding(grow) });
 
   const body = (
     <>
@@ -327,7 +319,7 @@ function Line({ entry, grow, plant, measurements }: LineProps) {
       <span className={styles.lineText}>
         {headlineOf(t, i18n, entry)}
         {readings.map(reading => {
-          const definition = measurements.find(one => one.key === reading.key);
+          const definition = grow.measurements.find(one => one.key === reading.key);
 
           return (
             <span key={`${reading.key}-${reading.plantId ?? ''}`} className={`mono ${styles.lineReading}`}>
@@ -357,15 +349,11 @@ const byPlant = (plant: Plant) => (point: { plantId: string | null }) => point.p
 const hasReadings = (series: GrowSeries | undefined, plantId: string): boolean =>
   (series?.measurements ?? []).some(one => one.points.some(point => point.plantId === plantId));
 
-/** Which day of the grow a line happened on, from the grow's own origin; null before the first phase. */
-const dayOfEntry = (grow: GrowListItem, entry: Entry): number | null =>
-  grow.summary.dayNumber === null ? null : growDayAt(growOriginOf(grow), entry.occurredAt);
-
 /** How far the newest reading has moved since the one before it, and over how long. */
 const movement = (t: Translate, newest: { value: number; measuredAt: string }, before: { value: number; measuredAt: string } | undefined): string => {
   if (!before) return '';
   const change = newest.value - before.value;
   const days = Math.max(1, Math.round(DateTime.fromISO(newest.measuredAt).diff(DateTime.fromISO(before.measuredAt), 'days').days));
 
-  return t('grow.plant.sinceLast', { change: `${change > 0 ? '+' : ''}${readingFigure(change)}`, days });
+  return t('grow.plant.sinceLast', { change: `${change > 0 ? '+' : ''}${looseFigure(change)}`, days });
 };

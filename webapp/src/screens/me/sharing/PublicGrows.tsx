@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowListItem } from '@fg2/shared-types/v1';
@@ -10,11 +9,13 @@ import { appUrl } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { Row, Switch } from '../privacy/parts';
+import { Row } from '../parts';
 import { isDead } from './links';
-import { Page, SectionHead } from './Page';
+import { MePage } from '../parts';
+import { SectionHead } from './SectionHead';
 import styles from './sharing.module.css';
 
 /**
@@ -35,20 +36,11 @@ import styles from './sharing.module.css';
 export function PublicGrows() {
   const { t } = useTranslation();
   const { user } = useSession();
-  const title = t('me.public.title');
-
-  if (user?.isDemo) {
-    return (
-      <Page title={title}>
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.public.demo')}</p>
-      </Page>
-    );
-  }
 
   return (
-    <Page title={title}>
+    <MePage title={t('me.public.title')} demo={t('me.public.demo')}>
       <Grows userId={user?.id ?? null} />
-    </Page>
+    </MePage>
   );
 }
 
@@ -133,7 +125,6 @@ function Grows({ userId }: { userId: string | null }) {
  */
 function GrowRow({ grow, links, held }: { grow: GrowListItem; links: string | null; held: boolean }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const update = useUpdateGrow(grow.id);
   const isPublic = grow.visibility === 'public';
   const line = [isPublic ? appUrl(`/g/${grow.slug}`) : t('me.public.private'), links].filter(Boolean).join(' · ');
@@ -142,15 +133,10 @@ function GrowRow({ grow, links, held }: { grow: GrowListItem; links: string | nu
     <>
       <Row title={grow.name} line={<span className="mono">{line}</span>}>
         <Switch
-          name={t('me.public.switch', { name: grow.name })}
+          label={t('me.public.switch', { name: grow.name })}
           on={isPublic}
           disabled={held || update.isPending}
-          onToggle={() =>
-            update.mutate(
-              { visibility: isPublic ? 'private' : 'public' },
-              { onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['grows'] }) },
-            )
-          }
+          onChange={() => update.mutate({ visibility: isPublic ? 'private' : 'public' })}
         />
       </Row>
       <Refused error={update.error} />

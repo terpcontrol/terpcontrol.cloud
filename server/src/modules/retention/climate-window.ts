@@ -33,6 +33,9 @@ export const climateWindowOf = (space: Retention | null, owner: Retention | null
 const positive = (days: number | null | undefined): number | null =>
   typeof days === 'number' && Number.isFinite(days) && days > 0 ? Math.trunc(days) : null;
 
+/** The start of the UTC day an instant falls in, which is where a summary is stamped and where a sweep's chunks begin and end. */
+export const startOfDay = (at: Date): Date => new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
+
 /**
  * The instant a window closes: the start of the UTC day that many days back.
  *
@@ -41,11 +44,7 @@ const positive = (days: number | null | undefined): number | null =>
  * figure called today, and tomorrow's pass would have nothing left to add to
  * it.
  */
-export const cutoffOf = (days: number, now: Date): Date => {
-  const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-
-  return new Date(midnight - days * 24 * 60 * 60 * 1000);
-};
+export const cutoffOf = (days: number, now: Date): Date => new Date(startOfDay(now).getTime() - days * 24 * 60 * 60 * 1000);
 
 /**
  * How much of a device's backlog one pass takes: from the oldest sample's own
@@ -58,7 +57,7 @@ export const cutoffOf = (days: number, now: Date): Date => {
  * the last pass finished, was interrupted, or was a week ago.
  */
 export const chunkOf = (oldest: Date, cutoff: Date, maxDays: number): { startsAt: Date; endsAt: Date } => {
-  const startsAt = new Date(Date.UTC(oldest.getUTCFullYear(), oldest.getUTCMonth(), oldest.getUTCDate()));
+  const startsAt = startOfDay(oldest);
   const wanted = startsAt.getTime() + maxDays * 24 * 60 * 60 * 1000;
 
   return { startsAt, endsAt: new Date(Math.min(wanted, cutoff.getTime())) };

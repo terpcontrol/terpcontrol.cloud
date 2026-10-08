@@ -1,9 +1,9 @@
 import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
 import { logger } from '@utils/logger';
-import { PlainTextException } from '../../common/http-exception.filter';
+import { sameSecret } from '@common/same-secret';
+import { PlainTextException } from '@common/exception.filter';
 import { mqttConfig } from '../../config/configuration';
 
 /**
@@ -22,13 +22,7 @@ export class MqttAuthSecretGuard implements CanActivate {
     }
 
     const provided = (context.switchToHttp().getRequest<FastifyRequest>().params as { secret?: string })?.secret;
-    if (typeof provided !== 'string') {
-      throw new PlainTextException(401, 'deny');
-    }
-
-    const a = Buffer.from(provided);
-    const b = Buffer.from(expected);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    if (typeof provided !== 'string' || !sameSecret(provided, expected)) {
       throw new PlainTextException(401, 'deny');
     }
 

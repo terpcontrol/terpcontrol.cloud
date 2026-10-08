@@ -1,6 +1,5 @@
 import { createContext, use } from 'react';
 import type { Entry, HumanEntryKind } from '@fg2/shared-types/v1';
-import { useSession } from '@/api/session';
 
 /**
  * Logging, reachable from every screen: the raised button opens the sheet over
@@ -30,6 +29,8 @@ export interface LogTarget {
 
 /** The eight tiles. `phase` is the one that is not an entry of its own: it is written as a phase and shows up as one. */
 export type TileKind = HumanEntryKind | 'phase';
+
+export const TILE_KINDS: TileKind[] = ['water', 'feed', 'photo', 'note', 'measurement', 'training', 'phase', 'visit'];
 
 /** Where the sheet opens: the screen it was opened from, or a link that names the place and the tile. */
 export interface LogOpening {
@@ -65,7 +66,7 @@ export interface CompleteOptions {
   undoable?: boolean;
 }
 
-export interface LogState {
+interface LogState {
   openSheet: (opening?: LogOpening) => void;
   openDetails: (kind: TileKind, target: LogTarget, entry?: Entry | null) => void;
   /** Write a line now: the sheet closes, the toast appears, and the request is somebody else's problem. */
@@ -81,14 +82,3 @@ export function useLog(): LogState {
   if (!state) throw new Error('useLog outside LogProvider');
   return state;
 }
-
-/**
- * Whether this session may write at all. The demo is a tour of somebody else's
- * account - it reads everything and the server refuses every line - so the
- * button, the tile and the Done are not offered rather than offered and refused.
- */
-export const useMayLog = (): boolean => {
-  const { user } = useSession();
-
-  return user !== null && !user.isDemo;
-};

@@ -1,16 +1,18 @@
 import { spawn } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { Db, MongoClient } from 'mongodb';
+import { mongo } from 'mongoose';
 import { LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { context } from '../support/api';
+import { entryPoint, SERVER_ROOT } from '../support/infra/app';
+import { runMigrationCli } from '../support/migration-cli';
 /**
  * How many steps there are, counted rather than written down, so that a step
  * added next round does not fail four assertions about log lines. It is read
  * off the directory rather than imported: this suite is black box, and
  * importing the list would pull the whole application in behind it.
  */
-const STEPS = readdirSync(join(__dirname, '..', '..', 'src', 'migrations', 'steps')).filter(name => /^\d{3}-.*\.ts$/u.test(name)).length;
+const STEPS = readdirSync(join(SERVER_ROOT, 'src', 'migrations', 'steps')).filter(name => /^\d{3}-.*\.ts$/u.test(name)).length;
 
 /**
  * The migration as an operator runs it: `npm run migrate`, its dry run and its
@@ -23,40 +25,13 @@ const STEPS = readdirSync(join(__dirname, '..', '..', 'src', 'migrations', 'step
  * it leaves behind.
  */
 
-const SERVER_ROOT = join(__dirname, '..', '..');
-
 /** Its own database, so nothing here touches the one the server under test is serving from. */
 const DATABASE = 'migration-command-spec';
 
 /** The instant the fixture is dated against; a constant, so a failure names a document that can be found. */
 const AT = Date.UTC(2026, 8, 17);
 
-const entryPoint = (built: string, source: string) =>
-  process.env.HARNESS_BUILT === '1'
-    ? { script: built, nodeArgs: [] as string[] }
-    : { script: source, nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
-
-interface Outcome {
-  code: number | null;
-  output: string;
-}
-
-const migrate = (...args: string[]): Promise<Outcome> => {
-  const entry = entryPoint('dist/migrations/cli.js', 'src/migrations/cli.ts');
-  const child = spawn('node', [...entry.nodeArgs, entry.script, ...args], {
-    cwd: SERVER_ROOT,
-    env: { ...process.env, ...context.appEnv, DB_DATABASE: DATABASE },
-  });
-
-  let output = '';
-  child.stdout.on('data', chunk => (output += String(chunk)));
-  child.stderr.on('data', chunk => (output += String(chunk)));
-
-  return new Promise<Outcome>((resolve, reject) => {
-    child.on('error', reject);
-    child.on('exit', code => resolve({ code, output }));
-  });
-};
+const migrate = (...args: string[]) => runMigrationCli(DATABASE, ...args);
 
 /**
  * The server itself, booted against this spec's database and stopped again as
@@ -68,7 +43,7 @@ const migrate = (...args: string[]): Promise<Outcome> => {
  * one the rest of the suite reads.
  */
 const boot = async ({ allowRejects = false }: { allowRejects?: boolean } = {}): Promise<string> => {
-  const entry = entryPoint('dist/main.js', 'src/main.ts');
+  const entry = entryPoint();
   const child = spawn('node', [...entry.nodeArgs, entry.script], {
     cwd: SERVER_ROOT,
     env: {
@@ -109,8 +84,8 @@ const boot = async ({ allowRejects = false }: { allowRejects?: boolean } = {}): 
   });
 };
 
-let client: MongoClient;
-let database: Db;
+let client: mongo.MongoClient;
+let database: mongo.Db;
 let fixture: LegacyDatabase;
 
 const names = async (): Promise<string[]> => (await database.listCollections({}, { nameOnly: true }).toArray()).map(entry => entry.name).sort();
@@ -120,7 +95,7 @@ const indexesOf = async (name: string): Promise<string[]> =>
   (await database.collection(name).indexes()).map(index => `${JSON.stringify(index.key)}${index.unique ? ' unique' : ''}`);
 
 beforeAll(async () => {
-  client = new MongoClient(context.mongoUri);
+  client = new mongo.MongoClient(context.mongoUri);
   await client.connect();
   database = client.db(DATABASE);
 });

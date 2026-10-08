@@ -1,4 +1,4 @@
-import type { AccessNeed, Placement, Space } from '@fg2/shared-types/v1';
+import type { AccessNeed, Placement } from '@fg2/shared-types/v1';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 
@@ -31,14 +31,6 @@ const LADDER: Record<AccessNeed, number> = { view: 0, log: 1, manage: 2, own: 3 
 
 /** Whether what somebody may do reaches what a control needs. */
 export const enough = (youMay: AccessNeed | undefined, needed: AccessNeed): boolean => youMay !== undefined && LADDER[youMay] >= LADDER[needed];
-
-/**
- * What this session may do in a space it has in its hands. `undefined` is the
- * honest answer while the space has not arrived: a screen waits rather than
- * drawing controls it may have to take away again.
- */
-export const mayInSpace = (space: Space | null | undefined, isDemo: boolean): AccessNeed | undefined =>
-  space === null || space === undefined ? undefined : isDemo ? 'view' : space.youMay;
 
 /**
  * The same question asked of many places at once, as the question rather than
@@ -112,6 +104,12 @@ export const useMayWith = (): ((thing: Standing) => AccessNeed | undefined) => {
 export const standsIn = (grow: { placements: Placement[] }): string | null =>
   grow.placements.find(placement => placement.endedAt === null)?.spaceId ?? null;
 
+/** What decides what may be done to a grow: whose it is, and where it stands now. */
+export const growStanding = (grow: { ownerId: string | null; placements: Placement[] }): Standing => ({
+  ownerId: grow.ownerId,
+  spaceId: standsIn(grow),
+});
+
 /**
  * Where a grow stood last, which is what a screen looking at it needs and what
  * `standsIn` deliberately will not say.
@@ -162,11 +160,19 @@ export const useMayLogIn = (spaceId: string | null = null): boolean => useMayIn(
  * screens then say so and offer nothing that would write - an invitation, a
  * saved view, the account's own offers - because what they would write to is
  * the administrator's account, or the customer's place, and neither is what
- * support came for. False until the account's places have been read.
+ * support came for. False until the account's own places have been read.
  */
+export const isVisiting = (user: { isAdmin: boolean } | null, spaceId: string | null, ownIds: string[] | undefined): boolean =>
+  user?.isAdmin === true && spaceId !== null && ownIds !== undefined && !ownIds.includes(spaceId);
+
+/** `isVisiting` for a place known by its id, against the account's spaces. */
 export const useVisiting = (spaceId: string | null): boolean => {
   const { user } = useSession();
   const spaces = useSpaces(user?.isAdmin === true && spaceId !== null);
 
-  return user?.isAdmin === true && spaceId !== null && spaces.data !== undefined && !spaces.data.items.some(space => space.id === spaceId);
+  return isVisiting(
+    user,
+    spaceId,
+    spaces.data?.items.map(space => space.id),
+  );
 };

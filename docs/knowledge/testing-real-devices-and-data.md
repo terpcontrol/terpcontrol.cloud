@@ -1,7 +1,7 @@
 ---
 summary: When a test needs real hardware or real data - /firmware-check beyond its skill and getting builds onto devices, taking over and driving the development devices, the real Terp Cam, restoring and testing on a copy of production data without anything leaving it, verification passes
 updated: 2026-10-08
-source: Chris (instructions 2026-08-25..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); checked against the code 2026-10-08
+source: Chris (instructions 2026-08-25..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); codebase cleanup and its run on the development devices (2026-10-08); checked against the code 2026-10-08
 paths:
   - .claude/skills/firmware-check/**
   - build-fw.sh
@@ -61,13 +61,24 @@ reboot, firmware update, renaming and moving. The first pass that did found a bl
 - **Taking them over:** ask Chris first. Stop the stack that holds their ports with `./stop.sh` (not `down`: its volumes
   survive), bring yours up on those MQTT ports with an `API_URL_EXTERNAL` the devices reach (the camera relay address
   derives from it) and wait - they reconnect on their own backoff within minutes. Give them back the same way.
+  Your stack only gets through the broker with data that knows the devices; the quickest way is a copy of the stopped
+  stack's volumes (same images on both): `docker compose -p <yours> create mongodb influxdb`, then per volume
+  `docker run --rm -v <theirs>_mongodata:/from:ro -v <yours>_mongodata:/to mongo:9.0 sh -c 'cp -a /from/. /to/'`
+  (and `influxdata`), start `mongodb`, take the webhooks out
+  ([runbook](../runbooks/test-against-a-production-backup.md#taking-the-webhooks-out)), then `up --build -d`. The env
+  is a copy of theirs with its own `COMPOSE_PROJECT_NAME` and the mail, push and Telegram values emptied; their
+  volumes stay untouched, so giving the devices back is `stop` on yours and `start` on theirs.
 - **One agent per device:** two agents commanding one device produce nonsense that looks exactly like a defect.
   Parallel across devices, serial within one (its findings verified one at a time); read-only agents are told that
   state will change under them.
 - **Snapshot and put back** every device, camera, space and grow; diff field by field afterwards (`lastSeenAt`,
-  `lastStillAt` and `lastError` move on their own). Probe records get a recognisable name and are deleted. Firmware
-  update and reboot go to one device, once, with the firmware id noted before and after; anything that would need
-  physical re-pairing, such as a factory reset, is described, not done.
+  `lastStillAt` and `lastError` move on their own; so do the device-reported socket `stateChangedAt` and
+  `state.socketsReportedAt`, and ending maintenance stamps `state.maintenanceUntil` with its end, which starts the
+  alarm settle, instead of clearing it - no route sets these back). Probe records get a recognisable name and are
+  deleted. Only the controller and the fridge act on the maintenance command; a fan or a light shows it in the cloud
+  alone. Drive a device as an account (the `ADMINUSER_*` one may manage every device): the automation session reaches
+  `/v1/admin/*` only. Firmware update and reboot go to one device, once, with the firmware id noted before and after;
+  anything that would need physical re-pairing, such as a factory reset, is described, not done.
 - **On any deployed environment, check whose device it is first:** a change there (a grow plan started) reaches the
   hardware at once (Chris, 2026-10-05).
 
@@ -75,7 +86,8 @@ reboot, firmware update, renaming and moving. The first pass that did found a bl
 - Leave it exactly as found (Chris, 2026-09-08): read a setting before changing it, restore it and read it back -
   blind probing has cost a camera reboot. Never factory-reset it: that unpairs it and drops it to its setup access
   point. LAN access from the test machine is for diagnostics, never for what ships ([rules](terp-cam.md#rules-chris)).
-- Do the cheapest decisive check first: a LAN-direct probe answers a protocol question in minutes, no flashing.
+- Do the cheapest decisive check first: a LAN-direct probe answers a protocol question in minutes, no flashing. The
+  probe scripts are not kept in this repository; internal notes on them exist.
 - Measuring capture success: no probe sessions of your own meanwhile (they take the camera's ~4 session slots); press
   the real test button (`POST /v1/cameras/{id}/test-captures`) at production spacing, e.g. 20 times 30 s apart,
   signing in per call. After changing the light wait 60-75 s (the IR switch has hysteresis); a lit scene makes the

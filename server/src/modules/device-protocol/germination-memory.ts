@@ -1,4 +1,6 @@
 import type { DeviceConfiguration } from '@fg2/shared-types/v1';
+import { isSection } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { SCHEDULED_MODES } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { HUMIDIFIER_REST_BAND } from './class-rules';
 import { withFigures } from './configuration-fields';
 
@@ -18,13 +20,10 @@ import { withFigures } from './configuration-fields';
  * the grower had set on the device since.
  */
 
-/** The work modes germination is left for: the standard ones, the fridge's temperature mode, and drying. */
-const LEFT_FOR = ['small', 'full', 'temp', 'dry'];
+/** The work modes germination is left for: those that hold a day and a night again, which get the night from before germination back, and drying. */
+const LEFT_FOR = [...SCHEDULED_MODES, 'dry'];
 
-/** Those of them that hold a day and a night again, which get the night from before germination back. */
-const WITH_A_NIGHT = ['small', 'full', 'temp'];
-
-export interface GerminationMemory {
+interface GerminationMemory {
   beforeGermination?: Record<string, number> | null;
   restedHumidityBand?: number | null;
 }
@@ -47,7 +46,7 @@ export const leftAtDevice = (
 ): DeviceConfiguration | null => {
   if (!leavesGermination(stored?.workmode, reported.workmode)) return null;
 
-  const night = WITH_A_NIGHT.includes(reported.workmode as string) ? Object.entries(memory.beforeGermination ?? {}) : [];
+  const night = SCHEDULED_MODES.includes(reported.workmode as string) ? Object.entries(memory.beforeGermination ?? {}) : [];
   const returned = withFigures(reported, night);
   const daynight = returned.daynight;
   const band = memory.restedHumidityBand ?? null;
@@ -58,5 +57,3 @@ export const leftAtDevice = (
 
 /** What the server lets go of once germination has ended: the night it kept, the band it rested, and the grower's choices for it. */
 export const GERMINATION_FORGOTTEN = { beforeGermination: null, restedHumidityBand: null, germinationChoices: null } as const;
-
-const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);

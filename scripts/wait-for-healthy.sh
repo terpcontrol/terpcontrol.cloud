@@ -19,11 +19,7 @@ TIMEOUT="${2:-300}"
 
 . "$(dirname "${BASH_SOURCE[0]}")/compose.sh"
 
-CONTAINER="$(terpcontrol_compose ps -q "$SERVICE")"
-if [ -z "$CONTAINER" ]; then
-    echo "No container is running for the '$SERVICE' service" >&2
-    exit 1
-fi
+CONTAINER="$(terpcontrol_container "$SERVICE")"
 
 # A service with no healthcheck reports its plain state, so this is still a
 # check that it is running rather than a wait that always passes.

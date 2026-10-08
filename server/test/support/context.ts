@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 /** Where globalSetup hands the running stack over to the worker processes. */
-export const CONTEXT_FILE = join(__dirname, '..', '.tmp', 'context.json');
+const CONTEXT_FILE = join(__dirname, '..', '.tmp', 'context.json');
 
 export interface HarnessContext {
   /** Base URL of the API under test, e.g. http://127.0.0.1:34567 */

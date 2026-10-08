@@ -10,20 +10,11 @@ import styles from './GrowPage.module.css';
  * them. Curing is where the drying tips end, in the jar.
  */
 
-const TIPS_OF: Partial<Record<GrowthStage, string>> = {
-  germination: 'germination',
-  seedling: 'seedling',
-  vegetative: 'vegetative',
-  flowering: 'flowering',
-  drying: 'drying',
-  curing: 'drying',
-};
-
 const TIP_NUMBERS = [1, 2, 3, 4];
 
 export function PhaseTips({ stage }: { stage: GrowthStage | null }) {
   const { t } = useTranslation();
-  const tips = stage ? TIPS_OF[stage] : undefined;
+  const tips = stage === 'curing' ? 'drying' : stage;
   if (!tips) return null;
 
   return (

@@ -1,15 +1,15 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { Invite, InviteAcceptance, InviteCreate, InvitePage, InvitePreview } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { invalidate, useWrite } from './write';
 
 /**
  * The codes a tent hands out, and the two routes a guest walks in through.
  *
  * They are addressed from both ends, which is why the hooks are not all shaped
- * alike: making and listing name the space, while revoking, forgetting,
- * previewing and accepting name the code, because the code is the whole proof
- * of the invitation and is all somebody who was sent a link holds.
+ * alike: making and listing name the space, while revoking, previewing and
+ * accepting name the code, because the code is the whole proof of the
+ * invitation and is all somebody who was sent a link holds.
  *
  * The preview is the one read here that a stranger makes. A code that is
  * revoked, has run out or was never issued answers the same empty preview with
@@ -26,19 +26,14 @@ export const useInvites = (spaceId: string, enabled = true) =>
     enabled,
   });
 
-const useInviteMutation = <T, V>(spaceId: string, mutationFn: (variables: V) => Promise<T>) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({ mutationFn, onSuccess: () => queryClient.invalidateQueries({ queryKey: invitesKey(spaceId) }) });
-};
+const useInviteMutation = <T, V>(spaceId: string, mutationFn: (variables: V) => Promise<T>) =>
+  useWrite(mutationFn, client => invalidate(client, invitesKey(spaceId)));
 
 export const useCreateInvite = (spaceId: string) =>
   useInviteMutation(spaceId, (body: InviteCreate) => api.post<Invite>(`/spaces/${spaceId}/invites`, body));
 
 /** Revoking leaves the code listed with the instant it stopped working, which is why it is not a deletion. */
 export const useRevokeInvite = (spaceId: string) => useInviteMutation(spaceId, (code: string) => api.put<Invite>(`/invites/${code}/revocation`));
-
-export const useForgetInvite = (spaceId: string) => useInviteMutation(spaceId, (code: string) => api.delete(`/invites/${code}`));
 
 /**
  * What a code leads to, read before there is any account to read it with. It is
@@ -59,14 +54,8 @@ export const useInvitePreview = (code: string) =>
  * name - and the tent is new to every list this account keeps, so all of them
  * are read again.
  */
-export const useAcceptInvite = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (code: string) => api.post<InviteAcceptance>(`/invites/${encodeURIComponent(code)}/acceptances`),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['spaces'] });
-      await queryClient.invalidateQueries({ queryKey: ['home'] });
-    },
-  });
-};
+export const useAcceptInvite = () =>
+  useWrite(
+    (code: string) => api.post<InviteAcceptance>(`/invites/${encodeURIComponent(code)}/acceptances`),
+    client => invalidate(client, ['spaces'], ['home']),
+  );

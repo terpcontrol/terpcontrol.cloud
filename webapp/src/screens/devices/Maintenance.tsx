@@ -5,13 +5,12 @@ import { useTranslation } from 'react-i18next';
 import type { Device, DeviceCommandResult } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useDevicesCommand } from '@/api/commands';
-import { Sheet } from '@/log/Sheet';
-import { MAINTENANCE_MINUTES, parkedLabel, parkedQuiet, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
-import { Refused } from '@/ui/PageState';
-import { Choice, Choices } from '@/ui/SheetParts';
+import { Sheet } from '@/ui/Sheet';
+import { MAINTENANCE_MINUTES, maintenanceSpans, parkedLabel, parkedQuiet, parksAnything, parksLine, VISIT_MINUTES } from '@/ui/maintenance';
+import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
-import { deviceTitle } from './naming';
+import { deviceTitle } from '@/ui/naming';
 import styles from './Maintenance.module.css';
 
 /**
@@ -25,9 +24,6 @@ import styles from './Maintenance.module.css';
  * it is the same window on the same hardware, but a grower who keeps no diary
  * should not find one started by pressing a button about the tent.
  */
-
-/** A window of so many minutes, the settling after it, and the sum of the two - the span nothing is raised in. */
-const spansOf = (minutes: number) => ({ minutes, settle: SETTLE_MINUTES, quiet: quietMinutes(minutes * 60) });
 
 /** A button that says what it is, and under it what it does - the two lines a grower decides on. */
 export function TwoLines({ Icon, name, does, disabled, className, onClick }: TwoLinesProps) {
@@ -116,7 +112,7 @@ function MaintenanceSheet({ devices, now, onClose }: { devices: Device[]; now: D
   const zone = useZone();
   const send = useDevicesCommand();
   const [minutes, setMinutes] = useState<number>(VISIT_MINUTES);
-  const spans = spansOf(minutes);
+  const spans = maintenanceSpans(minutes);
   const running = parkedQuiet(devices, DateTime.max(now, serverNow()));
   const ids = devices.map(device => device.id);
   const receipts = send.data ?? null;
@@ -125,13 +121,8 @@ function MaintenanceSheet({ devices, now, onClose }: { devices: Device[]; now: D
   const start = () => send.mutate({ deviceIds: ids, command: { kind: 'maintenance', forSeconds: minutes * 60 } });
   const end = () => send.mutate({ deviceIds: ids, command: { kind: 'maintenance', forSeconds: 0 } });
 
-  const actions = receipts ? (
-    <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-      {t('maintenance.done')}
-    </button>
-  ) : (
-    <>
-      <Refused error={send.error} />
+  const actions = (
+    <SheetAnswer done={receipts !== null} error={send.error} onClose={onClose}>
       {running ? (
         <button type="button" className={`${ui.button} ${ui.primary}`} disabled={send.isPending} onClick={end}>
           {t(send.isPending ? 'maintenance.ending' : 'maintenance.end')}
@@ -141,10 +132,7 @@ function MaintenanceSheet({ devices, now, onClose }: { devices: Device[]; now: D
           {t('maintenance.start')}
         </button>
       )}
-      <button type="button" className={ui.button} onClick={onClose}>
-        {t('maintenance.cancel')}
-      </button>
-    </>
+    </SheetAnswer>
   );
 
   return (
@@ -172,7 +160,7 @@ function MaintenanceSheet({ devices, now, onClose }: { devices: Device[]; now: D
 }
 
 /** What a window stops, device by device where there are several, and how long nothing is raised. */
-function WhatPauses({ devices, spans }: { devices: Device[]; spans: ReturnType<typeof spansOf> }) {
+function WhatPauses({ devices, spans }: { devices: Device[]; spans: ReturnType<typeof maintenanceSpans> }) {
   const { t } = useTranslation();
   const only = devices.length === 1 ? devices[0] : null;
 
@@ -192,7 +180,7 @@ function WhatPauses({ devices, spans }: { devices: Device[]; spans: ReturnType<t
               <li key={device.id}>
                 <strong>{deviceTitle(device, t, devices)}</strong>
                 {' — '}
-                {parksAnything(device) ? t('log.visit.parksOutputs', { outputs: parkedLabel(t, device) }) : t('log.visit.parksNothing')}
+                {parksLine(t, device)}
               </li>
             ))}
           </ul>
@@ -205,7 +193,7 @@ function WhatPauses({ devices, spans }: { devices: Device[]; spans: ReturnType<t
 }
 
 /** What came back: a window asked for, or ended - and, where a device was not there to hear it, that too. */
-function Receipt({ receipts, ended, spans }: { receipts: DeviceCommandResult[]; ended: boolean; spans: ReturnType<typeof spansOf> }) {
+function Receipt({ receipts, ended, spans }: { receipts: DeviceCommandResult[]; ended: boolean; spans: ReturnType<typeof maintenanceSpans> }) {
   const { t } = useTranslation();
   const unheard = receipts.some(receipt => !receipt.deviceOnline);
 
@@ -232,27 +220,17 @@ function RebootSheet({ device, name, onClose }: { device: Device; name: string; 
       title={t('devices.reboot.title', { name })}
       onClose={onClose}
       actions={
-        receipt ? (
-          <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-            {t('maintenance.done')}
+        <SheetAnswer done={receipt !== null} error={send.error} onClose={onClose}>
+          <button
+            type="button"
+            className={`${ui.button} ${ui.primary}`}
+            disabled={send.isPending}
+            onClick={() => send.mutate({ deviceIds: [device.id], command: { kind: 'reboot' } })}
+          >
+            <RotateCcw size={16} strokeWidth={1.75} aria-hidden />
+            {t('devices.reboot.yes')}
           </button>
-        ) : (
-          <>
-            <Refused error={send.error} />
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              disabled={send.isPending}
-              onClick={() => send.mutate({ deviceIds: [device.id], command: { kind: 'reboot' } })}
-            >
-              <RotateCcw size={16} strokeWidth={1.75} aria-hidden />
-              {t('devices.reboot.yes')}
-            </button>
-            <button type="button" className={ui.button} onClick={onClose}>
-              {t('maintenance.cancel')}
-            </button>
-          </>
-        )
+        </SheetAnswer>
       }
     >
       <div className={styles.body} role={receipt ? 'status' : undefined}>

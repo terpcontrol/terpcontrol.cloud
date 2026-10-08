@@ -1,6 +1,8 @@
-import type { DateTime } from 'luxon';
-import type { GrowListItem, GrowOrSpaceRef, Reminder, Space, Task } from '@fg2/shared-types/v1';
-import { DAY, nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
+import type { Translate } from '@/i18n/i18n';
+import { DateTime } from 'luxon';
+import type { EntryKind, GrowListItem, GrowOrSpaceRef, Reminder, ReminderKind, Space, Task } from '@fg2/shared-types/v1';
+import { readStored, writeStored } from '@/ui/stored';
+import { clock, DAY, nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
 
 /**
  * The arithmetic of the Tasks tab, kept apart from the drawing so it can be
@@ -15,12 +17,10 @@ import { DAY, nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
  * and the most overdue task is the one at the top.
  */
 
-export type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 export type Scope = 'mine' | 'all';
 
 /** The three groups of what is waiting. What was ticked off is a fourth list with its own read. */
-export type Group = 'today' | 'tomorrow' | 'week';
+type Group = 'today' | 'tomorrow' | 'week';
 
 export const GROUPS: Group[] = ['today', 'tomorrow', 'week'];
 
@@ -31,6 +31,24 @@ export const GROUPS: Group[] = ['today', 'tomorrow', 'week'];
  */
 export const daysUntil = (dueAt: string, now: DateTime, zone: string | null): number =>
   Math.floor(zoned(dueAt, zone).startOf('day').diff(nowThere(now, zone).startOf('day'), 'days').days);
+
+/**
+ * "today", "tomorrow", "in 3 d", or how overdue: a task counted down on the
+ * account's calendar as the home strip and the cockpit say it. With `since`, a
+ * task due today whose hour has passed says since when, rather than "today" an
+ * hour after it fell due.
+ */
+export const dueLabel = (t: Translate, dueAt: string, now: DateTime, zone: string | null, { since = false } = {}): string => {
+  const days = daysUntil(dueAt, now, zone);
+  if (days < 0) return t('home.strip.overdue', { count: -days });
+  if (days === 0 && since && DateTime.fromISO(dueAt) < now) return t('home.strip.dueSince', { time: clock(dueAt, zone) });
+  if (days === 0) return t('home.strip.today');
+  if (days === 1) return t('home.strip.tomorrow');
+  return t('home.strip.inDays', { count: days });
+};
+
+/** The diary line ticking a task off writes: a chore or a task of one's own is a note, the rest are what they say. */
+export const entryKindOf = (kind: ReminderKind): EntryKind => (kind === 'chore' || kind === 'custom' ? 'note' : kind);
 
 export const groupOf = (task: Task, now: DateTime, zone: string | null): Group => {
   const days = daysUntil(task.dueAt, now, zone);
@@ -67,21 +85,9 @@ export const litresOf = (defaults: unknown): number | null => {
 const SCOPE_KEY = 'terp.tasks.scope';
 
 /** Mine, unless All was chosen last time. Storage that is blocked or empty is simply the default. */
-export const storedScope = (): Scope => {
-  try {
-    return localStorage.getItem(SCOPE_KEY) === 'all' ? 'all' : 'mine';
-  } catch {
-    return 'mine';
-  }
-};
+export const storedScope = (): Scope => (readStored(SCOPE_KEY) === 'all' ? 'all' : 'mine');
 
-export const storeScope = (scope: Scope): void => {
-  try {
-    localStorage.setItem(SCOPE_KEY, scope);
-  } catch {
-    // The choice then lasts as long as the tab, which is better than refusing it.
-  }
-};
+export const storeScope = (scope: Scope): void => writeStored(SCOPE_KEY, scope);
 
 /**
  * "Tue 16 Sep": the words in the language the app is being read in, so a German

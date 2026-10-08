@@ -676,13 +676,6 @@ export declare const sessionResult: z.ZodObject<{
     }, z.core.$strip>;
 }, z.core.$strip>;
 /**
- * `POST /sessions/demo`: the tour of the demo objects, which needs no
- * credentials and therefore carries nothing. The empty body is named all the
- * same, so that the contract says "this route takes no arguments" rather than
- * leaving a client to guess what it forgot to send.
- */
-export declare const demoSessionCreate: z.ZodObject<{}, z.core.$strip>;
-/**
  * `POST /sessions/refresh`. The refresh token is spent and a fresh
  * `SessionTokens` triple comes back - not a `SessionResult`: the session and the
  * person behind it are the ones the client already knows.
@@ -798,32 +791,6 @@ export declare const notificationLogEntry: z.ZodObject<{
     externalMessageId: z.ZodNullable<z.ZodString>;
     sentAt: z.ZodISODateTime;
     expiresAt: z.ZodISODateTime;
-}, z.core.$strip>;
-export declare const exportStatus: z.ZodEnum<{
-    failed: "failed";
-    running: "running";
-    ready: "ready";
-    queued: "queued";
-}>;
-/**
- * `GET /me/export`. Zipping a person's grows, their CSVs and their photos does
- * not finish inside a request, so the route answers this and it is polled until
- * `downloadUrl` is there.
- */
-export declare const userExport: z.ZodObject<{
-    id: z.ZodString;
-    createdAt: z.ZodISODateTime;
-    status: z.ZodEnum<{
-        failed: "failed";
-        running: "running";
-        ready: "ready";
-        queued: "queued";
-    }>;
-    startedAt: z.ZodNullable<z.ZodISODateTime>;
-    endedAt: z.ZodNullable<z.ZodISODateTime>;
-    downloadUrl: z.ZodNullable<z.ZodString>;
-    validUntil: z.ZodNullable<z.ZodISODateTime>;
-    detail: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /**
  * `GET /admin/users`. An administrator is the one other reader of an address and

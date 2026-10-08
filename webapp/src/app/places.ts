@@ -2,6 +2,9 @@ import { useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import type { HomeSpaceCard } from '@fg2/shared-types/v1';
 import { useHome } from '@/api/home';
+import { useSession } from '@/api/session';
+import { isVisiting } from '@/ui/session-access';
+import { readStored, writeStored } from '@/ui/stored';
 
 /**
  * Where a place's pages are, and which place the tabs that are about one place
@@ -29,12 +32,14 @@ export const MY_GROWS = '/grows';
 /** What a grow page is told when it is opened from "My grows", so its way back leads there. */
 export const FROM_MY_GROWS = { from: 'grows' } as const;
 
-export const openedFromMyGrows = (state: unknown): boolean => (state as { from?: unknown } | null)?.from === FROM_MY_GROWS.from;
-
 /** What "My grows" is told when Ich's door opens it, so its way back leads to Ich rather than to Start. */
 export const FROM_ME = { from: 'me' } as const;
 
-export const openedFromMe = (state: unknown): boolean => (state as { from?: unknown } | null)?.from === FROM_ME.from;
+/** What a camera's page is told when a place's picture opens it, so the bar keeps Start marked rather than jumping to Gerät. */
+export const FROM_PLACE = { from: 'place' } as const;
+
+/** Whether a page was opened from where `from` says, by the state the link that opened it carried. */
+export const openedFrom = (state: unknown, from: { from: string }): boolean => (state as { from?: unknown } | null)?.from === from.from;
 
 export const membersPath = (spaceId: string): string => `/spaces/${spaceId}/members`;
 
@@ -62,21 +67,9 @@ export const devicesPath = (spaceId: string | null = null): string => (spaceId ?
  */
 const KEY = 'terp.place';
 
-export const lastPlace = (): string | null => {
-  try {
-    return localStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-};
+const lastPlace = (): string | null => readStored(KEY);
 
-export const rememberPlace = (spaceId: string) => {
-  try {
-    localStorage.setItem(KEY, spaceId);
-  } catch {
-    // Private mode: the tabs then open on whatever the home lists first, which is no worse.
-  }
-};
+const rememberPlace = (spaceId: string) => writeStored(KEY, spaceId);
 
 /** Looking at a place makes it the one the tabs open on next. */
 export const useRememberPlace = (spaceId: string) => {
@@ -104,19 +97,31 @@ export const useBackToPlace = (spaceId: string | null = null): { to: string; nam
 /**
  * The place a tab about one place is showing: the one its address names, else
  * the one last looked at, else the first the home lists - which is the only one
- * for most accounts. A place the address names is remembered, so a link from an
- * alert carries Steuerung along with Verlauf. Choosing another one puts it in
- * the address, and drops whatever else the address said about the place being
- * left.
+ * for most accounts.
+ */
+export const placeShown = (places: PlaceCard[], asked: string | null): PlaceCard | null => {
+  const remembered = lastPlace();
+  return places.find(place => place.spaceId === asked) ?? places.find(place => place.spaceId === remembered) ?? places[0] ?? null;
+};
+
+/**
+ * The place a tab about one place is showing, as `placeShown` chooses it. A
+ * place the address names is remembered, so a link from an alert carries
+ * Steuerung along with Verlauf. Choosing another one puts it in the address,
+ * and drops whatever else the address said about the place being left.
+ *
+ * `visiting` is the place the address names where `isVisiting` says it is a
+ * customer's, which is drawn as that place rather than swapped for one of ours.
  */
 export const useCurrentPlace = () => {
   const home = useHome();
+  const { user } = useSession();
   const [params, setParams] = useSearchParams();
   const asked = params.get('space');
   const places = (home.data?.spaces ?? []).filter(isPlace);
-  const remembered = lastPlace();
-  const here = places.find(place => place.spaceId === asked) ?? places.find(place => place.spaceId === remembered) ?? places[0] ?? null;
+  const here = placeShown(places, asked);
   const named = here !== null && here.spaceId === asked ? here.spaceId : null;
+  const visiting = asked && isVisiting(user, asked, home.data && places.map(place => place.spaceId)) ? asked : null;
 
   useEffect(() => {
     if (named) rememberPlace(named);
@@ -126,5 +131,5 @@ export const useCurrentPlace = () => {
   // a page holds back - targets nobody saved - must not move the next tab too.
   const choose = (spaceId: string) => setParams({ space: spaceId }, { replace: true });
 
-  return { home, places, here, choose };
+  return { home, places, here, visiting, choose };
 };

@@ -1,5 +1,6 @@
 import type { Metric } from '@fg2/shared-types/v1';
 import { growDayAt } from '@fg2/shared-types/v1-schemas/feeding.js';
+import { DAY_MS } from '@/ui/days';
 import { zonedAt } from '@/ui/zone';
 import type { ChartOption } from './Chart';
 import type { ChartPalette, ChartToken } from './tokens';
@@ -17,7 +18,7 @@ import type { ChartPalette, ChartToken } from './tokens';
  */
 
 /** A day of grow is a number and a date is an instant, which are two different axes to ECharts. */
-export type PlotAxis = 'time' | 'day';
+type PlotAxis = 'time' | 'day';
 
 export interface PlotSpan {
   from: number;
@@ -25,7 +26,7 @@ export interface PlotSpan {
 }
 
 /** The green band that was aimed at over one stretch: it moves with the phase and with the light. */
-export interface PlotBand extends PlotSpan {
+interface PlotBand extends PlotSpan {
   low: number;
   high: number;
 }
@@ -164,7 +165,7 @@ export const plotOption = (palette: ChartPalette, plot: Plot): ChartOption => {
 export const nightColour = (palette: ChartPalette, nights: number): string => (nights > 14 ? palette['night-long'] : palette.night);
 
 /** What a line read at the cursor: the last point at or before it, which is what was true there. */
-export const valueAt = (points: readonly [number, number | null][], x: number): number | null => {
+const valueAt = (points: readonly [number, number | null][], x: number): number | null => {
   let found: number | null = null;
   for (const [time, value] of points) {
     if (time > x) break;
@@ -371,8 +372,6 @@ const niceStep = (rough: number): number => {
   return [1, 2, 5, 10].map(one => one * magnitude).find(one => one >= rough) ?? magnitude * 10;
 };
 
-export const DAY_MS = 24 * 60 * 60 * 1000;
-
 /**
  * Which day of the grow an instant fell on, counting the first as day 1. It is
  * the client's arithmetic on purpose: the answer carries the instant day 1
@@ -475,13 +474,3 @@ const cell = (value: number | null): string => (value === null ? '' : String(val
 
 /** A name a grower gave a measurement may hold a comma, so every heading is quoted and its own quotes doubled. */
 const quoted = (cell: string): string => `"${cell.replace(/"/g, '""')}"`;
-
-/** A table the browser saves rather than opens: the one download the screen does entirely out of what it already has. */
-export const downloadCsv = (name: string, csv: string): void => {
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  link.click();
-  URL.revokeObjectURL(url);
-};

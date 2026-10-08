@@ -1,10 +1,10 @@
 import { MoreHorizontal } from 'lucide-react';
+import { useAccountMe } from '@/api/account';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { SpaceOverview } from '@fg2/shared-types/v1';
 import { controlPath, membersPath } from '@/app/places';
-import { useMe } from '@/api/account';
 import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
 import { useMayInSpace, useMayManage } from '@/ui/session-access';
@@ -34,7 +34,7 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
   const mayManage = useMayManage(overview.spaceId);
   const member = useMayInSpace(overview.spaceId) !== undefined;
   const diary = useDiaryLayer();
-  const me = useMe(false, user !== null && user.isDemo !== true);
+  const me = useAccountMe();
   const [open, setOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const frame = useRef<HTMLDivElement>(null);

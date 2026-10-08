@@ -5,16 +5,20 @@ import type { GrowListItem, ShareLink, TimeRange } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
 import { useShape } from '@/app/shell/shape';
 import { useCreateShareLink, useDeleteShareLink, useRevokeShareLink, useShareLinks, useUpdateShareLink } from '@/api/sharing';
-import { Sheet } from '@/log/Sheet';
+import type { Translate } from '@/i18n/i18n';
+import { Sheet } from '@/ui/Sheet';
+import { isDead, linkAddress } from '@/screens/me/sharing/links';
 import { ageLabel } from '@/ui/age';
 import { appUrl } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
+import { dayEdgeInstant, dayOf, endOfDayOn, startOfDayOn } from '@/ui/days';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
+import { Switch } from '@/ui/Switch';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
-import { calendarDay, useZone, zoned } from '@/ui/zone';
+import { calendarDay, useZone } from '@/ui/zone';
 import styles from './ShareSheet.module.css';
 
 /**
@@ -61,17 +65,12 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
                 {t(cameras && grow.publicCameras !== false ? 'sharing.publicPageNoteCameras' : 'sharing.publicPageNote')}
               </span>
             </div>
-            <button
-              type="button"
-              className={ui.switch}
-              role="switch"
-              aria-checked={isPublic}
-              aria-label={t('sharing.publicPage')}
+            <Switch
+              label={t('sharing.publicPage')}
+              on={isPublic}
               disabled={update.isPending}
-              onClick={() => update.mutate({ visibility: isPublic ? 'private' : 'public' })}
-            >
-              <span className={ui.knob} aria-hidden />
-            </button>
+              onChange={next => update.mutate({ visibility: next ? 'public' : 'private' })}
+            />
           </div>
 
           {/* The camera's pictures are the most private thing a public page carries, so whether it does is said and switched here, as a link's is. */}
@@ -81,17 +80,12 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
                 <span>{t('sharing.cameras')}</span>
                 <span className={ui.note}>{t('sharing.publicCamerasNote')}</span>
               </div>
-              <button
-                type="button"
-                className={ui.switch}
-                role="switch"
-                aria-checked={grow.publicCameras !== false}
-                aria-label={t('sharing.publicCameras')}
+              <Switch
+                label={t('sharing.publicCameras')}
+                on={grow.publicCameras !== false}
                 disabled={update.isPending}
-                onClick={() => update.mutate({ publicCameras: grow.publicCameras === false })}
-              >
-                <span className={ui.knob} aria-hidden />
-              </button>
+                onChange={publicCameras => update.mutate({ publicCameras })}
+              />
             </div>
           ) : null}
 
@@ -138,7 +132,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
                     subject: { type: 'grow', id: grow.id },
                     range: rangeOf(draft, zone),
                     includeCameras: draft.includeCameras,
-                    expiresAt: instantOf(draft.expires, 'end', zone),
+                    expiresAt: dayEdgeInstant(draft.expires, endOfDayOn, zone),
                   },
                   { onSuccess: () => setDrafting(false) },
                 )
@@ -169,8 +163,8 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
   const revoke = useRevokeShareLink();
   const remove = useDeleteShareLink();
 
-  const address = appUrl(`/shared/${link.token}`);
-  const dead = link.revokedAt !== null || (link.expiresAt !== null && DateTime.fromISO(link.expiresAt) <= now);
+  const address = linkAddress(link);
+  const dead = isDead(link, now);
 
   return (
     <li className={styles.link} data-dead={dead}>
@@ -186,9 +180,9 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
           busy={update.isPending}
           error={update.error}
           initial={{
-            from: dayOf(link.range.startsAt, zone),
-            to: dayOf(link.range.endsAt, zone),
-            expires: dayOf(link.expiresAt, zone),
+            from: fieldDay(link.range.startsAt, zone),
+            to: fieldDay(link.range.endsAt, zone),
+            expires: fieldDay(link.expiresAt, zone),
             includeCameras: link.includeCameras,
           }}
           submitLabel={t('sharing.save')}
@@ -197,7 +191,11 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
             update.mutate(
               {
                 id: link.id,
-                body: { range: rangeOf(draft, zone), includeCameras: draft.includeCameras, expiresAt: instantOf(draft.expires, 'end', zone) },
+                body: {
+                  range: rangeOf(draft, zone),
+                  includeCameras: draft.includeCameras,
+                  expiresAt: dayEdgeInstant(draft.expires, endOfDayOn, zone),
+                },
               },
               { onSuccess: () => setChanging(false) },
             )
@@ -216,7 +214,7 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
             </button>
           ) : null}
           {dead ? (
-            <button type="button" className={`${ui.chip} ${styles.forget}`} disabled={remove.isPending} onClick={() => remove.mutate(link.id)}>
+            <button type="button" className={`${ui.chip} ${ui.danger}`} disabled={remove.isPending} onClick={() => remove.mutate(link.id)}>
               {t('sharing.forget')}
             </button>
           ) : null}
@@ -280,16 +278,7 @@ function Editor({
             <span>{t('sharing.cameras')}</span>
             <span className={ui.note}>{t('sharing.camerasNote')}</span>
           </div>
-          <button
-            type="button"
-            className={ui.switch}
-            role="switch"
-            aria-checked={draft.includeCameras}
-            aria-label={t('sharing.cameras')}
-            onClick={() => set('includeCameras', !draft.includeCameras)}
-          >
-            <span className={ui.knob} aria-hidden />
-          </button>
+          <Switch label={t('sharing.cameras')} on={draft.includeCameras} onChange={on => set('includeCameras', on)} />
         </div>
       ) : null}
 
@@ -343,8 +332,6 @@ function Field({
   );
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /** "1 Sep → open end · with pictures · opened 3× · last 2 h ago", and what stopped it where something did. */
 const describe = (t: Translate, link: ShareLink, now: DateTime, zone: string | null): string => {
   const day = (at: string) => calendarDay(at, zone);
@@ -368,30 +355,11 @@ const describe = (t: Translate, link: ShareLink, now: DateTime, zone: string | n
   return parts.join(' · ');
 };
 
-/**
- * A date the field holds, as the instant the contract takes: the whole of that
- * day where the account is.
- *
- * The day is the grower's, so its edges are the grower's midnights. Cut at the
- * browser's instead, a window typed as 1 September to 23 September left on the
- * wire as 31 August 22:00 to 23 September 21:59 - it carried the last two hours
- * of a day that was excluded, including a diary line standing in them, and
- * dropped the last two hours of a day that was included. `dayOf` reads the
- * stored instant back in the same zone, so the field shows the day that was
- * typed, and `describe` above already names the window with `calendarDay`
- * there: one sheet cannot hold two answers to which day a link begins on.
- */
-const instantOf = (day: string, edge: 'start' | 'end', zone: string | null): string | null => {
-  if (!day) return null;
-  const at = DateTime.fromISO(day, { zone: zone ?? undefined });
-
-  return (edge === 'start' ? at.startOf('day') : at.endOf('day')).toUTC().toISO();
-};
-
-const dayOf = (at: string | null, zone: string | null): string => (at ? zoned(at, zone).toFormat('yyyy-MM-dd') : '');
+/** A link's stored instant as the day its date field holds, or nothing for an open end. */
+const fieldDay = (at: string | null, zone: string | null): string => (at ? dayOf(new Date(at), zone) : '');
 
 /** An open end is a link that keeps up with the diary as it goes on, which is what sharing a running grow means. */
 const rangeOf = (draft: Draft, zone: string | null): TimeRange => ({
-  startsAt: instantOf(draft.from, 'start', zone),
-  endsAt: instantOf(draft.to, 'end', zone),
+  startsAt: dayEdgeInstant(draft.from, startOfDayOn, zone),
+  endsAt: dayEdgeInstant(draft.to, endOfDayOn, zone),
 });

@@ -1,4 +1,4 @@
-import { registerAs } from '@nestjs/config';
+import { ConfigType, registerAs } from '@nestjs/config';
 
 /**
  * The environment, read once and grouped by what it configures. Providers take
@@ -8,6 +8,9 @@ import { registerAs } from '@nestjs/config';
  * The values themselves are unchanged - same variable names, same defaults - so
  * an existing deployment needs no new settings.
  */
+
+/** The file the server reads its settings from; the process environment wins over it. */
+export const ENV_FILE = `.env.${process.env.NODE_ENV || 'development'}.local`;
 
 const flag = (value: string | undefined): boolean => value === 'true';
 
@@ -29,13 +32,7 @@ export const appConfig = registerAs('app', () => ({
    * rather than sending anybody to an address this install has never heard of.
    */
   appUrlExternal: (process.env.APP_URL_EXTERNAL ?? '').trim().replace(/\/+$/, '') || null,
-  // Read by nothing today: the line that passed these to `cors()` has been
-  // commented out since before this migration, so the plugin defaults apply.
-  // They stay here because `.env.sample` still documents them.
-  origin: process.env.ORIGIN,
-  credentials: flag(process.env.CREDENTIALS),
   logFormat: process.env.LOG_FORMAT,
-  logDir: process.env.LOG_DIR,
 }));
 
 export const databaseConfig = registerAs('database', () => ({
@@ -58,8 +55,6 @@ export const influxConfig = registerAs('influx', () => ({
 export const mqttConfig = registerAs('mqtt', () => ({
   url: process.env.MQTT_URL,
   port: number(process.env.MQTT_PORT, 1883),
-  user: process.env.MQTT_USER,
-  password: process.env.MQTT_PASSWORD,
   /** The secret RabbitMQ puts in the path of every auth check. */
   authSharedSecret: process.env.MQTTAUTH_SHARED_SECRET,
 }));
@@ -114,6 +109,14 @@ export const notificationsConfig = registerAs('notifications', () => ({
    */
   telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || null,
 }));
+
+/** Whether Web Push can send at all: a key pair with a half missing cannot sign anything. */
+export const pushAvailable = (config: ConfigType<typeof notificationsConfig>): boolean =>
+  !!(config.pushPublicKey && config.pushPrivateKey && config.pushContact);
+
+/** Whether this install has a bot at all: one with no name has no link to open. */
+export const telegramAvailable = (config: ConfigType<typeof notificationsConfig>): boolean =>
+  !!(config.telegramBotToken && config.telegramBotUsername);
 
 export const terpCamConfig = registerAs('terpcam', () => ({
   /**
@@ -176,9 +179,13 @@ export const retentionConfig = registerAs('retention', () => ({
  * a migrated grow's measurements are called and what each account's own
  * preference starts as. docker-compose.yaml defaults it to `en`; the fallback
  * here is for `npm run migrate`, which runs outside compose.
+ *
+ * `allowRejects` lets a boot leave behind the rows a transform could not take,
+ * which is otherwise a refusal; nobody types a flag when a container starts.
  */
 export const migrationConfig = registerAs('migration', () => ({
   locale: (process.env.MIGRATION_LOCALE ?? 'en').trim() || 'en',
+  allowRejects: flag(process.env.MIGRATION_ALLOW_REJECTS),
 }));
 
 export const configNamespaces = [

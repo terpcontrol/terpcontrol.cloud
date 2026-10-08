@@ -1,12 +1,15 @@
-import type { DeviceSeries, Metric } from '@fg2/shared-types/v1';
+import type { DeviceSeries } from '@fg2/shared-types/v1';
 import { growSeries } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { DataService, DeviceHistory, OutputHistory, SeriesRequest } from '@modules/data/data.service';
+import { DataService, DeviceHistory, SeriesRequest } from '@modules/data/data.service';
 import { GrowSeriesQuery, GrowSeriesService } from '@modules/v1/grow/grow-series.service';
 import { GrowsService } from '@modules/v1/grow/grows.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { demo, session, visitor } from './support/callers';
+import { isLit, lastSampleOf, seriesOf, switchingsOf } from './support/fake-data';
+import { accessOn, growsOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The Charts view: what a line is drawn from, and who is allowed to be told.
@@ -42,11 +45,7 @@ const FLOWERING_FROM = new Date('2026-06-10T00:00:00.000Z');
 const LINK_FROM = new Date('2026-05-20T00:00:00.000Z');
 const LINK_TO = new Date('2026-05-27T00:00:00.000Z');
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const visitor = (shareToken: string): AccessContext => ({ userId: null, isAdmin: false, isDemo: false, shareToken });
-const demo = (): AccessContext => ({ userId: null, isAdmin: false, isDemo: true, shareToken: null });
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let access: AccessService;
 let series: GrowSeriesService;
 let reads: SeriesRequest[];
@@ -61,72 +60,22 @@ let lastReading: Record<string, string | null>;
 /** Set to have the devices report nothing over the window asked for, which is a tent that has fallen quiet. */
 let silent = false;
 
-const isLit = (at: Date): boolean => at.getUTCHours() >= 6 && at.getUTCHours() < 18;
-
-/** The store looks for a switching at a grain of its own, far finer than the step a wide window is drawn with. */
-const SWITCHING_GRAIN_MS = 300 * 1000;
-
-/** What the store answers about the outputs: the state the window opens in, then every switching. */
-const fakeSwitchings = (deviceId: string, request: SeriesRequest): OutputHistory[] =>
-  (request.outputs ?? []).map(output => {
-    if (deviceId !== CONTROLLER || output !== 'light') return { output, switchings: [] };
-
-    const switchings: { at: string; on: boolean }[] = [];
-    let last: boolean | null = null;
-    for (let at = request.startsAt.getTime(); at < request.endsAt.getTime(); at += SWITCHING_GRAIN_MS) {
-      const on = isLit(new Date(at));
-      if (on !== last) switchings.push({ at: new Date(at).toISOString(), on });
-      last = on;
-    }
-
-    return { output, switchings };
-  });
-
 /** Both devices report; only the controller drives a lamp. */
-/**
- * The newest raw sample the fake device wrote, which the store answers from a
- * read of its own. Here it is the newest window anything was reported in: the
- * fake stamps a window at the instant it opens, so the two are the same and the
- * lane is cut exactly where it always was.
- */
-const lastSampleOf = (series: DeviceSeries): string | null =>
-  [...series.metrics, ...series.outputs]
-    .flatMap(one => one.points.flatMap(point => (point.value === null ? [] : [point.measuredAt])))
-    .sort()
-    .at(-1) ?? null;
-
 const fakeData = {
   history: async (deviceId: string, request: SeriesRequest): Promise<DeviceHistory> => {
     const series = await fakeData.series(deviceId, request);
+    const outputs = switchingsOf(request, (output, at) => (deviceId === CONTROLLER && output === 'light' ? isLit(at) : null));
 
-    return { series, outputs: fakeSwitchings(deviceId, request), lastSampleAt: lastSampleOf(series) };
+    return { series, outputs, lastSampleAt: lastSampleOf(series) };
   },
   series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> => {
     reads.push(request);
-    const step = (request.stepSeconds ?? 60) * 1000;
-    const instants: Date[] = [];
-    for (let at = request.startsAt.getTime(); at < request.endsAt.getTime(); at += step) instants.push(new Date(at));
 
-    const metric = (name: Metric, at: Date): number | null =>
-      silent ? null : name === 'vpd' ? (isLit(at) ? 1.2 : 0.8) : name === 'humidity' ? 55 : name === 'co2' ? 900 : isLit(at) ? 24.8 : 20;
-
-    return {
-      deviceId,
-      startsAt: request.startsAt.toISOString(),
-      endsAt: request.endsAt.toISOString(),
-      stepSeconds: request.stepSeconds ?? 60,
-      metrics: request.metrics.map(name => ({
-        metric: name,
-        points: instants.map(at => ({ measuredAt: at.toISOString(), value: metric(name, at) })),
-      })),
-      outputs: (request.outputs ?? []).map(output => ({
-        output,
-        points: instants.map(at => ({
-          measuredAt: at.toISOString(),
-          value: !silent && deviceId === CONTROLLER && output === 'light' ? (isLit(at) ? 1 : 0) : null,
-        })),
-      })),
-    };
+    return seriesOf(deviceId, request, {
+      metric: (name, at) =>
+        silent ? null : name === 'vpd' ? (isLit(at) ? 1.2 : 0.8) : name === 'humidity' ? 55 : name === 'co2' ? 900 : isLit(at) ? 24.8 : 20,
+      output: (output, at) => (!silent && deviceId === CONTROLLER && output === 'light' ? (isLit(at) ? 1 : 0) : null),
+    });
   },
   live: async (deviceId: string) => ({
     metrics: lastReading[deviceId] ? { temperature: { value: 24, measuredAt: lastReading[deviceId], state: 'offline' } } : {},
@@ -142,20 +91,7 @@ const readAs = async (ctx: AccessContext, asked: GrowSeriesQuery) => {
   return series.read(grant, GROW, asked, await growsService().redaction(grant), NOW);
 };
 
-const growsService = (): GrowsService =>
-  new GrowsService(
-    db.grows,
-    db.plants,
-    db.devices,
-    db.memberships,
-    db.spaces,
-    db.users,
-    db.shareLinks,
-    db.entries,
-    access,
-    null as never,
-    null as never,
-  );
+const growsService = (): GrowsService => growsOn(db, access, { phases: null as never, writer: null as never });
 
 const reading = (at: Date, readings: { key: string; value: number; plantId: string | null }[], kind = 'measurement'): EntryDocument =>
   ({
@@ -268,20 +204,12 @@ const world = async (): Promise<void> => {
   });
 };
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
   reads = [];
   silent = false;
   lastReading = {};
-  access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
+  access = accessOn(db);
   series = new GrowSeriesService(db.devices, db.entries, db.targetChanges, db.cameras, db.media, growsService(), fakeData);
   await world();
 });
@@ -598,6 +526,6 @@ describe('who is told', () => {
 
   it('answers a stranger and a demo session nothing at all', async () => {
     await expect(access.access(session(STRANGER), subjectRef('grow', GROW), 'view')).resolves.toBeNull();
-    await expect(access.access(demo(), subjectRef('grow', GROW), 'view')).resolves.toBeNull();
+    await expect(access.access(demo(null), subjectRef('grow', GROW), 'view')).resolves.toBeNull();
   });
 });

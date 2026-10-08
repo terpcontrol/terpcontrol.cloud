@@ -35,8 +35,6 @@ import { AccountMailService } from './account-mail.service';
 import { AccountsService } from './accounts.service';
 import { PasswordResetService } from './password-reset.service';
 
-const MINUTE = 60 * 1000;
-
 /**
  * The account, from signing up to the settings screens.
  *
@@ -57,7 +55,7 @@ export class AccountController {
 
   @Post('users')
   @HttpCode(HttpStatus.CREATED)
-  @RateLimited({ limit: 5, windowMs: MINUTE, message: 'Too many sign-up attempts, please try again later.' })
+  @RateLimited({ limit: 5, message: 'Too many sign-up attempts, please try again later.' })
   @ApiOperation({ summary: 'Sign up', ...PUBLIC_OPERATION })
   @V1Answer(signupUser, { status: HttpStatus.CREATED })
   public async signUp(@V1Body(userCreate) body: UserCreate): Promise<SignupUser> {
@@ -82,7 +80,7 @@ export class AccountController {
 
   @Post('password-resets')
   @HttpCode(HttpStatus.ACCEPTED)
-  @RateLimited({ limit: 5, windowMs: MINUTE, message: 'Too many password-reset requests, please try again later.' })
+  @RateLimited({ limit: 5, message: 'Too many password-reset requests, please try again later.' })
   @ApiOperation({ summary: 'Ask for a password recovery mail', ...PUBLIC_OPERATION })
   @ApiAcceptedResponse({ description: 'If that address has an account here, a mail is on its way to it.' })
   public request(@V1Body(passwordResetCreate) body: PasswordResetCreate): Promise<void> {
@@ -91,7 +89,7 @@ export class AccountController {
 
   @Post('password-resets/:token/redemptions')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RateLimited({ limit: 10, windowMs: MINUTE, message: 'Too many recovery attempts, please try again later.' })
+  @RateLimited({ limit: 10, message: 'Too many recovery attempts, please try again later.' })
   @ApiOperation({ summary: 'Set a new password with the token from a recovery mail', ...PUBLIC_OPERATION })
   @ApiNoContentResponse({ description: 'The password is changed; sign in with it.' })
   public redeem(@Param('token') token: string, @V1Body(passwordResetRedemption) body: PasswordResetRedemption): Promise<void> {
@@ -141,7 +139,7 @@ export class AccountController {
   @Put('me/password')
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RateLimited({ limit: 10, windowMs: MINUTE, message: 'Too many password changes, please try again later.' })
+  @RateLimited({ limit: 10, message: 'Too many password changes, please try again later.' })
   @ApiOperation({ summary: "Change this account's password" })
   @ApiNoContentResponse({ description: 'The password is changed.' })
   public async changePassword(@CurrentUser() caller: AuthContext, @V1Body(passwordChange) body: PasswordChange): Promise<void> {

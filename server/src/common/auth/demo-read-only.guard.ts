@@ -1,5 +1,5 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { HttpException } from '@common/http-exception';
+import { CanActivate, ExecutionContext, HttpException, Injectable } from '@nestjs/common';
+import { isUnder, routePath } from '@common/route-path';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
 import { AuthenticatedRequest, TokenService } from './token.service';
 
@@ -25,17 +25,16 @@ export class DemoReadOnlyGuard implements CanActivate {
     if (context.getType() !== 'http') return true;
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    // The router ignores a trailing slash and matches whatever the case, so the
-    // allow-list has to do both - otherwise `/Logout` is a write to the demo.
-    const path = (request.url ?? '/').split('?')[0].toLowerCase().replace(/\/+$/, '') || '/';
+    // The router ignores a trailing slash as well as case, so the allow-list does too.
+    const path = routePath(request.url).replace(/\/+$/, '') || '/';
 
-    if (READ_METHODS.includes(request.method) || DEMO_ALLOWED_PREFIXES.some(allowed => path === allowed || path.startsWith(`${allowed}/`))) {
+    if (READ_METHODS.includes(request.method) || DEMO_ALLOWED_PREFIXES.some(allowed => isUnder(path, allowed))) {
       return true;
     }
 
     const token = await this.tokens.verifyFirst(request, 'user');
     if (token?.is_demo) {
-      throw new HttpException(403, DEMO_WRITE_MESSAGE);
+      throw new HttpException(DEMO_WRITE_MESSAGE, 403);
     }
 
     return true;

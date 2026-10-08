@@ -6,7 +6,7 @@ import { growReport, growWeekCardPage } from '@fg2/shared-types/v1-schemas';
 import { AccessGuard, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { Grant } from '@common/v1/access.types';
 import { V1Query } from '@common/v1/validation';
-import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
+import { OptionalSessionGuard } from '@common/auth/auth.guard';
 import { V1Answer } from '../answer-shape';
 import { GrowReportService } from './report.service';
 import { GrowWeeksService, weeksQuery } from './weeks.service';

@@ -1,16 +1,13 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate } from '@fg2/shared-types/v1';
 import { Appearance } from '@/screens/me/appearance/Appearance';
 import { THEME_STORAGE_KEY } from '@/theme/theme-context';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { drawAt, json, NOT_FOUND } from './harness';
+import { meWith } from './session';
+import { translate } from './translations';
 
 /**
  * Me › Appearance: the theme and the language stay the browser's, the units
@@ -32,32 +29,7 @@ vi.mock('@/api/session', async importOriginal => {
   return { ...(await importOriginal<object>()), useSession: () => (session.demo ? ON_THE_DEMO : SIGNED_IN) };
 });
 
-const me = (): Me => ({
-  id: 'user-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  email: 'login@example.org',
-  isAdmin: false,
-  isActive: true,
-  handle: 'you',
-  bio: null,
-  avatarMediaId: null,
-  publicProfile: false,
-  privacy: { hideWeights: false, hideCounts: false },
-  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
-  retention: { climateDays: null },
-  climateRetention: { installDays: null, appliesDays: null },
-  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
-  deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
-  pushPublicKey: null,
-  telegramAvailable: false,
-  pushSubscribed: false,
-  layers: { diary: true },
-});
-
-const server = { me: me(), patched: [] as MeUpdate[], asked: [] as string[] };
-
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+const server = { me: meWith(), patched: [] as MeUpdate[], asked: [] as string[] };
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
@@ -73,31 +45,23 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   }
   // The German catalogue, as the language switch fetches it before switching.
   if (pathname === '/assets/i18n/de.json') return json({ me: { appearance: { title: 'Darstellung' } } });
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 });
 
 const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/me/appearance']}>
-        <ThemeProvider>
-          <Appearance />
-        </ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <ThemeProvider>
+      <Appearance />
+    </ThemeProvider>,
+    { at: '/me/appearance' },
   );
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
   session.demo = false;
-  server.me = me();
+  server.me = meWith();
   server.patched = [];
   server.asked = [];
 });
@@ -171,7 +135,7 @@ describe('the grow diary', () => {
   });
 
   it('hands the question back to the account´s use when "automatic" is chosen again', async () => {
-    server.me = { ...me(), preferences: { ...me().preferences, diary: 'off' } };
+    server.me = { ...meWith(), preferences: { ...meWith().preferences, diary: 'off' } };
     draw();
 
     const diary = await screen.findByRole('combobox', { name: 'Grow diary' });
@@ -185,7 +149,7 @@ describe('the grow diary', () => {
 
 describe('the time zone', () => {
   it('draws the zone the account keeps and offers this device its own', async () => {
-    server.me = { ...me(), preferences: { ...me().preferences, timezone: 'UTC' } };
+    server.me = { ...meWith(), preferences: { ...meWith().preferences, timezone: 'UTC' } };
     draw();
 
     const menu = await screen.findByRole('combobox', { name: 'Time zone' });

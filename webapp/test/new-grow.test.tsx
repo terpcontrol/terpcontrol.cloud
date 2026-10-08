@@ -1,12 +1,5 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device, GrowListItem, Space } from '@fg2/shared-types/v1';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
@@ -15,7 +8,9 @@ import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { dayNumber } from '@/screens/grow/new/new-grow';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
+import { drawAt } from './harness';
 import { spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * The new-grow sheet: what it offers, what it promises before the tap, and
@@ -28,7 +23,7 @@ import { spaceWhere } from './session';
  * fixture stands in for the folder a build ships.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const who = vi.hoisted(() => ({ demo: false }));
@@ -120,14 +115,7 @@ const answers = (path: string): unknown => {
   throw new Error(`No fixture for ${path}`);
 };
 
-const draw = (spaceId?: string) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <NewGrowSheet spaceId={spaceId} onClose={() => undefined} />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (spaceId?: string) => drawAt(<NewGrowSheet spaceId={spaceId} onClose={() => undefined} />);
 
 /**
  * The sheet waits for the places, the grows and the scheme index; the questions
@@ -141,12 +129,7 @@ const drawLoaded = async (spaceId?: string) => {
   return drawn;
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   who.demo = false;

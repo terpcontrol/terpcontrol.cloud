@@ -1,7 +1,7 @@
 import { AddressInfo, createServer, Server, Socket } from 'node:net';
 import { jest } from '@jest/globals';
-import { CaptureService } from '@modules/v1/camera/capture.service';
-import { STREAM_RUNS, streamSlot } from '@modules/v1/camera/ffmpeg-slots';
+import { CaptureService, stillArgs } from '@modules/v1/camera/capture.service';
+import { STREAM_RUNS, streamSlot } from '@modules/v1/camera/ffmpeg';
 import { TerpCamService } from '@modules/v1/camera/terpcam.service';
 
 /**
@@ -78,6 +78,44 @@ it('decodes a keyframe while every stream run is held', async () => {
 
   release();
   await Promise.all(streams);
+});
+
+/**
+ * `-fflags nobuffer` drops what ffmpeg reads while it probes an input. On an
+ * RTSP stream that is a few packets of many; at an HTTP snapshot URL it is the
+ * one JPEG there is, and ffmpeg 8 (the server image's) then wrote nothing.
+ */
+describe('the command line of a still', () => {
+  const PROBE = ['-probesize', '32', '-analyzeduration', '0'];
+  const OUTPUT = ['-q:v', '20', '-vframes', '1', '-f', 'mjpeg', '-'];
+
+  it('reads an RTSP stream without buffering', () => {
+    const camera = { url: 'rtsp://cam:secret@10.0.0.30:554/stream1', transport: 'tcp' as const };
+
+    expect(stillArgs(camera.url, camera, PROBE)).toEqual([
+      '-rtsp_transport',
+      'tcp',
+      '-fflags',
+      'nobuffer',
+      '-flags',
+      'low_delay',
+      ...PROBE,
+      '-skip_frame',
+      'nokey',
+      '-i',
+      camera.url,
+      ...OUTPUT,
+    ]);
+  });
+
+  it('keeps what it reads at an HTTP snapshot URL, through a tunnel too', () => {
+    const camera = { url: 'http://10.0.0.30/snapshot.jpg', transport: null };
+    const tunnelled = 'http://127.0.0.1:41234/snapshot.jpg';
+
+    expect(stillArgs(camera.url, camera, PROBE)).toEqual(['-flags', 'low_delay', ...PROBE, '-skip_frame', 'nokey', '-i', camera.url, ...OUTPUT]);
+    expect(stillArgs(tunnelled, camera, PROBE)).toEqual(['-flags', 'low_delay', ...PROBE, '-skip_frame', 'nokey', '-i', tunnelled, ...OUTPUT]);
+    expect(stillArgs('https://cam.test/still.jpg', { url: 'https://cam.test/still.jpg', transport: null }, PROBE)).not.toContain('nobuffer');
+  });
 });
 
 describe('a run that takes too long', () => {

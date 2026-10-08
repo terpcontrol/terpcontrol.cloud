@@ -1,8 +1,9 @@
-import { HttpStatus } from '@nestjs/common';
+import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { ApiResponse, ApiResponseOptions } from '@nestjs/swagger';
 import { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 import { registry } from '@fg2/shared-types/v1-schemas';
-import { z, ZodType } from 'zod';
+import { ZodType } from 'zod';
+import { jsonSchemaOf } from '@common/zod-validation.pipe';
 import { V1_SCHEMAS } from '../../openapi';
 
 /**
@@ -15,24 +16,12 @@ import { V1_SCHEMAS } from '../../openapi';
  * instead of reading the same object spelled out at twenty routes.
  *
  * A schema the contract does not name - one a route builds out of others - is
- * written into the operation instead. `io: 'output'` is what an answer is: the
- * shape as it leaves, after a schema's own transforms, where a request body is
- * the shape as it arrives. `unrepresentable: 'any'` lets a value with no JSON
- * Schema of its own describe itself through `.meta()`, which leaves `tsType`
- * behind - a hint for the type generator in shared-types, and not a JSON Schema
- * keyword.
+ * written into the operation instead, as the shape it leaves in.
  */
-const notPartOfTheShape = new Set(['$schema', '$id', 'tsType']);
-
-const inlineSchema = (schema: ZodType): SchemaObject =>
-  JSON.parse(JSON.stringify(z.toJSONSchema(schema, { io: 'output', unrepresentable: 'any' })), (key, value) =>
-    notPartOfTheShape.has(key) ? undefined : value,
-  ) as SchemaObject;
-
-export const answerSchema = (schema: ZodType): SchemaObject => {
+const answerSchema = (schema: ZodType): SchemaObject => {
   const name = registry.get(schema)?.id;
 
-  return name && name in V1_SCHEMAS ? ({ $ref: `#/components/schemas/${name}` } as SchemaObject) : inlineSchema(schema);
+  return name && name in V1_SCHEMAS ? ({ $ref: `#/components/schemas/${name}` } as SchemaObject) : jsonSchemaOf(schema, 'output');
 };
 
 /**
@@ -43,3 +32,26 @@ export const answerSchema = (schema: ZodType): SchemaObject => {
  */
 export const V1Answer = (schema: ZodType, options: ApiResponseOptions = {}) =>
   ApiResponse({ status: HttpStatus.OK, ...options, schema: answerSchema(schema) });
+
+/** What the store holds: stills and photos as they were taken, films as they were rendered. */
+const PICTURE_BYTES = {
+  'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+  'image/png': { schema: { type: 'string', format: 'binary' } },
+  'video/mp4': { schema: { type: 'string', format: 'binary' } },
+};
+
+/**
+ * What a route that hands out stored bytes answers: the file, the range a
+ * player asked for, or - for a range that starts past the end of the file - a
+ * refusal like every other rather than an empty body.
+ */
+export const ApiPictureBytes = () =>
+  applyDecorators(
+    ApiResponse({ status: HttpStatus.OK, description: 'The file itself, in the type it was stored as.', content: PICTURE_BYTES }),
+    ApiResponse({ status: HttpStatus.PARTIAL_CONTENT, description: 'The byte range a <video> element asked for.', content: PICTURE_BYTES }),
+    ApiResponse({
+      status: HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
+      description: 'The byte range asked for starts past the end of the file. `Content-Range` says how long it is.',
+      content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/Problem' } } },
+    }),
+  );

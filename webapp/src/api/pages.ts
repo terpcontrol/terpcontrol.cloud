@@ -1,4 +1,6 @@
-import { api } from './client';
+import { useEffect } from 'react';
+import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas/pages.js';
+import { api, type Query } from './client';
 
 /**
  * A list read to its end rather than to its first page.
@@ -22,32 +24,51 @@ interface Page<T> {
   nextCursor: string | null;
 }
 
-/** The largest page the server serves; asking for more gets this. One read stays one read. */
-export const PAGE_LIMIT = 200;
-
 /** At most this many reads for one list, so that a pathological account cannot hold a screen open for ever. */
-export const PAGE_CAP = 10;
+const PAGE_CAP = 10;
 
-export interface EveryPage<T> {
+interface EveryPage<T> {
   items: T[];
   /** True when the cursor ran out rather than the cap: only then does "not among these" mean "not there". */
   complete: boolean;
 }
 
-export const readEvery = async <T>(
-  path: string,
-  signal: AbortSignal | undefined,
-  query: Record<string, string | number | boolean | null | undefined> = {},
-): Promise<EveryPage<T>> => {
+export const readEvery = async <T>(path: string, signal: AbortSignal | undefined, query: Query = {}, cap = PAGE_CAP): Promise<EveryPage<T>> => {
   const items: T[] = [];
   let cursor: string | null = null;
 
-  for (let read = 0; read < PAGE_CAP; read += 1) {
-    const page: Page<T> = await api.get<Page<T>>(path, { ...query, limit: PAGE_LIMIT, cursor }, signal);
+  for (let read = 0; read < cap; read += 1) {
+    const page: Page<T> = await api.get<Page<T>>(path, { ...query, limit: MAX_PAGE_LIMIT, cursor }, signal);
     items.push(...page.items);
     cursor = page.nextCursor;
     if (cursor === null) return { items, complete: true };
   }
 
   return { items, complete: false };
+};
+
+/** Every row a paged read holds so far, in the order its pages came. */
+export const itemsOf = <T>(data: { pages: { items: T[] }[] } | undefined): T[] => data?.pages.flatMap(page => page.items) ?? [];
+
+interface Followable {
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  fetchNextPage: () => unknown;
+  data?: { pages: unknown[] };
+}
+
+/**
+ * The same walk for a paged read a screen holds, page by page up to the cap.
+ * It is how the admin lists are read: the fleet table and the account list are
+ * counted, not browsed - an operator asking how many devices are behind a build
+ * is asking about all of them - and past the cap the screen says what it is
+ * showing and offers the rest by hand.
+ */
+export const useFollowCursor = (query: Followable) => {
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
+  const read = query.data?.pages.length ?? 0;
+
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage && read > 0 && read < PAGE_CAP) void fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, read, fetchNextPage]);
 };

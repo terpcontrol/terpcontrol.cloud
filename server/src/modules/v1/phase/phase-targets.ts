@@ -1,4 +1,5 @@
 import type { PhaseTargets } from '@fg2/shared-types/v1';
+import { figureAt } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 
 /**
  * The targets a controller is running, as the phase records them.
@@ -26,19 +27,13 @@ export const targetsOf = (configuration: Record<string, unknown> | null | undefi
   if (!configuration) return null;
 
   const targets: PhaseTargets = {
-    day: { temperature: numberAt(configuration, PATHS.dayTemperature), humidity: numberAt(configuration, PATHS.dayHumidity) },
-    night: { temperature: numberAt(configuration, PATHS.nightTemperature), humidity: numberAt(configuration, PATHS.nightHumidity) },
-    co2: numberAt(configuration, PATHS.co2),
+    day: { temperature: figureAt(configuration, PATHS.dayTemperature), humidity: figureAt(configuration, PATHS.dayHumidity) },
+    night: { temperature: figureAt(configuration, PATHS.nightTemperature), humidity: figureAt(configuration, PATHS.nightHumidity) },
+    co2: figureAt(configuration, PATHS.co2),
   };
 
   // A device that states none of them - a plug, a light - has no targets rather
   // than four nulls to draw a band from.
   const values = [targets.day.temperature, targets.day.humidity, targets.night.temperature, targets.night.humidity, targets.co2];
   return values.some(value => value !== null) ? targets : null;
-};
-
-const numberAt = (configuration: Record<string, unknown>, path: string): number | null => {
-  const nested = path.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown> | null)?.[key], configuration);
-  const value = nested ?? configuration[path];
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 };

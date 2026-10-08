@@ -4,9 +4,9 @@ import type { GrowSeriesPoint, MeasurementDefinition, TimelineSpan } from '@fg2/
 import { Chart, type ChartOption } from '@/charts/Chart';
 import { nightColour } from '@/charts/series';
 import type { ChartPalette } from '@/charts/tokens';
-import { readingFigure } from '@/ui/entries';
 import { useZone } from '@/ui/zone';
 import { at, fractionOf, stampOf } from './window';
+import { looseFigure } from '@/ui/figures';
 import styles from './Timeline.module.css';
 
 interface ReadingPanelProps {
@@ -41,7 +41,7 @@ export function ReadingPanel({ definition, points, nights, from, to, cursor, scr
   const left = `${fractionOf(cursor, from, to) * 100}%`;
   const band =
     definition.targetMin !== null && definition.targetMax !== null
-      ? t('timeline.band', { low: readingFigure(definition.targetMin), high: readingFigure(definition.targetMax) })
+      ? t('timeline.band', { low: looseFigure(definition.targetMin), high: looseFigure(definition.targetMax) })
       : null;
 
   return (
@@ -49,7 +49,7 @@ export function ReadingPanel({ definition, points, nights, from, to, cursor, scr
       <header className={styles.panelHead}>
         {/* The right-hand side says it was read by hand and when, so the name stands alone. */}
         <span className={styles.metric}>{definition.name}</span>
-        <span className={`figure ${styles.panelValue}`}>{last ? readingFigure(last.value) : '—'}</span>
+        <span className={`figure ${styles.panelValue}`}>{last ? looseFigure(last.value) : '—'}</span>
         <span className={`mono ${styles.panelUnit}`}>{definition.unit}</span>
         <span className={`label ${styles.band}`}>
           {last ? t('timeline.readAt', { time: stampOf(at(last.measuredAt), to - from, zone) }) : (band ?? t('timeline.noTarget'))}
@@ -57,8 +57,8 @@ export function ReadingPanel({ definition, points, nights, from, to, cursor, scr
       </header>
       <div className={styles.plot}>
         <Chart option={option} height="100%" ariaLabel={t('timeline.panelAlt', { metric: definition.name })} />
-        <span className={`mono ${styles.scaleHigh}`}>{readingFigure(scale.high)}</span>
-        <span className={`mono ${styles.scaleLow}`}>{readingFigure(scale.low)}</span>
+        <span className={`mono ${styles.scaleHigh}`}>{looseFigure(scale.high)}</span>
+        <span className={`mono ${styles.scaleLow}`}>{looseFigure(scale.low)}</span>
         <div className={styles.overlay} {...scrub}>
           <span className={styles.cursor} style={{ left }} />
         </div>

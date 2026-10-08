@@ -1,9 +1,7 @@
-import { ChevronLeft } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
-import type { Reminder, Task } from '@fg2/shared-types/v1';
+import type { AccessNeed, GrowOrSpaceRef, Reminder, Task } from '@fg2/shared-types/v1';
 import { useBackToPlace } from '@/app/places';
 import { fetchedAt } from '@/api/clock';
 import { useDevices } from '@/api/devices';
@@ -12,19 +10,21 @@ import { useReminders } from '@/api/reminders';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { useTasks } from '@/api/tasks';
-import { useLog, useMayLog } from '@/log/log-context';
+import { useLog } from '@/log/log-context';
 import { useReportFreshness } from '@/ui/freshness';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough, standsIn, useMayManage, useMayWith, type Standing } from '@/ui/session-access';
+import { enough, growStanding, useMayLogIn, useMayManage, useMayWith, type Standing } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, useZone } from '@/ui/zone';
+import { BackLink } from '@/ui/BackLink';
 import { ReminderSheet } from './tasks/ReminderSheet';
 import { DoneCard, RhythmCard, TaskCard } from './tasks/TaskCard';
 import {
   dateLabel,
   dayLabel,
+  entryKindOf,
   GROUPS,
   groupOf,
   isMine,
@@ -93,10 +93,8 @@ function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => v
   return (
     <header className={styles.head}>
       <div className={styles.titleRow}>
-        <Link to={back.to} className={ui.back} aria-label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
-        <h1 className={styles.title}>{t('tasks.title')}</h1>
+        <BackLink to={back.to} label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')} />
+        <h1>{t('tasks.title')}</h1>
       </div>
       {scope && onScope ? (
         <div className={ui.segments} role="radiogroup" aria-label={t('tasks.scopeLabel')}>
@@ -154,7 +152,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const zone = useZone();
   const { user } = useSession();
   const { complete } = useLog();
-  const mayLog = useMayLog();
+  const mayLog = useMayLogIn();
   const mayManage = useMayManage();
   const mayWith = useMayWith();
   const done = useTasks(true);
@@ -180,23 +178,36 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
 
   // "Mine" and "all" are the same list until somebody else is given a task:
   // somebody keeping a diary alone was asked to choose between two answers to one question.
-  const shared = [...tasks, ...(done.data?.items ?? [])].some(task => task.assigneeId !== null && task.assigneeId !== (user?.id ?? null));
-  const shown = scope === 'all' || !shared ? tasks : tasks.filter(task => isMine(task, user?.id ?? null));
-  const ticked = newestFirst((done.data?.items ?? []).filter(task => scope === 'all' || !shared || isMine(task, user?.id ?? null)));
+  const myId = user?.id ?? null;
+  const shared = [...tasks, ...(done.data?.items ?? [])].some(task => task.assigneeId !== null && task.assigneeId !== myId);
+  const shown = scope === 'all' || !shared ? tasks : tasks.filter(task => isMine(task, myId));
+  const ticked = newestFirst((done.data?.items ?? []).filter(task => scope === 'all' || !shared || isMine(task, myId)));
   const nameOf = (task: Task) => subjectName(task.subject, grows.data?.items, spaces.data?.items);
   const openGrows = (grows.data?.items ?? []).filter(grow => grow.endedAt === null);
 
   /**
-   * Where a task's subject stands, which is what decides who may act on it.
-   * This list is the one screen that gathers tasks from every place at once, so
-   * the question is asked per card; null while the grows have not answered, and
-   * a control is not drawn on a guess.
+   * Where a task's or a rhythm's subject stands, which is what decides who may
+   * act on it. This list is the one screen that gathers tasks from every place
+   * at once, so the question is asked per card; null while the grows have not
+   * answered, and a control is not drawn on a guess.
    */
-  const standingOf = (task: Task): Standing | null => {
-    if (task.subject.type === 'space') return { ownerId: null, spaceId: task.subject.id };
-    const grow = (grows.data?.items ?? []).find(one => one.id === task.subject.id);
+  const standingOf = (subject: GrowOrSpaceRef): Standing | null => {
+    if (subject.type === 'space') return { ownerId: null, spaceId: subject.id };
+    const grow = (grows.data?.items ?? []).find(one => one.id === subject.id);
 
-    return grow ? { ownerId: grow.ownerId, spaceId: standsIn(grow) } : null;
+    return grow ? growStanding(grow) : null;
+  };
+
+  /**
+   * Whether this session reaches a need on a subject. A rhythm is asked the
+   * same question the cards ask of a task, because the list reaches rhythms no
+   * card is drawing: a member may see the arrangements of the tent they were
+   * let into and may not rewrite them.
+   */
+  const mayOn = (subject: GrowOrSpaceRef, need: AccessNeed): boolean => {
+    const standing = standingOf(subject);
+
+    return standing !== null && enough(mayWith(standing), need);
   };
 
   /**
@@ -207,34 +218,11 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
    * the same thing differently is how a guest gets to do through the back door
    * what the front door would not let them.
    */
-  const mayTick = (task: Task): boolean => {
-    const standing = standingOf(task);
-
-    return standing !== null && enough(mayWith(standing), task.source === 'plan_step' ? 'manage' : 'log');
-  };
-
-  const mayEdit = (task: Task): boolean => {
-    const standing = standingOf(task);
-
-    return standing !== null && enough(mayWith(standing), 'manage');
-  };
+  const mayTick = (task: Task): boolean => mayOn(task.subject, task.source === 'plan_step' ? 'manage' : 'log');
 
   /** The places a rhythm can be hung on: a reminder is `manage` on its subject, so nothing else may be offered. */
-  const reminderGrows = openGrows.filter(grow => enough(mayWith({ ownerId: grow.ownerId, spaceId: standsIn(grow) }), 'manage'));
+  const reminderGrows = openGrows.filter(grow => enough(mayWith(growStanding(grow)), 'manage'));
   const reminderSpaces = (spaces.data?.items ?? []).filter(space => enough(space.youMay, 'manage'));
-
-  /**
-   * Where a rhythm hangs, which decides whether it may be changed from here.
-   * The same question the cards ask of a task, asked of the reminder itself,
-   * because the list reaches rhythms no card is drawing: a member may see the
-   * arrangements of the tent they were let into and may not rewrite them.
-   */
-  const mayEditRhythm = (reminder: Reminder): boolean => {
-    if (reminder.subject.type === 'space') return enough(mayWith({ ownerId: null, spaceId: reminder.subject.id }), 'manage');
-    const grow = (grows.data?.items ?? []).find(one => one.id === reminder.subject.id);
-
-    return grow !== undefined && enough(mayWith({ ownerId: grow.ownerId, spaceId: standsIn(grow) }), 'manage');
-  };
 
   // A rhythm is what repeats; a one-off stands under its day, and here only while that day is beyond the board.
   const rhythms = [...(reminders.data?.items ?? [])]
@@ -261,8 +249,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
    * nobody was writing.
    */
   const doneLabel = (task: Task) => {
-    const kind = task.kind === 'chore' || task.kind === 'custom' ? 'note' : task.kind;
-    const what = task.source === 'plan_step' ? t('tasks.stepConfirmed') : t(`home.entryKind.${kind}`);
+    const what = task.source === 'plan_step' ? t('tasks.stepConfirmed') : t(`home.entryKind.${entryKindOf(task.kind)}`);
     const name = nameOf(task);
     return name ? `${what} · ${name}` : what;
   };
@@ -306,7 +293,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
                     me={user}
                     now={now}
                     onDone={mayLog && mayTick(task) ? () => tick(task) : null}
-                    onEdit={mayEdit(task) && reminder ? () => setEditing({ reminder }) : null}
+                    onEdit={mayOn(task.subject, 'manage') && reminder ? () => setEditing({ reminder }) : null}
                     why={task.source === 'plan_step' && !mayTick(task) ? t('tasks.stepIsManaged') : null}
                   />
                 );
@@ -354,7 +341,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
                 reminder={reminder}
                 name={subjectName(reminder.subject, grows.data?.items, spaces.data?.items)}
                 language={i18n.language}
-                onEdit={mayEditRhythm(reminder) ? () => setEditing({ reminder }) : null}
+                onEdit={mayOn(reminder.subject, 'manage') ? () => setEditing({ reminder }) : null}
               />
             ))}
           </ul>

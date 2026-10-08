@@ -1,4 +1,6 @@
 import type {
+  ChartViewDefinition,
+  ChartViewLayout,
   MeasurementDefinition,
   Metric,
   OutputMetric,
@@ -24,9 +26,12 @@ import {
   type PlotSpan,
 } from '@/charts/series';
 import type { ChartToken } from '@/charts/tokens';
+import type { Translate } from '@/i18n/i18n';
+import type { VpdHalf } from '@/ui/advanced/item';
+import { outputWord } from '@/ui/climate-hardware';
 import type { HelpTopic } from '@/ui/explain';
 import { looseFigure } from '@/ui/figures';
-import { targetFigure, UNIT } from '../home/units';
+import { targetFigure, UNIT } from '@/ui/units';
 import { at, spans, stretchesOf } from '../timeline/window';
 import type { ChartData } from './data';
 import { stepLabel } from './steps';
@@ -51,13 +56,7 @@ import { stepLabel } from './steps';
  * about both, so everything else gets a card of its own.
  */
 
-export interface Picked {
-  metrics: Metric[];
-  outputs: OutputMetric[];
-  measurements: string[];
-}
-
-export type Layout = 'stacked' | 'overlay' | 'day_of_grow';
+export type Picked = Pick<ChartViewDefinition, 'metrics' | 'outputs' | 'measurements'>;
 
 /** The one pair of units that belongs on one panel: what a tent is steered by, read together. */
 const TOGETHER: Metric[] = ['temperature', 'humidity'];
@@ -68,22 +67,43 @@ const METRIC_COLOUR: Partial<Record<Metric, ChartToken>> = { temperature: 'tempe
 /** The colour a metric's line is drawn in, which its chip is filled with once it is on. */
 export const metricColour = (metric: Metric): ChartToken => METRIC_COLOUR[metric] ?? 'ink';
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /** How far the leaf sits under the air in either half of the cycle, which is what turns a pair of targets into a deficit. */
-export interface LeafOffsets {
+interface LeafOffsets {
   day: number;
   night: number;
 }
 
+/**
+ * What the VPD panel takes the leaf to be, and what its band is worked out
+ * from. A place with two controllers set up differently draws a curve that is
+ * the mean of two computations, so where they disagree the panel says nothing
+ * rather than something it cannot stand behind.
+ */
+export const leafOffsetsOf = (
+  devices: readonly { id: string; settings: { vpdLeafOffsetDay: number; vpdLeafOffsetNight: number } }[],
+  series: ChartData | undefined,
+): LeafOffsets | null => {
+  const here = devices.filter(device => (series?.deviceIds ?? []).includes(device.id));
+  const first = here[0];
+  if (!first) return null;
+
+  return here.every(
+    device =>
+      device.settings.vpdLeafOffsetDay === first.settings.vpdLeafOffsetDay &&
+      device.settings.vpdLeafOffsetNight === first.settings.vpdLeafOffsetNight,
+  )
+    ? { day: first.settings.vpdLeafOffsetDay, night: first.settings.vpdLeafOffsetNight }
+    : null;
+};
+
 /** A plant, as far as a chart needs one: a reading per plant is a line per plant, and each of them is called something. */
-export interface PlantName {
+interface PlantName {
   id: string;
   label: string;
 }
 
 /** The earlier run laid over this one, which is what the day-of-grow layout exists for. */
-export interface Compared {
+interface Compared {
   series: ChartData;
   name: string;
 }
@@ -95,15 +115,10 @@ export interface Offered {
   measurements: MeasurementDefinition[];
 }
 
-/**
- * What an output is called on the charts. A fridge module drives one compressor
- * that cools and dries at once, and its dehumidifier output is that compressor:
- * the cockpit, the alarms and the device panel call it so, and a chip or a card
- * calling the same machine "Entfeuchter" would be a second name for it.
- */
+/** What an output is called on the charts: a fridge's name for it where every lane of it is a fridge's. */
 export const outputTitle = (t: Translate, output: OutputMetric, lanes: readonly Pick<TimelineOutputLane, 'output' | 'fridge'>[]): string => {
   const own = lanes.filter(lane => lane.output === output);
-  const word = output === 'dehumidifier' && own.length > 0 && own.every(lane => lane.fridge === true) ? 'compressor' : output;
+  const word = outputWord(output, own.length > 0 && own.every(lane => lane.fridge === true));
 
   return t(`timeline.output.${word}`, { defaultValue: output });
 };
@@ -184,18 +199,15 @@ interface Drawn {
   help?: HelpTopic;
 }
 
-/** Which half of the cycle the VPD line keeps: both, or only the lit or only the dark one. */
-export type VpdMode = 'all' | 'day' | 'night';
-
-export interface CardsInput {
+interface CardsInput {
   picked: Picked;
-  layout: Layout;
+  layout: ChartViewLayout;
   offered: Offered;
   leaf: LeafOffsets | null;
   plants: readonly PlantName[];
   /** Set only in the day-of-grow layout, which is the one thing two runs can share an axis in. */
   compared?: Compared;
-  vpdMode?: VpdMode;
+  vpdMode?: VpdHalf;
 }
 
 /** Day 1 of the grow, or the start of the window where no grow is charted: what the day-of-grow axis counts from. */
@@ -301,7 +313,7 @@ const cardOf = (key: string, title: string, about: string, unit: string, drawn: 
 const cornerFigure = (value: number, metric: Metric | undefined): string => (metric === undefined ? looseFigure(value) : targetFigure(value, metric));
 
 /** The window, the nights and the axis, which are the same for every card on the screen. */
-const framed = (card: Card, series: ChartData, layout: Layout): Card => {
+const framed = (card: Card, series: ChartData, layout: ChartViewLayout): Card => {
   const origin = originOf(series);
   const day = layout === 'day_of_grow';
   const stamp = (time: number) => (day ? dayOfGrow(time, origin) : time);
@@ -730,7 +742,7 @@ export const csvForCards = (t: Translate, series: ChartData, input: CardsInput, 
  * by; a window with no light to read it from has no night, and its every point
  * counts as day.
  */
-export const halfOf = (panel: TimelinePanel, nights: TimelineSpan[], mode: VpdMode = 'all'): TimelinePanel =>
+export const halfOf = (panel: TimelinePanel, nights: TimelineSpan[], mode: VpdHalf = 'all'): TimelinePanel =>
   mode === 'all'
     ? panel
     : {

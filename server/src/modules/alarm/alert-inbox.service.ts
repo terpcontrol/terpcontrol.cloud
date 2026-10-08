@@ -6,8 +6,10 @@ import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { AccessContext, SubjectRef } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage } from '@common/v1/pages';
+import { withSpacesInside } from '@common/v1/rooms';
 import { notFound } from '@common/v1/problem';
+import { PageQuery } from '@common/v1/validation';
 
 /**
  * Reading alerts, which is the inbox and the badge on a card.
@@ -49,14 +51,8 @@ export class AlertInboxService {
     return null;
   }
 
-  public async list(where: FilterQuery<StoredAlert>, cursor: string | undefined, limit: number): Promise<CursorPage<StoredAlert>> {
-    const rows = await this.alerts
-      .find({ ...where, ...afterCursor('startedAt', cursor) })
-      .sort({ startedAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<StoredAlert[]>();
-
-    return pageOf(rows, limit, alert => ({ at: alert.startedAt, id: alert.id }));
+  public list(where: FilterQuery<StoredAlert>, query: PageQuery): Promise<CursorPage<StoredAlert>> {
+    return findPage(this.alerts, [where], query, { field: 'startedAt' });
   }
 
   /** The filter a list is held to, or null where the caller can see nothing at all. */
@@ -87,10 +83,6 @@ export class AlertInboxService {
     const owned = await this.spaces.find({ ownerId: ctx.userId }, { id: 1 }).lean<{ id: string }[]>();
     const memberships = await this.memberships.find({ userId: ctx.userId }, { spaceId: 1 }).lean<{ spaceId: string }[]>();
 
-    const ids = new Set([...owned.map(space => space.id), ...memberships.map(membership => membership.spaceId)]);
-    const inRooms = await this.spaces.find({ roomId: { $in: [...ids] } }, { id: 1 }).lean<{ id: string }[]>();
-    for (const space of inRooms) ids.add(space.id);
-
-    return [...ids];
+    return withSpacesInside(this.spaces, [...owned.map(space => space.id), ...memberships.map(membership => membership.spaceId)]);
   }
 }

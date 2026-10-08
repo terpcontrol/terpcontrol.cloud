@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { CameraEntitlement, MediaQuality, PremiumFree } from '@fg2/shared-types/v1';
+import { CameraEntitlement, PremiumFree } from '@fg2/shared-types/v1';
+import { RENEWAL_WINDOW_DAYS } from '@fg2/shared-types/v1-schemas';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { premiumConfig } from '@config/configuration';
 
@@ -18,25 +19,16 @@ import { premiumConfig } from '@config/configuration';
  * free camera's. That is what a self-hosted install gets, and it is the default.
  */
 
-/** How long before a year runs out the renewal is worth mentioning, as the record decides. */
-const RENEWAL_WINDOW_DAYS = 60;
-
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 
-/** Twelve months, as the record decides, for a Terp Cam when it is first claimed or paired. */
-export const ENTITLEMENT_MONTHS = 12;
+/** Twelve months, as the record decides, for a Terp Cam when it is first claimed or paired. Nothing renews on its own. */
+const ENTITLEMENT_MONTHS = 12;
 
 export const yearFrom = (at: Date): Date => {
   const until = new Date(at);
   until.setMonth(until.getMonth() + ENTITLEMENT_MONTHS);
   return until;
 };
-
-/** How long a camera's pictures are kept when nothing is entitled and the install has said to sweep. */
-export interface FreeRetention {
-  stillDays: number;
-  timelapseDays: number;
-}
 
 /**
  * What a free camera gets here, translated from the install's configuration
@@ -104,7 +96,11 @@ export class EntitlementService {
     return validUntil.getTime() - now.getTime() <= RENEWAL_WINDOW_DAYS * MS_IN_A_DAY;
   }
 
-  /** What a free camera gets on this install, as `/me` answers it. */
+  /**
+   * What a free camera gets on this install. The windows its pictures are swept
+   * by are null unless the install has turned the switch on and named the days,
+   * so an install that says nothing keeps every picture as long as it does today.
+   */
   public freeTier(): PremiumFree {
     return freeTierOf(this.premium);
   }
@@ -114,30 +110,12 @@ export class EntitlementService {
    * stored picture whole. The bytes in the bucket are never touched: a camera
    * that is extended serves its whole history at full size again.
    */
-  public servedStillWidth(camera: Pick<CameraDocument, 'entitlement'>, now: Date = new Date()): number | undefined {
-    if (this.premium.freeStillWidth <= 0 || this.isEntitled(camera, now)) return undefined;
+  public servedStillWidth(camera: Pick<CameraDocument, 'entitlement'>): number | undefined {
+    if (this.premium.freeStillWidth <= 0 || this.isEntitled(camera)) return undefined;
     return this.premium.freeStillWidth;
   }
 
-  /** HD is entitled; a free camera renders at the resolution it always has. */
-  public allowedQuality(camera: Pick<CameraDocument, 'entitlement'>, asked: MediaQuality | undefined, now: Date = new Date()): MediaQuality {
-    return asked === 'hd' && this.isEntitled(camera, now) ? 'hd' : 'sd';
-  }
-
-  public watermarks(camera: Pick<CameraDocument, 'entitlement'>, now: Date = new Date()): boolean {
-    return !this.isEntitled(camera, now);
-  }
-
-  /**
-   * The windows a free camera's pictures are swept by, or null - which is the
-   * answer unless an install has turned the switch on and named the days, so an
-   * install that says nothing keeps every picture as long as it does today.
-   */
-  public freeRetention(): FreeRetention | null {
-    if (!this.premium.enforced || !this.premium.freeRetention) return null;
-
-    const stillDays = this.premium.freeStillDays;
-    const timelapseDays = this.premium.freeTimelapseDays;
-    return stillDays > 0 || timelapseDays > 0 ? { stillDays, timelapseDays } : null;
+  public watermarks(camera: Pick<CameraDocument, 'entitlement'>): boolean {
+    return !this.isEntitled(camera);
   }
 }

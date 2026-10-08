@@ -26,11 +26,7 @@ fi
 
 
 if [ -n "$MONGO_FILENAME" ]; then
-  MONGO_CONTAINER="$(terpcontrol_compose ps -q mongodb)"
-  if [ -z "$MONGO_CONTAINER" ]; then
-      echo "Error: MongoDB container is not running."
-      exit 1
-  fi
+  MONGO_CONTAINER="$(terpcontrol_container mongodb)"
 
   docker cp "$MONGO_FILENAME" "$MONGO_CONTAINER":/backup.mongodump
   # --drop drops only the collections the archive carries. A dump taken before
@@ -52,11 +48,7 @@ if [ -n "$MONGO_FILENAME" ]; then
 fi
 
 if [ -n "$INFLUX_FILENAME" ]; then
-  INFLUX_CONTAINER="$(terpcontrol_compose ps -q influxdb)"
-  if [ -z "$INFLUX_CONTAINER" ]; then
-      echo "Error: InfluxDB container is not running."
-      exit 1
-  fi
+  INFLUX_CONTAINER="$(terpcontrol_container influxdb)"
 
   terpcontrol_compose exec -T influxdb rm -rf /influxdb-backup.tar /influxdb-backup/ || true
   docker cp "$INFLUX_FILENAME" "$INFLUX_CONTAINER":/influxdb-backup.tar

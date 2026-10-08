@@ -2,6 +2,9 @@ import { type DateTime } from 'luxon';
 import { useEffect, useState } from 'react';
 import { onClockLearned, serverNow } from '@/api/clock';
 
+/** How often the caller re-renders. */
+const BEAT_MS = 10_000;
+
 /**
  * A clock that re-renders its caller on a beat, for every "20 s ago" on a
  * screen.
@@ -17,15 +20,15 @@ import { onClockLearned, serverNow } from '@/api/clock';
  * differ, and a screen already drawn from the browser's clock should not go on
  * saying so until its next beat.
  */
-export const useNow = (everyMs = 10_000): DateTime => {
+export const useNow = (): DateTime => {
   const [now, setNow] = useState(serverNow);
   useEffect(() => {
-    const timer = setInterval(() => setNow(serverNow()), everyMs);
+    const timer = setInterval(() => setNow(serverNow()), BEAT_MS);
     const stopListening = onClockLearned(() => setNow(serverNow()));
     return () => {
       clearInterval(timer);
       stopListening();
     };
-  }, [everyMs]);
+  }, []);
   return now;
 };

@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
 updated: 2026-10-08
-source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); checked against the code 2026-10-08
+source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -43,6 +43,8 @@ hardware, the development devices and copies of production data are in
   them; CI runs both against `dist/` (`HARNESS_BUILT=1 npm test` after `npm run build`).
 - **The integration suite (about four minutes) wants the machine to itself.** A run beside five agents driving browsers
   and compose stacks failed 19 tests that passed on three quiet re-runs. Re-run on a quiet machine before diagnosing.
+  Several worktrees may still run `npm test` at once: the harness takes free ports and keeps its state in the
+  worktree's own `test/.tmp`.
 - It is black-box and has no path aliases: relative imports, no application module (the migration step list pulls in
   the whole app, so `migrations.spec.ts` counts the files in `src/migrations/steps/`).
 - A new controller tag needs its description in `TAGS` (`server/src/openapi.ts`), or `openapi.spec.ts` lists every
@@ -95,8 +97,9 @@ hardware, the development devices and copies of production data are in
   New Year's night, and the touched files under `TZ=UTC`, `TZ=America/Los_Angeles` and `TZ=Asia/Tokyo`.
 
 ## The simulator, beyond CLAUDE.md
-- It runs from a bare checkout on Node 24 - built-ins plus `shared-types/v1-schemas/` modules that import nothing -
-  because a dev tool that needs an install first is one nobody runs (#78). Keep it that way.
+- It runs from a bare checkout on Node 24 - built-ins plus schema-free `shared-types/v1-schemas/` modules that import
+  nothing but each other (`day-night.js` reads `configuration-fields.js`) - because a dev tool that needs an install
+  first is one nobody runs (#78). Keep it that way.
 - It follows the firmware: day and night from the shared day-night module on the UTC clock, each type's work modes
   and ramps, the AIR's speed in percent, the humidifier's hysteresis; only fridge and controller drive smart sockets.
   Noise is seeded by the device id, so charts compare between runs. Restart running `run`s after pulling simulator
@@ -113,7 +116,9 @@ hardware, the development devices and copies of production data are in
   each account a copy of the env file with its own `AGENT_TESTING_*` and pass it as `TERPCONTROL_ENV_FILE`.
 - `demo-seed` makes two tents (one with a camera) and a fridge with 21 days at 30-minute steps, settings and alarm
   rules, the grows "Spring run" and "Balcony tomatoes" (in a balcony without a device) with a backdated diary, and a
-  second account when run as admin. It does not share the tent with that account yet.
+  second account when run as admin. It does not share the tent with that account yet. Its device ids
+  (`demo-tent-blue-dream`, ...) are the same in every worktree, so `pkill -f` on one also kills other sessions'
+  simulators: stop yours by PID (`lsof -a -p <pid> -d cwd` shows whose it is).
 - Alarms on a seeded stack: the first tent's seeded maintenance line holds its alarms for 20 minutes plus
   `MAINTENANCE_SETTLE_SECONDS` (10); a rule trips only after its `forSeconds` out of band (demo-seed: 900), so pin the
   value with `run --set` rather than one `send --set`; once fired it is quiet for its `cooldownSeconds` (1800).
@@ -165,6 +170,9 @@ hardware, the development devices and copies of production data are in
   stand-in. `npm run start:public` serves the dev server to other machines - a phone, given an API address it reaches.
 - A UI change is checked on the real stack in every state it has - live, stale, offline, device only, diary only,
   several places - light and dark, phone first (390x844, also 360 and 320 px), then desktop (1440 px).
+- Not defects: the service worker never registers in the Claude desktop app's built-in browser pane ("unknown error
+  when fetching the script", on master too) - check it in another browser; `GET /v1/devices/{id}/plan` answers 404 for
+  every device without a plan ([webapp](webapp.md#api-client-and-reads)).
 - The rewrite was walked with persona accounts made the way a grower makes them (sign-up through `POST /v1/users`,
   zone and language before the claim, the place renamed as the claim flow does, grows through the app's routes): one
   fridge without camera or diary (the main persona), a tent with leaf temperature and lux, a fridge with a Terp Cam,

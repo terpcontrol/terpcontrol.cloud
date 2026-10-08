@@ -1,6 +1,6 @@
 import type { CardSetpoint, CardValue, Metric, SpaceLiveDevice } from '@fg2/shared-types/v1';
-import { TARGET_BAND, metric } from '@fg2/shared-types/v1-schemas';
-import { STEERED, steeredIn } from '@common/v1/steering';
+import { STEERED, TARGET_BAND, metric } from '@fg2/shared-types/v1-schemas';
+import { steeredIn } from '@common/v1/steering';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { LiveReading } from '@modules/data/data.service';
 import type { Settling } from '../device/held-targets';
@@ -20,7 +20,7 @@ const CARD_ORDER: readonly Metric[] = [
   ...new Set<Metric>(['temperature', 'humidity', 'co2', 'vpd', ...metric.options.filter(name => name !== 'offline')]),
 ];
 
-export interface DeviceReading {
+interface DeviceReading {
   device: StoredDevice;
   reading: LiveReading;
 }

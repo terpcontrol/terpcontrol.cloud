@@ -6,7 +6,6 @@ import { InfluxPoint } from './stores';
  * gains an unrelated clause keeps working.
  */
 export interface ParsedFlux {
-  bucket: string;
   start: string;
   stop: string;
   measurement?: string;
@@ -30,7 +29,7 @@ export interface ParsedFlux {
   timeAtStart: boolean;
 }
 
-export type AggregateFn = 'mean' | 'min' | 'max' | 'sum' | 'last' | 'first' | 'count';
+export type AggregateFn = 'mean' | 'max' | 'sum';
 
 /** The `limit(n:)` the server's own queries carry, so a wide range with a small
  * interval cannot build an unbounded list here either. */
@@ -48,7 +47,7 @@ const DURATION_UNITS_MS: Record<string, number> = {
 };
 
 /** `-3d`, `1h30m`, `500ms` -> milliseconds. Returns NaN for anything else. */
-export const parseDuration = (value: string): number => {
+const parseDuration = (value: string): number => {
   const match = /^(-)?((\d+(?:\.\d+)?(?:ns|us|ms|s|m|h|d|w))+)$/.exec(value.trim());
   if (!match) return NaN;
 
@@ -60,7 +59,7 @@ export const parseDuration = (value: string): number => {
 };
 
 /** A Flux time literal (`now()`, `-3d`, RFC3339, unix seconds) as epoch millis. */
-export const resolveTime = (value: string, now: number): number => {
+const resolveTime = (value: string, now: number): number => {
   const trimmed = String(value ?? '').trim();
   if (trimmed === '' || trimmed === 'now()') return now;
 
@@ -78,7 +77,6 @@ export const resolveTime = (value: string, now: number): number => {
 const literal = (query: string, pattern: RegExp): string | undefined => pattern.exec(query)?.[1];
 
 export const parseFlux = (query: string): ParsedFlux => ({
-  bucket: literal(query, /from\(bucket:\s*"([^"]*)"\)/) ?? '',
   start: literal(query, /range\(start:\s*([^,)\s]+)/) ?? '-1h',
   stop: literal(query, /range\([^)]*stop:\s*([^,)\s]+)/) ?? 'now()',
   measurement: literal(query, /r\["_measurement"\]\s*==\s*"([^"]*)"/),
@@ -98,19 +96,10 @@ export const parseFlux = (query: string): ParsedFlux => ({
 const aggregate = (values: number[], fn: AggregateFn): number | null => {
   if (values.length === 0) return null;
   switch (fn) {
-    case 'min':
-      return Math.min(...values);
     case 'max':
       return Math.max(...values);
     case 'sum':
       return values.reduce((a, b) => a + b, 0);
-    case 'last':
-      return values[values.length - 1];
-    case 'first':
-      return values[0];
-    case 'count':
-      return values.length;
-    case 'mean':
     default:
       return values.reduce((a, b) => a + b, 0) / values.length;
   }

@@ -1,8 +1,8 @@
-import { AccessService } from '@common/v1/access.service';
-import { AccessContext } from '@common/v1/access.types';
 import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
 import { DevicesService } from '@modules/v1/device/devices.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { session } from './support/callers';
+import { accessOn, devicesOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Whose camera a controller's report makes.
@@ -22,9 +22,7 @@ const PAIRED = 'TERPCAM01';
 const ALICE = 'user-alice';
 const BOB = 'user-bob';
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let devices: DevicesService;
 let hardware: HardwareReportService;
 let codes: number;
@@ -43,21 +41,12 @@ const reports = async (deviceId: string, line: string): Promise<void> => {
 
 const cameraOn = (deviceId: string) => db.cameras.findOne({ deviceId, removedAt: null }).lean();
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
   codes = 0;
 
-  const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
   hardware = new HardwareReportService(db.devices, db.cameras);
-  devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access, null, hardware);
+  devices = devicesOn(db, accessOn(db), hardware);
 
   await db.devices.create([
     { id: DEVICE, type: 'controller', ownerId: null },

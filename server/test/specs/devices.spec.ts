@@ -469,6 +469,47 @@ describe('how a device updates', () => {
       await admin.client.patch(`/v1/admin/device-classes/${plugClass.id}`).send({ firmwareIds: plugClass.firmwareIds }).expect(200);
     }
   });
+
+  it('offers the same builds page after page: the cursor continues the offer rather than replacing it', async () => {
+    const device = await provisionDevice(owner, 'plug');
+    const admin = await loginAsAdmin();
+    const classes = await admin.client.get('/v1/admin/device-classes').expect(200);
+    const plugClass = classes.body.items.find((entry: { name: string }) => entry.name === 'plug');
+    const upload = async () =>
+      (
+        await admin.client
+          .post('/v1/admin/firmwares')
+          .send({ classId: plugClass.id, name: 'plug', version: unique('v') })
+          .expect(201)
+      ).body;
+    const forgotten = await upload();
+    const stable = await upload();
+    await admin.client
+      .patch(`/v1/admin/device-classes/${plugClass.id}`)
+      .send({ firmwareIds: { ...plugClass.firmwareIds, stable: stable.id } })
+      .expect(200);
+    const newer = await upload();
+
+    try {
+      const walked: string[] = [];
+      let cursor: string | null = null;
+      do {
+        const page: { items: { id: string }[]; nextCursor: string | null } = (
+          await owner.client
+            .get(`/v1/devices/${device.deviceId}/firmwares`)
+            .query({ limit: 1, ...(cursor ? { cursor } : {}) })
+            .expect(200)
+        ).body;
+        walked.push(...page.items.map(build => build.id));
+        cursor = page.nextCursor;
+      } while (cursor !== null);
+
+      expect(walked).toEqual(expect.arrayContaining([stable.id, newer.id]));
+      expect(walked).not.toContain(forgotten.id);
+    } finally {
+      await admin.client.patch(`/v1/admin/device-classes/${plugClass.id}`).send({ firmwareIds: plugClass.firmwareIds }).expect(200);
+    }
+  });
 });
 
 describe('the settings of a stand-alone module', () => {

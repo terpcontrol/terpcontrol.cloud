@@ -6,6 +6,7 @@ exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.ad
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const configuration_fields_js_1 = require("./configuration-fields.js");
+const firmware_channels_js_1 = require("./firmware-channels.js");
 const socket_report_js_1 = require("./socket-report.js");
 /**
  * The device half of the `/v1` contract: what a device is, what it runs and what
@@ -20,7 +21,7 @@ const socket_report_js_1 = require("./socket-report.js");
  * Where a device takes its firmware from. `manual` is not a build channel but the
  * absence of one: the device stays on what an operator picked.
  */
-exports.firmwareChannel = (0, common_js_1.named)('FirmwareChannel', zod_1.z.enum(['stable', 'beta', 'alpha', 'manual']));
+exports.firmwareChannel = (0, common_js_1.named)('FirmwareChannel', zod_1.z.enum([...firmware_channels_js_1.RELEASE_CHANNELS, 'manual']));
 /**
  * The device's own configuration document.
  *
@@ -285,7 +286,7 @@ exports.firmwarePage = (0, common_js_1.named)('FirmwarePage', (0, common_js_1.pa
  * what somebody choosing a version by hand reads it by.
  */
 exports.deviceFirmware = (0, common_js_1.named)('DeviceFirmware', exports.firmware.extend({
-    channels: zod_1.z.array(zod_1.z.enum(['stable', 'beta', 'alpha'])).describe('The release channels whose current build this is; empty for a build no channel points at.'),
+    channels: zod_1.z.array(zod_1.z.enum(firmware_channels_js_1.RELEASE_CHANNELS)).describe('The release channels whose current build this is; empty for a build no channel points at.'),
 }));
 exports.deviceFirmwarePage = (0, common_js_1.named)('DeviceFirmwarePage', (0, common_js_1.page)(exports.deviceFirmware));
 /**

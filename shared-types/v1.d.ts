@@ -71,8 +71,6 @@ export type NotificationCategory = 'alerts' | 'warnings' | 'tasks' | 'plan' | 'w
 
 export type NotificationSubjectType = 'alert' | 'task' | 'plan' | 'media';
 
-export type ExportStatus = 'queued' | 'running' | 'ready' | 'failed';
-
 export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
 
 export type OperatingMode = 'standard' | 'greenhouse' | 'germination';
@@ -649,8 +647,6 @@ export interface SessionResult {
   user: SessionUser;
 }
 
-export interface DemoSessionCreate {}
-
 export interface SessionRefresh {
   refreshToken: string;
 }
@@ -711,23 +707,6 @@ export interface NotificationLogEntry {
   externalMessageId: string | null;
   sentAt: string;
   expiresAt: string;
-}
-
-export interface UserExport {
-  id: string;
-  createdAt: string;
-  status: ExportStatus;
-  startedAt: string | null;
-  endedAt: string | null;
-  downloadUrl: string | null;
-  /**
-   * When the finished file is swept; null while it is still being made.
-   */
-  validUntil: string | null;
-  /**
-   * Why it failed; null otherwise.
-   */
-  detail: string | null;
 }
 
 export interface AdminUserPage {
@@ -2338,14 +2317,6 @@ export interface SpaceUpdate {
   retention?: SpaceRetention;
 }
 
-export interface DevicePlacement {
-  deviceId: string;
-  /**
-   * The space the device now stands in; null once it has been taken out.
-   */
-  spaceId: string | null;
-}
-
 export interface PresetApplicationCreate {
   stage: GrowthStage;
   /**
@@ -3451,14 +3422,6 @@ export interface Migration {
   stats: {
     [k: string]: number;
   };
-}
-
-export interface MigrationPage {
-  items: Migration[];
-  /**
-   * Pass back as `cursor` for the next page; null on the last one.
-   */
-  nextCursor: string | null;
 }
 
 export interface CardValue {

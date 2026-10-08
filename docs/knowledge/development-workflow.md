@@ -1,7 +1,7 @@
 ---
 summary: How agents and people work here - branches and pushing, PR review comments, long runs and rounds, what needs Chris's word, commit and PR texts, worktrees and parallel agents
 updated: 2026-10-08
-source: Chris's instructions in sessions and PR reviews 2025-10..2026-10 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08)
+source: Chris's instructions in sessions and PR reviews 2025-10..2026-10 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08)
 paths:
   - .claude/**
   - .worktreeinclude
@@ -154,6 +154,10 @@ A round is one pass of building or fixing with its checks, ending in a short rep
 - **Comments are prose in complete sentences** that say why ([AGENTS.md](../../AGENTS.md), Code style): read the file
   you are editing and match how it comments.
 - What goes into `README.md` and what into comments: [CLAUDE.md](../../CLAUDE.md), Documentation.
+- **Dead code:** `npx knip@5` in `server/`, `webapp/` and `shared-types/` lists leads, each checked by grep before it
+  goes. In use although it reports them: the webapp's `*.advanced.tsx` (found by `import.meta.glob`) and `src/sw.ts`
+  (built by vite-plugin-pwa), the server's `src/migrations/cli.ts` (run from `package.json`), NestJS providers, and
+  `@fg2/shared-types` (imported by subpath).
 
 ## Worktrees and parallel agents
 - **Agent worktrees are created in the repository of the launching session's working directory.** Launch cloud work
@@ -164,7 +168,10 @@ A round is one pass of building or fixing with its checks, ending in a short rep
   refuses to check out a branch another worktree holds. Brief every worktree agent to `git reset --hard <branch tip>`
   before any work and to commit on its own worktree branch; the lead cherry-picks or fast-forwards.
 - **A fresh worktree has no `node_modules`**: `npm ci` in `shared-types/`, `server/` and `webapp/` before any check is
-  believed - without it `npx tsc` can report 0 errors for a project it never compiled ([testing](testing.md)).
+  believed - without it `npx tsc` can report 0 errors for a project it never compiled ([testing](testing.md)). On
+  macOS, `cp -cR <checkout>/<pkg>/node_modules <pkg>/node_modules` clones a checkout's in seconds (APFS), valid while
+  both `package-lock.json` are the same; the `@fg2/shared-types` link is relative, so it points at the worktree's own
+  `shared-types/`.
   `.worktreeinclude` names the git-ignored local files that are copied into a new worktree.
 - **Several agents in one worktree**: a red check may be somebody else's half-finished edit. Measure your change on a
   throwaway tree (`git archive HEAD` plus only your files) - never `git stash`, whose stack all worktrees and sessions

@@ -23,18 +23,17 @@ import type {
   PlantUpdate,
   SplitCreate,
   SplitResult,
-  UserPrivacy,
 } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { badRequest, conflict, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { GrowDocument, PhaseDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
@@ -43,8 +42,10 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { targetsOf } from '../phase/phase-targets';
 import { PhaseWriterService } from '../phase/phase-writer.service';
 import { CLIMATE_PRESETS, ClimatePresets } from './climate-presets.port';
-import { NOTHING_HIDDEN, Redaction, redactionOf, serialiseGrow, serialisePhase, serialisePlacement, serialisePlant } from './grow-serialiser';
+import { NOTHING_HIDDEN, Redaction, serialiseGrow, serialisePhase, serialisePlacement, serialisePlant } from './grow-serialiser';
+import { grantRedaction, ownerRedactions } from './redactions';
 import { growsVisibleTo } from './visible-grows';
+import { accountOf } from '../caller';
 
 /**
  * The `grows` collection and the `plants` beside it: what is growing, where it
@@ -56,9 +57,6 @@ import { growsVisibleTo } from './visible-grows';
  * controllers of that space on the climate the preset asks for, which is what
  * makes a phase "auto".
  */
-
-type StoredPhase = GrowDocument['phases'][number];
-type StoredPlacement = GrowDocument['placements'][number];
 
 /** What a move says: where the plants go, when, and which of them. */
 interface Move {
@@ -108,23 +106,6 @@ export class GrowsService {
     return this.grows.findOne({ slug }).lean<GrowDocument>();
   }
 
-  /**
-   * What is growing in a place right now, as an id and nothing more.
-   *
-   * It is what the alarms ask through `GROW_IN_SPACE`: an alarm happens in a
-   * tent, and a tent with a grow standing in it has a diary the line belongs
-   * in. The newest open placement answers it, because two grows can share a
-   * tent while one is on its way out.
-   */
-  public async growIdIn(spaceId: string): Promise<string | null> {
-    const grow = await this.grows
-      .findOne({ endedAt: null, placements: { $elemMatch: { spaceId, endedAt: null } } }, { id: 1 })
-      .sort({ startedAt: -1, id: -1 })
-      .lean<Pick<GrowDocument, 'id'>>();
-
-    return grow?.id ?? null;
-  }
-
   /** Oldest first, and the plants of one batch share an instant, so the order they were written in decides between them. */
   public plantsOf(growId: string): Promise<PlantDocument[]> {
     return this.plants.find({ growId }).sort({ createdAt: 1, _id: 1 }).lean<PlantDocument[]>();
@@ -147,34 +128,25 @@ export class GrowsService {
    * that has ever stood in it.
    */
   public async list(ctx: AccessContext, query: PageQuery, spaceId?: string, everStood = false): Promise<CursorPage<GrowListItem>> {
-    const limit = pageLimit(query.limit);
     const place = spaceId ? { placements: { $elemMatch: everStood ? { spaceId } : { spaceId, endedAt: null } } } : {};
-
-    // Combined rather than merged into one object: the visibility and the cursor
-    // are each an `$or` of their own, and one would silently replace the other -
-    // which would hand out everything that sorts after the cursor from the
-    // second page on, while the first page looked right.
-    const conditions: FilterQuery<GrowDocument>[] = [await this.visibleTo(ctx), place, afterCursor('startedAt', query.cursor)];
-
-    const rows = await this.grows.find({ $and: conditions }).sort({ startedAt: -1, id: -1 }).limit(readLimit(limit)).lean<GrowDocument[]>();
-
-    const page = pageOf(rows, limit, grow => ({ at: grow.startedAt, id: grow.id }));
+    const page = await findPage(this.grows, [await this.visibleTo(ctx), place], query, { field: 'startedAt' });
     const plants = await this.plants.find({ growId: { $in: page.items.map(grow => grow.id) } }).lean<PlantDocument[]>();
 
     // A list only ever holds what the caller owns or shares, so the one reader
     // whose view is narrowed here is the demo tour.
-    const privacy = ctx.isDemo ? await this.privacyOf(page.items.map(grow => grow.ownerId)) : new Map<string, UserPrivacy>();
+    const hide = await ownerRedactions(
+      this.users,
+      ctx.isDemo,
+      page.items.map(grow => grow.ownerId),
+    );
 
-    return {
-      items: page.items.map(grow =>
-        serialiseGrow(
-          grow,
-          plants.filter(plant => plant.growId === grow.id),
-          redactionOf(ctx.isDemo, privacy.get(grow.ownerId)),
-        ),
+    return mapPage(page, grow =>
+      serialiseGrow(
+        grow,
+        plants.filter(plant => plant.growId === grow.id),
+        hide(grow.ownerId),
       ),
-      nextCursor: page.nextCursor,
-    };
+    );
   }
 
   /**
@@ -193,12 +165,8 @@ export class GrowsService {
     return growsVisibleTo(ctx.userId, this.memberships, this.spaces);
   }
 
-  /** What a grant comes to for the serialisers: the privacy of whoever owns the thing being read. */
-  public async redaction(grant: Grant): Promise<Redaction> {
-    if (!grant.redacted) return NOTHING_HIDDEN;
-
-    const owner = grant.privacyOwnerId ? await this.users.findOne({ id: grant.privacyOwnerId }, { privacy: 1 }).lean<StoredUser>() : null;
-    return redactionOf(true, owner?.privacy);
+  public redaction(grant: Grant): Promise<Redaction> {
+    return grantRedaction(this.users, grant);
   }
 
   /**
@@ -225,11 +193,9 @@ export class GrowsService {
    * through, so a grow enters its first phase exactly as it enters its fifth.
    */
   public async create(ctx: AccessContext, body: GrowCreate): Promise<GrowListItem> {
-    const ownerId = ctx.userId;
-    if (!ownerId || ctx.isDemo) throw conflict('no_account', 'A grow belongs to somebody, and this session is nobody.');
+    const ownerId = accountOf(ctx, 'A grow belongs to somebody, and this session is nobody.');
 
-    // Putting a grow into a space that exists is managing that space.
-    if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    await this.requireSpaceFor(ctx, body.spaceId);
     requireDistinctKeys(body.measurements ?? []);
 
     const startedAt = body.startedAt ? notInTheFuture(new Date(body.startedAt), 'startedAt') : new Date();
@@ -391,13 +357,6 @@ export class GrowsService {
   // Plants
   // -------------------------------------------------------------------------
 
-  public async plantById(id: string): Promise<PlantDocument> {
-    const plant = await this.plants.findOne({ id }).lean<PlantDocument>();
-    if (!plant) throw notFound('plant_not_found', 'There is no plant with that id.');
-
-    return plant;
-  }
-
   /** One plant, which is what replaces a dead one; a whole row of the sheet is created with the grow. */
   public async addPlant(growId: string, body: PlantCreate, hide: Redaction): Promise<Plant> {
     const standing = await this.plantsOf(growId);
@@ -420,7 +379,7 @@ export class GrowsService {
   public async updatePlant(id: string, body: PlantUpdate, hide: Redaction): Promise<Plant> {
     const changes: Record<string, unknown> = {};
     for (const [field, value] of Object.entries(body)) {
-      if (value !== undefined) changes[field] = field === 'harvest' ? harvestOf(body.harvest) : value;
+      if (value !== undefined) changes[field] = field === 'harvest' ? storedHarvestOf(body.harvest) : value;
     }
 
     const changed = await this.plants.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<PlantDocument>();
@@ -516,7 +475,7 @@ export class GrowsService {
     },
     spaceId: string | null,
     setBy: string | null,
-  ): Promise<StoredPhase> {
+  ): Promise<PhaseDocument> {
     const writesClimate = request.preset !== null || request.climate === true;
     const applied =
       writesClimate && spaceId !== null
@@ -544,7 +503,9 @@ export class GrowsService {
 
     // Putting a grow into the phase it already stands in changes nothing and is
     // not a failure; the phase it stands in comes back.
-    return phase ?? (await this.phaseAlreadyStandingIn(growId, request.stage, request.preset));
+    const standing = phase ?? (await this.phases.standingPhase(growId, request.stage, request.preset));
+    if (!standing) throw conflict('phase_not_written', 'The grow could not be put into that phase.');
+    return standing;
   }
 
   /**
@@ -569,16 +530,6 @@ export class GrowsService {
     return this.phases.removePhase(growId, phaseId);
   }
 
-  private async phaseAlreadyStandingIn(growId: string, stage: GrowthStage, preset: string | null): Promise<GrowDocument['phases'][number]> {
-    const grow = await this.require(growId);
-    const standing = grow.phases
-      .filter(phase => phase.stage === stage && phase.preset === preset)
-      .reduce<GrowDocument['phases'][number] | null>((latest, phase) => (latest && latest.startedAt > phase.startedAt ? latest : phase), null);
-
-    if (!standing) throw conflict('phase_not_written', 'The grow could not be put into that phase.');
-    return standing;
-  }
-
   /**
    * A move: the open placement of these plants is closed and a new one opened.
    * Where it covered plants that are not moving, they keep the place they are
@@ -598,7 +549,7 @@ export class GrowsService {
   }
 
   /** The move itself, which a split makes as well: the open placement of these plants is closed and a new one opened. */
-  private async movePlants(grow: GrowDocument, move: Move, authorId: string | null): Promise<StoredPlacement> {
+  private async movePlants(grow: GrowDocument, move: Move, authorId: string | null): Promise<PlacementDocument> {
     const everything = await this.scopeOf(grow, null);
     const moving = new Set(move.plantIds ?? everything);
     // A move that names no plants is the whole grow moving, and a grow with no
@@ -609,7 +560,7 @@ export class GrowsService {
     // A move written into the record of a grow that has ended is a repair of
     // where it stood, and it stood there until the grow ended - not until now,
     // which an open row would say, putting a finished grow back in a tent.
-    const placement: StoredPlacement = {
+    const placement: PlacementDocument = {
       id: uuidv4(),
       spaceId: move.spaceId,
       startedAt: move.startedAt,
@@ -617,7 +568,7 @@ export class GrowsService {
       plantIds: move.plantIds,
     };
 
-    const placements = grow.placements.flatMap<StoredPlacement>(existing => {
+    const placements = grow.placements.flatMap<PlacementDocument>(existing => {
       const covered = existing.plantIds ?? everything;
       if (existing.endedAt !== null || !(takesEverything || covered.some(plantId => moving.has(plantId)))) return [existing];
 
@@ -659,7 +610,7 @@ export class GrowsService {
     if (body.plantIds !== undefined && body.plantIds !== null) await this.scopeOf(grow, body.plantIds);
     if (body.spaceId !== undefined) await this.requireSpaceFor(ctx, body.spaceId);
 
-    const corrected: StoredPlacement = {
+    const corrected: PlacementDocument = {
       ...standing,
       spaceId: body.spaceId === undefined ? standing.spaceId : body.spaceId,
       startedAt: body.startedAt ? new Date(body.startedAt) : standing.startedAt,
@@ -861,11 +812,6 @@ export class GrowsService {
 
     return null;
   }
-
-  private async privacyOf(ownerIds: string[]): Promise<Map<string, UserPrivacy>> {
-    const owners = await this.users.find({ id: { $in: [...new Set(ownerIds)] } }, { id: 1, privacy: 1 }).lean<StoredUser[]>();
-    return new Map(owners.map(owner => [owner.id, owner.privacy]));
-  }
 }
 
 const slugify = (name: string): string =>
@@ -962,7 +908,7 @@ const requireDistinctKeys = (definitions: MeasurementDefinition[]): void => {
   ]);
 };
 
-const harvestOf = (harvest: PlantUpdate['harvest']): PlantDocument['harvest'] =>
+const storedHarvestOf = (harvest: PlantUpdate['harvest']): PlantDocument['harvest'] =>
   harvest ? { ...harvest, harvestedAt: new Date(harvest.harvestedAt) } : null;
 
 /** Where the plants a request is about stand: the open placement that still covers them. */

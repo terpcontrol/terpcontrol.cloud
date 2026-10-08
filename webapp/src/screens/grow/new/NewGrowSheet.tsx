@@ -7,25 +7,27 @@ import type { Camera, Device, GerminationChoices as ChoiceValues, GrowListItem, 
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
-import { useCreateGrow, useGrows, useStartingPhase } from '@/api/grows';
+import { useCreateGrow, useGrows } from '@/api/grows';
 import { serverNow } from '@/api/clock';
-import { useApplyPreset } from '@/api/lifecycle';
+import { useAddPhase, useApplyPreset } from '@/api/lifecycle';
 import { growSchemeOf, useScheme, useSchemes, type SchemeSummary } from '@/api/schemes';
-import { useSpaces } from '@/api/spaces';
-import { Sheet } from '@/log/Sheet';
+import type { Translate } from '@/i18n/i18n';
+import { useCreateSpace, useSpaces } from '@/api/spaces';
+import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import { stageChoiceName, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
-import { enough, useMayManage } from '@/ui/session-access';
+import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR } from '@/ui/zone';
 import { GerminationChoices } from '../../control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '../../control/germination/germination-choices';
 import { usePlaceController } from '../phase-climate';
-import { useCreateSpace } from './create-space';
 import { dayNumber, growBody, growIn, presetFor, recordsOnly, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
+import { typeName } from '@/ui/naming';
+import { growPlaces } from '../placement';
 import styles from './NewGrow.module.css';
 
 /** The kinds of place a grow can be started in. A room holds other places rather than plants, so it is not one of them. */
@@ -154,9 +156,7 @@ function Form({
   const navigate = useNavigate();
   const mayManage = useMayManage();
 
-  // Starting a grow in a place is managing it, so the places on offer are the
-  // ones this account manages; "no fixed place" needs none and stays.
-  const places = spaces.filter(space => space.archivedAt === null && space.kind !== 'room' && enough(space.youMay, 'manage'));
+  const places = growPlaces(spaces);
   const [draft, setDraft] = useState<Draft>(() => ({
     name: '',
     plants: [{ key: '1', strain: '', count: 1 }],
@@ -183,7 +183,7 @@ function Form({
   });
 
   const createGrow = useCreateGrow();
-  const startingPhase = useStartingPhase();
+  const startingPhase = useAddPhase();
   const applyPreset = useApplyPreset(draft.spaceId ?? '');
   const scheme = useScheme(draft.schemeId);
 
@@ -304,7 +304,7 @@ function Form({
         )
       }
     >
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <label className={`${ui.card} ${styles.name}`}>
           <input
             className={styles.nameInput}
@@ -468,8 +468,6 @@ function Form({
 /** A row's key, which only has to differ from the others: one more than the largest there is. */
 const nextKey = (rows: PlantRow[]): string => String(Math.max(0, ...rows.map(row => Number(row.key) || 0)) + 1);
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /**
  * "Tent 1 · Controller + Cam": the place, and what stands in it, because that is
  * what a grower knows it by. Where the devices could not be read the name goes
@@ -479,7 +477,7 @@ const standsIn = (space: Space, devices: Device[] | null, cameras: Camera[], t: 
   if (devices === null) return space.name;
 
   const kinds = [...new Set(devices.filter(device => device.spaceId === space.id).map(device => device.type))];
-  const here = kinds.map(kind => t(`devices.type.${kind}`, { defaultValue: kind }));
+  const here = kinds.map(kind => typeName(kind, t));
   if (cameras.some(camera => camera.spaceId === space.id && camera.removedAt === null)) here.push(t('grow.new.cam'));
 
   return here.length === 0 ? space.name : `${space.name} · ${here.join(' + ')}`;

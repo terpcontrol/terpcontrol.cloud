@@ -5,7 +5,7 @@ import { compare, hash } from 'bcrypt';
 import { Model } from 'mongoose';
 import { randomUUID } from 'node:crypto';
 import { AdminUserCreate, AdminUserUpdate, Me, MeUpdate, NotificationCategory, NotificationSettings, User } from '@fg2/shared-types/v1';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { conflict, notFound } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
@@ -16,7 +16,7 @@ import { StoredPushSubscription } from '@database/schemas/v1/push-subscriptions.
 import { StoredSession } from '@database/schemas/v1/sessions.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredNotificationSettings, StoredUser } from '@database/schemas/v1/users.schema';
-import { authConfig, notificationsConfig, premiumConfig, retentionConfig } from '@config/configuration';
+import { authConfig, notificationsConfig, premiumConfig, pushAvailable, retentionConfig, telegramAvailable } from '@config/configuration';
 import { climateWindowOf } from '@modules/retention/climate-window';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { freeTierOf } from '../camera/entitlement.service';
@@ -122,11 +122,7 @@ export class AccountsService implements OnModuleInit {
   }
 
   public async list(query: PageQuery): Promise<CursorPage<User>> {
-    const limit = pageLimit(query.limit);
-    const rows = await this.users.find(afterCursor('createdAt', query.cursor)).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean();
-
-    const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
-    return { items: page.items.map(row => this.serialise(row)), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.users, [], query), row => this.serialise(row));
   }
 
   // ---------------------------------------------------------------------------
@@ -375,11 +371,10 @@ export class AccountsService implements OnModuleInit {
         installDays: climateWindowOf(null, null, this.retention.climateDays),
         appliesDays: climateWindowOf(null, user.retention, this.retention.climateDays),
       },
-      // A key pair with a half missing cannot sign anything, and a bot with no
-      // name has no link to open, so each is offered only where it could
-      // actually send - which is what "the screen says so" needs to be true of.
-      pushPublicKey: this.notifications.pushPrivateKey && this.notifications.pushContact ? this.notifications.pushPublicKey : null,
-      telegramAvailable: !!(this.notifications.telegramBotToken && this.notifications.telegramBotUsername),
+      // Each is offered only where it could actually send - which is what "the
+      // screen says so" needs to be true of.
+      pushPublicKey: pushAvailable(this.notifications) ? this.notifications.pushPublicKey : null,
+      telegramAvailable: telegramAvailable(this.notifications),
       pushSubscribed,
       layers: await layersOf(user.id, user.preferences.diary, {
         grows: this.grows,

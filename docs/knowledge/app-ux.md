@@ -1,11 +1,12 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, what was left out on purpose; read before changing a screen
 updated: 2026-10-08
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); checked against webapp/src on 2026-10-08
+source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
   - shared-types/src/v1/configuration-fields.ts
+  - shared-types/src/v1/steering.ts
 ---
 # How the app behaves and looks
 
@@ -91,14 +92,17 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
 - **Live under 2 min, stale 2-10 min, offline after 10 min; old values are dimmed, never hidden** (Chris,
   2026-09-16). The seconds are `VALUE_AGE` (`shared-types/src/v1/value-age.ts`). A screen re-judges a value while it
   draws it (`valueAge`, `ui/age.ts`) and may only age the server's verdict, never freshen it; ages run on the
-  server's clock ([webapp-time-and-language.md](webapp-time-and-language.md#the-servers-clock)).
+  server's clock ([webapp-time-and-language.md](webapp-time-and-language.md#the-servers-clock)). A camera is aged by
+  the stills it has missed instead ([terp-cam.md](terp-cam.md#health-diary-app)).
 - **A silence is said one way**, "offline seit 10:19" (`offlineLabel`): dated rather than aged, from `heardAt`, the
   same on pill, banner, card and alert. A reading no longer live says "letzter Wert · 10:19" instead of a verdict.
 - **One freshness clock per screen**: on a place its pill ("● live · 20 s"); the shell's "aktualisiert vor …" line only
   on screens without readings, dated by the fetch restated with `fetchedAt()` (`ui/freshness.ts`).
 - **Countdowns round up and carry the unit** (59 min 30 s left is "1 Std"); elapsed ages floor (`ui/age.ts`).
-- **A reading is judged as written** (`asWritten` in the home screens' `units.ts`): against 21 ± 1 °C "1,0 zu
-  hoch" is in target and "1,1" is not, so the verdict never disagrees with the figure beside it.
+- **A reading is judged as written** (`asWritten`, `ui/units.ts`): against 21 ± 1 °C "1,0 zu hoch" is in target and
+  "1,1" is not, so the verdict never disagrees with the figure beside it. The band is one tolerance per metric, not
+  the controller's hysteresis, and CO₂ has none at night: `TARGET_BAND`, `STEERED` and `DAY_ONLY` in
+  `shared-types/src/v1/steering.ts`, which card, verdict, tiles and chart bands all read.
 - The status sentence says a deviation younger than 10 min as "gerade … zu hoch" (a door opened for a look), an older
   one with "seit 14:20". Start tiles show the last hour's mean beside the live value, because duration alarms judge a
   stretch; status and colour still judge the live value (PR #143).
@@ -136,8 +140,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     switches the diary on and sets the stage's climate.
   - A link in a mail does nothing by being opened: the activation page activates on a tap, because mail programs open
     links to preview them (`screens/Activate.tsx`).
-- The Log sheet writes on one tap and can take it back for 5 s; the kinds in `ASKS_FIRST` (`log/LogSheet.tsx`) open
-  their details first.
+- The Log sheet writes on one tap and can take it back for 5 s - only water, and a feed with a can to dose by
+  (`tap` in `log/LogSheet.tsx`); every other tile opens its details first.
 - **The same words never sit on two controls with opposite effects**: "Keimung · dunkel" / "Sämling · mit Licht" only
   where choosing the stage sets the device's climate (Steuerung chips, claim, plan editor, a new grow in a place it
   steers); where a stage is only recorded (phase sheet, correction, Eintrag, split) it keeps its plain name. No device

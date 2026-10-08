@@ -1,11 +1,13 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Alert, Me } from '@fg2/shared-types/v1';
-import { notificationsWith, useMe, useUpdateMe } from '@/api/account';
+import { notificationsWith, useAccountMe, useUpdateMe } from '@/api/account';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
 import { fetchedAt } from '@/api/clock';
+import { itemsOf } from '@/api/pages';
 import { useSession } from '@/api/session';
+import type { Translate } from '@/i18n/i18n';
 import { instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { Help } from '@/ui/Help';
@@ -63,12 +65,12 @@ export function Alerts() {
   // it is not asked; what the account would have given this screen - the zone
   // its clock times are drawn in, the channels its cards promise - the demo has
   // no answer to anyway, and an empty inbox draws no card and no mute.
-  const me = useMe(false, user !== null && user.isDemo !== true);
+  const me = useAccountMe();
   const open = useOpenAlerts();
   const resolved = useResolvedAlerts();
   const { names, watching } = useInboxNames();
 
-  const items = [...pagesOf(open.data), ...pagesOf(resolved.data)];
+  const items = [...itemsOf(open.data), ...itemsOf(resolved.data)];
   // Only the devices something has actually gone wrong on: a rule is read to
   // say what a card watched, and a device with no card on the page says nothing.
   const ruleDevices = [...new Set(items.filter(alert => alert.ruleId && alert.deviceId).map(alert => alert.deviceId!))];
@@ -79,7 +81,7 @@ export function Alerts() {
 
   const head = (
     <header className={styles.head}>
-      <h1 className={styles.title}>{t('shell.alerts')}</h1>
+      <h1>{t('shell.alerts')}</h1>
       {/* Nothing here can raise an alarm without a device or a cam, so there is nothing to mute either. */}
       {mayWriteAtAll && watching ? <MuteCorner account={me.data} now={now} /> : null}
     </header>
@@ -185,9 +187,7 @@ export function Alerts() {
   );
 }
 
-const pagesOf = (data: { pages: { items: Alert[] }[] } | undefined): Alert[] => data?.pages.flatMap(page => page.items) ?? [];
-
-const headingOf = (t: ReturnType<typeof useTranslation>['t'], heading: GroupHeading): string =>
+const headingOf = (t: Translate, heading: GroupHeading): string =>
   heading.kind === 'day' ? heading.day.toFormat(WEEKDAY_DAY) : t(`alerts.group.${heading.kind}`);
 
 /**

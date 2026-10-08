@@ -1,6 +1,7 @@
 import type { i18n as I18n } from 'i18next';
 import type { Metric } from '@fg2/shared-types/v1';
-import { figure, targetFigure, UNIT } from '@/screens/home/units';
+import { OFFLINE_RULE_NAME } from '@fg2/shared-types/v1-schemas/alert-routing.js';
+import { figureWithUnit, targetWithUnit, UNIT } from '@/ui/units';
 
 /**
  * An alarm's diary line, in the reader's language.
@@ -32,9 +33,6 @@ const SILENT = /^(.*), last heard (.+) ago$/;
 const BACK_AFTER = /^(.*), back after (.+)$/;
 const BACK = /^(.*), back$/;
 
-/** The name the cloud gives the offline rule it keeps for every device, which is the rule's name on most of these lines. */
-const KEPT_OFFLINE_RULE = 'Device offline';
-
 const numberOf = (text: string | undefined): number | null => {
   if (text === undefined || text === 'n/a' || text === 'null') return null;
   const value = Number(text);
@@ -43,9 +41,7 @@ const numberOf = (text: string | undefined): number | null => {
 
 const isReading = (watched: string): watched is Metric => watched in UNIT;
 
-const ruleName = (i18n: I18n, name: string): string => (name === KEPT_OFFLINE_RULE ? i18n.t('alarmLine.deviceOffline') : name);
-
-const reading = (value: number, metric: Metric): string => [figure(value, metric), UNIT[metric]].filter(Boolean).join(' ');
+const ruleName = (i18n: I18n, name: string): string => (name === OFFLINE_RULE_NAME ? i18n.t('alarmLine.deviceOffline') : name);
 
 const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | null => {
   const match = THRESHOLD.exec(param);
@@ -64,11 +60,11 @@ const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | 
   const upper = numberOf(rawUpper);
   const lower = numberOf(rawLower);
   const extreme = numberOf(rawExtreme);
-  const edge = (sign: string, bound: number) => [sign, targetFigure(bound, watched), UNIT[watched]].filter(Boolean).join(' ');
+  const edge = (sign: string, bound: number) => `${sign} ${targetWithUnit(bound, watched)}`;
   const crossed = upper !== null && value > upper ? edge('›', upper) : lower !== null && value < lower ? edge('‹', lower) : null;
 
-  const parts = [`${ruleName(i18n, name)} · ${metric} ${reading(value, watched)}${triggered && crossed ? ` ${crossed}` : ''}`];
-  if (!triggered && extreme !== null) parts.push(i18n.t('alarmLine.worst', { value: reading(extreme, watched) }));
+  const parts = [`${ruleName(i18n, name)} · ${metric} ${figureWithUnit(value, watched)}${triggered && crossed ? ` ${crossed}` : ''}`];
+  if (!triggered && extreme !== null) parts.push(i18n.t('alarmLine.worst', { value: figureWithUnit(extreme, watched) }));
 
   return parts.join(' · ');
 };

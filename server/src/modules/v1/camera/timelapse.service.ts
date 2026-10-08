@@ -1,20 +1,37 @@
 import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
-import { execFile } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'path';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import sharp from 'sharp';
-import { MediaQuality } from '@fg2/shared-types/v1';
+import { MediaQuality, TimelapseCreate } from '@fg2/shared-types/v1';
+import { RENDER_FAILURE_TEXT } from '@fg2/shared-types/v1-schemas';
 import { logger } from '@utils/logger';
 import { BackgroundWork } from '@common/background-work';
+import { badRequest, unprocessable } from '@common/v1/problem';
+import { Span } from '@common/v1/range';
+import { isDuplicateKey } from '@database/duplicate-key';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
-import { periodAround, periodBefore, RollingWindow } from './film-periods';
+import { isRolling, periodAround, periodBefore, RollingWindow } from './film-periods';
 import { CamerasService } from './cameras.service';
 import { EntitlementService } from './entitlement.service';
+import { runFfmpeg } from './ffmpeg';
 import { MediaPosition, MediaService } from './media.service';
+import { THINNING_TIERS } from './still-thinning';
 import { TimelapseContextService } from './timelapse-context.service';
-import { DEFAULT_ASPECT, FrameSize, INK, OverlayFrame, PANEL, TEXT_FAMILY, composeFrame, overlayLayer, sizeFor, wasDark } from './timelapse-overlays';
+import {
+  DEFAULT_ASPECT,
+  DEFAULT_OVERLAYS,
+  FrameSize,
+  INK,
+  OverlayFrame,
+  PANEL,
+  TEXT_FAMILY,
+  composeFrame,
+  overlayLayer,
+  sizeFor,
+  wasDark,
+} from './timelapse-overlays';
 
 /**
  * Rolls a camera's stills up into the films a client plays back, renders the
@@ -37,25 +54,19 @@ const BUILD_INTERVAL_MS = 60 * 60 * 1000;
  * queued wakes the drain; the hourly pass keeps its place either way.
  */
 const QUEUE_WAKE_MS = 2000;
-const THIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const THIN_INTERVAL_MS = MS_IN_A_DAY;
+
+/** How many pictures a sweep removes in one round trip. */
+const DELETE_BATCH = 500;
 
 /** What a still is kept for when nothing says otherwise, which is what this server has always kept. */
 const STILL_RETENTION_DAYS = 3 * 365;
 
-// Gradually thin out stills as they age: once a picture is older than `afterMs`,
-// no more than one is kept per `minIntervalMs`. Ordered oldest-boundary last so
-// each tier only thins pictures younger than the next, coarser tier.
-const THINNING_TIERS = [
-  { afterMs: MS_IN_A_DAY, minIntervalMs: 60 * 1000 },
-  { afterMs: 7 * MS_IN_A_DAY, minIntervalMs: 5 * 60 * 1000 },
-  { afterMs: 30 * MS_IN_A_DAY, minIntervalMs: 15 * 60 * 1000 },
-  { afterMs: 90 * MS_IN_A_DAY, minIntervalMs: 60 * 60 * 1000 },
-];
-
-const FRAME_RATE = 25;
+/** What a film plays at unless it was asked for at another rate; a request at this rate is the plain film. */
+const DEFAULT_FRAME_RATE = 25;
 
 /** Half a second of film. Fewer frames than this is a flicker, not a timelapse. */
-const MINIMUM_FRAMES = FRAME_RATE / 2;
+const MINIMUM_FRAMES = DEFAULT_FRAME_RATE / 2;
 
 const DAY_FRAME_INTERVAL_MS = 2 * 60 * 1000;
 
@@ -115,7 +126,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   ) {}
 
   public onModuleInit(): void {
-    this.work.schedule('The timelapse builder', () => this.pass(), 60_000);
+    this.work.loop('The timelapse builder', () => this.pass(), 60_000, BUILD_INTERVAL_MS);
   }
 
   public onApplicationShutdown(): void {
@@ -129,37 +140,31 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   }
 
   private async pass(): Promise<void> {
-    try {
-      // What somebody is waiting for goes first; the rolling films are nobody's
-      // stopwatch.
-      await this.drainTheQueue();
+    // What somebody is waiting for goes first; the rolling films are nobody's
+    // stopwatch.
+    await this.drainTheQueue();
 
-      const shouldThin = Date.now() - this.lastThinningRun >= THIN_INTERVAL_MS;
+    const shouldThin = Date.now() - this.lastThinningRun >= THIN_INTERVAL_MS;
 
-      for (const camera of await this.cameras.all()) {
-        // As in the poller: a pass walks every camera and runs ffmpeg as it
-        // goes, so it has to notice the server stopping around it.
-        if (this.work.isStopped) break;
+    for (const camera of await this.cameras.all()) {
+      // As in the poller: a pass walks every camera and runs ffmpeg as it
+      // goes, so it has to notice the server stopping around it.
+      if (this.work.isStopped) break;
 
-        if (camera.removedAt === null) {
-          const zone = await this.cameras.zoneOf(camera);
-          for (const rolling of ROLLING) {
-            await this.buildRolling(camera, rolling, zone);
-          }
+      if (camera.removedAt === null) {
+        const zone = await this.cameras.zoneOf(camera);
+        for (const rolling of ROLLING) {
+          await this.buildRolling(camera, rolling, zone);
         }
-
-        // A camera that is gone keeps its pictures, so they are still thinned
-        // and still swept: what stops is only the making of new films.
-        await this.sweep(camera);
-        if (shouldThin) await this.thin(camera);
       }
 
-      if (shouldThin) this.lastThinningRun = Date.now();
-    } catch (e) {
-      logger.error(`The timelapse builder failed a pass: ${e}`);
-    } finally {
-      this.work.schedule('The timelapse builder', () => this.pass(), BUILD_INTERVAL_MS);
+      // A camera that is gone keeps its pictures, so they are still thinned
+      // and still swept: what stops is only the making of new films.
+      await this.sweep(camera);
+      if (shouldThin) await this.thin(camera);
     }
+
+    if (shouldThin) this.lastThinningRun = Date.now();
   }
 
   // -------------------------------------------------------------------------
@@ -197,7 +202,8 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       if (!stale) return;
 
       const frames = await this.framesOf(camera.id, startsAt, endsAt, rolling.frameIntervalMs);
-      const quality = this.entitlement.allowedQuality(camera, 'hd');
+      // HD is entitled; a free camera renders at the resolution it always has.
+      const quality = this.entitlement.isEntitled(camera) ? 'hd' : 'sd';
       await this.encode(camera, frames, { quality, watermark: this.entitlement.watermarks(camera), compose: null }, async path => {
         // The film it replaces goes first: `media` is unique on camera, kind,
         // window and instant, and its delete hook takes the old bytes with it.
@@ -212,7 +218,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
             endsAt: frames[frames.length - 1]?.capturedAt ?? null,
             window: rolling.window,
             quality,
-            lengthSeconds: Math.round(frames.length / FRAME_RATE),
+            lengthSeconds: Math.round(frames.length / DEFAULT_FRAME_RATE),
           },
           path,
         );
@@ -225,8 +231,111 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   // -------------------------------------------------------------------------
 
   /**
-   * The renders that are waiting. A row is queued by the route and drained here,
-   * so the request answers at once and the person polls the row.
+   * A film of a span somebody asked for: the one already there when it is the
+   * same film and still current, otherwise a render queued for the builder.
+   * `beside` decides the camera shown beside this one, and is asked only once
+   * the span and what the film may cost have been decided.
+   */
+  public async request(
+    camera: CameraDocument,
+    body: TimelapseCreate,
+    beside: () => Promise<string | null>,
+  ): Promise<{ film: MediaDocument; queued: boolean }> {
+    const span = spanOf(body, await this.cameras.zoneOf(camera));
+    const entitled = this.entitlement.isEntitled(camera);
+
+    // Refused rather than quietly rendered smaller: somebody who asked for HD
+    // and was handed SD without a word would think that is what HD looks like.
+    if (body.quality === 'hd' && !entitled) {
+      throw badRequest('needs_entitlement', 'Rendering in HD is part of Premium. Without it the film is rendered at the standard size.');
+    }
+    if (body.window === 'grow' && !entitled) {
+      throw badRequest('needs_entitlement', 'A film of a whole grow is part of Premium.');
+    }
+
+    const secondCameraId = await beside();
+    const render: MediaDocument['render'] = {
+      status: 'queued',
+      framesPerSecond: body.framesPerSecond ?? DEFAULT_FRAME_RATE,
+      watermark: this.entitlement.watermarks(camera),
+      aspect: body.aspect ?? DEFAULT_ASPECT,
+      overlays: { ...DEFAULT_OVERLAYS, ...(body.overlays ?? {}) },
+      includeLightsOff: body.includeLightsOff ?? false,
+      secondCameraId,
+      startedAt: null,
+      endedAt: null,
+      error: null,
+    };
+
+    const quality = body.quality ?? 'sd';
+    const composed = isComposed(render, quality);
+    const window = composed && isRolling(body.window) ? 'custom' : body.window;
+
+    // `media` is unique on camera, kind, window and instant, so the film of this
+    // very span either exists or is about to be the only one.
+    const ofThisSpan = { cameraId: camera.id, kind: 'timelapse' as const, window, range: { startsAt: span.startsAt, endsAt: span.startsAt } };
+    const existing = await this.media.newest(ofThisSpan);
+
+    // A span that is still going - today, this week - is filmed up to its last
+    // picture, so the film of it is the one asked for while it still reaches
+    // the newest picture; once the camera has gone on, a tap films the rest.
+    const open = span.endsAt.getTime() > Date.now();
+    const current = existing !== null && (!open || (await this.reachesTheNewest(existing, camera.id, span)));
+
+    if (existing && current && (!composed || sameFilm(existing, render, quality, open ? null : span.endsAt))) {
+      return { film: existing, queued: false };
+    }
+
+    if (existing) await this.media.delete(existing.id);
+
+    // Two taps on the same button are two requests, and the second may reach
+    // the read above before the first has written its row. The index is what
+    // decides which of them makes the film; the one it turns away answers the
+    // row that won, which is what asking for a film that exists answers anyway.
+    let queued: MediaDocument;
+    try {
+      queued = await this.media.queue({
+        kind: 'timelapse',
+        mime: 'video/mp4',
+        cameraId: camera.id,
+        capturedAt: span.startsAt,
+        endsAt: span.endsAt,
+        window,
+        quality,
+        render,
+      });
+    } catch (error) {
+      if (!isDuplicateKey(error)) throw error;
+
+      const won = await this.media.newest(ofThisSpan);
+      if (!won) throw error;
+
+      return { film: won, queued: false };
+    }
+
+    // The builder's own pass is hourly; a film somebody is waiting for is taken
+    // from the queue at once, so the job on their screen starts rather than
+    // sitting in `queued` for the rest of the hour.
+    this.renderQueued();
+    return { film: queued, queued: true };
+  }
+
+  /**
+   * Whether a film of a span still going covers it up to its newest picture, or
+   * nearly - a film being made is the one asked for, and a ready one stays it
+   * for a few minutes of pictures, so a second tap does not render again.
+   */
+  private async reachesTheNewest(film: MediaDocument, cameraId: string, span: Span): Promise<boolean> {
+    if (film.render?.status === 'queued' || film.render?.status === 'rendering') return true;
+
+    const [newest] = await this.media.latestPositions({ cameraId, kind: 'still', from: span.startsAt, before: span.endsAt }, 1);
+    const covered = coveredBy(film);
+    return !newest || (covered !== null && newest.capturedAt.getTime() - covered.getTime() < STILL_FRESH_FILM_MS);
+  }
+
+  /**
+   * The renders that are waiting. A row is queued by `request` and drained here,
+   * so the route answers at once and the person polls the row.
    */
   private async drainTheQueue(): Promise<void> {
     if (this.draining) return;
@@ -249,7 +358,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     const camera = job.cameraId ? await this.cameras.byId(job.cameraId) : null;
     if (!queued) return;
     if (!camera) {
-      await this.media.setRender(job.id, { ...queued, status: 'failed', endedAt: new Date(), error: 'the camera this was asked of is gone' });
+      await this.media.setRender(job.id, { ...queued, status: 'failed', endedAt: new Date(), error: RENDER_FAILURE_TEXT.cameraGone });
       return;
     }
 
@@ -332,14 +441,11 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
 
   /** The stills of a span, no closer together than `minIntervalMs`, oldest first. */
   private async framesOf(cameraId: string, from: Date, before: Date, minIntervalMs: number): Promise<MediaPosition[]> {
+    const kept = spacedBy(minIntervalMs);
     const frames: MediaPosition[] = [];
-    let lastKept = -Infinity;
 
     for await (const still of this.media.positions({ cameraId, kind: 'still', from, before })) {
-      if (still.capturedAt.getTime() - lastKept < minIntervalMs) continue;
-
-      lastKept = still.capturedAt.getTime();
-      frames.push(still);
+      if (kept(still)) frames.push(still);
     }
 
     return frames;
@@ -376,7 +482,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       if (written < MINIMUM_FRAMES) return false;
 
       const watermark = options.watermark ? await this.drawWatermark(directory) : null;
-      await this.runFfmpeg(directory, film, { ...options, watermark });
+      await this.writeFilm(directory, film, { ...options, watermark });
       await store(film);
       return true;
     } catch (e) {
@@ -409,43 +515,31 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     await composeFrame(tiles, options.size ?? sizeFor(DEFAULT_ASPECT, options.quality), compose.layer, frame.capturedAt, path);
   }
 
-  private runFfmpeg(directory: string, film: string, options: FfmpegOptions): Promise<void> {
-    return new Promise((resolve, reject) => {
-      execFile(
-        'ffmpeg',
-        [
-          '-loglevel',
-          'error',
-          '-threads',
-          '1',
-          '-y',
-          '-framerate',
-          String(options.framesPerSecond ?? FRAME_RATE),
-          '-f',
-          'image2',
-          '-i',
-          `${directory}/%d.jpeg`,
-          ...(options.watermark ? ['-i', options.watermark] : []),
-          ...filterArguments(options),
-          '-f',
-          'mp4',
-          '-vcodec',
-          'libx265',
-          '-crf',
-          '30',
-          film,
-        ],
-        { timeout: 15 * 60_000, maxBuffer: 50 * 1024 * 1024, encoding: 'buffer' },
-        (error, _stdout, stderr) => {
-          if (error) {
-            logger.error(`Error encoding a timelapse: ${error} ${stderr}`);
-            reject(error);
-            return;
-          }
-          resolve();
-        },
-      );
-    });
+  private async writeFilm(directory: string, film: string, options: FfmpegOptions): Promise<void> {
+    const { error, stderr } = await runFfmpeg(
+      [
+        '-framerate',
+        String(options.framesPerSecond ?? DEFAULT_FRAME_RATE),
+        '-f',
+        'image2',
+        '-i',
+        `${directory}/%d.jpeg`,
+        ...(options.watermark ? ['-i', options.watermark] : []),
+        ...filterArguments(options),
+        '-f',
+        'mp4',
+        '-vcodec',
+        'libx265',
+        '-crf',
+        '30',
+        film,
+      ],
+      { loglevel: 'error', timeoutMs: 15 * 60_000, maxBuffer: 50 * 1024 * 1024 },
+    );
+    if (error) {
+      logger.error(`Error encoding a timelapse: ${error} ${stderr}`);
+      throw error;
+    }
   }
 
   /**
@@ -480,23 +574,13 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     }
   }
 
-  private async thinRange(cameraId: string, from: Date, before: Date, minIntervalMs: number): Promise<void> {
-    let lastKept = -Infinity;
-    let doomed: string[] = [];
-
-    for await (const still of this.media.positions({ cameraId, kind: 'still', from, before })) {
-      if (still.capturedAt.getTime() - lastKept < minIntervalMs) {
-        doomed.push(still.id);
-        if (doomed.length >= 500) {
-          await this.removeThinned(doomed);
-          doomed = [];
-        }
-        continue;
-      }
-      lastKept = still.capturedAt.getTime();
-    }
-
-    await this.removeThinned(doomed);
+  private thinRange(cameraId: string, from: Date, before: Date, minIntervalMs: number): Promise<void> {
+    const kept = spacedBy(minIntervalMs);
+    return this.removeInBatches(
+      this.media.positions({ cameraId, kind: 'still', from, before }),
+      still => !kept(still),
+      ids => this.removeThinned(ids),
+    );
   }
 
   /**
@@ -526,29 +610,41 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
    * exactly as long as it did before there was a tier at all.
    */
   private async sweep(camera: CameraDocument): Promise<void> {
-    const free = this.entitlement.freeRetention();
-    const entitled = this.entitlement.isEntitled(camera);
+    const free = this.entitlement.isEntitled(camera) ? null : this.entitlement.freeTier();
 
-    const stillDays = !entitled && free && free.stillDays > 0 ? Math.min(free.stillDays, STILL_RETENTION_DAYS) : STILL_RETENTION_DAYS;
+    const stillDays = free?.stillDays ? Math.min(free.stillDays, STILL_RETENTION_DAYS) : STILL_RETENTION_DAYS;
     await this.deleteBefore(camera.id, 'still', stillDays);
 
-    if (!entitled && free && free.timelapseDays > 0) {
-      await this.deleteBefore(camera.id, 'timelapse', free.timelapseDays);
-    }
+    if (free?.timelapseDays) await this.deleteBefore(camera.id, 'timelapse', free.timelapseDays);
   }
 
-  private async deleteBefore(cameraId: string, kind: 'still' | 'timelapse', days: number): Promise<void> {
-    let doomed: string[] = [];
+  private deleteBefore(cameraId: string, kind: 'still' | 'timelapse', days: number): Promise<void> {
+    return this.removeInBatches(
+      this.media.positions({ cameraId, kind, before: new Date(Date.now() - days * MS_IN_A_DAY) }),
+      () => true,
+      ids => this.media.deleteMany(ids),
+    );
+  }
 
-    for await (const row of this.media.positions({ cameraId, kind, before: new Date(Date.now() - days * MS_IN_A_DAY) })) {
-      doomed.push(row.id);
-      if (doomed.length >= 500) {
-        await this.media.deleteMany(doomed);
-        doomed = [];
+  /** The rows `doomed` picks, handed to `remove` a batch at a time. */
+  private async removeInBatches(
+    rows: AsyncIterable<MediaPosition>,
+    doomed: (row: MediaPosition) => boolean,
+    remove: (ids: string[]) => Promise<void>,
+  ): Promise<void> {
+    let batch: string[] = [];
+
+    for await (const row of rows) {
+      if (!doomed(row)) continue;
+
+      batch.push(row.id);
+      if (batch.length >= DELETE_BATCH) {
+        await remove(batch);
+        batch = [];
       }
     }
 
-    await this.media.deleteMany(doomed);
+    await remove(batch);
   }
 }
 
@@ -580,9 +676,68 @@ const filterArguments = (options: FfmpegOptions): string[] => {
  * and rendered before that fix carried the end of the span as its end, and
  * covers what there was when it was rendered.
  */
-export const coveredBy = (film: Pick<MediaDocument, 'endsAt' | 'render'>, now = new Date()): Date | null => {
-  if (film.endsAt === null || film.endsAt <= now) return film.endsAt;
+const coveredBy = (film: Pick<MediaDocument, 'endsAt' | 'render'>): Date | null => {
+  if (film.endsAt === null || film.endsAt <= new Date()) return film.endsAt;
   return film.render?.status === 'ready' ? (film.render.endedAt ?? null) : null;
+};
+
+/**
+ * Which span was meant. `day`, `week` and `month` are worked out around the
+ * instant given, and default to the most recent complete one; a phase, a whole
+ * grow and a range somebody drew each read both ends, because where a phase or
+ * a grow began is the client's to say.
+ */
+const spanOf = (body: TimelapseCreate, zone: string | null): Span => {
+  if (!isRolling(body.window)) {
+    if (!body.startsAt || !body.endsAt) {
+      throw badRequest('span_missing', 'A film of a phase, a whole grow or a span of your choosing needs both ends of it.');
+    }
+
+    const startsAt = new Date(body.startsAt);
+    const endsAt = new Date(body.endsAt);
+    if (endsAt <= startsAt) throw unprocessable('span_backwards', 'A film ends after it begins.');
+
+    return { startsAt, endsAt };
+  }
+
+  // Cut on the owner's calendar, exactly as the builder cuts the films it keeps,
+  // so a film asked for here is the same span as the one already on the list.
+  return body.startsAt
+    ? periodAround(body.window, new Date(body.startsAt), zone)
+    : periodBefore(body.window, periodAround(body.window, new Date(), zone), zone);
+};
+
+/** Whether anything was asked for beyond the plain film of that span. */
+const isComposed = (render: NonNullable<MediaDocument['render']>, quality: MediaQuality): boolean =>
+  render.secondCameraId !== null ||
+  render.overlays.dayCounter ||
+  render.overlays.climate ||
+  render.overlays.entries ||
+  render.includeLightsOff ||
+  render.aspect !== DEFAULT_ASPECT ||
+  render.framesPerSecond !== DEFAULT_FRAME_RATE ||
+  quality !== 'sd';
+
+/** How many minutes of new pictures a film of today may lag behind before a tap renders it again. */
+const STILL_FRESH_FILM_MS = 10 * 60 * 1000;
+
+/** Whether the film that is already there is the one being asked for; a span still going is compared without its end. */
+const sameFilm = (existing: MediaDocument, render: NonNullable<MediaDocument['render']>, quality: MediaQuality, endsAt: Date | null): boolean => {
+  const was = existing.render;
+
+  return (
+    was !== null &&
+    was.status !== 'failed' &&
+    (existing.quality ?? 'sd') === quality &&
+    (endsAt === null || existing.endsAt?.getTime() === endsAt.getTime()) &&
+    was.framesPerSecond === render.framesPerSecond &&
+    was.aspect === render.aspect &&
+    was.includeLightsOff === render.includeLightsOff &&
+    was.secondCameraId === render.secondCameraId &&
+    was.overlays.dayCounter === render.overlays.dayCounter &&
+    was.overlays.climate === render.overlays.climate &&
+    was.overlays.entries === render.overlays.entries
+  );
 };
 
 /**
@@ -597,16 +752,24 @@ export const coveredBy = (film: Pick<MediaDocument, 'endsAt' | 'render'>, now = 
  * ten lines under the page's own "27 pictures today", and with no mention of
  * the switch that would have kept them. Naming the filter is the whole point:
  * it is the one cause of the three the person reading can do something about.
- *
- * The words are read again by the client, which says them in the language the
- * page is in, so they are phrases to recognise rather than prose to reword
- * lightly: `webapp/src/screens/camera/capture-failure.ts` holds the reading.
  */
 export const whyNoFilm = (stills: number, frames: number): string => {
-  if (frames >= MINIMUM_FRAMES) return 'the pictures in that span could not be made into a film';
-  if (stills >= MINIMUM_FRAMES) return 'every picture in that span was taken with the light off';
+  if (frames >= MINIMUM_FRAMES) return RENDER_FAILURE_TEXT.encodeFailed;
+  if (stills >= MINIMUM_FRAMES) return RENDER_FAILURE_TEXT.allDark;
 
-  return 'there are not enough pictures in that span to make a film';
+  return RENDER_FAILURE_TEXT.tooFew;
+};
+
+/** Whether a still, walked oldest first, is kept when no two kept ones may lie closer than `minIntervalMs`. */
+const spacedBy = (minIntervalMs: number): ((still: MediaPosition) => boolean) => {
+  let lastKept = -Infinity;
+
+  return still => {
+    if (still.capturedAt.getTime() - lastKept < minIntervalMs) return false;
+
+    lastKept = still.capturedAt.getTime();
+    return true;
+  };
 };
 
 /** The nearest picture of the camera shown beside this one, or null where it took none that close. */

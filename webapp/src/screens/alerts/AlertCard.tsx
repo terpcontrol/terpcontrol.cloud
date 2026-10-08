@@ -6,37 +6,29 @@ import { controlPath, devicesPath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
-import { clockLabel } from '@/screens/notifications/settings';
-import { maintenanceQuiet, parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
-import { levelFigure, repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
-import { ageAttribute, deviceLiveness, isAhead, offlineLabel, silentSince, spanLabel } from '@/ui/age';
+import type { Translate } from '@/i18n/i18n';
+import { maintenanceQuiet, maintenanceSpans, parkedLabel, parksAnything, VISIT_MINUTES } from '@/ui/maintenance';
+import { repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
+import { ageAttribute, deviceLiveness, isAhead, offlineLabel, silentSince, sinceLabel, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
+import { Asking } from '@/ui/Asking';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { OfflineSteps } from '../home/OfflineHelp';
-import { figure, targetFigure } from '../home/units';
+import { figure, targetFigure } from '@/ui/units';
 import { beganAt, crossedBound, deliveryOf, lastedLabel } from './inbox';
 import type { AlertNames } from './names';
-import ask from './AlertCard.module.css';
+import { looseFigure, unbroken } from '@/ui/figures';
 import styles from './Alerts.module.css';
-import { deviceName } from '@/screens/devices/naming';
+import { deviceName } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
 
-/** How long a silence from the card holds, and how long maintenance does. */
-export const SILENCE_SECONDS = 3600;
-export const MAINTENANCE_SECONDS = 900;
+/** How long a silence from the card holds. */
+const SILENCE_SECONDS = 3600;
 
-/**
- * The three spans the question and the receipt are written around: the window
- * the device is given, the settling the cloud adds to it, and the quiet a
- * grower actually gets, which is their sum. The card used to name the window
- * for all three, so a quarter of an hour was promised for a silence that ran
- * for twenty-five minutes.
- */
-const SPANS = { minutes: Math.round(MAINTENANCE_SECONDS / 60), settle: SETTLE_MINUTES, quiet: quietMinutes(MAINTENANCE_SECONDS) };
-
-type Translate = ReturnType<typeof useTranslation>['t'];
+/** The maintenance the card offers is a step-in, and the question and the receipt name all three of its spans. */
+const SPANS = maintenanceSpans(VISIT_MINUTES);
 
 interface AlertCardProps {
   alert: Alert;
@@ -150,8 +142,6 @@ const placeOf = (t: Translate, alert: Alert, names: AlertNames, device: Device |
   return [];
 };
 
-/** What a device is called, or what kind of thing it is where nobody has named it. */
-
 // The inbox writes a metric out in full - "humidity" rather than "RH" - so its
 // own words come first and the short ones the dense cards elsewhere use stand
 // in only where it has none.
@@ -211,7 +201,7 @@ const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Devi
       const quiet = alert.value ?? alert.extremeValue;
       const since = quiet === null ? alert.startedAt : (zoned(alert.startedAt, zone).minus({ seconds: quiet }).toISO() ?? alert.startedAt);
 
-      return { label: t('alerts.what.cameraSince', { time: clockLabel(since, now, zone) }), figure: null };
+      return { label: t('alerts.what.cameraSince', { time: sinceLabel(since, now, zone) }), figure: null };
     }
     case 'threshold': {
       const what = watchedOf(alert, rule);
@@ -219,9 +209,6 @@ const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Devi
     }
   }
 };
-
-/** A figure and what belongs to it, held together so a narrow card wraps the pair rather than splitting it. */
-const tight = (part: string): string => part.replace(/ /g, ' ');
 
 /** What the episode watched, from whichever of the two still knows. */
 interface Watched {
@@ -267,7 +254,7 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
       // A rule that trips the moment its output starts has no span to name, and
       // neither has an episode whose rule is gone: the duration the rule asked
       // for was the rule's and is not part of what happened.
-      figure: forSeconds !== null && forSeconds > 0 ? tight(t('alarms.bound.longer', { duration: spanLabel(forSeconds) })) : null,
+      figure: forSeconds !== null && forSeconds > 0 ? unbroken(t('alarms.bound.longer', { duration: spanLabel(forSeconds) })) : null,
     };
   }
 
@@ -278,8 +265,8 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
   // round it to a whole number, so a heater watched at half power read "1 %" on
   // a series whose whole range is nought to one - and the card beside it, which
   // knew better, wrote the same bound with no unit at all.
-  const asFigure = (x: number) => (watch.kind === 'reading' ? figure(x, watch.metric) : levelFigure(x));
-  const asEdge = (x: number) => (watch.kind === 'reading' ? targetFigure(x, watch.metric) : levelFigure(x));
+  const asFigure = (x: number) => (watch.kind === 'reading' ? figure(x, watch.metric) : looseFigure(x));
+  const asEdge = (x: number) => (watch.kind === 'reading' ? targetFigure(x, watch.metric) : looseFigure(x));
   const unit = unitOf(watch);
 
   const figures = [
@@ -291,9 +278,16 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
 
   return {
     label: watch.kind === 'reading' ? metricName(t, watch.metric) : outputName(t, watch.output),
-    figure: figures.length ? figures.map(tight).join(' · ') : null,
+    figure: figures.length ? figures.map(unbroken).join(' · ') : null,
   };
 };
+
+/**
+ * Each "·"-separated piece of a short phrase kept on one line - "resolved 18:08",
+ * "lasted 56 min" - so the line breaks at a dot and never splits a figure from
+ * the word it belongs to.
+ */
+const whole = (phrase: string): string => phrase.split(' · ').map(unbroken).join(' · ');
 
 /**
  * Which rule raised it, how much it matters, when it began and how long it
@@ -321,17 +315,6 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
  * stays behind one, and a card whose rule is merely not in hand goes on saying
  * nothing about delivery at all.
  */
-/**
- * Each "·"-separated piece of a short phrase kept on one line - "resolved 18:08",
- * "lasted 56 min" - so the line breaks at a dot and never splits a figure from
- * the word it belongs to.
- */
-const whole = (phrase: string): string =>
-  phrase
-    .split(' · ')
-    .map(piece => piece.replace(/ /g, '\u00a0'))
-    .join(' · ');
-
 const metaOf = (
   t: Translate,
   alert: Alert,
@@ -349,7 +332,7 @@ const metaOf = (
       // An episode its rule stopped watching - the stage's "too humid" resting in germination - did not get better, and is not said to have.
       alert.resolvedAt
         ? t(alert.rested ? 'alerts.meta.rested' : 'alerts.meta.resolved', { time: clock(alert.resolvedAt, zone), age: lastedLabel(alert, now) })
-        : t('alerts.meta.since', { time: clockLabel(beganAt(alert), now, zone), age: lastedLabel(alert, now) }),
+        : t('alerts.meta.since', { time: sinceLabel(beganAt(alert), now, zone), age: lastedLabel(alert, now) }),
     ),
   ].filter((part): part is string => part !== null);
 
@@ -516,27 +499,15 @@ function OpenChips({
       </div>
 
       {asking && device && reachable ? (
-        <div className={ask.asking}>
-          <p className={ui.note}>{maintenanceAsk(t, device)}</p>
-          <div className={ask.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              disabled={busy}
-              onClick={() =>
-                maintenance.mutate(
-                  { deviceId, command: { kind: 'maintenance', forSeconds: MAINTENANCE_SECONDS } },
-                  { onSuccess: () => setAsking(false) },
-                )
-              }
-            >
-              {t('alerts.maintenance.yes')}
-            </button>
-            <button type="button" className={ui.button} onClick={() => setAsking(false)}>
-              {t('alerts.maintenance.cancel')}
-            </button>
-          </div>
-        </div>
+        <Asking
+          note={maintenanceAsk(t, device)}
+          yes={t('alerts.maintenance.yes')}
+          busy={busy}
+          onYes={() =>
+            maintenance.mutate({ deviceId, command: { kind: 'maintenance', forSeconds: VISIT_MINUTES * 60 } }, { onSuccess: () => setAsking(false) })
+          }
+          onCancel={() => setAsking(false)}
+        />
       ) : null}
 
       {maintenance.data && device ? (

@@ -14,7 +14,7 @@ import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { AccessContext, AccessRange, Grant, Grantee, Need, ResolvedSubject, SubjectRef, SubjectType } from './access.types';
 import { forbidden, notFound } from './problem';
-import { overlapsRange } from './range';
+import { overlapsRange, stillValid } from './range';
 
 /**
  * One function decides every request: `access(ctx, subject, need)`.
@@ -143,8 +143,7 @@ export class AccessService {
     if (!ctx.shareToken) return null;
 
     const link = await this.shareLinks.findOne({ token: ctx.shareToken }).lean();
-    if (!link || link.revokedAt !== null) return null;
-    if (link.expiresAt !== null && link.expiresAt.getTime() <= Date.now()) return null;
+    if (!link || !stillValid(link)) return null;
 
     const covers = link.subject.type === 'grow' ? subject.growIds.includes(link.subject.id) : subject.spaceIds.includes(link.subject.id);
     if (!covers) return null;
@@ -186,14 +185,10 @@ export class AccessService {
         const plant = await this.plants.findOne({ id: ref.id }, { growId: 1 }).lean();
         return plant ? this.ofGrow(ref, plant.growId, need) : null;
       }
-      case 'device': {
-        const device = await this.devices.findOne({ id: ref.id }, { ownerId: 1, spaceId: 1, isDemo: 1 }).lean();
-        return device ? { ...(await this.inSpaces(ref, device.spaceId)), ownerId: device.ownerId, isDemo: device.isDemo } : null;
-      }
-      case 'camera': {
-        const camera = await this.cameras.findOne({ id: ref.id }, { ownerId: 1, spaceId: 1, isDemo: 1 }).lean();
-        return camera ? { ...(await this.inSpaces(ref, camera.spaceId)), ownerId: camera.ownerId, isDemo: camera.isDemo, ofACamera: true } : null;
-      }
+      case 'device':
+        return this.ofDevice(ref, ref.id);
+      case 'camera':
+        return this.ofCamera(ref, ref.id);
       case 'entry': {
         const entry = await this.entries.findOne({ id: ref.id }).lean();
         if (!entry) return null;
@@ -244,32 +239,44 @@ export class AccessService {
     }
 
     if (deviceId !== null) {
-      const device = await this.devices.findOne({ id: deviceId }, { ownerId: 1, spaceId: 1, isDemo: 1 }).lean();
-      if (device) return { ...(await this.inSpaces(ref, device.spaceId)), ownerId: device.ownerId, isDemo: device.isDemo };
+      const device = await this.ofDevice(ref, deviceId);
+      if (device) return device;
     }
 
     if (cameraId !== null) {
-      const camera = await this.cameras.findOne({ id: cameraId }, { ownerId: 1, spaceId: 1, isDemo: 1 }).lean();
-      if (camera) {
-        return {
-          ...(await this.inSpaces(ref, camera.spaceId)),
-          ownerId: camera.ownerId,
-          isDemo: camera.isDemo,
-          // A still names no grow: it belongs to the camera that took it. What
-          // it is a picture of is whatever stood in front of that camera when
-          // the shutter closed - which is what a link onto that grow was made
-          // to show, and without it a link that includes cameras reaches none
-          // of the pictures its own week cards point at. It makes no picture
-          // public: a grow read through its own address is granted `view` by
-          // being public, and a camera never is, so a still is still refused to
-          // anybody who does not hold a link that carries cameras.
-          growIds: takenAt ? await this.growsInSpaceAt(camera.spaceId, takenAt) : [],
-        };
-      }
+      const camera = await this.ofCamera(ref, cameraId, takenAt);
+      if (camera) return camera;
     }
 
     // Attached to nothing that still exists: nobody's but an admin's.
     return this.blank(ref);
+  }
+
+  private async ofDevice(ref: SubjectRef, id: string): Promise<ResolvedSubject | null> {
+    const device = await this.devices.findOne({ id }, { ownerId: 1, spaceId: 1, isDemo: 1 }).lean();
+    return device ? { ...(await this.inSpaces(ref, device.spaceId)), ownerId: device.ownerId, isDemo: device.isDemo } : null;
+  }
+
+  /** A camera, or - with the instant its shutter closed - a picture it took. */
+  private async ofCamera(ref: SubjectRef, id: string, takenAt: Date | null = null): Promise<ResolvedSubject | null> {
+    const camera = await this.cameras.findOne({ id }, { ownerId: 1, spaceId: 1, isDemo: 1 }).lean();
+    if (!camera) return null;
+
+    return {
+      ...(await this.inSpaces(ref, camera.spaceId)),
+      ownerId: camera.ownerId,
+      isDemo: camera.isDemo,
+      ofACamera: true,
+      // A still names no grow: it belongs to the camera that took it. What
+      // it is a picture of is whatever stood in front of that camera when
+      // the shutter closed - which is what a link onto that grow was made
+      // to show, and without it a link that includes cameras reaches none
+      // of the pictures its own week cards point at. It makes no picture
+      // public: a grow read through its own address is granted `view` by
+      // being public, and a camera never is, so a still is still refused to
+      // anybody who does not hold a link that carries cameras.
+      growIds: takenAt ? await this.growsInSpaceAt(camera.spaceId, takenAt) : [],
+    };
   }
 
   private async ofSpace(ref: SubjectRef, id: string): Promise<ResolvedSubject | null> {
@@ -349,15 +356,9 @@ export class AccessService {
   /** The spaces themselves and the rooms they stand in, because a membership on a room covers its spaces. */
   private async widen(spaceIds: (string | null)[]): Promise<string[]> {
     const named = spaceIds.filter((id): id is string => id !== null);
-    if (named.length === 0) return [];
+    const rooms = await this.roomsOf(named);
 
-    const spaces = await this.spaces.find({ id: { $in: named } }, { id: 1, roomId: 1 }).lean();
-    const widened = new Set(named);
-    for (const space of spaces) {
-      if (space.roomId) widened.add(space.roomId);
-    }
-
-    return [...widened];
+    return [...new Set(named.flatMap(id => rooms.get(id) ?? [id]))];
   }
 
   private blank(ref: SubjectRef): ResolvedSubject {

@@ -2,11 +2,13 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
+import type { Socket } from '@fg2/shared-types/v1';
 import { socketChunkCount, socketListChunk } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { logger } from '@utils/logger';
+import { yearFrom } from '../v1/camera/entitlement.service';
 import { DEVICE_CAMERA_REPORT_SINK, DeviceCameraReportSink } from './device-sinks';
 import { decodeSockets } from './sockets';
 
@@ -37,9 +39,6 @@ const NONE = 'none';
 /** A Terp Cam's P2P device id, which goes on to be part of a URL. */
 const CAMERA_ID = /^[A-Za-z0-9_-]{4,32}$/;
 
-/** A camera's year of Premium, from the day it is first paired. Nothing renews on its own. */
-const ENTITLEMENT_MONTHS = 12;
-
 /**
  * Two reported values never reach `devices.state.hardware`: the camera's
  * password and its stored stream URL, which carries credentials in it. They
@@ -55,7 +54,7 @@ const CAMERA_SECRET_KEYS = ['webcam_pwd', 'webcam_url'];
  */
 const CAMERA_REPORT_KEYS = ['webcam_did', 'webcam_uid', 'webcam_pwd'];
 
-export interface HardwareInfo {
+interface HardwareInfo {
   key: string;
   value: string;
 }
@@ -173,9 +172,6 @@ export class HardwareReportService {
       return;
     }
 
-    const validUntil = new Date();
-    validUntil.setMonth(validUntil.getMonth() + ENTITLEMENT_MONTHS);
-
     await this.cameras.create({
       id: uuidv4(),
       ownerId: device.ownerId,
@@ -188,7 +184,7 @@ export class HardwareReportService {
       ip: notNone(device.state.hardware.webcam_ip),
       secret: await this.reportedSecret(device.id),
       model: 'terp_cam',
-      entitlement: { validUntil, grant: 'included' },
+      entitlement: { validUntil: yearFrom(new Date()), grant: 'included' },
       isDemo: device.isDemo,
     });
 
@@ -266,18 +262,14 @@ export class HardwareReportService {
 
     const changed = sockets.filter(socket => {
       const was = previous.get(socket.slot);
-      if (!was) return false;
-      // A row whose hardware id has changed is another socket in the same slot.
-      if (was.hardwareId !== '' && socket.hardwareId !== '' && was.hardwareId !== socket.hardwareId) return false;
-
-      return was.state !== 'unknown' && was.state !== socket.state;
+      return !!was && !swapped(was, socket) && was.state !== 'unknown' && was.state !== socket.state;
     });
 
-    const held = new Set(sockets.map(socket => String(socket.slot)));
+    const bySlot = new Map(sockets.map(socket => [String(socket.slot), socket]));
     const stale = Object.keys(device.state.socketStateChangedAt ?? {}).filter(slot => {
-      const socket = sockets.find(row => String(row.slot) === slot);
+      const socket = bySlot.get(slot);
       const was = previous.get(Number(slot));
-      return !held.has(slot) || (was && socket && was.hardwareId !== '' && socket.hardwareId !== '' && was.hardwareId !== socket.hardwareId);
+      return !socket || (!!was && swapped(was, socket));
     });
 
     await this.devices.updateOne(
@@ -292,6 +284,9 @@ export class HardwareReportService {
     );
   }
 }
+
+/** A row whose hardware id has changed is another socket in the same slot. */
+const swapped = (was: Socket, now: Socket): boolean => was.hardwareId !== '' && now.hardwareId !== '' && was.hardwareId !== now.hardwareId;
 
 /**
  * What the camera is called before anybody has called it anything.

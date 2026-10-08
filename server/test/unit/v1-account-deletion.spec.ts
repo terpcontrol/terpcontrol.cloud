@@ -1,14 +1,13 @@
 import { jest } from '@jest/globals';
 import { Model } from 'mongoose';
-import { AccessService } from '@common/v1/access.service';
 import { ProblemException } from '@common/v1/problem';
 import { AccountDeletionService } from '@modules/v1/account-deletion/account-deletion.service';
 import { AccountsService } from '@modules/v1/account/accounts.service';
 import { AccountMailService } from '@modules/v1/account/account-mail.service';
 import { PasswordResetService } from '@modules/v1/account/password-reset.service';
-import { DevicesService } from '@modules/v1/device/devices.service';
 import { SessionsService } from '@modules/v1/sessions/sessions.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { accessOn, devicesOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * What an account deletion leaves behind, which is the whole question: the rows
@@ -49,7 +48,7 @@ const NOTIFICATIONS = {
 };
 const PASSWORD = 'Passw0rd!test';
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let accounts: AccountsService;
 let deletion: AccountDeletionService;
 
@@ -74,8 +73,7 @@ const build = (): void => {
     accounts,
     new AccountMailService({ send: async () => undefined } as never, { appUrlExternal: 'https://app.test.invalid' } as never),
   );
-  const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  const devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
+  const devices = devicesOn(db, accessOn(db));
 
   deletion = new AccountDeletionService(
     db.alerts,
@@ -114,14 +112,6 @@ const refusal = async (action: () => unknown): Promise<ProblemException> => {
   }
   throw new Error('It was allowed.');
 };
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
 
 beforeEach(async () => {
   await db.reset();

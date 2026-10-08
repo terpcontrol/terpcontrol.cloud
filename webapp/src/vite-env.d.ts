@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-/// <reference types="vite-plugin-pwa/client" />
 
 interface ImportMetaEnv {
   /** The API this build talks to, written by `scripts/set-env.mjs` or passed by the image build. */
@@ -14,5 +13,5 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-/** The app's own version, as `package.json` states it; both Vite configs define it from there. */
+/** The app's own version, as `package.json` states it; `vite.config.ts` defines it, and the vitest configs share that. */
 declare const __APP_VERSION__: string;

@@ -1,3 +1,4 @@
+import { RENEWAL_WINDOW_DAYS } from '@fg2/shared-types/v1-schemas';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntitlementService } from '@modules/v1/camera/entitlement.service';
 
@@ -26,8 +27,9 @@ const gate = (premium: Partial<Premium> = {}) => new EntitlementService({ ...CON
 
 const camera = (validUntil: Date | null): Pick<CameraDocument, 'entitlement'> => ({ entitlement: { validUntil, grant: 'included' } });
 
-const inAYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+const DAY = 24 * 60 * 60 * 1000;
+const inAYear = new Date(Date.now() + 365 * DAY);
+const lastMonth = new Date(Date.now() - 30 * DAY);
 
 describe('an install that says nothing', () => {
   it('reads every camera as entitled, whatever its date says', () => {
@@ -58,9 +60,7 @@ describe('an install that enforces', () => {
     expect(gate(enforced).servedStillWidth(camera(inAYear))).toBeUndefined();
   });
 
-  it('gives a free render the lesser resolution and the mark', () => {
-    expect(gate(enforced).allowedQuality(camera(lastMonth), 'hd')).toBe('sd');
-    expect(gate(enforced).allowedQuality(camera(inAYear), 'hd')).toBe('hd');
+  it('marks a free render', () => {
     expect(gate(enforced).watermarks(camera(lastMonth))).toBe(true);
     expect(gate(enforced).watermarks(camera(inAYear))).toBe(false);
   });
@@ -69,19 +69,28 @@ describe('an install that enforces', () => {
     expect(gate(enforced).serialise(camera(lastMonth)).renewalVisible).toBe(false);
     expect(gate({ ...enforced, extendUrl: 'https://example.invalid/premium' }).serialise(camera(lastMonth)).renewalVisible).toBe(true);
   });
+
+  it('shows it only once the year is nearly up', () => {
+    const renewal = gate({ ...enforced, extendUrl: 'https://example.invalid/premium' });
+    const ahead = (days: number) => camera(new Date(Date.now() + days * DAY));
+
+    expect(renewal.serialise(ahead(RENEWAL_WINDOW_DAYS + 1)).renewalVisible).toBe(false);
+    expect(renewal.serialise(ahead(RENEWAL_WINDOW_DAYS - 1)).renewalVisible).toBe(true);
+  });
 });
 
 describe('deleting a free camera´s older pictures', () => {
   // A switch of its own, so that turning enforcement on narrows what is served
   // and never what is kept.
   it('is off until an install turns it on and says how many days', () => {
-    expect(gate({ enforced: true, freeStillDays: 30 }).freeRetention()).toBeNull();
-    expect(gate({ enforced: true, freeRetention: true }).freeRetention()).toBeNull();
-    expect(gate({ freeRetention: true, freeStillDays: 30 }).freeRetention()).toBeNull();
+    const kept = { stillDays: null, timelapseDays: null };
+    expect(gate({ enforced: true, freeStillDays: 30 }).freeTier()).toMatchObject(kept);
+    expect(gate({ enforced: true, freeRetention: true }).freeTier()).toMatchObject(kept);
+    expect(gate({ freeRetention: true, freeStillDays: 30 }).freeTier()).toMatchObject(kept);
   });
 
   it('applies the windows the install named once both are set', () => {
-    expect(gate({ enforced: true, freeRetention: true, freeStillDays: 30, freeTimelapseDays: 90 }).freeRetention()).toEqual({
+    expect(gate({ enforced: true, freeRetention: true, freeStillDays: 30, freeTimelapseDays: 90 }).freeTier()).toMatchObject({
       stillDays: 30,
       timelapseDays: 90,
     });

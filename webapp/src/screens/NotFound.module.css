@@ -9,12 +9,6 @@
   padding-top: var(--space-2);
 }
 
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  margin: 0;
-}
-
 @media (min-width: 900px) {
   .screen {
     max-width: var(--reading-width);

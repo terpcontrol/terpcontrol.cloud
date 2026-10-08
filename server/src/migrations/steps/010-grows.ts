@@ -6,8 +6,8 @@ import { reconstructGrows, slugOf } from '../grow-cycles';
 import { measurementNamesIn } from '../measurements';
 
 /**
- * The grows, read back out of the lifecycle entries by the rule the grow report
- * draws with today (`grow-cycles.ts`).
+ * The grows, read back out of the lifecycle entries by the rule in
+ * `grow-cycles.ts`.
  *
  * What a reconstructed grow cannot know, decided here:
  *

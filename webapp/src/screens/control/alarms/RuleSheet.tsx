@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { AlarmRule, Device, Me, Metric, OutputMetric, Severity, WebhookMethod } from '@fg2/shared-types/v1';
+import type { AlarmRule, Device, Me, Metric, OutputMetric, Severity } from '@fg2/shared-types/v1';
 import { useCreateAlarmRule, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
-import { Sheet } from '@/log/Sheet';
+import type { Translate } from '@/i18n/i18n';
+import { Sheet } from '@/ui/Sheet';
 import { EmailAlarmsOffer } from '@/screens/notifications/NotifyNotice';
+import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
+import { WEBHOOK_METHODS } from '@/screens/notifications/settings';
+import { Asking } from '@/ui/Asking';
 import { Refused } from '@/ui/PageState';
 import advanced from '@/ui/advanced/Advanced.module.css';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
+import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import {
-  channelsLabel,
   createBody,
   DEFAULT_WATCH,
   draftOf,
@@ -20,11 +24,9 @@ import {
   outputName,
   outputsOf,
   readingsOf,
-  routedChannels,
   type RuleDraft,
   ruleTitle,
   scaleNote,
-  type Translate,
   unitOf,
   updateBody,
   watchesOffline,
@@ -36,7 +38,6 @@ import { isComplete, templateOf, WEBHOOK_TEMPLATES, type TemplateValues, type We
 import styles from './Alarms.module.css';
 
 const SEVERITIES: Severity[] = ['critical', 'warning', 'info'];
-const METHODS: WebhookMethod[] = ['GET', 'POST', 'PUT'];
 
 /**
  * Writing a rule, and changing one.
@@ -113,24 +114,16 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
 
       {rule && rule.origin !== 'always' ? (
         askingDelete ? (
-          <div className={styles.asking}>
-            <p className={ui.note}>{t('alarms.sheet.deleteAsk')}</p>
-            <div className={styles.actions}>
-              <button
-                type="button"
-                className={`${ui.button} ${styles.dangerButton}`}
-                disabled={busy}
-                onClick={() => remove.mutate(rule.id, { onSuccess: onClose })}
-              >
-                {t('alarms.sheet.deleteYes')}
-              </button>
-              <button type="button" className={ui.button} onClick={() => setAskingDelete(false)}>
-                {t('grow.lifecycle.cancel')}
-              </button>
-            </div>
-          </div>
+          <Asking
+            note={t('alarms.sheet.deleteAsk')}
+            yes={t('alarms.sheet.deleteYes')}
+            danger
+            busy={busy}
+            onYes={() => remove.mutate(rule.id, { onSuccess: onClose })}
+            onCancel={() => setAskingDelete(false)}
+          />
         ) : (
-          <button type="button" className={`${ui.button} ${styles.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
+          <button type="button" className={`${ui.button} ${ui.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
             {t('alarms.sheet.delete')}
           </button>
         )
@@ -140,14 +133,12 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
 
   return (
     <Sheet title={t(rule ? 'alarms.sheet.title' : 'alarms.sheet.newTitle')} actions={actions} onClose={onClose}>
-      <div className={styles.sheet}>
+      <div className={ui.sheetBody}>
         {/* The cloud's own offline rule is titled from the kind of hardware it
             watches, in the language the page is being read in, and never from
-            the name it carries - so a name typed here moved nothing the grower
-            could see. It was not inert either: the server titles the message it
-            sends with it, so the one place the typed name surfaced was a push
-            that every screen then contradicted. The field goes, the way the
-            watch and the bounds already do for this rule. */}
+            the name it carries: a name typed here would reach only the push the
+            server titles with it, which every screen then contradicts. The field
+            goes, the way the watch and the bounds already do for this rule. */}
         {rule?.origin === 'always' ? null : (
           <Block label={t('alarms.sheet.name')}>
             <input
@@ -310,7 +301,7 @@ function RuleAdvanced({ draft, onChange }: { draft: RuleDraft; onChange: (over: 
         {t('advanced.title')}
       </summary>
       {open ? (
-        <div className={styles.sheet}>
+        <div className={ui.sheetBody}>
           {webhook ? <TemplateFields draft={draft} onChange={onChange} /> : null}
           {quiet ? <Repeat draft={draft} onChange={onChange} help="alarmRepeat" /> : null}
         </div>
@@ -503,7 +494,7 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
         onChange={event => onChange({ url: event.target.value })}
       />
       <Choices label={t('alarms.sheet.method')}>
-        {METHODS.map(method => (
+        {WEBHOOK_METHODS.map(method => (
           <Choice key={method} chosen={draft.method === method} onChoose={() => onChange({ method })}>
             {method}
           </Choice>
@@ -542,23 +533,8 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
         placeholder={t('alarms.sheet.payloadHint')}
         onChange={event => onChange({ resolvedPayload: event.target.value })}
       />
-      <Toggle label={t('alarms.sheet.reportErrors')} on={draft.reportErrors} onToggle={reportErrors => onChange({ reportErrors })} />
-      <Toggle label={t('alarms.sheet.tunnel')} note={t('alarms.sheet.tunnelNote')} on={draft.tunnel} onToggle={tunnel => onChange({ tunnel })} />
-    </div>
-  );
-}
-
-/** A switch with what it means beside it: the app's own control, in the row the plan editor draws it in. */
-function Toggle({ label, note, on, onToggle }: { label: string; note?: string; on: boolean; onToggle: (on: boolean) => void }) {
-  return (
-    <div className={styles.toggle}>
-      <span className={styles.toggleText}>
-        <span className={styles.toggleLabel}>{label}</span>
-        {note ? <span className={ui.note}>{note}</span> : null}
-      </span>
-      <button type="button" className={ui.switch} role="switch" aria-checked={on} aria-label={label} onClick={() => onToggle(!on)}>
-        <span className={ui.knob} aria-hidden />
-      </button>
+      <SwitchRow label={t('alarms.sheet.reportErrors')} on={draft.reportErrors} onChange={reportErrors => onChange({ reportErrors })} />
+      <SwitchRow label={t('alarms.sheet.tunnel')} note={t('alarms.sheet.tunnelNote')} on={draft.tunnel} onChange={tunnel => onChange({ tunnel })} />
     </div>
   );
 }

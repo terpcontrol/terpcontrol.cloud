@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
 updated: 2026-10-08
-source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-01); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; checked against the code on 2026-10-08
+source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -59,8 +59,9 @@ Pitfalls, each met at least once:
 - **Mongoose never changes a built index:** new options under existing data need a step that drops the old index
   (`014-one-line-per-task`); the schema builds the new one at the next boot, and cannot while duplicates exist.
 - **Two `$or` in one object overwrite each other.** `afterCursor()` (`common/v1/pages.ts`) and the visibility filters
-  both answer `$or`; spread into one query, page two of a list held other people's rows - three times. Combine with
-  `{ $and: [visibility, filter, cursor] }` (Chris, 2026-09-18).
+  both answer `$or`; spread into one query, page two of a list held what its filter excluded - other people's rows
+  three times, firmware builds never offered to the device once. Combine with `{ $and: [visibility, filter, cursor] }`
+  (Chris, 2026-09-18), as `findPage` does ([server.md](server.md#the-v1-contract)).
 - **`$in` with `null` matches documents without the field**, so references are `null`, never absent, and sweeps pass
   only real ids (`named()` in `cleanup.service.ts`).
 - **No update path from input:** a device's `hardware-info` key passes `^[a-zA-Z0-9_-]{1,64}$` (value at most 512
@@ -102,6 +103,14 @@ Pitfalls, each met at least once:
   with the device's `settings` (`vpdLeafOffsetDay`/`Night`, 0 meaning the air's VPD; `ppfdLuxFactor`, default 0.015),
   so changing a factor changes the history. The VPD curve is `shared-types/src/v1/vpd.ts`, the one the targets screen
   uses too. Targets live in Mongo (`targetChanges`, phase snapshots).
+- **Which leaf offset a VPD takes** is the half the device was in: off the lamp for a controller, a fridge and a LIGHT
+  (a series window by the lamp's majority, from its switchings); for an AIR fan, which has none, the `day` it reports
+  off its light sensor (live its newest, a series window by the majority of its `day` switchings, read in the lamp's
+  scan; only a fan writes `day`, so the others pay nothing for it); for a smart plug, which has neither, its own
+  schedule (`usedaynight`), else the newest measured still of a camera in its space (grey is night,
+  `media.monochrome`), else the night (Chris, 2026-10-08; [ADR 0006](../adr/0006-day-and-night-by-the-device-clock.md)).
+  A plug window is read at its middle. Without a schedule a plug's read costs two Mongo reads more
+  (`StillDaylightService`: the space's cameras, one `$group` of their stills by half steps), none per point.
 - **Written, not served:** the controller diagnostics `avg`, `p`, `i`, `d`, `rpm`, `day`, `sensor_type`.
 - **Reads** (`DataService`): a series is `aggregateWindow(mean)` over `status` and `status_daily`, empty windows kept -
   at most 1,000 windows unasked, an asked step honoured down to 5 s up to 5,000 windows, at most 50,000 points.
@@ -152,4 +161,5 @@ at a time and re-queues a build left in `rendering`.
 - **Written by hand** (`export-zip.ts`: streamed entries, data descriptors, Zip64; no zip library in `server/`). An
   alarm's custom webhook is exported as `custom · webhook` only.
 - **No placement history:** a device row knows only where it stands now, so a grow's climate (export, series, week
-  cards) comes from the devices in its spaces today; one moved out is not read for the days it was there.
+  cards) comes from the devices standing today in the spaces the grow stood in (`spacesDuring`,
+  `modules/v1/grow/grow-places.ts`); one moved out is not read for the days it was there.

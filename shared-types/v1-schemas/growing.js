@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.growUpdate = exports.splitResult = exports.splitCreate = exports.harvestResult = exports.harvestCreate = exports.placementCreate = exports.phaseCreate = exports.growCreate = exports.plantBatch = exports.inviteAcceptance = exports.invitePreview = exports.inviteCreate = exports.membershipUpdate = exports.membershipCreate = exports.presetApplication = exports.presetApplicationCreate = exports.presetPlanEffect = exports.growDecision = exports.devicePlacement = exports.spaceUpdate = exports.spaceCreate = exports.growListItem = exports.growSummary = exports.growLocation = exports.phaseGroup = exports.task = exports.taskCompletion = exports.taskSource = exports.reminder = exports.follow = exports.plant = exports.plantHarvest = exports.plantStatus = exports.grow = exports.growVisibility = exports.measurementDefinition = exports.growScheme = exports.growSchemeOrigin = exports.placement = exports.phase = exports.phaseTargets = exports.climateTargets = exports.phaseSource = exports.invite = exports.inviteState = exports.membership = exports.space = exports.accessNeed = exports.spaceRetention = exports.presetPrompt = void 0;
-exports.taskPage = exports.reminderPage = exports.followPage = exports.plantPage = exports.growPage = exports.invitePage = exports.membershipPage = exports.spacePage = exports.taskCompletionCreate = exports.reminderUpdate = exports.reminderCreate = exports.placementUpdate = exports.phaseUpdate = exports.plantUpdate = exports.plantCreate = void 0;
+exports.plantCreate = exports.growUpdate = exports.splitResult = exports.splitCreate = exports.harvestResult = exports.harvestCreate = exports.placementCreate = exports.phaseCreate = exports.growCreate = exports.plantBatch = exports.inviteAcceptance = exports.invitePreview = exports.inviteCreate = exports.membershipUpdate = exports.membershipCreate = exports.presetApplication = exports.presetApplicationCreate = exports.presetPlanEffect = exports.growDecision = exports.spaceUpdate = exports.spaceCreate = exports.growListItem = exports.growSummary = exports.growLocation = exports.phaseGroup = exports.task = exports.taskCompletion = exports.taskSource = exports.reminder = exports.follow = exports.plant = exports.plantHarvest = exports.plantStatus = exports.grow = exports.growVisibility = exports.measurementDefinition = exports.growScheme = exports.growSchemeOrigin = exports.placement = exports.phase = exports.phaseTargets = exports.climateTargets = exports.phaseSource = exports.invite = exports.inviteState = exports.membership = exports.space = exports.accessNeed = exports.spaceRetention = exports.presetPrompt = void 0;
+exports.taskPage = exports.reminderPage = exports.followPage = exports.plantPage = exports.growPage = exports.invitePage = exports.membershipPage = exports.spacePage = exports.taskCompletionCreate = exports.reminderUpdate = exports.reminderCreate = exports.placementUpdate = exports.phaseUpdate = exports.plantUpdate = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -339,16 +339,6 @@ exports.spaceUpdate = (0, common_js_1.named)('SpaceUpdate', exports.spaceCreate.
  * method is the whole statement and there is nothing to archive a space *with*.
  * Both answer the space, whose `archivedAt` is what changed.
  */
-/**
- * Placing a device in a space and taking it out again. The two ids are the whole
- * statement, so neither direction carries a body, and what comes back is this
- * pair rather than the device: `spaceId` is all that changed, and what a device
- * is belongs to the device routes.
- */
-exports.devicePlacement = (0, common_js_1.named)('DevicePlacement', zod_1.z.object({
-    deviceId: (0, common_js_1.id)(),
-    spaceId: (0, common_js_1.id)().nullable().describe('The space the device now stands in; null once it has been taken out.'),
-}));
 /**
  * What a client may do about the grow when a preset is applied to a space that
  * has no open grow: start one here, move an existing one here, or leave grows

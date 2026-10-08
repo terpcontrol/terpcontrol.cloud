@@ -6,10 +6,11 @@ import { InjectModel } from '@nestjs/mongoose';
 // imports break wherever this file is loaded as an ES module.
 import jwt from 'jsonwebtoken';
 import { Model } from 'mongoose';
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { AuthToken, AutomationSession, Session, SessionResult, SessionTokens, SessionUser } from '@fg2/shared-types/v1';
 import { DataStoredInToken } from '@common/auth/auth.interface';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { sameSecret } from '@common/same-secret';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { forbidden, notFound, unauthenticated } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
@@ -61,10 +62,10 @@ interface Principal {
   isDemo: boolean;
 }
 
-/** The tour that needs no account: nobody's owner, nobody's member, and never privileged. */
 /** How long a code sent again on a sign-in stands before another sign-in sends it once more. */
 const RESEND_AFTER_MS = 10 * 60 * 1000;
 
+/** The tour that needs no account: nobody's owner, nobody's member, and never privileged. */
 const DEMO_USER: SessionUser = { id: DEMO_USER_ID, handle: 'demo', isAdmin: false, isDemo: true };
 
 @Injectable()
@@ -97,7 +98,7 @@ export class SessionsService {
       throw forbidden('account_not_activated', 'This account still has to be activated: its code has been sent to its address again.');
     }
 
-    return this.open(user, stayLoggedIn, userAgent);
+    return this.begin({ id: user.id, handle: user.handle, isAdmin: user.isAdmin, isDemo: false }, stayLoggedIn, userAgent);
   }
 
   /**
@@ -113,10 +114,6 @@ export class SessionsService {
 
     this.resent.set(user.id, Date.now());
     await this.mails.activation(user.email, user.activationCode);
-  }
-
-  public async open(user: StoredUser, stayLoggedIn: boolean, userAgent: string | null): Promise<SessionResult> {
-    return this.begin({ id: user.id, handle: user.handle, isAdmin: user.isAdmin, isDemo: false }, stayLoggedIn, userAgent);
   }
 
   /** Anyone may open the demo. It reads the objects marked as demo, redacted, and writes nothing. */
@@ -194,15 +191,7 @@ export class SessionsService {
    * longer depends on who polled last.
    */
   public async list(userId: string, query: PageQuery): Promise<CursorPage<Session>> {
-    const limit = pageLimit(query.limit);
-    const rows = await this.sessions
-      .find({ userId, ...afterCursor('createdAt', query.cursor) })
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean();
-
-    const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
-    return { items: page.items.map(serialiseSession), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.sessions, [{ userId }], query), serialiseSession);
   }
 
   public async revoke(userId: string, id: string): Promise<void> {
@@ -310,19 +299,3 @@ const serialiseSession = (session: StoredSession): Session => ({
   lastSeenAt: session.lastSeenAt.toISOString(),
   expiresAt: session.expiresAt.toISOString(),
 });
-
-/**
- * A comparison whose duration says nothing about how much of the secret was
- * right. Both sides are padded to one length first, because the comparison
- * itself refuses buffers of different sizes - and the lengths are compared
- * afterwards, so a prefix is not accepted.
- */
-const sameSecret = (supplied: string, expected: string): boolean => {
-  const width = Math.max(supplied.length, expected.length, 32);
-  const a = Buffer.alloc(width);
-  const b = Buffer.alloc(width);
-  a.write(supplied, 0, 'utf8');
-  b.write(expected, 0, 'utf8');
-
-  return timingSafeEqual(a, b) && supplied.length === expected.length;
-};

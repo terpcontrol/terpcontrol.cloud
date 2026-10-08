@@ -3,9 +3,10 @@ import { type DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { AdminAlarmWatch, AdminRetentionRun, AdminStats, Device, Fleet } from '@fg2/shared-types/v1';
-import { fileSize } from '@/api/exports';
 import { ApiError } from '@/api/problem';
+import type { Translate } from '@/i18n/i18n';
 import { ageLabel, deviceLiveness } from '@/ui/age';
+import { fileSize } from '@/ui/figures';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
 import styles from './Admin.module.css';
@@ -200,8 +201,6 @@ function AlarmWatchLine({ watch, now }: { watch: AdminAlarmWatch; now: DateTime 
     </>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What a bucket weighs, in the unit it is felt in. It is the export chip's own

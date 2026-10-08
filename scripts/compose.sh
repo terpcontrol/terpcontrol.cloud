@@ -31,3 +31,11 @@ terpcontrol_compose() {
     # shellcheck disable=SC2086 # COMPOSE_OPTIONS holds flags, not one argument.
     docker compose ${COMPOSE_OPTIONS:-} ${TERPCONTROL_ENV_FILE:+--env-file "$TERPCONTROL_ENV_FILE"} "$@"
 }
+
+# Prints the container id of a running service, or fails saying it is not running.
+terpcontrol_container() {
+    local id
+    id="$(terpcontrol_compose ps -q "$1")"
+    [ -n "$id" ] || { echo "Error: the $1 container is not running." >&2; return 1; }
+    echo "$id"
+}

@@ -1,275 +1,24 @@
 {
   "misc": {
     "on": "On",
-    "off": "Off",
-    "day": "Day",
-    "night": "Night",
-    "confirm": "Confirm changes",
-    "error": "Error",
-    "success": "Success",
-    "close": "Close",
-    "ok": "Okay",
-    "saving": "saving...",
-    "loading": "loading...",
-    "save": "save",
-    "settings": "Settings",
-    "errorOccurred": "An error occurred",
-    "unableToSaveSettings": "Unable to save settings",
-    "unableToLoadSettings": "Unable to load settings",
-    "cancel": "Cancel",
-    "help": "Help",
-    "increase": "increase",
-    "decrease": "decrease",
-    "noValue": "—"
+    "off": "Off"
   },
-  "settings": {
-    "title": "Settings",
-    "daynight": "Day/Night cycle",
-    "daybreak": "Daybreak",
-    "nightfall": "Nightfall",
-    "day-climate": "Daytime climate",
-    "night-climate": "Nighttime climate",
-    "climate": "Climate",
-    "temperature": "Temperature",
-    "humidity": "Humidity",
-    "vpd": "VPD",
-    "dayTemperature": "Day temperature",
-    "dayHumidity": "Day humidity",
-    "dayVpd": "Day VPD",
-    "vpdPreview": "{{vpd}} kPa (RH {{humidity}} %)",
-    "nightTemperature": "Night temperature",
-    "nightHumidity": "Night humidity",
-    "nightVpd": "Night VPD",
-    "co2": "CO2",
-    "co2SunsetOff": "No CO2 during sunset",
-    "lights": "Lights",
-    "sunrise": "Sunrise period",
-    "sunset": "Sunset period",
-    "daynightLinearChange": "Linear transition between day and night",
-    "lightlimit": "Maximum power",
-    "lightsOnMaintenanceMode": "Lights ON in maintenance mode",
-    "speed": "Speed",
-    "maxspeed": "Maximum speed",
-    "minspeed": "Minimum speed",
-    "general": "General",
-    "templimit": "Temperature limit",
-    "fanspeeds": "Fan speeds",
-    "externalfan": "External fan",
-    "internalfan": "Internal fans (minimum)",
-    "maxDehumidifySeconds": "Max. dehumidifier ON seconds",
-    "minimalDehumidifierOffTime": "Min. dehumidifier off seconds",
-    "minimalDehumidifierOffTimeHint": "Minimum time in seconds the fridge/dehumidifier stays off before it can turn on again. Prevents short-cycling of the compressor.",
-    "minimalDehumidifierOffTimeWarning": "Warning: Values below 240s may damage the fridge compressor due to short-cycling!",
-    "targetHumidityDiff": "Target humidity difference",
-    "useLongHumidityAvg": "Use long humidity average (240 instead of 100 values)",
-    "use-daynight": "Use Day/Night Cycle",
-    "timer": "Timer",
-    "timer-ontime": "Turn-ON Time",
-    "timer-duration": "Duration",
-    "timer-add": "Add Timeslot",
-    "timer-remove": "Remove Timeslot",
-    "alarms": {
-      "title": "Alarms",
-      "add": "Add Alarm",
-      "delete": "Delete Alarm",
-      "sensorType": "Sensor Type",
-      "upperThreshold": "Upper Threshold",
-      "upperThresholdHint": "Alarm triggers when value goes above this",
-      "lowerThreshold": "Lower Threshold",
-      "lowerThresholdHint": "Alarm triggers when value goes below this",
-      "thresholdSeconds": "Threshold seconds",
-      "thresholdSecondsHint": "Number of seconds the threshold must be exceeded before the alarm is triggered",
-      "actionType": "Action Type",
-      "actionTypeEmail": "Email",
-      "actionTypeWebhook": "Webhook",
-      "actionTypeInfo": "Log message",
-      "actionTarget": "Action Target",
-      "actionTargetHint": "Email address or webhook URL - if you want to use different targets for triggered and resolved alarms, separate them with a pipe '|' character. E.g. \"http://example.com/turn-on|http://example.com/turn-off\"",
-      "cooldownSeconds": "Cooldown",
-      "cooldownSecondsHint": "How many seconds until the same alarm can be triggered again. For E-Mail actions, the minimum is 300.",
-      "retriggerSeconds": "Retrigger",
-      "retriggerSecondsHint": "Seconds until the current alarm state is retriggered. In case an alarm state is not transmitted successfully, this ensures that the alarm state will be sent again after this time. (Minimum: 60)",
-      "name": "Alarm Name",
-      "enable": "Enable Alarm",
-      "disable": "Disable Alarm",
-      "additionalInfo": "Additional log message",
-      "reportWebhookErrors": "Log error messages",
-      "webhookMethod": "Webhook Method",
-      "webhookMethodPOST": "POST",
-      "webhookMethodGET": "GET",
-      "webhookMethodPUT": "PUT",
-      "webhookHeaders": "Custom Headers",
-      "webhookTriggeredPayload": "Triggered payload",
-      "webhookTriggeredPayloadHint": "Custom payload sent when the alarm is triggered (for POST/PUT). Leave empty to send the default payload.",
-      "webhookResolvedPayload": "Resolved payload",
-      "webhookResolvedPayloadHint": "Custom payload sent when the alarm is resolved (for POST/PUT). Leave empty to send the default payload.",
-      "tunnelWebhook": "Tunnel requests through module",
-      "tunnelWebhookHint": "If enabled, webhook requests will be tunneled through the module. This is helpful if your webhook URL is not directly reachable from the internet. WARNING: HTTPS may not work properly when tunneling is enabled.",
-      "addFromTemplate": "Add from template",
-      "webhookTarget": "Service",
-      "sensorTypes": {
-        "temperature": "Temperature",
-        "humidity": "Humidity",
-        "co2": "CO2",
-        "co2_valve": "CO2 valve",
-        "light": "Light",
-        "dehumidifier": "Dehumidifier / cooling",
-        "heater": "Heater",
-        "fan": "Fan"
-      }
-    },
-    "edit-value": "Edit Value",
-    "cloudSettings": "Cloud settings",
-    "vpdLeafTempOffsetDay": "Day VPD leaf temp. offset",
-    "vpdLeafTempOffsetNight": "Night VPD leaf temp. offset",
-    "ppfdLuxFactor": "PPFD lux factor",
-    "ppfdLuxFactorHint": "PPFD is estimated as lux × this factor. It depends on the light spectrum (white LED ≈ 0.015, HPS ≈ 0.0122, sunlight ≈ 0.0185). Calibrate it to your grow light. Default 0.015.",
-    "firmwareChannel": "Firmware channel",
-    "firmwareChannels": {
-      "stable": "Stable",
-      "beta": "Beta (early testers)",
-      "alpha": "Alpha (experimental)",
-      "manual": "Manual (pick a version)"
-    },
-    "firmwareVersion": "Firmware version",
-    "betaFeatures": "Beta features (Cloud)",
-    "rtspStream": "Webcam stream URL",
-    "rtspStreamTransport": "RTSP transport protocol",
-    "rtspStreamTest": "Test webcam stream",
-    "logRtspStreamErrors": "Log webcam stream errors",
-    "maintenanceWebcamOff": "Webcam OFF on maintenance mode or mode OFF",
-    "tunnelRtspStream": "Tunnel webcam stream",
-    "deleteDevice": "Remove device",
-    "deleteDeviceConfirmTitle": "Remove device?",
-    "deleteDeviceConfirmText": "This removes the device from your account — it disappears from the app until it's claimed again.",
-    "deleteDeviceConfirmAgain": "Really remove the device now?",
-    "deleteDeviceConfirmButton": "Remove",
-    "forever": "forever"
-  },
-  "menu": {
-    "devices": "Devices",
-    "shares": "Shared links",
-    "account": "Account",
-    "logout": "Logout",
-    "diagnostics": "Diagnostics",
-    "fleet": "Fleet",
-    "darkMode": "Dark mode",
-    "installApp": "Install app"
-  },
-  "share": {
-    "button": "Share",
-    "title": "Share this page",
-    "pageTitle": "Shared links",
-    "intro": {
-      "charts": "Create a link that lets anyone view this chart page - no account needed.",
-      "diary": "Create a link that lets anyone view this diary - no account needed."
-    },
-    "viewOnly": "View only",
-    "viewOnlyHint": "Visitors see exactly this view and cannot change it.",
-    "interactive": "Interactive",
-    "interactiveHint": {
-      "charts": "Visitors can change the time frame, measures, and log filter.",
-      "diary": "Visitors can switch reports, change strain and filters, and view the webcam."
-    },
-    "includeCharts": "Working chart links",
-    "includeChartsHint": "Visitors can open the chart views linked from the grow report.",
-    "withCharts": "incl. chart links",
-    "expiry": "Link expires",
-    "never": "Never",
-    "endOfDate": "End of {{date}}",
-    "createLink": "Create link",
-    "copy": "Copy",
-    "copied": "Copied!",
-    "manageHint": "Under “Shared links” in the menu you can see how often the link was opened and revoke it at any time.",
-    "activeLinks": "Active links",
-    "inactiveLinks": "Expired & revoked links",
-    "noLinks": "No shared links yet. Use the share button on a chart or diary page to create one.",
-    "page": {
-      "charts": "Chart",
-      "diary": "Diary"
-    },
-    "status": {
-      "active": "Active",
-      "expired": "Expired",
-      "revoked": "Revoked"
-    },
-    "created": "Created",
-    "expires": "Expires",
-    "expired": "Expired",
-    "revoked": "Revoked",
-    "neverExpires": "Never expires",
-    "openCount": "Views: {{count}}",
-    "revoke": "Revoke",
-    "revokeConfirmTitle": "Revoke link?",
-    "revokeConfirmText": "The link stops working immediately. This cannot be undone.",
-    "delete": "Delete",
-    "deleteInactive": "Delete all expired & revoked links",
-    "expiredTitle": "This link is no longer valid",
-    "expiredText": "The share link has expired or was revoked by its owner.",
-    "goToLogin": "Go to login"
-  },
-  "account": {
-    "title": "Account",
-    "change-password": "Change Password",
-    "new-password": "New Password",
-    "repeat-password": "Repeat Password",
-    "logout": "Logout",
-    "messages": {
-      "pwmatch": "Passwords don't match",
-      "confail": "Connection failed",
-      "changed": "Your password was changed"
-    }
+  "asking": {
+    "cancel": "Cancel"
   },
   "demo": {
-    "mode": "Demo mode",
-    "opening": "Opening the demo...",
-    "saveNotSupported": "Saving is not supported in demo mode",
-    "saveButton": "Save (not possible in the demo)"
+    "opening": "Opening the demo..."
   },
   "login": {
     "sessionEnded": "Your session has ended, so you were signed out. Sign in again to return to the page you were on.",
-    "welcomeTitle": "Welcome back",
-    "welcomeSubtitle": "Monitor and control your grow — from anywhere.",
-    "registerTitle": "Create your account",
-    "registerSubtitle": "One portal for all your Terp Control devices.",
     "email": "Email",
     "password": "Password",
     "newPassword": "New password",
-    "repeatPassword": "Repeat password",
-    "stayLoggedIn": "Stay logged in",
-    "login": "Login",
     "createAccount": "Create account",
     "backToLogin": "Back to sign-in",
     "forgotPassword": "Forgot password?",
-    "demoHint": "Just looking around? Explore real devices without an account.",
-    "demoLogin": "Open the demo",
-    "sendRecovery": "Send recovery link",
-    "changePassword": "Change password",
     "acceptPrivacyBefore": "I accept the",
     "acceptPrivacyLink": "privacy policy",
-    "privacyTitle": "Privacy policy",
-    "messages": {
-      "loginFailedTitle": "Login failed",
-      "errorTitle": "Error",
-      "successTitle": "Success",
-      "wrongCredentials": "Incorrect email or password.",
-      "notActivated": "You need to activate your account first. Please check your inbox.",
-      "connectionError": "Connection error. Please try again.",
-      "passwordMismatch": "The passwords don't match.",
-      "invalidActivationCode": "Invalid activation code.",
-      "accountCreatedTitle": "Account created",
-      "accountCreatedText": "An activation code has been sent to your email address.",
-      "accountActivatedTitle": "Account activated",
-      "accountActivatedText": "Your account has been activated, you can now log in:",
-      "emailInUse": "This email address is already in use.",
-      "recoverySentTitle": "Sent",
-      "recoverySentText": "The recovery link was sent.",
-      "wrongRecoveryToken": "This recovery link is invalid or has expired.",
-      "passwordChangedText": "Your password has been changed, you can now log in:",
-      "sessionExpiredTitle": "Session expired",
-      "sessionExpiredText": "Your session is no longer valid. Please log in again.",
-      "demoUnavailable": "The demo could not be opened. Please try again."
-    },
     "signIn": "Sign in",
     "demo": "Try the demo",
     "demoFailed": "The demo could not be opened.",
@@ -300,25 +49,6 @@
     "notActivated": "This account is not activated yet. The code has just been sent to {{email}} again – open the link in the mail or enter the code."
   },
   "growPresets": {
-    "seedling": {
-      "name": "Seedling · with light"
-    },
-    "vegetative": {
-      "name": "Vegetative"
-    },
-    "flowering": {
-      "name": "Early flowering"
-    },
-    "late_flowering": {
-      "name": "Late flowering"
-    },
-    "drying": {
-      "name": "Drying"
-    },
-    "custom": {
-      "name": "Own values",
-      "subtitle": "Set everything yourself"
-    },
     "stages": {
       "seedling": "Seedling",
       "vegetative": "Vegetative",
@@ -340,29 +70,10 @@
       "startFlowering": "Ready for flowering? From now on the light runs 12/12 — confirm to start the switch.",
       "harvest": "Check the trichomes: milky with first amber tones? Then harvest and confirm — drying starts next.",
       "dryingDone": "Do the branches snap instead of bending? Then drying is done — off to the curing jars."
-    },
-    "off": {
-      "name": "Off",
-      "subtitle": "Regulate nothing"
     }
   },
   "assistant": {
-    "allGood": "All in the green",
-    "confirmationPending": "Your plan is waiting for a confirmation — open settings",
-    "deviationMonitorHint": "Your device only monitors — adjust this manually in your setup.",
     "tipsTitle": "Tips for this stage",
-    "matchingChart": "Open the matching chart view",
-    "bannerText": "Let a grow plan guide you through the stages — targets adjust automatically, and you confirm the big steps.",
-    "deviation": {
-      "temperature": {
-        "above": "Temperature {{current}} °C — above target ({{target}} °C)",
-        "below": "Temperature {{current}} °C — below target ({{target}} °C)"
-      },
-      "humidity": {
-        "above": "Humidity {{current}} % — above target ({{target}} %)",
-        "below": "Humidity {{current}} % — below target ({{target}} %)"
-      }
-    },
     "tips": {
       "seedling": {
         "1": "Keep the medium slightly moist, never soaking wet — seedlings drown faster than they dry out.",
@@ -396,131 +107,16 @@
       }
     }
   },
-  "chartPresets": {
-    "curated": {
-      "climate": "Climate check",
-      "vpd": "VPD analysis",
-      "co2": "CO2 check",
-      "light": "Light & canopy",
-      "drying": "Drying"
-    },
-    "saveView": "Save view",
-    "saveTitle": "Save this view as a preset",
-    "namePlaceholder": "Preset name",
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "deleteTitle": "Delete this preset?",
-    "saveFailed": "Saving the preset failed."
-  },
-  "wizard": {
-    "title": "Setup assistant",
-    "back": "Back",
-    "next": "Next",
-    "apply": "Finish setup",
-    "errorSaving": "Saving failed. Check your connection and try again.",
-    "name": {
-      "title": "Name your device",
-      "text": "Pick a name you'll recognize — for example \"Tent living room\" or \"Fridge basement\".",
-      "label": "Device name"
-    },
-    "connections": {
-      "title": "What does your controller switch?",
-      "text": "Your controller switches through paired smart sockets — the app detects automatically what is connected. Pairing happens right on the controller (Settings → Smart Sockets).",
-      "connected": "Connected",
-      "noSockets": "No sockets paired yet — monitoring only. You can pair some on the controller anytime; the app adapts automatically.",
-      "unknown": "Your controller reports its socket status only after a firmware update. Until then all control options are shown.",
-      "detected-full": "Detected: your controller regulates the climate.",
-      "detected-light_only": "Detected: your controller only switches the light — climate values are monitored and targets act as reference values.",
-      "detected-monitor": "Detected: monitoring only — nothing is switched, targets act as reference values.",
-      "refresh": "Check again"
-    },
-    "stage": {
-      "title": "Where is your grow right now?",
-      "text": "We fill in proven target values for this stage — you can fine-tune everything later."
-    },
-    "plan": {
-      "title": "Just targets, or a full grow plan?",
-      "text": "The grow plan moves through the stages for you, adjusts the targets automatically and asks before big changes.",
-      "textMonitor": "In monitoring mode the plan tracks your stages, keeps the diary up to date and shows you the recommended ranges per stage.",
-      "targets": "Only apply targets",
-      "targetsMonitor": "Only set reference values",
-      "targetsText": "Set values for the chosen stage once.",
-      "durationsTitle": "Stage durations (adjustable)",
-      "days": "days",
-      "total": "Total: about {{days}} days ({{weeks}} weeks).",
-      "confirmNote": "Before the flowering switch, harvest and the end of drying, the plan waits for your confirmation — you stay in charge.",
-      "startsAtStage": "Phases you're already past keep their defaults — you only plan from your current phase onward."
-    },
-    "done": {
-      "title": "That's it — the automation takes over",
-      "titleMonitor": "That's it — your monitoring is live",
-      "text": "Your device now regulates towards the target values around the clock. If everything runs well, you don't have to do a thing.",
-      "textMonitor": "You now see live values, history charts and get alarms when something drifts off. Your targets serve as reference ranges.",
-      "step1": "Plugged in and connected",
-      "step2": "Targets set for your stage",
-      "step3": "Regulation runs automatically",
-      "step3Monitor": "Monitoring and alarms are active",
-      "close": "Done",
-      "auxHint": "You can connect your webcam and Smart Sockets anytime in the device settings under \"Connected devices\"."
-    }
-  },
-  "onboarding": {
-    "welcomeTitle": "Welcome to your grow portal",
-    "welcomeText": "Connect your first Terp Control device and let the automation take over — you keep an eye on everything from anywhere.",
-    "step1Title": "Plug in your device",
-    "step1Text": "Power it up and connect it to your WiFi — the display guides you through it.",
-    "step2Title": "Read the code off the display",
-    "step2Text": "Your device shows a short pairing code under \"Connect to portal\".",
-    "step3Title": "Enter the code here",
-    "step3Text": "The device appears in your portal and the setup assistant takes over.",
-    "codePlaceholder": "Pairing code",
-    "claimFailed": "That code didn't work. Check the code on the device display and try again.",
-    "helpText": "Need help getting connected? All guides are on"
-  },
-  "device-list": {
-    "title": "Device list",
-    "claim": "Enter device code",
-    "claim-button": "Claim",
-    "addDevice": "Add device",
-    "load-failed-title": "Could not load your devices",
-    "load-failed-text": "The server did not answer. Your devices are still there — this is only a display problem.",
-    "retry": "Try again"
-  },
   "notFound": {
     "title": "Page not found",
     "text": "The page you were looking for does not exist or has moved.",
     "home": "Back to the app"
   },
-  "connection-error": {
-    "title": "Cannot reach the server",
-    "text": "Your devices could not be loaded because the server did not answer. Check your internet connection and try again.",
-    "stillUnreachable": "Still no answer from the server.",
-    "retry": "Try again",
-    "retrying": "Trying..."
-  },
   "charts": {
     "title": "Charts",
-    "vpd-mode-label": "VPD Mode",
-    "vpd-mode": {
-      "all": "all",
-      "day": "day only",
-      "night": "night only"
-    },
-    "timespan": "Time span",
-    "interval": "Interval",
-    "offset": "Date",
-    "logsTitle": "Log messages",
-    "logsShowAll": "Show all",
-    "logsNoEntries": "No log messages for the selected timespan",
-    "logsNoFilteredEntries": "No log messages for the selected filters",
-    "moreHiddenMessages": "There are {{count}} more messages. Please reduce your selection.",
     "noData": "No measurements in this period — try a different range.",
     "quietWindow": "No measurements in this period · last measured {{age}} ago — try a different range.",
     "resetZoom": "Reset zoom",
-    "resetZoomTitle": "Reset zoom to 1:1",
-    "customRange": "Custom range",
-    "resetRange": "Reset",
     "back": "Back",
     "rangeLabel": "Range",
     "range": {
@@ -647,207 +243,6 @@
     "ticks_other": "ticks"
   },
   "devices": {
-    "button-settings": "Settings",
-    "button-maintenance-mode": "Maintenance mode",
-    "page-settings": "Settings",
-    "button-charts": "Charts",
-    "button-delete": "Delete",
-    "device-offline": "device offline",
-    "device-log": "Logs",
-    "clear-log": "Clear log",
-    "button-diary": "Diary",
-    "fridge": {
-      "title": "Terp Control FRIDGE GROW",
-      "workmode": "Control mode",
-      "workmode-small": "Small Plants",
-      "workmode-full": "Big Plants",
-      "workmode-temp": "Greenhouse",
-      "workmode-dry": "Drying",
-      "workmode-breed": "Germination",
-      "workmode-off": "Off",
-      "workmode-loading": "Loading...",
-      "workmode-unknown": "Unknown",
-      "settings": {
-        "floating-day": "Use custom duration for day/night cycle",
-        "float-start": "Start of first variable day",
-        "day_duration": "Duration of full day/night cycle",
-        "light_duration": "Duration of lighting period"
-      },
-      "settingsmode": "Settings mode",
-      "settingsmode-manual": "Manual",
-      "settingsmode-recipe": "Recipe",
-      "manualModeOfflineWarning": "If your device is offline, changes made in settings mode will not be applied until the device comes back online.",
-      "recipe": {
-        "notRunning": "Not running",
-        "stepTimeRemaining": "Time remaining",
-        "waitingForConfirmation": "Waiting for confirmation",
-        "confirmStep": "Confirm step",
-        "title-active": "Recipe (Running)",
-        "title-inactive": "Recipe (Stopped)",
-        "warning": "Warning: Recipes rely on a steady internet connection. If the connection is lost, the recipe may not advance to the next step as expected.",
-        "add": "Add Recipe",
-        "addStep": "Add step",
-        "deleteStep": "Delete step",
-        "steps": "Recipe steps",
-        "activeStep": "Active step",
-        "startTime": "Step start time",
-        "etaTime": "Recipe finished ETA",
-        "remainingTime": "Recipe finished after",
-        "stepEtaTime": "Step finished ETA",
-        "stepRemainingTime": "Step finished after",
-        "loop": "Loop recipe",
-        "step": {
-          "name": "Step name",
-          "waitForConfirmation": "Wait for confirmation",
-          "duration": "Duration",
-          "durationUnit": {
-            "minutes": "minutes",
-            "hours": "hours",
-            "days": "days",
-            "weeks": "weeks"
-          },
-          "closeSettings": "Close settings",
-          "editSettings": "Edit settings",
-          "moveUp": "Move up",
-          "moveDown": "Move down",
-          "duplicate": "Duplicate",
-          "confirmationMessage": "Confirmation message",
-          "setRunning": "Start recipe",
-          "clearRunning": "Stop recipe"
-        },
-        "loadTemplate": "Load template",
-        "savePublicTemplate": "Save public template",
-        "savePrivateTemplate": "Save private template",
-        "emailNotifications": "Email notifications",
-        "emailNotifications-none": "Off",
-        "emailNotifications-onStep": "On every step change",
-        "emailNotifications-onConfirmation": "Only on confirmations",
-        "additionalInfo": "Log messages on step changes",
-        "emailAddress": "Email address",
-        "pleaseStart": "Please start the plan first"
-      }
-    },
-    "fan": {
-      "title": "Terp Control AIR",
-      "workmode": "Control mode",
-      "workmode-fixed": "Fixed Speed",
-      "workmode-temp": "Temperature Control",
-      "workmode-hum": "Humidity Control",
-      "workmode-temphum": "Temperature / Humidity Control",
-      "workmode-loading": "Loading...",
-      "workmode-unknown": "Unknown",
-      "co2inject": {
-        "name": "Automatic speed reduction",
-        "description": "This fan is paired to a Plantaltix smart socket in CO2 injection mode and its speed will automatically be reduced during CO2 injection",
-        "clear": "Clear pairing"
-      }
-    },
-    "light": {
-      "title": "Terp Control LIGHT"
-    },
-    "plug": {
-      "title": "Terp Control SMART SOCKET",
-      "workmode": "Control mode",
-      "workmode-heater": "Heating",
-      "workmode-cooler": "Cooling",
-      "workmode-humidify": "Humidification",
-      "workmode-dehumidify": "Dehumidification",
-      "workmode-co2": "CO2 Injection",
-      "workmode-watering": "Watering",
-      "workmode-off": "Off",
-      "workmode-timer": "Timer",
-      "workmode-light": "Lighting",
-      "workmode-loading": "Loading...",
-      "workmode-unknown": "Unknown",
-      "co2sensor-title": "CO2 Sensor required!",
-      "co2sensor-text": "This mode requires an optional CO2 sensor to work.",
-      "settings": {
-        "heater-name": "Heating",
-        "heater-on": "Turn ON Point",
-        "heater-on-desc": "Turns output ON when the measured temperature falls BELOW this value",
-        "heater-off": "Turn OFF Point",
-        "heater-off-desc": "Turns output OFF when the measured temperature rises ABOVE this value",
-        "cooler-name": "Cooling",
-        "cooler-on": "Turn ON Point",
-        "cooler-on-desc": "Turns output ON when the measured temperature rises ABOVE this value",
-        "cooler-off": "Turn OFF Point",
-        "cooler-off-desc": "Turns output OFF when the measured temperature falls BELOW this value",
-        "humidify-name": "Humidification",
-        "humidify-on": "Turn ON Point",
-        "humidify-on-desc": "Turns output ON when the measured humidity falls BELOW this value",
-        "humidify-off": "Turn OFF Point",
-        "humidify-off-desc": "Turns output OFF when the measured humidity rises ABOVE this value",
-        "dehumidify-name": "Dehumidification",
-        "dehumidify-on": "Turn ON Point",
-        "dehumidify-on-desc": "Turns output ON when the measured humidity rises ABOVE this value",
-        "dehumidify-off": "Turn OFF Point",
-        "dehumidify-off-desc": "Turns output OFF when the measured humidity falls BELOW this value",
-        "co2": {
-          "dayonly": "Only inject CO2 during daytime",
-          "mode": "CO2 Mode",
-          "mode-periodic": "Periodic injection",
-          "mode-const": "Constant injection",
-          "period": "CO2 injection period",
-          "duration": "CO2 injection duration",
-          "fan": "Automatic fanspeed reduction",
-          "fanspeed": "Fanspeed during injection",
-          "no-fan": "No fan selected / disabled",
-          "no-air-controller": "No Air Controller available",
-          "value": "CO2 injection target",
-          "on": "Turn socket on at",
-          "off": "Turn socket off at"
-        },
-        "limits": {
-          "title": "Protections",
-          "overtemperature": {
-            "enabled": "Enable overtemperature protection",
-            "limit": "Temperature limit",
-            "limit-desc": "Socket will be disabled if measured temperature rises above this limit",
-            "hysteresis": "Reenable hysteresis",
-            "hysteresis-desc": "Temperature must fall this value below limit for socket to be reenabled"
-          },
-          "undertemperature": {
-            "enabled": "Enable undertemperature protection",
-            "limit": "Temperature limit",
-            "limit-desc": "Socket will be disabled if measured temperature falls below this limit",
-            "hysteresis": "Reenable hysteresis",
-            "hysteresis-desc": "Temperature must rise this value above limit for socket to be reenabled"
-          },
-          "time": {
-            "enabled": "Enable time limits",
-            "min_on": "Minimal ON time",
-            "min_on-desc": "Socket will not turn off for a minimum of this time after being turned on",
-            "min_off": "Minimal OFF time",
-            "min_off-desc": "Socket will not turn on for a minimum of this time after being turned off"
-          }
-        },
-        "cooler-name-day": "Cooling - day",
-        "cooler-name-night": "Cooling - night",
-        "heater-name-day": "Heating - day",
-        "heater-name-night": "Heating - night",
-        "dehumidify-name-day": "Dehumidify - day",
-        "dehumidify-name-night": "Dehumidify - night",
-        "humidify-name-day": "Humidify - day",
-        "humidify-name-night": "Humidify - night"
-      }
-    },
-    "button-setup": "Set up",
-    "maintenance": {
-      "title": "Maintenance mode",
-      "text": "How long should the regulation pause?",
-      "deactivate": "End now",
-      "minutes": "{{minutes}} minutes",
-      "activated": "Maintenance mode activated for {{minutes}} minutes",
-      "deactivated": "Maintenance mode ended",
-      "failed": "Could not change maintenance mode",
-      "active": "Maintenance mode [{{duration}}]"
-    },
-    "device-offline-lastseen": "last seen: {{date}}",
-    "add": "Add",
-    "claim": "Claim it",
-    "claiming": "Claiming…",
-    "claimLabel": "The code on the display",
-    "claimFailed": "That code was not taken.",
     "controllers_one": "Device",
     "controllers_other": "Devices",
     "cameras": "Cameras",
@@ -857,7 +252,6 @@
       "title": "Light output",
       "is": "the device's own output · dimmable",
       "brightness": "Light limit",
-      "force": "Hold the light output",
       "forceFor": "Hold the light output for {{duration}}",
       "holds": "holds {{duration}}",
       "askedHold": "Asked, to hold for {{duration}}. The device reports back within half a minute.",
@@ -1034,103 +428,6 @@
     "noneYet": "No device here yet. A controller or a fridge module measures and steers the climate and comes in with the code on its display; a camera takes pictures for the diary and for timelapses.",
     "addController": "Add a controller or a fridge module"
   },
-  "diary": {
-    "title": "Diary",
-    "addEntry": "Add entry",
-    "co2Report": "CO2 report",
-    "growReport": "Grow report",
-    "entriesReport": "Entries",
-    "entriesIncludeSystem": "Include system entries",
-    "categories": {
-      "co2Refill": "CO2 refill",
-      "plantLog": "Plant log",
-      "plantLifecycle": "Plant lifecycle",
-      "measurement": "Measurement",
-      "fridgeLog": "Fridge log",
-      "diary": "Diary",
-      "diary-plant-log": "Plant log",
-      "diary-fridge-log": "Device log",
-      "diary-plant-lifecycle": "Stage change",
-      "diary-co2-refill": "CO₂ refill",
-      "diary-measurement": "Measurement",
-      "plant-log": "Plant log",
-      "plant-lifecycle": "Stage change",
-      "recipe": "Grow plan",
-      "recipe-confirmation": "Plan confirmation",
-      "device-configuration": "Settings",
-      "alarm": "Alarm",
-      "firmware": "Firmware",
-      "unknown": "Other"
-    },
-    "labels": {
-      "categories": "Category",
-      "time": "Time",
-      "title": "Title",
-      "co2FillingRest": "Old cylinder rest",
-      "co2FillingInitial": "New cylinder filling",
-      "message": "Comment",
-      "newLifecycleStage": "New phase",
-      "lifecycleName": "Plant name",
-      "lightMeasurement": "Light measurement",
-      "distanceMeasurement": "Distance measurement",
-      "tdsMeasurement": "TDS measurement",
-      "ecMeasurement": "EC measurement",
-      "outsideTemperatureMeasurement": "Outside temperature",
-      "phMeasurement": "pH measurement"
-    },
-    "lifecycleStages": {
-      "germination": "Germination",
-      "seedling": "Seedlings phase",
-      "vegetative": "Vegetative phase",
-      "flowering": "Flowering phase",
-      "drying": "Drying",
-      "curing": "Curing"
-    },
-    "actions": {
-      "save": "Save",
-      "edit": "Edit",
-      "delete": "Delete",
-      "openCamera": "Open camera",
-      "selectImages": "Select images"
-    },
-    "confirmDelete": "Delete this diary entry?",
-    "defaults": {
-      "co2RefillTitle": "CO2 cylinder was refilled"
-    },
-    "co2ReportNoData": "No CO2 refill data yet.",
-    "entriesNoData": "No diary entries yet.",
-    "growReportNoData": "No plant lifecycle events yet.",
-    "selectGrowCycle": "Select grow cycle",
-    "startDate": "Start date",
-    "endDate": "End date",
-    "eventCount": "Number of events",
-    "events": "Events",
-    "phaseSummary": "Phase Summary",
-    "dayInPhase": "Day in phase",
-    "totalDay": "Total days",
-    "day": "day",
-    "days": "days",
-    "untilToday": "until today",
-    "today": "Today",
-    "viewChart": "View chart",
-    "viewCycleChart": "View cycle chart",
-    "showWebcam": "Show webcam photos",
-    "hideWebcam": "Hide webcam photos",
-    "gapPhotos": "View photos from the days in between",
-    "webcamTime": "Time of day of the photo",
-    "repeatedEntry": "(Message appeared {{count}} times in a row)",
-    "showAll": "show all",
-    "uploading": "Uploading …",
-    "images": "Images",
-    "gap": {
-      "later": "{{span}} later",
-      "untilToday": "{{span}} until today",
-      "day": "{{count}} day",
-      "days": "{{count}} days",
-      "week": "{{count}} week",
-      "weeks": "{{count}} weeks"
-    }
-  },
   "message-lost-connection-title": "Connection problem",
   "message-lost-connection-text": "The connection between your device and our sever was lost and has been reestablished. If this messages appeares regulary please check your wifi and internet connection",
   "message-device-booted-title": "Device rebooted",
@@ -1231,119 +528,6 @@
   "message-aux-command-failed-text": "The device could not carry out a command sent to it from here ({{value}}).",
   "message-aux-command-failed:cam_capture-title": "Picture not taken",
   "message-aux-command-failed:cam_capture-text": "The device was asked for a picture from its camera and could not get one. Check that the camera has power and is on the same WiFi as the device.",
-  "auxDevices": {
-    "title": "Connected devices",
-    "webcam": {
-      "title": "Webcam",
-      "intro": "Watch your grow live and in the diary timelapse. Pick your camera:",
-      "models": {
-        "terp_cam": {
-          "name": "Terp Control Cam",
-          "subtitle": "Our camera — connects via your controller"
-        },
-        "tapo_c200": {
-          "name": "TP-Link Tapo",
-          "subtitle": "e.g. C100/C200/C210/C310 — RTSP template"
-        },
-        "reolink": {
-          "name": "Reolink",
-          "subtitle": "RTSP template"
-        },
-        "hikvision": {
-          "name": "Hikvision",
-          "subtitle": "RTSP template"
-        },
-        "custom": {
-          "name": "Custom",
-          "subtitle": "Any stream URL"
-        }
-      },
-      "user": "Camera username",
-      "password": "Camera password",
-      "host": "IP address or hostname",
-      "hostHintTunnel": "Local IP of the camera in your home network — the stream is fetched through your device's tunnel.",
-      "hostHintPublic": "Public IP or DDNS name reachable from the internet. Enable tunneling to use a local IP instead.",
-      "remove": "Remove webcam",
-      "savedNote": "Webcam changes are stored when you save the settings.",
-      "add": "Add webcam",
-      "pickModel": "Which camera do you have? (one webcam per device)",
-      "fillPlaceholders": "Fill in placeholders",
-      "placeholderHint": "Replace <user>, <password> and <ip> in the URL with your camera's values.",
-      "customHint": "Format: rtsp://user:password@ip-or-hostname:554/path — you can find the stream path in your camera’s manual. HTTP(S) snapshot or MJPEG URLs work too.",
-      "customHintTunnel": "If the camera sits on the same network as your device, enable “Tunnel webcam stream” and use its local IP."
-    },
-    "sockets": {
-      "title": "Smart Sockets",
-      "intro": "Your device switches these sockets. Pairing happens right on the device (Settings → Smart Sockets). A function can have as many sockets as you like — they all switch together.",
-      "unknownFirmware": "This firmware doesn't report its sockets yet. Update the device firmware or manage sockets on the device.",
-      "connected": "Connected",
-      "roles": {
-        "dehumidifier": "Dehumidifier",
-        "heater": "Heater",
-        "light": "Light",
-        "secondary_light": "Second light",
-        "co2": "CO2 valve"
-      },
-      "remove": "Remove",
-      "removeConfirmTitle": "Remove socket?",
-      "removeConfirmText": "The \"{{role}}\" socket will be unpaired and reset. This takes effect immediately.",
-      "offlineHint": "The device looks offline right now — socket commands may not reach it.",
-      "pending": "Updating…",
-      "test": "Test",
-      "edit": "Edit",
-      "ip": "IP address",
-      "user": "Username (optional)",
-      "password": "Password (empty = device default)",
-      "apply": "Apply",
-      "editHint": "Your device switches the socket at this address (Tasmota HTTP). Leave the password empty to keep the pairing credentials.",
-      "testNote": "Test switches the socket on for about 2 seconds.",
-      "hardwareId": "Hardware ID",
-      "limitReached": "This device already manages the maximum of 32 smart sockets.",
-      "add": "Add smart socket",
-      "role": "Function",
-      "brands": {
-        "terp": {
-          "name": "Terp Control Smart Socket",
-          "subtitle": "Our socket — pairs through your device",
-          "hint": "Pair it right on your device: Settings → Smart Sockets → connect socket. It shows up here automatically afterwards."
-        },
-        "tasmota": {
-          "name": "Tasmota / other",
-          "subtitle": "Any Tasmota socket by IP",
-          "hint": ""
-        }
-      },
-      "reachabilityHint": "Switching always happens locally from your device (permanently tunnelled) — the socket only needs to be reachable by your device. No internet exposure is required."
-    },
-    "manualSetup": "Set up manually instead"
-  },
-  "alarmPresets": {
-    "heat_day": {
-      "name": "Too hot during the day",
-      "description": "Above 30 °C for 5 minutes"
-    },
-    "cold_night": {
-      "name": "Too cold at night",
-      "description": "Below 15 °C for 5 minutes"
-    },
-    "humidity_high": {
-      "name": "Humidity too high",
-      "description": "Mold risk — threshold follows the stage (60% in flower, 75% otherwise)"
-    },
-    "humidity_low": {
-      "name": "Humidity too low",
-      "description": "Below 35% for 15 minutes"
-    },
-    "co2_empty": {
-      "name": "CO2 bottle empty",
-      "description": "CO2 stays below 350 ppm despite enrichment"
-    },
-    "running_continuously": {
-      "name": "Dehumidifier running non-stop",
-      "nameFridge": "Fridge running non-stop",
-      "description": "Output on for more than 30 minutes straight"
-    }
-  },
   "webhookTargets": {
     "msgTriggered": "Alarm",
     "msgResolved": "Resolved",
@@ -1919,7 +1103,6 @@
       },
       "perCamera": "Per camera, not per account. A Terp Cam comes with 12 months of it; an RTSP camera works without it like any free camera, and has Premium only where it is bought for it. The offer to extend stands on a camera's own card from {{days}} days before its year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
       "extend": "Extend Premium",
-      "nowhereToExtend": "This installation names no place to extend Premium from; ask whoever runs it.",
       "missing": {
         "widthAndDays_one": "its stills are served {{width}} px wide and kept {{count}} day, and its films stay SD with a watermark",
         "widthAndDays_other": "its stills are served {{width}} px wide and kept {{count}} days, and its films stay SD with a watermark",
@@ -2017,9 +1200,6 @@
       }
     }
   },
-  "later": {
-    "round": "Arrives with round {{round}}"
-  },
   "grow": {
     "tabsLabel": "Grow page",
     "tabs": {
@@ -2041,13 +1221,11 @@
     "days_one": "{{count}} d",
     "days_other": "{{count}} d",
     "week": "week {{week}}",
-    "weekN": "Week {{week}}",
     "dayRange": "Day {{from}}–{{to}}",
     "dayShort": "D {{day}}",
     "correctLine": "Correct this line",
     "thisWeek": "this week",
     "dayStillAlt": "Day {{day}}",
-    "entryPhoto": "Picture {{index}} of {{count}}",
     "dayNight": "day / night",
     "average": "average",
     "humidity": "humidity",
@@ -2103,8 +1281,6 @@
     "noSchemeNoteEnded": "This grow was fed no scheme. Writing in what it really got is still worth doing: its week cards read this grid, here and on a shared link.",
     "edited": "edited",
     "strength": "strength {{percent}} %",
-    "waterEc": "water EC {{ec}}",
-    "flipWeek": "flip in week {{week}}",
     "report": {
       "days": "days",
       "entries": "entries",
@@ -2131,7 +1307,6 @@
         "noteNoClimate": "Everything about this grow in one zip: the diary and the readings as CSV, and every photo of it."
       }
     },
-    "dayN": "day {{day}}",
     "nothingMeasured": "Nothing measured this week",
     "presetName": {
       "late_flowering": "Late flower",
@@ -2340,8 +1515,6 @@
       "bandBetween": "{{low}}–{{high}}",
       "bandFrom": "from {{low}}",
       "bandTo": "under {{high}}",
-      "readings_one": "{{count}} reading",
-      "readings_other": "{{count}} readings",
       "onTheChart": "{{name}} on the chart",
       "edit": "Edit {{name}}",
       "templates": "Templates",
@@ -2438,8 +1611,7 @@
       "label": "Label",
       "strain": "Strain",
       "save": "Save",
-      "saving": "Saving…",
-      "cancel": "Cancel"
+      "saving": "Saving…"
     },
     "scheme": {
       "basedOn": "Based on",
@@ -2514,10 +1686,6 @@
     "openDayPicture": "See the pictures from day {{day}}"
   },
   "space": {
-    "later": {
-      "devices": "Every controller, camera and smart socket standing here, with its role and its switch.",
-      "members": "Who can log and who can manage here, and the invites that bring them in."
-    },
     "control": {
       "title": "Grow plan",
       "noController": "Nothing stands here yet. Targets, alarms and a plan come with the first device in this place.",
@@ -2745,8 +1913,6 @@
     },
     "noReadingsYet": "Nothing reported yet",
     "growingHere": "Growing here",
-    "newGrow": "Grow",
-    "moveHere": "Move here",
     "lastStill": "last one {{age}} ago",
     "stillAlt": "{{name}} at {{time}}",
     "climate24h": "Climate · 24 h",
@@ -3131,7 +2297,6 @@
     "window": {
       "day": "Today",
       "week": "Week",
-      "month": "Month",
       "phase": "Phase",
       "grow": "Whole grow",
       "custom": "Custom"
@@ -3325,7 +2490,6 @@
         "failed": "No picture: {{reason}}",
         "shotAlt": "The picture the test came back with",
         "pickAPlace": "Pick the place it looks at below: where a device stands there, the cloud pulls the stream from your network through it.",
-        "throughWhich": "Through which device?",
         "carrier": {
           "stale": "{{device}} last said something {{age}} ago",
           "offline": "{{device}} is offline · last heard {{age}} ago, so the stream will not answer until it is back"
@@ -3698,7 +2862,6 @@
       "runs": "runs {{length}} without a break"
     },
     "channelOff": "{{channel}} (off)",
-    "addDevice": "Add a device",
     "bound": {
       "above": "above {{value}}",
       "below": "below {{value}}",
@@ -3793,8 +2956,7 @@
       "ask": "This confirms the step and starts {{name}}; it cannot be taken back.",
       "askEnds": "This confirms the last step and completes the plan; it cannot be taken back.",
       "askUnnamed": "This confirms the step and starts the next one; it cannot be taken back.",
-      "yes": "Confirm the step",
-      "cancel": "Cancel"
+      "yes": "Confirm the step"
     },
     "stepIsManaged": "Confirming a step moves the plan on and sends the next step's targets to the controller. Only whoever steers the place can do that.",
     "every_one": "every day",
@@ -3916,7 +3078,6 @@
       "always": "Light on round the clock · 24 h",
       "never": "Light off round the clock · 0 h",
       "alwaysShort": "on round the clock",
-      "neverShort": "off round the clock",
       "drying": "Light off · drying",
       "germination": "Light off · germination",
       "dryingLine": "The light stays off while drying runs. Afterwards the light plan holds again: {{window}}.",
@@ -4117,8 +3278,7 @@
       "unheard": "Nobody was listening: the device has not been heard from, so the command waits for it.",
       "ask": "Maintenance mode stops {{outputs}} for {{minutes}} minutes. No alarm is raised on this device for {{quiet}} minutes: the window, and {{settle}} minutes more while the climate comes back.",
       "askQuietOnly": "This device takes no maintenance command, so nothing it drives will stop. What it does here is hold every alarm on the device: the {{minutes}}-minute window, and {{settle}} minutes more, {{quiet}} in all.",
-      "yes": "Start maintenance",
-      "cancel": "Cancel"
+      "yes": "Start maintenance"
     },
     "nothing": "Nothing has gone wrong.",
     "output": {
@@ -4179,12 +3339,9 @@
       "field": "Claim code",
       "whichPlace": "Where it stands",
       "newPlace": "a new place",
-      "orScan": "or scan",
       "claim": "Claim it",
       "claiming": "Claiming…",
       "claimed": "Claimed",
-      "scanUnavailable": "This browser cannot read QR codes; type the code instead.",
-      "scanDenied": "The camera was not allowed — type the code instead, or allow the camera for this site.",
       "live": "online {{age}} ago",
       "stale": "last heard {{age}} ago",
       "offline": "offline · last heard {{age}} ago",
@@ -4242,7 +3399,6 @@
       "climateOnly": "Only the climate",
       "climateOnlyNever": "Only the climate · never ask again",
       "noGrowToMove": "There is no other open grow to move here.",
-      "whichGrow": "Which grow moves here",
       "onStage": "on {{stage}}",
       "measuring": "measuring only",
       "nothingYet": "nothing set yet",
@@ -4257,7 +3413,6 @@
       "noSockets": "none yet",
       "notReported": "not reported yet",
       "cam": "Cam",
-      "noCam": "none",
       "socketsAtTheDevice": "A Terp Control socket is paired on the device itself – press the button, then Smart Sockets – and shows up in this list once the device reports it. A Tasmota socket you pair later under Devices › your device › Advanced, by its IP address.",
       "pairTheCam": "Pair a Terp Cam",
       "bothCanWait": "Both can wait: the device measures the place it stands in even with nothing plugged into it."
@@ -4542,8 +3697,7 @@
     "s": "s",
     "min": "min",
     "h": "h",
-    "d": "d",
-    "oClock": "h"
+    "d": "d"
   },
   "problem": {
     "status": {
@@ -4612,7 +3766,7 @@
     },
     "verdict": {
       "title": "In band over 24 hours",
-      "text": "The share of the last 24 hours in which temperature, humidity and, by day, CO₂ were all in their band – judged against the targets as they are now. Dips shorter than 10 minutes count, but are not named."
+      "text": "The share of the last 24 hours in which temperature, humidity and, by day, CO₂ were all in their band – judged against the targets that held at the time. Dips shorter than 10 minutes count, but are not named."
     },
     "climatePreset": {
       "title": "Climate preset",
@@ -5253,7 +4407,6 @@
     },
     "camera": {
       "open": "Open the camera",
-      "title": "Camera",
       "caption": "{{name}} · {{time}} · {{age}} ago",
       "none": "No picture yet",
       "lightOff": "{{name}} · light off · picture from {{time}}",
@@ -5881,10 +5034,6 @@
     "leastOff": "Off at least",
     "needsFirmware": "This firmware does not keep to the protections. A firmware update brings them; until then they cannot be set."
   },
-  "lightRamp": {
-    "sunrise": "Sunrise",
-    "sunset": "Sunset"
-  },
   "lightOverheat": {
     "label": "Dim from",
     "note": "Measured at the light module itself. Above it, the light dims itself to stay safe."
@@ -5894,11 +5043,15 @@
       "workmode": "Operation",
       "day": {
         "temperature": "Day temperature",
-        "humidity": "Day humidity"
+        "humidity": "Day humidity",
+        "fixed_speed": "Speed by day",
+        "max_speed": "Highest speed by day"
       },
       "night": {
         "temperature": "Night temperature",
-        "humidity": "Night humidity"
+        "humidity": "Night humidity",
+        "fixed_speed": "Speed at night",
+        "max_speed": "Highest speed at night"
       },
       "co2": {
         "target": "CO₂ target",
@@ -5923,7 +5076,20 @@
       "germination": {
         "warnTooHumid": "Germination · warn when it gets too humid",
         "humidifierHolds": "Germination · hold the humidity with the humidifier"
-      }
+      },
+      "mode": "The fan runs",
+      "min_speed": "Lowest speed",
+      "max_temperature": "Dim from",
+      "co2inject": {
+        "device_id": "Slowed while CO₂ is dosed",
+        "speed": "Speed while CO₂ is dosed",
+        "usedaynight": "CO₂ dosed by day only",
+        "day": "CO₂ dosing · day from",
+        "night": "CO₂ dosing · night from",
+        "period": "CO₂ dosing · interval",
+        "duration": "CO₂ dosing · per interval"
+      },
+      "mqttcontrol": "Direct control of the outputs"
     },
     "mode": {
       "off": "control off",
@@ -5932,6 +5098,12 @@
       "temp": "greenhouse",
       "breed": "germination",
       "dry": "drying"
+    },
+    "fanMode": {
+      "fixed": "fixed",
+      "temperature": "by temperature",
+      "humidity": "by humidity",
+      "both": "by both"
     },
     "on": "on",
     "off": "off",

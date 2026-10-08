@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { delimiter, join } from 'node:path';
 
 export const SERVER_ROOT = join(__dirname, '..', '..', '..');
-const LOG_DIR = join(SERVER_ROOT, 'test', '.tmp', 'logs');
+export const LOG_DIR = join(SERVER_ROOT, 'test', '.tmp', 'logs');
 
 // The image endpoints shell out to ffmpeg, and what they run it with - and what
 // they make of what it answers - is not visible through HTTP. The app finds a
@@ -11,7 +11,7 @@ const LOG_DIR = join(SERVER_ROOT, 'test', '.tmp', 'logs');
 // unless a spec has armed one or the stream is on another machine. See
 // support/ffmpeg.ts.
 const FFMPEG_BIN_DIR = join(SERVER_ROOT, 'test', 'support', 'infra', 'fake-bin');
-const FFMPEG_STATE_DIR = join(SERVER_ROOT, 'test', '.tmp', 'ffmpeg');
+export const FFMPEG_STATE_DIR = join(SERVER_ROOT, 'test', '.tmp', 'ffmpeg');
 
 export interface AppEnvironment {
   port: number;
@@ -32,10 +32,10 @@ export interface AppEnvironment {
  * has its own decorator and path handling, and a suite that never exercises it
  * would not notice it breaking.
  */
-const entryPoint = () =>
+export const entryPoint = (built = 'dist/main.js', source = 'src/main.ts') =>
   process.env.HARNESS_BUILT === '1'
-    ? { script: 'dist/main.js', nodeArgs: [] as string[] }
-    : { script: 'src/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
+    ? { script: built, nodeArgs: [] as string[] }
+    : { script: source, nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
 
 export const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {
   const mongo = new URL(environment.mongoUri);
@@ -97,7 +97,7 @@ export interface RunningApp {
   stop: () => Promise<void>;
 }
 
-const waitForHealthy = async (baseUrl: string, child: ChildProcess, timeoutMs: number): Promise<void> => {
+export const waitForHealthy = async (baseUrl: string, child: ChildProcess, timeoutMs: number): Promise<void> => {
   const deadline = Date.now() + timeoutMs;
   let lastError = 'never responded';
 
@@ -115,6 +115,22 @@ const waitForHealthy = async (baseUrl: string, child: ChildProcess, timeoutMs: n
 
   throw new Error(`App under test never became healthy on ${baseUrl}: ${lastError}`);
 };
+
+/**
+ * Asked to stop the way a container is, so the shutdown path runs at least once
+ * per suite; killed outright only if it will not go.
+ */
+export const stopChild = (child: ChildProcess): Promise<void> =>
+  new Promise<void>(resolve => {
+    if (child.exitCode !== null) return resolve();
+
+    const forced = setTimeout(() => child.kill('SIGKILL'), 5_000);
+    child.once('exit', () => {
+      clearTimeout(forced);
+      resolve();
+    });
+    child.kill('SIGTERM');
+  });
 
 export const startApp = async (environment: AppEnvironment): Promise<RunningApp> => {
   mkdirSync(LOG_DIR, { recursive: true });
@@ -135,21 +151,5 @@ export const startApp = async (environment: AppEnvironment): Promise<RunningApp>
   const baseUrl = `http://127.0.0.1:${environment.port}`;
   await waitForHealthy(baseUrl, child, 120_000);
 
-  return {
-    process: child,
-    baseUrl,
-    // Asked to stop the way a container is, so the shutdown path runs at least
-    // once per suite; killed outright only if it will not go.
-    stop: () =>
-      new Promise<void>(resolve => {
-        if (child.exitCode !== null) return resolve();
-
-        const forced = setTimeout(() => child.kill('SIGKILL'), 5_000);
-        child.once('exit', () => {
-          clearTimeout(forced);
-          resolve();
-        });
-        child.kill('SIGTERM');
-      }),
-  };
+  return { process: child, baseUrl, stop: () => stopChild(child) };
 };

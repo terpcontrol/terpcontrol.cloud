@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AccessNeed, Device, ProblemError, Space, SpaceCreate, SpaceKind, SpaceUpdate } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -17,6 +17,7 @@ import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { DevicesService } from '../device/devices.service';
+import { accountOf } from '../caller';
 
 /**
  * The `spaces` collection: the places a person grows in, and what stands in one.
@@ -33,7 +34,7 @@ import { DevicesService } from '../device/devices.service';
  */
 
 /** What a list of spaces narrows by. Neither is a page of its own, so both are query parameters. */
-export interface SpaceFilter {
+interface SpaceFilter {
   roomId?: string;
   /** Archived spaces are their own list: a tombstone is never mixed into the places somebody is growing in. */
   archived?: boolean;
@@ -56,12 +57,8 @@ export class SpacesService {
     private readonly access: AccessService,
   ) {}
 
-  public byId(id: string): Promise<SpaceDocument | null> {
-    return this.spaces.findOne({ id }).lean<SpaceDocument>();
-  }
-
   public async require(id: string): Promise<SpaceDocument> {
-    const space = await this.byId(id);
+    const space = await this.spaces.findOne({ id }).lean<SpaceDocument>();
     if (!space) throw notFound('space_not_found', 'There is no space with that id.');
 
     return space;
@@ -73,21 +70,15 @@ export class SpacesService {
    * in it - and that order does not change under a reader.
    */
   public async list(ctx: AccessContext, query: PageQuery, filter: SpaceFilter): Promise<CursorPage<Space>> {
-    const limit = pageLimit(query.limit);
-    // Combined rather than merged into one object: the visibility and the cursor
-    // are each an `$or` of their own, and one would silently replace the other.
     const conditions: FilterQuery<SpaceDocument>[] = [
       await this.visibleTo(ctx),
       { archivedAt: filter.archived ? { $ne: null } : null },
       ...(filter.roomId ? [{ roomId: filter.roomId }] : []),
-      afterCursor('createdAt', query.cursor, 'asc'),
     ];
 
-    const rows = await this.spaces.find({ $and: conditions }).sort({ createdAt: 1, id: 1 }).limit(readLimit(limit)).lean<SpaceDocument[]>();
-
-    const page = pageOf(rows, limit, space => ({ at: space.createdAt, id: space.id }));
+    const page = await findPage(this.spaces, conditions, query, { order: 'asc' });
     const may = await this.mayIn(ctx, page.items);
-    return { items: page.items.map(space => this.serialise(space, may.get(space.id))), nextCursor: page.nextCursor };
+    return mapPage(page, space => this.serialise(space, may.get(space.id)));
   }
 
   /**
@@ -111,8 +102,7 @@ export class SpacesService {
   }
 
   public async create(ctx: AccessContext, body: SpaceCreate): Promise<Space> {
-    const userId = ctx.userId;
-    if (!userId || ctx.isDemo) throw conflict('no_account', 'A space belongs to somebody, and this session is nobody.');
+    const userId = accountOf(ctx, 'A space belongs to somebody, and this session is nobody.');
 
     this.refuseRoomInRoom(body.kind, body.roomId ?? null);
     const room = body.roomId ? await this.requireRoom(ctx, body.roomId) : null;
@@ -323,7 +313,7 @@ export class SpacesService {
    * decides by and what this has to agree with exactly - a screen that is told
    * more than the server will allow is worse than one that is told nothing.
    */
-  public async mayIn(ctx: AccessContext, spaces: SpaceDocument[]): Promise<Map<string, AccessNeed>> {
+  private async mayIn(ctx: AccessContext, spaces: SpaceDocument[]): Promise<Map<string, AccessNeed>> {
     const may = new Map<string, AccessNeed>();
     if (spaces.length === 0) return may;
 

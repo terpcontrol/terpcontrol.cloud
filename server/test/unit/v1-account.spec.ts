@@ -8,7 +8,7 @@ import { PasswordResetService } from '@modules/v1/account/password-reset.service
 import { SessionsService } from '@modules/v1/sessions/sessions.service';
 import { ProblemException } from '@common/v1/problem';
 import { StoredUser } from '@database/schemas/v1/users.schema';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The account and the session it is used to open.
@@ -60,7 +60,7 @@ const mail = {
   }),
 };
 
-let database: V1TestDatabase;
+const database = useV1TestDatabase();
 let accounts: AccountsService;
 let resets: PasswordResetService;
 let sessions: SessionsService;
@@ -93,14 +93,6 @@ const refusal = async (action: () => unknown): Promise<ProblemException> => {
   }
   throw new Error('It was allowed.');
 };
-
-beforeAll(async () => {
-  database = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await database.stop();
-});
 
 beforeEach(async () => {
   await database.reset();

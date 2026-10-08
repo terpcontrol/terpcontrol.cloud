@@ -9,7 +9,7 @@ import { EntryWriterService } from './entry-writer.service';
  * writer of the timeline. Imported by each slice as it is rewritten rather than
  * made global, so what a module depends on stays visible in the module.
  *
- * The answer shapes beside them - the problem filter, the page helper, the
+ * The answer shapes beside them - the problem document, the page helper, the
  * validation decorators, the age of a value, the metric names - are functions and
  * decorators and need no provider.
  */

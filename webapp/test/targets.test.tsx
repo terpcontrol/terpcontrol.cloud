@@ -1,20 +1,22 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { createMemoryRouter, Link, MemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import type { Device, DeviceConfiguration, DeviceLive, Me, Plan, PlanStep, Setpoints } from '@fg2/shared-types/v1';
 import { Targets } from '@/screens/control/targets/Targets';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { nowHoldingOf, ownedBy, phaseOf, shapeOf } from '@/screens/control/targets/day-night';
-import { draftOf, lightWindowLabel, secondsOf, vpdOf, wallClock, withDraft } from '@/screens/control/targets/targets-draft';
-import { CLIMATE_CHOICES, presetsOf, STAGES_WITH_CLIMATE } from '@/ui/presets';
+import { draftOf, vpdOf, withDraft } from '@/screens/control/targets/targets-draft';
+import { secondsOf, wallClock } from '@/ui/wall-clock';
+import { STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { CLIMATE_CHOICES, presetsOf } from '@/ui/presets';
+import { deviceWith } from './fixtures';
+import { drawAt, json, testClient } from './harness';
+import { meWith } from './session';
+import { translate } from './translations';
 
 /**
  * What the targets page promises: that a chip only moves the figures,
@@ -47,34 +49,19 @@ const CONFIGURATION: DeviceConfiguration = {
   daynight: { day: 21600, night: 64800, maxDehumidifySeconds: 120 },
 };
 
-const device = (over: Partial<Device> = {}, hardware: Record<string, string> = { co2: 'on' }): Device => ({
-  id: 'device-1',
-  createdAt: NOW.minus({ days: 60 }).toISO()!,
-  type: 'controller',
-  classId: null,
-  serialNumber: 42,
-  ownerId: 'user-1',
-  spaceId: 'space-1',
-  name: 'Blue Dream tent',
-  firmware: { channel: 'stable', targetId: null },
-  configuration: CONFIGURATION,
-  settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
-  state: {
-    lastSeenAt: DateTime.now().minus({ seconds: 20 }).toISO()!,
-    claimedAt: NOW.minus({ days: 60 }).toISO()!,
-    firmwareId: 'build-1',
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
-    hardware,
-    socketStateChangedAt: {},
-    socketsReportedAt: null,
-  },
-  ...over,
-});
+const device = (over: Partial<Device> = {}, hardware: Record<string, string> = { co2: 'on' }): Device =>
+  deviceWith({
+    createdAt: NOW.minus({ days: 60 }).toISO()!,
+    name: 'Blue Dream tent',
+    configuration: CONFIGURATION,
+    state: {
+      lastSeenAt: DateTime.now().minus({ seconds: 20 }).toISO()!,
+      claimedAt: NOW.minus({ days: 60 }).toISO()!,
+      firmwareId: 'build-1',
+      hardware,
+    },
+    ...over,
+  });
 
 /** The step a running plan stands on: its own figures and twelve hours of light, the hour it comes on left to the device. */
 const STEP: PlanStep = {
@@ -113,28 +100,8 @@ const plan = (status: Plan['state']['status']): Plan => ({
 });
 
 /** The account, for the one thing this page reads off it: the zone its clock times are in. */
-const account = (timezone: string): Me => ({
-  id: 'user-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  email: 'login@example.org',
-  isAdmin: false,
-  isActive: true,
-  handle: 'you',
-  bio: null,
-  avatarMediaId: null,
-  publicProfile: false,
-  privacy: { hideWeights: false, hideCounts: false },
-  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone },
-  retention: { climateDays: null },
-  climateRetention: { installDays: null, appliesDays: null },
-  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
-  deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
-  pushPublicKey: null,
-  telegramAvailable: false,
-  pushSubscribed: false,
-  layers: { diary: true },
-});
+const account = (timezone: string): Me =>
+  meWith({ preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone } });
 
 /* ------------------------------------------------------------- the wire */
 
@@ -156,8 +123,6 @@ const wire = {
   sockets: null as string[] | null,
   calls: [] as Call[],
 };
-
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 const problem = (status: number, code: string, detail: string) => json({ status, code, title: code, detail, errors: [] }, status);
 
@@ -217,13 +182,7 @@ vi.stubGlobal(
 const sent = (method: string) => wire.calls.filter(call => call.method === method);
 
 const draw = (devices: Device[] = [device()], mayManage = true, crumb = false) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter>
-        <Targets spaceId="space-1" devices={devices} mayManage={mayManage} crumb={crumb} />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  drawAt(<Targets spaceId="space-1" devices={devices} mayManage={mayManage} crumb={crumb} />);
 
 /** The page once the plan has been read, which is when the table is drawn. */
 const drawn = async (devices?: Device[], mayManage?: boolean) => {
@@ -256,15 +215,7 @@ const bar = () => screen.getByRole('button', { name: 'Save' }).parentElement!;
 beforeAll(async () => {
   // The light window is said in the reader's own time; the document holds UTC, so the test reads in UTC.
   Settings.defaultZone = 'utc';
-  const [en, de] = await Promise.all(
-    ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
-  );
-  await i18next.use(initReactI18next).init({
-    lng: 'en',
-    resources: { en: { translation: en }, de: { translation: de } },
-    nsSeparator: false,
-    interpolation: { escapeValue: false },
-  });
+  await translate(['en', 'de']);
 });
 
 afterEach(async () => {
@@ -1161,7 +1112,7 @@ describe('the targets page', () => {
       { initialEntries: ['/control?space=space-1'] },
     );
     render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+      <QueryClientProvider client={testClient()}>
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
@@ -1209,7 +1160,7 @@ describe('the targets page', () => {
       { initialEntries: ['/control?space=space-1'] },
     );
     render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+      <QueryClientProvider client={testClient()}>
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
@@ -1506,11 +1457,6 @@ describe('the one list of presets', () => {
 });
 
 describe('the document a draft becomes', () => {
-  it("reads the light window in the reader's time from seconds past midnight UTC", () => {
-    expect(lightWindowLabel(draftOf(CONFIGURATION), NOW)).toBe('06–18 h');
-    expect(lightWindowLabel(draftOf({ daynight: { day: 6.5 * 3600, night: 18 * 3600 } }), NOW)).toBe('06:30–18:00 h');
-  });
-
   it('turns the account´s wall clock into the document´s seconds and back, round midnight where it must', () => {
     const kolkata = 5.5 * 3600;
     const berlinInWinter = 3600;

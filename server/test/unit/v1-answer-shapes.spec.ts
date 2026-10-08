@@ -1,6 +1,6 @@
-import { entryCreate } from '@fg2/shared-types/v1-schemas';
+import { MAX_PAGE_LIMIT, entryCreate } from '@fg2/shared-types/v1-schemas';
 import { ZodValidationPipe } from '@common/zod-validation.pipe';
-import { afterCursor, encodeCursor, pageOf, pageLimit, MAX_PAGE_LIMIT } from '@common/v1/pages';
+import { afterCursor, encodeCursor, pageOf, pageLimit } from '@common/v1/pages';
 import { ProblemException } from '@common/v1/problem';
 import { fieldOfMetric, fieldOfOutputMetric, metricOfField, STORED_METRICS } from '@common/v1/metrics';
 import { metricValueOf, valueStateAt } from '@common/v1/value-age';

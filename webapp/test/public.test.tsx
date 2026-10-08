@@ -1,12 +1,6 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Entry, GrowWeekCard, PublicGrowPage, SpaceOverview } from '@fg2/shared-types/v1';
 import { publicPicture } from '@/api/public';
@@ -20,6 +14,8 @@ import { SharedRoute } from '@/screens/public/SharedRoute';
 import { SharedSpace } from '@/screens/public/SharedSpace';
 import { windowIsCurrent } from '@/screens/public/window';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { drawAt, json } from './harness';
+import { translate } from './translations';
 
 /**
  * A diary read by somebody who is not in it.
@@ -127,8 +123,6 @@ const page: PublicGrowPage = {
   totals: { entryCount: 37, waterCount: 9, feedCount: 9, photoCount: 2 },
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 /**
  * The two public addresses as a browser meets them: the diary at its own, where
  * a reader may follow it, and a link onto the same diary, which carries no id
@@ -212,39 +206,26 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
 const drawRoute = (at: string, path: string, element: React.ReactNode) => {
   vi.stubGlobal('fetch', fetchStub);
 
-  return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <ThemeProvider>
-        <MemoryRouter initialEntries={[at]}>
-          <Routes>
-            <Route path={path} element={element} />
-          </Routes>
-        </MemoryRouter>
-      </ThemeProvider>
-    </QueryClientProvider>,
+  return drawAt(
+    <ThemeProvider>
+      <Routes>
+        <Route path={path} element={element} />
+      </Routes>
+    </ThemeProvider>,
+    { at },
   );
 };
-
-const draw = (node: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>{node}</MemoryRouter>
-    </QueryClientProvider>,
-  );
 
 beforeAll(async () => {
   const { SIGNED_OUT } = await import('./session');
   state.session = SIGNED_OUT;
 
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  await translate();
 });
 
 describe('a public diary', () => {
   it('stands on its own for a reader with no session: what it is, who it is by, and what has been done to it', () => {
-    draw(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
+    drawAt(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
 
     expect(screen.getByRole('heading', { name: 'Spring run' })).toBeInTheDocument();
     expect(screen.getByText('@mia')).toBeInTheDocument();
@@ -259,7 +240,7 @@ describe('a public diary', () => {
   });
 
   it('addresses every picture by the diary’s own public route, which carries no token of any kind', () => {
-    draw(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
+    drawAt(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
 
     const sources = screen.getAllByRole('img').map(image => image.getAttribute('src') ?? '');
     expect(sources.some(source => source.includes('/v1/public/grows/spring-run/media/cover-1'))).toBe(true);
@@ -268,7 +249,7 @@ describe('a public diary', () => {
   });
 
   it('names nobody on its lines: the diary has one author, and the people an answer names are not a stranger’s', () => {
-    draw(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
+    drawAt(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
 
     expect(screen.getByText('Defoliated')).toBeInTheDocument();
     expect(screen.queryByText('someone')).not.toBeInTheDocument();
@@ -276,7 +257,7 @@ describe('a public diary', () => {
   });
 
   it('leaves out a harvest weight its owner keeps rather than dashing it out', () => {
-    draw(
+    drawAt(
       <Diary page={{ ...page, harvest: { harvestedAt: at(1), wetWeightG: null, dryWeightG: 412 } }} picture={publicPicture(page.slug)} now={NOW} />,
     );
 
@@ -288,16 +269,10 @@ describe('a public diary', () => {
     const asked = vi.fn();
     const older: GrowWeekCard = { ...week, weekNumber: 4, dayFrom: 22, dayTo: 28, entries: [], entryCount: 0 };
 
-    const { rerender } = draw(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
+    const { rerender } = drawAt(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
     expect(screen.queryByRole('button', { name: 'Earlier weeks' })).not.toBeInTheDocument();
 
-    rerender(
-      <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter>
-          <Diary page={page} picture={publicPicture(page.slug)} now={NOW} earlier={{ weeks: [older], more: asked, pending: false }} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    rerender(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} earlier={{ weeks: [older], more: asked, pending: false }} />);
 
     // The weeks the page carried and the ones asked for afterwards read as one
     // diary, newest first, and the control is still there because there is more.
@@ -311,13 +286,13 @@ describe('a public diary', () => {
     // The figure is frozen at the day the grow ended, and the facts line right
     // under it already says the diary ran to August: "day" there reads as a
     // count still going up.
-    const { unmount } = draw(<Diary page={{ ...page, endedAt: at(0) }} picture={publicPicture(page.slug)} now={NOW} />);
+    const { unmount } = drawAt(<Diary page={{ ...page, endedAt: at(0) }} picture={publicPicture(page.slug)} now={NOW} />);
     expect(screen.getByText('final day')).toBeInTheDocument();
     unmount();
 
     // A link whose window closed before the grow did is inside a diary that has
     // not ended, which is the same end the week cards on the page are drawn to.
-    draw(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
+    drawAt(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
     expect(screen.getByText('day')).toBeInTheDocument();
     expect(screen.queryByText('final day')).not.toBeInTheDocument();
   });
@@ -326,14 +301,14 @@ describe('a public diary', () => {
     // The line reads "<stage> · week N", and the card two hundred pixels below
     // it repeats the stage week in its own pill: a reader given the grow week
     // there is told a grow has been curing for as long as it has been alive.
-    draw(<Diary page={{ ...page, stage: 'curing', preset: null, dayNumber: 218, stageWeek: 12 }} picture={publicPicture(page.slug)} now={NOW} />);
+    drawAt(<Diary page={{ ...page, stage: 'curing', preset: null, dayNumber: 218, stageWeek: 12 }} picture={publicPicture(page.slug)} now={NOW} />);
 
     expect(screen.getByText(/Curing · week 12 ·/)).toBeInTheDocument();
     expect(screen.queryByText(/Curing · week 32/)).not.toBeInTheDocument();
   });
 
   it('says the stage alone where the grow has entered no phase, rather than a week of nothing', () => {
-    draw(<Diary page={{ ...page, stage: null, preset: null, dayNumber: null, stageWeek: null }} picture={publicPicture(page.slug)} now={NOW} />);
+    drawAt(<Diary page={{ ...page, stage: null, preset: null, dayNumber: null, stageWeek: null }} picture={publicPicture(page.slug)} now={NOW} />);
 
     expect(screen.getByText(/^No phase yet · Amnesia, Gelato/)).toBeInTheDocument();
   });
@@ -341,7 +316,7 @@ describe('a public diary', () => {
   it('says how many lines of a week it is not drawing, because a card carries only the first of them', () => {
     // Twenty-five lines and ten on the card is what a busy week of a real grow
     // comes to; a card that said nothing would read as a quiet week.
-    draw(<DiaryWeek week={{ ...week, entryCount: 25 }} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
+    drawAt(<DiaryWeek week={{ ...week, entryCount: 25 }} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
     expect(screen.getByText('+ 23 more')).toBeInTheDocument();
   });
 
@@ -354,7 +329,7 @@ describe('a public diary', () => {
       entryCount: 2,
     };
 
-    draw(<DiaryWeek week={twice} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
+    drawAt(<DiaryWeek week={twice} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
 
     // The date comes with it, because one of the grow's days holds the end of
     // one date and the start of the next, and two lines either side of that
@@ -369,7 +344,7 @@ describe('a public diary', () => {
     // dates disagrees with the stage marker beside it.
     const evening = { ...week, days: week.days.map((day, index) => ({ ...day, startsAt: at(6 - index, 22) })) };
 
-    draw(<DiaryWeek week={evening} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
+    drawAt(<DiaryWeek week={evening} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
 
     const tiles = screen
       .getAllByRole('listitem')
@@ -379,7 +354,7 @@ describe('a public diary', () => {
   });
 
   it('marks on the day strip the stage the grow entered inside the week', () => {
-    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
+    drawAt(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
 
     // The pill names the stage the week ended in, so a week that held two of
     // them says the earlier one here or nowhere.
@@ -390,7 +365,7 @@ describe('a public diary', () => {
 
   it('leaves its lines inert, because a stranger corrects nothing and has no sheet to be offered one in', () => {
     const line = entry({ id: 'e2', kind: 'training', text: 'Defoliated', values: { kind: 'training' }, mediaIds: ['media-2'] });
-    const { container } = draw(
+    const { container } = drawAt(
       <DiaryWeek
         week={{ ...week, entries: [line], entryCount: 1 }}
         picture={publicPicture('spring-run')}
@@ -412,32 +387,26 @@ describe('a public diary', () => {
   it('says of an empty week of a diary that is over that nothing was logged, not that nothing has been yet', () => {
     const empty = { ...week, entries: [], entryCount: 0 };
 
-    const { unmount } = draw(<DiaryWeek week={empty} picture={publicPicture('spring-run')} now={NOW} current ended asOf={null} />);
+    const { unmount } = drawAt(<DiaryWeek week={empty} picture={publicPicture('spring-run')} now={NOW} current ended asOf={null} />);
     expect(screen.getByText('Nothing was logged this week')).toBeInTheDocument();
     unmount();
 
     // A past week of a running grow can still be written in - a line is filed
     // against the day it is dated to - so there the promise is kept.
-    draw(<DiaryWeek week={empty} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
+    drawAt(<DiaryWeek week={empty} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
     expect(screen.getByText('Nothing logged this week yet')).toBeInTheDocument();
   });
 
   it('says nothing where the card carries the whole week', () => {
-    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
+    drawAt(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
     expect(screen.queryByText(/more$/)).not.toBeInTheDocument();
   });
 
   it('links to the author only where they published a profile, because a handle with none leads nowhere', () => {
-    const { rerender } = draw(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
+    const { rerender } = drawAt(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
     expect(screen.getByRole('link', { name: /@mia/ })).toHaveAttribute('href', '/@mia');
 
-    rerender(
-      <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter>
-          <Diary page={{ ...page, author: { handle: 'mia', bio: null, avatarMediaId: null } }} picture={publicPicture(page.slug)} now={NOW} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    rerender(<Diary page={{ ...page, author: { handle: 'mia', bio: null, avatarMediaId: null } }} picture={publicPicture(page.slug)} now={NOW} />);
     expect(screen.queryByRole('link', { name: /@mia/ })).not.toBeInTheDocument();
   });
 });
@@ -461,7 +430,7 @@ describe('how old a page says it is', () => {
   });
 
   it('dates and dims the newest card of a diary a link stopped short of', () => {
-    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={at(7, 12)} />);
+    drawAt(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={at(7, 12)} />);
 
     expect(screen.getByText('Day 29–35')).toBeInTheDocument();
     const age = screen.getByText(/as of 7 d ago/);
@@ -469,7 +438,7 @@ describe('how old a page says it is', () => {
   });
 
   it('says nothing about age on an earlier week, because dating those would be dating the past', () => {
-    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current={false} ended={false} asOf={null} />);
+    drawAt(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current={false} ended={false} asOf={null} />);
 
     expect(screen.getByText('Day 29–35')).toBeInTheDocument();
     expect(screen.queryByText(/as of/)).not.toBeInTheDocument();
@@ -516,14 +485,14 @@ describe('a tent behind a link', () => {
   });
 
   it('dims a reading that has stopped moving, however fresh the answer said it was', () => {
-    const { unmount } = draw(
+    const { unmount } = drawAt(
       <SharedSpace space={sharedSpace(NOW.minus({ minutes: 1 }).toISO()!)} token="a-token" picture={publicPicture('spring-run')} now={NOW} />,
     );
 
     expect(screen.getByText('25.1').closest('[data-age]')).toHaveAttribute('data-age', 'live');
     unmount();
 
-    draw(<SharedSpace space={sharedSpace(at(4))} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+    drawAt(<SharedSpace space={sharedSpace(at(4))} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 
     // The pill above the tiles already aged it; the tiles under it kept saying live.
     expect(screen.getByText('25.1').closest('[data-age]')).toHaveAttribute('data-age', 'offline');
@@ -560,7 +529,7 @@ describe('a tent behind a link', () => {
       },
     };
 
-    draw(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+    drawAt(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 
     expect(screen.queryByText('Nothing reported yet')).not.toBeInTheDocument();
     expect(screen.getByText(/^Last day of this window/)).toBeInTheDocument();
@@ -571,7 +540,7 @@ describe('a tent behind a link', () => {
   it('draws the place’s Timeline for the link, over a day, a week or a month, and offers no way into the app', async () => {
     vi.stubGlobal('fetch', fetchStub);
     reads.length = 0;
-    draw(<SharedSpace space={sharedSpace(NOW.minus({ minutes: 1 }).toISO()!)} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+    drawAt(<SharedSpace space={sharedSpace(NOW.minus({ minutes: 1 }).toISO()!)} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 
     expect(await screen.findByRole('group', { name: 'Range' })).toBeInTheDocument();
     for (const label of ['24 h', '7 d', '30 d']) expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
@@ -586,11 +555,20 @@ describe('a tent behind a link', () => {
     vi.unstubAllGlobals();
   });
 
+  it('explains the day’s in-band share where it states it', () => {
+    const shown = sharedSpace(NOW.minus({ minutes: 1 }).toISO()!);
+    const space: SpaceOverview = { ...shown, verdict: { ...shown.verdict, rating: 'good', inBandFraction: 0.93 } };
+
+    drawAt(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+
+    expect(screen.getByRole('button', { name: '93 % in band' })).toHaveAccessibleDescription(/^The share of the last 24 hours/);
+  });
+
   it('still says nothing has been reported of a tent whose window is open', () => {
     const open = sharedSpace(at(1));
     const space: SpaceOverview = { ...open, values: [], verdict: { ...open.verdict, endsAt: NOW.toISO()! } };
 
-    draw(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+    drawAt(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 
     expect(screen.getByText('Nothing reported yet')).toBeInTheDocument();
   });
@@ -601,12 +579,12 @@ describe('following a diary', () => {
     const { ON_THE_DEMO, SIGNED_OUT } = await import('./session');
 
     state.session = SIGNED_OUT;
-    const { unmount } = draw(<FollowButton growId="grow-1" />);
+    const { unmount } = drawAt(<FollowButton growId="grow-1" />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     unmount();
 
     state.session = ON_THE_DEMO;
-    draw(<FollowButton growId="grow-1" />);
+    drawAt(<FollowButton growId="grow-1" />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
 
     state.session = SIGNED_OUT;
@@ -618,12 +596,12 @@ describe('following a diary', () => {
     // A public address restores the session as it loads; a button that decided
     // before that finished would tell a signed-in reader they cannot follow.
     state.session = { ...SIGNED_IN, restored: false };
-    const { unmount } = draw(<FollowButton growId="grow-1" />);
+    const { unmount } = drawAt(<FollowButton growId="grow-1" />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     unmount();
 
     state.session = SIGNED_IN;
-    draw(<FollowButton growId="grow-1" />);
+    drawAt(<FollowButton growId="grow-1" />);
     expect(screen.getByRole('button', { name: 'Follow' })).toBeInTheDocument();
 
     state.session = SIGNED_OUT;

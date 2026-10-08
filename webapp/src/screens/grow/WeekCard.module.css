@@ -123,12 +123,6 @@ button.thumb {
   font-weight: var(--weight-regular);
 }
 
-/* The week's three figures, a strip on a hairline under the days. */
-.stats {
-  padding-top: var(--space-3);
-  border-top: var(--rule-solid);
-}
-
 /* The scheme's row for the week, with how much of it is done at the right. */
 .feeding {
   display: flex;
@@ -217,18 +211,4 @@ button.thumb {
 .more:disabled {
   text-decoration: none;
   color: var(--label);
-}
-
-.weekFilm {
-  display: block;
-  width: 100%;
-  max-width: 420px;
-  aspect-ratio: 16 / 9;
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  background: var(--card-2);
-}
-
-.weekFilmButton {
-  align-self: flex-start;
 }

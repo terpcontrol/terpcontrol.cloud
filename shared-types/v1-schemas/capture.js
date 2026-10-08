@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.captureFailureOf = exports.CAPTURE_FAILURES = exports.CAPTURE_BUDGET_SECONDS = void 0;
+exports.renderFailureOf = exports.RENDER_FAILURE_TEXT = exports.readsThroughDevice = exports.captureFailureOf = exports.CAPTURE_FAILURES = exports.CAPTURE_BUDGET_SECONDS = void 0;
 /**
- * Reading one picture from a camera: how long it may take, and what a failed
- * one is called.
+ * Reading one picture from a camera: how long it may take, what a failed one
+ * is called and when it goes through the camera's device - and the sentences a
+ * failed render stores.
  *
  * One read has `CAPTURE_BUDGET_SECONDS` from the moment it is asked for until
  * the camera has delivered or it is given up - every attempt it makes, and the
@@ -63,3 +64,25 @@ exports.CAPTURE_FAILURES = [...SAYS.map(([key]) => key), 'unknown'];
 /** What kind of failure the words a failed read left behind describe. */
 const captureFailureOf = (error) => SAYS.find(([, says]) => says.test(error))?.[0] ?? 'unknown';
 exports.captureFailureOf = captureFailureOf;
+/** Whether reading the camera goes through its device, so it only works while that device is online. */
+const readsThroughDevice = (camera) => camera.kind === 'terpcam_controller' || (camera.kind === 'rtsp' && camera.tunnel);
+exports.readsThroughDevice = readsThroughDevice;
+/**
+ * Why a film did not render, in the words the render stores. The causes are
+ * the render's own and not a capture's: a render never goes near the camera -
+ * it reads pictures that are already stored - so nothing it fails at is the
+ * camera refusing a login or not answering. The screen names the cause by these
+ * words in the language the page is in; anything else a render stores, such as
+ * an encoder's own message, is `unknown`.
+ */
+exports.RENDER_FAILURE_TEXT = {
+    // The span held pictures and the render kept none of them: they were all taken with the light off.
+    allDark: 'every picture in that span was taken with the light off',
+    tooFew: 'there are not enough pictures in that span to make a film',
+    // The camera was unpaired between the request and the render.
+    cameraGone: 'the camera this was asked of is gone',
+    encodeFailed: 'the pictures in that span could not be made into a film',
+};
+/** What kind of failure the words a failed render left behind describe. */
+const renderFailureOf = (error) => Object.keys(exports.RENDER_FAILURE_TEXT).find(cause => error.includes(exports.RENDER_FAILURE_TEXT[cause])) ?? 'unknown';
+exports.renderFailureOf = renderFailureOf;

@@ -1,12 +1,5 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
-import i18next from 'i18next';
+import { fireEvent, screen } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Device, Plan, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
@@ -27,6 +20,9 @@ import {
   withFigure,
 } from '@/screens/control/plan-edit';
 import { climateLanding } from '@/ui/climate-hardware';
+import { deviceWith } from './fixtures';
+import { drawAt } from './harness';
+import { translate } from './translations';
 
 /**
  * What the Control tab promises before anything is sent, and what it offers at
@@ -148,33 +144,13 @@ const plan = (over: Partial<Plan> = {}, stateOver: Partial<Plan['state']> = {}):
 /** What the controller is running now: two sections, each with a figure beside the ones a step edits. */
 const CONFIGURATION = { day: { temperature: 25, humidity: 60, heating: 'hard' }, lights: { limit: 80, sunrise: 15 } };
 
-const device = (lastSeenAt = NOW.minus({ seconds: 20 })): Device => ({
-  id: 'device-1',
-  createdAt: NOW.minus({ days: 60 }).toISO()!,
-  type: 'controller',
-  classId: null,
-  serialNumber: 42,
-  ownerId: 'user-1',
-  spaceId: 'space-1',
-  name: 'Blue Dream tent',
-  firmware: { channel: 'stable', targetId: null },
-  configuration: CONFIGURATION,
-  settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
-  state: {
-    lastSeenAt: lastSeenAt.toISO()!,
-    claimedAt: NOW.minus({ days: 60 }).toISO()!,
-    firmwareId: 'build-1',
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
-    hardware: {},
-    socketStateChangedAt: {},
-    socketsReportedAt: null,
-  },
-});
+const device = (lastSeenAt = NOW.minus({ seconds: 20 })): Device =>
+  deviceWith({
+    createdAt: NOW.minus({ days: 60 }).toISO()!,
+    name: 'Blue Dream tent',
+    configuration: CONFIGURATION,
+    state: { lastSeenAt: lastSeenAt.toISO()!, claimedAt: NOW.minus({ days: 60 }).toISO()!, firmwareId: 'build-1' },
+  });
 
 /** The same controller with the sensor the CO2 target needs, which the one above does not report. */
 const withCo2 = (): Device => {
@@ -192,21 +168,9 @@ const withoutCo2 = (): Device => {
   return { ...one, state: { ...one.state, hardware: { ...one.state.hardware, co2: 'off' } } };
 };
 
-const draw = (one: Device = device()) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <PlanPanel device={one} mayManage landing={climateLanding(one)} />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (one: Device = device()) => drawAt(<PlanPanel device={one} mayManage landing={climateLanding(one)} />);
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   may.youMay = 'own';
@@ -221,13 +185,7 @@ beforeEach(() => {
 
 describe('the tab of a place with nothing standing in it', () => {
   it('offers the one thing that would change that, and no page that would be as empty', () => {
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <Control spaceId="space-1" sub={null} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<Control spaceId="space-1" sub={null} />);
 
     expect(screen.getByText(/Nothing stands here yet/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/claim');
@@ -264,13 +222,7 @@ describe('the plan panel over hardware that states no climate', () => {
   });
 
   it('says nothing here runs on a plan, and offers neither way to write one', () => {
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <PlanPanel device={lamp()} mayManage landing={climateLanding(lamp())} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<PlanPanel device={lamp()} mayManage landing={climateLanding(lamp())} />);
 
     expect(screen.getByText('Nothing here runs on a plan.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Write a plan' })).not.toBeInTheDocument();
@@ -279,13 +231,7 @@ describe('the plan panel over hardware that states no climate', () => {
 
   it('refuses a controller whose document has not arrived the way the targets page refuses it', () => {
     const waiting = { ...device(), configuration: null };
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <PlanPanel device={waiting} mayManage landing={climateLanding(waiting)} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<PlanPanel device={waiting} mayManage landing={climateLanding(waiting)} />);
 
     expect(screen.getByText(/has not sent its settings yet/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Write a plan' })).not.toBeInTheDocument();
@@ -301,14 +247,7 @@ describe('the plan panel over hardware that states no climate', () => {
  * in front of a half-drawn tab.
  */
 describe('what the Control tab offers, by who is reading', () => {
-  const drawTab = () =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <Control spaceId="space-1" sub={null} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  const drawTab = () => drawAt(<Control spaceId="space-1" sub={null} />);
 
   beforeEach(() => {
     state.devices = [device()];
@@ -342,14 +281,7 @@ describe('what the Control tab offers, by who is reading', () => {
  * unless a plan is running and setting them itself.
  */
 describe('what the Control tab opens on', () => {
-  const drawTab = (sub: string | null = null) =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <Control spaceId="space-1" sub={sub} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  const drawTab = (sub: string | null = null) => drawAt(<Control spaceId="space-1" sub={sub} />);
 
   const noPlan = () => {
     state.plan = null;
@@ -622,13 +554,7 @@ describe('the settings a step carries', () => {
 
   it('draws the CO2 row of the step editor dead for such a controller, in the words the targets page uses', () => {
     const draft = draftOf(plan({ steps: [step({ settings: { day: { temperature: 26 }, co2: { target: 900 } } })] }));
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <PlanEditor device={withoutCo2()} plan={null} draft={draft} onClose={() => {}} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<PlanEditor device={withoutCo2()} plan={null} draft={draft} onClose={() => {}} />);
 
     // A draft of one step opens that step, which is the sheet's own rule.
     expect(screen.getByText('needs a CO₂ sensor')).toBeInTheDocument();

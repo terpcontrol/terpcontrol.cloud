@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SchemeWeek } from '@fg2/shared-types/v1';
-import { decimalFigure } from '@/ui/figures';
-import { ecTargetAt, hasEcTargets, productsOf, valueAt, type Product } from './grid';
+import { dashFigure, typedFigure } from '@/ui/figures';
+import { ecTargetAt, hasEcTargets, productsOf, type Product } from './grid';
 import styles from './Scheme.module.css';
 
 interface SchemeGridProps {
@@ -89,7 +89,7 @@ export function SchemeGrid({ grid, currentWeek, mayEdit, waterEc, picked, onPick
                 {product.unit !== corner ? <span className={styles.rowUnit}>{product.unit}</span> : null}
               </th>
               {grid.map(week => {
-                const value = valueAt(grid, week.week, product.productKey);
+                const value = week.amounts.find(amount => amount.productKey === product.productKey)?.value ?? null;
                 const label = t('grow.scheme.cellLabel', { product: product.name, week: week.week });
                 const open = editing?.week === week.week && editing.productKey === product.productKey;
 
@@ -133,7 +133,7 @@ export function SchemeGrid({ grid, currentWeek, mayEdit, waterEc, picked, onPick
 
                 return (
                   <td key={week.week} className={styles.cell} data-current={week.week === currentWeek}>
-                    <span className={target === null ? styles.empty : undefined}>{target === null ? '–' : decimalFigure(target, 1)}</span>
+                    <span className={target === null ? styles.empty : undefined}>{dashFigure(target, 1)}</span>
                   </td>
                 );
               })}
@@ -176,8 +176,8 @@ function CellInput({
   const commit = () => {
     const trimmed = text.trim();
     if (trimmed === '') return onDone(null);
-    const next = Number(trimmed.replace(',', '.'));
-    return Number.isFinite(next) && next >= 0 ? onDone(next) : onCancel();
+    const next = typedFigure(trimmed);
+    return next !== null && next >= 0 ? onDone(next) : onCancel();
   };
 
   return (

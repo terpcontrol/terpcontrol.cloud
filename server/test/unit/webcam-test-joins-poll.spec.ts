@@ -114,7 +114,7 @@ beforeEach(() => {
 
   poller = new CameraPollerService(devices as never, cameras as never, { readStill } as never, { storeBytes } as never, entries as never, null);
   tests = new TestCapturesService(cameras as never, poller);
-  controller = new CamerasController(cameras as never, {} as never, poller, {} as never, {} as never, {} as never, tests);
+  controller = new CamerasController(cameras as never, {} as never, poller, {} as never, {} as never, tests);
 });
 
 afterEach(() => {

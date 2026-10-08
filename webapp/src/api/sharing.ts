@@ -1,7 +1,7 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { Follow, FollowPage, ShareLink, ShareLinkCreate, ShareLinkPage, ShareLinkUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { invalidate, useWrite } from './write';
 
 /**
  * The owner's half of sharing: the links they have handed out, and the diaries
@@ -19,11 +19,7 @@ export const useShareLinks = () =>
     queryFn: ({ signal }) => api.get<ShareLinkPage>('/share-links', { limit: 100 }, signal),
   });
 
-const useLinkMutation = <T, V>(mutationFn: (variables: V) => Promise<T>) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({ mutationFn, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['share-links'] }) });
-};
+const useLinkMutation = <T, V>(mutationFn: (variables: V) => Promise<T>) => useWrite(mutationFn, client => invalidate(client, ['share-links']));
 
 export const useCreateShareLink = () => useLinkMutation((body: ShareLinkCreate) => api.post<ShareLink>('/share-links', body));
 
@@ -48,17 +44,7 @@ export const useFollows = (enabled: boolean) =>
   });
 
 /** Both directions invalidate the home as well: a followed grow is a tile on it. */
-const useFollowMutation = (send: (growId: string) => Promise<unknown>) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: send,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['follows'] });
-      await queryClient.invalidateQueries({ queryKey: ['home'] });
-    },
-  });
-};
+const useFollowMutation = (send: (growId: string) => Promise<unknown>) => useWrite(send, client => invalidate(client, ['follows'], ['home']));
 
 export const useFollowGrow = () => useFollowMutation(growId => api.put<Follow>(`/follows/${growId}`));
 

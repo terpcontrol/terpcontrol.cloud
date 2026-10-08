@@ -34,7 +34,7 @@ import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { V1Answer } from '../answer-shape';
 import { AdminStatsService } from './admin-stats.service';
-import { FleetService, serialiseClass } from './fleet.service';
+import { FleetService } from './fleet.service';
 
 /**
  * The fleet, as an operator and the firmware build container work it.
@@ -101,8 +101,8 @@ export class AdminFleetController {
   @Get('device-classes/:id')
   @ApiOperation({ summary: 'One device class' })
   @V1Answer(deviceClassShape)
-  public async readClass(@Param('id') id: string): Promise<DeviceClass> {
-    return serialiseClass(await this.fleet.requireClass(id));
+  public readClass(@Param('id') id: string): Promise<DeviceClass> {
+    return this.fleet.readClass(id);
   }
 
   /** Where a build is rolled out: pointing a channel at one is a change to the class. */

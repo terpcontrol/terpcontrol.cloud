@@ -1,26 +1,15 @@
 import type { EntryPage, GrowListItem, GrowWeekCard } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
-import { api } from '@/api/client';
-import { useRead } from '@/api/read';
+import type { Translate } from '@/i18n/i18n';
 import { DAY_IN_YEAR, zoned } from '@/ui/zone';
 
 /** One picture of a grow, with what it is shown under in the viewer. */
-export interface GrowPicture {
+interface GrowPicture {
   mediaId: string;
   takenAt: string;
   day: number | null;
   text: string | null;
 }
-
-/** As many photo lines as a viewer of one grow is worth reading at once. */
-const PHOTO_LIMIT = 200;
-
-/** The photo lines of a grow, which is where its pictures are written. */
-export const useGrowPhotoLines = (growId: string) =>
-  useRead({
-    queryKey: ['entries', 'photos', growId],
-    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { growId, kinds: 'photo', limit: PHOTO_LIMIT }, signal),
-  });
 
 /**
  * Every picture of a grow, oldest first: what was written into its diary, and
@@ -44,8 +33,6 @@ export const picturesOf = (grow: GrowListItem, lines: EntryPage | undefined, wee
     .filter(picture => (seen.has(picture.mediaId) ? false : (seen.add(picture.mediaId), true)))
     .sort((one, other) => one.takenAt.localeCompare(other.takenAt));
 };
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "Tag 15 · 26. Sep · Nach dem Toppen …": which day, which date, and what was written with it. */
 export const pictureCaption = (t: Translate, picture: GrowPicture, zone: string | null): string =>

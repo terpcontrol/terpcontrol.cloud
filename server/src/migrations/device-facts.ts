@@ -5,11 +5,12 @@ import { MigrationContext } from './migration';
 /**
  * What every transform that is not about devices still has to know about one.
  *
- * Six of the thirteen migrations read the device collection for the same four
- * answers - who owns it, which space it became, which camera it became, whether
- * it is part of the demo - and the answers have to be identical in all of them,
- * because they are what the copies point at. Deriving them in one place is what
- * keeps a grow, an entry and a picture attached to the same space.
+ * The transforms that point at a device, and the preflight, read the device
+ * collection for the same four answers - who owns it, which space it became,
+ * which camera it became, whether it is part of the demo - and the answers have
+ * to be identical in all of them, because they are what the copies point at.
+ * Deriving them in one place is what keeps a grow, an entry and a picture
+ * attached to the same space.
  */
 export interface DeviceFacts {
   id: string;
@@ -32,7 +33,7 @@ export interface DeviceFacts {
 }
 
 /** Picture formats that came from a camera. A `user/jpeg` is a photo somebody uploaded and belongs to no camera. */
-const CAMERA_FORMATS = ['jpeg', 'mp4'];
+export const CAMERA_FORMATS = ['jpeg', 'mp4'];
 
 /** The format a still was stored under. The `mp4` of the same set is a timelapse, which is built rather than captured. */
 const STILL_FORMAT = 'jpeg';

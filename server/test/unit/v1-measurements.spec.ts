@@ -1,7 +1,5 @@
 import {
   computedValue,
-  DEFAULT_PPFD_LUX_FACTOR,
-  DeviceFactors,
   fieldsFor,
   FluxRow,
   gridOf,
@@ -18,6 +16,7 @@ import {
   switchingsQuery,
 } from '@modules/data/flux';
 import { DataService } from '@modules/data/data.service';
+import { DEFAULT_DEVICE_SETTINGS } from '@database/schemas/v1/devices.schema';
 
 /**
  * What goes to InfluxDB and what is made of what comes back. The store itself
@@ -28,7 +27,7 @@ import { DataService } from '@modules/data/data.service';
 const BUCKET = 'measurements';
 const DEVICE = 'sim-controller-1234';
 
-const FACTORS: DeviceFactors = { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: DEFAULT_PPFD_LUX_FACTOR };
+const FACTORS = DEFAULT_DEVICE_SETTINGS;
 
 const window = (minutes: number, stepSeconds: number) => ({
   startsAt: new Date('2026-01-20T10:00:00.000Z'),
@@ -95,7 +94,7 @@ describe('the levels query', () => {
     expect(level).toContain('aggregateWindow(every: 87s, fn: mean, createEmpty: false)');
     // The valve's "there is none" is left out before it is summed, or a sum would swallow it.
     expect(dose).toContain('r["_field"] == "out_co2"');
-    expect(dose).toContain('r._value >= 0.0 and r._value != 4294967295.0');
+    expect(dose).toContain('r["_value"] >= 0.0 and r["_value"] != 4294967295.0');
     expect(dose).toContain('aggregateWindow(every: 87s, fn: sum, createEmpty: false)');
     expect(dose).toContain('yield(name: "dose")');
   });

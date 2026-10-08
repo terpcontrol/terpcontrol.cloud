@@ -6,10 +6,10 @@ import { useConfigure } from '@/api/devices';
 import { GerminationChoices } from '@/screens/control/germination/GerminationChoices';
 import { choicesOf } from '@/screens/control/germination/germination-choices';
 import { FieldChoice } from '@/ui/advanced/Fields';
-import { figureOf } from '@/ui/climate-hardware';
+import { figureOf, germinates } from '@/ui/climate-hardware';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { Refused } from '@/ui/PageState';
-import { targetFigure, UNIT } from '@/screens/home/units';
+import { targetFigure, targetWithUnit } from '@/ui/units';
 
 /**
  * Betriebsart: what a fridge or a tent controller does as a whole while its
@@ -28,7 +28,7 @@ function OperatingMode({ device, mayManage, sockets }: DeviceContext) {
   const { t } = useTranslation();
   const field = configurationFieldsOf(device.type).mode;
   const modes = field?.kind === 'choice' ? field.options : [];
-  const germinates = device.control?.running === true && !device.control.drying && device.control.mode === 'germination';
+  const germinating = germinates(device);
   const humidifier = sockets?.items?.some(socket => socket.role === 'humidifier') ?? false;
   // What germination will do about the humidity is said before the switch, as everywhere else germination is
   // set; the two switches to change it stand here once it runs. Germination brings its own humidity, so that is
@@ -38,7 +38,7 @@ function OperatingMode({ device, mayManage, sockets }: DeviceContext) {
     t(choices.warnTooHumid ? 'germinationChoices.alarmOn' : 'germinationChoices.alarmOff', { line: GERMINATION_TOO_HUMID }),
     humidifier
       ? choices.humidifierHolds
-        ? t('germinationChoices.humidifierOn', { humidity: `${targetFigure(GERMINATION_HUMIDITY, 'humidity')} ${UNIT.humidity ?? '%'}` })
+        ? t('germinationChoices.humidifierOn', { humidity: targetWithUnit(GERMINATION_HUMIDITY, 'humidity') })
         : t('germinationChoices.humidifierOff')
       : null,
     t('operatingMode.choicesAfter'),
@@ -76,7 +76,7 @@ function OperatingMode({ device, mayManage, sockets }: DeviceContext) {
               }
         }
       />
-      {germinates ? <Choosing device={device} mayManage={mayManage} humidifier={humidifier} /> : null}
+      {germinating ? <Choosing device={device} mayManage={mayManage} humidifier={humidifier} /> : null}
     </>
   );
 }

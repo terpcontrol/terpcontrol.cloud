@@ -1,17 +1,14 @@
 import { CameraOff, Clock } from 'lucide-react';
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import type { SharedResolution } from '@fg2/shared-types/v1';
 import { sharedPicture, useSharedLink, useSharedWeeks } from '@/api/public';
-import { ApiError } from '@/api/problem';
 import { ageLabel } from '@/ui/age';
-import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
-import { DAY } from '@/ui/zone';
+import { calendarDay } from '@/ui/zone';
 import { Diary } from './Diary';
-import { Nothing } from './Nothing';
-import { PublicShell } from './PublicShell';
+import { PublicShell, PublicUnread } from './PublicShell';
 import { SharedSpace } from './SharedSpace';
 import { windowIsCurrent } from './window';
 import styles from './Public.module.css';
@@ -36,25 +33,7 @@ export function SharedRoute() {
   const diary = link.data?.subject.type === 'grow' ? link.data.subject.grow : null;
   const earlier = useSharedWeeks(token, diary?.weeksCursor ?? null);
 
-  if (link.isPending) {
-    return (
-      <PublicShell>
-        <Waiting lines={4} />
-      </PublicShell>
-    );
-  }
-
-  if (!link.data) {
-    return (
-      <PublicShell>
-        {link.error instanceof ApiError && link.error.status === 404 ? (
-          <Nothing titleKey="publicPage.deadLink.title" bodyKey="publicPage.deadLink.body" />
-        ) : (
-          <LoadFailed retry={() => void link.refetch()} />
-        )}
-      </PublicShell>
-    );
-  }
+  if (!link.data) return <PublicUnread read={link} lines={4} titleKey="publicPage.deadLink.title" bodyKey="publicPage.deadLink.body" />;
 
   const { subject } = link.data;
   const banner = <WindowBanner resolution={link.data} now={now} />;
@@ -81,7 +60,7 @@ function WindowBanner({ resolution, now }: { resolution: SharedResolution; now: 
   const { t } = useTranslation();
   const { startsAt, endsAt } = resolution.range;
   const current = windowIsCurrent(endsAt, now);
-  const day = (at: string) => DateTime.fromISO(at).toFormat(DAY);
+  const day = (at: string) => calendarDay(at, null);
 
   const window =
     startsAt === null

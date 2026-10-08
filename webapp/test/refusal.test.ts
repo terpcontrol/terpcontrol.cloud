@@ -1,24 +1,13 @@
 import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { ApiError } from '@/api/problem';
 import { refusalText } from '@/ui/refusal';
+import { translate } from './translations';
 
 /** A refusal is said in the reader's language, not in the English the server writes. */
 const refused = (status: number, code: string, detail: string, title = 'Refused') => new ApiError({ status, code, title, detail, errors: [] });
 
-beforeAll(async () => {
-  const [en, de] = await Promise.all(
-    ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
-  );
-  await i18next.init({
-    lng: 'en',
-    resources: { en: { translation: en }, de: { translation: de } },
-    nsSeparator: false,
-    interpolation: { escapeValue: false },
-  });
-});
+beforeAll(() => translate(['en', 'de']));
 
 afterEach(async () => {
   await i18next.changeLanguage('en');

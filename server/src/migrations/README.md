@@ -36,15 +36,15 @@ A run reports as it happens rather than when it returns, so a long step names it
 was killed leaves a log saying how far it got. `Migrations:` is the run, `Migration <name>` is a step:
 
 ```
-Migrations: 13 of 15 to apply (2 already applied); checking the database first
+Migrations: <n> of <total> to apply (<k> already applied); checking the database first
 Migrations: applying 003-fleet, 004-spaces, …
-Migration 003-fleet starting (1 of 13)
+Migration 003-fleet starting (1 of <n>)
 Migration 003-fleet applied in 16 ms: deviceclasses.read=5, deviceClasses.written=5, …
 …
-Migrations: finished; 13 migrations applied in 1412 ms
+Migrations: finished; <n> migrations applied in 1412 ms
 ```
 
-A boot with nothing to do says so — `Migrations: nothing to do; all 15 of them have already been applied`. That
+A boot with nothing to do says so — `Migrations: nothing to do; all <total> of them have already been applied`. That
 line is the difference between a database that is migrated and one the server never looked at, and silence is not.
 A step that left rows behind is a warning rather than an info line and carries the count; a run that stops says
 `Migrations: stopped at 003-fleet; nothing after that was written` before the report of why.
@@ -116,8 +116,11 @@ whatsoever about the transforms after it.
 | `015-warnings-routing` | Writes `notifications.routing.warnings: []` into every account that has no such row, because a lean read answers what the document holds and not what the schema would default. Reads the new `users` and moves nothing aside. |
 | `016-measurement-band` | Spreads every grow's single measurement `target` over `targetMin` and `targetMax` and drops the old key, for the same reason: a lean read answers what the document holds, and a definition stored before the band would reach a client with neither end. Reads the new `grows` and moves nothing aside. |
 | `017-entry-credentials` | Strikes the `user:password@` out of every diary line that carries one. An RTSP camera is opened with its credentials in the address, and a capture that failed quoted the whole ffmpeg command line into the line it wrote - so the migrated diary holds the password of every stream that ever failed, and the diary is exported, shown on the rail and printed on a week card. What is written from here on is redacted as it is written; this is for what is already stored. Reads the new `entries` and moves nothing aside. |
+| `018-target-record` | Opens the target record of every device that states targets, with what it aims at now, so a band across the past agrees with the cockpit from that instant on. A device whose record has begun already is left alone. Reads the new collections and moves nothing aside. |
 | `019-work-modes` | Writes every device the work mode it goes back to when its control comes back on or a drying spell ends, holds every fridge's document to the figures the server now decides itself (the dehumidifier tuned from the day humidity, the day gliding into the night, no CO2 at sunset, a compressor resting at least 240 s), and clears `small`/`full` - and a fridge's server-owned figures - out of every plan step and template, which a running plan would otherwise re-send every hour. Reads the new collections and moves nothing aside. |
 | `020-retired-dryers` | Deletes every dryer with what it left behind, because the hardware type is gone: its readings in InfluxDB (raw and daily, through the store's delete API, before anything else), its alarm rules, alerts, log lines, plan, target record and claim code; a saved chart forgets it, a camera it answered for is let go, and a place left holding nothing and nobody is ended the way the app ends one. The `dryer` class goes with its builds, so the hardware is refused when it registers. Without InfluxDB configured - only a spec runs that way - the readings are left in the store and counted as `readings.leftInTheStore`. A database without dryers is left as it is. Reads the new collections and moves nothing aside. |
+| `021-light-windows` | Puts the stored light schedules into the shape `day-night.ts` writes: a fridge's or controller's document, the window of every plan step and template as the hours it means (`lightHours`), and a target-record row per fridge and controller with the cycle it runs now. Reads the new collections and moves nothing aside. |
+| `022-dark-germination` | Renames germination that ran the light to seedling in plans, templates, grows and the diary lines that announced it, because germination now means the dark `breed` mode; a step or a plan that carries that mode keeps germination. Reads the new collections and moves nothing aside. |
 
 Each step declares the collections it reads as `moves` and the runner moves them aside before calling it; the move
 is skipped when it has already happened, so a step that shares a source with an earlier one finds it already moved,

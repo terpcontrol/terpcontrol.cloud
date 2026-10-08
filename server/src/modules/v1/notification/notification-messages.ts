@@ -1,13 +1,13 @@
-import { DateTime } from 'luxon';
 import type { PlanStep, Task } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
+import { localOf } from '@common/v1/local-time';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { AlarmEvent } from '@modules/alarm/alarm.types';
-import { bandOf, watchedName } from '@modules/alarm/alarm.watch';
+import { statedBand, watchedName } from '@modules/alarm/alarm.watch';
 import { Announcement } from './notification.types';
 
 /**
@@ -114,10 +114,7 @@ export const weeklyTimelapseAnnouncement = (
 });
 
 /** The day in the owner's zone, where the week was cut; UTC where the account names none. */
-const dayOf = (at: Date, zone: string | null): string => {
-  const local = DateTime.fromJSDate(at, { zone: zone || 'utc' });
-  return (local.isValid ? local : DateTime.fromJSDate(at, { zone: 'utc' })).setLocale('en').toFormat('d LLLL yyyy');
-};
+const dayOf = (at: Date, zone: string | null): string => localOf(at, zone).setLocale('en').toFormat('d LLLL yyyy');
 
 /** What an alert with no rule behind it is called: the health loop's own two. */
 const kindReads: Record<StoredAlert['kind'], string> = {
@@ -129,14 +126,9 @@ const kindReads: Record<StoredAlert['kind'], string> = {
 const watched = (alert: StoredAlert, rule: StoredAlarmRule | null): string =>
   rule ? `Watching ${watchedName(rule.watch)} on device ${alert.deviceId}.` : `Device ${alert.deviceId ?? alert.cameraId}.`;
 
-/**
- * The reading, and the worst of it once the episode is over. A rule with no
- * band - an output watched for running at all, and the health metrics - has no
- * threshold to state, exactly as the alarm on a fridge compressor never had.
- */
+/** The reading, and the worst of it once the episode is over, with the thresholds `statedBand` says the rule has. */
 const value = (alert: StoredAlert, rule: StoredAlarmRule | null, over: boolean): string => {
-  const band = rule ? bandOf(rule.watch) : null;
-  const bounds = band && (band.upper !== null || band.lower !== null) ? band : null;
+  const bounds = statedBand(rule);
   const thresholds = bounds
     ? ` (${[bounds.upper !== null ? `above ${bounds.upper}` : '', bounds.lower !== null ? `below ${bounds.lower}` : ''].filter(Boolean).join(' or ')})`
     : '';

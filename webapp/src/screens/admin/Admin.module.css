@@ -37,12 +37,6 @@
   gap: var(--space-3);
 }
 
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
-}
-
 /* The counts beside the heading: figures, so mono. */
 .counts {
   flex: 1;
@@ -64,15 +58,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-}
-
-/* A chip that is on, drawn as every chosen chip in the app is: the brand
-   blue, not the primary's green, so it does not read as a second primary
-   beside the rollout's. */
-.chipOn {
-  background: var(--selected);
-  border-color: var(--selected-edge);
-  color: var(--on-selected);
 }
 
 /* A chip that is a menu: the native select, keeping its keyboard and the
@@ -182,15 +167,6 @@
    one, and the same hover as the rest of its row. Where the table fits, the
    rule is simply the last column's divider. The row a filter empties spans
    every column, so it is not pinned to anything. */
-.openHead > span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 .table thead th:last-child,
 .table tbody td:last-child:not([colspan]) {
   position: sticky;
@@ -261,12 +237,6 @@
 }
 
 .chevron {
-  color: var(--label);
-}
-
-/* A row that opens nothing says so with a dash rather than with a chevron that
-   would go nowhere. */
-.noWhere {
   color: var(--label);
 }
 
@@ -373,11 +343,6 @@
 
 .paused {
   color: var(--warning);
-}
-
-.danger {
-  border-color: var(--alarm);
-  color: var(--alarm);
 }
 
 /* A figure that says something has gone wrong - renders the composer gave up

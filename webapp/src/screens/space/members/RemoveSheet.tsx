@@ -2,7 +2,7 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { useInvites } from '@/api/invites';
 import { useRemoveMember } from '@/api/members';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { isLive } from './invites';

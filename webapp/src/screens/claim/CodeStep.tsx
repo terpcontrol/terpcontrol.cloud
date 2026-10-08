@@ -4,17 +4,19 @@ import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceClaimCreate, DeviceClaimResult, SocketPage, Space } from '@fg2/shared-types/v1';
+import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { claimCodeOf, useClaimDevice } from '@/api/claims';
 import { useDeviceFirmwares } from '@/api/devices';
 import { ageLabel, deviceLiveness } from '@/ui/age';
-import { canScan } from '@/ui/barcode';
+import { useQrScan } from '@/ui/barcode';
 import { Refused } from '@/ui/PageState';
 import { QrScanner } from '@/ui/QrScanner';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { LegacyMove } from './LegacyMove';
 import { pairsACam } from '@/screens/camera/add/pairers';
-import { cameraName, deviceName, pairsSockets } from './steps';
+import { buildLabel, deviceName } from '@/ui/naming';
+import { cameraName } from './steps';
 import styles from './Claim.module.css';
 
 /**
@@ -46,8 +48,6 @@ export function CodeStep({
   const { t } = useTranslation();
   const claim = useClaimDevice();
   const [spaceId, setSpaceId] = useState<string | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanNote, setScanNote] = useState<string | null>(null);
   const form = useForm<DeviceClaimCreate>({ defaultValues: { code: initialCode } });
   // A room groups other places rather than holding anything, so a controller
   // never stands in one.
@@ -65,25 +65,15 @@ export function CodeStep({
     }
   });
 
-  const scan = () => {
-    if (!canScan()) return setScanNote(t('claim.code.scanUnavailable'));
-    setScanNote(null);
-    setScanning(true);
-  };
-
-  const onCode = useCallback(
-    (value: string) => {
-      setScanning(false);
-      form.setValue('code', claimCodeOf(value));
-      void submit();
-    },
-    [form, submit],
+  const { scan, note, scanner } = useQrScan(
+    useCallback(
+      (value: string) => {
+        form.setValue('code', claimCodeOf(value));
+        void submit();
+      },
+      [form, submit],
+    ),
   );
-  const closeScanner = useCallback(() => setScanning(false), []);
-  const onFailed = useCallback(() => {
-    setScanning(false);
-    setScanNote(t('claim.code.scanDenied'));
-  }, [t]);
 
   return (
     <form
@@ -107,14 +97,14 @@ export function CodeStep({
           {...form.register('code', { required: true })}
         />
         <button type="button" className={ui.fieldAction} onClick={scan}>
-          {t('claim.code.orScan')}
+          {t('home.addDevice.orScan')}
           <ChevronRight size={14} strokeWidth={1.75} aria-hidden />
         </button>
       </div>
 
-      {scanNote ? (
+      {note ? (
         <p className={ui.note} role="alert">
-          {scanNote}
+          {note}
         </p>
       ) : null}
 
@@ -143,7 +133,7 @@ export function CodeStep({
 
       <LegacyMove />
 
-      {scanning ? <QrScanner onCode={onCode} onClose={closeScanner} onFailed={onFailed} /> : null}
+      {scanner ? <QrScanner {...scanner} /> : null}
     </form>
   );
 }
@@ -174,26 +164,21 @@ export function ClaimedTitle({ device }: { device: Device }) {
  * grower and cannot be compared with anything; so the build list is what turns
  * it into something readable, and a build with nothing readable about it is
  * left out of the line altogether rather than printed as the uuid it is.
- *
- * What is readable is the version and not the name. Every build carried over
- * from the old cloud is named after its device class, so "fridge" is what a
- * name says about two fridges on two different builds; the version is what the
- * build container stamped and is the only field that tells them apart.
  */
 export function ClaimedFacts({ device, sockets, now }: { device: Device; sockets: SocketPage | undefined; now: DateTime }) {
   const { t } = useTranslation();
   const firmwares = useDeviceFirmwares(device.id, device.state.firmwareId !== null);
   const seen = device.state.lastSeenAt;
-  const build = firmwares.data?.items.find(one => one.id === device.state.firmwareId);
+  const label = buildLabel(firmwares.data?.items.find(one => one.id === device.state.firmwareId));
 
   if (!seen) return <span className={styles.waitingForIt}>{t('claim.code.neverHeard')}</span>;
 
   return (
     <>
       {t(`claim.code.${deviceLiveness(seen, now)}`, { age: ageLabel(seen, now) })}
-      {build?.version || build?.name ? ` · ${t('claim.code.firmware', { version: build.version || build.name })}` : ''}
+      {label ? ` · ${t('claim.code.firmware', { version: label })}` : ''}
       {/* What hangs on it, for the hardware that can have it: a plug pairs no sockets, a light no cam either. */}
-      {sockets && pairsSockets(device) ? ` · ${t('claim.code.sockets', { count: sockets.items.length })}` : ''}
+      {sockets && SOCKET_HOST_TYPES.includes(device.type) ? ` · ${t('claim.code.sockets', { count: sockets.items.length })}` : ''}
       {pairsACam(device) ? ` · ${t('claim.code.camera', { name: cameraName(device, t) })}` : ''}
     </>
   );

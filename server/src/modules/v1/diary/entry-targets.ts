@@ -17,7 +17,7 @@ import { badRequest } from '@common/v1/problem';
  */
 
 /** The references on an entry that are somebody's, in the order a refusal names them. */
-export interface EntryTargets {
+interface EntryTargets {
   growId?: string | null;
   spaceId?: string | null;
   deviceId?: string | null;

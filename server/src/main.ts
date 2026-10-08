@@ -6,6 +6,7 @@ import fastifyHelmet from '@fastify/helmet';
 import fastifyMultipart from '@fastify/multipart';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { errorText } from '@utils/error-text';
 import { logger } from '@utils/logger';
 import { AppModule } from './app.module';
 import { appConfig } from './config/configuration';
@@ -19,6 +20,16 @@ import { setupOpenApi } from './openapi';
 const FLUSH_BEFORE_EXIT_MS = 1000;
 
 /**
+ * Why the process is about to end. stderr first, and synchronously: it is the
+ * one channel that cannot be lost to a transport that has not flushed by the
+ * time the process is gone.
+ */
+const reportFatal = (reason: string): void => {
+  process.stderr.write(`${reason}\n`);
+  logger.error(reason);
+};
+
+/**
  * A throw that reached nobody - the device-facing work runs on timers and MQTT
  * callbacks, where there is no caller to return an error to. Each of those
  * paths catches its own failures; anything that gets here is a bug, and it
@@ -30,12 +41,7 @@ const FLUSH_BEFORE_EXIT_MS = 1000;
  * ending it is this handler's job.
  */
 process.on('uncaughtException', (error, origin) => {
-  const reason = `Uncaught exception (${origin}): ${error?.stack ?? error}`;
-  // stderr as well: it is the one channel that cannot be lost to a transport
-  // that has not flushed by the time the process is gone.
-  process.stderr.write(`${reason}\n`);
-  logger.error(reason);
-
+  reportFatal(`Uncaught exception (${origin}): ${errorText(error)}`);
   setTimeout(() => process.exit(1), FLUSH_BEFORE_EXIT_MS).unref();
 });
 
@@ -97,7 +103,7 @@ const stopOnSignal = (app: NestFastifyApplication): void => {
 
       app
         .close()
-        .catch(error => logger.error(`Stopping did not finish cleanly: ${error?.stack ?? error}`))
+        .catch(error => logger.error(`Stopping did not finish cleanly: ${errorText(error)}`))
         .finally(() => {
           logger.info(`Stopped on ${signal}`);
 
@@ -179,12 +185,7 @@ const bootstrap = async (): Promise<void> => {
 bootstrap().catch(error => {
   // A failure to start is fatal, and has to be: the process manager only
   // restarts a container that exits, and the handler above would otherwise
-  // leave this one alive with nothing listening. The reason goes to stderr as
-  // well, because the logger's transports flush after this process is gone.
-  const reason = `Failed to start: ${error?.stack ?? error}`;
-  // stderr first, and synchronously: it is the one channel that cannot be lost
-  // to a transport that flushes after this process is gone.
-  process.stderr.write(`${reason}\n`);
-  logger.error(reason);
+  // leave this one alive with nothing listening.
+  reportFatal(`Failed to start: ${errorText(error)}`);
   process.exit(1);
 });

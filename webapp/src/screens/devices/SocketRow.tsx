@@ -1,18 +1,18 @@
-import { ChevronDown, ChevronRight, Plug } from 'lucide-react';
+import { Plug } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ActuatorRuns, DeviceCapabilities, SocketOverrideState } from '@fg2/shared-types/v1';
 import { useSetOverride, useTestSocket } from '@/api/devices';
+import type { Translate } from '@/i18n/i18n';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
-import { ageLabel, leftLabel } from '@/ui/age';
-import { Fact, Facts } from './Facts';
+import { ageLabel, durationLabel, leftLabel } from '@/ui/age';
+import { Expand, Fact, Facts, Receipt } from './RowParts';
 import { isTimed } from './socket-form';
-import { defaultHold, durationLabel, holdsFor, TEST_SECONDS, type SocketRowModel } from './sockets';
+import { DEFAULT_HOLD_SECONDS, HOLD_SECONDS, TEST_SECONDS, type SocketRowModel } from './sockets';
 import { SocketAdvanced, SocketTimerBlock } from './SocketSheets';
 import styles from './Devices.module.css';
-import { refusalText } from '@/ui/refusal';
 
 /** How long a press has to be held before it counts as asking for a time rather than for a switch. */
 const HOLD_MS = 450;
@@ -76,7 +76,7 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
   /** A tap means "the other way" - and, while something is forcing the row, "let go". */
   const flip = () => {
     if (forced) return send('auto', 0);
-    send(row.state === 'on' ? 'off' : 'on', defaultHold());
+    send(row.state === 'on' ? 'off' : 'on', DEFAULT_HOLD_SECONDS);
   };
 
   const startHold = () => {
@@ -117,15 +117,7 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
             onHoldEnd={endHold}
           />
         ) : null}
-        <button
-          type="button"
-          className={styles.expand}
-          aria-expanded={open}
-          aria-label={t('devices.socket.details', { name })}
-          onClick={() => setOpen(!open)}
-        >
-          {open ? <ChevronDown size={16} strokeWidth={2} aria-hidden /> : <ChevronRight size={16} strokeWidth={2} aria-hidden />}
-        </button>
+        <Expand open={open} label={t('devices.socket.details', { name })} onToggle={() => setOpen(!open)} />
       </div>
 
       <Receipt result={override.data} error={override.error} pending={override.isPending} />
@@ -148,7 +140,7 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
                 {t('devices.socket.holdFor')}
                 <Help topic="socketHold" />
               </span>
-              {holdsFor().map(seconds => (
+              {HOLD_SECONDS.map(seconds => (
                 <button
                   key={seconds}
                   type="button"
@@ -228,7 +220,7 @@ function Control({ row, name, forced, refusal, onFlip, onSet, onHoldStart, onHol
             className={`${ui.segment} ${styles.threeWayOption}`}
             aria-pressed={state === current}
             disabled={refusal !== null}
-            onClick={() => onSet(state, state === 'auto' ? 0 : defaultHold())}
+            onClick={() => onSet(state, state === 'auto' ? 0 : DEFAULT_HOLD_SECONDS)}
           >
             {t(`devices.socket.${state}`)}
           </button>
@@ -237,6 +229,7 @@ function Control({ row, name, forced, refusal, onFlip, onSet, onHoldStart, onHol
     );
   }
 
+  // Drawn here rather than with ui/Switch: the same switch also listens for the hold that asks for a timed switch.
   return (
     <button
       type="button"
@@ -255,33 +248,6 @@ function Control({ row, name, forced, refusal, onFlip, onSet, onHoldStart, onHol
     </button>
   );
 }
-
-/**
- * What the command answered. MQTT hands back no receipt, so the honest line is
- * that it went out and whether anybody was listening - never that the socket
- * switched.
- */
-function Receipt({ result, error, pending }: { result?: { deviceOnline: boolean }; error: Error | null; pending: boolean }) {
-  const { t } = useTranslation();
-
-  if (pending) return <p className={`${ui.note} ${styles.socketWhy}`}>{t('devices.socket.asking')}</p>;
-  if (error) {
-    return (
-      <p className={`${ui.problem} ${styles.socketWhy}`} role="alert">
-        {refusalText(error, t('devices.socket.askFailed'))}
-      </p>
-    );
-  }
-  if (!result) return null;
-
-  return (
-    <p className={`${ui.note} ${styles.socketWhy}`} role="status">
-      {t(result.deviceOnline ? 'devices.socket.asked' : 'devices.socket.notListening')}
-    </p>
-  );
-}
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The row's name: the role, numbered where the role holds more than one socket.

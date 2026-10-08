@@ -30,10 +30,11 @@ import { DataService } from '@modules/data/data.service';
 import { MediaService } from '@modules/v1/camera/media.service';
 import { logger } from '@utils/logger';
 import { READING_KINDS } from '../diary/diary-entries';
-import { spacesDuring } from '../diary/grow-places';
+import { spacesDuring } from './grow-places';
 import {
   DIARY_COLUMNS,
   Names,
+  accountCsv,
   accountSettingsJson,
   alarmsCsv,
   alertsCsv,
@@ -284,16 +285,23 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
 
   /**
    * One grow, as a folder: what it was, its plants, its diary, its readings,
-   * its climate and its pictures.
+   * its climate and its pictures. An account export hands in the names it has
+   * already read, rather than every grow reading them again.
    */
-  private async writeGrow(zip: ZipWriter, growId: string, prefix: string, directory: string): Promise<void> {
+  private async writeGrow(
+    zip: ZipWriter,
+    growId: string,
+    prefix: string,
+    directory: string,
+    names?: { people: Names; spaces: Names },
+  ): Promise<void> {
     const grow = await this.grows.findOne({ id: growId }).lean<GrowDocument>();
     if (!grow) return;
 
     const [plants, spaces, people] = await Promise.all([
       this.plants.find({ growId }).sort({ createdAt: 1 }).lean<PlantDocument[]>(),
-      this.namesOf(this.spaces.find({}, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>[]>(), space => space.name),
-      this.namesOf(this.users.find({}, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>(), user => user.handle),
+      names?.spaces ?? this.placeNames(),
+      names?.people ?? this.handles(),
     ]);
     const labels: Names = new Map(plants.map(plant => [plant.id, plant.label]));
 
@@ -348,7 +356,7 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     const deviceNames: Names = new Map(devices.map(device => [device.id, device.name ?? device.id]));
     const cameraNames: Names = new Map(cameras.map(camera => [camera.id, camera.name]));
     const subjects: Names = new Map([...spaceNames, ...grows.map((grow): [string, string] => [grow.id, grow.name])]);
-    const people = await this.namesOf(this.users.find({}, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>(), row => row.handle);
+    const people = await this.handles();
 
     const [members, rules, alerts, reminders, plans] = await Promise.all([
       this.membersOf(spaceIds, people),
@@ -393,7 +401,8 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     await this.writeStillsInventory(zip, cameras, user.createdAt);
     await zip.add('README.txt', user.createdAt, readmeOf(), true);
     for (const device of devices) await this.writeDeviceClimate(zip, device);
-    for (const grow of grows) await this.writeGrow(zip, grow.id, `grows/${grow.slug}/`, directory);
+    const places = await this.placeNames();
+    for (const grow of grows) await this.writeGrow(zip, grow.id, `grows/${grow.slug}/`, directory, { people, spaces: places });
   }
 
   /**
@@ -643,8 +652,16 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     }
   }
 
-  private async namesOf<T extends { id: string }>(rows: Promise<T[]>, name: (row: T) => string): Promise<Names> {
-    return new Map((await rows).map(row => [row.id, name(row)]));
+  /** Every handle, which is how a line names its author. */
+  private async handles(): Promise<Names> {
+    const users = await this.users.find({}, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
+    return new Map(users.map(user => [user.id, user.handle]));
+  }
+
+  /** Every place's name, which is how a grow's placements are told. */
+  private async placeNames(): Promise<Names> {
+    const spaces = await this.spaces.find({}, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>[]>();
+    return new Map(spaces.map(space => [space.id, space.name]));
   }
 }
 
@@ -667,26 +684,6 @@ const stillGood = (row: MediaDocument, now: Date): boolean => {
   return job?.status === 'ready' && now.getTime() - (job.endedAt ?? row.createdAt).getTime() < FRESH_MS;
 };
 
-/** What the account itself is, on one row. The password hash is the one thing here that is never anybody's to export. */
-const accountCsv = (user: StoredUser): Buffer =>
-  csvOf(
-    ['handle', 'email', 'createdAt', 'isActive', 'isAdmin', 'locale', 'timezone', 'publicProfile', 'userId'],
-    [
-      [
-        user.handle,
-        user.email,
-        user.createdAt,
-        user.isActive,
-        user.isAdmin,
-        user.preferences.locale,
-        user.preferences.timezone,
-        user.publicProfile,
-        user.id,
-      ],
-    ],
-  );
-
-/** What a picture is called in the archive: the day it was taken, so a folder sorts into the order the grow happened in. */
 /**
  * What the zip says about itself.
  *
@@ -744,6 +741,7 @@ const readmeOf = (): Buffer =>
     'utf8',
   );
 
+/** What a picture is called in the archive: the day it was taken, so a folder sorts into the order the grow happened in. */
 const fileNameOf = (row: MediaDocument): string => {
   const extension = row.mime.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
 

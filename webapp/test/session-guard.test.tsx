@@ -1,13 +1,11 @@
-import '@testing-library/jest-dom/vitest';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionTokens, SessionUser } from '@fg2/shared-types/v1';
+import { DAY_MS, MINUTE_MS } from '@/ui/days';
+import { json } from './harness';
+import { translate } from './translations';
 
 /**
  * What stands in front of the screens while the stored session is being checked.
@@ -25,9 +23,6 @@ import type { SessionTokens, SessionUser } from '@fg2/shared-types/v1';
  * the right screen with nothing on it.
  */
 
-const MINUTE_MS = 60 * 1000;
-const DAY_MS = 24 * 60 * MINUTE_MS;
-
 const USER: SessionUser = { id: 'user-1', handle: 'you', isAdmin: false, isDemo: false };
 
 const at = (offsetMs: number): string => new Date(Date.now() + offsetMs).toISOString();
@@ -41,7 +36,7 @@ const TOKENS: SessionTokens = {
 const answering = (status: number, body: unknown): void => {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })),
+    vi.fn(async () => json(body, status)),
   );
 };
 
@@ -52,16 +47,10 @@ const answeringSignedOut = (): void => {
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith('/sessions/refresh')) {
-        return new Response(JSON.stringify({ status: 401, code: 'unauthenticated', title: 'Gone', detail: 'Spent.', errors: [] }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return json({ status: 401, code: 'unauthenticated', title: 'Gone', detail: 'Spent.', errors: [] }, 401);
       }
 
-      return new Response(JSON.stringify({ ...TOKENS, sessionId: 'session-2', user: USER }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return json({ ...TOKENS, sessionId: 'session-2', user: USER });
     }),
   );
 };
@@ -83,12 +72,7 @@ const freshGuard = async () => {
   return { RequireSession, session, SignIn, queryClient };
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   localStorage.clear();

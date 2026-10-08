@@ -1,19 +1,16 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceCapabilities, GrowListItem, Me, NotificationSettings, Space } from '@fg2/shared-types/v1';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Claim } from '@/screens/claim/Claim';
-import { spaceWhere } from './session';
+import { deviceWith } from './fixtures';
+import { drawAt } from './harness';
+import { meWith, spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * Adding a device: what the five steps ask, what each answer puts on the wire,
@@ -25,7 +22,7 @@ import { spaceWhere } from './session';
  * making another, and a stage is applied to that space and nothing else.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const who = vi.hoisted(() => ({ demo: false }));
@@ -47,33 +44,21 @@ const CAPABILITIES: DeviceCapabilities = {
   pulseSeconds: {},
 };
 
-const device: Device = {
+const device: Device = deviceWith({
   id: 'sim-controller-7f3a',
   createdAt: NOW.minus({ days: 2 }).toISO()!,
-  type: 'controller',
   classId: 'class-1',
-  serialNumber: 42,
-  ownerId: 'user-1',
   spaceId: 'space-new',
   name: 'Terp Controller',
-  firmware: { channel: 'stable', targetId: null },
-  configuration: null,
   settings: { vpdLeafOffsetDay: 0, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
   state: {
     lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!,
     claimedAt: NOW.toISO()!,
     firmwareId: 'build-uuid',
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
     hardware: { firmware_version: '2.4.1', webcam_did: 'none' },
-    socketStateChangedAt: {},
     socketsReportedAt: NOW.toISO()!,
   },
-};
+});
 
 // A device is moved into a place by managing it, so every place here says so.
 const space: Space = spaceWhere('own', { id: 'space-new', kind: 'other', name: 'Terp Controller' });
@@ -101,17 +86,11 @@ const UNREACHED: NotificationSettings = {
   mutedUntil: null,
 };
 
-const meWith = (notifications: NotificationSettings): Me =>
-  ({
-    id: 'user-1',
-    email: 'grower@example.org',
-    handle: 'you',
-    preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'UTC', notifyLaterUntil: null },
-    notifications,
-    pushSubscribed: false,
-  }) as unknown as Me;
+/** The account with nothing but the ways it is reached changed. */
+const meReaching = (notifications: NotificationSettings): Me =>
+  meWith({ email: 'grower@example.org', preferences: { ...meWith().preferences, timezone: 'UTC', notifyLaterUntil: null }, notifications });
 
-const state = { spaces: [] as Space[], grows: [] as GrowListItem[], me: meWith(UNREACHED) };
+const state = { spaces: [] as Space[], grows: [] as GrowListItem[], me: meReaching(UNREACHED) };
 
 const answers = (path: string) => {
   if (path === '/devices/sim-controller-7f3a') return device;
@@ -138,13 +117,12 @@ function Watch() {
 const address = () => screen.getByTestId('address').textContent;
 
 const draw = (at = '/claim') =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <Claim />
-        <Watch />
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <>
+      <Claim />
+      <Watch />
+    </>,
+    { at },
   );
 
 /** The screen with a device claimed on it, which is every step after the first. */
@@ -157,10 +135,7 @@ const drawClaimed = async () => {
 };
 
 beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  await translate();
 
   vi.useFakeTimers({ toFake: ['Date'] });
 });
@@ -172,14 +147,14 @@ beforeEach(() => {
   who.demo = false;
   state.spaces = [space];
   state.grows = [];
-  state.me = meWith(UNREACHED);
+  state.me = meReaching(UNREACHED);
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.post).mockImplementation((path: string) =>
     path === '/devices/claims'
       ? (Promise.resolve({ device, spaceCreated: true }) as never)
       : path === '/me/email-alarms'
         ? (Promise.resolve(
-            meWith({
+            meReaching({
               ...UNREACHED,
               channels: { ...UNREACHED.channels, email: 'grower@example.org' },
               routing: { ...UNREACHED.routing, alerts: ['email'] },
@@ -328,7 +303,7 @@ describe('adding a device', () => {
   });
 
   it('says how alarms already reach an account that has a way, and offers nothing to tap', async () => {
-    state.me = meWith({
+    state.me = meReaching({
       ...UNREACHED,
       channels: { ...UNREACHED.channels, telegram: { chatId: '1', linkedAt: NOW.toISO()! } },
       routing: { ...UNREACHED.routing, alerts: ['telegram'] },

@@ -1,9 +1,9 @@
 import { jest } from '@jest/globals';
-import { DailySummary, dailySummariesOf, FluxRow, gridOf, startOfDay } from '@modules/data/flux';
+import { DailySummary, dailySummariesOf, FluxRow, gridOf } from '@modules/data/flux';
 import { DataService } from '@modules/data/data.service';
 import { ClimateRetentionService, DEVICES_PER_PASS, untilNextRun } from '@modules/retention/climate-retention.service';
-import { chunkOf, climateWindowOf, cutoffOf } from '@modules/retention/climate-window';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { chunkOf, climateWindowOf, cutoffOf, startOfDay } from '@modules/retention/climate-window';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Climate retention: which window applies to a device, what a day summarises
@@ -24,7 +24,7 @@ const CONTROLLER = 'device-controller';
 /** A day of one field, as the store answers an aggregate of it. */
 const row = (at: string, field: string, value: number | null): FluxRow => ({ _time: at, _field: field, _value: value });
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 
 describe('which window applies', () => {
   it('takes the tent´s window over the account´s, because a shared tent is kept, not its owner', () => {
@@ -383,14 +383,6 @@ describe('when it runs', () => {
     expect(at('2026-09-22T03:00:01')).toBeGreaterThan(23 * 60 * 60 * 1000);
     expect(at('2026-09-22T03:00:00')).toBeGreaterThan(23 * 60 * 60 * 1000);
   });
-});
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
 });
 
 afterEach(() => {

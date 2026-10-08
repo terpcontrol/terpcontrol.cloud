@@ -170,25 +170,6 @@
   text-align: center;
 }
 
-/* The one thing there is to do where nothing here has rules yet. The other
-   half of this tab draws the same way out of the same dashed note, so it is
-   drawn the same way here: underlined rather than coloured, because the note
-   is a quiet one and the green is the Save's. */
-.addDevice {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  white-space: nowrap;
-}
-
-/* The sheet's insides: a few questions apart, like every other sheet. */
-.sheet {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-2) 0;
-}
-
 .fields {
   display: flex;
   flex-direction: column;
@@ -258,54 +239,8 @@
   resize: vertical;
 }
 
-.toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.toggleText {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-
-.toggleLabel {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-}
-
 .submit {
   width: 100%;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-/* What a delete will do, asked in the place the tap would be. */
-.asking {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: var(--rule-dashed);
-  border-radius: var(--radius);
-}
-
-.danger {
-  color: var(--alarm);
-  border-color: var(--alarm);
-}
-
-.dangerButton {
-  background: var(--alarm);
-  border-color: var(--alarm);
-  color: var(--on-green);
 }
 
 /* That the device below is being worked on: the state, and the way out of it.

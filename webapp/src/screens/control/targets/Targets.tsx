@@ -6,12 +6,13 @@ import { Link, useLocation } from 'react-router';
 import { controlPath } from '@/app/places';
 import type { Device, DeviceConfiguration, GerminationChoices as ChoiceValues, GrowCard, PlanStep } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { serverNow } from '@/api/clock';
-import { useDevices, useHeardAt, useLiveReads, useSaveConfiguration, useSocketTables } from '@/api/devices';
+import { useDeviceLive, useDevices, useHeardAt, useLiveReads, useSaveConfiguration, useSocketTables } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
-import { ageAttribute, deviceLiveness, heardAt, offlineLabel } from '@/ui/age';
+import { ageAttribute, deviceLiveness, offlineLabel } from '@/ui/age';
 import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
@@ -19,38 +20,29 @@ import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/pre
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { nowThere, CLOCK, useZone } from '@/ui/zone';
 import { DeviceAdvanced } from '../../devices/DeviceAdvanced';
-import { deviceTitle } from '../../devices/naming';
+import { deviceName, deviceTitle } from '@/ui/naming';
 import { FanPanel } from '../devices/FanPanel';
 import { LightPanel } from '../devices/LightPanel';
+import type { OwnPanelProps } from '../devices/OwnPanel';
 import { PlugPanel } from '../devices/PlugPanel';
-import { useDeviceLive } from '../../cockpit/reads';
 import { changedFields, heldOf, holdsHumidity, nowHoldingOf, ownedBy, runningStep, shapeOf } from './day-night';
 import { DayNightTable } from './DayNightTable';
 import { LightPlan } from './LightPlan';
 import { LeaveGuard, type Unsaved } from './LeaveGuard';
+import { useReportUnsaved } from './report-unsaved';
 import { ControlState, EnergySaving } from './Operation';
+import { AddDeviceNote } from '../AddDeviceNote';
 import { GerminationChoices } from '../germination/GerminationChoices';
 import { choicesOf, choicesSaid, useHumidifier } from '../germination/germination-choices';
 import { stepLightHours, stepLightsOn } from '../plan-edit';
-import {
-  draftOf,
-  equalsPreset,
-  offsetOf,
-  prefilled,
-  presetOf,
-  sameDraft,
-  wallClock,
-  withDraft,
-  type LightSchedule,
-  type TargetsDraft,
-} from './targets-draft';
+import { draftOf, equalsPreset, prefilled, presetOf, sameDraft, withDraft, type LightSchedule, type TargetsDraft } from './targets-draft';
 import day from './DayNight.module.css';
 import styles from './Targets.module.css';
-import { deviceName } from '@/screens/devices/naming';
 import { fieldValue } from '@/ui/advanced/field-values';
-import { targetFigure } from '@/screens/home/units';
+import { targetFigure } from '@/ui/units';
 
 /**
  * The targets a tent is held at: what the Control tab opens on, unless a plan
@@ -92,10 +84,8 @@ export function Targets({
     device.configuration && statesTargets(device.configuration) ? [{ device, configuration: device.configuration }] : [],
   );
   // Which of those two it is matters, because only one of them is anybody's to
-  // do something about: a controller reporting 25.1 °C a tab away, whose
-  // document has simply not arrived yet, was told that nothing standing here
-  // states a climate and offered a second device it has no use for. The
-  // Devices tab of the same tent has always said this correctly.
+  // do something about: a controller whose document has simply not arrived yet
+  // is waited for, not told that nothing standing here states a climate.
   const waiting = devices.filter(awaitingClimate);
   // The panels whose figures stand somewhere nobody has saved, so that leaving the page asks first.
   const [unsaved, setUnsaved] = useState<ReadonlyMap<string, Unsaved>>(new Map());
@@ -165,12 +155,7 @@ export function Targets({
             </p>
           ))
         ) : (
-          <p className={`${ui.cardDashed} ${ui.note}`}>
-            {t('targets.nothing')}{' '}
-            <Link to="/claim" className={styles.addDevice}>
-              {t('space.control.noControllerAdd')}
-            </Link>
-          </p>
+          <AddDeviceNote>{t('targets.nothing')}</AddDeviceNote>
         )}
         <DevicesAdvanced devices={devices} />
       </div>
@@ -254,7 +239,7 @@ function DevicesAdvanced({ devices }: { devices: Device[] }) {
 /** The hardware that has a panel of its own here instead of targets. */
 const OWN_PANEL_TYPES = ['plug', 'light'];
 
-function OwnPanelOf(props: React.ComponentProps<typeof PlugPanel>) {
+function OwnPanelOf(props: OwnPanelProps) {
   return props.device.type === 'plug' ? <PlugPanel {...props} /> : <LightPanel {...props} />;
 }
 
@@ -440,13 +425,6 @@ function Panel({
     }
   };
 
-  // Handed up while there is something to lose, so that leaving the page asks
-  // about it. The save is read through a ref, because the draft it sends is the
-  // one standing when the question is answered and not when it was first asked.
-  const latest = useRef(commit);
-  useEffect(() => {
-    latest.current = commit;
-  });
   // A link that names the chips - the climate preset of the place menu - lands on them once they are drawn.
   const { hash } = useLocation();
   const presets = useRef<HTMLDivElement>(null);
@@ -455,12 +433,7 @@ function Panel({
     if (anchor && drawn && hash === '#presets') presets.current?.scrollIntoView({ block: 'center' });
   }, [anchor, drawn, hash]);
 
-  const unsaved = dirty && mayManage;
-  useEffect(() => {
-    if (!unsaved) return;
-    report(device.id, { save: () => latest.current(), discard: () => setEdit(null) });
-    return () => report(device.id, null);
-  }, [unsaved, device.id, report]);
+  useReportUnsaved(report, device.id, dirty && mayManage, { save: commit, discard: () => setEdit(null) });
 
   const bar = useRef<HTMLDivElement>(null);
   const touched = useKeepInView(bar, dirty, editing?.draft ?? null);

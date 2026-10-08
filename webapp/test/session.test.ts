@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionResult, SessionTokens, SessionUser } from '@fg2/shared-types/v1';
+import { DAY_MS, MINUTE_MS } from '@/ui/days';
 
 /**
  * What a picture's address survives.
@@ -13,9 +14,6 @@ import type { SessionResult, SessionTokens, SessionUser } from '@fg2/shared-type
  * The store is a module-level singleton, so each test imports its own copy
  * after `vi.resetModules()` rather than trying to empty the one before it.
  */
-
-const MINUTE_MS = 60 * 1000;
-const DAY_MS = 24 * 60 * MINUTE_MS;
 
 const USER: SessionUser = { id: 'user-1', handle: 'you', isAdmin: false, isDemo: false };
 

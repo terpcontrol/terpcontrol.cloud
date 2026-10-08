@@ -6,17 +6,21 @@ import { Link } from 'react-router';
 import type { User } from '@fg2/shared-types/v1';
 import { useAdminCameras, useAdminDevices, useAdminStats, useAdminUsers, useDeviceClasses, useFirmwares, useFleet } from '@/api/admin';
 import { fetchedAt } from '@/api/clock';
+import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSession } from '@/api/session';
+import type { Translate } from '@/i18n/i18n';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { RefreshFailed } from '@/ui/PageState';
+import { Choice } from '@/ui/SheetParts';
+import { AdminHead, AdminNotLoaded, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { filteredRows, fleetRows, NO_FILTER, typesOf, type FleetFilter, type FleetRow } from './fleet-rows';
 import { HealthCard } from './HealthCard';
 import { NoMatch } from './NoMatch';
-import { useFollowCursor } from './pages';
 import { RolloutCard } from './RolloutCard';
+import { typeName } from '@/ui/naming';
 import styles from './Admin.module.css';
 
 /**
@@ -66,37 +70,20 @@ export function Fleet() {
   useFollowCursor(firmwares);
   useReportFreshness(fleet.dataUpdatedAt ? fetchedAt(fleet.dataUpdatedAt) : null);
 
-  const header = (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{t('admin.fleet.title')}</h1>
-    </header>
-  );
+  const header = <AdminHead title={t('admin.fleet.title')} />;
 
-  if (fleet.isPending || devices.isPending) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <Waiting lines={4} />
-      </section>
-    );
-  }
+  if (fleet.isPending || devices.isPending) return <AdminNotLoaded head={header} />;
 
-  if (!fleet.data || !devices.data) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <LoadFailed retry={() => void fleet.refetch()} />
-      </section>
-    );
-  }
+  if (!fleet.data || !devices.data) return <AdminNotLoaded head={header} retry={() => void fleet.refetch()} />;
 
-  const known: Map<string, User> = new Map((people.data?.pages ?? []).flatMap(page => page.items).map(one => [one.id, one]));
-  const loadedCameras = (cameras.data?.pages ?? []).flatMap(page => page.items);
+  const known: Map<string, User> = new Map(itemsOf(people.data).map(one => [one.id, one]));
+  const allDevices = itemsOf(devices.data);
+  const allFirmwares = itemsOf(firmwares.data);
   const rows = fleetRows({
-    devices: devices.data.pages.flatMap(page => page.items),
-    cameras: loadedCameras,
+    devices: allDevices,
+    cameras: itemsOf(cameras.data),
     classes: classes.data?.items ?? [],
-    firmwares: (firmwares.data?.pages ?? []).flatMap(page => page.items),
+    firmwares: allFirmwares,
     people: known,
     readerId: user?.id ?? null,
   });
@@ -107,13 +94,12 @@ export function Fleet() {
 
   return (
     <section className={styles.page}>
-      <header className={styles.head}>
-        <h1 className={styles.title}>{t('admin.fleet.title')}</h1>
+      <AdminHead title={t('admin.fleet.title')}>
         <span className={`mono ${styles.counts}`}>
           {`${t('admin.count.devices', { count: counted })} · ${t('admin.count.online', { count: online })}`}
         </span>
         <Filters filter={filter} onChange={setFilter} types={typesOf(rows)} />
-      </header>
+      </AdminHead>
 
       <RefreshFailed failedAt={fleet.isError ? fleet.dataUpdatedAt : null} now={now} />
 
@@ -128,8 +114,8 @@ export function Fleet() {
               <th>{t('admin.fleet.column.lastSeen')}</th>
               <th>{t('admin.fleet.column.sockets')}</th>
               {/* The arrows say what the column does; its name is there for a screen reader and costs the row no width. */}
-              <th className={styles.openHead}>
-                <span>{t('admin.fleet.column.open')}</span>
+              <th>
+                <span className={ui.visuallyHidden}>{t('admin.fleet.column.open')}</span>
               </th>
             </tr>
           </thead>
@@ -175,14 +161,8 @@ export function Fleet() {
       </div>
 
       <div className={styles.cards}>
-        <RolloutCard
-          fleet={fleet.data}
-          classes={classes.data?.items ?? []}
-          devices={devices.data.pages.flatMap(page => page.items)}
-          firmwares={(firmwares.data?.pages ?? []).flatMap(page => page.items)}
-          now={now}
-        />
-        <HealthCard fleet={fleet.data} devices={devices.data.pages.flatMap(page => page.items)} stats={stats} now={now} />
+        <RolloutCard fleet={fleet.data} classes={classes.data?.items ?? []} devices={allDevices} firmwares={allFirmwares} now={now} />
+        <HealthCard fleet={fleet.data} devices={allDevices} stats={stats} now={now} />
       </div>
     </section>
   );
@@ -208,23 +188,13 @@ function Filters({ filter, onChange, types }: { filter: FleetFilter; onChange: (
         ))}
       </select>
 
-      <button
-        type="button"
-        className={`${ui.chip} ${filter.quiet ? styles.chipOn : ''}`}
-        aria-pressed={filter.quiet}
-        onClick={() => onChange({ ...filter, quiet: !filter.quiet })}
-      >
+      <Choice chosen={filter.quiet} onChoose={() => onChange({ ...filter, quiet: !filter.quiet })}>
         {t('admin.fleet.filter.quiet')}
-      </button>
+      </Choice>
 
-      <button
-        type="button"
-        className={`${ui.chip} ${filter.behind ? styles.chipOn : ''}`}
-        aria-pressed={filter.behind}
-        onClick={() => onChange({ ...filter, behind: !filter.behind })}
-      >
+      <Choice chosen={filter.behind} onChoose={() => onChange({ ...filter, behind: !filter.behind })}>
         {t('admin.fleet.filter.behind')}
-      </button>
+      </Choice>
 
       <input
         className={`mono ${ui.input} ${styles.search}`}
@@ -239,13 +209,9 @@ function Filters({ filter, onChange, types }: { filter: FleetFilter; onChange: (
   );
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /** A type is the firmware's own word for itself, or a camera kind. Neither is a sentence, so both are translated where there is a word for them. */
 const typeLabel = (type: string, t: Translate): string =>
-  type.startsWith('terpcam') || type === 'rtsp'
-    ? t(`devices.cameraKind.${type}`, { defaultValue: type })
-    : t(`devices.type.${type}`, { defaultValue: type });
+  type.startsWith('terpcam') || type === 'rtsp' ? t(`devices.cameraKind.${type}`, { defaultValue: type }) : typeName(type, t);
 
 function Row({ row, now }: { row: FleetRow; now: DateTime }) {
   const { t } = useTranslation();
@@ -267,24 +233,15 @@ function Row({ row, now }: { row: FleetRow; now: DateTime }) {
           this install has one. */}
       <td className="mono">{row.firmwareName ?? row.firmwareId ?? '—'}</td>
       <td>
-        <span className={`mono ${styles.liveness}`} data-liveness={liveness}>
-          <span className={styles.dot} aria-hidden />
-          {row.lastSeenAt ? ageLabel(row.lastSeenAt, now) : t('admin.fleet.neverSeen')}
-        </span>
+        <Liveness state={liveness}>{row.lastSeenAt ? ageLabel(row.lastSeenAt, now) : t('admin.fleet.neverSeen')}</Liveness>
       </td>
       <td className={`mono ${styles.numbers}`}>
         {row.sockets ?? '—'} · {row.cams ?? '—'}
       </td>
       <td>
-        {row.opens ? (
-          <Link className={styles.chevron} to={row.opens} aria-label={t('admin.fleet.open', { id: row.id })}>
-            <ChevronRight size={16} strokeWidth={2} aria-hidden />
-          </Link>
-        ) : (
-          <span className={`mono ${styles.noWhere}`} title={t('admin.fleet.noPlace')}>
-            —
-          </span>
-        )}
+        <Link className={styles.chevron} to={row.opens} aria-label={t('admin.fleet.open', { id: row.id })}>
+          <ChevronRight size={16} strokeWidth={2} aria-hidden />
+        </Link>
       </td>
     </tr>
   );

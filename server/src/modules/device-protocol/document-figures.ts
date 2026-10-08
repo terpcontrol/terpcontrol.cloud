@@ -1,5 +1,6 @@
 import type { DeviceConfiguration, ProblemError } from '@fg2/shared-types/v1';
-import { MOST_TIMER_WINDOWS } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { isSection, MOST_TIMER_WINDOWS, nestedAt, PLUG_SWITCHING } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { DAY_SECONDS } from '@fg2/shared-types/v1-schemas/day-night.js';
 
 /**
  * What each type's firmware reads out of its configuration document, place by
@@ -65,7 +66,6 @@ export type DocumentFigure = NumberFigure | FlagFigure | WordFigure | WindowsFig
 export type DocumentFigures = Readonly<Record<string, DocumentFigure>>;
 
 const UINT32_MAX = 4_294_967_295;
-const DAY_SECONDS = 24 * 60 * 60;
 
 const number = (min: number, max: number): NumberFigure => ({ kind: 'number', min, max });
 const FLAG: FlagFigure = { kind: 'flag' };
@@ -120,8 +120,6 @@ const FRIDGE: DocumentFigures = {
 
 const CONTROLLER: DocumentFigures = CLIMATE;
 
-const SWITCH_TEMPERATURE = TEMPERATURE;
-
 const PLUG: DocumentFigures = {
   mqttcontrol: FLAG,
   // The socket's own modes (`MODE_*` in plug.h).
@@ -131,10 +129,10 @@ const PLUG: DocumentFigures = {
   'daynight.night': TIME,
   'timer.timeframes': { kind: 'windows', most: MOST_TIMER_WINDOWS, ontime: number(0, DAY_SECONDS), duration: number(0, 24 * 60) },
   ...Object.fromEntries(
-    (['heater', 'cooler', 'humidify', 'dehumidify'] as const).flatMap(mode =>
+    PLUG_SWITCHING.flatMap(mode =>
       ['day.on', 'day.off', 'night.on', 'night.off'].map(point => [
         `${mode}.${point}`,
-        mode === 'heater' || mode === 'cooler' ? SWITCH_TEMPERATURE : HUMIDITY,
+        mode === 'heater' || mode === 'cooler' ? TEMPERATURE : HUMIDITY,
       ]),
     ),
   ),
@@ -207,17 +205,11 @@ export const DOCUMENT_FIGURES: Readonly<Record<string, DocumentFigures>> = {
 export const TEMPLATE_FIGURES: DocumentFigures = { ...FAN, ...CONTROLLER, ...FRIDGE };
 
 /** The figures a type's firmware reads; none for a type this table does not know, whose document is kept as it comes. */
-export const documentFiguresOf = (type: string): DocumentFigures => DOCUMENT_FIGURES[type] ?? {};
+const documentFiguresOf = (type: string): DocumentFigures => DOCUMENT_FIGURES[type] ?? {};
 
 /* ----------------------------------------------------------------- reading */
 
-const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
-
-/** The value at a dotted place, or undefined where the document does not reach it. */
-const valueAt = (document: unknown, path: string): unknown =>
-  path.split('.').reduce<unknown>((node, key) => (isSection(node) ? node[key] : undefined), document);
 
 /** The sections a table reads into, by their dotted places: `limits` and `limits.overtemperature` for a socket's. */
 const sectionsOf = (figures: DocumentFigures): string[] => [
@@ -311,18 +303,18 @@ export const figureRefusals = (
 
   if (!isSection(document)) return [{ field, code: 'invalid_type', detail: 'The settings of a device are an object.' }];
 
-  const unchanged = (path: string, value: unknown): boolean => stored !== null && JSON.stringify(valueAt(stored, path)) === JSON.stringify(value);
+  const unchanged = (path: string, value: unknown): boolean => stored !== null && JSON.stringify(nestedAt(stored, path)) === JSON.stringify(value);
 
   // A place under a section that is not one reads as nothing, so only the section itself is named.
   for (const section of sectionsOf(figures)) {
-    const value = valueAt(document, section);
+    const value = nestedAt(document, section);
     if (value !== undefined && !isSection(value) && !unchanged(section, value)) {
       errors.push({ field: name(section), code: 'invalid_type', detail: `The ${type} reads this as a section of its settings: an object.` });
     }
   }
 
   for (const [path, figure] of Object.entries(figures)) {
-    const value = valueAt(document, path);
+    const value = nestedAt(document, path);
     if (value === undefined || unchanged(path, value)) continue;
     const fault = faultOf(value, figure, type, true);
     if (fault) errors.push({ field: name(path), ...fault });
@@ -380,14 +372,14 @@ export const withFiguresHeld = (
   const dropped: string[] = [];
 
   for (const [path, figure] of Object.entries(figures)) {
-    const value = valueAt(next, path);
+    const value = nestedAt(next, path);
     if (value === undefined) continue;
     const read = readable(value, figure);
     if (faultOf(read, figure, type, false) === null) {
       if (read !== value) next = withValueAt(next, path.split('.'), read);
       continue;
     }
-    const kept = readable(valueAt(fallback, path), figure);
+    const kept = readable(nestedAt(fallback, path), figure);
     next = withValueAt(next, path.split('.'), kept !== undefined && faultOf(kept, figure, type, false) === null ? kept : undefined);
     dropped.push(path);
   }

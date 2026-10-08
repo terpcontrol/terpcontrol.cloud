@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { refusalCode } from '@/api/plans';
+import { refusalCode } from '@/api/problem';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import styles from './Control.module.css';

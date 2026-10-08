@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
-import { useRead, useReadPages } from './read';
+import { FOLLOWED, useRead, useReadPages } from './read';
 import type {
   Camera,
   CameraCreate,
@@ -14,8 +14,9 @@ import type {
   TimelapseCreate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
-import { PAGE_LIMIT } from './pages';
+import { readEvery } from './pages';
 import { ApiError } from './problem';
+import { invalidate, useWrite } from './write';
 
 /**
  * The cameras of an account, one camera's page, and the films it is asked for.
@@ -24,7 +25,7 @@ import { ApiError } from './problem';
  * old a picture may be is the camera's own `stillIntervalSeconds` and not the
  * two minutes a sensor reading is judged by.
  */
-export const CAMERAS_REFRESH_MS = 30_000;
+const CAMERAS_REFRESH_MS = 30_000;
 
 /**
  * How long a test picture is waited for: the read the server makes of a camera
@@ -48,15 +49,16 @@ export class NoAnswerInTime extends Error {
 /** Whether a call was given up on by this side rather than answered by the other. */
 export const gaveUp = (error: unknown): boolean => error instanceof NoAnswerInTime;
 
-/** A render is minutes of ffmpeg, so the job is polled rather than waited for. */
-export const RENDER_POLL_MS = 5_000;
-
-export const useCameras = (spaceId?: string) =>
-  useRead({
+export const camerasQuery = (spaceId?: string) =>
+  queryOptions({
     queryKey: ['cameras', spaceId ?? null],
     queryFn: ({ signal }) => api.get<CameraPage>('/cameras', spaceId ? { spaceId } : undefined, signal),
-    refetchInterval: CAMERAS_REFRESH_MS,
   });
+
+export const useCameras = (spaceId?: string) => useRead({ ...camerasQuery(spaceId), refetchInterval: CAMERAS_REFRESH_MS });
+
+/** Every camera, followed rather than polled: how many there are and what they are called, for the navigation and a camera's name. */
+export const useCamerasShape = (enabled = true) => useQuery({ ...camerasQuery(), ...FOLLOWED, enabled });
 
 /**
  * The cameras this account had at the moment this was first read, and never
@@ -88,24 +90,17 @@ export const useCamera = (cameraId: string) =>
   });
 
 /**
- * The largest page the route will answer, whatever a client asks for. One
- * figure, kept beside the rest of the paging in `pages.ts`, rather than a
- * second copy of a number the API now states on the `limit` parameter itself.
- */
-const FRAMES_PER_PAGE = PAGE_LIMIT;
-
-/**
- * How many of those pages one day is walked over before the walk gives up. A
- * camera asked for a picture every thirty seconds delivers 2,880 a day, so this
+ * How many pages one day is walked over before the walk gives up. A camera
+ * asked for a picture every thirty seconds delivers 2,880 a day, so this
  * reaches the end of any ordinary day in a handful of reads; the cap is there
  * only so that a day nobody expected - two cameras writing into one, a shorter
  * interval than the pipeline promises - cannot turn one screen into an
  * unbounded run of requests.
  */
-export const MAX_FRAME_PAGES = 15;
+const MAX_FRAME_PAGES = 15;
 
 /** A day of stills, and whether the walk reached the end of it. */
-export interface CameraDay {
+interface CameraDay {
   items: Media[];
   /** The cap stopped the walk with rows still to come, so the count is a floor and not the day's total. */
   partial: boolean;
@@ -150,34 +145,27 @@ export const useCameraFrames = (cameraId: string, span: { startsAt: string; ends
       // ids are what tell the two apart rather than the instant, because two
       // stills of one second are two rows.
       const from = held?.items[0]?.capturedAt ?? span.startsAt;
-      const fresh: Media[] = [];
-      let cursor: string | null = null;
+      const { items: fresh, complete } = await readEvery<Media>(
+        `/cameras/${cameraId}/frames`,
+        signal,
+        { startsAt: from, endsAt: span.endsAt },
+        MAX_FRAME_PAGES,
+      );
 
-      for (let page = 0; page < MAX_FRAME_PAGES; page += 1) {
-        const answer: MediaPage = await api.get<MediaPage>(
-          `/cameras/${cameraId}/frames`,
-          { startsAt: from, endsAt: span.endsAt, limit: FRAMES_PER_PAGE, cursor },
-          signal,
-        );
-        fresh.push(...answer.items);
-        cursor = answer.nextCursor;
-        if (!cursor) break;
-      }
-
-      if (!held) return { items: fresh, partial: cursor !== null };
+      if (!held) return { items: fresh, partial: !complete };
 
       const known = new Set(held.items.map(one => one.id));
 
       // A day the first walk never reached the end of stays a floor, because
       // the tail says nothing about the morning it stopped short of.
-      return { items: [...fresh.filter(one => !known.has(one.id)), ...held.items], partial: held.partial || cursor !== null };
+      return { items: [...fresh.filter(one => !known.has(one.id)), ...held.items], partial: held.partial || !complete };
     },
     refetchInterval: CAMERAS_REFRESH_MS,
   });
 };
 
 /** A screenful of films, which is also the largest page the composer's own list needs. */
-export const TIMELAPSES_PER_PAGE = 20;
+const TIMELAPSES_PER_PAGE = 20;
 
 /**
  * The films of one camera, newest first and continued by the cursor the route
@@ -194,81 +182,32 @@ export const useTimelapses = (cameraId: string) =>
     getNextPageParam: last => last.nextCursor,
   });
 
-/** One media row, polled while its render is still going and left alone once it is not. */
-export const useMedia = (mediaId: string | null) =>
-  useRead({
-    queryKey: ['media', mediaId],
-    queryFn: ({ signal }) => api.get<Media>(`/media/${mediaId}`, undefined, signal),
-    enabled: mediaId !== null,
-    refetchInterval: query => (isRendering(query.state.data) ? RENDER_POLL_MS : false),
-  });
-
-export const isRendering = (media: Media | undefined): boolean => media?.render?.status === 'queued' || media?.render?.status === 'rendering';
+const cameraSaved = (client: QueryClient, camera: Camera) => {
+  client.setQueryData(['camera', camera.id], camera);
+  void invalidate(client, ['cameras']);
+};
 
 /**
  * Adding a camera: the Terp Cam a controller has paired, which this adopts
  * rather than doubling, or a stream at an address. What comes back is the whole
  * camera, so the screen that made it can go straight to its page.
  */
-export const useCreateCamera = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: CameraCreate) => api.post<Camera>('/cameras', body),
-    onSuccess: created => {
-      queryClient.setQueryData(['camera', created.id], created);
-      void queryClient.invalidateQueries({ queryKey: ['cameras'] });
-    },
-  });
-};
+export const useCreateCamera = () => useWrite((body: CameraCreate) => api.post<Camera>('/cameras', body), cameraSaved);
 
 /**
- * The same change as `useUpdateCamera`, for a screen that learns which camera
- * it is about only while it is running: the camera being set up is made by the
- * tap that tests it, so the id cannot be named when the hook is called.
+ * Changing a camera, and taking one away. The camera is named in the call
+ * rather than in the hook, because a screen may learn which camera it is about
+ * only while it is running: the camera being set up is made by the tap that
+ * tests it, so the id cannot be named when the hook is called.
  */
-export const useAmendCamera = () => {
-  const queryClient = useQueryClient();
+export const useUpdateCamera = () =>
+  useWrite(({ cameraId, body }: { cameraId: string; body: CameraUpdate }) => api.patch<Camera>(`/cameras/${cameraId}`, body), cameraSaved);
 
-  return useMutation({
-    mutationFn: ({ cameraId, body }: { cameraId: string; body: CameraUpdate }) => api.patch<Camera>(`/cameras/${cameraId}`, body),
-    onSuccess: camera => {
-      queryClient.setQueryData(['camera', camera.id], camera);
-      void queryClient.invalidateQueries({ queryKey: ['cameras'] });
-    },
-  });
-};
-
-export const useUpdateCamera = (cameraId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: CameraUpdate) => api.patch<Camera>(`/cameras/${cameraId}`, body),
-    onSuccess: camera => {
-      queryClient.setQueryData(['camera', cameraId], camera);
-      void queryClient.invalidateQueries({ queryKey: ['cameras'] });
-    },
-  });
-};
-
-export const useRemoveCamera = (cameraId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => api.delete(`/cameras/${cameraId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cameras'] }),
-  });
-};
-
-/** Taking one away again by an id the screen only learns while it is running, for the same reason `useAmendCamera` exists. */
-export const useDropCamera = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (cameraId: string) => api.delete(`/cameras/${cameraId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cameras'] }),
-  });
-};
+export const useRemoveCamera = () =>
+  useWrite(
+    (cameraId: string) => api.delete(`/cameras/${cameraId}`),
+    client => invalidate(client, ['cameras']),
+  );
 
 /**
  * Waits `ms`, or rejects as soon as the screen that is waiting goes away. A
@@ -337,22 +276,21 @@ const useWaitSignal = () => {
  * has opened.
  */
 export const useTestCapture = (cameraId: string) => {
-  const queryClient = useQueryClient();
   const signal = useWaitSignal();
 
-  return useMutation({
-    mutationFn: () => takeTestPicture(cameraId, signal()),
-    onSuccess: () =>
-      void queryClient.invalidateQueries({
+  return useWrite(
+    () => takeTestPicture(cameraId, signal()),
+    client =>
+      void client.invalidateQueries({
         predicate: query => {
           const [what, id, part] = query.queryKey as [string, string | undefined, string | undefined];
           return what === 'camera' && id === cameraId && part !== 'timelapses';
         },
       }),
-  });
+  );
 };
 
-/** A picture from a camera named as the request is made, for the same reason `useAmendCamera` exists. */
+/** A picture from a camera named as the request is made, for the same reason `useUpdateCamera` takes its camera in the call. */
 export const useCaptureOnce = () => {
   const signal = useWaitSignal();
 
@@ -364,17 +302,14 @@ export const useCaptureOnce = () => {
  * row of the film: queued when this request made it, and the one that was
  * already there when it did not.
  */
-export const useRequestTimelapse = (cameraId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: TimelapseCreate) => api.post<TimelapseAccepted>(`/cameras/${cameraId}/timelapses`, body),
-    onSuccess: accepted => {
-      queryClient.setQueryData(['media', accepted.media.id], accepted.media);
-      void queryClient.invalidateQueries({ queryKey: ['camera', cameraId, 'timelapses'] });
+export const useRequestTimelapse = (cameraId: string) =>
+  useWrite(
+    (body: TimelapseCreate) => api.post<TimelapseAccepted>(`/cameras/${cameraId}/timelapses`, body),
+    (client, accepted) => {
+      client.setQueryData(['media', accepted.media.id], accepted.media);
+      void invalidate(client, ['camera', cameraId, 'timelapses']);
     },
-  });
-};
+  );
 
 /**
  * The newest picture of each of several cameras, which is the thumbnail on a

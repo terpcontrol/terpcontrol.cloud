@@ -1,21 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { MyGrowCard, MyGrowPage, MyGrowPlace, Person, StrainCount, UserPrivacy } from '@fg2/shared-types/v1';
+import type { MyGrowCard, MyGrowPage, MyGrowPlace, Person, StrainCount } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
-import { CursorPage, decodeCursor, encodeCursor, pageLimit, PagePosition } from '@common/v1/pages';
+import { CursorPage, decodeCursor, pageLimit, pageOf, PagePosition } from '@common/v1/pages';
+import { peopleNamed } from '@common/v1/people';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { GrowDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
-import { harvestOf } from '../diary/report.service';
-import { NOTHING_HIDDEN, Redaction, redactionOf, summaryOf } from '../grow/grow-serialiser';
+import { Redaction, harvestOf, summaryOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
+import { ownerRedactions } from '../grow/redactions';
 
 /** Every window a harvest may fall in: the reader of this list owns the grows or is let in where they stand. */
 const WHOLE_LIFE = { startsAt: null, endsAt: null };
@@ -69,7 +70,14 @@ export class MyGrowsService {
       // A camera that has since been removed is a tombstone whose pictures keep their link, so it is asked as well.
       this.cameras.find({ spaceId: { $in: spaceIds } }, { id: 1, spaceId: 1 }).lean<Pick<CameraDocument, 'id' | 'spaceId'>[]>(),
       this.newestPhotos(ids),
-      this.redactionFor(ctx, grows),
+      // The list only ever holds what the reader owns or is a member where it
+      // stands, so the demo tour is the one reader anything is hidden from - as
+      // on the grow list.
+      ownerRedactions(
+        this.users,
+        ctx.isDemo,
+        grows.map(grow => grow.ownerId),
+      ),
       this.ownersOf(ctx, grows),
     ]);
     const stills = new Map(await Promise.all(grows.map(async grow => [grow.id, await this.newestLitStill(grow, cameras, now)] as const)));
@@ -135,32 +143,14 @@ export class MyGrowsService {
   }
 
   /**
-   * Whose privacy applies to each grow. The list only ever holds what the
-   * reader owns or is a member where it stands, so the demo tour is the one
-   * reader anything is hidden from - as on the grow list.
-   */
-  private async redactionFor(ctx: AccessContext, grows: GrowDocument[]): Promise<(ownerId: string) => Redaction> {
-    if (!ctx.isDemo) return () => NOTHING_HIDDEN;
-
-    const owners = await this.users
-      .find({ id: { $in: [...new Set(grows.map(grow => grow.ownerId))] } }, { id: 1, privacy: 1 })
-      .lean<Pick<StoredUser, 'id' | 'privacy'>[]>();
-    const privacy = new Map(owners.map(owner => [owner.id, owner.privacy as UserPrivacy]));
-    return ownerId => redactionOf(true, privacy.get(ownerId));
-  }
-
-  /**
    * Who runs the grows that are not the reader's own. The demo tour is shown
    * its grows as its own, because whose they are is not what it is touring.
    */
   private async ownersOf(ctx: AccessContext, grows: GrowDocument[]): Promise<Map<string, Person>> {
     if (ctx.isDemo || ctx.userId === null) return new Map();
 
-    const others = [...new Set(grows.map(grow => grow.ownerId).filter(ownerId => ownerId !== ctx.userId))];
-    if (others.length === 0) return new Map();
-
-    const people = await this.users.find({ id: { $in: others } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
-    return new Map(people.map(person => [person.id, { id: person.id, handle: person.handle }]));
+    const others = grows.map(grow => grow.ownerId).filter(ownerId => ownerId !== ctx.userId);
+    return new Map((await peopleNamed(this.users, others)).map(person => [person.id, person]));
   }
 }
 
@@ -198,8 +188,7 @@ const pageAfter = (ordered: Ordered[], query: PageQuery): CursorPage<Ordered> =>
     rest = ordered.filter(grow => compareKeys({ ...keyOf(grow), id: grow.id }, after) > 0);
   }
 
-  const items = rest.slice(0, limit);
-  return { items, nextCursor: rest.length > limit ? encodeCursor(positionOf(items[items.length - 1])) : null };
+  return pageOf(rest, limit, positionOf);
 };
 
 /**
@@ -209,7 +198,7 @@ const pageAfter = (ordered: Ordered[], query: PageQuery): CursorPage<Ordered> =>
  * rather than named wrongly.
  */
 const placesOf = (grow: GrowDocument, locations: { spaceId: string | null }[], spaces: Pick<SpaceDocument, 'id' | 'name'>[]): MyGrowPlace[] => {
-  const last = grow.placements.reduce<GrowDocument['placements'][number] | null>(
+  const last = grow.placements.reduce<PlacementDocument | null>(
     (latest, placement) => (latest && (latest.endedAt?.getTime() ?? 0) >= (placement.endedAt?.getTime() ?? 0) ? latest : placement),
     null,
   );

@@ -1,12 +1,5 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime, Settings } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Device, GrowListItem, Plant } from '@fg2/shared-types/v1';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
@@ -16,7 +9,10 @@ import { RenameSheet } from '@/screens/grow/RenameSheet';
 import { SplitSheet } from '@/screens/grow/SplitSheet';
 import { PhaseSheet } from '@/screens/grow/PhaseSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
+import { deviceWith } from './fixtures';
+import { drawAt, json } from './harness';
 import { spaceWhere } from './session';
+import { translate } from './translations';
 
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN } = await import('./session');
@@ -102,19 +98,7 @@ const plant = (id: string, label: string, over: Partial<Plant> = {}): Plant => (
 
 const plants = [plant('plant-1', 'Amnesia 1'), plant('plant-2', 'Amnesia 2'), plant('plant-3', 'Gelato 1', { strain: 'Gelato' })];
 
-const draw = (node: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>{node}</MemoryRouter>
-    </QueryClientProvider>,
-  );
-
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 /**
  * The name, which is the one thing about a grow the app could not change.
@@ -127,7 +111,7 @@ beforeAll(async () => {
  */
 describe('renaming a grow', () => {
   it('is offered beside the other moves, for a session that may make them', () => {
-    draw(<GrowLifecycle grow={grow} plants={plants} spaces={[]} />);
+    drawAt(<GrowLifecycle grow={grow} plants={plants} spaces={[]} />);
 
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
   });
@@ -142,11 +126,11 @@ describe('renaming a grow', () => {
           path: new URL(String(input), 'http://localhost').pathname,
           body: init?.body === undefined ? null : JSON.parse(String(init.body)),
         });
-        return new Response(JSON.stringify(grow), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        return json(grow);
       }),
     );
 
-    draw(<RenameSheet grow={grow} onClose={() => {}} />);
+    drawAt(<RenameSheet grow={grow} onClose={() => {}} />);
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '  Spring run, Amnesia  ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save the name' }));
 
@@ -158,7 +142,7 @@ describe('renaming a grow', () => {
   });
 
   it('will not save an empty name, nor the one the grow already has', () => {
-    draw(<RenameSheet grow={grow} onClose={() => {}} />);
+    drawAt(<RenameSheet grow={grow} onClose={() => {}} />);
 
     const save = screen.getByRole('button', { name: 'Save the name' });
     expect(save).toBeDisabled();
@@ -219,7 +203,7 @@ describe('what correcting a phase would move', () => {
 
 describe('the harvest sheet', () => {
   it('shares the total out over the plants named, before anything is sent', () => {
-    draw(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+    drawAt(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Amnesia 1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Amnesia 2' }));
@@ -230,7 +214,7 @@ describe('the harvest sheet', () => {
   });
 
   it('says the grow ends before the last plants come down, and on which day', () => {
-    draw(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+    drawAt(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
 
     expect(screen.getByText(/These are the last plants standing/)).toHaveTextContent('its day counter stops there');
     expect(screen.getByRole('button', { name: /end the grow/ })).toBeInTheDocument();
@@ -242,14 +226,14 @@ describe('the harvest sheet', () => {
       plants[1],
       plant('plant-3', 'Gelato 1', { status: 'harvested', harvest: { harvestedAt: at(1), wetWeightG: 90, dryWeightG: null } }),
     ];
-    draw(<HarvestSheet grow={grow} plants={down} onClose={() => {}} />);
+    drawAt(<HarvestSheet grow={grow} plants={down} onClose={() => {}} />);
 
     expect(screen.getByRole('button', { name: 'Gelato 1' })).toBeDisabled();
     expect(screen.getByText(/wet 90 g/)).toBeInTheDocument();
   });
 
   it('keeps the unit over the weights in the figure face', () => {
-    draw(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+    drawAt(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
 
     expect(screen.getByText('grams, as a total').className).toMatch(/mono/);
   });
@@ -268,7 +252,7 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
   });
 
   it('does not tell a running grow that every plant has already come down', () => {
-    draw(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
+    drawAt(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
 
     expect(screen.queryByText('Every plant of this grow has already come down.')).not.toBeInTheDocument();
     expect(screen.getByText(/No plants are recorded in this grow/)).toBeInTheDocument();
@@ -284,11 +268,11 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
           path: new URL(String(input), 'http://localhost').pathname,
           body: init?.body === undefined ? null : JSON.parse(String(init.body)),
         });
-        return new Response(JSON.stringify(grow), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        return json(grow);
       }),
     );
 
-    draw(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
+    drawAt(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'End the grow' }));
 
     // The server refuses a harvest with nothing in it, so this goes to the grow
@@ -303,7 +287,7 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
   });
 
   it('says when a grow that is already over ended, rather than offering to end it a second time', () => {
-    draw(<HarvestSheet grow={{ ...grow, endedAt: at(2) }} plants={[]} onClose={() => {}} />);
+    drawAt(<HarvestSheet grow={{ ...grow, endedAt: at(2) }} plants={[]} onClose={() => {}} />);
 
     expect(screen.getByText('It ended on 16 Sep 2026.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'End the grow' })).not.toBeInTheDocument();
@@ -319,7 +303,7 @@ describe('the split sheet over a grow whose record carries no plants', () => {
   const tent = spaceWhere('own', { name: 'Blue Dream tent' });
 
   it('says so and offers nothing, the way the harvest sheet does over the same record', () => {
-    draw(<SplitSheet grow={grow} plants={[]} spaces={[tent]} onClose={() => {}} />);
+    drawAt(<SplitSheet grow={grow} plants={[]} spaces={[tent]} onClose={() => {}} />);
 
     expect(screen.getByText(/No plants are recorded in this grow, so there is nothing here to split off/)).toBeInTheDocument();
     // Not the picker, not the phase or place chips, and no button that leads to
@@ -330,7 +314,7 @@ describe('the split sheet over a grow whose record carries no plants', () => {
   });
 
   it('is the whole sheet for a grow that does have plants', () => {
-    draw(<SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(<SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
 
     expect(screen.getByRole('button', { name: /Split off/ })).toBeInTheDocument();
     expect(screen.queryByText(/No plants are recorded/)).not.toBeInTheDocument();
@@ -351,27 +335,27 @@ describe('the move sheet of a grow that has ended', () => {
   };
 
   it('names the place it stood in, as the header behind it and its own history do', () => {
-    draw(<MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(<MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />);
 
     expect(screen.getByText('stood in Blue Dream tent')).toBeInTheDocument();
     expect(screen.queryByText('Standing in No fixed place')).not.toBeInTheDocument();
   });
 
   it('still says in the present where a running grow stands', () => {
-    draw(<MoveSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(<MoveSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
 
     expect(screen.getByText('Standing in Blue Dream tent')).toBeInTheDocument();
   });
 
   it('offers no move of its own, only the rows of where it stood', () => {
-    draw(<MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(<MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />);
 
     expect(screen.queryByRole('button', { name: /^Move · / })).not.toBeInTheDocument();
     expect(screen.getByText(/This grow has ended, so it does not move any more/)).toBeInTheDocument();
   });
 
   it('is offered a phase, a move and a new name, but no split and no harvest', () => {
-    draw(<GrowLifecycle grow={finished} plants={plants} spaces={[tent]} />);
+    drawAt(<GrowLifecycle grow={finished} plants={plants} spaces={[tent]} />);
 
     const offered = screen.getAllByRole('button').map(button => button.textContent);
     expect(offered).toEqual(['Phase', 'Move', 'Rename']);
@@ -379,7 +363,7 @@ describe('the move sheet of a grow that has ended', () => {
 
   /** "No fixed place" is a place a grow can be in, and a running grow that is in it says so. */
   it('says a running grow stands in no fixed place where that is what it does', () => {
-    draw(<MoveSheet grow={{ ...grow, summary: { ...grow.summary, locations: [] } }} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(<MoveSheet grow={{ ...grow, summary: { ...grow.summary, locations: [] } }} plants={plants} spaces={[tent]} onClose={() => {}} />);
 
     expect(screen.getByText('Standing in No fixed place')).toBeInTheDocument();
   });
@@ -396,7 +380,7 @@ describe('the phase sheet over a grow that has ended', () => {
   const finished: GrowListItem = { ...grow, endedAt: at(0) };
 
   it('says what the grow finished as and when, rather than what it is doing now', () => {
-    draw(<PhaseSheet grow={finished} onClose={() => {}} />);
+    drawAt(<PhaseSheet grow={finished} onClose={() => {}} />);
 
     expect(screen.getByText('Ended in Flower on day 35 of the grow · 18 Sep 2026')).toBeInTheDocument();
     expect(screen.queryByText(/^Now /)).not.toBeInTheDocument();
@@ -405,7 +389,7 @@ describe('the phase sheet over a grow that has ended', () => {
   });
 
   it('keeps the phase list repairable, worded as a record rather than a move, dated to the day it ended', () => {
-    draw(<PhaseSheet grow={finished} onClose={() => {}} />);
+    drawAt(<PhaseSheet grow={finished} onClose={() => {}} />);
 
     expect(screen.getByRole('button', { name: 'Record Drying' })).toBeEnabled();
     expect(screen.getByText(/This grow is over/)).toBeInTheDocument();
@@ -415,43 +399,28 @@ describe('the phase sheet over a grow that has ended', () => {
   });
 
   it('speaks in the present over a grow that is still running, which is what the ended wording is told against', () => {
-    draw(<PhaseSheet grow={grow} onClose={() => {}} />);
+    drawAt(<PhaseSheet grow={grow} onClose={() => {}} />);
 
     expect(screen.getByText('Now Flower · day 11 of the phase · day 35, week 5 of the grow')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Enter Drying' })).toBeInTheDocument();
   });
 });
 
-const standing = (over: Partial<Device> = {}): Device => ({
-  id: 'device-1',
-  createdAt: at(60),
-  type: 'controller',
-  classId: null,
-  serialNumber: 42,
-  ownerId: 'user-1',
-  spaceId: 'space-1',
-  name: 'Blue Dream controller',
-  firmware: { channel: 'stable', targetId: null },
-  configuration: { day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 } },
-  settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
-  state: {
-    lastSeenAt: at(0),
-    claimedAt: at(60),
-    firmwareId: 'build-1',
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
-    // With the sensor, which is what makes the preset's CO2 row one that is
-    // written at all: a controller reporting none holds its target at zero.
-    hardware: { co2: 'on' },
-    socketStateChangedAt: {},
-    socketsReportedAt: null,
-  },
-  ...over,
-});
+const standing = (over: Partial<Device> = {}): Device =>
+  deviceWith({
+    createdAt: at(60),
+    name: 'Blue Dream controller',
+    configuration: { day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 } },
+    state: {
+      lastSeenAt: at(0),
+      claimedAt: at(60),
+      firmwareId: 'build-1',
+      // With the sensor, which is what makes the preset's CO2 row one that is
+      // written at all: a controller reporting none holds its target at zero.
+      hardware: { co2: 'on' },
+    },
+    ...over,
+  });
 
 /**
  * Moving into a stage asks whether the tent's climate moves with it. Moving
@@ -480,7 +449,7 @@ describe('the climate beside a phase', () => {
 
   it('leaves the targets as they are unless a climate is chosen, and says what they stay at', () => {
     hardware.devices = [tent()];
-    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
 
     const choices = screen.getByRole('group', { name: 'Targets' });
     expect(within(choices).getByRole('button', { name: 'Leave as they are' })).toHaveAttribute('aria-pressed', 'true');
@@ -498,11 +467,11 @@ describe('the climate beside a phase', () => {
       'fetch',
       vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
         asked.push({ method: init?.method ?? 'GET', body: init?.body === undefined ? null : JSON.parse(String(init.body)) });
-        return new Response(JSON.stringify(phase('p3', 'flowering', 0)), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        return json(phase('p3', 'flowering', 0));
       }),
     );
     hardware.devices = [tent()];
-    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
     // A preset moves how long the light is on, never when it comes on: twelve hours from the device's six.
@@ -520,7 +489,7 @@ describe('the climate beside a phase', () => {
    */
   it('says what drying holds where the targets are left, and nothing of a light or a day', () => {
     hardware.devices = [tent()];
-    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
     expect(
@@ -543,11 +512,11 @@ describe('the climate beside a phase', () => {
       'fetch',
       vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
         asked.push({ method: init?.method ?? 'GET', body: init?.body === undefined ? null : JSON.parse(String(init.body)) });
-        return new Response(JSON.stringify(phase('p3', 'germination', 0)), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        return json(phase('p3', 'germination', 0));
       }),
     );
     hardware.devices = [{ ...tent(), type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } }];
-    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
 
     // The stage chip records the stage and is called by it; the one choice that darkens is the climate beside it.
     expect(screen.queryAllByRole('button', { name: 'Germination · dark' })).toHaveLength(0);
@@ -592,11 +561,11 @@ describe('the climate beside a phase', () => {
               nextCursor: null,
             }
           : phase('p3', 'germination', 0);
-        return new Response(JSON.stringify(answer), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        return json(answer);
       }),
     );
     hardware.devices = [{ ...tent(), type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } }];
-    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Germination · dark' }));
@@ -636,7 +605,7 @@ describe('the climate beside a phase', () => {
         },
       },
     ];
-    draw(<PhaseSheet grow={germinating} onClose={() => {}} />);
+    drawAt(<PhaseSheet grow={germinating} onClose={() => {}} />);
 
     const choices = screen.getByRole('group', { name: 'Targets' });
     expect(within(choices).getByRole('button', { name: 'Seedling · with light' })).toHaveAttribute('aria-pressed', 'true');
@@ -653,14 +622,14 @@ describe('the climate beside a phase', () => {
 
   it('is not asked where nothing standing there states a climate', () => {
     hardware.devices = [];
-    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
 
     expect(screen.queryByRole('group', { name: 'Targets' })).not.toBeInTheDocument();
   });
 
   it('says curing has no climate rather than offering one', () => {
     hardware.devices = [tent()];
-    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Curing' }));
     expect(screen.queryByRole('group', { name: 'Targets' })).not.toBeInTheDocument();

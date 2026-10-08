@@ -1,16 +1,11 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
+import { drawAt } from './harness';
 import { spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * A stream camera's address, corrected where it stands, and the Erweitert
@@ -22,7 +17,7 @@ import { spaceWhere } from './session';
  * only where somebody typed one.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 vi.mock('@/api/session', async importOriginal => {
@@ -86,14 +81,7 @@ const answers = (path: string) => {
   throw new Error(`nothing mocked for ${path}`);
 };
 
-const draw = (camera: Camera, mayManage = true) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayManage} />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (camera: Camera, mayManage = true) => drawAt(<CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayManage} />);
 
 /** Every read the card starts, answered and drawn. */
 const settle = async () => {
@@ -106,12 +94,7 @@ const save = async () => {
   });
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   state.devices = [fridge];

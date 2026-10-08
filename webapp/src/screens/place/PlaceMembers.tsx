@@ -1,4 +1,3 @@
-import { ChevronLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import { placePath } from '@/app/places';
@@ -6,6 +5,7 @@ import { useSpaces } from '@/api/spaces';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { useMayIn } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
+import { BackLink } from '@/ui/BackLink';
 import { Members } from '../space/members/Members';
 import styles from './Place.module.css';
 
@@ -29,9 +29,7 @@ export function PlaceMembers() {
   return (
     <section className={`${styles.page} ${styles.reading}`}>
       <header className={styles.head}>
-        <Link to={placePath(space.id)} className={ui.back} aria-label={t('place.backTo', { name: space.name })}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to={placePath(space.id)} label={t('place.backTo', { name: space.name })} />
         <h1 className={styles.title}>
           {t('place.members.title')}
           <span className={styles.titleNote}>{space.name}</span>

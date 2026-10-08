@@ -1,6 +1,6 @@
 import type { GrowListItem } from '@fg2/shared-types/v1';
 import { useGrows } from '@/api/grows';
-import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, useMayWith } from '@/ui/session-access';
 
 /**
  * The grows that could move into a place: every one still running that is not
@@ -20,10 +20,7 @@ export const useMovableGrows = (spaceId: string): { pending: boolean; items: Gro
   return {
     pending: grows.isPending,
     items: (grows.data?.items ?? []).filter(
-      grow =>
-        grow.endedAt === null &&
-        !grow.summary.locations.some(one => one.spaceId === spaceId) &&
-        enough(mayWith({ ownerId: grow.ownerId, spaceId: standsIn(grow) }), 'manage'),
+      grow => grow.endedAt === null && !grow.summary.locations.some(one => one.spaceId === spaceId) && enough(mayWith(growStanding(grow)), 'manage'),
     ),
   };
 };

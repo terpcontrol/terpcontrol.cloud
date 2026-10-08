@@ -2,6 +2,7 @@ import { anonymous, createAccount, Session, unique } from '../support/api';
 import { seedMeasurements } from '../support/control';
 import { provisionDevice } from '../support/device';
 import { remindSpace, setRow, storeCameraStill } from '../support/fixtures';
+import { A_JPEG } from '../support/pictures';
 
 /**
  * What somebody who is not in a diary can read: through its public address, and
@@ -12,12 +13,6 @@ import { remindSpace, setRow, storeCameraStill } from '../support/fixtures';
  * address, a device id or a harvest weight, so each of those is asserted against
  * rather than left to the shape of the answer.
  */
-
-/** A one-pixel JPEG, which is enough for a picture to exist and be served. */
-const A_PICTURE = Buffer.from(
-  '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==',
-  'base64',
-);
 
 let owner: Session;
 let stranger: Session;
@@ -93,7 +88,7 @@ describe('a public grow at its own address', () => {
     const before = (await anonymous().get(`/v1/public/grows/${diary.slug}`).expect(200)).body.totals.photoCount;
 
     const picture = (
-      await owner.client.post('/v1/media').field('kind', 'photo').field('growId', diary.id).attach('file', A_PICTURE, 'leaf.jpg').expect(201)
+      await owner.client.post('/v1/media').field('kind', 'photo').field('growId', diary.id).attach('file', A_JPEG, 'leaf.jpg').expect(201)
     ).body;
     await owner.client
       .post('/v1/entries')
@@ -309,7 +304,7 @@ describe('a public diary longer than one page of weeks', () => {
 
 describe('a picture of a public grow', () => {
   it('serves a still of the camera that watched it', async () => {
-    const mediaId = await storeCameraStill(camera, A_PICTURE, new Date());
+    const mediaId = await storeCameraStill(camera, A_JPEG, new Date());
 
     const served = await anonymous().get(`/v1/public/grows/${diary.slug}/media/${mediaId}`).expect(200);
     expect(served.headers['content-type']).toMatch(/^image\//);
@@ -330,7 +325,7 @@ describe('a picture of a public grow', () => {
       await owner.client.post('/v1/cameras').send({ kind: 'rtsp', spaceId: otherTent, name: 'Elsewhere', url: 'rtsp://10.0.0.31:554/s' }).expect(201)
     ).body.id;
 
-    const elsewhere = await storeCameraStill(otherCamera, A_PICTURE, new Date());
+    const elsewhere = await storeCameraStill(otherCamera, A_JPEG, new Date());
     await anonymous().get(`/v1/public/grows/${diary.slug}/media/${elsewhere}`).expect(404);
   });
 });
@@ -352,8 +347,8 @@ describe('one still of a shared camera', () => {
       .send({ stage: 'flowering', startedAt: daysAgo(60).toISOString() })
       .expect(201);
 
-    const inside = await storeCameraStill(camera, A_PICTURE, daysAgo(40));
-    const outside = await storeCameraStill(camera, A_PICTURE, daysAgo(20));
+    const inside = await storeCameraStill(camera, A_JPEG, daysAgo(40));
+    const outside = await storeCameraStill(camera, A_JPEG, daysAgo(20));
 
     const link = await linkOnto(
       { type: 'grow', id: run.id },
@@ -386,7 +381,7 @@ describe('one still of a shared camera', () => {
     const at = (days: number, hour: number): Date => new Date(start.getTime() + days * 24 * 3600 * 1000 + (hour - 14) * 3600 * 1000);
 
     const run = await startAGrow({ name: 'Closed at midnight', startedAt: start.toISOString() });
-    const late = await storeCameraStill(camera, A_PICTURE, at(6, 6));
+    const late = await storeCameraStill(camera, A_JPEG, at(6, 6));
 
     const link = await linkOnto(
       { type: 'grow', id: run.id },
@@ -420,7 +415,7 @@ describe('one still of a shared camera', () => {
           .field('kind', 'photo')
           .field('growId', run.id)
           .field('capturedAt', daysAgo(days).toISOString())
-          .attach('file', A_PICTURE, 'leaf.jpg')
+          .attach('file', A_JPEG, 'leaf.jpg')
           .expect(201)
       ).body.id;
 
@@ -458,7 +453,7 @@ describe('one still of a shared camera', () => {
         .field('kind', 'photo')
         .field('growId', run.id)
         .field('spaceId', tent)
-        .attach('file', A_PICTURE, 'leaf.jpg')
+        .attach('file', A_JPEG, 'leaf.jpg')
         .expect(201)
     ).body;
 
@@ -483,7 +478,7 @@ describe('one still of a shared camera', () => {
       .send({ stage: 'flowering', startedAt: daysAgo(60).toISOString() })
       .expect(201);
 
-    const noted = await storeCameraStill(camera, A_PICTURE, daysAgo(20));
+    const noted = await storeCameraStill(camera, A_JPEG, daysAgo(20));
     const link = await linkOnto({ type: 'grow', id: run.id }, { includeCameras: true });
 
     await anonymous().get(`/v1/media/${noted}`).set('X-Share-Token', link.token).expect(200);
@@ -511,7 +506,7 @@ describe('one still of a shared camera', () => {
     const lens = (
       await owner.client.post('/v1/cameras').send({ kind: 'rtsp', spaceId: tentOfIts, name: 'Lens', url: 'rtsp://10.0.0.32:554/s' }).expect(201)
     ).body.id;
-    await storeCameraStill(lens, A_PICTURE, new Date());
+    await storeCameraStill(lens, A_JPEG, new Date());
     await setRow('cameras', { id: lens }, { 'state.lastStillAt': new Date(), 'state.firmwareVersion': '1.4.2' });
 
     const closed = await linkOnto(
@@ -542,7 +537,7 @@ describe('one still of a shared camera', () => {
       .send({ stage: 'flowering', startedAt: daysAgo(60).toISOString() })
       .expect(201);
 
-    const cover = await storeCameraStill(camera, A_PICTURE, daysAgo(20));
+    const cover = await storeCameraStill(camera, A_JPEG, daysAgo(20));
     await owner.client.patch(`/v1/grows/${run.id}`).send({ coverMediaId: cover }).expect(200);
 
     const link = await linkOnto(
@@ -776,7 +771,7 @@ describe('opening a share link', () => {
   });
 
   it('carries no camera picture unless it was made to', async () => {
-    const mediaId = await storeCameraStill(camera, A_PICTURE, new Date());
+    const mediaId = await storeCameraStill(camera, A_JPEG, new Date());
     const closed = await linkOnto({ type: 'space', id: tent });
 
     const opened = await anonymous().get(`/v1/shared/${closed.token}`).expect(200);
@@ -820,7 +815,7 @@ describe('opening a share link', () => {
   });
 
   it('shows the pictures it was made to show, which is the whole point of the switch', async () => {
-    const mediaId = await storeCameraStill(camera, A_PICTURE, new Date());
+    const mediaId = await storeCameraStill(camera, A_JPEG, new Date());
 
     const shut = await linkOnto({ type: 'grow', id: diary.id });
     const open = await linkOnto({ type: 'grow', id: diary.id }, { includeCameras: true });
@@ -1176,7 +1171,7 @@ describe('what the public routes cost', () => {
     expect(shortEnough(card.headers['cache-control'])).toBeLessThanOrEqual(300);
     expect(shortEnough(shell.headers['cache-control'])).toBeLessThanOrEqual(300);
 
-    const mediaId = await storeCameraStill(camera, A_PICTURE, new Date());
+    const mediaId = await storeCameraStill(camera, A_JPEG, new Date());
     const picture = await anonymous().get(`/v1/public/grows/${diary.slug}/media/${mediaId}`).expect(200);
 
     // A picture never changes, so a reader's own browser may keep it - but no

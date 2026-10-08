@@ -1,5 +1,5 @@
 import type { DeviceConfiguration } from '@fg2/shared-types/v1';
-import { MIN_COMPRESSOR_REST_SECONDS } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { isSection, MIN_COMPRESSOR_REST_SECONDS, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { DAY_SECONDS, lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
 
 /**
@@ -54,13 +54,13 @@ export const HUMIDIFIER_REST_BAND = 100;
  * alone - the firmware holds no day there, and dries nothing - so nothing else
  * changes with it.
  */
-export const HUMIDIFIER_REST_HUMIDITY = 0;
+const HUMIDIFIER_REST_HUMIDITY = 0;
 
 /** What the firmware switches by where its document states no band: what a band that was not kept goes back to. */
 const FIRMWARE_HUMIDITY_BAND = 5;
 
 /** Whether a document rests its humidifier: germinating, with the band nothing switches on at. */
-export const restsHumidifier = (configuration: DeviceConfiguration | null): boolean =>
+const restsHumidifier = (configuration: DeviceConfiguration | null): boolean =>
   configuration?.workmode === 'breed' && bandOf(configuration) === HUMIDIFIER_REST_BAND;
 
 const bandOf = (configuration: DeviceConfiguration): unknown => {
@@ -119,13 +119,6 @@ export const HIDDEN_FIGURES: ReadonlySet<string> = new Set([
   'daynight.linearChange',
   'co2.sunsetOff',
 ]);
-
-const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const sectionOf = (configuration: DeviceConfiguration, key: string): Record<string, unknown> | null => {
-  const value = configuration[key];
-  return isSection(value) ? value : null;
-};
 
 /**
  * The fridge's document as the server keeps it. Only what the document already

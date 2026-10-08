@@ -1,4 +1,4 @@
-import { HydratedDocument, Schema } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { NotificationLogEntry } from '@fg2/shared-types/v1';
 import { notificationCategory, notificationChannel, notificationSubjectType } from '@fg2/shared-types/v1-schemas';
 
@@ -12,8 +12,6 @@ export interface StoredNotificationLogEntry extends Omit<NotificationLogEntry, '
   sentAt: Date;
   expiresAt: Date;
 }
-
-export type NotificationLogEntryDocument = HydratedDocument<StoredNotificationLogEntry>;
 
 const subjectSchema = new Schema<NotificationLogEntry['subject']>(
   {

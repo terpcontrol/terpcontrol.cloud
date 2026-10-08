@@ -9,19 +9,23 @@ import { serverNow } from '@/api/clock';
 import { useGrow } from '@/api/grows';
 import type { Picture } from '@/api/public';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
+import type { Translate } from '@/i18n/i18n';
+import { useScrub } from '@/charts/scrub';
 import { useCorrecting } from '@/log/corrections';
+import { outputWord } from '@/ui/climate-hardware';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { ageLabel, sinceLabel } from '@/ui/age';
+import { DAY_MS, HOUR_MS } from '@/ui/days';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
-import { figure, UNIT } from '../home/units';
+import { figure, UNIT } from '@/ui/units';
 import { CameraFrame, Slider } from './CameraFrame';
 import { Lanes } from './Lanes';
 import { Panel } from './Panel';
 import { ReadingPanel } from './ReadingPanel';
-import { at, pointAt, spans, stampOf } from './window';
+import { at, momentOf, pointAt, spans, stampOf } from './window';
 import styles from './Timeline.module.css';
 
 const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
@@ -30,7 +34,7 @@ const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
 const SHARED_RANGES: TimelineRange[] = ['24h', '7d', '30d'];
 
 /** Somebody reading through a link: its token, and where its pictures come from. */
-export interface SharedReader {
+interface SharedReader {
   token: string;
   picture: Picture;
 }
@@ -112,7 +116,7 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
     if (!data) return;
     const { from, to } = boundsOf(data);
     setCursor(from + fraction * (to - from));
-  });
+  }).handlers;
 
   // The stretches of a grow are offered where a grow is, and a month where none
   // is: nothing is drawn greyed out for somebody who has never started one.
@@ -365,18 +369,15 @@ const useReadings = (growId: string | null, measurements: MeasurementDefinition[
 export type OutputName = (lane: Pick<TimelineOutputLane, 'output' | 'fridge'>) => string;
 
 /**
- * The catalogue's name for each output, except that a fridge module's
- * dehumidifier output is its compressor, which cools and dries at once: the
- * name the cockpit's tiles give it, so a tap on "Kompressor läuft seit 12 Min"
- * lands on a lane of the same name rather than on an "Entfeuchter" the cabinet
- * does not have. The lane says whose it is, a link's included, which is told
- * no device to look up.
+ * The catalogue's name for each output, by the name the cockpit's tiles give
+ * it, so a tap on "Kompressor läuft seit 12 Min" lands on a lane of the same
+ * name. The lane says whose it is, a link's included, which is told no device
+ * to look up.
  */
 const useOutputName = (): OutputName => {
   const { t } = useTranslation();
 
-  return lane =>
-    t(`timeline.output.${lane.output === 'dehumidifier' && lane.fridge === true ? 'compressor' : lane.output}`, { defaultValue: lane.output });
+  return lane => t(`timeline.output.${outputWord(lane.output, lane.fridge === true)}`, { defaultValue: lane.output });
 };
 
 /**
@@ -432,8 +433,6 @@ function ScrubHeader({ timeline, cursor, resting, nameOf }: { timeline: SpaceTim
   );
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /** The instants a panel's first and last readings in the window were taken at, or null where no panel has one. */
 const readingsSpan = (timeline: SpaceTimeline): { first: number; last: number } | null => {
   const heard = timeline.panels.flatMap(panel => panel.points.filter(point => point.value !== null).map(point => at(point.measuredAt)));
@@ -473,49 +472,10 @@ const dayLabel = (t: Translate, timeline: SpaceTimeline): string => {
     : t('timeline.dayRange', { from: timeline.dayFrom, to: timeline.dayTo });
 };
 
-/**
- * Dragging across the stack moves the cursor. The surface only claims
- * horizontal gestures, so a thumb still scrolls the page vertically over it,
- * and the pointer is captured on the way down so a drag that wanders off the
- * panel keeps scrubbing.
- */
-const useScrub = (onFraction: (fraction: number) => void): React.HTMLAttributes<HTMLDivElement> => {
-  const dragging = useRef(false);
-  const report = (event: React.PointerEvent<HTMLDivElement>) => {
-    const box = event.currentTarget.getBoundingClientRect();
-    if (box.width > 0) onFraction(Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)));
-  };
-
-  return {
-    onPointerDown: event => {
-      dragging.current = true;
-      event.currentTarget.setPointerCapture(event.pointerId);
-      report(event);
-    },
-    onPointerMove: event => {
-      if (dragging.current || event.pointerType === 'mouse') report(event);
-    },
-    onPointerUp: event => {
-      dragging.current = false;
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    },
-    onPointerCancel: () => {
-      dragging.current = false;
-    },
-  };
-};
-
-/** The instant an address names, or null where it names none or something that is not one. */
-const momentOf = (value: string | null): number | null => {
-  if (!value) return null;
-  const moment = DateTime.fromISO(value);
-  return moment.isValid ? moment.toMillis() : null;
-};
-
 /** The shortest rolling window that still holds an instant, a month at most. */
 const rangeHolding = (at: number, now: number): TimelineRange => {
   const age = now - at;
-  if (age < 23 * 3_600_000) return '24h';
-  if (age < 6.5 * 86_400_000) return '7d';
+  if (age < 23 * HOUR_MS) return '24h';
+  if (age < 6.5 * DAY_MS) return '7d';
   return '30d';
 };

@@ -112,7 +112,7 @@ function Mark({ yes }: { yes: boolean }) {
       <span className={yes ? ui.yes : ui.no} aria-hidden>
         {yes ? <Check size={16} strokeWidth={2.25} /> : '–'}
       </span>
-      <span className={styles.markWord}>{t(yes ? 'space.members.mark.yes' : 'space.members.mark.no')}</span>
+      <span className={ui.visuallyHidden}>{t(yes ? 'space.members.mark.yes' : 'space.members.mark.no')}</span>
     </td>
   );
 }

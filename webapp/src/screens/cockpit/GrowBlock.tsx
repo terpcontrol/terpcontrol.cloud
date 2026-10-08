@@ -7,18 +7,16 @@ import type { OverviewCamera, OverviewGrow, OverviewTask, SpaceOverview } from '
 import { useMyGrows } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { MY_GROWS } from '@/app/places';
-import { useLog, useMayLog } from '@/log/log-context';
+import { useLog } from '@/log/log-context';
 import { ageLabel } from '@/ui/age';
 import { authorOf, headlineOf } from '@/ui/entries';
-import { useMayManage } from '@/ui/session-access';
+import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
-import { clock, useZone } from '@/ui/zone';
+import { useZone } from '@/ui/zone';
 import { MoveHereSheet } from '../space/MoveHereSheet';
-import { daysUntil } from '../tasks/tasks';
+import { dueLabel, entryKindOf } from '../tasks/tasks';
 import { CameraPicture } from './CameraPicture';
 import styles from './Cockpit.module.css';
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The diary's part of a place, for whoever keeps one: the grow standing here
@@ -197,16 +195,16 @@ function DueRow({ task, overview, now }: { task: OverviewTask; overview: SpaceOv
   const { t } = useTranslation();
   const zone = useZone();
   const { complete } = useLog();
-  const mayLog = useMayLog();
+  const mayLog = useMayLogIn();
   const subject = task.subject.type === 'grow' ? (overview.grows.find(grow => grow.growId === task.subject.id)?.name ?? '') : overview.name;
-  const writes = t(`home.entryKind.${task.kind === 'chore' || task.kind === 'custom' ? 'note' : task.kind}`);
+  const writes = t(`home.entryKind.${entryKindOf(task.kind)}`);
 
   return (
     <li className={styles.dueRow}>
       <Circle size={15} strokeWidth={1.75} className={styles.dueCircle} aria-hidden />
       <span className={styles.dueText}>
         <span>{task.label}</span>
-        <span className={`mono ${styles.dueMeta}`}>{dueLabel(t, task.dueAt, now, zone)}</span>
+        <span className={`mono ${styles.dueMeta}`}>{dueLabel(t, task.dueAt, now, zone, { since: true })}</span>
       </span>
       {mayLog ? (
         <button type="button" className={`${ui.button} ${styles.done}`} onClick={() => complete(task.id, `${writes} · ${subject}`)}>
@@ -216,17 +214,3 @@ function DueRow({ task, overview, now }: { task: OverviewTask; overview: SpaceOv
     </li>
   );
 }
-
-/**
- * "today", "tomorrow", "in 3 d", or how overdue, counted on the account's
- * calendar as the Tasks tab counts. A task due today whose hour has passed
- * says since when, rather than "today" an hour after it fell due.
- */
-const dueLabel = (t: Translate, dueAt: string, now: DateTime, zone: string | null): string => {
-  const days = daysUntil(dueAt, now, zone);
-  if (days < 0) return t('home.strip.overdue', { count: -days });
-  if (days === 0 && DateTime.fromISO(dueAt) < now) return t('home.strip.dueSince', { time: clock(dueAt, zone) });
-  if (days === 0) return t('home.strip.today');
-  if (days === 1) return t('home.strip.tomorrow');
-  return t('home.strip.inDays', { count: days });
-};

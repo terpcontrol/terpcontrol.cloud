@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,6 +6,7 @@ import type { Media, TestCapture } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { CAPTURE_POLL_MS, CAPTURE_WAIT_MS, gaveUp, useCameraFrames, useTestCapture } from '@/api/cameras';
 import { ApiError } from '@/api/problem';
+import { testClient } from './harness';
 
 /**
  * What the camera page reads while somebody stands in front of the tent with it
@@ -25,7 +26,7 @@ import { ApiError } from '@/api/problem';
  */
 
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const DAY = { startsAt: '2026-09-23T00:00:00.000Z', endsAt: '2026-09-23T23:59:59.999Z' };
@@ -35,9 +36,7 @@ const still = (id: string, capturedAt: string): Media => ({ id, capturedAt, kind
 /** The stills of one page, newest first, as the route answers them. */
 const page = (items: Media[], nextCursor: string | null = null) => Promise.resolve({ items, nextCursor }) as never;
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>
-);
+const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={testClient()}>{children}</QueryClientProvider>;
 
 const asked = () => vi.mocked(api.get).mock.calls.map(call => call[1] as { startsAt: string; cursor: string | null });
 

@@ -76,7 +76,7 @@ const timerOf = (column: string | undefined): SocketTimer | null => {
   return match ? { onSeconds: Number(match[1]), everySeconds: Number(match[2]) } : null;
 };
 
-export interface DecodeSocketsOptions {
+interface DecodeSocketsOptions {
   /** Slot to the instant that row was last seen to change state, as the ingest stamped it. */
   stateChangedAt?: Record<string, Date>;
   /**

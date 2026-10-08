@@ -1,5 +1,4 @@
-import { Controller, Get, HttpStatus, Inject, Param, Req, Res, UseGuards } from '@nestjs/common';
-import { ConfigType } from '@nestjs/config';
+import { Controller, Get, HttpStatus, Param, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -10,13 +9,12 @@ import { Caller } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage } from '@common/v1/pages';
 import { V1Query } from '@common/v1/validation';
-import { RANGE_REFUSAL, parseDimension, pictureSizeQuery } from '@modules/v1/camera/media-presentation.service';
+import { pictureSizeQuery, renderSizeOf } from '@modules/v1/camera/media-presentation.service';
 import { MediaDeliveryService } from '@modules/v1/camera/media-delivery.service';
 import { weeksQuery } from '@modules/v1/diary/weeks.service';
-import { appConfig } from '../../../config/configuration';
 import { PUBLIC_OPERATION } from '../../../openapi';
-import { V1Answer } from '../answer-shape';
-import { CARD_CACHE_SECONDS, CARD_HEIGHT, CARD_WIDTH, CardCache, baseUrlOf, renderCard } from './link-card';
+import { ApiPictureBytes, V1Answer } from '../answer-shape';
+import { CARD_CACHE_SECONDS, CARD_HEIGHT, CARD_WIDTH } from './link-card';
 import { PublicPagesService } from './public-pages.service';
 
 /**
@@ -40,14 +38,6 @@ import { PublicPagesService } from './public-pages.service';
 /** A rendered card is a PNG and nothing else. */
 const CARD_BYTES = { 'image/png': { schema: { type: 'string', format: 'binary' } } };
 
-const PICTURE_BYTES = {
-  'image/jpeg': { schema: { type: 'string', format: 'binary' } },
-  'image/png': { schema: { type: 'string', format: 'binary' } },
-  'video/mp4': { schema: { type: 'string', format: 'binary' } },
-};
-
-const MINUTE = 60 * 1000;
-
 /**
  * A page of a whole grow draws one thumbnail per day of up to twenty-six weeks,
  * so a single reader scrolling one diary is a couple of hundred picture
@@ -63,12 +53,10 @@ export class PublicController {
   constructor(
     private readonly pages: PublicPagesService,
     private readonly delivery: MediaDeliveryService,
-    private readonly cards: CardCache,
-    @Inject(appConfig.KEY) private readonly config: ConfigType<typeof appConfig>,
   ) {}
 
   @Get('shared/:token')
-  @RateLimited({ limit: 30, windowMs: MINUTE, message: 'Too many requests for shared diaries, please try again later.' })
+  @RateLimited({ limit: 30, message: 'Too many requests for shared diaries, please try again later.' })
   @ApiOperation({ summary: 'What a share link leads to', ...PUBLIC_OPERATION })
   @V1Answer(sharedResolution)
   public resolve(@Param('token') token: string): Promise<SharedResolution> {
@@ -82,7 +70,7 @@ export class PublicController {
    * whole of the request here as it is there.
    */
   @Get('shared/:token/weeks')
-  @RateLimited({ limit: 30, windowMs: MINUTE, message: 'Too many requests for shared diaries, please try again later.' })
+  @RateLimited({ limit: 30, message: 'Too many requests for shared diaries, please try again later.' })
   @ApiOperation({ summary: 'The weeks before the ones a shared diary carried', ...PUBLIC_OPERATION })
   @V1Answer(publicWeekPage)
   public sharedWeeks(@Param('token') token: string, @V1Query(weeksQuery) query: z.infer<typeof weeksQuery>): Promise<CursorPage<GrowWeekCard>> {
@@ -90,7 +78,7 @@ export class PublicController {
   }
 
   @Get('public/grows/:slug')
-  @RateLimited({ limit: 30, windowMs: MINUTE, message: 'Too many requests for public diaries, please try again later.' })
+  @RateLimited({ limit: 30, message: 'Too many requests for public diaries, please try again later.' })
   @ApiOperation({ summary: 'A public grow diary', ...PUBLIC_OPERATION })
   @V1Answer(publicGrowPage)
   public async grow(@Caller() ctx: AccessContext, @Param('slug') slug: string): Promise<PublicGrowPage> {
@@ -108,7 +96,7 @@ export class PublicController {
    * the page was built from.
    */
   @Get('public/grows/:slug/weeks')
-  @RateLimited({ limit: 30, windowMs: MINUTE, message: 'Too many requests for public diaries, please try again later.' })
+  @RateLimited({ limit: 30, message: 'Too many requests for public diaries, please try again later.' })
   @ApiOperation({ summary: 'The weeks before the ones a public diary carried', ...PUBLIC_OPERATION })
   @V1Answer(publicWeekPage)
   public async weeks(
@@ -127,11 +115,9 @@ export class PublicController {
    * knows, because the grow is in its path.
    */
   @Get('public/grows/:slug/media/:id')
-  @RateLimited({ limit: PICTURES_PER_MINUTE, windowMs: MINUTE, message: 'Too many pictures asked for, please try again later.' })
+  @RateLimited({ limit: PICTURES_PER_MINUTE, message: 'Too many pictures asked for, please try again later.' })
   @ApiOperation({ summary: 'A picture of a public grow', ...PUBLIC_OPERATION })
-  @ApiResponse({ status: HttpStatus.OK, description: 'The file itself, in the type it was stored as.', content: PICTURE_BYTES })
-  @ApiResponse({ status: HttpStatus.PARTIAL_CONTENT, description: 'The byte range a <video> element asked for.', content: PICTURE_BYTES })
-  @ApiResponse(RANGE_REFUSAL)
+  @ApiPictureBytes()
   public async picture(
     @Caller() ctx: AccessContext,
     @Param('slug') slug: string,
@@ -143,33 +129,22 @@ export class PublicController {
     const { grow, grant } = await this.pages.publicGrow(ctx, slug);
     const picture = await this.pages.pictureOf(grow, grant, id);
 
-    return this.delivery.deliver(
-      request,
-      reply,
-      picture,
-      { width: parseDimension(query.width), height: parseDimension(query.height) },
-      grant.redacted,
-    );
+    return this.delivery.deliver(request, reply, picture, renderSizeOf(query), grant.redacted);
   }
 
   @Get('public/grows/:slug/card.png')
-  @RateLimited({ limit: 60, windowMs: MINUTE, message: 'Too many cards asked for, please try again later.' })
+  @RateLimited({ limit: 60, message: 'Too many cards asked for, please try again later.' })
   @ApiOperation({ summary: 'The share card of a public grow', ...PUBLIC_OPERATION })
   @ApiResponse({ status: HttpStatus.OK, description: `The card, ${CARD_WIDTH}x${CARD_HEIGHT}.`, content: CARD_BYTES })
   public async growCard(@Caller() ctx: AccessContext, @Param('slug') slug: string, @Res() reply: FastifyReply): Promise<void> {
     // The decision first and every time, so that a grow gone private stops
     // answering at once whatever the cache still holds of it.
     const { grow } = await this.pages.publicGrow(ctx, slug);
-    const png = await this.cards.of(`grow:${grow.id}`, async () => {
-      const card = await this.pages.growCard(grow, baseUrlOf(this.config.apiUrlExternal));
-      return renderCard(card, await this.pages.bytesOf(grow.coverMediaId));
-    });
-
-    await this.sendCard(reply, png);
+    await this.sendCard(reply, await this.pages.growCardPng(grow));
   }
 
   @Get('public/users/:handle')
-  @RateLimited({ limit: 30, windowMs: MINUTE, message: 'Too many requests for public profiles, please try again later.' })
+  @RateLimited({ limit: 30, message: 'Too many requests for public profiles, please try again later.' })
   @ApiOperation({ summary: 'The public diaries of one person', ...PUBLIC_OPERATION })
   @V1Answer(publicUserPage)
   public async user(@Param('handle') handle: string): Promise<PublicUserPage> {
@@ -184,20 +159,12 @@ export class PublicController {
    * else is exactly what that shape exists to prevent.
    */
   @Get('public/users/:handle/card.png')
-  @RateLimited({ limit: 60, windowMs: MINUTE, message: 'Too many cards asked for, please try again later.' })
+  @RateLimited({ limit: 60, message: 'Too many cards asked for, please try again later.' })
   @ApiOperation({ summary: 'The share card of a public profile', ...PUBLIC_OPERATION })
   @ApiResponse({ status: HttpStatus.OK, description: `The card, ${CARD_WIDTH}x${CARD_HEIGHT}.`, content: CARD_BYTES })
   public async userCard(@Param('handle') handle: string, @Res() reply: FastifyReply): Promise<void> {
     const { author, grows } = await this.pages.publicUser(handle);
-    const png = await this.cards.of(`user:${author.id}`, () => {
-      const card = this.pages.userCard(author, grows, baseUrlOf(this.config.apiUrlExternal));
-
-      // Somebody's newest cover stands for their profile; a person with no
-      // picture anywhere gets the panel the app is drawn on.
-      return this.pages.bytesOf(this.pages.coverOf(grows)).then(cover => renderCard(card, cover));
-    });
-
-    await this.sendCard(reply, png);
+    await this.sendCard(reply, await this.pages.userCardPng(author, grows));
   }
 
   private async sendCard(reply: FastifyReply, png: Buffer): Promise<void> {

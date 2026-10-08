@@ -1,6 +1,7 @@
-import i18next from 'i18next';
+import i18next, { type i18n as I18n } from 'i18next';
 import { Settings } from 'luxon';
 import { initReactI18next } from 'react-i18next';
+import { readStored, writeStored } from '@/ui/stored';
 
 /**
  * Both catalogues, loaded as they are. They are the ones the Angular app wrote
@@ -14,7 +15,10 @@ import { initReactI18next } from 'react-i18next';
 export const LANGUAGES = ['en', 'de'] as const;
 export type Language = (typeof LANGUAGES)[number];
 
-export const FALLBACK_LANGUAGE: Language = 'en';
+const FALLBACK_LANGUAGE: Language = 'en';
+
+/** The translate function as the helpers outside a component take it: `t` from `useTranslation`, or i18next's own. */
+export type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 const STORAGE_KEY = 'terp.language';
 
@@ -37,23 +41,15 @@ const catalogue = async (language: Language): Promise<Record<string, unknown>> =
   return (await response.json()) as Record<string, unknown>;
 };
 
-export const preferredLanguage = (): Language => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && (LANGUAGES as readonly string[]).includes(stored)) return stored as Language;
-  } catch {
-    // No stored preference is no problem; the browser's answer is next.
-  }
+const preferredLanguage = (): Language => {
+  const stored = readStored(STORAGE_KEY);
+  if (stored && (LANGUAGES as readonly string[]).includes(stored)) return stored as Language;
   const fromBrowser = navigator.languages.map(tag => tag.split('-')[0]).find(tag => (LANGUAGES as readonly string[]).includes(tag));
   return (fromBrowser as Language) ?? FALLBACK_LANGUAGE;
 };
 
 export const setLanguage = async (language: Language): Promise<void> => {
-  try {
-    localStorage.setItem(STORAGE_KEY, language);
-  } catch {
-    // The choice then lasts as long as the tab, which is better than refusing it.
-  }
+  writeStored(STORAGE_KEY, language);
   // Fetched before the switch, so no screen renders a moment of missing keys.
   if (!i18next.hasResourceBundle(language, 'translation')) {
     i18next.addResourceBundle(language, 'translation', await catalogue(language));
@@ -86,3 +82,11 @@ export const initI18n = async (): Promise<typeof i18next> => {
   document.documentElement.lang = language;
   return i18next;
 };
+
+/**
+ * Whether a text the app stored is this key in any loaded language. A reason
+ * written from here is written in the language of whoever wrote it, and stays
+ * ours after somebody reads it in the other one.
+ */
+export const saidInAnyLanguage = (i18n: I18n, key: string, text: string | null | undefined): boolean =>
+  text != null && Object.keys(i18n.store?.data ?? {}).some(language => i18n.getFixedT(language)(key) === text);

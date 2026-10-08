@@ -1,12 +1,12 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
 updated: 2026-10-08
-source: Chris (naming decisions 2025-11 to 2026-10-04); app sessions and redesign review 2026-08-24 to 2026-10-04; checked against webapp/public/assets/i18n on 2026-10-08
+source: Chris (naming decisions 2025-11 to 2026-10-04); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08
 paths:
   - webapp/public/assets/i18n/**
   - webapp/src/ui/figures.ts
   - webapp/src/ui/zone.ts
-  - webapp/src/screens/devices/naming.ts
+  - webapp/src/ui/naming.ts
 ---
 # How the app speaks
 
@@ -49,14 +49,16 @@ string exists in English and German, with no English left in the German catalogu
   (where the app came from, the privacy text) keep its name.
 - "Abluft", "Umluft" and "Lüfter" are only roles a smart socket is given (an AIR is the Lüfter); the fan and plug
   device types are "Lüfter" and "Steckdose" everywhere.
+- An output is named through `outputWord` (`ui/climate-hardware.ts`), never by its raw key, so a fridge's
+  dehumidifier is the compressor on every screen.
 - The CO₂ dosing counter is in "Takte": the firmware adds up how long the valve was open, in ticks of its clock
   ([device-protocol.md 5.4](../device-protocol.md#54-which-keys-each-hardware-type-reports)), and counts no openings;
   `help.chartOutputs` says so beside the chart. The CO₂ report card (`co2Report.*`) does not follow this yet.
 - A share link's actions are "Ändern" (a change may widen a link as well as narrow it), "Zurückziehen", and "Löschen"
   only once it is revoked or expired - the server refuses to delete a working one (409 `share_link_live`).
 - Shared texts say "das Gerät", not "der Controller". A device is called by its type alone unless the account has two
-  of a kind, then with its id tail (`screens/devices/naming.ts`). A new place gets a name a person would write,
-  numbered past the existing ones ("Zelt 2", "Kühlschrank 1", "Ort 1"), never the raw type key.
+  of a kind, then with its id tail (`ui/naming.ts`). A new place gets a name a person would write, numbered past the
+  existing ones ("Zelt 2", "Kühlschrank 1", "Ort 1"), never the raw type key.
 - "Keimung · dunkel" and "Sämling · mit Licht" name the stage only where choosing it sets the climate (see
   [app-ux.md §5](app-ux.md#5-controls)).
 - Superseded names: "Pflegemodus" (Chris, 2025-11-07, the old app) and the rewrite's "Reingehen" / "Alarme aus"
@@ -66,8 +68,10 @@ string exists in English and German, with no English left in the German catalogu
 ## Grow time
 - A grow's progress is its day, counted in 24 h from its start: "Tag 29", a finished grow "bis Tag 126". Day tiles
   and diary stamps name grow days ("T 29 · 13:36"), never weekdays, because a grow day straddles two dates.
-- The stage is counted in weeks ("Veg · Woche 2 · seit 9 Tagen"); a week card by its days ("Tag 15–21"), badged with
-  the stage most of it lay in; a feeding scheme's own week is always "Schema-Woche".
+- The stage is counted in weeks ("Veg · Woche 2 · seit 9 Tagen") as the server counts them (`stageWeek`, from
+  `stageWeekOf` in `shared-types/src/v1/grow-days.ts`); a phase's own days divided by seven give another week. A week
+  card is named by its days ("Tag 15–21"), badged with the stage most of it lay in; a feeding scheme's own week is
+  always "Schema-Woche".
 - Films: Tagesfilm, Wochenfilm, Film der Phase, Film des Grows, Eigener Film.
 
 ## Numbers, dates and units

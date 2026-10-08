@@ -1,14 +1,14 @@
-import type { TFunction } from 'i18next';
+import type { Translate } from '@/i18n/i18n';
 import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import type { SessionCreate } from '@fg2/shared-types/v1';
 import { CUSTOM_LINKS_HTML } from '@/api/config';
-import { ApiError } from '@/api/problem';
+import { ApiError, refusalCode } from '@/api/problem';
 import { session, useSession } from '@/api/session';
-import { Logo } from '@/ui/Logo';
 import ui from '@/ui/ui.module.css';
+import { Door, Problem } from './Door';
 import styles from './SignIn.module.css';
 
 /**
@@ -65,7 +65,7 @@ export function SignIn() {
         for (const [field, detail] of Object.entries(error.fieldErrors)) form.setError(field as keyof SessionCreate, { message: detail });
       }
       setProblem(refusalOf(error, t, credentials.email));
-      setInactive(error instanceof ApiError && error.problem.code === 'account_not_activated');
+      setInactive(refusalCode(error) === 'account_not_activated');
     }
   });
 
@@ -84,81 +84,75 @@ export function SignIn() {
   const busy = form.formState.isSubmitting || openingDemo;
 
   return (
-    <main className={styles.page}>
-      <form className={styles.card} onSubmit={submit} noValidate>
-        <h1 className={styles.wordmark}>
-          <Logo />
-        </h1>
-
-        {ended ? (
-          <p className={ui.note} role="status">
-            {t('login.sessionEnded')}
-          </p>
-        ) : welcome ? (
-          <p className={ui.note} role="status">
-            {t(welcome)}
-          </p>
-        ) : null}
-
-        <label className={`label ${styles.fieldLabel}`} htmlFor="email">
-          {t('login.email')}
-        </label>
-        <input
-          id="email"
-          className={ui.input}
-          type="email"
-          autoComplete="username"
-          inputMode="email"
-          disabled={busy}
-          {...form.register('email', { required: true })}
-        />
-
-        <label className={`label ${styles.fieldLabel}`} htmlFor="password">
-          {t('login.password')}
-        </label>
-        <input
-          id="password"
-          className={ui.input}
-          type="password"
-          autoComplete="current-password"
-          disabled={busy}
-          {...form.register('password', { required: true })}
-        />
-        {/* The address already typed goes along, so it is not asked for twice. */}
-        <Link to="/recover" state={{ email: typedEmail }} className={`${styles.textLink} ${styles.forgot}`}>
-          {t('login.forgotPassword')}
-        </Link>
-
-        {problem ? (
-          <p className={`${ui.problem} ${styles.problem}`} role="alert">
-            {problem}
-            {inactive ? (
-              <>
-                {' '}
-                <Link to="/activate">{t('activate.enterCode')}</Link>
-              </>
-            ) : null}
-          </p>
-        ) : null}
-
-        <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={busy}>
-          {t('login.signIn')}
-        </button>
-
-        <button className={`${ui.button} ${styles.demo}`} type="button" onClick={openDemo} disabled={busy}>
-          {openingDemo ? t('demo.opening') : t('login.demo')}
-        </button>
-
-        <p className={styles.links}>
-          {t('login.noAccount')}{' '}
-          <Link to="/sign-up" state={{ from: destination }}>
-            {t('login.createAccount')}
-          </Link>
+    <Door onSubmit={() => void submit()}>
+      {ended ? (
+        <p className={ui.note} role="status">
+          {t('login.sessionEnded')}
         </p>
+      ) : welcome ? (
+        <p className={ui.note} role="status">
+          {t(welcome)}
+        </p>
+      ) : null}
 
-        {CUSTOM_LINKS_HTML ? <div className={styles.links} dangerouslySetInnerHTML={{ __html: CUSTOM_LINKS_HTML }} /> : null}
-      </form>
-    </main>
+      <label className={`label ${styles.fieldLabel}`} htmlFor="email">
+        {t('login.email')}
+      </label>
+      <input
+        id="email"
+        className={ui.input}
+        type="email"
+        autoComplete="username"
+        inputMode="email"
+        disabled={busy}
+        {...form.register('email', { required: true })}
+      />
+
+      <label className={`label ${styles.fieldLabel}`} htmlFor="password">
+        {t('login.password')}
+      </label>
+      <input
+        id="password"
+        className={ui.input}
+        type="password"
+        autoComplete="current-password"
+        disabled={busy}
+        {...form.register('password', { required: true })}
+      />
+      {/* The address already typed goes along, so it is not asked for twice. */}
+      <Link to="/recover" state={{ email: typedEmail }} className={`${styles.textLink} ${styles.forgot}`}>
+        {t('login.forgotPassword')}
+      </Link>
+
+      {problem ? (
+        <Problem>
+          {problem}
+          {inactive ? (
+            <>
+              {' '}
+              <Link to="/activate">{t('activate.enterCode')}</Link>
+            </>
+          ) : null}
+        </Problem>
+      ) : null}
+
+      <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={busy}>
+        {t('login.signIn')}
+      </button>
+
+      <button className={`${ui.button} ${styles.demo}`} type="button" onClick={openDemo} disabled={busy}>
+        {openingDemo ? t('demo.opening') : t('login.demo')}
+      </button>
+
+      <p className={styles.links}>
+        {t('login.noAccount')}{' '}
+        <Link to="/sign-up" state={{ from: destination }}>
+          {t('login.createAccount')}
+        </Link>
+      </p>
+
+      {CUSTOM_LINKS_HTML ? <div className={styles.links} dangerouslySetInnerHTML={{ __html: CUSTOM_LINKS_HTML }} /> : null}
+    </Door>
   );
 }
 
@@ -184,7 +178,7 @@ export function SignIn() {
  * a server or a connection that failed, whose own words are written for
  * whoever runs the install rather than for whoever is standing at the form.
  */
-const refusalOf = (error: unknown, t: TFunction, email: string): string => {
+const refusalOf = (error: unknown, t: Translate, email: string): string => {
   if (!(error instanceof ApiError)) return t('shell.signInFailed');
   if (error.problem.code === 'account_not_activated') return t('login.notActivated', { email: email.trim() });
 

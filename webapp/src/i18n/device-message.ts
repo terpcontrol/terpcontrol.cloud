@@ -15,7 +15,7 @@ import { configurationChange, configurationTitle, type ChangeContext } from './c
  * came, so a key a newer firmware invents is readable before it is translated.
  */
 
-export type MessagePart = 'title' | 'text';
+type MessagePart = 'title' | 'text';
 
 const ALARM_LINES = new Set(['message-alarm-triggered', 'message-alarm-resolved']);
 
@@ -46,11 +46,13 @@ export const resolveDeviceMessage = (i18n: I18n, message: EntryMessage, part: Me
   }
 
   // A change of settings names its figures by the firmware's keys; they are said in the app's words.
-  // The server writes the mode a drying room or a germination was left in beside them.
+  // The server writes beside them the work mode where it decides what a figure is - a drying room's,
+  // a germination's, a smart socket's; empty for any other - and the device's type; an older line
+  // carries the mode alone, or neither.
   if (message.key === CONFIGURATION_CHANGE && value) {
-    const [lines = '', mode = null] = message.params;
-    if (part === 'title') return configurationTitle(i18n, lines) ?? i18n.t(`${message.key}-title`);
-    return i18n.t(`${message.key}-text`, { value: configurationChange(i18n, lines, { ...context, mode }) });
+    const [lines = '', mode = '', type = ''] = message.params;
+    if (part === 'title') return configurationTitle(i18n, lines, type || null) ?? i18n.t(`${message.key}-title`);
+    return i18n.t(`${message.key}-text`, { value: configurationChange(i18n, lines, { ...context, mode: mode || null, type: type || null }) });
   }
 
   const specific = value ? `${message.key}:${value}-${part}` : null;
@@ -120,7 +122,7 @@ export const machineLineParts = (entry: EntryWords): { headline: string; detail:
 export const entryHeadline = (i18n: I18n, entry: EntryWords): string =>
   machineLineParts(entry)?.headline ?? ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'title') : (entry.text ?? ''));
 
-export const entryBody = (i18n: I18n, entry: EntryWords, context: ChangeContext = {}): string =>
+const entryBody = (i18n: I18n, entry: EntryWords, context: ChangeContext = {}): string =>
   ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'text', context) : (entry.text ?? ''));
 
 /**

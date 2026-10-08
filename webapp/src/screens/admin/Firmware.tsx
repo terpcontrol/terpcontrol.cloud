@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import type { DeviceClass, Firmware, Fleet } from '@fg2/shared-types/v1';
 import {
   useAdminDevices,
@@ -12,13 +11,14 @@ import {
   useUpdateFirmware,
   useUploadBinary,
 } from '@/api/admin';
-import { Sheet } from '@/log/Sheet';
-import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
+import { itemsOf, useFollowCursor } from '@/api/pages';
+import { Sheet } from '@/ui/Sheet';
+import { Refused } from '@/ui/PageState';
+import { AdminHead, AdminNotLoaded } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, useZone, zoned } from '@/ui/zone';
 import { ClassRollout } from './ClassRollout';
-import { useFollowCursor } from './pages';
 import { pointedAtBy } from './rollout';
 import styles from './Admin.module.css';
 
@@ -48,34 +48,14 @@ export function FirmwareScreen() {
   useFollowCursor(firmwares);
   useFollowCursor(devices);
 
-  const header = (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{t('admin.firmware.title')}</h1>
-      <span className={`mono ${styles.crumb}`}>
-        <Link to="/admin/fleet">{t('admin.fleet.title')}</Link> › {t('admin.firmware.title')}
-      </span>
-    </header>
-  );
+  const header = <AdminHead title={t('admin.firmware.title')} crumb={t('admin.firmware.title')} />;
 
-  if (classes.isPending || firmwares.isPending) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <Waiting lines={4} />
-      </section>
-    );
-  }
+  if (classes.isPending || firmwares.isPending) return <AdminNotLoaded head={header} />;
 
-  if (!classes.data || !firmwares.data) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <LoadFailed retry={() => void classes.refetch()} />
-      </section>
-    );
-  }
+  if (!classes.data || !firmwares.data) return <AdminNotLoaded head={header} retry={() => void classes.refetch()} />;
 
-  const builds = firmwares.data.pages.flatMap(page => page.items);
+  const builds = itemsOf(firmwares.data);
+  const allDevices = itemsOf(devices.data);
   const known = classes.data.items;
 
   return (
@@ -92,7 +72,7 @@ export function FirmwareScreen() {
             key={deviceClass.id}
             deviceClass={deviceClass}
             fleetClass={fleet.data?.classes.find(one => one.classId === deviceClass.id)}
-            devices={devices.data?.pages.flatMap(page => page.items) ?? []}
+            devices={allDevices}
             firmwares={builds}
             now={now}
           />
@@ -233,7 +213,7 @@ function BuildRow({ build, classes, fleet }: { build: Firmware; classes: DeviceC
               write that is known to come back. */}
           <button
             type="button"
-            className={`${ui.chip} ${styles.danger}`}
+            className={`${ui.chip} ${ui.danger}`}
             disabled={pointers.length > 0}
             title={pointers.length > 0 ? t('admin.firmware.inUse') : undefined}
             onClick={() => setOpen('delete')}
@@ -345,7 +325,7 @@ function DeleteSheet({ build, onClose }: { build: Firmware; onClose: () => void 
       actions={
         <button
           type="button"
-          className={`${ui.button} ${styles.danger}`}
+          className={`${ui.button} ${ui.danger}`}
           disabled={remove.isPending}
           onClick={() => remove.mutate(build.id, { onSuccess: onClose })}
         >

@@ -34,8 +34,6 @@ import { ImageStore } from './image-store';
 import { IndexBuildLog } from './index-build-log';
 import { MODEL_V1 } from './models';
 
-export { MODEL_V1 } from './models';
-
 const features = [
   { name: MODEL_V1.alarmRule, schema: alarmRulesSchema },
   { name: MODEL_V1.alert, schema: alertsSchema },
@@ -80,19 +78,6 @@ const features = [
  * collections.
  */
 export const V1_MODELS_MIGRATED_IN_PLACE: string[] = [MODEL_V1.user, MODEL_V1.device];
-
-/**
- * Every collection this release stores documents in, read off the registrations
- * themselves rather than listed again.
- *
- * It is what the rollback is allowed to drop, and deriving it here is what keeps
- * that list from drifting from where the documents actually land: a collection
- * with no registration is one no service can read or write. Two things are not
- * in it and are handled where they are made - the migration lock, which is the
- * one collection written through the raw driver, and the picture bucket, which
- * the migration never rewrote and the previous release reads by the same ids.
- */
-export const V1_COLLECTIONS: string[] = features.map(feature => String(feature.schema.get('collection')));
 
 for (const feature of features) {
   if (V1_MODELS_MIGRATED_IN_PLACE.includes(feature.name)) feature.schema.set('autoIndex', false);

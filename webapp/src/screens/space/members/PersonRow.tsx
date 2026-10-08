@@ -3,15 +3,14 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { MemberRole } from '@fg2/shared-types/v1';
 import { useSetMemberRole } from '@/api/members';
-import { initials } from '@/app/shell/tabs';
+import { initials } from '@/ui/handle';
 import { ageLabel } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
+import { ROLES } from './invites';
 import { decidesHere, type Guest } from './people';
 import type { Leaving } from './RemoveSheet';
 import styles from './Members.module.css';
-
-const ROLES: MemberRole[] = ['can_log', 'can_manage'];
 
 /**
  * One person in the tent: who they are, how they got here, when they last

@@ -2,9 +2,8 @@ import i18next from 'i18next';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { figure, targetFigure } from '@/screens/home/units';
-import { readingFigure } from '@/ui/entries';
-import { decimalFigure, looseFigure } from '@/ui/figures';
+import { figure, targetFigure } from '@/ui/units';
+import { decimalFigure, looseFigure, typedFigure } from '@/ui/figures';
 
 /**
  * A reading is written in the reader's language, not in the one the code was
@@ -44,6 +43,14 @@ describe('a figure in the reader´s language', () => {
     expect(looseFigure(-0.0001, 'en')).toBe('0');
     expect(looseFigure(-0.0001, 'de')).toBe('0');
   });
+
+  it('reads a typed figure back with either decimal mark, and nothing or junk as no figure at all', () => {
+    expect(typedFigure(' 5,8 ')).toBe(5.8);
+    expect(typedFigure('5.8')).toBe(5.8);
+    expect(typedFigure('0')).toBe(0);
+    expect(typedFigure('  ')).toBeNull();
+    expect(typedFigure('abc')).toBeNull();
+  });
 });
 
 /**
@@ -66,11 +73,11 @@ describe('which language that is', () => {
   it('follows the language the app is being read in', async () => {
     await i18next.changeLanguage('de');
     expect(figure(24.4, 'temperature')).toBe('24,4');
-    expect(readingFigure(6.5)).toBe('6,5');
+    expect(looseFigure(6.5)).toBe('6,5');
 
     await i18next.changeLanguage('en');
     expect(figure(24.4, 'temperature')).toBe('24.4');
-    expect(readingFigure(6.5)).toBe('6.5');
+    expect(looseFigure(6.5)).toBe('6.5');
   });
 
   it('still writes nothing as nothing rather than as minus nothing', async () => {
@@ -125,9 +132,9 @@ describe('the figures that must stay English', () => {
       .filter(path => !MACHINE.includes(path) && !path.startsWith('src/ui/figures.ts'))
       .filter(path => /\.toFixed\(/.test(readFileSync(resolve(process.cwd(), path), 'utf8')));
 
-    // `screens/home/units.ts` rounds with `toFixed` and writes with the shared
+    // `ui/units.ts` rounds with `toFixed` and writes with the shared
     // writer, which is the order that keeps the arithmetic out of the reader's
     // hands, and it is the only place left that may round at all.
-    expect(own).toEqual(['src/screens/home/units.ts']);
+    expect(own).toEqual(['src/ui/units.ts']);
   });
 });

@@ -1,6 +1,6 @@
 import { createAccount, Session } from '../support/api';
-import { seedMeasurements } from '../support/control';
-import { provisionDevice } from '../support/device';
+import { seedMeasurements, SeedPoint } from '../support/control';
+import { provisionDevice, utcSecondsOf } from '../support/device';
 
 /**
  * The tent page over HTTP.
@@ -16,25 +16,16 @@ import { provisionDevice } from '../support/device';
 const MINUTES = 60_000;
 const SAMPLE_MINUTES = 5;
 
-/** The UTC time of day of an instant, in the seconds a device keeps its schedule in. */
-const utcSecondsOf = (at: number): number => Math.floor(at / 1000) % 86_400;
-
 let owner: Session;
 let stranger: Session;
-
-interface Seed {
-  time: number;
-  device_id: string;
-  fields: Record<string, number>;
-}
 
 /**
  * A day: twelve hours lit and twelve dark, holding the target of whichever half
  * it is in - with one hour of the night an hour too warm, and the dehumidifier
  * on for two stretches of it.
  */
-const aDay = (deviceId: string, now: number): Seed[] => {
-  const seeds: Seed[] = [];
+const aDay = (deviceId: string, now: number): SeedPoint[] => {
+  const seeds: SeedPoint[] = [];
 
   for (let ago = 24 * 60; ago >= 0; ago -= SAMPLE_MINUTES) {
     const lit = ago > 12 * 60;

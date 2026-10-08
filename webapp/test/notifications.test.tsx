@@ -1,13 +1,6 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import type { ReactNode } from 'react';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate, NotificationChannels, NotificationRouting, NotificationSettings, Problem } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
@@ -19,6 +12,9 @@ import { pathOf, payloadOf } from '@/screens/notifications/push-route';
 import { minuteOf, routingWith, timeOf } from '@/screens/notifications/settings';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { headersOf, headersText } from '@/ui/headers';
+import { drawAt, json, NOT_FOUND } from './harness';
+import { meWith } from './session';
+import { translate } from './translations';
 
 /**
  * Where notifications go, and what one switch sends.
@@ -44,29 +40,8 @@ const NOTHING: NotificationSettings = {
   mutedUntil: null,
 };
 
-const me = (notifications: Partial<NotificationSettings> = {}, over: Partial<Me> = {}): Me => ({
-  id: 'user-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  email: 'login@example.org',
-  isAdmin: false,
-  isActive: true,
-  handle: 'you',
-  bio: null,
-  avatarMediaId: null,
-  publicProfile: false,
-  privacy: { hideWeights: false, hideCounts: false },
-  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
-  retention: { climateDays: null },
-  climateRetention: { installDays: null, appliesDays: null },
-  notifications: { ...NOTHING, ...notifications },
-  deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
-  pushPublicKey: 'BAbC',
-  telegramAvailable: true,
-  pushSubscribed: false,
-  layers: { diary: true },
-  ...over,
-});
+const me = (notifications: Partial<NotificationSettings> = {}, over: Partial<Me> = {}): Me =>
+  meWith({ notifications: { ...NOTHING, ...notifications }, pushPublicKey: 'BAbC', telegramAvailable: true, ...over });
 
 /** The account the server answers, and what it says to a change. `hold` keeps a write on the wire until a test lets it land. */
 const server = {
@@ -78,8 +53,6 @@ const server = {
   /** The account's cameras, which decide whether the weekly film has a row at all. */
   cameras: [] as { id: string; removedAt: string | null; isDemo: boolean }[],
 };
-
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = String(input);
@@ -111,17 +84,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     server.posted.push(url);
     return json({ url: 'https://t.me/terpbot?start=abc', validUntil: DateTime.now().plus({ minutes: 15 }).toISO() }, 201);
   }
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 });
 
-const wrapped = (screenUnderTest: ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/me/notifications']}>
-        <LogProvider>{screenUnderTest}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const wrapped = (screenUnderTest: ReactNode) => drawAt(<LogProvider>{screenUnderTest}</LogProvider>, { at: '/me/notifications' });
 
 const draw = () => wrapped(<Notifications />);
 
@@ -133,12 +99,7 @@ const drawLoaded = async () => {
 
 const lastPatch = (): NotificationSettings => server.patched.at(-1)!.notifications!;
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

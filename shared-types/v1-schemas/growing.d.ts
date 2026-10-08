@@ -729,16 +729,6 @@ export declare const spaceUpdate: z.ZodObject<{
     roomId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
 }, z.core.$strip>;
 /**
- * Placing a device in a space and taking it out again. The two ids are the whole
- * statement, so neither direction carries a body, and what comes back is this
- * pair rather than the device: `spaceId` is all that changed, and what a device
- * is belongs to the device routes.
- */
-export declare const devicePlacement: z.ZodObject<{
-    deviceId: z.ZodString;
-    spaceId: z.ZodNullable<z.ZodString>;
-}, z.core.$strip>;
-/**
  * What a client may do about the grow when a preset is applied to a space that
  * has no open grow: start one here, move an existing one here, or leave grows
  * out of it and change the climate only.
@@ -1251,10 +1241,10 @@ export declare const phaseUpdate: z.ZodObject<{
  * placement left open is closed on the day the plants really left.
  */
 export declare const placementUpdate: z.ZodObject<{
-    startedAt: z.ZodOptional<z.ZodISODateTime>;
-    endedAt: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
     spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    startedAt: z.ZodOptional<z.ZodISODateTime>;
     plantIds: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>;
+    endedAt: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
 }, z.core.$strip>;
 /**
  * `POST /reminders`. Exactly one of `everyDays` and `onceAt` is set, which the

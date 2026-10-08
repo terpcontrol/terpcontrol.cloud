@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AdminAlarmWatch, AdminRetentionRun, AdminStats } from '@fg2/shared-types/v1';
+import { CAMERA_STILLS } from '@fg2/shared-types/v1-schemas';
 import { onlineSince } from '@common/v1/value-age';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -14,7 +15,7 @@ import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { AlarmHealthService } from '@modules/alarm/alarm-health.service';
 import { ClimateRetentionService } from '@modules/retention/climate-retention.service';
-import { UPGRADE_TIMEOUT_MS } from './firmware-rollout.service';
+import { updateDeadline } from './firmware-rollout.service';
 
 /**
  * How the install itself is doing: the figures the fleet screen's health card
@@ -45,9 +46,6 @@ import { UPGRADE_TIMEOUT_MS } from './firmware-rollout.service';
  * instant, and a card that says "now" about figures gathered over a second is
  * the sort of small lie the rest of this app refuses.
  */
-
-/** Two pictures missed is late; ten is a camera that has stopped, which is the verdict the camera rows are drawn with. */
-const OFFLINE_AFTER_STILLS = 10;
 
 @Injectable()
 export class AdminStatsService {
@@ -108,7 +106,7 @@ export class AdminStatsService {
       this.devices.countDocuments({}),
       this.devices.countDocuments({ ownerId: { $ne: null } }),
       this.devices.countDocuments({ 'state.lastSeenAt': { $gte: onlineSince(now) } }),
-      this.devices.countDocuments({ ...partway, 'state.updateStartedAt': { $gte: new Date(now.getTime() - UPGRADE_TIMEOUT_MS) } }),
+      this.devices.countDocuments({ ...partway, 'state.updateStartedAt': { $gte: updateDeadline(now) } }),
     ]);
 
     return { total, claimed, online, updating };
@@ -134,7 +132,10 @@ export class AdminStatsService {
           $or: [
             { $eq: ['$state.lastStillAt', null] },
             {
-              $gt: [{ $subtract: [now, '$state.lastStillAt'] }, { $multiply: [OFFLINE_AFTER_STILLS, 1000, { $max: [1, '$stillIntervalSeconds'] }] }],
+              $gt: [
+                { $subtract: [now, '$state.lastStillAt'] },
+                { $multiply: [CAMERA_STILLS.offlineAfter, 1000, { $max: [1, '$stillIntervalSeconds'] }] },
+              ],
             },
           ],
         },

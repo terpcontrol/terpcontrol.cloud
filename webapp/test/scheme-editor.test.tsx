@@ -1,16 +1,11 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { Feeding } from '@/screens/grow/Feeding';
 import { forgetSchemeEdit } from '@/screens/grow/scheme/edit-store';
+import { drawAt, json } from './harness';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
+import { translate } from './translations';
 
 /**
  * What the Feeding tab promises: that it draws the grid the grow carries and
@@ -95,8 +90,6 @@ const wire = {
   refuseSave: null as { status: number; code: string; detail: string } | null,
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const problem = (status: number, code: string, detail: string) => json({ status, code, title: code, detail, errors: [] }, status);
 
 vi.stubGlobal(
@@ -118,22 +111,14 @@ vi.stubGlobal(
   }),
 );
 
-// Whether the grid may be changed is the grow page's question, asked of the
-// tent this grow stands in; this screen is handed the answer.
-const drawing = (grow: GrowListItem, queryClient: QueryClient, mayManage = true) => (
-  <QueryClientProvider client={queryClient}>
-    <MemoryRouter>
-      <Feeding grow={grow} mayManage={mayManage} />
-    </MemoryRouter>
-  </QueryClientProvider>
-);
-
-/** `rerender` takes the grow rather than the tree, because what moves under this screen is the grow. */
+/**
+ * Whether the grid may be changed is the grow page's question, asked of the
+ * tent this grow stands in; this screen is handed the answer. `rerender` takes
+ * the grow rather than the tree, because what moves under this screen is the grow.
+ */
 const draw = (grow: GrowListItem, mayManage = true) => {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  const drawn = render(drawing(grow, queryClient, mayManage));
-
-  return { ...drawn, rerender: (next: GrowListItem) => drawn.rerender(drawing(next, queryClient, mayManage)) };
+  const drawn = drawAt(<Feeding grow={grow} mayManage={mayManage} />);
+  return { ...drawn, rerender: (next: GrowListItem) => drawn.rerender(<Feeding grow={next} mayManage={mayManage} />) };
 };
 
 /** The tab once the shipped index has been read, which is when the scheme has a name rather than an id. */
@@ -146,12 +131,7 @@ const patched = () => wire.calls.filter(call => call.method === 'PATCH');
 
 const posted = () => wire.calls.filter(call => call.method === 'POST' && call.path === '/schemes');
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   wire.calls = [];

@@ -1,7 +1,6 @@
 import type { DeviceSeries, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { AccessService } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { ProblemException } from '@common/v1/problem';
 import { DataService, DeviceHistory } from '@modules/data/data.service';
 import { EntriesService } from '@modules/v1/diary/entries.service';
@@ -9,11 +8,11 @@ import { GrowClimateService } from '@modules/v1/diary/grow-climate.service';
 import { GrowReportService } from '@modules/v1/diary/report.service';
 import { GrowWeeksService } from '@modules/v1/diary/weeks.service';
 import { NOTHING_HIDDEN, summaryOf } from '@modules/v1/grow/grow-serialiser';
-import { GrowsService } from '@modules/v1/grow/grows.service';
-import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { anonymous, session, visitor } from './support/callers';
+import { accessOn, growsOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Reading the diary: the timeline, the week cards the grow page is made of, and
@@ -54,10 +53,7 @@ const NOW = new Date('2026-06-10T12:00:00.000Z');
 
 const onDay = (dayNumber: number, hours = 10): Date => new Date(ORIGIN.getTime() + (dayNumber - 1) * DAY_MS + hours * 3600 * 1000);
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const anonymous: AccessContext = { userId: null, isAdmin: false, isDemo: false, shareToken: null };
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let entries: EntriesService;
 let weeks: GrowWeeksService;
 let report: GrowReportService;
@@ -143,22 +139,8 @@ const fakeData = {
 } as unknown as DataService;
 
 const build = (): void => {
-  access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  const writer = new EntryWriterService(db.entries);
-  const grows = new GrowsService(
-    db.grows,
-    db.plants,
-    db.devices,
-    db.memberships,
-    db.spaces,
-    db.users,
-    db.shareLinks,
-    db.entries,
-    access,
-    new PhaseWriterService(db.grows, writer, db.entries, db.devices),
-    writer,
-    null,
-  );
+  access = accessOn(db);
+  const grows = growsOn(db, access);
   const climate = new GrowClimateService(db.devices, db.targetChanges, fakeData);
 
   entries = new EntriesService(db.entries, db.devices, access, grows);
@@ -315,14 +297,6 @@ const world = async (): Promise<void> => {
   ]);
 };
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
   readWindows = [];
@@ -443,7 +417,7 @@ describe('who may read a timeline', () => {
       revokedAt: null,
     });
 
-    const reader: AccessContext = { ...anonymous, shareToken: 'the-token' };
+    const reader = visitor('the-token');
     const page = await entries.list(reader, { growId: GROW, startsAt: ORIGIN.toISOString() });
 
     expect(page.items.map(line => line.id)).toEqual(['entry-note-5', 'entry-fed', 'entry-booted']);
@@ -527,7 +501,7 @@ describe('who may read a timeline', () => {
       revokedAt: null,
     });
 
-    const reader: AccessContext = { ...anonymous, shareToken: 'one-fortnight' };
+    const reader = visitor('one-fortnight');
 
     expect((await entries.read(reader, 'entry-note-5')).id).toBe('entry-note-5');
     // Day 33 and day 12 are both this grow's and neither is inside the window.

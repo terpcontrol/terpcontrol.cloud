@@ -1,6 +1,6 @@
-import type { GrowMeasurementSeries, TimelineCamera, TimelineOutputLane, TimelinePanel, TimelineSpan } from '@fg2/shared-types/v1';
+import type { GrowSeries, SpaceSeries } from '@fg2/shared-types/v1';
 import { useGrowSeries, useSpaceSeries, type SeriesWindow } from '@/api/charts';
-import { instant, seriesRangeOf, type ChartWindow } from './span';
+import { instant, type ChartWindow } from './span';
 
 /**
  * What the Charts view draws, whichever answer it came out of.
@@ -14,26 +14,9 @@ import { instant, seriesRangeOf, type ChartWindow } from './span';
  * of climate. A grow with no place at all - a diary kept without hardware - is
  * read from the grow alone.
  */
-export interface ChartData {
-  startsAt: string;
-  endsAt: string;
-  stepSeconds: number;
-  deviceIds: string[] | null;
-  climate: TimelinePanel[];
-  lastReadingAt: string | null;
-  outputs: TimelineOutputLane[];
-  nights: TimelineSpan[];
-  /** When the steering device was changing between day and night, the band then being both halves' together. */
-  transitions?: TimelineSpan[];
-  cameras: TimelineCamera[];
-  measurements: GrowMeasurementSeries[];
-  /** The instant day 1 of the grow began; null where no grow is charted. */
-  originAt: string | null;
-  dayFrom: number | null;
-  dayTo: number | null;
-}
+export type ChartData = Omit<SpaceSeries, 'spaceId'> & Pick<GrowSeries, 'measurements' | 'dayFrom' | 'dayTo'> & { originAt: string | null };
 
-export interface ChartSubject {
+interface ChartSubject {
   growId: string | null;
   spaceId: string | null;
   /** The grow's own measurements worth asking about. */
@@ -45,7 +28,7 @@ export const useChartData = (subject: ChartSubject, window: ChartWindow | null, 
   const viaPlace = span !== null && subject.spaceId !== null;
 
   const growWindow: SeriesWindow = {
-    range: window ? seriesRangeOf(window) : 'custom',
+    range: window?.kind === 'grow' ? window.range : 'custom',
     ...(span ?? {}),
     measurements: subject.keys,
     stepSeconds,

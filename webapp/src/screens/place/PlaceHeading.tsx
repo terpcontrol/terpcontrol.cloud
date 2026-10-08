@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { PlaceCard } from '@/app/places';
+import { useSpaceOverview } from '@/api/spaces';
 import { useNow } from '@/ui/useNow';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/LivenessPill';
@@ -54,6 +55,19 @@ export function PlaceHeading({
           <LivenessPill liveness={livenessOf(here, now)} measuredAt={measuredAtOf(here.values)} now={now} explain />
         </span>
       )}
+    </h1>
+  );
+}
+
+/** The title over a customer's place that support is reading: the tab, the place's name, and that it is somebody else's. */
+export function VisitingTitle({ title, spaceId }: { title: string; spaceId: string }) {
+  const { t } = useTranslation();
+  const overview = useSpaceOverview(spaceId);
+
+  return (
+    <h1 className={styles.title}>
+      {title} · {overview.data?.name ?? '…'}
+      <span className={`mono ${styles.visiting}`}>{t('timeline.visiting')}</span>
     </h1>
   );
 }

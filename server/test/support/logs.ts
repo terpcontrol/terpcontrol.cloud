@@ -1,7 +1,6 @@
 import { closeSync, openSync, readdirSync, readFileSync, readSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-
-const LOG_DIR = join(__dirname, '..', '.tmp', 'logs');
+import { LOG_DIR } from './infra/app';
 
 // Sorted, so the log reads in the order it was written when a run spans more
 // than one day's file.

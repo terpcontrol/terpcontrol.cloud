@@ -4,24 +4,24 @@ import { join } from 'node:path';
 import { FastifyReply } from 'fastify';
 import sharp from 'sharp';
 import { TimelapseCreate } from '@fg2/shared-types/v1';
-import { AccessContext } from '@common/v1/access.types';
-import { AccessService } from '@common/v1/access.service';
 import { CamerasController } from '@modules/v1/camera/cameras.controller';
 import { CamerasService } from '@modules/v1/camera/cameras.service';
 import { EntitlementService } from '@modules/v1/camera/entitlement.service';
 import { MediaService } from '@modules/v1/camera/media.service';
 import { OverlayFrame, composeFrame, overlayLayer, sizeFor, wasDark } from '@modules/v1/camera/timelapse-overlays';
 import { TimelapseContextService } from '@modules/v1/camera/timelapse-context.service';
-import { whyNoFilm } from '@modules/v1/camera/timelapse.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { TimelapseService, whyNoFilm } from '@modules/v1/camera/timelapse.service';
+import { session } from './support/callers';
+import { accessOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The composer: what is asked of a render, and what is refused.
  *
- * A render does not finish inside a request, so the route's whole job is to
- * decide - the span, the second camera, what is drawn, what it may cost - and
- * hand back a row to poll. That decision is what is held here; what ffmpeg then
- * does with the frames is the builder's.
+ * A render does not finish inside a request, so asking for one is a decision -
+ * the span, the second camera, what is drawn, what it may cost - and a row to
+ * poll. That decision (`TimelapseService.request`, reached through the route) is
+ * what is held here; what ffmpeg then does with the frames is the render's own.
  */
 
 const OWNER = 'user-owner';
@@ -30,8 +30,6 @@ const BALCONY = 'space-balcony';
 const CAMERA = 'camera-1';
 const BESIDE = 'camera-2';
 const ELSEWHERE = 'camera-3';
-
-const session: AccessContext = { userId: OWNER, isAdmin: false, isDemo: false, shareToken: null };
 
 const PREMIUM = {
   enforced: true,
@@ -45,7 +43,7 @@ const PREMIUM = {
 
 const PHASE = { window: 'phase' as const, startsAt: '2026-08-01T00:00:00.000Z', endsAt: '2026-08-20T00:00:00.000Z' };
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let controller: CamerasController;
 let media: MediaService;
 let status: number;
@@ -65,19 +63,20 @@ const picture = (colour: string): Promise<Buffer> =>
     .jpeg()
     .toBuffer();
 
-const compose = (body: TimelapseCreate, cameraId = CAMERA) => controller.requestTimelapse(session, cameraId, body, reply());
+const compose = (body: TimelapseCreate, cameraId = CAMERA) => controller.requestTimelapse(session(OWNER), cameraId, body, reply());
 
 const build = (): void => {
   const entitlement = new EntitlementService(PREMIUM);
   const cameras = new CamerasService(db.cameras, db.devices, db.memberships, entitlement, db.users);
   media = new MediaService(db.media, db.grows, null as never);
-  const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
+  const access = accessOn(db);
   const poller = { settingsChanged: () => undefined, forget: () => undefined };
   // The builder is asked to take the queue now rather than on its hourly pass;
   // what it then renders is the builder's own test.
-  const builder = { renderQueued: () => undefined };
+  const builder = new TimelapseService(cameras, media, entitlement, {} as never);
+  builder.renderQueued = () => undefined;
 
-  controller = new CamerasController(cameras, media, poller as never, builder as never, entitlement, access, {} as never);
+  controller = new CamerasController(cameras, media, poller as never, builder, access, {} as never);
 };
 
 const world = async (entitledUntil: Date | null): Promise<void> => {
@@ -92,14 +91,6 @@ const world = async (entitledUntil: Date | null): Promise<void> => {
     { id: ELSEWHERE, ownerId: OWNER, kind: 'rtsp', spaceId: BALCONY, name: 'Cam 3', entitlement: { validUntil: null, grant: null } },
   ]);
 };
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
 
 beforeEach(async () => {
   await db.reset();

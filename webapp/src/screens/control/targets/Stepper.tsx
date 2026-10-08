@@ -1,6 +1,8 @@
 import { Minus, Plus } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { decimalFigure } from '@/ui/figures';
+import { roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { decimalFigure, typedFigure } from '@/ui/figures';
+import { TimeInput } from '../TimeInput';
 import styles from './DayNight.module.css';
 
 /**
@@ -97,8 +99,8 @@ export function Stepper({ name, value, min, max, step, decimals, unit, less, mor
 
   const commit = () => {
     if (typing === null) return;
-    const typed = Number(typing.replace(',', '.'));
-    if (typing.trim() !== '' && Number.isFinite(typed)) onChange(clamp(typed));
+    const typed = typedFigure(typing);
+    if (typed !== null) onChange(clamp(typed));
     setTyping(null);
   };
 
@@ -157,28 +159,15 @@ interface ClockStepperProps {
   onChange: (seconds: number) => void;
 }
 
-const DAY_SECONDS = 24 * 60 * 60;
 const HALF_HOUR = 30 * 60;
-const roundTheClock = (seconds: number): number => ((seconds % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
-const twoDigits = (value: number): string => String(value).padStart(2, '0');
-
-/** "08:00" on the wall clock, to the nearest minute. */
-const wall = (seconds: number, offset: number): string => {
-  const there = roundTheClock(Math.round((seconds + offset) / 60) * 60);
-  return `${twoDigits(Math.floor(there / 3600))}:${twoDigits(Math.floor((there % 3600) / 60))}`;
-};
 
 /**
  * A time of day, set the same way: the buttons move it by half an hour along
  * the account's wall clock, landing on the half hour, and the field in the
  * middle is the browser's own time field - a wheel on a phone - for a time
- * that is easier typed. A time field hands over a whole time after every
- * keystroke and nothing while a part of it is cleared, so it keeps what is
- * being typed while it has the focus and the draft takes every whole time it
- * hands over.
+ * that is easier typed.
  */
 export function ClockStepper({ name, seconds, offset, less, more, changed = false, disabled = false, onChange }: ClockStepperProps) {
-  const [typing, setTyping] = useState<string | null>(null);
   const local = roundTheClock(seconds + offset);
 
   const by = (direction: 1 | -1) => () => {
@@ -189,26 +178,18 @@ export function ClockStepper({ name, seconds, offset, less, more, changed = fals
   const up = useRepeat(by(1));
 
   return (
-    <span className={`${styles.stepper} ${styles.clockStepper}`} data-changed={changed || undefined}>
+    <span className={styles.stepper} data-changed={changed || undefined}>
       <button type="button" className={styles.stepButton} aria-label={less} disabled={disabled} {...down}>
         <Minus size={16} strokeWidth={2} aria-hidden />
       </button>
       <span className={styles.stepFigure}>
-        <input
+        <TimeInput
           className={`mono ${styles.stepInput} ${styles.stepClock}`}
-          type="time"
           aria-label={name}
-          value={typing ?? wall(seconds, offset)}
+          seconds={seconds}
+          offset={offset}
           disabled={disabled}
-          onChange={event => {
-            const time = event.target.value;
-            setTyping(document.activeElement === event.target ? time : null);
-            const match = /^(\d{1,2}):(\d{2})/.exec(time);
-            if (match && Number(match[1]) < 24 && Number(match[2]) < 60) {
-              onChange(roundTheClock(Number(match[1]) * 3600 + Number(match[2]) * 60 - offset));
-            }
-          }}
-          onBlur={() => setTyping(null)}
+          onChange={onChange}
         />
       </span>
       <button type="button" className={styles.stepButton} aria-label={more} disabled={disabled} {...up}>

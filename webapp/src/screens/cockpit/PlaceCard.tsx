@@ -6,14 +6,15 @@ import { Link } from 'react-router';
 import { placePath } from '@/app/places';
 import type { Device, HomeSpaceCard, Metric } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
+import { useDeviceLive, useHourMeans } from '@/api/devices';
 import { ageAttribute, valueAge } from '@/ui/age';
 import { maintenanceQuiet, type Quiet } from '@/ui/maintenance';
+import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { ownStatusOf } from '../control/devices/own-summary';
-import { offsetOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/LivenessPill';
-import { figure, UNIT } from '../home/units';
+import { figure, figureWithUnit, UNIT } from '@/ui/units';
 import {
   climateDeviceOf,
   controlOffOf,
@@ -30,7 +31,7 @@ import {
   valueOf,
   type Status,
 } from './place';
-import { useDeviceLive, useHourMeans, useHumidifierHold } from './reads';
+import { useHumidifierHold } from './reads';
 import { useHumidifiers } from '../control/germination/germination-choices';
 import styles from './Cockpit.module.css';
 
@@ -104,9 +105,7 @@ export function PlaceCard({
                   <span className="mono">{UNIT[metric]}</span>
                 </span>
                 {means?.[metric] != null ? (
-                  <span className={`mono ${styles.mean}`}>
-                    {t('cockpit.tile.hourMean', { value: `${figure(means[metric], metric)} ${UNIT[metric] ?? ''}`.trim() })}
-                  </span>
+                  <span className={`mono ${styles.mean}`}>{t('cockpit.tile.hourMean', { value: figureWithUnit(means[metric], metric) })}</span>
                 ) : null}
               </span>
             );

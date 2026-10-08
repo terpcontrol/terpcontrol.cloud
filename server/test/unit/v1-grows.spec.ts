@@ -4,17 +4,17 @@ import { Reflector } from '@nestjs/core';
 import { AccessGuard } from '@common/v1/access.guard';
 import { AccessService } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
-import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { ProblemException } from '@common/v1/problem';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { GrowDocument, PhaseDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { AppliedPreset, ClimatePresets } from '@modules/v1/grow/climate-presets.port';
 import { NOTHING_HIDDEN, growUpTo, serialiseGrow, stagesReachedOf, summaryOf } from '@modules/v1/grow/grow-serialiser';
 import { GrowsController } from '@modules/v1/grow/grows.controller';
 import { GrowsService } from '@modules/v1/grow/grows.service';
 import { PlantsController } from '@modules/v1/grow/plants.controller';
-import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { admin, demo, session } from './support/callers';
+import { accessOn, growsOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Grows: what the model implies and who is allowed to say it.
@@ -41,12 +41,8 @@ const DEVICE = 'device-1';
 const STARTED_AT = new Date('2026-05-01T08:00:00.000Z');
 const TEN_DAYS_LATER = new Date('2026-05-11T09:00:00.000Z');
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const demo: AccessContext = { userId: 'user-demo', isAdmin: false, isDemo: true, shareToken: null };
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let access: AccessService;
-let entries: EntryWriterService;
 let grows: GrowsService;
 let applied: { spaceId: string; stage: string; preset: string | null }[];
 let moded: { spaceId: string; stage: string }[];
@@ -63,23 +59,8 @@ const presets: ClimatePresets = {
 };
 
 const build = (presetsPort: ClimatePresets | null): GrowsService => {
-  access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  entries = new EntryWriterService(db.entries);
-
-  return new GrowsService(
-    db.grows,
-    db.plants,
-    db.devices,
-    db.memberships,
-    db.spaces,
-    db.users,
-    db.shareLinks,
-    db.entries,
-    access,
-    new PhaseWriterService(db.grows, entries, db.entries, db.devices),
-    entries,
-    presetsPort,
-  );
+  access = accessOn(db);
+  return growsOn(db, access, { presets: presetsPort });
 };
 
 /** One tent inside a room, a fridge beside it, a controller in the tent, and the four kinds of caller. */
@@ -111,14 +92,6 @@ const world = async (): Promise<void> => {
 
 const plantsOfGrow = (growId = GROW): Promise<PlantDocument[]> => grows.plantsOf(growId);
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
   applied = [];
@@ -131,10 +104,7 @@ beforeEach(async () => {
 // What the two lists mean
 // ---------------------------------------------------------------------------
 
-type Phase = GrowDocument['phases'][number];
-type Placement = GrowDocument['placements'][number];
-
-const phase = (over: Partial<Phase>): Phase => ({
+const phase = (over: Partial<PhaseDocument>): PhaseDocument => ({
   id: 'phase',
   stage: 'vegetative',
   preset: null,
@@ -147,7 +117,7 @@ const phase = (over: Partial<Phase>): Phase => ({
   ...over,
 });
 
-const placement = (over: Partial<Placement>): Placement => ({
+const placement = (over: Partial<PlacementDocument>): PlacementDocument => ({
   id: 'placement',
   spaceId: TENT,
   startedAt: STARTED_AT,
@@ -402,7 +372,7 @@ describe('starting a grow', () => {
   });
 
   it('refuses a demo session, which is nobody', async () => {
-    await expect(grows.create(demo, { name: 'A tour´s grow', type: 'photoperiod', plants: [] })).rejects.toThrow(ProblemException);
+    await expect(grows.create(demo(), { name: 'A tour´s grow', type: 'photoperiod', plants: [] })).rejects.toThrow(ProblemException);
   });
 
   it('refuses a space the caller may not manage', async () => {
@@ -1031,17 +1001,17 @@ describe('the grows a caller is shown', () => {
       updatedAt: STARTED_AT,
     });
 
-    const listed = (await grows.list({ userId: OWNER, isAdmin: true, isDemo: false, shareToken: null }, {})).items.map(grow => grow.id);
+    const listed = (await grows.list(admin(OWNER), {})).items.map(grow => grow.id);
 
     expect(listed).not.toContain('grow-theirs');
     expect(listed).toHaveLength(1);
   });
 
   it('shows a demo session the demo grows and no others', async () => {
-    expect((await grows.list(demo, {})).items).toHaveLength(0);
+    expect((await grows.list(demo(), {})).items).toHaveLength(0);
 
     await db.grows.updateMany({}, { isDemo: true });
-    expect((await grows.list(demo, {})).items).toHaveLength(1);
+    expect((await grows.list(demo(), {})).items).toHaveLength(1);
   });
 
   it('filters by the space a grow stands in', async () => {
@@ -1157,13 +1127,13 @@ describe('who may do what to a grow', () => {
   });
 
   it('tells a demo session nothing about a grow that is not part of the tour', async () => {
-    expect(await allowedRoutes(demo, plantId)).toEqual(NOTHING);
+    expect(await allowedRoutes(demo(), plantId)).toEqual(NOTHING);
   });
 
   it('lets a demo session read a grow that is part of the tour, and write none of it', async () => {
     await db.grows.updateOne({ id: GROW }, { isDemo: true });
 
-    expect(await allowedRoutes(demo, plantId)).toEqual(READS);
+    expect(await allowedRoutes(demo(), plantId)).toEqual(READS);
   });
 
   it('says a grow a caller may not see is not there, rather than that they may not see it', async () => {

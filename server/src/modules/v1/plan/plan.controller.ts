@@ -17,7 +17,7 @@ import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { notFound } from '@common/v1/problem';
 import { clampRange, overlapsRange } from '@common/v1/range';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { V1Answer } from '../answer-shape';
 import { PlanTemplatesService } from './plan-templates.service';
@@ -145,7 +145,7 @@ export class PlanTemplatesController {
   @Get()
   @ApiOperation({ summary: 'The plan templates this account may start from' })
   @V1Answer(planTemplatePage)
-  public list(@Caller() ctx: AccessContext, @V1Query(pageQuery) query: z.infer<typeof pageQuery>): Promise<PlanTemplatePage> {
+  public list(@Caller() ctx: AccessContext, @V1Query(pageQuery) query: PageQuery): Promise<PlanTemplatePage> {
     return this.templates.list(ctx, query);
   }
 

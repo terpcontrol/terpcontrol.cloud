@@ -13,7 +13,7 @@ import { withoutCredentials } from '@common/log-path';
  * splice them in, is also what keeps a password with an `@` or a `:` in it
  * from breaking the address: the URL encodes both, and ffmpeg decodes them.
  */
-export interface StreamChange {
+interface StreamChange {
   url?: string;
   /** Replaces the login name; empty takes it away. */
   username?: string;

@@ -15,13 +15,14 @@ import { GrowPicker } from '@/screens/space/GrowPicker';
 import { useMovableGrows } from '@/screens/space/movable-grows';
 import { statesTargets } from '@/ui/climate-hardware';
 import ui from '@/ui/ui.module.css';
+import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { GerminationChoices } from '../control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '../control/germination/germination-choices';
 import { usePlaceController } from '../grow/phase-climate';
 import { scheduleTitle } from '../control/targets/schedule-words';
-import { draftOf, offsetOf } from '../control/targets/targets-draft';
-import { targetFigure } from '../home/units';
+import { draftOf } from '../control/targets/targets-draft';
+import { targetFigure } from '@/ui/units';
 import { MEASURE, presetBodyOf, type Doing } from './steps';
 import styles from './Claim.module.css';
 
@@ -77,22 +78,18 @@ export function DoingStep({
   const wrote = (applied?.deviceIds.length ?? 0) > 0;
   const asking = applied?.growDecisionNeeded === true && answeredFor !== applied;
   const window = useWindowOf(spaceId, applied?.stage ?? stage);
+  const wroteLine = applied ? (wrote ? t('claim.doing.wroteTo', { count: applied.deviceIds.length }) : t('claim.doing.wroteNothing')) : '';
+  const phaseLine = applied?.phaseId
+    ? t('claim.doing.phaseWritten', { stage: t(`home.stage.${applied.stage}`) })
+    : t(wrote ? 'claim.doing.noPhaseWritten' : 'claim.doing.noPhaseNoClimate');
 
   return (
     <>
       {/* A live region has to be on the page and empty before it is filled, so
           this one is always drawn and says nothing until a write has happened.
           What it reads is what the lines below say, so nothing is read twice. */}
-      <p className={styles.announce} role="status">
-        {applied
-          ? [
-              wrote ? t('claim.doing.wroteTo', { count: applied.deviceIds.length }) : t('claim.doing.wroteNothing'),
-              applied.phaseId
-                ? t('claim.doing.phaseWritten', { stage: t(`home.stage.${applied.stage}`) })
-                : t(wrote ? 'claim.doing.noPhaseWritten' : 'claim.doing.noPhaseNoClimate'),
-              asking ? t(wrote ? 'claim.doing.question' : 'claim.doing.questionNothingWritten') : '',
-            ].join(' ')
-          : ''}
+      <p className={ui.visuallyHidden} role="status">
+        {applied ? [wroteLine, phaseLine, asking ? t(wrote ? 'claim.doing.question' : 'claim.doing.questionNothingWritten') : ''].join(' ') : ''}
       </p>
 
       <Choices label={t('claim.doing.pick')}>
@@ -145,13 +142,9 @@ export function DoingStep({
 
       {applied ? (
         <ul className={styles.effect}>
-          <li>{wrote ? t('claim.doing.wroteTo', { count: applied.deviceIds.length }) : t('claim.doing.wroteNothing')}</li>
+          <li>{wroteLine}</li>
           {wrote && window ? <li>{t('claim.doing.window', { light: window })}</li> : null}
-          <li>
-            {applied.phaseId
-              ? t('claim.doing.phaseWritten', { stage: t(`home.stage.${applied.stage}`) })
-              : t(wrote ? 'claim.doing.noPhaseWritten' : 'claim.doing.noPhaseNoClimate')}
-          </li>
+          <li>{phaseLine}</li>
         </ul>
       ) : null}
 

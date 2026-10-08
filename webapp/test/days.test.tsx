@@ -1,4 +1,3 @@
-import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dayOf, momentOn } from '@/ui/days';
@@ -13,10 +12,10 @@ vi.mock('@/api/session', async importOriginal => {
 /** The zone the account keeps, which is the zone the sheets read their day in. */
 const account = vi.hoisted(() => ({ zone: null as string | null }));
 
-vi.mock('@/api/account', async importOriginal => ({
-  ...(await importOriginal<object>()),
-  useMe: () => ({ data: account.zone === null ? undefined : { preferences: { timezone: account.zone } } }),
-}));
+vi.mock('@/api/account', async importOriginal => {
+  const me = () => ({ data: account.zone === null ? undefined : { preferences: { timezone: account.zone } } });
+  return { ...(await importOriginal<object>()), useMe: me, useAccountMe: me };
+});
 
 /**
  * Which day a backdating sheet is talking about.

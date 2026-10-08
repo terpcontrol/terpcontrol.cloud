@@ -10,7 +10,7 @@ import type { PushPayload as ContractPushPayload } from '@fg2/shared-types/v1';
  */
 
 /** What the server encodes into a push, in the contract's shape; a push with a body that is not one still shows something. */
-export type PushPayload = Partial<ContractPushPayload>;
+type PushPayload = Partial<ContractPushPayload>;
 
 /** A push whose body is missing or is not the contract's JSON is still a push worth showing, so it reads as an empty one. */
 export const payloadOf = (data: { json: () => unknown } | null | undefined): PushPayload => {

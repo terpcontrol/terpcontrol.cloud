@@ -6,10 +6,8 @@ import { reminder as reminderShape, reminderCreate, reminderPage, reminderUpdate
 import { AuthGuard } from '@common/auth/auth.guard';
 import { Caller } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
-import { pageLimit } from '@common/v1/pages';
-import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
+import { V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
-import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { V1Answer } from '../answer-shape';
 import { RemindersService } from './reminders.service';
 
@@ -26,8 +24,6 @@ const reminderQuery = pageQuery.extend({
   spaceId: z.string().optional(),
 });
 
-type ReminderQuery = z.infer<typeof reminderQuery> & PageQuery;
-
 @ApiTags('diary')
 @Controller('v1/reminders')
 @UseGuards(AuthGuard)
@@ -37,26 +33,23 @@ export class RemindersController {
   @Get()
   @ApiOperation({ summary: 'The rhythms kept here, newest first' })
   @V1Answer(reminderPage)
-  public async list(@V1Query(reminderQuery) query: ReminderQuery, @Caller() caller: AccessContext): Promise<ReminderPage> {
-    const limit = pageLimit(query.limit);
-    const page = await this.reminders.list(caller, query, { growId: query.growId, spaceId: query.spaceId }, limit);
-
-    return { items: page.items.map(reminderOf), nextCursor: page.nextCursor };
+  public list(@V1Query(reminderQuery) query: z.infer<typeof reminderQuery>, @Caller() caller: AccessContext): Promise<ReminderPage> {
+    return this.reminders.list(caller, query);
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Ask to be reminded of something' })
   @V1Answer(reminderShape, { status: HttpStatus.CREATED })
-  public async create(@V1Body(reminderCreate) body: ReminderCreate, @Caller() caller: AccessContext): Promise<Reminder> {
-    return reminderOf(await this.reminders.create(caller, body));
+  public create(@V1Body(reminderCreate) body: ReminderCreate, @Caller() caller: AccessContext): Promise<Reminder> {
+    return this.reminders.create(caller, body);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Change the rhythm or what it is called' })
   @V1Answer(reminderShape)
-  public async update(@Param('id') id: string, @V1Body(reminderUpdate) body: ReminderUpdate, @Caller() caller: AccessContext): Promise<Reminder> {
-    return reminderOf(await this.reminders.update(caller, id, body));
+  public update(@Param('id') id: string, @V1Body(reminderUpdate) body: ReminderUpdate, @Caller() caller: AccessContext): Promise<Reminder> {
+    return this.reminders.update(caller, id, body);
   }
 
   @Delete(':id')
@@ -67,17 +60,3 @@ export class RemindersController {
     return this.reminders.remove(caller, id);
   }
 }
-
-/** The stored document as the contract has it: instants as ISO strings. */
-export const reminderOf = (reminder: ReminderDocument): Reminder => ({
-  id: reminder.id,
-  createdAt: reminder.createdAt.toISOString(),
-  subject: { type: reminder.subject.type, id: reminder.subject.id },
-  kind: reminder.kind,
-  label: reminder.label,
-  everyDays: reminder.everyDays,
-  onceAt: reminder.onceAt?.toISOString() ?? null,
-  assigneeId: reminder.assigneeId,
-  defaults: reminder.defaults ?? null,
-  createdBy: reminder.createdBy,
-});

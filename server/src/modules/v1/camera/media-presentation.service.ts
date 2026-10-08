@@ -35,25 +35,11 @@ export const pictureSizeQuery = z.object({
   height: dimension.describe(`The same for the height. Never enlarged, and never more than ${MAX_DIMENSION}.`),
 });
 
-/**
- * A byte range that starts past the end of the file, refused as every other
- * refusal is rather than with an empty body.
- */
-export const RANGE_REFUSAL = {
-  status: 416,
-  description: 'The byte range asked for starts past the end of the file. `Content-Range` says how long it is.',
-  content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/Problem' } } },
-};
-
-/** A dimension a client asked for, or nothing at all - which is the stored picture whole. */
-export const parseDimension = (value: unknown): number | undefined => {
-  if (value === undefined || value === null || value === '') return undefined;
-
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
-
-  return Math.min(Math.floor(parsed), MAX_DIMENSION);
-};
+/** The size a picture was asked for at, never past the limit; a side not asked for is left to the picture. */
+export const renderSizeOf = (query: z.infer<typeof pictureSizeQuery>): RenderSize => ({
+  width: query.width && Math.min(query.width, MAX_DIMENSION),
+  height: query.height && Math.min(query.height, MAX_DIMENSION),
+});
 
 /** The narrower of what was asked for and what the tier allows; a cap is never widened by a request. */
 export const narrowestOf = (asked: RenderSize, cap: number | undefined): RenderSize =>
@@ -91,10 +77,8 @@ export class MediaPresentationService {
     return sharp(body).rotate().jpeg({ quality: 90, force: false }).toBuffer();
   }
 
-  /** Resizes when there is anything to do, never enlarging. */
-  public async resize(body: Buffer, size: RenderSize): Promise<Buffer> {
-    if (!size.width && !size.height) return body;
-
+  /** Never enlarges. */
+  public resize(body: Buffer, size: RenderSize): Promise<Buffer> {
     return sharp(body)
       .rotate()
       .resize({ ...size, fit: 'inside', withoutEnlargement: true })

@@ -1,19 +1,21 @@
-import { ChevronDown, Film, Leaf } from 'lucide-react';
+import { ChevronDown, Leaf } from 'lucide-react';
 import { DateTime } from 'luxon';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { GrowListItem, GrowWeekCard, Person, WeekClimate } from '@fg2/shared-types/v1';
+import type { GrowListItem, GrowWeekCard, Person } from '@fg2/shared-types/v1';
 import { useWeekEntries } from '@/api/grows';
 import { useCorrecting } from '@/log/corrections';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
+import { DAY_MS } from '@/ui/days';
 import { EntryRow } from '@/ui/EntryRow';
-import { unitSymbol } from '@/ui/age';
-import { decimalFigure } from '@/ui/figures';
-import { readingFigure, weekDayOf } from '@/ui/entries';
+import { WeekClimateStrip, WeekFilm } from '@/ui/WeekCardParts';
+import { looseFigure } from '@/ui/figures';
+import { weekDayOf } from '@/ui/entries';
 import { Term } from '@/ui/Help';
-import { standsIn } from '@/ui/session-access';
+import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { amountLabel, schemeName } from './scheme';
+import { stageLabel } from '@/ui/presets';
 import styles from './WeekCard.module.css';
 
 interface WeekCardProps {
@@ -28,8 +30,6 @@ interface WeekCardProps {
   /** Opens the grow's pictures on this one, where the page offers a viewer. */
   onPicture?: (mediaId: string) => void;
 }
-
-const figure = (value: number | null, decimals: number): string => (value === null ? '–' : decimalFigure(value, decimals));
 
 /**
  * One week of the grow: its number and day range, the seven thumbnails, the
@@ -57,8 +57,6 @@ export function WeekCard({ week, grow, people, now, current, explain, onPicture 
   const lived = grow.endedAt ? DateTime.fromISO(grow.endedAt) : now;
   const shown = rest.data ? rest.data.items : week.entries;
   const missing = week.entryCount - shown.length;
-  const temperature = week.climate.find(row => row.metric === 'temperature');
-  const humidity = week.climate.find(row => row.metric === 'humidity');
   const readingName = (key: string) => grow.measurements.find(definition => definition.key === key);
   // A day's tile is the camera's still of it, else a photo written into the
   // diary that day. A week with neither - a grow with no camera and no photo
@@ -78,7 +76,7 @@ export function WeekCard({ week, grow, people, now, current, explain, onPicture 
         </span>
         {week.stage ? (
           <span className={ui.tag}>
-            {week.preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${week.stage}`)}
+            {stageLabel(t, week.stage, week.preset)}
             {week.stageWeek !== null ? ` ${t('home.card.week', { week: week.stageWeek })}` : ''}
           </span>
         ) : null}
@@ -128,31 +126,11 @@ export function WeekCard({ week, grow, people, now, current, explain, onPicture 
         })}
       </ul>
 
-      {week.deviceIds?.length === 0 ? null : week.climate.length === 0 ? (
-        <p className={`mono ${styles.noClimate}`}>{t('grow.nothingMeasured')}</p>
-      ) : (
-        <dl className={`${ui.strip} ${styles.stats}`}>
-          <Stat
-            value={dayNight(temperature, 1)}
-            unit="°C"
-            label={
-              temperature?.dayAverage == null ? (
-                t('grow.average')
-              ) : explain ? (
-                <Term topic="dayNightAverages">{t('grow.dayNight')}</Term>
-              ) : (
-                t('grow.dayNight')
-              )
-            }
-          />
-          <Stat value={figure(humidity?.averageValue ?? null, 0)} unit="%" label={t('grow.humidity')} />
-          <Stat value={figure(week.lightHours, 0)} unit={unitSymbol('h')} label={t('grow.light')} />
-        </dl>
-      )}
+      <WeekClimateStrip week={week} explain={explain} emptyClassName={styles.noClimate} />
 
       {open ? (
         <>
-          {week.timelapseMediaId ? <WeekFilm mediaId={week.timelapseMediaId} /> : null}
+          {week.timelapseMediaId ? <WeekFilm src={mediaUrl(week.timelapseMediaId)} /> : null}
           {week.feeding ? (
             <div className={styles.feeding}>
               <Leaf size={14} strokeWidth={1.75} className={styles.feedingIcon} aria-hidden />
@@ -184,10 +162,10 @@ export function WeekCard({ week, grow, people, now, current, explain, onPicture 
                 return (
                   <span key={reading.key}>
                     {index > 0 ? ' · ' : ''}
-                    <span className={styles.readingName}>{definition?.name ?? reading.key}</span> {readingFigure(reading.value)}
+                    <span className={styles.readingName}>{definition?.name ?? reading.key}</span> {looseFigure(reading.value)}
                     {definition?.unit ? ` ${definition.unit}` : ''}
                     {reading.change ? (
-                      <span className={styles.change}>{` ${reading.change > 0 ? '+' : ''}${readingFigure(reading.change)}`}</span>
+                      <span className={styles.change}>{` ${reading.change > 0 ? '+' : ''}${looseFigure(reading.change)}`}</span>
                     ) : null}
                   </span>
                 );
@@ -208,7 +186,7 @@ export function WeekCard({ week, grow, people, now, current, explain, onPicture 
                     picture={mediaUrl}
                     measurements={grow.measurements}
                     day={day}
-                    onOpen={correcting(entry, { label: grow.name, dayNumber: day, ownerId: grow.ownerId, spaceId: standsIn(grow) })}
+                    onOpen={correcting(entry, { label: grow.name, dayNumber: day, ...growStanding(grow) })}
                   />
                 );
               })}
@@ -237,26 +215,6 @@ export function WeekCard({ week, grow, people, now, current, explain, onPicture 
   );
 }
 
-/** "25.1 / 22.1" where the controller told day from night; the plain mean where it did not. */
-const dayNight = (row: WeekClimate | undefined, decimals: number): string =>
-  row?.dayAverage !== null && row?.dayAverage !== undefined
-    ? `${figure(row.dayAverage, decimals)} / ${figure(row.nightAverage, decimals)}`
-    : figure(row?.averageValue ?? null, decimals);
-
-function Stat({ value, unit, label }: { value: string; unit: string; label: ReactNode }) {
-  return (
-    <div>
-      <dd className={ui.stripValue}>
-        <span className="figure">{value}</span>
-        <span className={`mono ${ui.stripUnit}`}>{unit}</span>
-      </dd>
-      <dt className="caption">{label}</dt>
-    </div>
-  );
-}
-
-const DAY_MS = 86_400_000;
-
 /** The first photo written into the diary during the grow's day that begins at `startsAt`, or null. */
 const photoOn = (startsAt: string, entries: { occurredAt: string; mediaIds: string[] }[]): string | null => {
   const from = DateTime.fromISO(startsAt).toMillis();
@@ -267,27 +225,3 @@ const photoOn = (startsAt: string, entries: { occurredAt: string; mediaIds: stri
 
   return photo?.mediaIds[0] ?? null;
 };
-
-/**
- * The week's film, where the camera made one. The public diary played it in
- * its week card and the grower's own card had no place for it, so a stranger
- * saw more of the week than its owner did. Asked for only when wanted: twenty
- * weeks would otherwise be twenty players on the page.
- */
-function WeekFilm({ mediaId }: { mediaId: string }) {
-  const { t } = useTranslation();
-  const [playing, setPlaying] = useState(false);
-  const src = mediaUrl(mediaId);
-
-  if (!src) return null;
-  if (!playing) {
-    return (
-      <button type="button" className={`${ui.chip} ${styles.weekFilmButton}`} onClick={() => setPlaying(true)}>
-        <Film size={13} strokeWidth={1.75} aria-hidden />
-        {t('publicPage.weekFilm')}
-      </button>
-    );
-  }
-
-  return <video className={styles.weekFilm} src={src} controls autoPlay muted playsInline />;
-}

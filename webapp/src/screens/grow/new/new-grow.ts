@@ -1,8 +1,8 @@
 import { DateTime } from 'luxon';
-import { PRESETS_OF_STAGE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { growDayAt } from '@fg2/shared-types/v1-schemas/feeding.js';
 import type { GrowCreate, GrowListItem, GrowScheme, GrowthStage, GrowType, PlantBatch } from '@fg2/shared-types/v1';
 import { instantOf } from '@/ui/age';
+import { presetsOf } from '@/ui/presets';
 
 /**
  * What the new-grow sheet is deciding, and the arithmetic behind the sentences
@@ -105,7 +105,7 @@ export const dayNumber = (startedAt: Date, now: DateTime): number => growDayAt(s
  * same for either kind of plant.
  */
 export const presetFor = (type: GrowType, stage: GrowthStage): string | null =>
-  type === 'autoflower' && (PRESETS_OF_STAGE[stage] ?? []).includes('autoflower') ? 'autoflower' : null;
+  type === 'autoflower' && presetsOf(stage).includes('autoflower') ? 'autoflower' : null;
 
 /**
  * The strains as the contract counts them. A row that was never named is still
@@ -113,8 +113,7 @@ export const presetFor = (type: GrowType, stage: GrowthStage): string | null =>
  * under a stand-in name rather than being dropped: a plant's label is made from
  * its strain, and a plant with an empty one is refused on the way in.
  */
-export const plantsOf = (rows: PlantRow[], unnamed: string): PlantBatch[] =>
-  rows.map(row => ({ strain: row.strain.trim() || unnamed, count: row.count }));
+const plantsOf = (rows: PlantRow[], unnamed: string): PlantBatch[] => rows.map(row => ({ strain: row.strain.trim() || unnamed, count: row.count }));
 
 export const growBody = (draft: Draft, name: string, scheme: GrowScheme | null, unnamed: string): GrowCreate => ({
   name,
@@ -134,7 +133,7 @@ export const growBody = (draft: Draft, name: string, scheme: GrowScheme | null, 
  */
 export const recordsOnly = (stage: GrowthStage, standing: unknown): boolean => stage === 'germination' && standing !== null;
 
-export interface Told {
+interface Told {
   key: string;
   values?: Record<string, string>;
   /** A line about something the tap would disturb, which is said beside the button as well rather than left below the fold. */
@@ -142,7 +141,7 @@ export interface Told {
 }
 
 /** The chosen place, as the sentences under the chips need to know it. */
-export interface TellPlace {
+interface TellPlace {
   name: string;
   /** Whether a device steers a climate here; null where the hardware could not be read, which is a state and not "nothing". */
   steered: boolean | null;

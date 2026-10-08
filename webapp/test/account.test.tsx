@@ -1,17 +1,15 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { type QueryClient } from '@tanstack/react-query';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Me, Media, PasswordChange, Session } from '@fg2/shared-types/v1';
-import { fileSize } from '@/api/exports';
+import type { Media, PasswordChange, Session } from '@fg2/shared-types/v1';
+import { fileSize } from '@/ui/figures';
 import { Account } from '@/screens/me/account/Account';
 import { deviceLabel, sortedSessions } from '@/screens/me/account/sessions';
+import { drawAt, json, NOT_FOUND } from './harness';
+import { meWith } from './session';
+import { translate } from './translations';
 
 /**
  * Me › Account: the address, the password, the sessions, the export and the
@@ -35,29 +33,6 @@ vi.mock('@/api/session', async importOriginal => {
     mediaUrl: (id: string) => `/media/${id}/content`,
     useSession: () => (session.demo ? ON_THE_DEMO : SIGNED_IN),
   };
-});
-
-const me = (): Me => ({
-  id: 'user-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  email: 'login@example.org',
-  isAdmin: false,
-  isActive: true,
-  handle: 'you',
-  bio: null,
-  avatarMediaId: null,
-  publicProfile: false,
-  privacy: { hideWeights: false, hideCounts: false },
-  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
-  retention: { climateDays: null },
-  climateRetention: { installDays: null, appliesDays: null },
-  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
-  deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
-  pushPublicKey: null,
-  telegramAvailable: false,
-  pushSubscribed: false,
-  layers: { diary: true },
 });
 
 const at = (id: string, userAgent: string | null, lastSeenAt: string): Session => ({
@@ -90,7 +65,7 @@ const exportRow = (status: 'queued' | 'ready'): Media =>
   }) as unknown as Media;
 
 const server = {
-  me: me(),
+  me: meWith(),
   sessions: SESSIONS,
   wrongPassword: false,
   passwords: [] as PasswordChange[],
@@ -103,8 +78,6 @@ const server = {
   /** When the server says the zip was written. The route hands back a standing export for an hour, so this is not always now. */
   builtAt: null as string | null,
 };
-
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
@@ -141,38 +114,22 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     server.mediaAsked += 1;
     return json(exportRow('ready'));
   }
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 });
 
-const freshClient = () => new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-
-const drawIn = (client: QueryClient) =>
-  render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/me/account']}>
-        <Account />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-
-const draw = () => drawIn(freshClient());
+const draw = (client?: QueryClient) => drawAt(<Account />, { at: '/me/account', client });
 
 const drawLoaded = async () => {
   draw();
   await screen.findByText('login@example.org');
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
   session.demo = false;
-  server.me = me();
+  server.me = meWith();
   server.sessions = SESSIONS;
   server.wrongPassword = false;
   server.passwords = [];
@@ -373,15 +330,14 @@ describe('taking everything away', () => {
    * finished file was orphaned and the wait started again.
    */
   it('finds the finished file again after a walk to another screen and back', async () => {
-    const client = freshClient();
-    const first = drawIn(client);
+    const first = draw();
     await screen.findByText('login@example.org');
 
     fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
     expect(await screen.findByRole('button', { name: /Download · 12\.4 MB/ })).toBeInTheDocument();
 
     first.unmount();
-    drawIn(client);
+    draw(first.client);
 
     // A button, not a link: the zip is served to a session, and nothing sets an
     // Authorization header on a navigation - so the bytes are fetched and handed

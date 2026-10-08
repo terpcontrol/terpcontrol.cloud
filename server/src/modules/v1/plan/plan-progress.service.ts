@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { PlanStep, PlanTransitionKind } from '@fg2/shared-types/v1';
+import { activeStep, nextStepIndex } from '@fg2/shared-types/v1-schemas/plan-clock.js';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -12,7 +13,7 @@ import { MailService } from '@modules/mail/mail.service';
 import { targetsOf } from '../phase/phase-targets';
 import { PhaseWriterService } from '../phase/phase-writer.service';
 import { PLAN_ANNOUNCER, PlanAnnouncer } from './plan-announcer.port';
-import { activeStep, completed, running, stepAfterActive } from './plan-steps';
+import { completed, running } from './plan-steps';
 
 /**
  * Everything that happens when a plan moves: the tick decides *when*, a
@@ -63,7 +64,7 @@ export class PlanProgressService {
    * paused plan writes no phase of its own.
    */
   public async moveOn(plan: StoredPlan, now: Date, transition: PlanTransitionKind | null, by: string | null = null): Promise<StoredPlan> {
-    const next = stepAfterActive(plan);
+    const next = nextStepIndex(plan);
     const looped = next !== null && next !== plan.state.activeStepIndex + 1;
     const paused = plan.state.status === 'paused';
     const moved = await this.store(
@@ -85,39 +86,32 @@ export class PlanProgressService {
     const place = await this.place(moved);
     const number = moved.state.activeStepIndex + 1;
 
-    if (next === null || !step) {
-      await this.announce(moved, place, transition, by, 'message-recipe-completed', []);
-      await this.notify(
-        moved,
-        place,
-        'on_step',
-        `Plan completed on device ${plan.deviceId}`,
-        `The plan has completed all its steps on device ${plan.deviceId}.`,
-      );
-      return moved;
-    }
+    const news =
+      next === null || !step
+        ? {
+            key: 'message-recipe-completed',
+            params: [],
+            subject: `Plan completed on device ${plan.deviceId}`,
+            text: `The plan has completed all its steps on device ${plan.deviceId}.`,
+          }
+        : looped
+          ? {
+              key: 'message-recipe-looped',
+              params: [step.name],
+              subject: `Plan started over at step 1 on device ${plan.deviceId}`,
+              text: `The plan has gone back to step 1 (${step.name}).`,
+            }
+          : {
+              key: 'message-recipe-advanced',
+              params: [`${number} (${step.name})`],
+              subject: `Plan advanced to step ${number} on device ${plan.deviceId}`,
+              text: `The plan has advanced to step ${number} (${step.name}).`,
+            };
 
-    if (looped) {
-      await this.announce(moved, place, transition, by, 'message-recipe-looped', [step.name]);
-      await this.notify(
-        moved,
-        place,
-        'on_step',
-        `Plan started over at step 1 on device ${plan.deviceId}`,
-        `The plan has gone back to step 1 (${step.name}).`,
-      );
-    } else {
-      await this.announce(moved, place, transition, by, 'message-recipe-advanced', [`${number} (${step.name})`]);
-      await this.notify(
-        moved,
-        place,
-        'on_step',
-        `Plan advanced to step ${number} on device ${plan.deviceId}`,
-        `The plan has advanced to step ${number} (${step.name}).`,
-      );
-    }
+    await this.announce(moved, place, transition, by, news.key, news.params);
+    await this.notify(moved, place, 'on_step', news.subject, news.text);
+    if (next !== null && step) await this.setPhase(moved, place, step);
 
-    await this.setPhase(moved, place, step);
     return moved;
   }
 
@@ -278,7 +272,7 @@ export class PlanProgressService {
     return owner?.email ?? null;
   }
 
-  public async place(plan: StoredPlan): Promise<DevicePlace> {
+  private async place(plan: StoredPlan): Promise<DevicePlace> {
     const device = await this.devices
       .findOne({ id: plan.deviceId }, { spaceId: 1, ownerId: 1, configuration: 1 })
       .lean<Pick<StoredDevice, 'spaceId' | 'ownerId' | 'configuration'>>()
@@ -286,7 +280,7 @@ export class PlanProgressService {
 
     return {
       spaceId: device?.spaceId ?? null,
-      growId: await this.phases.growInSpace(device?.spaceId ?? null),
+      growId: await this.phases.growIdIn(device?.spaceId ?? null),
       ownerId: device?.ownerId ?? null,
       configuration: device?.configuration ?? null,
     };

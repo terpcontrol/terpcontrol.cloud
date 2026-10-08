@@ -1,12 +1,10 @@
-import { HydratedDocument, Schema } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { PushSubscription, PushSubscriptionKeys } from '@fg2/shared-types/v1';
 
 /** One browser that agreed to be pushed to. The endpoint identifies it, so re-subscribing is an upsert. */
 export interface StoredPushSubscription extends Omit<PushSubscription, 'createdAt'> {
   createdAt: Date;
 }
-
-export type PushSubscriptionDocument = HydratedDocument<StoredPushSubscription>;
 
 const pushSubscriptionKeysSchema = new Schema<PushSubscriptionKeys>(
   {

@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
 updated: 2026-10-08
-source: Chris (PR reviews and sessions 2025-10..2026-10); app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; checked against the code on 2026-10-08
+source: Chris (PR reviews and sessions 2025-10..2026-10); app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/**
   - shared-types/**
@@ -46,16 +46,20 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   rotation - and report on `GET /v1/admin/stats` (`retention`, `alarmWatch`).
 - A throw nobody catches, an unhandled rejection included, ends the process on purpose (`main.ts`) and
   `restart: always` brings it back. Work without a caller - timers, MQTT and stream callbacks - runs through
-  `BackgroundWork` (one pass at a time, failures logged by name, nothing re-armed while stopping) or `logIfItFails`
-  (`common/background-work.ts`). A `void` promise fired from a timer once crash-looped a server.
+  `BackgroundWork` or `logIfItFails` (`common/background-work.ts`), which log a failure as `<name> failed: <stack>`.
+  A periodic job is `repeat` (fixed ticks, a tick skipped while the last pass still runs) or `loop` (the next pass
+  armed only once one has finished, its delay computed per pass if need be), never a timer it re-arms itself in a
+  `finally`; neither arms anything while the server stops. A `void` promise fired from a timer once crash-looped a
+  server.
 - Loops: MQTT connect (retry 5 s), plan engine 20 s, alarm health 60 s, schedule clocks 60 s, firmware rollout 10 s,
   camera poller (5 s between passes), export builder 5 min, timelapses, task announcer, weekly recap and the resume of
   unfinished account deletions hourly, cleanup and climate retention daily.
 - SIGTERM: logged at both ends around `app.close()`; the tunnel tells every device it is closing while the broker is
   still connected (`beforeApplicationShutdown`); then the signal is re-raised.
-- Logs: console, plus daily files under `LOG_DIR` (`debug/`, `error/`, 30 days). Compose gives `LOG_DIR` no volume,
-  so the files go with the container. `SERVER_LOG_FORMAT=disabled` drops the access lines; `/v1` refusals log 5xx
-  as error, 404 as debug, other 4xx as warn.
+- Logs: console, plus daily files under `LOG_DIR` (`debug/`, `error/`, 30 days). `LOG_DIR` is an image constant, like
+  the container ports: `server/Dockerfile` sets it and creates the directory for its user; compose neither passes it
+  nor gives it a volume, so the files go with the container. `SERVER_LOG_FORMAT=disabled` drops the access lines;
+  `/v1` refusals log 5xx as error, 404 as debug, other 4xx as warn.
 
 ## Configuration
 - Defaults, also values derived from other variables, live in `docker-compose.yaml`; the server reads what compose
@@ -82,30 +86,44 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
 ## The /v1 contract
 - Wire shapes are zod schemas in `shared-types/src/v1/`; `npm run generate` writes `v1.d.ts`, `v1-schemas/` and
   `openapi-schemas.json`, all committed, and CI fails on a stale generation. Why two entry points, and why server and
-  shared-types must be on one zod version: the header of `shared-types/scripts/generate.mjs`.
+  shared-types must be on one zod version: the header of `shared-types/scripts/generate.mjs`. A rule both ends apply
+  (`value-age.ts`, `alert-routing.ts`, `day-night.ts`, `plan-clock.ts`, `steering.ts`, ...) lives beside the schemas
+  in a schema-free module, which the web app and the simulator load at runtime - how such a module may import:
+  [webapp.md](webapp.md#the-shared-contract).
 - Routes declare `@V1Answer(schema, { status })`, validate with `@V1Body`/`@V1Query` and need a tag with a
   description in `TAGS` (`src/openapi.ts`); `test/specs/openapi.spec.ts` holds real answers, bodies and refusals to
   `/swagger.json`.
 - Secrets are not in the contract, and their fields are `select: false` ([data.md](data.md)). Answers go through
   serialisers, never as a stored row - sign-up once answered the bcrypt hash and the activation code.
 - Bodies drop unknown fields. Query flags are `z.enum(['true','false'])` read as `=== 'true'` (`z.coerce.boolean()`
-  reads `'false'` as true); instants use `instantQuery()` (an untyped `'1'` became 2001-01-01); a sparse enum-keyed
-  map is `z.partialRecord`, because zod 4's `z.record` over an enum demands every key.
+  reads `'false'` as true); instants use `instantQuery()` (an untyped `'1'` became 2001-01-01); a list
+  (`metrics=a&metrics=b`) is `repeated(item)` (`common/v1/validation.ts`), because one value arrives as a string and
+  several as an array; a sparse enum-keyed map is `z.partialRecord`, because zod 4's `z.record` over an enum demands
+  every key.
 - Every access decision is `access(ctx, subject, need)` (`AccessService`); never hand-roll an ownership check. Its
   `Grant` also says what the reader may see: the window (`clampRange`), `redacted`, `includeCameras`. A space answers
   `youMay` (`own` · `manage` · `log` · `view`) per reader, from `SpacesService.mayIn`, which
-  `test/unit/v1-spaces.spec.ts` holds to `access()`; clients draw from it rather than re-derive a role.
+  `test/unit/v1-spaces.spec.ts` holds to `access()`; clients draw from it rather than re-derive a role. The one
+  exception are rows in no space and of no grow (saved charts, feeding schemes): `ownRows` for a list (personal, even
+  for an administrator) and `requireOwned` for one named row (`common/v1/owned-rows.ts`). A route about the caller's
+  own account takes its id from `accountOf` (`modules/v1/caller.ts`), which answers a demo session 403 `no_account`.
 - 401 means only "no valid session": the webapp refreshes once and replays on it, so an authorization failure must
   never answer 401. What the caller may not see, what never existed and what is somebody else's answer the same 404
   (`AccessService.require`), also when a list filter names it (except `tasks?assigneeId`); a refused write on
   something visible is 403, and so is a non-admin on `/v1/admin`.
-- Lists combine visibility, filters and cursor as `{ $and: [...] }`; spreading the cursor's `$or` beside the
-  visibility `$or` replaced it and leaked other people's rows three times. A list widens as `access()` does (a room
-  membership covers the spaces in it). An administrator's own lists stay personal; the install is read via
-  `/v1/admin/*`.
+- One global filter answers every throw, `ApiExceptionFilter` (`common/exception.filter.ts`): a problem document
+  under `/v1`, `{ message }` beside it, plain text for a `PlainTextException` (the broker's auth backend reads words).
+  A Nest `HttpException` under `/v1` gets its status's generic code (`not_found`, `forbidden`); a refusal a client
+  must tell apart is thrown with the helpers of `common/v1/problem.ts`. A second global filter would never be asked.
+- Every cursor-paged list is read with `findPage` and answered with `mapPage` (`common/v1/pages.ts`), never a
+  hand-built query: it puts visibility, filters and cursor under one `$and`, because two `$or` in one object overwrite
+  each other ([data.md](data.md#mongodb)). A list built in memory cuts its page with `pageOf`. A list widens as
+  `access()` does (a room membership covers the spaces in it: `withSpacesInside`, `common/v1/rooms.ts`). An
+  administrator's own lists stay personal; the install is read via `/v1/admin/*`.
 - A write is authorised on every subject it names (an entry's grow, space, device, plants, media), not on a primary
-  one. A write that must happen once rests on a unique index, and a duplicate key (E11000) is answered as already
-  done: a read followed by a write cannot stop a race, and there are no transactions.
+  one. A write that must happen once rests on a unique index, and a duplicate key (E11000, `isDuplicateKey()` in
+  `database/duplicate-key.ts`) is answered as already done: a read followed by a write cannot stop a race, and there
+  are no transactions.
 - `main.ts` and `http-compatibility.ts` keep what clients relied on from Express (listed in
   [ADR 0004](../adr/0004-server-on-nestjs-and-fastify.md#consequences), held by `test/specs/http-contract.spec.ts`).
   Registering a body parser through Nest drops both Fastify defaults, so `http-compatibility.ts` parses JSON and form
@@ -131,8 +149,10 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
 ## Demo mode
 - `POST /v1/sessions/demo` opens a session without an account (user id `demo`, never admin, its own rate budget). It
   reads objects with `isDemo`, redacted by `utils/demo.ts` (camera address, DID, uid, IP and errors, socket
-  addresses, alarm targets, URLs in lines). `DemoReadOnlyGuard` is global: anything but a read is 403 except under
-  `/v1/sessions`, so no new write route can forget it.
+  addresses, the hardware report's camera URL and socket list, URLs in lines); alarm targets and a plan's mail
+  address are withheld by `alarm.wire.ts` and `plan.wire.ts`, as from anybody who may not manage the device.
+  `DemoReadOnlyGuard` is global: anything but a read is 403 except under `/v1/sessions`, so no new write route can
+  forget it.
 - There is deliberately no UI or API to put a device into the demo (Chris, 2026-08-19). `./simulate-device.sh demo on
   -d <device-id>` sets `isDemo` in MongoDB on the device, its space and its cameras - any device of that stack, not
   only simulated ones. It does not flag the grow standing there; set `grows.isDemo` as well if the tour should show it.
@@ -141,10 +161,11 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
 - The token comes as `X-Share-Token` or `?share=` and is looked up on every request, so revoking is immediate. A
   `public_page` link dies when its grow stops being public; a space link covers a grow only if the grow stood in the
   space within the link's window. A live link cannot be deleted (409 `share_link_live`); it is revoked first.
-- A link or public reader must gain nothing. The window rule exists once, in `common/v1/range.ts`; three private
-  copies had grown up and the grow report had none, which handed a fortnight's link the whole grow. Every route a link
-  reaches clamps with it, applies the grant's `redacted` and `includeCameras`, and is tested outside the window. A
-  film is served only when it lies wholly inside the window (refused, not cut); a grow's cover and film are exempt.
+- A link or public reader must gain nothing. The window rule exists once, in `common/v1/range.ts`, as does whether a
+  link or an invite still opens anything (`stillValid`); three private copies of the window had grown up and the grow
+  report had none, which handed a fortnight's link the whole grow. Every route a link reaches clamps with it, applies
+  the grant's `redacted` and `includeCameras`, and is tested outside the window. A film is served only when it lies
+  wholly inside the window (refused, not cut); a grow's cover and film are exempt.
 - Redacted readers get pictures re-encoded without metadata (migrated photos carried GPS), `null` device ids and
   camera owner, and only the diary kinds on the timeline. The share card is cached `public, max-age=300`, the Open
   Graph shell 120 s; a link's open counter is written at most once a minute.
@@ -189,6 +210,13 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   diary lines.
 - Alarm webhook targets and headers (they can carry bearer tokens) are served only to whoever may manage the device
   and left out of exports.
+- A check on a request's path reads it as the router matches it, which ignores case: `routePath()` and `isUnder()`
+  (`common/route-path.ts`, no query, lower-cased). `/V1/media/...` reaches the same handler as `/v1/media/...`, so a
+  check on the path as written is a way around it; the demo guard and the media token's reach use them.
+- Every secret is compared with `sameSecret` (`common/same-secret.ts`: constant time, lengths in UTF-8 bytes) - the
+  automation token, the broker's shared secret and the server's own broker password, legacy device passwords, the
+  Telegram webhook secret and link signature. Never `===`, nor a bare `timingSafeEqual`, which throws on unequal
+  lengths.
 
 ## Dependencies
 - `@nestjs/common`, `core` and `platform-fastify` move together (12.1 of one does not compile against 12.0 of

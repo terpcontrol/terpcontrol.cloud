@@ -1,26 +1,8 @@
 import type { CardTransition, Metric, Setpoints, SetpointsTransition, TargetBand } from '@fg2/shared-types/v1';
+import { DAY_ONLY } from '@fg2/shared-types/v1-schemas';
 import { cycleAt, cycleOf, glidingTarget, type CycleMoment } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { reportsNoSensor } from '@common/v1/sentinels';
-import { DAY_ONLY } from '@common/v1/steering';
-import { bandAround, HELD, unionOf, type Held, type Settling } from './held-targets';
-
-/**
- * The targets a controller is holding, read out of its own configuration
- * document. Influx stores what was measured and what was switched and never a
- * setpoint, so the configuration is the only place one comes from.
- *
- * The keys are the device's, which every type states as a path
- * (`day.temperature`). A device that reports it nested and a client that wrote
- * it flat mean the same thing, so both are read.
- */
-
-/** The configuration path each metric's target is stated at, per half of the cycle. */
-const TARGETS: Readonly<Record<'day' | 'night', Partial<Record<Metric, string>>>> = {
-  // The CO2 target is one number in the document, and the device doses towards
-  // it by day alone: the night holds none, and is not said to.
-  day: { temperature: 'day.temperature', humidity: 'day.humidity', co2: 'co2.target' },
-  night: { temperature: 'night.temperature', humidity: 'night.humidity' },
-};
+import { targetsOf } from '../phase/phase-targets';
+import { bandAround, halvesHeldBy, HELD, unionOf, type Figures, type Held, type Settling } from './held-targets';
 
 /**
  * Whose figures hold now is worked out the way the device works it out.
@@ -61,8 +43,7 @@ export const setpointsOf = (
   if ((!moment && sensorDay === null) || moment?.kind === 'off') return null;
 
   const held = type === 'fan' ? (FAN_HOLDS[Number(configuration.mode)] ?? null) : (HELD[String(configuration.workmode)] ?? null);
-  const day = held?.nightOnly ? {} : halfOf(configuration, 'day', hardware, held);
-  const night = halfOf(configuration, 'night', hardware, held);
+  const { day, night } = halvesHeldBy(targetsOf(configuration), held, hardware);
   if (Object.keys(day).length + Object.keys(night).length === 0) return null;
 
   if (!moment) {
@@ -92,7 +73,7 @@ export const setpointsOf = (
  * device holds now: a band before that is not the band of now. A change of the
  * light schedule alone, inside the same half, leaves nothing to follow.
  */
-const settlingAt = (settling: Settling | null, at: Date, active: Partial<Record<Metric, number>>): Settling | null => {
+const settlingAt = (settling: Settling | null, at: Date, active: Figures): Settling | null => {
   if (!settling || at.getTime() >= settling.until) return null;
   const moved = (Object.entries(settling.bands) as [Metric, TargetBand | null][]).some(([metric, before]) => {
     const now = bandAround(metric, active[metric]);
@@ -110,7 +91,7 @@ const withSettling = (
   scheduled: SetpointsTransition | null,
   settling: Settling | null,
   active: 'day' | 'night',
-  figures: Partial<Record<Metric, number>>,
+  figures: Figures,
 ): SetpointsTransition | null => {
   if (!settling) return scheduled;
   const until = new Date(Math.max(settling.until, scheduled ? Date.parse(scheduled.until) : 0)).toISOString();
@@ -133,11 +114,7 @@ const instantOf = (at: number | null): string | null => (at === null ? null : ne
  * firmware works them out, and the new half's once they have arrived. A metric
  * the new half holds no target for - CO2 into the night - is not aimed at.
  */
-const transitionOf = (
-  moment: CycleMoment,
-  day: Partial<Record<Metric, number>>,
-  night: Partial<Record<Metric, number>>,
-): SetpointsTransition | null => {
+const transitionOf = (moment: CycleMoment, day: Figures, night: Figures): SetpointsTransition | null => {
   const transition = moment.transition;
   if (!transition) return null;
 
@@ -149,7 +126,7 @@ const transitionOf = (
       const glides = transition.glide !== null && !DAY_ONLY.includes(metric) && day[metric] !== undefined && other !== undefined;
       return [[metric, glides ? round(glidingTarget(day[metric]!, other, transition.glide!)) : value]];
     }),
-  ) as Partial<Record<Metric, number>>;
+  ) as Figures;
 
   return { from: transition.from, to: transition.to, until: new Date(transition.until).toISOString(), gliding: transition.glide !== null, targets };
 };
@@ -199,28 +176,4 @@ const FAN_HOLDS: Readonly<Record<number, Held>> = {
   1: { metrics: ['temperature'], nightOnly: false },
   2: { metrics: ['humidity'], nightOnly: false },
   3: { metrics: ['temperature', 'humidity'], nightOnly: false },
-};
-
-const halfOf = (
-  configuration: Record<string, unknown>,
-  half: 'day' | 'night',
-  hardware: Record<string, string>,
-  held: { metrics: readonly Metric[] } | null,
-): Partial<Record<Metric, number>> => {
-  const targets: Partial<Record<Metric, number>> = {};
-
-  for (const [metric, path] of Object.entries(TARGETS[half]) as [Metric, string][]) {
-    if (reportsNoSensor(hardware, metric) || (held && !held.metrics.includes(metric))) continue;
-    const value = numberAt(configuration, path);
-    if (value !== null) targets[metric] = value;
-  }
-
-  return targets;
-};
-
-const numberAt = (configuration: Record<string, unknown>, path: string): number | null => {
-  const nested = path.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown> | null)?.[key], configuration);
-  const value = nested ?? configuration[path];
-
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 };

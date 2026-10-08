@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CameraTransport, Device } from '@fg2/shared-types/v1';
-import { deviceName } from '@/screens/devices/naming';
+import { deviceName } from '@/ui/naming';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Choice, Choices } from '@/ui/SheetParts';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import advanced from '@/ui/advanced/Advanced.module.css';
 import { transportsFor } from './stream';
@@ -37,17 +38,7 @@ export function TunnelRow({
       help="advanced.cameraTunnel"
       note={t(on ? 'camera.stream.tunnelOn' : 'camera.stream.tunnelOff', { device: deviceName(carrier, t) })}
     >
-      <button
-        type="button"
-        className={ui.switch}
-        role="switch"
-        aria-checked={on}
-        aria-label={label}
-        disabled={disabled}
-        onClick={() => onChange(!on)}
-      >
-        <span className={ui.knob} aria-hidden />
-      </button>
+      <Switch label={label} on={on} disabled={disabled} onChange={onChange} />
     </SettingRow>
   );
 }

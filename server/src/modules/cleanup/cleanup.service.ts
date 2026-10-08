@@ -28,12 +28,29 @@ const BATCH_SIZE = 500;
 /** A device reports the outcome of every capture it takes, under this key. */
 const CAM_CAPTURE_KEY = 'message-cam-capture';
 
-const batches = <T>(items: T[], size = BATCH_SIZE): T[][] => {
+const batches = <T>(items: T[]): T[][] => {
   const result: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    result.push(items.slice(i, i + size));
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    result.push(items.slice(i, i + BATCH_SIZE));
   }
   return result;
+};
+
+/** A stream taken a batch at a time, each handed on as it fills and the rest at the end; what the batches count, added up. */
+const inBatches = async <T>(items: AsyncIterable<T>, handle: (batch: T[]) => Promise<number>): Promise<number> => {
+  let counted = 0;
+  let batch: T[] = [];
+
+  for await (const item of items) {
+    batch.push(item);
+    if (batch.length >= BATCH_SIZE) {
+      counted += await handle(batch);
+      batch = [];
+    }
+  }
+  if (batch.length > 0) counted += await handle(batch);
+
+  return counted;
 };
 
 /**
@@ -43,9 +60,6 @@ const batches = <T>(items: T[], size = BATCH_SIZE): T[][] => {
  * has to be given ids and nothing else.
  */
 const named = (...ids: (string | null | undefined)[]): string[] => [...new Set(ids.filter((id): id is string => typeof id === 'string'))];
-
-/** What a batch of ids answers with: the ones that are still there. */
-type Lookup = (ids: string[]) => Promise<{ id: string }[]>;
 
 @Injectable()
 export class CleanupService implements OnModuleInit, OnApplicationShutdown {
@@ -63,24 +77,12 @@ export class CleanupService implements OnModuleInit, OnApplicationShutdown {
   ) {}
 
   public onModuleInit(): void {
-    this.work.schedule('The cleanup of unreachable entries and media', () => this.runPeriodically(), CLEANUP_START_DELAY_MS);
+    this.work.loop('The cleanup of unreachable entries and media', () => this.run(), CLEANUP_START_DELAY_MS, CLEANUP_INTERVAL_MS);
   }
 
   public onApplicationShutdown(): void {
     logger.info('Stopping the cleanup sweep');
     this.work.stop();
-  }
-
-  private async runPeriodically(): Promise<void> {
-    try {
-      await this.run();
-    } catch (e) {
-      logger.error(`Cleanup of unreachable entries and media failed: ${e}`);
-    } finally {
-      // Each run schedules the next, so a stopped server has to refuse it rather
-      // than only cancel the timer that happens to be pending.
-      this.work.schedule('The cleanup of unreachable entries and media', () => this.runPeriodically(), CLEANUP_INTERVAL_MS);
-    }
   }
 
   public async run(
@@ -133,22 +135,17 @@ export class CleanupService implements OnModuleInit, OnApplicationShutdown {
       .select({ id: 1, growId: 1, spaceId: 1, deviceId: 1 })
       .cursor();
 
-    let deleted = 0;
-    let candidates: Pick<EntryDocument, 'id' | 'growId' | 'spaceId' | 'deviceId'>[] = [];
-
-    const flush = async () => {
-      if (candidates.length === 0) return;
-
+    return inBatches(cursor, async candidates => {
       const grows = await this.stillThere(
-        ids => this.grows.find({ id: { $in: ids } }, { id: 1 }).lean(),
+        this.grows,
         candidates.map(entry => entry.growId),
       );
       const spaces = await this.stillThere(
-        ids => this.spaces.find({ id: { $in: ids } }, { id: 1 }).lean(),
+        this.spaces,
         candidates.map(entry => entry.spaceId),
       );
       const devices = await this.stillThere(
-        ids => this.devices.find({ id: { $in: ids } }, { id: 1 }).lean(),
+        this.devices,
         candidates.map(entry => entry.deviceId),
       );
 
@@ -160,18 +157,9 @@ export class CleanupService implements OnModuleInit, OnApplicationShutdown {
             !named(entry.deviceId).some(id => devices.has(id)),
         )
         .map(entry => entry.id);
-      candidates = [];
 
-      deleted += await this.deleteByIds(this.entries, doomed);
-    };
-
-    for (let entry = await cursor.next(); entry != null; entry = await cursor.next()) {
-      candidates.push(entry);
-      if (candidates.length >= BATCH_SIZE) await flush();
-    }
-    await flush();
-
-    return deleted;
+      return this.deleteByIds(this.entries, doomed);
+    });
   }
 
   /**
@@ -185,22 +173,17 @@ export class CleanupService implements OnModuleInit, OnApplicationShutdown {
       .select({ id: 1, cameraId: 1, growId: 1, spaceId: 1 })
       .cursor();
 
-    let deleted = 0;
-    let candidates: Pick<MediaDocument, 'id' | 'cameraId' | 'growId' | 'spaceId'>[] = [];
-
-    const flush = async () => {
-      if (candidates.length === 0) return;
-
+    return inBatches(cursor, async candidates => {
       const cameras = await this.stillThere(
-        ids => this.cameras.find({ id: { $in: ids } }, { id: 1 }).lean(),
+        this.cameras,
         candidates.map(media => media.cameraId),
       );
       const grows = await this.stillThere(
-        ids => this.grows.find({ id: { $in: ids } }, { id: 1 }).lean(),
+        this.grows,
         candidates.map(media => media.growId),
       );
       const spaces = await this.stillThere(
-        ids => this.spaces.find({ id: { $in: ids } }, { id: 1 }).lean(),
+        this.spaces,
         candidates.map(media => media.spaceId),
       );
       const referenced = await this.referencedPictures(candidates);
@@ -219,19 +202,10 @@ export class CleanupService implements OnModuleInit, OnApplicationShutdown {
             !spokenFor.has(media.id),
         )
         .map(media => media.id);
-      candidates = [];
 
       // The delete hook on the schema drops the bytes of every document it removes.
-      deleted += await this.deleteByIds(this.media, doomed);
-    };
-
-    for (let media = await cursor.next(); media != null; media = await cursor.next()) {
-      candidates.push(media);
-      if (candidates.length >= BATCH_SIZE) await flush();
-    }
-    await flush();
-
-    return deleted;
+      return this.deleteByIds(this.media, doomed);
+    });
   }
 
   /** The pictures of this batch something still names: a diary entry, a grow's cover or film, an account's avatar. */
@@ -260,36 +234,21 @@ export class CleanupService implements OnModuleInit, OnApplicationShutdown {
    * what keeps this from racing a write that is simply still in flight.
    */
   private async deleteOrphanedMediaData(cutoff: Date): Promise<number> {
-    let deleted = 0;
-    let candidates: string[] = [];
-
-    const flush = async () => {
-      if (candidates.length === 0) return;
-
+    return inBatches(this.store.listFileIds(cutoff.getTime()), async candidates => {
       const known: string[] = await this.media.distinct('id', { id: { $in: candidates } });
       const spokenFor = await picturesTheWayBackHolds(this.media.db.db, candidates);
       const orphaned = candidates.filter(mediaId => !known.includes(mediaId) && !spokenFor.has(mediaId));
-      candidates = [];
 
-      if (orphaned.length > 0) {
-        await this.store.delete(orphaned);
-        deleted += orphaned.length;
-      }
-    };
-
-    for await (const mediaId of this.store.listFileIds(cutoff.getTime())) {
-      candidates.push(mediaId);
-      if (candidates.length >= BATCH_SIZE) await flush();
-    }
-    await flush();
-
-    return deleted;
+      if (orphaned.length > 0) await this.store.delete(orphaned);
+      return orphaned.length;
+    });
   }
 
-  private async stillThere(lookup: Lookup, ids: (string | null)[]): Promise<Set<string>> {
+  /** The ones of these ids whose document is still there. */
+  private async stillThere<T extends { id: string }>(model: Model<T>, ids: (string | null)[]): Promise<Set<string>> {
     const found = new Set<string>();
     for (const batch of batches(named(...ids))) {
-      for (const row of await lookup(batch)) found.add(row.id);
+      for (const row of await model.find({ id: { $in: batch } } as FilterQuery<T>, { id: 1 }).lean<{ id: string }[]>()) found.add(row.id);
     }
     return found;
   }

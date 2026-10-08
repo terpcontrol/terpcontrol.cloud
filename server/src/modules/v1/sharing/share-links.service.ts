@@ -3,16 +3,18 @@ import { InjectModel } from '@nestjs/mongoose';
 import { randomBytes } from 'node:crypto';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import type { ShareLink, ShareLinkCreate, ShareLinkUpdate, TimeRange } from '@fg2/shared-types/v1';
+import type { ShareLink, ShareLinkCreate, ShareLinkUpdate } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
-import { conflict, forbidden, notFound, unprocessable } from '@common/v1/problem';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
+import { conflict, notFound, unprocessable } from '@common/v1/problem';
+import { dateRange, isoRange, stillValid } from '@common/v1/range';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
+import { accountOf } from '../caller';
 
 /**
  * The `shareLinks` collection: an address somebody can hand out, and the window
@@ -24,7 +26,7 @@ import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
  * made it and how often it has been opened are the server's; a client names the
  * subject and the window and nothing else.
  *
- * Resolving a link is the other half and lives in `SharedController`: what is
+ * Resolving a link is the other half and lives in `PublicPagesService`: what is
  * read *through* a link never carries the link.
  */
 
@@ -64,17 +66,7 @@ export class ShareLinksService {
 
   /** Newest first: a list of links is what somebody made last, and the sharing sheet opens on it. */
   public async list(ctx: AccessContext, query: PageQuery): Promise<CursorPage<ShareLink>> {
-    const limit = pageLimit(query.limit);
-    // Combined rather than merged into one object: the visibility below is an
-    // `$or` and so is the cursor, and one spread beside the other would replace
-    // it - which would hand out every link in the database from the second page
-    // on, while the first page looked right.
-    const conditions: FilterQuery<ShareLinkDocument>[] = [await this.visibleTo(ctx), afterCursor('createdAt', query.cursor)];
-
-    const rows = await this.shareLinks.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<ShareLinkDocument[]>();
-
-    const page = pageOf(rows, limit, link => ({ at: link.createdAt, id: link.id }));
-    return { items: page.items.map(serialise), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.shareLinks, [await this.visibleTo(ctx)], query), serialise);
   }
 
   /**
@@ -91,7 +83,7 @@ export class ShareLinksService {
    * has reported; a listing is not.
    */
   private async visibleTo(ctx: AccessContext): Promise<FilterQuery<ShareLinkDocument>> {
-    const userId = this.accountOf(ctx);
+    const userId = accountOf(ctx);
     const [grows, spaces] = await Promise.all([
       this.grows.find({ ownerId: userId }, { id: 1 }).lean<Pick<GrowDocument, 'id'>[]>(),
       this.spaces.find({ ownerId: userId }, { id: 1 }).lean<Pick<SpaceDocument, 'id'>[]>(),
@@ -107,10 +99,10 @@ export class ShareLinksService {
   }
 
   public async create(ctx: AccessContext, body: ShareLinkCreate): Promise<ShareLink> {
-    const createdBy = this.accountOf(ctx);
+    const createdBy = accountOf(ctx);
     await this.access.require(ctx, subjectRef(body.subject.type, body.subject.id), 'own');
 
-    const range = rangeOf(body.range);
+    const range = dateRange(body.range ?? { startsAt: null, endsAt: null });
     const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
     refuseADeadWindow(range, expiresAt);
     if (body.kind === 'public_page') await this.refuseAPageThatIsNotThere(body.subject);
@@ -146,7 +138,7 @@ export class ShareLinksService {
     const link = await this.require(ctx, id);
 
     const changes = {
-      ...(body.range === undefined ? {} : { range: rangeOf(body.range) }),
+      ...(body.range === undefined ? {} : { range: dateRange(body.range) }),
       ...(body.includeCameras === undefined ? {} : { includeCameras: body.includeCameras }),
       ...(body.expiresAt === undefined ? {} : { expiresAt: body.expiresAt ? new Date(body.expiresAt) : null }),
     };
@@ -186,7 +178,7 @@ export class ShareLinksService {
    */
   public async remove(ctx: AccessContext, id: string, now: Date = new Date()): Promise<void> {
     const link = await this.require(ctx, id);
-    if (link.revokedAt === null && (link.expiresAt === null || link.expiresAt.getTime() > now.getTime())) {
+    if (stillValid(link, now)) {
       throw conflict('share_link_live', 'This link still works. Revoke it first; a link that has stopped can then be taken off the list.');
     }
 
@@ -208,9 +200,7 @@ export class ShareLinksService {
    */
   public async open(token: string, now: Date = new Date()): Promise<ShareLinkDocument> {
     const link = await this.shareLinks.findOne({ token }).lean<ShareLinkDocument>();
-    if (!link || link.revokedAt !== null || (link.expiresAt !== null && link.expiresAt.getTime() <= now.getTime())) {
-      throw notFound('share_link_not_found', 'That link leads nowhere.');
-    }
+    if (!link || !stillValid(link, now)) throw notFound('share_link_not_found', 'That link leads nowhere.');
 
     if (this.countable(token, now)) {
       await this.shareLinks.updateOne({ id: link.id }, { $inc: { 'state.openCount': 1 }, $set: { 'state.lastOpenedAt': now } });
@@ -267,13 +257,6 @@ export class ShareLinksService {
       );
     }
   }
-
-  /** A link belongs to somebody, and a demo session is nobody. */
-  private accountOf(ctx: AccessContext): string {
-    if (ctx.isDemo || !ctx.userId) throw forbidden('no_account', 'This route is about an account, and a demo session is not one.');
-
-    return ctx.userId;
-  }
 }
 
 /**
@@ -311,11 +294,6 @@ const refuseADeadWindow = (range: ShareLinkDocument['range'], expiresAt: Date | 
 };
 
 /** An open end is a link that keeps up with a diary as it goes on, which is what sharing a running grow means. */
-const rangeOf = (range: TimeRange | undefined): ShareLinkDocument['range'] => ({
-  startsAt: range?.startsAt ? new Date(range.startsAt) : null,
-  endsAt: range?.endsAt ? new Date(range.endsAt) : null,
-});
-
 /** Field by field, because `_id` rides on a stored document and never leaves the server. */
 const serialise = (link: ShareLinkDocument): ShareLink => ({
   id: link.id,
@@ -323,7 +301,7 @@ const serialise = (link: ShareLinkDocument): ShareLink => ({
   token: link.token,
   kind: link.kind,
   subject: { type: link.subject.type, id: link.subject.id },
-  range: { startsAt: link.range.startsAt?.toISOString() ?? null, endsAt: link.range.endsAt?.toISOString() ?? null },
+  range: isoRange(link.range),
   includeCameras: link.includeCameras,
   createdBy: link.createdBy,
   expiresAt: link.expiresAt?.toISOString() ?? null,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { writeStored } from '@/ui/stored';
 import { THEME_STORAGE_KEY, ThemeContext, storedThemeChoice, type ThemeChoice } from './theme-context';
 
 /**
@@ -17,12 +18,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setChoice = useCallback((next: ThemeChoice) => {
     setChoiceState(next);
-    try {
-      if (next === 'system') localStorage.removeItem(THEME_STORAGE_KEY);
-      else localStorage.setItem(THEME_STORAGE_KEY, next);
-    } catch {
-      // A private window forgets the choice; the system's is a fine answer.
-    }
+    writeStored(THEME_STORAGE_KEY, next === 'system' ? null : next);
   }, []);
 
   return <ThemeContext value={{ choice, setChoice }}>{children}</ThemeContext>;

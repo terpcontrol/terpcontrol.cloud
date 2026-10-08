@@ -130,7 +130,7 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
    * out and unreachable from the first step onwards either way.
    */
   public onModuleInit(): void {
-    this.work.schedule('The resume of unfinished account deletions', () => this.resumePeriodically(), RESUME_START_DELAY_MS);
+    this.work.loop('The resume of unfinished account deletions', () => this.resumeUnfinished(), RESUME_START_DELAY_MS, RESUME_INTERVAL_MS);
   }
 
   public onApplicationShutdown(): void {
@@ -166,18 +166,6 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
     }
 
     return pending.length;
-  }
-
-  private async resumePeriodically(): Promise<void> {
-    try {
-      await this.resumeUnfinished();
-    } catch (e) {
-      logger.error(`Resuming unfinished account deletions failed: ${e}`);
-    } finally {
-      // Each pass arms the next, so a server on its way down has to refuse it
-      // rather than only cancel the timer that happens to be pending.
-      this.work.schedule('The resume of unfinished account deletions', () => this.resumePeriodically(), RESUME_INTERVAL_MS);
-    }
   }
 
   /**

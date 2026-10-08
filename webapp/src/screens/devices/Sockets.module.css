@@ -94,32 +94,6 @@
   margin-bottom: var(--space-2);
 }
 
-.danger {
-  border-color: var(--alarm);
-  color: var(--alarm);
-}
-
-.dangerButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: var(--control-height);
-  padding: 0 var(--space-4);
-  background: transparent;
-  border: var(--rule-width) solid var(--alarm);
-  border-radius: var(--radius);
-  color: var(--alarm);
-  font: inherit;
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-}
-
-.dangerButton:disabled {
-  border-color: var(--rule);
-  color: var(--muted);
-  cursor: default;
-}
-
 /* The socket list's own Erweitert, under the last section of a device's sockets. */
 .listAdvanced {
   margin-top: var(--space-2);

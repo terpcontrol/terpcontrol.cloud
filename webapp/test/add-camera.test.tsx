@@ -1,18 +1,14 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { type QueryClient } from '@tanstack/react-query';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device, Me } from '@fg2/shared-types/v1';
 import { CAPTURE_POLL_MS, CAPTURE_WAIT_MS } from '@/api/cameras';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { AddCamera } from '@/screens/camera/add/AddCamera';
+import { drawAt, testClient } from './harness';
 import { spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * Adding a camera: what the two tabs offer, what turns up while somebody
@@ -24,7 +20,7 @@ import { spaceWhere } from './session';
  * whether the stream is pulled through its tunnel.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const who = vi.hoisted(() => ({ demo: false }));
@@ -134,15 +130,8 @@ const posts = (path: string) => {
 let client: QueryClient;
 
 const draw = () => {
-  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
-  return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <AddCamera />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  client = testClient();
+  return drawAt(<AddCamera />, { client });
 };
 
 /** The Terp Cam tab, once the list this account already had has arrived. */
@@ -180,12 +169,7 @@ const settle = async () => {
   for (let turn = 0; turn < 12; turn += 1) await act(async () => void (await new Promise(resolve => setTimeout(resolve, 0))));
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   who.demo = false;

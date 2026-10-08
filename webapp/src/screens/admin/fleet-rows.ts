@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
-import { placePath } from '@/app/places';
 import type { Camera, Device, DeviceClass, Firmware, User } from '@fg2/shared-types/v1';
+import { typedHandle } from '@/ui/handle';
 
 /**
  * The fleet table's rows, worked out away from the screen that draws them.
@@ -27,9 +27,9 @@ import type { Camera, Device, DeviceClass, Firmware, User } from '@fg2/shared-ty
  */
 
 /** Offline for longer than this is what the board's second chip filters on. */
-export const QUIET_HOURS = 24;
+const QUIET_HOURS = 24;
 
-export type FleetKind = 'device' | 'camera';
+type FleetKind = 'device' | 'camera';
 
 export interface FleetRow {
   id: string;
@@ -54,9 +54,7 @@ export interface FleetRow {
   /** The number on the device's type plate, which is what a customer reads out to support; null for a camera. */
   serialNumber: number | null;
   /** Where the row opens: a device's support view, or the camera's own page. */
-  opens: string | null;
-  /** The place the device stands in, where it stands in one. */
-  place: string | null;
+  opens: string;
 }
 
 export interface FleetFilter {
@@ -78,7 +76,7 @@ const socketsOf = (device: Device): number | null => {
 
 const handleOf = (ownerId: string | null, people: Map<string, User>): string | null => (ownerId && people.get(ownerId)?.handle) || null;
 
-export interface FleetSources {
+interface FleetSources {
   devices: Device[];
   /** The cameras the reader's account can see, which is not every camera on the install. */
   cameras: Camera[];
@@ -120,7 +118,6 @@ export const fleetRows = ({ devices, cameras, classes, firmwares, people, reader
       onStable: calledStable === null ? null : device.state.firmwareId === calledStable,
       serialNumber: device.serialNumber,
       opens: diagnosisPath(device.id),
-      place: device.spaceId ? placePath(device.spaceId) : null,
     };
   });
 
@@ -144,7 +141,6 @@ export const fleetRows = ({ devices, cameras, classes, firmwares, people, reader
       onStable: null,
       serialNumber: null,
       opens: `/cameras/${camera.id}`,
-      place: camera.spaceId ? placePath(camera.spaceId) : null,
     }));
 
   return [...deviceRows, ...cameraRows].sort((one, other) => heard(other.lastSeenAt) - heard(one.lastSeenAt));
@@ -156,7 +152,7 @@ const heard = (lastSeenAt: string | null): number => (lastSeenAt ? DateTime.from
 export const typesOf = (rows: FleetRow[]): string[] => [...new Set(rows.map(row => row.type))].sort();
 
 /** A device's support view: its curves, its settings and what it said, whoever owns it. */
-export const diagnosisPath = (deviceId: string): string => `/admin/devices/${encodeURIComponent(deviceId)}`;
+const diagnosisPath = (deviceId: string): string => `/admin/devices/${encodeURIComponent(deviceId)}`;
 
 /**
  * The board's four chips, applied together. The search reads what is on the
@@ -165,7 +161,7 @@ export const diagnosisPath = (deviceId: string): string => `/admin/devices/${enc
  * searchable on no screen but the accounts.
  */
 export const filteredRows = (rows: FleetRow[], filter: FleetFilter, now: DateTime): FleetRow[] => {
-  const needle = filter.search.trim().toLowerCase().replace(/^@/, '');
+  const needle = typedHandle(filter.search).toLowerCase();
   const quietBefore = now.minus({ hours: QUIET_HOURS });
 
   return rows.filter(row => {

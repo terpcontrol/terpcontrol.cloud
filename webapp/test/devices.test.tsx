@@ -1,12 +1,5 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Camera, Device, DeviceCapabilities, DeviceConfiguration, PlanTransition, Socket, Space } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
@@ -14,10 +7,13 @@ import { DeviceList } from '@/screens/devices/DeviceList';
 import { LightOutputRow } from '@/screens/devices/LightOutputRow';
 import { lightOutputOf, withLightLimit } from '@/screens/devices/lights';
 import { SocketRow } from '@/screens/devices/SocketRow';
-import { defaultHold, durationLabel, holdsFor, rowsOf } from '@/screens/devices/sockets';
+import { DEFAULT_HOLD_SECONDS, HOLD_SECONDS, rowsOf } from '@/screens/devices/sockets';
+import { durationLabel } from '@/ui/age';
 import { cameraFreshness } from '@/screens/devices/cameras';
 import type { OutputLevel, OverrideRequest } from '@/api/devices';
+import { drawAt } from './harness';
 import { spaceWhere, THE_HOST } from './session';
+import { translate } from './translations';
 
 /**
  * The two things the Devices tab lets a person move: the switch on a socket, and
@@ -31,7 +27,7 @@ import { spaceWhere, THE_HOST } from './session';
  */
 
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 vi.mock('@/api/session', async importOriginal => {
@@ -123,17 +119,10 @@ const socket = (over: Partial<Socket> = {}): Socket => ({
   ...over,
 });
 
-const wrap = (children: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>{children}</MemoryRouter>
-    </QueryClientProvider>,
-  );
-
 const draw = (one: Socket, refusal: string | null = null, mayManage = true, unheard: string | null = null) => {
   const [row] = rowsOf([one]);
 
-  return wrap(
+  return drawAt(
     <SocketRow
       row={row}
       deviceId="device-1"
@@ -161,15 +150,10 @@ const drawOutput = (
 ) => {
   const output = lightOutputOf(device(configuration), capabilities, level)!;
 
-  return wrap(<LightOutputRow output={output} unheard={unheard} mayManage={mayManage} runs={null} now={NOW} />);
+  return drawAt(<LightOutputRow output={output} unheard={unheard} mayManage={mayManage} runs={null} now={NOW} />);
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   sent.length = 0;
@@ -305,8 +289,8 @@ describe('what a row is made of', () => {
     // `pulseSeconds` is the time after the last command at which the socket
     // switches itself off, so a role that carries one is held no differently
     // from a role that does not.
-    expect(holdsFor()).toEqual([900, 3600, 4 * 3600, 8 * 3600, 86400]);
-    expect(defaultHold()).toBe(3600);
+    expect(HOLD_SECONDS).toEqual([900, 3600, 4 * 3600, 8 * 3600, 86400]);
+    expect(DEFAULT_HOLD_SECONDS).toBe(3600);
   });
 });
 
@@ -435,7 +419,7 @@ describe("the controller's own light output", () => {
 
   it('leaves the light limit of a device that states targets to Steuerung, where it is saved with them', () => {
     const output = lightOutputOf(device({ day: { temperature: 25, humidity: 60 }, lights: LIGHTS }), CAPABILITIES, null)!;
-    wrap(<LightOutputRow output={output} spaceId="space-1" unheard={null} mayManage runs={null} now={NOW} />);
+    drawAt(<LightOutputRow output={output} spaceId="space-1" unheard={null} mayManage runs={null} now={NOW} />);
 
     expect(screen.queryByRole('slider')).not.toBeInTheDocument();
     expect(screen.getByText('80 %')).toBeInTheDocument();
@@ -463,7 +447,7 @@ describe("the controller's own light output", () => {
     drawOutput();
     fireEvent.click(screen.getByRole('button', { name: /Details of Light output/ }));
 
-    expect(holdsFor().map(durationLabel)).toEqual(['15 min', '1 h', '4 h', '8 h', '24 h']);
+    expect(HOLD_SECONDS.map(durationLabel)).toEqual(['15 min', '1 h', '4 h', '8 h', '24 h']);
     fireEvent.click(screen.getByRole('button', { name: '4 h' }));
 
     expect(screen.getByRole('button', { name: '4 h' })).toHaveAttribute('aria-pressed', 'true');
@@ -604,7 +588,7 @@ describe("the controller's own light output", () => {
     expect(lightOutputOf(light, { ...CAPABILITIES, lightOverride: false }, null)?.limitPercent).toBe(0);
     expect(withLightLimit(lamp, 'light', 50)).toEqual({ ...lamp, limit: 50 });
 
-    wrap(<LightOutputRow output={lightOutputOf(light, CAPABILITIES, null)!} unheard={null} mayManage runs={null} now={NOW} />);
+    drawAt(<LightOutputRow output={lightOutputOf(light, CAPABILITIES, null)!} unheard={null} mayManage runs={null} now={NOW} />);
     // No Light build takes a hold, so it is not told to wait for one.
     expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
     expect(screen.getByText(/This kind of device cannot be told to hold its light output\./)).toBeInTheDocument();
@@ -671,7 +655,7 @@ describe('what the sockets offer, by who is reading', () => {
 
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-    wrap(<DeviceList />);
+    drawAt(<DeviceList />);
     await screen.findByText(/^Devices?$/);
   };
 
@@ -709,7 +693,7 @@ describe('what the sockets offer, by who is reading', () => {
 
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-    wrap(<DeviceList />);
+    drawAt(<DeviceList />);
 
     const offline = await screen.findByText('Offline · nothing is listening, so nothing is sent.');
     const build = screen.getByText(/This build takes no override\./);
@@ -746,7 +730,7 @@ describe('what the sockets offer, by who is reading', () => {
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
 
-    wrap(<DeviceList />);
+    drawAt(<DeviceList />);
     expect(await screen.findByText(/ran 3×/)).toBeInTheDocument();
   });
 });
@@ -791,7 +775,7 @@ describe('what the Devices tab calls a device', () => {
 
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-    wrap(<DeviceList />);
+    drawAt(<DeviceList />);
     await screen.findByText(/^Devices?$/);
   };
 
@@ -864,7 +848,7 @@ describe('what the Devices tab calls a device', () => {
 
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-    wrap(<DeviceList />);
+    drawAt(<DeviceList />);
 
     const pill = await screen.findByText((_, node) => node?.getAttribute('data-liveness') === 'offline');
 
@@ -967,7 +951,7 @@ describe('what the Devices tab calls a device', () => {
 
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-    wrap(<DeviceList />);
+    drawAt(<DeviceList />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Details of Controller' }));
 
@@ -993,7 +977,7 @@ describe('what the Devices tab calls a device', () => {
 
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-    wrap(<DeviceList />);
+    drawAt(<DeviceList />);
     fireEvent.click(await screen.findByRole('button', { name: title }));
   };
 
@@ -1126,7 +1110,7 @@ describe('the device panel', () => {
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
     vi.mocked(api.post).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
-    wrap(<DeviceList />);
+    drawAt(<DeviceList />);
     await screen.findByText(/^Devices?$/);
   };
 

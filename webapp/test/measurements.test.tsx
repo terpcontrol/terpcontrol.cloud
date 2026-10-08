@@ -1,11 +1,5 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
@@ -13,7 +7,9 @@ import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { Measurements } from '@/screens/grow/measurements/Measurements';
+import { drawAt } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
+import { translate } from './translations';
 
 /**
  * What a grow measures, and taking a reading.
@@ -25,7 +21,7 @@ import { spaceWhere, THE_HOST, YOU } from './session';
  * asserted is what would go on the wire.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const who = vi.hoisted(() => ({ demo: false }));
@@ -146,17 +142,14 @@ const answers = (path: string) => {
 const target = { key: 'grow:grow-1', label: 'Spring run', growId: 'grow-1', spaceId: null, plantIds: [], dayNumber: 35, standsIn: 'space-1' };
 
 const draw = (node: React.ReactNode, path = '/grows/grow-1/measurements') =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[path]}>
-        <LogProvider>
-          <Routes>
-            <Route path="/grows/:growId/measurements" element={node} />
-            <Route path="*" element={node} />
-          </Routes>
-        </LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <LogProvider>
+      <Routes>
+        <Route path="/grows/:growId/measurements" element={node} />
+        <Route path="*" element={node} />
+      </Routes>
+    </LogProvider>,
+    { at: path },
   );
 
 const drawScreen = async () => {
@@ -169,12 +162,7 @@ const sent = () => vi.mocked(api.patch).mock.calls[0];
 /** The template chips, which carry the same names as the cards above them. */
 const templates = () => within(screen.getByRole('group', { name: 'Templates' }));
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   who.demo = false;
@@ -320,7 +308,13 @@ describe('changing one measurement', () => {
   const openSheet = async (name: string) => {
     await drawScreen();
     // The series read says which keys have readings, so the sheet knows what is settled.
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining('/series'), undefined, expect.anything()));
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith(
+        expect.stringContaining('/series'),
+        expect.objectContaining({ measurements: expect.any(Array) }),
+        expect.anything(),
+      ),
+    );
     fireEvent.click(screen.getByRole('button', { name: `Edit ${name}` }));
   };
 

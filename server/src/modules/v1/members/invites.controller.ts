@@ -1,13 +1,12 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { z } from 'zod';
 import type { Invite, InviteAcceptance, InviteCreate, InvitePage, InvitePreview } from '@fg2/shared-types/v1';
 import { invite as inviteShape, inviteAcceptance, inviteCreate, invitePage, invitePreview } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { RateLimitGuard, RateLimited } from '@common/rate-limit.guard';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { PUBLIC_OPERATION } from '../../../openapi';
 import { V1Answer } from '../answer-shape';
@@ -30,8 +29,6 @@ import { InvitesService } from './invites.service';
  * them would be the budget the other two are held to, handed back.
  */
 
-const MINUTE = 60 * 1000;
-
 /**
  * Opening a link that was sent is one request, a page reloaded a few times is a
  * handful, and a host putting a key out of action is fewer still - so the three
@@ -52,7 +49,7 @@ export class SpaceInvitesController {
   @Requires('own', 'space')
   @ApiOperation({ summary: 'The invites out on this space' })
   @V1Answer(invitePage)
-  public list(@Param('id') id: string, @V1Query(pageQuery) query: z.infer<typeof pageQuery>): Promise<InvitePage> {
+  public list(@Param('id') id: string, @V1Query(pageQuery) query: PageQuery): Promise<InvitePage> {
     return this.invites.list(id, query);
   }
 
@@ -78,7 +75,7 @@ export class InvitesController {
    * whole of the request.
    */
   @Get(':code')
-  @RateLimited({ limit: CODE_LOOKUPS_PER_MINUTE, windowMs: MINUTE, message: 'Too many invite lookups, please try again later.' })
+  @RateLimited({ limit: CODE_LOOKUPS_PER_MINUTE, message: 'Too many invite lookups, please try again later.' })
   @ApiOperation({ summary: 'What an invite code leads to', ...PUBLIC_OPERATION })
   @V1Answer(invitePreview)
   public preview(@Param('code') code: string): Promise<InvitePreview> {
@@ -88,7 +85,7 @@ export class InvitesController {
   @Post(':code/acceptances')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard)
-  @RateLimited({ limit: ACCEPTANCES_PER_MINUTE, windowMs: MINUTE, message: 'Too many attempts to join, please try again later.' })
+  @RateLimited({ limit: ACCEPTANCES_PER_MINUTE, message: 'Too many attempts to join, please try again later.' })
   @ApiOperation({ summary: 'Take up an invitation' })
   @V1Answer(inviteAcceptance, { status: HttpStatus.CREATED })
   public accept(@Caller() ctx: AccessContext, @Param('code') code: string): Promise<InviteAcceptance> {
@@ -97,7 +94,7 @@ export class InvitesController {
 
   @Put(':code/revocation')
   @UseGuards(AuthGuard)
-  @RateLimited({ limit: CODE_LOOKUPS_PER_MINUTE, windowMs: MINUTE, message: 'Too many invite lookups, please try again later.' })
+  @RateLimited({ limit: CODE_LOOKUPS_PER_MINUTE, message: 'Too many invite lookups, please try again later.' })
   @ApiOperation({ summary: 'Stop an invite working' })
   @V1Answer(inviteShape)
   public revoke(@Caller() ctx: AccessContext, @Param('code') code: string): Promise<Invite> {
@@ -107,7 +104,7 @@ export class InvitesController {
   @Delete(':code')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AuthGuard)
-  @RateLimited({ limit: CODE_LOOKUPS_PER_MINUTE, windowMs: MINUTE, message: 'Too many invite lookups, please try again later.' })
+  @RateLimited({ limit: CODE_LOOKUPS_PER_MINUTE, message: 'Too many invite lookups, please try again later.' })
   @ApiOperation({ summary: 'Forget an invite ever existed' })
   @ApiNoContentResponse({ description: 'The code is gone from the list and leads nowhere.' })
   public remove(@Caller() ctx: AccessContext, @Param('code') code: string): Promise<void> {

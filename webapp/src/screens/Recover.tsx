@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useRedeemReset, useRequestReset } from '@/api/account';
-import { ApiError } from '@/api/problem';
-import { Logo } from '@/ui/Logo';
+import { ApiError, refusalCode } from '@/api/problem';
 import { refusalText } from '@/ui/refusal';
 import ui from '@/ui/ui.module.css';
+import { BackToSignIn, Door, Problem } from './Door';
 import styles from './SignIn.module.css';
 
 /**
@@ -93,11 +93,7 @@ function AskForMail() {
         </>
       ) : null}
 
-      {problem ? (
-        <p className={`${ui.problem} ${styles.problem}`} role="alert">
-          {problem}
-        </p>
-      ) : null}
+      <Problem>{problem}</Problem>
 
       {stage === 'address' ? (
         <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={request.isPending || email.trim() === ''}>
@@ -124,9 +120,7 @@ function AskForMail() {
           </button>
         )}
       </p>
-      <p className={styles.links}>
-        <Link to="/sign-in">{t('login.backToLogin')}</Link>
-      </p>
+      <BackToSignIn />
     </Door>
   );
 }
@@ -147,7 +141,7 @@ function NewPassword({ token }: { token: string }) {
     } catch (error) {
       // A link used once, or older than its hour, is the one refusal a retry
       // cannot fix: it is said as that, with the way to a new one.
-      if (error instanceof ApiError && error.problem.code === 'reset_unknown') setSpent(true);
+      if (refusalCode(error) === 'reset_unknown') setSpent(true);
       else setProblem(error instanceof ApiError ? (Object.values(error.fieldErrors)[0] ?? refusalText(error)) : refusalText(error));
     }
   };
@@ -155,15 +149,11 @@ function NewPassword({ token }: { token: string }) {
   if (spent) {
     return (
       <Door title={t('recover.title')}>
-        <p className={`${ui.problem} ${styles.problem}`} role="alert">
-          {t('recover.spent')}
-        </p>
+        <Problem>{t('recover.spent')}</Problem>
         <Link to="/recover" className={`${ui.button} ${ui.primary} ${styles.submit}`}>
           {t('recover.askNew')}
         </Link>
-        <p className={styles.links}>
-          <Link to="/sign-in">{t('login.backToLogin')}</Link>
-        </p>
+        <BackToSignIn />
       </Door>
     );
   }
@@ -183,39 +173,11 @@ function NewPassword({ token }: { token: string }) {
         value={password}
         onChange={event => setPassword(event.target.value)}
       />
-      {problem ? (
-        <p className={`${ui.problem} ${styles.problem}`} role="alert">
-          {problem}
-        </p>
-      ) : null}
+      <Problem>{problem}</Problem>
       <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={redeem.isPending || password === ''}>
         {t('recover.set')}
       </button>
-      <p className={styles.links}>
-        <Link to="/sign-in">{t('login.backToLogin')}</Link>
-      </p>
+      <BackToSignIn />
     </Door>
-  );
-}
-
-/** The card every page outside the shell stands in: the logo, a step's title, and the form. */
-export function Door({ title, onSubmit, children }: { title: string; onSubmit?: () => void; children: React.ReactNode }) {
-  return (
-    <main className={styles.page}>
-      <form
-        className={styles.card}
-        noValidate
-        onSubmit={event => {
-          event.preventDefault();
-          onSubmit?.();
-        }}
-      >
-        <h1 className={styles.wordmark}>
-          <Logo />
-        </h1>
-        <h2 className={styles.step}>{title}</h2>
-        {children}
-      </form>
-    </main>
   );
 }

@@ -1,4 +1,4 @@
-import type { Device, Metric } from '@fg2/shared-types/v1';
+import type { Device } from '@fg2/shared-types/v1';
 import {
   PLUG_SWITCHING,
   switchPointName,
@@ -6,11 +6,11 @@ import {
   type PlugSwitching,
   type TimerWindow,
 } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import type { Steered } from '@fg2/shared-types/v1-schemas/steering.js';
+import type { Translate } from '@/i18n/i18n';
 import { fieldValue } from '@/ui/advanced/field-values';
-import { targetFigure, UNIT } from '../../home/units';
-import { wallClock } from '../targets/targets-draft';
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+import { targetWithUnit } from '@/ui/units';
+import { wallClock } from '@/ui/wall-clock';
 
 /**
  * What a smart socket is set to, in the few lines the cockpit's summary has:
@@ -19,12 +19,13 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * read from the device's own document and never drawn as a control.
  */
 
-export interface SummaryRow {
+interface SummaryRow {
   label: string;
   parts: string[];
 }
 
-const READING: Record<PlugSwitching | 'co2', Metric> = {
+/** The reading a mode's points are figures of. */
+export const PLUG_READING: Record<PlugSwitching | 'co2', Steered> = {
   heater: 'temperature',
   cooler: 'temperature',
   humidify: 'humidity',
@@ -32,11 +33,11 @@ const READING: Record<PlugSwitching | 'co2', Metric> = {
   co2: 'co2',
 };
 
-const RISING: readonly string[] = ['heater', 'humidify', 'co2'];
+/** The reading a socket switches by, or null for one on a timer or switched off. */
+export const plugReadingOf = (mode: PlugMode): Steered | null => (mode === 'off' || mode === 'timer' ? null : PLUG_READING[mode]);
 
-const DAY_SECONDS = 24 * 60 * 60;
-
-const withUnit = (value: number, metric: Metric): string => `${targetFigure(value, metric)} ${UNIT[metric] ?? ''}`.trim();
+/** Which way a mode switches: on below its point and off above it, or the other way round. */
+export const RISING: readonly string[] = ['heater', 'humidify', 'co2'];
 
 const number = (device: Device, name: string): number | null => {
   const value = fieldValue(device, name);
@@ -61,8 +62,11 @@ export const plugSummaryOf = (t: Translate, device: Device, offset: number): Sum
     const on = number(device, switching === 'co2' ? 'co2On' : switchPointName(switching, when, 'on'));
     const off = number(device, switching === 'co2' ? 'co2Off' : switchPointName(switching, when, 'off'));
     if (on === null || off === null) return null;
-    const metric = READING[switching];
-    return t(`plugSettings.summary.${RISING.includes(switching) ? 'rising' : 'falling'}`, { on: withUnit(on, metric), off: withUnit(off, metric) });
+    const metric = PLUG_READING[switching];
+    return t(`plugSettings.summary.${RISING.includes(switching) ? 'rising' : 'falling'}`, {
+      on: targetWithUnit(on, metric),
+      off: targetWithUnit(off, metric),
+    });
   };
 
   if ((PLUG_SWITCHING as readonly string[]).includes(mode)) {
@@ -84,7 +88,7 @@ export const plugSummaryOf = (t: Translate, device: Device, offset: number): Sum
       label: t('plugSettings.windows.label'),
       parts:
         windows.length > 0
-          ? windows.map(window => `${wallClock(window.ontime, offset)}–${wallClock((window.ontime + window.duration * 60) % DAY_SECONDS, offset)}`)
+          ? windows.map(window => `${wallClock(window.ontime, offset)}–${wallClock(window.ontime + window.duration * 60, offset)}`)
           : [t('plugSettings.summary.noWindows')],
     });
   }

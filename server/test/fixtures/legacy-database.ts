@@ -73,7 +73,7 @@ export const LEGACY_DEVICE_IDS = {
   demo: 'dev-controller-demo',
 } as const;
 
-export const LEGACY_CLASS_IDS = {
+const LEGACY_CLASS_IDS = {
   controller: 'class-controller',
   fridge: 'class-fridge',
   plug: 'class-plug',

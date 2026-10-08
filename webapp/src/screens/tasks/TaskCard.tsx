@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Reminder, SessionUser, Task } from '@fg2/shared-types/v1';
 import { useDevicePlan } from '@/api/plans';
-import { initials } from '@/app/shell/tabs';
+import type { Translate } from '@/i18n/i18n';
+import { Asking } from '@/ui/Asking';
+import { initials } from '@/ui/handle';
 import { nextStepIndex } from '@/screens/control/plan-clock';
-import { readingFigure } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
-import { dayLabel, daysUntil, litresOf, onceLabel, type Translate } from './tasks';
+import { dayLabel, daysUntil, litresOf, onceLabel } from './tasks';
+import { looseFigure } from '@/ui/figures';
 import styles from './Tasks.module.css';
 
 interface TaskCardProps {
@@ -86,24 +88,16 @@ export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEd
       {!onDone && why ? <p className={`${ui.note} ${styles.why}`}>{why}</p> : null}
 
       {asking && onDone ? (
-        <div className={styles.stepAsk}>
-          {deviceId ? <NextStep deviceId={deviceId} /> : <p className={ui.note}>{t('tasks.confirm.askUnnamed')}</p>}
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              onClick={() => {
-                setAsking(false);
-                onDone();
-              }}
-            >
-              {t('tasks.confirm.yes')}
-            </button>
-            <button type="button" className={ui.button} onClick={() => setAsking(false)}>
-              {t('tasks.confirm.cancel')}
-            </button>
-          </div>
-        </div>
+        <Asking
+          note={deviceId ? <NextStep deviceId={deviceId} /> : t('tasks.confirm.askUnnamed')}
+          yes={t('tasks.confirm.yes')}
+          busy={false}
+          onYes={() => {
+            setAsking(false);
+            onDone();
+          }}
+          onCancel={() => setAsking(false)}
+        />
       ) : null}
     </li>
   );
@@ -119,14 +113,12 @@ function NextStep({ deviceId }: { deviceId: string }) {
   const { t } = useTranslation();
   const plan = useDevicePlan(deviceId);
 
-  if (!plan.data) return <p className={ui.note}>{t('tasks.confirm.askUnnamed')}</p>;
+  if (!plan.data) return t('tasks.confirm.askUnnamed');
 
   const next = nextStepIndex(plan.data);
   const name = next === null ? null : (plan.data.steps[next]?.name ?? null);
 
-  return (
-    <p className={ui.note}>{next === null ? t('tasks.confirm.askEnds') : name ? t('tasks.confirm.ask', { name }) : t('tasks.confirm.askUnnamed')}</p>
-  );
+  return next === null ? t('tasks.confirm.askEnds') : name ? t('tasks.confirm.ask', { name }) : t('tasks.confirm.askUnnamed');
 }
 
 /**
@@ -260,14 +252,14 @@ const metaLine = (t: Translate, task: Task, name: string | null, reminder: Remin
     const kind = task.kind === 'custom' ? null : t(`tasks.kindMeta.${task.kind}`);
     if (kind && !task.label.toLowerCase().includes(kind.toLowerCase())) parts.push(kind);
     const litres = litresOf(task.defaults);
-    if (litres !== null) parts.push(t('log.litres', { litres: readingFigure(litres) }));
+    if (litres !== null) parts.push(t('log.litres', { litres: looseFigure(litres) }));
   }
 
-  parts.push(dueLabel(t, task, now, zone));
+  parts.push(taskDueLabel(t, task, now, zone));
   return parts.join(' · ');
 };
 
-const dueLabel = (t: Translate, task: Task, now: DateTime, zone: string | null): string => {
+const taskDueLabel = (t: Translate, task: Task, now: DateTime, zone: string | null): string => {
   const days = daysUntil(task.dueAt, now, zone);
   if (days < 0) return t('tasks.due.overdue', { count: -days });
   if (days === 0) return t('tasks.due.today');

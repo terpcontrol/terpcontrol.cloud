@@ -6,7 +6,7 @@ import { AlarmRuleCreate, AlarmRuleUpdate, AlarmWatch } from '@fg2/shared-types/
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
-import { CursorPage, afterCursor, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { conflict, notFound } from '@common/v1/problem';
 import { watchedName } from './alarm.watch';
@@ -24,14 +24,8 @@ export class AlarmRuleService {
     @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
   ) {}
 
-  public async list(deviceId: string, query: PageQuery, limit: number): Promise<CursorPage<StoredAlarmRule>> {
-    const rows = await this.rules
-      .find({ deviceId, ...afterCursor('createdAt', query.cursor) })
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<StoredAlarmRule[]>();
-
-    return pageOf(rows, limit, rule => ({ at: rule.createdAt, id: rule.id }));
+  public list(deviceId: string, query: PageQuery): Promise<CursorPage<StoredAlarmRule>> {
+    return findPage(this.rules, [{ deviceId }], query);
   }
 
   public async byId(id: string): Promise<StoredAlarmRule> {

@@ -1,6 +1,4 @@
-import { DateTime } from 'luxon';
-import type { NotificationCategory, NotificationChannel, NotificationRouting, QuietHours } from '@fg2/shared-types/v1';
-import { CLOCK, DATED_CLOCK, nowThere, zoned } from '@/ui/zone';
+import type { NotificationCategory, NotificationChannel, NotificationRouting, QuietHours, WebhookMethod } from '@fg2/shared-types/v1';
 
 /**
  * The arithmetic of the notification settings, kept apart from the screen so
@@ -14,8 +12,11 @@ import { CLOCK, DATED_CLOCK, nowThere, zoned } from '@/ui/zone';
 /** The rows of the grid, in the order the board draws them: what wakes you first. */
 export const CATEGORIES: NotificationCategory[] = ['alerts', 'warnings', 'tasks', 'plan', 'weekly_timelapse'];
 
-/** The columns, in the order of the cards above them. */
+/** The columns, in the order of the cards above them, which is also the order channels are named in. */
 export const CHANNELS: NotificationChannel[] = ['push', 'telegram', 'email', 'webhook'];
+
+/** What a webhook can be called with. */
+export const WEBHOOK_METHODS: WebhookMethod[] = ['GET', 'POST', 'PUT'];
 
 export const routes = (routing: NotificationRouting, category: NotificationCategory, channel: NotificationChannel): boolean =>
   (routing[category] ?? []).includes(channel);
@@ -70,24 +71,4 @@ export const hostOf = (url: string): string => {
   } catch {
     return url;
   }
-};
-
-export const isMuted = (mutedUntil: string | null, now: DateTime): boolean => mutedUntil !== null && DateTime.fromISO(mutedUntil) > now;
-
-/**
- * A clock time for a line, or the date with it when the instant is not today's
- * - both in the account's own zone, which is the zone the window above them is
- * read in and the only one in which "until 07:00" means what it says.
- *
- * The day is kept and only the shape changed: a mute started at half past
- * eleven at night runs an hour and ends tomorrow, which as a bare clock time
- * would read as a moment already past. The hours are the app's own 24-hour
- * ones, not the locale's, so this line and the quiet-hours window beside it
- * are written alike - they were "11:38 AM" and "23:00-07:00" on one screen.
- */
-export const clockLabel = (instant: string, now: DateTime, zone: string | null): string => {
-  const at = zoned(instant, zone);
-  const here = nowThere(now, zone);
-
-  return at.hasSame(here, 'day') ? at.toFormat(CLOCK) : at.toFormat(DATED_CLOCK);
 };

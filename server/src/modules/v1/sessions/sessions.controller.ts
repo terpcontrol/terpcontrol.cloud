@@ -22,8 +22,6 @@ import { V1Answer } from '../answer-shape';
 import { accountOf } from '../caller';
 import { SessionsService } from './sessions.service';
 
-const MINUTE = 60 * 1000;
-
 /** Which browser this is, so that a person can tell two of their own sessions apart. */
 const userAgentOf = (request: FastifyRequest): string | null => {
   const reported = request.headers['user-agent'];
@@ -49,7 +47,7 @@ export class SessionsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @RateLimited({ limit: 10, windowMs: MINUTE, message: 'Too many sign-in attempts, please try again later.' })
+  @RateLimited({ limit: 10, message: 'Too many sign-in attempts, please try again later.' })
   @ApiOperation({ summary: 'Sign in with an e-mail address and password', ...PUBLIC_OPERATION })
   @V1Answer(sessionResult, { status: HttpStatus.CREATED })
   public logIn(@V1Body(sessionCreate) body: SessionCreate, @Req() request: FastifyRequest): Promise<SessionResult> {
@@ -63,7 +61,7 @@ export class SessionsController {
    */
   @Post('demo')
   @HttpCode(HttpStatus.CREATED)
-  @RateLimited({ limit: 20, windowMs: MINUTE, message: 'Too many demo sessions, please try again later.' })
+  @RateLimited({ limit: 20, message: 'Too many demo sessions, please try again later.' })
   @ApiOperation({ summary: 'Open the read-only demo, without an account', ...PUBLIC_OPERATION })
   @V1Answer(sessionResult, { status: HttpStatus.CREATED })
   public demo(@Req() request: FastifyRequest): Promise<SessionResult> {
@@ -72,7 +70,7 @@ export class SessionsController {
 
   @Post('automation')
   @HttpCode(HttpStatus.OK)
-  @RateLimited({ limit: 20, windowMs: MINUTE, message: 'Too many automation sign-ins, please try again later.' })
+  @RateLimited({ limit: 20, message: 'Too many automation sign-ins, please try again later.' })
   @ApiOperation({ summary: "Trade the install's automation token for a short administrator session", ...PUBLIC_OPERATION })
   @V1Answer(automationSession)
   public automation(@V1Body(automationSessionCreate) body: { token: string }): AutomationSession {

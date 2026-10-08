@@ -1,11 +1,8 @@
-import { AccessService } from '@common/v1/access.service';
-import { AccessContext } from '@common/v1/access.types';
-import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
-import { GrowsService } from '@modules/v1/grow/grows.service';
 import { MyGrowsService } from '@modules/v1/home/my-grows.service';
-import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { demo, session } from './support/callers';
+import { accessOn, growsOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * "My grows": every grow an account can see, as one card each.
@@ -42,30 +39,11 @@ const STRANGERS = 'grow-strangers';
 const NOW = new Date('2026-10-01T12:00:00.000Z');
 const day = (iso: string) => new Date(`${iso}T10:00:00.000Z`);
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let myGrows: MyGrowsService;
 
 const build = (): MyGrowsService => {
-  const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  const entries = new EntryWriterService(db.entries);
-  const growing = new GrowsService(
-    db.grows,
-    db.plants,
-    db.devices,
-    db.memberships,
-    db.spaces,
-    db.users,
-    db.shareLinks,
-    db.entries,
-    access,
-    new PhaseWriterService(db.grows, entries, db.entries, db.devices),
-    entries,
-    null,
-  );
-
-  return new MyGrowsService(db.grows, db.plants, db.spaces, db.cameras, db.entries, db.media, db.users, growing);
+  return new MyGrowsService(db.grows, db.plants, db.spaces, db.cameras, db.entries, db.media, db.users, growsOn(db, accessOn(db)));
 };
 
 const grow = (over: Partial<GrowDocument> & Pick<GrowDocument, 'id' | 'startedAt'>) => ({
@@ -166,14 +144,6 @@ const world = async (): Promise<void> => {
     { id: 'running-1', growId: RUNNING, strain: 'Zkittlez', label: 'Zkittlez 1', status: 'active', createdAt: day('2026-09-01') },
   ]);
 };
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
 
 beforeEach(async () => {
   await db.reset();
@@ -320,7 +290,7 @@ describe('a card', () => {
     await db.grows.updateOne({ id: SPRING }, { $set: { isDemo: true } });
     await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: true, hideCounts: true } } });
 
-    const page = await myGrows.list({ userId: null, isAdmin: false, isDemo: true, shareToken: null }, {}, NOW);
+    const page = await myGrows.list(demo(null), {}, NOW);
     const spring = page.items.find(card => card.growId === SPRING)!;
 
     expect(page.items.map(card => card.growId)).toEqual([SPRING]);

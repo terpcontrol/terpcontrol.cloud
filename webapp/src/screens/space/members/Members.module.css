@@ -188,14 +188,3 @@
     padding-inline: var(--space-1);
   }
 }
-
-/* Read aloud but not drawn: a bullet says nothing to a screen reader, and the
-   column heading alone does not say whether the cell is a yes or a no. */
-.markWord {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}

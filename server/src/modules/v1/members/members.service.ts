@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { Membership, MembershipCreate, MembershipPage, MembershipUpdate, Person } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
-import { conflict, forbidden, notFound } from '@common/v1/problem';
+import { findPage, mapPage } from '@common/v1/pages';
+import { peopleNamed } from '@common/v1/people';
+import { conflict, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -15,6 +16,8 @@ import { InviteDocument } from '@database/schemas/v1/invites.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
+import { SpacesService } from '@modules/v1/space/spaces.service';
+import { accountOf } from '../caller';
 
 /**
  * The `memberships` collection: who, besides the owner, is in a space.
@@ -45,6 +48,7 @@ export class MembersService {
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
     @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
     private readonly access: AccessService,
+    private readonly spacesService: SpacesService,
   ) {}
 
   /**
@@ -58,24 +62,15 @@ export class MembersService {
    * yes.
    */
   public async list(spaceId: string, grant: Grant, query: PageQuery): Promise<MembershipPage> {
-    const space = await this.require(spaceId);
+    const space = await this.spacesService.require(spaceId);
     this.refuseAnOutsider(grant);
 
-    const limit = pageLimit(query.limit);
     const covering = space.roomId ? [spaceId, space.roomId] : [spaceId];
-    // Combined rather than merged: the cursor is an `$or` of its own, and
-    // spreading it beside this filter would replace it and hand out the
-    // memberships of the whole database from the second page on.
-    const conditions: FilterQuery<MembershipDocument>[] = [{ spaceId: { $in: covering } }, afterCursor('createdAt', query.cursor, 'asc')];
-
-    const rows = await this.memberships.find({ $and: conditions }).sort({ createdAt: 1, id: 1 }).limit(readLimit(limit)).lean<MembershipDocument[]>();
-
-    const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
+    const page = await findPage(this.memberships, [{ spaceId: { $in: covering } }], query, { order: 'asc' });
     const room = space.roomId ? await this.spaces.findOne({ id: space.roomId }, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>>() : null;
 
     return {
-      items: page.items.map(serialise),
-      nextCursor: page.nextCursor,
+      ...mapPage(page, serialise),
       people: await this.peopleOf(page.items, space.ownerId),
       // Named rather than left as an id, because somebody who is in the tent
       // alone never meets the room in any other list and would have nothing to
@@ -131,12 +126,12 @@ export class MembersService {
    * act.
    */
   public async add(ctx: AccessContext, spaceId: string, body: MembershipCreate): Promise<Membership> {
-    const space = await this.require(spaceId);
+    const space = await this.spacesService.require(spaceId);
     const person = await this.knownTo(ctx, body.handle);
 
     if (person.id === space.ownerId) throw conflict('owner_here', 'This account owns the space, which is more than any membership gives.');
 
-    return this.join(spaceId, person.id, body.role, { invitedBy: this.accountOf(ctx), inviteId: null });
+    return this.join(spaceId, person.id, body.role, { invitedBy: accountOf(ctx), inviteId: null });
   }
 
   /**
@@ -236,7 +231,7 @@ export class MembersService {
     const row = await this.memberships.findOne({ spaceId, userId }).lean<MembershipDocument>();
     if (row) return row;
 
-    const space = await this.require(spaceId);
+    const space = await this.spacesService.require(spaceId);
     const viaRoom = space.roomId ? await this.memberships.exists({ spaceId: space.roomId, userId }) : null;
 
     throw viaRoom
@@ -252,7 +247,7 @@ export class MembersService {
    * answered differently per handle would be a way of asking who is here.
    */
   private async knownTo(ctx: AccessContext, handle: string): Promise<StoredUser> {
-    const userId = this.accountOf(ctx);
+    const userId = accountOf(ctx);
     const person = await this.users.findOne({ handle, isActive: true, deletionStartedAt: null }).lean<StoredUser>();
     const unknown = notFound('handle_not_found', 'Nobody you grow with goes by that name.');
     if (!person || person.id === userId) throw unknown;
@@ -273,16 +268,12 @@ export class MembersService {
     return new Set([...owned.map(space => space.id), ...joined.map(row => row.spaceId)]);
   }
 
-  private async peopleOf(rows: readonly MembershipDocument[], ownerId: string): Promise<Person[]> {
+  private peopleOf(rows: readonly MembershipDocument[], ownerId: string): Promise<Person[]> {
     // The owner holds no membership row, so a list built from the rows alone
     // leaves the one person who runs the tent as the only nameless face on it -
     // which is exactly backwards for a guest trying to work out whose diary
     // they are reading. A handle is the only name anybody ever gets anyway.
-    const ids = [...new Set([ownerId, ...rows.map(row => row.userId)])];
-    if (ids.length === 0) return [];
-
-    const people = await this.users.find({ id: { $in: ids } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
-    return people.map(person => ({ id: person.id, handle: person.handle }));
+    return peopleNamed(this.users, [ownerId, ...rows.map(row => row.userId)]);
   }
 
   /** A grant that says the caller is really in this space, rather than holding a key to what stands in it. */
@@ -290,20 +281,6 @@ export class MembersService {
     if (grant.grantee !== 'owner' && grant.grantee !== 'member' && grant.grantee !== 'admin') {
       throw notFound('space_not_found', 'There is no space with that id.');
     }
-  }
-
-  public async require(id: string): Promise<SpaceDocument> {
-    const space = await this.spaces.findOne({ id }).lean<SpaceDocument>();
-    if (!space) throw notFound('space_not_found', 'There is no space with that id.');
-
-    return space;
-  }
-
-  /** A membership belongs to somebody, and a demo session is nobody. */
-  public accountOf(ctx: AccessContext): string {
-    if (ctx.isDemo || !ctx.userId) throw forbidden('no_account', 'This route is about an account, and a demo session is not one.');
-
-    return ctx.userId;
   }
 }
 

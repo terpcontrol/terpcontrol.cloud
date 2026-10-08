@@ -1,13 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { FollowedGrowCard, GrowWeekCard, LinkCard, PublicAuthor, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { CursorPage } from '@common/v1/pages';
-import { clampRange, pictureOutsideRange, storyEndsAt } from '@common/v1/range';
+import { clampRange, isoRange, pictureOutsideRange, storyEndsAt } from '@common/v1/range';
 import { notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
+import { appConfig } from '@config/configuration';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -18,12 +20,13 @@ import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { MediaService } from '../camera/media.service';
 import { diaryMovedAt } from '../diary/diary-entries';
-import { spacesDuring } from '../diary/grow-places';
-import { GrowReportService, harvestOf } from '../diary/report.service';
+import { GrowReportService } from '../diary/report.service';
 import { GrowWeeksService } from '../diary/weeks.service';
-import { growUpTo, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
+import { spacesDuring } from '../grow/grow-places';
+import { growUpTo, harvestOf, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { OverviewService } from '../overview/overview.service';
+import { CardCache, baseUrlOf, renderCard } from './link-card';
 import { ShareLinksService } from './share-links.service';
 
 /**
@@ -69,6 +72,8 @@ export class PublicPagesService {
     private readonly overview: OverviewService,
     private readonly links: ShareLinksService,
     private readonly access: AccessService,
+    private readonly cards: CardCache,
+    @Inject(appConfig.KEY) private readonly app: ConfigType<typeof appConfig>,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -137,7 +142,7 @@ export class PublicPagesService {
       strains: [...new Set(plants.map(plant => plant.strain))],
       coverMediaId: grow.coverMediaId,
       filmMediaId: grow.filmMediaId,
-      range: { startsAt: range.startsAt?.toISOString() ?? null, endsAt: range.endsAt?.toISOString() ?? null },
+      range: isoRange(range),
       includeCameras: grant.includeCameras,
       weeks: page.items,
       weeksCursor: page.nextCursor,
@@ -241,7 +246,7 @@ export class PublicPagesService {
 
     return {
       kind: link.kind,
-      range: { startsAt: range.startsAt?.toISOString() ?? null, endsAt: range.endsAt?.toISOString() ?? null },
+      range: isoRange(range),
       includeCameras: grant.includeCameras,
       expiresAt: link.expiresAt?.toISOString() ?? null,
       subject: await this.subjectOf(link, grant, now),
@@ -322,11 +327,12 @@ export class PublicPagesService {
   // -------------------------------------------------------------------------
 
   /** What a chat window says about a grow, and what `card.png` draws. One shape, so the two agree. */
-  public async growCard(grow: GrowDocument, baseUrl: string, now: Date = new Date()): Promise<LinkCard> {
+  public async growCard(grow: GrowDocument): Promise<LinkCard> {
     const [plants, owner] = await Promise.all([this.grows.plantsOf(grow.id), this.ownerOf(grow.ownerId)]);
     const hide = redactionOf(true, owner?.privacy);
-    const summary = summaryOf(grow, plants, hide, now);
+    const summary = summaryOf(grow, plants, hide, new Date());
     const handle = owner?.handle ?? null;
+    const baseUrl = baseUrlOf(this.app.apiUrlExternal);
 
     return {
       title: grow.name,
@@ -340,7 +346,9 @@ export class PublicPagesService {
   }
 
   /** The same for a person: their handle, their line of text, and how much there is to read. */
-  public userCard(author: StoredUser, grows: GrowDocument[], baseUrl: string): LinkCard {
+  public userCard(author: StoredUser, grows: GrowDocument[]): LinkCard {
+    const baseUrl = baseUrlOf(this.app.apiUrlExternal);
+
     return {
       title: `@${author.handle}`,
       description: author.bio ?? diaryCount(grows.length),
@@ -352,8 +360,22 @@ export class PublicPagesService {
     };
   }
 
+  /** The grow's card as `card.png` draws it, over the grow's cover. */
+  public growCardPng(grow: GrowDocument): Promise<Buffer> {
+    return this.cards.of(`grow:${grow.id}`, async () => renderCard(await this.growCard(grow), await this.bytesOf(grow.coverMediaId)));
+  }
+
+  /**
+   * A profile's card as `card.png` draws it. Somebody's newest cover stands for
+   * their profile; a person with no picture anywhere gets the panel the app is
+   * drawn on.
+   */
+  public userCardPng(author: StoredUser, grows: GrowDocument[]): Promise<Buffer> {
+    return this.cards.of(`user:${author.id}`, async () => renderCard(this.userCard(author, grows), await this.bytesOf(this.coverOf(grows))));
+  }
+
   /** The picture a card is drawn over: a grow's cover, or the newest cover among somebody's diaries. */
-  public coverOf(grows: GrowDocument[]): string | null {
+  private coverOf(grows: GrowDocument[]): string | null {
     return grows.map(grow => grow.coverMediaId).find((id): id is string => id !== null) ?? null;
   }
 
@@ -362,7 +384,7 @@ export class PublicPagesService {
    * deleted, or that is a film rather than a picture, costs the card its
    * backdrop and nothing else - a share card always renders.
    */
-  public async bytesOf(mediaId: string | null): Promise<Buffer | null> {
+  private async bytesOf(mediaId: string | null): Promise<Buffer | null> {
     if (mediaId === null) return null;
 
     const picture = await this.media.findOne({ id: mediaId }, { id: 1, mime: 1 }).lean<Pick<MediaDocument, 'id' | 'mime'>>();
@@ -376,7 +398,6 @@ export class PublicPagesService {
   }
 }
 
-/** Whether a plant came down inside the window a reader holds. A plant that is still standing is not outside it. */
 /**
  * Whether a picture is part of this grow's public page, which is the whole of
  * what makes it readable by a stranger.

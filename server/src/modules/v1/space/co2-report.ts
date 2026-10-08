@@ -16,7 +16,7 @@ export const REFILL_READINGS = ['co2FillingInitial', 'co2FillingRest'] as const;
 /** What a cylinder is taken to hold where its weight was not written down: the usual 425 g soda cylinder, as the old report assumed. */
 export const USUAL_FILL_GRAMS = 425;
 
-export interface Refill {
+interface Refill {
   at: Date;
   filledGrams: number | null;
   restGrams: number | null;
@@ -45,7 +45,7 @@ export const refillsOf = (entries: readonly { occurredAt: Date; values: unknown 
     .sort((one, other) => one.at.getTime() - other.at.getTime());
 
 /** A cylinder before its openings are counted. */
-export type CylinderSpan = Omit<Co2Cylinder, 'since' | 'until' | 'openings' | 'openingsPerGram'> & { since: Date; until: Date | null };
+type CylinderSpan = Omit<Co2Cylinder, 'since' | 'until' | 'openings' | 'openingsPerGram'> & { since: Date; until: Date | null };
 
 /**
  * One cylinder per refill, in until the next one. A cylinder taken out without

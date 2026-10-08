@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import type { AdminUserUpdate, User } from '@fg2/shared-types/v1';
 import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '@/api/admin';
+import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSession } from '@/api/session';
-import { Sheet } from '@/log/Sheet';
-import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
+import { Sheet } from '@/ui/Sheet';
+import { matchesHandle, typedHandle } from '@/ui/handle';
+import { Refused } from '@/ui/PageState';
+import { AdminHead, AdminNotLoaded } from './parts';
+import { HandleField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { NoMatch } from './NoMatch';
-import { useFollowCursor } from './pages';
 import styles from './Admin.module.css';
 
 /**
@@ -44,35 +46,14 @@ export function Users() {
 
   useFollowCursor(people);
 
-  const header = (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{t('admin.users.title')}</h1>
-      <span className={`mono ${styles.crumb}`}>
-        <Link to="/admin/fleet">{t('admin.fleet.title')}</Link> › {t('admin.users.title')}
-      </span>
-    </header>
-  );
+  const header = <AdminHead title={t('admin.users.title')} crumb={t('admin.users.title')} />;
 
-  if (people.isPending) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <Waiting lines={4} />
-      </section>
-    );
-  }
+  if (people.isPending) return <AdminNotLoaded head={header} />;
 
-  if (!people.data) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <LoadFailed retry={() => void people.refetch()} />
-      </section>
-    );
-  }
+  if (!people.data) return <AdminNotLoaded head={header} retry={() => void people.refetch()} />;
 
-  const all = people.data.pages.flatMap(page => page.items);
-  const needle = search.trim().toLowerCase().replace(/^@/, '');
+  const all = itemsOf(people.data);
+  const needle = typedHandle(search).toLowerCase();
   const shown = needle ? all.filter(one => one.handle.toLowerCase().includes(needle) || one.email.toLowerCase().includes(needle)) : all;
 
   // Who could still run the install if one of them were taken out of it. The
@@ -83,8 +64,7 @@ export function Users() {
 
   return (
     <section className={styles.page}>
-      <header className={styles.head}>
-        <h1 className={styles.title}>{t('admin.users.title')}</h1>
+      <AdminHead title={t('admin.users.title')}>
         <span className={`mono ${styles.counts}`}>
           {[
             t('admin.count.accounts', { count: all.length }),
@@ -106,7 +86,7 @@ export function Users() {
             {t('admin.users.create')}
           </button>
         </span>
-      </header>
+      </AdminHead>
 
       <p className={`${ui.note} ${styles.consequence}`}>{t('admin.users.privacy')}</p>
 
@@ -184,7 +164,7 @@ function AccountRow({ account, isMe, lastAdmin }: { account: User; isMe: boolean
           <button type="button" className={ui.chip} onClick={() => setOpen('change')}>
             {t('admin.users.change')}
           </button>
-          <button type="button" className={`${ui.chip} ${styles.danger}`} onClick={() => setOpen('delete')}>
+          <button type="button" className={`${ui.chip} ${ui.danger}`} onClick={() => setOpen('delete')}>
             {t('admin.users.delete')}
           </button>
         </span>
@@ -304,7 +284,7 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
             <button type="button" className={ui.button} disabled={change.isPending} onClick={() => setAsking(false)}>
               {t('admin.users.confirmNo')}
             </button>
-            <button type="button" className={`${ui.button} ${styles.danger}`} disabled={change.isPending} onClick={save}>
+            <button type="button" className={`${ui.button} ${ui.danger}`} disabled={change.isPending} onClick={save}>
               {t('admin.users.confirmMine')}
             </button>
           </>
@@ -386,9 +366,7 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
  * The end of somebody else's account. It asks for the handle to be typed, as
  * the account's own deletion does: this is the one control on the screen where
  * being wrong costs another person everything they own, and a confirmation
- * that is one more tap is answered by the same reflex that opened it. The
- * handle is compared without regard to case, because the prompt above the
- * field is set in small caps and a phone capitalises the first letter typed.
+ * that is one more tap is answered by the same reflex that opened it.
  *
  * What the sheet says is what the server does: what the account owns goes,
  * and what the person wrote in other people's tents stays there without their
@@ -401,7 +379,7 @@ function DeleteSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
   const { t } = useTranslation();
   const remove = useDeleteUser();
   const [typed, setTyped] = useState('');
-  const sure = typed.trim().replace(/^@/, '').toLowerCase() === account.handle.toLowerCase();
+  const sure = matchesHandle(typed, account.handle);
 
   return (
     <Sheet
@@ -411,7 +389,7 @@ function DeleteSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
       actions={
         <button
           type="button"
-          className={`${ui.button} ${styles.danger}`}
+          className={`${ui.button} ${ui.danger}`}
           disabled={!sure || remove.isPending}
           onClick={() => remove.mutate(account.id, { onSuccess: onClose })}
         >
@@ -423,18 +401,7 @@ function DeleteSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
       <p className={styles.sheetBody}>{t('admin.users.deleteDevices')}</p>
       {isMe ? <p className={styles.sheetBody}>{t('admin.users.deleteMine')}</p> : null}
       {account.isAdmin ? <p className={styles.sheetBody}>{t('admin.users.deleteAdmin')}</p> : null}
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.typeHandle', { handle: account.handle })}</span>
-        <input
-          className={`mono ${ui.input}`}
-          value={typed}
-          autoComplete="off"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          onChange={event => setTyped(event.target.value)}
-        />
-      </label>
+      <HandleField className={styles.field} label={t('admin.users.typeHandle', { handle: account.handle })} value={typed} onChange={setTyped} />
       <Refused error={remove.error} />
     </Sheet>
   );

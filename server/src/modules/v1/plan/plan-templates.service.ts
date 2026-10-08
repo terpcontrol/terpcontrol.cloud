@@ -4,13 +4,15 @@ import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { PlanTemplate, PlanTemplateCreate, PlanTemplateUpdate } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { badRequest, conflict, forbidden, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
+import { isDuplicateKey } from '@database/duplicate-key';
 import { MODEL_V1 } from '@database/models';
 import { StoredPlanTemplate } from '@database/schemas/v1/plan-templates.schema';
-import { figureRefusals, TEMPLATE_FIGURES } from '@modules/device-protocol/document-figures';
-import { stepsOf } from './plan-steps';
+import { TEMPLATE_FIGURES } from '@modules/device-protocol/document-figures';
+import { accountOf } from '../caller';
+import { stepRefusals, stepsOf } from './plan-steps';
 import { planTemplateOf } from './plan.wire';
 
 /**
@@ -37,22 +39,7 @@ export class PlanTemplatesService {
 
   /** Newest first: the list opens on what somebody saved last, the way the share links do. */
   public async list(ctx: AccessContext, query: PageQuery): Promise<CursorPage<PlanTemplate>> {
-    const limit = pageLimit(query.limit);
-    // Combined rather than merged into one object: the visibility is an `$or`
-    // and so is the cursor, and one spread beside the other would replace it -
-    // which reads correctly on the first page and hands out every template in
-    // the database from the second.
-    const conditions: FilterQuery<StoredPlanTemplate>[] = [this.visibleTo(ctx), afterCursor('createdAt', query.cursor)];
-
-    const rows = await this.templates
-      .find({ $and: conditions })
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<StoredPlanTemplate[]>()
-      .exec();
-
-    const page = pageOf(rows, limit, template => ({ at: template.createdAt, id: template.id }));
-    return { items: page.items.map(planTemplateOf), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.templates, [this.visibleTo(ctx)], query), planTemplateOf);
   }
 
   public async read(ctx: AccessContext, id: string): Promise<PlanTemplate> {
@@ -70,7 +57,7 @@ export class PlanTemplatesService {
     const template: StoredPlanTemplate = {
       id: uuidv4(),
       createdAt: new Date(),
-      ownerId: this.accountOf(ctx),
+      ownerId: accountOf(ctx, 'A plan template belongs to somebody, and this session is nobody.'),
       name: body.name,
       isPublic: body.isPublic,
       steps: stepsOf(body.steps),
@@ -140,12 +127,6 @@ export class PlanTemplatesService {
     throw notFound('plan_template_not_found', 'There is no plan template with that id.');
   }
 
-  private accountOf(ctx: AccessContext): string {
-    if (ctx.isDemo || !ctx.userId) throw forbidden('no_account', 'A plan template belongs to somebody, and this session is nobody.');
-
-    return ctx.userId;
-  }
-
   /** A name is unique to its owner, so the second template called "Autoflower" is refused by the index rather than by a look that could be raced. */
   private async write<T>(attempt: () => Promise<T>): Promise<T> {
     try {
@@ -169,15 +150,6 @@ export class PlanTemplatesService {
  * not held to its range again.
  */
 const mustBeReadable = (steps: PlanTemplateCreate['steps'], template: StoredPlanTemplate | null): void => {
-  const errors = steps.flatMap((step, index) =>
-    figureRefusals('device', step.settings, {
-      field: `steps.${index}.settings`,
-      figures: TEMPLATE_FIGURES,
-      stored: template?.steps.find(earlier => step.id !== undefined && earlier.id === step.id)?.settings ?? null,
-    }),
-  );
+  const errors = stepRefusals('device', steps, template?.steps ?? null, TEMPLATE_FIGURES);
   if (errors.length > 0) throw badRequest('validation_failed', 'A step carries settings that do not fit what a device reads.', errors);
 };
-
-/** Mongo says 11000 when a unique index refuses a write; the driver types it as an unknown error. */
-const isDuplicateKey = (error: unknown): boolean => typeof error === 'object' && error !== null && (error as { code?: number }).code === 11000;

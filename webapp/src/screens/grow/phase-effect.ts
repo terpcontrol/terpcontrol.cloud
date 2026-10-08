@@ -1,5 +1,7 @@
 import { DateTime } from 'luxon';
 import type { GrowListItem, GrowthStage, Phase } from '@fg2/shared-types/v1';
+import { growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
+import { DAY_MS } from '@/ui/days';
 
 /**
  * What correcting or withdrawing a phase would do, said before it is done.
@@ -17,11 +19,8 @@ import type { GrowListItem, GrowthStage, Phase } from '@fg2/shared-types/v1';
  * be the sheet inventing a second day counter.
  */
 
-const DAY_MS = 86_400_000;
-
-/** Whole days from one instant to another, counted as the serialiser counts them: elapsed, not calendar. */
-export const daysBetween = (from: string, to: string): number =>
-  Math.round((DateTime.fromISO(to).toMillis() - DateTime.fromISO(from).toMillis()) / DAY_MS);
+/** Whole days from one instant to another (epoch milliseconds), counted as the serialiser counts them: elapsed, not calendar. */
+const daysBetween = (from: number, to: number): number => Math.round((to - from) / DAY_MS);
 
 const byDate = (one: Phase, other: Phase): number => one.startedAt.localeCompare(other.startedAt);
 
@@ -29,7 +28,7 @@ const byDate = (one: Phase, other: Phase): number => one.startedAt.localeCompare
 export const phasesInOrder = (grow: GrowListItem): Phase[] => [...grow.phases].sort(byDate);
 
 /** A counter before and after, so a sentence can name both. */
-export interface Shift {
+interface Shift {
   from: number;
   to: number;
 }
@@ -49,9 +48,8 @@ export interface PhaseEffect {
 
 const ms = (instant: string): number => DateTime.fromISO(instant).toMillis();
 
-/** Where the grow's days count from: its start or its earliest phase, whichever came first - the server's `growOriginOf`. */
-const originOf = (startedAt: string, phases: Phase[]): string =>
-  phases[0] && ms(phases[0].startedAt) < ms(startedAt) ? phases[0].startedAt : startedAt;
+/** Where the grow's days count from (`growOriginOf`). */
+const originOf = (startedAt: string, phases: Phase[]): number => growOriginOf({ startedAt, phases }).getTime();
 
 /**
  * The grow's start after the change. The server carries a start that stood on
@@ -72,7 +70,7 @@ const effectOf = (grow: GrowListItem, before: Phase[], after: Phase[]): PhaseEff
   const headAfter = split ? null : headlineOf(after);
 
   const growShift = after[0] ? daysBetween(originOf(grow.startedAt, before), originOf(startAfter(grow, before, after), after)) : 0;
-  const ownShift = headBefore && headAfter && headBefore.id === headAfter.id ? daysBetween(headBefore.startedAt, headAfter.startedAt) : 0;
+  const ownShift = headBefore && headAfter && headBefore.id === headAfter.id ? daysBetween(ms(headBefore.startedAt), ms(headAfter.startedAt)) : 0;
   const moved = !split && (headBefore?.stage !== headAfter?.stage || headBefore?.preset !== headAfter?.preset);
 
   const growDay =

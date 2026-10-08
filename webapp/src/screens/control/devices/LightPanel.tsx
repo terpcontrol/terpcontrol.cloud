@@ -1,48 +1,33 @@
 import { useTranslation } from 'react-i18next';
-import type { Device } from '@fg2/shared-types/v1';
+import { FIRMWARE_LIGHTS_OFF, FIRMWARE_LIGHTS_ON, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { Block } from '@/ui/SheetParts';
 import { useNow } from '@/ui/useNow';
+import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
-import type { Unsaved } from '../targets/LeaveGuard';
-import { TargetRow } from '../targets/TargetRow';
-import { offsetOf } from '../targets/targets-draft';
 import { useFieldsDraft } from './fields-draft';
-import { OwnPanel, TimeRow } from './OwnPanel';
+import { OwnPanel, TimeRow, type OwnPanelProps } from './OwnPanel';
+import { TargetRow } from './TargetRow';
 
 /**
  * A LIGHT: when it comes on and goes off, on the account's wall clock, and how
- * bright it gets in between. That is the whole of a lamp module's job, and
- * until now its schedule could only be set on the device's own menu, in UTC.
- * How long it fades in and out and the temperature it protects itself from
- * stand under Erweitert in the device's panel.
+ * bright it gets in between. That is the whole of a lamp module's job; how
+ * long it fades in and out and the temperature it protects itself from stand
+ * under Erweitert in the device's panel.
  */
 
 const FIELDS = ['lightsOn', 'lightsOff', 'brightness'];
 
-const DAY_SECONDS = 24 * 60 * 60;
-
-/** The firmware's own defaults, for a document that never stated a time. */
-const DEFAULT_ON = 21600;
-const DEFAULT_OFF = 79200;
-
-export function LightPanel(props: {
-  device: Device;
-  name: string;
-  titled: boolean;
-  mayManage: boolean;
-  report: (deviceId: string, entry: Unsaved | null) => void;
-  asking: boolean;
-}) {
+export function LightPanel(props: OwnPanelProps) {
   const { t, i18n } = useTranslation();
   const now = useNow();
   const zone = useZone();
   const draft = useFieldsDraft(props.device, FIELDS);
   const readOnly = !props.mayManage;
   const offset = offsetOf(now, zone);
-  const on = draft.value<number>('lightsOn', DEFAULT_ON);
-  const off = draft.value<number>('lightsOff', DEFAULT_OFF);
+  const on = draft.value<number>('lightsOn', FIRMWARE_LIGHTS_ON);
+  const off = draft.value<number>('lightsOff', FIRMWARE_LIGHTS_OFF);
   // The lamp is dark all day where both times are the same: the firmware reads that as no day at all.
-  const hours = ((((off - on) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS) / 3600;
+  const hours = roundTheClock(off - on) / 3600;
 
   return (
     <OwnPanel {...props} draft={draft}>

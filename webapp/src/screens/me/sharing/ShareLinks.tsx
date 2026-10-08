@@ -7,7 +7,8 @@ import { useEveryGrow } from '@/api/grows';
 import { useSession } from '@/api/session';
 import { useDeleteShareLink, useRevokeShareLink, useShareLinks } from '@/api/sharing';
 import { useEverySpace } from '@/api/spaces';
-import { Sheet } from '@/log/Sheet';
+import type { Translate } from '@/i18n/i18n';
+import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -17,7 +18,8 @@ import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 import { dayLabel, isDead, lifetimeDays, linkAddress } from './links';
 import { NewLinkSheet } from './NewLinkSheet';
-import { Page, SectionHead } from './Page';
+import { MePage } from '../parts';
+import { SectionHead } from './SectionHead';
 import styles from './sharing.module.css';
 
 /**
@@ -38,20 +40,11 @@ import styles from './sharing.module.css';
 export function ShareLinks() {
   const { t } = useTranslation();
   const { user } = useSession();
-  const title = t('me.shareLinks.title');
-
-  if (user?.isDemo) {
-    return (
-      <Page title={title}>
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.shareLinks.demo')}</p>
-      </Page>
-    );
-  }
 
   return (
-    <Page title={title}>
+    <MePage title={t('me.shareLinks.title')} demo={t('me.shareLinks.demo')}>
       <Links userId={user?.id ?? null} />
-    </Page>
+    </MePage>
   );
 }
 
@@ -249,7 +242,7 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
           {dead ? (
             <button
               type="button"
-              className={`${ui.button} ${styles.end}`}
+              className={`${ui.button} ${ui.danger}`}
               disabled={remove.isPending}
               onClick={() => remove.mutate(link.id, { onSuccess: onClose })}
             >
@@ -258,7 +251,7 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
           ) : (
             <button
               type="button"
-              className={`${ui.button} ${styles.end}`}
+              className={`${ui.button} ${ui.danger}`}
               disabled={revoke.isPending}
               onClick={() => revoke.mutate(link.id, { onSuccess: onClose })}
             >
@@ -290,8 +283,6 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
     </Sheet>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "Tent 1 · timeline · for 7 days": what it is about, of which kind, and for how long it was made. */
 const titleOf = (t: Translate, link: ShareLink, subject: Subject): string => {

@@ -1,17 +1,12 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Device, Entry, GrowListItem, HomeAnswer, PlantPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { LogProvider } from '@/log/LogProvider';
 import { useLog } from '@/log/log-context';
+import { drawAt } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
+import { translate } from './translations';
 
 /**
  * The Log sheet: what one tap writes, what it says it wrote, and what happens
@@ -22,7 +17,7 @@ import { spaceWhere, THE_HOST, YOU } from './session';
  * from the newest line of that kind, and a feed's doses are the scheme's.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
 
 // A phase is the one tile on this sheet that is not a diary line, so the sheet
@@ -176,7 +171,7 @@ const may = { youMay: 'own' as AccessNeed };
 
 /** What stands in Tent 1: one named controller and one nobody has named, which is what the visit panel has to print. */
 const standing = [
-  { id: 'device-1', type: 'controller', name: 'Big tent controller', spaceId: 'space-1' },
+  { id: 'device-1', type: 'controller', name: 'Big tent controller', spaceId: 'space-1', state: { hardware: {} } },
   { id: 'device-2', type: 'plug', name: null, spaceId: 'space-1' },
   { id: 'device-3', type: 'fan', name: 'Somewhere else', spaceId: 'space-2' },
 ] as unknown as Device[];
@@ -227,14 +222,10 @@ function OpenLog() {
 }
 
 const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <LogProvider>
-          <OpenLog />
-        </LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <LogProvider>
+      <OpenLog />
+    </LogProvider>,
   );
 
 const openSheet = async () => {
@@ -246,10 +237,7 @@ const openSheet = async () => {
 };
 
 beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  await translate();
 
   // The sheet counts the grow's weeks off the clock - which week of the scheme
   // the doses come from is a question about today - so the clock is one of the

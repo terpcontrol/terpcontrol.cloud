@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { activeStep, isOver } from '@fg2/shared-types/v1-schemas/plan-clock.js';
 import { BackgroundWork } from '@common/background-work';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -8,7 +9,7 @@ import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { logger } from '@utils/logger';
 import { DEVICE_CONFIGURATION_WRITER, DeviceConfigurationWriter } from './device-configuration.port';
 import { PlanProgressService } from './plan-progress.service';
-import { activeStep, isOver, settingsSent, stepWrites } from './plan-steps';
+import { settingsSent, stepWrites } from './plan-steps';
 
 /** The loop that walks the running plans: what is over moves on, and what is running is kept on its step. */
 
@@ -68,7 +69,7 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
     const step = activeStep(plan);
     if (!step) return;
 
-    const current = !isOver(plan, now)
+    const current = !isOver(plan, now.getTime())
       ? plan
       : step.waitForConfirmation
         ? await this.progress.awaitConfirmation(plan, now)

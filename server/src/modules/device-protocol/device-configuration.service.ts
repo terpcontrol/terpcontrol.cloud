@@ -1,11 +1,19 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { HttpException, Inject, Injectable, Optional } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY, germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { co2FanKey, co2FanOf, co2InjectFor, type Co2Fan, type FieldSetting } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import { HttpException } from '@common/http-exception';
+import {
+  co2FanKey,
+  co2FanOf,
+  co2InjectFor,
+  isSection,
+  nestedAt,
+  type Co2Fan,
+  type FieldSetting,
+} from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { SCHEDULED_MODES } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { badRequest, unprocessable } from '@common/v1/problem';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { MODEL_V1 } from '@database/models';
@@ -104,10 +112,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     germination?: boolean,
     choices?: ChoicesSaid,
   ): Promise<DeviceConfiguration | null> {
-    const device = await this.devices
-      .findOne({ id: deviceId }, { type: 1, configuration: 1 })
-      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
-    if (!device) throw new HttpException(404, 'Device not found');
+    const device = await this.typeAndDocument(deviceId);
     const refused = figureRefusals(device.type, configuration, { stored: device.configuration ?? null });
     if (refused.length > 0) throw badRequest('validation_failed', 'The settings do not fit what the device reads.', refused);
 
@@ -168,11 +173,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * a document leaves out as its default.
    */
   public async configure(deviceId: string, set: Record<string, FieldSetting>, by: string | null = null): Promise<boolean> {
-    const device = await this.devices
-      .findOne({ id: deviceId }, { type: 1, configuration: 1 })
-      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
-    if (!device) throw new HttpException(404, 'Device not found');
-    if (!device.configuration || Object.keys(device.configuration).length === 0) {
+    const device = await this.typeAndDocument(deviceId);
+    if (sentNoSettings(device.configuration)) {
       throw unprocessable('device_sent_no_settings', 'This device has not sent its settings, so there is nothing to change them in.', [
         {
           field: 'set',
@@ -197,12 +199,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * never sent its document is refused as `configure` refuses it.
    */
   public async coupleCo2Fan(plugId: string, coupling: Co2Fan | null): Promise<void> {
-    const plug = await this.devices
-      .findOne({ id: plugId }, { type: 1, configuration: 1 })
-      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
-    if (!plug) throw new HttpException(404, 'Device not found');
+    const plug = await this.typeAndDocument(plugId);
     if (plug.type !== 'plug') throw unprocessable('not_a_plug', 'Only a stand-alone smart socket slows a fan while it doses CO2.');
-    if (!plug.configuration || Object.keys(plug.configuration).length === 0) {
+    if (sentNoSettings(plug.configuration)) {
       throw unprocessable('device_sent_no_settings', 'This device has not sent its settings, so there is nothing to change them in.');
     }
     if (coupling) {
@@ -211,6 +210,15 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     }
 
     await this.store(plugId, { kind: 'fields' }, current => (current ? { ...current, fan: co2FanKey(coupling) } : null));
+  }
+
+  private async typeAndDocument(deviceId: string): Promise<Pick<StoredDevice, 'type' | 'configuration'>> {
+    const device = await this.devices
+      .findOne({ id: deviceId }, { type: 1, configuration: 1 })
+      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
+    if (!device) throw new HttpException('Device not found', 404);
+
+    return device;
   }
 
   /**
@@ -229,20 +237,25 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * The two times of the light schedule are named together whenever either
    * moved: 24 hours and none are each written as a pair - a day that never
    * ends, a light that goes off as it comes on - and one of them alone reads as
-   * a time of day that means nothing. Where the device holds the night's
-   * figures round the clock - drying, germination - the mode it is in goes with
-   * the line, so the screens can say the drying room's humidity moved rather
-   * than the night's.
+   * a time of day that means nothing.
+   *
+   * Beside the lines go the work mode where it decides what a figure is, so
+   * the screens can say the drying room's humidity moved rather than the
+   * night's - drying and germination hold the night's figures round the clock,
+   * and a smart socket's day is for its switch points or, dosing CO2, for
+   * whether it doses at all; empty for any other - and the device's type,
+   * because one place holds different things on different hardware: a smart
+   * socket's `daynight` times are where its day starts, a controller's are its
+   * lamp's. A line written before either carries the figures alone, or the
+   * figures and the mode.
    */
   private async writeDown(deviceId: string, written: Written, by: string | null): Promise<void> {
-    const moved = [
-      ...withScheduleWhole(changedFigures(written.before, written.after, HIDDEN_FIGURES), written.after),
-      ...choicesMoved(written.choices),
-    ];
+    const moved = [...withScheduleWhole(changedFigures(written.before, written.after), written.after), ...choicesMoved(written.choices)];
     if (moved.length === 0) return;
-    const mode = written.after.workmode;
 
-    const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
+    const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1, type: 1 }).lean<Pick<StoredDevice, 'spaceId' | 'type'> | null>();
+    const mode = typeof written.after.workmode === 'string' ? written.after.workmode : '';
+    const decisive = mode === 'dry' || mode === 'breed' || device?.type === 'plug';
     await this.entries.write({
       source: 'device',
       authorId: by,
@@ -250,7 +263,10 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       spaceId: device?.spaceId ?? null,
       deviceId,
       severity: 'info',
-      message: { key: 'message-device-configuration-updated', params: [moved.join('\n'), ...(mode === 'dry' || mode === 'breed' ? [mode] : [])] },
+      message: {
+        key: 'message-device-configuration-updated',
+        params: [moved.join('\n'), decisive ? mode : '', device?.type ?? ''],
+      },
     });
   }
 
@@ -264,7 +280,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // find nothing changed, rather than a stored configuration it was told had
     // failed and a device that goes on running the old one.
     if (!this.publisher.canPublish) {
-      throw new HttpException(503, 'Not connected to the message broker');
+      throw new HttpException('Not connected to the message broker', 503);
     }
 
     const device = await this.devices
@@ -297,7 +313,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
         | 'restedHumidityBand'
       > | null>();
     if (!device) {
-      throw new HttpException(404, 'Device not found');
+      throw new HttpException('Device not found', 404);
     }
 
     const before = device.configuration ?? null;
@@ -322,7 +338,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // climate. A preset, a phase or a step brings whichever it names.
     const germinated = device.beforeGermination ?? null;
     const germinates = mode?.workmode === 'breed' && before?.workmode !== 'breed' && germinated === null;
-    const backFromGermination = germinated !== null && ['small', 'full', 'temp'].includes(mode?.workmode ?? '');
+    const backFromGermination = germinated !== null && SCHEDULED_MODES.includes(mode?.workmode ?? '');
     // A drying spell begun out of germination for good - the drying chip, a
     // drying stage - ends it too. What the spell puts aside to give back is the
     // night from before germination, not germination's 75 %, which the
@@ -485,8 +501,6 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
   }
 }
 
-const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-
 /** Where germination's own humidity is written: the night's, the one half the dark mode holds. */
 const GERMINATION_HUMIDITY_PATH = 'night.humidity';
 
@@ -558,32 +572,46 @@ const MOST_FIGURES = 12;
  * "day.temperature: 24 → 25", one line per figure that moved, in the dotted
  * names the firmware's own diff has always written into these lines.
  */
-export const changedFigures = (before: unknown, after: unknown, hidden: ReadonlySet<string> = new Set()): string[] => {
-  const lines = figuresMoved(before, after, '', hidden);
+const changedFigures = (before: unknown, after: unknown): string[] => {
+  const lines = figuresMoved(before, after, '');
   return lines.length > MOST_FIGURES ? [...lines.slice(0, MOST_FIGURES), `… ${lines.length - MOST_FIGURES} more`] : lines;
 };
 
-const figuresMoved = (before: unknown, after: unknown, path: string, hidden: ReadonlySet<string>): string[] => {
+const figuresMoved = (before: unknown, after: unknown, path: string): string[] => {
   if (isSection(before) && isSection(after)) {
     const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
-    return keys.flatMap(key => figuresMoved(before[key], after[key], path ? `${path}.${key}` : key, hidden));
+    return keys.flatMap(key => figuresMoved(before[key], after[key], path ? `${path}.${key}` : key));
   }
-  if (hidden.has(path) || JSON.stringify(before) === JSON.stringify(after)) return [];
+  if (HIDDEN_FIGURES.has(path) || JSON.stringify(before) === JSON.stringify(after)) return [];
 
   return [`${path || 'configuration'}: ${figureOf(before)} → ${figureOf(after)}`];
 };
 
-/** Both times of the light schedule where one of them moved, the one that stayed written as itself on both sides. */
-const withScheduleWhole = (lines: string[], after: DeviceConfiguration): string[] => {
-  const named = (key: string) => lines.some(line => line.startsWith(`daynight.${key}: `));
-  if (named('day') === named('night')) return lines;
+/**
+ * Where a document keeps the two times its day starts and ends at: under
+ * `daynight` on a controller, a fridge and a smart socket - on a socket no
+ * lamp's, but when its switch points by night take over from those by day -
+ * and at the top of a stand-alone LIGHT's. An AIR fan has none - its day is
+ * what its light sensor sees, and its `day`/`night` are sections of figures.
+ */
+const LIGHT_WINDOWS = [
+  ['daynight.day', 'daynight.night'],
+  ['day', 'night'],
+] as const;
 
-  const missing = named('day') ? 'night' : 'day';
-  const section = after.daynight;
-  const value = isSection(section) ? section[missing] : undefined;
-  if (typeof value !== 'number') return lines;
-  return [...lines, `daynight.${missing}: ${value} → ${value}`].sort((one, other) => (one < other ? -1 : one > other ? 1 : 0));
-};
+/** Both times of the light schedule where one of them moved, the one that stayed written as itself on both sides. */
+const withScheduleWhole = (lines: string[], after: DeviceConfiguration): string[] =>
+  LIGHT_WINDOWS.reduce<string[]>((all, [on, off]) => {
+    const named = (path: string) => all.some(line => line.startsWith(`${path}: `));
+    if (named(on) === named(off)) return all;
+
+    const missing = named(on) ? off : on;
+    const value = nestedAt(after, missing);
+    return typeof value === 'number' ? [...all, `${missing}: ${value} → ${value}`].sort() : all;
+  }, lines);
+
+/** A device that has never sent its document: a write would reach it as the change alone. */
+const sentNoSettings = (configuration: DeviceConfiguration | null | undefined): boolean => !configuration || Object.keys(configuration).length === 0;
 
 const figureOf = (value: unknown): string =>
   value === undefined || value === null ? '–' : typeof value === 'string' ? value : JSON.stringify(value);

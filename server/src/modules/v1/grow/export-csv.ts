@@ -1,5 +1,6 @@
 import type { MeasurementDefinition, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { DeviceSeries } from '@fg2/shared-types/v1';
+import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -12,7 +13,7 @@ import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { MediaTally } from '@modules/v1/camera/media.service';
-import { dayNumberOf, originOf } from '../diary/grow-calendar';
+import { readingsIn } from '../diary/diary-entries';
 
 /**
  * What an export's CSVs say.
@@ -81,12 +82,13 @@ export const DIARY_COLUMNS = [
 export const diaryRows = (entries: readonly EntryDocument[], grow: GrowDocument | null, people: Names, plants: Names): unknown[][] =>
   entries.map(entry => [
     entry.occurredAt,
-    grow ? dayNumberOf(originOf(grow), entry.occurredAt) : null,
+    grow ? growDayAt(growOriginOf(grow), entry.occurredAt) : null,
     entry.kind,
     entry.source,
     entry.authorId ? (people.get(entry.authorId) ?? entry.authorId) : null,
     entry.text,
-    entry.message ? [entry.message.key, ...entry.message.params].join(' ') : null,
+    // An empty parameter only keeps the place of one the line leaves out, such as a settings line's mode.
+    entry.message ? [entry.message.key, ...entry.message.params.filter(param => param !== '')].join(' ') : null,
     entry.plantIds.map(id => plants.get(id) ?? id).join(' | '),
     entry.growId,
     entry.spaceId,
@@ -109,14 +111,14 @@ export const measurementsCsv = (
   plants: Names,
 ): Buffer => {
   const known = new Map(definitions.map(definition => [definition.key, definition]));
-  const origin = originOf(grow);
+  const origin = growOriginOf(grow);
 
   return csvOf(
     ['occurredAt', 'day', 'key', 'name', 'unit', 'value', 'plant', 'plantId', 'entryId'],
     entries.flatMap(entry =>
       readingsIn(entry).map(reading => [
         entry.occurredAt,
-        dayNumberOf(origin, entry.occurredAt),
+        growDayAt(origin, entry.occurredAt),
         reading.key,
         known.get(reading.key)?.name ?? null,
         known.get(reading.key)?.unit ?? null,
@@ -128,9 +130,6 @@ export const measurementsCsv = (
     ),
   );
 };
-
-export const readingsIn = (entry: EntryDocument): { key: string; value: number; plantId: string | null }[] =>
-  'readings' in entry.values ? entry.values.readings : [];
 
 /**
  * The climate, a row per instant per device: every metric it measured and every
@@ -177,7 +176,7 @@ export const plantsCsv = (plants: readonly PlantDocument[]): Buffer =>
 
 /** What a grow was: its phases, where it stood, what it was fed. One file, three blocks, because three files of four rows is worse. */
 export const growCsv = (grow: GrowDocument, spaces: Names): Buffer => {
-  const origin = originOf(grow);
+  const origin = growOriginOf(grow);
 
   return csvOf(
     ['what', 'startedAt', 'day', 'endedAt', 'detail', 'id'],
@@ -186,7 +185,7 @@ export const growCsv = (grow: GrowDocument, spaces: Names): Buffer => {
       ...grow.phases.map(phase => [
         phase.plantIds === null ? 'phase' : 'phase (some plants)',
         phase.startedAt,
-        dayNumberOf(origin, phase.startedAt),
+        growDayAt(origin, phase.startedAt),
         null,
         [phase.stage, phase.preset, `by ${phase.source}`].filter(Boolean).join(' · '),
         phase.id,
@@ -194,7 +193,7 @@ export const growCsv = (grow: GrowDocument, spaces: Names): Buffer => {
       ...grow.placements.map(placement => [
         'placement',
         placement.startedAt,
-        dayNumberOf(origin, placement.startedAt),
+        growDayAt(origin, placement.startedAt),
         placement.endedAt,
         placement.spaceId ? (spaces.get(placement.spaceId) ?? placement.spaceId) : 'nowhere in particular',
         placement.id,
@@ -255,6 +254,25 @@ export const accountSettingsJson = (user: StoredUser): Buffer =>
       2,
     )}\n`,
     'utf8',
+  );
+
+/** What the account itself is, on one row. The password hash is the one thing here that is never anybody's to export. */
+export const accountCsv = (user: StoredUser): Buffer =>
+  csvOf(
+    ['handle', 'email', 'createdAt', 'isActive', 'isAdmin', 'locale', 'timezone', 'publicProfile', 'userId'],
+    [
+      [
+        user.handle,
+        user.email,
+        user.createdAt,
+        user.isActive,
+        user.isAdmin,
+        user.preferences.locale,
+        user.preferences.timezone,
+        user.publicProfile,
+        user.id,
+      ],
+    ],
   );
 
 /** The places, with the people each is shared with - which is the half of a tent that is not in the tent. */

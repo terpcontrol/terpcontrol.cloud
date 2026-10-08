@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ExportScope, Media, MediaKind, MediaQuality, MediaWindow } from '@fg2/shared-types/v1';
 import { AccessRange } from '@common/v1/access.types';
 import { picturesWithinRange } from '@common/v1/range';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { ImageStore } from '@database/image-store';
@@ -28,7 +28,7 @@ import { picturesTheWayBackHolds } from '@/migrations/way-back';
  */
 
 /** What a picture is of, beside the bytes. The writer owns the id, the size and when the row was made. */
-export interface MediaDraft {
+interface MediaDraft {
   kind: MediaKind;
   mime: string;
   cameraId?: string | null;
@@ -43,6 +43,7 @@ export interface MediaDraft {
   render?: MediaDocument['render'];
   exportJob?: MediaDocument['exportJob'];
   lit?: boolean | null;
+  monochrome?: boolean | null;
 }
 
 /** What a camera holds of one kind, which is what an export says about the stills it cannot carry. */
@@ -59,7 +60,7 @@ export interface MediaPosition {
   capturedAt: Date;
 }
 
-export interface MediaFilter {
+interface MediaFilter {
   cameraId?: string;
   kind?: MediaKind;
   window?: MediaWindow | null;
@@ -145,22 +146,10 @@ export class MediaService {
     return this.media.findOne(where(filter)).sort({ capturedAt: -1 }).lean<MediaDocument>();
   }
 
-  public async page(filter: MediaFilter, page: PageQuery): Promise<CursorPage<Media>> {
-    const limit = pageLimit(page.limit);
-    const rows = await this.media
-      .find({ ...where(filter), ...afterCursor('capturedAt', page.cursor) })
-      .sort({ capturedAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<MediaDocument[]>();
-
-    // Row by row rather than by handing `serialise` to `map`, which would feed it
-    // the index as its second argument. Nothing is held back here: this lists a
-    // camera's own stills and films, and neither carries a space or an uploader.
-    return pageOf(
-      rows.map(row => serialise(row)),
-      limit,
-      row => ({ at: new Date(row.capturedAt), id: row.id }),
-    );
+  public async page(filter: MediaFilter, query: PageQuery): Promise<CursorPage<Media>> {
+    // Nothing is held back here: this lists a camera's own stills and films, and
+    // neither carries a space or an uploader.
+    return mapPage(await findPage(this.media, [where(filter)], query, { field: 'capturedAt' }), serialise);
   }
 
   /**
@@ -213,6 +202,7 @@ export class MediaService {
       render: draft.render ?? null,
       exportJob: draft.exportJob ?? null,
       lit: draft.lit ?? null,
+      monochrome: draft.monochrome ?? null,
     };
 
     await this.media.create(row);
@@ -281,17 +271,15 @@ export class MediaService {
     return this.store.copyToFile(id, path);
   }
 
-  public async delete(id: string): Promise<boolean> {
-    const result = await this.media.deleteOne({ id });
-    return (result?.deletedCount ?? 0) > 0;
+  public async delete(id: string): Promise<void> {
+    await this.media.deleteOne({ id });
   }
 
   /** In batches, for the sweeps: one round trip per batch rather than per picture. */
-  public async deleteMany(ids: string[]): Promise<number> {
-    if (ids.length === 0) return 0;
+  public async deleteMany(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
 
-    const result = await this.media.deleteMany({ id: { $in: ids } });
-    return result?.deletedCount ?? 0;
+    await this.media.deleteMany({ id: { $in: ids } });
   }
 
   /** Of these pictures, the ones the previous release still holds a row for, which no sweep of ours may remove yet. */

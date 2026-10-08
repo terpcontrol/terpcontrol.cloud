@@ -1,18 +1,14 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, SpaceSeries, TimelineTargets } from '@fg2/shared-types/v1';
 import { Charts } from '@/screens/charts/Charts';
 import { defaultPick, halfOf } from '@/screens/charts/cards';
 import { categoryOf, columnsOf, nearestColumn } from '@/screens/charts/message-columns';
 import { rangeOfSpan, stepped, windowOf, WIDTHS, zoomedIn } from '@/screens/charts/span';
+import { drawAt } from './harness';
+import { translate } from './translations';
 
 /**
  * The charts page of a place, which is how every old chart comes back: a place
@@ -38,12 +34,11 @@ vi.mock('@/api/client', () => ({
     get: (path: string, query?: Record<string, unknown>) => {
       state.asked.push({ path, query });
       if (path.startsWith('/spaces/space-2/series')) {
-        const asked = new URLSearchParams(path.split('?')[1]);
         return Promise.resolve({
           ...(state.series as object),
-          startsAt: asked.get('from'),
-          endsAt: asked.get('to'),
-          stepSeconds: Number(asked.get('stepSeconds')) || 300,
+          startsAt: query?.from,
+          endsAt: query?.to,
+          stepSeconds: Number(query?.stepSeconds) || 300,
         });
       }
       if (path === '/grows') return Promise.resolve({ items: [], nextCursor: null });
@@ -130,34 +125,32 @@ function Address() {
 }
 
 const draw = (at = '/charts?space=space-2') =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <Routes>
-          <Route
-            path="*"
-            element={
-              <>
-                <Charts />
-                <Address />
-              </>
-            }
-          />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <Routes>
+      <Route
+        path="*"
+        element={
+          <>
+            <Charts />
+            <Address />
+          </>
+        }
+      />
+    </Routes>,
+    { at },
   );
 
-const seriesReads = () => state.asked.filter(read => read.path.includes('/series')).map(read => new URLSearchParams(read.path.split('?')[1]));
-const lastRead = () => seriesReads().at(-1)!;
-const widthOf = (read: URLSearchParams) => Date.parse(read.get('to')!) - Date.parse(read.get('from')!);
+interface SeriesRead {
+  from: string;
+  to: string;
+  stepSeconds?: number;
+  metrics: string[];
+}
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+const lastRead = () => state.asked.filter(read => read.path.includes('/series')).at(-1)!.query as unknown as SeriesRead;
+const widthOf = (read: SeriesRead) => Date.parse(read.to) - Date.parse(read.from);
+
+beforeAll(() => translate());
 
 beforeEach(() => {
   state.asked = [];
@@ -177,7 +170,7 @@ describe('a place charted without a grow', () => {
 
     expect(await screen.findByText('Temp + RH')).toBeInTheDocument();
     expect(widthOf(lastRead())).toBe(WIDTHS['24h']);
-    expect(lastRead().getAll('metrics')).toEqual(expect.arrayContaining(['leafTemperature', 'lux', 'ppfd']));
+    expect(lastRead().metrics).toEqual(expect.arrayContaining(['leafTemperature', 'lux', 'ppfd']));
     expect(state.asked.some(read => read.path.startsWith('/grows/'))).toBe(false);
 
     for (const label of ['Leaf', 'Messages', 'Camera picture']) expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
@@ -211,14 +204,14 @@ describe('a place charted without a grow', () => {
   it('steps the window back by its own width, and back to now', async () => {
     draw('/charts?space=space-2&range=7d');
     await screen.findByText('Temp + RH');
-    const end = Date.parse(lastRead().get('to')!);
+    const end = Date.parse(lastRead().to);
 
     fireEvent.click(screen.getByRole('button', { name: 'Earlier' }));
-    await waitFor(() => expect(Date.parse(lastRead().get('to')!)).toBe(end - WIDTHS['7d']));
+    await waitFor(() => expect(Date.parse(lastRead().to)).toBe(end - WIDTHS['7d']));
     expect(screen.getByTestId('address')).toHaveTextContent('at=');
 
     fireEvent.click(screen.getByRole('button', { name: 'Up to now' }));
-    await waitFor(() => expect(Date.parse(lastRead().get('to')!)).toBe(end));
+    await waitFor(() => expect(Date.parse(lastRead().to)).toBe(end));
     expect(screen.getByRole('button', { name: 'Later' })).toBeDisabled();
   });
 
@@ -229,12 +222,12 @@ describe('a place charted without a grow', () => {
     fireEvent.click(screen.getByText('Advanced'));
     fireEvent.change(screen.getByRole('combobox', { name: 'Interval' }), { target: { value: '60' } });
 
-    await waitFor(() => expect(lastRead().get('stepSeconds')).toBe('60'));
+    await waitFor(() => expect(lastRead().stepSeconds).toBe(60));
     expect(screen.getByTestId('address')).toHaveTextContent('step=60');
 
     state.series = { ...placeSeries };
     fireEvent.change(screen.getByRole('combobox', { name: 'Interval' }), { target: { value: '5' } });
-    await waitFor(() => expect(lastRead().get('stepSeconds')).toBe('5'));
+    await waitFor(() => expect(lastRead().stepSeconds).toBe(5));
   });
 
   it('zooms into a third of the window around the cursor, and back out', async () => {
@@ -305,13 +298,13 @@ describe('a place charted without a grow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
     await waitFor(() => expect(widthOf(lastRead())).toBe(WIDTHS['24h'] / 3));
-    const zoomedTo = Date.parse(lastRead().get('to')!);
+    const zoomedTo = Date.parse(lastRead().to);
 
     fireEvent.click(screen.getByRole('button', { name: 'Earlier' }));
-    await waitFor(() => expect(Date.parse(lastRead().get('to')!)).toBe(zoomedTo - WIDTHS['24h'] / 3));
+    await waitFor(() => expect(Date.parse(lastRead().to)).toBe(zoomedTo - WIDTHS['24h'] / 3));
     expect(widthOf(lastRead())).toBe(WIDTHS['24h'] / 3);
     fireEvent.click(screen.getByRole('button', { name: 'Later' }));
-    await waitFor(() => expect(Date.parse(lastRead().get('to')!)).toBe(zoomedTo));
+    await waitFor(() => expect(Date.parse(lastRead().to)).toBe(zoomedTo));
   });
 
   it('keeps the curves, the messages and the picture in the address, so a reload opens on the same chart', async () => {
@@ -345,7 +338,7 @@ describe('a place charted without a grow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
     await waitFor(() => expect(widthOf(lastRead())).toBe(WIDTHS['24h'] / 3));
-    const zoomed = { from: lastRead().get('from'), to: lastRead().get('to') };
+    const zoomed = { from: lastRead().from, to: lastRead().to };
     fireEvent.click(screen.getByRole('button', { name: 'Overlay' }));
     fireEvent.click(within(await screen.findByRole('group', { name: 'Which messages' })).getByRole('button', { name: 'Diary' }));
     const address = screen.getByTestId('address').textContent!;
@@ -358,7 +351,7 @@ describe('a place charted without a grow', () => {
     state.asked = [];
     draw(address);
     expect(await screen.findByText(/^Zoom:/)).toBeInTheDocument();
-    await waitFor(() => expect({ from: lastRead().get('from'), to: lastRead().get('to') }).toEqual(zoomed));
+    await waitFor(() => expect({ from: lastRead().from, to: lastRead().to }).toEqual(zoomed));
     expect(screen.getByRole('button', { name: 'Overlay' })).toHaveAttribute('aria-pressed', 'true');
     expect(await screen.findByText('· 1 in the window')).toBeInTheDocument();
     expect(screen.queryByText('Topped the tent')).not.toBeInTheDocument();

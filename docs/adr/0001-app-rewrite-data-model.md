@@ -1,7 +1,7 @@
 ---
 summary: The /v1 data model, the API conventions and routes, the access rule, the frozen device protocol and the migration from the old database - read before changing a collection, a route, a migration step or anything a device touches
 updated: 2026-10-08
-source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08
+source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08
 paths:
   - server/src/database/**
   - server/src/migrations/**
@@ -16,11 +16,11 @@ paths:
   end each carry the assumption the work proceeds on.
 - **Amended** on 2026-09-19 (Chris's sign-off of the backend as built), 2026-09-22 and 09-23 (access and sharing,
   measurement bands, the migration's names and corrections), 2026-10-01 to 10-04 (the work mode, the target
-  record, light hours, the plan routes) and 2026-10-07 (a device's settings in its `fetch`). Each change is marked
-  "Amended <date>" where it stands and says what it replaced. Built and merged with #104 on 2026-10-04; every
-  question left open at acceptance is answered, and two have been opened since (see the end). Decided on their own
-  since: [ADR 0005](0005-device-times-on-the-wall-clock.md) (device times on the wall clock),
-  [ADR 0006](0006-day-and-night-by-the-device-clock.md) (day and night by the device's clock),
+  record, light hours, the plan routes), 2026-10-07 (a device's settings in its `fetch`) and 2026-10-08 (a still's
+  colour). Each change is marked "Amended <date>" where it stands and says what it replaced. Built and merged with
+  #104 on 2026-10-04; every question left open at acceptance is answered, and two have been opened since (see the
+  end). Decided on their own since: [ADR 0005](0005-device-times-on-the-wall-clock.md) (device times on the wall
+  clock), [ADR 0006](0006-day-and-night-by-the-device-clock.md) (day and night by the device's clock),
   [ADR 0007](0007-germination-in-the-dark.md) (germination in the dark).
 - **Date:** 2026-09-17
 - **Touches:** `server/`, `shared-types/`, `firmware/` (smart sockets; more since, see the firmware delta),
@@ -335,7 +335,7 @@ rule that names an output and a threshold nothing would read cannot be written d
 | `entries` | `kind: water · feed · photo · note · measurement · training · phase · move · harvest · visit · alarm · plan · system`, `occurredAt`, `source: human · device · plan · preset · alarm`, `authorId`, `growId`, `spaceId`, `deviceId`, `plantIds[]`, `cameraId`, `taskId`, `alertId`, `severity`, `text`, `message { key, params[] }`, `values` (typed per kind), `mediaIds[]`, `undoUntil` |
 | `reminders` | `subject { type: grow · space, id }`, `kind: water · feed · chore · custom`, `label`, `everyDays`, `onceAt`, `assigneeId`, `defaults`, `createdBy` |
 | `cameras` | `ownerId`, `kind: terpcam_controller · terpcam_standalone · rtsp`, `deviceId`, `spaceId`, `name`, `looksAt`, `plantIds[]`, `did`, `uid`, `ip`, `secret` (server only), `url`, `transport`, `tunnel`, `model`, `stillIntervalSeconds`, `nightOff`, `maintenanceOff`, `logErrors`, `staleWarning` (amended 2026-09-19, see "The alarm engine"), `entitlement { validUntil, grant }`, `isDemo`, `removedAt`, `state { lastStillAt, lastError, firmwareVersion }` |
-| `media` | `kind: still · timelapse · photo · avatar · export` (`export` amended 2026-09-22, see "Exports"), `mime`, `bytes`, `cameraId`, `growId`, `spaceId`, `uploadedBy`, `capturedAt`, `endsAt`, `window: day · week · month · custom`, `quality`, `lengthSeconds`, `render` (composer options and status), `exportJob` (an export's scope and status), `lit` (whether a still was taken with the light on). Unique on `{cameraId, kind, window, capturedAt}` for camera media |
+| `media` | `kind: still · timelapse · photo · avatar · export` (`export` amended 2026-09-22, see "Exports"), `mime`, `bytes`, `cameraId`, `growId`, `spaceId`, `uploadedBy`, `capturedAt`, `endsAt`, `window: day · week · month · custom`, `quality`, `lengthSeconds`, `render` (composer options and status), `exportJob` (an export's scope and status), `lit` (whether a still was taken with the light on), `monochrome` (whether a still came out grey, a camera's night mode; server-side only, amended 2026-10-08, ADR 0006). Unique on `{cameraId, kind, window, capturedAt}` for camera media |
 | `schemes` | `ownerId`, `name`, `origin { assetId, version }`, `grid` (a user's own feeding schemes) |
 | `chartViews` | `ownerId`, `name`, `definition` (structured, not a query string) |
 | `shareLinks` | `token` (unique, separate from `id`), `kind: view · public_page`, `subject { type: grow · space, id }`, `range { startsAt, endsAt }`, `includeCameras`, `createdBy`, `expiresAt`, `revokedAt`, `state { openCount, lastOpenedAt }` |
@@ -361,7 +361,8 @@ rule that names an output and a threshold nothing would read cannot be written d
   GridFS bucket, whose file id is the media id.
 - **Time series** stay in InfluxDB, measurement `status`, tagged by `device_id`. The `user_id` tag, which
   records whoever owned the device when a sample arrived and is never read, is no longer written. The API names
-  metrics with one enum in `shared-types` that maps to the device's field names.
+  metrics with one enum in `shared-types`, which the server maps to the device's field names
+  (`server/src/common/v1/metrics.ts`).
 
 ## Access
 

@@ -1,12 +1,5 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Co2Report, Device, Entry, SocketPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
@@ -15,6 +8,8 @@ import { items as sensorItems } from '@/screens/devices/advanced/SensorFactors.a
 import { PhaseTips } from '@/screens/grow/PhaseTips';
 import { itemsFor } from '@/ui/advanced/registry';
 import { EntryRow } from '@/ui/EntryRow';
+import { drawAt } from './harness';
+import { translate } from './translations';
 
 /**
  * The settings few growers need, back under Erweitert where the old app had
@@ -25,7 +20,7 @@ import { EntryRow } from '@/ui/EntryRow';
  */
 
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 vi.mock('@/api/session', async importOriginal => {
@@ -46,21 +41,9 @@ const device = (type = 'fridge', hardware: Record<string, string> = {}, over: Pa
     ...over,
   }) as Device;
 
-const wrap = (children: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>{children}</MemoryRouter>
-    </QueryClientProvider>,
-  );
-
 const ids = (one: Device, mayManage = true) => itemsFor('device', { device: one, mayManage, offline: false }).map(item => item.id);
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.mocked(api.get).mockReset();
@@ -118,7 +101,7 @@ describe('the fine settings themselves', () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
     const [, ramps] = itemsFor('device', { device: device(), mayManage: true, offline: false });
     const Ramps = ramps.Item;
-    wrap(<Ramps device={device()} mayManage offline={false} />);
+    drawAt(<Ramps device={device()} mayManage offline={false} />);
 
     const sunrise = screen.getByRole('textbox', { name: 'Sunrise' });
     expect(sunrise).toHaveValue('15');
@@ -133,7 +116,7 @@ describe('the fine settings themselves', () => {
   it('switch CO2 at night on the tap, and say what it means', async () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
     const Co2Night = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'co2-night')!.Item;
-    wrap(<Co2Night device={device()} mayManage offline={false} />);
+    drawAt(<Co2Night device={device()} mayManage offline={false} />);
 
     expect(screen.getByText('CO₂ is dosed only while the light is on.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('switch', { name: 'CO₂ at night too' }));
@@ -145,7 +128,7 @@ describe('the fine settings themselves', () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
     const mode = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'operating-mode')!;
     const Mode = mode.Item;
-    const view = wrap(<Mode device={device()} mayManage offline={false} />);
+    const view = drawAt(<Mode device={device()} mayManage offline={false} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
     expect(api.patch).not.toHaveBeenCalled();
@@ -172,7 +155,7 @@ describe('the fine settings themselves', () => {
     const germinating = device('fridge', {}, {
       control: { running: true, drying: false, mode: 'germination', energySaving: false },
     } as Partial<Device>);
-    wrap(<Mode device={germinating} mayManage offline={false} />);
+    drawAt(<Mode device={germinating} mayManage offline={false} />);
     fireEvent.click(screen.getByRole('button', { name: 'Standard' }));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { mode: 'standard' } }));
   });
@@ -185,7 +168,7 @@ describe('the fine settings themselves', () => {
   it('offer what germination does about the humidity while the device germinates, and write each choice on the tap', async () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
     const Mode = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'operating-mode')!.Item;
-    const view = wrap(<Mode device={device()} mayManage offline={false} />);
+    const view = drawAt(<Mode device={device()} mayManage offline={false} />);
     // Standard says nothing of germination.
     expect(screen.queryByRole('group', { name: 'During germination' })).not.toBeInTheDocument();
     view.unmount();
@@ -216,7 +199,7 @@ describe('the fine settings themselves', () => {
       nextCursor: null,
       capabilities: { socketOverride: true, socketTimer: true, lightOverride: true, roles: ['humidifier' as const], pulseSeconds: {} },
     };
-    wrap(<Mode device={germinating} mayManage offline={false} sockets={humidifier} />);
+    drawAt(<Mode device={germinating} mayManage offline={false} sockets={humidifier} />);
 
     expect(screen.getByText('The humidifier holds 62 % – it never makes it wetter than that.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('switch', { name: 'Warn when it gets too humid' }));
@@ -228,7 +211,7 @@ describe('the fine settings themselves', () => {
   it('offer a tent controller the standard and germination in the dark, and not the greenhouse mode a fridge has', () => {
     const tent = device('controller');
     const Mode = itemsFor('device', { device: tent, mayManage: true, offline: false }).find(one => one.id === 'operating-mode')!.Item;
-    wrap(<Mode device={tent} mayManage offline={false} />);
+    drawAt(<Mode device={tent} mayManage offline={false} />);
 
     expect(screen.getByRole('button', { name: 'Standard' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Germination · dark' })).toBeInTheDocument();
@@ -238,7 +221,7 @@ describe('the fine settings themselves', () => {
   it('show the compressor rest the firmware runs with where the document does not state it', () => {
     const rest = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'compressor-rest')!;
     const Rest = rest.Item;
-    wrap(<Rest device={device()} mayManage offline={false} />);
+    drawAt(<Rest device={device()} mayManage offline={false} />);
 
     expect(screen.getByRole('textbox', { name: 'Compressor rest' })).toHaveValue('240');
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
@@ -247,7 +230,7 @@ describe('the fine settings themselves', () => {
   it('move a leaf offset half a degree a tap and save it with the other factors as they are', async () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
     const Offsets = sensorItems[0].Item;
-    wrap(<Offsets device={device()} mayManage offline={false} />);
+    drawAt(<Offsets device={device()} mayManage offline={false} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Leaf against air · day: cooler' }));
     fireEvent.click(screen.getByRole('button', { name: 'Leaf against air · day: cooler' }));
@@ -265,7 +248,7 @@ describe('the fine settings themselves', () => {
   it('set the lux factor of a known lamp on the tap, and refuse a typed one no lamp has', async () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
     const Lux = sensorItems[1].Item;
-    wrap(<Lux device={device('controller', { ppfd: 'on' })} mayManage offline={false} />);
+    drawAt(<Lux device={device('controller', { ppfd: 'on' })} mayManage offline={false} />);
 
     expect(screen.getByRole('button', { name: 'White LED · 0.015' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'HPS · 0.0122' }));
@@ -308,7 +291,7 @@ describe('the CO2 cylinder at the place', () => {
 
   it('reads nothing while its section is folded, and says what is left once it is opened', async () => {
     vi.mocked(api.get).mockResolvedValue(REPORT as never);
-    wrap(
+    drawAt(
       <details>
         <summary>Advanced</summary>
         <Card {...place([device()])} />
@@ -329,7 +312,7 @@ describe('the CO2 cylinder at the place', () => {
   /** An estimate at nothing read "About 0 g left (0 %) · lasts about 0 days" while the valve held its target. */
   it('says an estimate run down to nothing is a guess that the cylinder is empty, to be checked', async () => {
     vi.mocked(api.get).mockResolvedValue({ ...REPORT, restGrams: 0.2 } as never);
-    wrap(<Card {...place([device()])} />);
+    drawAt(<Card {...place([device()])} />);
 
     expect(await screen.findByText('By the estimate it should be empty – check the cylinder.')).toBeInTheDocument();
     expect(screen.getByText(/^Worked out from what the empty cylinder used/)).toBeInTheDocument();
@@ -340,7 +323,7 @@ describe('the CO2 cylinder at the place', () => {
   it('notes a cylinder going in as a measurement of the place, with what was left in the old one', async () => {
     vi.mocked(api.get).mockResolvedValue(REPORT as never);
     vi.mocked(api.post).mockResolvedValue({} as never);
-    wrap(<Card {...place([device()])} />);
+    drawAt(<Card {...place([device()])} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'New cylinder in' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Left in the old one' }), { target: { value: '35' } });
@@ -386,7 +369,7 @@ describe('the CO2 cylinder at the place', () => {
     } as unknown as Entry;
     // The row reads the account for the zone its time is drawn in.
     vi.mocked(api.get).mockResolvedValue({ id: 'user-1', handle: 'you' } as never);
-    wrap(
+    drawAt(
       <ul>
         <EntryRow entry={entry} people={[]} now={DateTime.now()} />
       </ul>,
@@ -398,7 +381,7 @@ describe('the CO2 cylinder at the place', () => {
 
 describe('the phase tips', () => {
   it('fold four tips for the phase the grow is in under one line', () => {
-    wrap(<PhaseTips stage="flowering" />);
+    drawAt(<PhaseTips stage="flowering" />);
 
     const section = screen.getByText('Tips for this stage').closest('details')!;
     expect(section).not.toHaveAttribute('open');
@@ -407,11 +390,11 @@ describe('the phase tips', () => {
   });
 
   it('give germination its own tips in the dark and curing the end of drying´s, and nothing without a phase', () => {
-    wrap(<PhaseTips stage="germination" />);
+    drawAt(<PhaseTips stage="germination" />);
     expect(screen.getByText(/^Seeds germinate dark and moist/)).toBeInTheDocument();
     expect(screen.getByText(/it needs light: switch to “Seedling · with light”/)).toBeInTheDocument();
 
-    const { container } = wrap(<PhaseTips stage={null} />);
+    const { container } = drawAt(<PhaseTips stage={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 });

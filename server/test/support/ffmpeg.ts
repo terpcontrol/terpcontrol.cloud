@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { SERVER_ROOT } from './infra/app';
+import { FFMPEG_STATE_DIR } from './infra/app';
 
 /**
  * The ffmpeg the app under test runs is a shim (`support/infra/fake-bin/ffmpeg`)
@@ -9,9 +9,6 @@ import { SERVER_ROOT } from './infra/app';
  * sides of it a spec uses: what was run, and what a particular run should
  * answer instead of the camera.
  */
-export const FFMPEG_STATE_DIR = join(SERVER_ROOT, 'test', '.tmp', 'ffmpeg');
-export const FFMPEG_BIN_DIR = join(SERVER_ROOT, 'test', 'support', 'infra', 'fake-bin');
-
 const PLAN = join(FFMPEG_STATE_DIR, 'plan.json');
 const CALLS = join(FFMPEG_STATE_DIR, 'calls.jsonl');
 
@@ -28,8 +25,6 @@ export interface ScriptedRun {
   exit?: number;
   /** How long the run takes to answer at all - an unreachable camera. */
   delayMs?: number;
-  /** A still to answer with, base64. */
-  stdout?: string;
   /** Bytes to send to whatever `-i` points at, hex, before answering. */
   writeToInput?: string;
 }

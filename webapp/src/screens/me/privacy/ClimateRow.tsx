@@ -2,11 +2,11 @@ import { type DateTime } from 'luxon';
 import { useState } from 'react';
 import type { Me } from '@fg2/shared-types/v1';
 import { useTranslation } from 'react-i18next';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import { DAY } from '@/ui/zone';
 import { Menu, Row } from '../parts';
-import { cutoffDay, KEEP, narrows } from './climate';
+import { cutoffDay, KEEP, narrows, retentionLabel } from './climate';
 import styles from './Privacy.module.css';
 
 /**
@@ -91,8 +91,7 @@ export function ClimateRow({
 /** The question: what a shorter window does, in the menu's own words for the window and a date for where it cuts. */
 function ClimateSheet({ days, now, onClose, onKeep }: { days: number; now: DateTime; onClose: () => void; onKeep: () => void }) {
   const { t, i18n } = useTranslation();
-  const option = KEEP.find(candidate => candidate.days === days);
-  const keep = option ? t(`me.privacy.keep.${option.key}`) : t('me.door.privacy.days', { count: days });
+  const keep = retentionLabel(t, days);
   // The cutoff is worked out in UTC because that is where the server cuts, so
   // only the shape is decided here: the app's one date shape rather than
   // Luxon's medium preset, which followed the language into "Oct 23, 2026".

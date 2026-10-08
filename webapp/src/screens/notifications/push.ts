@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { readStored, writeStored } from '@/ui/stored';
 
 /**
  * The browser's half of the push channel.
@@ -27,7 +28,7 @@ const registration = async (): Promise<ServiceWorkerRegistration | null> => {
   return Promise.race([navigator.serviceWorker.ready, none]);
 };
 
-export const currentSubscription = async (): Promise<PushSubscription | null> => {
+const currentSubscription = async (): Promise<PushSubscription | null> => {
   const worker = await registration();
   return worker ? worker.pushManager.getSubscription() : null;
 };
@@ -38,7 +39,7 @@ export const pushKey = ['push-subscription'];
 export const usePushSubscription = () => useQuery({ queryKey: pushKey, queryFn: currentSubscription, staleTime: Infinity });
 
 /** The VAPID key travels as base64url and the push manager wants the bytes. */
-export const applicationServerKey = (base64url: string): Uint8Array => {
+const applicationServerKey = (base64url: string): Uint8Array => {
   const padded = base64url.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (base64url.length % 4)) % 4);
   const raw = atob(padded);
   return Uint8Array.from(raw, character => character.charCodeAt(0));
@@ -57,26 +58,9 @@ export const subscribe = async (key: string): Promise<PushSubscription | null> =
 
 const storageKey = (endpoint: string): string => `push-subscription:${endpoint}`;
 
-export const rememberId = (endpoint: string, id: string): void => {
-  try {
-    localStorage.setItem(storageKey(endpoint), id);
-  } catch {
-    // Storage that is blocked costs the id, and switching off then leaves the server's row until it is pushed to and fails.
-  }
-};
+/** Storage that is blocked costs the id, and switching off then leaves the server's row until it is pushed to and fails. */
+export const rememberId = (endpoint: string, id: string): void => writeStored(storageKey(endpoint), id);
 
-export const rememberedId = (endpoint: string): string | null => {
-  try {
-    return localStorage.getItem(storageKey(endpoint));
-  } catch {
-    return null;
-  }
-};
+export const rememberedId = (endpoint: string): string | null => readStored(storageKey(endpoint));
 
-export const forgetId = (endpoint: string): void => {
-  try {
-    localStorage.removeItem(storageKey(endpoint));
-  } catch {
-    // Nothing to forget where nothing could be kept.
-  }
-};
+export const forgetId = (endpoint: string): void => writeStored(storageKey(endpoint), null);

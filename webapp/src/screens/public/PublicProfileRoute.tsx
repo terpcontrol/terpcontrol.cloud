@@ -1,20 +1,18 @@
 import { Leaf } from 'lucide-react';
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { FollowedGrowCard, PublicUserPage } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, publicPicture, usePublicUser } from '@/api/public';
-import { ApiError } from '@/api/problem';
 import { session, useSession } from '@/api/session';
-import { ageLabel } from '@/ui/age';
-import { LoadFailed, Waiting } from '@/ui/PageState';
+import { initials } from '@/ui/handle';
 import { useNow } from '@/ui/useNow';
 import { FollowButton } from './FollowButton';
 import { Nothing } from './Nothing';
 import { Photo } from '@/ui/Photo';
-import { DAY } from '@/ui/zone';
-import { PublicShell } from './PublicShell';
+import { followedMeta } from './followed';
+import { PublicShell, PublicUnread } from './PublicShell';
 import styles from './Public.module.css';
 
 /**
@@ -50,25 +48,7 @@ function Profile({ handle }: { handle: string }) {
     void session.restore();
   }, []);
 
-  if (page.isPending) {
-    return (
-      <PublicShell>
-        <Waiting lines={3} />
-      </PublicShell>
-    );
-  }
-
-  if (!page.data) {
-    return (
-      <PublicShell>
-        {page.error instanceof ApiError && page.error.status === 404 ? (
-          <Nothing titleKey="publicPage.noProfile.title" bodyKey="publicPage.noProfile.body" />
-        ) : (
-          <LoadFailed retry={() => void page.refetch()} />
-        )}
-      </PublicShell>
-    );
-  }
+  if (!page.data) return <PublicUnread read={page} lines={3} titleKey="publicPage.noProfile.title" bodyKey="publicPage.noProfile.body" />;
 
   return (
     <PublicShell title={`@${page.data.author.handle}`}>
@@ -92,7 +72,7 @@ function Diaries({ page, now }: { page: PublicUserPage; now: DateTime }) {
   return (
     <section className={styles.profile}>
       <header className={styles.profileHead}>
-        <Photo src={avatar} alt="" className={styles.profileAvatar} fallback={author.handle.slice(0, 2).toUpperCase()} />
+        <Photo src={avatar} alt="" className={styles.profileAvatar} fallback={initials(author.handle)} />
         <div className={styles.profileText}>
           <h1 className={styles.title}>@{author.handle}</h1>
           {author.bio ? <p className={styles.description}>{author.bio}</p> : null}
@@ -124,20 +104,7 @@ function DiaryCard({ grow, now, own }: { grow: FollowedGrowCard; now: DateTime; 
         <Photo src={cover} alt="" className={styles.cardCover} fallback={<Leaf size={22} strokeWidth={1.5} aria-hidden />} />
         <span className={styles.cardText}>
           <span className={`name ${styles.cardTitle}`}>{grow.name}</span>
-          <span className={`mono ${styles.cardMeta}`}>
-            {[
-              grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,
-              grow.stage ? t(`home.stage.${grow.stage}`) : null,
-              // The card of a finished diary says so, as its own page does one
-              // click away. The day number stays: it is the day the grow ended
-              // on, and the age beside it dates the last line rather than the
-              // end.
-              grow.endedAt ? t('grow.ended', { date: DateTime.fromISO(grow.endedAt).toFormat(DAY) }) : null,
-              t('home.card.ago', { age: ageLabel(grow.updatedAt, now) }),
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </span>
+          <span className={`mono ${styles.cardMeta}`}>{followedMeta(t, grow, now, null)}</span>
         </span>
       </Link>
       {own ? null : <FollowButton growId={grow.growId} />}

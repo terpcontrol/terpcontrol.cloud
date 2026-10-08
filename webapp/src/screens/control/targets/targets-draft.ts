@@ -1,11 +1,9 @@
-import type { DateTime } from 'luxon';
 import type { DeviceConfiguration, DeviceSettings } from '@fg2/shared-types/v1';
 import { climatePreset, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { lightsOffOf as lightsOffAt, lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
-import { serverNow } from '@/api/clock';
-import { oClock } from '@/ui/age';
-import { figureOf, sectionOf } from '@/ui/climate-hardware';
+import { figureOf } from '@/ui/climate-hardware';
 import type { ClimateChoice } from '@/ui/presets';
 
 /**
@@ -39,9 +37,6 @@ export interface TargetsDraft {
 /** The two figures of a light schedule, which is all the light window is worked out from. */
 export type LightSchedule = Pick<TargetsDraft, 'lightsOn' | 'lightHours'>;
 
-const DAY_SECONDS = 24 * 60 * 60;
-const HOUR_SECONDS = 60 * 60;
-
 /** The firmware's own defaults, for a document that has never stated a figure. Its light window's are the shared module's. */
 const DEFAULTS: Omit<TargetsDraft, 'lightsOn' | 'lightHours'> = {
   dayTemperature: 25,
@@ -51,19 +46,6 @@ const DEFAULTS: Omit<TargetsDraft, 'lightsOn' | 'lightHours'> = {
   lightLimit: 100,
   co2: 400,
 };
-
-/** Seconds round the clock: 25:00 is 01:00, and an hour before 00:30 is 23:30. */
-const roundTheClock = (seconds: number): number => ((seconds % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
-
-/**
- * When the light goes off, in seconds past midnight UTC, for saying it and for
- * drawing it: the hour it comes on again for a light that never goes off, or
- * never comes on. The times a document is written with are another matter -
- * a whole day, no day and a light off at midnight UTC each have their own form
- * there (`lightWindowTimes`) - and are worked out in the one place the server
- * writes them from.
- */
-export const lightsOffOf = (draft: LightSchedule): number => lightsOffAt(draft);
 
 export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
   // Read the way the firmware reads the two times: a day that never ends is 24
@@ -195,56 +177,3 @@ export const vpdOf = (temperature: number, humidity: number, leafOffset: number)
 
 export const leafOffset = (settings: DeviceSettings, when: 'day' | 'night'): number =>
   when === 'day' ? settings.vpdLeafOffsetDay : settings.vpdLeafOffsetNight;
-
-/* ---------------------------------------------------------------- the clock */
-
-/**
- * How far the account's wall clock is ahead of UTC right now, in seconds.
- *
- * The document holds seconds past midnight UTC, so a tent in Berlin that
- * lights at eight is stored as six in summer. The times on this page are the
- * clock on the wall where the account is kept - the zone the server reads the
- * same account's quiet hours in, not wherever the phone reading this happens to
- * be - and they are turned into the document's seconds at today's offset. The
- * server remembers that offset and moves the seconds when it changes, so eight
- * stays eight when the clocks go back; read the same way, the page goes on
- * saying eight.
- */
-export const offsetOf = (now: DateTime, zone: string | null): number => (zone ? now.setZone(zone) : now.toLocal()).offset * 60;
-
-const twoDigits = (value: number): string => String(value).padStart(2, '0');
-
-/**
- * "08:00": seconds past midnight UTC on the account's wall clock, to the
- * nearest minute - a light written to go off a second before midnight goes off
- * at midnight as far as anybody reading a clock is concerned.
- */
-export const wallClock = (seconds: number, offset: number): string => {
-  const there = roundTheClock(Math.round((seconds + offset) / 60) * 60);
-  return `${twoDigits(Math.floor(there / HOUR_SECONDS))}:${twoDigits(Math.floor((there % HOUR_SECONDS) / 60))}`;
-};
-
-/** "08:00" on the account's wall clock as the document's seconds past midnight UTC, or null for what is not a time of day. */
-export const secondsOf = (time: string, offset: number): number | null => {
-  const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(time.trim());
-  if (!match) return null;
-
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) return null;
-
-  return roundTheClock(hours * HOUR_SECONDS + minutes * 60 - offset);
-};
-
-/**
- * "06-18 h": when the light comes on and goes off, on the account's wall clock.
- * Minutes are shown only where a window does not fall on the hour.
- */
-export const lightWindowLabel = (draft: TargetsDraft, now: DateTime = serverNow(), zone: string | null = null): string => {
-  const offset = offsetOf(now, zone);
-  const on = wallClock(draft.lightsOn, offset);
-  const off = wallClock(lightsOffOf(draft), offset);
-  const onTheHour = on.endsWith(':00') && off.endsWith(':00');
-
-  return `${onTheHour ? on.slice(0, 2) : on}–${onTheHour ? off.slice(0, 2) : off} ${oClock()}`;
-};

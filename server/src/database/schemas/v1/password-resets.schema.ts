@@ -1,4 +1,4 @@
-import { HydratedDocument, Schema } from 'mongoose';
+import { Schema } from 'mongoose';
 
 /**
  * A pending password reset. It has no shape in the contract on purpose: nothing
@@ -12,8 +12,6 @@ export interface StoredPasswordReset {
   tokenHash: string;
   expiresAt: Date;
 }
-
-export type PasswordResetDocument = HydratedDocument<StoredPasswordReset>;
 
 export const passwordResetsSchema = new Schema<StoredPasswordReset>(
   {

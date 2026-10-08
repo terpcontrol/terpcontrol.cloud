@@ -20,20 +20,24 @@ import type {
   TimelineTarget,
 } from '@fg2/shared-types/v1';
 import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { switchPointName, workModeOf, type PlugMode, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { switchPointName, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { roundTheClock, utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { STEERED, TARGET_BAND, type Steered } from '@fg2/shared-types/v1-schemas/steering.js';
 import { timelinePath } from '@/app/places';
+import type { Translate } from '@/i18n/i18n';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
-import { figureOf, statesTargets } from '@/ui/climate-hardware';
+import { darkReasonOf, figureOf, hasCo2Sensor, outputWord, statesTargets } from '@/ui/climate-hardware';
 import type { Quiet } from '@/ui/maintenance';
+import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { clock } from '@/ui/zone';
 import { nowHoldingOf, setpointsOf, storedShapeOf, type Half, type NowHolding, type Regime } from '../control/targets/day-night';
 import type { ConstantHold } from '../timeline/window';
-import { hoursWritten } from '../control/targets/schedule-words';
-import { draftOf, lightsOffOf, offsetOf } from '../control/targets/targets-draft';
+import { hoursWritten, windowWords } from '../control/targets/schedule-words';
+import { draftOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from '../home/attention';
-import { alertLabel, asWritten, figure, isSilence, UNIT } from '../home/units';
-import { plugModeOf } from '../control/devices/own-summary';
+import { alertLabel, asWritten, figureWithUnit, isSilence } from '@/ui/units';
+import { plugModeOf, plugReadingOf } from '../control/devices/own-summary';
 
 /**
  * What a place's cockpit decides before it draws anything: which device holds
@@ -45,9 +49,6 @@ import { plugModeOf } from '../control/devices/own-summary';
 
 /** The tiles a cockpit can draw, in the order it draws them. `leaf` is the tent's leaf-and-light tile, which reads two sensors. */
 export type TileKey = 'temperature' | 'humidity' | 'light' | 'co2' | 'leaf';
-
-/** The three readings a target is held for, which are the ones with a band, a verdict and outputs that move them. */
-export type Steered = 'temperature' | 'humidity' | 'co2';
 
 /**
  * The device that holds the place's climate: the first one whose document
@@ -144,14 +145,12 @@ export interface HumidifierHold {
   band: number;
 }
 
-const HUMIDITY_BAND = 5;
-
 /** What a humidifier holds now, or null: the device does not germinate, has no humidifier paired, or the grower lets it rest. */
 export const humidifierHoldOf = (device: Device | null, humidifierPaired: boolean): HumidifierHold | null => {
   if (!humidifierPaired || darkReasonOf(device) !== 'germination' || !device?.configuration) return null;
   if (!germinationChoicesOf(device.control?.germinationChoices).humidifierHolds) return null;
   const target = figureOf(device.configuration, 'night', 'humidity');
-  return target === null ? null : { target, band: HUMIDITY_BAND };
+  return target === null ? null : { target, band: TARGET_BAND.humidity! };
 };
 
 /**
@@ -234,19 +233,10 @@ const MOVERS: Record<string, Partial<Record<Steered, OutputMetric[]>>> = {
 };
 
 /** The catalogue word an output is called by everywhere on the cockpit. */
-export type OutputWord = 'compressor' | 'heater' | 'dehumidifier' | 'co2' | 'socket' | 'humidifier';
-
-/** The reading a stand-alone smart socket switches by, per mode, and the names of its two points. */
-const PLUG_FOLLOWS: Partial<Record<PlugMode, Steered>> = {
-  heater: 'temperature',
-  cooler: 'temperature',
-  humidify: 'humidity',
-  dehumidify: 'humidity',
-  co2: 'co2',
-};
+type OutputWord = 'compressor' | 'heater' | 'dehumidifier' | 'co2' | 'socket' | 'humidifier';
 
 /** Between the two points a socket switches at, which is the range it holds its reading in. */
-export interface SwitchRange {
+interface SwitchRange {
   low: number;
   high: number;
 }
@@ -259,7 +249,7 @@ export interface SwitchRange {
  */
 export const switchRangeOf = (device: Device | null, metric: Steered, now: DateTime): SwitchRange | null => {
   const mode = plugModeOf(device);
-  if (!device || !mode || PLUG_FOLLOWS[mode] !== metric) return null;
+  if (!device || !mode || plugReadingOf(mode) !== metric) return null;
 
   const night = fieldValue(device, 'dayNight') === true && mode !== 'co2' && isNightFor(device, now);
   const point = (edge: 'on' | 'off'): number | null => {
@@ -279,8 +269,7 @@ const isNightFor = (device: Device, now: DateTime): boolean => {
   const day = fieldValue(device, 'dayFrom');
   const night = fieldValue(device, 'nightFrom');
   if (typeof day !== 'number' || typeof night !== 'number' || day === night) return false;
-  const utc = now.toUTC();
-  const second = utc.hour * 3600 + utc.minute * 60 + utc.second;
+  const second = utcSecondsOf(now.toMillis());
   return day < night ? second < day || second >= night : second >= night && second < day;
 };
 
@@ -293,10 +282,8 @@ export const rangeVerdictOf = (value: CardValue | null, range: SwitchRange, now:
   return { kind: 'in' };
 };
 
-const wordOf = (device: Device, output: OutputMetric): OutputWord | null => {
-  if (output === 'dehumidifier') return device.type === 'fridge' ? 'compressor' : 'dehumidifier';
-  return output === 'heater' || output === 'co2' ? output : null;
-};
+const wordOf = (device: Device, output: OutputMetric): OutputWord | null =>
+  output === 'dehumidifier' || output === 'heater' || output === 'co2' ? outputWord(output, device.type === 'fridge') : null;
 
 export interface OutputState {
   /** The output, or `humidifier` for the sockets paired as one, which report through the socket table rather than as an output. */
@@ -324,7 +311,7 @@ export const outputsFor = (
   const mode = plugModeOf(device);
   if (mode) {
     const level = live.outputs.relais?.value;
-    if (PLUG_FOLLOWS[mode] !== metric || level === null || level === undefined) return [];
+    if (plugReadingOf(mode) !== metric || level === null || level === undefined) return [];
     const lane = lanes?.find(one => one.output === 'relais' && (one.deviceId === null || one.deviceId === device.id));
     return [{ output: 'relais', word: 'socket', on: level > 0, since: level > 0 ? runningSince(lane) : null }];
   }
@@ -332,7 +319,7 @@ export const outputsFor = (
     const word = wordOf(device, output);
     const level = live.outputs[output]?.value;
     if (!word || level === null || level === undefined) return [];
-    if (output === 'co2' && device.state?.hardware?.co2 === 'off') return [];
+    if (output === 'co2' && !hasCo2Sensor(device)) return [];
     const on = level > 0;
     const lane = lanes?.find(one => one.output === output && (one.deviceId === null || one.deviceId === device.id));
     return [{ output, word, on, since: on ? runningSince(lane) : null }];
@@ -353,12 +340,10 @@ export const humidifierOutputs = (sockets: readonly Socket[], metric: Steered): 
 };
 
 /** Since when the newest run of an output has gone on, where it is still going at the end of what was heard. */
-export const runningSince = (lane: TimelineOutputLane | undefined): string | null => {
+const runningSince = (lane: TimelineOutputLane | undefined): string | null => {
   const last = lane?.spans.at(-1);
   return last && lane && last.endsAt === lane.heardUntil ? last.startsAt : null;
 };
-
-const DAY_SECONDS = 24 * 60 * 60;
 
 /** When the lamp comes on and goes off, on the account's wall clock, as hours past midnight for a bar and as "08:00" for a sentence. */
 export interface LightWindow {
@@ -375,35 +360,12 @@ export interface LightWindow {
   never: boolean;
 }
 
-const twoDigits = (value: number): string => String(value).padStart(2, '0');
-
-/** To the nearest minute: a light written to go off a second before midnight UTC goes off on the hour. */
-const clockOf = (seconds: number): string => {
-  const there = (((Math.round(seconds / 60) * 60) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
-  return `${twoDigits(Math.floor(there / 3600))}:${twoDigits(Math.floor((there % 3600) / 60))}`;
-};
-
 /**
  * The light's window today, read out of the climate device's document. The
  * document keeps seconds past midnight UTC and the account keeps a wall clock;
  * the server moves the seconds when the clocks change, so today's offset turns
  * one into the other.
  */
-/**
- * Why a device keeps its lamp dark whatever its window says, or null: switched
- * off, drying, or germinating in the dark. The window is then no promise, and
- * "08:00–20:00" over a dark fridge read as a lamp that had failed.
- */
-export type DarkReason = 'off' | 'drying' | 'germination';
-
-export const darkReasonOf = (device: Device | null): DarkReason | null => {
-  const control = device?.control;
-  if (!control) return null;
-  if (!control.running) return 'off';
-  const mode = workModeOf(control);
-  return mode === 'drying' || mode === 'germination' ? mode : null;
-};
-
 export const lightWindowOf = (device: Device | null, now: DateTime, zone: string | null): LightWindow | null => {
   if (device?.type === 'light') return lampWindowOf(device, now, zone);
   if (darkReasonOf(device)) return null;
@@ -411,17 +373,9 @@ export const lightWindowOf = (device: Device | null, now: DateTime, zone: string
   if (!device?.configuration || !statesTargets(device.configuration) || device.type === 'fan') return null;
   const draft = draftOf(device.configuration);
   const offset = offsetOf(now, zone);
-  const local = (((draft.lightsOn + offset) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+  const { on, off, always, never } = windowWords(draft, offset);
 
-  return {
-    start: local / 3600,
-    hours: draft.lightHours,
-    on: clockOf(draft.lightsOn + offset),
-    off: clockOf(lightsOffOf(draft) + offset),
-    limit: draft.lightLimit,
-    always: draft.lightHours >= 24,
-    never: draft.lightHours <= 0,
-  };
+  return { start: roundTheClock(draft.lightsOn + offset) / 3600, hours: draft.lightHours, on, off, limit: draft.lightLimit, always, never };
 };
 
 /** A LIGHT keeps its times and its brightness at the top of its document. */
@@ -432,17 +386,25 @@ const lampWindowOf = (device: Device, now: DateTime, zone: string | null): Light
   if (typeof on !== 'number' || typeof off !== 'number') return null;
 
   const offset = offsetOf(now, zone);
-  const seconds = (((off - on) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+  const seconds = roundTheClock(off - on);
   return {
-    start: ((((on + offset) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS) / 3600,
+    start: roundTheClock(on + offset) / 3600,
     hours: seconds / 3600,
-    on: clockOf(on + offset),
-    off: clockOf(off + offset),
+    on: wallClock(on, offset),
+    off: wallClock(off, offset),
     limit: typeof document?.limit === 'number' ? document.limit : 100,
     always: false,
     never: seconds === 0,
   };
 };
+
+/** The light's window in words. A day-long light goes off a second before it comes on, which is no time to name. */
+export const lightWindowText = (t: Translate, window: LightWindow): string =>
+  window.always
+    ? t('cockpit.light.always')
+    : window.never
+      ? t('cockpit.light.never')
+      : t('cockpit.light.window', { on: window.on, off: window.off, hours: hoursWritten(window.hours) });
 
 /**
  * Which half of its day a device holds now: what the server says for a device
@@ -468,9 +430,6 @@ export const holdingNowOf = (device: Device | null, live: DeviceLive | undefined
   const stored = draftOf(device.configuration);
   return nowHoldingOf({ device, shape, stored, live, offline, now, clock: () => '' });
 };
-
-/** "12" or "12,5": the length of the day the way a person says it, in the reader's own decimals. */
-export const hoursFigure = (hours: number): string => hoursWritten(hours);
 
 /**
  * The stretches the lamp was dark, from the light output's own series: the
@@ -524,7 +483,7 @@ export type Status =
   | { kind: 'noTargets' }
   | { kind: 'good' };
 
-export interface StatusInput {
+interface StatusInput {
   values: CardValue[];
   setpoints: CardSetpoint[];
   deviceIds: string[] | null;
@@ -537,8 +496,6 @@ export interface StatusInput {
   /** The humidity a humidifier holds while the device germinates, which the server names no target for. */
   humidifierHold?: HumidifierHold | null;
 }
-
-const STEERED: Steered[] = ['temperature', 'humidity', 'co2'];
 
 export const statusOf = (place: StatusInput, now: DateTime): Status => {
   const liveness: Liveness = livenessOf(place, now);
@@ -598,8 +555,6 @@ export const toneOf = (status: Status): 'good' | 'warn' | 'alarm' | 'quiet' => {
   }
 };
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /** The status in words, the same on the cockpit and on a place's card. */
 export const statusText = (t: Translate, status: Status, now: DateTime, zone: string | null): string => {
   switch (status.kind) {
@@ -610,7 +565,7 @@ export const statusText = (t: Translate, status: Status, now: DateTime, zone: st
     case 'off': {
       const words = t(`cockpit.status.${status.high ? 'high' : 'low'}${status.since === null ? 'Now' : ''}`, {
         metric: t(`cockpit.metric.${status.metric}`),
-        delta: `${figure(status.delta, status.metric)} ${UNIT[status.metric] ?? ''}`.trim(),
+        delta: figureWithUnit(status.delta, status.metric),
       });
       return status.since ? `${words} · ${t('cockpit.status.since', { time: sinceLabel(status.since, now, zone) })}` : words;
     }

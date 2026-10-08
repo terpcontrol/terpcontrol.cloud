@@ -39,6 +39,9 @@ export class ApiError extends Error {
  */
 export const noLongerThere = (error: unknown): boolean => error instanceof ApiError && error.status === 404;
 
+/** The code the server refused with, for the screens that can offer a way out of one particular refusal. */
+export const refusalCode = (error: unknown): string | null => (error instanceof ApiError ? error.problem.code : null);
+
 /** A response that failed, read as a problem - or turned into one when it is not JSON at all. */
 export const readProblem = async (response: Response): Promise<Problem> => {
   try {

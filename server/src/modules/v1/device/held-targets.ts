@@ -50,13 +50,16 @@ const heldBy = (workmode: string | null): Held | null => (holdsAll(workmode) ? n
  * nothing switched off, and nothing a sensor the device does not have would
  * measure.
  */
-export const halvesHeld = (
+export const halvesHeld = (targets: PhaseTargets | null, workmode: string | null, hardware: Record<string, string> = {}) =>
+  halvesHeldBy(targets, heldBy(workmode), hardware);
+
+/** The figures held in each half by what a mode holds (`null`: every figure). */
+export const halvesHeldBy = (
   targets: PhaseTargets | null,
-  workmode: string | null,
+  held: Held | null,
   hardware: Record<string, string> = {},
 ): { day: Figures; night: Figures } => {
   if (!targets) return { day: {}, night: {} };
-  const held = heldBy(workmode);
 
   const pick = (half: 'day' | 'night'): Figures => {
     const source: [Metric, number | null][] = [

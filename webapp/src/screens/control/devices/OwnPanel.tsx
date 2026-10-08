@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DateTime } from 'luxon';
 import type { Device } from '@fg2/shared-types/v1';
@@ -12,9 +12,20 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, nowThere, useZone } from '@/ui/zone';
 import type { Unsaved } from '../targets/LeaveGuard';
-import { secondsOf, wallClock } from '../targets/targets-draft';
+import { useReportUnsaved } from '../targets/report-unsaved';
+import { TimeInput } from '../TimeInput';
 import type { FieldsDraft } from './fields-draft';
 import targets from '../targets/Targets.module.css';
+import styles from './Own.module.css';
+
+export interface OwnPanelProps {
+  device: Device;
+  name: string;
+  titled: boolean;
+  mayManage: boolean;
+  report: (deviceId: string, entry: Unsaved | null) => void;
+  asking: boolean;
+}
 
 /**
  * The frame of what a device that is not a climate controller is set to under
@@ -33,14 +44,8 @@ export function OwnPanel({
   asking,
   invalid = null,
   children,
-}: {
-  device: Device;
-  name: string;
-  titled: boolean;
-  mayManage: boolean;
+}: OwnPanelProps & {
   draft: FieldsDraft;
-  report: (deviceId: string, entry: Unsaved | null) => void;
-  asking: boolean;
   /** Why the draft cannot be saved as it stands, said over the bar. */
   invalid?: string | null;
   children: ReactNode;
@@ -58,19 +63,7 @@ export function OwnPanel({
     return done;
   };
 
-  // Handed up while there is something to lose; read through a ref, because
-  // the draft a question saves is the one standing when it is answered.
-  const latest = useRef(commit);
-  useEffect(() => {
-    latest.current = commit;
-  });
-  const unsaved = draft.dirty && mayManage;
-  const discard = draft.discard;
-  useEffect(() => {
-    if (!unsaved) return;
-    report(device.id, { save: () => latest.current(), discard });
-    return () => report(device.id, null);
-  }, [unsaved, device.id, report, discard]);
+  useReportUnsaved(report, device.id, draft.dirty && mayManage, { save: commit, discard: draft.discard });
 
   return (
     <section className={targets.panel} aria-label={name}>
@@ -112,10 +105,6 @@ export function OwnPanel({
  * A time of day, on the account's wall clock: the firmware keeps it as seconds
  * past midnight UTC, and the server moves those when the clock changes, so the
  * time read here is the one that stays.
- *
- * A time field hands over a whole time after every keystroke and nothing while
- * a part of it is cleared, so the field keeps what is typed while it has the
- * focus and the draft takes every whole time it hands over.
  */
 export function TimeRow({
   id,
@@ -138,30 +127,15 @@ export function TimeRow({
   aside?: ReactNode;
   onChange: (seconds: number) => void;
 }) {
-  const [typing, setTyping] = useState<string | null>(null);
-
   return (
-    <div className={`${targets.row} ${targets.clockRow}`}>
-      <label className={targets.rowLabel} htmlFor={id}>
+    <div className={styles.row}>
+      <label className={styles.rowLabel} htmlFor={id}>
         {label}
         {help ? <Help topic={help} /> : null}
       </label>
-      <span className={targets.clockValue}>
-        <input
-          id={id}
-          className={`mono ${ui.input} ${targets.clock}`}
-          type="time"
-          value={typing ?? wallClock(seconds, offset)}
-          disabled={disabled}
-          onChange={event => {
-            const time = event.target.value;
-            setTyping(document.activeElement === event.target ? time : null);
-            const next = secondsOf(time, offset);
-            if (next !== null) onChange(next);
-          }}
-          onBlur={() => setTyping(null)}
-        />
-        {aside ? <span className={`mono ${targets.aside}`}>{aside}</span> : null}
+      <span>
+        <TimeInput id={id} className={`mono ${ui.input}`} seconds={seconds} offset={offset} disabled={disabled} onChange={onChange} />
+        {aside ? <span className={`mono ${styles.aside}`}>{aside}</span> : null}
       </span>
     </div>
   );

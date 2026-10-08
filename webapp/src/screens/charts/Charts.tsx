@@ -4,51 +4,56 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import { timelinePath, useCurrentPlace } from '@/app/places';
-import type { ChartView, ChartViewDefinition, GrowListItem, ShareLink } from '@fg2/shared-types/v1';
-import { CHART_METRICS, CHART_OUTPUTS } from '@/api/charts';
+import type { ChartView, ChartViewDefinition, ChartViewLayout, GrowListItem, ShareLink } from '@fg2/shared-types/v1';
 import { useChartViews } from '@/api/chart-views';
 import { serverNow } from '@/api/clock';
 import { useDevices, useDevicesById } from '@/api/devices';
 import { useWindowEntries } from '@/api/entries';
 import { useGrow, useGrowPlants, useGrows, useGrowsEverIn, useSpaceGrows } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
+import { LIVE_BEAT_MS } from '@/api/read';
 import { useSession } from '@/api/session';
 import { useSpaceOverview, useSpaces } from '@/api/spaces';
 import { useScrub, type Selection } from '@/charts/scrub';
-import { dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
+import { dayOfGrow, readAt, type PlotLine } from '@/charts/series';
 import { timeTicks } from '@/charts/ticks';
+import type { Translate } from '@/i18n/i18n';
 import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
 import { linkAddress } from '@/screens/me/sharing/links';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { AdvancedSection } from '@/ui/advanced/Advanced';
 import type { ChartSettings } from '@/ui/advanced/item';
 import { ageLabel } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
+import { DAY_MS } from '@/ui/days';
+import { saveFile } from '@/ui/download';
 import { looseFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { stoodIn, useMayManage, useVisiting } from '@/ui/session-access';
+import { Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR, useZone, zonedAt } from '@/ui/zone';
-import { figure } from '../home/units';
+import { BackLink } from '@/ui/BackLink';
+import { figure } from '@/ui/units';
 import { CameraFrame } from '../timeline/CameraFrame';
-import { at, stampFor, stampForEnds, stamps } from '../timeline/window';
+import { at, momentOf, stampFor, stampForEnds, stamps } from '../timeline/window';
 import {
   cardsOf,
   csvForCards,
   defaultPick,
   droppedBy,
   isEmpty,
+  leafOffsetsOf,
   metricColour,
   offeredBy,
   outputTitle,
   prunedTo,
   type Card,
-  type Layout,
-  type LeafOffsets,
   type Picked,
 } from './cards';
+import { pickedOf, settingsOf, settingsParams, showOf, zoomOf, zoomValue } from './address';
 import { ChartCard } from './ChartCard';
 import { useChartData, type ChartData } from './data';
 import { MESSAGE_CATEGORIES } from './message-columns';
@@ -74,21 +79,16 @@ import {
   type Width,
   type Zoom,
 } from './span';
-import { stepLabel, STEPS } from './steps';
+import { stepLabel } from './steps';
 import styles from './Charts.module.css';
 
-const LAYOUTS: Layout[] = ['stacked', 'overlay', 'day_of_grow'];
+const LAYOUTS: ChartViewLayout[] = ['stacked', 'overlay', 'day_of_grow'];
 
 /** How many output chips stand in the bar before the rest go behind "+ more". */
 const OUTPUTS_SHOWN = 2;
 
 /** And how many earlier runs of the same tent, which an account that has grown in it for years has plenty of. */
 const RUNS_SHOWN = 3;
-
-/** How often a chart that follows now asks again, which is about as often as a device reports something new. */
-const LIVE_MS = 30_000;
-
-const VPD_HALVES = ['all', 'day', 'night'] as const;
 
 /**
  * The Charts view: the nerd's room.
@@ -208,7 +208,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   // A rolling window that follows now is moved on by the clock; nothing else moves it.
   useEffect(() => {
     if (!following) return;
-    const timer = setInterval(() => setLiveNow(serverNow().toMillis()), LIVE_MS);
+    const timer = setInterval(() => setLiveNow(serverNow().toMillis()), LIVE_BEAT_MS);
     return () => clearInterval(timer);
   }, [following]);
 
@@ -233,7 +233,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     { growId: grow?.id ?? null, spaceId, keys },
     unasked ? null : window,
     settings.stepSeconds ?? undefined,
-    settings.live && window?.kind === 'grow' && endedAt === null ? LIVE_MS : false,
+    settings.live && window?.kind === 'grow' && endedAt === null ? LIVE_BEAT_MS : false,
   );
 
   const spaces = useSpaces();
@@ -315,7 +315,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   };
 
   /** A zoom is two instants on the chart, and goes into the address with the rest of the window. */
-  const zoomParam = (next: Zoom | null): Record<string, string | null> => ({ zoom: next ? `${instant(next.from)}~${instant(next.to)}` : null });
+  const zoomParam = (next: Zoom | null): Record<string, string | null> => ({ zoom: next ? zoomValue(next) : null });
 
   const setRange = (next: ChartRange) => {
     setScrubbed(null);
@@ -333,12 +333,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     });
   };
 
-  const change = (over: Partial<ChartSettings>) =>
-    setQuery({
-      ...('stepSeconds' in over ? { step: over.stepSeconds ? String(over.stepSeconds) : null } : {}),
-      ...('vpdHalf' in over ? { vpd: over.vpdHalf && over.vpdHalf !== 'all' ? over.vpdHalf : null } : {}),
-      ...('live' in over ? { live: over.live ? '1' : null } : {}),
-    });
+  const change = (over: Partial<ChartSettings>) => setQuery(settingsParams(over));
 
   const toggle = <T extends string>(list: T[], one: T): T[] => (list.includes(one) ? list.filter(other => other !== one) : [...list, one]);
 
@@ -415,9 +410,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     <>
       <div className={styles.chips} role="group" aria-label={t('charts.rangeLabel')}>
         {shownWidths.map(one => (
-          <button key={one} type="button" className={ui.chip} aria-pressed={zoom === null && one === range} onClick={() => setRange(one)}>
+          <Choice key={one} chosen={zoom === null && one === range} onChoose={() => setRange(one)}>
             {t(`charts.width.${one}`)}
-          </button>
+          </Choice>
         ))}
         <button type="button" className={`${ui.chip} ${styles.more}`} aria-expanded={moreWidths} onClick={() => setMoreWidths(!moreWidths)}>
           {t(moreWidths ? 'charts.fewerWidths' : 'charts.moreWidths')}
@@ -425,14 +420,14 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
         {/* The stretches a grow names are offered where a grow is, and nowhere else. */}
         {grow
           ? (['phase', 'grow'] as const).map(one => (
-              <button key={one} type="button" className={ui.chip} aria-pressed={zoom === null && one === range} onClick={() => setRange(one)}>
+              <Choice key={one} chosen={zoom === null && one === range} onChoose={() => setRange(one)}>
                 {t(`timeline.range.${one}`)}
-              </button>
+              </Choice>
             ))
           : null}
-        <button type="button" className={ui.chip} aria-pressed={zoom === null && range === 'custom'} onClick={() => setRange('custom')}>
+        <Choice chosen={zoom === null && range === 'custom'} onChoose={() => setRange('custom')}>
           {t('charts.range.custom')}
-        </button>
+        </Choice>
         {/* Which days the chart covers, and it covers none while the question is unfinished. */}
         {!unasked && data ? <span className={`mono ${styles.days}`}>{dayLabel(t, data)}</span> : null}
       </div>
@@ -541,15 +536,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
         <div className={styles.chips} role="group" aria-label={t('charts.compareLabel')}>
           <span className="label">{t('charts.compareLabel')}</span>
           {(moreRuns ? others : others.slice(0, RUNS_SHOWN)).map(one => (
-            <button
-              key={one.id}
-              type="button"
-              className={ui.chip}
-              aria-pressed={one.id === comparedId}
-              onClick={() => setQuery({ compare: one.id === comparedId ? null : one.id })}
-            >
+            <Choice key={one.id} chosen={one.id === comparedId} onChoose={() => setQuery({ compare: one.id === comparedId ? null : one.id })}>
               {one.name}
-            </button>
+            </Choice>
           ))}
           {others.length > RUNS_SHOWN ? (
             <button type="button" className={`${ui.chip} ${styles.more}`} aria-expanded={moreRuns} onClick={() => setMoreRuns(!moreRuns)}>
@@ -563,9 +552,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
         <div className={styles.chips} role="group" aria-label={t('charts.savedLabel')}>
           <span className="label">{t('charts.savedLabel')}</span>
           {saved.map(view => (
-            <button key={view.id} type="button" className={ui.chip} aria-pressed={view.id === appliedId} onClick={() => apply(view)}>
+            <Choice key={view.id} chosen={view.id === appliedId} onChoose={() => apply(view)}>
               {view.name}
-            </button>
+            </Choice>
           ))}
         </div>
       ) : null}
@@ -738,7 +727,12 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
             type="button"
             className={ui.chip}
             disabled={cards.length === 0}
-            onClick={() => downloadCsv(csvName(grow?.name ?? spaceRow?.name ?? '', range), csvForCards(t, data, input, zone))}
+            onClick={() =>
+              saveFile(
+                new Blob([csvForCards(t, data, input, zone)], { type: 'text/csv;charset=utf-8' }),
+                csvName(grow?.name ?? spaceRow?.name ?? '', range),
+              )
+            }
           >
             {t('charts.csv')}
           </button>
@@ -912,8 +906,6 @@ function ScrubHeader({ cards, cursor, stamp }: { cards: Card[]; cursor: number; 
   );
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /**
  * What one line says at the cursor: a figure and its unit, on or off for an
  * output, and a dash where it says nothing. A metric is written to the
@@ -938,10 +930,8 @@ function Header({ spaceId, growId, subject }: { spaceId: string | null; growId: 
 
   return (
     <header className={styles.header}>
-      <Link to={back} className={`${ui.back} ${styles.back}`} aria-label={t('charts.back')}>
-        <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-      </Link>
-      <h1 className={styles.title}>{t('charts.title')}</h1>
+      <BackLink to={back} label={t('charts.back')} className={styles.back} />
+      <h1>{t('charts.title')}</h1>
       {subject ? <span className={`mono ${styles.subject}`}>{subject}</span> : null}
     </header>
   );
@@ -992,7 +982,7 @@ const edgesOf = (from: number, to: number, zone: string | null, now: number): [s
  * charts dated every window. A window of this week keeps the weekday, which the
  * eye places at once.
  */
-const datedFrom = (from: number, now: number): number => (now - from > 6 * 24 * 60 * 60 * 1000 ? 2 : 0);
+const datedFrom = (from: number, now: number): number => (now - from > 6 * DAY_MS ? 2 : 0);
 
 /** A moment inside the window, as the cursor writes it: by the window's width, and dated where the window lies past this week. */
 const momentStamp = (time: number, from: number, to: number, zone: string | null, now: number): string =>
@@ -1003,75 +993,6 @@ const spanOfSelection = (selection: Selection, from: number, to: number): Zoom =
   from: from + selection.from * (to - from),
   to: from + selection.to * (to - from),
 });
-
-/**
- * What the VPD panel takes the leaf to be, and what its band is worked out
- * from. A place with two controllers set up differently draws a curve that is
- * the mean of two computations, so where they disagree the panel says nothing
- * rather than something it cannot stand behind.
- */
-const leafOffsetsOf = (
-  devices: readonly { id: string; settings: { vpdLeafOffsetDay: number; vpdLeafOffsetNight: number } }[],
-  series: ChartData | undefined,
-): LeafOffsets | null => {
-  const here = devices.filter(device => (series?.deviceIds ?? []).includes(device.id));
-  const first = here[0];
-  if (!first) return null;
-
-  return here.every(
-    device =>
-      device.settings.vpdLeafOffsetDay === first.settings.vpdLeafOffsetDay &&
-      device.settings.vpdLeafOffsetNight === first.settings.vpdLeafOffsetNight,
-  )
-    ? { day: first.settings.vpdLeafOffsetDay, night: first.settings.vpdLeafOffsetNight }
-    : null;
-};
-
-/** The fine settings as the address carries them; anything it does not recognise is the default. */
-const settingsOf = (params: URLSearchParams): ChartSettings => {
-  const step = Number(params.get('step'));
-  const half = params.get('vpd');
-
-  return {
-    stepSeconds: STEPS.includes(step) ? step : null,
-    vpdHalf: VPD_HALVES.find(one => one === half) ?? 'all',
-    live: params.get('live') === '1',
-  };
-};
-
-/**
- * The curves an address names: a metric by its name, an output and a grow's own
- * measurement each behind a prefix of its own, comma separated. Nothing named is
- * the board's own pick; named and empty is every curve turned off.
- */
-const OUTPUT_MARK = 'out.';
-const MEASUREMENT_MARK = 'm.';
-
-const pickedOf = (value: string | null): Picked | null => {
-  if (value === null) return null;
-  const names = value.split(',').filter(Boolean);
-  return {
-    metrics: CHART_METRICS.filter(metric => names.includes(metric)),
-    outputs: CHART_OUTPUTS.filter(output => names.includes(OUTPUT_MARK + output)),
-    measurements: names.filter(name => name.startsWith(MEASUREMENT_MARK)).map(name => name.slice(MEASUREMENT_MARK.length)),
-  };
-};
-
-const showOf = (picked: Picked): string =>
-  [...picked.metrics, ...picked.outputs.map(output => OUTPUT_MARK + output), ...picked.measurements.map(key => MEASUREMENT_MARK + key)].join(',');
-
-/** The zoom an address names, as two instants, or null where it names none or two that are not a stretch. */
-const zoomOf = (value: string | null): Zoom | null => {
-  const [from, to] = (value ?? '').split('~').map(momentOf);
-  return from != null && to != null && from < to ? { from, to } : null;
-};
-
-/** The instant an address names, or null where it names none or something that is not one. */
-const momentOf = (value: string | null): number | null => {
-  if (!value) return null;
-  const moment = DateTime.fromISO(value);
-  return moment.isValid ? moment.toMillis() : null;
-};
 
 /** A file a grower can find again: what it is of, and over what. */
 const csvName = (name: string, range: ChartRange): string => {

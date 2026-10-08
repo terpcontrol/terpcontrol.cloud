@@ -5,26 +5,27 @@ import type { Metric, SpaceTimeline, TimelineAlarm, TimelineGrow, TimelineRange 
 import { outputMetric } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
 import { badRequest, notFound } from '@common/v1/problem';
+import { peopleNamed } from '@common/v1/people';
 import { storyEndsAt, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
-import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
-import { DIARY_KINDS, MACHINE_KINDS, authorIdsOf, peopleOf, readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
-import { NOTHING_HIDDEN, Redaction, redactionOf } from '../grow/grow-serialiser';
-import { cyclesOf, recordOf } from '../phase/target-record';
+import { DIARY_KINDS, MACHINE_KINDS, readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
+import { grantRedaction } from '../grow/redactions';
+import { alertsRaisedIn } from '../home/open-alerts';
+import { recordOf } from '../phase/target-record';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
-import { framesOf } from './frames';
+import { framesOf, shownCameras } from './frames';
 import { lastReadingOf } from './last-reading';
-import { PANEL_METRICS, fridgesOf, lanesOf, nightsOf, panelsOf, transitionsOf } from './timeline-series';
+import { PANEL_METRICS, chartPartsOf, panelsOf } from './timeline-series';
 import { TimelineWindow, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
@@ -135,23 +136,29 @@ export class TimelineService {
         ),
       ),
       this.alerts
-        .find({ $and: [raisedHere(spaceId, devices), { startedAt: { $lte: window.endsAt } }, openInto(window.startsAt)] })
+        .find({
+          $and: [
+            alertsRaisedIn(
+              [spaceId],
+              devices.map(device => device.id),
+            ),
+            { startedAt: { $lte: window.endsAt } },
+            openInto(window.startsAt),
+          ],
+        })
         .sort({ startedAt: 1 })
         .lean<StoredAlert[]>(),
       this.eventsOf(grant, spaceId, growIds, window),
-      grant.includeCameras
-        ? this.cameras.find({ spaceId, removedAt: null }).sort({ createdAt: 1, id: 1 }).lean<CameraDocument[]>()
-        : Promise.resolve([]),
+      shownCameras(this.cameras, [spaceId], grant.includeCameras),
       recordOf(this.targetRecord, steeringOf(devices)?.id ?? null, window),
     ]);
 
     const [watched, frames, hide] = await Promise.all([
       this.metricsOf(alerts),
       framesOf(this.media, cameras, window, FRAME_SLOTS),
-      this.redactionFor(grant),
+      grantRedaction(this.users, grant),
     ]);
-    const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant.includeCameras));
-    const people = await this.users.find({ id: { $in: authorIdsOf(told) } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
+    const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant));
     const panels = panelsOf(
       series.map(one => one.series),
       stretchesOf(grow, devices, window, at, aimed),
@@ -167,22 +174,20 @@ export class TimelineService {
       dayTo: window.dayTo,
       startsAt: window.startsAt.toISOString(),
       endsAt: window.endsAt.toISOString(),
-      stepSeconds: series.length === 0 ? 0 : window.stepSeconds,
-      deviceIds: grant.redacted ? null : devices.map(device => device.id),
+      ...chartPartsOf({ histories: series, devices, window, redacted: grant.redacted, aimed, cameras, frames }),
       panels,
       lastReadingAt: panels.length > 0 ? null : await lastReadingOf(this.data, devices),
-      nights: nightsOf(series, window, cyclesOf(aimed, window)),
-      transitions: transitionsOf(cyclesOf(aimed, window)),
       alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
-      outputs: lanesOf(series, window, grant.redacted, fridgesOf(devices)),
       events: told,
       machineEvents: recorded.machine,
       // A reader who is shown one grow's week is not shown what else has stood
       // in the room, so the chips they have not got are answered as none.
       grows: grant.redacted ? [] : stood.map(one => growOf(one)),
       readingNames: readingNamesOf(known),
-      cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),
-      people: peopleOf(told, people),
+      people: await peopleNamed(
+        this.users,
+        told.map(entry => entry.authorId),
+      ),
     };
   }
 
@@ -274,14 +279,6 @@ export class TimelineService {
     const rules = await this.rules.find({ id: { $in: ruleIds } }, { id: 1, watch: 1 }).lean<Pick<StoredAlarmRule, 'id' | 'watch'>[]>();
     return new Map(rules.flatMap(rule => (rule.watch.kind === 'reading' ? [[rule.id, rule.watch.metric] as [string, Metric]] : [])));
   }
-
-  /** Whose privacy applies to what the rail says; nothing is hidden from an owner or a member. */
-  private async redactionFor(grant: Grant): Promise<Redaction> {
-    if (!grant.redacted) return NOTHING_HIDDEN;
-
-    const owner = grant.privacyOwnerId ? await this.users.findOne({ id: grant.privacyOwnerId }, { privacy: 1 }).lean<StoredUser>() : null;
-    return redactionOf(true, owner?.privacy);
-  }
 }
 
 /** The rail's lines, and how many of the machines' own the window held behind the two hundred it was given. */
@@ -299,7 +296,7 @@ const growOf = (grow: GrowDocument): TimelineGrow => ({
 });
 
 /** What the route was asked for, after the query string has been checked against the contract. */
-export interface TimelineQuery {
+interface TimelineQuery {
   range: TimelineRange;
   growId?: string;
   /** The instant the window ends at; now, unless somebody scrubbed back. */
@@ -311,11 +308,6 @@ const spanOf = (window: TimelineWindow): { startsAt: Date; endsAt: Date; stepSec
   startsAt: window.startsAt,
   endsAt: window.endsAt,
   stepSeconds: window.stepSeconds,
-});
-
-/** An alert of this space, or of a device standing in it. */
-const raisedHere = (spaceId: string, devices: StoredDevice[]): FilterQuery<StoredAlert> => ({
-  $or: [{ spaceId }, { deviceId: { $in: devices.map(device => device.id) } }],
 });
 
 /**

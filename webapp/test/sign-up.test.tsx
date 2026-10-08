@@ -1,12 +1,6 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
-import i18next from 'i18next';
+import { fireEvent, screen } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter, Route, Routes, useParams } from 'react-router';
+import { Route, Routes, useParams } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { InvitePreview, Problem, SessionResult, UserCreate } from '@fg2/shared-types/v1';
 import { session } from '@/api/session';
@@ -15,6 +9,8 @@ import { SignIn } from '@/screens/SignIn';
 import { PrivacyStatement } from '@/screens/PrivacyStatement';
 import { SignUp } from '@/screens/SignUp';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { drawAt, json, NOT_FOUND } from './harness';
+import { translate } from './translations';
 
 /**
  * The stranger's way through an invitation: from the link to an account of
@@ -53,8 +49,6 @@ const refusal = (code: string, detail: string, status = 409): Problem => ({ stat
 
 const server = { active: true, refuseSignUp: null as Problem | null, wrote: [] as { method: string; path: string; body: unknown }[] };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const path = String(input).replace(/^.*\/v1/, '');
   const method = init?.method ?? 'GET';
@@ -73,7 +67,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (method === 'POST' && path.endsWith('/acceptances')) return json({ membership: {}, space: { id: 'space-9' } }, 201);
   if (method === 'DELETE' && path.startsWith('/sessions/')) return new Response(null, { status: 204 });
 
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
 /** Where somebody lands once they are in: the tent's page, known here only by its id. */
@@ -83,31 +77,23 @@ function Landed() {
 }
 
 const draw = (at: string) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <ThemeProvider>
-          <Routes>
-            <Route path="/join" element={<JoinRoute />} />
-            <Route path="/join/:code" element={<JoinRoute />} />
-            <Route path="/sign-up" element={<SignUp />} />
-            <Route path="/privacy" element={<PrivacyStatement />} />
-            <Route path="/sign-in" element={<SignIn />} />
-            <Route path="/spaces/:spaceId" element={<Landed />} />
-          </Routes>
-        </ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <ThemeProvider>
+      <Routes>
+        <Route path="/join" element={<JoinRoute />} />
+        <Route path="/join/:code" element={<JoinRoute />} />
+        <Route path="/sign-up" element={<SignUp />} />
+        <Route path="/privacy" element={<PrivacyStatement />} />
+        <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/spaces/:spaceId" element={<Landed />} />
+      </Routes>
+    </ThemeProvider>,
+    { at },
   );
 
 const fillIn = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

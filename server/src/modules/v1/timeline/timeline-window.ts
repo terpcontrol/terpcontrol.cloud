@@ -1,12 +1,13 @@
 import type { TimelineRange } from '@fg2/shared-types/v1';
+import { growDayAt, growOriginOf, spineOf } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
 import { clampRange } from '@common/v1/range';
-import { MAX_ASKED_WINDOWS, MIN_STEP_SECONDS as FINEST_STEP_SECONDS } from '@modules/data/flux';
+import { stepFor as storeStepFor } from '@modules/data/flux';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { SETTLE_SECONDS, cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { dayNumberOf, horizonOf, originOf } from '../diary/grow-calendar';
+import { horizonOf } from '../diary/grow-calendar';
 import { targetsOf } from '../phase/phase-targets';
 import { TargetStretch } from './timeline-series';
 
@@ -49,19 +50,6 @@ export interface TimelineWindow {
   dayFrom: number | null;
   dayTo: number | null;
 }
-
-/**
- * The spine phase an instant falls in: the last phase of the whole grow that had
- * begun by then. A phase scoped to some of the plants is a split and is told in
- * the event rail rather than by giving the tent a second timeline.
- */
-export const phaseAt = (grow: GrowDocument, at: Date): GrowDocument['phases'][number] | null =>
-  spineOf(grow)
-    .filter(phase => phase.startedAt <= at)
-    .at(-1) ?? null;
-
-export const spineOf = (grow: GrowDocument): GrowDocument['phases'] =>
-  grow.phases.filter(phase => phase.plantIds === null).sort((one, other) => one.startedAt.getTime() - other.startedAt.getTime());
 
 /**
  * The window a range names, narrowed to what the caller was granted. A share
@@ -113,16 +101,16 @@ export const narrowedTo = (
 const daysOf = (grow: GrowDocument | null, asOf: Date, startsAt: Date, endsAt: Date): Pick<TimelineWindow, 'dayFrom' | 'dayTo'> => {
   if (!grow) return { dayFrom: null, dayTo: null };
 
-  const origin = originOf(grow);
+  const origin = growOriginOf(grow);
   const horizon = horizonOf(grow, asOf);
   if (endsAt <= origin || startsAt > horizon) return { dayFrom: null, dayTo: null };
 
-  const last = dayNumberOf(origin, horizon);
+  const last = growDayAt(origin, horizon);
   // The last instant inside the window rather than the first outside it: a
   // window ending where day 35 begins is still day 34.
   const inside = new Date(Math.max(startsAt.getTime(), endsAt.getTime() - 1));
 
-  return { dayFrom: Math.min(dayNumberOf(origin, startsAt), last), dayTo: Math.min(dayNumberOf(origin, inside), last) };
+  return { dayFrom: Math.min(growDayAt(origin, startsAt), last), dayTo: Math.min(growDayAt(origin, inside), last) };
 };
 
 const rollingOf = (range: TimelineRange, at: Date): { startsAt: Date; endsAt: Date } => ({
@@ -130,23 +118,25 @@ const rollingOf = (range: TimelineRange, at: Date): { startsAt: Date; endsAt: Da
   endsAt: at,
 });
 
-/** Nothing later than the instant asked about, and nothing after the grow ended. */
+/**
+ * Nothing later than the instant asked about, and nothing after the grow ended.
+ * The phase is the spine phase standing at that instant - a phase scoped to some
+ * of the plants is a split, told in the event rail rather than by giving the
+ * tent a second timeline - so it runs up to the instant itself.
+ */
 const stretchOf = (range: 'phase' | 'grow', grow: GrowDocument, at: Date): { startsAt: Date; endsAt: Date } => {
   const horizon = new Date(Math.min(horizonOf(grow, at).getTime(), at.getTime()));
-  const phase = range === 'phase' ? phaseAt(grow, horizon) : null;
-  if (!phase) return { startsAt: originOf(grow), endsAt: horizon };
+  const phase = range === 'phase' ? spineOf(grow.phases, horizon).at(-1) : undefined;
 
-  const ends = spineOf(grow).find(one => one.startedAt > phase.startedAt)?.startedAt ?? null;
-  return { startsAt: phase.startedAt, endsAt: ends && ends < horizon ? ends : horizon };
+  return { startsAt: phase?.startedAt ?? growOriginOf(grow), endsAt: horizon };
 };
 
 const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
-  const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
   // A step somebody chose - the charts page offers five seconds to a week - is
-  // kept down to what the store answers at, and widened only where the window
-  // would hold more windows than one read builds.
-  if (asked && asked > 0) return Math.max(Math.trunc(asked), FINEST_STEP_SECONDS, Math.ceil(seconds / MAX_ASKED_WINDOWS));
+  // held to the store's own rule for one.
+  if (asked && asked > 0) return storeStepFor(startsAt, endsAt, asked);
 
+  const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
   return Math.max(MIN_STEP_SECONDS, Math.ceil(seconds / PANEL_WINDOWS));
 };
 
@@ -196,7 +186,7 @@ export const stretchesOf = (
   const moves = record.filter(row => row.deviceId === steering?.id).sort((one, other) => one.at.getTime() - other.at.getTime());
   const borrowed = moves.length > 0 ? moves[0].targets : steering ? targetsOf(steering.configuration) : null;
   const borrowedCycle = moves.length > 0 ? (moves[0].cycle ?? null) : steering ? cycleOf(steering.type, steering.configuration) : null;
-  const spine = grow ? spineOf(grow) : [];
+  const spine = grow ? spineOf(grow.phases, window.endsAt) : [];
   const running = grow !== null && grow.endedAt === null;
   const phases = spine.flatMap((phase, index) => {
     const startsAt = new Date(Math.max(phase.startedAt.getTime(), window.startsAt.getTime()));

@@ -4,26 +4,29 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { CardSetpoint, CardValue, Device, DeviceLive, Metric, OverviewTargets, SpaceTimeline, TimelinePanel } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
+import { STEERED, type Steered } from '@fg2/shared-types/v1-schemas/steering.js';
+import { useDaySeries, useHourMeans } from '@/api/devices';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
+import { darkReasonOf } from '@/ui/climate-hardware';
 import { decimalFigure } from '@/ui/figures';
 import { Term } from '@/ui/Help';
 import { clock, useZone } from '@/ui/zone';
 import { LastValue } from '../home/OfflineHelp';
-import { figure, targetFigure, UNIT } from '../home/units';
+import { figure, figureWithUnit, targetFigure, targetWithUnit, UNIT } from '@/ui/units';
 import { DayBar } from './DayBar';
-import { MiniCurve, type Tone } from './MiniCurve';
+import { MiniCurve } from './MiniCurve';
 import {
   constantHoldOf,
   focusLink,
   halfNowOf,
   holdingNowOf,
-  hoursFigure,
   humidifierHoldOf,
   humidifierOutputs,
   judgedOf,
   judgedPanel,
-  darkReasonOf,
   lightWindowOf,
+  lightWindowText,
   rangeVerdictOf,
   switchRangeOf,
   nightsOf,
@@ -34,13 +37,11 @@ import {
   verdictOf,
   type HumidifierHold,
   type OutputState,
-  type Steered,
   type TileKey,
   type Verdict,
 } from './place';
 import { storedShapeOf, type Half, type NowHolding } from '../control/targets/day-night';
 import { useHumidifiers } from '../control/germination/germination-choices';
-import { useDaySeries, useHourMeans } from './reads';
 import styles from './Cockpit.module.css';
 
 /**
@@ -52,7 +53,7 @@ import styles from './Cockpit.module.css';
  * CO2 and the leaf-and-light tile are drawn only where the place reports them,
  * so a fridge without a sensor is never shown an empty tile it cannot fill.
  */
-export interface TilesProps {
+interface TilesProps {
   spaceId: string;
   values: CardValue[];
   setpoints: CardSetpoint[];
@@ -69,9 +70,7 @@ export function Tiles(props: TilesProps) {
   const { values, device, live } = props;
   const lit = lightWindowOf(device, props.now, null) !== null || live?.outputs.light?.value != null;
   // What "in band" means is said on the first tile that is judged against a band, and on no other.
-  const judged = (['temperature', 'humidity', 'co2'] as Steered[]).find(
-    metric => verdictOf(valueOf(values, metric), setpointOf(props.setpoints, metric), props.now)?.kind === 'in',
-  );
+  const judged = STEERED.find(metric => verdictOf(valueOf(values, metric), setpointOf(props.setpoints, metric), props.now)?.kind === 'in');
 
   return (
     <div className={styles.tiles}>
@@ -121,8 +120,6 @@ function Frame({
   );
 }
 
-const TONE: Record<Steered, Tone> = { temperature: 'temperature', humidity: 'humidity', co2: 'co2' };
-
 function ClimateTile({
   spaceId,
   values,
@@ -169,9 +166,7 @@ function ClimateTile({
           <span className={`figure ${styles.figure}`}>{value?.value == null ? '–' : figure(value.value, metric)}</span>
           <span className={`mono ${styles.unit}`}>{UNIT[metric]}</span>
           {mean != null ? (
-            <span className={`mono ${styles.second}`}>
-              {t('cockpit.tile.hourMean', { value: `${figure(mean, metric)} ${UNIT[metric] ?? ''}`.trim() })}
-            </span>
+            <span className={`mono ${styles.second}`}>{t('cockpit.tile.hourMean', { value: figureWithUnit(mean, metric) })}</span>
           ) : null}
           {vpd?.value != null ? (
             <span className={`mono ${styles.second}`}>
@@ -184,7 +179,7 @@ function ClimateTile({
             {range
               ? t('cockpit.tile.switches', {
                   low: targetFigure(range.low, metric),
-                  high: `${targetFigure(range.high, metric)} ${UNIT[metric] ?? ''}`.trim(),
+                  high: targetWithUnit(range.high, metric),
                 })
               : targetLabel(t, metric, setpoint, holdingNowOf(device, live, now, offline), device, offline, hold)}
           </span>
@@ -198,7 +193,7 @@ function ClimateTile({
           transitions={timeline?.transitions ?? []}
           from={timeline ? Date.parse(timeline.startsAt) : 0}
           to={timeline ? Date.parse(timeline.endsAt) : 0}
-          tone={TONE[metric]}
+          tone={metric}
           label={t('cockpit.tile.curveAlt', { metric: t(`cockpit.metric.${metric}`) })}
           explain={explainCurve}
         />
@@ -207,8 +202,6 @@ function ClimateTile({
     </Frame>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** Why a fridge holds no target at all for a reading, where the reason is the mode it runs. */
 const unheldBy = (device: Device | null): 'off' | 'drying' | 'germination' | 'greenhouse' | null => {
@@ -246,12 +239,12 @@ const targetLabel = (
   // which is said: "nachts kein Ziel" over a drying room's CO2 read as though night were the reason.
   const by = unheldBy(device);
   if (setpoint?.value == null && by === 'germination' && metric === 'humidity' && hold !== null) {
-    return t('cockpit.tile.humidifierHolds', { target: `${targetFigure(hold.target, 'humidity')} ${UNIT.humidity ?? '%'}` });
+    return t('cockpit.tile.humidifierHolds', { target: targetWithUnit(hold.target, 'humidity') });
   }
   if (setpoint?.value == null && by) return t('cockpit.tile.noTargetBy', { mode: t(`cockpit.tile.mode.${by}`) });
   if (setpoint?.value == null && metric === 'co2' && regime === 'never') return t('cockpit.tile.co2Dark');
   if (setpoint?.value == null) return t(metric === 'co2' && half === 'night' ? 'cockpit.tile.co2Night' : 'cockpit.tile.noTarget');
-  const target = `${targetFigure(setpoint.value, metric)} ${UNIT[metric] ?? ''}`.trim();
+  const target = targetWithUnit(setpoint.value, metric);
   if (regime === 'drying') return t('cockpit.tile.target.drying', { target });
   if (regime === 'germination') return t('cockpit.tile.target.germination', { target });
   if (regime === 'always' || regime === 'never') return t('cockpit.tile.target.any', { target });
@@ -283,11 +276,7 @@ function VerdictWords({ verdict, metric, now, explain }: { verdict: Verdict; met
     return <span className={styles.inBand}>{explain ? <Term topic="band">{words}</Term> : words}</span>;
   }
 
-  return (
-    <span className={styles.offBand}>
-      {t(`cockpit.tile.${verdict.kind}`, { delta: `${figure(verdict.delta, metric)} ${UNIT[metric] ?? ''}`.trim() })}
-    </span>
-  );
+  return <span className={styles.offBand}>{t(`cockpit.tile.${verdict.kind}`, { delta: figureWithUnit(verdict.delta, metric) })}</span>;
 }
 
 /** "Kompressor läuft seit 12 Min · Heizung aus": what moves this reading, each output by its one name. */
@@ -357,14 +346,7 @@ function LightTile({ spaceId, device, live, now, offline }: TilesProps) {
         <p className={`mono ${styles.targetLine}`}>
           {window ? (
             <span>
-              <Term topic="dayNight">
-                {/* A day-long light goes off a second before it comes on, which is no time to name. */}
-                {window.always
-                  ? t('cockpit.light.always')
-                  : window.never
-                    ? t('cockpit.light.never')
-                    : t('cockpit.light.window', { on: window.on, off: window.off, hours: hoursFigure(window.hours) })}
-              </Term>
+              <Term topic="dayNight">{lightWindowText(t, window)}</Term>
             </span>
           ) : (
             <span>{t(dark ? `cockpit.light.dark.${dark}` : 'cockpit.light.noWindow')}</span>

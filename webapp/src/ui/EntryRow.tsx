@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next';
 import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { entryDetail } from '@/i18n/device-message';
-import { authorOf, doneByOf, headlineOf, KIND_ICON, ownReading, readingFigure } from './entries';
+import { sinceLabel } from './age';
+import { authorOf, doneByOf, headlineOf, KIND_ICON, ownReading } from './entries';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, nowThere, useZone, zoned } from './zone';
 import { Photo } from './Photo';
 import { PictureViewer } from './PictureViewer';
+import { looseFigure } from './figures';
 import styles from './EntryRow.module.css';
 
 /**
@@ -197,7 +199,7 @@ export function EntryRow({
             return (
               <span key={`${reading.key}-${reading.plantId ?? ''}`}>
                 {' · '}
-                {definition?.name ?? reading.key} {readingFigure(reading.value)}
+                {definition?.name ?? reading.key} {looseFigure(reading.value)}
                 {definition?.unit ? ` ${definition.unit}` : ''}
               </span>
             );
@@ -275,7 +277,5 @@ export function EntryRow({
 }
 
 /** When the first of a folded run was written: the hour where that was today, the date as well where it was not. */
-const sinceOf = (since: string, now: DateTime | undefined, zone: string | null): string => {
-  const at = zoned(since, zone);
-  return at.toFormat(now && at.hasSame(nowThere(now, zone), 'day') ? CLOCK : DATED_CLOCK);
-};
+const sinceOf = (since: string, now: DateTime | undefined, zone: string | null): string =>
+  now ? sinceLabel(since, now, zone) : zoned(since, zone).toFormat(DATED_CLOCK);

@@ -1,8 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Co2Report } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { diaryChanged, writeEntry } from './entries';
 import { useRead } from './read';
+import { useWrite } from './write';
 
 /**
  * What the CO2 cylinders of a place lasted, and the refill that starts the
@@ -11,7 +11,7 @@ import { useRead } from './read';
  * keys, so the lines migrated from it and the ones written here are one record.
  */
 
-export const co2ReportKey = (spaceId: string) => ['space', spaceId, 'co2-report'];
+const co2ReportKey = (spaceId: string) => ['space', spaceId, 'co2-report'];
 
 /** Read only when asked for: it sums the valve's openings over every cylinder, which is not a read to make on every visit. */
 export const useCo2Report = (spaceId: string, enabled: boolean) =>
@@ -21,7 +21,7 @@ export const useCo2Report = (spaceId: string, enabled: boolean) =>
     enabled,
   });
 
-export interface Refill {
+interface Refill {
   /** What the new cylinder holds. */
   filledGrams: number;
   /** What was left in the old one, where somebody weighed it; nothing at all is a cylinder that ran empty. */
@@ -30,11 +30,9 @@ export interface Refill {
   deviceId: string | null;
 }
 
-export const useWriteRefill = (spaceId: string) => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ filledGrams, restGrams, deviceId }: Refill) =>
+export const useWriteRefill = (spaceId: string) =>
+  useWrite(
+    ({ filledGrams, restGrams, deviceId }: Refill) =>
       writeEntry({
         kind: 'measurement',
         spaceId,
@@ -47,6 +45,5 @@ export const useWriteRefill = (spaceId: string) => {
           ],
         },
       }),
-    onSuccess: () => diaryChanged(client),
-  });
-};
+    diaryChanged,
+  );

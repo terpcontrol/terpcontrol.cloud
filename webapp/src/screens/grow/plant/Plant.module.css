@@ -46,12 +46,6 @@
   min-width: 0;
 }
 
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
-}
-
 .subtitle {
   color: var(--muted);
   font-size: var(--text-sm);
@@ -151,10 +145,6 @@
   margin-left: var(--space-2);
   border-top-style: dotted;
   border-top-color: var(--muted);
-}
-
-.chartHead .label {
-  margin-left: auto;
 }
 
 .sectionHead {

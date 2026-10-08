@@ -8,7 +8,7 @@ import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { deviceTitle } from '../naming';
+import { deviceTitle } from '@/ui/naming';
 import styles from './DeviceAdvanced.module.css';
 
 /**

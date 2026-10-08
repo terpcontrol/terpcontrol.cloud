@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { ChevronRight } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -46,7 +45,6 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
   const shipped = useSchemes();
   const own = useOwnSchemes();
   const update = useUpdateGrow(grow.id);
-  const queryClient = useQueryClient();
 
   const [edit, setEdit] = useSchemeEdit(grow.id);
   const [choosing, setChoosing] = useState(false);
@@ -74,17 +72,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
     if (draft) setDraft({ ...draft, grid: next(draft.grid), edited: true });
   };
 
-  const save = () =>
-    update.mutate(
-      { scheme: draft },
-      {
-        onSuccess: () => {
-          setEdit(null);
-          // The week cards carry the doses this grid states, so they are now stale.
-          void queryClient.invalidateQueries({ queryKey: ['grow', grow.id, 'weeks'] });
-        },
-      },
-    );
+  const save = () => update.mutate({ scheme: draft }, { onSuccess: () => setEdit(null) });
 
   // Taking a grow off its scheme leaves a draft of nothing, which is still a
   // change and still has to be saved: the empty state therefore carries the
@@ -111,6 +99,20 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
       </>
     ) : null;
 
+  const sheet = choosing ? (
+    <SchemeSheet
+      grow={grow}
+      shipped={shipped.data ?? []}
+      own={own.data?.items ?? []}
+      grid={draft?.grid ?? []}
+      onSwitch={scheme => {
+        setDraft(scheme);
+        setChoosing(false);
+      }}
+      onClose={() => setChoosing(false)}
+    />
+  ) : null;
+
   if (!draft) {
     return (
       <div className={styles.page}>
@@ -135,19 +137,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
           </div>
         ) : null}
         {unsaved}
-        {choosing ? (
-          <SchemeSheet
-            grow={grow}
-            shipped={shipped.data ?? []}
-            own={own.data?.items ?? []}
-            grid={[]}
-            onSwitch={scheme => {
-              setDraft(scheme);
-              setChoosing(false);
-            }}
-            onClose={() => setChoosing(false)}
-          />
-        ) : null}
+        {sheet}
       </div>
     );
   }
@@ -310,19 +300,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
         {t('grow.scheme.chartCaption')} {t('grow.scheme.honesty')}
       </p>
 
-      {choosing ? (
-        <SchemeSheet
-          grow={grow}
-          shipped={shipped.data ?? []}
-          own={own.data?.items ?? []}
-          grid={draft.grid}
-          onSwitch={scheme => {
-            setDraft(scheme);
-            setChoosing(false);
-          }}
-          onClose={() => setChoosing(false)}
-        />
-      ) : null}
+      {sheet}
     </div>
   );
 }

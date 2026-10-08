@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRenameSpace } from '@/api/claims';
 import { useSpaces } from '@/api/spaces';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { Block } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';

@@ -1,13 +1,7 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import type { ReactNode } from 'react';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminStats, Camera, Device, DeviceClass, Firmware, Fleet as FleetAnswer, User } from '@fg2/shared-types/v1';
 import { Rail } from '@/app/shell/Rail';
@@ -20,6 +14,9 @@ import { filteredRows, flatten, fleetRows, NO_FILTER } from '@/screens/admin/fle
 import { staged } from '@/screens/admin/rollout';
 import { Users } from '@/screens/admin/Users';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { deviceWith } from './fixtures';
+import { drawAt, json, NOT_FOUND } from './harness';
+import { translate } from './translations';
 
 /**
  * The fleet screens, which are the one part of the app that is not for growers.
@@ -77,33 +74,20 @@ const BUILD: Firmware = {
   wasStable: true,
 };
 
-const device = (over: Partial<Device> & { id: string }): Device => ({
-  createdAt: NOW.minus({ months: 6 }).toISO()!,
-  type: 'controller',
-  classId: 'class-controller',
-  serialNumber: 7,
-  ownerId: 'user-2',
-  spaceId: 'space-1',
-  name: null,
-  firmware: { channel: 'stable', targetId: null },
-  configuration: null,
-  settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
-  state: {
-    lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!,
-    claimedAt: NOW.minus({ months: 6 }).toISO()!,
-    firmwareId: 'build-1',
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
-    hardware: { sockets_n: '6' },
-    socketStateChangedAt: {},
-    socketsReportedAt: null,
-  },
-  ...over,
-});
+const device = (over: Partial<Device> & { id: string }): Device =>
+  deviceWith({
+    createdAt: NOW.minus({ months: 6 }).toISO()!,
+    classId: 'class-controller',
+    serialNumber: 7,
+    ownerId: 'user-2',
+    state: {
+      lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!,
+      claimedAt: NOW.minus({ months: 6 }).toISO()!,
+      firmwareId: 'build-1',
+      hardware: { sockets_n: '6' },
+    },
+    ...over,
+  });
 
 const DEVICES: Device[] = [
   device({ id: 'tc-7f3a', name: 'Tent 1' }),
@@ -210,10 +194,6 @@ const STATS: AdminStats = {
   alarmWatch: { ranAt: NOW.minus({ seconds: 30 }).toISO()!, devices: 223, unjudged: 0, failures: 0, failedAt: null },
 };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-}
-
 /** The reader's own controller: the one row whose cams the account-scoped camera list can count. */
 const MINE: Device = device({ id: 'tc-mine', name: 'My tent', ownerId: 'user-1' });
 
@@ -230,7 +210,6 @@ const server = {
   cameras: [[]] as Camera[][],
 };
 
-const NOT_FOUND = { status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] };
 const BROKEN = { status: 500, code: 'internal', title: 'Something went wrong', detail: '', errors: [] };
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -265,21 +244,9 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
-const wrapped = (node: ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter>
-        <ThemeProvider>{node}</ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const wrapped = (node: ReactNode) => drawAt(<ThemeProvider>{node}</ThemeProvider>);
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
@@ -513,23 +480,20 @@ describe('support for a customer', () => {
   });
 
   it('shows a customer’s device: who has it, where its curves are, every setting it was sent, and what it said', async () => {
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/admin/devices/tc-7f3a']}>
-          <ThemeProvider>
-            <Routes>
-              <Route
-                path="/admin/devices/:deviceId"
-                element={
-                  <AdminOnly>
-                    <DeviceDiagnosis />
-                  </AdminOnly>
-                }
-              />
-            </Routes>
-          </ThemeProvider>
-        </MemoryRouter>
-      </QueryClientProvider>,
+    drawAt(
+      <ThemeProvider>
+        <Routes>
+          <Route
+            path="/admin/devices/:deviceId"
+            element={
+              <AdminOnly>
+                <DeviceDiagnosis />
+              </AdminOnly>
+            }
+          />
+        </Routes>
+      </ThemeProvider>,
+      { at: '/admin/devices/tc-7f3a' },
     );
 
     expect(await screen.findByText('day.temperature')).toBeInTheDocument();

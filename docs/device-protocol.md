@@ -1,7 +1,7 @@
 ---
 summary: The frozen contract between a device's firmware and the cloud - HTTP, every MQTT topic and payload, hardware-info, the configuration document, commands, camera relay, tunnel; read before changing firmware, the device-protocol module or the simulator
 updated: 2026-10-08
-source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136, #140, #141, #145; verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
+source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136, #140, #141, #145; codebase cleanup (2026-10-08); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
 paths:
   - firmware/src/**
   - firmware/src_hwtype/**
@@ -237,11 +237,11 @@ With the username and password from its provisioning NVS, and its `device_id` as
 `POST /mqttauth/<shared-secret>/{user,vhost,resource,topic}` (`rabbitmq/rabbitmq.conf`); the answer is the bare
 word `allow` or `deny` with status 200 (`mqtt-auth.controller.ts`). A few refusals come as an error status instead,
 which the broker reads as a refusal too: a topic outside the device's prefix (403), a resource that is neither
-`amq.topic` nor the device's subscription queue (409), and a wrong shared secret (401 `deny`,
-`mqtt-auth-secret.guard.ts`). These four routes are part of the frozen contract (ADR 0001).
+`amq.topic` nor the device's subscription queue (409), a request with an empty body (400), and a wrong shared secret
+(401 `deny`, `mqtt-auth-secret.guard.ts`). These four routes are part of the frozen contract (ADR 0001).
 
 Device passwords are stored bcrypt-hashed in `devices.mqtt`; a legacy plaintext row is compared in constant time
-and re-hashed on the first successful authentication (`mqtt-auth.service.ts:44-54`,
+and re-hashed on the first successful authentication (`user` in `mqtt-auth.service.ts`,
 `server/src/utils/devicepassword.ts`).
 
 ### 4.2 What the broker checks
@@ -253,9 +253,9 @@ and re-hashed on the first successful authentication (`mqtt-auth.service.ts:44-5
 | `topic` | `resource` is `topic`, `name` is `amq.topic`, `routing_key` begins `.devices.<device_id>.` |
 | `resource` | `vhost === '/'`, and exchange `amq.topic` or queue `mqtt-subscription-<client_id>qos0` |
 
-Source: `mqtt-auth.service.ts:30-127`; the fields the broker posts are in `mqtt-auth.types.ts`. The server's own
-connection is recognised by its username in `vhost`, `topic` and `resource` (`mqtt-auth.service.ts:64,76,104`);
-its password is checked once, at `user` (`mqtt-auth.service.ts:35`).
+Source: `MqttAuthService` (`mqtt-auth.service.ts`); the fields the broker posts are in `mqtt-auth.types.ts`. The
+server's own connection is recognised by its username in every check (`isServer`); its password is checked once, at
+`user`, in constant time (`sameSecret`).
 
 Two consequences a caller must know:
 
@@ -275,10 +275,10 @@ from an id with no device document is dropped silently, and any throw while hand
 one malformed message cannot end the process.
 
 Publishing is QoS 0 with mqtt.js defaults; a publish attempted before the first successful handshake returns
-`false` instead of throwing (`mqtt-client.service.ts:49-51,161-169`), which is what turns into a 503 for the
-HTTP caller behind a command. After that first connection mqtt.js queues what it is given while it reconnects, so
-a message sent during a blip of the server's own connection goes out when it is back; the broker keeps nothing
-for a device that is not connected.
+`false` instead of throwing (`canPublish` and `publish` in `mqtt-client.service.ts`), which is what turns into a 503
+for the HTTP caller behind a command. After that first connection mqtt.js queues what it is given while it
+reconnects, so a message sent during a blip of the server's own connection goes out when it is back; the broker
+keeps nothing for a device that is not connected.
 
 ---
 
@@ -314,9 +314,9 @@ on with the instant the device dated it. Readings are written to InfluxDB, measu
 The same reading is evaluated by the alarms under the names the contract gives them, which the ingest translates
 to. **A device with no owner has its readings dropped** — `lastSeenAt` is still updated.
 
-Only known keys are stored: the fields the metric tables in `shared-types/src/v1` name, plus the controller
-diagnostics beside them. A key outside those lists is silently ignored, which is the safe way to add a sensor
-before the server knows it.
+Only known keys are stored: the fields the metric tables in `server/src/common/v1/metrics.ts` name, plus the
+controller diagnostics (`DIAGNOSTIC_FIELDS` in `server/src/modules/data/data.service.ts`). A key outside those lists
+is silently ignored, which is the safe way to add a sensor before the server knows it.
 
 The firmware's "there is nothing here" figures ([5.4](#54-which-keys-each-hardware-type-reports)) are not
 readings and are dropped at ingest: a `co2` at or below zero, and an `out_co2` below zero or at `4294967295`
@@ -671,6 +671,12 @@ figure to a device - a step stored before steps were checked, a document the dev
 `fetch` - has digits turned into the number they spell, and anything else replaced by the figure the device ran
 or left out so the firmware keeps its default (`withFiguresHeld`, `document-figures.ts`). Every other key is kept
 as it came.
+
+`shared-types/src/v1/configuration-fields.ts` reads a document two ways, on purpose. `nestedAt` reads only the
+nested place the firmware reads, and whatever holds a document to its firmware uses it (`document-figures.ts`,
+`idle-figures.ts`, `schedule-clock.ts`); `valueAt`/`figureAt` fall back to the flat key an older client wrote
+(`"day.temperature"`), for reading targets on the server and in the app. Swapped, a check would hold a flat key the
+firmware never reads, or a reader miss targets an older client wrote.
 
 **The cloud never writes the first document.** The firmware reads every key a document leaves out as its
 compile-time default, so a document the cloud made up would reset whatever was tuned at the hardware - the work
@@ -1114,8 +1120,8 @@ carries it, with three slots (`TUNNEL_COUNT`, `fridgecloud.h:102`).
   characters, runs one connection per device at a time (`PARALLEL_TUNNEL_CONNECTIONS = 1`), closes a connection
   after 30 s without traffic, and stops accepting on a proxy after 300 s.
 - `udp: true` makes the slot a UDP relay: each message sends one datagram to `host:port` from an ephemeral port, and
-  only `disconnected` ends it. Nothing on the server uses it any more (`openUdpTunnel` has no caller); the Terp Cam
-  went to the relay ([9.1](#91-the-relay)).
+  only `disconnected` ends it. The server has no code for it any more and answers a datagram on `tunnel_read` with
+  `disconnected`, as for any connection it does not know; the Terp Cam went to the relay ([9.1](#91-the-relay)).
 
 **device → server** on `tunnel_read` (`handleTunnelReads`, `handleTunnelCloses`, `fridgecloud.cpp:740-850`):
 
@@ -1213,7 +1219,9 @@ A device is online when its `state.lastSeenAt` is younger than ten minutes, whic
 `offline` metric say the same thing about the same device. It is stamped by the ingest on every `status`, `bulk`
 and `fetch` — and on nothing else. A device that only logs, only reports hardware info or only answers commands
 does **not** count as alive. Since a healthy device publishes `bulk` every five
-seconds, ten minutes is a hundred and twenty missed samples.
+seconds, ten minutes is a hundred and twenty missed samples. The boundaries are `valueStateOfAge` in the same module,
+every comparison strict (exactly 600 s is offline); the server, the app and the simulator all call it rather than
+restate the seconds.
 
 ### 11.2 The failsafe that switches sockets off
 
@@ -1312,7 +1320,7 @@ How a change is made, so that old firmware and old readers keep working:
 Two further things that stay fixed because a device depends on them:
 
 - **The topic prefix is the device's identity.** The broker's authorisation is a literal prefix match on
-  `.devices.<device_id>.` (`mqtt-auth.service.ts:91`), so a topic cannot be moved or renamed without changing
+  `.devices.<device_id>.` (`topic` in `mqtt-auth.service.ts`), so a topic cannot be moved or renamed without changing
   what every deployed device may publish.
 - **The configuration is the device's.** The server stores the object and hands it back. It holds the keys a
   type's firmware reads to what that firmware can read and adds no key the firmware does not read; what it needs

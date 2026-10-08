@@ -1,5 +1,5 @@
 import { createAccount, Session } from '../support/api';
-import { DeviceCredentials, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
+import { DeviceCredentials, DeviceSimulator, provisionDevice, settle, startSimulator, utcSecondsOf } from '../support/device';
 
 /**
  * Day and night over HTTP and MQTT: what a fridge and a controller are sent
@@ -10,9 +10,6 @@ import { DeviceCredentials, DeviceSimulator, provisionDevice, settle, startSimul
 
 const HOUR = 3600;
 const MINUTES = 60_000;
-
-/** The UTC time of day of an instant, in the seconds a device keeps its schedule in. */
-const utcSecondsOf = (at: number): number => Math.floor(at / 1000) % 86_400;
 
 let owner: Session;
 
@@ -107,6 +104,39 @@ describe('the half that holds now', () => {
       .send({ set: { control: false } })
       .expect(200);
     expect((await live(fridge)).setpoints).toBeNull();
+  });
+});
+
+describe('a plug´s VPD', () => {
+  /** 25 °C and 60 %, with the leaf 2 °C under the air by day and level with it at night - the offsets every device starts with. */
+  const DAY_VPD = 0.91;
+  const NIGHT_VPD = 1.27;
+
+  const vpdOf = async (plug: DeviceCredentials) => (await live(plug)).metrics.vpd?.value;
+
+  it('takes the day´s leaf offset inside the plug´s own schedule, and the night´s without one', async () => {
+    const plug = await provisionDevice(owner, 'plug');
+    const simulator = await startSimulator(plug);
+    try {
+      await settle();
+      const now = Date.now();
+      const window = { day: utcSecondsOf(now - 2 * HOUR * 1000), night: utcSecondsOf(now + 2 * HOUR * 1000) };
+      await write(plug, { workmode: 'dehumidify', usedaynight: true, daynight: window });
+      await simulator.reportStatus({ temperature: 25, humidity: 60 });
+      await settle(1000);
+
+      expect(await vpdOf(plug)).toBeCloseTo(DAY_VPD, 2);
+
+      // The same window outside it is the night.
+      await write(plug, { workmode: 'dehumidify', usedaynight: true, daynight: { day: window.night, night: window.day } });
+      expect(await vpdOf(plug)).toBeCloseTo(NIGHT_VPD, 2);
+
+      // And a plug that keeps no schedule, in a place without a camera, is the night as before.
+      await write(plug, { workmode: 'dehumidify', usedaynight: false, daynight: window });
+      expect(await vpdOf(plug)).toBeCloseTo(NIGHT_VPD, 2);
+    } finally {
+      await simulator.close();
+    }
   });
 });
 

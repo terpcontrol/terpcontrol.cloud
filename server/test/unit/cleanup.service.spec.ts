@@ -1,10 +1,7 @@
-import { ObjectId } from 'mongodb';
-import { Model } from 'mongoose';
+import type { mongo } from 'mongoose';
 import { ImageStore } from '@database/image-store';
-import { MODEL_V1 } from '@database/models';
-import { StoredUser, usersSchema } from '@database/schemas/v1/users.schema';
 import { CleanupService } from '@modules/cleanup/cleanup.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The daily sweep has no HTTP surface of its own, so the black-box suite cannot
@@ -19,8 +16,7 @@ const OLD = new Date(NOW - 30 * DAY_MS);
 /** Unreachable, but too recent to collect. */
 const RECENT = new Date(NOW - 2 * DAY_MS);
 
-let db: V1TestDatabase;
-let users: Model<StoredUser>;
+const db = useV1TestDatabase();
 let store: ImageStore;
 let cleanup: CleanupService;
 
@@ -59,7 +55,7 @@ const storeBytes = async (mediaId: string, uploadedAt: Date) => {
   await store.upload(mediaId, Buffer.from(`bytes of ${mediaId}`));
   // A file carries the media id as its `_id`, where the driver's types expect an
   // ObjectId - the store writes it the same way.
-  const fileId = mediaId as unknown as ObjectId;
+  const fileId = mediaId as unknown as mongo.ObjectId;
   await db.connection.db!.collection('imagedata.files').updateOne({ _id: fileId }, { $set: { uploadDate: uploadedAt } });
 };
 
@@ -75,14 +71,8 @@ const remainingEntries = async (): Promise<string[]> => (await db.entries.find()
 const remainingMedia = async (): Promise<string[]> => (await db.media.find().lean()).map(media => media.id).sort();
 
 beforeAll(async () => {
-  db = await startV1TestDatabase();
-  users = db.connection.model<StoredUser>(MODEL_V1.user, usersSchema);
   store = new ImageStore(db.connection);
-  cleanup = new CleanupService(db.devices, db.spaces, db.grows, db.cameras, users, db.entries, db.media, store);
-});
-
-afterAll(async () => {
-  await db?.stop();
+  cleanup = new CleanupService(db.devices, db.spaces, db.grows, db.cameras, db.users, db.entries, db.media, store);
 });
 
 beforeEach(() => db.reset());
@@ -160,7 +150,7 @@ describe('pictures nothing points at', () => {
   it('keeps a picture a diary entry, a grow or an account still names', async () => {
     await db.entries.create(anEntry('an-entry', OLD, { mediaIds: ['in-an-entry'] }));
     await db.grows.create(aGrow('a-grow', { coverMediaId: 'a-cover', filmMediaId: 'a-film' }));
-    await users.create({ id: 'somebody', email: 'somebody@example.com', passwordHash: 'x', handle: 'somebody', avatarMediaId: 'an-avatar' });
+    await db.users.create({ id: 'somebody', email: 'somebody@example.com', passwordHash: 'x', handle: 'somebody', avatarMediaId: 'an-avatar' });
     await db.media.create([
       aPicture('in-an-entry', OLD, { kind: 'photo' }),
       aPicture('a-cover', OLD, { kind: 'photo' }),

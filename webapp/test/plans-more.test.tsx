@@ -1,12 +1,6 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import type { Device, Plan, PlanReplace, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
@@ -19,6 +13,9 @@ import { followsGermination, stepMeta } from '@/screens/control/plan-labels';
 import { READY_PLANS, readyDraft } from '@/screens/control/ready-plans';
 import { items as continueItems } from '@/screens/devices/advanced/ContinuePlan.advanced';
 import { climateLanding } from '@/ui/climate-hardware';
+import { deviceWith } from './fixtures';
+import { drawAt } from './harness';
+import { translate } from './translations';
 
 /**
  * What came back of the old app's plans: light hours in a step, which is what
@@ -104,51 +101,20 @@ const plan = (over: Partial<Plan> = {}, stateOver: Partial<Plan['state']> = {}):
 });
 
 const device = (type = 'fridge', hardware: Record<string, string> = {}): Device =>
-  ({
-    id: 'device-1',
+  deviceWith({
     createdAt: NOW.minus({ days: 60 }).toISO()!,
-    type,
-    classId: null,
-    serialNumber: 42,
-    ownerId: 'user-1',
-    spaceId: 'space-1',
+    type: type as Device['type'],
     name: 'Fridge',
-    firmware: { channel: 'stable', targetId: null },
     configuration: { day: { temperature: 25, humidity: 60 }, daynight: { day: 6 * 3600, night: 0 }, lights: { limit: 80 } },
-    settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
     control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-    isDemo: false,
-    state: {
-      lastSeenAt: DateTime.now().toISO()!,
-      claimedAt: null,
-      firmwareId: null,
-      updateStartedAt: null,
-      updateEndedAt: null,
-      updateFailedAt: null,
-      maintenanceUntil: null,
-      hardware,
-      socketStateChangedAt: {},
-      socketsReportedAt: null,
-    },
-  }) as Device;
-
-const wrap = (children: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>{children}</MemoryRouter>
-    </QueryClientProvider>,
-  );
+    state: { lastSeenAt: DateTime.now().toISO()!, claimedAt: null, hardware },
+  });
 
 const t = (key: string, options?: Record<string, unknown>) => i18next.t(key, options);
 
 const noPlan = new ApiError({ status: 404, code: 'plan_not_found', title: 'Not found', detail: 'none', errors: [] });
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   state.plan = plan();
@@ -192,7 +158,7 @@ describe('light hours in a step', () => {
     expect(followsGermination([after, germination], 0, true)).toBe(true);
     expect(stepMeta(t, after, null, true)).toBe('No stage · 1 wk · ends germination');
 
-    wrap(
+    drawAt(
       <PlanEditor
         device={device()}
         plan={null}
@@ -207,7 +173,7 @@ describe('light hours in a step', () => {
   });
 
   it('are typed into the step and saved with it, and an empty field leaves the photoperiod alone', () => {
-    wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
+    drawAt(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
 
     const field = screen.getByRole('spinbutton', { name: 'Light on for' });
     expect(field).toHaveValue(null);
@@ -222,14 +188,14 @@ describe('light hours in a step', () => {
   });
 
   it('may be none at all, which is the night round the clock', () => {
-    wrap(<PlanEditor device={device()} plan={null} draft={draft({ lightHours: 0 })} onClose={() => {}} />);
+    drawAt(<PlanEditor device={device()} plan={null} draft={draft({ lightHours: 0 })} onClose={() => {}} />);
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save the plan' })).toBeEnabled();
   });
 
   it('are not saved outside a day, and the step says why', () => {
-    wrap(<PlanEditor device={device()} plan={null} draft={draft({ lightHours: 30 })} onClose={() => {}} />);
+    drawAt(<PlanEditor device={device()} plan={null} draft={draft({ lightHours: 30 })} onClose={() => {}} />);
 
     expect(screen.getByRole('alert')).toHaveTextContent('Light on for: 0 to 24 hours, or leave it empty.');
     expect(screen.getByRole('button', { name: 'Save the plan' })).toBeDisabled();
@@ -245,7 +211,7 @@ describe('light hours in a step', () => {
     });
 
     it('from the hour the device´s light comes on', () => {
-      wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
+      drawAt(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
 
       fireEvent.change(screen.getByRole('spinbutton', { name: 'Light on for' }), { target: { value: '12' } });
       expect(screen.getByText('Light on 06:00–18:00 · 12 h – from the time under Targets.')).toBeInTheDocument();
@@ -259,7 +225,7 @@ describe('light hours in a step', () => {
      */
     it('from a step´s own time where it brings one, which can be moved or handed back to the targets page', () => {
       const migrated = draft({ lightHours: null, settings: { daynight: { day: 7 * 3600, night: 19 * 3600 } } });
-      wrap(<PlanEditor device={device()} plan={null} draft={migrated} onClose={() => {}} />);
+      drawAt(<PlanEditor device={device()} plan={null} draft={migrated} onClose={() => {}} />);
 
       expect(screen.getByRole('spinbutton', { name: 'Light on for' })).toHaveValue(12);
       expect(screen.getByLabelText('Light on at')).toHaveValue('07:00');
@@ -289,7 +255,7 @@ describe('light hours in a step', () => {
       lightHours: 18,
       settings: { day: { temperature: 26, humidity: 62 }, night: { temperature: 22, humidity: 58 }, co2: { target: 900 }, lights: { limit: 80 } },
     });
-    wrap(<PlanEditor device={device()} plan={null} draft={veg} onClose={() => {}} />);
+    drawAt(<PlanEditor device={device()} plan={null} draft={veg} onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
     expect(screen.queryByRole('spinbutton', { name: 'Light on for' })).not.toBeInTheDocument();
@@ -310,7 +276,7 @@ describe('light hours in a step', () => {
       lightHours: 18,
       settings: { day: { temperature: 26, humidity: 62 }, night: { humidity: 58 }, co2: { target: 900 }, lights: { limit: 80 } },
     });
-    wrap(<PlanEditor device={device()} plan={null} draft={veg} onClose={() => {}} />);
+    drawAt(<PlanEditor device={device()} plan={null} draft={veg} onClose={() => {}} />);
 
     const stages = screen.getAllByRole('button', { name: / · (dark|with light)$/ }).map(chip => chip.textContent);
     expect(stages).toEqual(['Germination · dark', 'Seedling · with light']);
@@ -336,7 +302,7 @@ describe('light hours in a step', () => {
 
   /** A germination step carries what it does about the humidity, which the plan puts on the device with it. */
   it('give a germination step that names no humidity germination´s 75 %, which its humidifier switch says', () => {
-    wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
+    drawAt(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
 
     const humidity = screen.getByText('Germination · humidity').closest('label')!;
@@ -346,7 +312,7 @@ describe('light hours in a step', () => {
   });
 
   it('keep a germination step´s choices about the humidity, and drop them where the step stops germinating', () => {
-    wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
+    drawAt(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
     const choices = screen.getByRole('group', { name: 'During germination' });
@@ -364,7 +330,7 @@ describe('light hours in a step', () => {
   it('offer a germination step the temperature the device holds only while it germinates', () => {
     const lit = device();
     lit.configuration = { ...lit.configuration, night: { temperature: 21, humidity: 55 } };
-    const { unmount } = wrap(<PlanEditor device={lit} plan={null} draft={draft()} onClose={() => {}} />);
+    const { unmount } = drawAt(<PlanEditor device={lit} plan={null} draft={draft()} onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
     // A night with the light on is no temperature to sprout seeds at, so 24 °C stays.
     expect(screen.queryByRole('button', { name: 'Take what the device holds now' })).not.toBeInTheDocument();
@@ -372,7 +338,7 @@ describe('light hours in a step', () => {
 
     const dark = { ...lit, configuration: { ...lit.configuration, workmode: 'breed', night: { temperature: 23, humidity: 55 } } };
     dark.control = { running: true, drying: false, mode: 'germination', energySaving: false, germinationChoices: GERMINATION_CHOICES };
-    wrap(<PlanEditor device={dark} plan={null} draft={draft()} onClose={() => {}} />);
+    drawAt(<PlanEditor device={dark} plan={null} draft={draft()} onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
     fireEvent.click(screen.getByRole('button', { name: 'Take what the device holds now' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
@@ -380,7 +346,7 @@ describe('light hours in a step', () => {
   });
 
   it('take the hours the controller holds now along with its figures', () => {
-    wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
+    drawAt(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
 
     // The device's light comes on at 06:00 UTC and goes off at midnight: eighteen hours.
     fireEvent.click(screen.getByRole('button', { name: 'Take what the device holds now' }));
@@ -421,7 +387,7 @@ describe('the two ready-made plans', () => {
     state.plan = null;
     state.planError = noPlan;
     const fridge = device();
-    wrap(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    drawAt(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose a ready-made plan' }));
     const sheet = screen.getByRole('dialog', { name: 'Start from a template' });
@@ -436,7 +402,7 @@ describe('the two ready-made plans', () => {
   it('say before a plan is started which stage it puts the grow into', () => {
     state.plan = plan({}, { status: 'stopped', stepStartedAt: null, lastAppliedAt: null });
     const fridge = device();
-    const view = wrap(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    const view = drawAt(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
 
     expect(screen.getByRole('button', { name: 'Start the plan' })).toBeInTheDocument();
     expect(screen.getByText(/^Starting puts a grow standing here into Veg,/)).toBeInTheDocument();
@@ -444,7 +410,7 @@ describe('the two ready-made plans', () => {
     // A paused plan goes on where it stood, so resuming it says nothing of the kind.
     view.unmount();
     state.plan = plan({}, { status: 'paused' });
-    wrap(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    drawAt(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
     expect(screen.queryByText(/^Starting puts a grow/)).not.toBeInTheDocument();
   });
 
@@ -452,7 +418,7 @@ describe('the two ready-made plans', () => {
     state.plan = null;
     state.planError = noPlan;
     const tent = device('controller');
-    wrap(<PlanPanel device={tent} mayManage landing={climateLanding(tent)} />);
+    drawAt(<PlanPanel device={tent} mayManage landing={climateLanding(tent)} />);
 
     expect(screen.queryByRole('button', { name: 'Choose a ready-made plan' })).not.toBeInTheDocument();
   });
@@ -468,7 +434,7 @@ describe('going on with a plan at a step', () => {
   });
 
   it('asks before it sends, says the step starts over, and sends the step by its id', () => {
-    wrap(<ContinuePlan device={device()} mayManage offline={false} />);
+    drawAt(<ContinuePlan device={device()} mayManage offline={false} />);
 
     const which = screen.getByRole('combobox', { name: 'Step' });
     // The step after the one the plan stands on is the one offered first.
@@ -486,7 +452,7 @@ describe('going on with a plan at a step', () => {
   it('draws nothing for a device that runs no plan', () => {
     state.plan = null;
     state.planError = noPlan;
-    const { container } = wrap(<ContinuePlan device={device()} mayManage offline={false} />);
+    const { container } = drawAt(<ContinuePlan device={device()} mayManage offline={false} />);
 
     expect(container).toBeEmptyDOMElement();
   });

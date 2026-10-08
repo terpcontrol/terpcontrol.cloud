@@ -30,6 +30,12 @@ const sendFirmwareImage = async (reply: FastifyReply, image: Buffer): Promise<vo
     .send(image);
 };
 
+/** A device the registration does not recognise is told so, and nothing else. */
+const granted = <T>(answer: T | null): T => {
+  if (!answer) throw new UnauthorizedException({ status: 'unauthorized' });
+  return answer;
+};
+
 @ApiTags('device-protocol')
 @Controller('device')
 export class DeviceProtocolController {
@@ -47,13 +53,7 @@ export class DeviceProtocolController {
     schema: { type: 'object', required: ['fw'], properties: { fw: { type: 'string' } } },
   })
   public async register(@ZodBody(registerDeviceSchema) body: RegisterDeviceRequest): Promise<DeviceRegistered> {
-    const registered = await this.registration.register(body);
-
-    if (!registered) {
-      throw new UnauthorizedException({ status: 'unauthorized' });
-    }
-
-    return registered;
+    return granted(await this.registration.register(body));
   }
 
   @Post('claimcode')
@@ -64,13 +64,7 @@ export class DeviceProtocolController {
     schema: { type: 'object', required: ['claim_code'], properties: { claim_code: { type: 'string' } } },
   })
   public async claimCode(@ZodBody(claimCodeSchema) body: ClaimCodeRequest): Promise<IssuedClaimCode> {
-    const code = await this.registration.issueClaimCode(body);
-
-    if (!code) {
-      throw new UnauthorizedException({ status: 'unauthorized' });
-    }
-
-    return code;
+    return granted(await this.registration.issueClaimCode(body));
   }
 
   // No session: the device fetches its own update over plain HTTP, and the
@@ -102,13 +96,7 @@ export class LegacyDeviceProtocolController {
   @Post('claimcode')
   @HttpCode(HttpStatus.OK)
   public async claimCode(@ZodBody(claimCodeSchema) body: ClaimCodeRequest): Promise<IssuedClaimCode> {
-    const code = await this.registration.issueClaimCode(body);
-
-    if (!code) {
-      throw new UnauthorizedException({ status: 'unauthorized' });
-    }
-
-    return code;
+    return granted(await this.registration.issueClaimCode(body));
   }
 
   @Get('firmware/:firmware_id/:binary')

@@ -5,9 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { AdminDeviceCreate, Device, DeviceClaimCreate, DeviceClaimResult, DeviceUpdate, SpaceKind } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
 import { AccessService, subjectRef } from '@common/v1/access.service';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { startedNow } from '@common/v1/firmware-instruction';
 import { conflict, notFound } from '@common/v1/problem';
+import { withSpacesInside } from '@common/v1/rooms';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
@@ -22,6 +23,7 @@ import { logger } from '@utils/logger';
 import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
 import { controlOf } from '@modules/device-protocol/work-modes';
 import { DEVICE_PLACEMENT, DevicePlacement } from './placement.port';
+import { accountOf } from '../caller';
 
 /**
  * The `devices` collection: what a device is, and what a person decides about
@@ -55,33 +57,17 @@ export class DevicesService {
     @Optional() private readonly hardwareReport: HardwareReportService | null = null,
   ) {}
 
-  public byId(id: string): Promise<StoredDevice | null> {
-    return this.devices.findOne({ id }).lean<StoredDevice>();
-  }
-
   public async require(id: string): Promise<StoredDevice> {
-    const device = await this.byId(id);
+    const device = await this.devices.findOne({ id }).lean<StoredDevice>();
     if (!device) throw notFound('device_not_found', 'There is no device with that id.');
 
     return device;
   }
 
   public async list(ctx: AccessContext, query: PageQuery, spaceId?: string, everyone = false): Promise<CursorPage<Device>> {
-    const limit = pageLimit(query.limit);
-    // Combined rather than merged into one object: the visibility and the cursor
-    // are each an `$or` of their own, and one would silently replace the other -
-    // which would hand out everything that sorts after the cursor from the
-    // second page on, while the first page looked right.
-    const conditions: FilterQuery<StoredDevice>[] = [
-      everyone ? {} : await this.visibleTo(ctx),
-      ...(spaceId ? [{ spaceId }] : []),
-      afterCursor('createdAt', query.cursor),
-    ];
+    const conditions: FilterQuery<StoredDevice>[] = [everyone ? {} : await this.visibleTo(ctx), ...(spaceId ? [{ spaceId }] : [])];
 
-    const rows = await this.devices.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<StoredDevice[]>();
-
-    const page = pageOf(rows, limit, device => ({ at: device.createdAt, id: device.id }));
-    return { items: page.items.map(device => this.serialise(device, ctx.isDemo)), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.devices, conditions, query), device => this.serialise(device, ctx.isDemo));
   }
 
   /**
@@ -102,14 +88,7 @@ export class DevicesService {
     const held = rows.map(row => row.spaceId);
     if (held.length === 0) return { ownerId: ctx.userId };
 
-    // A membership on a room covers the spaces standing in it, so the rooms are
-    // widened to what is inside them before a device is looked for by the space
-    // it stands in - which is the rule `access()` decides one device by, from
-    // the other end.
-    const inside = await this.spaces.find({ roomId: { $in: held } }, { id: 1 }).lean();
-    const spaceIds = [...new Set([...held, ...inside.map(space => space.id)])];
-
-    return { $or: [{ ownerId: ctx.userId }, { spaceId: { $in: spaceIds } }] };
+    return { $or: [{ ownerId: ctx.userId }, { spaceId: { $in: await withSpacesInside(this.spaces, held) } }] };
   }
 
   /** Only what a client may write. What the device is, who owns it and everything under `state` are not patched. */
@@ -155,8 +134,7 @@ export class DevicesService {
    * and naming none makes one.
    */
   public async claim(ctx: AccessContext, body: DeviceClaimCreate): Promise<DeviceClaimResult> {
-    const ownerId = ctx.userId;
-    if (!ownerId || ctx.isDemo) throw conflict('no_account', 'A device belongs to somebody, and this session is nobody.');
+    const ownerId = accountOf(ctx, 'A device belongs to somebody, and this session is nobody.');
 
     const claimCode = await this.claimCodes.findOne({ code: body.code.trim().toUpperCase() }).lean<StoredClaimCode>();
     if (!claimCode) throw notFound('claim_code_unknown', 'No device is showing that code. Read it off the display again.');

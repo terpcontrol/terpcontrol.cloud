@@ -1,14 +1,15 @@
-import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import type { MeasurementDefinition } from '@fg2/shared-types/v1';
-import { useGrow, useGrowSeries, useUpdateGrow } from '@/api/grows';
+import { useGrow, useMeasurementSeries, useUpdateGrow } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { LoadFailed, NoLongerHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
-import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, useMayWith } from '@/ui/session-access';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { BackLink } from '@/ui/BackLink';
 import { bandOf, fromTemplate, readingCounts, ruleOf, TEMPLATES } from './definitions';
 import { MeasurementSheet } from './MeasurementSheet';
 import styles from './Measurements.module.css';
@@ -27,16 +28,11 @@ import styles from './Measurements.module.css';
  */
 export function Measurements() {
   const { growId = '' } = useParams();
-
-  return <MeasurementsScreen growId={growId} />;
-}
-
-function MeasurementsScreen({ growId }: { growId: string }) {
   const { t } = useTranslation();
   const now = useNow();
   const grow = useGrow(growId);
   const definitions = grow.data?.measurements ?? [];
-  const series = useGrowSeries(
+  const series = useMeasurementSeries(
     growId,
     'grow',
     definitions.map(definition => definition.key),
@@ -58,7 +54,7 @@ function MeasurementsScreen({ growId }: { growId: string }) {
   }
   if (!grow.data) return noLongerThere(grow.error) ? <NoLongerHere what="grow" /> : <LoadFailed retry={() => void grow.refetch()} />;
 
-  const mayManage = enough(mayWith({ ownerId: grow.data.ownerId, spaceId: standsIn(grow.data) }), 'manage');
+  const mayManage = enough(mayWith(growStanding(grow.data)), 'manage');
 
   // Null until the series has answered: what has been measured is what settles
   // a definition, and the screen says nothing about it before it knows.
@@ -71,10 +67,8 @@ function MeasurementsScreen({ growId }: { growId: string }) {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <Link to={`/grows/${growId}/weeks`} className={ui.back} aria-label={t('grow.measurements.back')}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
-        <h1 className={styles.title}>{t('grow.measurements.title')}</h1>
+        <BackLink to={`/grows/${growId}/weeks`} label={t('grow.measurements.back')} />
+        <h1>{t('grow.measurements.title')}</h1>
         <span className={`mono ${styles.growName}`}>{grow.data.name}</span>
       </header>
 
@@ -198,17 +192,7 @@ function Card({ definition, mayManage, onEdit, onFlip }: CardProps) {
       </button>
       {/* Held rather than hidden for a session that may only look: which
           measurements a grow draws is part of reading it. */}
-      <button
-        type="button"
-        className={ui.switch}
-        role="switch"
-        aria-checked={definition.chart}
-        aria-label={t('grow.measurements.onTheChart', { name: definition.name })}
-        disabled={!mayManage}
-        onClick={onFlip}
-      >
-        <span className={ui.knob} aria-hidden />
-      </button>
+      <Switch label={t('grow.measurements.onTheChart', { name: definition.name })} on={definition.chart} disabled={!mayManage} onChange={onFlip} />
     </li>
   );
 }

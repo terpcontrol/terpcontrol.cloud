@@ -1,6 +1,7 @@
 /**
- * Reading one picture from a camera: how long it may take, and what a failed
- * one is called.
+ * Reading one picture from a camera: how long it may take, what a failed one
+ * is called and when it goes through the camera's device - and the sentences a
+ * failed render stores.
  *
  * One read has `CAPTURE_BUDGET_SECONDS` from the moment it is asked for until
  * the camera has delivered or it is given up - every attempt it makes, and the
@@ -27,3 +28,26 @@ export declare const CAPTURE_BUDGET_SECONDS: number;
 export declare const CAPTURE_FAILURES: readonly [...("deviceOffline" | "damaged" | "aborted" | "otherCamera" | "refusedRecently" | "stoppedEarly" | "refusedLogin" | "relayNotOpened" | "noAnswer" | "noDevice" | "noAddress" | "noStream")[], "unknown"];
 /** What kind of failure the words a failed read left behind describe. */
 export declare const captureFailureOf: (error: string) => (typeof CAPTURE_FAILURES)[number];
+/** Whether reading the camera goes through its device, so it only works while that device is online. */
+export declare const readsThroughDevice: (camera: {
+    kind: string;
+    tunnel: boolean;
+}) => boolean;
+/**
+ * Why a film did not render, in the words the render stores. The causes are
+ * the render's own and not a capture's: a render never goes near the camera -
+ * it reads pictures that are already stored - so nothing it fails at is the
+ * camera refusing a login or not answering. The screen names the cause by these
+ * words in the language the page is in; anything else a render stores, such as
+ * an encoder's own message, is `unknown`.
+ */
+export declare const RENDER_FAILURE_TEXT: {
+    readonly allDark: "every picture in that span was taken with the light off";
+    readonly tooFew: "there are not enough pictures in that span to make a film";
+    readonly cameraGone: "the camera this was asked of is gone";
+    readonly encodeFailed: "the pictures in that span could not be made into a film";
+};
+type RenderFailure = keyof typeof RENDER_FAILURE_TEXT;
+/** What kind of failure the words a failed render left behind describe. */
+export declare const renderFailureOf: (error: string) => RenderFailure | "unknown";
+export {};

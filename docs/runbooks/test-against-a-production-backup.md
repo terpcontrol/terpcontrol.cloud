@@ -1,7 +1,7 @@
 ---
 summary: Running a separate stack on a copy of production data - to verify a migration or test the app against real data - without touching another stack, its volumes, or the real people in the data
 updated: 2026-10-08
-source: Chris (2026-09-19 own stack for a copy, 2026-09-22 the verification pass he asked for); sessions 2026-09-22..23 (four passes over a restored copy of the hosted database); restore.sh, migrate-check.sh, docker-compose.yaml and the server's notification channels as of 2026-10-08
+source: Chris (2026-09-19 own stack for a copy, 2026-09-22 the verification pass he asked for); sessions 2026-09-22..23 (four passes over a restored copy of the hosted database); restore.sh, migrate-check.sh, docker-compose.yaml and the server's notification channels as of 2026-10-08; the automation session's reach checked on a copy 2026-10-08
 paths:
   - restore.sh
   - migrate-check.sh
@@ -66,9 +66,11 @@ For a backup older than migrations the code carries ([server/src/migrations/READ
 
 The account `ADMINUSER_USERNAME` names has `ADMINUSER_PASSWORD` once the server has started. To use a real account
 from the data - such as the `AGENT_TESTING_*` one, which has devices - set its password on this copy only: an admin
-session from `POST /v1/sessions/automation` with `{ "token": "<AUTOMATION_TOKEN>" }` (sent as
-`Authorization: Bearer <userToken>`), then `PATCH /v1/admin/users/<id>` with `{ "password": "..." }`. The id:
-`db.users.findOne({ email: '<address>' }, { id: 1 })`.
+session from `POST /v1/sessions/automation` with `{ "token": "<AUTOMATION_TOKEN>" }` (it answers
+`{ "userToken": { "token": ... } }`; send that token as `Authorization: Bearer <token>`), then
+`PATCH /v1/admin/users/<id>` with `{ "password": "..." }`. The id: `db.users.findOne({ email: '<address>' }, { id: 1 })`.
+The automation session is accepted by `/v1/admin/*` only; every other route answers it 401, so a copy is driven as an
+account.
 
 ## Real devices
 

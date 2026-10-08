@@ -28,7 +28,19 @@ import {
 } from '../shared-types/v1-schemas/socket-report.js';
 // Day and night as the firmware keeps them: the clock window and the work mode.
 // The same module the server judges by, so the stack shows what hardware does.
-import { DAY_SECONDS, cycleAt, cycleKindOf, cycleOf, glidingTarget, isDayAt, rampsAt, utcSecondsOf } from '../shared-types/v1-schemas/day-night.js';
+import {
+  DAY_SECONDS,
+  FIRMWARE_LIGHTS_OFF,
+  FIRMWARE_RAMP_MINUTES,
+  cycleAt,
+  cycleKindOf,
+  cycleOf,
+  glidingTarget,
+  isDayAt,
+  rampsAt,
+  utcSecondsOf,
+} from '../shared-types/v1-schemas/day-night.js';
+import { valueStateOfAge } from '../shared-types/v1-schemas/value-age.js';
 
 const STATE_DIR = '.simulated-devices';
 const API_URL = process.env.SIM_API_URL.replace(/\/$/, '');
@@ -416,14 +428,16 @@ const lightPercent = (config, at, type = 'controller') => {
     return clamp(configValue(config, 'lights.limit', 100) * share, 0, 100);
   }
 
-  const secondsOfDay = at.getUTCHours() * 3600 + at.getUTCMinutes() * 60 + at.getUTCSeconds();
+  const secondsOfDay = utcSecondsOf(at.getTime());
   // A LIGHT keeps its times, its limit and its ramps at the top of its document.
   const flat = typeof config.day === 'number';
   const dayStart = flat ? config.day : configValue(config, 'daynight.day', DEFAULT_CONFIG.daynight.day);
-  const nightStart = flat ? configValue(config, 'night', 79200) : configValue(config, 'daynight.night', DEFAULT_CONFIG.daynight.night);
+  const nightStart = flat ? configValue(config, 'night', FIRMWARE_LIGHTS_OFF) : configValue(config, 'daynight.night', DEFAULT_CONFIG.daynight.night);
   const limit = configValue(config, flat ? 'limit' : 'lights.limit', 100);
-  const rampUp = configValue(config, flat ? 'sunrise' : 'lights.sunrise', 15) * 60;
-  const rampDown = configValue(config, flat ? 'sunset' : 'lights.sunset', 15) * 60;
+  // Where the document states none, the lamp's own firmware ramps the same 15
+  // minutes a fridge's and a controller's do.
+  const rampUp = (flat ? configValue(config, 'sunrise', 15) : configValue(config, 'lights.sunrise', FIRMWARE_RAMP_MINUTES)) * 60;
+  const rampDown = (flat ? configValue(config, 'sunset', 15) : configValue(config, 'lights.sunset', FIRMWARE_RAMP_MINUTES)) * 60;
 
   const isDay =
     dayStart <= nightStart
@@ -431,8 +445,8 @@ const lightPercent = (config, at, type = 'controller') => {
       : secondsOfDay >= dayStart || secondsOfDay < nightStart;
   if (!isDay) return 0;
 
-  const sinceSunrise = (secondsOfDay - dayStart + 86400) % 86400;
-  const untilSunset = (nightStart - secondsOfDay + 86400) % 86400;
+  const sinceSunrise = (secondsOfDay - dayStart + DAY_SECONDS) % DAY_SECONDS;
+  const untilSunset = (nightStart - secondsOfDay + DAY_SECONDS) % DAY_SECONDS;
   const ramp = Math.min(rampUp > 0 ? sinceSunrise / rampUp : 1, rampDown > 0 ? untilSunset / rampDown : 1, 1);
   return clamp(limit * ramp, 0, 100);
 };
@@ -1488,6 +1502,8 @@ class SimulatedDevice {
     } catch {
       return;
     }
+    // The firmware relays a `udp: true` slot as datagrams. This tool has none
+    // to offer, and answering one over TCP would be a different device.
     if (message.udp) return;
 
     const open = this.#tunnels.get(message.connection_id);
@@ -2017,13 +2033,10 @@ const hwinfo = options =>
     await sleep(300);
   });
 
-// The server decides a value's age from VALUE_AGE; a device unheard from for as
-// long as the stale window lasts is what both it and this tool call offline.
-const OFFLINE_MS = 600000;
-
 const lastSeen = device => (device.state.lastSeenAt ? Date.parse(device.state.lastSeenAt) : 0);
 
-const isOnline = device => lastSeen(device) > 0 && Date.now() - lastSeen(device) < OFFLINE_MS;
+// Online and offline as the server calls them.
+const isOnline = device => lastSeen(device) > 0 && valueStateOfAge((Date.now() - lastSeen(device)) / 1000) !== 'offline';
 
 const info = async options => {
   const token = await login();

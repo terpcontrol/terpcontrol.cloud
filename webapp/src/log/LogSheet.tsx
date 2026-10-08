@@ -6,18 +6,20 @@ import type { GrowListItem } from '@fg2/shared-types/v1';
 import { useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { useHome } from '@/api/home';
+import type { Translate } from '@/i18n/i18n';
 import { livenessOf } from '@/screens/home/attention';
 import { ageLabel } from '@/ui/age';
 import { VISIT_MINUTES } from '@/ui/maintenance';
-import { readingFigure } from '@/ui/entries';
-import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, useMayWith } from '@/ui/session-access';
+import { Choice } from '@/ui/SheetParts';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
 import { lastCan, newestOf, nextStage, schemeStep } from './defaults';
 import { lineLabel, oneTapBody } from './lines';
-import { useLog, type LogOpening, type LogTarget, type TileKind } from './log-context';
+import { TILE_KINDS, useLog, type LogOpening, type LogTarget, type TileKind } from './log-context';
 import { narrowerTargets, openingTarget, targetsOf } from './targets';
-import { Sheet } from './Sheet';
+import { Sheet } from '@/ui/Sheet';
+import { looseFigure } from '@/ui/figures';
 import styles from './Log.module.css';
 
 /**
@@ -32,34 +34,16 @@ import styles from './Log.module.css';
 /** How long a tile is held before it opens its details instead of logging. */
 const HOLD_MS = 450;
 
-const TILES: { kind: TileKind; Icon: LucideIcon }[] = [
-  { kind: 'water', Icon: Droplet },
-  { kind: 'feed', Icon: FlaskConical },
-  { kind: 'photo', Icon: Camera },
-  { kind: 'note', Icon: Pencil },
-  { kind: 'measurement', Icon: ChartNoAxesColumn },
-  { kind: 'training', Icon: Scissors },
-  { kind: 'phase', Icon: Leaf },
-  { kind: 'visit', Icon: Wrench },
-];
-
-/**
- * The tiles a tap does not write on its own.
- *
- * Five of them are there because nothing can be guessed for them - a picture,
- * words, a reading, a phase, what was trained on which plant - and writing one
- * on a tap would file a line nobody filled in. The fifth is there for the opposite reason: maintenance is the one
- * tile whose line is not the whole of what it does. The server puts every device
- * standing in the place into maintenance mode for a quarter of an hour, which
- * stops the heater, the dehumidifier and the CO2 valve and holds the alarms, and
- * the Undo the toast offers takes the line back without calling any of that off.
- * A consequence that reaches hardware and cannot be undone is one a person says
- * yes to, so the tile opens the panel that names what it is about to quieten.
- */
-const ASKS_FIRST = new Set<TileKind>(['photo', 'note', 'measurement', 'phase', 'visit', 'training']);
-
-/** The tiles a written line can still be corrected in, which is what the toast's Details opens. */
-const HAS_DETAILS = new Set<TileKind>(['water', 'feed', 'note', 'measurement', 'training']);
+const ICONS: Record<TileKind, LucideIcon> = {
+  water: Droplet,
+  feed: FlaskConical,
+  photo: Camera,
+  note: Pencil,
+  measurement: ChartNoAxesColumn,
+  training: Scissors,
+  phase: Leaf,
+  visit: Wrench,
+};
 
 interface LogSheetProps {
   opening: LogOpening;
@@ -102,15 +86,15 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   // stage and puts the tent's climate on it, which the decision record keeps at
   // `manage` where the grow stands - so in a tent somebody only writes in, that
   // tile is not there rather than there and refused.
-  const mayStartAPhase = grow ? enough(mayWith({ ownerId: grow.ownerId, spaceId: standsIn(grow) }), 'manage') : false;
+  const mayStartAPhase = grow ? enough(mayWith(growStanding(grow)), 'manage') : false;
   // A reading is written against a grow's own measurements, so a tent with
   // nothing growing in it has nothing to measure and is not offered the tile.
   // Maintenance is offered where something would hear it: a place whose
   // hardware is reporting, and not one that is offline or has none at all.
   const card = home?.spaces.find(one => one.spaceId !== null && one.spaceId === (target?.standsIn ?? target?.spaceId)) ?? null;
   const reachable = card !== null && livenessOf(card, now) !== 'offline' && livenessOf(card, now) !== 'none';
-  const tiles = TILES.filter(tile =>
-    tile.kind === 'measurement' ? Boolean(target?.growId) : tile.kind === 'phase' ? mayStartAPhase : tile.kind === 'visit' ? reachable : true,
+  const tiles = TILE_KINDS.filter(kind =>
+    kind === 'measurement' ? Boolean(target?.growId) : kind === 'phase' ? mayStartAPhase : kind === 'visit' ? reachable : true,
   );
 
   // A tile says what it is about to write - "2 L · last 3 d" - and one tap
@@ -153,12 +137,16 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
 
   const tap = (kind: TileKind) => {
     if (!target || !ready) return;
-    // A feed with no can to go by cannot be dosed, so it asks rather than logging a feed of nothing.
-    if (ASKS_FIRST.has(kind) || (kind === 'feed' && feedLitres === null)) return details(kind);
+    // Only water, and a feed with a can to dose by, are written on a tap. The
+    // other tiles have nothing to guess - a picture, words, a reading, a phase,
+    // what was trained on which plant - and a visit also puts every device in
+    // the place into maintenance, which the toast's Undo does not call off, so
+    // each of them opens its panel instead.
+    if (kind !== 'water' && (kind !== 'feed' || feedLitres === null)) return details(kind);
 
     log({
       label: lineLabel(t, kind, target),
-      details: HAS_DETAILS.has(kind) ? { kind, target } : null,
+      details: { kind, target },
       send: () => writeEntry(oneTapBody(kind, target, kind === 'water' ? waterLitres : feedLitres)),
     });
   };
@@ -166,7 +154,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   const caption = (kind: TileKind): string => {
     switch (kind) {
       case 'water':
-        return [waterLitres === null ? '' : t('log.litres', { litres: readingFigure(waterLitres) }), lastAgo(t, lastWater, now)]
+        return [waterLitres === null ? '' : t('log.litres', { litres: looseFigure(waterLitres) }), lastAgo(t, lastWater, now)]
           .filter(Boolean)
           .join(' · ');
       case 'feed':
@@ -199,73 +187,74 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
           ) : null}
           <div className={`${ui.scrollRow} ${styles.targets}`} role="group" aria-label={t('log.targetLabel')}>
             {/* The place first, then what is inside it, then everywhere else:
-                the chips a thumb can reach are the ones about where you are. */}
-            {place ? <TargetChip target={place} chosen={place.key === target?.key} onChoose={() => choose(place, false)} /> : null}
+                the chips a thumb can reach are the ones about where you are.
+                Pressed rather than linked, so the sheet stays where it is. */}
+            {place ? (
+              <Choice chosen={place.key === target?.key} onChoose={() => choose(place, false)}>
+                {place.label}
+              </Choice>
+            ) : null}
             {narrower.map(one => (
-              <TargetChip key={one.key} target={one} chosen={one.key === target?.key} onChoose={() => choose(one, true)} />
+              <Choice key={one.key} chosen={one.key === target?.key} onChoose={() => choose(one, true)}>
+                {one.label}
+              </Choice>
             ))}
             {places
               .filter(one => one.key !== place?.key)
               .map(one => (
-                <TargetChip key={one.key} target={one} chosen={false} onChoose={() => choose(one, false)} />
+                <Choice key={one.key} chosen={false} onChoose={() => choose(one, false)}>
+                  {one.label}
+                </Choice>
               ))}
           </div>
 
           <div className={styles.tiles}>
-            {tiles.map(({ kind, Icon }) => (
-              <button
-                key={kind}
-                type="button"
-                className={`${ui.card} ${styles.tile}`}
-                data-wide={kind === 'visit' || undefined}
-                disabled={!ready}
-                onPointerDown={() => {
-                  held.current = false;
-                  timer.current = window.setTimeout(() => {
-                    held.current = true;
+            {tiles.map(kind => {
+              const Icon = ICONS[kind];
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  className={`${ui.card} ${styles.tile}`}
+                  data-wide={kind === 'visit' || undefined}
+                  disabled={!ready}
+                  onPointerDown={() => {
+                    held.current = false;
+                    timer.current = window.setTimeout(() => {
+                      held.current = true;
+                      details(kind);
+                    }, HOLD_MS);
+                  }}
+                  onPointerUp={stop}
+                  onPointerLeave={stop}
+                  onPointerCancel={stop}
+                  onContextMenu={event => {
+                    event.preventDefault();
+                    stop();
                     details(kind);
-                  }, HOLD_MS);
-                }}
-                onPointerUp={stop}
-                onPointerLeave={stop}
-                onPointerCancel={stop}
-                onContextMenu={event => {
-                  event.preventDefault();
-                  stop();
-                  details(kind);
-                }}
-                onClick={event => {
-                  stop();
-                  // The hold has already opened the details; the click that follows it is not a second instruction.
-                  if (held.current) return void (held.current = false);
-                  if (event.shiftKey) return details(kind);
-                  tap(kind);
-                }}
-              >
-                <Icon size={18} strokeWidth={1.75} className={styles.tileIcon} aria-hidden />
-                <span className={styles.tileName}>{t(`log.tile.${kind}`, { minutes: VISIT_MINUTES })}</span>
-                <span className={`mono ${styles.tileCaption}`}>{caption(kind)}</span>
-              </button>
-            ))}
+                  }}
+                  onClick={event => {
+                    stop();
+                    // The hold has already opened the details; the click that follows it is not a second instruction.
+                    if (held.current) return void (held.current = false);
+                    if (event.shiftKey) return details(kind);
+                    tap(kind);
+                  }}
+                >
+                  <Icon size={18} strokeWidth={1.75} className={styles.tileIcon} aria-hidden />
+                  <span className={styles.tileName}>{t(`log.tile.${kind}`, { minutes: VISIT_MINUTES })}</span>
+                  <span className={`mono ${styles.tileCaption}`}>{caption(kind)}</span>
+                </button>
+              );
+            })}
           </div>
 
-          <p className={ui.note}>{t(tiles.some(tile => tile.kind === 'visit') ? 'log.oneTapVisit' : 'log.oneTap')}</p>
+          <p className={ui.note}>{t(tiles.includes('visit') ? 'log.oneTapVisit' : 'log.oneTap')}</p>
         </>
       )}
     </Sheet>
   );
 }
-
-/** One place the line can be about. Pressed rather than linked: the sheet stays where it is. */
-function TargetChip({ target, chosen, onChoose }: { target: LogTarget; chosen: boolean; onChoose: () => void }) {
-  return (
-    <button type="button" className={ui.chip} data-chosen={chosen} aria-pressed={chosen} onClick={onChoose}>
-      {target.label}
-    </button>
-  );
-}
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** Whether this is a screen that is touched rather than pointed at, which decides how a tile's details are reached. */
 const touch = (): boolean => typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches === true;

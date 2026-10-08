@@ -5,10 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { Camera, CameraCreate, CameraUpdate } from '@fg2/shared-types/v1';
 import { demoCamera } from '@utils/demo';
 import { AccessContext, AccessRange, Grantee } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
-import { CameraDocument } from '@database/schemas/v1/cameras.schema';
+import { CameraDocument, DEFAULT_STILL_INTERVAL_SECONDS } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
@@ -27,7 +27,7 @@ import { changesTheStream, streamUrl, withoutUserInfo } from './stream-url';
  */
 
 /** What a list of cameras may be narrowed by. */
-export interface CameraFilter {
+interface CameraFilter {
   spaceId?: string;
   deviceId?: string;
   /** Tombstones are left out unless somebody is looking for a camera that is gone. */
@@ -84,9 +84,14 @@ export class CamerasService {
     return this.cameras.findOne({ deviceId, kind: 'terpcam_controller', removedAt: null }).lean<CameraDocument>();
   }
 
-  /** Only the two paths that open a stream ask for this; every other read leaves the secret behind. */
+  /**
+   * Only the two paths that open a stream ask for this; every other read leaves
+   * the secret behind. Both read a live camera, so a tombstone is none: a
+   * camera taken away is no longer read from, by the test button or by a pass
+   * of the poller that listed it before it went.
+   */
   public withSecret(id: string): Promise<CameraWithSecret | null> {
-    return this.cameras.findOne({ id }).select('+secret').lean<CameraWithSecret>();
+    return this.cameras.findOne({ id, removedAt: null }).select('+secret').lean<CameraWithSecret>();
   }
 
   /** Every camera the pipeline reads from: live ones, whatever kind. */
@@ -99,21 +104,9 @@ export class CamerasService {
     return this.cameras.find({}).sort({ id: 1 }).lean<CameraDocument[]>();
   }
 
-  public async list(ctx: AccessContext, filter: CameraFilter, page: PageQuery): Promise<CursorPage<Camera>> {
-    const limit = pageLimit(page.limit);
-    // Combined rather than merged into one object: the visibility and the cursor
-    // are each an `$or` of their own, and one would silently replace the other -
-    // which would hand out everything that sorts after the cursor from the
-    // second page on, while the first page looked right.
-    const conditions: FilterQuery<CameraDocument>[] = [await this.visibleTo(ctx), narrowing(filter), afterCursor('createdAt', page.cursor)];
-
-    const rows = await this.cameras.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<CameraDocument[]>();
-
-    return pageOf(
-      rows.map(camera => this.serialise(camera, this.granteeOf(ctx, camera))),
-      limit,
-      camera => ({ at: new Date(camera.createdAt), id: camera.id }),
-    );
+  public async list(ctx: AccessContext, filter: CameraFilter, query: PageQuery): Promise<CursorPage<Camera>> {
+    const page = await findPage(this.cameras, [await this.visibleTo(ctx), narrowing(filter)], query);
+    return mapPage(page, camera => this.serialise(camera, this.granteeOf(ctx, camera)));
   }
 
   /**
@@ -255,7 +248,7 @@ export class CamerasService {
    * and are none of their business - which is what the tent page next door
    * already answers for the same camera through the same kind of link.
    */
-  public serialise(camera: CameraDocument, to: Grantee = 'owner', now: Date = new Date(), seen: AccessRange = OPEN_ENDED): Camera {
+  public serialise(camera: CameraDocument, to: Grantee, now: Date = new Date(), seen: AccessRange = OPEN_ENDED): Camera {
     const served: Camera = {
       id: camera.id,
       createdAt: camera.createdAt.toISOString(),
@@ -335,9 +328,6 @@ const withoutTheOwner = (camera: Camera): Camera => ({
   deviceId: null,
   entitlement: { ...camera.entitlement, validUntil: null, grant: null, renewalVisible: false },
 });
-
-/** How often the pipeline has always asked a camera for a picture. */
-export const DEFAULT_STILL_INTERVAL_SECONDS = 30;
 
 const narrowing = (filter: CameraFilter): FilterQuery<CameraDocument> => ({
   ...(filter.spaceId ? { spaceId: filter.spaceId } : {}),

@@ -15,7 +15,7 @@ export function Nothing({ titleKey, bodyKey }: { titleKey: string; bodyKey: stri
 
   return (
     <section className={styles.nothing}>
-      <h1 className={styles.nothingTitle}>{t(titleKey)}</h1>
+      <h1>{t(titleKey)}</h1>
       <p className={styles.nothingBody}>{t(bodyKey)}</p>
     </section>
   );

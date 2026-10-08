@@ -1,17 +1,12 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Device } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { DeviceList } from '@/screens/devices/DeviceList';
+import { drawAt } from './harness';
 import { spaceWhere, THE_HOST } from './session';
+import { translate } from './translations';
 
 /**
  * What a grower may do to a device once it is theirs: call it something, and
@@ -27,7 +22,7 @@ import { spaceWhere, THE_HOST } from './session';
  */
 
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 vi.mock('@/api/session', async importOriginal => {
@@ -51,13 +46,6 @@ const THE_PLUG = {
 
 const ELSEWHERE = spaceWhere('own', { id: 'space-2', name: 'Fridge 1', kind: 'fridge' });
 
-const wrap = (children: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>{children}</MemoryRouter>
-    </QueryClientProvider>,
-  );
-
 /** The account-wide Devices tab, with the plug standing in a place the reader may do `youMay` in. */
 const drawTab = async (youMay: AccessNeed = 'own') => {
   vi.mocked(api.get).mockImplementation((path: string) => {
@@ -71,17 +59,12 @@ const drawTab = async (youMay: AccessNeed = 'own') => {
   });
   vi.mocked(api.patch).mockImplementation((_path: string, body: unknown) => Promise.resolve({ ...THE_PLUG, ...(body as object) }) as never);
 
-  wrap(<DeviceList />);
+  drawAt(<DeviceList />);
   // The account's one plug is called a plug: the tail of its id is for telling two apart.
   fireEvent.click(await screen.findByRole('button', { name: 'Details of Plug' }));
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.mocked(api.patch).mockClear();
@@ -128,7 +111,7 @@ describe('naming a device and moving it', () => {
 
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-    wrap(<DeviceList />);
+    drawAt(<DeviceList />);
     fireEvent.click(await screen.findByRole('button', { name: 'Details of East lamp' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Rename or move' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '' } });

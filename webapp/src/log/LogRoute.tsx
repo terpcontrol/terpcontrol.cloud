@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { useNavigate, useNavigationType, useSearchParams } from 'react-router';
-import { useLog, useMayLog, type TileKind } from './log-context';
+import { useMayLogIn } from '@/ui/session-access';
+import { TILE_KINDS, useLog } from './log-context';
 
 /**
  * `/log` as a link, for everything that cannot call the sheet directly: a
@@ -11,11 +12,9 @@ import { useLog, useMayLog, type TileKind } from './log-context';
  * link was followed from or, when there is no such place, to the home.
  */
 
-const TILES: TileKind[] = ['water', 'feed', 'photo', 'note', 'measurement', 'training', 'phase', 'visit'];
-
 export function LogRoute() {
   const { openSheet } = useLog();
-  const mayLog = useMayLog();
+  const mayLog = useMayLogIn();
   const navigate = useNavigate();
   const arrival = useNavigationType();
   const [search] = useSearchParams();
@@ -26,7 +25,7 @@ export function LogRoute() {
     opened.current = true;
 
     // The address is as open as any other; what may be written through it is not.
-    const kind = TILES.find(tile => tile === search.get('kind')) ?? null;
+    const kind = TILE_KINDS.find(tile => tile === search.get('kind')) ?? null;
     if (mayLog) openSheet({ growId: search.get('grow'), spaceId: search.get('space'), kind });
 
     // Followed from inside the app, the screen behind is one step back; opened

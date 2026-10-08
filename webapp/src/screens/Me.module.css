@@ -6,12 +6,6 @@
   padding-top: var(--space-2);
 }
 
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
-}
-
 /* Who is signed in: the initials on the brand's wash, as the rail and the top
    bar draw them, and the handle set as a name - it is one somebody chose. */
 .identity {

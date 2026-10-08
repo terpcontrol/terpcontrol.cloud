@@ -1,5 +1,5 @@
 import { mongo } from 'mongoose';
-import { loadDeviceFacts } from './device-facts';
+import { CAMERA_FORMATS, loadDeviceFacts } from './device-facts';
 import { LEGACY, flagOf, fromTable, instantOf, numberOf, textOf } from './legacy';
 import { LEGACY_PREFIX, MigrationContext } from './migration';
 
@@ -39,19 +39,19 @@ const GROUP_LIMIT = 200;
 const ROW_LIMIT = 500;
 
 /** One row that shares a value with another, and what tells it from the others. */
-export interface PreflightRow {
+interface PreflightRow {
   /** Its `_id`: what names it in the database somebody now has to open. */
   id: string;
   facts: string[];
 }
 
-export interface PreflightGroup {
+interface PreflightGroup {
   /** The value the rows share, as the report names it. */
   value: string;
   rows: PreflightRow[];
 }
 
-export interface PreflightProblem {
+interface PreflightProblem {
   /** What is wrong, in one line. */
   what: string;
   /** What it breaks if it is not fixed. */
@@ -61,31 +61,35 @@ export interface PreflightProblem {
   capped: boolean;
 }
 
-export interface PreflightReport {
+interface PreflightReport {
   problems: PreflightProblem[];
   /** Rows over every problem, which is how much there is to look at. */
   rows: number;
 }
 
-/** Thrown by the runner and by the CLI. Its message is the whole report, so whatever prints an error prints it. */
-export class PreflightFailure extends Error {
-  constructor(public readonly report: PreflightReport) {
-    super(formatPreflight(report));
-    this.name = 'PreflightFailure';
+/**
+ * Why a run will not start or will not go on. Its message is the whole reason,
+ * so whatever prints an error prints it.
+ */
+export class MigrationRefusal extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = new.target.name;
   }
 }
 
-/**
- * The record says every migration has already run, and the database says
- * otherwise. Its message is the whole reason, so whatever prints an error
- * prints it.
- */
-export class StaleMigrationRecord extends Error {
-  constructor(
-    public readonly collections: string[],
-    recorded: number,
-    ofSteps: number,
-  ) {
+export const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`;
+
+/** Everything the preflight found, as one report. */
+export class PreflightFailure extends MigrationRefusal {
+  constructor(report: PreflightReport) {
+    super(formatPreflight(report));
+  }
+}
+
+/** The record says every migration has already run, and the database says otherwise. */
+export class StaleMigrationRecord extends MigrationRefusal {
+  constructor(collections: string[], recorded: number, ofSteps: number) {
     const whole = recorded >= ofSteps;
     super(
       [
@@ -102,7 +106,6 @@ export class StaleMigrationRecord extends Error {
         'Drop `migrations` and `migrationLock`, then start again.',
       ].join('\n'),
     );
-    this.name = 'StaleMigrationRecord';
   }
 }
 
@@ -121,7 +124,7 @@ const OLD_SHAPE: Record<string, mongo.Filter<mongo.Document>> = {
 };
 
 /** Whether a collection standing under its own name holds what only the previous release ever wrote. */
-export const holdsWhatThePreviousReleaseWrote = async (db: mongo.Db, collection: string): Promise<boolean> =>
+const holdsWhatThePreviousReleaseWrote = async (db: mongo.Db, collection: string): Promise<boolean> =>
   (await db.collection(collection).countDocuments(fromTable(OLD_SHAPE, collection) ?? {}, { limit: 1 })) > 0;
 
 /**
@@ -160,11 +163,10 @@ export const twoGenerationsOfOldData = async (db: mongo.Db): Promise<string[]> =
  * then start again", which is right where there is one generation of the old
  * data and quietly wrong where there are two: following it here migrates the
  * migration-day copy and leaves the restore somebody has just performed
- * standing, unread, in a database that now looks migrated. Its message is the
- * whole reason, so whatever prints an error prints it.
+ * standing, unread, in a database that now looks migrated.
  */
-export class TwoGenerationsOfOldData extends Error {
-  constructor(public readonly collections: string[]) {
+export class TwoGenerationsOfOldData extends MigrationRefusal {
+  constructor(collections: string[]) {
     super(
       [
         `Refusing to start: ${collections.join(', ')} hold what the previous release wrote, and so do legacy_${collections.join(', legacy_')}.`,
@@ -181,7 +183,6 @@ export class TwoGenerationsOfOldData extends Error {
         'collection, so one of them has to go. Then drop `migrations` and `migrationLock` and start again.',
       ].join('\n'),
     );
-    this.name = 'TwoGenerationsOfOldData';
   }
 }
 
@@ -250,8 +251,6 @@ export const formatPreflight = (report: PreflightReport): string => {
   lines.push('', `${plural(report.problems.length, 'problem')}, ${plural(report.rows, 'row')} in total.`);
   return lines.join('\n');
 };
-
-const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`;
 
 interface RawRow {
   id: string;
@@ -477,9 +476,8 @@ const collidingPictures = async (context: MigrationContext): Promise<PreflightPr
     await context.source(LEGACY.images),
     { $concat: [trimmed('device_id'), ':', '$format', ':', { $ifNull: ['$duration', ''] }, ':', { $toString: '$timestamp' }] },
     { picture: '$image_id', device: '$device_id', kind: '$format', window: '$duration', at: '$timestamp', bytes: '$size' },
-    // A `user/jpeg` is a photo somebody uploaded and belongs to no camera; a
-    // picture without an instant is rejected by the transform rather than written.
-    { format: { $in: ['jpeg', 'mp4'] }, timestamp: { $gt: 0 } },
+    // A picture without an instant is rejected by the transform rather than written.
+    { format: { $in: CAMERA_FORMATS }, timestamp: { $gt: 0 } },
   );
 
   const withCamera = groups.filter(group => facts.get(named(group.rows[0].device, ''))?.cameraId != null);

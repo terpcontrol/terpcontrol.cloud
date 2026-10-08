@@ -17,7 +17,7 @@ import { logger } from '@utils/logger';
  * who is not signed in.
  */
 
-export interface AccountMail {
+interface AccountMail {
   subject: string;
   text: string;
 }

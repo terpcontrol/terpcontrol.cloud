@@ -1,4 +1,3 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRead, useReadPages } from './read';
 import type {
   Entry,
@@ -12,8 +11,6 @@ import type {
   GrowUpdate,
   GrowWeekCardPage,
   MyGrowCard,
-  Phase,
-  PhaseCreate,
   Plant,
   PlantPage,
   PlantUpdate,
@@ -22,6 +19,7 @@ import { DIARY_KINDS } from '@/ui/entries';
 import { api } from './client';
 import { growChanged } from './lifecycle';
 import { readEvery } from './pages';
+import { invalidate, useWrite } from './write';
 
 /** A plant's own page shows its lines rather than pages them: a plant of its own has few. */
 const PLANT_ENTRIES = 50;
@@ -88,21 +86,22 @@ export const useGrowReport = (growId: string) =>
   });
 
 /**
- * Changing the grow itself. The one thing the app edits here today is whether
- * the diary has a public address: the slug is fixed at creation, so turning the
- * page on and off again never moves it.
+ * Changing the grow itself: its name, its end, what it shares and how it is
+ * fed. The answer is the grow, so it is put in place rather than read again; a
+ * new scheme also changes the doses every week card states, and a new
+ * visibility the list of grows that says which are public, so those are read
+ * again with it.
  */
-export const useUpdateGrow = (growId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: GrowUpdate) => api.patch<GrowListItem>(`/grows/${growId}`, body),
-    onSuccess: grow => {
-      queryClient.setQueryData(['grow', growId], grow);
-      void queryClient.invalidateQueries({ queryKey: ['home'] });
+export const useUpdateGrow = (growId: string) =>
+  useWrite(
+    (body: GrowUpdate) => api.patch<GrowListItem>(`/grows/${growId}`, body),
+    (client, grow, body) => {
+      client.setQueryData(['grow', growId], grow);
+      void invalidate(client, ['home']);
+      if (body.scheme !== undefined) void invalidate(client, ['grow', growId, 'weeks']);
+      if (body.visibility !== undefined) void invalidate(client, ['grows']);
     },
-  });
-};
+  );
 
 /**
  * Every grow this account can see, for the sheets that ask which one: moving a
@@ -172,51 +171,40 @@ export const useGrowsEverIn = (spaceId: string | null) =>
   });
 
 /**
- * Starting a grow, and the stage it starts in.
+ * Starting a grow. The stage it starts in is a second call (`useAddPhase`),
+ * because they are two facts: a grow exists from the moment it is sown, and the
+ * day counter runs from the phase. The sheet that makes one sends them in that
+ * order and reports honestly if the second is refused - a grow with no phase
+ * yet is a grow that stands, not a grow that failed.
  *
- * They are two calls because they are two facts: a grow exists from the moment
- * it is sown, and the day counter runs from the phase. The sheet that makes one
- * sends them in that order and reports honestly if the second is refused - a
- * grow with no phase yet is a grow that stands, not a grow that failed.
- *
- * The phase carries the grow's id rather than the hook, because the id is not
- * known until the grow answers. Everything that draws a grow is read again
- * afterwards: a new grow appears on the home, in the lists the sheets pick from
- * and in the place it was put.
+ * Everything that draws a grow is read again afterwards: a new grow appears on
+ * the home, in the lists the sheets pick from and in the place it was put.
  */
-export const useCreateGrow = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: GrowCreate) => api.post<GrowListItem>('/grows', body),
-    onSuccess: grow => {
-      queryClient.setQueryData(['grow', grow.id], grow);
-      growChanged(queryClient);
+export const useCreateGrow = () =>
+  useWrite(
+    (body: GrowCreate) => api.post<GrowListItem>('/grows', body),
+    (client, grow) => {
+      client.setQueryData(['grow', grow.id], grow);
+      growChanged(client);
     },
-  });
-};
+  );
 
 /**
- * Every reading a chart is drawn from, over one range. The same read answers a
- * harder question the measurements screen has to ask before it offers to
- * delete a definition: whether anything has ever been written under its key.
+ * The grow's own measurements over one range, and no climate. The same read
+ * answers a harder question the measurements screen has to ask before it offers
+ * to delete a definition: whether anything has ever been written under its key.
  *
  * Which keys are wanted is said in the request, because a series asked for and
- * thrown away is a read of the store nobody looks at. They repeat as
- * `measurements=` once per definition, which the shared client cannot spell -
- * it writes each parameter once - so this query is built here and travels in
- * the path.
+ * thrown away is a read of the store nobody looks at. It is kept apart from the
+ * Charts view's series, whose last answer stands in for a failed read and has to
+ * be one that asked for the climate.
  */
-export const useGrowSeries = (growId: string | null, range: GrowSeriesRange, measurements: string[]) => {
+export const useMeasurementSeries = (growId: string | null, range: GrowSeriesRange, measurements: string[]) => {
   const keys = [...measurements].sort();
 
   return useRead({
-    queryKey: ['grow', growId, 'series', range, keys],
-    queryFn: ({ signal }) => {
-      const query = new URLSearchParams([['range', range], ...keys.map((key): [string, string] => ['measurements', key])]);
-
-      return api.get<GrowSeries>(`/grows/${growId}/series?${query.toString()}`, undefined, signal);
-    },
+    queryKey: ['grow', growId, 'measurement-series', range, keys],
+    queryFn: ({ signal }) => api.get<GrowSeries>(`/grows/${growId}/series`, { range, measurements: keys }, signal),
     enabled: growId !== null && keys.length > 0,
   });
 };
@@ -238,23 +226,8 @@ export const usePlantEntries = (plantId: string) =>
  * write: a label typed in a hurry while the pots were being filled is corrected
  * weeks later, when the tag on the pot has been read again.
  */
-export const useUpdatePlant = (growId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ plantId, body }: { plantId: string; body: PlantUpdate }) => api.patch<Plant>(`/plants/${plantId}`, body),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['grow', growId, 'plants'] });
-      void queryClient.invalidateQueries({ queryKey: ['home'] });
-    },
-  });
-};
-
-export const useStartingPhase = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ growId, body }: { growId: string; body: PhaseCreate }) => api.post<Phase>(`/grows/${growId}/phases`, body),
-    onSuccess: () => growChanged(queryClient),
-  });
-};
+export const useUpdatePlant = (growId: string) =>
+  useWrite(
+    ({ plantId, body }: { plantId: string; body: PlantUpdate }) => api.patch<Plant>(`/plants/${plantId}`, body),
+    client => void invalidate(client, ['grow', growId, 'plants'], ['home']),
+  );

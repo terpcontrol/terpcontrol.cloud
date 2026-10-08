@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceFirmware, FirmwareChannel } from '@fg2/shared-types/v1';
+import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas/firmware-channels.js';
 import { useDeviceFirmwares, useDevices, useUpdateDevice } from '@/api/devices';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { Refused } from '@/ui/PageState';
-import { Choice, Choices } from '@/ui/SheetParts';
+import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
-import { deviceTitle } from '../naming';
+import { buildLabel, deviceTitle } from '@/ui/naming';
 import sheet from '../Maintenance.module.css';
 import { useChannel } from '../update-channel';
 import styles from './DeviceAdvanced.module.css';
@@ -25,7 +26,7 @@ import styles from './DeviceAdvanced.module.css';
  * build it has until a version is installed below, which asks first because the
  * device restarts with it.
  */
-const CHANNELS: readonly FirmwareChannel[] = ['stable', 'beta', 'alpha', 'manual'];
+const CHANNELS: readonly FirmwareChannel[] = [...RELEASE_CHANNELS, 'manual'];
 
 function UpdateChannel({ device, mayManage, isAdmin }: DeviceContext) {
   const { t } = useTranslation();
@@ -124,26 +125,16 @@ function PinSheet({ device, build, onClose }: { device: Device; build: DeviceFir
       title={t('firmwarePin.title', { name })}
       onClose={onClose}
       actions={
-        pin.isSuccess ? (
-          <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-            {t('maintenance.done')}
+        <SheetAnswer done={pin.isSuccess} error={pin.error} onClose={onClose}>
+          <button
+            type="button"
+            className={`${ui.button} ${ui.primary}`}
+            disabled={pin.isPending}
+            onClick={() => pin.mutate({ firmware: { channel: 'manual', targetId: build.id } })}
+          >
+            {t('firmwarePin.yes')}
           </button>
-        ) : (
-          <>
-            <Refused error={pin.error} />
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              disabled={pin.isPending}
-              onClick={() => pin.mutate({ firmware: { channel: 'manual', targetId: build.id } })}
-            >
-              {t('firmwarePin.yes')}
-            </button>
-            <button type="button" className={ui.button} onClick={onClose}>
-              {t('maintenance.cancel')}
-            </button>
-          </>
-        )
+        </SheetAnswer>
       }
     >
       <div className={sheet.body} role={pin.isSuccess ? 'status' : undefined}>
@@ -161,7 +152,7 @@ function PinSheet({ device, build, onClose }: { device: Device; build: DeviceFir
 }
 
 /** A build by what its container stamped it with, which is the one thing that tells two builds of one class apart. */
-const buildName = (build: DeviceFirmware): string => build.version || build.name || build.id.slice(0, 8);
+const buildName = (build: DeviceFirmware): string => buildLabel(build) ?? build.id.slice(0, 8);
 
 export const items = [
   advancedItem({

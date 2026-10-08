@@ -44,13 +44,12 @@ import {
   splitCreate,
   splitResult,
 } from '@fg2/shared-types/v1-schemas';
-import { AuthGuard } from '@common/auth/auth.guard';
+import { AuthGuard, OptionalSessionGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { V1Query, inOrder, instantQuery, pageQuery } from '@common/v1/validation';
+import { V1Query, inOrder, instantQuery, pageQuery, repeated } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
-import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { V1Answer } from '../answer-shape';
 import { GrowSeriesService } from './grow-series.service';
 import { GrowsService } from './grows.service';
@@ -80,9 +79,6 @@ const growListQuery = pageQuery.extend({
     ),
 });
 
-/** A repeated query parameter arrives as one value or as many; the shape below wants a list either way. */
-const many = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]);
-
 /**
  * What the Charts view asks for. Which lines it wants it names, one parameter
  * per kind, because a client draws what was ticked and a series asked for and
@@ -93,19 +89,9 @@ const many = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]
 const growSeriesQuery = inOrder(
   z.object({
     range: growSeriesRange,
-    metrics: z
-      .union([metric, z.array(metric)])
-      .transform(many)
-      .optional(),
-    outputs: z
-      .union([outputMetric, z.array(outputMetric)])
-      .transform(many)
-      .optional(),
-    measurements: z
-      .union([z.string(), z.array(z.string())])
-      .transform(many)
-      .optional()
-      .describe("Keys of the grow's own `measurements[]`."),
+    metrics: repeated(metric).optional(),
+    outputs: repeated(outputMetric).optional(),
+    measurements: repeated(z.string()).optional().describe("Keys of the grow's own `measurements[]`."),
     from: instantQuery().optional().describe('The start of a `custom` range.'),
     to: instantQuery().optional().describe('The end of a `custom` range, and the instant a rolling one counts back from.'),
     stepSeconds: z.coerce

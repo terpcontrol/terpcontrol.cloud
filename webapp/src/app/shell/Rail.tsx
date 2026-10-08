@@ -6,9 +6,12 @@ import { useSession } from '@/api/session';
 import { useBell } from './bell';
 import { useLog } from '@/log/log-context';
 import { useOpeningUnderneath } from '@/log/underneath';
+import { ageLabel } from '@/ui/age';
+import { useFreshness } from '@/ui/freshness';
 import { Logo } from '@/ui/Logo';
-import { initials, useIsOn, useTabs } from './tabs';
-import { Freshness } from './TopBar';
+import { useNow } from '@/ui/useNow';
+import { initials } from '@/ui/handle';
+import { useIsOn, useTabs } from './tabs';
 import styles from './Rail.module.css';
 
 const LOG_KEY = 'l';
@@ -20,6 +23,18 @@ const ADMIN_LINKS = [
   { path: '/admin/users', labelKey: 'admin.users.title' },
   { path: '/admin/demo', labelKey: 'admin.demo.title' },
 ] as const;
+
+/** "updated 20 s ago", or nothing while the screen has nothing that ages. */
+function Freshness() {
+  const { t } = useTranslation();
+  const at = useFreshness();
+  const now = useNow();
+  return (
+    <div className={`mono ${styles.freshness}`} aria-live="off">
+      {at ? t('shell.updated', { age: ageLabel(at, now) }) : ''}
+    </div>
+  );
+}
 
 const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));

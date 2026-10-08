@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 /**
  * Putting an address on the clipboard, wherever it can be put.
  *
@@ -7,7 +9,7 @@
  * second attempt, and a caller is told which of the two happened so that a
  * button can say "copied" only when something was.
  */
-export const copyText = async (text: string): Promise<boolean> => {
+const copyText = async (text: string): Promise<boolean> => {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
@@ -31,6 +33,23 @@ export const copyText = async (text: string): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+/**
+ * A copy and what came of it, for the button that says so: 'copied' or
+ * 'failed' after a copy, and back to 'idle' on its own a moment later, so the
+ * next tap is not told about the last one.
+ */
+export const useCopied = (): ['idle' | 'copied' | 'failed', (text: string) => Promise<void>] => {
+  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
+
+  useEffect(() => {
+    if (state === 'idle') return;
+    const timer = setTimeout(() => setState('idle'), 2500);
+    return () => clearTimeout(timer);
+  }, [state]);
+
+  return [state, async text => setState((await copyText(text)) ? 'copied' : 'failed')];
 };
 
 /**

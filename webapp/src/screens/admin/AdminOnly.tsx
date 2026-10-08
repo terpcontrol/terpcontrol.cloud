@@ -27,7 +27,7 @@ export function AdminOnly({ children }: { children: ReactNode }) {
   if (!user?.isAdmin) {
     return (
       <section className={styles.refusal}>
-        <h1 className={styles.title}>{t('admin.refused.title')}</h1>
+        <h1>{t('admin.refused.title')}</h1>
         <p className={ui.note}>{t('admin.refused.line')}</p>
         <Link className={ui.button} to="/">
           {t('admin.refused.home')}
@@ -39,7 +39,7 @@ export function AdminOnly({ children }: { children: ReactNode }) {
   if (!wide) {
     return (
       <section className={styles.refusal}>
-        <h1 className={styles.title}>{t('admin.narrow.title')}</h1>
+        <h1>{t('admin.narrow.title')}</h1>
         {/* The width is the one the gate checks, so the sentence cannot drift from it. */}
         <p className={ui.note}>{t('admin.narrow.line', { width: ADMIN_MIN_WIDTH })}</p>
         <Link className={ui.button} to="/">

@@ -156,3 +156,6 @@ export const startSimulator = (credentials: DeviceCredentials): Promise<DeviceSi
  * subscription is live; a short settle keeps the first publish from racing it.
  */
 export const settle = (ms = 300): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+/** The UTC time of day of an instant, in the seconds a device keeps its schedule in. */
+export const utcSecondsOf = (at: number): number => Math.floor(at / 1000) % 86_400;

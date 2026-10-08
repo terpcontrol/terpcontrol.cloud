@@ -57,7 +57,7 @@ const subscribe = (listener: () => void) => {
   return () => listeners.delete(listener);
 };
 
-export interface Install {
+interface Install {
   /** Installed, or opened from the home screen. */
   standalone: boolean;
   ios: boolean;

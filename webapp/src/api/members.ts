@@ -1,8 +1,9 @@
-import { type QueryKey, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { QueryKey } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { Membership, MembershipCreate, MembershipPage, MembershipUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { invitesKey } from './invites';
+import { invalidate, useWrite } from './write';
 
 /**
  * Who is in a tent besides its owner.
@@ -17,7 +18,7 @@ import { invitesKey } from './invites';
  * end must not be quietly moved in the cache as though it had not been.
  */
 
-export const membersKey = (spaceId: string) => ['space', spaceId, 'members'];
+const membersKey = (spaceId: string) => ['space', spaceId, 'members'];
 
 export const useMembers = (spaceId: string, enabled = true) =>
   useRead({
@@ -31,18 +32,8 @@ export const useMembers = (spaceId: string, enabled = true) =>
  * home and out of the space list - so a write here invalidates those too rather
  * than leaving a tent on the screen that the next tap cannot open.
  */
-const useMembersMutation = <T, V>(spaceId: string, mutationFn: (variables: V) => Promise<T>, also: QueryKey[] = []) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn,
-    onSuccess: async () => {
-      for (const key of [membersKey(spaceId), ['spaces'], ['home'], ...also]) {
-        await queryClient.invalidateQueries({ queryKey: key });
-      }
-    },
-  });
-};
+const useMembersMutation = <T, V>(spaceId: string, mutationFn: (variables: V) => Promise<T>, also: QueryKey[] = []) =>
+  useWrite(mutationFn, client => invalidate(client, membersKey(spaceId), ['spaces'], ['home'], ...also));
 
 export const useAddMember = (spaceId: string) =>
   useMembersMutation(spaceId, (body: MembershipCreate) => api.post<Membership>(`/spaces/${spaceId}/members`, body));

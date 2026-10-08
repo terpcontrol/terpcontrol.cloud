@@ -8,8 +8,8 @@ import type {
   SocketPage,
   Space,
 } from '@fg2/shared-types/v1';
-import { channelsLabel } from '@/screens/control/alarms/rules';
-import { alarmsReach, reachedBy } from '@/screens/notifications/reach';
+import type { Translate } from '@/i18n/i18n';
+import { alarmsReach, channelsLabel, reachedBy } from '@/screens/notifications/reach';
 
 /**
  * What each step of the claim flow has settled, and the one line it says once
@@ -41,8 +41,6 @@ export const presetBodyOf = (stage: GrowthStage, doing: Doing): PresetApplicatio
     : { stage };
 
 export const NOTHING_DOING: Doing = { chosen: null, applied: null };
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What to call the place a claim has just made.
@@ -91,13 +89,6 @@ export const doingSummary = ({ chosen, applied }: Doing, onServer: GrowthStage |
 };
 
 /** What the device reported, rather than anything that was set up in the step. */
-/**
- * Whether the device pairs smart sockets of its own: a fridge module and a
- * controller do. An AIR fan and a Smart Socket pair a Terp Cam but no sockets,
- * and a LIGHT pairs neither.
- */
-export const pairsSockets = (device: Pick<Device, 'type'>): boolean => device.type === 'fridge' || device.type === 'controller';
-
 export const hardwareSummary = (device: Device | null, sockets: SocketPage | undefined, t: Translate, camOnly = false): string =>
   camOnly
     ? t('claim.code.camera', { name: cameraName(device, t) })
@@ -109,14 +100,6 @@ export const notifySummary = (me: Me | undefined, t: Translate): string | null =
 
   return alarmsReach(me) ? t('claim.notify.reaches', { channels: channelsLabel(t, reachedBy(me)) }) : t('claim.notify.none');
 };
-
-/**
- * What to call the device. A claim names it after its type where nobody has
- * named it yet, and a type is a key rather than a word, so the list of types is
- * what turns it into one.
- */
-export const deviceName = (device: Device, t: Translate): string =>
-  device.name && device.name !== device.type ? device.name : t(`devices.type.${device.type}`, { defaultValue: device.type });
 
 /** The tail of the paired camera's id, which is as much of it as anybody reads off a screen. */
 export const cameraName = (device: Device | null, t: Translate): string => {

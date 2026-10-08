@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Refused } from '@/ui/PageState';
-import ui from '@/ui/ui.module.css';
+import { Switch } from '@/ui/Switch';
 import { useChannel } from './update-channel';
 
 /**
@@ -23,17 +23,7 @@ export function AutoUpdate({ device }: { device: Device }) {
   return (
     <>
       <SettingRow label={t('autoUpdate.label')} help="firmwareChannel" note={t(`autoUpdate.note.${channel}`)} alone>
-        <button
-          type="button"
-          className={ui.switch}
-          role="switch"
-          aria-checked={on}
-          aria-label={t('autoUpdate.label')}
-          disabled={update.isPending}
-          onClick={() => update.set(on ? 'manual' : 'stable')}
-        >
-          <span className={ui.knob} aria-hidden />
-        </button>
+        <Switch label={t('autoUpdate.label')} on={on} disabled={update.isPending} onChange={next => update.set(next ? 'stable' : 'manual')} />
       </SettingRow>
       <Refused error={update.error} />
     </>

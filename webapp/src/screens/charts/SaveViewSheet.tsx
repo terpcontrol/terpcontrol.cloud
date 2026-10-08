@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ChartView, ChartViewDefinition } from '@fg2/shared-types/v1';
 import { useDeleteChartView, useRenameChartView, useSaveChartView } from '@/api/chart-views';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { Block } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -85,7 +85,7 @@ export function SaveViewSheet({ view, definition, onSaved, onClose }: SaveViewSh
                 <div className={styles.askingRow}>
                   <button
                     type="button"
-                    className={`${ui.button} ${styles.danger}`}
+                    className={`${ui.button} ${ui.dangerInk}`}
                     disabled={busy}
                     onClick={() => remove.mutate(undefined, { onSuccess: () => onSaved(null) })}
                   >
@@ -97,7 +97,7 @@ export function SaveViewSheet({ view, definition, onSaved, onClose }: SaveViewSh
                 </div>
               </>
             ) : (
-              <button type="button" className={`${ui.button} ${styles.danger}`} disabled={busy} onClick={() => setAsking(true)}>
+              <button type="button" className={`${ui.button} ${ui.dangerInk}`} disabled={busy} onClick={() => setAsking(true)}>
                 {t('charts.views.delete')}
               </button>
             )}

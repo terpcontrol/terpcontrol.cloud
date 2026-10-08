@@ -6,22 +6,23 @@ import { useDevices, useHeardAt } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
+import { Asking } from '@/ui/Asking';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { serverNow } from '@/api/clock';
 import { useNow } from '@/ui/useNow';
+import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
-import { deviceTitle } from '../devices/naming';
-import { PlanEditor } from './PlanEditor';
+import { deviceName, deviceTitle } from '@/ui/naming';
+import { DurationField, PlanEditor } from './PlanEditor';
 import { KeepAsTemplateSheet, StartFromTemplateSheet } from './PlanTemplates';
 import { PlanRefusal } from './Refusal';
 import {
   activeStep,
   countdownLabel,
-  DURATION_UNITS,
   elapsedMs,
+  isGoing,
   isOpenEnded,
   isWaiting,
   leftMs,
@@ -35,10 +36,8 @@ import {
 } from './plan-clock';
 import { draftOf, emptyDraft, type PlanDraft } from './plan-edit';
 import { offersReadyPlans } from './ready-plans';
-import { durationLabel, followsGermination, stepMeta } from './plan-labels';
-import { offsetOf } from './targets/targets-draft';
+import { followsGermination, stepLengthLabel, stepMeta } from './plan-labels';
 import styles from './Control.module.css';
-import { deviceName } from '@/screens/devices/naming';
 
 /**
  * What one controller is being run by, and the five moves that can be made to
@@ -60,8 +59,7 @@ import { deviceName } from '@/screens/devices/naming';
  * the settings it has never sent, and a step written for it would not be a
  * climate added to its tuning but a document put in place of it, with the work
  * mode, the light schedule, the dehumidifier's timings and the ramps back at
- * factory values. This panel used to ask a weaker question than the targets page
- * and offered that tent all six figures without a word.
+ * factory values.
  *
  * A plan that is already on either kind of device is still drawn in full,
  * because a plan nobody can see is a plan nobody can stop - and emptying a
@@ -79,13 +77,29 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   const [editing, setEditing] = useState<PlanDraft | null>(null);
   const [keeping, setKeeping] = useState(false);
   const [picking, setPicking] = useState(false);
-  // Starting from a template is offered only where there is one to start
-  // from: the button used to open a sheet that said there were none.
+  // Starting from a template is offered only where there is one to start from.
   const templates = usePlanTemplates();
   const ready = offersReadyPlans(device);
   const anyTemplate = templates.data?.items.length !== 0 || ready;
 
   const name = deviceName(device, t);
+  const sheets = (
+    <>
+      {editing ? <PlanEditor device={device} plan={plan.data ?? null} draft={editing} onClose={() => setEditing(null)} /> : null}
+      {keeping && plan.data ? <KeepAsTemplateSheet plan={plan.data} onClose={() => setKeeping(false)} /> : null}
+      {picking ? (
+        <StartFromTemplateSheet
+          device={device}
+          notify={plan.data?.notify ?? DEFAULT_NOTIFY}
+          onClose={() => setPicking(false)}
+          onChosen={draft => {
+            setPicking(false);
+            setEditing(draft);
+          }}
+        />
+      ) : null}
+    </>
+  );
   // The page is headed "Grow plan", so the panel is headed by whose plan it is.
   // What a plan is, is said by the sentence under the title while there is
   // none, and by the (i) beside it once there is one to read.
@@ -149,18 +163,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
           <LoadFailed retry={() => void plan.refetch()} />
         )}
 
-        {editing ? <PlanEditor device={device} plan={null} draft={editing} onClose={() => setEditing(null)} /> : null}
-        {picking ? (
-          <StartFromTemplateSheet
-            device={device}
-            notify={DEFAULT_NOTIFY}
-            onClose={() => setPicking(false)}
-            onChosen={draft => {
-              setPicking(false);
-              setEditing(draft);
-            }}
-          />
-        ) : null}
+        {sheets}
       </section>
     );
   }
@@ -206,19 +209,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
         </div>
       ) : null}
 
-      {editing ? <PlanEditor device={device} plan={plan.data} draft={editing} onClose={() => setEditing(null)} /> : null}
-      {keeping ? <KeepAsTemplateSheet plan={plan.data} onClose={() => setKeeping(false)} /> : null}
-      {picking ? (
-        <StartFromTemplateSheet
-          device={device}
-          notify={plan.data.notify}
-          onClose={() => setPicking(false)}
-          onChosen={draft => {
-            setPicking(false);
-            setEditing(draft);
-          }}
-        />
-      ) : null}
+      {sheets}
     </section>
   );
 }
@@ -254,7 +245,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
   // A plan at rest has no clock, so it is not given one: the step it stands at
   // is where starting it would begin, and a bar filling up beside a tent that
   // is being run by nothing would be the screen inventing a state.
-  const going = plan.state.status === 'running' || plan.state.status === 'paused';
+  const going = isGoing(plan.state);
   // A plan that has run every step stands at none of them. The server puts it
   // back at the first, which is where starting it again begins, and the note
   // below says so; a step line would say it is standing there.
@@ -314,7 +305,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
       ) : null}
 
       <p className={ui.note}>
-        {plan.state.status !== 'running' && plan.state.status !== 'paused'
+        {!going
           ? t(plan.state.status === 'completed' ? 'space.control.next.completed' : 'space.control.next.atRest')
           : next === null
             ? t('space.control.next.ends')
@@ -331,10 +322,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           no `lastAppliedAt` means the step is owed rather than lost: the engine
           clears it to start a plan, and clears it again on every edit purely so
           that the step is re-sent within the tick instead of at the next hour -
-          which the editor has just promised in so many words. Read as "never
-          sent", that line called the editor a liar seconds after it spoke, on a
-          step whose settings were sitting in the controller's document the
-          whole time.
+          which the editor has just promised in so many words.
 
           A plan at rest is the other branch, and nothing recorded tells its two
           cases apart: a plan that ran and was stopped and a plan saved a moment
@@ -401,19 +389,14 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
           </button>
         ) : null}
         {can.stop ? (
-          <button
-            type="button"
-            className={`${ui.button} ${styles.danger}`}
-            disabled={busy}
-            onClick={() => setAsking(asking === 'stop' ? null : 'stop')}
-          >
+          <button type="button" className={`${ui.button} ${ui.danger}`} disabled={busy} onClick={() => setAsking(asking === 'stop' ? null : 'stop')}>
             {t('space.control.move.stop')}
           </button>
         ) : null}
         {can.remove ? (
           <button
             type="button"
-            className={`${ui.button} ${styles.danger}`}
+            className={`${ui.button} ${ui.danger}`}
             disabled={busy}
             onClick={() => setAsking(asking === 'remove' ? null : 'remove')}
           >
@@ -431,103 +414,54 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
       ) : null}
 
       {asking === 'extend' ? (
-        <div className={styles.asking}>
-          <p className={ui.note}>{t('space.control.ask.extend')}</p>
-          <div className={styles.duration}>
-            <input
-              className={`${ui.input} ${styles.number}`}
-              type="number"
-              min={1}
-              value={by.value}
-              aria-label={t('space.control.step.durationValue')}
-              onChange={event => setBy({ ...by, value: Math.max(1, Number(event.target.value) || 1) })}
-            />
-            <Choices label={t('space.control.step.durationUnit')}>
-              {DURATION_UNITS.map(unit => (
-                <Choice key={unit} chosen={by.unit === unit} onChoose={() => setBy({ ...by, unit })}>
-                  {t(`space.control.unitName.${unit}`)}
-                </Choice>
-              ))}
-            </Choices>
-          </div>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              disabled={busy}
-              onClick={() => move.mutate({ kind: 'extend', by }, { onSuccess: close })}
-            >
-              {t('space.control.ask.extendYes', { length: durationLabel(t, by) })}
-            </button>
-            <button type="button" className={ui.button} onClick={close}>
-              {t('grow.lifecycle.cancel')}
-            </button>
-          </div>
-        </div>
+        <Asking
+          note={t('space.control.ask.extend')}
+          yes={t('space.control.ask.extendYes', { length: stepLengthLabel(t, by) })}
+          busy={busy}
+          onYes={() => move.mutate({ kind: 'extend', by }, { onSuccess: close })}
+          onCancel={close}
+        >
+          <DurationField value={by} min={1} onChange={setBy} />
+        </Asking>
       ) : null}
 
       {asking === 'skip' ? (
-        <div className={styles.asking}>
-          <p className={ui.note}>
-            {next === null
+        <Asking
+          note={
+            next === null
               ? t('space.control.ask.skipEnds')
               : t(plan.state.status === 'paused' ? 'space.control.ask.skipPaused' : 'space.control.ask.skip', {
                   number: next + 1,
                   name: plan.steps[next]?.name ?? '',
-                })}
-          </p>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              disabled={busy}
-              onClick={() => move.mutate({ kind: 'skip' }, { onSuccess: close })}
-            >
-              {t('space.control.ask.skipYes')}
-            </button>
-            <button type="button" className={ui.button} onClick={close}>
-              {t('grow.lifecycle.cancel')}
-            </button>
-          </div>
-        </div>
+                })
+          }
+          yes={t('space.control.ask.skipYes')}
+          busy={busy}
+          onYes={() => move.mutate({ kind: 'skip' }, { onSuccess: close })}
+          onCancel={close}
+        />
       ) : null}
 
       {asking === 'stop' ? (
-        <div className={styles.asking}>
-          <p className={ui.note}>{t('space.control.ask.stop')}</p>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${styles.dangerButton}`}
-              disabled={busy}
-              onClick={() => stop.mutate(undefined, { onSuccess: close })}
-            >
-              {t('space.control.ask.stopYes')}
-            </button>
-            <button type="button" className={ui.button} onClick={close}>
-              {t('grow.lifecycle.cancel')}
-            </button>
-          </div>
-        </div>
+        <Asking
+          note={t('space.control.ask.stop')}
+          yes={t('space.control.ask.stopYes')}
+          danger
+          busy={busy}
+          onYes={() => stop.mutate(undefined, { onSuccess: close })}
+          onCancel={close}
+        />
       ) : null}
 
       {asking === 'remove' ? (
-        <div className={styles.asking}>
-          <p className={ui.note}>{t('space.control.ask.remove')}</p>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${styles.dangerButton}`}
-              disabled={busy}
-              onClick={() => remove.mutate(undefined, { onSuccess: close })}
-            >
-              {t('space.control.ask.removeYes')}
-            </button>
-            <button type="button" className={ui.button} onClick={close}>
-              {t('grow.lifecycle.cancel')}
-            </button>
-          </div>
-        </div>
+        <Asking
+          note={t('space.control.ask.remove')}
+          yes={t('space.control.ask.removeYes')}
+          danger
+          busy={busy}
+          onYes={() => remove.mutate(undefined, { onSuccess: close })}
+          onCancel={close}
+        />
       ) : null}
 
       <PlanRefusal error={move.error ?? stop.error ?? remove.error} onRefresh={onRefresh} />
@@ -540,7 +474,7 @@ function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
   const { t } = useTranslation();
   const zone = useZone();
   const offset = offsetOf(serverNow(), zone);
-  const running = plan.state.status === 'running' || plan.state.status === 'paused';
+  const running = isGoing(plan.state);
 
   if (plan.steps.length === 0) return null;
 

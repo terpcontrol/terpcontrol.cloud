@@ -1,15 +1,12 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { screen } from '@testing-library/react';
+import { Route, Routes, useLocation } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DevicePage } from '@fg2/shared-types/v1';
 import { OldDevice } from '@/app/OldAddresses';
 import { screens } from '@/app/routes';
+import { deviceWith } from './fixtures';
+import { drawAt, json } from './harness';
+import { translate } from './translations';
 
 /**
  * A bookmark of the old app's device pages, followed by somebody signed in:
@@ -21,55 +18,18 @@ vi.mock('@/api/session', async importOriginal => {
   return { ...(await importOriginal<object>()), useSession: () => SIGNED_IN };
 });
 
-const fridge = (over: Partial<Device> = {}): Device => ({
-  id: 'sim-fridge-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  type: 'fridge',
-  classId: 'class-fridge',
-  serialNumber: 7,
-  ownerId: 'user-1',
-  spaceId: 'space-9',
-  name: null,
-  firmware: { channel: 'stable', targetId: null },
-  configuration: null,
-  settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
-  state: {
-    lastSeenAt: '2026-01-01T00:00:00.000Z',
-    claimedAt: '2026-01-01T00:00:00.000Z',
-    firmwareId: null,
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
-    hardware: {},
-    socketStateChangedAt: {},
-    socketsReportedAt: null,
-  },
-  ...over,
-});
+const fridge = (over: Partial<Device> = {}): Device =>
+  deviceWith({ id: 'sim-fridge-1', type: 'fridge', classId: 'class-fridge', serialNumber: 7, spaceId: 'space-9', ...over });
 
 const devices = { items: [fridge()] };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   devices.items = [fridge()];
   vi.stubGlobal(
     'fetch',
-    vi.fn(
-      async () =>
-        new Response(JSON.stringify({ items: devices.items, nextCursor: null } satisfies DevicePage), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-    ),
+    vi.fn(async () => json({ items: devices.items, nextCursor: null } satisfies DevicePage)),
   );
 });
 
@@ -79,15 +39,12 @@ function Landed() {
 }
 
 const draw = (at: string) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <Routes>
-          <Route path="/device/:deviceId/:page?" element={<OldDevice />} />
-          <Route path="*" element={<Landed />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <Routes>
+      <Route path="/device/:deviceId/:page?" element={<OldDevice />} />
+      <Route path="*" element={<Landed />} />
+    </Routes>,
+    { at },
   );
 
 describe('an old device page', () => {

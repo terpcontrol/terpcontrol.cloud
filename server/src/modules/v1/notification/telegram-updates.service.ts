@@ -9,6 +9,7 @@ import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { logger } from '@utils/logger';
+import { reminderIdOf } from '../diary/task-ids';
 import { NotificationLogService } from './notification-log.service';
 import { TelegramBotService } from './telegram-bot.service';
 
@@ -136,8 +137,7 @@ export class TelegramUpdatesService {
     }
 
     if (subject.type === 'task') {
-      const reminderId = subject.id.split(':')[0];
-      const reminder = await this.reminders.findOne({ id: reminderId }).lean<ReminderDocument>();
+      const reminder = await this.reminders.findOne({ id: reminderIdOf(subject.id) }).lean<ReminderDocument>();
       if (!reminder) return null;
 
       const where = subjectRef(reminder.subject.type, reminder.subject.id);

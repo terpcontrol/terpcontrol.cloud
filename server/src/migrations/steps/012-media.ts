@@ -1,6 +1,5 @@
-import { mongo } from 'mongoose';
 import { IMAGE_BUCKET_NAME } from '@database/image-store';
-import { LEGACY, LegacyDeviceLog, LegacyImage, createdAtOf, fromTable, instantOf, numberOf, textOf } from '../legacy';
+import { LEGACY, LegacyDeviceLog, LegacyImage, bytesOf, createdAtOf, fromTable, instantOf, numberOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 import { loadDeviceFacts } from '../device-facts';
 import { growAt, reconstructGrows } from '../grow-cycles';
@@ -69,8 +68,15 @@ export const media: MigrationStep = {
         continue;
       }
 
+      // A payload still in the picture's own document counts as well. By the time
+      // this runs the first migration has moved those bytes into the bucket - but
+      // a dry run writes nothing, and without it the rehearsal would report every
+      // such picture as one with no bytes anywhere, which the real run does not.
       const bytes =
-        numberOf(image.size) ?? numberOf((await files.findOne({ _id: id as never }, { projection: { length: 1 } }))?.length) ?? inlineBytes(image);
+        numberOf(image.size) ??
+        numberOf((await files.findOne({ _id: id as never }, { projection: { length: 1 } }))?.length) ??
+        bytesOf(image.data)?.length ??
+        null;
       if (bytes === null) {
         context.reject({ source: LEGACY.images, id, reason: 'no bytes are stored for this picture', dropped: true, detail: deviceId });
         continue;
@@ -102,20 +108,6 @@ export const media: MigrationStep = {
       });
     }
   },
-};
-
-/**
- * The length of a payload that is still in the picture's own document.
- *
- * By the time this migration runs, the first one has moved those bytes into the
- * bucket and recorded their length - but a dry run writes nothing at all, so
- * without this the rehearsal reports every such picture as one with no bytes
- * anywhere, which is a reject an operator cannot act on and which the real run
- * does not produce.
- */
-const inlineBytes = (image: LegacyImage): number | null => {
-  if (Buffer.isBuffer(image.data)) return image.data.length;
-  return image.data instanceof mongo.Binary ? image.data.length() : null;
 };
 
 /** Which diary entry carries which picture, so a photo can reach the grow it was logged in. */

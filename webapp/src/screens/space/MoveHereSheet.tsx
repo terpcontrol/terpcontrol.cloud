@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import { useMoveGrowHere } from '@/api/lifecycle';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
@@ -12,7 +12,7 @@ import { Block, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { GrowPicker } from './GrowPicker';
 import { useMovableGrows } from './movable-grows';
-import styles from './PresetSheet.module.css';
+import styles from './MoveHereSheet.module.css';
 
 /**
  * A grow moved in here, asked from the tent's side.
@@ -41,7 +41,7 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
 
   return (
     <Sheet title={t('space.moveHereTitle', { name: spaceName })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <Block label={t('space.presets.whichGrow')}>
           {movable.pending ? (
             <p className={ui.note}>{t('home.waiting')}</p>

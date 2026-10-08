@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify } from '@fg2/shared-types/v1';
 import { usePlanTemplates, useSavePlanTemplate } from '@/api/plans';
 import { useSession } from '@/api/session';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Waiting } from '@/ui/PageState';
 import { Block } from '@/ui/SheetParts';
+import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { draftFromTemplate, type PlanDraft } from './plan-edit';
 import { offersReadyPlans, READY_PLANS, readyDraft, weeksOf } from './ready-plans';
@@ -32,7 +33,7 @@ export function KeepAsTemplateSheet({ plan, onClose }: { plan: Plan; onClose: ()
 
   return (
     <Sheet title={t('space.control.template.keepTitle')} onClose={onClose}>
-      <div className={styles.editor}>
+      <div className={ui.sheetBody}>
         <Block label={t('space.control.template.name')}>
           <input
             className={ui.input}
@@ -44,22 +45,7 @@ export function KeepAsTemplateSheet({ plan, onClose }: { plan: Plan; onClose: ()
           <p className={ui.note}>{t('space.control.template.keepNote', { count: plan.steps.length })}</p>
         </Block>
 
-        <div className={styles.toggle}>
-          <span className={styles.toggleText}>
-            <span className={styles.toggleLabel}>{t('space.control.template.publish')}</span>
-            <span className={ui.note}>{t('space.control.template.publishNote')}</span>
-          </span>
-          <button
-            type="button"
-            className={ui.switch}
-            role="switch"
-            aria-checked={isPublic}
-            aria-label={t('space.control.template.publish')}
-            onClick={() => setPublic(!isPublic)}
-          >
-            <span className={ui.knob} aria-hidden />
-          </button>
-        </div>
+        <SwitchRow label={t('space.control.template.publish')} note={t('space.control.template.publishNote')} on={isPublic} onChange={setPublic} />
 
         <PlanRefusal error={keep.error} />
 
@@ -106,7 +92,7 @@ export function StartFromTemplateSheet({
 
   return (
     <Sheet title={t('space.control.template.startTitle')} onClose={onClose}>
-      <div className={styles.editor}>
+      <div className={ui.sheetBody}>
         <p className={ui.note}>{t('space.control.template.startNote')}</p>
 
         {ready ? (

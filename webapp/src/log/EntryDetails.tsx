@@ -18,23 +18,25 @@ import { useDevices } from '@/api/devices';
 import { correctEntry, diaryChanged, startPhase, takeEntryBack, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow } from '@/api/grows';
 import { useHome } from '@/api/home';
-import { deviceTitle } from '@/screens/devices/naming';
+import type { Translate } from '@/i18n/i18n';
+import { deviceTitle } from '@/ui/naming';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { ClimatePick } from '@/screens/grow/ClimatePick';
 import { assetTitle } from '@/screens/grow/scheme';
 import { climateRequest, defaultPick, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
 import { dayOf, momentOn } from '@/ui/days';
-import { readingFigure } from '@/ui/entries';
-import { parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
+import { looseFigure, typedFigure } from '@/ui/figures';
+import { maintenanceSpans, parksLine, VISIT_MINUTES } from '@/ui/maintenance';
 import { useMayManage } from '@/ui/session-access';
+import { Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
 import { dayAt, dosesOf, lastCan, litresOf, nextStage, readingsOf, schemeStep, startsAfter, stoppedAfter } from './defaults';
 import { about, lineLabel } from './lines';
 import { useLog, type LogTarget, type TileKind } from './log-context';
-import { Sheet } from './Sheet';
+import { Sheet } from '@/ui/Sheet';
 import styles from './Log.module.css';
 
 /**
@@ -255,7 +257,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
           <button type="button" className={styles.step} onClick={() => setLitres(next(litres, -LITRE_STEP))} aria-label={t('log.less')}>
             <Minus size={16} strokeWidth={2} aria-hidden />
           </button>
-          <span className={`figure ${styles.waterFigure}`}>{litres === null ? '—' : t('log.litres', { litres: readingFigure(litres) })}</span>
+          <span className={`figure ${styles.waterFigure}`}>{litres === null ? '—' : t('log.litres', { litres: looseFigure(litres) })}</span>
           <button type="button" className={styles.step} onClick={() => setLitres(next(litres, LITRE_STEP))} aria-label={t('log.more')}>
             <Plus size={16} strokeWidth={2} aria-hidden />
           </button>
@@ -281,7 +283,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
                           : t('log.stopsAfter', { week: until })
                       : `${amount.value} ${amount.unit}`}
                   </span>
-                  <span className={`figure ${styles.doseAmount}`}>{dose ? `${readingFigure(dose.amount)} ${dose.unit}` : '—'}</span>
+                  <span className={`figure ${styles.doseAmount}`}>{dose ? `${looseFigure(dose.amount)} ${dose.unit}` : '—'}</span>
                 </div>
               );
             })
@@ -379,7 +381,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
             <>
               <p className={ui.note}>{t('log.takeBackAsk')}</p>
               <div className={styles.takeBackRow}>
-                <button type="button" className={`${ui.button} ${styles.dangerButton}`} disabled={saving} onClick={() => void takeBack()}>
+                <button type="button" className={`${ui.button} ${ui.danger}`} disabled={saving} onClick={() => void takeBack()}>
                   {t('log.takeBackYes')}
                 </button>
                 <button type="button" className={ui.button} onClick={() => setAskingBack(false)}>
@@ -388,7 +390,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
               </div>
             </>
           ) : (
-            <button type="button" className={`${ui.button} ${styles.danger}`} disabled={saving} onClick={() => setAskingBack(true)}>
+            <button type="button" className={`${ui.button} ${ui.dangerInk}`} disabled={saving} onClick={() => setAskingBack(true)}>
               {t('log.takeBack')}
             </button>
           )}
@@ -397,8 +399,6 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
     </Sheet>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** What a visit line is about to quieten: where it reaches, and what stands there. */
 interface Quietened {
@@ -460,14 +460,7 @@ const useQuietened = (spaceId: string | null): Quietened => {
 function WhatItQuietens({ quietens }: { quietens: Quietened }) {
   const { t } = useTranslation();
   const { name, devices, among, isPending, failed } = quietens;
-  // The window, how much longer the cloud stays quiet afterwards, and the sum
-  // of the two - which is the span a grower is actually unwatched for.
-  const where = {
-    name: name ?? t('log.visit.hereFallback'),
-    minutes: VISIT_MINUTES,
-    settle: SETTLE_MINUTES,
-    quiet: quietMinutes(VISIT_MINUTES * 60),
-  };
+  const where = { name: name ?? t('log.visit.hereFallback'), ...maintenanceSpans(VISIT_MINUTES) };
 
   if (isPending) return <p className={ui.note}>{t('log.visit.reading', where)}</p>;
   if (failed || devices === null) return <p className={ui.note}>{t('log.visit.unreadable', where)}</p>;
@@ -482,7 +475,7 @@ function WhatItQuietens({ quietens }: { quietens: Quietened }) {
             <span>{deviceTitle(device, t, among)}</span>
             <span className={styles.quietensParks}>
               {' — '}
-              {parksAnything(device) ? t('log.visit.parksOutputs', { outputs: parkedLabel(t, device) }) : t('log.visit.parksNothing')}
+              {parksLine(t, device)}
             </span>
           </li>
         ))}
@@ -539,14 +532,14 @@ function Stages({
     );
 
   return (
-    <div className={styles.stages} role="group" aria-label={t('log.tile.phase')}>
+    <Choices label={t('log.tile.phase')}>
       {STAGES.map(one => (
-        <button key={one} type="button" className={ui.chip} data-chosen={one === stage} aria-pressed={one === stage} onClick={() => onPick(one)}>
+        <Choice key={one} chosen={one === stage} onChoose={() => onPick(one)}>
           {t(`home.stage.${one}`)}
           {one === current ? ` · ${t('log.now')}` : ''}
-        </button>
+        </Choice>
       ))}
-    </div>
+    </Choices>
   );
 }
 
@@ -583,7 +576,7 @@ const whenSaid = (dated: boolean, at: Date): { occurredAt?: string } => (dated ?
 const next = (litres: number | null, by: number): number => Math.max(LITRE_STEP, Math.round(((litres ?? 0) + by) / LITRE_STEP) * LITRE_STEP);
 
 const typed = (readings: EntryReading[]): Record<string, string> =>
-  Object.fromEntries(readings.map(reading => [reading.key, readingFigure(reading.value)]));
+  Object.fromEntries(readings.map(reading => [reading.key, looseFigure(reading.value)]));
 
 /** The fields a kind opens with: what the line already says, else the first few the grow measures. */
 const firstFields = (definitions: MeasurementDefinition[], readings: EntryReading[]): string[] =>
@@ -596,8 +589,8 @@ const firstFields = (definitions: MeasurementDefinition[], readings: EntryReadin
  */
 const readingsFrom = (typedIn: Record<string, string>, shown: string[], definitions: MeasurementDefinition[], target: LogTarget): EntryReading[] =>
   shown.flatMap(key => {
-    const value = Number((typedIn[key] ?? '').replace(',', '.').trim());
-    if (!(typedIn[key] ?? '').trim() || !Number.isFinite(value)) return [];
+    const value = typedFigure(typedIn[key] ?? '');
+    if (value === null) return [];
     const perPlant = definitions.find(definition => definition.key === key)?.perPlant ?? false;
 
     return [{ key, value, plantId: perPlant ? (target.plantIds[0] ?? null) : null }];

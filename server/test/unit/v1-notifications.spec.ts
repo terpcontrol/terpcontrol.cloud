@@ -21,7 +21,7 @@ import { LINK_VALID_MS, mintTelegramLink, readTelegramLink } from '@modules/v1/n
 import { WeeklyRecapService } from '@modules/v1/notification/weekly-recap.service';
 import { periodAround, periodBefore } from '@modules/v1/camera/film-periods';
 import { MailService } from '@modules/mail/mail.service';
-import { V1TestDatabase, startV1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The send decision: one message, one person, and whether anything is said at
@@ -41,7 +41,7 @@ const STRANGER = 'user-stranger';
 const SPACE = 'space-1';
 const DEVICE = 'device-1';
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let notifications: NotificationService;
 let log: NotificationLogService;
 let mailed: { to: string; subject: string }[];
@@ -91,14 +91,6 @@ const build = (channels: NotificationChannelSender[]): NotificationService => {
 
   return new NotificationService(db.users, channels, log, recipients);
 };
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
 
 beforeEach(async () => {
   await db.reset();
@@ -160,6 +152,13 @@ describe('what keeps a person undisturbed', () => {
 
     expect(await notifications.tell(OWNER, alarm('warning'))).toEqual([]);
     expect(await notifications.tell(OWNER, alarm('critical'))).toEqual(['email']);
+  });
+
+  it('tells an account that has no quiet hours stored at all', async () => {
+    await account(OWNER, routed(['email']));
+    await db.users.updateOne({ id: OWNER }, { $unset: { 'notifications.quietHours': 1 } });
+
+    expect(await notifications.tell(OWNER, alarm('warning'))).toEqual(['email']);
   });
 
   it('reads a window in the person´s own time zone, not the server´s', () => {

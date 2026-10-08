@@ -40,11 +40,6 @@ button.button {
   opacity: 0.85;
 }
 
-/* A card's actions make room for it on a line of its own when the row is full. */
-.wrap {
-  flex-wrap: wrap;
-}
-
 .body {
   display: flex;
   flex-direction: column;

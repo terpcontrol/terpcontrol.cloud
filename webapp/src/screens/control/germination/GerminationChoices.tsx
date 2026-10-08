@@ -1,10 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import type { GerminationChoices as Choices } from '@fg2/shared-types/v1';
 import { GERMINATION_TOO_HUMID } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { Help } from '@/ui/Help';
-import type { HelpTopic } from '@/ui/explain';
+import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
-import { targetFigure, UNIT } from '../../home/units';
+import { targetWithUnit } from '@/ui/units';
 import styles from './GerminationChoices.module.css';
 
 /**
@@ -34,22 +33,24 @@ export function GerminationChoices({
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
-  const held = humidity === null ? null : `${targetFigure(humidity, 'humidity')} ${UNIT.humidity ?? '%'}`;
+  const held = humidity === null ? null : targetWithUnit(humidity, 'humidity');
   const clashes = humidifier && value.humidifierHolds && value.warnTooHumid && humidity !== null && humidity > GERMINATION_TOO_HUMID;
 
   return (
     <div className={styles.choices} role="group" aria-label={t('germinationChoices.label')}>
       <span className="label">{t('germinationChoices.label')}</span>
-      <Switch
+      <SwitchRow
+        keep
         label={t('germinationChoices.alarm')}
         help="germinationAlarm"
         note={t(value.warnTooHumid ? 'germinationChoices.alarmOn' : 'germinationChoices.alarmOff', { line: GERMINATION_TOO_HUMID })}
         on={value.warnTooHumid}
         disabled={disabled}
-        onToggle={warnTooHumid => onChange({ warnTooHumid })}
+        onChange={warnTooHumid => onChange({ warnTooHumid })}
       />
       {humidifier ? (
-        <Switch
+        <SwitchRow
+          keep
           label={t('germinationChoices.humidifier')}
           help="germinationHumidifier"
           note={
@@ -61,49 +62,10 @@ export function GerminationChoices({
           }
           on={value.humidifierHolds}
           disabled={disabled}
-          onToggle={humidifierHolds => onChange({ humidifierHolds })}
+          onChange={humidifierHolds => onChange({ humidifierHolds })}
         />
       ) : null}
       {clashes ? <p className={ui.note}>{t('germinationChoices.holdsAboveLine', { line: GERMINATION_TOO_HUMID })}</p> : null}
-    </div>
-  );
-}
-
-function Switch({
-  label,
-  help,
-  note,
-  on,
-  disabled,
-  onToggle,
-}: {
-  label: string;
-  help: HelpTopic;
-  note: string;
-  on: boolean;
-  disabled: boolean;
-  onToggle: (on: boolean) => void;
-}) {
-  return (
-    <div className={styles.toggle} data-keep>
-      <span className={styles.toggleText}>
-        <span className={styles.toggleLabel}>
-          {label}
-          <Help topic={help} />
-        </span>
-        <span className={ui.note}>{note}</span>
-      </span>
-      <button
-        type="button"
-        className={ui.switch}
-        role="switch"
-        aria-checked={on}
-        aria-label={label}
-        disabled={disabled}
-        onClick={() => onToggle(!on)}
-      >
-        <span className={ui.knob} aria-hidden />
-      </button>
     </div>
   );
 }

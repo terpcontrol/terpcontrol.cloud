@@ -1,8 +1,7 @@
-import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
+import { HttpException, Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Subject } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
-import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { mqttConfig } from '../../config/configuration';
 
@@ -26,8 +25,8 @@ export class MqttClientService implements OnApplicationShutdown {
   private everConnected = false;
   /** Set on the way down, so a connection given up on purpose is not an outage. */
   private closing = false;
-  private readonly internalUser = uuidv4();
-  private readonly internalPassword = uuidv4();
+  public readonly user = uuidv4();
+  public readonly password = uuidv4();
 
   public readonly messages = new Subject<MqttMessage>();
 
@@ -50,14 +49,6 @@ export class MqttClientService implements OnApplicationShutdown {
     return this.everConnected && !!this.client;
   }
 
-  public getUser(): string {
-    return this.internalUser;
-  }
-
-  public getPassword(): string {
-    return this.internalPassword;
-  }
-
   public connect(): Promise<void> {
     const { url, port } = this.config;
     logger.info(`Connecting to the MQTT broker at ${url}:${port}`);
@@ -74,7 +65,7 @@ export class MqttClientService implements OnApplicationShutdown {
       // decides whether the promise is still to be settled.
       let up = false;
 
-      const client = mqtt.connect(`mqtt://${url}:${port}`, { username: this.internalUser, password: this.internalPassword });
+      const client = mqtt.connect(`mqtt://${url}:${port}`, { username: this.user, password: this.password });
       this.client = client;
 
       client.on('connect', () => {
@@ -133,7 +124,7 @@ export class MqttClientService implements OnApplicationShutdown {
 
   public subscribe(topic: string): Promise<void> {
     if (!this.client) {
-      return Promise.reject(new HttpException(503, 'Not connected to the message broker'));
+      return Promise.reject(new HttpException('Not connected to the message broker', 503));
     }
 
     return new Promise<void>((resolve, reject) => {

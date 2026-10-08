@@ -6,11 +6,13 @@ import { devicesPath } from '@/app/places';
 import type { Device, DryingReturn } from '@fg2/shared-types/v1';
 import type { WorkMode } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useConfigure } from '@/api/devices';
-import { Sheet } from '@/log/Sheet';
+import type { Translate } from '@/i18n/i18n';
+import { Sheet } from '@/ui/Sheet';
 import { FieldSwitch } from '@/ui/advanced/Fields';
 import { Help } from '@/ui/Help';
+import { SheetAnswer } from '@/ui/SheetParts';
 import { useSwitchOn } from '../../devices/switch-on';
-import { targetFigure, UNIT } from '../../home/units';
+import { targetWithUnit } from '@/ui/units';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import day from './DayNight.module.css';
@@ -128,13 +130,8 @@ function EndDryingSheet({ device, back, onClose }: { device: Device; back: Dryin
   const configure = useConfigure(device.id);
   const done = configure.isSuccess;
 
-  const actions = done ? (
-    <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-      {t('maintenance.done')}
-    </button>
-  ) : (
-    <>
-      <Refused error={configure.error} />
+  const actions = (
+    <SheetAnswer done={done} error={configure.error} onClose={onClose}>
       <button
         type="button"
         className={`${ui.button} ${ui.primary}`}
@@ -143,10 +140,7 @@ function EndDryingSheet({ device, back, onClose }: { device: Device; back: Dryin
       >
         {t(configure.isPending ? 'climateControl.switching' : 'climateControl.endDrying')}
       </button>
-      <button type="button" className={ui.button} onClick={onClose}>
-        {t('maintenance.cancel')}
-      </button>
-    </>
+    </SheetAnswer>
   );
 
   return (
@@ -165,15 +159,10 @@ function EndDryingSheet({ device, back, onClose }: { device: Device; back: Dryin
   );
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /** "Tag 25 °C · 60 %, Nacht 20 °C · 55 %, Licht 80 %, CO₂ 900 ppm", leaving out what the document never stated. */
 const returnLine = (t: Translate, back: DryingReturn): string => {
   const pair = (temperature: number | null, humidity: number | null) =>
-    [
-      temperature === null ? null : `${targetFigure(temperature, 'temperature')} ${UNIT.temperature}`,
-      humidity === null ? null : `${targetFigure(humidity, 'humidity')} ${UNIT.humidity}`,
-    ]
+    [temperature === null ? null : targetWithUnit(temperature, 'temperature'), humidity === null ? null : targetWithUnit(humidity, 'humidity')]
       .filter(Boolean)
       .join(' · ');
   const day = pair(back.dayTemperature, back.dayHumidity);
@@ -183,7 +172,7 @@ const returnLine = (t: Translate, back: DryingReturn): string => {
     day ? t('climateControl.returns.day', { values: day }) : null,
     night ? t('climateControl.returns.night', { values: night }) : null,
     back.lightLimit === null ? null : t('climateControl.returns.light', { percent: Math.round(back.lightLimit) }),
-    back.co2 === null ? null : t('climateControl.returns.co2', { value: `${targetFigure(back.co2, 'co2')} ${UNIT.co2}` }),
+    back.co2 === null ? null : t('climateControl.returns.co2', { value: targetWithUnit(back.co2, 'co2') }),
   ]
     .filter(Boolean)
     .join(', ');

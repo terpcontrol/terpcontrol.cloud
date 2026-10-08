@@ -1,13 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { session } from '@/api/session';
 import { EmptyHome } from '@/screens/EmptyHome';
+import { drawAt } from './harness';
+import { translate } from './translations';
 
 // Every door here depends on who is looking, so there has to be somebody: the
 // demo has nothing of its own to be shown, and a session on its way out may
@@ -28,25 +24,13 @@ vi.mock('@/api/session', async importOriginal => {
  * demo third, and the third one drawn as the lesser option.
  */
 describe('the empty home', () => {
-  beforeAll(async () => {
-    const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-    await i18next
-      .use(initReactI18next)
-      .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-  });
+  beforeAll(() => translate());
 
   beforeEach(() => {
     who.is = 'you';
   });
 
-  const draw = (onStartGrow: () => void = () => undefined) =>
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter>
-          <EmptyHome onStartGrow={onStartGrow} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  const draw = (onStartGrow: () => void = () => undefined) => drawAt(<EmptyHome onStartGrow={onStartGrow} />);
 
   it('offers the three doors in the decided order', () => {
     draw();

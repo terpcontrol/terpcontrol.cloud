@@ -10,6 +10,5 @@ import { CleanupService } from './cleanup.service';
 @Module({
   imports: [ModelsModule],
   providers: [CleanupService],
-  exports: [CleanupService],
 })
 export class CleanupModule {}

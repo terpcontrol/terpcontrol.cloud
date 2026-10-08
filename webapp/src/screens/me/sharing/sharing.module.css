@@ -150,14 +150,6 @@
   gap: 2px;
 }
 
-/* Ending a link is outlined in the alarm colour rather than filled, like every
-   other irreversible button in the app: there is no ink token that reads on a
-   solid alarm in both themes, and the outline says the same thing in both. */
-.end {
-  border-color: var(--alarm);
-  color: var(--alarm);
-}
-
 .actions {
   display: flex;
   gap: var(--space-2);

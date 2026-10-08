@@ -22,7 +22,7 @@ import { dryingReturnOf } from './drying-return';
  * the device did not ask for.
  */
 
-export type BaseWorkmode = 'small' | 'full' | 'temp' | 'breed';
+type BaseWorkmode = 'small' | 'full' | 'temp' | 'breed';
 
 const BASE_MODES: readonly string[] = ['small', 'full', 'temp', 'breed'];
 const RUNNING_MODES: readonly string[] = [...BASE_MODES, 'dry'];

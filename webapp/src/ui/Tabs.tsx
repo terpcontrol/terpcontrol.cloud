@@ -2,7 +2,7 @@ import { NavLink } from 'react-router';
 import ui from './ui.module.css';
 import styles from './Tabs.module.css';
 
-export interface TabItem {
+interface TabItem {
   key: string;
   label: string;
   to: string;

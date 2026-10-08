@@ -4,12 +4,11 @@ import type { Device, Space } from '@fg2/shared-types/v1';
 import { useDevices, useUpdateDevice } from '@/api/devices';
 import { useSpaces } from '@/api/spaces';
 import { movesAnywhere, placesFor } from './moving';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { deviceTitle } from './naming';
-import styles from './DeviceSettings.module.css';
+import { deviceTitle, givenName } from '@/ui/naming';
 
 /**
  * What a device is called, and which place it stands in.
@@ -49,7 +48,7 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
   // A claim leaves the type's key as the name - "fridge" - which no screen
   // shows: the field starts empty with the name every screen does show as its
   // placeholder, rather than offering the key to be edited.
-  const stored = device.name && device.name !== device.type ? device.name : null;
+  const stored = givenName(device);
   const name = typed ?? stored ?? '';
   const trimmed = name.trim();
   // An empty field is a device with no name of its own, which is what every
@@ -65,7 +64,7 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
 
   return (
     <Sheet title={t('devices.settings.title', { name: title })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <Block label={t('devices.settings.name')}>
           <div className={ui.fieldRow}>
             <input

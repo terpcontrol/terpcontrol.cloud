@@ -1,26 +1,27 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
-import type { Device, EntryPage } from '@fg2/shared-types/v1';
+import type { Device } from '@fg2/shared-types/v1';
 import { useAdminUsers, useFirmwares } from '@/api/admin';
-import { api } from '@/api/client';
+import { deviceQuery } from '@/api/devices';
+import { useDeviceEntries } from '@/api/entries';
+import { itemsOf, useFollowCursor } from '@/api/pages';
 import { noLongerThere } from '@/api/problem';
 import { useRead } from '@/api/read';
 import { useSpaceOverview } from '@/api/spaces';
 import { placePath, timelinePath } from '@/app/places';
+import type { Translate } from '@/i18n/i18n';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
 import { foldRepeats } from '@/ui/entries';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
+import { AdminHead, AdminNotLoaded, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { serverNow } from '@/api/clock';
-import { offsetOf, wallClock } from '../control/targets/targets-draft';
+import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { flatten } from './fleet-rows';
-import { useFollowCursor } from './pages';
+import { buildLabel, typeName } from '@/ui/naming';
 import styles from './Admin.module.css';
-
-/** How many of a device's own lines the page lists, newest first: enough for "since yesterday", few enough to read. */
-const LINES = 60;
 
 /**
  * One device as support needs it, whoever owns it: what it is and who has it,
@@ -36,47 +37,20 @@ export function DeviceDiagnosis() {
   const { t } = useTranslation();
   const { deviceId = '' } = useParams();
   const now = useNow();
-  const device = useRead({
-    queryKey: ['devices', deviceId],
-    queryFn: ({ signal }) => api.get<Device>(`/devices/${encodeURIComponent(deviceId)}`, undefined, signal),
-  });
-  const lines = useRead({
-    queryKey: ['entries', 'device', deviceId],
-    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { deviceId, limit: LINES }, signal),
-  });
+  const device = useRead(deviceQuery(deviceId));
+  const lines = useDeviceEntries(deviceId);
   const people = useAdminUsers();
   useFollowCursor(people);
 
-  const head = (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{t('admin.diagnosis.title')}</h1>
-      <span className={`mono ${styles.crumb}`}>
-        <Link to="/admin/fleet">{t('admin.fleet.title')}</Link> › {deviceId}
-      </span>
-    </header>
-  );
+  const head = <AdminHead title={t('admin.diagnosis.title')} crumb={deviceId} />;
 
-  if (device.isPending) {
-    return (
-      <section className={styles.page}>
-        {head}
-        <Waiting lines={4} />
-      </section>
-    );
-  }
+  if (device.isPending) return <AdminNotLoaded head={head} />;
   if (!device.data) {
-    return noLongerThere(device.error) ? (
-      <NoLongerHere what="device" />
-    ) : (
-      <section className={styles.page}>
-        {head}
-        <LoadFailed retry={() => void device.refetch()} />
-      </section>
-    );
+    return noLongerThere(device.error) ? <NoLongerHere what="device" /> : <AdminNotLoaded head={head} retry={() => void device.refetch()} />;
   }
 
   const one = device.data;
-  const owner = (people.data?.pages ?? []).flatMap(page => page.items).find(person => person.id === one.ownerId) ?? null;
+  const owner = itemsOf(people.data).find(person => person.id === one.ownerId) ?? null;
   const seen = one.state.lastSeenAt;
 
   return (
@@ -85,7 +59,7 @@ export function DeviceDiagnosis() {
 
       <div className={styles.facts}>
         <Fact label={t('admin.diagnosis.device')} value={<span className="mono">{one.id}</span>} />
-        <Fact label={t('admin.diagnosis.type')} value={t(`devices.type.${one.type}`, { defaultValue: one.type })} />
+        <Fact label={t('admin.diagnosis.type')} value={typeName(one.type, t)} />
         <Fact label={t('admin.diagnosis.serial')} value={<span className="mono">{one.serialNumber ?? '—'}</span>} />
         <Fact
           label={t('admin.diagnosis.owner')}
@@ -95,12 +69,7 @@ export function DeviceDiagnosis() {
         {owner ? <Fact label={t('admin.diagnosis.zone')} value={owner.preferences.timezone ?? t('admin.diagnosis.noZone')} /> : null}
         <Fact
           label={t('admin.diagnosis.lastSeen')}
-          value={
-            <span className={`mono ${styles.liveness}`} data-liveness={deviceLiveness(seen, now)}>
-              <span className={styles.dot} aria-hidden />
-              {seen ? ageLabel(seen, now) : t('admin.fleet.neverSeen')}
-            </span>
-          }
+          value={<Liveness state={deviceLiveness(seen, now)}>{seen ? ageLabel(seen, now) : t('admin.fleet.neverSeen')}</Liveness>}
         />
         <Fact label={t('admin.diagnosis.firmware')} value={<Build device={one} />} />
         {one.spaceId ? <Place spaceId={one.spaceId} /> : <Fact label={t('admin.diagnosis.place')} value={t('admin.fleet.noPlace')} />}
@@ -176,19 +145,17 @@ function Place({ spaceId }: { spaceId: string }) {
 function Build({ device }: { device: Device }) {
   const { t } = useTranslation();
   const firmwares = useFirmwares(device.classId);
-  const build = (firmwares.data?.pages ?? []).flatMap(page => page.items).find(one => one.id === device.state.firmwareId);
+  const build = itemsOf(firmwares.data).find(one => one.id === device.state.firmwareId);
 
   return (
     <span className="mono">
-      {build ? `${build.version || build.name}` : (device.state.firmwareId ?? '—')} · {t(`devices.channel.${device.firmware.channel}`)}
+      {buildLabel(build) ?? device.state.firmwareId ?? '—'} · {t(`devices.channel.${device.firmware.channel}`)}
     </span>
   );
 }
 
 /** Where a document keeps a time of day, as seconds past midnight UTC: a controller's and a fridge's, a lamp's own, a fan's CO2 window. */
 const CLOCK_PATHS = ['daynight.day', 'daynight.night', 'day', 'night', 'co2inject.day', 'co2inject.night'];
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The seconds a time of day is kept as, with the clock times they are beside

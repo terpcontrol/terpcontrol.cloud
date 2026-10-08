@@ -1,7 +1,7 @@
 ---
 summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores; read it before an upgrade, a restore or a repair by hand
 updated: 2026-10-08
-source: Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; checked against the code on 2026-10-08
+source: Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/migrations/**
   - backup.sh
@@ -38,7 +38,7 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
 
 - **Every reject stops a real run** unless `--allow-rejects`/`MIGRATION_ALLOW_REJECTS=true` - also those that keep the
   row (an unparseable configuration; a duplicate `class_id`, `firmware_id` or `alarmId`). The README's "Rejects"
-  section and the comment on `MigrationReject` still say otherwise; the runner wins.
+  section still says otherwise; the runner wins.
 - **A step reads its sources from `legacy_<name>` once moved,** so fixing a refused row in the new collection changes
   nothing - fix it in `legacy_*`. Steps already applied miss that fix: on 2026-10-04 an `owner_id` set in
   `legacy_devices` let `008-cameras` pass after 004, 005 and 007 had written the device ownerless - a device with an
@@ -48,11 +48,12 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
   first hardware report after a claim. Counting such devices instead (PR #135) was closed by Chris on 2026-10-06.
 - **InfluxDB is rewritten once:** `020-retired-dryers` deletes every dryer's points, raw and daily, so the store has to
   be reachable when a database with dryers is migrated.
-- **Not in the README's table (2026-10-08):** `018-target-record` opens `targetChanges` for every device whose
-  configuration states targets; `021-light-windows` turns the light windows plans and templates carried into
-  `lightHours` (an on-time only where a plan's day steps disagree), normalises device light schedules and records each
-  fridge's and controller's cycle; `022-dark-germination` makes germination that presets or plans wrote "seedling"
-  unless it carries the dark `breed` mode.
+- **Some steps run live code:** `011-entries` the device-message parser (`common/v1/device-messages.ts`), `017` the
+  credential filter of `common/log-path.ts`, `018` and `021` `targetsOf`, `019` and `021` the class rules, work modes
+  and plan steps of the server, `020` the Influx delete predicate, `002` and `021` modules of `shared-types`.
+  Changing one changes what that step writes on every install not yet migrated, while migrated ones keep the old
+  result: a refactor there leaves each step's output as it was (the step specs and a dry run on a copy show it), and
+  a new meaning for migrated data is a new step.
 - **Duration:** the real run on a copy of the hosted database took 1.5 to 2 minutes (93-115 s for the 17 steps of
   2026-09-23) once the command built its indexes first and `011-entries` thinned the repeated sensor lines, nearly all
   of it `011-entries`. A dry run writes nothing and under-reports (6x before the thinning).

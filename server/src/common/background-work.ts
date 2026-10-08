@@ -1,6 +1,5 @@
+import { errorText } from '@utils/error-text';
 import { logger } from '@utils/logger';
-
-const describe = (error: unknown): string => (error instanceof Error ? (error.stack ?? error.message) : String(error));
 
 /**
  * For work started where there is no caller to return a failure to - inside a
@@ -9,7 +8,7 @@ const describe = (error: unknown): string => (error instanceof Error ? (error.st
  * what failed instead.
  */
 export const logIfItFails = (name: string, work: Promise<unknown>): void => {
-  work.catch(error => logger.error(`${name} failed: ${describe(error)}`));
+  work.catch(error => logger.error(`${name} failed: ${errorText(error)}`));
 };
 
 /**
@@ -72,6 +71,20 @@ export class BackgroundWork {
     );
   }
 
+  /**
+   * Runs the work after the first delay, and again the next delay after each
+   * pass has finished, until the server stops: a pass that takes an hour is
+   * not followed at once by another, and never runs beside itself. Each pass
+   * arms the next, so a server on its way down refuses it rather than only
+   * cancelling the timer that happens to be pending.
+   */
+  public loop(name: string, work: () => Promise<unknown>, firstMs: number, nextMs: number | (() => number)): void {
+    const pass = (): Promise<void> =>
+      (this.run(name, work) ?? Promise.resolve()).then(() => this.schedule(name, pass, typeof nextMs === 'function' ? nextMs() : nextMs));
+
+    this.schedule(name, pass, firstMs);
+  }
+
   public stop(): void {
     this.stopped = true;
     for (const timer of this.timers) clearTimeout(timer);
@@ -89,10 +102,10 @@ export class BackgroundWork {
     try {
       const result = work();
       if (result instanceof Promise) {
-        return result.catch(error => logger.error(`${name} failed: ${describe(error)}`));
+        return result.catch(error => logger.error(`${name} failed: ${errorText(error)}`));
       }
     } catch (error) {
-      logger.error(`${name} failed: ${describe(error)}`);
+      logger.error(`${name} failed: ${errorText(error)}`);
     }
 
     return undefined;

@@ -1,4 +1,20 @@
-import type { GrowListItem } from '@fg2/shared-types/v1';
+import type { GrowListItem, Space } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
+import { enough } from '@/ui/session-access';
+
+/**
+ * The places a grow can be put in. Starting, moving or splitting a grow into a
+ * place is managing that place - a move is written against the destination as
+ * well as against the grow - so one this account may only write lines in is
+ * left out rather than refused on save. "No fixed place" needs none and is
+ * offered beside these.
+ */
+export const growPlaces = (spaces: Space[]): Space[] =>
+  spaces.filter(space => space.archivedAt === null && space.kind !== 'room' && enough(space.youMay, 'manage'));
+
+/** A place by its name, looked up among every place so that an archived one still reads; none is "no fixed place". */
+export const placeName = (t: Translate, spaces: Space[], spaceId: string | null): string =>
+  spaceId === null ? t('grow.noFixedPlace') : (spaces.find(space => space.id === spaceId)?.name ?? '…');
 
 /**
  * The last place a grow stood, for a grow that stands nowhere any more.

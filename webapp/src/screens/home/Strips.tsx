@@ -1,23 +1,23 @@
 import { Circle, Leaf } from 'lucide-react';
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { DueTask, FollowedGrowCard, HomeSpaceCard } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, publicPicture } from '@/api/public';
-import { useLog, useMayLog } from '@/log/log-context';
+import type { Translate } from '@/i18n/i18n';
+import { useLog } from '@/log/log-context';
+import { followedMeta } from '@/screens/public/followed';
+import { useMayLogIn } from '@/ui/session-access';
 import { FollowButton } from '@/screens/public/FollowButton';
 import { Photo } from '@/ui/Photo';
-import { ageLabel } from '@/ui/age';
-import { DAY, useZone } from '@/ui/zone';
-import { daysUntil } from '@/screens/tasks/tasks';
+import { useZone } from '@/ui/zone';
+import { dueLabel, entryKindOf } from '@/screens/tasks/tasks';
 import styles from './Strips.module.css';
 
 /**
  * The two strips around the cards. Each is there only while it has something
  * to say: a task that is due, a grow that is followed.
  */
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 export function DueStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime }) {
   const { t } = useTranslation();
@@ -26,7 +26,7 @@ export function DueStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime
   // disagree about what is waiting today.
   const zone = useZone();
   const { complete } = useLog();
-  const mayLog = useMayLog();
+  const mayLog = useMayLogIn();
   const due = cards.flatMap(card => card.dueTasks.map(task => ({ card, task }))).sort((a, b) => a.task.dueAt.localeCompare(b.task.dueAt));
   if (due.length === 0) return null;
 
@@ -39,7 +39,7 @@ export function DueStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime
             <span className={styles.chipText}>
               <strong>{task.label}</strong> · {placeOf(task, card)}
             </span>
-            <span className={`mono ${styles.chipMeta}`}>{dueLabel(t, task, now, zone)}</span>
+            <span className={`mono ${styles.chipMeta}`}>{dueLabel(t, task.dueAt, now, zone)}</span>
             {/* Done writes the entry the task implies; the toast is where it can still be taken back. */}
             {mayLog ? (
               <button type="button" className={styles.done} onClick={() => complete(task.id, doneLabel(t, task, card))}>
@@ -63,16 +63,7 @@ const placeOf = (task: DueTask, card: HomeSpaceCard): string => (task.subject.ty
 
 /** What the toast will say the tick wrote: the line, not the task - "Watered · Spring run". */
 const doneLabel = (t: Translate, task: DueTask, card: HomeSpaceCard): string =>
-  `${t(`home.entryKind.${task.kind === 'chore' || task.kind === 'custom' ? 'note' : task.kind}`)} · ${placeOf(task, card)}`;
-
-/** "today", "tomorrow", "in 3 d", or how overdue - the words the Tasks tab counts a task down in, counted the way that tab counts them. */
-const dueLabel = (t: Translate, task: DueTask, now: DateTime, zone: string | null): string => {
-  const days = daysUntil(task.dueAt, now, zone);
-  if (days < 0) return t('home.strip.overdue', { count: -days });
-  if (days === 0) return t('home.strip.today');
-  if (days === 1) return t('home.strip.tomorrow');
-  return t('home.strip.inDays', { count: days });
-};
+  `${t(`home.entryKind.${entryKindOf(task.kind)}`)} · ${placeOf(task, card)}`;
 
 /**
  * The diaries somebody keeps reading. Each tile is the public page it came
@@ -108,6 +99,7 @@ export function FollowingStrip({ grows, now }: { grows: FollowedGrowCard[]; now:
  */
 export function FollowedTile({ grow, now }: { grow: FollowedGrowCard; now: DateTime }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const cover = grow.coverMediaId ? publicPicture(grow.slug)(grow.coverMediaId, PUBLIC_WIDTH.card) : null;
 
   return (
@@ -117,15 +109,7 @@ export function FollowedTile({ grow, now }: { grow: FollowedGrowCard; now: DateT
         <span className={styles.tileTitle}>
           @{grow.handle} · {grow.name}
         </span>
-        <span className={`mono ${styles.tileMeta}`}>
-          {grow.dayNumber !== null ? `${t('home.card.dayN', { day: grow.dayNumber })} · ` : ''}
-          {grow.stage ? `${t(`home.stage.${grow.stage}`)} · ` : ''}
-          {/* A diary that is over says so, and keeps its day number: that is
-              the day it finished on. The age beside it is when its last line
-              was written, which is a different date and no substitute. */}
-          {grow.endedAt ? `${t('grow.ended', { date: DateTime.fromISO(grow.endedAt).toFormat(DAY) })} · ` : ''}
-          {t('home.card.ago', { age: ageLabel(grow.updatedAt, now) })}
-        </span>
+        <span className={`mono ${styles.tileMeta}`}>{followedMeta(t, grow, now, zone)}</span>
       </Link>
       <FollowButton growId={grow.growId} />
     </li>

@@ -2,10 +2,9 @@ import 'reflect-metadata';
 import { config as readEnvFile } from 'dotenv';
 import { Connection, createConnection } from 'mongoose';
 import { V1_MODELS_MIGRATED_IN_PLACE, registerV1Models } from '@database/models.module';
-import { databaseConfig } from '../config/configuration';
+import { ENV_FILE, databaseConfig } from '../config/configuration';
 import { mongoConnectionSettings } from '../database/mongo-connection';
 import { MigrationRunner, MigrationRunReport, documentsCopied, migrationFailureText, runProgress } from './migration-runner';
-import { PreflightFailure, preflight } from './preflight';
 
 /**
  * `npm run migrate`, its `--dry-run` and its `--check`.
@@ -106,7 +105,7 @@ const likeABoot = async (connection: Connection): Promise<void> => {
 
 const main = async (): Promise<void> => {
   // The same file the server reads, so a local rehearsal is configured the same way.
-  readEnvFile({ path: `.env.${process.env.NODE_ENV || 'development'}.local` });
+  readEnvFile({ path: ENV_FILE });
 
   const settings = mongoConnectionSettings(databaseConfig());
   const { uri, ...options } = settings;
@@ -114,22 +113,15 @@ const main = async (): Promise<void> => {
   await connection.asPromise();
 
   try {
+    const runner = new MigrationRunner(connection);
+
     if (process.argv.includes('--check')) {
-      // The database against itself and the record against the database, in the
-      // order a run asks them: an answer about a database holding two copies of
-      // the old data is an answer about neither of them.
-      await new MigrationRunner(connection).refuseTwoGenerationsOfOldData();
-      await new MigrationRunner(connection).refuseAStaleRecord();
-
-      const found = await preflight(connection.db!);
-      if (found.problems.length > 0) throw new PreflightFailure(found);
-
+      await runner.check();
       report('\nNothing stands in the way of a migration.');
       return;
     }
 
     const dryRun = process.argv.includes('--dry-run');
-    const runner = new MigrationRunner(connection);
     if (!dryRun) await likeABoot(connection);
 
     printRun(

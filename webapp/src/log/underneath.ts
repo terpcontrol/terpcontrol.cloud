@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router';
-import { isPlace, lastPlace } from '@/app/places';
+import { isPlace, placeShown } from '@/app/places';
 import { useHomeShape } from '@/api/home';
 import { useSession } from '@/api/session';
 import type { LogOpening } from './log-context';
@@ -39,8 +39,7 @@ export const useOpeningUnderneath = (): LogOpening => {
   const home = useHomeShape(user !== null);
   const places = (home.data?.spaces ?? []).filter(isPlace);
   const only = places.length === 1 ? places[0].spaceId : null;
-  const remembered = lastPlace();
-  const current = places.find(place => place.spaceId === remembered)?.spaceId ?? places[0]?.spaceId ?? null;
+  const current = placeShown(places, null)?.spaceId ?? null;
 
   return useMemo(() => openingOf(pathname, search, { current, only }), [pathname, search, current, only]);
 };

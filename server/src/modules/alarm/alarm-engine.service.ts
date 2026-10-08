@@ -3,14 +3,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Mutex, MutexInterface, withTimeout } from 'async-mutex';
 import { Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
-import { MAINTENANCE_SETTLE_SECONDS, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { MAINTENANCE_SETTLE_SECONDS, VALUE_AGE, mailFloorSecondsOf } from '@fg2/shared-types/v1-schemas';
 import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { MetricSample, MetricSampleSink } from '@modules/device-protocol/device-sinks';
 import { DataService } from '../data/data.service';
 import { AlertService, AlertSubject } from './alert.service';
-import { ALARM_DEVICE_FIELDS, AlarmDevice, MetricSample } from './alarm.types';
+import { ALARM_DEVICE_FIELDS, AlarmDevice } from './alarm.types';
 import { bandOf, isOutOfBounds, watchedValue } from './alarm.watch';
 
 /**
@@ -38,9 +39,6 @@ const MAINTENANCE_COOLDOWN_MS = MAINTENANCE_SETTLE_SECONDS * 1000;
 /** Below this, the duration is noise against the interval a device reports at. */
 const MEANINGFUL_FOR_SECONDS = 4;
 
-/** A mail costs the reader more than a webhook does, so it has a floor its rule cannot undercut, for triggering and repeating alike. */
-const MAIL_FLOOR_SECONDS = 300;
-
 /** A repeat any more eager than this is a message a minute, whatever the rule says. */
 const MINIMUM_REPEAT_SECONDS = 60;
 
@@ -53,7 +51,7 @@ const SETTLED_MS = 4000;
 const MUTEX_TIMEOUT_MS = 300000;
 
 @Injectable()
-export class AlarmEngineService {
+export class AlarmEngineService implements MetricSampleSink {
   constructor(
     @InjectModel(MODEL_V1.alarmRule) private readonly rules: Model<StoredAlarmRule>,
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
@@ -216,7 +214,7 @@ export class AlarmEngineService {
       return;
     }
 
-    const cooldownSeconds = Math.max(rule.cooldownSeconds, isMailRule(rule) ? MAIL_FLOOR_SECONDS : 0);
+    const cooldownSeconds = Math.max(rule.cooldownSeconds, mailFloorSecondsOf(rule.delivery));
     if (now.getTime() - (rule.state.lastTriggeredAt?.getTime() ?? 0) < cooldownSeconds * 1000) return;
 
     await this.write(rule, at, { 'state.triggered': true, 'state.extremeValue': value, 'state.lastTriggeredAt': now });
@@ -258,7 +256,7 @@ export class AlarmEngineService {
    */
   private async repeat(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date): Promise<void> {
     const since = rule.state.lastTriggeredAt?.getTime() ?? 0;
-    const every = Math.max(rule.repeatSeconds, isMailRule(rule) ? MAIL_FLOOR_SECONDS : 0);
+    const every = Math.max(rule.repeatSeconds, mailFloorSecondsOf(rule.delivery));
     const due = since > 0 && since + every * 1000 < Date.now();
     if (!rule.state.triggered || rule.repeatSeconds < MINIMUM_REPEAT_SECONDS || !due) return;
 
@@ -362,9 +360,6 @@ export class AlarmEngineService {
     return mutex.acquire();
   }
 }
-
-/** A rule whose own delivery is a mail: the one that never fires or repeats twice in five minutes. */
-const isMailRule = (rule: StoredAlarmRule): boolean => rule.delivery.mode === 'custom' && rule.delivery.custom?.channel === 'email';
 
 const subjectOf = (rule: StoredAlarmRule, device: AlarmDevice): AlertSubject => ({
   name: rule.name,

@@ -578,6 +578,96 @@
   opacity: 0.45;
 }
 
+/* A step that cannot be taken back, on a chip or a button: outlined in the
+   alarm colour. These follow the button and chip rules so they win the tie on
+   equal weight. */
+.danger {
+  border-color: var(--alarm);
+  color: var(--alarm);
+}
+
+/* The same step offered more quietly, inside a sheet: only its words take the alarm colour. */
+.dangerInk {
+  color: var(--alarm);
+}
+
+/* The yes to a question asked before such a step. */
+.dangerFilled {
+  background: var(--alarm);
+  border-color: var(--alarm);
+  color: var(--on-green);
+}
+
+/* A sheet's own answer that cannot be taken back - removing a socket, releasing
+   a device: outlined in the alarm colour as a button of its own. */
+.dangerOutline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-height);
+  padding: 0 var(--space-4);
+  background: transparent;
+  border: var(--rule-width) solid var(--alarm);
+  border-radius: var(--radius);
+  color: var(--alarm);
+  font: inherit;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.dangerOutline:disabled {
+  border-color: var(--rule);
+  color: var(--muted);
+  cursor: default;
+}
+
+/* A sheet's insides: a few questions apart. */
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-2) 0;
+}
+
+/* What a tap is about to do, asked in the place the tap was. */
+.asking {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+/* The yes to such a question beside the way back. */
+.askingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* A two-line action and the (i) that says more about it. Two share a line
+   where the card is wide enough, and stack on a phone. */
+.withHelp {
+  display: flex;
+  flex: 1 1 15rem;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Read aloud but not drawn. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* The title of a page below a tab - Manual targets, Alarms - with the way
    back to the tab beside it. It names the page, so it is set as a name, not
    as one more section label on a rule over the section labels under it. */

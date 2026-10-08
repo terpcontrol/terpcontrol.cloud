@@ -1,15 +1,13 @@
-import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowOrSpaceRef, Reminder, ReminderCreate, ReminderKind, Space } from '@fg2/shared-types/v1';
 import { Link } from 'react-router';
 import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
-import { channelsLabel, isConfigured } from '@/screens/control/alarms/rules';
+import { channelsLabel, isConfigured } from '@/screens/notifications/reach';
 import { useCreateReminder, useDeleteReminder, useUpdateReminder } from '@/api/reminders';
-import { Sheet } from '@/log/Sheet';
-import { instantOf } from '@/ui/age';
-import { dayOf, startOfDayOn } from '@/ui/days';
+import { Sheet } from '@/ui/Sheet';
+import { dayEdgeInstant, dayOf, startOfDayOn } from '@/ui/days';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -100,7 +98,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
 
   return (
     <Sheet title={t(reminder ? 'tasks.sheet.editTitle' : 'tasks.sheet.newTitle')} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <Block label={t('tasks.sheet.what')}>
           <input
             className={ui.input}
@@ -229,10 +227,10 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
               <>
                 <p className={ui.note}>{t('tasks.sheet.deleteAsk')}</p>
                 <Refused error={remove.error} />
-                <div className={styles.actions}>
+                <div className={ui.askingActions}>
                   <button
                     type="button"
-                    className={`${ui.button} ${styles.dangerButton}`}
+                    className={`${ui.button} ${ui.dangerFilled}`}
                     disabled={busy}
                     onClick={() => remove.mutate(undefined, { onSuccess: onClose })}
                   >
@@ -244,7 +242,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
                 </div>
               </>
             ) : (
-              <button type="button" className={`${ui.button} ${styles.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
+              <button type="button" className={`${ui.button} ${ui.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
                 {t('tasks.sheet.delete')}
               </button>
             )}
@@ -363,7 +361,7 @@ const bodyOf = (draft: Draft, onceOn: string, userId: string, assigneeId: string
     kind: draft.kind,
     label: draft.label.trim(),
     everyDays: draft.rhythm === 'every' ? draft.everyDays : null,
-    onceAt: draft.rhythm === 'once' ? instantOf(DateTime.fromJSDate(startOfDayOn(onceOn, zone))) : null,
+    onceAt: draft.rhythm === 'once' ? dayEdgeInstant(onceOn, startOfDayOn, zone) : null,
     assigneeId: draft.forWhom === 'me' ? userId : draft.forWhom === 'other' ? assigneeId : null,
     defaults: asksForCan && draft.litres !== '' && litres > 0 ? { kind: draft.kind, litres } : null,
   };

@@ -20,3 +20,6 @@
  * contract into its bundle.
  */
 export const MAINTENANCE_SETTLE_SECONDS = 10 * 60;
+
+/** How long a step-in written in the diary parks the hardware: the window the visit tile is labelled with and the server opens. */
+export const MAINTENANCE_VISIT_SECONDS = 15 * 60;

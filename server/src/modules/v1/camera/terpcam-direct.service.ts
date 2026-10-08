@@ -158,35 +158,33 @@ const ATTEMPT_SPACING_MS = 10_000;
 /** What is left of a deadline, never less than nothing. */
 const left = (deadline: number): number => Math.max(0, deadline - Date.now());
 
-type Endpoint = { address: string; port: number };
-type Inbox = { message: Buffer; from: Endpoint }[];
+type Inbox = Buffer[];
 /**
  * A Terp Cam as this path needs it: the device that bridges it, the id printed
  * on it - which its own reply is checked against - and the password it was
  * secured with. An empty secret means the camera still has the manufacturer's
  * default.
  */
-export type RelayCamera = Pick<CameraDocument, 'id' | 'kind' | 'deviceId' | 'did'> & { secret: string | null };
+type RelayCamera = Pick<CameraDocument, 'id' | 'kind' | 'deviceId' | 'did'> & { secret: string | null };
 /**
  * The dgram-style slice the P2P client uses, satisfied by the RelaySocket the
  * controller bridge provides. Kept as an interface so login and readKeyframe
  * neither know nor care how the datagrams get to the camera.
  */
 type P2PSocket = {
-  send(msg: Buffer, port?: number, address?: string, cb?: (err?: Error | null) => void): void;
+  /** The camera's P2P id, which the login names it by. */
+  did: Buffer;
+  /** Fire-and-forget; errors surface as the session going quiet. */
+  send(msg: Buffer): void;
 };
 
 type Session = {
   socket: P2PSocket;
-  peer: Endpoint;
   inbox: Inbox;
   auth: string;
   /** Channel-0 request index; must advance by exactly one per request. */
   next: number;
 };
-
-/** The relay talks to the one camera its controller discovered, so there is only ever this peer. */
-const RELAY_PEER: Endpoint = { address: 'relay', port: 1 };
 
 /**
  * A dgram-shaped socket whose datagrams cross a controller's TCP connection (the
@@ -231,12 +229,12 @@ class RelaySocket extends EventEmitter implements P2PSocket {
       this.emit('message', payload);
     }
   }
-  public send(msg: Buffer, _port?: number, _address?: string, cb?: (err?: Error | null) => void): void {
+  public send(msg: Buffer): void {
     if (!this.conn.writable) return;
     const frame = Buffer.allocUnsafe(2 + msg.length);
     frame.writeUInt16BE(msg.length, 0);
     msg.copy(frame, 2);
-    this.conn.write(this.cipher.update(frame), () => cb?.());
+    this.conn.write(this.cipher.update(frame));
   }
   /**
    * Tell the controller the cloud is done, and wait for it to hang up: it does
@@ -269,33 +267,20 @@ function holds(until: Map<string, number>, deviceId: string): boolean {
   return false;
 }
 
-/** Every send is fire-and-forget; errors surface as the session going quiet. */
-function send(socket: P2PSocket, to: Endpoint, packet: Buffer): void {
-  socket.send(packet, to.port, to.address, () => undefined);
-}
-
 /** Symmetric table cipher: `prev` is always the ciphertext byte. */
-export function obfuscate(buf: Buffer): Buffer {
+function tableCipher(buf: Buffer, decrypt: boolean): Buffer {
   const out = Buffer.allocUnsafe(buf.length);
   let prev = 0;
   for (let i = 0; i < buf.length; i++) {
-    const c = SBOX[(DK[prev & 3] + prev) & 0xff] ^ buf[i];
-    out[i] = c;
-    prev = c;
+    out[i] = SBOX[(DK[prev & 3] + prev) & 0xff] ^ buf[i];
+    prev = decrypt ? buf[i] : out[i];
   }
   return out;
 }
 
-export function deobfuscate(buf: Buffer): Buffer {
-  const out = Buffer.allocUnsafe(buf.length);
-  let prev = 0;
-  for (let i = 0; i < buf.length; i++) {
-    const c = buf[i];
-    out[i] = SBOX[(DK[prev & 3] + prev) & 0xff] ^ c;
-    prev = c;
-  }
-  return out;
-}
+const obfuscate = (buf: Buffer): Buffer => tableCipher(buf, false);
+
+export const deobfuscate = (buf: Buffer): Buffer => tableCipher(buf, true);
 
 function buildPacket(type: number, payload: Buffer = Buffer.alloc(0)): Buffer {
   const head = Buffer.alloc(4);
@@ -315,11 +300,7 @@ function buildCgi(channel: number, index: number, cgi: string): Buffer {
   inner[4] = 0x01;
   inner[5] = 0x0a;
   inner.writeUInt32LE(body.length, 8);
-  const head = Buffer.alloc(4);
-  head[0] = 0xf1;
-  head[1] = 0xd0;
-  head.writeUInt16BE(inner.length + body.length, 2);
-  return obfuscate(Buffer.concat([head, inner, body]));
+  return buildPacket(0xd0, Buffer.concat([inner, body]));
 }
 
 /**
@@ -456,7 +437,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * capture by token, and hand the rest of the stream to a RelaySocket. An
    * unmatched or malformed dial-in is dropped rather than trusted.
    */
-  private onRelayConnection(conn: net.Socket, head: Buffer = Buffer.alloc(0)): void {
+  private onRelayConnection(conn: net.Socket, head: Buffer): void {
     conn.setNoDelay(true);
     // The HTTP server's idle timeout would otherwise end a relay mid-still.
     conn.setTimeout(0);
@@ -556,7 +537,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * skip a number and the camera stops responding, silently and permanently.
    */
   private request(session: Session, cgi: string): void {
-    send(session.socket, session.peer, buildCgi(CMD_CHANNEL, session.next++, cgi));
+    session.socket.send(buildCgi(CMD_CHANNEL, session.next++, cgi));
   }
 
   /**
@@ -591,19 +572,19 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     const socket = await this.relayConnect(deviceId, Math.min(RELAY_DIAL_MS, left(deadline)));
     this.relays.add(socket);
     const inbox: Inbox = [];
-    socket.on('message', (message: Buffer) => inbox.push({ message: deobfuscate(message), from: RELAY_PEER }));
+    socket.on('message', (message: Buffer) => inbox.push(deobfuscate(message)));
     // login consumes channel-0 index 0, so requests continue from 1
-    const session: Session = { socket, peer: RELAY_PEER, inbox, auth: authFor(secret || DEFAULT_PASSWORD), next: 1 };
+    const session: Session = { socket, inbox, auth: authFor(secret || DEFAULT_PASSWORD), next: 1 };
     let loggedIn = false;
     try {
-      await this.login(socket, inbox, socket.did, RELAY_PEER, session.auth, label, deadline);
+      await this.login(session, label, deadline);
       loggedIn = true;
       return await this.readKeyframe(session, deadline);
     } finally {
       // Stop the stream and give the camera its slot back; the controller also
       // closes the session on the LAN once the relay ends.
       if (loggedIn) this.request(session, `livestream.cgi?streamid=16&substream=0&${session.auth}`);
-      send(socket, RELAY_PEER, buildPacket(0xf0));
+      socket.send(buildPacket(0xf0));
       await socket.close(Math.min(RELAY_CLOSE_MS, left(deadline)));
       this.relays.delete(socket);
     }
@@ -660,7 +641,9 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     }
   }
 
-  private async login(socket: P2PSocket, inbox: Inbox, did: Buffer, peer: Endpoint, auth: string, label: string, deadline = Infinity): Promise<void> {
+  private async login(session: Session, label: string, deadline = Infinity): Promise<void> {
+    const { socket, inbox, auth } = session;
+    const did = socket.did;
     const trailer = Buffer.from([0x00, 0x02, 0x12, 0x64, 0x10, 0x02, 0x00, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0]);
     const devlgn = Buffer.concat([did, trailer]);
     // The reply can span fragments; kept by index so they join in order.
@@ -675,21 +658,20 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       // Asked once it answers: a second get_status would restart the reply.
       if (reply.size === 0) {
         for (const packet of [buildPacket(0x00), buildPacket(0x05, did), buildPacket(0x20, devlgn), buildPacket(0x41, did)]) {
-          send(socket, peer, packet);
+          socket.send(packet);
         }
-        send(socket, peer, buildCgi(CMD_CHANNEL, 0, `get_status.cgi?${auth}`));
+        socket.send(buildCgi(CMD_CHANNEL, 0, `get_status.cgi?${auth}`));
       }
 
-      await this.drain(inbox, 1_000, entry => {
-        const m = entry.message;
+      await this.drain(inbox, 1_000, m => {
         if (m.length >= 2) heard.set(m[1], (heard.get(m[1]) ?? 0) + 1);
         if (m.length >= 4 && (m[1] === 0x42 || m[1] === 0x43)) {
-          send(socket, entry.from, obfuscate(m));
+          socket.send(obfuscate(m));
           return false;
         }
         if (m.length > 8 && m[1] === 0xd0 && m[5] === CMD_CHANNEL) {
           const index = m.readUInt16BE(6);
-          send(socket, peer, buildAck(CMD_CHANNEL, [index]));
+          socket.send(buildAck(CMD_CHANNEL, [index]));
           if (!reply.has(index)) reply.set(index, m.subarray(8));
           const ordered = [...reply.keys()].sort((a, b) => a - b).map(key => reply.get(key) as Buffer);
           state.verdict = checkStatusReply(Buffer.concat(ordered).toString('latin1'), label);
@@ -700,7 +682,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
 
       if (state.verdict === 'ours') return;
       // Anything else gives the camera its slot back before giving up.
-      if (state.verdict !== 'pending') send(socket, peer, buildPacket(0xf0));
+      if (state.verdict !== 'pending') socket.send(buildPacket(0xf0));
       if (state.verdict === 'refused') throw new CameraRefusedError('camera rejected the password');
       if (state.verdict === 'foreign') throw new CameraRefusedError(`UID belongs to a different camera than ${label}`);
     }
@@ -725,14 +707,14 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * after all and the next keyframe has to do.
    */
   private async readKeyframe(session: Session, deadline = Infinity): Promise<Buffer | null> {
-    const { socket, peer, inbox, auth } = session;
+    const { socket, inbox, auth } = session;
     inbox.length = 0;
     this.request(session, `livestream.cgi?streamid=10&substream=2&${auth}`);
 
     let assembly = new FragmentAssembly();
     const unacked: number[] = [];
     const ack = () => {
-      while (unacked.length) send(socket, peer, buildAck(VIDEO_CHANNEL, unacked.splice(0, MAX_ACK_INDICES)));
+      while (unacked.length) socket.send(buildAck(VIDEO_CHANNEL, unacked.splice(0, MAX_ACK_INDICES)));
     };
     const until = Math.min(Date.now() + TRANSFER_MS, deadline);
     let lastData = Date.now();
@@ -743,11 +725,10 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       await this.drain(
         inbox,
         300,
-        entry => {
-          const m = entry.message;
+        m => {
           if (m.length < 8) return false;
           if (m[1] === 0xe0) {
-            send(socket, peer, buildPacket(0xe1));
+            socket.send(buildPacket(0xe1));
             return false;
           }
           if (m[1] !== 0xd0 || m[5] !== VIDEO_CHANNEL) return false;
@@ -818,12 +799,12 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * `caughtUp` runs whenever the queue has been emptied, so replies to a burst go
    * out once per burst rather than once per datagram.
    */
-  private async drain(inbox: Inbox, ms: number, handler: (entry: Inbox[number]) => boolean, caughtUp?: () => void): Promise<void> {
+  private async drain(inbox: Inbox, ms: number, handler: (m: Buffer) => boolean, caughtUp?: () => void): Promise<void> {
     const until = Date.now() + ms;
     for (;;) {
       while (inbox.length) {
-        const entry = inbox.shift();
-        if (entry && handler(entry)) return;
+        const m = inbox.shift();
+        if (m && handler(m)) return;
       }
       caughtUp?.();
       if (Date.now() >= until) return;

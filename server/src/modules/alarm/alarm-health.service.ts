@@ -2,13 +2,13 @@ import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { CAMERA_STILLS, OFFLINE_RULE_NAME, VALUE_AGE, heardAt, repeatSecondsOf } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { BackgroundWork } from '@common/background-work';
-import { heardAt, isOffline } from '@common/v1/value-age';
+import { isOffline } from '@common/v1/value-age';
 import { logger } from '@utils/logger';
 import { DataService, NewestSamples } from '../data/data.service';
 import { AlarmEngineService } from './alarm-engine.service';
@@ -31,19 +31,6 @@ import { ALARM_DEVICE_FIELDS, AlarmDevice } from './alarm.types';
  */
 
 const TICK_MS = 60 * 1000;
-
-/** What the always-on offline rule is called where a name is shown. */
-const OFFLINE_RULE_NAME = 'Device offline';
-
-/** How often a device that stays gone is said to be gone. */
-const OFFLINE_REPEAT_SECONDS = 30 * 60;
-
-/**
- * How many stills a camera may miss before it is called stale, and the floor
- * under that: a camera asked every 30 seconds is not stale after two minutes,
- * and one asked every hour is not stale after a quarter of an hour.
- */
-const MISSED_STILLS = 10;
 
 /** What one pass did, which is what the health card is drawn from and what a test reads. */
 export interface AlarmHealthPass {
@@ -245,11 +232,11 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
             'watch.upper': null,
             'watch.lower': null,
             // A controller that has gone quiet is the one alarm nothing else
-            // can raise, so it is critical and said again until the device is
-            // back, as the decided screen has it. Once written it is the
+            // can raise, so it is critical and, like every critical alarm, said
+            // again until the device is back. Once written it is the
             // grower's rule: a severity or a repeat they changed stays changed.
             severity: 'critical',
-            repeatSeconds: OFFLINE_REPEAT_SECONDS,
+            repeatSeconds: repeatSecondsOf('critical'),
             origin: 'always',
           },
         },
@@ -267,21 +254,18 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
 
       const open = await this.alerts.openOfCamera(camera.id);
       const quietSeconds = (at.getTime() - camera.state.lastStillAt.getTime()) / 1000;
-      const stale = quietSeconds >= Math.max(camera.stillIntervalSeconds * MISSED_STILLS, VALUE_AGE.staleSeconds);
+      // Judged by the stills it has missed, with a floor under that: a camera
+      // asked every 30 seconds is not stale after two minutes, and one asked
+      // every hour is not stale after a quarter of an hour.
+      const stale = quietSeconds >= Math.max(camera.stillIntervalSeconds * CAMERA_STILLS.offlineAfter, VALUE_AGE.staleSeconds);
 
       if (!stale && open) await this.alerts.settle(subjectOf(camera), open, quietSeconds, at);
       // A picture always ends an alert; only raising one asks whether the tent
-      // is switched off, and only for a camera that looks quiet.
-      if (stale && !open && !(await this.switchedOff(camera.deviceId))) await this.alerts.raise(subjectOf(camera), quietSeconds, at);
+      // is switched off - a controller in `workmode: off` is not driving it, so
+      // nothing asks its camera for a picture.
+      const switchedOff = !!camera.deviceId && devices.get(camera.deviceId)?.configuration?.workmode === 'off';
+      if (stale && !open && !switchedOff) await this.alerts.raise(subjectOf(camera), quietSeconds, at);
     }
-  }
-
-  /** A controller in `workmode: off` is not driving its tent, so nothing asks its camera for a picture. */
-  private async switchedOff(deviceId: string | null): Promise<boolean> {
-    if (!deviceId) return false;
-
-    const device = await this.devices.findOne({ id: deviceId }, { configuration: 1 }).lean();
-    return (device?.configuration as { workmode?: unknown } | null)?.workmode === 'off';
   }
 
   /**

@@ -1,7 +1,8 @@
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
+import { isSection } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { STEERED } from '@fg2/shared-types/v1-schemas';
 import { SETTLE_SECONDS, cycleOf, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { STEERED } from '@common/v1/steering';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { settlingOf, type RecordedClimate, type Settling } from '../device/held-targets';
 import { targetsOf } from './phase-targets';
@@ -17,7 +18,7 @@ import { targetsOf } from './phase-targets';
  */
 
 /** The row a write leaves, or nothing where the targets and the cycle came out of it where they went in. */
-export const targetChangeOf = (deviceId: string, type: string, before: unknown, after: unknown, at: Date): StoredTargetChange | null => {
+const targetChangeOf = (deviceId: string, type: string, before: unknown, after: unknown, at: Date): StoredTargetChange | null => {
   const targets = targetsOf(asConfiguration(after));
   const cycle = cycleOf(type, asConfiguration(after));
   const same =
@@ -109,8 +110,7 @@ export const cyclesOf = (rows: readonly StoredTargetChange[], window: { startsAt
   return stretches.filter(stretch => stretch.to > stretch.from);
 };
 
-const asConfiguration = (value: unknown): Record<string, unknown> | null =>
-  typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+const asConfiguration = (value: unknown): Record<string, unknown> | null => (isSection(value) ? value : null);
 
 /** A row of the record as the arithmetic of `held-targets.ts` reads it. */
 export const climateOf = (row: StoredTargetChange): RecordedClimate => ({

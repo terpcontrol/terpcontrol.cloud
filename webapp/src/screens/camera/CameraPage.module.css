@@ -54,11 +54,8 @@
 }
 
 .name {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
   flex: 1;
   min-width: 0;
-  line-height: var(--line-tight);
 }
 
 /* On a phone the camera's name has the row to itself at the size a place's
@@ -255,19 +252,8 @@
   gap: var(--space-2);
 }
 
-.quickWrap {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
 .quick {
   gap: var(--space-2);
-}
-
-.quickWhy {
-  font-size: 10px;
-  color: var(--label);
 }
 
 .premium {
@@ -570,11 +556,6 @@
   border: 0;
   padding: 0;
   font-size: var(--text-sm);
-  color: var(--alarm);
-}
-
-.unpairYes {
-  border-color: var(--alarm);
   color: var(--alarm);
 }
 

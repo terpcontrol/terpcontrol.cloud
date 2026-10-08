@@ -17,10 +17,9 @@ RUN npm ci
 
 # The build type-checks against the contract, which is linked with `file:`, and
 # node resolves a linked package's own imports from the package rather than from
-# whoever linked it. The app reads only the flat `/v1` types today and would
-# compile without this; a value read out of `/v1-schemas` would otherwise arrive
-# as `any` (server/Dockerfile spells it out). The stage is thrown away, so this
-# costs the served image nothing.
+# whoever linked it. The app imports values from `/v1-schemas`, whose own
+# dependencies must be installed for them to resolve (server/Dockerfile spells it
+# out). The stage is thrown away, so this costs the served image nothing.
 RUN npm --prefix /usr/src/shared-types ci --omit=dev
 
 COPY webapp/ .

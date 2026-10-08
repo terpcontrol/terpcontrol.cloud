@@ -22,6 +22,7 @@ import {
   webhookMethod,
 } from './common.js';
 import { DEVICE_SETTING_RANGES, OPERATING_MODES } from './configuration-fields.js';
+import { RELEASE_CHANNELS } from './firmware-channels.js';
 import { SOCKET_ADDRESS_MAX_LEN, SOCKET_CREDENTIAL_MAX_LEN, SOCKET_HOLD_MAX_SECONDS } from './socket-report.js';
 
 /**
@@ -38,7 +39,7 @@ import { SOCKET_ADDRESS_MAX_LEN, SOCKET_CREDENTIAL_MAX_LEN, SOCKET_HOLD_MAX_SECO
  * Where a device takes its firmware from. `manual` is not a build channel but the
  * absence of one: the device stays on what an operator picked.
  */
-export const firmwareChannel = named('FirmwareChannel', z.enum(['stable', 'beta', 'alpha', 'manual']));
+export const firmwareChannel = named('FirmwareChannel', z.enum([...RELEASE_CHANNELS, 'manual']));
 
 /**
  * The device's own configuration document.
@@ -401,7 +402,7 @@ export const firmwarePage = named('FirmwarePage', page(firmware));
 export const deviceFirmware = named(
   'DeviceFirmware',
   firmware.extend({
-    channels: z.array(z.enum(['stable', 'beta', 'alpha'])).describe('The release channels whose current build this is; empty for a build no channel points at.'),
+    channels: z.array(z.enum(RELEASE_CHANNELS)).describe('The release channels whose current build this is; empty for a build no channel points at.'),
   }),
 );
 

@@ -1,6 +1,6 @@
-import { DateTime } from 'luxon';
-import type { ChartViewSpan, GrowSeriesRange } from '@fg2/shared-types/v1';
+import type { ChartViewSpan } from '@fg2/shared-types/v1';
 import { instantOf } from '@/ui/age';
+import { DAY_MS, endOfDayOn, HOUR_MS, MINUTE_MS, startOfDayOn } from '@/ui/days';
 import { zoned, zonedAt } from '@/ui/zone';
 
 /**
@@ -14,10 +14,6 @@ import { zoned, zonedAt } from '@/ui/zone';
  * somebody narrowed the window to on the chart itself, which stands in for
  * whichever of the others it was taken from until it is reset.
  */
-
-const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
 
 /** Every rolling width there is, narrowest first: twenty minutes to three years, which is what the old charts offered. */
 export const WIDTHS = {
@@ -66,7 +62,7 @@ export interface Zoom {
  */
 export type ChartWindow = { kind: 'grow'; range: 'phase' | 'grow' } | { kind: 'span'; from: number; to: number };
 
-export interface SpanInput {
+interface SpanInput {
   range: ChartRange;
   /** The two days of a custom range, as the date fields speak them. */
   from: string;
@@ -105,10 +101,10 @@ export const windowOf = (input: SpanInput): ChartWindow | null => {
  */
 export const dayBounds = (from: string, to: string, zone: string | null): { from: number; to: number } | null => {
   if (!from || !to) return null;
-  const start = DateTime.fromISO(from, { zone: zone ?? undefined }).startOf('day');
-  const end = DateTime.fromISO(to, { zone: zone ?? undefined }).endOf('day');
+  const start = startOfDayOn(from, zone).getTime();
+  const end = endOfDayOn(to, zone).getTime();
 
-  return start.isValid && end.isValid ? { from: start.toMillis(), to: end.toMillis() } : null;
+  return Number.isNaN(start) || Number.isNaN(end) ? null : { from: start, to: end };
 };
 
 /** An instant as the contract spells one: UTC to the millisecond, so two of them sort in the order they run. */
@@ -166,6 +162,3 @@ export const rangeOfSpan = (span: ChartViewSpan, zone: string | null): { range: 
   const day = (iso: string | null) => (iso ? (zoned(iso, zone).toISODate() ?? undefined) : undefined);
   return { range: 'custom', from: day(span.range.startsAt), to: day(span.range.endsAt) };
 };
-
-/** The ranges a grow's answer is asked with: the two it names, and custom for every other window. */
-export const seriesRangeOf = (window: ChartWindow): GrowSeriesRange => (window.kind === 'grow' ? window.range : 'custom');

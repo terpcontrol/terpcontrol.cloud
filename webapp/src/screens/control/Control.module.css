@@ -145,27 +145,6 @@
   gap: var(--space-2);
 }
 
-/* What a move will do, asked in the place the tap would be. */
-.asking {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: var(--rule-dashed);
-  border-radius: var(--radius);
-}
-
-.danger {
-  color: var(--alarm);
-  border-color: var(--alarm);
-}
-
-.dangerButton {
-  background: var(--alarm);
-  border-color: var(--alarm);
-  color: var(--on-green);
-}
-
 .refusal {
   display: flex;
   flex-wrap: wrap;
@@ -287,14 +266,6 @@
   opacity: 0.4;
 }
 
-/* The sheet's insides: a few questions apart, like every other sheet. */
-.editor {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-2) 0;
-}
-
 .fields {
   display: flex;
   flex-direction: column;
@@ -379,25 +350,6 @@
   flex-shrink: 0;
   font-size: var(--text-xs);
   color: var(--muted);
-}
-
-.toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.toggleText {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-
-.toggleLabel {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
 }
 
 /* What a save will do to a tent that is already running, said before it does
@@ -534,8 +486,9 @@
   color: var(--muted);
 }
 
-/* The way out of an empty tent, inside the dashed note: underlined rather than
-   coloured, so it reads as the link it is without shouting from a quiet note. */
+/* The way out of a tab with nothing to set, inside the dashed note: underlined
+   rather than coloured, so it reads as the link it is without shouting from a
+   quiet note, and the green stays the Save's. */
 .addDevice {
   color: inherit;
   text-decoration: underline;

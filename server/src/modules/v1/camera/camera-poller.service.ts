@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnApplicationShutdown, OnModuleInit, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { readsThroughDevice } from '@fg2/shared-types/v1-schemas';
 import { logger } from '@utils/logger';
 import { BackgroundWork, logIfItFails } from '@common/background-work';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
@@ -12,7 +13,7 @@ import { CamerasService, CameraWithSecret } from './cameras.service';
 import { CaptureService, CorruptFrameError } from './capture.service';
 import { MediaService } from './media.service';
 import { LIGHT_STATE_READER, LightStateReader } from './light-state';
-import { litFromPicture } from './still-light';
+import { litFromPicture, monochromeOf } from './still-light';
 
 /**
  * Reads one still from every camera on a schedule, and stores it.
@@ -52,11 +53,6 @@ function readKey(camera: Pick<CameraDocument, 'kind' | 'deviceId' | 'url' | 'tra
   return JSON.stringify([camera.url, camera.transport ?? 'tcp', camera.tunnel, camera.deviceId]);
 }
 
-/** Whether reading the camera goes through its device, so it only works while the device is online. */
-function readsThroughDevice(camera: Pick<CameraDocument, 'kind' | 'tunnel'>): boolean {
-  return camera.kind === 'terpcam_controller' || (camera.kind === 'rtsp' && camera.tunnel);
-}
-
 @Injectable()
 export class CameraPollerService implements OnModuleInit, OnApplicationShutdown {
   private readonly state = new Map<string, PollState>();
@@ -80,7 +76,7 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
   ) {}
 
   public onModuleInit(): void {
-    this.work.schedule('The camera poller', () => this.pass(), 30_000);
+    this.work.loop('The camera poller', () => this.pass(), 30_000, PASS_INTERVAL_MS);
   }
 
   public onApplicationShutdown(): void {
@@ -143,44 +139,34 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
   }
 
   private async pass(): Promise<void> {
-    try {
-      const cameras = await this.cameras.capturable();
-      const controllers = await this.controllersOf(cameras);
+    const cameras = await this.cameras.capturable();
+    const controllers = await this.controllersOf(cameras);
 
-      for (const camera of cameras) {
-        // A pass can outlive the server: it sleeps between cameras, and those
-        // sleeps are not the scheduler's to cancel. Stopping here is what keeps
-        // it from reading cameras and writing to a connection that is closing.
-        if (this.work.isStopped) break;
+    for (const camera of cameras) {
+      // A pass can outlive the server: it sleeps between cameras, and those
+      // sleeps are not the scheduler's to cancel. Stopping here is what keeps
+      // it from reading cameras and writing to a connection that is closing.
+      if (this.work.isStopped) break;
 
-        const controller = camera.deviceId ? (controllers.get(camera.deviceId) ?? null) : null;
+      const controller = camera.deviceId ? (controllers.get(camera.deviceId) ?? null) : null;
 
-        // A camera read through its device - a Terp Cam over the device's relay,
-        // or a stream tunnelled through it - needs the device to answer, and an
-        // offline one cannot: each try would only wait out its timeouts (three
-        // minutes of relay dial-ins for a Terp Cam). Asked before the schedule,
-        // so an offline spell does not grow the backoff. A camera reached
-        // directly is still read.
-        if (readsThroughDevice(camera) && (!controller || isOffline(controller.state.lastSeenAt))) continue;
+      // A camera read through its device - a Terp Cam over the device's relay,
+      // or a stream tunnelled through it - needs the device to answer, and an
+      // offline one cannot: each try would only wait out its timeouts (three
+      // minutes of relay dial-ins for a Terp Cam). Asked before the schedule,
+      // so an offline spell does not grow the backoff. A camera reached
+      // directly is still read.
+      if (readsThroughDevice(camera) && (!controller || isOffline(controller.state.lastSeenAt))) continue;
 
-        if (this.reading.has(camera.id) || !this.isDue(camera) || (await this.isResting(camera, controller))) {
-          continue;
-        }
-
-        const still = this.cameras.withSecret(camera.id).then(withSecret => (withSecret ? this.readAndStore(withSecret) : null));
-        this.track(camera.id, readKey(camera), still);
-        logIfItFails(`Reading camera ${camera.id}`, this.paidFor(camera, still));
-
-        await new Promise(resolve => setTimeout(resolve, BETWEEN_CAMERAS_MS));
+      if (this.reading.has(camera.id) || !this.isDue(camera) || (await this.isResting(camera, controller))) {
+        continue;
       }
-    } catch (error) {
-      // A pass that fails must not take the poller with it: without this the
-      // reschedule below is skipped and no camera is read again.
-      logger.error(`The camera poller failed a pass: ${error}`);
-    } finally {
-      // Each pass schedules the next one, so a stopped server has to refuse it
-      // rather than only cancel the timer that happens to be pending.
-      this.work.schedule('The camera poller', () => this.pass(), PASS_INTERVAL_MS);
+
+      const still = this.cameras.withSecret(camera.id).then(withSecret => (withSecret ? this.readAndStore(withSecret) : null));
+      this.track(camera.id, readKey(camera), still);
+      logIfItFails(`Reading camera ${camera.id}`, this.paidFor(camera, still));
+
+      await new Promise(resolve => setTimeout(resolve, BETWEEN_CAMERAS_MS));
     }
   }
 
@@ -188,8 +174,8 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
   private async readAndStore(camera: CameraWithSecret): Promise<StoredStill> {
     const still = await this.capture.readStill(camera);
     const capturedAt = new Date();
-    const lit = await this.litOf(camera, still);
-    const stored = await this.media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt, lit }, still);
+    const [lit, monochrome] = await Promise.all([this.litOf(camera, still), monochromeOf(still)]);
+    const stored = await this.media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt, lit, monochrome }, still);
     await this.cameras.noteCapture(camera.id, capturedAt, null);
     return { mediaId: stored.id, capturedAt };
   }

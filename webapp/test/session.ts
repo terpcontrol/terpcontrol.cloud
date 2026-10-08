@@ -1,4 +1,4 @@
-import type { AccessNeed, Space, SpacePage } from '@fg2/shared-types/v1';
+import type { AccessNeed, Me, Space, SpacePage } from '@fg2/shared-types/v1';
 import type { SessionState } from '@/api/session';
 
 /**
@@ -35,6 +35,31 @@ export const YOU = 'user-1';
 
 /** Somebody else, who owns the tents `SIGNED_IN` was let into rather than owns. */
 export const THE_HOST = 'user-2';
+
+/** `SIGNED_IN`'s account as `GET /me` answers it: nothing linked, nothing paid for, with what a test is about set over it. */
+export const meWith = (over: Partial<Me> = {}): Me => ({
+  id: YOU,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  email: 'login@example.org',
+  isAdmin: false,
+  isActive: true,
+  handle: 'you',
+  bio: null,
+  avatarMediaId: null,
+  publicProfile: false,
+  privacy: { hideWeights: false, hideCounts: false },
+  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
+  retention: { climateDays: null },
+  climateRetention: { installDays: null, appliesDays: null },
+  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
+  deletionStartedAt: null,
+  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
+  pushPublicKey: null,
+  telegramAvailable: false,
+  pushSubscribed: false,
+  layers: { diary: true },
+  ...over,
+});
 
 /**
  * A place and the most the reader may do in it, as the server answers it.

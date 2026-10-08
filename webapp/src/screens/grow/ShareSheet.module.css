@@ -91,11 +91,6 @@
   gap: var(--space-2);
 }
 
-.forget {
-  color: var(--alarm);
-  border-color: var(--alarm);
-}
-
 .editor {
   display: flex;
   flex-direction: column;

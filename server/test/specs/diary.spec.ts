@@ -1,7 +1,8 @@
 import { anonymous, createAccount, demoSession, Session, unique } from '../support/api';
-import { seedMeasurements } from '../support/control';
+import { seedMeasurements, SeedPoint } from '../support/control';
 import { provisionDevice } from '../support/device';
 import { shareLinkOnGrow } from '../support/fixtures';
+import { A_PICTURE } from '../support/pictures';
 
 /**
  * The diary over HTTP: the timeline read and written, the week cards and the
@@ -29,15 +30,9 @@ let stranger: Session;
 let growId: string;
 let now: number;
 
-interface Seed {
-  time: number;
-  device_id: string;
-  fields: Record<string, number>;
-}
-
 /** A week on 12/12, sampled every half hour: twelve hours lit at the day target and twelve dark at the night one. */
-const aWeek = (deviceId: string, until: number): Seed[] => {
-  const seeds: Seed[] = [];
+const aWeek = (deviceId: string, until: number): SeedPoint[] => {
+  const seeds: SeedPoint[] = [];
 
   for (let ago = 7 * 24 * 60; ago > 0; ago -= SAMPLE_MINUTES) {
     const lit = Math.floor(ago / 60) % 24 < 12;
@@ -175,9 +170,6 @@ describe('the timeline', () => {
  * that a line written through `POST /entries` is one the timeline reads back.
  */
 describe('writing the diary', () => {
-  /** A 2x2 PNG, so that what comes back proves the conversion rather than the passthrough. */
-  const aPicture = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR42mP4z8DAAMIM/4EAAB/uBfvxq7p3AAAAAElFTkSuQmCC', 'base64');
-
   it('writes one line and reads it straight back off the timeline', async () => {
     const written = (
       await owner.client
@@ -194,8 +186,9 @@ describe('writing the diary', () => {
   });
 
   it('takes a picture in whatever the phone took it as, and stores one JPEG of it', async () => {
+    // A PNG, so the JPEG that comes back proves the conversion rather than the passthrough.
     const picture = (
-      await owner.client.post('/v1/media').field('kind', 'photo').field('growId', growId).attach('file', aPicture, 'leaf.png').expect(201)
+      await owner.client.post('/v1/media').field('kind', 'photo').field('growId', growId).attach('file', A_PICTURE, 'leaf.png').expect(201)
     ).body;
 
     expect(picture).toMatchObject({ kind: 'photo', mime: 'image/jpeg', growId, uploadedBy: owner.userId });
@@ -222,7 +215,7 @@ describe('writing the diary', () => {
   });
 
   it('refuses a photo that is of nothing', async () => {
-    await owner.client.post('/v1/media').field('kind', 'photo').attach('file', aPicture, 'leaf.png').expect(400);
+    await owner.client.post('/v1/media').field('kind', 'photo').attach('file', A_PICTURE, 'leaf.png').expect(400);
   });
 
   it('answers one line on its own, to whoever may read the diary it is in', async () => {

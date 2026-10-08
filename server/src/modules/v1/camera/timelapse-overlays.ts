@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { MediaAspect, MediaOverlays, SeriesPoint } from '@fg2/shared-types/v1';
+import { MediaAspect, MediaOverlays, MediaQuality, SeriesPoint } from '@fg2/shared-types/v1';
 import { TimelapseContext } from './timelapse-context.service';
 
 /**
@@ -35,11 +35,6 @@ const TEMPERATURE = '#ffa166';
 const HUMIDITY = '#5fd4cf';
 
 export const TEXT_FAMILY = 'Inter, DejaVu Sans, sans-serif';
-/**
- * The same face. Each reading on a frame starts at a fixed place of its own, so
- * one whose width changes from frame to frame moves nothing beside it.
- */
-export const FIGURE_FAMILY = TEXT_FAMILY;
 
 /** How far either side of a diary line its caption is shown. */
 const CAPTION_WINDOW_MS = 30 * 60 * 1000;
@@ -47,7 +42,7 @@ const CAPTION_WINDOW_MS = 30 * 60 * 1000;
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 
 /** The long side of a film, by the resolution it was asked for. */
-const ASPECT_LONG_SIDE: Readonly<Record<'sd' | 'hd', number>> = { sd: 1280, hd: 1920 };
+const ASPECT_LONG_SIDE: Readonly<Record<MediaQuality, number>> = { sd: 1280, hd: 1920 };
 
 const ASPECT_RATIOS: Readonly<Record<MediaAspect, number>> = { '16_9': 16 / 9, '9_16': 9 / 16, '1_1': 1 };
 
@@ -60,7 +55,7 @@ export interface FrameSize {
 const even = (value: number): number => Math.max(2 * Math.round(value / 2), 2);
 
 /** What one frame of this film measures. */
-export const sizeFor = (aspect: MediaAspect, quality: 'sd' | 'hd'): FrameSize => {
+export const sizeFor = (aspect: MediaAspect, quality: MediaQuality): FrameSize => {
   const long = ASPECT_LONG_SIDE[quality];
   const ratio = ASPECT_RATIOS[aspect];
 
@@ -198,12 +193,14 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
     return { path, colour: line.colour, reading: now === null ? null : `${now.toFixed(1)}${line.unit}` };
   });
 
+  // Each reading starts at a fixed place of its own, so one whose width changes
+  // from frame to frame moves nothing beside it.
   const readings = drawn
     .flatMap((line, index) =>
       line.reading === null
         ? []
         : [
-            `<text x="${left + 8 + index * size * 5}" y="${top + size}" font-family="${FIGURE_FAMILY}" font-size="${size}"
+            `<text x="${left + 8 + index * size * 5}" y="${top + size}" font-family="${TEXT_FAMILY}" font-size="${size}"
                    font-weight="700" fill="${line.colour}">${line.reading}</text>`,
           ],
     )

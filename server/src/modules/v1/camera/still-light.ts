@@ -26,3 +26,42 @@ export const litFromPicture = async (still: Buffer): Promise<boolean | null> => 
     return null;
   }
 };
+
+/**
+ * How far apart, on average and out of 255, the three colour channels of a
+ * pixel may lie in a picture that has no colour. A camera in its night mode
+ * sends pure grey - every channel equal in every pixel - and a dark tent
+ * without one comes out black; a tent in colour, plants and walls under a
+ * lamp, measured 20 to 50 on the development cameras.
+ */
+const GREY_SPREAD = 4;
+
+/** Wide enough to measure a picture's colour, small enough to decode in a few milliseconds. */
+const SAMPLE_WIDTH = 192;
+
+/**
+ * Whether a still came out without colour: true for a camera that has switched
+ * to its night (infrared) mode, which it does once its own light sensor finds
+ * the tent dark, and for a picture too dark to show anything; false for one in
+ * colour; null where the picture cannot be read. It is what tells the day from
+ * the night where nothing else in a place can: a smart plug, which has no lamp,
+ * goes by it when it keeps no schedule of its own (`StillDaylightService`).
+ */
+export const monochromeOf = async (still: Buffer): Promise<boolean | null> => {
+  try {
+    const { data, info } = await sharp(still)
+      .resize({ width: SAMPLE_WIDTH, withoutEnlargement: true })
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    if (info.channels < 3) return true;
+
+    let spread = 0;
+    for (let at = 0; at < data.length; at += info.channels) {
+      spread += Math.max(data[at], data[at + 1], data[at + 2]) - Math.min(data[at], data[at + 1], data[at + 2]);
+    }
+    return spread / (data.length / info.channels) < GREY_SPREAD;
+  } catch {
+    return null;
+  }
+};

@@ -1,9 +1,9 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import { act, render, screen } from '@testing-library/react';
+import { QueryClient, useQuery } from '@tanstack/react-query';
+import { act, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { hasFailed, isFirstLoad, useRead } from '@/api/read';
 import { ApiError } from '@/api/problem';
+import { drawAt } from './harness';
 
 /**
  * What a screen is told while a read it has never had an answer to is being
@@ -42,12 +42,7 @@ const Screen = ({ useTheRead }: { useTheRead: () => Shown }) => {
   return <p>{`${result.status}/${problem ?? 'no error'}/${result.fetchStatus}`}</p>;
 };
 
-const draw = (client: QueryClient, useTheRead: () => Shown) =>
-  render(
-    <QueryClientProvider client={client}>
-      <Screen useTheRead={useTheRead} />
-    </QueryClientProvider>,
-  );
+const draw = (client: QueryClient, useTheRead: () => Shown) => drawAt(<Screen useTheRead={useTheRead} />, { client });
 
 describe('a read that has never been answered', () => {
   it('goes on saying it failed while it is being tried again, and keeps the problem it failed with', async () => {

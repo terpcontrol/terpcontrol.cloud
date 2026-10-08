@@ -7,8 +7,9 @@ import { useActivateAccount, useSignUp } from '@/api/account';
 import { CUSTOM_LINKS_HTML, PRIVACY_URL } from '@/api/config';
 import { ApiError } from '@/api/problem';
 import { session, useSession } from '@/api/session';
-import { Logo } from '@/ui/Logo';
+import { typedHandle } from '@/ui/handle';
 import ui from '@/ui/ui.module.css';
+import { CodeField, Door, Problem } from './Door';
 import styles from './SignIn.module.css';
 import { refusalText } from '@/ui/refusal';
 
@@ -78,8 +79,7 @@ export function SignUp() {
       setUnagreed(true);
       return;
     }
-    // The sigil people type out of habit is not part of the name.
-    const credentials = { ...body, handle: body.handle.trim().replace(/^@/, '') };
+    const credentials = { ...body, handle: typedHandle(body.handle) };
     try {
       const account = await signUp.mutateAsync(credentials);
       if (account.isActive) await enter(credentials);
@@ -111,155 +111,115 @@ export function SignUp() {
 
   if (awaiting) {
     return (
-      <main className={styles.page}>
-        <form
-          className={styles.card}
-          onSubmit={event => {
-            event.preventDefault();
-            void activateThenEnter();
-          }}
-          noValidate
-        >
-          <h1 className={styles.wordmark}>
-            <Logo />
-          </h1>
-          <h2 className={styles.step}>{t('login.signUp.activation.title')}</h2>
-          <p className={styles.intro}>{t('login.signUp.activation.body', { email: awaiting.email })}</p>
+      <Door title={t('login.signUp.activation.title')} onSubmit={() => void activateThenEnter()}>
+        <p className={styles.intro}>{t('login.signUp.activation.body', { email: awaiting.email })}</p>
 
-          <label className={`label ${styles.fieldLabel}`} htmlFor="activation-code">
-            {t('login.signUp.activation.code')}
-          </label>
-          <input
-            id="activation-code"
-            className={`mono ${ui.input}`}
-            autoComplete="one-time-code"
-            autoCapitalize="none"
-            spellCheck={false}
-            disabled={busy}
-            value={activationCode}
-            onChange={event => setActivationCode(event.target.value)}
-          />
+        <CodeField value={activationCode} disabled={busy} onChange={setActivationCode} />
 
-          {problem ? (
-            <p className={`${ui.problem} ${styles.problem}`} role="alert">
-              {problem}
-            </p>
-          ) : null}
+        <Problem>{problem}</Problem>
 
-          <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={busy || activationCode.trim() === ''}>
-            {t('login.signUp.activation.submit')}
-          </button>
-
-          <p className={styles.links}>
-            {t(invitation ? 'login.signUp.activation.laterInvited' : 'login.signUp.activation.later')}{' '}
-            <Link to="/sign-in" state={{ from: destination }}>
-              {t('login.signIn')}
-            </Link>
-          </p>
-        </form>
-      </main>
-    );
-  }
-
-  return (
-    <main className={styles.page}>
-      <form className={styles.card} onSubmit={submit} noValidate>
-        <h1 className={styles.wordmark}>
-          <Logo />
-        </h1>
-        <p className={styles.intro}>
-          {invitation
-            ? sent.name
-              ? t('login.signUp.forInvitation', { name: sent.name })
-              : t('login.signUp.forInvitationUnnamed')
-            : t('login.signUp.intro')}
-        </p>
-
-        <label className={`label ${styles.fieldLabel}`} htmlFor="email">
-          {t('login.email')}
-        </label>
-        <input
-          id="email"
-          className={ui.input}
-          type="email"
-          autoComplete="email"
-          inputMode="email"
-          disabled={busy}
-          {...form.register('email', { required: true })}
-        />
-        <FieldProblem message={errors.email?.message} />
-
-        <label className={`label ${styles.fieldLabel}`} htmlFor="handle">
-          {t('login.signUp.handle')}
-        </label>
-        <input
-          id="handle"
-          className={ui.input}
-          autoComplete="username"
-          autoCapitalize="none"
-          spellCheck={false}
-          disabled={busy}
-          {...form.register('handle', { required: true })}
-        />
-        <p className={`${ui.note} ${styles.fieldNote}`}>{t('login.signUp.handleNote')}</p>
-        <FieldProblem message={errors.handle?.message} />
-
-        <label className={`label ${styles.fieldLabel}`} htmlFor="password">
-          {t('login.password')}
-        </label>
-        <input
-          id="password"
-          className={ui.input}
-          type="password"
-          autoComplete="new-password"
-          disabled={busy}
-          {...form.register('password', { required: true })}
-        />
-        <FieldProblem message={errors.password?.message} />
-
-        <>
-          <label className={styles.agree}>
-            <input
-              type="checkbox"
-              checked={agreed}
-              disabled={busy}
-              aria-invalid={unagreed && !agreed}
-              onChange={event => {
-                setAgreed(event.target.checked);
-                setUnagreed(false);
-              }}
-            />
-            <span>
-              {t('login.acceptPrivacyBefore')}{' '}
-              <a href={PRIVACY_URL || '/privacy'} target="_blank" rel="noopener noreferrer">
-                {t('login.acceptPrivacyLink')}
-              </a>
-              {t('login.acceptPrivacyAfter')}
-            </span>
-          </label>
-          <FieldProblem message={unagreed && !agreed ? t('login.acceptPrivacyNeeded') : undefined} />
-        </>
-
-        {problem ? (
-          <p className={`${ui.problem} ${styles.problem}`} role="alert">
-            {problem}
-          </p>
-        ) : null}
-
-        <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={busy}>
-          {busy ? t('login.signUp.creating') : t('login.signUp.create')}
+        <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={busy || activationCode.trim() === ''}>
+          {t('login.signUp.activation.submit')}
         </button>
 
         <p className={styles.links}>
-          {t('login.signUp.haveOne')}{' '}
+          {t(invitation ? 'login.signUp.activation.laterInvited' : 'login.signUp.activation.later')}{' '}
           <Link to="/sign-in" state={{ from: destination }}>
             {t('login.signIn')}
           </Link>
         </p>
+      </Door>
+    );
+  }
 
-        {CUSTOM_LINKS_HTML ? <div className={styles.links} dangerouslySetInnerHTML={{ __html: CUSTOM_LINKS_HTML }} /> : null}
-      </form>
-    </main>
+  return (
+    <Door onSubmit={() => void submit()}>
+      <p className={styles.intro}>
+        {invitation
+          ? sent.name
+            ? t('login.signUp.forInvitation', { name: sent.name })
+            : t('login.signUp.forInvitationUnnamed')
+          : t('login.signUp.intro')}
+      </p>
+
+      <label className={`label ${styles.fieldLabel}`} htmlFor="email">
+        {t('login.email')}
+      </label>
+      <input
+        id="email"
+        className={ui.input}
+        type="email"
+        autoComplete="email"
+        inputMode="email"
+        disabled={busy}
+        {...form.register('email', { required: true })}
+      />
+      <FieldProblem message={errors.email?.message} />
+
+      <label className={`label ${styles.fieldLabel}`} htmlFor="handle">
+        {t('login.signUp.handle')}
+      </label>
+      <input
+        id="handle"
+        className={ui.input}
+        autoComplete="username"
+        autoCapitalize="none"
+        spellCheck={false}
+        disabled={busy}
+        {...form.register('handle', { required: true })}
+      />
+      <p className={`${ui.note} ${styles.fieldNote}`}>{t('login.signUp.handleNote')}</p>
+      <FieldProblem message={errors.handle?.message} />
+
+      <label className={`label ${styles.fieldLabel}`} htmlFor="password">
+        {t('login.password')}
+      </label>
+      <input
+        id="password"
+        className={ui.input}
+        type="password"
+        autoComplete="new-password"
+        disabled={busy}
+        {...form.register('password', { required: true })}
+      />
+      <FieldProblem message={errors.password?.message} />
+
+      <label className={styles.agree}>
+        <input
+          type="checkbox"
+          checked={agreed}
+          disabled={busy}
+          aria-invalid={unagreed && !agreed}
+          onChange={event => {
+            setAgreed(event.target.checked);
+            setUnagreed(false);
+          }}
+        />
+        <span>
+          {t('login.acceptPrivacyBefore')}{' '}
+          <a href={PRIVACY_URL || '/privacy'} target="_blank" rel="noopener noreferrer">
+            {t('login.acceptPrivacyLink')}
+          </a>
+          {t('login.acceptPrivacyAfter')}
+        </span>
+      </label>
+      <FieldProblem message={unagreed && !agreed ? t('login.acceptPrivacyNeeded') : undefined} />
+
+      <Problem>{problem}</Problem>
+
+      <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={busy}>
+        {busy ? t('login.signUp.creating') : t('login.signUp.create')}
+      </button>
+
+      <p className={styles.links}>
+        {t('login.signUp.haveOne')}{' '}
+        <Link to="/sign-in" state={{ from: destination }}>
+          {t('login.signIn')}
+        </Link>
+      </p>
+
+      {CUSTOM_LINKS_HTML ? <div className={styles.links} dangerouslySetInnerHTML={{ __html: CUSTOM_LINKS_HTML }} /> : null}
+    </Door>
   );
 }
 

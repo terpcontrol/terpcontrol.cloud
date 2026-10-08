@@ -1,28 +1,54 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpException, Injectable } from '@nestjs/common';
 import { FastifyRequest } from 'fastify';
-import { HttpException } from '@common/http-exception';
-import { AuthContext, AuthenticatedRequest, TokenService } from './token.service';
+import { AuthContext, AuthenticatedRequest, TokenService, isMediaRead, sessionCredential } from './token.service';
 
 /** Requires a valid user session and puts it on the request. */
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(protected readonly tokens: TokenService) {}
+  constructor(private readonly tokens: TokenService) {}
 
   public async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
     if (this.tokens.candidates(request).length === 0) {
-      throw new HttpException(401, 'Authentication token missing');
+      throw new HttpException('Authentication token missing', 401);
     }
 
-    const token = await this.tokens.verifyFirst(request, 'user');
-    const caller = token && (await this.tokens.resolve(token));
-    if (!caller) {
-      throw new HttpException(401, 'Wrong authentication token');
+    if (!(await this.tokens.authenticate(request, 'user'))) {
+      throw new HttpException('Wrong authentication token', 401);
     }
 
-    request.auth = caller;
-    request.authTokenType = token.token_type;
+    return true;
+  }
+}
+
+/**
+ * A session where there is one, and nobody where there is not.
+ *
+ * `AccessGuard` decides but does not authenticate, and a picture of a camera is
+ * read by three kinds of caller: its owner with a session, a stranger with a
+ * share link, and nobody at all on a public page. A guard that refused the last
+ * two would make every such route a member-only route.
+ *
+ * A token that is present and no longer answers to anybody is simply not a
+ * session - whether it was never signed here, or its session has been revoked,
+ * or the account it named is gone. The decision then has a share link to go on,
+ * or refuses on its own.
+ *
+ * The image token is minted for thirty days and is meant to sit in a URL; that
+ * is right for a picture and wrong for anything else. So it is a session on the
+ * media reads only: anywhere else behind this guard it is nobody, and a copied
+ * picture address opens that picture rather than the diary, the tent and the
+ * cameras around it. Which kind of token proved it is put on the request too,
+ * because one media row - an export - is not a picture either.
+ */
+@Injectable()
+export class OptionalSessionGuard implements CanActivate {
+  constructor(private readonly tokens: TokenService) {}
+
+  public async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    await this.tokens.authenticate(request, isMediaRead(request) ? 'image' : 'user');
     return true;
   }
 }
@@ -47,22 +73,20 @@ export class AdminGuard implements CanActivate {
    * that body is read, which is before any guard runs.
    */
   public async admit(request: FastifyRequest): Promise<AuthContext> {
-    const hasToken =
-      !!(request as { cookies?: Record<string, string> }).cookies?.['Authorization'] || !!request.headers.authorization?.split('Bearer ')[1];
-    if (!hasToken) {
-      throw new HttpException(401, 'Authentication token missing');
+    if (!sessionCredential(request)) {
+      throw new HttpException('Authentication token missing', 401);
     }
 
     const token = await this.tokens.verifySessionToken(request);
     if (!token || token.token_type !== 'user') {
-      throw new HttpException(401, 'Wrong authentication token');
+      throw new HttpException('Wrong authentication token', 401);
     }
 
     // The token says who it was; the account row says whether that is still
     // true, and whether it is still an account at all.
     const caller = await this.tokens.resolve(token);
     if (!caller) {
-      throw new HttpException(401, 'Wrong authentication token');
+      throw new HttpException('Wrong authentication token', 401);
     }
 
     // Signed in, and simply not allowed here - a demo session, or an account
@@ -70,7 +94,7 @@ export class AdminGuard implements CanActivate {
     // to any client that refreshes on one, so somebody who is only not an
     // administrator is signed out of the application instead of being told no.
     if (!caller.isAdmin || caller.isDemo) {
-      throw new HttpException(403, 'This is for administrators.');
+      throw new HttpException('This is for administrators.', 403);
     }
 
     return caller;

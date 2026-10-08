@@ -21,17 +21,30 @@
  * (`daynight.linearChange`, which the server always writes); a controller
  * switches them with the clock.
  *
- * No schema and no imports, so a client and the simulator can share the
- * arithmetic without pulling zod and the whole contract in.
+ * A smart plug compares the same two times the same way, and acts on them only
+ * where its document says to (`plugScheduleOf`).
+ *
+ * No schema, and nothing imported but the schema-free reading of a document,
+ * so a client and the simulator can share the arithmetic without pulling zod
+ * and the whole contract in.
  */
+
+import { finiteOrNull, valueAt } from './configuration-fields.js';
 
 export const DAY_SECONDS = 24 * 60 * 60;
 
-/** The window the firmware runs where its document states none: on at 06:00, off at 22:00 UTC. */
+/** Seconds round the clock: 25:00 is 01:00, and an hour before 00:30 is 23:30. */
+export const roundTheClock = (seconds: number): number => ((seconds % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+
+/**
+ * The window every firmware - a fridge's, a controller's, a socket's, a fan's
+ * and a lamp's - runs where its document states none: on at 06:00, off at
+ * 22:00 UTC.
+ */
 export const FIRMWARE_LIGHTS_ON = 6 * 60 * 60;
 export const FIRMWARE_LIGHTS_OFF = 22 * 60 * 60;
 
-/** Minutes of each dimming ramp where the document states none. */
+/** Minutes of each dimming ramp where a fridge's or a controller's document states none. */
 export const FIRMWARE_RAMP_MINUTES = 15;
 
 /**
@@ -63,9 +76,9 @@ export const SETTLE_SECONDS = 60 * 60;
  * The hour the light came on is kept in the times, so going back to a
  * photoperiod starts from it.
  */
-const ALWAYS_LIT_FROM = 2 * DAY_SECONDS;
+export const ALWAYS_LIT_FROM = 2 * DAY_SECONDS;
 
-const wrap = (seconds: number): number => ((Math.round(seconds) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+const wrap = (seconds: number): number => roundTheClock(Math.round(seconds));
 
 /** The light schedule as a person sets it. */
 export interface LightWindow {
@@ -125,7 +138,13 @@ export const lightWindowTimes = (window: LightWindow): { day: number; night: num
   return { day: on, night: off === 0 ? DAY_SECONDS - 1 : off };
 };
 
-/** When the light goes off, in seconds past midnight UTC: the hour it comes on again for a light that never goes off, or never comes on. */
+/**
+ * When the light goes off, in seconds past midnight UTC, for saying it and for
+ * drawing it: the hour it comes on again for a light that never goes off, or
+ * never comes on. The times a document is written with are another matter - a
+ * whole day, no day and a light off at midnight UTC each have their own form
+ * there (`lightWindowTimes`).
+ */
 export const lightsOffOf = (window: LightWindow): number => wrap(window.lightsOn + Math.round(window.lightHours * 3600));
 
 /* ---------------------------------------------------------------- the cycle */
@@ -149,18 +168,15 @@ export interface Cycle {
  * word it does not know as off, and the fridge's experimental mode runs the
  * clock with every output off.
  */
-const SCHEDULED_MODES: readonly string[] = ['small', 'full', 'temp'];
+export const SCHEDULED_MODES: readonly string[] = ['small', 'full', 'temp'];
 
 /** The hardware whose firmware keeps this cycle. An AIR fan's day is what its light sensor sees; a socket and a lamp hold no targets. */
 const WITH_CYCLE: readonly string[] = ['fridge', 'controller'];
 
-const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-
-/** A figure of a document, nested as the firmware writes it or flat as an older client did. */
-const numberAt = (document: Record<string, unknown>, section: string, key: string): number | null => {
-  const nested = isSection(document[section]) ? (document[section] as Record<string, unknown>)[key] : undefined;
-  const value = nested ?? document[`${section}.${key}`];
-  return typeof value === 'number' && Number.isFinite(value) ? value : typeof value === 'boolean' ? Number(value) : null;
+/** A figure of a document (`valueAt`); a flag is 1 or 0, as the firmware reads it. */
+const numberAt = (document: Record<string, unknown>, path: string): number | null => {
+  const value = valueAt(document, path);
+  return typeof value === 'boolean' ? Number(value) : finiteOrNull(value);
 };
 
 /** The cycle a document runs, or null for hardware that keeps none and for no document at all. */
@@ -169,13 +185,13 @@ export const cycleOf = (type: string, configuration: Record<string, unknown> | n
 
   const workmode = configuration.workmode;
   return {
-    day: numberAt(configuration, 'daynight', 'day') ?? FIRMWARE_LIGHTS_ON,
-    night: numberAt(configuration, 'daynight', 'night') ?? FIRMWARE_LIGHTS_OFF,
+    day: numberAt(configuration, 'daynight.day') ?? FIRMWARE_LIGHTS_ON,
+    night: numberAt(configuration, 'daynight.night') ?? FIRMWARE_LIGHTS_OFF,
     workmode: typeof workmode === 'string' ? workmode : null,
-    sunrise: numberAt(configuration, 'lights', 'sunrise') ?? FIRMWARE_RAMP_MINUTES,
-    sunset: numberAt(configuration, 'lights', 'sunset') ?? FIRMWARE_RAMP_MINUTES,
+    sunrise: numberAt(configuration, 'lights.sunrise') ?? FIRMWARE_RAMP_MINUTES,
+    sunset: numberAt(configuration, 'lights.sunset') ?? FIRMWARE_RAMP_MINUTES,
     // A controller's firmware reads no such key and switches with the clock.
-    glides: type === 'fridge' && (numberAt(configuration, 'daynight', 'linearChange') ?? 0) > 0,
+    glides: type === 'fridge' && (numberAt(configuration, 'daynight.linearChange') ?? 0) > 0,
   };
 };
 
@@ -204,6 +220,30 @@ export const utcSecondsOf = (at: number): number => wrap(Math.floor(at / 1000));
 /** Whether the firmware calls this second of the clock day, by its own strict comparisons. Only the times; the work mode is the caller's. */
 export const isDayAt = (cycle: Pick<Cycle, 'day' | 'night'>, seconds: number): boolean =>
   cycle.day > cycle.night ? seconds > cycle.day || seconds < cycle.night : cycle.day < cycle.night ? seconds > cycle.day && seconds < cycle.night : false;
+
+/**
+ * The day and night a smart plug keeps, or null where it keeps none: the two
+ * times of its document, to be read with `isDayAt`.
+ *
+ * Its firmware works its day out about once a second with the comparisons
+ * above, in every work mode, from `daynight.day` and `daynight.night` (on at
+ * 06:00 and off at 22:00 UTC where the document states none). Only with
+ * `usedaynight` does anything follow it - the night's switch points after dark,
+ * and CO2 dosed by day only. Without it, the firmware's default, the plug holds
+ * its day's switch points round the clock and its day is a figure nothing
+ * reads, so it is no schedule here either.
+ *
+ * A plug has no lamp, and this is what tells its VPD the day from the night
+ * where it has one.
+ */
+export const plugScheduleOf = (type: string, configuration: Record<string, unknown> | null | undefined): Pick<Cycle, 'day' | 'night'> | null => {
+  if (type !== 'plug' || !configuration || !numberAt(configuration, 'usedaynight')) return null;
+
+  return {
+    day: numberAt(configuration, 'daynight.day') ?? FIRMWARE_LIGHTS_ON,
+    night: numberAt(configuration, 'daynight.night') ?? FIRMWARE_LIGHTS_OFF,
+  };
+};
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 

@@ -1,9 +1,4 @@
-import { jest } from '@jest/globals';
-import { Model } from 'mongoose';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
-import { MODEL_V1 } from '@database/models';
-import { StoredClaimCode, claimCodesSchema } from '@database/schemas/v1/claim-codes.schema';
-import { StoredDeviceClass, deviceClassesSchema } from '@database/schemas/v1/device-classes.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
 import { DeviceIngestService } from '@modules/device-protocol/device-ingest.service';
@@ -14,7 +9,8 @@ import { DeviceSample } from '@modules/device-protocol/device-sinks';
 import { decodeCapabilities, decodeSockets } from '@modules/device-protocol/sockets';
 import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
 import { hashDevicePassword } from '@utils/devicepassword';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { Published, recordingMqtt } from './support/device-stack';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The boundary between a device's vocabulary and the model.
@@ -30,10 +26,8 @@ import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 const DEVICE = 'sim-controller-1';
 const OWNER = 'user-1';
 
-let db: V1TestDatabase;
-let claimCodes: Model<StoredClaimCode>;
-let deviceClasses: Model<StoredDeviceClass>;
-let published: { topic: string; message: string }[];
+const db = useV1TestDatabase();
+let published: Published[];
 let mqtt: MqttClientService;
 let ingest: DeviceIngestService;
 let publisher: DevicePublisherService;
@@ -60,35 +54,18 @@ const targets = (over: { day?: { temperature: number | null; humidity: number | 
   co2: over.co2 ?? null,
 });
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-  claimCodes = db.connection.model<StoredClaimCode>(MODEL_V1.claimCode, claimCodesSchema);
-  deviceClasses = db.connection.model<StoredDeviceClass>(MODEL_V1.deviceClass, deviceClassesSchema);
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
-  published = [];
   samples = [];
   metrics = [];
   seen = [];
   firmwareReports = [];
 
-  mqtt = {
-    canPublish: true,
-    publish: jest.fn((topic: string, message: string) => {
-      published.push({ topic, message });
-      return true;
-    }),
-  } as unknown as MqttClientService;
+  ({ mqtt, published } = recordingMqtt());
 
   publisher = new DevicePublisherService(db.devices, mqtt);
   const hardware = new HardwareReportService(db.devices, db.cameras);
-  registration = new DeviceRegistrationService(db.devices, deviceClasses, claimCodes, {
+  registration = new DeviceRegistrationService(db.devices, db.deviceClasses, db.claimCodes, {
     enableSelfRegistration: true,
     selfRegistrationPassword: 'join-me',
   } as never);
@@ -576,7 +553,7 @@ describe('what the cloud tells a device', () => {
     await publisher.command(DEVICE, { kind: 'socket_set', slot: null, role: 'heater', address: '10.0.0.9', credentials: null, timer: null });
     expect(sent()).toEqual({ action: 'socket_set', role: 'heater', ip: '10.0.0.9', append: true });
 
-    published = [];
+    published.length = 0;
     await publisher.command(DEVICE, {
       kind: 'socket_set',
       slot: 2,
@@ -642,8 +619,28 @@ describe('what the cloud tells a device', () => {
         authorId: OWNER,
         deviceId: DEVICE,
         severity: 'info',
-        message: { key: 'message-device-configuration-updated', params: ['day.temperature: 24 → 25'] },
+        message: { key: 'message-device-configuration-updated', params: ['day.temperature: 24 → 25', '', 'controller'] },
       }),
+    ]);
+  });
+
+  /**
+   * A smart socket keeps its day under `daynight` as a controller does, but no
+   * lamp follows it: its switch points by night take over from those by day.
+   * Read without its type, the line said a socket's day as a light plan. What
+   * its day is for depends on what it switches by - dosing CO2, it doses by
+   * day only - so its mode goes beside the figures too.
+   */
+  it('writes the type of device and a socket´s mode beside the figures, so a smart socket´s day is not read as a lamp´s', async () => {
+    await device({ type: 'plug', configuration: { workmode: 'heater', usedaynight: 1, daynight: { day: 21600, night: 79200 } } });
+    const configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries));
+
+    await configuration.configure(DEVICE, { dayFrom: 25200 }, OWNER);
+    await configuration.configure(DEVICE, { plugMode: 'co2', dayNight: false }, OWNER);
+
+    expect((await db.entries.find({}).sort({ _id: 1 }).lean()).map(entry => entry.message)).toEqual([
+      { key: 'message-device-configuration-updated', params: ['daynight.day: 21600 → 25200\ndaynight.night: 79200 → 79200', 'heater', 'plug'] },
+      { key: 'message-device-configuration-updated', params: ['usedaynight: 1 → 0\nworkmode: heater → co2', 'co2', 'plug'] },
     ]);
   });
 
@@ -699,7 +696,7 @@ describe('enrolling and claiming', () => {
     });
 
   beforeEach(async () => {
-    await deviceClasses.create({ id: 'class-1', name: 'fridge', concurrentUpdates: 5, maxFailures: 10, firmwareIds: { stable: 'build-7' } });
+    await db.deviceClasses.create({ id: 'class-1', name: 'fridge', concurrentUpdates: 5, maxFailures: 10, firmwareIds: { stable: 'build-7' } });
   });
 
   it('answers with the build the class runs and stores what the device signs in with', async () => {
@@ -748,7 +745,7 @@ describe('enrolling and claiming', () => {
 
     const code = await registration.issueClaimCode({ device_id: 'sim-fridge-9' });
     expect(code?.claim_code).toHaveLength(6);
-    expect((await claimCodes.findOne({ deviceId: 'sim-fridge-9' }).lean())?.code).toBe(code?.claim_code);
+    expect((await db.claimCodes.findOne({ deviceId: 'sim-fridge-9' }).lean())?.code).toBe(code?.claim_code);
   });
 
   it('checks the password only where the device asked for it to be checked', async () => {
@@ -776,6 +773,6 @@ describe('enrolling and claiming', () => {
     const second = await registration.issueClaimCode({ device_id: DEVICE });
 
     expect(first?.claim_code).not.toBe(second?.claim_code);
-    expect(await claimCodes.countDocuments({ deviceId: DEVICE })).toBe(1);
+    expect(await db.claimCodes.countDocuments({ deviceId: DEVICE })).toBe(1);
   });
 });

@@ -1,4 +1,4 @@
-import { Model } from 'mongoose';
+import { FilterQuery, Model } from 'mongoose';
 import type { AlarmWatch, OpenAlert } from '@fg2/shared-types/v1';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
@@ -36,3 +36,8 @@ export const openAlertReader = async (rules: Model<StoredAlarmRule>, alerts: Sto
     };
   };
 };
+
+/** An alert raised in one of these places, or by a device standing in one. */
+export const alertsRaisedIn = (spaceIds: readonly string[], deviceIds: readonly string[]): FilterQuery<StoredAlert> => ({
+  $or: [{ spaceId: { $in: spaceIds } }, { deviceId: { $in: deviceIds } }],
+});

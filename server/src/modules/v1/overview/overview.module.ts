@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { V1CommonModule } from '@common/v1/v1.module';
 import { ModelsModule } from '@database/models.module';
 import { DataModule } from '@modules/data/data.module';
-import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { SpaceModule } from '../space/space.module';
 import { OverviewController } from './overview.controller';
 import { OverviewService } from './overview.service';
@@ -19,7 +18,7 @@ import { OverviewService } from './overview.service';
 @Module({
   imports: [ModelsModule, V1CommonModule, DataModule, SpaceModule],
   controllers: [OverviewController],
-  providers: [OverviewService, OptionalSessionGuard],
+  providers: [OverviewService],
   exports: [OverviewService],
 })
 export class OverviewModule {}

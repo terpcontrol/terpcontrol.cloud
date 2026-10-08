@@ -22,7 +22,7 @@ export function Devices() {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <h1 className={styles.title}>{t(devices > 1 ? 'shell.tabs.devices' : 'shell.tabs.device')}</h1>
+        <h1>{t(devices > 1 ? 'shell.tabs.devices' : 'shell.tabs.device')}</h1>
       </header>
 
       <DeviceList opened={params.get('space')} />

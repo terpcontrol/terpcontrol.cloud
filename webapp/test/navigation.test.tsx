@@ -1,11 +1,6 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Device, GrowListItem, HomeAnswer, HomeSpaceCard, LayoutSeen, Me, SpaceOverview, SpaceTimeline } from '@fg2/shared-types/v1';
@@ -13,7 +8,9 @@ import { screens } from '@/app/routes';
 import { AppShell } from '@/app/shell/AppShell';
 import { tabsOf } from '@/app/shell/tabs';
 import { openingOf } from '@/log/underneath';
+import { json, testClient } from './harness';
 import { spacePage, spaceWhere } from './session';
+import { translate } from './translations';
 
 const who = vi.hoisted(() => ({ demo: false }));
 
@@ -170,8 +167,6 @@ const server = {
   sent: [] as { method: string; path: string; body: unknown }[],
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const home = (): HomeAnswer => ({
   spaces: server.places.map(([id, name]) => card(id, name)),
   followedGrows: [],
@@ -222,7 +217,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
 const open = (path: string) => {
   const router = createMemoryRouter([{ element: <AppShell />, children: screens }], { initialEntries: [path] });
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={testClient()}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
@@ -237,12 +232,7 @@ const QUIET = '/me/about';
 /** The phone's bar, which the shell draws beside the rail. */
 const bar = () => screen.getAllByRole('navigation', { name: 'Main navigation' }).find(nav => nav.querySelector('button, a')?.parentElement === nav)!;
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

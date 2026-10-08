@@ -6,6 +6,15 @@ export interface InfluxPoint {
   time: number;
 }
 
+/** A point as a spec seeds it through the control plane. */
+export interface SeedPoint {
+  time: number | string;
+  device_id: string;
+  user_id?: string;
+  measurement?: string;
+  fields: Record<string, number>;
+}
+
 export interface CapturedMail {
   from: string;
   to: string[];
@@ -22,10 +31,6 @@ export class InfluxStore {
   public add(points: InfluxPoint[]): void {
     this.points.push(...points);
     this.points.sort((a, b) => a.time - b.time);
-  }
-
-  public reset(): void {
-    this.points = [];
   }
 }
 

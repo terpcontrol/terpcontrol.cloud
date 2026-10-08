@@ -5,6 +5,7 @@ import {
   SOCKET_HOLD_MAX_SECONDS,
   TIMED_SOCKET_ROLES,
 } from '@fg2/shared-types/v1-schemas/socket-report.js';
+import { typedFigure } from '@/ui/figures';
 
 /**
  * What pairing a socket by its address and changing one is made of: the role
@@ -18,7 +19,7 @@ import {
  * build announced is offered, because a role it does not know is dropped when
  * its table is loaded.
  */
-export const OFFERED_ROLES: readonly SocketRole[] = [
+const OFFERED_ROLES: readonly SocketRole[] = [
   'heater',
   'dehumidifier',
   'humidifier',
@@ -61,9 +62,10 @@ const secondsPer = (unit: TimerUnit): number => TIMER_UNITS.find(one => one.unit
 
 /** The seconds a typed span stands for, or null while it is not a whole positive number. */
 export const secondsOfSpan = (span: Span): number | null => {
-  const value = Number(span.value.replace(',', '.'));
+  const value = typedFigure(span.value);
+  if (value === null) return null;
   const seconds = Math.round(value * secondsPer(span.unit));
-  return span.value.trim() !== '' && Number.isFinite(value) && seconds > 0 ? seconds : null;
+  return seconds > 0 ? seconds : null;
 };
 
 /** A number of seconds in the coarsest unit it is whole in, as the field shows it. */
@@ -73,7 +75,7 @@ export const spanOf = (seconds: number): Span => {
 };
 
 /** Two minutes on, every six hours: a watering pump's cycle, which is the timer people set first. */
-export const DEFAULT_TIMER: SocketTimer = { onSeconds: 120, everySeconds: 6 * 3600 };
+const DEFAULT_TIMER: SocketTimer = { onSeconds: 120, everySeconds: 6 * 3600 };
 
 export interface SocketDraft {
   role: SocketRole | null;
@@ -109,7 +111,7 @@ export const timerOf = (draft: Pick<SocketDraft, 'on' | 'every'>): SocketTimer |
  * can carry; a timer to what the firmware accepts - on for less than its
  * period, and a period of a day at most.
  */
-export type SocketProblem = 'role' | 'address' | 'credentials' | 'timer' | 'timerFirmware';
+type SocketProblem = 'role' | 'address' | 'credentials' | 'timer' | 'timerFirmware';
 
 export const problemOf = (draft: SocketDraft, capabilities: DeviceCapabilities): SocketProblem | null => {
   if (!draft.role || !capabilities.roles.includes(draft.role)) return 'role';

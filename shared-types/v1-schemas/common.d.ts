@@ -212,7 +212,6 @@ export declare const valueState: z.ZodEnum<{
     live: "live";
     stale: "stale";
 }>;
-export { VALUE_AGE } from './value-age.js';
 /**
  * A measured value with its age. `state` is decided by the server from
  * `VALUE_AGE` and its own clock, and is what anything acting on the value goes
@@ -421,7 +420,7 @@ export declare const schemeWeek: z.ZodObject<{
  * `vpd` and `ppfd` are computed per device from temperature, humidity, leaf
  * temperature and lux with the device's own factors; `offline` is derived from
  * `devices.state.lastSeenAt` for the always-on alarm and the health loop.
- * Neither is stored, which is what a `null` field below says.
+ * None of them is stored.
  */
 export declare const metric: z.ZodEnum<{
     offline: "offline";
@@ -446,18 +445,6 @@ export declare const outputMetric: z.ZodEnum<{
     fanBackwall: "fanBackwall";
 }>;
 /**
- * How far either side of its target a reading still counts as on target: the
- * green band a chart draws, and what "in band" means in a verdict.
- *
- * It is one tolerance per metric rather than the controller's own hysteresis,
- * which differs per output, per hardware type and per firmware: a band read off
- * the control laws would mean something different on every device, and none of
- * them is what a grower means by "the humidity held". A metric that is not named
- * here is not steered and has no band. Stated once, like `VALUE_AGE`, so the
- * server decides and no client works it out.
- */
-export declare const TARGET_BAND: Readonly<Partial<Record<z.infer<typeof metric>, number>>>;
-/**
  * How many decimals a reading of a metric is worth.
  *
  * A window of a series is a mean of what a device reported, and the mean of two
@@ -468,18 +455,3 @@ export declare const TARGET_BAND: Readonly<Partial<Record<z.infer<typeof metric>
  * screen's own business.
  */
 export declare const METRIC_DECIMALS: Readonly<Record<z.infer<typeof metric>, number>>;
-/**
- * The device's InfluxDB field names are frozen - they are written by firmware in
- * the field and by three years of stored points - so the translation lives here
- * and nowhere else. The device writes sensors under their bare name and outputs
- * with an `out_` prefix, three of them hyphenated.
- *
- * The remaining fields a device writes (`avg`, `p`, `i`, `d`, `rpm`, `day`,
- * `sensor_type`) are controller diagnostics that no screen asks for, so the API
- * names no metric for them; they keep being written and stay readable in Influx.
- */
-export declare const METRIC_FIELD: Readonly<Record<z.infer<typeof metric>, string | null>>;
-export declare const OUTPUT_METRIC_FIELD: Readonly<Record<z.infer<typeof outputMetric>, string>>;
-/** The other direction, for reading a point back out of Influx. Derived, so the two cannot drift. */
-export declare const FIELD_METRIC: Readonly<Record<string, "offline" | "co2" | "temperature" | "humidity" | "leafTemperature" | "lux" | "vpd" | "ppfd">>;
-export declare const FIELD_OUTPUT_METRIC: Readonly<Record<string, "dehumidifier" | "heater" | "light" | "co2" | "fan" | "relais" | "fanInternal" | "fanExternal" | "fanBackwall">>;

@@ -325,6 +325,10 @@ one that lands a tap on the inbox or the task list. It calls neither `self.skipW
 which the plugin adds only to a worker it generates, so despite `registerType: 'autoUpdate'` a new release takes
 over only once every window of the app has been closed; whether that stays is open question 4.
 
+*Amended 2026-10-08:* the old app's onboarding videos, drawings and help pages are gone from `assets/`. What the
+worker keeps once looked at is what is left there - the app icons, the logos and the feeding schemes, under a
+megabyte together.
+
 ### Types: only from `@fg2/shared-types/v1`
 
 Every shape on the wire is imported from the contract, and `verbatimModuleSyntax` plus a lint rule make those

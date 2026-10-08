@@ -1,18 +1,19 @@
-import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Camera, GrowListItem, MediaAspect, MediaOverlays, MediaQuality, MediaWindow, TimelapseCreate } from '@fg2/shared-types/v1';
-import { useMe } from '@/api/account';
 import { useCameras, useLatestStills } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
-import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
-import { Sheet } from '@/log/Sheet';
+import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
+import { Sheet } from '@/ui/Sheet';
 import { ageLabel, instantOf } from '@/ui/age';
+import { endOfDayOn, startOfDayOn } from '@/ui/days';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
+import { Choice } from '@/ui/SheetParts';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
-import { zoneOf } from '@/ui/zone';
+import { nowThere, useZone } from '@/ui/zone';
 import styles from './CameraPage.module.css';
 import { emptyRolling } from './rolling';
 
@@ -44,13 +45,11 @@ interface ComposerProps {
  */
 export function Composer({ camera, grow, growFilms = true, pending, onRender, onClose }: ComposerProps) {
   const { t } = useTranslation();
-  const { user } = useSession();
   // A date somebody picks here is a day of theirs, so the days the fields open
   // on and the instants they are turned into are the account's - the same zone
   // the rest of the app draws its clocks in. Read from the cache the camera
   // page has already filled; until it answers, the browser's zone stands in.
-  const me = useMe(false, user?.isDemo !== true);
-  const zone = zoneOf(me.data);
+  const zone = useZone();
   const [range, setRange] = useState<MediaWindow>('day');
   const [from, setFrom] = useState(today(zone, 7));
   const [to, setTo] = useState(today(zone, 0));
@@ -113,10 +112,10 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
 
         <Group label={t('composer.range')}>
           {RANGES.filter(one => growFilms || (one !== 'phase' && one !== 'grow')).map(one => (
-            <button key={one} type="button" className={ui.chip} aria-pressed={one === range} onClick={() => setRange(one)}>
+            <Choice key={one} chosen={one === range} onChoose={() => setRange(one)}>
               {t(`camera.window.${one}`)}
               {one === 'phase' && grow?.summary.stage ? ` · ${t(`home.stage.${grow.summary.stage}`)}` : ''}
-            </button>
+            </Choice>
           ))}
         </Group>
 
@@ -134,13 +133,13 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
         ) : null}
 
         <Group label={t('composer.cam')}>
-          <button type="button" className={ui.chip} aria-pressed={secondCameraId === null} onClick={() => setSecondCameraId(null)}>
+          <Choice chosen={secondCameraId === null} onChoose={() => setSecondCameraId(null)}>
             {camera.name}
-          </button>
+          </Choice>
           {others.map(one => (
-            <button key={one.id} type="button" className={ui.chip} aria-pressed={secondCameraId === one.id} onClick={() => setSecondCameraId(one.id)}>
+            <Choice key={one.id} chosen={secondCameraId === one.id} onChoose={() => setSecondCameraId(one.id)}>
               {t('composer.split', { name: one.name })}
-            </button>
+            </Choice>
           ))}
           {others.length === 0 ? <span className={ui.note}>{t('composer.oneCameraHere')}</span> : null}
         </Group>
@@ -167,9 +166,9 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
 
         <Group label={t('composer.format')}>
           {ASPECTS.map(one => (
-            <button key={one} type="button" className={ui.chip} aria-pressed={one === aspect} onClick={() => setAspect(one)}>
+            <Choice key={one} chosen={one === aspect} onChoose={() => setAspect(one)}>
               {t(`composer.aspect.${one}`)}
-            </button>
+            </Choice>
           ))}
         </Group>
 
@@ -201,11 +200,7 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
 }
 
 /** A day the account is in, some days back, as the date fields spell one. */
-const today = (zone: string | null, daysAgo: number): string => {
-  const at = serverNow().minus({ days: daysAgo });
-
-  return (zone ? at.setZone(zone) : at).toISODate()!;
-};
+const today = (zone: string | null, daysAgo: number): string => nowThere(serverNow().minus({ days: daysAgo }), zone).toISODate()!;
 
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -236,9 +231,7 @@ function Toggle({
         {help ? <Help topic={help} /> : null}
         {hint ? <span className={styles.toggleHint}>{hint}</span> : null}
       </span>
-      <button type="button" className={ui.switch} role="switch" aria-checked={on} aria-label={label} onClick={() => onToggle(!on)}>
-        <span className={ui.knob} aria-hidden />
-      </button>
+      <Switch label={label} on={on} onChange={onToggle} />
     </div>
   );
 }
@@ -265,7 +258,7 @@ const spanOf = (
   const now = serverNow();
 
   if (range === 'week') return { reason: emptyRolling(range, lastStillAt, now) };
-  if (range === 'day' || range === 'month') return { startsAt: instantOf(now), reason: emptyRolling(range, lastStillAt, now) };
+  if (range === 'day') return { startsAt: instantOf(now), reason: emptyRolling(range, lastStillAt, now) };
 
   if (range === 'phase') {
     const started = grow?.phases.at(-1)?.startedAt;
@@ -279,8 +272,8 @@ const spanOf = (
   // A day is a day where the account is: asked for in the browser's zone, a
   // film of "18 September" would start and end a couple of hours out of the day
   // every other screen calls the 18th.
-  const startsAt = DateTime.fromISO(from, { zone: zone ?? undefined }).startOf('day');
-  const endsAt = DateTime.fromISO(to, { zone: zone ?? undefined }).endOf('day');
+  const startsAt = startOfDayOn(from, zone);
+  const endsAt = endOfDayOn(to, zone);
 
-  return endsAt > startsAt ? { startsAt: instantOf(startsAt), endsAt: instantOf(endsAt), reason: null } : { reason: 'composer.backwards' };
+  return endsAt > startsAt ? { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), reason: null } : { reason: 'composer.backwards' };
 };

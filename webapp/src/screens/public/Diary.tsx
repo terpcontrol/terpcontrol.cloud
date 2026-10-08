@@ -5,10 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowHarvest, PublicAuthor, PublicGrowPage } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type EarlierWeeks, type Picture } from '@/api/public';
+import { initials } from '@/ui/handle';
 import ui from '@/ui/ui.module.css';
 import { DiaryWeek } from './DiaryWeek';
 import { Photo } from '@/ui/Photo';
-import { DAY } from '@/ui/zone';
+import { calendarDay, DAY } from '@/ui/zone';
+import { stageLabel } from '@/ui/presets';
 import styles from './Public.module.css';
 
 interface DiaryProps {
@@ -130,7 +132,7 @@ function Author({ author, picture, aside }: { author: PublicAuthor; picture: Pic
 
   const name = (
     <>
-      <Photo src={avatar} alt="" className={styles.avatar} fallback={author.handle.slice(0, 2).toUpperCase()} />
+      <Photo src={avatar} alt="" className={styles.avatar} fallback={initials(author.handle)} />
       <span className={styles.handle}>@{author.handle}</span>
     </>
   );
@@ -160,7 +162,7 @@ function Facts({ page }: { page: PublicGrowPage }) {
   const until = page.endedAt ? DateTime.fromISO(page.endedAt) : null;
 
   const parts = [
-    page.stage ? (page.preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${page.stage}`)) : t('home.card.noPhase'),
+    page.stage ? stageLabel(t, page.stage, page.preset) : t('home.card.noPhase'),
     // The week of the stage the word before it names, which is what the owner's
     // own header says and what the first card's pill repeats. The week of the
     // whole grow belongs to the cards' own headings: glued to a stage name it
@@ -218,7 +220,7 @@ function Harvest({ harvest }: { harvest: GrowHarvest }) {
   return (
     <p className={`mono ${styles.harvest}`}>
       {t('grow.report.harvest')}
-      {harvest.harvestedAt ? ` · ${DateTime.fromISO(harvest.harvestedAt).toFormat(DAY)}` : ''}
+      {harvest.harvestedAt ? ` · ${calendarDay(harvest.harvestedAt, null)}` : ''}
       {weights.length > 0 ? ` · ${weights.join(' · ')}` : ''}
     </p>
   );

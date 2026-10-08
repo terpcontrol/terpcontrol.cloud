@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { Scheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { schemeVersionLabel, useDeleteScheme, useOwnSchemes, useScheme, useSchemes, useUpdateScheme, type SchemeSummary } from '@/api/schemes';
 import { useSession } from '@/api/session';
-import { Sheet } from '@/log/Sheet';
+import type { Translate } from '@/i18n/i18n';
+import { Sheet } from '@/ui/Sheet';
 import { GridEditor } from '@/screens/grow/scheme/GridEditor';
 import { SchemeGrid } from '@/screens/grow/scheme/SchemeGrid';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
@@ -91,7 +92,7 @@ export function Schemes() {
 }
 
 /** Where an own scheme started: the chart it was kept from, by the name this build gives that chart, or by hand. */
-const originLabel = (t: (key: string, options?: Record<string, unknown>) => string, scheme: Scheme, shipped: SchemeSummary[]): string =>
+const originLabel = (t: Translate, scheme: Scheme, shipped: SchemeSummary[]): string =>
   scheme.origin.assetId === null
     ? t('me.schemes.byHand')
     : t('me.schemes.fromAsset', { name: shipped.find(summary => summary.id === scheme.origin.assetId)?.name ?? scheme.origin.assetId });
@@ -222,9 +223,9 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
         <p className={ui.note}>{t('me.schemes.copyNote')}</p>
 
         {asking ? (
-          <div className={styles.asking}>
+          <div className={ui.asking}>
             <p className={ui.note}>{t('me.schemes.deleteAsk', { name: scheme.name })}</p>
-            <div className={styles.askingActions}>
+            <div className={ui.askingActions}>
               <button
                 type="button"
                 className={`${ui.button} ${styles.dangerButton}`}
@@ -241,7 +242,7 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
           </div>
         ) : (
           <div>
-            <button type="button" className={`${ui.chip} ${styles.danger}`} onClick={() => setAsking(true)}>
+            <button type="button" className={`${ui.chip} ${ui.danger}`} onClick={() => setAsking(true)}>
               {t('me.schemes.delete')}
             </button>
           </div>

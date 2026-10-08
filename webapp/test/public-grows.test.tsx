@@ -1,14 +1,9 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, GrowUpdate, Me, ShareLink } from '@fg2/shared-types/v1';
 import { PublicGrows } from '@/screens/me/sharing/PublicGrows';
+import { drawAt, json, NOT_FOUND } from './harness';
+import { translate } from './translations';
 
 /**
  * Me › Public grows and profile: which grows have a page anybody can open.
@@ -51,8 +46,6 @@ const server = {
   patched: [] as { id: string; body: GrowUpdate }[],
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
   const method = init?.method ?? 'GET';
@@ -67,29 +60,17 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   }
   if (path === '/me') return json(server.me);
   if (path === '/share-links') return json({ items: [link], nextCursor: null });
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
-const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/me/public']}>
-        <PublicGrows />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = () => drawAt(<PublicGrows />, { at: '/me/public' });
 
 const drawLoaded = async () => {
   draw();
   await screen.findByText('@chrisgrows');
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

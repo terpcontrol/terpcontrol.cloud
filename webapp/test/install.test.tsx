@@ -1,16 +1,11 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Me } from '@fg2/shared-types/v1';
 import { catchInstallPrompt } from '@/app/install';
 import { InstallRow } from '@/screens/me/appearance/InstallRow';
 import { PushCard } from '@/screens/notifications/Channels';
+import { drawAt } from './harness';
+import { translate } from './translations';
 
 /**
  * The app on the home screen: the browser's own dialog where it offers one,
@@ -23,10 +18,7 @@ const IPHONE =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 
 beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  await translate();
   catchInstallPrompt();
 });
 
@@ -34,12 +26,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const draw = (node: React.ReactNode, at = '/me/appearance') =>
-  render(
-    <QueryClientProvider client={new QueryClient()}>
-      <MemoryRouter initialEntries={[at]}>{node}</MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (node: React.ReactNode, at = '/me/appearance') => drawAt(node, { at });
 
 const onIphone = () => vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE);
 

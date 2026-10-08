@@ -5,16 +5,17 @@ import type { CardValue, ClimateVerdict, Metric, OverviewCamera, SpaceOverview }
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
+import { Term } from '@/ui/Help';
 import { readingNamesOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/LivenessPill';
-import { figure, targetFigure, UNIT } from '../home/units';
+import { figure, targetFigure, UNIT } from '@/ui/units';
 import { Photo } from '@/ui/Photo';
 import { SharedTimeline } from '../timeline/Timeline';
 import styles from './Public.module.css';
 import { windowIsCurrent } from './window';
-import { DATED_CLOCK } from '@/ui/zone';
+import { clock, DATED_CLOCK } from '@/ui/zone';
 
 /** The four the tent page shows: the three a controller steers and the one it derives. */
 const TILES: Metric[] = ['temperature', 'humidity', 'vpd', 'co2'];
@@ -81,7 +82,7 @@ export function SharedSpace({
 
       {space.verdict.inBandFraction !== null ? (
         <p className={`mono ${styles.verdict}`} data-rating={space.verdict.rating ?? undefined}>
-          {t('space.climate24h')} · {t('space.inBand', { percent: Math.round(space.verdict.inBandFraction * 100) })}
+          {t('space.climate24h')} · <Term topic="verdict">{t('space.inBand', { percent: Math.round(space.verdict.inBandFraction * 100) })}</Term>
         </p>
       ) : null}
 
@@ -228,10 +229,10 @@ function Stills({ camera, picture, now }: { camera: OverviewCamera; picture: Pic
           <li key={still.mediaId} className={styles.still}>
             <Photo
               src={picture(still.mediaId, PUBLIC_WIDTH.dayTile)}
-              alt={t('space.stillAlt', { name: camera.name, time: DateTime.fromISO(still.capturedAt).toFormat('HH:mm') })}
+              alt={t('space.stillAlt', { name: camera.name, time: clock(still.capturedAt, null) })}
               className={styles.stillFrame}
             />
-            <span className={`mono ${styles.stillTime}`}>{DateTime.fromISO(still.capturedAt).toFormat('HH:mm')}</span>
+            <span className={`mono ${styles.stillTime}`}>{clock(still.capturedAt, null)}</span>
           </li>
         ))}
       </ul>

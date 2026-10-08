@@ -1,18 +1,13 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import i18next from 'i18next';
+import { screen } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { HomeSpaceCard, SpaceOverview } from '@fg2/shared-types/v1';
 import { TabBar } from '@/app/shell/TabBar';
 import { GrowBlock } from '@/screens/cockpit/GrowBlock';
 import { DueStrip } from '@/screens/home/Strips';
 import { LogProvider } from '@/log/LogProvider';
+import { drawAt } from './harness';
+import { translate } from './translations';
 
 vi.mock('@/api/session', async importOriginal => {
   const { ON_THE_DEMO } = await import('./session');
@@ -73,21 +68,9 @@ const overview = {
   dueTasks: card.dueTasks.map(task => ({ ...task, defaults: null })),
 } as unknown as SpaceOverview;
 
-const draw = (node: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <LogProvider>{node}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (node: React.ReactNode) => drawAt(<LogProvider>{node}</LogProvider>);
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 describe('a session that may only look', () => {
   it('is not offered the Log button, and keeps the four places', () => {

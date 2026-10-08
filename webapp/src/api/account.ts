@@ -1,4 +1,4 @@
-import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useRead, useReadPages } from './read';
 import type {
   Me,
@@ -17,7 +17,8 @@ import type {
   UserCreate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
-import { session } from './session';
+import { session, useSession } from './session';
+import { invalidate, useWrite } from './write';
 
 /**
  * The account as its owner sees it, and the one way it is changed.
@@ -72,6 +73,16 @@ export const useMe = (refetchEveryMs: number | false = false, enabled = true) =>
     refetchInterval: refetchEveryMs,
     enabled,
   });
+
+/**
+ * The account's own `/me`, which the demo has none of: a demo session is not
+ * asked for it rather than asked and refused.
+ */
+export const useAccountMe = () => {
+  const { user } = useSession();
+
+  return useMe(false, user !== null && user.isDemo !== true);
+};
 
 export const useUpdateMe = () => {
   const client = useQueryClient();
@@ -153,7 +164,7 @@ export const useChangePassword = () => useMutation({ mutationFn: (body: Password
  * a phone, a laptop and a tab or two has a handful, and the one who has a
  * hundred is the one who most wants to see the end of the list.
  */
-export const sessionsKey = ['sessions'];
+const sessionsKey = ['sessions'];
 
 export const useSessions = (enabled = true) =>
   useReadPages({
@@ -164,19 +175,14 @@ export const useSessions = (enabled = true) =>
     enabled,
   });
 
+const sessionsChanged = (client: QueryClient) => invalidate(client, sessionsKey);
+
 /**
  * Ending one session from another. This session's own end is `session.logOut`,
  * which forgets the tokens first; a session ended here is somebody else's
  * browser, and the list is read again so that it is seen to be gone.
  */
-export const useRevokeSession = () => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => api.delete(`/sessions/${id}`),
-    onSuccess: () => client.invalidateQueries({ queryKey: sessionsKey }),
-  });
-};
+export const useRevokeSession = () => useWrite((id: string) => api.delete(`/sessions/${id}`), sessionsChanged);
 
 /**
  * Ending every other session at once, which is what somebody reaches for when a
@@ -184,11 +190,4 @@ export const useRevokeSession = () => {
  * the session asking, so this browser stays signed in and the list is read
  * again to show what is left of the others.
  */
-export const useRevokeOtherSessions = () => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => api.delete('/sessions'),
-    onSuccess: () => client.invalidateQueries({ queryKey: sessionsKey }),
-  });
-};
+export const useRevokeOtherSessions = () => useWrite(() => api.delete('/sessions'), sessionsChanged);

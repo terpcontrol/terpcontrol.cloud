@@ -1,12 +1,7 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { QueryClient } from '@tanstack/react-query';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { LogProvider } from '@/log/LogProvider';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, GrowListItem, GrowWeekCard, Media, MediaRenderStatus } from '@fg2/shared-types/v1';
@@ -15,7 +10,9 @@ import { GrowHeader } from '@/screens/grow/GrowPage';
 import { PhaseBar } from '@/screens/grow/PhaseBar';
 import { Report } from '@/screens/grow/Report';
 import { WeekCard } from '@/screens/grow/WeekCard';
+import { drawAt, json } from './harness';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
+import { catalogue, translate } from './translations';
 
 // A picture's address needs the session's media token, and what a screen offers
 // depends on who is looking, so both are answered here rather than reached for.
@@ -171,22 +168,10 @@ const week: GrowWeekCard = {
 
 const people = [{ id: 'user-anna', handle: 'anna' }];
 
-const draw = (node: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        {/* A week card and a report chapter open a line to be corrected, which is the shell's sheet. */}
-        <LogProvider>{node}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+// A week card and a report chapter open a line to be corrected, which is the shell's sheet.
+const draw = (node: React.ReactNode) => drawAt(<LogProvider>{node}</LogProvider>);
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 /**
  * The export is a job rather than a file: the button asks for it, the row it
@@ -216,22 +201,20 @@ const wire = {
   report: REPORT as unknown,
 };
 
-const jsonOf = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 vi.stubGlobal(
   'fetch',
   vi.fn(async (input: RequestInfo | URL) => {
     const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
     wire.calls.push(path);
 
-    if (path === '/grows/grow-1/report') return jsonOf(wire.report);
-    if (path === '/grows') return jsonOf({ items: wire.grows, nextCursor: null });
-    if (path === '/entries') return jsonOf({ items: wire.entries, nextCursor: null });
-    if (path === '/spaces') return jsonOf({ items: [{ id: 'space-1', name: 'Tent 1', kind: 'tent', roomId: null }], nextCursor: null });
-    if (path === '/grows/grow-1/export') return jsonOf({ media: wire.job, queued: true }, 202);
-    if (path === '/media/media-export') return jsonOf(wire.job);
+    if (path === '/grows/grow-1/report') return json(wire.report);
+    if (path === '/grows') return json({ items: wire.grows, nextCursor: null });
+    if (path === '/entries') return json({ items: wire.entries, nextCursor: null });
+    if (path === '/spaces') return json({ items: [{ id: 'space-1', name: 'Tent 1', kind: 'tent', roomId: null }], nextCursor: null });
+    if (path === '/grows/grow-1/export') return json({ media: wire.job, queued: true }, 202);
+    if (path === '/media/media-export') return json(wire.job);
 
-    return jsonOf({ status: 404, code: 'not_found', title: 'not_found', detail: `No stub for ${path}`, errors: [] }, 404);
+    return json({ status: 404, code: 'not_found', title: 'not_found', detail: `No stub for ${path}`, errors: [] }, 404);
   }),
 );
 
@@ -332,8 +315,7 @@ describe('the report tab', () => {
    * in. It now tells nobody anything, and the writer asks the app.
    */
   it('writes the size with the decimal the app is being read in, not the browser´s', async () => {
-    const german = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/de.json'), 'utf8'));
-    i18next.addResourceBundle('de', 'translation', german);
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
     await i18next.changeLanguage('de');
 
     try {
@@ -459,13 +441,7 @@ describe('a grow that has ended', () => {
       people: [],
       layers: { diary: true },
     });
-    render(
-      <QueryClientProvider client={client}>
-        <MemoryRouter>
-          <GrowHeader grow={grow} plants={[]} spaces={[{ id: 'space-1', name: 'Tent 1' } as never]} now={NOW} onShare={null} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<GrowHeader grow={grow} plants={[]} spaces={[{ id: 'space-1', name: 'Tent 1' } as never]} now={NOW} onShare={null} />, { client });
 
     expect(screen.getByRole('link', { name: 'Back to Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
   });

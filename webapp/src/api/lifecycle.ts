@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import type {
   HarvestCreate,
   HarvestResult,
@@ -14,6 +14,8 @@ import type {
   SplitResult,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { startPhase } from './entries';
+import { invalidate, useWrite } from './write';
 
 /**
  * A grow's life: the stage it is in, where it stands, what came down and what
@@ -40,29 +42,26 @@ import { api } from './client';
  * stage binds and a plan it pauses - and a sheet opened right after reads
  * those, so the devices are read again with the rest.
  */
-export const growChanged = (client: QueryClient): void => {
-  for (const key of ['grow', 'grows', 'home', 'space', 'spaces', 'entries', 'devices']) void client.invalidateQueries({ queryKey: [key] });
-};
+export const growChanged = (client: QueryClient): void =>
+  void invalidate(client, ['grow'], ['grows'], ['home'], ['space'], ['spaces'], ['entries'], ['devices']);
 
-const useLifecycleMutation = <T, V>(mutationFn: (variables: V) => Promise<T>) => {
-  const client = useQueryClient();
-
-  return useMutation({ mutationFn, onSuccess: () => growChanged(client) });
-};
-
-/** The stage picker: the grow moves on, and the diary says so. */
-export const useAddPhase = (growId: string) => useLifecycleMutation((body: PhaseCreate) => api.post<Phase>(`/grows/${growId}/phases`, body));
+/**
+ * The stage picker, and the stage a new grow starts in: the grow moves on, and
+ * the diary says so. The grow's id travels with the call because a new grow's
+ * id is known only once the grow answers.
+ */
+export const useAddPhase = () => useWrite(({ growId, body }: { growId: string; body: PhaseCreate }) => startPhase(growId, body), growChanged);
 
 /** A phase entered with the wrong stage or on the wrong day. Who put the grow there is not corrected with it. */
 export const useCorrectPhase = (growId: string) =>
-  useLifecycleMutation(({ phaseId, body }: { phaseId: string; body: PhaseUpdate }) => api.patch<Phase>(`/grows/${growId}/phases/${phaseId}`, body));
+  useWrite(({ phaseId, body }: { phaseId: string; body: PhaseUpdate }) => api.patch<Phase>(`/grows/${growId}/phases/${phaseId}`, body), growChanged);
 
 /** A phase the grow never entered. The line that announced it goes with it. */
-export const useWithdrawPhase = (growId: string) => useLifecycleMutation((phaseId: string) => api.delete(`/grows/${growId}/phases/${phaseId}`));
+export const useWithdrawPhase = (growId: string) => useWrite((phaseId: string) => api.delete(`/grows/${growId}/phases/${phaseId}`), growChanged);
 
 /** A move: the open placement of these plants is closed and a new one opened. */
 export const useMovePlants = (growId: string) =>
-  useLifecycleMutation((body: PlacementCreate) => api.post<Placement>(`/grows/${growId}/placements`, body));
+  useWrite((body: PlacementCreate) => api.post<Placement>(`/grows/${growId}/placements`, body), growChanged);
 
 /**
  * The same move, asked from the tent's side, where the place is given and the
@@ -70,14 +69,17 @@ export const useMovePlants = (growId: string) =>
  * to the grow that made it - so only which half is known beforehand differs.
  */
 export const useMoveGrowHere = (spaceId: string) =>
-  useLifecycleMutation(({ growId, startedAt }: { growId: string; startedAt: string }) =>
-    api.post<Placement>(`/grows/${growId}/placements`, { spaceId, startedAt }),
+  useWrite(
+    ({ growId, startedAt }: { growId: string; startedAt: string }) => api.post<Placement>(`/grows/${growId}/placements`, { spaceId, startedAt }),
+    growChanged,
   );
 
 /** A move recorded wrongly - which is also how a placement left open is closed on the day the plants really left. */
 export const useCorrectPlacement = (growId: string) =>
-  useLifecycleMutation(({ placementId, body }: { placementId: string; body: PlacementUpdate }) =>
-    api.patch<Placement>(`/grows/${growId}/placements/${placementId}`, body),
+  useWrite(
+    ({ placementId, body }: { placementId: string; body: PlacementUpdate }) =>
+      api.patch<Placement>(`/grows/${growId}/placements/${placementId}`, body),
+    growChanged,
   );
 
 /**
@@ -86,14 +88,14 @@ export const useCorrectPlacement = (growId: string) =>
  * acts on rather than reads.
  */
 export const useWithdrawPlacement = (growId: string) =>
-  useLifecycleMutation((placementId: string) => api.delete(`/grows/${growId}/placements/${placementId}`));
+  useWrite((placementId: string) => api.delete(`/grows/${growId}/placements/${placementId}`), growChanged);
 
 /** Cutting plants down. The weights are totals; the server shares them out over the plants named. */
 export const useHarvest = (growId: string) =>
-  useLifecycleMutation((body: HarvestCreate) => api.post<HarvestResult>(`/grows/${growId}/harvests`, body));
+  useWrite((body: HarvestCreate) => api.post<HarvestResult>(`/grows/${growId}/harvests`, body), growChanged);
 
 /** Some plants go their own way: their own phase, their own place, or both, while the rest of the grow carries on. */
-export const useSplit = (growId: string) => useLifecycleMutation((body: SplitCreate) => api.post<SplitResult>(`/grows/${growId}/splits`, body));
+export const useSplit = (growId: string) => useWrite((body: SplitCreate) => api.post<SplitResult>(`/grows/${growId}/splits`, body), growChanged);
 
 /**
  * Putting a tent on a climate preset, and with it the grow standing in it.
@@ -105,4 +107,4 @@ export const useSplit = (growId: string) => useLifecycleMutation((body: SplitCre
  * tent that has no grow in it.
  */
 export const useApplyPreset = (spaceId: string) =>
-  useLifecycleMutation((body: PresetApplicationCreate) => api.post<PresetApplication>(`/spaces/${spaceId}/preset-applications`, body));
+  useWrite((body: PresetApplicationCreate) => api.post<PresetApplication>(`/spaces/${spaceId}/preset-applications`, body), growChanged);

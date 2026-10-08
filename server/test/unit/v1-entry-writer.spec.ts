@@ -1,5 +1,5 @@
 import { EntryWriterService, UNDO_WINDOW_SECONDS } from '@common/v1/entry-writer.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * A diary line comes from four places and they all have to produce the same
@@ -14,19 +14,11 @@ const SPACE = 'space-1';
 const GROW = 'grow-1';
 const CAMERA = 'camera-1';
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let writer: EntryWriterService;
 
 const deviceLine = (line: string, severity = 0) =>
   writer.writeDeviceLine({ deviceId: DEVICE, spaceId: SPACE, growId: GROW, cameraId: CAMERA, line, severity });
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
 
 beforeEach(async () => {
   await db.reset();

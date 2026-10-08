@@ -1,17 +1,12 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import i18next from 'i18next';
+import { screen } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Alert } from '@fg2/shared-types/v1';
 import { clockOffsetMs, fetchedAt, forgetServerClock, noteServerDate, serverNow } from '@/api/clock';
 import { Alerts } from '@/screens/Alerts';
+import { drawAt } from './harness';
 import { spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * Whose clock the app draws its ages against.
@@ -105,14 +100,7 @@ const answer = (path: string): Response => {
   return json({ items: [], nextCursor: null });
 };
 
-const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <Alerts />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = () => drawAt(<Alerts />);
 
 /** The one card, once the reads behind it have landed: the whole of what a reader is told about the quiet tent. */
 const inbox = async (): Promise<string> => {
@@ -121,10 +109,7 @@ const inbox = async (): Promise<string> => {
 };
 
 beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  await translate();
 
   // Only `Date`: waiting for a render still needs real timers.
   vi.useFakeTimers({ toFake: ['Date'] });

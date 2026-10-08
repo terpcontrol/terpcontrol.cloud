@@ -1,29 +1,19 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
-import { DateTime } from 'luxon';
-import type {
-  CameraStill,
-  Entry,
-  OverviewCamera,
-  OverviewGrow,
-  OverviewTargets,
-  OverviewTask,
-  Person,
-  SpaceOverview,
-  Setpoints,
-} from '@fg2/shared-types/v1';
-import { growDayAt, growOriginOf, metric as metricSchema, outputMetric } from '@fg2/shared-types/v1-schemas';
+import type { CameraStill, OverviewCamera, OverviewGrow, OverviewTargets, SpaceOverview, Setpoints } from '@fg2/shared-types/v1';
+import { STEERED, growDayAt, growOriginOf, metric as metricSchema, outputMetric } from '@fg2/shared-types/v1-schemas';
 import { cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { AccessRange, Grant } from '@common/v1/access.types';
+import { localOf } from '@common/v1/local-time';
+import { peopleNamed } from '@common/v1/people';
 import { clampRange, seenOf, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
-import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { GrowDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
@@ -33,13 +23,16 @@ import { DataService } from '@modules/data/data.service';
 import { setpointsOf } from '../device/setpoints';
 import { climateOf, recordOf, settlingsOf } from '../phase/target-record';
 import { readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
-import { NOTHING_HIDDEN, Redaction, growUpTo, redactionOf, stagesReachedOf, summaryOf } from '../grow/grow-serialiser';
-import { dueTasksOf, occurrencePrefix } from '../home/due-tasks';
+import { completionsOf, dueTasksOf, reminderOfTask, remindersAbout } from '../diary/due-tasks';
+import { standingIn } from '../grow/grow-places';
+import { Redaction, growCardOf, growUpTo, redactionOf, summaryOf } from '../grow/grow-serialiser';
+import { ownerRedactions } from '../grow/redactions';
+import { alertsRaisedIn, openAlertReader } from '../home/open-alerts';
 import { liveOfDevice, mergeLive, setpointOf } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
-import { STEERED, verdictOf } from './climate-verdict';
-import { openAlertReader } from '../home/open-alerts';
+import { framesEvery, shownCameras } from '../timeline/frames';
+import { verdictOf } from './climate-verdict';
 
 /**
  * The tent page's landing tab: what is true in one space now, what needs a
@@ -98,7 +91,7 @@ export class OverviewService {
     private readonly places: SpacesService,
     private readonly live: SpaceLiveService,
     private readonly data: DataService,
-    @Optional() @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange> | null = null,
+    @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange>,
   ) {}
 
   public async read(grant: Grant, spaceId: string, now: Date = new Date()): Promise<SpaceOverview> {
@@ -123,11 +116,18 @@ export class OverviewService {
     const [readings, grows, cameras, alerts, owner] = await Promise.all([
       closed ? Promise.resolve([]) : Promise.all(devices.map(async device => ({ device, reading: await this.data.live(device.id) }))),
       this.growsHere(spaceId, range, closed),
-      grant.includeCameras
-        ? this.cameras.find({ spaceId, removedAt: null }).sort({ createdAt: 1, id: 1 }).lean<CameraDocument[]>()
-        : Promise.resolve([]),
+      shownCameras(this.cameras, [spaceId], grant.includeCameras),
       this.alerts
-        .find({ $and: [{ resolvedAt: null }, this.raisedHere(spaceId, devices), withinRange('startedAt', range)] })
+        .find({
+          $and: [
+            { resolvedAt: null },
+            alertsRaisedIn(
+              [spaceId],
+              devices.map(device => device.id),
+            ),
+            withinRange('startedAt', range),
+          ],
+        })
         .sort({ startedAt: -1 })
         .lean<StoredAlert[]>(),
       this.users
@@ -158,14 +158,7 @@ export class OverviewService {
         .find({ growId: { $in: growIds } })
         .sort({ createdAt: 1, _id: 1 })
         .lean<PlantDocument[]>(),
-      this.reminders
-        .find({
-          $or: [
-            { 'subject.type': 'space', 'subject.id': spaceId },
-            { 'subject.type': 'grow', 'subject.id': { $in: growIds } },
-          ],
-        })
-        .lean<ReminderDocument[]>(),
+      this.reminders.find(remindersAbout([spaceId], growIds)).lean<ReminderDocument[]>(),
       this.entries
         .find({ $and: [{ $or: [{ spaceId }, { growId: { $in: growIds } }] }, withinRange('occurredAt', range)] })
         .sort({ occurredAt: -1, _id: -1 })
@@ -173,9 +166,14 @@ export class OverviewService {
         .lean<EntryDocument[]>(),
       this.stillsToday(cameras, owner?.preferences.timezone ?? null, range, until),
       this.litStills(cameras, range, until),
-      this.redactionFor(grant, grows),
+      ownerRedactions(
+        this.users,
+        grant.redacted,
+        grows.map(grow => grow.ownerId),
+      ),
       steering
         ? this.data.series(steering.deviceId, {
+            // Only the metrics a band can be drawn around: nothing is fetched the verdict has nothing to say about.
             metrics: STEERED,
             // Every output in the same read: what the verdict counts runs of, and
             // the light it tells day from night by.
@@ -186,11 +184,11 @@ export class OverviewService {
         : Promise.resolve(null),
       // What the steering device aimed at over the window, change by change:
       // the day is judged by what held then, not by what was saved since.
-      steering && this.targetRecord && !closed ? recordOf(this.targetRecord, steering.deviceId, window) : Promise.resolve([]),
-      this.targetRecord && !closed ? settlingsOf(this.targetRecord, devices, until) : Promise.resolve(new Map()),
+      steering && !closed ? recordOf(this.targetRecord, steering.deviceId, window) : Promise.resolve([]),
+      !closed ? settlingsOf(this.targetRecord, devices, until) : Promise.resolve(new Map()),
     ]);
 
-    const [completions, openAlertOf] = await Promise.all([this.completionsOf(reminders), openAlertReader(this.rules, alerts)]);
+    const [completions, openAlertOf] = await Promise.all([completionsOf(this.entries, reminders), openAlertReader(this.rules, alerts)]);
     // The band a window is judged against is the controller's configuration as
     // it stands now, which a closed window may not be told either - so a tent
     // read through one is stated rather than graded.
@@ -206,13 +204,15 @@ export class OverviewService {
      * page whose tasks and alerts are empty.
      */
     const forKeepers = !grant.redacted;
-    const dueTasks = forKeepers ? dueTasksOf(reminders, completions, now).map(task => ({ ...task, defaults: defaultsOf(task.id, reminders) })) : [];
+    const dueTasks = forKeepers
+      ? dueTasksOf(reminders, completions, now).map(task => ({ ...task, defaults: reminderOfTask(reminders, task.id)?.defaults ?? null }))
+      : [];
     // The lines themselves are served through the same privacy as the grows
     // above them: a harvest entry carries the weights the card is already
     // hiding, and a photo line names the camera a link may not have been made
     // to carry.
     const lines = redactionOf(grant.redacted, owner?.privacy);
-    const told = entries.map(entry => serialiseDiaryEntry(entry, lines, grant.includeCameras));
+    const told = entries.map(entry => serialiseDiaryEntry(entry, lines, grant));
 
     return {
       spaceId: space.id,
@@ -240,13 +240,8 @@ export class OverviewService {
       readingNames: readingNamesOf(grows),
       dueTasks,
       openAlerts: forKeepers ? alerts.map(openAlertOf) : [],
-      people: await this.peopleIn(told, dueTasks),
+      people: await peopleNamed(this.users, [...told.map(entry => entry.authorId), ...dueTasks.map(task => task.assigneeId)]),
     };
-  }
-
-  /** An alert of this space, or of a device standing in it. */
-  private raisedHere(spaceId: string, devices: StoredDevice[]): FilterQuery<StoredAlert> {
-    return { $or: [{ spaceId }, { deviceId: { $in: devices.map(device => device.id) } }] };
   }
 
   /**
@@ -261,7 +256,7 @@ export class OverviewService {
   private growsHere(spaceId: string, range: AccessRange, closed: boolean): Promise<GrowDocument[]> {
     // Still running, still standing here. A window that is open keeps up with
     // the tent, so this is also what a link with no end answers.
-    const current: FilterQuery<GrowDocument> = { endedAt: null, placements: { $elemMatch: { spaceId, endedAt: null } } };
+    const current = standingIn(spaceId);
 
     // Over before the window opened, in either sense: the grow itself, or the
     // placement that put it here. An open start leaves nothing to be before.
@@ -278,55 +273,18 @@ export class OverviewService {
   }
 
   /**
-   * The day's pictures, one per slot, per camera. A camera takes 2880 stills a
-   * day, so the newest handful of them would be the last few minutes; the slot
-   * each picture falls in is grouped in the database rather than read out and
-   * thinned here.
-   *
-   * The last picture of each slot is the one kept, not the first. Every slot but
-   * one is over by the time it is read and either end of it would do, but the
-   * slot the day is still inside is not: taking its first froze the strip on a
-   * picture up to two hours old under a heading that says "today", while the
-   * home card and the camera page beside it drew the current one. The id and
-   * the instant are taken from the same end so a tile's stamp belongs to the
-   * picture above it.
+   * The day's pictures, one per slot, per camera, cut as the Timeline's frames
+   * are: a camera takes 2880 stills a day, so the newest handful of them would be
+   * the last few minutes.
    *
    * The day is the one the tent stands in - its owner's, not its reader's - so
    * that a shared tent and its grower see the same strip.
    */
-  private async stillsToday(
-    cameras: CameraDocument[],
-    timezone: string | null,
-    range: AccessRange,
-    until: Date,
-  ): Promise<Map<string, CameraStill[]>> {
-    if (cameras.length === 0) return new Map();
-
-    const local = DateTime.fromJSDate(until, { zone: timezone ?? 'UTC' });
-    const startOfDay = (local.isValid ? local : DateTime.fromJSDate(until, { zone: 'UTC' })).startOf('day').toJSDate();
+  private stillsToday(cameras: CameraDocument[], timezone: string | null, range: AccessRange, until: Date): Promise<Map<string, CameraStill[]>> {
+    const startOfDay = localOf(until, timezone).startOf('day').toJSDate();
     const from = clampRange({ range }, { startsAt: startOfDay }).startsAt ?? startOfDay;
-    const slotMs = Math.floor(DAY_MS / STILL_SLOTS);
 
-    const rows = await Promise.all(
-      cameras.map(async camera => {
-        const found = await this.media.aggregate<{ mediaId: string; capturedAt: Date }>([
-          { $match: { cameraId: camera.id, kind: 'still', capturedAt: { $gte: from, $lte: until } } },
-          { $sort: { capturedAt: 1 } },
-          {
-            $group: {
-              _id: { $floor: { $divide: [{ $subtract: ['$capturedAt', from] }, slotMs] } },
-              mediaId: { $last: '$id' },
-              capturedAt: { $last: '$capturedAt' },
-            },
-          },
-          { $sort: { capturedAt: 1 } },
-        ]);
-
-        return [camera.id, found.map(row => ({ mediaId: row.mediaId, capturedAt: row.capturedAt.toISOString() }))] as const;
-      }),
-    );
-
-    return new Map(rows);
+    return framesEvery(this.media, cameras, { startsAt: from, endsAt: until }, Math.floor(DAY_MS / STILL_SLOTS));
   }
 
   /**
@@ -354,49 +312,6 @@ export class OverviewService {
 
     return new Map(rows);
   }
-
-  /**
-   * Whose privacy applies to each grow standing here; nothing is hidden from an
-   * owner or a member.
-   *
-   * It answers a function rather than a map because the miss matters: an owner
-   * whose row could not be read - deleted, or deleted from under their grows -
-   * hides everything, which is the direction every other path already takes and
-   * the only one that is safe from somebody who is already a stranger. A map
-   * with a fallback beside it is a fallback somebody reads as "nothing to hide".
-   */
-  private async redactionFor(grant: Grant, grows: GrowDocument[]): Promise<(ownerId: string) => Redaction> {
-    if (!grant.redacted) return () => NOTHING_HIDDEN;
-
-    const ownerIds = [...new Set(grows.map(grow => grow.ownerId))];
-    const owners = await this.users.find({ id: { $in: ownerIds } }, { id: 1, privacy: 1 }).lean<Pick<StoredUser, 'id' | 'privacy'>[]>();
-    const byOwner = new Map(owners.map(owner => [owner.id, redactionOf(true, owner.privacy)]));
-
-    return ownerId => byOwner.get(ownerId) ?? redactionOf(true, undefined);
-  }
-
-  /** The entries that completed a task of these reminders: a one-off by its id, a rhythm by any of its occurrences. */
-  private completionsOf(reminders: ReminderDocument[]): Promise<EntryDocument[]> {
-    if (reminders.length === 0) return Promise.resolve([]);
-
-    return this.entries
-      .find({ $or: reminders.map(reminder => ({ taskId: reminder.onceAt ? reminder.id : { $regex: `^${occurrencePrefix(reminder.id)}` } })) })
-      .lean<EntryDocument[]>();
-  }
-
-  /**
-   * Everyone the page names, once, so "Mia fed" needs no second read. Asked of
-   * the lines as they are answered rather than as they are stored: a page that
-   * names nobody has nobody to look up.
-   */
-  private async peopleIn(entries: Entry[], tasks: OverviewTask[]): Promise<Person[]> {
-    const ids = new Set([...entries.map(entry => entry.authorId), ...tasks.map(task => task.assigneeId)]);
-    ids.delete(null);
-    if (ids.size === 0) return [];
-
-    const people = await this.users.find({ id: { $in: [...ids] } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
-    return people.map(person => ({ id: person.id, handle: person.handle }));
-  }
 }
 
 /**
@@ -413,10 +328,6 @@ const targetsOf = (both: Setpoints): OverviewTargets => {
   };
 };
 
-/** The reminder a derived task came from: a one-off is its id, a rhythm its id and the day. */
-const defaultsOf = (taskId: string, reminders: ReminderDocument[]): ReminderDocument['defaults'] =>
-  reminders.find(reminder => taskId === reminder.id || taskId.startsWith(occurrencePrefix(reminder.id)))?.defaults ?? null;
-
 /**
  * The grow's own day at an instant, counted from the one origin the grow
  * serialiser counts its header from - so "here since day 22" and "Day 32" on
@@ -431,25 +342,12 @@ const growHere = (grow: GrowDocument, spaceId: string, plants: PlantDocument[], 
   // a grow moves between tents and its day counter carries on across the move.
   const placement = grow.placements
     .filter(one => one.spaceId === spaceId && one.endedAt === null)
-    .reduce<GrowDocument['placements'][number] | null>((first, one) => (first && first.startedAt <= one.startedAt ? first : one), null);
+    .reduce<PlacementDocument | null>((first, one) => (first && first.startedAt <= one.startedAt ? first : one), null);
   const placedAt = placement?.startedAt ?? grow.startedAt;
 
   return {
-    growId: grow.id,
-    name: grow.name,
-    type: grow.type,
-    dayNumber: summary.dayNumber,
-    phaseDay: summary.phaseDay,
-    stageWeek: summary.stageWeek,
+    ...growCardOf(grow, plants, hide, now, summary),
     weekNumber: summary.weekNumber,
-    stage: summary.stage,
-    stagesReached: stagesReachedOf(grow, summary.stage, now),
-    preset: summary.preset,
-    isAuto: summary.isAuto,
-    plantCount: hide.counts ? null : plants.length,
-    strains: [...new Set(plants.map(plant => plant.strain))],
-    coverMediaId: grow.coverMediaId,
-    stageGroups: summary.groups.map(group => ({ stage: group.stage, plantCount: hide.counts ? null : group.plantIds.length })),
     placedAt: placedAt.toISOString(),
     placedOnDay: dayNumberOn(grow, placedAt),
   };

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { useConfigure } from '@/api/devices';
 import { useDevicePlan, usePlanTransition } from '@/api/plans';
+import { saidInAnyLanguage } from '@/i18n/i18n';
 
 /**
  * Switching control back on, and with it the plan the switch paused: off
@@ -15,8 +16,7 @@ export const useSwitchOn = (device: Device) => {
   const plan = useDevicePlan(device.id);
   const move = usePlanTransition(device.id);
   const state = plan.data?.state;
-  const offReasons = Object.keys(i18n.store?.data ?? {}).map(language => i18n.getFixedT(language)('climateControl.pauseReason'));
-  const resumes = state?.status === 'paused' && offReasons.includes(state.pauseReason ?? '');
+  const resumes = state?.status === 'paused' && saidInAnyLanguage(i18n, 'climateControl.pauseReason', state.pauseReason);
 
   const switchOn = async () => {
     try {

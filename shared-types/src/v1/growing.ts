@@ -455,20 +455,6 @@ export const spaceUpdate = named('SpaceUpdate', spaceCreate.partial());
  */
 
 /**
- * Placing a device in a space and taking it out again. The two ids are the whole
- * statement, so neither direction carries a body, and what comes back is this
- * pair rather than the device: `spaceId` is all that changed, and what a device
- * is belongs to the device routes.
- */
-export const devicePlacement = named(
-  'DevicePlacement',
-  z.object({
-    deviceId: id(),
-    spaceId: id().nullable().describe('The space the device now stands in; null once it has been taken out.'),
-  }),
-);
-
-/**
  * What a client may do about the grow when a preset is applied to a space that
  * has no open grow: start one here, move an existing one here, or leave grows
  * out of it and change the climate only.

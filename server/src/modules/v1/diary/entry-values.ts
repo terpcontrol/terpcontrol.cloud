@@ -1,8 +1,7 @@
 import type { EntryDose, EntryValues, EntryValuesDraft } from '@fg2/shared-types/v1';
-import { dosesFor, schemeWeekOf } from '@fg2/shared-types/v1-schemas';
+import { dosesFor, growOriginOf, growWeekAt, schemeWeekOf } from '@fg2/shared-types/v1-schemas';
 import { badRequest } from '@common/v1/problem';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
-import { originOf, weekNumberOf } from './grow-calendar';
 
 /**
  * What a person typed, turned into what is stored.
@@ -29,7 +28,7 @@ interface Planned {
 const plannedFeed = (grow: GrowDocument | null, litres: number | null, at: Date): Planned => {
   if (!grow?.scheme) return { week: null, doses: [] };
 
-  const week = weekNumberOf(originOf(grow), at);
+  const week = growWeekAt(growOriginOf(grow), at);
   return { week, doses: dosesFor(schemeWeekOf(grow.scheme.grid, week), litres, grow.scheme.strength) };
 };
 

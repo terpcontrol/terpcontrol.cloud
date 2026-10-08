@@ -1,11 +1,14 @@
-import type { TFunction } from 'i18next';
+import type { Translate } from '@/i18n/i18n';
 import { type DateTime } from 'luxon';
 import type { Camera, GrowListItem, Me, Scheme, ShareLink, UnitPreference } from '@fg2/shared-types/v1';
 import { growSchemeLabel, type SchemeSummary } from '@/api/schemes';
 import { isAhead } from '@/ui/age';
 import { calendarDay } from '@/ui/zone';
 import type { ThemeChoice } from '@/theme/theme-context';
-import { timeOf } from '@/screens/notifications/settings';
+import { isConfigured } from '@/screens/notifications/reach';
+import { CHANNELS, timeOf } from '@/screens/notifications/settings';
+import { retentionLabel } from './privacy/climate';
+import { isDead } from './sharing/links';
 
 /**
  * The line under each door on Me, worked out from what the server answered
@@ -23,16 +26,8 @@ import { timeOf } from '@/screens/notifications/settings';
 /** The parts of a line, in the board's spelling: a middle dot between each. */
 export const joined = (parts: (string | null)[]): string => parts.filter((part): part is string => part !== null && part !== '').join(' · ');
 
-/**
- * The date a door's line carries, in the one shape the app writes a date in and
- * where the account is. It used to be Luxon's medium preset, which resolves
- * through the reader's language and put the American order under a board whose
- * every other date is written day first.
- */
-const shortDate = (instant: string, zone: string | null): string => calendarDay(instant, zone);
-
 /** "1 public · 2 private · terpcontrol.cloud/@chrisgrows", or that there is nothing to count yet. */
-export const publicLine = (t: TFunction, grows: GrowListItem[], me: Me, host: string): string => {
+export const publicLine = (t: Translate, grows: GrowListItem[], me: Me, host: string): string => {
   const own = grows.filter(grow => grow.ownerId === me.id && !grow.isDemo);
   if (own.length === 0) return joined([t('me.door.public.none'), profilePart(t, me, host)]);
   const isPublic = own.filter(grow => grow.visibility === 'public').length;
@@ -45,9 +40,9 @@ export const publicLine = (t: TFunction, grows: GrowListItem[], me: Me, host: st
 };
 
 /** Where the profile is, or that it is off: the address is only worth reading when something answers at it. */
-const profilePart = (t: TFunction, me: Me, host: string): string => (me.publicProfile ? `${host}/@${me.handle}` : t('me.door.public.profileOff'));
+const profilePart = (t: Translate, me: Me, host: string): string => (me.publicProfile ? `${host}/@${me.handle}` : t('me.door.public.profileOff'));
 
-export const followingLine = (t: TFunction, count: number): string =>
+export const followingLine = (t: Translate, count: number): string =>
   count === 0 ? t('me.door.following.none') : t('me.door.following.grows', { count });
 
 /**
@@ -56,10 +51,10 @@ export const followingLine = (t: TFunction, count: number): string =>
  * says: it was ended by hand, and the person who ended it should find it
  * counted that way.
  */
-export const shareLinksLine = (t: TFunction, links: ShareLink[], now: DateTime): string => {
+export const shareLinksLine = (t: Translate, links: ShareLink[], now: DateTime): string => {
   if (links.length === 0) return t('me.door.shareLinks.none');
   const revoked = links.filter(link => link.revokedAt !== null).length;
-  const live = links.filter(link => link.revokedAt === null && (link.expiresAt === null || isAhead(link.expiresAt, now))).length;
+  const live = links.filter(link => !isDead(link, now)).length;
   const expired = links.length - revoked - live;
 
   return joined([
@@ -79,7 +74,7 @@ export const shareLinksLine = (t: TFunction, links: ShareLink[], now: DateTime):
  * promise a self-hosted grower something they have not got and could not lose.
  */
 export const premiumLine = (
-  t: TFunction,
+  t: Translate,
   cameras: Camera[],
   now: DateTime,
   enforced: boolean,
@@ -94,7 +89,7 @@ export const premiumLine = (
     const [camera] = owned;
     const { validUntil, grant } = camera.entitlement;
     const until =
-      validUntil && grant ? t(`me.door.premium.grant.${grant}`, { date: shortDate(validUntil, zone) }) : t('me.door.premium.noEntitlement');
+      validUntil && grant ? t(`me.door.premium.grant.${grant}`, { date: calendarDay(validUntil, zone) }) : t('me.door.premium.noEntitlement');
 
     return { text: joined([camera.name, until]), aside: stateWord(t, camera, now) };
   }
@@ -111,7 +106,7 @@ export const premiumLine = (
 };
 
 /** Premium is "active"; a camera whose year has run out is "expired", and one that never had one is "free". */
-const stateWord = (t: TFunction, camera: Camera, now: DateTime): string => {
+const stateWord = (t: Translate, camera: Camera, now: DateTime): string => {
   if (camera.entitlement.tier === 'premium') return t('me.door.premium.state.active');
   const { validUntil } = camera.entitlement;
 
@@ -119,14 +114,9 @@ const stateWord = (t: TFunction, camera: Camera, now: DateTime): string => {
 };
 
 /** The channels that are on, in the order of the cards on the page they lead to, then the quiet hours. */
-export const notificationsLine = (t: TFunction, me: Me, now: DateTime): string => {
-  const { channels, quietHours, mutedUntil } = me.notifications;
-  const on = [
-    me.pushSubscribed ? t('notifications.channel.push') : null,
-    channels.telegram ? t('notifications.channel.telegram') : null,
-    channels.email ? t('notifications.channel.email') : null,
-    channels.webhook ? t('notifications.channel.webhook') : null,
-  ].filter((name): name is string => name !== null);
+export const notificationsLine = (t: Translate, me: Me, now: DateTime): string => {
+  const { quietHours, mutedUntil } = me.notifications;
+  const on = CHANNELS.filter(channel => isConfigured(me, channel)).map(channel => t(`notifications.channel.${channel}`));
 
   return joined([
     isAhead(mutedUntil, now) ? t('me.door.notifications.muted') : null,
@@ -135,16 +125,7 @@ export const notificationsLine = (t: TFunction, me: Me, now: DateTime): string =
   ]);
 };
 
-/** How long raw climate is kept, in the words the privacy page's menu uses; the page owns the vocabulary. */
-export const retentionLabel = (t: TFunction, climateDays: number | null): string => {
-  const known: Record<number, string> = { 90: 'd90', 180: 'd180', 365: 'd365', 730: 'd730' };
-  if (climateDays === null) return t('me.privacy.keep.forever');
-  const key = known[climateDays];
-
-  return key ? t(`me.privacy.keep.${key}`) : t('me.door.privacy.days', { count: climateDays });
-};
-
-export const privacyLine = (t: TFunction, me: Me): string => {
+export const privacyLine = (t: Translate, me: Me): string => {
   const { hideWeights, hideCounts } = me.privacy;
   const hidden = hideWeights && hideCounts ? 'both' : hideWeights ? 'weights' : hideCounts ? 'counts' : 'nothing';
 
@@ -152,11 +133,11 @@ export const privacyLine = (t: TFunction, me: Me): string => {
 };
 
 /** "°C, g, l": the three unit choices as their symbols, in the order the page asks them. */
-export const unitsLabel = (t: TFunction, units: UnitPreference): string =>
+const unitsLabel = (t: Translate, units: UnitPreference): string =>
   [units.temperature, units.weight, units.volume].map(unit => t(`me.appearance.unit.${unit}`)).join(', ');
 
 /** The theme, the units where an account states them, and the language; the demo has no units to state. */
-export const appearanceLine = (t: TFunction, theme: ThemeChoice, units: UnitPreference | null, language: string): string =>
+export const appearanceLine = (t: Translate, theme: ThemeChoice, units: UnitPreference | null, language: string): string =>
   joined([
     t('me.door.appearance.theme', { theme: t(`me.theme.${theme}`) }),
     units ? t('me.door.appearance.units', { units: unitsLabel(t, units) }) : null,
@@ -164,7 +145,7 @@ export const appearanceLine = (t: TFunction, theme: ThemeChoice, units: UnitPref
   ]);
 
 /** A language in its own name, which is the one spelling every reader recognises. */
-export const languageName = (t: TFunction, language: string): string => {
+export const languageName = (t: Translate, language: string): string => {
   const key = `me.appearance.languageNames.${language}`;
 
   return t(key) === key ? language : t(key);
@@ -175,7 +156,7 @@ export const languageName = (t: TFunction, language: string): string => {
  * One scheme across every running grow is named; more than one is counted,
  * because naming the first would be naming it for the wrong grow.
  */
-export const schemesLine = (t: TFunction, grows: GrowListItem[], shipped: SchemeSummary[], own: Scheme[]): string => {
+export const schemesLine = (t: Translate, grows: GrowListItem[], shipped: SchemeSummary[], own: Scheme[]): string => {
   const running = grows.filter(grow => grow.endedAt === null && grow.scheme !== null && !grow.isDemo);
   const names = new Map<string, boolean>();
   for (const grow of running) {
@@ -194,7 +175,7 @@ export const schemesLine = (t: TFunction, grows: GrowListItem[], shipped: Scheme
 };
 
 /** "v0.0.1 · production build": what the bundle knows about itself, which is also the About page's first line. */
-export const versionLine = (t: TFunction, version: string, mode: string): string => {
+export const versionLine = (t: Translate, version: string, mode: string): string => {
   const key = `me.about.build.${mode}`;
 
   return t('me.door.about', { version, build: t(key) === key ? mode : t(key) });

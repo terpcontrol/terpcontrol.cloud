@@ -1,34 +1,37 @@
-import { ChevronLeft, Clapperboard } from 'lucide-react';
-import { DateTime } from 'luxon';
+import { Clapperboard } from 'lucide-react';
+import { useAccountMe } from '@/api/account';
+import type { DateTime } from 'luxon';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
-import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
-import { useMe } from '@/api/account';
+import { CAPTURE_BUDGET_SECONDS, readsThroughDevice } from '@fg2/shared-types/v1-schemas/capture.js';
 import { gaveUp, useCamera, useCameraFrames, useLatestStills, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
+import { filmStatus } from '@/api/media';
+import { itemsOf } from '@/api/pages';
 import { noLongerThere } from '@/api/problem';
-import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
+import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { placePath, timelinePath } from '@/app/places';
+import type { Translate } from '@/i18n/i18n';
 import { rowReaches } from '@/screens/notifications/reach';
 import { useCameraCalled } from '@/ui/camera-name';
 import { ageLabel, deviceLiveness, instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
-import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
+import { LoadFailed, NoLongerHere, Refused, Waiting } from '@/ui/PageState';
 import { enough, useMayWith } from '@/ui/session-access';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, DATED_CLOCK, WEEKDAY_DAY, zoned, zonedAt, zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
-import { deviceName } from '../devices/naming';
+import { deviceName } from '@/ui/naming';
 import { OfflineHelp } from '../home/OfflineHelp';
 import { causeOf } from './capture-failure';
-import { at, stamps, stampFor } from '../timeline/window';
+import { at, frameAt, stampOf } from '../timeline/window';
 import { Slider } from '../timeline/CameraFrame';
 import { Composer } from './Composer';
 import { emptyRolling } from './rolling';
@@ -36,6 +39,7 @@ import { Film } from './Film';
 import { CameraSettings } from './CameraSettings';
 import styles from './CameraPage.module.css';
 import { refusalText } from '@/ui/refusal';
+import { BackLink } from '@/ui/BackLink';
 
 /** How many films the section rests at before somebody asks for the rest. */
 const FILMS_AT_REST = 3;
@@ -84,14 +88,13 @@ type DayPictures =
 export function CameraScreen({ camera, refetching = null }: { camera: Camera; refetching?: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
-  const { user } = useSession();
   // Every clock time on this screen is the account's, which is what the server
   // means by one: quiet hours are read in that zone and the Appearance page
   // promises it of every hour the app draws. A camera stamps its own pictures
   // and burns the instant into them, so a label an hour or two off is one this
   // page can be caught out on by the picture beside it. The demo has no account
   // to ask, and until the answer lands the browser's zone stands in.
-  const me = useMe(false, user?.isDemo !== true);
+  const me = useAccountMe();
   const zone = zoneOf(me.data);
   // The width a free camera's stills are served at is the install's setting,
   // and an install that sets none serves them whole - so the line under the
@@ -115,7 +118,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   // its tunnel - goes dark with that device, and is not even tried while the
   // device is offline. So that is what the page says then, rather than the
   // reason the last try before it failed, and the test button waits for it.
-  const throughDevice = readsThroughDevice(camera);
+  const throughDevice = camera.deviceId !== null && readsThroughDevice(camera);
   const devices = useDevices(throughDevice);
   const carrier = throughDevice ? (devices.data?.items.find(device => device.id === camera.deviceId) ?? null) : null;
   const carrierOffline = carrier !== null && deviceLiveness(carrier.state.lastSeenAt, now) === 'offline';
@@ -136,7 +139,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const diary = useDiaryLayer();
   const growFilms = grow !== null || diary;
   const shots = useMemo(() => [...(frames.data?.items ?? [])].sort((one, other) => at(one.capturedAt) - at(other.capturedAt)), [frames.data]);
-  const from = shots.length > 0 ? at(shots[0].capturedAt) : DateTime.fromISO(day.startsAt).toMillis();
+  const from = shots.length > 0 ? at(shots[0].capturedAt) : at(day.startsAt);
   const newest = shots.at(-1) ?? null;
   // The right-hand end of the day is now, or the newest picture where that is
   // later. This screen's clock beats every ten seconds, and a picture taken
@@ -149,6 +152,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const [cursor, setCursor] = useState<number | null>(null);
   const time = cursor ?? to;
   const shown = frameAt(shots, time);
+  const shownAt = shown ? stampOf(at(shown.capturedAt), to - from, zone) : null;
   // Decided once, above everything that draws from it, so that no two lines on
   // this screen can answer the same question differently. The read's own state
   // comes first: an empty `shots` is what a pending read and a failed one both
@@ -166,7 +170,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   // Three films is the resting height of the section, not the whole of it: the
   // rest are behind the control below rather than dropped.
   const [everyFilm, setEveryFilm] = useState(false);
-  const made = filmsOfEachSpan(films.data?.pages.flatMap(page => page.items) ?? []).filter(film => film.id !== job?.id);
+  const made = filmsOfEachSpan(itemsOf(films.data)).filter(film => film.id !== job?.id);
   const shownFilms = everyFilm ? made : made.slice(0, FILMS_AT_REST);
   const moreFilms = () => {
     if (everyFilm && films.hasNextPage) void films.fetchNextPage();
@@ -185,9 +189,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
     <section className={styles.page}>
       <header className={styles.header}>
         {/* The camera belongs to the place it watches: the way back leads there, as the cockpit's picture led here. */}
-        <Link to={place ? placePath(place.id) : '/devices'} className={ui.back} aria-label={place?.name ?? t('shell.tabs.devices')}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to={place ? placePath(place.id) : '/devices'} label={place?.name ?? t('shell.tabs.devices')} />
         <h1 className={styles.name}>{called(camera.name)}</h1>
         <span className={ui.live} data-liveness={liveness}>
           <span className={ui.liveDot} aria-hidden />
@@ -254,7 +256,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
               // gets the picture through its alt text alone was told "just now"
               // about a still four days old, which is the one thing the frame's
               // own dimming and dated label were there to stop it saying.
-              alt={t('camera.frameAlt', { name: camera.name, time: zonedAt(at(shown.capturedAt), zone).toFormat(stamps()[stampFor(to - from)]) })}
+              alt={t('camera.frameAlt', { name: camera.name, time: shownAt })}
             />
           ) : older && camera.state.lastStillAt ? (
             <img
@@ -276,7 +278,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           )}
           {shown ? (
             <span className={ui.photoCaption}>
-              {zonedAt(at(shown.capturedAt), zone).toFormat(stamps()[stampFor(to - from)])}
+              {shownAt}
               {/* "live" is a claim about how late the picture is, so it is the
                 pill's own verdict that decides it and not the frame's position
                 in the day. This camera misses most of its captures, and the
@@ -359,11 +361,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
               {t('camera.makeOne')}
             </button>
           ) : null}
-          {ask.error ? (
-            <p className={ui.problem} role="alert">
-              {refusalText(ask.error, t('camera.askFailed'))}
-            </p>
-          ) : null}
+          <Refused error={ask.error} fallback={t('camera.askFailed')} />
           {job ? <Film mediaId={job.id} mayOwn={mayOwn} /> : null}
           {shownFilms.length > 0 ? (
             <ul className={`${ui.group} ${styles.films}`} aria-label={t('camera.timelapses')}>
@@ -525,8 +523,6 @@ const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now
   ];
 };
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /**
  * One picture, now. A camera that could not be read says the reason it gave,
  * because a wrong address is an ordinary outcome of this button.
@@ -620,13 +616,10 @@ function TestImage({ cameraId, mayOwn, offline }: { cameraId: string; mayOwn: bo
  * that name the same span and disagree are what the reader cannot tell apart.
  */
 const filmsOfEachSpan = (films: Media[]): Media[] => {
-  const played = new Set(films.filter(film => statusOf(film) === 'ready').map(spanOf));
+  const played = new Set(films.filter(film => filmStatus(film) === 'ready').map(spanOf));
 
-  return films.filter(film => statusOf(film) !== 'failed' || !played.has(spanOf(film)));
+  return films.filter(film => filmStatus(film) !== 'failed' || !played.has(spanOf(film)));
 };
-
-/** A film with no render behind it is one the builder made, and those are only ever there once they are finished. */
-const statusOf = (film: Media): string => film.render?.status ?? 'ready';
 
 /** Which span a film is of, as the two ends the row itself draws. */
 const spanOf = (film: Media): string => `${film.capturedAt}|${film.endsAt ?? ''}`;
@@ -668,19 +661,3 @@ const dayOf = (now: DateTime, zone: string | null): { startsAt: string; endsAt: 
 
   return { startsAt: instantOf(start), endsAt: instantOf(start.endOf('day')) };
 };
-
-/** The newest picture taken by the cursor, and the oldest there is before the first one. */
-const frameAt = (shots: Media[], time: number): Media | null => {
-  if (shots.length === 0) return null;
-  let found = shots[0];
-  for (const shot of shots) {
-    if (at(shot.capturedAt) > time) break;
-    found = shot;
-  }
-
-  return found;
-};
-
-/** Whether reading the camera goes through its device, which is then the only way to it: as the server decides it. */
-const readsThroughDevice = (camera: Camera): boolean =>
-  camera.deviceId !== null && (camera.kind === 'terpcam_controller' || (camera.kind === 'rtsp' && camera.tunnel));

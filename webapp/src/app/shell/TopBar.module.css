@@ -35,12 +35,6 @@
   line-height: 0;
 }
 
-.freshness {
-  min-height: calc(var(--text-xs) * var(--line-body));
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
 .action {
   position: relative;
   display: grid;

@@ -1,5 +1,6 @@
 import type { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { finiteOrNull, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
 
 /**
@@ -43,16 +44,11 @@ export const presetConfiguration = (
   const wanted = climatePreset(stage, preset);
   if (!wanted) return null;
 
-  const section = (key: string): Record<string, unknown> => {
-    const value = current?.[key];
-    return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-  };
-
-  const daynight = section('daynight');
-  const { lightsOn } = lightWindowOf(numberOrNull(daynight.day), numberOrNull(daynight.night));
+  const daynight = sectionOf(current, 'daynight') ?? {};
+  const { lightsOn } = lightWindowOf(finiteOrNull(daynight.day), finiteOrNull(daynight.night));
   const figures = (key: string, named: Record<string, number | null>): DeviceConfiguration => {
     const set = Object.entries(named).filter(([, value]) => value !== null);
-    return set.length === 0 ? {} : { [key]: { ...section(key), ...Object.fromEntries(set) } };
+    return set.length === 0 ? {} : { [key]: { ...sectionOf(current, key), ...Object.fromEntries(set) } };
   };
 
   return {
@@ -63,5 +59,3 @@ export const presetConfiguration = (
     ...(wanted.lightHours === null ? {} : { daynight: { ...daynight, ...lightWindowTimes({ lightsOn, lightHours: wanted.lightHours }) } }),
   };
 };
-
-const numberOrNull = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);

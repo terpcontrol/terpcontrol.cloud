@@ -1,12 +1,8 @@
-import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ZoneAdoption } from '@/app/shell/ZoneAdoption';
+import { translate } from './translations';
 
 /**
  * Every account starts on UTC and every migrated one was given it, so a grower
@@ -45,12 +41,7 @@ const draw = () =>
     </MemoryRouter>,
   );
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   state.preferences = { units, locale: 'en', timezone: 'UTC', timezoneChosen: false };

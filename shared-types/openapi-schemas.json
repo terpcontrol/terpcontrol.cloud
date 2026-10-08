@@ -1459,10 +1459,6 @@
       "user"
     ]
   },
-  "DemoSessionCreate": {
-    "type": "object",
-    "properties": {}
-  },
   "SessionRefresh": {
     "type": "object",
     "properties": {
@@ -1679,92 +1675,6 @@
       "externalMessageId",
       "sentAt",
       "expiresAt"
-    ]
-  },
-  "ExportStatus": {
-    "type": "string",
-    "enum": [
-      "queued",
-      "running",
-      "ready",
-      "failed"
-    ]
-  },
-  "UserExport": {
-    "type": "object",
-    "properties": {
-      "id": {
-        "type": "string",
-        "minLength": 1
-      },
-      "createdAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      },
-      "status": {
-        "$ref": "#/components/schemas/ExportStatus"
-      },
-      "startedAt": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          {
-            "type": "null"
-          }
-        ]
-      },
-      "endedAt": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          {
-            "type": "null"
-          }
-        ]
-      },
-      "downloadUrl": {
-        "type": [
-          "string",
-          "null"
-        ]
-      },
-      "validUntil": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "When the finished file is swept; null while it is still being made."
-      },
-      "detail": {
-        "description": "Why it failed; null otherwise.",
-        "type": [
-          "string",
-          "null"
-        ]
-      }
-    },
-    "required": [
-      "id",
-      "createdAt",
-      "status",
-      "startedAt",
-      "endedAt",
-      "downloadUrl",
-      "validUntil",
-      "detail"
     ]
   },
   "AdminUserPage": {
@@ -7059,31 +6969,6 @@
       }
     }
   },
-  "DevicePlacement": {
-    "type": "object",
-    "properties": {
-      "deviceId": {
-        "type": "string",
-        "minLength": 1
-      },
-      "spaceId": {
-        "anyOf": [
-          {
-            "type": "string",
-            "minLength": 1
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "The space the device now stands in; null once it has been taken out."
-      }
-    },
-    "required": [
-      "deviceId",
-      "spaceId"
-    ]
-  },
   "GrowDecision": {
     "type": "string",
     "enum": [
@@ -11087,28 +10972,6 @@
       "appliedAt",
       "durationMs",
       "stats"
-    ]
-  },
-  "MigrationPage": {
-    "type": "object",
-    "properties": {
-      "items": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/Migration"
-        }
-      },
-      "nextCursor": {
-        "description": "Pass back as `cursor` for the next page; null on the last one.",
-        "type": [
-          "string",
-          "null"
-        ]
-      }
-    },
-    "required": [
-      "items",
-      "nextCursor"
     ]
   },
   "CardValue": {

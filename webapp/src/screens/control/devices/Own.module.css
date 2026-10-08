@@ -1,7 +1,124 @@
-/* What a smart socket, an AIR fan and a LIGHT are set to under Steuerung. The
-   rows, blocks, chips and the save bar are the targets page's own; what is
-   drawn here is the line under a choice, a switch in a card of its own, and
-   the windows of a socket's timer. */
+/* What a smart socket, an AIR fan and a LIGHT are set to under Steuerung: the
+   slider and time rows, which the browser would otherwise draw in its own
+   colours, the line under a choice, a switch in a card of its own, and the
+   windows of a socket's timer. The blocks, chips and the save bar are the
+   targets page's own. */
+
+/* A row of a panel: the name, the slider or the time, the figure with its
+   unit, and what stands beside the figure. The figure keeps the width its
+   widest reading needs, so dragging does not shift the slider under the
+   thumb. */
+.row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+  grid-template-areas: 'label slider value';
+  align-items: center;
+  column-gap: var(--space-3);
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--space-3);
+}
+
+.row > .rowLabel {
+  grid-area: label;
+}
+
+.row > .slider {
+  grid-area: slider;
+}
+
+.row > .value {
+  grid-area: value;
+}
+
+/* On a phone a slider squeezed between the name and the figure came to about
+   a hundred pixels, five to a degree: the name and the figure share the top
+   line and the slider takes the whole width under them. */
+@media (max-width: 599px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'label value'
+      'slider slider';
+    padding-block: var(--space-2);
+  }
+
+  .row > .slider {
+    height: 32px;
+  }
+}
+
+.rowLabel {
+  font-size: var(--text-sm);
+}
+
+.value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  column-gap: var(--space-2);
+  /* One width for every row, so the sliders line up whether or not something stands beside the figure. */
+  width: 7rem;
+}
+
+/* The figure and its unit are one thing and never break apart, whatever stands
+   beside them: "1100" on one line and "ppm" on the next would read as a
+   different number. Only what comes after them may wrap. */
+.figure {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  font-size: var(--text-md);
+  white-space: nowrap;
+}
+
+.typed {
+  width: 2.75rem;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: var(--rule-width) solid transparent;
+  color: var(--ink);
+  font-family: var(--font-figure);
+  font-size: var(--text-md);
+  text-align: right;
+}
+
+.typed:focus {
+  outline: none;
+  border-bottom-color: var(--brand);
+}
+
+.typed:disabled {
+  opacity: 0.6;
+}
+
+.unit {
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.aside {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: right;
+}
+
+/* The app's one slider, at a finger's height. `--filled` is set per row from
+   the value. */
+.slider {
+  width: 100%;
+  height: var(--control-height);
+}
+
+@media (min-width: 900px) {
+  .row {
+    padding-inline: var(--space-4);
+  }
+}
 
 .note {
   margin: var(--space-2) 0 0;

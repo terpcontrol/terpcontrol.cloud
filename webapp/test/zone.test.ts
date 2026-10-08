@@ -4,19 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { dayOf, startOfDayOn } from '@/ui/days';
 import * as dates from '@/ui/zone';
-import {
-  clock,
-  CLOCK,
-  DATED_CLOCK,
-  DATED_CLOCK_WITH_YEAR,
-  datedClock,
-  DAY,
-  DAY_IN_YEAR,
-  followDateLanguage,
-  nowThere,
-  zoned,
-  zonedAt,
-} from '@/ui/zone';
+import { clock, CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY, DAY_IN_YEAR, followDateLanguage, nowThere, zoned, zonedAt } from '@/ui/zone';
 
 /**
  * The zone a clock time is drawn in, and the sweep that keeps it that way.
@@ -44,7 +32,7 @@ describe('the zone an instant is read in', () => {
   });
 
   it('names the day as well where the instant is not today´s, which a bare hour would read as already past', () => {
-    expect(datedClock('2026-09-23T22:38:00.000Z', 'Pacific/Kiritimati')).toBe('24 Sep 12:38');
+    expect(zoned('2026-09-23T22:38:00.000Z', 'Pacific/Kiritimati').toFormat(DATED_CLOCK)).toBe('24 Sep 12:38');
   });
 
   it('reads a moment held as milliseconds the same way, which is how the timeline and the camera carry one', () => {
@@ -164,18 +152,17 @@ describe('every clock time and every date the app writes', () => {
   const EXEMPT = ['src/ui/zone.ts', 'src/screens/public/', 'src/api/clock.ts'];
 
   /**
-   * Two files that write a date in the browser's zone and are not fixed here.
+   * A file that writes a date in the browser's zone and is not fixed here.
    *
-   * Both are the plain bypass this sweep exists to catch - `CameraSettings`
-   * dates a camera's entitlement and `members/invites` an invitation's expiry,
-   * each with `DateTime.fromISO(...).toFormat(...)` and no zone - and both are
-   * open in front of another pass over the same defect, where two passes
-   * editing one file is a conflict rather than a fix. This is a debt and not a
-   * reason, which is why the check below insists each entry is still an
-   * offender: the entry has to be deleted by whoever fixes the file, or the
+   * It is the plain bypass this sweep exists to catch - `members/invites` dates
+   * an invitation's expiry with `DateTime.fromISO(...).toFormat(...)` and no
+   * zone - and it is open in front of another pass over the same defect, where
+   * two passes editing one file is a conflict rather than a fix. This is a debt
+   * and not a reason, which is why the check below insists each entry is still
+   * an offender: the entry has to be deleted by whoever fixes the file, or the
    * suite fails asking why it is still here.
    */
-  const NOT_YET = ['src/screens/camera/CameraSettings.tsx', 'src/screens/space/members/invites.ts'];
+  const NOT_YET = ['src/screens/space/members/invites.ts'];
 
   /** Every single-quoted literal in a file that could be a Luxon format. */
   const formatsIn = (source: string): string[] =>
@@ -202,7 +189,7 @@ describe('every clock time and every date the app writes', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('still owes the zone to the two files another pass is holding, and will say so until they are fixed', () => {
+  it('still owes the zone to the file another pass is holding, and will say so until it is fixed', () => {
     expect(NOT_YET.filter(bypasses)).toEqual(NOT_YET);
   });
 
@@ -326,7 +313,7 @@ describe('the zone a day is read in and written back in', () => {
    * was one of the two lines this was written for - so one nesting is allowed
    * inside it.
    */
-  const READS_THE_READER = /\b(clock|datedClock|calendarDay|zoned|zonedAt|nowThere|dayOf|momentOn|startOfDayOn)\((?:[^()]|\([^()]*\))*,\s*null\s*\)/;
+  const READS_THE_READER = /\b(clock|calendarDay|zoned|zonedAt|nowThere|dayOf|momentOn|startOfDayOn|endOfDayOn)\((?:[^()]|\([^()]*\))*,\s*null\s*\)/;
 
   /**
    * Where the reader's own calendar is the right answer, with the reason.

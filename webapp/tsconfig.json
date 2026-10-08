@@ -5,7 +5,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "types": ["vite/client", "vite-plugin-pwa/client", "vitest/globals", "@testing-library/jest-dom"],
+    "types": ["vitest/globals"],
     // The contract spells "none" as `null`. Only strictNullChecks keeps that null
     // in the types the app is written against, which is why the server compiles
     // strictly too.
@@ -21,6 +21,7 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "baseUrl": "src",
     "paths": {
       "@/*": ["*"]

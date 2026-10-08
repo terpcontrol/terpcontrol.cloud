@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { placePath } from '@/app/places';
 import type { Device } from '@fg2/shared-types/v1';
+import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useMe } from '@/api/account';
 import { useClaimedDevice, useNameNewPlace } from '@/api/claims';
 import { useSocketTables } from '@/api/devices';
@@ -21,18 +22,7 @@ import { pairsACam } from '@/screens/camera/add/pairers';
 import { NotifyStep } from '@/screens/notifications/NotifyNotice';
 import { PlaceStep } from './PlaceStep';
 import { Step } from './Step';
-import {
-  doingSummary,
-  hardwareSummary,
-  MEASURE,
-  newPlaceName,
-  NOTHING_DOING,
-  notifySummary,
-  pairsSockets,
-  placeSummary,
-  presetBodyOf,
-  type Doing,
-} from './steps';
+import { doingSummary, hardwareSummary, MEASURE, newPlaceName, NOTHING_DOING, notifySummary, placeSummary, presetBodyOf, type Doing } from './steps';
 import styles from './Claim.module.css';
 
 /** The steps, in order, so the bottom button can carry the next one's name. */
@@ -119,7 +109,7 @@ export function Claim() {
   const lost = device.error instanceof ApiError && !device.data;
   // Sockets and a cam are paired at a fridge module or a controller, a cam alone
   // at a smart socket or an AIR fan; a LIGHT has neither and is not asked.
-  const camOnly = claimed !== null && !pairsSockets(claimed);
+  const camOnly = claimed !== null && !SOCKET_HOST_TYPES.includes(claimed.type);
   const shown = STEPS.flatMap((name, index) => (name === 'hardware' && claimed && !pairsACam(claimed) ? [] : [index]));
   // What a step is called, which for the fourth depends on what the device pairs.
   const keyOf = (index: number): string => (STEPS[index] === 'hardware' && camOnly ? 'camOnly' : STEPS[index]);
@@ -191,7 +181,7 @@ export function Claim() {
   return (
     <section className={styles.screen}>
       <header className={styles.head}>
-        <h1 className={styles.title}>{stepped(t('claim.title', { step: position, of: shown.length }))}</h1>
+        <h1>{stepped(t('claim.title', { step: position, of: shown.length }))}</h1>
         <button type="button" className={styles.skip} onClick={leave}>
           {t('claim.skip')}
         </button>
@@ -200,7 +190,7 @@ export function Claim() {
       {/* Nothing announces a step change on its own: the heading's text swaps and
           `aria-current` moves, neither of which is read out. This says what has
           just opened, and stays empty until something has. */}
-      <p className={styles.announce} role="status">
+      <p className={ui.visuallyHidden} role="status">
         {at > 0 ? t('claim.opened', { title: t(`claim.${keyOf(at)}.title`), step: position, of: shown.length }) : ''}
       </p>
 
@@ -312,7 +302,7 @@ function OnlyLooking() {
 
   return (
     <section className={styles.screen}>
-      <h1 className={styles.title}>{stepped(t('claim.title', { step: 1, of: STEPS.length }))}</h1>
+      <h1>{stepped(t('claim.title', { step: 1, of: STEPS.length }))}</h1>
       <p className={`${ui.cardDashed} ${styles.demoNote}`}>{t('claim.demo')}</p>
       <Link className={ui.button} to="/devices">
         {t('claim.backToDevices')}

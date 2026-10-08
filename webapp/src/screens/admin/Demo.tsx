@@ -3,13 +3,14 @@ import { Link } from 'react-router';
 import { placePath } from '@/app/places';
 import { useAdminCameras, useAdminDevices } from '@/api/admin';
 import { useGrows } from '@/api/grows';
+import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSpaces } from '@/api/spaces';
 import { ageLabel, deviceLiveness } from '@/ui/age';
-import { LoadFailed, Waiting } from '@/ui/PageState';
+import { AdminHead, AdminNotLoaded, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from '../devices/cameras';
-import { useFollowCursor } from './pages';
+import { typeName } from '@/ui/naming';
 import styles from './Admin.module.css';
 
 /**
@@ -41,36 +42,15 @@ export function Demo() {
   useFollowCursor(devices);
   useFollowCursor(cameras);
 
-  const header = (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{t('admin.demo.title')}</h1>
-      <span className={`mono ${styles.crumb}`}>
-        <Link to="/admin/fleet">{t('admin.fleet.title')}</Link> › {t('admin.demo.title')}
-      </span>
-    </header>
-  );
+  const header = <AdminHead title={t('admin.demo.title')} crumb={t('admin.demo.title')} />;
 
-  if (devices.isPending) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <Waiting lines={3} />
-      </section>
-    );
-  }
+  if (devices.isPending) return <AdminNotLoaded head={header} lines={3} />;
 
-  if (!devices.data) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <LoadFailed retry={() => void devices.refetch()} />
-      </section>
-    );
-  }
+  if (!devices.data) return <AdminNotLoaded head={header} retry={() => void devices.refetch()} />;
 
-  const shownDevices = devices.data.pages.flatMap(page => page.items).filter(device => device.isDemo);
+  const shownDevices = itemsOf(devices.data).filter(device => device.isDemo);
   const shownSpaces = (spaces.data?.items ?? []).filter(space => space.isDemo);
-  const shownCameras = (cameras.data?.pages ?? []).flatMap(page => page.items).filter(camera => camera.isDemo && camera.removedAt === null);
+  const shownCameras = itemsOf(cameras.data).filter(camera => camera.isDemo && camera.removedAt === null);
   const shownGrows = (grows.data?.items ?? []).filter(grow => grow.isDemo);
 
   return (
@@ -95,12 +75,11 @@ export function Demo() {
             return (
               <li key={device.id} className={styles.row}>
                 <span className="mono">{device.id}</span>
-                <span>{device.name ?? t(`devices.type.${device.type}`, { defaultValue: device.type })}</span>
-                <span className={`mono ${styles.liveness}`} data-liveness={liveness}>
-                  <span className={styles.dot} aria-hidden />
+                <span>{device.name ?? typeName(device.type, t)}</span>
+                <Liveness state={liveness}>
                   {t(`home.liveness.${liveness}`)}
                   {device.state.lastSeenAt ? ` · ${ageLabel(device.state.lastSeenAt, now)}` : ''}
-                </span>
+                </Liveness>
                 {device.spaceId ? (
                   <Link className={ui.chip} to={placePath(device.spaceId)}>
                     {t('admin.demo.open')}
@@ -158,10 +137,9 @@ export function Demo() {
               <Link className="mono" to={`/cameras/${camera.id}`}>
                 {camera.name}
               </Link>
-              <span className={`mono ${styles.liveness}`} data-liveness={cameraFreshness(camera, now)}>
-                <span className={styles.dot} aria-hidden />
+              <Liveness state={cameraFreshness(camera, now)}>
                 {camera.state.lastStillAt ? t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) }) : t('devices.noStill')}
-              </span>
+              </Liveness>
             </li>
           ))}
           {shownCameras.length === 0 ? <li className={ui.note}>{t('admin.demo.noCamera')}</li> : null}

@@ -1,4 +1,4 @@
-import type { GrowthStage, SchemeWeek } from '@fg2/shared-types/v1';
+import type { GrowthStage, SchemeAmount, SchemeWeek } from '@fg2/shared-types/v1';
 
 /**
  * The grid, as the editor changes it.
@@ -15,11 +15,7 @@ import type { GrowthStage, SchemeWeek } from '@fg2/shared-types/v1';
  */
 
 /** A row: one product, named once however many weeks dose it. */
-export interface Product {
-  productKey: string;
-  name: string;
-  unit: string;
-}
+export type Product = Omit<SchemeAmount, 'value'>;
 
 /**
  * Every product the grid names, in the order the weeks first name them. A
@@ -51,10 +47,6 @@ export const hasEcTargets = (grid: readonly SchemeWeek[]): boolean => grid.some(
  */
 export const ecTargetAt = (week: SchemeWeek, waterEc: number | null): number | null =>
   week.ecTarget === null || week.ecTarget === undefined ? null : week.ecTarget + (waterEc ?? 0);
-
-/** What that week doses of that product, where null is "not this week" and a week that never names it is the same answer. */
-export const valueAt = (grid: readonly SchemeWeek[], weekNumber: number, productKey: string): number | null =>
-  grid.find(week => week.week === weekNumber)?.amounts.find(amount => amount.productKey === productKey)?.value ?? null;
 
 /**
  * One cell, changed. A week that had no row for the product gains one, because

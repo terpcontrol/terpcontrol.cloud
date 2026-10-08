@@ -67,29 +67,8 @@
   text-decoration: underline;
 }
 
-/* Deleting asks first, in the place the tap was. */
-.asking {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: var(--rule-dashed);
-  border-radius: var(--radius);
-}
-
-.askingActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.danger {
-  border-color: var(--alarm);
-  color: var(--alarm);
-}
-
-/* Outlined rather than filled, as the privacy page's is: a solid alarm would
-   need an ink that reads on it in both themes, and there is no such token. */
+/* The yes to deleting a scheme, outlined in the alarm colour as the privacy
+   page's is. */
 .dangerButton {
   background: transparent;
   border-color: var(--alarm);

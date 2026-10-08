@@ -1,5 +1,7 @@
+import { DateTime } from 'luxon';
 import type { Metric, SpaceTimeline, TimelineAlarm, TimelinePanel, TimelineSpan, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
-import { niceScale } from '@/charts/series';
+import { niceScale, type PlotScale } from '@/charts/series';
+import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/ui/days';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY_IN_YEAR, zonedAt } from '@/ui/zone';
 
 /**
@@ -15,7 +17,12 @@ import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY_IN_YEAR, zonedAt } from 
 
 export const at = (iso: string): number => new Date(iso).getTime();
 
-const HOUR_MS = 60 * 60 * 1000;
+/** The instant an address names, or null where it names none or something that is not one. */
+export const momentOf = (value: string | null): number | null => {
+  if (!value) return null;
+  const moment = DateTime.fromISO(value);
+  return moment.isValid ? moment.toMillis() : null;
+};
 
 /**
  * How a moment inside a window is written, from the narrowest that still says
@@ -33,8 +40,8 @@ export const stamps = (): readonly string[] => [CLOCK, `ccc ${CLOCK}`, DATED_CLO
  */
 export const stampFor = (span: number): number => {
   if (span <= 36 * HOUR_MS) return 0;
-  if (span <= 10 * 24 * HOUR_MS) return 1;
-  return span <= 400 * 24 * HOUR_MS ? 2 : 3;
+  if (span <= 10 * DAY_MS) return 1;
+  return span <= 400 * DAY_MS ? 2 : 3;
 };
 
 export const stampOf = (time: number, span: number, zone: string | null = null): string => zonedAt(time, zone).toFormat(stamps()[stampFor(span)]);
@@ -54,13 +61,13 @@ export const stampForEnds = (span: number): number => (span <= 36 * HOUR_MS ? 0 
 
 /** A picture says which day it was taken whatever the window is: it is a thing from a moment rather than the moment itself. */
 export const captureOf = (time: number, span: number, zone: string | null = null): string =>
-  zonedAt(time, zone).toFormat(span <= 10 * 24 * HOUR_MS ? `ccc ${CLOCK}` : DATED_CLOCK);
+  zonedAt(time, zone).toFormat(span <= 10 * DAY_MS ? `ccc ${CLOCK}` : DATED_CLOCK);
 
 /** The same rule for the axis, where the clock stops being worth the room a wide window gives it. */
 export const stopOf = (time: number, span: number, zone: string | null = null): string => {
   const stamp = zonedAt(time, zone);
   if (span <= 36 * HOUR_MS) return stamp.toFormat(CLOCK);
-  if (span <= 10 * 24 * HOUR_MS) return stamp.toFormat('ccc');
+  if (span <= 10 * DAY_MS) return stamp.toFormat('ccc');
   return stamp.toFormat(DAY_IN_YEAR);
 };
 
@@ -77,7 +84,7 @@ const MOST_DAY_STOPS = 4;
  */
 export const daysOnAxis = (from: number, to: number, zone: string | null, live: boolean): number[] | null => {
   const span = to - from;
-  if (span <= 36 * HOUR_MS || span > 10 * 24 * HOUR_MS) return null;
+  if (span <= 36 * HOUR_MS || span > 10 * DAY_MS) return null;
 
   const midnights: number[] = [];
   for (let day = zonedAt(from, zone).startOf('day').plus({ days: 1 }); day.toMillis() < to; day = day.plus({ days: 1 })) {
@@ -219,27 +226,12 @@ const cut = (
   });
 };
 
-/** The target that held at the cursor, which is the band the panel header names. */
-export const targetAt = (
-  panel: TimelinePanel,
-  nights: TimelineSpan[],
-  from: number,
-  to: number,
-  time: number,
-  transitions: TimelineSpan[] = [],
-): TimelineTarget | null => stretchAt(stretchesOf(panel, nights, from, to, transitions), time)?.target ?? null;
-
 /** The stretch the cursor stands in. */
 export const stretchAt = (stretches: Stretch[], time: number): Stretch | null =>
   stretches.find(stretch => stretch.from <= time && time <= stretch.to) ?? null;
 
 /** Only what this panel is about: an alarm the health loop raised without a metric belongs on the rail, not over a curve. */
 export const alarmsOf = (alarms: TimelineAlarm[], metric: Metric): TimelineAlarm[] => alarms.filter(alarm => alarm.metric === metric);
-
-export interface Scale {
-  low: number;
-  high: number;
-}
 
 /**
  * What a panel is drawn between: everything measured and everything aimed at,
@@ -252,15 +244,14 @@ export interface Scale {
  * screens draw the same metric of the same tent from the same points, so a
  * reader moving between them is owed the same two corner figures anyway.
  */
-export const scaleOf = (panel: TimelinePanel, stretches: Stretch[]): Scale =>
+export const scaleOf = (panel: TimelinePanel, stretches: Stretch[]): PlotScale =>
   niceScale([
     ...panel.points.flatMap(point => (point.value === null ? [] : [point.value])),
     ...stretches.flatMap(stretch => [stretch.target.band.low, stretch.target.band.high]),
   ]);
 
-/** The frame to show at the cursor: the newest picture taken by then, and the oldest there is before the first one was taken. */
 /** The least a picture may stand from the cursor and still be the picture of that moment. */
-const FRAME_REACH_MIN = 10 * 60 * 1000;
+const FRAME_REACH_MIN = 10 * MINUTE_MS;
 
 /**
  * The picture of the moment the cursor is on, or null where the camera took
@@ -271,7 +262,7 @@ const FRAME_REACH_MIN = 10 * 60 * 1000;
  * an hour is not called absent between two of its pictures.
  */
 export const frameNear = (camera: SpaceTimeline['cameras'][number] | undefined, time: number) => {
-  const frame = frameAt(camera, time);
+  const frame = frameAt(camera?.frames ?? [], time);
   if (!camera || !frame) return null;
   const gaps = camera.frames
     .slice(1)
@@ -281,10 +272,11 @@ export const frameNear = (camera: SpaceTimeline['cameras'][number] | undefined, 
   return Math.abs(at(frame.capturedAt) - time) <= Math.max(FRAME_REACH_MIN, 2 * usual) ? frame : null;
 };
 
-export const frameAt = (camera: SpaceTimeline['cameras'][number] | undefined, time: number) => {
-  if (!camera || camera.frames.length === 0) return null;
-  let found = camera.frames[0];
-  for (const frame of camera.frames) {
+/** The frame to show at the cursor: the newest picture taken by then, and the oldest there is before the first one was taken. */
+export const frameAt = <F extends { capturedAt: string }>(frames: readonly F[], time: number): F | null => {
+  if (frames.length === 0) return null;
+  let found = frames[0];
+  for (const frame of frames) {
     if (at(frame.capturedAt) > time) break;
     found = frame;
   }

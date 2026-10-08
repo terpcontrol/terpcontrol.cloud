@@ -1,15 +1,14 @@
-import { DateTime } from 'luxon';
 import { useState } from 'react';
+import { useAccountMe } from '@/api/account';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import type { Camera, CameraUpdate } from '@fg2/shared-types/v1';
-import { useMe } from '@/api/account';
 import { useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
-import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { deviceName } from '@/screens/devices/naming';
+import type { Translate } from '@/i18n/i18n';
+import { deviceName } from '@/ui/naming';
 import { countdownDays } from '@/screens/me/premium/entitlement';
 import { missingLine } from '@/screens/me/premium/free-tier';
 import { AdvancedSection } from '@/ui/advanced/Advanced';
@@ -17,8 +16,9 @@ import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { calendarDay, zoneOf } from '@/ui/zone';
 import styles from './CameraPage.module.css';
-import { refusalText } from '@/ui/refusal';
+import { Refused } from '@/ui/PageState';
 
 /**
  * What the camera itself is set to: how it is reached, what it is pointed at,
@@ -49,7 +49,6 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   const { t } = useTranslation();
   const navigate = useNavigate();
   const now = useNow();
-  const { user } = useSession();
   const diary = useDiaryLayer();
   const devices = useDevices();
   const spaces = useSpaces();
@@ -57,11 +56,11 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   // the camera's: a camera's record carries its date on every install, and only
   // `/me` says whether the date means anything here. The demo has no account to
   // ask, so for it the camera's own record is all there is.
-  const me = useMe(false, user?.isDemo !== true);
+  const me = useAccountMe();
   const enforced = me.data ? me.data.premium.enforced : null;
   const ending = enforced ? countdownDays(camera, now) : null;
-  const update = useUpdateCamera(camera.id);
-  const remove = useRemoveCamera(camera.id);
+  const update = useUpdateCamera();
+  const remove = useRemoveCamera();
   const [draft, setDraft] = useState<CameraUpdate>({});
   const [unpairing, setUnpairing] = useState(false);
   const [readdressing, setReaddressing] = useState(false);
@@ -98,12 +97,15 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   const here = (devices.data?.items ?? []).filter(device => device.spaceId === camera.spaceId || device.id === camera.deviceId);
 
   const save = () =>
-    update.mutate(draft, {
-      onSuccess: () => {
-        setDraft({});
-        setReaddressing(false);
+    update.mutate(
+      { cameraId: camera.id, body: draft },
+      {
+        onSuccess: () => {
+          setDraft({});
+          setReaddressing(false);
+        },
       },
-    });
+    );
 
   return (
     <section className={styles.section}>
@@ -209,7 +211,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
 
         <Row label={t('camera.premium')} help={enforced ? 'premiumCamera' : undefined}>
           <span className={styles.settingStack}>
-            <span className={`mono ${styles.settingValue}`}>{entitlementLine(t, camera, enforced)}</span>
+            <span className={`mono ${styles.settingValue}`}>{entitlementLine(t, camera, enforced, zoneOf(me.data))}</span>
             {ending !== null ? (
               <span className={`mono ${styles.settingWarning}`} role="status">
                 {ending === 0 ? t('me.premium.endsToday') : t('me.premium.endsIn', { count: ending })}
@@ -282,11 +284,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
         </Row>
       </ul>
 
-      {update.error ? (
-        <p className={ui.problem} role="alert">
-          {refusalText(update.error, t('camera.saveFailed'))}
-        </p>
-      ) : null}
+      <Refused error={update.error} fallback={t('camera.saveFailed')} />
 
       {mayManage ? (
         <div className={styles.settingActions}>
@@ -300,9 +298,9 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
               {/* The one of the two that cannot be taken back is drawn in the alarm's colour, so it is not mistaken for keeping. */}
               <button
                 type="button"
-                className={`${ui.button} ${styles.unpairYes}`}
+                className={`${ui.button} ${ui.danger}`}
                 disabled={remove.isPending}
-                onClick={() => remove.mutate(undefined, { onSuccess: () => void navigate('/devices') })}
+                onClick={() => remove.mutate(camera.id, { onSuccess: () => void navigate('/devices') })}
               >
                 {t('camera.unpairYes')}
               </button>
@@ -351,8 +349,6 @@ function Row({ label, help, children }: { label: string; help?: HelpTopic; child
   );
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /**
  * Where the cloud reaches this camera: the stream it pulls, read some other way
  * than TCP where it is, or the P2P identity and address a Terp Cam answers on.
@@ -396,12 +392,12 @@ const connection = (t: Translate, camera: Camera, through: string | null): strin
  * gates nothing, the date is not the news and is left out; where the server
  * calls a camera free, its date is the day the year ran out and is said as that.
  */
-const entitlementLine = (t: Translate, camera: Camera, enforced: boolean | null): string => {
+const entitlementLine = (t: Translate, camera: Camera, enforced: boolean | null, zone: string | null): string => {
   const { validUntil, grant, tier } = camera.entitlement;
   if (enforced === false) return t('camera.entitlement.ungated');
   if (!validUntil) return t(tier === 'premium' ? 'camera.entitlement.ungated' : 'camera.entitlement.none');
 
-  const date = DateTime.fromISO(validUntil).toFormat('d LLL yyyy');
+  const date = calendarDay(validUntil, zone);
   if (tier === 'free') return t('camera.entitlement.ranOut', { date });
 
   return t(`camera.entitlement.${grant ?? 'purchase'}`, { date });

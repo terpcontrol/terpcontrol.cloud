@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import { Injectable } from '@nestjs/common';
 import { LinkCard } from '@fg2/shared-types/v1';
-import { FIGURE_FAMILY, INK, MUTED, PANEL, TEXT_FAMILY, escapeXml } from '@modules/v1/camera/timelapse-overlays';
+import { INK, MUTED, PANEL, TEXT_FAMILY, escapeXml } from '@modules/v1/camera/timelapse-overlays';
 
 /**
  * What a shared address looks like everywhere but in the app: the picture a
@@ -124,7 +124,7 @@ const textLayer = (card: LinkCard, hasCover: boolean): string => {
       </linearGradient>
     </defs>
     ${backdrop}
-    ${meta ? `<text x="${MARGIN}" y="${MARGIN + META_SIZE}" font-family="${FIGURE_FAMILY}" font-size="${META_SIZE}" fill="${MUTED}">${escapeXml(meta)}</text>` : ''}
+    ${meta ? `<text x="${MARGIN}" y="${MARGIN + META_SIZE}" font-family="${TEXT_FAMILY}" font-size="${META_SIZE}" fill="${MUTED}">${escapeXml(meta)}</text>` : ''}
     ${titleLines}
     ${descriptionLines}
   </svg>`;

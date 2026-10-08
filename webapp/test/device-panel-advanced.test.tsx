@@ -1,20 +1,15 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceCapabilities, Socket, SocketPage } from '@fg2/shared-types/v1';
-import { api, apiRequest } from '@/api/client';
+import { api } from '@/api/client';
 import { DeviceList } from '@/screens/devices/DeviceList';
 import { draftFor, problemOf, rolesFor, secondsOfSpan, spanOf, updateOf } from '@/screens/devices/socket-form';
 import { SocketRow } from '@/screens/devices/SocketRow';
 import { rowsOf } from '@/screens/devices/sockets';
+import { drawAt } from './harness';
 import { SIGNED_IN, spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * What a device's panel lets its owner do beyond the everyday: whether it
@@ -24,8 +19,7 @@ import { SIGNED_IN, spaceWhere } from './session';
  */
 
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
-  apiRequest: vi.fn(),
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const who = vi.hoisted(() => ({ admin: false }));
@@ -95,13 +89,7 @@ const drawWith = async (device: Device, sockets: Socket[] = []) => {
     if (path.endsWith('/firmwares')) return Promise.resolve({ items: BUILDS, nextCursor: null }) as never;
     return Promise.resolve({ items: [], nextCursor: null }) as never;
   });
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <DeviceList />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  drawAt(<DeviceList />);
   fireEvent.click(await screen.findByText('Controller'));
 };
 
@@ -109,20 +97,14 @@ const advanced = async () => {
   fireEvent.click(await screen.findByText('Advanced', { selector: 'summary' }));
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   who.admin = false;
-  for (const call of [api.patch, api.put, api.delete, apiRequest]) vi.mocked(call).mockReset();
+  for (const call of [api.patch, api.put, api.delete]) vi.mocked(call).mockReset();
   vi.mocked(api.patch).mockImplementation((_path, body) => Promise.resolve(controller(body as Partial<Device>)) as never);
   vi.mocked(api.put).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
-  vi.mocked(api.delete).mockResolvedValue(undefined);
-  vi.mocked(apiRequest).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
+  vi.mocked(api.delete).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
 });
 
 describe('updates', () => {
@@ -231,13 +213,7 @@ describe('giving a device up', () => {
       if (path.endsWith('/sockets')) return Promise.resolve({ items: [], nextCursor: null, capabilities: CAPABILITIES }) as never;
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <DeviceList />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<DeviceList />);
     fireEvent.click(await screen.findByText('Controller'));
     await advanced();
 
@@ -315,20 +291,18 @@ const socket = (over: Partial<Socket> = {}): Socket => ({
 describe('a socket’s timer and its Advanced', () => {
   const drawRow = (one: Socket, capabilities = CAPABILITIES) => {
     const [row] = rowsOf([one]);
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <SocketRow
-          row={row}
-          deviceId="device-1"
-          refusal={null}
-          unheard={null}
-          mayManage
-          runs={null}
-          now={DateTime.now()}
-          capabilities={capabilities}
-          deviceName="Tent controller"
-        />
-      </QueryClientProvider>,
+    drawAt(
+      <SocketRow
+        row={row}
+        deviceId="device-1"
+        refusal={null}
+        unheard={null}
+        mayManage
+        runs={null}
+        now={DateTime.now()}
+        capabilities={capabilities}
+        deviceName="Tent controller"
+      />,
     );
     fireEvent.click(screen.getByRole('button', { name: /^Details of .*, and how long/ }));
   };
@@ -380,7 +354,7 @@ describe('a socket’s timer and its Advanced', () => {
     expect(within(asked).getByText(/forgets the socket \(10.0.0.63\) and resets it/)).toBeInTheDocument();
     fireEvent.click(within(asked).getByRole('button', { name: 'Remove' }));
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalledWith('/devices/device-1/sockets/3', { method: 'DELETE' }));
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/devices/device-1/sockets/3'));
   });
 
   it('changes a socket’s address and keeps its credentials unless new ones are typed', async () => {

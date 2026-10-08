@@ -1,9 +1,10 @@
 import { BeforeApplicationShutdown, Injectable } from '@nestjs/common';
 import { logger } from '@utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { DeviceTunnelSink } from '@modules/device-protocol/device-sinks';
+import { deviceTopic } from '@modules/device-protocol/topics';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
-import { createServer, Server } from 'node:net';
-import { EventEmitter } from 'node:events';
+import { AddressInfo, createServer, Server } from 'node:net';
 import { Semaphore, SemaphoreInterface, withTimeout } from 'async-mutex';
 
 const TUNNEL_CHUNK_SIZE = 128;
@@ -12,6 +13,9 @@ const PARALLEL_TUNNEL_CONNECTIONS = 1;
 const TUNNEL_SERVER_TIMEOUT_MS = 300_000;
 const TUNNEL_INACTIVITY_TIMEOUT_MS = 30_000;
 
+/** The port a stream URL that names none is reached on, by its scheme; anything else is 80. */
+const DEFAULT_PORTS: Record<string, number> = { 'rtsp:': 554, 'rtsps:': 322, 'rtmp:': 1935, 'rtmps:': 443, 'https:': 443 };
+
 type TunnelStreamTxData = {
   connection_id: string;
 } & ({ disconnected: true; payload?: string; host?: string; port?: number } | { disconnected?: false; payload: string; host: string; port: number });
@@ -19,58 +23,6 @@ type TunnelStreamTxData = {
 type TunnelStreamRxData = Pick<TunnelStreamTxData, 'connection_id' | 'payload' | 'disconnected'> & {
   sequence: number;
 };
-
-// UDP relay (O-KAM camera P2P) — datagrams carry their own peer host/port.
-type UdpTunnelRxData = {
-  connection_id: string;
-  udp?: boolean;
-  host?: string;
-  port?: number;
-  payload?: string;
-  disconnected?: boolean;
-  sequence?: number;
-};
-
-type UdpTunnelTxData = {
-  connection_id: string;
-  udp: true;
-} & ({ disconnected: true } | { host: string; port: number; payload: string });
-
-/**
- * A datagram socket whose packets are relayed through the controller's MQTT
- * tunnel. Mirrors the small surface of node's dgram.Socket the P2P client needs:
- *   .send(buf, port, host)   emits nothing; fire-and-forget
- *   .on('message', (buf, rinfo) => ...)
- *   .close()
- */
-export class TunnelUdpSocket extends EventEmitter {
-  constructor(
-    private device_id: string,
-    public readonly connectionId: string,
-    private onClose: () => void,
-    private readonly mqtt: MqttClientService,
-  ) {
-    super();
-  }
-
-  public send(buf: Buffer, port: number, host: string): void {
-    const message: UdpTunnelTxData = {
-      connection_id: this.connectionId,
-      udp: true,
-      host,
-      port,
-      payload: buf.toString('base64'),
-    };
-    this.mqtt.publish('/devices/' + this.device_id + '/tunnel_write', JSON.stringify(message));
-  }
-
-  public close(): void {
-    const message: UdpTunnelTxData = { connection_id: this.connectionId, udp: true, disconnected: true };
-    this.mqtt.publish('/devices/' + this.device_id + '/tunnel_write', JSON.stringify(message));
-    this.onClose();
-    this.removeAllListeners();
-  }
-}
 
 type TunnelConnectionData = {
   nextSequence: number;
@@ -84,12 +36,11 @@ type TunnelConnectionData = {
 };
 
 @Injectable()
-export class TunnelService implements BeforeApplicationShutdown {
+export class TunnelService implements BeforeApplicationShutdown, DeviceTunnelSink {
   constructor(private readonly mqtt: MqttClientService) {}
 
   private deviceIdToTunnelConnection = new Map<string, Map<string, TunnelConnectionData>>();
   private deviceIdToSemaphore = new Map<string, SemaphoreInterface>();
-  private deviceIdToUdpTunnel = new Map<string, Map<string, TunnelUdpSocket>>();
   /** The listening ends of the proxies, so they can be given up on the way down. */
   private readonly proxyServers = new Set<Server>();
   /** Set on the way down: every connection has already been said goodbye to. */
@@ -119,23 +70,12 @@ export class TunnelService implements BeforeApplicationShutdown {
         // The shape the close handler sends, without the host and port: they
         // describe where the connection went, which no longer matters to one
         // that is ending.
-        const message: TunnelStreamTxData = { connection_id, disconnected: true };
-        this.mqtt.publish('/devices/' + device_id + '/tunnel_write', JSON.stringify(message));
+        this.write(device_id, { connection_id, disconnected: true });
         connection.release?.();
         connection.handleDisconnect();
       }
     }
     this.deviceIdToTunnelConnection.clear();
-
-    for (const sockets of this.deviceIdToUdpTunnel.values()) {
-      // Each says its own goodbye and unregisters itself, which is why this
-      // walks a copy.
-      for (const socket of [...sockets.values()]) {
-        dropped++;
-        socket.close();
-      }
-    }
-    this.deviceIdToUdpTunnel.clear();
 
     for (const server of this.proxyServers) {
       server.close();
@@ -147,52 +87,14 @@ export class TunnelService implements BeforeApplicationShutdown {
     }
   }
 
-  /**
-   * Open a UDP relay to the given device's LAN. The returned socket sends and
-   * receives datagrams through the controller (see the firmware UDP tunnel).
-   * Used by the O-KAM camera P2P client to reach the camera behind the controller.
-   */
-  public openUdpTunnel(device_id: string): TunnelUdpSocket {
-    const connectionId = uuidv4();
-    let sockets = this.deviceIdToUdpTunnel.get(device_id);
-    if (!sockets) {
-      sockets = new Map();
-      this.deviceIdToUdpTunnel.set(device_id, sockets);
-    }
-    const socket = new TunnelUdpSocket(device_id, connectionId, () => this.deviceIdToUdpTunnel.get(device_id)?.delete(connectionId), this.mqtt);
-    sockets.set(connectionId, socket);
-    return socket;
-  }
-
-  public onTunnelReadDataReceived(device_id: string, data: string): Promise<void> {
+  public onTunnelReadDataReceived(device_id: string, data: string): void {
     try {
       const parsed: TunnelStreamRxData = JSON.parse(data);
 
-      // UDP datagrams (O-KAM camera P2P) bypass the ordered TCP-stream machinery:
-      // they carry their own peer host/port and have no sequence guarantees.
-      const udpRegistry = this.deviceIdToUdpTunnel.get(device_id)?.get(parsed.connection_id);
-      if (udpRegistry && ((parsed as UdpTunnelRxData).udp || (parsed as UdpTunnelRxData).host)) {
-        const u = parsed as UdpTunnelRxData;
-        if (u.disconnected) {
-          udpRegistry.emit('close');
-        } else if (u.payload && u.host) {
-          // rinfo shaped like node's dgram (address/port) so the P2P client can
-          // run over either a real dgram socket or this tunnelled one.
-          udpRegistry.emit('message', Buffer.from(u.payload, 'base64'), { address: u.host, port: u.port });
-        }
-        return Promise.resolve();
-      }
-
       const connection = this.deviceIdToTunnelConnection.get(device_id)?.get(parsed.connection_id);
       if (!connection) {
-        if (!parsed.disconnected) {
-          const message: TunnelStreamTxData = {
-            connection_id: parsed.connection_id,
-            disconnected: true,
-          };
-          this.mqtt.publish('/devices/' + device_id + '/tunnel_write', JSON.stringify(message));
-        }
-        return Promise.resolve();
+        if (!parsed.disconnected) this.write(device_id, { connection_id: parsed.connection_id, disconnected: true });
+        return;
       }
 
       connection.queue.push(parsed);
@@ -214,22 +116,10 @@ export class TunnelService implements BeforeApplicationShutdown {
     } catch (e) {
       logger.error(`Error parsing tunnel data received: ${e}`);
     }
-
-    return Promise.resolve();
   }
 
   public async createTunnelProxyServer(streamUrl: URL, device_id: string): Promise<string> {
-    const port = streamUrl.port
-      ? parseInt(streamUrl.port)
-      : streamUrl.protocol === 'rtsp:'
-        ? 554
-        : streamUrl.protocol === 'rtsps:'
-          ? 322
-          : streamUrl.protocol === 'rtmp:'
-            ? 1935
-            : ['rtmps:', 'https:'].includes(streamUrl.protocol)
-              ? 443
-              : 80;
+    const port = streamUrl.port ? parseInt(streamUrl.port) : (DEFAULT_PORTS[streamUrl.protocol] ?? 80);
 
     return new Promise<string>((resolve, reject) => {
       const server = createServer(client => {
@@ -294,13 +184,7 @@ export class TunnelService implements BeforeApplicationShutdown {
           // On the way down the server has already said goodbye for every
           // connection it had, so this would be the second one.
           if (!this.stopping && !this.moduleHasDisconnected(device_id, connectionId)) {
-            const message: TunnelStreamTxData = {
-              connection_id: connectionId,
-              disconnected: true,
-              host: streamUrl.hostname,
-              port,
-            };
-            this.mqtt.publish('/devices/' + device_id + '/tunnel_write', JSON.stringify(message));
+            this.write(device_id, { connection_id: connectionId, disconnected: true, host: streamUrl.hostname, port });
           }
 
           connection.release?.();
@@ -330,12 +214,11 @@ export class TunnelService implements BeforeApplicationShutdown {
           host: '127.0.0.1',
         },
         () => {
+          const { port: local } = server.address() as AddressInfo;
           const url = new URL(streamUrl.toString());
           url.hostname = '127.0.0.1';
-          url.port = String((server.address() as any).port);
-          logger.info(
-            `Tunnel proxy server listening on ${(server.address() as any).port}, proxying to ${streamUrl.hostname}:${port} for device ${device_id}`,
-          );
+          url.port = String(local);
+          logger.info(`Tunnel proxy server listening on ${local}, proxying to ${streamUrl.hostname}:${port} for device ${device_id}`);
           resolve(url.toString());
         },
       );
@@ -352,6 +235,10 @@ export class TunnelService implements BeforeApplicationShutdown {
         reject(new Error('Timeout creating tunnel proxy server'));
       }, TUNNEL_SERVER_TIMEOUT_MS);
     });
+  }
+
+  private write(deviceId: string, message: TunnelStreamTxData | string): void {
+    this.mqtt.publish(deviceTopic(deviceId, 'tunnel_write'), typeof message === 'string' ? message : JSON.stringify(message));
   }
 
   private reportTunnelActivity(device_id: string, connection_id: string): void {
@@ -400,10 +287,10 @@ export class TunnelService implements BeforeApplicationShutdown {
         }
 
         this.reportTunnelActivity(device_id, metadata.connection_id);
-        this.mqtt.publish('/devices/' + device_id + '/tunnel_write', encodedMessage);
+        this.write(device_id, encodedMessage);
       }
     });
 
-    return connection.acquire ?? Promise.resolve();
+    return connection.acquire;
   }
 }

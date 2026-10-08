@@ -19,99 +19,38 @@
  * unless set). A shop whose growers are German sets it once rather than having
  * every one of them rename the same eight rows.
  */
-export interface MigratedMeasurement {
+interface MigratedMeasurement {
   key: string;
   /** What each language calls it; the locale the run was given picks one. */
   names: Record<string, string>;
   unit: string;
-  perPlant: boolean;
-  targetMin: number | null;
-  targetMax: number | null;
   chart: boolean;
 }
 
-export const MIGRATED_MEASUREMENTS: MigratedMeasurement[] = [
-  {
-    key: 'lightMeasurement',
-    names: { en: 'Light measurement', de: 'Lichtmessung' },
-    unit: 'µmol',
-    perPlant: false,
-    targetMin: null,
-    targetMax: null,
-    chart: true,
-  },
-  {
-    key: 'distanceMeasurement',
-    names: { en: 'Distance measurement', de: 'Abstandsmessung' },
-    unit: 'cm',
-    perPlant: false,
-    targetMin: null,
-    targetMax: null,
-    chart: false,
-  },
-  {
-    key: 'tdsMeasurement',
-    names: { en: 'TDS measurement', de: 'TDS-Messung' },
-    unit: 'ppm',
-    perPlant: false,
-    targetMin: null,
-    targetMax: null,
-    chart: true,
-  },
-  {
-    key: 'ecMeasurement',
-    names: { en: 'EC measurement', de: 'EC-Messung' },
-    unit: 'mS/cm',
-    perPlant: false,
-    targetMin: null,
-    targetMax: null,
-    chart: true,
-  },
-  {
-    key: 'outsideTemperatureMeasurement',
-    names: { en: 'Outside temperature', de: 'Außentemperatur' },
-    unit: '°C',
-    perPlant: false,
-    targetMin: null,
-    targetMax: null,
-    chart: true,
-  },
-  {
-    key: 'phMeasurement',
-    names: { en: 'pH measurement', de: 'pH-Messung' },
-    unit: '',
-    perPlant: false,
-    targetMin: null,
-    targetMax: null,
-    chart: true,
-  },
-  {
-    key: 'co2FillingInitial',
-    names: { en: 'New cylinder filling', de: 'Neue Flasche Füllung' },
-    unit: 'g',
-    perPlant: false,
-    targetMin: null,
-    targetMax: null,
-    chart: false,
-  },
-  {
-    key: 'co2FillingRest',
-    names: { en: 'Old cylinder rest', de: 'Alte Flasche Rest' },
-    unit: 'g',
-    perPlant: false,
-    targetMin: null,
-    targetMax: null,
-    chart: false,
-  },
+const MIGRATED_MEASUREMENTS: MigratedMeasurement[] = [
+  { key: 'lightMeasurement', names: { en: 'Light measurement', de: 'Lichtmessung' }, unit: 'µmol', chart: true },
+  { key: 'distanceMeasurement', names: { en: 'Distance measurement', de: 'Abstandsmessung' }, unit: 'cm', chart: false },
+  { key: 'tdsMeasurement', names: { en: 'TDS measurement', de: 'TDS-Messung' }, unit: 'ppm', chart: true },
+  { key: 'ecMeasurement', names: { en: 'EC measurement', de: 'EC-Messung' }, unit: 'mS/cm', chart: true },
+  { key: 'outsideTemperatureMeasurement', names: { en: 'Outside temperature', de: 'Außentemperatur' }, unit: '°C', chart: true },
+  { key: 'phMeasurement', names: { en: 'pH measurement', de: 'pH-Messung' }, unit: '', chart: true },
+  { key: 'co2FillingInitial', names: { en: 'New cylinder filling', de: 'Neue Flasche Füllung' }, unit: 'g', chart: false },
+  { key: 'co2FillingRest', names: { en: 'Old cylinder rest', de: 'Alte Flasche Rest' }, unit: 'g', chart: false },
 ];
 
 const MEASUREMENT_KEYS = MIGRATED_MEASUREMENTS.map(measurement => measurement.key);
 
-/** What to call each of them on a run told to speak this language, falling back to English. */
-export const measurementNamesIn = (
-  locale: string,
-): { key: string; name: string; unit: string; perPlant: boolean; targetMin: number | null; targetMax: number | null; chart: boolean }[] =>
-  MIGRATED_MEASUREMENTS.map(({ names, ...rest }) => ({ ...rest, name: names[locale] ?? names.en }));
+/** What to call each of them on a run told to speak this language, falling back to English. None is per plant or has a target yet. */
+export const measurementNamesIn = (locale: string) =>
+  MIGRATED_MEASUREMENTS.map(({ key, names, unit, chart }) => ({
+    key,
+    unit,
+    perPlant: false,
+    targetMin: null,
+    targetMax: null,
+    chart,
+    name: names[locale] ?? names.en,
+  }));
 
 /** The readings in one old entry's `data`, in the order the definitions are listed. */
 export const readingsOf = (data: Record<string, unknown> | undefined): { key: string; value: number; plantId: null }[] =>

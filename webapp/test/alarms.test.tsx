@@ -1,20 +1,18 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AlarmRule, AlarmRuleCreate, Device, Me, SpaceOverview } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
+import type { Translate } from '@/i18n/i18n';
 import { Alarms } from '@/screens/control/alarms/Alarms';
-import { boundLabel, channelsLabel, routedChannels, scaleNote, type Translate, watchLabel } from '@/screens/control/alarms/rules';
+import { boundLabel, repeatsEvery, scaleNote, watchLabel } from '@/screens/control/alarms/rules';
+import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
 import { headersOf } from '@/ui/headers';
+import { drawAt } from './harness';
+import { catalogue, translate } from './translations';
 
 /**
  * The alarm rules page: what it says about each rule, and what the two things
@@ -26,7 +24,7 @@ import { headersOf } from '@/ui/headers';
  * and a rule about a sensor the device does not have is drawn but not switched.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const session = vi.hoisted(() => ({ demo: false }));
@@ -135,22 +133,11 @@ const answers = (path: string): unknown => {
 };
 
 const draw = (devices: Device[] = [device()], mayManage = true, at = '/control/alarms?space=space-1') =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <Alarms spaceId="space-1" devices={devices} mayManage={mayManage} />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  drawAt(<Alarms spaceId="space-1" devices={devices} mayManage={mayManage} />, { at });
 
 const card = async (name: string) => (await screen.findByText(name)).closest('li')!;
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   session.demo = false;
@@ -489,13 +476,7 @@ describe('the alarm rules page', () => {
     await new Promise(settle => setTimeout(settle, 30));
 
     const ended = device({ state: { ...device().state, maintenanceUntil: DateTime.now().toISO()! } });
-    drawn.rerender(
-      <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter initialEntries={['/control/alarms?space=space-1']}>
-          <Alarms spaceId="space-1" devices={[ended]} mayManage />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawn.rerender(<Alarms spaceId="space-1" devices={[ended]} mayManage />);
 
     expect(await screen.findByText(/Out of maintenance/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'End now' })).not.toBeInTheDocument();
@@ -1306,6 +1287,15 @@ describe('what a rule is called', () => {
     expect(channelsLabel(t, routedChannels(account, 'critical'))).toBe('push (off) + webhook (off)');
   });
 
+  it('says a rule repeats as often as the server sends it: a mail no more often than every five minutes', () => {
+    const mail = { channel: 'email' as const, target: 'you@example.invalid', includeDetails: true, webhook: null };
+
+    expect(repeatsEvery(rule({ repeatSeconds: 60, delivery: { mode: 'custom', custom: mail } }))).toBe(300);
+    expect(repeatsEvery(rule({ repeatSeconds: 3600, delivery: { mode: 'custom', custom: mail } }))).toBe(3600);
+    // A rule routed through the account's grid is not a mail of its own, whatever delivery it kept from before.
+    expect(repeatsEvery(rule({ repeatSeconds: 60, delivery: { mode: 'routing', custom: mail } }))).toBe(60);
+  });
+
   it('reads headers off their lines and drops what is not one', () => {
     expect(headersOf('X-Token: abc\n\nAuthorization: Bearer a:b\nnothing')).toEqual({ 'X-Token': 'abc', Authorization: 'Bearer a:b' });
   });
@@ -1318,11 +1308,11 @@ describe('what a rule is called', () => {
    */
   it('writes the three severities in one case in each language, and writes them the same way in the inbox', async () => {
     for (const language of ['en', 'de']) {
-      const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'));
-      const cased = Object.values(catalogue.alarms.severity).map(label => /^\p{Lu}/u.test(String(label)));
+      const { alarms, alerts } = (await catalogue(language)) as Record<string, { severity: Record<string, string> }>;
+      const cased = Object.values(alarms.severity).map(label => /^\p{Lu}/u.test(label));
 
       expect(new Set(cased).size).toBe(1);
-      expect(catalogue.alerts.severity).toEqual(catalogue.alarms.severity);
+      expect(alerts.severity).toEqual(alarms.severity);
     }
   });
 });

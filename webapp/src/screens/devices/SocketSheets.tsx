@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DeviceCapabilities, DeviceCommandResult, SocketRole } from '@fg2/shared-types/v1';
+import type { DeviceCapabilities, SocketRole } from '@fg2/shared-types/v1';
 import { useRemoveSocket, useSetSocket } from '@/api/devices';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { SettingRow } from '@/ui/advanced/SettingRow';
+import { durationLabel } from '@/ui/age';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
-import { Choice, Choices } from '@/ui/SheetParts';
+import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { draftFor, isTimed, problemOf, rolesFor, TIMER_UNITS, timerOf, updateOf, type SocketDraft, type Span, type TimerUnit } from './socket-form';
-import { durationLabel, type SocketRowModel } from './sockets';
+import type { SocketRowModel } from './sockets';
 import styles from './Sockets.module.css';
 
 /**
@@ -47,7 +48,7 @@ export function PairSocketRow({ deviceId, deviceName, capabilities }: { deviceId
  * Pairing a new socket (`socket` null) or changing one the table holds. A
  * changed socket keeps its slot, and its credentials unless new ones are typed.
  */
-export function SocketSheet({
+function SocketSheet({
   deviceId,
   deviceName,
   capabilities,
@@ -81,20 +82,12 @@ export function SocketSheet({
     send.mutate({ deviceId, slot, socket: updateOf(draft) });
   };
 
-  const actions = receipt ? (
-    <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-      {t('maintenance.done')}
-    </button>
-  ) : (
-    <>
-      <Refused error={send.error} />
+  const actions = (
+    <SheetAnswer done={receipt !== null} error={send.error} onClose={onClose}>
       <button type="button" className={`${ui.button} ${ui.primary}`} disabled={send.isPending || roles.length === 0 || unreachable} onClick={submit}>
         {t(`socketForm.${word}.yes`)}
       </button>
-      <button type="button" className={ui.button} onClick={onClose}>
-        {t('maintenance.cancel')}
-      </button>
-    </>
+    </SheetAnswer>
   );
 
   return (
@@ -105,7 +98,7 @@ export function SocketSheet({
     >
       <div className={styles.form} role={receipt ? 'status' : undefined}>
         {receipt ? (
-          <Answer receipt={receipt} sent={t(`socketForm.${word}.sent`, { device: deviceName })} device={deviceName} />
+          <p>{receipt.deviceOnline ? t(`socketForm.${word}.sent`, { device: deviceName }) : t('socketForm.unheard', { device: deviceName })}</p>
         ) : (
           <>
             {socket ? null : <p className={ui.note}>{t('socketForm.pair.intro', { device: deviceName })}</p>}
@@ -208,7 +201,7 @@ function RolePick({
 }
 
 /** "on for [2] [min] every [6] [h]". */
-export function CycleFields({
+function CycleFields({
   draft,
   onChange,
   disabled,
@@ -263,11 +256,6 @@ function SpanField({ label, span, disabled, onChange }: { label: string; span: S
       </select>
     </span>
   );
-}
-
-function Answer({ receipt, sent, device }: { receipt: DeviceCommandResult; sent: string; device: string }) {
-  const { t } = useTranslation();
-  return <p>{receipt.deviceOnline ? sent : t('socketForm.unheard', { device })}</p>;
 }
 
 /**
@@ -381,7 +369,7 @@ export function SocketAdvanced({
       </SettingRow>
       {/* Offline, the holds above already say why it is grey. */}
       <SettingRow label={t('socketForm.remove.label')} help="advanced.removeSocket">
-        <button type="button" className={`${ui.chip} ${styles.danger}`} disabled={unheard !== null || row.slot < 0} onClick={() => setRemoving(true)}>
+        <button type="button" className={`${ui.chip} ${ui.danger}`} disabled={unheard !== null || row.slot < 0} onClick={() => setRemoving(true)}>
           {t('socketForm.remove.open')}
         </button>
       </SettingRow>
@@ -410,26 +398,11 @@ function RemoveSheet({ deviceId, row, name, onClose }: { deviceId: string; row: 
       title={t('socketForm.remove.title', { name })}
       onClose={onClose}
       actions={
-        receipt ? (
-          <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-            {t('maintenance.done')}
+        <SheetAnswer done={receipt !== null} error={remove.error} onClose={onClose}>
+          <button type="button" className={ui.dangerOutline} disabled={remove.isPending} onClick={() => remove.mutate({ deviceId, slot: row.slot })}>
+            {t('socketForm.remove.yes')}
           </button>
-        ) : (
-          <>
-            <Refused error={remove.error} />
-            <button
-              type="button"
-              className={styles.dangerButton}
-              disabled={remove.isPending}
-              onClick={() => remove.mutate({ deviceId, slot: row.slot })}
-            >
-              {t('socketForm.remove.yes')}
-            </button>
-            <button type="button" className={ui.button} onClick={onClose}>
-              {t('maintenance.cancel')}
-            </button>
-          </>
-        )
+        </SheetAnswer>
       }
     >
       <div className={styles.form} role={receipt ? 'status' : undefined}>

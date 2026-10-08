@@ -4,7 +4,7 @@ import type { Metric, TimelineAlarm, TimelinePanel, TimelineSpan } from '@fg2/sh
 import { Chart, type ChartOption } from '@/charts/Chart';
 import { nightColour } from '@/charts/series';
 import type { ChartPalette, ChartToken } from '@/charts/tokens';
-import { figure, targetFigure, UNIT } from '../home/units';
+import { figure, targetFigure, UNIT } from '@/ui/units';
 import { alarmsOf, at, fractionOf, pointAt, scaleOf, spans, splitByNight, stretchAt, stretchesOf, type Stretch } from './window';
 import { Term } from '@/ui/Help';
 import styles from './Timeline.module.css';

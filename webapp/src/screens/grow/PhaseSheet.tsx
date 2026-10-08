@@ -2,16 +2,18 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowthStage, Phase } from '@fg2/shared-types/v1';
+import { growWeekOfDay } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { serverNow } from '@/api/clock';
 import { useAddPhase, useCorrectPhase, useWithdrawPhase } from '@/api/lifecycle';
-import { Sheet } from '@/log/Sheet';
+import type { Translate } from '@/i18n/i18n';
+import { Sheet } from '@/ui/Sheet';
 import { nextStage } from '@/log/defaults';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { climateChoiceName, presetsOf } from '@/ui/presets';
 import { standsIn } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
-import { STAGES, weekOfGrowDay } from '@/ui/stages';
+import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { ClimatePick } from './ClimatePick';
@@ -44,7 +46,7 @@ import styles from './Lifecycle.module.css';
 export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () => void }) {
   const { t } = useTranslation();
   const zone = useZone();
-  const add = useAddPhase(grow.id);
+  const add = useAddPhase();
 
   const ended = grow.endedAt !== null;
   const [stage, setStage] = useState<GrowthStage>(() => nextStage(grow) ?? grow.summary.stage ?? STAGES[0]);
@@ -77,7 +79,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
   return (
     <Sheet title={t('grow.lifecycle.phase.title', { name: grow.name })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <p className={`mono ${styles.now}`}>{nowLine(t, grow, zone)}</p>
 
         <Block label={t(ended ? 'grow.lifecycle.phase.record' : 'grow.lifecycle.phase.enter')} help="stage">
@@ -105,7 +107,10 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
             className={`${ui.button} ${ui.primary} ${styles.submit}`}
             disabled={add.isPending}
             onClick={() =>
-              add.mutate({ stage, ...climateRequest(pick, stage), startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })
+              add.mutate(
+                { growId: grow.id, body: { stage, ...climateRequest(pick, stage), startedAt: instantOf(DateTime.fromJSDate(at)) } },
+                { onSuccess: () => onClose() },
+              )
             }
           >
             {add.isPending
@@ -140,8 +145,6 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   );
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /**
  * What the server last said the grow reads as. Nothing here counts a day; the
  * summary rides on the grow.
@@ -166,7 +169,7 @@ const nowLine = (t: Translate, grow: GrowListItem, zone: string | null): string 
     stage: label(t, stage, preset),
     phaseDay: phaseDay ?? dayNumber,
     growDay: dayNumber,
-    week: weekOfGrowDay(dayNumber),
+    week: growWeekOfDay(dayNumber),
   });
 };
 
@@ -226,7 +229,7 @@ function PhaseRow({
           <button type="button" className={ui.chip} onClick={() => onOpen('correct')}>
             {t('grow.lifecycle.phase.correct')}
           </button>
-          <button type="button" className={`${ui.chip} ${styles.danger}`} onClick={() => onOpen('withdraw')}>
+          <button type="button" className={`${ui.chip} ${ui.danger}`} onClick={() => onOpen('withdraw')}>
             {t('grow.lifecycle.phase.withdraw')}
           </button>
         </div>
@@ -310,7 +313,7 @@ function PhaseWithdrawal({ grow, phase, onDone }: { grow: GrowListItem; phase: P
       <div className={styles.rowActions}>
         <button
           type="button"
-          className={`${ui.button} ${styles.dangerButton}`}
+          className={`${ui.button} ${ui.dangerFilled}`}
           disabled={withdraw.isPending}
           onClick={() => withdraw.mutate(phase.id, { onSuccess: onDone })}
         >
@@ -335,8 +338,8 @@ function Effect({ effect, changed, entry }: { effect: PhaseEffect; changed: bool
       t('grow.lifecycle.phase.effect.growDay', {
         from: effect.growDay.from,
         to: effect.growDay.to,
-        weekFrom: weekOfGrowDay(effect.growDay.from),
-        weekTo: weekOfGrowDay(effect.growDay.to),
+        weekFrom: growWeekOfDay(effect.growDay.from),
+        weekTo: growWeekOfDay(effect.growDay.to),
       }),
     );
   }

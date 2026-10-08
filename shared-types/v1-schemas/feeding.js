@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dosesFor = exports.growWeekAt = exports.growDayAt = exports.growOriginOf = exports.schemeWeekOf = void 0;
+exports.dosesFor = exports.growWeekAt = exports.growWeekOfDay = exports.growDayAt = exports.growOriginOf = exports.schemeWeekOf = void 0;
 /**
  * Turning a feeding grid into the doses that go into the can, and working out
  * which row of it a given day of a grow is.
@@ -30,22 +30,32 @@ const moment = (at) => new Date(at).getTime();
 const growOriginOf = (grow) => new Date(Math.min(moment(grow.startedAt), ...grow.phases.map(phase => moment(phase.startedAt))));
 exports.growOriginOf = growOriginOf;
 /**
- * A grow's day does not begin at midnight. Day 1 begins the moment the first
- * phase did, because a grow begun at 23:00 would otherwise be two days old
- * within the hour.
+ * A grow's day does not begin at midnight. Day 1 begins at the grow's origin
+ * (`growOriginOf`), because a grow begun at 23:00 would otherwise be two days
+ * old within the hour.
  */
 const growDayAt = (origin, at) => Math.max(1, Math.floor((moment(at) - origin.getTime()) / DAY_MS) + 1);
 exports.growDayAt = growDayAt;
 /**
- * Which row of the grid the grow is on at that moment: weeks are seven of those
- * days, so week 1 is days 1 to 7 and lines up with a scheme's first row.
+ * Which week of the grow a day of it falls in: weeks are seven of those days,
+ * so week 1 is days 1 to 7 and lines up with a scheme's first row.
+ *
+ * It takes a *grow* day. Handing it a phase's own day counter looks like it
+ * works and answers a different question - how many sevens of that phase have
+ * gone by, rather than which of the grow's weeks the stage is in - which is
+ * what `stageWeekOf` answers.
+ */
+const growWeekOfDay = (day) => Math.floor((day - 1) / 7) + 1;
+exports.growWeekOfDay = growWeekOfDay;
+/**
+ * Which row of the grid the grow is on at that moment.
  *
  * It is here rather than in either consumer for the same reason `dosesFor` is:
  * the sheet reads the row for the day a feed is dated to and the entry writer
  * reads it again as the line arrives, and a line somebody backdated is exactly
  * where two copies of this would disagree.
  */
-const growWeekAt = (origin, at) => Math.floor(((0, exports.growDayAt)(origin, at) - 1) / 7) + 1;
+const growWeekAt = (origin, at) => (0, exports.growWeekOfDay)((0, exports.growDayAt)(origin, at));
 exports.growWeekAt = growWeekAt;
 /**
  * The doses one can of water takes, at this week and this strength.

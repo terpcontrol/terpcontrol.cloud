@@ -1,6 +1,6 @@
-import type { Device, GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
+import type { Device, GerminationChoices, GrowthStage, PhaseCreate } from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
-import { statesTargets } from '@/ui/climate-hardware';
+import { germinates, statesTargets } from '@/ui/climate-hardware';
 import { writesClimate } from '@/ui/presets';
 
 /** What a phase does to the climate where its plants stand: nothing, or one climate of the one list. */
@@ -20,10 +20,7 @@ export const KEEP_CLIMATE: PhaseClimate = { climate: false, preset: null };
  * an older server reads it the same way. The choices of germination go with
  * its climate alone, which is the one that puts a device into germination.
  */
-export const climateRequest = (
-  pick: PhaseClimate,
-  stage: GrowthStage,
-): { preset: string | null; climate?: true; germinationChoices?: Partial<GerminationChoices> } => {
+export const climateRequest = (pick: PhaseClimate, stage: GrowthStage): Pick<PhaseCreate, 'preset' | 'climate' | 'germinationChoices'> => {
   if (!pick.climate) return { preset: null };
   const choices = stage === 'germination' && pick.germination && Object.keys(pick.germination).length > 0 ? pick.germination : null;
   return { preset: pick.preset, climate: true, ...(choices ? { germinationChoices: choices } : {}) };
@@ -36,10 +33,6 @@ export const usePlaceController = (spaceId: string | null): Device | null => {
     ? null
     : (devices.data?.items.find(device => device.spaceId === spaceId && device.configuration && statesTargets(device.configuration)) ?? null);
 };
-
-/** Whether a device germinates in the dark now. */
-export const germinates = (device: Device | null): boolean =>
-  Boolean(device?.control?.running && !device.control.drying && device.control.mode === 'germination');
 
 /**
  * What a phase sheet starts on: the targets as they are - nothing is chosen for

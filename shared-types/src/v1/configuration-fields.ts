@@ -23,6 +23,9 @@
  * different places. No schema, so a client imports it without pulling zod in.
  */
 
+import type { z } from 'zod';
+import type { timerWindow } from './devices.js';
+
 export interface NumberField {
   kind: 'number';
   path: string;
@@ -62,11 +65,7 @@ export interface WindowsField {
   longest: number;
 }
 
-/** One window of a timer: `ontime` in seconds past midnight UTC, `duration` in minutes. */
-export interface TimerWindow {
-  ontime: number;
-  duration: number;
-}
+export type TimerWindow = z.infer<typeof timerWindow>;
 
 export type ConfigurationField = NumberField | SwitchField | ChoiceField | WindowsField;
 
@@ -288,14 +287,35 @@ export const CONFIGURATION_FIELDS: Readonly<Record<string, ConfigurationFields>>
 /** The fields a type of device offers; none for a type this table does not know. */
 export const configurationFieldsOf = (type: string): ConfigurationFields => CONFIGURATION_FIELDS[type] ?? {};
 
-/* ------------------------------------------------- a socket's CO2 and a fan */
+/* ------------------------------------------------------- reading a document */
 
 type Document = Readonly<Record<string, unknown>> | null | undefined;
 
-const sectionIn = (document: Document, key: string): Readonly<Record<string, unknown>> | null => {
+/** Whether a value of a document is a section of it: an object of keys, not a list. */
+export const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+export const sectionOf = (document: Document, key: string): Readonly<Record<string, unknown>> | null => {
   const value = document?.[key];
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  return isSection(value) ? value : null;
 };
+
+export const finiteOrNull = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+/** A value of a document by its dotted path, nested as the firmware writes it, or undefined where the document does not reach it. */
+export const nestedAt = (document: unknown, path: string): unknown =>
+  path.split('.').reduce<unknown>((node, key) => (isSection(node) ? node[key] : undefined), document);
+
+/**
+ * A value of a document by its dotted path, nested as the firmware writes it or
+ * flat as an older client did. Both mean the same thing; the nested one is read
+ * first, the server's and every screen's reading alike.
+ */
+export const valueAt = (document: Document, path: string): unknown => nestedAt(document, path) ?? document?.[path];
+
+/** A figure of a document by its dotted path (`valueAt`), or null where it states none. */
+export const figureAt = (document: Document, path: string): number | null => finiteOrNull(valueAt(document, path));
+
+/* ------------------------------------------------- a socket's CO2 and a fan */
 
 /**
  * The AIR fan a smart socket slows down while it doses CO2, and how far. The
@@ -334,7 +354,7 @@ export const co2FanKey = (coupling: Co2Fan | null): string =>
  * dosing a fan can be slowed for: the fan knows nothing of the socket and
  * simply runs slower in the same windows of the same period.
  */
-export const dosesInWindows = (plug: Document): boolean => plug?.workmode === 'co2' && sectionIn(plug, 'co2')?.mode === 'periodic';
+export const dosesInWindows = (plug: Document): boolean => plug?.workmode === 'co2' && sectionOf(plug, 'co2')?.mode === 'periodic';
 
 /**
  * The section a coupled fan is given: the socket's dosing windows, its day
@@ -344,8 +364,8 @@ export const dosesInWindows = (plug: Document): boolean => plug?.workmode === 'c
 export const co2InjectFor = (plugId: string, plug: Document, speed: number): Record<string, unknown> => {
   if (!dosesInWindows(plug)) return {};
 
-  const co2 = sectionIn(plug, 'co2') ?? {};
-  const daynight = sectionIn(plug, 'daynight') ?? {};
+  const co2 = sectionOf(plug, 'co2') ?? {};
+  const daynight = sectionOf(plug, 'daynight') ?? {};
   return {
     device_id: plugId,
     speed,
@@ -359,7 +379,7 @@ export const co2InjectFor = (plugId: string, plug: Document, speed: number): Rec
 
 /** The smart socket a fan is slowed for, as the fan's own document names it. */
 export const co2PlugOf = (fan: Document): string | null => {
-  const id = sectionIn(fan, 'co2inject')?.device_id;
+  const id = sectionOf(fan, 'co2inject')?.device_id;
   return typeof id === 'string' && id !== '' ? id : null;
 };
 

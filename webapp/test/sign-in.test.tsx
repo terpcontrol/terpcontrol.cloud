@@ -1,16 +1,13 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Problem } from '@fg2/shared-types/v1';
 import { session } from '@/api/session';
 import { SignIn } from '@/screens/SignIn';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { drawAt, json } from './harness';
+import { translate } from './translations';
 
 /**
  * What the sign-in card says when it is turned away.
@@ -26,21 +23,16 @@ const problem = (status: number, code: string, detail: string): Problem => ({ st
 
 const refusal = { body: problem(401, 'credentials_wrong', 'That is not an address and password of an account here.') };
 
-const fetchStub = vi.fn(
-  async () => new Response(JSON.stringify(refusal.body), { status: refusal.body.status, headers: { 'Content-Type': 'application/json' } }),
-) as unknown as typeof fetch;
+const fetchStub = vi.fn(async () => json(refusal.body, refusal.body.status)) as unknown as typeof fetch;
 
 const draw = (state: unknown = null) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={[{ pathname: '/sign-in', state }]}>
-        <ThemeProvider>
-          <Routes>
-            <Route path="/sign-in" element={<SignIn />} />
-          </Routes>
-        </ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <ThemeProvider>
+      <Routes>
+        <Route path="/sign-in" element={<SignIn />} />
+      </Routes>
+    </ThemeProvider>,
+    { at: { pathname: '/sign-in', state } },
   );
 
 /** Fill the form in with credentials that are right, and ask. */
@@ -50,17 +42,7 @@ const signIn = (email = 'Email', password = 'Password', button = 'Sign in') => {
   fireEvent.click(screen.getByRole('button', { name: button }));
 };
 
-beforeAll(async () => {
-  const [en, de] = await Promise.all(
-    ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
-  );
-  await i18next.use(initReactI18next).init({
-    lng: 'en',
-    resources: { en: { translation: en }, de: { translation: de } },
-    nsSeparator: false,
-    interpolation: { escapeValue: false },
-  });
-});
+beforeAll(() => translate(['en', 'de']));
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

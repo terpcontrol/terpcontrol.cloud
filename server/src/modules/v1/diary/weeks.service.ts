@@ -3,23 +3,25 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { z } from 'zod';
 import type { EntryKind, GrowWeekCard, GrowWeekCardPage, GrowWeekDay, GrowWeekFeeding, GrowWeekReading, SchemeAmount } from '@fg2/shared-types/v1';
+import { growOriginOf, schemeWeekOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant } from '@common/v1/access.types';
 import { decodeCursor, pageOf } from '@common/v1/pages';
+import { peopleNamed } from '@common/v1/people';
 import { Span, clampRange, overlapsRange, picturesWithinRange, seenOf } from '@common/v1/range';
-import { pageQuery } from '@common/v1/validation';
+import { PageQuery, pageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { GrowDocument, PhaseDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
-import { Redaction } from '../grow/grow-serialiser';
+import { spacesDuring } from '../grow/grow-places';
+import { Redaction, latestPhase } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
-import { DIARY_KINDS, READING_KINDS, authorIdsOf, peopleOf, serialiseDiaryEntry } from './diary-entries';
-import { DAY_MS, GrowWeekSpan, horizonOf, originOf, pictureHourIn, stageWeekIn, weeksOf } from './grow-calendar';
+import { DIARY_KINDS, READING_KINDS, readingsIn, serialiseDiaryEntry } from './diary-entries';
+import { DAY_MS, GrowWeekSpan, horizonOf, pictureHourIn, weeksOf } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
-import { spacesDuring } from './grow-places';
 
 /**
  * The week cards the grow page is made of.
@@ -82,11 +84,6 @@ const MAX_ENTRIES_PER_PAGE = 2000;
 /** Far enough back that a measurement logged months ago still gives this week's reading something to have changed from. */
 const READING_LOOKBACK = 500;
 
-interface PageRequest {
-  limit?: number;
-  cursor?: string;
-}
-
 /** Everything a card is built from that was read once for the whole page. */
 interface PageWorld {
   grow: GrowDocument;
@@ -115,9 +112,9 @@ export class GrowWeeksService {
     private readonly climate: GrowClimateService,
   ) {}
 
-  public async page(growId: string, grant: Grant, query: PageRequest, now: Date = new Date()): Promise<GrowWeekCardPage> {
+  public async page(growId: string, grant: Grant, query: PageQuery, now: Date = new Date()): Promise<GrowWeekCardPage> {
     const grow = await this.grows.require(growId);
-    const origin = originOf(grow);
+    const origin = growOriginOf(grow);
     const range = clampRange(grant);
 
     // Newest first, which is the order the grow page reads in.
@@ -138,7 +135,7 @@ export class GrowWeeksService {
     const [hide, diary, readings, controllers, plannedFeeds, films] = await Promise.all([
       this.grows.redaction(grant),
       this.diaryIn(grow.id, span),
-      this.readingsIn(grow.id, { startsAt: range.startsAt, endsAt: span.endsAt }),
+      this.readingEntriesIn(grow.id, { startsAt: range.startsAt, endsAt: span.endsAt }),
       this.climate.controllersIn(spaceIds),
       this.feedsPerWeek(grow.id),
       this.weekFilms(cameras, span, range),
@@ -159,10 +156,12 @@ export class GrowWeeksService {
     };
     const cards = await Promise.all(page.items.map(week => this.cardOf(week, world)));
 
-    const named = cards.flatMap(card => card.entries);
-    const rows = await this.users.find({ id: { $in: authorIdsOf(named) } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
+    const people = await peopleNamed(
+      this.users,
+      cards.flatMap(card => card.entries.map(entry => entry.authorId)),
+    );
 
-    return { items: cards, nextCursor: page.nextCursor, people: peopleOf(named, rows) };
+    return { items: cards, nextCursor: page.nextCursor, people };
   }
 
   private async cardOf(week: GrowWeekSpan, world: PageWorld): Promise<GrowWeekCard> {
@@ -202,7 +201,7 @@ export class GrowWeeksService {
       endsAt: seen.endsAt.toISOString(),
       stage: phase?.stage ?? null,
       preset: phase?.preset ?? null,
-      stageWeek: phase ? stageWeekIn(origin, phase.startedAt, week.weekNumber) : null,
+      stageWeek: phase ? stageWeekOf(origin, phase.startedAt, week.weekNumber) : null,
       // A public diary is a diary and not an inventory: the averages are what a
       // reader is shown, and which controller measured them ties the page to a
       // named piece of somebody's hardware.
@@ -214,7 +213,7 @@ export class GrowWeeksService {
       readings: readingsOf(grow, world.readings, seen, world.range),
       waterCount: counted('water'),
       feedCount: counted('feed'),
-      entries: entries.slice(0, ENTRIES_PER_WEEK).map(entry => serialiseDiaryEntry(entry, world.hide, world.grant.includeCameras)),
+      entries: entries.slice(0, ENTRIES_PER_WEEK).map(entry => serialiseDiaryEntry(entry, world.hide, world.grant)),
       entryCount: entries.length,
       timelapseMediaId: filmOf(world.films, week),
     };
@@ -231,7 +230,7 @@ export class GrowWeeksService {
    * picture, and the search itself is bounded by the window, so a thumbnail can
    * never be a still taken outside it.
    */
-  private async daysOf(week: GrowWeekSpan, seen: Span, cameraIds: string[], spine: GrowDocument['phases']): Promise<GrowWeekDay[]> {
+  private async daysOf(week: GrowWeekSpan, seen: Span, cameraIds: string[], spine: PhaseDocument[]): Promise<GrowWeekDay[]> {
     const days = Array.from({ length: week.dayTo - week.dayFrom + 1 }, (_, index) => {
       const startsAt = new Date(week.startsAt.getTime() + index * DAY_MS);
       const endsAt = new Date(startsAt.getTime() + DAY_MS);
@@ -353,7 +352,7 @@ export class GrowWeeksService {
    * subtraction from a reading logged before a link's window opened states that
    * reading as surely as printing it would.
    */
-  private readingsIn(growId: string, window: { startsAt: Date | null; endsAt: Date }): Promise<EntryDocument[]> {
+  private readingEntriesIn(growId: string, window: { startsAt: Date | null; endsAt: Date }): Promise<EntryDocument[]> {
     return this.entries
       .find({ growId, kind: { $in: READING_KINDS }, occurredAt: { ...(window.startsAt ? { $gte: window.startsAt } : {}), $lt: window.endsAt } })
       .sort({ occurredAt: -1, id: -1 })
@@ -426,7 +425,7 @@ const filmOf = (films: readonly Pick<MediaDocument, 'id' | 'capturedAt'>[], week
  * the week everybody else is still in - unless every phase is one, in which case
  * they are all the grow has to be named after.
  */
-const spineOf = (grow: GrowDocument): GrowDocument['phases'] => {
+const spineOf = (grow: GrowDocument): PhaseDocument[] => {
   const spine = grow.phases.filter(phase => phase.plantIds === null);
 
   return spine.length > 0 ? spine : grow.phases;
@@ -445,8 +444,8 @@ const spineOf = (grow: GrowDocument): GrowDocument['phases'] => {
  * Where two began on one day the later one is answered: the tile says what the
  * day left the grow in, as the week's own pill does for the week.
  */
-const begunOn = (phases: GrowDocument['phases'], from: Date, until: Date): GrowDocument['phases'][number] | null =>
-  latest(phases.filter(phase => phase.startedAt >= from && phase.startedAt < until));
+const begunOn = (phases: PhaseDocument[], from: Date, until: Date): PhaseDocument | null =>
+  latestPhase(phases.filter(phase => phase.startedAt >= from && phase.startedAt < until));
 
 /**
  * The phase the grow as a whole was in when the week ended, which is what the
@@ -454,15 +453,12 @@ const begunOn = (phases: GrowDocument['phases'], from: Date, until: Date): GrowD
  * split is told in the timeline rather than by renaming the week everybody else
  * is still in.
  */
-const headlinePhaseAt = (grow: GrowDocument, at: Date): GrowDocument['phases'][number] | null => {
+const headlinePhaseAt = (grow: GrowDocument, at: Date): PhaseDocument | null => {
   const started = grow.phases.filter(phase => phase.startedAt <= at);
   const spine = started.filter(phase => phase.plantIds === null);
 
-  return latest(spine.length > 0 ? spine : started);
+  return latestPhase(spine.length > 0 ? spine : started);
 };
-
-const latest = (phases: GrowDocument['phases']): GrowDocument['phases'][number] | null =>
-  phases.reduce<GrowDocument['phases'][number] | null>((best, phase) => (best && best.startedAt > phase.startedAt ? best : phase), null);
 
 /**
  * What the scheme says to feed this week, with the grow's own strength already
@@ -473,7 +469,7 @@ const feedingOf = (grow: GrowDocument, weekNumber: number, plannedCount: number)
   const scheme = grow.scheme;
   if (!scheme) return null;
 
-  const amounts: SchemeAmount[] = (scheme.grid.find(week => week.week === weekNumber)?.amounts ?? []).map(amount => ({
+  const amounts: SchemeAmount[] = (schemeWeekOf(scheme.grid, weekNumber)?.amounts ?? []).map(amount => ({
     ...amount,
     value: amount.value === null ? null : round(amount.value * scheme.strength),
   }));
@@ -509,8 +505,6 @@ const readingsOf = (grow: GrowDocument, entries: readonly EntryDocument[], seen:
     const was = newest(range.startsAt ?? new Date(0), seen.startsAt);
     return [{ key: definition.key, value: stands.value, change: was ? round(stands.value - was.value) : null, measuredAt: stands.at.toISOString() }];
   });
-
-const readingsIn = (entry: EntryDocument): { key: string; value: number }[] => ('readings' in entry.values ? entry.values.readings : []);
 
 const round = (value: number): number => Math.round(value * 100) / 100;
 

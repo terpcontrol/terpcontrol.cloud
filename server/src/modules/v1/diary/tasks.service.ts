@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { GrowOrSpaceRef, Task } from '@fg2/shared-types/v1';
+import { activeStep, durationMs, elapsedMs } from '@fg2/shared-types/v1-schemas/plan-clock.js';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, decodeCursor, pageOf } from '@common/v1/pages';
@@ -11,8 +12,8 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { StoredPlan } from '@database/schemas/v1/plans.schema';
-import { activeStep, durationMs, elapsedMs } from '../plan/plan-steps';
-import { WEEK_HORIZON_MS, dueTasksOf, occurrenceDueAt, occurrencePrefix } from '../home/due-tasks';
+import { spacesNow } from '../grow/grow-places';
+import { WEEK_HORIZON_MS, completionsOf, dueTasksOf, occurrenceDueAt, reminderOfTask, remindersAbout } from './due-tasks';
 import { planTaskId } from './task-ids';
 import { VisibleSubjectsService } from './visible-subjects.service';
 
@@ -36,7 +37,7 @@ import { VisibleSubjectsService } from './visible-subjects.service';
 /** How far back a task that has already been ticked off is still worth showing. */
 const DONE_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 
-export interface TaskFilter {
+interface TaskFilter {
   growId?: string;
   spaceId?: string;
   assigneeId?: string;
@@ -69,8 +70,8 @@ export class TasksService {
     const where = await this.placesOf(ctx, filter);
     if (where.spaceIds.length === 0 && where.growIds.length === 0) return { items: [], nextCursor: null };
 
-    const reminders = await this.remindersOf(where);
-    const completions = await this.completionsOf(reminders);
+    const reminders = await this.reminders.find(remindersAbout(where.spaceIds, where.growIds)).lean<ReminderDocument[]>();
+    const completions = await completionsOf(this.entries, reminders);
     const tasks = filter.done
       ? this.ticked(reminders, completions, now)
       : [...this.waiting(reminders, completions, now), ...(await this.planSteps(ctx, where, now))];
@@ -93,36 +94,14 @@ export class TasksService {
     return this.visible.workedInBy(ctx);
   }
 
-  private remindersOf(where: { spaceIds: string[]; growIds: string[] }): Promise<ReminderDocument[]> {
-    return this.reminders
-      .find({
-        $or: [
-          { 'subject.type': 'space', 'subject.id': { $in: where.spaceIds } },
-          { 'subject.type': 'grow', 'subject.id': { $in: where.growIds } },
-        ],
-      })
-      .lean<ReminderDocument[]>();
-  }
-
-  /** The entries that ticked a task of these reminders off: a one-off by its id, a rhythm by any of its occurrences. */
-  private completionsOf(reminders: ReminderDocument[]): Promise<EntryDocument[]> {
-    if (reminders.length === 0) return Promise.resolve([]);
-
-    return this.entries
-      .find({ $or: reminders.map(reminder => ({ taskId: reminder.onceAt ? reminder.id : { $regex: `^${occurrencePrefix(reminder.id)}` } })) })
-      .lean<EntryDocument[]>();
-  }
-
   /**
    * A week ahead rather than the card's two days: the board this list fills has
    * a column for the rest of the week, and what is announced is decided
    * elsewhere, on what is due now.
    */
   private waiting(reminders: ReminderDocument[], completions: EntryDocument[], now: Date): Task[] {
-    const byId = new Map(reminders.map(reminder => [reminder.id, reminder]));
-
     return dueTasksOf(reminders, completions, now, WEEK_HORIZON_MS).map(due => {
-      const reminder = byId.get(due.id.split(':')[0]);
+      const reminder = reminderOfTask(reminders, due.id);
 
       return { ...due, source: 'reminder', sourceId: reminder?.id ?? null, defaults: reminder?.defaults ?? null, done: false, completion: null };
     });
@@ -141,7 +120,7 @@ export class TasksService {
       const taskId = entry.taskId;
       if (!taskId || entry.occurredAt.getTime() < since) return [];
 
-      const reminder = reminders.find(candidate => taskId === candidate.id || taskId.startsWith(occurrencePrefix(candidate.id)));
+      const reminder = reminderOfTask(reminders, taskId);
       if (!reminder) return [];
 
       // The occurrence's own instant, which is in its id, so the done copy says
@@ -187,7 +166,7 @@ export class TasksService {
     const plans = await this.plans.find({ deviceId: { $in: places.map(place => place.deviceId) }, 'state.status': 'running' }).lean<StoredPlan[]>();
     const waiting = plans.flatMap(plan => {
       const step = activeStep(plan);
-      const served = elapsedMs(plan.state, now);
+      const served = elapsedMs(plan.state, now.getTime());
       const place = places.find(candidate => candidate.deviceId === plan.deviceId);
       if (!step?.waitForConfirmation || !place || served < durationMs(step.duration)) return [];
 
@@ -241,22 +220,20 @@ export class TasksService {
     const grows = await this.grows
       .find({ $or: [{ id: { $in: where.growIds } }, { placements: { $elemMatch: { spaceId: { $in: where.spaceIds }, endedAt: null } } }] })
       .lean<GrowDocument[]>();
-    const spaceIds = [...new Set([...where.spaceIds, ...grows.flatMap(grow => grow.placements.filter(open).map(placement => placement.spaceId!))])];
+    const spaceIds = [...new Set([...where.spaceIds, ...grows.flatMap(spacesNow)])];
 
     const devices = await this.devices.find({ spaceId: { $in: spaceIds } }, { id: 1, spaceId: 1 }).lean<Pick<StoredDevice, 'id' | 'spaceId'>[]>();
 
-    return devices.flatMap(device => {
-      if (!device.spaceId) return [];
+    return devices.flatMap(({ id, spaceId }) => {
+      if (!spaceId) return [];
 
-      const grow = grows.find(candidate => candidate.placements.some(placement => open(placement) && placement.spaceId === device.spaceId));
-      const subject: GrowOrSpaceRef = grow ? { type: 'grow', id: grow.id } : { type: 'space', id: device.spaceId };
+      const grow = grows.find(candidate => spacesNow(candidate).includes(spaceId));
+      const subject: GrowOrSpaceRef = grow ? { type: 'grow', id: grow.id } : { type: 'space', id: spaceId };
 
-      return [{ deviceId: device.id, subject }];
+      return [{ deviceId: id, subject }];
     });
   }
 }
-
-const open = (placement: { spaceId: string | null; endedAt: Date | null }): boolean => placement.endedAt === null && placement.spaceId !== null;
 
 /** The rows after the cursor, for a list that has no query to put it in. */
 const after = (tasks: Task[], cursor: string | undefined): Task[] => {

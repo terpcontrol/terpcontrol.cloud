@@ -1,7 +1,7 @@
 ---
 summary: Why CI, the image builds, the deploy pipeline and firmware releases work as they do, the GitHub settings behind them and their traps - read before changing .github/, a Dockerfile, up.sh or build-fw.sh, and before deploying by hand
 updated: 2026-10-08
-source: Chris (2026-09-23, 2026-09-30, 2026-10-01, 2026-10-04); PRs #21, #34, #61, #63, #64, #71, #73, #80, #89, #95, #104, #105, #121, #126, #142; sessions 2026-08..10; GitHub repository settings read 2026-10-08
+source: Chris (2026-09-23, 2026-09-30, 2026-10-01, 2026-10-04); PRs #21, #34, #61, #63, #64, #71, #73, #80, #89, #95, #104, #105, #121, #126, #142; sessions 2026-08..10; codebase cleanup (2026-10-08); GitHub repository settings read 2026-10-08
 paths:
   - .github/**
   - docker-compose.yaml
@@ -11,6 +11,7 @@ paths:
   - build-garmin.sh
   - scripts/compose.sh
   - scripts/load-env.sh
+  - scripts/quietly.sh
   - scripts/wait-for-healthy.sh
   - server/Dockerfile
   - webapp/Dockerfile
@@ -65,8 +66,10 @@ document holds what those comments cannot: the rules behind them, the settings t
   `server/test/unit/contract-is-typed.spec.ts` turns that into a compile error.
 - **Declare every package the code imports.** `docker-server` resolves every `require` of the compiled server inside
   the built image, because `p-limit`, reachable only through a dev dependency, passed every test and would have
-  stopped the runtime image. The same holds for `webapp/` (the workbox modules `sw.ts` imports are declared), where
-  no job checks it.
+  stopped the runtime image; to ask it before CI, build `server/Dockerfile` and run that step's script in the image.
+  The same holds for `webapp/` (the workbox modules `sw.ts` imports are declared) and for test code (`server/`
+  declares the jest packages its specs import, and specs take the driver as `mongo` from `mongoose`, never the
+  undeclared `mongodb`), where no job checks it; `npx knip@5` lists unlisted imports.
 - **`firmware`** compiles every variant without a server (`FW_NO_UPLOAD=1`, `FW_VERSION_ID=ci-test`) and builds the
   build container from scratch on every run ([Known gaps](#known-gaps)). A run that dies in that image build while
   PlatformIO downloads (`HTTPClientError` in `pio pkg install`, `pio platform install espressif32` failing), at a
@@ -167,6 +170,11 @@ header. A full green run went from 53,301 log lines to about 5,100; most of the 
 - **Which variants** a push builds is decided in `detect` (changes since the last push run whose production firmware
   release went through). A manual run takes `hardwares` (`none` skips firmware), `description`, `skip_deploy` and
   `build_garmin`.
+- **The build scripts are release paths.** `build-fw.sh` and `fw-buildcontainer/` count as shared firmware paths and
+  `build-garmin.sh` as a Garmin path: touching one, even with identical output, releases every firmware variant (or
+  builds a new Garmin app) on merge, so change them only in a firmware or Garmin pull request. The helpers they source
+  (`scripts/load-env.sh`, `scripts/quietly.sh`) run the pull request's `firmware` and `garmin` jobs and release
+  nothing.
 - **`production-firmware` uploads to the production server as it stands**, which can be older than the commit being
   released (production moves only when `production-cloud` is approved). So `fw-buildcontainer/cli.py` has to speak
   the API of the server before it as well; its fallback to the pre-`/v1` routes goes once no deployed server is

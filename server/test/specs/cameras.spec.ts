@@ -365,6 +365,16 @@ describe('a test picture', () => {
     const read = (await owner.client.get(`/v1/cameras/${id}/test-captures/${pressed.id}`).expect(200)).body;
     expect(read).toMatchObject({ state: 'failed', reason: 'noAnswer', error: 'Connection refused' });
   });
+
+  it('is not taken of a camera that was taken away', async () => {
+    resetFfmpeg();
+    armFfmpeg(failingRuns('taken-away'));
+    const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.80:554/taken-away' }));
+    await owner.client.delete(`/v1/cameras/${id}`).expect(204);
+
+    const refused = await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(404);
+    expect(refused.body.code).toBe('camera_not_found');
+  });
 });
 
 /**

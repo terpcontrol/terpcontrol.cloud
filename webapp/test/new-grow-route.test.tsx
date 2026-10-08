@@ -1,16 +1,11 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
+import { drawAt } from './harness';
 import { spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * `/grows/new` as an address: what the search parameters on it are worth by the
@@ -27,7 +22,7 @@ import { spaceWhere } from './session';
  * stood in for.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 vi.mock('@/screens/Home', () => ({ Home: () => <div data-testid="home" /> }));
@@ -51,22 +46,11 @@ const answers = (path: string): unknown => {
 };
 
 const draw = async (at: string) => {
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <NewGrowRoute />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  drawAt(<NewGrowRoute />, { at });
   await waitFor(() => expect(screen.getByRole('button', { name: /Start the grow/ })).toBeEnabled());
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);

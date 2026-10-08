@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { claimCodeOf } from '@/api/claims';
 import { session, useSession } from '@/api/session';
-import { canScan } from '@/ui/barcode';
+import { useQrScan } from '@/ui/barcode';
 import { useMayManage } from '@/ui/session-access';
 import { QrScanner } from '@/ui/QrScanner';
 import { LegacyMove } from './claim/LegacyMove';
@@ -36,7 +36,7 @@ export function EmptyHome({ onStartGrow, past = null }: { onStartGrow: () => voi
   return (
     <section className={styles.screen}>
       <header className={styles.intro}>
-        <h1 className={styles.title}>{t(past ? 'home.empty.pastTitle' : 'home.empty.title')}</h1>
+        <h1>{t(past ? 'home.empty.pastTitle' : 'home.empty.title')}</h1>
         <p className={styles.text}>{t(past ? 'home.empty.pastText' : 'home.empty.text')}</p>
       </header>
       {past}
@@ -79,7 +79,7 @@ function NothingInTheDemo() {
   return (
     <section className={styles.screen}>
       <header className={styles.intro}>
-        <h1 className={styles.title}>{t('home.demoEmpty.title')}</h1>
+        <h1>{t('home.demoEmpty.title')}</h1>
         <p className={styles.text}>{t('home.demoEmpty.text')}</p>
       </header>
 
@@ -153,8 +153,6 @@ function ClaimCode() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [code, setCode] = useState('');
-  const [scanning, setScanning] = useState(false);
-  const [scanNote, setScanNote] = useState<string | null>(null);
 
   const hand = useCallback(
     (value: string) => {
@@ -164,24 +162,7 @@ function ClaimCode() {
     [navigate],
   );
 
-  const scan = () => {
-    if (!canScan()) return setScanNote(t('home.addDevice.scanUnavailable'));
-    setScanNote(null);
-    setScanning(true);
-  };
-
-  const onCode = useCallback(
-    (value: string) => {
-      setScanning(false);
-      hand(value);
-    },
-    [hand],
-  );
-  const closeScanner = useCallback(() => setScanning(false), []);
-  const onFailed = useCallback(() => {
-    setScanning(false);
-    setScanNote(t('home.addDevice.scanDenied'));
-  }, [t]);
+  const { scan, note, scanner } = useQrScan(hand);
 
   return (
     <article className={ui.card}>
@@ -217,9 +198,9 @@ function ClaimCode() {
             <ChevronRight size={14} strokeWidth={1.75} aria-hidden />
           </button>
         </div>
-        {scanNote ? (
+        {note ? (
           <p className={`${ui.note} ${styles.problem}`} role="alert">
-            {scanNote}
+            {note}
           </p>
         ) : null}
       </form>
@@ -233,16 +214,17 @@ function ClaimCode() {
 
       <LegacyMove className={styles.legacy} />
 
-      {scanning ? <QrScanner onCode={onCode} onClose={closeScanner} onFailed={onFailed} /> : null}
+      {scanner ? <QrScanner {...scanner} /> : null}
     </article>
   );
 }
 
 /**
  * The demo is a session of its own: opening it means leaving this one, so it is
- * not a door out of the demo and is not drawn there. Whether this is the demo
- * is the session's own answer and not a question about hardware, which is a
- * different thing and will part company with it.
+ * not a door out of the demo, and the demo is answered before this card is
+ * drawn. Whether this is the demo is the session's own answer and not a
+ * question about hardware, which is a different thing and will part company
+ * with it.
  *
  * Leaving this one is the whole of what the card costs, so it is asked before
  * it is done rather than discovered afterwards. The two doors above add
@@ -253,7 +235,6 @@ function ClaimCode() {
 function TryDemo() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useSession();
   const [state, setState] = useState<'idle' | 'asking' | 'opening' | 'failed'>('idle');
 
   const open = async () => {
@@ -265,8 +246,6 @@ function TryDemo() {
       setState('failed');
     }
   };
-
-  if (user?.isDemo) return null;
 
   return (
     <article className={`${ui.cardDashed} ${styles.demo}`}>

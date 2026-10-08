@@ -10,6 +10,7 @@ import { LoadFailed, Waiting } from '@/ui/PageState';
 import { usePlaceDevices } from '@/ui/place-devices';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
+import { AddDeviceNote } from './AddDeviceNote';
 import { Alarms } from './alarms/Alarms';
 import { PlanPanel } from './PlanPanel';
 import { Targets } from './targets/Targets';
@@ -55,12 +56,7 @@ export function Control({ spaceId, sub }: { spaceId: string; sub: string | null 
   if (here.length === 0) {
     return (
       <div className={styles.page}>
-        <p className={`${ui.cardDashed} ${ui.note}`}>
-          {t('space.control.noController')}{' '}
-          <Link to="/claim" className={styles.addDevice}>
-            {t('space.control.noControllerAdd')}
-          </Link>
-        </p>
+        <AddDeviceNote>{t('space.control.noController')}</AddDeviceNote>
       </div>
     );
   }
@@ -106,8 +102,8 @@ function PlanPage({ spaceId, here, first = false }: { spaceId: string; here: Dev
           so it is asked here per device and handed down: a tent holding a
           controller and a lamp draws a plan for the one and says so about the
           other. It is handed down in all three of its states, because the
-          controller whose document has not arrived is neither of the two the
-          panel used to draw and is the one a step must not be written for. */}
+          controller whose document has not arrived is the one a step must not
+          be written for. */}
       {here.map(device => (
         <PlanPanel key={device.id} device={device} mayManage={mayManage} landing={climateLanding(device)} />
       ))}

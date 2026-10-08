@@ -9,7 +9,7 @@ import { useDiaryLayer } from '@/api/layers';
 import { useMembers } from '@/api/members';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { initials } from '@/app/shell/tabs';
+import { initials } from '@/ui/handle';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayIn } from '@/ui/session-access';

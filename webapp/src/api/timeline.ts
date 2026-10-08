@@ -17,7 +17,7 @@ import { api } from './client';
  * end, and re-reading them would redraw the same picture. A refresh that fails
  * leaves the last answer on the screen with the line that says how old it is.
  */
-export const TIMELINE_REFRESH_MS = 60_000;
+const TIMELINE_REFRESH_MS = 60_000;
 
 /** `phase` and `grow` are stretches of one grow, so the server refuses them without one. */
 export const rangeNeedsGrow = (range: TimelineRange): boolean => range === 'phase' || range === 'grow';

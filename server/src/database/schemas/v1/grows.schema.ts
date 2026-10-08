@@ -12,8 +12,8 @@ import type {
   SchemeWeek,
 } from '@fg2/shared-types/v1';
 
-type PhaseDocument = Omit<Phase, 'startedAt'> & { startedAt: Date };
-type PlacementDocument = Omit<Placement, 'startedAt' | 'endedAt'> & { startedAt: Date; endedAt: Date | null };
+export type PhaseDocument = Omit<Phase, 'startedAt'> & { startedAt: Date };
+export type PlacementDocument = Omit<Placement, 'startedAt' | 'endedAt'> & { startedAt: Date; endedAt: Date | null };
 
 /**
  * The whole story of a set of plants. `phases[]` and `placements[]` are embedded

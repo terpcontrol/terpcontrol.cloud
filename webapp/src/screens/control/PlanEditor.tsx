@@ -1,25 +1,26 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Device, GrowthStage, Plan, PlanNotifyMode } from '@fg2/shared-types/v1';
+import type { Device, GrowthStage, Plan, PlanNotifyMode, StepDuration } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useSavePlan } from '@/api/plans';
-import { Sheet } from '@/log/Sheet';
-import { awaitingClimate, figureOf as documentFigure, hasCo2Sensor } from '@/ui/climate-hardware';
+import { Sheet } from '@/ui/Sheet';
+import { awaitingClimate, germinates, hasCo2Sensor } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
 import { presetsOf, stageChoiceName } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
+import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { serverNow } from '@/api/clock';
-import { germinates } from '../grow/phase-climate';
 import { GerminationChoices } from './germination/GerminationChoices';
 import { choicesOf, useHumidifier } from './germination/germination-choices';
 import { DURATION_UNITS } from './plan-clock';
 import { scheduleTitle } from './targets/schedule-words';
-import { draftOf as targetsOf, offsetOf, secondsOf, wallClock } from './targets/targets-draft';
+import { draftOf as targetsOf } from './targets/targets-draft';
 import {
   asWritableBy,
   editEffect,
@@ -31,6 +32,7 @@ import {
   lightHoursFit,
   moveStep,
   newStep,
+  NIGHT_HUMIDITY,
   otherSections,
   replaceBody,
   stepLightHours,
@@ -46,6 +48,7 @@ import {
 } from './plan-edit';
 import { followsGermination, stepMeta } from './plan-labels';
 import { PlanRefusal } from './Refusal';
+import { TimeInput } from './TimeInput';
 import styles from './Control.module.css';
 
 /**
@@ -89,7 +92,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
 
   return (
     <Sheet title={t(plan ? 'space.control.editor.title' : 'space.control.editor.newTitle')} onClose={onClose}>
-      <div className={styles.editor}>
+      <div className={ui.sheetBody}>
         <Block label={t('space.control.editor.plan')}>
           <label className="label" htmlFor="plan-name">
             {t('space.control.editor.name')}
@@ -101,11 +104,11 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
             onChange={event => setDraft({ ...draft, name: event.target.value })}
             autoComplete="off"
           />
-          <Toggle
+          <SwitchRow
             label={t('space.control.editor.loop')}
             note={t('space.control.editor.loopNote')}
             on={draft.loop}
-            onToggle={loop => setDraft({ ...draft, loop })}
+            onChange={loop => setDraft({ ...draft, loop })}
           />
         </Block>
 
@@ -150,7 +153,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
                     </button>
                     <button
                       type="button"
-                      className={`${ui.chip} ${styles.danger}`}
+                      className={`${ui.chip} ${ui.danger}`}
                       onClick={() => steps(draft.steps.filter(one => one.key !== step.key))}
                     >
                       {t('space.control.step.remove')}
@@ -232,7 +235,7 @@ function StepFields({
       stage,
       preset: keep ? step.preset : null,
       germinationChoices: stage === 'germination' ? choices : null,
-      ...(isDarkStage(stage) ? heldByStage(step, stage) : {}),
+      ...heldByStage(step, stage),
     });
   };
   // Held round the clock in the dark: drying, or germination.
@@ -282,27 +285,7 @@ function StepFields({
       ) : null}
 
       <span className="label">{t('space.control.step.duration')}</span>
-      <div className={styles.duration}>
-        <input
-          className={`${ui.input} ${styles.number}`}
-          type="number"
-          min={0}
-          // Not whole numbers only: a recipe written before the rewrite may hold
-          // half a day on a step, and a browser that calls that invalid would
-          // put a red ring around a length the tent is actually running.
-          step="any"
-          value={step.duration.value}
-          aria-label={t('space.control.step.durationValue')}
-          onChange={event => onChange({ duration: { ...step.duration, value: Math.max(0, Number(event.target.value) || 0) } })}
-        />
-        <Choices label={t('space.control.step.durationUnit')}>
-          {DURATION_UNITS.map(unit => (
-            <Choice key={unit} chosen={step.duration.unit === unit} onChoose={() => onChange({ duration: { ...step.duration, unit } })}>
-              {t(`space.control.unitName.${unit}`)}
-            </Choice>
-          ))}
-        </Choices>
-      </div>
+      <DurationField value={step.duration} min={0} fractional onChange={duration => onChange({ duration })} />
       {step.duration.value <= 0 ? <p className={ui.note}>{t('space.control.step.openEndedNote')}</p> : null}
 
       <span className="label">{t('space.control.step.settings')}</span>
@@ -331,8 +314,8 @@ function StepFields({
           humidifier={humidifier}
           // The humidity the step holds, or what the device goes on holding where it names none.
           humidity={
-            documentFigure(step.settings, 'night', 'humidity') ??
-            (germinates(device) && device.configuration ? documentFigure(device.configuration, 'night', 'humidity') : GERMINATION_HUMIDITY)
+            figureOf(step.settings, NIGHT_HUMIDITY) ??
+            (germinates(device) && device.configuration ? figureOf(device.configuration, NIGHT_HUMIDITY) : GERMINATION_HUMIDITY)
           }
         />
       ) : null}
@@ -362,11 +345,11 @@ function StepFields({
         </button>
       ) : null}
 
-      <Toggle
+      <SwitchRow
         label={t('space.control.step.waits')}
         note={t('space.control.step.waitsNote')}
         on={step.waitForConfirmation}
-        onToggle={waitForConfirmation => onChange({ waitForConfirmation })}
+        onChange={waitForConfirmation => onChange({ waitForConfirmation })}
       />
       {step.waitForConfirmation ? (
         <input
@@ -399,6 +382,47 @@ const fromController = (step: StepDraft, device: Device): Partial<StepDraft> => 
   };
 };
 
+/** A length and its unit. A step may be open-ended at nought; anything else is at least one of its unit. */
+export function DurationField({
+  value,
+  min,
+  fractional = false,
+  onChange,
+}: {
+  value: StepDuration;
+  min: 0 | 1;
+  /**
+   * Whether a fraction stands, as it does on a step: a recipe migrated from the
+   * old app may hold half a day on one, and a browser that calls that invalid
+   * would put a red ring around a length the tent is actually running.
+   */
+  fractional?: boolean;
+  onChange: (duration: StepDuration) => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className={styles.duration}>
+      <input
+        className={`${ui.input} ${styles.number}`}
+        type="number"
+        min={min}
+        step={fractional ? 'any' : undefined}
+        value={value.value}
+        aria-label={t('space.control.step.durationValue')}
+        onChange={event => onChange({ ...value, value: Math.max(min, Number(event.target.value) || min) })}
+      />
+      <Choices label={t('space.control.step.durationUnit')}>
+        {DURATION_UNITS.map(unit => (
+          <Choice key={unit} chosen={value.unit === unit} onChoose={() => onChange({ ...value, unit })}>
+            {t(`space.control.unitName.${unit}`)}
+          </Choice>
+        ))}
+      </Choices>
+    </div>
+  );
+}
+
 /**
  * How long the light is on while the step runs: what turns a vegetative tent
  * into a flowering one. The light keeps the hour it comes on, so the step says
@@ -418,7 +442,6 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
   const own = stepLightsOn(step.settings);
   const hours = stepLightHours(step);
   const lightsOn = own ?? (device.configuration ? targetsOf(device.configuration).lightsOn : null);
-  const [typing, setTyping] = useState<string | null>(null);
 
   return (
     <>
@@ -446,17 +469,12 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
           <span className={styles.figureLabel}>
             <label htmlFor={`${id}-on`}>{t('planLight.lightsOn')}</label>
           </span>
-          <input
+          <TimeInput
             id={`${id}-on`}
             className={`mono ${styles.figureInput} ${styles.figureClock}`}
-            type="time"
-            value={typing ?? wallClock(own, offset)}
-            onChange={event => {
-              setTyping(event.target.value);
-              const seconds = secondsOf(event.target.value, offset);
-              if (seconds !== null) onChange(withStepLightsOn(step, seconds));
-            }}
-            onBlur={() => setTyping(null)}
+            seconds={own}
+            offset={offset}
+            onChange={seconds => onChange(withStepLightsOn(step, seconds))}
           />
         </span>
       ) : null}
@@ -544,28 +562,13 @@ function Notify({ draft, onChange }: { draft: PlanDraft; onChange: (notify: Plan
         </>
       )}
 
-      <Toggle
+      <SwitchRow
         label={t('space.control.notify.writeEntries')}
         note={t('space.control.notify.writeEntriesNote')}
         on={draft.notify.writeEntries}
-        onToggle={writeEntries => onChange({ ...draft.notify, writeEntries })}
+        onChange={writeEntries => onChange({ ...draft.notify, writeEntries })}
       />
     </Block>
-  );
-}
-
-/** A switch with what it means beside it, which is the app's own control and not a second one. */
-function Toggle({ label, note, on, onToggle }: { label: string; note?: string; on: boolean; onToggle: (on: boolean) => void }) {
-  return (
-    <div className={styles.toggle}>
-      <span className={styles.toggleText}>
-        <span className={styles.toggleLabel}>{label}</span>
-        {note ? <span className={ui.note}>{note}</span> : null}
-      </span>
-      <button type="button" className={ui.switch} role="switch" aria-checked={on} aria-label={label} onClick={() => onToggle(!on)}>
-        <span className={ui.knob} aria-hidden />
-      </button>
-    </div>
   );
 }
 

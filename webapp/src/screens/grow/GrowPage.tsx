@@ -1,24 +1,25 @@
-import { ChevronLeft, CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
+import { CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router';
-import { MY_GROWS, openedFromMyGrows, placePath, useBackToPlace } from '@/app/places';
+import { FROM_MY_GROWS, MY_GROWS, openedFrom, placePath, useBackToPlace } from '@/app/places';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import { Tabs } from '@/ui/Tabs';
 import { Term } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, useZone } from '@/ui/zone';
+import { BackLink } from '@/ui/BackLink';
 import { Feeding } from './Feeding';
 import { GrowLifecycle } from './Lifecycle';
 import { PhaseBar } from './PhaseBar';
 import { PhaseTips } from './PhaseTips';
-import { lastPlaceOf } from './placement';
+import { lastPlaceOf, placeName } from './placement';
 import { Plants } from './Plants';
 import { Report } from './Report';
 import { ShareSheet } from './ShareSheet';
@@ -70,7 +71,7 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
   // A grow is written to through the place it stands in today, which is what
   // `access()` widens a membership over; the lifecycle moves are `manage` there
   // and putting the diary on the open web is the owner's alone.
-  const youMay = mayWith({ ownerId: grow.data.ownerId, spaceId: standsIn(grow.data) });
+  const youMay = mayWith(growStanding(grow.data));
   const mayManage = enough(youMay, 'manage');
   const mayOwn = enough(youMay, 'own');
   const tabs = TABS.map(key => ({ key, label: t(`grow.tabs.${key}`), to: `/grows/${growId}/${key}` }));
@@ -141,13 +142,12 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
   // the day a grow ended on moves with the zone while the fact that it ended
   // does not.
   const endedOn = grow.endedAt ? calendarDay(grow.endedAt, zone) : null;
-  const nameOf = (spaceId: string | null) => (spaceId ? (spaces.find(space => space.id === spaceId)?.name ?? '…') : t('grow.noFixedPlace'));
   // Where the plants are now, which a grow whose placements have all been
   // closed no longer has. Its report names the tent on every chapter and the
   // move sheet lists the span it stood there, so a header with nothing at all
   // in that slot is the one screen that forgets it - the closed placement
   // answers for it, said as the past tense it is.
-  const places = summary.locations.map(location => ({ spaceId: location.spaceId, name: nameOf(location.spaceId) }));
+  const places = summary.locations.map(location => ({ spaceId: location.spaceId, name: placeName(t, spaces, location.spaceId) }));
   const stood = places.length > 0 ? null : lastPlaceOf(grow);
   const placeLink = (spaceId: string | null, label: string) =>
     spaceId ? (
@@ -163,23 +163,17 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
   // it last stood in.
   const toPlace = useBackToPlace(places.find(place => place.spaceId !== null)?.spaceId ?? stood?.spaceId ?? null);
   const { state } = useLocation();
-  const back = openedFromMyGrows(state) || endedOn ? { to: MY_GROWS, name: t('grow.mine.title') } : toPlace;
+  const back = openedFrom(state, FROM_MY_GROWS) || endedOn ? { to: MY_GROWS, name: t('grow.mine.title') } : toPlace;
   const said: ReactNode[] = [
     ...(plants.length > 0 ? [strainsOf(plants)] : []),
     ...places.map(place => placeLink(place.spaceId, place.name)),
-    ...(stood ? [placeLink(stood.spaceId, t('grow.stoodIn', { name: nameOf(stood.spaceId) }))] : []),
+    ...(stood ? [placeLink(stood.spaceId, t('grow.stoodIn', { name: placeName(t, spaces, stood.spaceId) }))] : []),
   ];
 
   return (
     <header className={styles.header}>
       <div className={styles.titleRow}>
-        <Link
-          to={back.to}
-          className={`${ui.back} ${styles.back}`}
-          aria-label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')}
-        >
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to={back.to} label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')} className={styles.back} />
         <div className={styles.titles}>
           <h1 className={styles.name}>{grow.name}</h1>
           <p className={styles.subtitle}>

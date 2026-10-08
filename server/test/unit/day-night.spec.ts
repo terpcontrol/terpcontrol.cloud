@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import type { DeviceConfiguration, DeviceSeries, Metric, PlanStep, SeriesPoint } from '@fg2/shared-types/v1';
 import {
   cycleKindOf,
@@ -10,15 +9,12 @@ import {
   transitionsIn,
   type Cycle,
 } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { heldTo } from '@modules/device-protocol/class-rules';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
-import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
 import { withIdleFiguresKept } from '@modules/device-protocol/idle-figures';
 import { withClockTimesMoved } from '@modules/device-protocol/schedule-clock';
-import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
 import { bandOverRecordAt, settlingOf, type RecordedClimate } from '@modules/v1/device/held-targets';
 import { setpointsOf } from '@modules/v1/device/setpoints';
 import { summariseClimate } from '@modules/v1/diary/week-climate';
@@ -28,7 +24,8 @@ import { settingsSent, stepsOf } from '@modules/v1/plan/plan-steps';
 import { liveOfDevice } from '@modules/v1/space/space-live';
 import { presetConfiguration } from '@modules/v1/space/climate-presets';
 import { nightsOf, targetsOf, transitionsOf } from '@modules/v1/timeline/timeline-series';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { deviceStackOn } from './support/device-stack';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Day and night are the device's: its clock window in UTC and its work mode,
@@ -677,27 +674,12 @@ describe('the targets a mode leaves alone', () => {
 
 describe('a save of the targets', () => {
   const DEVICE = 'sim-fridge-1';
-  let db: V1TestDatabase;
+  const db = useV1TestDatabase();
   let configuration: DeviceConfigurationService;
-
-  beforeAll(async () => {
-    db = await startV1TestDatabase();
-  });
-
-  afterAll(async () => {
-    await db.stop();
-  });
 
   beforeEach(async () => {
     await db.reset();
-    const mqtt = { canPublish: true, publish: jest.fn(() => true) } as unknown as MqttClientService;
-    configuration = new DeviceConfigurationService(
-      db.devices,
-      db.users,
-      db.targetChanges,
-      new DevicePublisherService(db.devices, mqtt),
-      new EntryWriterService(db.entries),
-    );
+    ({ configuration } = deviceStackOn(db));
   });
 
   it('answers what was stored, keeps the day of a germinating fridge, and tunes a drying room from the humidity it holds', async () => {
@@ -740,6 +722,36 @@ describe('a save of the targets', () => {
     await configuration.replace(DEVICE, fridge({ workmode: 'dry', night: { temperature: 18, humidity: 55 } }), 'user-1');
 
     const lines = (await db.entries.find({}).sort({ _id: 1 }).lean()).map(entry => entry.message?.params);
-    expect(lines).toEqual([['daynight.day: 21600 → 21600\ndaynight.night: 64800 → 21600'], ['night.humidity: 58 → 55', 'dry']]);
+    expect(lines).toEqual([
+      ['daynight.day: 21600 → 21600\ndaynight.night: 64800 → 21600', '', 'fridge'],
+      ['night.humidity: 58 → 55', 'dry', 'fridge'],
+    ]);
+  });
+
+  it('writes both times of a LIGHT down too, which keeps them at the top of its document, and pairs nothing of a fan´s', async () => {
+    await db.devices.create({
+      id: 'sim-light-1',
+      type: 'light',
+      ownerId: 'user-1',
+      configuration: { day: 6 * HOUR, night: 18 * HOUR, max_temperature: 35, limit: 80, sunrise: 15, sunset: 15 },
+    });
+    await db.devices.create({
+      id: 'sim-fan-1',
+      type: 'fan',
+      ownerId: 'user-1',
+      configuration: { mode: 0, min_speed: 10, day: { fixed_speed: 60 }, night: { fixed_speed: 30 } },
+    });
+
+    await configuration.configure('sim-light-1', { lightsOn: 7 * HOUR }, 'user-1');
+    await configuration.configure('sim-light-1', { lightsOff: 20 * HOUR, brightness: 90 }, 'user-1');
+    // A fan's day and night are what its light sensor sees, and their figures are sections.
+    await configuration.configure('sim-fan-1', { fixedDay: 70 }, 'user-1');
+
+    const lines = (await db.entries.find({}).sort({ _id: 1 }).lean()).map(entry => entry.message?.params);
+    expect(lines).toEqual([
+      ['day: 21600 → 25200\nnight: 64800 → 64800', '', 'light'],
+      ['day: 25200 → 25200\nlimit: 80 → 90\nnight: 64800 → 72000', '', 'light'],
+      ['day.fixed_speed: 60 → 70', '', 'fan'],
+    ]);
   });
 });

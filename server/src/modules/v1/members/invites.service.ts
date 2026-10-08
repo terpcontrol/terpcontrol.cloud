@@ -1,19 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { randomInt } from 'node:crypto';
-import { FilterQuery, Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { Invite, InviteAcceptance, InviteCreate, InvitePage, InvitePreview } from '@fg2/shared-types/v1';
+import { readableCode } from '@common/readable-code';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
-import { afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound } from '@common/v1/problem';
+import { stillValid } from '@common/v1/range';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { InviteDocument } from '@database/schemas/v1/invites.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { SpacesService } from '@modules/v1/space/spaces.service';
+import { accountOf } from '../caller';
 import { MembersService } from './members.service';
 
 /**
@@ -27,10 +29,6 @@ import { MembersService } from './members.service';
  * enough to read aloud and why both of them are rate limited.
  */
 
-// The characters a code is made of: those that cannot be read as one another off
-// a screen or over a telephone - no O or 0, no I, J, L or 1, no Q. The same
-// alphabet a device's claim code uses, for the same reason.
-const CODE_ALPHABET = 'ABCDEFGHKMNPRSTUVWXYZ23456789';
 const CODE_LENGTH = 8;
 
 /** The board's default, and the one the sheet offers beside a day and never. */
@@ -59,15 +57,7 @@ export class InvitesService {
 
   /** The codes out on a space, newest first: what the sharing sheet lists under the link it just made. */
   public async list(spaceId: string, query: PageQuery): Promise<InvitePage> {
-    const limit = pageLimit(query.limit);
-    // Combined rather than merged: the cursor is an `$or`, and spreading it
-    // beside the space filter would replace it and list every invite there is.
-    const conditions: FilterQuery<InviteDocument>[] = [{ spaceId }, afterCursor('createdAt', query.cursor)];
-
-    const rows = await this.invites.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<InviteDocument[]>();
-
-    const page = pageOf(rows, limit, invite => ({ at: invite.createdAt, id: invite.id }));
-    return { items: page.items.map(serialise), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.invites, [{ spaceId }], query), serialise);
   }
 
   /**
@@ -78,8 +68,8 @@ export class InvitesService {
    * cannot be taken back afterwards.
    */
   public async create(ctx: AccessContext, spaceId: string, body: InviteCreate): Promise<Invite> {
-    const createdBy = this.members.accountOf(ctx);
-    await this.members.require(spaceId);
+    const createdBy = accountOf(ctx);
+    await this.spacesService.require(spaceId);
 
     const invite: InviteDocument = {
       id: uuidv4(),
@@ -137,7 +127,7 @@ export class InvitesService {
    */
   public async preview(code: string, now: Date = new Date()): Promise<InvitePreview> {
     const invite = await this.invites.findOne({ code }).lean<InviteDocument>();
-    if (!invite || !isOpen(invite, now)) return NOTHING_THERE;
+    if (!invite || !stillValid(invite, now)) return NOTHING_THERE;
 
     const space = await this.spaces.findOne({ id: invite.spaceId }, { name: 1, kind: 1, archivedAt: 1 }).lean<SpaceDocument>();
     if (!space || space.archivedAt !== null) return NOTHING_THERE;
@@ -167,13 +157,13 @@ export class InvitesService {
    * true answer.
    */
   public async accept(ctx: AccessContext, code: string, now: Date = new Date()): Promise<InviteAcceptance> {
-    const userId = this.members.accountOf(ctx);
+    const userId = accountOf(ctx);
     const gone = notFound('invite_not_found', 'That invite leads nowhere.');
 
     const invite = await this.invites.findOne({ code }).lean<InviteDocument>();
-    if (!invite || !isOpen(invite, now)) throw gone;
+    if (!invite || !stillValid(invite, now)) throw gone;
 
-    const space = await this.members.require(invite.spaceId);
+    const space = await this.spacesService.require(invite.spaceId);
     if (space.archivedAt !== null) throw gone;
     if (space.ownerId === userId) throw conflict('owner_here', 'You own this space, which is more than any invite gives.');
 
@@ -210,17 +200,13 @@ export class InvitesService {
   /** A code nothing else holds. Unique in the index too, so a race loses at the write rather than here. */
   private async freshCode(): Promise<string> {
     for (let attempt = 0; attempt < GENERATION_ATTEMPTS; attempt += 1) {
-      const code = Array.from({ length: CODE_LENGTH }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
+      const code = readableCode(CODE_LENGTH);
       if (!(await this.invites.exists({ code }))) return code;
     }
 
     throw conflict('code_unavailable', 'No free invite code could be found. Please try again.');
   }
 }
-
-/** Neither revoked nor past its day. Whether the space still stands is asked separately. */
-const isOpen = (invite: InviteDocument, now: Date): boolean =>
-  invite.revokedAt === null && (invite.expiresAt === null || invite.expiresAt.getTime() > now.getTime());
 
 const inDays = (days: number): Date => new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 

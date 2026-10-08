@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,16 +8,18 @@ import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useSaveConfiguration, useSetOverride } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
-import { ageLabel } from '@/ui/age';
+import { saidInAnyLanguage } from '@/i18n/i18n';
+import { ageLabel, durationLabel } from '@/ui/age';
 import { statesTargets } from '@/ui/climate-hardware';
+import { readStoredJson, writeStored } from '@/ui/stored';
 import { clock, useZone } from '@/ui/zone';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
-import { Fact, Facts } from './Facts';
+import { Expand, Fact, Facts, Receipt } from './RowParts';
 import { LEVEL_STEP, percentLabel, withLightLimit, type LightOutput } from './lights';
-import { defaultHold, durationLabel, holdsFor } from './sockets';
+import { DEFAULT_HOLD_SECONDS, HOLD_SECONDS } from './sockets';
 import styles from './Devices.module.css';
-import { refusalText } from '@/ui/refusal';
+import { Refused } from '@/ui/PageState';
 
 interface LightOutputRowProps {
   output: LightOutput;
@@ -138,9 +140,7 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
   // paused for anything else - control switched off, targets set by hand - says
   // its own reason and is resumed where that was decided, not from the lamp.
   const pauseReason = plan.data?.state.pauseReason ?? null;
-  const pausedHere =
-    pauseReason !== null &&
-    Object.keys(i18n.store?.data ?? {}).some(language => i18n.getFixedT(language)('devices.lightOutput.pauseReason') === pauseReason);
+  const pausedHere = saidInAnyLanguage(i18n, 'devices.lightOutput.pauseReason', pauseReason);
 
   // Saving over a running plan pauses it first, exactly as the Manual targets
   // page does, because the engine would otherwise put the step's own brightness
@@ -168,7 +168,7 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
   // from a socket's: a plug is on or off and a chip there means "the other way,
   // for this long", while this output runs at a level and has no other way to
   // be put. The direction is the three buttons' to say.
-  const [hold, setHold] = useState(defaultHold());
+  const [hold, setHold] = useState(DEFAULT_HOLD_SECONDS);
   const [asked, setAsked] = useState<number | null>(null);
   // The device reports no hold of its own light, so the last one sent from
   // here is remembered until it runs out: the button pressed stays marked and
@@ -204,15 +204,7 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
             ? t('devices.lightOutput.now', { percent: percentLabel(measured.percent), age: ageLabel(measured.measuredAt, now) })
             : t('devices.lightOutput.noLevel')}
         </span>
-        <button
-          type="button"
-          className={styles.expand}
-          aria-expanded={open}
-          aria-label={t('devices.socket.details', { name: t('devices.lightOutput.title') })}
-          onClick={() => setOpen(!open)}
-        >
-          {open ? <ChevronDown size={16} strokeWidth={2} aria-hidden /> : <ChevronRight size={16} strokeWidth={2} aria-hidden />}
-        </button>
+        <Expand open={open} label={t('devices.socket.details', { name: t('devices.lightOutput.title') })} onToggle={() => setOpen(!open)} />
       </div>
 
       {mayManage ? (
@@ -309,7 +301,7 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
       {mayManage && cannotSetLevel ? <p className={ui.note}>{cannotSetLevel}</p> : null}
       {mayManage && why ? <p className={ui.note}>{why}</p> : null}
       <Saved save={save} paused={move} />
-      <Asked ask={override} heldFor={asked} />
+      <Receipt result={override.data} error={override.error} pending={override.isPending} heldFor={asked} />
 
       {open ? (
         <div className={styles.socketPanel}>
@@ -337,7 +329,7 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
           {mayManage && offersHold ? (
             <div className={styles.holds}>
               <span className="label">{t('devices.socket.holdFor')}</span>
-              {holdsFor().map(seconds => (
+              {HOLD_SECONDS.map(seconds => (
                 <button
                   key={seconds}
                   type="button"
@@ -383,56 +375,13 @@ function Saved({ save, paused }: { save: Mutation & { isSuccess: boolean }; paus
 
   if (save.isPending || paused.isPending) return <p className={`${ui.note} ${styles.socketWhy}`}>{t('devices.lightOutput.saving')}</p>;
   const failed = save.error ?? paused.error;
-  if (failed) {
-    return (
-      <p className={`${ui.problem} ${styles.socketWhy}`} role="alert">
-        {refusalText(failed, t('devices.lightOutput.saveFailed'))}
-      </p>
-    );
-  }
+  if (failed) return <Refused error={failed} fallback={t('devices.lightOutput.saveFailed')} className={styles.socketWhy} />;
 
   return save.isSuccess ? (
     <p className={`${ui.note} ${styles.socketWhy}`} role="status">
       {t('devices.lightOutput.saved')}
     </p>
   ) : null;
-}
-
-/**
- * The same receipt a socket's switch gets: it went out, and whether anybody was
- * listening - and, for a hold, how long it was asked to hold for.
- *
- * The device reports no override of its own output, so the row cannot count a
- * hold down the way a socket's line does. What it can say is what was sent, and
- * a hold whose length is never stated anywhere is a lamp forced on with no word
- * about when it hands itself back.
- */
-function Asked({ ask, heldFor }: { ask: Mutation & { data?: { deviceOnline: boolean } }; heldFor: number | null }) {
-  const { t } = useTranslation();
-
-  if (ask.isPending) return <p className={`${ui.note} ${styles.socketWhy}`}>{t('devices.socket.asking')}</p>;
-  if (ask.error) {
-    return (
-      <p className={`${ui.problem} ${styles.socketWhy}`} role="alert">
-        {refusalText(ask.error, t('devices.socket.askFailed'))}
-      </p>
-    );
-  }
-  if (!ask.data) return null;
-
-  if (!ask.data.deviceOnline) {
-    return (
-      <p className={`${ui.note} ${styles.socketWhy}`} role="status">
-        {t('devices.socket.notListening')}
-      </p>
-    );
-  }
-
-  return (
-    <p className={`${ui.note} ${styles.socketWhy}`} role="status">
-      {heldFor === null ? t('devices.socket.asked') : t('devices.lightOutput.askedHold', { duration: durationLabel(heldFor) })}
-    </p>
-  );
 }
 
 /** A hold of the light output sent from this browser, and when it runs out. */
@@ -445,19 +394,8 @@ const HOLD_KEY = (deviceId: string) => `terp.lightHold.${deviceId}`;
 
 /** What this browser last sent, if anything: a preference of this screen and never a fact the device confirmed. */
 const readHold = (deviceId: string): SentHold | null => {
-  try {
-    const stored = JSON.parse(localStorage.getItem(HOLD_KEY(deviceId)) ?? 'null') as SentHold | null;
-    return stored && (stored.state === 'on' || stored.state === 'off') && typeof stored.until === 'number' ? stored : null;
-  } catch {
-    return null;
-  }
+  const stored = readStoredJson<SentHold>(HOLD_KEY(deviceId));
+  return stored && (stored.state === 'on' || stored.state === 'off') && typeof stored.until === 'number' ? stored : null;
 };
 
-const writeHold = (deviceId: string, hold: SentHold | null) => {
-  try {
-    if (hold) localStorage.setItem(HOLD_KEY(deviceId), JSON.stringify(hold));
-    else localStorage.removeItem(HOLD_KEY(deviceId));
-  } catch {
-    // Private mode: the buttons then mark Auto, which is where a hold ends anyway.
-  }
-};
+const writeHold = (deviceId: string, hold: SentHold | null) => writeStored(HOLD_KEY(deviceId), hold ? JSON.stringify(hold) : null);

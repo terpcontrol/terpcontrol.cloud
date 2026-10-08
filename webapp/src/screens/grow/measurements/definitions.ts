@@ -1,5 +1,6 @@
 import type { Entry, EntryReading, GrowMeasurementSeries, MeasurementDefinition } from '@fg2/shared-types/v1';
-import { readingFigure } from '@/ui/entries';
+import type { Translate } from '@/i18n/i18n';
+import { looseFigure } from '@/ui/figures';
 
 /**
  * What the app knows about measurements before a grower has said anything.
@@ -15,12 +16,7 @@ import { readingFigure } from '@/ui/entries';
  * nobody else can read, and the sentence is what a grower would say anyway.
  */
 
-export interface MeasurementTemplate {
-  key: string;
-  unit: string;
-  perPlant: boolean;
-  chart: boolean;
-}
+type MeasurementTemplate = Pick<MeasurementDefinition, 'key' | 'unit' | 'perPlant' | 'chart'>;
 
 /**
  * The air comes first: somebody without a device reads the tent off a
@@ -38,8 +34,6 @@ export const TEMPLATES: MeasurementTemplate[] = [
   { key: 'leaf_temp', unit: '°C', perPlant: false, chart: true },
   { key: 'runoff_ec', unit: 'mS/cm', perPlant: false, chart: true },
 ];
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** A template as a definition of this grow, named in the reader's language. */
 export const fromTemplate = (t: Translate, template: MeasurementTemplate): MeasurementDefinition => ({
@@ -77,10 +71,10 @@ type Band = Pick<MeasurementDefinition, 'targetMin' | 'targetMax'>;
 export const bandOf = (t: Translate, definition: Band): string | null => {
   const [low, high] = bandEnds(definition);
   if (low !== null && high !== null) {
-    return low === high ? readingFigure(low) : t('grow.measurements.bandBetween', { low: readingFigure(low), high: readingFigure(high) });
+    return low === high ? looseFigure(low) : t('grow.measurements.bandBetween', { low: looseFigure(low), high: looseFigure(high) });
   }
-  if (low !== null) return t('grow.measurements.bandFrom', { low: readingFigure(low) });
-  if (high !== null) return t('grow.measurements.bandTo', { high: readingFigure(high) });
+  if (low !== null) return t('grow.measurements.bandFrom', { low: looseFigure(low) });
+  if (high !== null) return t('grow.measurements.bandTo', { high: looseFigure(high) });
 
   return null;
 };
@@ -110,7 +104,7 @@ export const readingCounts = (series: GrowMeasurementSeries[] | undefined): Map<
   new Map((series ?? []).map(one => [one.key, one.points.length]));
 
 /** What was written last under one key, for one plant or for the grow itself. */
-export interface LastReading {
+interface LastReading {
   value: number;
   at: string;
   plantId: string | null;
@@ -141,4 +135,4 @@ export const lastReadings = (entries: Entry[]): Map<string, LastReading> => {
 };
 
 /** "58 cm", and "6.3" for the measurements that have no unit at all, such as pH. */
-export const withUnit = (value: number, unit: string): string => [readingFigure(value), unit].filter(Boolean).join(' ');
+export const withUnit = (value: number, unit: string): string => [looseFigure(value), unit].filter(Boolean).join(' ');

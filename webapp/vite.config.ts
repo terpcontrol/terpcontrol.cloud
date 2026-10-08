@@ -14,6 +14,12 @@ import { VitePWA } from 'vite-plugin-pwa';
 /** The version the app states about itself, read from its own package rather than typed a second time. */
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
+/** What the app is compiled with, which the vitest configs take too: the version and the `@` alias. */
+export const shared = {
+  define: { __APP_VERSION__: JSON.stringify(version) },
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+};
+
 /**
  * The contract's runtime modules are pre-bundled once and cached, and Vite keys
  * that cache on the lockfile and this config - not on the modules, which
@@ -51,7 +57,7 @@ const followContract = (): Plugin => ({
 });
 
 export default defineConfig(({ mode }) => ({
-  define: { __APP_VERSION__: JSON.stringify(version) },
+  ...shared,
   plugins: [
     react(),
     followContract(),
@@ -67,9 +73,8 @@ export default defineConfig(({ mode }) => ({
       srcDir: 'src',
       filename: 'sw.ts',
       injectManifest: {
-        // Offline means the shell and both catalogues. The drawings under
-        // `assets/` are megabytes and the onboarding videos tens of them, so
-        // they are fetched and kept once they are actually looked at.
+        // Offline means the shell and both catalogues. The rest of `assets/` -
+        // icons, pictures, feeding schemes - is kept once it is looked at.
         globPatterns: ['**/*.{js,css,html,woff2}', 'assets/i18n/*.json'],
         // The app speaks English and German; the other subsets of the face
         // are downloaded if a name ever needs them, not kept for offline.
@@ -83,9 +88,6 @@ export default defineConfig(({ mode }) => ({
       devOptions: { enabled: false },
     }),
   ],
-  resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
-  },
   optimizeDeps: {
     // The contract's runtime half is CommonJS, and a linked package is not
     // pre-bundled unless it is named: without this the development server hands
@@ -104,6 +106,11 @@ export default defineConfig(({ mode }) => ({
       '@fg2/shared-types/v1-schemas/configuration-fields.js',
       '@fg2/shared-types/v1-schemas/day-night.js',
       '@fg2/shared-types/v1-schemas/capture.js',
+      '@fg2/shared-types/v1-schemas/plan-clock.js',
+      '@fg2/shared-types/v1-schemas/steering.js',
+      '@fg2/shared-types/v1-schemas/pages.js',
+      '@fg2/shared-types/v1-schemas/entitlement.js',
+      '@fg2/shared-types/v1-schemas/firmware-channels.js',
     ],
   },
   // `npm run start:public` is the development server for other machines too - a phone on the network, a host

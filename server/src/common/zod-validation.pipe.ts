@@ -1,6 +1,7 @@
 import { ArgumentMetadata, BadRequestException, Body, Injectable, PipeTransform } from '@nestjs/common';
 import { ApiBody, SchemaObject } from '@nestjs/swagger';
 import { z, ZodType } from 'zod';
+import { ProblemError } from '@fg2/shared-types/v1';
 import { badRequest } from './v1/problem';
 
 /**
@@ -12,7 +13,7 @@ import { badRequest } from './v1/problem';
  * reasons joined by a comma under `message` - because firmware in the field
  * reads it.
  */
-export type ErrorKey = 'message' | 'problem';
+type ErrorKey = 'message' | 'problem';
 
 /**
  * What a refusal says did not fit, named after the part of the request that did
@@ -31,6 +32,10 @@ const DID_NOT_FIT: Partial<Record<ArgumentMetadata['type'], string>> = {
   param: 'The path does not match what this route accepts.',
 };
 
+/** The fields a `/v1` refusal lists, one per issue zod found. */
+export const problemErrorsOf = (error: z.ZodError): ProblemError[] =>
+  error.issues.map(issue => ({ field: issue.path.join('.'), code: issue.code, detail: issue.message }));
+
 @Injectable()
 export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
   constructor(
@@ -46,7 +51,7 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
         throw badRequest(
           'validation_failed',
           DID_NOT_FIT[metadata?.type] ?? 'The request does not match what this route accepts.',
-          result.error.issues.map(issue => ({ field: issue.path.join('.'), code: issue.code, detail: issue.message })),
+          problemErrorsOf(result.error),
         );
       }
 
@@ -67,19 +72,23 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
 const notPartOfTheShape = new Set(['$schema', '$id', 'tsType']);
 
 /**
- * What a route accepts, for the document, read off the schema that already
+ * A schema as the document describes it, read off the zod schema that already
  * decides it - a zod schema is a runtime object and can describe itself.
  *
- * `io: 'input'` is what a body is: the shape as it arrives, before a
- * `.transform()` has had it. `unrepresentable: 'any'` lets a value with no JSON
+ * `io: 'input'` is what a request is: the shape as it arrives, before a
+ * `.transform()` has had it; `'output'` is what an answer is, after the
+ * schema's own transforms. `unrepresentable: 'any'` lets a value with no JSON
  * Schema of its own - a Date, raw bytes - describe itself through `.meta()`
  * instead of being refused outright, which leaves `tsType` behind: a hint for
  * the type generator in shared-types, and not a JSON Schema keyword.
  */
-export const requestSchema = (schema: ZodType): SchemaObject =>
-  JSON.parse(JSON.stringify(z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' })), (key, value) =>
+export const jsonSchemaOf = (schema: ZodType, io: 'input' | 'output'): SchemaObject =>
+  JSON.parse(JSON.stringify(z.toJSONSchema(schema, { io, unrepresentable: 'any' })), (key, value) =>
     notPartOfTheShape.has(key) ? undefined : value,
   ) as SchemaObject;
+
+/** What a route accepts, for the document. */
+export const requestSchema = (schema: ZodType): SchemaObject => jsonSchemaOf(schema, 'input');
 
 /**
  * Both halves of a body from one schema: the pipe that decides what the route

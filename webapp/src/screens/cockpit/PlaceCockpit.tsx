@@ -1,12 +1,13 @@
-import { ChevronLeft, ChevronRight, CircleCheck, Clock, Info, Power, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
+import { ChevronRight, CircleCheck, Clock, Info, Power, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
+import { useAccountMe } from '@/api/account';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath, devicesPath, timelinePath, useRememberPlace } from '@/app/places';
 import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
+import { useDeviceLive } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
 import { useSession } from '@/api/session';
@@ -24,9 +25,10 @@ import { usePlaceDevices } from '@/ui/place-devices';
 import { useMayManage, useVisiting } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
+import { BackLink } from '@/ui/BackLink';
 import { ownStatusOf } from '../control/devices/own-summary';
-import { offsetOf } from '../control/targets/targets-draft';
 import { ControlButton } from '../devices/ControlSwitch';
 import { MaintenanceButton } from '../devices/Maintenance';
 import { livenessOf, measuredAtOf } from '../home/attention';
@@ -34,7 +36,7 @@ import { DeviceOffer } from '../home/DeviceOffer';
 import { DiaryOffer } from '../home/DiaryOffer';
 import { LivenessPill } from '../home/LivenessPill';
 import { OfflineHelp } from '../home/OfflineHelp';
-import { targetFigure, UNIT } from '../home/units';
+import { targetWithUnit } from '@/ui/units';
 import { NotifyNotice } from '../notifications/NotifyNotice';
 import { CameraPicture } from './CameraPicture';
 import { GrowBlock } from './GrowBlock';
@@ -51,7 +53,7 @@ import {
   type Status,
 } from './place';
 import { PlaceMenu } from './PlaceMenu';
-import { usePlace, useDeviceLive, useHumidifierHold } from './reads';
+import { usePlace, useHumidifierHold } from './reads';
 import { AlarmsSummary, TargetsSummary } from './Summaries';
 import { Tiles } from './Tiles';
 import styles from './Cockpit.module.css';
@@ -94,7 +96,7 @@ export function PlaceCockpit({
   const timeline = useTimeline(hasDevice ? spaceId : '', '24h', null).data;
   const mayManage = useMayManage(spaceId);
   const visiting = useVisiting(spaceId);
-  const me = useMe(false, user !== null && user.isDemo !== true);
+  const me = useAccountMe();
   // The grow waits for the account's answer rather than flashing up for somebody who keeps no diary; the demo is shown it whole.
   // Support reading a customer's place is shown the customer's grow where one stands there, whatever its own account keeps.
   const layer = useDiaryLayer() && (me.data !== undefined || user?.isDemo === true);
@@ -117,8 +119,8 @@ export function PlaceCockpit({
   // under the readings: one picture of the tent rather than the same one three
   // times, and the grow a thumb away rather than under the summaries.
   const growUp = diary && camera !== null;
-  const shown = growUp || camera === null ? null : shownStill(camera);
   const pictured = camera ? shownStill(camera) : null;
+  const shown = growUp ? null : pictured;
 
   // Verlauf and Steuerung land on the place last looked at, and looking at one here is what makes it that place.
   useRememberPlace(spaceId);
@@ -132,11 +134,7 @@ export function PlaceCockpit({
     >
       {headed ? (
         <header className={styles.head} data-back={back || undefined}>
-          {back ? (
-            <Link to="/" className={ui.back} aria-label={t('shell.tabs.home')}>
-              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-            </Link>
-          ) : null}
+          {back ? <BackLink to="/" label={t('shell.tabs.home')} /> : null}
           <h1 className={styles.name} id={`${spaceId}-name`}>
             <Icon size={20} strokeWidth={1.75} aria-hidden />
             <span>{overview.name}</span>
@@ -182,7 +180,7 @@ export function PlaceCockpit({
             {/* Switched off, the way back on stands under the sentence that says so rather than under the tiles. */}
             {mayManage && device?.control && !device.control.running ? (
               <div className={styles.actions}>
-                <span className={styles.withHelp}>
+                <span className={ui.withHelp}>
                   <ControlButton device={device} offline={offline} />
                   <Help topic="climateControl" />
                 </span>
@@ -210,7 +208,7 @@ export function PlaceCockpit({
               <div className={styles.actions}>
                 {!offline && here.some(parksAnything) ? <MaintenanceButton devices={here} now={now} className={ui.quiet} /> : null}
                 {device?.control?.running ? (
-                  <span className={styles.withHelp}>
+                  <span className={ui.withHelp}>
                     <ControlButton device={device} offline={offline} className={ui.quiet} />
                     <Help topic="climateControl" />
                   </span>
@@ -401,7 +399,7 @@ function ModeLine({
       <Info size={18} strokeWidth={2} aria-hidden />
       <span className={styles.statusText}>
         {kind === 'germination' && humidifierHold
-          ? t('cockpit.mode.germinationHumidified', { humidity: `${targetFigure(humidifierHold.target, 'humidity')} ${UNIT.humidity}` })
+          ? t('cockpit.mode.germinationHumidified', { humidity: targetWithUnit(humidifierHold.target, 'humidity') })
           : t(`cockpit.mode.${kind}`)}
         <Help topic={kind === 'greenhouse' ? 'advanced.operatingMode' : kind} />
       </span>

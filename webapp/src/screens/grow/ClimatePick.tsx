@@ -2,16 +2,19 @@ import type { GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset, GERMINATION_TOO_HUMID, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
+import type { Translate } from '@/i18n/i18n';
+import { germinates } from '@/ui/climate-hardware';
 import { climateChoiceName, presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
+import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { scheduleTitle } from '../control/targets/schedule-words';
-import { draftOf, offsetOf, prefilled } from '../control/targets/targets-draft';
-import { targetFigure } from '../home/units';
+import { draftOf, prefilled } from '../control/targets/targets-draft';
+import { targetFigure } from '@/ui/units';
 import { GerminationChoices } from '../control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '../control/germination/germination-choices';
-import { germinates, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from './phase-climate';
+import { KEEP_CLIMATE, usePlaceController, type PhaseClimate } from './phase-climate';
 
 interface Figures {
   /** When the light comes on, in seconds past midnight UTC: the device's, which no preset moves. */
@@ -141,8 +144,6 @@ export function ClimatePick({
     </Block>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What the phase does to the alarms its stage binds. Germination watches the

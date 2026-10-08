@@ -1,15 +1,13 @@
-import { AccessService } from '@common/v1/access.service';
-import { AccessContext } from '@common/v1/access.types';
 import type { SeriesPoint } from '@fg2/shared-types/v1';
 import { DataService, LiveReading } from '@modules/data/data.service';
-import { DevicesService } from '@modules/v1/device/devices.service';
-import { dueTasksOf } from '@modules/v1/home/due-tasks';
+import { dueTasksOf } from '@modules/v1/diary/due-tasks';
 import { HomeService } from '@modules/v1/home/home.service';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
-import { SpacesService } from '@modules/v1/space/spaces.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { admin, demo, session } from './support/callers';
+import { accessOn, spacesOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The home screen's read model: one card per space, with what stands in it.
@@ -42,9 +40,7 @@ const PUBLIC_GROW = 'grow-public';
 const NOW = new Date('2026-06-10T12:00:00.000Z');
 const STARTED_AT = new Date('2026-05-08T08:00:00.000Z');
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let home: HomeService;
 let readings: Record<string, LiveReading>;
 
@@ -70,9 +66,7 @@ const fakeData = {
 } as unknown as DataService;
 
 const build = (): HomeService => {
-  const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  const devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
-  const spaces = new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.devices, db.cameras, db.grows, devices, access);
+  const spaces = spacesOn(db, accessOn(db));
   const live = new SpaceLiveService(db.devices, db.cameras, fakeData);
 
   return new HomeService(
@@ -254,14 +248,6 @@ const world = async (): Promise<void> => {
   await db.follows.create({ id: 'follow-1', userId: OWNER, growId: PUBLIC_GROW });
 };
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
   home = build();
@@ -283,8 +269,7 @@ describe('the cards', () => {
   });
 
   it('shows an administrator their own places and not everybody´s', async () => {
-    const admin: AccessContext = { userId: STRANGER, isAdmin: true, isDemo: false, shareToken: null };
-    const answer = await home.read(admin, NOW);
+    const answer = await home.read(admin(STRANGER), NOW);
 
     // The stranger owns no place, so the one card is their own placeless grow
     // and none of the owner's three.
@@ -387,9 +372,7 @@ describe('the diary layer', () => {
   });
 
   it('shows the demo tour everything there is', async () => {
-    const demo: AccessContext = { userId: null, isAdmin: false, isDemo: true, shareToken: null };
-
-    expect((await home.read(demo, NOW)).layers).toEqual({ diary: true });
+    expect((await home.read(demo(null), NOW)).layers).toEqual({ diary: true });
   });
 });
 
@@ -443,6 +426,28 @@ describe('the grow half', () => {
       strains: ['Amnesia', 'Gelato'],
       stageGroups: [],
     });
+  });
+
+  // The demo tour is the one reader a card hides anything from, and an owner
+  // whose privacy cannot be read hides everything, as every other list does.
+  it('hides the counts from the demo tour where the owner´s privacy cannot be read', async () => {
+    await db.grows.create({
+      id: 'grow-demo',
+      ownerId: 'user-gone',
+      name: 'Demo run',
+      type: 'photoperiod',
+      phases: [],
+      placements: [{ id: 'placement-demo', spaceId: null, startedAt: STARTED_AT, endedAt: null, plantIds: null }],
+      slug: 'demo-run',
+      isDemo: true,
+      startedAt: STARTED_AT,
+      endedAt: null,
+    });
+    await db.plants.create({ id: 'plant-demo', growId: 'grow-demo', strain: 'Amnesia', label: 'Amnesia 1', status: 'active', createdAt: STARTED_AT });
+
+    const [card] = (await home.read(demo(null), NOW)).spaces;
+
+    expect(card.grow).toMatchObject({ growId: 'grow-demo', plantCount: null, strains: ['Amnesia'] });
   });
 
   it('has no grow where nothing is growing', async () => {

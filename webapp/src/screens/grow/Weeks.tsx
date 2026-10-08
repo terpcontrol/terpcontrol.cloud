@@ -2,13 +2,15 @@ import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem } from '@fg2/shared-types/v1';
+import { useGrowPhotoLines } from '@/api/entries';
 import { useGrowWeeks } from '@/api/grows';
+import { itemsOf } from '@/api/pages';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { PictureViewer } from '@/ui/PictureViewer';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
-import { pictureCaption, picturesOf, useGrowPhotoLines } from './photos';
+import { pictureCaption, picturesOf } from './photos';
 import { WeekCard } from './WeekCard';
 import styles from './GrowPage.module.css';
 
@@ -36,7 +38,7 @@ export function Weeks({ grow, now }: { grow: GrowListItem; now: DateTime }) {
   }
   if (!weeks.data) return <LoadFailed retry={() => void weeks.refetch()} />;
 
-  const cards = weeks.data.pages.flatMap(page => page.items);
+  const cards = itemsOf(weeks.data);
   const people = weeks.data.pages.flatMap(page => page.people);
   const pictures = viewing ? picturesOf(grow, lines.data, cards) : [];
 

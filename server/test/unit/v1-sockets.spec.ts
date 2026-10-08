@@ -1,12 +1,11 @@
-import { jest } from '@jest/globals';
 import { DeviceCommand } from '@fg2/shared-types/v1';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
 import { CamerasController } from '@modules/v1/camera/cameras.controller';
 import { DevicesController } from '@modules/v1/device/devices.controller';
 import { decodeCapabilities, decodeSockets } from '@modules/device-protocol/sockets';
-import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { Published, recordingMqtt } from './support/device-stack';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * What may be said to a socket, and what may not.
@@ -37,8 +36,8 @@ const ANNOUNCED = {
 /** A build from before the change: it reports its table and none of the three keys. */
 const DEPLOYED = { sockets_n: '1', socket_list0: 'heater|AA|10.0.0.1' };
 
-let db: V1TestDatabase;
-let published: { topic: string; message: string }[];
+const db = useV1TestDatabase();
+let published: Published[];
 let publisher: DevicePublisherService;
 
 const sent = () => JSON.parse(published[0].message);
@@ -61,27 +60,11 @@ const hold = (over: Partial<Extract<DeviceCommand, { kind: 'socket_override' }>>
   ...over,
 });
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
-  published = [];
-
-  const mqtt = {
-    canPublish: true,
-    publish: jest.fn((topic: string, message: string) => {
-      published.push({ topic, message });
-      return true;
-    }),
-  } as unknown as MqttClientService;
-
-  publisher = new DevicePublisherService(db.devices, mqtt);
+  const broker = recordingMqtt();
+  published = broker.published;
+  publisher = new DevicePublisherService(db.devices, broker.mqtt);
   await db.devices.create([
     { id: OLD, type: 'controller', ownerId: 'user-1', state: { hardware: DEPLOYED } },
     { id: NEW, type: 'controller', ownerId: 'user-1', state: { hardware: ANNOUNCED } },
@@ -177,7 +160,7 @@ describe('a device that has announced everything', () => {
     await publisher.command(NEW, set({ role: 'pump', timer: { onSeconds: 30, everySeconds: 900 } }));
     expect(sent()).toMatchObject({ timer: { onS: 30, everyS: 900 } });
 
-    published = [];
+    published.length = 0;
     await expect(publisher.command(NEW, set({ role: 'heater', timer: { onSeconds: 30, everySeconds: 900 } }))).rejects.toThrow(
       /follows the controller rather than a timer/,
     );
@@ -188,7 +171,7 @@ describe('a device that has announced everything', () => {
     await publisher.command(NEW, hold({ subject: { type: 'socket', id: '1' } }));
     expect(sent()).toEqual({ action: 'socket_override', slot: 1, state: 'on', seconds: 600 });
 
-    published = [];
+    published.length = 0;
     await expect(publisher.command(NEW, hold({ subject: { type: 'socket', id: '9' } }))).rejects.toThrow(/no socket in slot 9/);
     expect(published).toEqual([]);
   });
@@ -208,7 +191,7 @@ describe('a device that has announced everything', () => {
     await publisher.command(NEW, hold({ subject: { type: 'output', id: 'light' } }));
     expect(sent()).toEqual({ action: 'socket_override', output: 'light', state: 'on', seconds: 600 });
 
-    published = [];
+    published.length = 0;
     await expect(publisher.command(NEW, hold({ subject: { type: 'output', id: 'heater' } }))).rejects.toThrow(/Only the light output/);
     expect(published).toEqual([]);
   });
@@ -217,7 +200,7 @@ describe('a device that has announced everything', () => {
     await publisher.socketAction(NEW, 'socket_test', 1);
     expect(sent()).toEqual({ action: 'socket_test', role: 'pump', slot: 1 });
 
-    published = [];
+    published.length = 0;
     await expect(publisher.socketAction(NEW, 'socket_remove', 7)).rejects.toThrow(/no socket in slot 7/);
     await expect(publisher.socketAction(NEW, 'socket_remove', 'co2')).rejects.toThrow(/no socket with the role co2/);
     expect(published).toEqual([]);

@@ -2,11 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { Entry, EntryCreate, EntryUpdate } from '@fg2/shared-types/v1';
+import { MAINTENANCE_VISIT_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Need } from '@common/v1/access.types';
 import { serialiseEntry } from '@common/v1/entries';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { badRequest, forbidden, notFound, unauthenticated } from '@common/v1/problem';
+import { isDuplicateKey } from '@database/duplicate-key';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -14,7 +16,8 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
-import { dueTasksOf, occurrencePrefix } from '../home/due-tasks';
+import { spacesNow } from '../grow/grow-places';
+import { completionsOf, dueTasksOf, remindersAbout } from './due-tasks';
 import { requireLogOn } from './entry-targets';
 import { requireMatchingKind, resolveEntryValues } from './entry-values';
 import { MAINTENANCE_STARTER, MaintenancePort } from './maintenance.port';
@@ -34,9 +37,6 @@ import { MAINTENANCE_STARTER, MaintenancePort } from './maintenance.port';
  * thing.
  */
 
-/** "In the tent 15 min": the window the tile is labelled with. */
-export const VISIT_SECONDS = 15 * 60;
-
 /**
  * How far ahead an entry may be dated. A backdated entry is ordinary - the
  * person is writing down this morning's watering - but a future one would sit at
@@ -50,9 +50,6 @@ const CLOCK_SKEW_MS = 60_000;
  * of that kind: today's, or one due before this time tomorrow.
  */
 const CLOSES_AHEAD_MS = 24 * 60 * 60 * 1000;
-
-/** Mongo says 11000 when a unique index refuses a write; the driver types it as an unknown error. */
-const isDuplicateKey = (error: unknown): boolean => typeof error === 'object' && error !== null && (error as { code?: number }).code === 11000;
 
 @Injectable()
 export class EntryWritesService {
@@ -172,16 +169,11 @@ export class EntryWritesService {
    * survive, and it is not a reason to refuse the line.
    */
   private async quietenTheTent(entry: EntryDocument, grow: GrowDocument | null): Promise<void> {
-    const spaceIds = [
-      ...new Set([
-        ...(entry.spaceId ? [entry.spaceId] : []),
-        ...(grow?.placements ?? []).flatMap(placement => (placement.endedAt === null && placement.spaceId ? [placement.spaceId] : [])),
-      ]),
-    ];
+    const spaceIds = [...new Set([...(entry.spaceId ? [entry.spaceId] : []), ...(grow ? spacesNow(grow) : [])])];
     if (spaceIds.length === 0) return;
 
     const here = await this.devices.find({ spaceId: { $in: spaceIds } }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>();
-    await Promise.all(here.map(device => this.maintenance.startMaintenance(device.id, VISIT_SECONDS)));
+    await Promise.all(here.map(device => this.maintenance.startMaintenance(device.id, MAINTENANCE_VISIT_SECONDS)));
   }
 
   /**
@@ -195,21 +187,10 @@ export class EntryWritesService {
   private async dueTaskOf(kind: EntryCreate['kind'], grow: GrowDocument | null, at: Date): Promise<string | null> {
     if (!grow || (kind !== 'water' && kind !== 'feed')) return null;
 
-    const spaceIds = grow.placements.flatMap(placement => (placement.endedAt === null && placement.spaceId ? [placement.spaceId] : []));
-    const reminders = await this.reminders
-      .find({
-        kind,
-        $or: [
-          { 'subject.type': 'grow', 'subject.id': grow.id },
-          { 'subject.type': 'space', 'subject.id': { $in: spaceIds } },
-        ],
-      })
-      .lean<ReminderDocument[]>();
+    const reminders = await this.reminders.find({ kind, ...remindersAbout(spacesNow(grow), [grow.id]) }).lean<ReminderDocument[]>();
     if (reminders.length === 0) return null;
 
-    const completions = await this.entries
-      .find({ $or: reminders.map(reminder => ({ taskId: reminder.onceAt ? reminder.id : { $regex: `^${occurrencePrefix(reminder.id)}` } })) })
-      .lean<EntryDocument[]>();
+    const completions = await completionsOf(this.entries, reminders);
     const [first] = dueTasksOf(reminders, completions, at, CLOSES_AHEAD_MS).sort((one, other) => one.dueAt.localeCompare(other.dueAt));
 
     return first?.id ?? null;

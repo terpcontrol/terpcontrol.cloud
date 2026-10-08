@@ -2,7 +2,9 @@ import i18next, { type i18n as I18n } from 'i18next';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { configurationChange } from '@/i18n/configuration-change';
 import { entryDetail, entryHeadline, resolveDeviceMessage } from '@/i18n/device-message';
+import { catalogue } from './translations';
 
 /**
  * The catalogue is the one the devices have always written into, so this reads
@@ -13,7 +15,7 @@ describe('device messages against the shipped catalogue', () => {
   let i18n: I18n;
 
   beforeAll(async () => {
-    const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
+    const translation = await catalogue('en');
     i18n = i18next.createInstance();
     await i18n.init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
   });
@@ -160,6 +162,169 @@ describe('device messages against the shipped catalogue', () => {
 });
 
 /**
+ * A stand-alone LIGHT keeps its figures at the top of its document and an AIR
+ * fan keeps speeds beside its targets, and the diary named none of them: a
+ * lamp's schedule read as "day: 21600 → 21660", seconds past midnight UTC, and
+ * a fan's mode as "mode: 0 → 1". A stand-alone smart socket keeps its day where
+ * a controller keeps its lamp's, and the diary read it as a light plan. Lines
+ * as the server writes them for each.
+ */
+describe('a LIGHT´s, an AIR fan´s and a smart socket´s settings, changed', () => {
+  const berlin = { zone: 'Europe/Berlin', at: '2026-10-03T09:48:22.000Z' };
+  const reader: Record<'en' | 'de', I18n> = { en: i18next.createInstance(), de: i18next.createInstance() };
+  const said = (language: 'en' | 'de', lines: string) => configurationChange(reader[language], lines, berlin);
+
+  beforeAll(async () => {
+    const [en, de] = await Promise.all([catalogue('en'), catalogue('de')]);
+    for (const language of ['en', 'de'] as const) {
+      await reader[language].init({
+        lng: language,
+        fallbackLng: 'en',
+        resources: { en: { translation: en }, de: { translation: de } },
+        nsSeparator: false,
+        interpolation: { escapeValue: false },
+      });
+    }
+  });
+
+  it('says a lamp´s times on the account´s clock and its figures with their names and units', () => {
+    const lines = 'day: 21600 → 21660\nlimit: 100 → 95\nmax_temperature: 25 → 26.5\nsunrise: 15 → 20';
+
+    expect(said('en', lines)).toBe('Light on at: 08:00 → 08:01\nLight limit: 100 % → 95 %\nDim from: 25 °C → 26.5 °C\nSunrise: 15 min → 20 min');
+    expect(said('de', lines)).toBe(
+      'Licht an um: 08:00 → 08:01\nLichtgrenze: 100 % → 95 %\nDimmen ab: 25 °C → 26,5 °C\nSonnenaufgang: 15 Min → 20 Min',
+    );
+  });
+
+  it('says both times of a lamp as its light plan, where the first of them stood', () => {
+    const lines = 'day: 21600 → 25200\nlimit: 80 → 90\nnight: 64800 → 72000';
+
+    expect(said('en', lines)).toBe('Light plan: Light on 08:00–20:00 · 12 h → Light on 09:00–22:00 · 13 h\nLight limit: 80 % → 90 %');
+    expect(said('de', lines)).toBe('Lichtplan: Licht an 08:00–20:00 · 12 Std → Licht an 09:00–22:00 · 13 Std\nLichtgrenze: 80 % → 90 %');
+  });
+
+  it('says a fan´s mode as its word and its speeds by the names of its panel', () => {
+    const lines = 'day.fixed_speed: 100 → 80\nmin_speed: 10 → 20\nmode: 0 → 1\nnight.max_speed: 100 → 60';
+
+    expect(said('en', lines)).toBe(
+      'Speed by day: 100 % → 80 %\nLowest speed: 10 % → 20 %\nThe fan runs: fixed → by temperature\nHighest speed at night: 100 % → 60 %',
+    );
+    expect(said('de', lines)).toBe(
+      'Drehzahl tagsüber: 100 % → 80 %\nMindestdrehzahl: 10 % → 20 %\nLüfter läuft: fest → nach Temperatur\nHöchstdrehzahl nachts: 100 % → 60 %',
+    );
+    // A mode a newer firmware adds keeps its code.
+    expect(said('en', 'mode: 3 → 7')).toBe('The fan runs: by both → 7');
+  });
+
+  it('says the windows a socket slows a fan in, which move with the clocks', () => {
+    expect(said('en', 'co2inject.day: 21600 → 25200\nco2inject.device_id: – → sim-plug-1\nco2inject.period: 60 → 30')).toBe(
+      'CO₂ dosing · day from: 08:00 → 09:00\nSlowed while CO₂ is dosed: off → on\nCO₂ dosing · interval: 60 min → 30 min',
+    );
+    expect(said('de', 'co2inject.speed: 100 → 40\nco2inject.usedaynight: 0 → 1')).toBe(
+      'Drehzahl, während CO₂ dosiert wird: 100 % → 40 %\nCO₂ nur tagsüber dosiert: aus → an',
+    );
+  });
+
+  /**
+   * A socket's day is when its switch points by night give way to those by
+   * day, which no lamp follows: its two times are said as its panel says them,
+   * each alone. A line from before the server wrote the type is read as ever.
+   */
+  it('says a smart socket´s day and night in the words of its panel, where the line names its type', () => {
+    const text = (language: 'en' | 'de', params: string[]) =>
+      resolveDeviceMessage(reader[language], { key: 'message-device-configuration-updated', params }, 'text', berlin);
+    const times = 'daynight.day: 21600 → 25200\ndaynight.night: 64800 → 64800';
+
+    expect(text('en', [times, '', 'plug'])).toContain('Day from: 08:00 → 09:00\nNight from: 20:00 → 20:00');
+    expect(text('de', [times, '', 'plug'])).toContain('Tag ab: 08:00 → 09:00\nNacht ab: 20:00 → 20:00');
+    // A controller's are its lamp's, typed or not.
+    expect(text('de', [times, '', 'controller'])).toContain('Lichtplan: Licht an 08:00–20:00 · 12 Std → Licht an 09:00–20:00 · 11 Std');
+    expect(text('en', [times])).toContain('Light plan: Light on 08:00–20:00 · 12 h → Light on 09:00–20:00 · 11 h');
+    expect(text('de', [times, 'dry'])).toContain('Lichtplan: Licht an 08:00–20:00 · 12 Std → Licht an 09:00–20:00 · 11 Std');
+  });
+
+  /**
+   * The rest of a socket's document was shown as the firmware spells it -
+   * "workmode: heater → off", "heater.day.on: 24 → 25" - and its mode read as a
+   * controller's: "Operation: heater → control off". Its panel names each of
+   * them, the switch points by their block and their row.
+   */
+  describe('a smart socket´s own settings, in the words of its panel', () => {
+    const line = (language: 'en' | 'de', params: string[], part: 'title' | 'text' = 'text') =>
+      resolveDeviceMessage(reader[language], { key: 'message-device-configuration-updated', params }, part, berlin);
+
+    it('says what it switches by, in the line and in the title', () => {
+      expect(line('en', ['workmode: heater → off', 'off', 'plug'])).toContain('Switches by: Heating → Off');
+      expect(line('de', ['workmode: heater → off', 'off', 'plug'])).toContain('Schaltet nach: Heizen → Aus');
+      expect(line('en', ['workmode: off → co2', 'co2', 'plug'], 'title')).toBe('Switches by: CO₂');
+      expect(line('de', ['workmode: heater → off', 'off', 'plug'], 'title')).toBe('Schaltet nach: Aus');
+      // A controller's is its control, as ever.
+      expect(line('en', ['workmode: small → off', '', 'controller'], 'title')).toBe('Control switched off');
+    });
+
+    it('names a switch point by its block and its row, in the unit of what the mode switches by', () => {
+      const points = 'heater.day.on: 24 → 25.5\nheater.night.off: 22 → 21\ndehumidify.day.on: 65 → 70\nusedaynight: 0 → 1';
+
+      expect(line('en', [points, 'heater', 'plug'])).toContain(
+        'By day · On below: 24 °C → 25.5 °C\nAt night · Off above: 22 °C → 21 °C\nBy day · On above: 65 % → 70 %\nOwn switch points at night: off → on',
+      );
+      expect(line('de', [points, 'heater', 'plug'])).toContain(
+        'Tagsüber · Ein unter: 24 °C → 25,5 °C\nNachts · Aus über: 22 °C → 21 °C\nTagsüber · Ein über: 65 % → 70 %\nNachts eigene Schaltpunkte: aus → an',
+      );
+    });
+
+    /** Dosing CO2, a socket's day is when it doses at all; a line that does not say the mode names only day and night. */
+    it('says its CO2 dosing, and its day as the mode it is in uses it', () => {
+      const dosing = 'co2.duration: 10 → 15\nco2.mode: const → periodic\nco2.on: 600 → 700\nco2.period: 60 → 30\nusedaynight: 0 → 1';
+
+      expect(line('en', [dosing, 'co2', 'plug'])).toContain(
+        'CO₂ dosing · Dosing for: 10 min → 15 min\nCO₂ dosing: Throughout → In intervals\nSwitch points · On below: 600 ppm → 700 ppm\nCO₂ dosing · Interval: 60 min → 30 min\nDose by day only: off → on',
+      );
+      expect(line('de', [dosing, 'co2', 'plug'])).toContain(
+        'CO₂-Dosierung · Davon dosieren: 10 Min → 15 Min\nCO₂-Dosierung: Durchgehend → In Intervallen\nSchaltpunkte · Ein unter: 600 ppm → 700 ppm\nCO₂-Dosierung · Intervall: 60 Min → 30 Min\nNur tagsüber dosieren: aus → an',
+      );
+      expect(line('de', ['usedaynight: 1 → 0', '', 'plug'])).toContain('Tag und Nacht: an → aus');
+      expect(line('de', ['fan: {"device_id":"none","speed":100} → {"device_id":"sim-fan-1","speed":30}', 'co2', 'plug'])).toContain(
+        'AIR-Lüfter drosseln: Keinen → 30 %',
+      );
+    });
+
+    it('says its protections under the switch that keeps them', () => {
+      const protections =
+        'limits.overtemperature.enabled: false → true\nlimits.overtemperature.limit: 30 → 32\nlimits.time.min_on: 0 → 60\nlimits.undertemperature.hysteresis: 1 → 1.5';
+
+      expect(line('en', [protections, 'heater', 'plug'])).toContain(
+        'Off when too hot: off → on\nOff when too hot · Off above: 30 °C → 32 °C\nLeast times · On at least: 0 s → 60 s\nOff when too cold · On again once this much warmer: 1 °C → 1.5 °C',
+      );
+      expect(line('de', [protections, 'heater', 'plug'])).toContain(
+        'Aus bei Übertemperatur: aus → an\nAus bei Übertemperatur · Aus über: 30 °C → 32 °C\nMindestzeiten · Mindestens an: 0 s → 60 s\nAus bei Untertemperatur · Wieder an, wenn so viel wärmer: 1 °C → 1,5 °C',
+      );
+    });
+
+    it('says its timer´s windows on the account´s clock', () => {
+      const windows = 'timer.timeframes: [] → [{"ontime":28800,"duration":30},{"ontime":79200,"duration":180}]';
+
+      expect(line('en', [windows, 'timer', 'plug'])).toContain('Time windows: none → 10:00–10:30, 00:00–03:00');
+      expect(line('de', [windows, 'timer', 'plug'])).toContain('Zeitfenster: keine → 10:00–10:30, 00:00–03:00');
+      // What is no list of windows is shown as it came.
+      expect(line('en', ['timer.timeframes: 3 → {}', 'timer', 'plug'])).toContain('timer.timeframes: 3 → {}');
+    });
+  });
+
+  /** A fan's day and night are sections; where one appears whole it is no time of a lamp, and no plan. */
+  it('keeps a whole section where a lamp keeps a time as it came', () => {
+    const lines = 'day: – → {"fixed_speed":80}\nnight: – → {"fixed_speed":40}';
+
+    expect(said('en', lines)).toBe(lines);
+  });
+
+  it('writes a figure without grouping its thousands, in the reader´s decimals', () => {
+    expect(said('en', 'co2.target: 800 → 1200')).toBe('CO₂ target: 800 ppm → 1200 ppm');
+    expect(said('de', 'co2.target: 800 → 1200')).toBe('CO₂-Ziel: 800 ppm → 1200 ppm');
+  });
+});
+
+/**
  * Showing a key as it came is the net under a firmware newer than the app, not
  * a resting state: the fallback fired on the home card and fourteen times on a
  * tent page of the restored production data, because three keys the shipped
@@ -179,9 +344,9 @@ describe('every key the firmware sends', () => {
     expect(keys.length).toBeGreaterThan(10);
 
     for (const language of both) {
-      const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8')) as Record<string, unknown>;
+      const messages = await catalogue(language);
       const missing = keys.flatMap(key =>
-        ['title', 'text'].filter(part => typeof catalogue[`${key}-${part}`] !== 'string').map(part => `${key}-${part}`),
+        ['title', 'text'].filter(part => typeof messages[`${key}-${part}`] !== 'string').map(part => `${key}-${part}`),
       );
 
       expect({ language, missing }).toEqual({ language, missing: [] });
@@ -201,9 +366,7 @@ describe('the punctuation of a title, across the two catalogues', () => {
   const terminal = (wording: string): string => (/[.!?]$/.test(wording) ? wording.slice(-1) : '');
 
   it('ends a German title wherever its English twin ends, and nowhere else', async () => {
-    const read = async (language: string) =>
-      JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8')) as Record<string, unknown>;
-    const [english, german] = await Promise.all([read('en'), read('de')]);
+    const [english, german] = await Promise.all([catalogue('en'), catalogue('de')]);
 
     const titles = Object.keys(english).filter(key => key.startsWith('message-') && key.endsWith('-title'));
     expect(titles.length).toBeGreaterThan(20);

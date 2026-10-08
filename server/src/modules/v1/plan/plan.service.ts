@@ -3,15 +3,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { PlanReplace, PlanTransition, StepDuration } from '@fg2/shared-types/v1';
+import { activeStep, durationMs, elapsedMs, isOver } from '@fg2/shared-types/v1-schemas/plan-clock.js';
 import { badRequest, conflict, notFound, unprocessable } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredPlan } from '@database/schemas/v1/plans.schema';
-import { figureRefusals } from '@modules/device-protocol/document-figures';
 import { ScheduleFollower, withClockTimesMoved } from '@modules/device-protocol/schedule-clock';
 import { targetsOf } from '../phase/phase-targets';
 import { PlanProgressService } from './plan-progress.service';
-import { activeStep, durationMs, elapsedMs, isOver, positionIn, stepsOf, stopped } from './plan-steps';
+import { positionIn, stepRefusals, stepsOf, stopped } from './plan-steps';
 
 /**
  * The plan a device is being run by, and what a person does to it.
@@ -79,8 +79,11 @@ export class PlanService implements ScheduleFollower {
   public async replace(deviceId: string, body: PlanReplace): Promise<StoredPlan> {
     const existing = await this.forDevice(deviceId);
     const steps = stepsOf(body.steps);
-    await this.mustHaveSomewhereToWrite(deviceId, steps);
-    await this.mustBeReadable(deviceId, body.steps, existing);
+    const device = await this.devices
+      .findOne({ id: deviceId }, { type: 1, configuration: 1 })
+      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
+    this.mustHaveSomewhereToWrite(device, steps);
+    this.mustBeReadable(device, body.steps, existing);
     const now = new Date();
 
     const written = {
@@ -129,10 +132,9 @@ export class PlanService implements ScheduleFollower {
    * refuses it: the preset service skips a device whose document states no
    * targets, and the manual targets page refuses it in a sentence.
    */
-  private async mustHaveSomewhereToWrite(deviceId: string, steps: StoredPlan['steps']): Promise<void> {
+  private mustHaveSomewhereToWrite(device: Pick<StoredDevice, 'configuration'> | null, steps: StoredPlan['steps']): void {
     if (!steps.some(step => Object.keys(step.settings ?? {}).length > 0 || step.lightHours !== null)) return;
 
-    const device = await this.devices.findOne({ id: deviceId }, { configuration: 1 }).lean<Pick<StoredDevice, 'configuration'> | null>();
     const configuration = device?.configuration ?? null;
 
     if (configuration === null || Object.keys(configuration).length === 0) {
@@ -160,22 +162,12 @@ export class PlanService implements ScheduleFollower {
   /**
    * A step's settings go to the device every hour it runs, merged into the
    * document its firmware reads, so they are held to that firmware as a
-   * document saved by hand is (`figureRefusals`): a figure it would misread, or
-   * one outside its range, is refused with the step and the place named -
-   * `steps.0.settings.night.temperature`. A figure a step already carried is not
-   * held to its range again: a recipe migrated from the old app keeps what it
-   * was written with.
+   * document saved by hand is (`stepRefusals`).
    */
-  private async mustBeReadable(deviceId: string, steps: PlanReplace['steps'], existing: StoredPlan | null): Promise<void> {
-    const device = await this.devices.findOne({ id: deviceId }, { type: 1 }).lean<Pick<StoredDevice, 'type'> | null>();
+  private mustBeReadable(device: Pick<StoredDevice, 'type'> | null, steps: PlanReplace['steps'], existing: StoredPlan | null): void {
     if (!device) return;
 
-    const errors = steps.flatMap((step, index) =>
-      figureRefusals(device.type, step.settings, {
-        field: `steps.${index}.settings`,
-        stored: existing?.steps.find(earlier => step.id !== undefined && earlier.id === step.id)?.settings ?? null,
-      }),
-    );
+    const errors = stepRefusals(device.type, steps, existing?.steps ?? null);
     if (errors.length > 0) throw badRequest('validation_failed', 'A step carries settings that do not fit what the device reads.', errors);
   }
 
@@ -245,7 +237,7 @@ export class PlanService implements ScheduleFollower {
   /** The answer the step was waiting for. It is the step's end, so the plan moves on as it would have on its own. */
   private async confirm(plan: StoredPlan, now: Date, by: string | null): Promise<StoredPlan> {
     const step = activeStep(plan);
-    if (plan.state.status !== 'running' || !step?.waitForConfirmation || !isOver(plan, now)) {
+    if (plan.state.status !== 'running' || !step?.waitForConfirmation || !isOver(plan, now.getTime())) {
       throw conflict('nothing_to_confirm', 'This plan is not waiting to be confirmed.');
     }
 
@@ -303,7 +295,7 @@ export class PlanService implements ScheduleFollower {
       ...plan.state,
       status: 'paused',
       stepStartedAt: null,
-      pausedElapsedMs: elapsedMs(plan.state, now),
+      pausedElapsedMs: elapsedMs(plan.state, now.getTime()),
       pauseReason: reason,
     });
   }

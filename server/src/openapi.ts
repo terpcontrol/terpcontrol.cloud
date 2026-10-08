@@ -9,7 +9,7 @@ import {
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import v1Schemas from '@fg2/shared-types/openapi-schemas.json';
 import { appConfig } from './config/configuration';
-import { V1_PREFIX } from './common/v1/problem.filter';
+import { isV1Path, routePath } from './common/route-path';
 
 /**
  * Spread into the `@ApiOperation` of a route that needs no token: the document
@@ -103,9 +103,6 @@ const REFUSALS: Record<string, ResponseObject> = {
 
 const refers = (name: string): ReferenceObject => ({ $ref: `#/components/responses/${name}` });
 
-/** Only `/v1` answers problem documents; the routes beside it answer the shape the Angular app has always read. */
-const isV1 = (path: string): boolean => path === V1_PREFIX || path.startsWith(`${V1_PREFIX}/`);
-
 /**
  * Which refusals an operation declares, read off the operation itself rather
  * than off a list kept beside the controllers.
@@ -122,7 +119,8 @@ const declareRefusals = (document: OpenAPIObject): void => {
   document.components = { ...document.components, responses: { ...REFUSALS, ...document.components?.responses } };
 
   for (const [path, item] of Object.entries(document.paths)) {
-    if (!isV1(path)) continue;
+    // Only `/v1` answers problem documents; the device protocol and the share shells beside it answer their own shapes.
+    if (!isV1Path(path)) continue;
 
     const byName = /\{[^}]+\}/.test(path);
     for (const operation of Object.values(item) as OperationObject[]) {
@@ -213,8 +211,7 @@ export const setupOpenApi = (app: NestFastifyApplication): void => {
   // TypeScript interface leaves none, which is why they are registered here.
   document.components = { ...document.components, schemas: { ...V1_SCHEMAS, ...document.components?.schemas } };
 
-  // And what each of them answers when it refuses, which until now no operation
-  // said anything about at all.
+  // And what each of them answers when it refuses.
   declareRefusals(document);
 
   // The router ignores a trailing slash, so `/api-docs/` reaches the same
@@ -225,10 +222,8 @@ export const setupOpenApi = (app: NestFastifyApplication): void => {
     .getHttpAdapter()
     .getInstance()
     .addHook('onRequest', (request, reply, done) => {
-      // Compared the way the router matches: it ignores case and a trailing
-      // slash, so `/API-docs/?foo` reaches the page too and needs the same.
-      const [path, query] = request.url.split('?');
-      if (path.toLowerCase() === '/api-docs/') {
+      if (routePath(request.url) === '/api-docs/') {
+        const query = request.url.split('?')[1];
         void reply.redirect(query ? `/api-docs?${query}` : '/api-docs', 301);
         return;
       }

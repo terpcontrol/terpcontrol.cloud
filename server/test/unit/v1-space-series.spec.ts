@@ -3,12 +3,13 @@ import { spaceSeries } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { ProblemException } from '@common/v1/problem';
-import { DataService, DeviceHistory, OutputHistory, SeriesRequest } from '@modules/data/data.service';
-import { DevicesService } from '@modules/v1/device/devices.service';
+import { DataService, DeviceHistory, SeriesRequest } from '@modules/data/data.service';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
-import { SpacesService } from '@modules/v1/space/spaces.service';
 import { SpaceSeriesQuery, SpaceSeriesService } from '@modules/v1/timeline/space-series.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { admin, session, visitor } from './support/callers';
+import { isLit, seriesOf, switchingsOf } from './support/fake-data';
+import { accessOn, spacesOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The charts page of a place: any two instants, at any step, whether or not a
@@ -28,60 +29,28 @@ const CONTROLLER = 'device-controller';
 const NOW = new Date('2026-06-10T12:00:00.000Z');
 const HOUR = 3600 * 1000;
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const admin = (): AccessContext => ({ userId: 'user-support', isAdmin: true, isDemo: false, shareToken: null });
-const visitor = (shareToken: string): AccessContext => ({ userId: null, isAdmin: false, isDemo: false, shareToken });
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let access: AccessService;
 let service: SpaceSeriesService;
 let reads: SeriesRequest[];
-
-const isLit = (at: Date): boolean => at.getUTCHours() >= 6 && at.getUTCHours() < 18;
-
-const fakeSwitchings = (request: SeriesRequest): OutputHistory[] =>
-  (request.outputs ?? []).map(output => {
-    if (output !== 'light') return { output, switchings: [] };
-    const switchings: { at: string; on: boolean }[] = [];
-    let last: boolean | null = null;
-    for (let at = request.startsAt.getTime(); at < request.endsAt.getTime(); at += 300 * 1000) {
-      const on = isLit(new Date(at));
-      if (on !== last) switchings.push({ at: new Date(at).toISOString(), on });
-      last = on;
-    }
-    return { output, switchings };
-  });
 
 const VALUES: Partial<Record<Metric, number>> = { temperature: 24, humidity: 55, vpd: 1.1, leafTemperature: 22, lux: 30000, ppfd: 450 };
 
 const fakeData = {
   history: async (deviceId: string, request: SeriesRequest, levels = false): Promise<DeviceHistory> => {
     const series = await fakeData.series(deviceId, request);
-    const outputs = fakeSwitchings(request).map(one =>
+    const outputs = switchingsOf(request, (output, at) => (output === 'light' ? isLit(at) : null)).map(one =>
       levels && one.output === 'light' ? { ...one, levels: [{ measuredAt: request.endsAt.toISOString(), value: 70 }] } : one,
     );
     return { series, outputs, lastSampleAt: request.endsAt.toISOString() };
   },
   series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> => {
     reads.push(request);
-    const step = (request.stepSeconds ?? 60) * 1000;
-    const instants: Date[] = [];
-    for (let at = request.startsAt.getTime(); at < request.endsAt.getTime(); at += step) instants.push(new Date(at));
 
-    return {
-      deviceId,
-      startsAt: request.startsAt.toISOString(),
-      endsAt: request.endsAt.toISOString(),
-      stepSeconds: request.stepSeconds ?? 60,
-      metrics: request.metrics.map(metric => ({
-        metric,
-        points: instants.map(at => ({ measuredAt: at.toISOString(), value: VALUES[metric] ?? null })),
-      })),
-      outputs: (request.outputs ?? []).map(output => ({
-        output,
-        points: instants.map(at => ({ measuredAt: at.toISOString(), value: output === 'light' ? (isLit(at) ? 1 : 0) : null })),
-      })),
-    };
+    return seriesOf(deviceId, request, {
+      metric: metric => VALUES[metric] ?? null,
+      output: (output, at) => (output === 'light' ? (isLit(at) ? 1 : 0) : null),
+    });
   },
   live: async () => ({ metrics: {}, outputs: {}, isDay: null, lightOn: null }),
 } as unknown as DataService;
@@ -96,20 +65,11 @@ const window = (hours: number, endsHoursAgo = 0) => ({
   to: new Date(NOW.getTime() - endsHoursAgo * HOUR),
 });
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
   reads = [];
-  access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  const devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
-  const places = new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.devices, db.cameras, db.grows, devices, access);
+  access = accessOn(db);
+  const places = spacesOn(db, access);
   service = new SpaceSeriesService(db.cameras, db.media, db.targetChanges, places, new SpaceLiveService(db.devices, db.cameras, fakeData), fakeData);
 
   await db.users.create([
@@ -201,7 +161,7 @@ describe('a place charted without a grow', () => {
 
 describe('who is told', () => {
   it('shows a support administrator the customer’s place in full', async () => {
-    const answer = await readAs(admin(), { ...window(6), metrics: ['temperature'] });
+    const answer = await readAs(admin('user-support'), { ...window(6), metrics: ['temperature'] });
 
     expect(answer.deviceIds).toEqual([CONTROLLER]);
     expect(answer.cameras).toHaveLength(1);

@@ -1,4 +1,5 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac } from 'node:crypto';
+import { sameSecret } from '@common/same-secret';
 
 /**
  * The one-time secret that connects a chat to an account.
@@ -47,13 +48,6 @@ const unpackId = (packed: string): string | null => {
 
 const sign = (secret: string, body: string): string => createHmac('sha256', secret).update(body).digest('base64url').slice(0, SIGNATURE_LENGTH);
 
-const matches = (one: string, other: string): boolean => {
-  const a = Buffer.from(one, 'utf8');
-  const b = Buffer.from(other, 'utf8');
-
-  return a.length === b.length && timingSafeEqual(a, b);
-};
-
 /** The token itself, or null for an account whose id will not fit into a deep link. */
 export const mintTelegramLink = (secret: string, userId: string, validUntil: Date): string | null => {
   const body = `${packId(userId)}${Math.floor(validUntil.getTime() / 60000)
@@ -69,7 +63,7 @@ export const readTelegramLink = (secret: string, token: string, at: Date = new D
   if (token.length <= EXPIRY_LENGTH + SIGNATURE_LENGTH + 1) return null;
 
   const body = token.slice(0, -SIGNATURE_LENGTH);
-  if (!matches(token.slice(-SIGNATURE_LENGTH), sign(secret, body))) return null;
+  if (!sameSecret(token.slice(-SIGNATURE_LENGTH), sign(secret, body))) return null;
 
   const validUntil = parseInt(body.slice(-EXPIRY_LENGTH), 36) * 60000;
   if (!Number.isFinite(validUntil) || validUntil < at.getTime()) return null;

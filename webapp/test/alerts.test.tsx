@@ -1,12 +1,6 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AlarmRule, Alert, Me, OpenAlert, Problem } from '@fg2/shared-types/v1';
 import { Rail } from '@/app/shell/Rail';
@@ -14,8 +8,10 @@ import { TopBar } from '@/app/shell/TopBar';
 import { LogProvider } from '@/log/LogProvider';
 import { Alerts } from '@/screens/Alerts';
 import { crossedBound, groupsOf } from '@/screens/alerts/inbox';
-import { alertLabel } from '@/screens/home/units';
+import { alertLabel } from '@/ui/units';
+import { drawAt, json } from './harness';
 import { spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * The inbox behind the bell is the alarm engine's own record drawn as it came,
@@ -137,7 +133,7 @@ const deviceRow = (over: Record<string, unknown> = {}) => ({
   type: 'controller',
   name: 'Blue Dream tent',
   spaceId: 'space-1',
-  state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })) },
+  state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), hardware: {} },
   ...over,
 });
 
@@ -153,9 +149,6 @@ const server = {
   tasks: [] as Record<string, unknown>[],
   sent: [] as { method: string; path: string; body: unknown }[],
 };
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': status < 400 ? 'application/json' : 'application/problem+json' } });
 
 const answer = (method: string, path: string, body: unknown): Response => {
   if (state.refuse && state.refuse.method === method && path.startsWith(state.refuse.path))
@@ -188,26 +181,14 @@ const answer = (method: string, path: string, body: unknown): Response => {
   return json({ status: 404, code: 'not_found', title: 'Not found', detail: `No route for ${method} ${path}`, errors: [] }, 404);
 };
 
-const draw = (ui: React.ReactNode = <Alerts />) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <LogProvider>{ui}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (ui: React.ReactNode = <Alerts />) => drawAt(<LogProvider>{ui}</LogProvider>);
 
 const sentTo = (method: string, path: string) => server.sent.filter(one => one.method === method && one.path.startsWith(path));
 
 /** Reads of one route exactly, for counting them: `/v1/devices` is not `/v1/devices/device-1/alarm-rules`. */
 const readsOf = (path: string) => server.sent.filter(one => one.method === 'GET' && one.path.split('?')[0] === path);
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   state.who = 'you';
@@ -607,7 +588,7 @@ describe('the inbox', () => {
 
   it('dates an offline alert from when the device was last heard rather than from when the cloud noticed', async () => {
     server.alerts = [alert({ id: 'off', kind: 'offline', ruleId: null, severity: 'warning', value: null, startedAt: iso(NOW.minus({ hours: 3 })) })];
-    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })) } })];
+    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })), hardware: {} } })];
     draw();
 
     // Heard, not sampled: the silence is dated from the last time the device
@@ -780,7 +761,9 @@ describe('the inbox', () => {
    * already in it. It says the state now, and offers the end of it.
    */
   it('says that the device is already in maintenance, and offers the end of it instead of a second window', async () => {
-    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), maintenanceUntil: iso(NOW.plus({ minutes: 8 })) } })];
+    server.devices = [
+      deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), maintenanceUntil: iso(NOW.plus({ minutes: 8 })), hardware: {} } }),
+    ];
     server.alerts = [alert({})];
     server.rules = [rule()];
     draw();
@@ -806,7 +789,9 @@ describe('the inbox', () => {
    * flipped to offering a fresh window. Both now read the same instant.
    */
   it('says the device is out of maintenance while only the settling still holds the alarms', async () => {
-    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), maintenanceUntil: iso(NOW.minus({ minutes: 2 })) } })];
+    server.devices = [
+      deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), maintenanceUntil: iso(NOW.minus({ minutes: 2 })), hardware: {} } }),
+    ];
     server.alerts = [alert({})];
     server.rules = [rule()];
     draw();
@@ -824,7 +809,7 @@ describe('the inbox', () => {
    * reach, beside the alert saying it could not be reached.
    */
   it('offers no maintenance to a device that is offline', async () => {
-    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })) } })];
+    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })), hardware: {} } })];
     server.alerts = [alert({})];
     server.rules = [rule()];
     draw();

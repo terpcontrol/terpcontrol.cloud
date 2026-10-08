@@ -62,7 +62,7 @@ export const narrowerTargets = (home: HomeAnswer | undefined, target: LogTarget 
 };
 
 /** Where a sheet opens, and whether the address it was opened with could be honoured. */
-export interface Aim {
+interface Aim {
   /** The chip that starts chosen, or nothing at all where the sheet could not be pointed. */
   target: LogTarget | null;
   /** True where the opening named a grow or a place and none of the chips is it. */

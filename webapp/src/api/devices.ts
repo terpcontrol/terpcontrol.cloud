@@ -1,5 +1,5 @@
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
-import { hasFailed, isFirstLoad, useRead } from './read';
+import { keepPreviousData, queryOptions, useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { FOLLOWED, hasFailed, isFirstLoad, LIVE_BEAT_MS, useRead } from './read';
 import type {
   Co2FanCoupling,
   Device,
@@ -10,26 +10,48 @@ import type {
   DeviceConfigurationPatch,
   DeviceLive,
   DevicePage,
+  DeviceSeries,
   DeviceUpdate,
   DeviceFirmwarePage,
   GerminationChoices,
+  Metric,
+  SeriesQuery,
   SocketOverrideUpdate,
   SocketPage,
   SocketUpdate,
   ValueState,
 } from '@fg2/shared-types/v1';
-import { heardAt } from '@/ui/age';
-import { api, apiRequest } from './client';
+import { STEERED } from '@fg2/shared-types/v1-schemas/steering.js';
+import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
+import { api } from './client';
+import { serverNow } from './clock';
+import { invalidate, useWrite, useWriteSettled } from './write';
 
 /**
  * The first read, and the pattern for every one after it: a key, a route, and a
- * type that comes from the contract rather than from here.
+ * type that comes from the contract rather than from here. A device id is the
+ * server's own, so it goes into a route as it is.
  *
- * The device list and the socket tables are refreshed on the beat a value ages
- * at, because a socket row is the device's own report: nothing changes when a
+ * The device list and the socket tables are refreshed on the live beat,
+ * because a socket row is the device's own report: nothing changes when a
  * switch is tapped, only when the device next says what it is doing.
  */
-export const DEVICES_REFRESH_MS = 30_000;
+export const devicesQuery = queryOptions({
+  queryKey: ['devices'],
+  queryFn: ({ signal }) => api.get<DevicePage>('/devices', undefined, signal),
+});
+
+export const deviceQuery = (deviceId: string) =>
+  queryOptions({
+    queryKey: ['devices', deviceId],
+    queryFn: ({ signal }) => api.get<Device>(`/devices/${deviceId}`, undefined, signal),
+  });
+
+const deviceLiveQuery = (deviceId: string) =>
+  queryOptions({
+    queryKey: ['devices', deviceId, 'live'],
+    queryFn: ({ signal }) => api.get<DeviceLive>(`/devices/${deviceId}/live`, undefined, signal),
+  });
 
 /**
  * Every device this account can see. `enabled` is here for the readers that only
@@ -37,13 +59,10 @@ export const DEVICES_REFRESH_MS = 30_000;
  * for one of its eight tiles should not read the whole fleet for the other
  * seven.
  */
-export const useDevices = (enabled = true) =>
-  useRead({
-    queryKey: ['devices'],
-    queryFn: ({ signal }) => api.get<DevicePage>('/devices', undefined, signal),
-    refetchInterval: DEVICES_REFRESH_MS,
-    enabled,
-  });
+export const useDevices = (enabled = true) => useRead({ ...devicesQuery, refetchInterval: LIVE_BEAT_MS, enabled });
+
+/** The same list, followed rather than polled: how many devices there are, for the navigation. */
+export const useDevicesShape = (enabled = true) => useQuery({ ...devicesQuery, ...FOLLOWED, enabled });
 
 /**
  * Devices read one at a time, for a reader they do not belong to: support
@@ -52,14 +71,10 @@ export const useDevices = (enabled = true) =>
  */
 export const useDevicesById = (deviceIds: readonly string[], enabled = true) =>
   useQueries({
-    queries: deviceIds.map(deviceId => ({
-      queryKey: ['devices', deviceId],
-      queryFn: ({ signal }: { signal: AbortSignal }) => api.get<Device>(`/devices/${deviceId}`, undefined, signal),
-      enabled,
-    })),
+    queries: deviceIds.map(deviceId => ({ ...deviceQuery(deviceId), enabled })),
   });
 
-export const socketsKey = (deviceId: string) => ['devices', deviceId, 'sockets'];
+const socketsKey = (deviceId: string) => ['devices', deviceId, 'sockets'];
 
 /**
  * The socket tables of several devices at once. One read per device: a table is
@@ -71,7 +86,7 @@ export const useSocketTables = (deviceIds: string[]) =>
     queries: deviceIds.map(deviceId => ({
       queryKey: socketsKey(deviceId),
       queryFn: ({ signal }: { signal: AbortSignal }) => api.get<SocketPage>(`/devices/${deviceId}/sockets`, undefined, signal),
-      refetchInterval: DEVICES_REFRESH_MS,
+      refetchInterval: LIVE_BEAT_MS,
     })),
     combine: results => ({
       tables: new Map(deviceIds.map((deviceId, index) => [deviceId, results[index]?.data])),
@@ -112,11 +127,7 @@ export interface OutputLevel {
  */
 export const useLiveReads = (deviceIds: string[]) =>
   useQueries({
-    queries: deviceIds.map(deviceId => ({
-      queryKey: ['devices', deviceId, 'live'],
-      queryFn: ({ signal }: { signal: AbortSignal }) => api.get<DeviceLive>(`/devices/${deviceId}/live`, undefined, signal),
-      refetchInterval: DEVICES_REFRESH_MS,
-    })),
+    queries: deviceIds.map(deviceId => ({ ...deviceLiveQuery(deviceId), refetchInterval: LIVE_BEAT_MS })),
     combine: results => ({
       levels: new Map(deviceIds.map((deviceId, index) => [deviceId, lightLevel(results[index]?.data)])),
       measuredAt: new Map(deviceIds.map((deviceId, index) => [deviceId, newestInstant(results[index]?.data)])),
@@ -134,6 +145,75 @@ export const useHeardAt = (device: { id: string; state: { lastSeenAt: string | n
   const reads = useLiveReads([device.id]);
   return heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
 };
+
+/**
+ * One device's newest values, outputs and the half of the cycle it says it is
+ * in. The key is the one the device rows read the same answer under, so a
+ * cockpit and the Devices tab beside it cost one request between them.
+ */
+export const useDeviceLive = (deviceId: string | null) =>
+  useRead({ ...deviceLiveQuery(deviceId!), enabled: deviceId !== null, refetchInterval: LIVE_BEAT_MS });
+
+/** Ten minutes a point: a day of a tile's curve is under a hundred and fifty of them, which is all a stamp-sized line can show. */
+const DAY_STEP_SECONDS = 600;
+
+/**
+ * The last 24 hours of one metric read from the device itself, for a reading
+ * the place's Timeline does not draw a panel for - the leaf temperature. The
+ * light output rides along, because the night is read off the lamp the way the
+ * Timeline reads it.
+ */
+export const useDaySeries = (deviceId: string | null, metric: Metric, enabled: boolean) =>
+  useRead({
+    queryKey: ['devices', deviceId, 'day-series', metric],
+    queryFn: ({ signal }) => {
+      const endsAt = serverNow().toUTC().startOf('minute');
+      const query = {
+        metrics: [metric],
+        outputs: ['light'],
+        startsAt: endsAt.minus({ hours: 24 }).toISO()!,
+        endsAt: endsAt.toISO()!,
+        stepSeconds: DAY_STEP_SECONDS,
+      } satisfies SeriesQuery;
+      return api.get<DeviceSeries>(`/devices/${deviceId}/series`, query, signal);
+    },
+    enabled: enabled && deviceId !== null,
+    refetchInterval: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+
+/** Five minutes a point: windows the server aligns to the clock, small enough that the hour is not cut short by one. */
+const HOUR_STEP_SECONDS = 300;
+
+/**
+ * The mean of each steered reading over the last hour, beside the live value:
+ * a dehumidifier cycling puts the humidity in and out of its band minute by
+ * minute, and an alarm that waits out a duration speaks of that stretch rather
+ * than of the newest sample. Empty windows are left out of the mean.
+ */
+export const useHourMeans = (deviceId: string | null) =>
+  useRead({
+    queryKey: ['devices', deviceId, 'hour-means'],
+    queryFn: async ({ signal }) => {
+      const endsAt = serverNow().toUTC().startOf('minute');
+      const query = {
+        metrics: [...STEERED],
+        startsAt: endsAt.minus({ hours: 1 }).toISO()!,
+        endsAt: endsAt.toISO()!,
+        stepSeconds: HOUR_STEP_SECONDS,
+      } satisfies SeriesQuery;
+      const series = await api.get<DeviceSeries>(`/devices/${deviceId}/series`, query, signal);
+      return Object.fromEntries(
+        series.metrics.flatMap(({ metric, points }) => {
+          const values = points.flatMap(point => (point.value === null ? [] : [point.value]));
+          return values.length > 0 ? [[metric, values.reduce((sum, value) => sum + value, 0) / values.length]] : [];
+        }),
+      ) as Partial<Record<Metric, number>>;
+    },
+    enabled: deviceId !== null,
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
+  });
 
 /** A device that has never driven a light output answers none, which is not the same as one at nothing. */
 const lightLevel = (live: DeviceLive | undefined): OutputLevel | null => {
@@ -159,11 +239,9 @@ const newestInstant = (live: DeviceLive | undefined): string | null =>
  * it parses at every connect. What comes back is what was stored and sent, never
  * what the device is now running - it sends no acknowledgement at all.
  */
-export const useSaveConfiguration = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
+export const useSaveConfiguration = () =>
+  useWriteSettled(
+    ({
       deviceId,
       configuration,
       drying,
@@ -177,9 +255,8 @@ export const useSaveConfiguration = () => {
       /** What germination does about the humidity, where the page shows it; left out it stands as it was. */
       germinationChoices?: Partial<GerminationChoices>;
     }) => api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, { configuration, drying, germination, germinationChoices }),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['devices'] }),
-  });
-};
+    client => invalidate(client, ['devices']),
+  );
 
 /**
  * Settings beyond the targets, by the names `CONFIGURATION_FIELDS` gives them
@@ -192,20 +269,19 @@ export const useSaveConfiguration = () => {
  * one that is off stays off), so the list is given the answer rather than the
  * request, and the place reads that judge the tent are read again.
  */
-export const useConfigure = (deviceId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (set: DeviceConfigurationPatch['set']) => api.patch<Device>(`/devices/${deviceId}/configuration`, { set }),
-    onSuccess: device => {
-      queryClient.setQueryData<DevicePage>(['devices'], page =>
+export const useConfigure = (deviceId: string) =>
+  useWrite(
+    (set: DeviceConfigurationPatch['set']) => api.patch<Device>(`/devices/${deviceId}/configuration`, { set }),
+    (client, device) => {
+      client.setQueryData<DevicePage>(['devices'], page =>
         page ? { ...page, items: page.items.map(one => (one.id === device.id ? device : one)) } : page,
       );
-      queryClient.setQueryData(['devices', device.id], device);
-      for (const key of ['devices', 'spaces', 'home']) void queryClient.invalidateQueries({ queryKey: [key] });
+      client.setQueryData(['devices', device.id], device);
+      void invalidate(client, ['devices'], ['spaces'], ['home']);
     },
-  });
-};
+  );
+
+const deviceMoved = (client: QueryClient): void => void invalidate(client, ['devices'], ['spaces'], ['home'], ['cameras']);
 
 /**
  * What a person decides about a device: what it is called, and where it stands.
@@ -223,17 +299,14 @@ export const useConfigure = (deviceId: string) => {
  * claim flow reads one device by id and would otherwise go on drawing the place
  * it has just been moved out of.
  */
-export const useUpdateDevice = (deviceId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: DeviceUpdate) => api.patch<Device>(`/devices/${deviceId}`, body),
-    onSuccess: device => {
-      queryClient.setQueryData(['devices', device.id], device);
-      for (const key of ['devices', 'spaces', 'home', 'cameras']) void queryClient.invalidateQueries({ queryKey: [key] });
+export const useUpdateDevice = (deviceId: string) =>
+  useWrite(
+    (body: DeviceUpdate) => api.patch<Device>(`/devices/${deviceId}`, body),
+    (client, device) => {
+      client.setQueryData(['devices', device.id], device);
+      deviceMoved(client);
     },
-  });
-};
+  );
 
 /**
  * Giving a device up: it leaves this account and can be claimed by whoever
@@ -248,25 +321,21 @@ export const useReleaseDevice = (deviceId: string) => {
   const queryClient = useQueryClient();
 
   const release = useMutation({ mutationFn: () => api.delete(`/devices/${deviceId}/claim`) });
-  const forget = () => {
-    for (const key of ['devices', 'spaces', 'home', 'cameras']) void queryClient.invalidateQueries({ queryKey: [key] });
-  };
 
-  return { release, forget };
+  return { release, forget: () => deviceMoved(queryClient) };
 };
 
 /**
  * The AIR fan a stand-alone smart socket slows down while it doses CO2, or
  * none. Two documents change, so both devices are read again.
  */
-export const useCo2Fan = (plugId: string) => {
-  const queryClient = useQueryClient();
+export const useCo2Fan = (plugId: string) =>
+  useWrite(
+    (coupling: Co2FanCoupling) => api.put<Device>(`/devices/${plugId}/co2-fan`, coupling),
+    client => void invalidate(client, ['devices']),
+  );
 
-  return useMutation({
-    mutationFn: (coupling: Co2FanCoupling) => api.put<Device>(`/devices/${plugId}/co2-fan`, coupling),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['devices'] }),
-  });
-};
+const tableChanged = (client: QueryClient, { deviceId }: { deviceId: string }) => invalidate(client, socketsKey(deviceId));
 
 /**
  * Pairing a socket by its address, changing one's address, role or timer, and
@@ -275,25 +344,18 @@ export const useCo2Fan = (plugId: string) => {
  *
  * `slot` null pairs a socket the table does not hold yet.
  */
-export const useSetSocket = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ deviceId, slot, socket }: { deviceId: string; slot: number | null; socket: SocketUpdate }) =>
+export const useSetSocket = () =>
+  useWriteSettled(
+    ({ deviceId, slot, socket }: { deviceId: string; slot: number | null; socket: SocketUpdate }) =>
       api.put<DeviceCommandResult>(`/devices/${deviceId}/sockets/${slot ?? 'new'}`, socket),
-    onSettled: (_result, _error, request) => queryClient.invalidateQueries({ queryKey: socketsKey(request.deviceId) }),
-  });
-};
+    tableChanged,
+  );
 
-export const useRemoveSocket = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ deviceId, slot }: { deviceId: string; slot: number }) =>
-      apiRequest<DeviceCommandResult>(`/devices/${deviceId}/sockets/${slot}`, { method: 'DELETE' }),
-    onSettled: (_result, _error, request) => queryClient.invalidateQueries({ queryKey: socketsKey(request.deviceId) }),
-  });
-};
+export const useRemoveSocket = () =>
+  useWriteSettled(
+    ({ deviceId, slot }: { deviceId: string; slot: number }) => api.delete<DeviceCommandResult>(`/devices/${deviceId}/sockets/${slot}`),
+    tableChanged,
+  );
 
 /**
  * The builds this device can be put on, which is how the id it reports gets a
@@ -325,26 +387,18 @@ export interface OverrideRequest extends SocketOverrideUpdate {
   target: { kind: 'socket'; slot: number } | { kind: 'output'; output: 'light' };
 }
 
-export const useSetOverride = () => {
-  const queryClient = useQueryClient();
+export const useSetOverride = () =>
+  useWriteSettled(({ deviceId, target, state, forSeconds }: OverrideRequest): Promise<DeviceCommandResult> => {
+    if (target.kind === 'output') {
+      const command: DeviceCommand = { kind: 'socket_override', subject: { type: 'output', id: target.output }, state, forSeconds };
+      return api.post<DeviceCommandResult>(`/devices/${deviceId}/commands`, command);
+    }
 
-  return useMutation({
-    mutationFn: ({ deviceId, target, state, forSeconds }: OverrideRequest): Promise<DeviceCommandResult> => {
-      if (target.kind === 'output') {
-        const command: DeviceCommand = { kind: 'socket_override', subject: { type: 'output', id: target.output }, state, forSeconds };
-        return api.post<DeviceCommandResult>(`/devices/${deviceId}/commands`, command);
-      }
-
-      const route = `/devices/${deviceId}/sockets/${target.slot}/override`;
-      // Handing a socket back is the override's deletion, and answers the same
-      // receipt every other command does.
-      return state === 'auto'
-        ? apiRequest<DeviceCommandResult>(route, { method: 'DELETE' })
-        : api.put<DeviceCommandResult>(route, { state, forSeconds });
-    },
-    onSettled: (_result, _error, request) => queryClient.invalidateQueries({ queryKey: socketsKey(request.deviceId) }),
-  });
-};
+    const route = `/devices/${deviceId}/sockets/${target.slot}/override`;
+    // Handing a socket back is the override's deletion, and answers the same
+    // receipt every other command does.
+    return state === 'auto' ? api.delete<DeviceCommandResult>(route) : api.put<DeviceCommandResult>(route, { state, forSeconds });
+  }, tableChanged);
 
 /** Switching a socket on for a moment, which is how a person finds out which plug in the tent it is. */
 export const useTestSocket = () =>

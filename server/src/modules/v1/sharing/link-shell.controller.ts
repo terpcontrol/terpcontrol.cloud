@@ -1,12 +1,10 @@
-import { Controller, Get, HttpStatus, Inject, Param, Res, UseGuards } from '@nestjs/common';
-import { ConfigType } from '@nestjs/config';
+import { Controller, Get, HttpStatus, Param, Res, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { RateLimited, RateLimitGuard } from '@common/rate-limit.guard';
 import { ProblemException } from '@common/v1/problem';
-import { appConfig } from '../../../config/configuration';
 import { PUBLIC_OPERATION } from '../../../openapi';
-import { SHELL_CACHE_SECONDS, baseUrlOf, missingHtml, shellHtml } from './link-card';
+import { SHELL_CACHE_SECONDS, missingHtml, shellHtml } from './link-card';
 import { PublicPagesService } from './public-pages.service';
 
 /**
@@ -24,8 +22,6 @@ import { PublicPagesService } from './public-pages.service';
  */
 
 const HTML = { 'text/html': { schema: { type: 'string' } } };
-
-const MINUTE = 60 * 1000;
 
 /** The same words the app's own page for these addresses says. */
 const NO_DIARY = {
@@ -48,13 +44,10 @@ const orNothing = async <T>(work: Promise<T>): Promise<T | null> => {
 @Controller()
 @UseGuards(RateLimitGuard)
 export class LinkShellController {
-  constructor(
-    private readonly pages: PublicPagesService,
-    @Inject(appConfig.KEY) private readonly config: ConfigType<typeof appConfig>,
-  ) {}
+  constructor(private readonly pages: PublicPagesService) {}
 
   @Get('g/:slug')
-  @RateLimited({ limit: 60, windowMs: MINUTE, message: 'Too many requests for shared diaries, please try again later.' })
+  @RateLimited({ limit: 60, message: 'Too many requests for shared diaries, please try again later.' })
   @ApiOperation({ summary: 'The shareable address of a public grow diary', ...PUBLIC_OPERATION })
   @ApiResponse({ status: HttpStatus.OK, description: 'A small HTML shell with the Open Graph tags of that diary.', content: HTML })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'A small HTML page saying there is no public diary at this address.', content: HTML })
@@ -63,11 +56,11 @@ export class LinkShellController {
     const found = await orNothing(this.pages.publicGrow({ userId: null, isAdmin: false, isDemo: false, shareToken: null }, slug));
     if (!found) return this.missing(reply, NO_DIARY);
 
-    await this.send(reply, shellHtml(await this.pages.growCard(found.grow, baseUrlOf(this.config.apiUrlExternal))));
+    await this.send(reply, shellHtml(await this.pages.growCard(found.grow)));
   }
 
   @Get('@:handle')
-  @RateLimited({ limit: 60, windowMs: MINUTE, message: 'Too many requests for public profiles, please try again later.' })
+  @RateLimited({ limit: 60, message: 'Too many requests for public profiles, please try again later.' })
   @ApiOperation({ summary: 'The shareable address of a public profile', ...PUBLIC_OPERATION })
   @ApiResponse({ status: HttpStatus.OK, description: 'A small HTML shell with the Open Graph tags of that profile.', content: HTML })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'A small HTML page saying there is no public profile at this address.', content: HTML })
@@ -75,7 +68,7 @@ export class LinkShellController {
     const found = await orNothing(this.pages.publicUser(handle));
     if (!found) return this.missing(reply, NO_PROFILE);
 
-    await this.send(reply, shellHtml(this.pages.userCard(found.author, found.grows, baseUrlOf(this.config.apiUrlExternal))));
+    await this.send(reply, shellHtml(this.pages.userCard(found.author, found.grows)));
   }
 
   /** Not cached: a diary made public a minute later has to be there a minute later. */

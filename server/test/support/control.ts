@@ -1,28 +1,7 @@
 import { context } from './api';
+import type { CapturedMail, SeedPoint } from './infra/stores';
 
-export interface SeedPoint {
-  time: number | string;
-  device_id: string;
-  user_id?: string;
-  measurement?: string;
-  fields: Record<string, number>;
-}
-
-export interface StoredPoint {
-  measurement: string;
-  tags: Record<string, string>;
-  fields: Record<string, number>;
-  time: number;
-}
-
-export interface CapturedMail {
-  from: string;
-  to: string[];
-  subject: string;
-  body: string;
-  raw: string;
-  receivedAt: number;
-}
+export type { SeedPoint };
 
 const control = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(`${context.controlUrl}${path}`, init);
@@ -32,10 +11,6 @@ const control = async <T>(path: string, init?: RequestInit): Promise<T> => {
 
 export const seedMeasurements = (points: SeedPoint[]): Promise<{ added: number }> =>
   control('/__control/influx/points', { method: 'POST', body: JSON.stringify(points), headers: { 'content-type': 'application/json' } });
-
-export const storedMeasurements = (): Promise<StoredPoint[]> => control('/__control/influx/points');
-
-export const resetMeasurements = (): Promise<unknown> => control('/__control/influx/reset', { method: 'POST' });
 
 export const capturedMail = (): Promise<CapturedMail[]> => control('/__control/mail/messages');
 

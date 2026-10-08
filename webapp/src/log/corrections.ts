@@ -30,7 +30,7 @@ const CORRECTABLE: TileKind[] = ['water', 'feed', 'note', 'measurement', 'traini
  * person's line to correct. What a device, the plan or an alarm recorded is not
  * ours to rewrite.
  */
-export const correctableKind = (entry: Entry): TileKind | null =>
+const correctableKind = (entry: Entry): TileKind | null =>
   entry.source === 'human' ? (CORRECTABLE.find(kind => kind === entry.kind) ?? null) : null;
 
 /**
@@ -39,7 +39,7 @@ export const correctableKind = (entry: Entry): TileKind | null =>
  * onto that tent, and one corrected from a plant's page must not move onto that
  * plant.
  */
-export const targetOf = (entry: Entry, label: string, dayNumber: number | null): LogTarget => ({
+const targetOf = (entry: Entry, label: string, dayNumber: number | null): LogTarget => ({
   key: `entry:${entry.id}`,
   label,
   growId: entry.growId,
@@ -50,7 +50,7 @@ export const targetOf = (entry: Entry, label: string, dayNumber: number | null):
 });
 
 /** What the surface knows about the line that the line itself does not say. */
-export interface LineOn {
+interface LineOn {
   /** What the sheet and its toast call what the line is about: the grow's name, the tent's. */
   label: string;
   /** The grow's day the line falls on, where the surface counts in them. */

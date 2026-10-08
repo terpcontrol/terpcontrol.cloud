@@ -1,57 +1,26 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { DeviceConfiguration, DurationUnit, PlanStep, PlanStepInput, StepDuration } from '@fg2/shared-types/v1';
+import type { DeviceConfiguration, PlanStep, PlanStepInput, ProblemError } from '@fg2/shared-types/v1';
+import { finiteOrNull, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { unprocessable } from '@common/v1/problem';
-import { StoredPlan, StoredPlanState } from '@database/schemas/v1/plans.schema';
+import { StoredPlanState } from '@database/schemas/v1/plans.schema';
+import { DocumentFigures, figureRefusals } from '@modules/device-protocol/document-figures';
 
 /**
- * What a plan's steps are, and how the clock on one is read. Nothing here
- * touches the database, so the engine, a transition and a replaced plan all
- * compute it the same way.
+ * What a plan's steps are, and the state a plan stands in. Nothing here touches
+ * the database, so the engine, a transition and a replaced plan all compute it
+ * the same way; the clock on a step is the contract's (`plan-clock.ts`).
  */
-
-const UNIT_MS: Readonly<Record<DurationUnit, number>> = {
-  minutes: 60 * 1000,
-  hours: 60 * 60 * 1000,
-  days: 24 * 60 * 60 * 1000,
-  weeks: 7 * 24 * 60 * 60 * 1000,
-};
 
 /**
- * A step with no length to measure runs until it is moved on by hand. The plan
- * screen has always allowed one - and a duration that is missing arrives from
- * the migration as a zero - so a step of no length must not be a step that is
- * over the moment it starts, which with a looping plan would walk the whole plan
- * on every tick.
+ * A plan entering a state. What a step asked and what it applied are the step's
+ * own, so entering one forgets both rather than inheriting them from the step
+ * before.
  */
-export const durationMs = ({ value, unit }: StepDuration): number => (value > 0 ? value * UNIT_MS[unit] : Number.POSITIVE_INFINITY);
-
-export const activeStep = (plan: StoredPlan): PlanStep | null => plan.steps[plan.state.activeStepIndex] ?? null;
-
-/** What the active step has served, across every pause it has been through. */
-export const elapsedMs = (state: StoredPlanState, now: Date): number =>
-  state.pausedElapsedMs + (state.stepStartedAt ? now.getTime() - state.stepStartedAt.getTime() : 0);
-
-export const isOver = (plan: StoredPlan, now: Date): boolean => {
-  const step = activeStep(plan);
-  return step !== null && elapsedMs(plan.state, now) >= durationMs(step.duration);
-};
-
-/** Which step follows the active one: the next, the first again when the plan loops, or none, which ends the plan. */
-export const stepAfterActive = (plan: StoredPlan): number | null => {
-  if (plan.state.activeStepIndex < plan.steps.length - 1) return plan.state.activeStepIndex + 1;
-  return plan.loop ? 0 : null;
-};
-
-/**
- * The state a step runs in from now. What the step asked and what it applied are
- * the step's own, so entering one forgets both rather than inheriting them from
- * the step before.
- */
-export const running = (activeStepIndex: number, now: Date): StoredPlanState => ({
-  status: 'running',
+const stateOf = (status: StoredPlanState['status'], activeStepIndex: number, stepStartedAt: Date | null): StoredPlanState => ({
+  status,
   activeStepIndex,
-  stepStartedAt: now,
+  stepStartedAt,
   pausedElapsedMs: 0,
   pauseReason: null,
   lastAppliedAt: null,
@@ -59,6 +28,9 @@ export const running = (activeStepIndex: number, now: Date): StoredPlanState => 
   confirmationAskedAt: null,
   confirmationAskTriedAt: null,
 });
+
+/** The state a step runs in from now. */
+export const running = (activeStepIndex: number, now: Date): StoredPlanState => stateOf('running', activeStepIndex, now);
 
 /**
  * A plan that is not running. It keeps its steps and stands at the first one,
@@ -69,21 +41,9 @@ export const running = (activeStepIndex: number, now: Date): StoredPlanState => 
  * always left behind and what the migration writes for a recipe whose
  * `activeSince` was zero.
  */
-const atRest = (status: 'completed' | 'stopped'): StoredPlanState => ({
-  status,
-  activeStepIndex: 0,
-  stepStartedAt: null,
-  pausedElapsedMs: 0,
-  pauseReason: null,
-  lastAppliedAt: null,
-  confirmationNotifiedAt: null,
-  confirmationAskedAt: null,
-  confirmationAskTriedAt: null,
-});
+export const completed = (): StoredPlanState => stateOf('completed', 0, null);
 
-export const completed = (): StoredPlanState => atRest('completed');
-
-export const stopped = (): StoredPlanState => atRest('stopped');
+export const stopped = (): StoredPlanState => stateOf('stopped', 0, null);
 
 /**
  * The steps as they are stored, from the steps a client wrote.
@@ -134,6 +94,22 @@ export const stepsOf = (steps: PlanStepInput[]): PlanStep[] => {
   );
 };
 
+/**
+ * What a firmware would refuse in the steps a client wrote, each figure held to
+ * it as a document saved by hand is (`figureRefusals`) and refused with the step
+ * and the place named - `steps.0.settings.night.temperature`. A figure the same
+ * step already carried is not held to its range again: a recipe migrated from
+ * the old app keeps what it was written with.
+ */
+export const stepRefusals = (type: string, steps: PlanStepInput[], earlier: readonly PlanStep[] | null, figures?: DocumentFigures): ProblemError[] =>
+  steps.flatMap((step, index) =>
+    figureRefusals(type, step.settings, {
+      field: `steps.${index}.settings`,
+      figures,
+      stored: earlier?.find(previous => step.id !== undefined && previous.id === step.id)?.settings ?? null,
+    }),
+  );
+
 /** A step as the contract answers it: one stored before it could name light hours or germination choices names none. */
 export const answeredStep = (step: PlanStep): PlanStep => ({
   ...step,
@@ -144,13 +120,6 @@ export const answeredStep = (step: PlanStep): PlanStep => ({
 /** Whether a step changes anything on the device: figures of its own, light hours, or a stage, which decides the work mode. */
 export const stepWrites = (step: PlanStep): boolean =>
   Object.keys(step.settings ?? {}).length > 0 || (step.lightHours ?? null) !== null || step.stage !== null;
-
-const sectionOf = (document: DeviceConfiguration | null, key: string): Record<string, unknown> => {
-  const value = document?.[key];
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-};
-
-const numberOrNull = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 
 /**
  * What a step sends, merged into the device's document like every other step:
@@ -166,9 +135,9 @@ export const settingsSent = (step: PlanStep, current: DeviceConfiguration | null
   const hours = step.lightHours ?? null;
   if (hours === null) return step.settings;
 
-  const own = sectionOf(step.settings, 'daynight');
-  const device = sectionOf(current, 'daynight');
-  const lightsOn = numberOrNull(own.day) ?? lightWindowOf(numberOrNull(device.day), numberOrNull(device.night)).lightsOn;
+  const own = sectionOf(step.settings, 'daynight') ?? {};
+  const device = sectionOf(current, 'daynight') ?? {};
+  const lightsOn = finiteOrNull(own.day) ?? lightWindowOf(finiteOrNull(device.day), finiteOrNull(device.night)).lightsOn;
   const { night: _unused, ...kept } = own;
 
   return { ...step.settings, daynight: { ...kept, ...lightWindowTimes({ lightsOn, lightHours: hours }) } };
@@ -181,9 +150,9 @@ export const settingsSent = (step: PlanStep, current: DeviceConfiguration | null
  * The hour itself is kept where `keepTime` says the recipe sets it.
  */
 export const withWindowAsHours = <T extends Pick<PlanStep, 'settings' | 'lightHours'>>(step: T, keepTime: boolean): T => {
-  const own = sectionOf(step.settings, 'daynight');
-  const day = numberOrNull(own.day);
-  const night = numberOrNull(own.night);
+  const own = sectionOf(step.settings, 'daynight') ?? {};
+  const day = finiteOrNull(own.day);
+  const night = finiteOrNull(own.night);
   if (day === null || night === null) return step;
 
   const { day: _day, night: _night, ...rest } = own;

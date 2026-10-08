@@ -2,11 +2,11 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Help, Term } from '@/ui/Help';
 import { anchorOf, HELP_TOPICS, placeBubble } from '@/ui/explain';
+import { catalogue, translate } from './translations';
 
 /**
  * What the app's explanations promise: that one opens on a tap, a click or the
@@ -16,18 +16,7 @@ import { anchorOf, HELP_TOPICS, placeBubble } from '@/ui/explain';
  * without opening anything; and that every topic is written in both languages.
  */
 
-const catalogue = async (language: string) =>
-  JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8')) as Record<string, unknown>;
-
-beforeAll(async () => {
-  const [en, de] = await Promise.all([catalogue('en'), catalogue('de')]);
-  await i18next.use(initReactI18next).init({
-    lng: 'en',
-    resources: { en: { translation: en }, de: { translation: de } },
-    nsSeparator: false,
-    interpolation: { escapeValue: false },
-  });
-});
+beforeAll(() => translate(['en', 'de']));
 
 const TITLE = () => i18next.t('help.vpd.title');
 const TEXT = () => i18next.t('help.vpd.text');

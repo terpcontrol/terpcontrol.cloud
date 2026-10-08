@@ -1,12 +1,11 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { z } from 'zod';
 import type { ShareLink, ShareLinkCreate, ShareLinkPage, ShareLinkUpdate } from '@fg2/shared-types/v1';
 import { shareLink as shareLinkShape, shareLinkCreate, shareLinkPage, shareLinkUpdate } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { Caller } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { V1Answer } from '../answer-shape';
 import { ShareLinksService } from './share-links.service';
@@ -32,7 +31,7 @@ export class ShareLinksController {
   @Get()
   @ApiOperation({ summary: 'The share links of this account' })
   @V1Answer(shareLinkPage)
-  public list(@Caller() ctx: AccessContext, @V1Query(pageQuery) query: z.infer<typeof pageQuery>): Promise<ShareLinkPage> {
+  public list(@Caller() ctx: AccessContext, @V1Query(pageQuery) query: PageQuery): Promise<ShareLinkPage> {
     return this.links.list(ctx, query);
   }
 

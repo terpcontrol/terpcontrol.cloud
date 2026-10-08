@@ -2,7 +2,7 @@ import { Query } from '@nestjs/common';
 import { ApiQuery, SchemaObject } from '@nestjs/swagger';
 import { z, ZodType } from 'zod';
 import { requestSchema, ZodValidationPipe } from '@common/zod-validation.pipe';
-import { MAX_PAGE_LIMIT } from './pages';
+import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas';
 
 /**
  * What a `/v1` route accepts, checked against the contract itself: the schemas
@@ -62,10 +62,9 @@ export const V1Query = <T>(schema: ZodType<T>): ParameterDecorator => {
  * offered `maximum: 9007199254740991` - what zod emits for any integer - while
  * `pageLimit` quietly answered a request for a thousand rows with two hundred.
  * A client sizing a single read from the document had nothing telling it to
- * keep following `nextCursor`, and the app's own client had to copy the
- * constant across the contract boundary to know. It is stated in the parameter
- * now, and interpolated from `MAX_PAGE_LIMIT` so that raising the cap cannot
- * leave the sentence behind. Not as `maximum`: that keyword is used throughout
+ * keep following `nextCursor`. It is stated in the parameter now, and
+ * interpolated from `MAX_PAGE_LIMIT` so that raising the cap cannot leave the
+ * sentence behind. Not as `maximum`: that keyword is used throughout
  * this document for a value the server refuses, and a request for more than
  * this is answered rather than refused.
  */
@@ -83,6 +82,10 @@ export const pageQuery = z.object({
 });
 
 export type PageQuery = z.infer<typeof pageQuery>;
+
+/** A repeated query parameter arrives as one value or as many; the route wants a list either way. */
+export const repeated = <T extends ZodType>(item: T) =>
+  z.union([item, z.array(item)]).transform((value): z.output<T>[] => (Array.isArray(value) ? value : [value]));
 
 /**
  * An instant in a query string, as every instant in the contract is written -

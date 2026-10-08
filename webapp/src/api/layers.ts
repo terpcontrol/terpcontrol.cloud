@@ -4,6 +4,7 @@ import { meKey, useMe } from './account';
 import { api } from './client';
 import { useHomeShape } from './home';
 import { useSession } from './session';
+import { useWrite } from './write';
 
 /**
  * Whether the grow diary is laid over the climate - grows, diary lines and the
@@ -61,11 +62,8 @@ export const useChooseDiary = () => {
  * diary answer it names its one preference and nothing else, so a zone adopted
  * in the same second is not written back over.
  */
-export const useSeeLayout = () => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: (layoutSeen: LayoutSeen) => api.patch<Me>('/me', { preferences: { layoutSeen } }),
-    onSuccess: me => client.setQueryData(meKey, me),
-  });
-};
+export const useSeeLayout = () =>
+  useWrite(
+    (layoutSeen: LayoutSeen) => api.patch<Me>('/me', { preferences: { layoutSeen } }),
+    (client, me) => client.setQueryData(meKey, me),
+  );

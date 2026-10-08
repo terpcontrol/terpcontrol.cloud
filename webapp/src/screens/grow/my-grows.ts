@@ -1,9 +1,5 @@
 import type { MyGrowCard } from '@fg2/shared-types/v1';
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
-/** Spaces that do not break, so a narrow card breaks a line between two dates or weights and never inside one. */
-export const whole = (text: string): string => text.replace(/ /g, '\u00a0');
+import type { Translate } from '@/i18n/i18n';
 
 /** "2 laufend · 3 abgeschlossen", leaving out a half that holds nothing. */
 export const countsOf = (t: Translate, grows: MyGrowCard[]): string => {

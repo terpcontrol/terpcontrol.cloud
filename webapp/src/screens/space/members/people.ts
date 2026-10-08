@@ -15,13 +15,6 @@ import type { MemberRole, Membership, MembershipPage, Person } from '@fg2/shared
  */
 
 /**
- * When each person last wrote in the space, as the server answers it beside the
- * rows. It is sparse on purpose: somebody who has never written is simply not
- * in it, which is a different thing from somebody whose last entry is old.
- */
-export type Activity = MembershipPage['activity'][number];
-
-/**
  * One person, however many rows carry them: the tent's own row, the room's, and
  * the stronger of the two roles, which is the one the server actually grants.
  */
@@ -35,9 +28,9 @@ export type Guest = {
 /** The order the roles stack in: a stronger role includes the weaker one. */
 const RANK: Record<MemberRole, number> = { can_log: 1, can_manage: 2 };
 
-export const stronger = (left: MemberRole, right: MemberRole): MemberRole => (RANK[right] > RANK[left] ? right : left);
+const stronger = (left: MemberRole, right: MemberRole): MemberRole => (RANK[right] > RANK[left] ? right : left);
 
-export const isViaRoom = (row: Membership, spaceId: string): boolean => row.spaceId !== spaceId;
+const isViaRoom = (row: Membership, spaceId: string): boolean => row.spaceId !== spaceId;
 
 /** How many people reach in through the room, whether or not they are in the tent as well. */
 export const viaRoomCount = (page: MembershipPage, spaceId: string): number =>

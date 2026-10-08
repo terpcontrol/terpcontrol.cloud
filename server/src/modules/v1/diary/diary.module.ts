@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { V1CommonModule } from '@common/v1/v1.module';
 import { ModelsModule } from '@database/models.module';
 import { DataModule } from '@modules/data/data.module';
-import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { GrowModule } from '../grow/grow.module';
 import { PlanModule } from '../plan/plan.module';
 import { SpaceModule } from '../space/space.module';
@@ -53,7 +52,6 @@ import { VisibleSubjectsService } from './visible-subjects.service';
     GrowWeeksService,
     GrowReportService,
     GrowClimateService,
-    OptionalSessionGuard,
   ],
   // The week cards and the two figures above the chapters are what a public
   // diary is made of as well, so the sharing slice reads them from here rather

@@ -4,15 +4,15 @@ import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowthStage, Plant, Space } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useSplit } from '@/api/lifecycle';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { presetsOf } from '@/ui/presets';
-import { enough } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { PlantPicker } from './PlantPicker';
+import { growPlaces } from './placement';
 import styles from './Lifecycle.module.css';
 
 /**
@@ -55,9 +55,7 @@ export function SplitSheet({
   const { t } = useTranslation();
   const split = useSplit(grow.id);
 
-  // Splitting plants off into a place is managing that place, so one this
-  // account may only write lines in is left out rather than refused on save.
-  const open = spaces.filter(space => space.archivedAt === null && space.kind !== 'room' && enough(space.youMay, 'manage'));
+  const open = growPlaces(spaces);
   const [chosen, setChosen] = useState<string[]>(preselect ?? []);
   const [stage, setStage] = useState<GrowthStage | null>(null);
   const [preset, setPreset] = useState<string | null>(null);
@@ -71,7 +69,7 @@ export function SplitSheet({
   if (plants.length === 0) {
     return (
       <Sheet title={t('grow.lifecycle.split.title', { name: grow.name })} onClose={onClose}>
-        <div className={styles.body}>
+        <div className={ui.sheetBody}>
           <p className={ui.note}>{t('grow.lifecycle.split.noPlantsRecorded')}</p>
         </div>
       </Sheet>
@@ -80,7 +78,7 @@ export function SplitSheet({
 
   return (
     <Sheet title={t('grow.lifecycle.split.title', { name: grow.name })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <p className={`mono ${styles.now}`}>{t('grow.lifecycle.split.what')}</p>
 
         <Block

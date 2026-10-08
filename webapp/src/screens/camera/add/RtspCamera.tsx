@@ -4,11 +4,11 @@ import { useNavigate } from 'react-router';
 import type { Camera, CameraTransport, CameraUpdate, Device, RtspCameraCreate, Space, SpaceKind } from '@fg2/shared-types/v1';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
 import { useMe } from '@/api/account';
-import { gaveUp, useAmendCamera, useCaptureOnce, useCreateCamera, useDropCamera } from '@/api/cameras';
+import { gaveUp, useCaptureOnce, useCreateCamera, useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
-import { useSpaces } from '@/api/spaces';
-import { deviceName } from '@/screens/devices/naming';
-import { useCreateSpace } from '@/screens/grow/new/create-space';
+import type { Translate } from '@/i18n/i18n';
+import { useCreateSpace, useSpaces } from '@/api/spaces';
+import { deviceName } from '@/ui/naming';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { Help, Term } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -58,9 +58,9 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   const me = useMe();
   const spaces = useSpaces();
   const create = useCreateCamera();
-  const amend = useAmendCamera();
+  const amend = useUpdateCamera();
   const capture = useCaptureOnce();
-  const drop = useDropCamera();
+  const drop = useRemoveCamera();
 
   const [url, setUrl] = useState('');
   const [username, setUsername] = useState('');
@@ -248,8 +248,8 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
 
       {carriers.length > 1 ? (
         <section className={styles.block}>
-          <span className="label">{t('cameras.add.rtsp.throughWhich')}</span>
-          <Choices label={t('cameras.add.rtsp.throughWhich')}>
+          <span className="label">{t('camera.stream.throughWhich')}</span>
+          <Choices label={t('camera.stream.throughWhich')}>
             {carriers.map(device => (
               <Choice key={device.id} chosen={device.id === carrier?.id} onChoose={() => setCarrierId(device.id)}>
                 {deviceName(device, t)}
@@ -392,8 +392,6 @@ function NewPlace({ onMade }: { onMade: (space: Space) => void }) {
     </section>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** What the place the camera was put into is called, or nothing where the list no longer holds it. */
 const placeOf = (spaces: Space[], spaceId: string | null): string | null => spaces.find(space => space.id === spaceId)?.name ?? null;

@@ -1,4 +1,5 @@
 import type { DeviceConfiguration, DryingReturn, PhaseTargets } from '@fg2/shared-types/v1';
+import { finiteOrNull, nestedAt } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 
 /**
  * What a drying spell puts aside and what ending it brings back.
@@ -12,15 +13,12 @@ import type { DeviceConfiguration, DryingReturn, PhaseTargets } from '@fg2/share
  */
 
 /** The figures a drying climate sets, by their paths in the document. */
-export const DRYING_FIGURES = ['day.temperature', 'day.humidity', 'night.temperature', 'night.humidity', 'co2.target', 'lights.limit'] as const;
+const DRYING_FIGURES = ['day.temperature', 'day.humidity', 'night.temperature', 'night.humidity', 'co2.target', 'lights.limit'] as const;
 
 /** What the firmware lights at out of the box: what a spell nobody kept anything from comes back to, rather than staying dark. */
 const FACTORY_LIGHT_LIMIT = 100;
 
-const numberAt = (configuration: DeviceConfiguration | null, path: string): number | null => {
-  const value = path.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown> | null)?.[key], configuration);
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-};
+const numberAt = (configuration: DeviceConfiguration | null, path: string): number | null => finiteOrNull(nestedAt(configuration, path));
 
 /** The figures of a document a spell is about to write over, as they are kept: by path, the ones it states. */
 export const keptForDrying = (configuration: DeviceConfiguration | null): Record<string, number> =>

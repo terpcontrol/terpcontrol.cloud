@@ -1,17 +1,16 @@
 import { type DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Me } from '@fg2/shared-types/v1';
-import { useChangePassword, useMe, useRevokeOtherSessions, useRevokeSession, useSessions, useUpdatingMe } from '@/api/account';
+import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from '@/api/account';
+import { itemsOf } from '@/api/pages';
 import { useSession } from '@/api/session';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
-import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, useZone } from '@/ui/zone';
-import { ExportRow, MePage, Row } from '../parts';
+import { AccountPage, ExportRow, Row } from '../parts';
 import { DeleteRow } from '../privacy/DeleteRow';
 import { deviceLabel, sortedSessions } from './sessions';
 import styles from './Account.module.css';
@@ -33,64 +32,34 @@ import styles from './Account.module.css';
 export function Account() {
   const { t } = useTranslation();
   const now = useNow();
-  const { user, sessionId } = useSession();
-  const isDemo = user?.isDemo === true;
-  const me = useMe(false, !isDemo);
-  const mayManage = useMayManage();
-  const updating = useUpdatingMe();
-  const title = t('me.account.title');
-
-  if (isDemo) {
-    return (
-      <MePage title={title}>
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.account.demo')}</p>
-      </MePage>
-    );
-  }
-
-  if (me.isPending) {
-    return (
-      <MePage title={title}>
-        <Waiting lines={4} />
-      </MePage>
-    );
-  }
-
-  if (!me.data) {
-    return (
-      <MePage title={title}>
-        <LoadFailed retry={() => void me.refetch()} />
-      </MePage>
-    );
-  }
-
-  const account: Me = me.data;
-  const held = !mayManage || updating;
+  const { sessionId } = useSession();
 
   return (
-    <MePage title={title}>
-      <RefreshFailed failedAt={me.isError ? me.dataUpdatedAt : null} now={now} />
+    <AccountPage title={t('me.account.title')} demo={t('me.account.demo')}>
+      {(account, held) => (
+        <>
+          <span className="label">{t('me.account.signIn')}</span>
 
-      <span className="label">{t('me.account.signIn')}</span>
+          <Row
+            title={t('me.account.email.title')}
+            line={
+              <>
+                <span className="mono">{account.email}</span> · {t('me.account.email.line')}
+              </>
+            }
+          />
 
-      <Row
-        title={t('me.account.email.title')}
-        line={
-          <>
-            <span className="mono">{account.email}</span> · {t('me.account.email.line')}
-          </>
-        }
-      />
+          <PasswordRow held={held} />
 
-      <PasswordRow held={held} />
+          <span className="label">{t('me.account.sessions.title')}</span>
+          <Sessions currentId={sessionId} now={now} held={held} />
 
-      <span className="label">{t('me.account.sessions.title')}</span>
-      <Sessions currentId={sessionId} now={now} held={held} />
-
-      <span className="label">{t('me.account.data')}</span>
-      <ExportRow title={t('me.account.export.title')} line={t('me.account.export.note')} ask={t('me.account.export.ask')} />
-      <DeleteRow handle={account.handle} disabled={held} />
-    </MePage>
+          <span className="label">{t('me.account.data')}</span>
+          <ExportRow title={t('me.account.export.title')} line={t('me.account.export.note')} ask={t('me.account.export.ask')} />
+          <DeleteRow handle={account.handle} disabled={held} />
+        </>
+      )}
+    </AccountPage>
   );
 }
 
@@ -232,10 +201,7 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
   if (sessions.isPending) return <Waiting lines={2} />;
   if (!sessions.data) return <LoadFailed retry={() => void sessions.refetch()} />;
 
-  const rows = sortedSessions(
-    sessions.data.pages.flatMap(page => page.items),
-    currentId,
-  );
+  const rows = sortedSessions(itemsOf(sessions.data), currentId);
   const shown = all ? rows : rows.slice(0, SESSIONS_SHOWN);
   const rest = rows.length > shown.length || sessions.hasNextPage;
 
@@ -340,18 +306,3 @@ function SweepSheet({ sweep, onClose }: { sweep: ReturnType<typeof useRevokeOthe
     </Sheet>
   );
 }
-
-/**
- * Everything the account has, as a file. The zip is built in the background,
- * so this is a button and then a job: the row it is asked for is polled until
- * it is ready or has failed, and a failure says what went wrong rather than
- * sitting at "building" for ever - the same shape, and the same polling, as
- * the export at the end of a grow's report.
- *
- * Which job that is comes from the cache rather than from this component, so
- * that walking to another page and back finds the file instead of a button
- * offering to build one the server has already built. And the file is dated on
- * the chip: the route answers a standing export unchanged while it is under an
- * hour old, so somebody who has just logged a harvest and taps to take a copy
- * away can be handed a zip from before it, and has to be able to see that.
- */

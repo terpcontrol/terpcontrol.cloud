@@ -37,19 +37,10 @@ const LIGHT_TYPE = 'light';
 /** Narrow enough that a week is a readable curve, wide enough that a week is one query; a longer stretch widens it. */
 const CLIMATE_STEP_SECONDS = 900;
 
-/**
- * A device that steers a climate, and the targets it is running now.
- *
- * "Now" is the whole of what they are: the device document holds today's
- * configuration, so these figures say nothing about any stretch of a grow that
- * is over and are not a stand-in for a phase's own snapshot. What reads them is
- * what asks about the present - the timeline's window, and what a preset
- * application wrote.
- */
-export interface Controller {
+/** A device that steers a climate, and where it stands. */
+interface Controller {
   deviceId: string;
   spaceId: string | null;
-  targets: PhaseTargets | null;
 }
 
 @Injectable()
@@ -79,10 +70,9 @@ export class GrowClimateService {
 
     const rows = await this.devices.find({ spaceId: { $in: named } }, { id: 1, type: 1, spaceId: 1, configuration: 1 }).lean<StoredDevice[]>();
 
-    return rows.flatMap(device => {
-      const targets = targetsOf(device.configuration);
-      return targets || device.type === LIGHT_TYPE ? [{ deviceId: device.id, spaceId: device.spaceId, targets }] : [];
-    });
+    return rows
+      .filter(device => targetsOf(device.configuration) !== null || device.type === LIGHT_TYPE)
+      .map(device => ({ deviceId: device.id, spaceId: device.spaceId }));
   }
 
   /**

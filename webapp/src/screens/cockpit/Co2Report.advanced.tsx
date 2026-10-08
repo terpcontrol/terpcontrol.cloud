@@ -6,7 +6,9 @@ import { useCo2Report, useWriteRefill } from '@/api/co2-report';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type PlaceContext } from '@/ui/advanced/item';
 import { useUnfolded } from '@/ui/advanced/unfolded';
-import { decimalFigure } from '@/ui/figures';
+import { CO2_HOLDERS, hasCo2Sensor } from '@/ui/climate-hardware';
+import { DAY_MS } from '@/ui/days';
+import { decimalFigure, typedFigure } from '@/ui/figures';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -25,13 +27,11 @@ import styles from './Co2Report.module.css';
  * has one to watch.
  */
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /** What a soda cylinder holds, which is what most growers dose from. */
 const USUAL_FILL_GRAMS = 425;
 
 /** The hardware here that doses from a cylinder: a fridge or a tent controller, each with a CO2 sensor beside its valve. */
-const dosing = (device: Device): boolean => (device.type === 'fridge' || device.type === 'controller') && device.state?.hardware?.co2 !== 'off';
+const dosing = (device: Device): boolean => CO2_HOLDERS.includes(device.type) && hasCo2Sensor(device);
 
 const grams = (value: number): string => decimalFigure(Math.round(value), 0);
 
@@ -136,8 +136,8 @@ function RefillForm({ spaceId, deviceId, hadOne, onDone }: { spaceId: string; de
   const write = useWriteRefill(spaceId);
   const [filled, setFilled] = useState(String(USUAL_FILL_GRAMS));
   const [rest, setRest] = useState('');
-  const number = (typed: string) => Number(typed.replace(',', '.'));
-  const filledFits = filled.trim() !== '' && number(filled) > 0 && number(filled) <= 100_000;
+  const number = (typed: string) => typedFigure(typed) ?? Number.NaN;
+  const filledFits = number(filled) > 0 && number(filled) <= 100_000;
   const restFits = rest.trim() === '' || (number(rest) >= 0 && number(rest) <= 100_000);
 
   return (
@@ -174,9 +174,7 @@ function RefillForm({ spaceId, deviceId, hadOne, onDone }: { spaceId: string; de
           type="button"
           className={`${ui.button} ${ui.primary}`}
           disabled={!filledFits || !restFits || write.isPending}
-          onClick={() =>
-            write.mutate({ filledGrams: number(filled), restGrams: rest.trim() === '' ? null : number(rest), deviceId }, { onSuccess: onDone })
-          }
+          onClick={() => write.mutate({ filledGrams: number(filled), restGrams: typedFigure(rest), deviceId }, { onSuccess: onDone })}
         >
           {t('co2Report.save')}
         </button>

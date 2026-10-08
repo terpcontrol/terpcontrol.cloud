@@ -1,13 +1,8 @@
-import '@testing-library/jest-dom/vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { screen, waitFor } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Timeline } from '@/screens/Timeline';
+import { drawAt, json } from './harness';
+import { translate } from './translations';
 
 // Which of the two sessions is looking, because the tab's empty state is the
 // one thing on it that differs between them.
@@ -31,26 +26,14 @@ vi.mock('@/api/home', () => ({ useHome: () => ({ isPending: false, data: { space
  * timeline.test.tsx; what is asked here is who the empty state is addressed to.
  */
 describe('the timeline tab with nothing to draw', () => {
-  beforeAll(async () => {
-    const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-    await i18next
-      .use(initReactI18next)
-      .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-  });
+  beforeAll(() => translate());
 
   beforeEach(() => {
     who.is = 'you';
     home.spaces = [];
   });
 
-  const draw = () =>
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter>
-          <Timeline />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  const draw = () => drawAt(<Timeline />);
 
   it('sends an account with no place yet to the home, where a device is added and a grow is started', () => {
     draw();
@@ -89,13 +72,7 @@ describe('the timeline tab opened from a place', () => {
   });
 
   it('opens on the place the link names', () => {
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter initialEntries={['/timeline?space=space-2&focus=humidity']}>
-          <Timeline />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<Timeline />, { at: '/timeline?space=space-2&focus=humidity' });
 
     expect(screen.getByRole('combobox', { name: 'Switch place' })).toHaveValue('space-2');
   });
@@ -107,16 +84,10 @@ describe('the timeline tab opened from a place', () => {
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
         asked.push(String(input).replace(/^.*\/v1/, ''));
-        return new Response(JSON.stringify({ code: 'not_found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+        return json({ code: 'not_found' }, 404);
       }),
     );
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/timeline?space=customer-9']}>
-          <Timeline />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<Timeline />, { at: '/timeline?space=customer-9' });
 
     expect(screen.getByText("support view of a customer's place")).toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: 'Switch place' })).not.toBeInTheDocument();
@@ -125,13 +96,7 @@ describe('the timeline tab opened from a place', () => {
   });
 
   it('keeps an ordinary account on its own places whatever the address names', () => {
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter initialEntries={['/timeline?space=customer-9']}>
-          <Timeline />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<Timeline />, { at: '/timeline?space=customer-9' });
 
     expect(screen.queryByText("support view of a customer's place")).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Switch place' })).toBeInTheDocument();

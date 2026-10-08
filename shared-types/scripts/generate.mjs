@@ -25,7 +25,7 @@
  *                                  zod and derives its request bodies from the
  *                                  resource schemas rather than restating them,
  *                                  so it has to import the schema objects; and
- *                                  `METRIC_FIELD` and its siblings are values,
+ *                                  `VALUE_AGE` and its siblings are values,
  *                                  which no declaration file can carry.
  *
  * A single module of the second can also be imported on its own, as

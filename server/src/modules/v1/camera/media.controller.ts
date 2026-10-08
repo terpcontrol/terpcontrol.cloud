@@ -1,10 +1,10 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiBody, ApiConsumes, ApiNoContentResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { Media, MediaUpload } from '@fg2/shared-types/v1';
-import { media as mediaShape, mediaUpload } from '@fg2/shared-types/v1-schemas';
-import { AuthGuard } from '@common/auth/auth.guard';
+import { media as mediaShape, mediaUpload, uploadMediaKind } from '@fg2/shared-types/v1-schemas';
+import { AuthGuard, OptionalSessionGuard } from '@common/auth/auth.guard';
 import { AuthenticatedRequest } from '@common/auth/token.service';
 import { AccessGuard, AccessRequest, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
@@ -12,12 +12,12 @@ import { AccessContext, Grant } from '@common/v1/access.types';
 import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange, pictureOutsideRange } from '@common/v1/range';
 import { V1Query } from '@common/v1/validation';
+import { problemErrorsOf } from '@common/zod-validation.pipe';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { MediaDeliveryService } from './media-delivery.service';
-import { MediaPresentationService, RANGE_REFUSAL, parseDimension, pictureSizeQuery } from './media-presentation.service';
+import { MediaPresentationService, pictureSizeQuery, renderSizeOf } from './media-presentation.service';
 import { MediaService } from './media.service';
-import { OptionalSessionGuard } from './optional-session.guard';
-import { V1Answer } from '../answer-shape';
+import { ApiPictureBytes, V1Answer } from '../answer-shape';
 import { PICTURE_READ_OPERATION } from '../../../openapi';
 
 /**
@@ -29,13 +29,6 @@ import { PICTURE_READ_OPERATION } from '../../../openapi';
  * whole history at full size again. What is decided here is who may look, which
  * is the one thing the public page's own picture route decides differently.
  */
-/** What the store holds: stills and photos as they were taken, films as they were rendered. */
-const STORED_BYTES = {
-  'image/jpeg': { schema: { type: 'string', format: 'binary' } },
-  'image/png': { schema: { type: 'string', format: 'binary' } },
-  'video/mp4': { schema: { type: 'string', format: 'binary' } },
-};
-
 @ApiTags('media')
 @Controller('v1/media')
 export class MediaController {
@@ -66,7 +59,7 @@ export class MediaController {
       required: ['file', 'kind'],
       properties: {
         file: { type: 'string', format: 'binary', description: 'The picture, in whatever format the phone took it.' },
-        kind: { type: 'string', enum: ['photo', 'avatar'] },
+        kind: { type: 'string', enum: [...uploadMediaKind.options] },
         growId: { type: 'string' },
         spaceId: { type: 'string' },
         capturedAt: { type: 'string', format: 'date-time', description: 'When it was taken. Defaults to now.' },
@@ -130,9 +123,7 @@ export class MediaController {
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'media')
   @ApiOperation({ summary: 'The bytes of a picture or film', ...PICTURE_READ_OPERATION })
-  @ApiResponse({ status: HttpStatus.OK, description: 'The file itself, in the type it was stored as.', content: STORED_BYTES })
-  @ApiResponse({ status: HttpStatus.PARTIAL_CONTENT, description: 'The byte range a <video> element asked for.', content: STORED_BYTES })
-  @ApiResponse(RANGE_REFUSAL)
+  @ApiPictureBytes()
   public async content(
     @Param('id') id: string,
     @V1Query(pictureSizeQuery) query: z.infer<typeof pictureSizeQuery>,
@@ -141,7 +132,7 @@ export class MediaController {
   ): Promise<void> {
     const media = await this.require(id, request);
     const redacted = (request as AccessRequest).grant?.redacted === true;
-    return this.delivery.deliver(request, reply, media, { width: parseDimension(query.width), height: parseDimension(query.height) }, redacted);
+    return this.delivery.deliver(request, reply, media, renderSizeOf(query), redacted);
   }
 
   /**
@@ -244,11 +235,7 @@ const parseUpload = (body: Record<string, unknown>): MediaUpload => {
   const parsed = mediaUpload.safeParse(fields);
 
   if (!parsed.success) {
-    throw badRequest(
-      'validation_failed',
-      'The fields beside the picture do not match what this route accepts.',
-      parsed.error.issues.map(issue => ({ field: issue.path.join('.'), code: issue.code, detail: issue.message })),
-    );
+    throw badRequest('validation_failed', 'The fields beside the picture do not match what this route accepts.', problemErrorsOf(parsed.error));
   }
 
   return parsed.data;

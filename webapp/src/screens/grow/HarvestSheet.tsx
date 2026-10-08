@@ -5,9 +5,10 @@ import type { GrowListItem, HarvestResult, Plant } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useUpdateGrow } from '@/api/grows';
 import { useHarvest } from '@/api/lifecycle';
-import { Sheet } from '@/log/Sheet';
+import type { Translate } from '@/i18n/i18n';
+import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
-import { readingFigure } from '@/ui/entries';
+import { looseFigure, typedFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Block, WhenField } from '@/ui/SheetParts';
@@ -75,13 +76,13 @@ export function HarvestSheet({
   const body = {
     plantIds: chosen,
     harvestedAt: instantOf(DateTime.fromJSDate(at)),
-    wetWeightG: gramsOf(wet),
-    dryWeightG: gramsOf(dry),
+    wetWeightG: typedFigure(wet),
+    dryWeightG: typedFigure(dry),
   };
 
   return (
     <Sheet title={t('grow.lifecycle.harvest.title', { name: grow.name })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         {plants.length === 0 ? (
           <NothingPlanted grow={grow} onClose={onClose} />
         ) : standing.length === 0 ? (
@@ -183,8 +184,6 @@ export function HarvestSheet({
   );
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /**
  * The sheet over a grow whose record holds no plants: everything brought over
  * from the old app, which kept no plant list, and anything started without one.
@@ -246,21 +245,15 @@ function Weight({ label, value, onChange }: { label: string; value: string; onCh
   );
 }
 
-/** What a scale said, as a number. An empty field is not a weight of nothing, so it stays null. */
-const gramsOf = (typed: string): number | null => {
-  const value = Number(typed.replace(',', '.').trim());
-  return typed.trim() && Number.isFinite(value) ? value : null;
-};
-
 /** "300 g wet over 3 plants · 100 g each": what the server will do with the total, before it does it. */
 const shareNote = (t: Translate, count: number, wet: number | null, dry: number | null): string => {
   if (count === 0) return t('grow.lifecycle.harvest.pickSomething');
   if (wet === null && dry === null) return t('grow.lifecycle.harvest.weightsOptional');
 
-  const each = (total: number) => readingFigure(Math.round((total / count) * 100) / 100);
+  const each = (total: number) => looseFigure(Math.round((total / count) * 100) / 100);
   const parts = [
-    wet === null ? '' : t('grow.lifecycle.harvest.eachWet', { total: readingFigure(wet), each: each(wet), count }),
-    dry === null ? '' : t('grow.lifecycle.harvest.eachDry', { total: readingFigure(dry), each: each(dry), count }),
+    wet === null ? '' : t('grow.lifecycle.harvest.eachWet', { total: looseFigure(wet), each: each(wet), count }),
+    dry === null ? '' : t('grow.lifecycle.harvest.eachDry', { total: looseFigure(dry), each: each(dry), count }),
   ];
 
   return parts.filter(Boolean).join(' · ');
@@ -269,8 +262,8 @@ const shareNote = (t: Translate, count: number, wet: number | null, dry: number 
 const weightLine = (t: Translate, plant: Plant): string => {
   if (!plant.harvest) return '';
   const parts = [
-    plant.harvest.wetWeightG === null ? '' : t('grow.report.wet', { grams: readingFigure(plant.harvest.wetWeightG) }),
-    plant.harvest.dryWeightG === null ? '' : t('grow.report.dry', { grams: readingFigure(plant.harvest.dryWeightG) }),
+    plant.harvest.wetWeightG === null ? '' : t('grow.report.wet', { grams: looseFigure(plant.harvest.wetWeightG) }),
+    plant.harvest.dryWeightG === null ? '' : t('grow.report.dry', { grams: looseFigure(plant.harvest.dryWeightG) }),
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(' · ') : t('grow.lifecycle.harvest.noWeight');

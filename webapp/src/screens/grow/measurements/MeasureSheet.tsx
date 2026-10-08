@@ -6,12 +6,14 @@ import { Link } from 'react-router';
 import type { EntryCreate, EntryReading, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { diaryChanged, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow, useGrowPlants } from '@/api/grows';
+import type { Translate } from '@/i18n/i18n';
 import { about, lineLabel } from '@/log/lines';
 import { useLog, type LogTarget } from '@/log/log-context';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
-import { readingFigure } from '@/ui/entries';
+import { looseFigure, typedFigure } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
+import { Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { bandOf, lastReadings, slotOf, withUnit } from './definitions';
@@ -148,13 +150,13 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
       {standing.length > 0 && perPlant ? (
         <div className={styles.chips} role="group" aria-label={t('grow.measurements.measure.whichPlant')}>
           {standing.map(plant => (
-            <Chip key={plant.id} chosen={plant.id === plantId} onChoose={() => setChosenPlant(plant.id)}>
+            <Choice key={plant.id} chosen={plant.id === plantId} onChoose={() => setChosenPlant(plant.id)}>
               {plant.label}
-            </Chip>
+            </Choice>
           ))}
-          <Chip chosen={plantId === null} onChoose={() => setChosenPlant(null)}>
+          <Choice chosen={plantId === null} onChoose={() => setChosenPlant(null)}>
             {t('grow.measurements.measure.wholeGrow')}
-          </Chip>
+          </Choice>
         </div>
       ) : null}
 
@@ -162,10 +164,10 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
         {offered.map(one => {
           const shown = typed[slotOf(one.key, one.perPlant ? plantId : null)] || figureOf(last.get(slotOf(one.key, one.perPlant ? plantId : null)));
           return (
-            <Chip key={one.key} chosen={one.key === definition?.key} onChoose={() => setKey(one.key)}>
+            <Choice key={one.key} chosen={one.key === definition?.key} onChoose={() => setKey(one.key)}>
               {one.name}
               {shown ? <span className={styles.chipValue}> · {shown}</span> : null}
-            </Chip>
+            </Choice>
           );
         })}
         {target.growId ? (
@@ -246,16 +248,6 @@ function NothingToMeasure({ target, onClose }: MeasureSheetProps) {
   );
 }
 
-function Chip({ chosen, onChoose, children }: { chosen: boolean; onChoose: () => void; children: React.ReactNode }) {
-  return (
-    <button type="button" className={ui.chip} data-chosen={chosen} aria-pressed={chosen} onClick={onChoose}>
-      {children}
-    </button>
-  );
-}
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /**
  * What everything typed comes to. A field left empty is not a reading of
  * nothing, so it is left out, and the plant a reading belongs to is the one its
@@ -265,13 +257,13 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 const readingsOf = (typed: Record<string, string>, definitions: MeasurementDefinition[]): EntryReading[] =>
   Object.entries(typed).flatMap(([slot, text]) => {
     const [key, plantId] = slot.split('|');
-    const value = Number(text.replace(',', '.').trim());
-    if (!text.trim() || !Number.isFinite(value) || !definitions.some(one => one.key === key)) return [];
+    const value = typedFigure(text);
+    if (value === null || !definitions.some(one => one.key === key)) return [];
 
     return [{ key, value, plantId: plantId || null }];
   });
 
-const figureOf = (reading: { value: number } | undefined): string => (reading ? readingFigure(reading.value) : '');
+const figureOf = (reading: { value: number } | undefined): string => (reading ? looseFigure(reading.value) : '');
 
 /** What the field is called, so the figure in it can be read as the figure it is. */
 const fieldLabel = (t: Translate, definition: MeasurementDefinition): string =>
@@ -305,8 +297,8 @@ const hintOf = (
   now: ReturnType<typeof useNow>,
 ): string => {
   const mine = last.get(slotOf(definition.key, definition.perPlant ? plantId : null));
-  const typed = Number(draft.replace(',', '.'));
-  const moved = mine && draft.trim() !== '' && Number.isFinite(typed) ? typed - mine.value : null;
+  const typed = typedFigure(draft);
+  const moved = mine && typed !== null ? typed - mine.value : null;
   const band = bandOf(t, definition);
 
   const other = definition.perPlant
@@ -319,9 +311,9 @@ const hintOf = (
   return [
     mine ? t('grow.measurements.measure.last', { value: withUnit(mine.value, definition.unit) }) : t('grow.measurements.measure.never'),
     mine ? t('grow.measurements.measure.ago', { age: ageLabel(mine.at, now) }) : '',
-    moved === null || moved === 0 ? '' : `${moved > 0 ? '+' : ''}${readingFigure(moved)}`,
+    moved === null || moved === 0 ? '' : `${moved > 0 ? '+' : ''}${looseFigure(moved)}`,
     t('grow.measurements.target', { band: band ?? t('grow.measurements.noTarget') }),
-    other?.reading ? t('grow.measurements.measure.otherPlant', { plant: other.plant.label, value: readingFigure(other.reading.value) }) : '',
+    other?.reading ? t('grow.measurements.measure.otherPlant', { plant: other.plant.label, value: looseFigure(other.reading.value) }) : '',
   ]
     .filter(Boolean)
     .join(' · ');

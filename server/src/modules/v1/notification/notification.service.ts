@@ -1,8 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { DateTime } from 'luxon';
 import type { NotificationChannel, Severity } from '@fg2/shared-types/v1';
+import { inQuietWindow, silenceOf } from '@fg2/shared-types/v1-schemas';
+import { localOf } from '@common/v1/local-time';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
@@ -121,35 +122,12 @@ export class NotificationService implements AlarmRouting {
   }
 }
 
-/**
- * Silence, in the two shapes a person can ask for it. A mute is absolute, on
- * purpose: somebody who taps "mute all" while they work on a tent means every
- * alarm the tent is about to raise. Quiet hours are a night's sleep, and a
- * critical alarm is worth interrupting one.
- */
-const heldBack = (settings: StoredNotificationSettings, severity: Severity, timezone: string): boolean => {
-  if (settings.mutedUntil && settings.mutedUntil.getTime() > Date.now()) return true;
-  if (severity === 'critical') return false;
+const heldBack = (settings: StoredNotificationSettings, severity: Severity, timezone: string): boolean =>
+  silenceOf(severity, !!settings.mutedUntil && settings.mutedUntil.getTime() > Date.now(), inQuietHours(settings.quietHours, timezone)) !== null;
 
-  return inQuietHours(settings.quietHours, timezone);
-};
-
-/**
- * A window with no date on it, read in the person's own time zone: it is
- * minutes from their midnight, so the same setting means the same night
- * wherever the server stands. A window that crosses midnight has its start
- * after its end, which is what the two branches are.
- */
+/** Quiet hours read in the person's own time zone, so the same setting means the same night wherever the server stands. */
 export const inQuietHours = (quiet: StoredNotificationSettings['quietHours'], timezone: string, at: Date = new Date()): boolean => {
-  if (!quiet) return false;
+  const clock = localOf(at, timezone);
 
-  // A time zone the account carries but this host has never heard of would
-  // otherwise make every window unreadable; UTC is the server's own clock.
-  const local = DateTime.fromJSDate(at, { zone: timezone || 'UTC' });
-  const clock = local.isValid ? local : DateTime.fromJSDate(at, { zone: 'UTC' });
-  const minute = clock.hour * 60 + clock.minute;
-
-  return quiet.fromMinute <= quiet.toMinute
-    ? minute >= quiet.fromMinute && minute < quiet.toMinute
-    : minute >= quiet.fromMinute || minute < quiet.toMinute;
+  return inQuietWindow(quiet, clock.hour * 60 + clock.minute);
 };

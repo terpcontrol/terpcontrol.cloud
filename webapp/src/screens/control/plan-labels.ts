@@ -1,8 +1,9 @@
 import type { DeviceConfiguration, GerminationChoices, GrowthStage, StepDuration } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import { stageChoiceName } from '@/ui/presets';
-import { isDarkStage, stepLightHours, stepLightsOn } from './plan-edit';
+import { wallClock } from '@/ui/wall-clock';
+import { isDarkStage, stepLightHours, stepLightsOn, writesNothing } from './plan-edit';
 import { hoursWritten } from './targets/schedule-words';
-import { wallClock } from './targets/targets-draft';
 
 /**
  * What a step says about itself in one line, wherever it is drawn.
@@ -13,14 +14,12 @@ import { wallClock } from './targets/targets-draft';
  * and nowhere else.
  */
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /** The words a length is written in - "3 wk", "10 d" - or what a step with no length really is. */
-export const durationLabel = (t: Translate, duration: StepDuration): string =>
+export const stepLengthLabel = (t: Translate, duration: StepDuration): string =>
   duration.value > 0 ? t(`space.control.unit.${duration.unit}`, { count: duration.value }) : t('space.control.openEnded');
 
 /** The facts of a step that its line is made of, which a saved step and one being written both have. */
-export interface StepFacts {
+interface StepFacts {
   stage: GrowthStage | null;
   preset: string | null;
   duration: StepDuration;
@@ -63,7 +62,7 @@ export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = 
   return [
     step.stage ? stageChoiceName(t, step.stage) : t('space.control.noStage'),
     step.preset ? t(`grow.presetName.${step.preset}`, { defaultValue: step.preset }) : null,
-    durationLabel(t, step.duration),
+    stepLengthLabel(t, step.duration),
     hours !== null
       ? own !== null && offset !== null
         ? t('planLight.shortFrom', { hours: hoursWritten(hours), time: wallClock(own, offset) })
@@ -72,7 +71,7 @@ export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = 
     step.stage === 'germination' && step.germinationChoices?.warnTooHumid ? t('space.control.step.warnsTooHumid') : null,
     step.stage === 'germination' && step.germinationChoices?.humidifierHolds === false ? t('space.control.step.humidifierRests') : null,
     step.waitForConfirmation ? t('space.control.waits') : null,
-    !isDarkStage(step.stage) && Object.keys(step.settings).length === 0 && step.lightHours == null
+    !isDarkStage(step.stage) && writesNothing(settings) && step.lightHours == null
       ? t(afterGermination ? 'space.control.step.endsGerminationShort' : 'space.control.step.writesNothingShort')
       : null,
   ]

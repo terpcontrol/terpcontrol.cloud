@@ -2,7 +2,7 @@ import { Inject, Injectable, OnApplicationShutdown, OnModuleInit, Optional } fro
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Subscription } from 'rxjs';
-import { Metric, OutputMetric } from '@fg2/shared-types/v1';
+import { isSection } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { HARDWARE_INFO_PREFIX, deviceMessageFact, parseDeviceMessage } from '@common/v1/device-messages';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { metricOfField, outputMetricOfField } from '@common/v1/metrics';
@@ -111,7 +111,7 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     this.work.stop();
   }
 
-  public async connect(): Promise<void> {
+  private async connect(): Promise<void> {
     try {
       await this.mqtt.connect();
       await this.mqtt.subscribe(DEVICE_TOPIC_FILTER);
@@ -245,8 +245,11 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     await this.metrics?.onSample({
       deviceId: device.id,
       measuredAt: sample.measuredAt,
-      values: metricValues(sample.sensors),
-      outputs: outputValues(sample.outputs),
+      values: renamed(sample.sensors, metricOfField),
+      // The device reports an output under its bare name and the store writes it
+      // with the `out_` prefix, so the translation goes through the stored field -
+      // one table for both directions.
+      outputs: renamed(sample.outputs, key => outputMetricOfField(`out_${key}`)),
     });
   }
 
@@ -414,8 +417,7 @@ const parsed = (payload: string): unknown => {
   }
 };
 
-const asRecord = (value: unknown): Record<string, unknown> | null =>
-  value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+const asRecord = (value: unknown): Record<string, unknown> | null => (isSection(value) ? value : null);
 
 /** The numbers of one flat object, as the device sends them. Anything else is not a reading. */
 const numbers = (value: unknown): Record<string, number> => {
@@ -462,35 +464,16 @@ const sampleOf = (payload: string, dated: boolean): DeviceSample | null => {
 
 /**
  * The same reading under the names the contract gives them, which is what a rule
- * is written against. A field the API names no metric for is a diagnostic: it is
+ * is written against. A field the API names nothing for is a diagnostic: it is
  * stored and nothing is evaluated on it.
  */
-const metricValues = (sensors: Record<string, number>): Partial<Record<Metric, number>> => {
-  const values: Partial<Record<Metric, number>> = {};
-
-  for (const [field, value] of Object.entries(sensors)) {
-    const metric = metricOfField(field);
-    if (metric) values[metric] = value;
-  }
-
-  return values;
-};
-
-/**
- * The outputs of the same message, likewise named. The device reports an output
- * under its bare name and the store writes it with the `out_` prefix, so the
- * translation goes through the stored field - one table for both directions.
- */
-const outputValues = (outputs: Record<string, number>): Partial<Record<OutputMetric, number>> => {
-  const values: Partial<Record<OutputMetric, number>> = {};
-
-  for (const [key, value] of Object.entries(outputs)) {
-    const output = outputMetricOfField(`out_${key}`);
-    if (output) values[output] = value;
-  }
-
-  return values;
-};
+const renamed = <K extends string>(fields: Record<string, number>, nameOf: (field: string) => K | null): Partial<Record<K, number>> =>
+  Object.fromEntries(
+    Object.entries(fields).flatMap(([field, value]) => {
+      const name = nameOf(field);
+      return name ? [[name, value]] : [];
+    }),
+  ) as Partial<Record<K, number>>;
 
 /**
  * A successful capture never reaches the diary, and a failed one only where the
