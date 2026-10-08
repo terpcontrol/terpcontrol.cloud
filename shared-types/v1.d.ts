@@ -71,8 +71,6 @@ export type NotificationCategory = 'alerts' | 'warnings' | 'tasks' | 'plan' | 'w
 
 export type NotificationSubjectType = 'alert' | 'task' | 'plan' | 'media';
 
-export type ExportStatus = 'queued' | 'running' | 'ready' | 'failed';
-
 export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
 
 export type OperatingMode = 'standard' | 'greenhouse' | 'germination';
@@ -120,8 +118,6 @@ export type AlarmDeliveryMode = 'routing' | 'custom';
 export type AlarmDeliveryChannel = 'email' | 'webhook';
 
 export type AlarmWatch = ReadingWatch | OutputLevelWatch | OutputRunningWatch;
-
-export type AdminLogLevel = 'error' | 'warn' | 'info';
 
 export type PresetPrompt = 'ask' | 'never';
 
@@ -649,8 +645,6 @@ export interface SessionResult {
   user: SessionUser;
 }
 
-export interface DemoSessionCreate {}
-
 export interface SessionRefresh {
   refreshToken: string;
 }
@@ -711,23 +705,6 @@ export interface NotificationLogEntry {
   externalMessageId: string | null;
   sentAt: string;
   expiresAt: string;
-}
-
-export interface UserExport {
-  id: string;
-  createdAt: string;
-  status: ExportStatus;
-  startedAt: string | null;
-  endedAt: string | null;
-  downloadUrl: string | null;
-  /**
-   * When the finished file is swept; null while it is still being made.
-   */
-  validUntil: string | null;
-  /**
-   * Why it failed; null otherwise.
-   */
-  detail: string | null;
 }
 
 export interface AdminUserPage {
@@ -1939,27 +1916,6 @@ export interface AdminStats {
   alarmWatch: AdminAlarmWatch;
 }
 
-export interface AdminLogLine {
-  /**
-   * What the list is paged by; the log is the process's own and not a collection of this model.
-   */
-  id: string;
-  loggedAt: string;
-  level: AdminLogLevel;
-  context: string;
-  message: string;
-  deviceId: string | null;
-  userId: string | null;
-}
-
-export interface AdminLogPage {
-  items: AdminLogLine[];
-  /**
-   * Pass back as `cursor` for the next page; null on the last one.
-   */
-  nextCursor: string | null;
-}
-
 export interface SpaceRetention {
   /**
    * How long raw climate points are kept; null is the install default.
@@ -2336,14 +2292,6 @@ export interface SpaceUpdate {
   roomId?: string | null;
   presetPrompt?: PresetPrompt;
   retention?: SpaceRetention;
-}
-
-export interface DevicePlacement {
-  deviceId: string;
-  /**
-   * The space the device now stands in; null once it has been taken out.
-   */
-  spaceId: string | null;
 }
 
 export interface PresetApplicationCreate {
@@ -3451,14 +3399,6 @@ export interface Migration {
   stats: {
     [k: string]: number;
   };
-}
-
-export interface MigrationPage {
-  items: Migration[];
-  /**
-   * Pass back as `cursor` for the next page; null on the last one.
-   */
-  nextCursor: string | null;
 }
 
 export interface CardValue {

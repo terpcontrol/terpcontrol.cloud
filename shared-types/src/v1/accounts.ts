@@ -463,14 +463,6 @@ export const sessionResult = named(
 );
 
 /**
- * `POST /sessions/demo`: the tour of the demo objects, which needs no
- * credentials and therefore carries nothing. The empty body is named all the
- * same, so that the contract says "this route takes no arguments" rather than
- * leaving a client to guess what it forgot to send.
- */
-export const demoSessionCreate = named('DemoSessionCreate', z.object({}));
-
-/**
  * `POST /sessions/refresh`. The refresh token is spent and a fresh
  * `SessionTokens` triple comes back - not a `SessionResult`: the session and the
  * person behind it are the ones the client already knows.
@@ -568,27 +560,6 @@ export const notificationLogEntry = named(
     externalMessageId: z.string().nullable(),
     sentAt: instant(),
     expiresAt: instant(),
-  }),
-);
-
-export const exportStatus = named('ExportStatus', z.enum(['queued', 'running', 'ready', 'failed']));
-
-/**
- * `GET /me/export`. Zipping a person's grows, their CSVs and their photos does
- * not finish inside a request, so the route answers this and it is polled until
- * `downloadUrl` is there.
- */
-export const userExport = named(
-  'UserExport',
-  z.object({
-    id: id(),
-    createdAt: instant(),
-    status: exportStatus,
-    startedAt: instant().nullable(),
-    endedAt: instant().nullable(),
-    downloadUrl: z.string().nullable(),
-    validUntil: instant().nullable().describe('When the finished file is swept; null while it is still being made.'),
-    detail: z.string().nullable().describe('Why it failed; null otherwise.'),
   }),
 );
 

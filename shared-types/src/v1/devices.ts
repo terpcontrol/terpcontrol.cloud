@@ -1352,27 +1352,3 @@ export const adminStats = named(
     alarmWatch: adminAlarmWatch,
   }),
 );
-
-export const adminLogLevel = named('AdminLogLevel', z.enum(['error', 'warn', 'info']));
-
-/**
- * One line of the server's own log, which is not a diary entry: the diary is
- * what happened to a grow, this is what happened inside the process, and a
- * hosted install has no shell to read it in. `context` is the module that wrote
- * the line, and the two ids are filled where a line is about one.
- */
-export const adminLogLine = named(
-  'AdminLogLine',
-  z.object({
-    id: id().describe("What the list is paged by; the log is the process's own and not a collection of this model."),
-    loggedAt: instant(),
-    level: adminLogLevel,
-    context: z.string(),
-    message: z.string(),
-    deviceId: id().nullable(),
-    userId: id().nullable(),
-  }),
-);
-
-/** `GET /admin/logs`. Paged like every list, because a log has no end. */
-export const adminLogPage = named('AdminLogPage', page(adminLogLine));

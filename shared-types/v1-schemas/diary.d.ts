@@ -2190,17 +2190,6 @@ export declare const migration: z.ZodObject<{
     durationMs: z.ZodNumber;
     stats: z.ZodRecord<z.ZodString, z.ZodNumber>;
 }, z.core.$strip>;
-export declare const migrationPage: z.ZodObject<{
-    items: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        createdAt: z.ZodISODateTime;
-        name: z.ZodString;
-        appliedAt: z.ZodISODateTime;
-        durationMs: z.ZodNumber;
-        stats: z.ZodRecord<z.ZodString, z.ZodNumber>;
-    }, z.core.$strip>>;
-    nextCursor: z.ZodNullable<z.ZodString>;
-}, z.core.$strip>;
 /**
  * A metric as a card draws it: the one `MetricValue` with the metric it belongs
  * to written into it, because a card carries a list of them while a device read

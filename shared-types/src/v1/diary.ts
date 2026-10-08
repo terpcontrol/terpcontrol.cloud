@@ -1026,8 +1026,6 @@ export const migration = named(
   }),
 );
 
-export const migrationPage = named('MigrationPage', page(migration));
-
 // ---------------------------------------------------------------------------
 // Read models
 //

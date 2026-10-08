@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.userExport = exports.exportStatus = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.demoSessionCreate = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.emailAlarmsCreate = exports.meUpdate = exports.me = exports.meClimateRetention = exports.premium = exports.premiumFree = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.layoutSeen = exports.userPrivacy = void 0;
+exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.emailAlarmsCreate = exports.meUpdate = exports.me = exports.meClimateRetention = exports.premium = exports.premiumFree = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.layoutSeen = exports.userPrivacy = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -353,13 +353,6 @@ exports.sessionResult = (0, common_js_1.named)('SessionResult', exports.sessionT
     user: exports.sessionUser,
 }));
 /**
- * `POST /sessions/demo`: the tour of the demo objects, which needs no
- * credentials and therefore carries nothing. The empty body is named all the
- * same, so that the contract says "this route takes no arguments" rather than
- * leaving a client to guess what it forgot to send.
- */
-exports.demoSessionCreate = (0, common_js_1.named)('DemoSessionCreate', zod_1.z.object({}));
-/**
  * `POST /sessions/refresh`. The refresh token is spent and a fresh
  * `SessionTokens` triple comes back - not a `SessionResult`: the session and the
  * person behind it are the ones the client already knows.
@@ -435,22 +428,6 @@ exports.notificationLogEntry = (0, common_js_1.named)('NotificationLogEntry', zo
     externalMessageId: zod_1.z.string().nullable(),
     sentAt: (0, common_js_1.instant)(),
     expiresAt: (0, common_js_1.instant)(),
-}));
-exports.exportStatus = (0, common_js_1.named)('ExportStatus', zod_1.z.enum(['queued', 'running', 'ready', 'failed']));
-/**
- * `GET /me/export`. Zipping a person's grows, their CSVs and their photos does
- * not finish inside a request, so the route answers this and it is polled until
- * `downloadUrl` is there.
- */
-exports.userExport = (0, common_js_1.named)('UserExport', zod_1.z.object({
-    id: (0, common_js_1.id)(),
-    createdAt: (0, common_js_1.instant)(),
-    status: exports.exportStatus,
-    startedAt: (0, common_js_1.instant)().nullable(),
-    endedAt: (0, common_js_1.instant)().nullable(),
-    downloadUrl: zod_1.z.string().nullable(),
-    validUntil: (0, common_js_1.instant)().nullable().describe('When the finished file is swept; null while it is still being made.'),
-    detail: zod_1.z.string().nullable().describe('Why it failed; null otherwise.'),
 }));
 /**
  * `GET /admin/users`. An administrator is the one other reader of an address and
