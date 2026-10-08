@@ -2,7 +2,7 @@ import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { OFFLINE_RULE_NAME, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -31,9 +31,6 @@ import { ALARM_DEVICE_FIELDS, AlarmDevice } from './alarm.types';
  */
 
 const TICK_MS = 60 * 1000;
-
-/** What the always-on offline rule is called where a name is shown. */
-const OFFLINE_RULE_NAME = 'Device offline';
 
 /** How often a device that stays gone is said to be gone. */
 const OFFLINE_REPEAT_SECONDS = 30 * 60;

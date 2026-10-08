@@ -12,7 +12,7 @@ import type { AlarmRule, AlarmRuleCreate, Device, Me, SpaceOverview } from '@fg2
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Alarms } from '@/screens/control/alarms/Alarms';
-import { boundLabel, channelsLabel, routedChannels, scaleNote, type Translate, watchLabel } from '@/screens/control/alarms/rules';
+import { boundLabel, channelsLabel, repeatsEvery, routedChannels, scaleNote, type Translate, watchLabel } from '@/screens/control/alarms/rules';
 import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
 import { headersOf } from '@/ui/headers';
 
@@ -1304,6 +1304,15 @@ describe('what a rule is called', () => {
       options?: Record<string, unknown>,
     ) => string;
     expect(channelsLabel(t, routedChannels(account, 'critical'))).toBe('push (off) + webhook (off)');
+  });
+
+  it('says a rule repeats as often as the server sends it: a mail no more often than every five minutes', () => {
+    const mail = { channel: 'email' as const, target: 'you@example.invalid', includeDetails: true, webhook: null };
+
+    expect(repeatsEvery(rule({ repeatSeconds: 60, delivery: { mode: 'custom', custom: mail } }))).toBe(300);
+    expect(repeatsEvery(rule({ repeatSeconds: 3600, delivery: { mode: 'custom', custom: mail } }))).toBe(3600);
+    // A rule routed through the account's grid is not a mail of its own, whatever delivery it kept from before.
+    expect(repeatsEvery(rule({ repeatSeconds: 60, delivery: { mode: 'routing', custom: mail } }))).toBe(60);
   });
 
   it('reads headers off their lines and drops what is not one', () => {

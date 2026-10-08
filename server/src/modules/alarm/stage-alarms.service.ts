@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { GrowthStage } from '@fg2/shared-types/v1';
+import { repeatSecondsOf } from '@fg2/shared-types/v1-schemas';
 import { StageAlarmBand, stageAlarmBands } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
@@ -19,15 +20,6 @@ import { AlarmRuleService } from './alarm-rule.service';
  * it a severity or a delivery of its own, silencing it - none of that is undone
  * by the next stage, which only moves the band, the duration and the name.
  */
-
-/**
- * A critical alarm repeats until it is resolved, as the decision record has
- * it, so a tent that is too hot is said again every half hour rather than once
- * to whoever happened to hold the phone; a warning is read in the morning and
- * is said once. It is written on the rule at insert, so a person can still
- * turn a preset rule's repeat off and have it stay off through the next stage.
- */
-const CRITICAL_REPEAT_SECONDS = 30 * 60;
 
 /** What the rules are called where a name is shown. Stable, so a rule keeps its name when the band under it moves. */
 const BAND_NAME: Readonly<Record<StageAlarmBand['key'], string>> = {
@@ -103,7 +95,7 @@ const insertedOf = (band: StageAlarmBand) => ({
   severity: band.severity,
   enabled: true,
   cooldownSeconds: 0,
-  repeatSeconds: band.severity === 'critical' ? CRITICAL_REPEAT_SECONDS : 0,
+  repeatSeconds: repeatSecondsOf(band.severity),
   delivery: { mode: 'routing', custom: null },
   silencedUntil: null,
   state: { triggered: false, lastTriggeredAt: null, lastResolvedAt: null, extremeValue: null, lastSampleAt: null },

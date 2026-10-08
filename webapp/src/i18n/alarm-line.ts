@@ -1,5 +1,6 @@
 import type { i18n as I18n } from 'i18next';
 import type { Metric } from '@fg2/shared-types/v1';
+import { OFFLINE_RULE_NAME } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { figure, targetFigure, UNIT } from '@/screens/home/units';
 
 /**
@@ -32,9 +33,6 @@ const SILENT = /^(.*), last heard (.+) ago$/;
 const BACK_AFTER = /^(.*), back after (.+)$/;
 const BACK = /^(.*), back$/;
 
-/** The name the cloud gives the offline rule it keeps for every device, which is the rule's name on most of these lines. */
-const KEPT_OFFLINE_RULE = 'Device offline';
-
 const numberOf = (text: string | undefined): number | null => {
   if (text === undefined || text === 'n/a' || text === 'null') return null;
   const value = Number(text);
@@ -43,7 +41,7 @@ const numberOf = (text: string | undefined): number | null => {
 
 const isReading = (watched: string): watched is Metric => watched in UNIT;
 
-const ruleName = (i18n: I18n, name: string): string => (name === KEPT_OFFLINE_RULE ? i18n.t('alarmLine.deviceOffline') : name);
+const ruleName = (i18n: I18n, name: string): string => (name === OFFLINE_RULE_NAME ? i18n.t('alarmLine.deviceOffline') : name);
 
 const reading = (value: number, metric: Metric): string => [figure(value, metric), UNIT[metric]].filter(Boolean).join(' ');
 

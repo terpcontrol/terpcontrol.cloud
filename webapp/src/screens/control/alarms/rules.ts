@@ -11,11 +11,17 @@ import type {
   Metric,
   NotificationChannel,
   OutputMetric,
-  QuietHours,
   Severity,
   WebhookMethod,
 } from '@fg2/shared-types/v1';
-import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
+import {
+  alertCategory,
+  CRITICAL_REPEAT_SECONDS,
+  inQuietWindow,
+  mailFloorSecondsOf,
+  repeatSecondsOf,
+  silenceOf,
+} from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { UNIT, targetFigure } from '@/screens/home/units';
 import { looseFigure } from '@/ui/figures';
 import { isAhead } from '@/ui/age';
@@ -43,14 +49,10 @@ export const ORIGINS: AlarmOrigin[] = ['preset', 'always', 'device', 'human'];
 export const groupRules = (rules: AlarmRule[]): { origin: AlarmOrigin; rules: AlarmRule[] }[] =>
   ORIGINS.map(origin => ({ origin, rules: rules.filter(rule => rule.origin === origin) })).filter(group => group.rules.length > 0);
 
-/** The always-on watch: the health loop decides it, so it has no line to cross and cannot be pointed at anything else. */
-/** An e-mail is never repeated more often than this, whatever its rule says: the server's floor for a mail. */
-const MAIL_REPEAT_FLOOR_SECONDS = 300;
-
 /** How often a rule really repeats: its own interval, or the mail floor for a rule that e-mails. */
-export const repeatsEvery = (rule: AlarmRule): number =>
-  rule.delivery.custom?.channel === 'email' ? Math.max(rule.repeatSeconds, MAIL_REPEAT_FLOOR_SECONDS) : rule.repeatSeconds;
+export const repeatsEvery = (rule: AlarmRule): number => Math.max(rule.repeatSeconds, mailFloorSecondsOf(rule.delivery));
 
+/** The always-on watch: the health loop decides it, so it has no line to cross and cannot be pointed at anything else. */
 export const watchesOffline = (watch: AlarmWatch | RuleDraft['watch']): boolean => watch.kind === 'reading' && watch.metric === 'offline';
 
 /**
@@ -315,40 +317,25 @@ export const routedChannels = (me: Me | undefined, severity: Severity): RoutedCh
  * being listened to.
  *
  * Routing is only half of what decides whether a rule reaches anybody: the
- * server holds every message back while the account is muted, whatever the
- * severity and whatever the grid says, and holds back everything short of
- * critical during quiet hours. A rules page that reads only the grid therefore
- * promised "goes to you by e-mail · repeats every 30 min" for an account that
- * had muted itself a tab away and would have been sent nothing at all.
+ * server holds every message back while the account is muted and everything
+ * short of critical during quiet hours, by the contract's `silenceOf`. A rules
+ * page that reads only the grid therefore promised "goes to you by e-mail ·
+ * repeats every 30 min" for an account that had muted itself a tab away and
+ * would have been sent nothing at all.
  *
- * It mirrors `heldBack` in the server's NotificationService, down to a mute
- * being absolute and a critical alarm being worth waking somebody for, and is
- * read in the account's own zone because that is the zone the window was set
- * in and the one the server reads it in. Only a rule routed through the
- * account's grid is subject to it: a rule delivering to a target of its own
- * goes out through the alarm's own delivery and is unaffected by either.
+ * Quiet hours are read in the account's own zone, because that is the zone the
+ * window was set in and the one the server reads it in, and not on the
+ * browser's clock. Only a rule routed through the account's grid is subject to
+ * it: a rule delivering to a target of its own goes out through the alarm's own
+ * delivery and is unaffected by either.
  */
 export const heldBackBy = (me: Me | undefined, severity: Severity, now: DateTime): 'muted' | 'quiet' | null => {
   if (!me) return null;
-  if (isAhead(me.notifications.mutedUntil ?? null, now)) return 'muted';
-  if (severity === 'critical') return null;
-
-  return inQuietHours(me.notifications.quietHours ?? null, zoneOf(me), now) ? 'quiet' : null;
-};
-
-/**
- * Quiet hours are minutes from the account's own midnight, so the window is
- * read on that clock and not on the browser's. A window that runs past
- * midnight has its start after its end, which is what the two branches are.
- */
-const inQuietHours = (quiet: QuietHours | null, zone: string | null, now: DateTime): boolean => {
-  if (!quiet) return false;
+  const zone = zoneOf(me);
   const local = zone ? now.setZone(zone) : now;
-  const minute = local.hour * 60 + local.minute;
+  const quiet = inQuietWindow(me.notifications.quietHours ?? null, local.hour * 60 + local.minute);
 
-  return quiet.fromMinute <= quiet.toMinute
-    ? minute >= quiet.fromMinute && minute < quiet.toMinute
-    : minute >= quiet.fromMinute || minute < quiet.toMinute;
+  return silenceOf(severity, isAhead(me.notifications.mutedUntil ?? null, now), quiet);
 };
 
 export type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -401,14 +388,6 @@ export interface RuleDraft {
 }
 
 /**
- * How often a critical rule says itself again while it lasts. The same half
- * hour the server writes into the rule the cloud keeps and into every critical
- * rule a stage applies: something that wakes somebody is worth hearing twice,
- * and anything quieter is said once and read when there is time.
- */
-const CRITICAL_REPEAT_MINUTES = 30;
-
-/**
  * The repeat a severity comes with. Changing the severity brings its repeat
  * with it, because the two are one decision - how bad is this, and how often
  * should it be said - and a critical rule that announces itself once and then
@@ -416,7 +395,7 @@ const CRITICAL_REPEAT_MINUTES = 30;
  * a change, so a repeat typed by hand survives it.
  */
 export const withSeverity = (draft: RuleDraft, severity: Severity): RuleDraft =>
-  severity === draft.severity ? draft : { ...draft, severity, repeatMinutes: severity === 'critical' ? CRITICAL_REPEAT_MINUTES : 0 };
+  severity === draft.severity ? draft : { ...draft, severity, repeatMinutes: repeatSecondsOf(severity) / 60 };
 
 /**
  * What a new rule starts out watching: the first reading the device measures,
@@ -455,7 +434,7 @@ export const emptyDraft = (watch: RuleDraft['watch']): RuleDraft => ({
   reportErrors: true,
   tunnel: false,
   includeDetails: true,
-  repeatMinutes: CRITICAL_REPEAT_MINUTES,
+  repeatMinutes: CRITICAL_REPEAT_SECONDS / 60,
 });
 
 const bound = (value: number | null): string => (value === null ? '' : String(value));

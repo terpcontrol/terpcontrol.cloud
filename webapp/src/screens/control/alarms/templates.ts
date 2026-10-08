@@ -1,4 +1,5 @@
 import type { AlarmRule, AlarmRuleCreate, Device, OutputMetric } from '@fg2/shared-types/v1';
+import { CRITICAL_REPEAT_SECONDS } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { statesTargets } from '@/ui/climate-hardware';
 import { draftOf as targetsOf } from '../targets/targets-draft';
 import { createBody, emptyDraft, outputsOf, readingsOf, type Translate } from './rules';
@@ -75,7 +76,7 @@ export const templatesFor = (device: Device): AlarmTemplate[] => {
         value('warm', held => Math.max(held.dayTemperature, held.nightTemperature) + 5),
       ),
       forMinutes: 10,
-      repeatMinutes: 30,
+      repeatMinutes: CRITICAL_REPEAT_SECONDS / 60,
     },
     {
       key: 'cold',
@@ -85,7 +86,7 @@ export const templatesFor = (device: Device): AlarmTemplate[] => {
         value('cold', held => Math.min(held.dayTemperature, held.nightTemperature) - 4),
       ),
       forMinutes: 15,
-      repeatMinutes: 30,
+      repeatMinutes: CRITICAL_REPEAT_SECONDS / 60,
     },
     {
       key: 'humid',
