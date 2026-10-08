@@ -11,6 +11,7 @@ import { isDuplicateKey } from '@database/duplicate-key';
 import { MODEL_V1 } from '@database/models';
 import { StoredPlanTemplate } from '@database/schemas/v1/plan-templates.schema';
 import { figureRefusals, TEMPLATE_FIGURES } from '@modules/device-protocol/document-figures';
+import { accountOf } from '../caller';
 import { stepsOf } from './plan-steps';
 import { planTemplateOf } from './plan.wire';
 
@@ -56,7 +57,7 @@ export class PlanTemplatesService {
     const template: StoredPlanTemplate = {
       id: uuidv4(),
       createdAt: new Date(),
-      ownerId: this.accountOf(ctx),
+      ownerId: accountOf(ctx, 'A plan template belongs to somebody, and this session is nobody.'),
       name: body.name,
       isPublic: body.isPublic,
       steps: stepsOf(body.steps),
@@ -124,12 +125,6 @@ export class PlanTemplatesService {
 
     if (template.isPublic) throw forbidden('insufficient_access', 'This plan template may be read but not changed by you.');
     throw notFound('plan_template_not_found', 'There is no plan template with that id.');
-  }
-
-  private accountOf(ctx: AccessContext): string {
-    if (ctx.isDemo || !ctx.userId) throw forbidden('no_account', 'A plan template belongs to somebody, and this session is nobody.');
-
-    return ctx.userId;
   }
 
   /** A name is unique to its owner, so the second template called "Autoflower" is refused by the index rather than by a look that could be raced. */

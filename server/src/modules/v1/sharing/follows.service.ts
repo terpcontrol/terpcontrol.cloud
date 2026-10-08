@@ -6,10 +6,11 @@ import type { Follow } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
-import { conflict, forbidden } from '@common/v1/problem';
+import { conflict } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { FollowDocument } from '@database/schemas/v1/follows.schema';
+import { accountOf } from '../caller';
 import { GrowsService } from '../grow/grows.service';
 
 /**
@@ -31,7 +32,7 @@ export class FollowsService {
 
   /** Newest first, which is the order the home screen lists them in. */
   public async list(ctx: AccessContext, query: PageQuery): Promise<CursorPage<Follow>> {
-    return mapPage(await findPage(this.follows, [{ userId: this.accountOf(ctx) }], query), serialise);
+    return mapPage(await findPage(this.follows, [{ userId: accountOf(ctx) }], query), serialise);
   }
 
   /**
@@ -39,7 +40,7 @@ export class FollowsService {
    * state rather than an event, and tapping the button twice is one follow.
    */
   public async follow(ctx: AccessContext, growId: string): Promise<Follow> {
-    const userId = this.accountOf(ctx);
+    const userId = accountOf(ctx);
 
     // Asked first, so that a grow this person may not see at all is not there
     // rather than refused: a refusal would say it exists.
@@ -65,14 +66,7 @@ export class FollowsService {
    * refusal here would leave the row where it is.
    */
   public async unfollow(ctx: AccessContext, growId: string): Promise<void> {
-    await this.follows.deleteOne({ userId: this.accountOf(ctx), growId });
-  }
-
-  /** A follow belongs to somebody, and a demo session is nobody. */
-  private accountOf(ctx: AccessContext): string {
-    if (ctx.isDemo || !ctx.userId) throw forbidden('no_account', 'This route is about an account, and a demo session is not one.');
-
-    return ctx.userId;
+    await this.follows.deleteOne({ userId: accountOf(ctx), growId });
   }
 }
 

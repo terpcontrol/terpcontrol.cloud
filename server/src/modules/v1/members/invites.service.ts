@@ -14,6 +14,7 @@ import { InviteDocument } from '@database/schemas/v1/invites.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { SpacesService } from '@modules/v1/space/spaces.service';
+import { accountOf } from '../caller';
 import { MembersService } from './members.service';
 
 /**
@@ -70,7 +71,7 @@ export class InvitesService {
    * cannot be taken back afterwards.
    */
   public async create(ctx: AccessContext, spaceId: string, body: InviteCreate): Promise<Invite> {
-    const createdBy = this.members.accountOf(ctx);
+    const createdBy = accountOf(ctx);
     await this.members.require(spaceId);
 
     const invite: InviteDocument = {
@@ -159,7 +160,7 @@ export class InvitesService {
    * true answer.
    */
   public async accept(ctx: AccessContext, code: string, now: Date = new Date()): Promise<InviteAcceptance> {
-    const userId = this.members.accountOf(ctx);
+    const userId = accountOf(ctx);
     const gone = notFound('invite_not_found', 'That invite leads nowhere.');
 
     const invite = await this.invites.findOne({ code }).lean<InviteDocument>();

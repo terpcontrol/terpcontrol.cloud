@@ -1,14 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { Scheme, SchemeCreate, SchemeUpdate } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
+import { ownRows, requireOwned } from '@common/v1/owned-rows';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
-import { forbidden, notFound } from '@common/v1/problem';
+import { notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { SchemeDocument } from '@database/schemas/v1/schemes.schema';
+import { accountOf } from '../caller';
+
+const missing = () => notFound('scheme_not_found', 'There is no feeding scheme with that id.');
 
 /**
  * The feeding schemes somebody keeps of their own: one they wrote from nothing,
@@ -35,7 +39,7 @@ export class SchemesService {
 
   /** Newest first: the list opens on what somebody saved last. */
   public async list(ctx: AccessContext, query: PageQuery): Promise<CursorPage<Scheme>> {
-    const own = this.ownRows(ctx);
+    const own = ownRows(ctx);
     if (!own) return { items: [], nextCursor: null };
 
     return mapPage(await findPage(this.schemes, [own], query), schemeOf);
@@ -45,7 +49,7 @@ export class SchemesService {
     const scheme: SchemeDocument = {
       id: uuidv4(),
       createdAt: new Date(),
-      ownerId: this.accountOf(ctx),
+      ownerId: accountOf(ctx, 'A feeding scheme belongs to somebody, and this session is nobody.'),
       name: body.name,
       origin: { assetId: body.origin?.assetId ?? null, version: body.origin?.version ?? null },
       grid: body.grid,
@@ -61,7 +65,7 @@ export class SchemesService {
    * week that has gone from the table is a week that is no longer fed.
    */
   public async update(ctx: AccessContext, id: string, body: SchemeUpdate): Promise<Scheme> {
-    const scheme = await this.ownedBy(ctx, id);
+    const scheme = await requireOwned(this.schemes, ctx, id, missing);
     const changed: Partial<SchemeDocument> = {
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.origin !== undefined ? { origin: { assetId: body.origin.assetId, version: body.origin.version } } : {}),
@@ -79,53 +83,8 @@ export class SchemesService {
    * lets this one be edited at all.
    */
   public async remove(ctx: AccessContext, id: string): Promise<void> {
-    await this.ownedBy(ctx, id);
+    await requireOwned(this.schemes, ctx, id, missing);
     await this.schemes.deleteOne({ id }).exec();
-  }
-
-  /**
-   * The rows a caller may see at all, as one filter rather than a decision per
-   * row, or null where that is none: a demo session is a tour and not an
-   * account, so it owns nothing, and nothing here is anybody's but its owner's.
-   *
-   * Not even an administrator's. This is the filter the listing is held to,
-   * and the listing is the person's own "Feeding schemes" page; answering it
-   * install-wide would have put strangers' rows on it. The office is kept where
-   * it means something - one scheme named by id, below.
-   */
-  private ownRows(ctx: AccessContext): FilterQuery<SchemeDocument> | null {
-    if (ctx.isDemo || ctx.userId === null) return null;
-
-    return { ownerId: ctx.userId };
-  }
-
-  /**
-   * The scheme as its owner, for the three routes that need one. Somebody
-   * else's is answered as missing rather than as refused: a scheme is nobody's
-   * business but its owner's, so a refusal that named one would report that it
-   * exists to a person with no way of knowing that otherwise.
-   */
-  private async ownedBy(ctx: AccessContext, id: string): Promise<SchemeDocument> {
-    // Here, and not in the filter above, is where an administrator is widened:
-    // asking for one named scheme is the office acting deliberately on a row
-    // somebody has pointed at, which is the same distinction `access()` draws
-    // between deciding one subject and answering a list.
-    const own = ctx.isAdmin ? {} : this.ownRows(ctx);
-    const scheme =
-      own &&
-      (await this.schemes
-        .findOne({ $and: [{ id }, own] })
-        .lean<SchemeDocument>()
-        .exec());
-    if (!scheme) throw notFound('scheme_not_found', 'There is no feeding scheme with that id.');
-
-    return scheme;
-  }
-
-  private accountOf(ctx: AccessContext): string {
-    if (ctx.isDemo || !ctx.userId) throw forbidden('no_account', 'A feeding scheme belongs to somebody, and this session is nobody.');
-
-    return ctx.userId;
   }
 }
 

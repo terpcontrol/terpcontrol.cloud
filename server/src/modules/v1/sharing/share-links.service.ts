@@ -7,12 +7,13 @@ import type { ShareLink, ShareLinkCreate, ShareLinkUpdate, TimeRange } from '@fg
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
-import { conflict, forbidden, notFound, unprocessable } from '@common/v1/problem';
+import { conflict, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
+import { accountOf } from '../caller';
 
 /**
  * The `shareLinks` collection: an address somebody can hand out, and the window
@@ -81,7 +82,7 @@ export class ShareLinksService {
    * has reported; a listing is not.
    */
   private async visibleTo(ctx: AccessContext): Promise<FilterQuery<ShareLinkDocument>> {
-    const userId = this.accountOf(ctx);
+    const userId = accountOf(ctx);
     const [grows, spaces] = await Promise.all([
       this.grows.find({ ownerId: userId }, { id: 1 }).lean<Pick<GrowDocument, 'id'>[]>(),
       this.spaces.find({ ownerId: userId }, { id: 1 }).lean<Pick<SpaceDocument, 'id'>[]>(),
@@ -97,7 +98,7 @@ export class ShareLinksService {
   }
 
   public async create(ctx: AccessContext, body: ShareLinkCreate): Promise<ShareLink> {
-    const createdBy = this.accountOf(ctx);
+    const createdBy = accountOf(ctx);
     await this.access.require(ctx, subjectRef(body.subject.type, body.subject.id), 'own');
 
     const range = rangeOf(body.range);
@@ -256,13 +257,6 @@ export class ShareLinksService {
         'This grow is private, so it has no public page to link to. Make it public first, or share it with a read-only view link.',
       );
     }
-  }
-
-  /** A link belongs to somebody, and a demo session is nobody. */
-  private accountOf(ctx: AccessContext): string {
-    if (ctx.isDemo || !ctx.userId) throw forbidden('no_account', 'This route is about an account, and a demo session is not one.');
-
-    return ctx.userId;
   }
 }
 

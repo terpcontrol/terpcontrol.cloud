@@ -1,16 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { ChartView, ChartViewCreate, ChartViewDefinition, ChartViewSpan, ChartViewUpdate } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
+import { ownRows, requireOwned } from '@common/v1/owned-rows';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
-import { forbidden, notFound } from '@common/v1/problem';
+import { notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { ChartViewDocument } from '@database/schemas/v1/chart-views.schema';
+import { accountOf } from '../caller';
 
 type StoredDefinition = ChartViewDocument['definition'];
+
+const missing = () => notFound('chart_view_not_found', 'There is no saved chart with that id.');
 
 /**
  * The charts somebody saved to come back to.
@@ -32,7 +36,7 @@ export class ChartViewsService {
 
   /** Newest first: the list opens on what somebody saved last. */
   public async list(ctx: AccessContext, query: PageQuery): Promise<CursorPage<ChartView>> {
-    const own = this.ownRows(ctx);
+    const own = ownRows(ctx);
     if (!own) return { items: [], nextCursor: null };
 
     return mapPage(await findPage(this.views, [own], query), chartViewOf);
@@ -42,7 +46,7 @@ export class ChartViewsService {
     const view: ChartViewDocument = {
       id: uuidv4(),
       createdAt: new Date(),
-      ownerId: this.accountOf(ctx),
+      ownerId: accountOf(ctx, 'A saved chart belongs to somebody, and this session is nobody.'),
       name: body.name,
       definition: storedDefinition(body.definition),
     };
@@ -53,7 +57,7 @@ export class ChartViewsService {
 
   /** Each field only if it changes, so renaming a view does not ask for what it draws back. */
   public async update(ctx: AccessContext, id: string, body: ChartViewUpdate): Promise<ChartView> {
-    const view = await this.ownedBy(ctx, id);
+    const view = await requireOwned(this.views, ctx, id, missing);
     const changed: Partial<ChartViewDocument> = {
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.definition !== undefined ? { definition: storedDefinition(body.definition) } : {}),
@@ -66,51 +70,8 @@ export class ChartViewsService {
 
   /** The view is gone. It held nothing but the question, so nothing goes with it. */
   public async remove(ctx: AccessContext, id: string): Promise<void> {
-    await this.ownedBy(ctx, id);
+    await requireOwned(this.views, ctx, id, missing);
     await this.views.deleteOne({ id }).exec();
-  }
-
-  /**
-   * The rows a caller may see at all, as one filter rather than a decision per
-   * row, or null where that is none: a demo session is a tour and not an
-   * account, so it has no saved views and may save none.
-   *
-   * An administrator is answered as the person here. This filter is what the
-   * listing is held to, and a list of saved charts is somebody's own notebook;
-   * an install-wide answer would have filled it with strangers' questions. One
-   * view named by id is widened instead, below.
-   */
-  private ownRows(ctx: AccessContext): FilterQuery<ChartViewDocument> | null {
-    if (ctx.isDemo || ctx.userId === null) return null;
-
-    return { ownerId: ctx.userId };
-  }
-
-  /**
-   * The view as its owner, for the three routes that need one. Somebody else's
-   * is answered as missing rather than as refused, because a refusal that named
-   * one would report that it exists to a person with no way of knowing that
-   * otherwise.
-   */
-  private async ownedBy(ctx: AccessContext, id: string): Promise<ChartViewDocument> {
-    // The office reaches a named view, the way it reaches any other named row;
-    // what it does not do is widen the listing, which is the person's own.
-    const own = ctx.isAdmin ? {} : this.ownRows(ctx);
-    const view =
-      own &&
-      (await this.views
-        .findOne({ $and: [{ id }, own] })
-        .lean<ChartViewDocument>()
-        .exec());
-    if (!view) throw notFound('chart_view_not_found', 'There is no saved chart with that id.');
-
-    return view;
-  }
-
-  private accountOf(ctx: AccessContext): string {
-    if (ctx.isDemo || !ctx.userId) throw forbidden('no_account', 'A saved chart belongs to somebody, and this session is nobody.');
-
-    return ctx.userId;
   }
 }
 

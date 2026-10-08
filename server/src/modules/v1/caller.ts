@@ -1,4 +1,4 @@
-import { AuthContext } from '@common/auth/token.service';
+import { AccessContext } from '@common/v1/access.types';
 import { forbidden } from '@common/v1/problem';
 
 /**
@@ -8,8 +8,11 @@ import { forbidden } from '@common/v1/problem';
  * there is nothing of its own for it to read or change, and it is told that
  * rather than being handed somebody else's or an empty answer.
  */
-export const accountOf = (caller: AuthContext): string => {
-  if (caller.isDemo || !caller.userId) throw forbidden('no_account', 'This route is about an account, and a demo session is not one.');
+export const accountOf = (
+  caller: Pick<AccessContext, 'userId' | 'isDemo'>,
+  detail = 'This route is about an account, and a demo session is not one.',
+): string => {
+  if (caller.isDemo || !caller.userId) throw forbidden('no_account', detail);
 
   return caller.userId;
 };

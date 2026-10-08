@@ -7,7 +7,7 @@ import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { findPage } from '@common/v1/pages';
 import { peopleNamed } from '@common/v1/people';
-import { conflict, forbidden, notFound } from '@common/v1/problem';
+import { conflict, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -16,6 +16,7 @@ import { InviteDocument } from '@database/schemas/v1/invites.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
+import { accountOf } from '../caller';
 
 /**
  * The `memberships` collection: who, besides the owner, is in a space.
@@ -129,7 +130,7 @@ export class MembersService {
 
     if (person.id === space.ownerId) throw conflict('owner_here', 'This account owns the space, which is more than any membership gives.');
 
-    return this.join(spaceId, person.id, body.role, { invitedBy: this.accountOf(ctx), inviteId: null });
+    return this.join(spaceId, person.id, body.role, { invitedBy: accountOf(ctx), inviteId: null });
   }
 
   /**
@@ -245,7 +246,7 @@ export class MembersService {
    * answered differently per handle would be a way of asking who is here.
    */
   private async knownTo(ctx: AccessContext, handle: string): Promise<StoredUser> {
-    const userId = this.accountOf(ctx);
+    const userId = accountOf(ctx);
     const person = await this.users.findOne({ handle, isActive: true, deletionStartedAt: null }).lean<StoredUser>();
     const unknown = notFound('handle_not_found', 'Nobody you grow with goes by that name.');
     if (!person || person.id === userId) throw unknown;
@@ -286,13 +287,6 @@ export class MembersService {
     if (!space) throw notFound('space_not_found', 'There is no space with that id.');
 
     return space;
-  }
-
-  /** A membership belongs to somebody, and a demo session is nobody. */
-  public accountOf(ctx: AccessContext): string {
-    if (ctx.isDemo || !ctx.userId) throw forbidden('no_account', 'This route is about an account, and a demo session is not one.');
-
-    return ctx.userId;
   }
 }
 
