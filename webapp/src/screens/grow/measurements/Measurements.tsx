@@ -28,11 +28,6 @@ import styles from './Measurements.module.css';
  */
 export function Measurements() {
   const { growId = '' } = useParams();
-
-  return <MeasurementsScreen growId={growId} />;
-}
-
-function MeasurementsScreen({ growId }: { growId: string }) {
   const { t } = useTranslation();
   const now = useNow();
   const grow = useGrow(growId);

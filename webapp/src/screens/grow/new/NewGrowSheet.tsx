@@ -17,7 +17,7 @@ import { instantOf } from '@/ui/age';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import { stageChoiceName, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
-import { enough, useMayManage } from '@/ui/session-access';
+import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR } from '@/ui/zone';
@@ -27,6 +27,7 @@ import { usePlaceController } from '../phase-climate';
 import { dayNumber, growBody, growIn, presetFor, recordsOnly, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
 import styles from './NewGrow.module.css';
 import { typeName } from '@/ui/naming';
+import { growPlaces } from '../placement';
 
 /** The kinds of place a grow can be started in. A room holds other places rather than plants, so it is not one of them. */
 const SPACE_KINDS: SpaceKind[] = ['tent', 'fridge', 'balcony', 'other'];
@@ -154,9 +155,7 @@ function Form({
   const navigate = useNavigate();
   const mayManage = useMayManage();
 
-  // Starting a grow in a place is managing it, so the places on offer are the
-  // ones this account manages; "no fixed place" needs none and stays.
-  const places = spaces.filter(space => space.archivedAt === null && space.kind !== 'room' && enough(space.youMay, 'manage'));
+  const places = growPlaces(spaces);
   const [draft, setDraft] = useState<Draft>(() => ({
     name: '',
     plants: [{ key: '1', strain: '', count: 1 }],

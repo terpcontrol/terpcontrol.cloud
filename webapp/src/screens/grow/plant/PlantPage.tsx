@@ -4,13 +4,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import type { Entry, GrowListItem, GrowSeries, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
-import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { useGrow, useGrowPlants, useGrowSeries, usePlantEntries } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { useCorrecting } from '@/log/corrections';
-import { authorOf, headlineOf, KIND_ICON } from '@/ui/entries';
+import { authorOf, growDayOf, headlineOf, KIND_ICON } from '@/ui/entries';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -40,11 +39,6 @@ const LINES = 12;
  */
 export function PlantPage() {
   const { growId = '', plantId = '' } = useParams();
-
-  return <PlantScreen growId={growId} plantId={plantId} />;
-}
-
-function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
   const { t } = useTranslation();
   const now = useNow();
   const grow = useGrow(growId);
@@ -157,7 +151,7 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
       ) : (
         <ul className={styles.lines} aria-label={t('grow.plant.ownEntries')}>
           {lines.slice(0, LINES).map(entry => (
-            <Line key={entry.id} entry={entry} grow={grow.data!} plant={plant} measurements={grow.data!.measurements} />
+            <Line key={entry.id} entry={entry} grow={grow.data!} plant={plant} />
           ))}
         </ul>
       )}
@@ -231,7 +225,7 @@ function Hero({ plant, photos, grow }: { plant: Plant; photos: Entry[]; grow: Gr
 
   return (
     <figure className={styles.hero}>
-      <img src={src} alt={t('grow.plant.photoAlt', { label: plant.label, day: dayOfEntry(grow, newest) ?? '—' })} loading="lazy" />
+      <img src={src} alt={t('grow.plant.photoAlt', { label: plant.label, day: growDayOf(grow, newest.occurredAt) ?? '—' })} loading="lazy" />
       <figcaption className={`${ui.photoCaption} ${styles.heroChip}`}>{t('grow.plant.photos', { count: photos.length })}</figcaption>
     </figure>
   );
@@ -257,7 +251,7 @@ function Figures({ grow, plant, entries, definitions, series }: FiguresProps) {
   const newest = points[points.length - 1];
   const before = points[points.length - 2];
   const training = entries.find(entry => entry.kind === 'training');
-  const trainedOn = training ? dayOfEntry(grow, training) : null;
+  const trainedOn = training ? growDayOf(grow, training.occurredAt) : null;
 
   return (
     <dl className={ui.strip}>
@@ -286,7 +280,6 @@ interface LineProps {
   entry: Entry;
   grow: GrowListItem;
   plant: Plant;
-  measurements: MeasurementDefinition[];
 }
 
 /**
@@ -304,13 +297,13 @@ interface LineProps {
  * this row has to agree with - otherwise a member taps somebody else's reading,
  * fills the sheet in and is refused on save.
  */
-function Line({ entry, grow, plant, measurements }: LineProps) {
+function Line({ entry, grow, plant }: LineProps) {
   const { t, i18n } = useTranslation();
   const zone = useZone();
   const { user } = useSession();
   const correcting = useCorrecting();
   const Icon = KIND_ICON[entry.kind];
-  const day = dayOfEntry(grow, entry);
+  const day = growDayOf(grow, entry.occurredAt);
   const readings = 'readings' in entry.values ? entry.values.readings : [];
   // The plant's own label rather than the grow's: a line drawn here is about
   // this plant, and the toast that acknowledges the correction says so.
@@ -327,7 +320,7 @@ function Line({ entry, grow, plant, measurements }: LineProps) {
       <span className={styles.lineText}>
         {headlineOf(t, i18n, entry)}
         {readings.map(reading => {
-          const definition = measurements.find(one => one.key === reading.key);
+          const definition = grow.measurements.find(one => one.key === reading.key);
 
           return (
             <span key={`${reading.key}-${reading.plantId ?? ''}`} className={`mono ${styles.lineReading}`}>
@@ -356,10 +349,6 @@ const byPlant = (plant: Plant) => (point: { plantId: string | null }) => point.p
 
 const hasReadings = (series: GrowSeries | undefined, plantId: string): boolean =>
   (series?.measurements ?? []).some(one => one.points.some(point => point.plantId === plantId));
-
-/** Which day of the grow a line happened on, from the grow's own origin; null before the first phase. */
-const dayOfEntry = (grow: GrowListItem, entry: Entry): number | null =>
-  grow.summary.dayNumber === null ? null : growDayAt(growOriginOf(grow), entry.occurredAt);
 
 /** How far the newest reading has moved since the one before it, and over how long. */
 const movement = (t: Translate, newest: { value: number; measuredAt: string }, before: { value: number; measuredAt: string } | undefined): string => {

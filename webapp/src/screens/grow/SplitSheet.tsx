@@ -8,12 +8,12 @@ import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { presetsOf } from '@/ui/presets';
-import { enough } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { PlantPicker } from './PlantPicker';
 import styles from './Lifecycle.module.css';
+import { growPlaces } from './placement';
 
 /**
  * Some plants going their own way while the rest of the grow carries on: a
@@ -55,9 +55,7 @@ export function SplitSheet({
   const { t } = useTranslation();
   const split = useSplit(grow.id);
 
-  // Splitting plants off into a place is managing that place, so one this
-  // account may only write lines in is left out rather than refused on save.
-  const open = spaces.filter(space => space.archivedAt === null && space.kind !== 'room' && enough(space.youMay, 'manage'));
+  const open = growPlaces(spaces);
   const [chosen, setChosen] = useState<string[]>(preselect ?? []);
   const [stage, setStage] = useState<GrowthStage | null>(null);
   const [preset, setPreset] = useState<string | null>(null);

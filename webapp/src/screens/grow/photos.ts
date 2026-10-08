@@ -3,7 +3,7 @@ import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js
 import { DAY_IN_YEAR, zoned } from '@/ui/zone';
 
 /** One picture of a grow, with what it is shown under in the viewer. */
-export interface GrowPicture {
+interface GrowPicture {
   mediaId: string;
   takenAt: string;
   day: number | null;

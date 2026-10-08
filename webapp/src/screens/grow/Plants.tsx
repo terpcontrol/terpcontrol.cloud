@@ -5,6 +5,7 @@ import type { useGrowPlants } from '@/api/grows';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import styles from './GrowPage.module.css';
+import { placeName } from './placement';
 
 interface PlantsProps {
   grow: GrowListItem;
@@ -31,8 +32,7 @@ function PlantList({ grow, page, spaces }: { grow: GrowListItem; page: PlantPage
   const stageOf = (plantId: string) => summary.groups.find(group => group.plantIds.includes(plantId))?.stage ?? summary.stage;
   const placeOf = (plantId: string) => {
     const location = summary.locations.find(one => one.plantIds.includes(plantId));
-    if (!location) return null;
-    return location.spaceId ? (spaces.find(space => space.id === location.spaceId)?.name ?? '…') : t('grow.noFixedPlace');
+    return location ? placeName(t, spaces, location.spaceId) : null;
   };
 
   if (page.items.length === 0) return <p className={`${ui.cardDashed} ${ui.note} ${styles.empty}`}>{t('grow.noPlants')}</p>;

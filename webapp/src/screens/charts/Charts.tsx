@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import { timelinePath, useCurrentPlace } from '@/app/places';
-import type { ChartView, ChartViewDefinition, GrowListItem, ShareLink } from '@fg2/shared-types/v1';
+import type { ChartView, ChartViewDefinition, ChartViewLayout, GrowListItem, ShareLink } from '@fg2/shared-types/v1';
 import { CHART_METRICS, CHART_OUTPUTS } from '@/api/charts';
 import { useChartViews } from '@/api/chart-views';
 import { serverNow } from '@/api/clock';
@@ -50,7 +50,6 @@ import {
   outputTitle,
   prunedTo,
   type Card,
-  type Layout,
   type LeafOffsets,
   type Picked,
 } from './cards';
@@ -82,7 +81,7 @@ import {
 import { stepLabel, STEPS } from './steps';
 import styles from './Charts.module.css';
 
-const LAYOUTS: Layout[] = ['stacked', 'overlay', 'day_of_grow'];
+const LAYOUTS: ChartViewLayout[] = ['stacked', 'overlay', 'day_of_grow'];
 
 /** How many output chips stand in the bar before the rest go behind "+ more". */
 const OUTPUTS_SHOWN = 2;

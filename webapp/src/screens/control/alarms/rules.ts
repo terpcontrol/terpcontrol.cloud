@@ -2,6 +2,7 @@ import type { DateTime } from 'luxon';
 import { headersOf } from '@/ui/headers';
 import type {
   AlarmDelivery,
+  AlarmDeliveryChannel,
   AlarmOrigin,
   AlarmRule,
   AlarmRuleCreate,
@@ -365,7 +366,7 @@ export interface RuleDraft {
   lower: string;
   forMinutes: number;
   severity: Severity;
-  tellBy: 'routing' | 'email' | 'webhook';
+  tellBy: 'routing' | AlarmDeliveryChannel;
   email: string;
   url: string;
   method: WebhookMethod;

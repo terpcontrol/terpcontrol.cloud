@@ -1,4 +1,6 @@
 import type {
+  ChartViewDefinition,
+  ChartViewLayout,
   MeasurementDefinition,
   Metric,
   OutputMetric,
@@ -51,13 +53,7 @@ import { stepLabel } from './steps';
  * about both, so everything else gets a card of its own.
  */
 
-export interface Picked {
-  metrics: Metric[];
-  outputs: OutputMetric[];
-  measurements: string[];
-}
-
-export type Layout = 'stacked' | 'overlay' | 'day_of_grow';
+export type Picked = Pick<ChartViewDefinition, 'metrics' | 'outputs' | 'measurements'>;
 
 /** The one pair of units that belongs on one panel: what a tent is steered by, read together. */
 const TOGETHER: Metric[] = ['temperature', 'humidity'];
@@ -189,7 +185,7 @@ export type VpdMode = 'all' | 'day' | 'night';
 
 export interface CardsInput {
   picked: Picked;
-  layout: Layout;
+  layout: ChartViewLayout;
   offered: Offered;
   leaf: LeafOffsets | null;
   plants: readonly PlantName[];
@@ -301,7 +297,7 @@ const cardOf = (key: string, title: string, about: string, unit: string, drawn: 
 const cornerFigure = (value: number, metric: Metric | undefined): string => (metric === undefined ? looseFigure(value) : targetFigure(value, metric));
 
 /** The window, the nights and the axis, which are the same for every card on the screen. */
-const framed = (card: Card, series: ChartData, layout: Layout): Card => {
+const framed = (card: Card, series: ChartData, layout: ChartViewLayout): Card => {
   const origin = originOf(series);
   const day = layout === 'day_of_grow';
   const stamp = (time: number) => (day ? dayOfGrow(time, origin) : time);

@@ -19,7 +19,7 @@ import { Feeding } from './Feeding';
 import { GrowLifecycle } from './Lifecycle';
 import { PhaseBar } from './PhaseBar';
 import { PhaseTips } from './PhaseTips';
-import { lastPlaceOf } from './placement';
+import { lastPlaceOf, placeName } from './placement';
 import { Plants } from './Plants';
 import { Report } from './Report';
 import { ShareSheet } from './ShareSheet';
@@ -142,13 +142,12 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
   // the day a grow ended on moves with the zone while the fact that it ended
   // does not.
   const endedOn = grow.endedAt ? calendarDay(grow.endedAt, zone) : null;
-  const nameOf = (spaceId: string | null) => (spaceId ? (spaces.find(space => space.id === spaceId)?.name ?? '…') : t('grow.noFixedPlace'));
   // Where the plants are now, which a grow whose placements have all been
   // closed no longer has. Its report names the tent on every chapter and the
   // move sheet lists the span it stood there, so a header with nothing at all
   // in that slot is the one screen that forgets it - the closed placement
   // answers for it, said as the past tense it is.
-  const places = summary.locations.map(location => ({ spaceId: location.spaceId, name: nameOf(location.spaceId) }));
+  const places = summary.locations.map(location => ({ spaceId: location.spaceId, name: placeName(t, spaces, location.spaceId) }));
   const stood = places.length > 0 ? null : lastPlaceOf(grow);
   const placeLink = (spaceId: string | null, label: string) =>
     spaceId ? (
@@ -168,7 +167,7 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
   const said: ReactNode[] = [
     ...(plants.length > 0 ? [strainsOf(plants)] : []),
     ...places.map(place => placeLink(place.spaceId, place.name)),
-    ...(stood ? [placeLink(stood.spaceId, t('grow.stoodIn', { name: nameOf(stood.spaceId) }))] : []),
+    ...(stood ? [placeLink(stood.spaceId, t('grow.stoodIn', { name: placeName(t, spaces, stood.spaceId) }))] : []),
   ];
 
   return (

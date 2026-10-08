@@ -15,12 +15,7 @@ import { looseFigure } from '@/ui/figures';
  * nobody else can read, and the sentence is what a grower would say anyway.
  */
 
-export interface MeasurementTemplate {
-  key: string;
-  unit: string;
-  perPlant: boolean;
-  chart: boolean;
-}
+type MeasurementTemplate = Pick<MeasurementDefinition, 'key' | 'unit' | 'perPlant' | 'chart'>;
 
 /**
  * The air comes first: somebody without a device reads the tent off a
@@ -110,7 +105,7 @@ export const readingCounts = (series: GrowMeasurementSeries[] | undefined): Map<
   new Map((series ?? []).map(one => [one.key, one.points.length]));
 
 /** What was written last under one key, for one plant or for the grow itself. */
-export interface LastReading {
+interface LastReading {
   value: number;
   at: string;
   plantId: string | null;

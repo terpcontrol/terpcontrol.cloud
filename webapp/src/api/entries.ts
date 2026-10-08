@@ -1,6 +1,16 @@
 import { keepPreviousData, type QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
-import type { Entry, EntryCreate, EntryPage, EntryUpdate, Media, Phase, PhaseCreate, TaskCompletionCreate } from '@fg2/shared-types/v1';
+import type {
+  Entry,
+  EntryCreate,
+  EntryPage,
+  EntryUpdate,
+  HumanEntryKind,
+  Media,
+  Phase,
+  PhaseCreate,
+  TaskCompletionCreate,
+} from '@fg2/shared-types/v1';
 import { api } from './client';
 import { readEvery } from './pages';
 
@@ -33,7 +43,7 @@ export const useDeviceEntries = (deviceId: string, limit: number) =>
   });
 
 /** The kinds a tile prefills from, asked for in one read. */
-const RECENT_KINDS = ['water', 'feed', 'measurement', 'training', 'visit', 'photo', 'note'].join(',');
+const RECENT_KINDS: HumanEntryKind[] = ['water', 'feed', 'measurement', 'training', 'visit', 'photo', 'note'];
 
 /** Enough rows that the newest of every one of those kinds is among them, even for somebody who writes a lot. */
 const RECENT_LIMIT = 40;
@@ -45,7 +55,7 @@ export const useRecentEntries = (growId: string | null, spaceId: string | null) 
     queryFn: ({ signal }) =>
       api.get<EntryPage>(
         '/entries',
-        { growId: growId ?? undefined, spaceId: growId ? undefined : (spaceId ?? undefined), kinds: RECENT_KINDS, limit: RECENT_LIMIT },
+        { growId: growId ?? undefined, spaceId: growId ? undefined : (spaceId ?? undefined), kinds: RECENT_KINDS.join(','), limit: RECENT_LIMIT },
         signal,
       ),
     enabled: Boolean(growId ?? spaceId),

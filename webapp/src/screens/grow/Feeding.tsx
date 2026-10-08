@@ -99,6 +99,20 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
       </>
     ) : null;
 
+  const sheet = choosing ? (
+    <SchemeSheet
+      grow={grow}
+      shipped={shipped.data ?? []}
+      own={own.data?.items ?? []}
+      grid={draft?.grid ?? []}
+      onSwitch={scheme => {
+        setDraft(scheme);
+        setChoosing(false);
+      }}
+      onClose={() => setChoosing(false)}
+    />
+  ) : null;
+
   if (!draft) {
     return (
       <div className={styles.page}>
@@ -123,19 +137,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
           </div>
         ) : null}
         {unsaved}
-        {choosing ? (
-          <SchemeSheet
-            grow={grow}
-            shipped={shipped.data ?? []}
-            own={own.data?.items ?? []}
-            grid={[]}
-            onSwitch={scheme => {
-              setDraft(scheme);
-              setChoosing(false);
-            }}
-            onClose={() => setChoosing(false)}
-          />
-        ) : null}
+        {sheet}
       </div>
     );
   }
@@ -298,19 +300,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
         {t('grow.scheme.chartCaption')} {t('grow.scheme.honesty')}
       </p>
 
-      {choosing ? (
-        <SchemeSheet
-          grow={grow}
-          shipped={shipped.data ?? []}
-          own={own.data?.items ?? []}
-          grid={draft.grid}
-          onSwitch={scheme => {
-            setDraft(scheme);
-            setChoosing(false);
-          }}
-          onClose={() => setChoosing(false)}
-        />
-      ) : null}
+      {sheet}
     </div>
   );
 }

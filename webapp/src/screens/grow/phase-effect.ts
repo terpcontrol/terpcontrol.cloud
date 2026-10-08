@@ -28,7 +28,7 @@ const byDate = (one: Phase, other: Phase): number => one.startedAt.localeCompare
 export const phasesInOrder = (grow: GrowListItem): Phase[] => [...grow.phases].sort(byDate);
 
 /** A counter before and after, so a sentence can name both. */
-export interface Shift {
+interface Shift {
   from: number;
   to: number;
 }

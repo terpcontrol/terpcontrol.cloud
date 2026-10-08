@@ -9,7 +9,7 @@ import type { GrowScheme } from '@fg2/shared-types/v1';
  * the grid underneath it, and a screen that cannot say that is a screen that
  * silently puts an old table back over a fellow grower's correction.
  */
-export interface SchemeEdit {
+interface SchemeEdit {
   draft: GrowScheme | null;
   against: GrowScheme | null;
 }

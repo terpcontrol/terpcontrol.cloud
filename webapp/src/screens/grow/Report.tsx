@@ -23,6 +23,7 @@ import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import styles from './Report.module.css';
 import { stageLabel } from '@/ui/presets';
+import { placeName } from './placement';
 
 /**
  * The Report tab: the grow as chapters, one per phase, newest first. Each
@@ -86,7 +87,6 @@ export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spac
           grow={grow}
           people={report.data.people}
           spaces={spaces}
-          measurements={grow.measurements}
           explainBand={chapter === bandTeacher}
         />
       ))}
@@ -191,14 +191,12 @@ function Chapter({
   grow,
   people,
   spaces,
-  measurements,
   explainBand,
 }: {
   chapter: GrowReportPhase;
   grow: GrowListItem;
   people: { id: string; handle: string }[];
   spaces: Space[];
-  measurements: GrowListItem['measurements'];
   /** The first chapter that states its share in band, which says once what the band is. */
   explainBand: boolean;
 }) {
@@ -207,7 +205,7 @@ function Chapter({
   const cover = chapter.coverMediaId ? mediaUrl(chapter.coverMediaId, THUMBNAIL_WIDTH.cover * 2) : null;
   const temperature = chapter.climate.find(row => row.metric === 'temperature');
   const humidity = chapter.climate.find(row => row.metric === 'humidity');
-  const where = (chapter.spaceIds ?? []).map(id => spaces.find(space => space.id === id)?.name ?? '…').join(', ');
+  const where = (chapter.spaceIds ?? []).map(id => placeName(t, spaces, id)).join(', ');
 
   return (
     <article className={styles.chapter}>
@@ -254,7 +252,7 @@ function Chapter({
                 entry={entry}
                 people={people}
                 picture={mediaUrl}
-                measurements={measurements}
+                measurements={grow.measurements}
                 day={growDayOf(grow, entry.occurredAt)}
                 onOpen={correcting(entry, { label: grow.name, dayNumber: growDayOf(grow, entry.occurredAt), ...growStanding(grow) })}
               />

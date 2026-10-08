@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SchemeWeek } from '@fg2/shared-types/v1';
 import { dashFigure, typedFigure } from '@/ui/figures';
-import { ecTargetAt, hasEcTargets, productsOf, valueAt, type Product } from './grid';
+import { ecTargetAt, hasEcTargets, productsOf, type Product } from './grid';
 import styles from './Scheme.module.css';
 
 interface SchemeGridProps {
@@ -89,7 +89,7 @@ export function SchemeGrid({ grid, currentWeek, mayEdit, waterEc, picked, onPick
                 {product.unit !== corner ? <span className={styles.rowUnit}>{product.unit}</span> : null}
               </th>
               {grid.map(week => {
-                const value = valueAt(grid, week.week, product.productKey);
+                const value = week.amounts.find(amount => amount.productKey === product.productKey)?.value ?? null;
                 const label = t('grow.scheme.cellLabel', { product: product.name, week: week.week });
                 const open = editing?.week === week.week && editing.productKey === product.productKey;
 
