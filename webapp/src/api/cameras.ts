@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { queryOptions, useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
-import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas/pages.js';
 import { FOLLOWED, useRead, useReadPages } from './read';
 import type {
   Camera,
@@ -15,6 +14,7 @@ import type {
   TimelapseCreate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { readEvery } from './pages';
 import { ApiError } from './problem';
 import { invalidate, useWrite } from './write';
 
@@ -93,12 +93,12 @@ export const useCamera = (cameraId: string) =>
   });
 
 /**
- * How many of the route's largest pages one day is walked over before the walk
- * gives up. A camera asked for a picture every thirty seconds delivers 2,880 a
- * day, so this reaches the end of any ordinary day in a handful of reads; the
- * cap is there only so that a day nobody expected - two cameras writing into
- * one, a shorter interval than the pipeline promises - cannot turn one screen
- * into an unbounded run of requests.
+ * How many pages one day is walked over before the walk gives up. A
+ * camera asked for a picture every thirty seconds delivers 2,880 a day, so this
+ * reaches the end of any ordinary day in a handful of reads; the cap is there
+ * only so that a day nobody expected - two cameras writing into one, a shorter
+ * interval than the pipeline promises - cannot turn one screen into an
+ * unbounded run of requests.
  */
 export const MAX_FRAME_PAGES = 15;
 
@@ -148,27 +148,20 @@ export const useCameraFrames = (cameraId: string, span: { startsAt: string; ends
       // ids are what tell the two apart rather than the instant, because two
       // stills of one second are two rows.
       const from = held?.items[0]?.capturedAt ?? span.startsAt;
-      const fresh: Media[] = [];
-      let cursor: string | null = null;
+      const { items: fresh, complete } = await readEvery<Media>(
+        `/cameras/${cameraId}/frames`,
+        signal,
+        { startsAt: from, endsAt: span.endsAt },
+        MAX_FRAME_PAGES,
+      );
 
-      for (let page = 0; page < MAX_FRAME_PAGES; page += 1) {
-        const answer: MediaPage = await api.get<MediaPage>(
-          `/cameras/${cameraId}/frames`,
-          { startsAt: from, endsAt: span.endsAt, limit: MAX_PAGE_LIMIT, cursor },
-          signal,
-        );
-        fresh.push(...answer.items);
-        cursor = answer.nextCursor;
-        if (!cursor) break;
-      }
-
-      if (!held) return { items: fresh, partial: cursor !== null };
+      if (!held) return { items: fresh, partial: !complete };
 
       const known = new Set(held.items.map(one => one.id));
 
       // A day the first walk never reached the end of stays a floor, because
       // the tail says nothing about the morning it stopped short of.
-      return { items: [...fresh.filter(one => !known.has(one.id)), ...held.items], partial: held.partial || cursor !== null };
+      return { items: [...fresh.filter(one => !known.has(one.id)), ...held.items], partial: held.partial || !complete };
     },
     refetchInterval: CAMERAS_REFRESH_MS,
   });

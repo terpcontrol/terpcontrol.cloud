@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { GrowListItem } from '@fg2/shared-types/v1';
 import { useGrowPhotoLines } from '@/api/entries';
 import { useGrowWeeks } from '@/api/grows';
+import { itemsOf } from '@/api/pages';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { PictureViewer } from '@/ui/PictureViewer';
@@ -37,7 +38,7 @@ export function Weeks({ grow, now }: { grow: GrowListItem; now: DateTime }) {
   }
   if (!weeks.data) return <LoadFailed retry={() => void weeks.refetch()} />;
 
-  const cards = weeks.data.pages.flatMap(page => page.items);
+  const cards = itemsOf(weeks.data);
   const people = weeks.data.pages.flatMap(page => page.people);
   const pictures = viewing ? picturesOf(grow, lines.data, cards) : [];
 

@@ -5,6 +5,7 @@ import { notificationsWith, useMe, useUpdateMe } from '@/api/account';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
 import { fetchedAt } from '@/api/clock';
+import { itemsOf } from '@/api/pages';
 import { useSession } from '@/api/session';
 import { instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
@@ -68,7 +69,7 @@ export function Alerts() {
   const resolved = useResolvedAlerts();
   const { names, watching } = useInboxNames();
 
-  const items = [...pagesOf(open.data), ...pagesOf(resolved.data)];
+  const items = [...itemsOf(open.data), ...itemsOf(resolved.data)];
   // Only the devices something has actually gone wrong on: a rule is read to
   // say what a card watched, and a device with no card on the page says nothing.
   const ruleDevices = [...new Set(items.filter(alert => alert.ruleId && alert.deviceId).map(alert => alert.deviceId!))];
@@ -184,8 +185,6 @@ export function Alerts() {
     </section>
   );
 }
-
-const pagesOf = (data: { pages: { items: Alert[] }[] } | undefined): Alert[] => data?.pages.flatMap(page => page.items) ?? [];
 
 const headingOf = (t: ReturnType<typeof useTranslation>['t'], heading: GroupHeading): string =>
   heading.kind === 'day' ? heading.day.toFormat(WEEKDAY_DAY) : t(`alerts.group.${heading.kind}`);

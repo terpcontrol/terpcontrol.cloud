@@ -3,13 +3,13 @@ import { Link } from 'react-router';
 import { placePath } from '@/app/places';
 import { useAdminCameras, useAdminDevices } from '@/api/admin';
 import { useGrows } from '@/api/grows';
+import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSpaces } from '@/api/spaces';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { AdminHead, AdminWaiting, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from '../devices/cameras';
-import { useFollowCursor } from './pages';
 import styles from './Admin.module.css';
 
 /**
@@ -47,9 +47,9 @@ export function Demo() {
 
   if (!devices.data) return <AdminWaiting head={header} retry={() => void devices.refetch()} />;
 
-  const shownDevices = devices.data.pages.flatMap(page => page.items).filter(device => device.isDemo);
+  const shownDevices = itemsOf(devices.data).filter(device => device.isDemo);
   const shownSpaces = (spaces.data?.items ?? []).filter(space => space.isDemo);
-  const shownCameras = (cameras.data?.pages ?? []).flatMap(page => page.items).filter(camera => camera.isDemo && camera.removedAt === null);
+  const shownCameras = itemsOf(cameras.data).filter(camera => camera.isDemo && camera.removedAt === null);
   const shownGrows = (grows.data?.items ?? []).filter(grow => grow.isDemo);
 
   return (

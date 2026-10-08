@@ -4,6 +4,7 @@ import type { Device } from '@fg2/shared-types/v1';
 import { useAdminUsers, useFirmwares } from '@/api/admin';
 import { deviceQuery } from '@/api/devices';
 import { useDeviceEntries } from '@/api/entries';
+import { itemsOf, useFollowCursor } from '@/api/pages';
 import { noLongerThere } from '@/api/problem';
 import { useRead } from '@/api/read';
 import { useSpaceOverview } from '@/api/spaces';
@@ -18,7 +19,6 @@ import { useNow } from '@/ui/useNow';
 import { serverNow } from '@/api/clock';
 import { offsetOf, wallClock } from '../control/targets/targets-draft';
 import { flatten } from './fleet-rows';
-import { useFollowCursor } from './pages';
 import styles from './Admin.module.css';
 
 /** How many of a device's own lines the page lists, newest first: enough for "since yesterday", few enough to read. */
@@ -51,7 +51,7 @@ export function DeviceDiagnosis() {
   }
 
   const one = device.data;
-  const owner = (people.data?.pages ?? []).flatMap(page => page.items).find(person => person.id === one.ownerId) ?? null;
+  const owner = itemsOf(people.data).find(person => person.id === one.ownerId) ?? null;
   const seen = one.state.lastSeenAt;
 
   return (
@@ -146,7 +146,7 @@ function Place({ spaceId }: { spaceId: string }) {
 function Build({ device }: { device: Device }) {
   const { t } = useTranslation();
   const firmwares = useFirmwares(device.classId);
-  const build = (firmwares.data?.pages ?? []).flatMap(page => page.items).find(one => one.id === device.state.firmwareId);
+  const build = itemsOf(firmwares.data).find(one => one.id === device.state.firmwareId);
 
   return (
     <span className="mono">

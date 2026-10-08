@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import type { User } from '@fg2/shared-types/v1';
 import { useAdminCameras, useAdminDevices, useAdminStats, useAdminUsers, useDeviceClasses, useFirmwares, useFleet } from '@/api/admin';
 import { fetchedAt } from '@/api/clock';
+import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSession } from '@/api/session';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
@@ -16,7 +17,6 @@ import { useNow } from '@/ui/useNow';
 import { filteredRows, fleetRows, NO_FILTER, typesOf, type FleetFilter, type FleetRow } from './fleet-rows';
 import { HealthCard } from './HealthCard';
 import { NoMatch } from './NoMatch';
-import { useFollowCursor } from './pages';
 import { RolloutCard } from './RolloutCard';
 import styles from './Admin.module.css';
 
@@ -73,13 +73,14 @@ export function Fleet() {
 
   if (!fleet.data || !devices.data) return <AdminWaiting head={header} retry={() => void fleet.refetch()} />;
 
-  const known: Map<string, User> = new Map((people.data?.pages ?? []).flatMap(page => page.items).map(one => [one.id, one]));
-  const loadedCameras = (cameras.data?.pages ?? []).flatMap(page => page.items);
+  const known: Map<string, User> = new Map(itemsOf(people.data).map(one => [one.id, one]));
+  const allDevices = itemsOf(devices.data);
+  const allFirmwares = itemsOf(firmwares.data);
   const rows = fleetRows({
-    devices: devices.data.pages.flatMap(page => page.items),
-    cameras: loadedCameras,
+    devices: allDevices,
+    cameras: itemsOf(cameras.data),
     classes: classes.data?.items ?? [],
-    firmwares: (firmwares.data?.pages ?? []).flatMap(page => page.items),
+    firmwares: allFirmwares,
     people: known,
     readerId: user?.id ?? null,
   });
@@ -157,14 +158,8 @@ export function Fleet() {
       </div>
 
       <div className={styles.cards}>
-        <RolloutCard
-          fleet={fleet.data}
-          classes={classes.data?.items ?? []}
-          devices={devices.data.pages.flatMap(page => page.items)}
-          firmwares={(firmwares.data?.pages ?? []).flatMap(page => page.items)}
-          now={now}
-        />
-        <HealthCard fleet={fleet.data} devices={devices.data.pages.flatMap(page => page.items)} stats={stats} now={now} />
+        <RolloutCard fleet={fleet.data} classes={classes.data?.items ?? []} devices={allDevices} firmwares={allFirmwares} now={now} />
+        <HealthCard fleet={fleet.data} devices={allDevices} stats={stats} now={now} />
       </div>
     </section>
   );

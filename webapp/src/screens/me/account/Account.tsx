@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Me } from '@fg2/shared-types/v1';
 import { useChangePassword, useMe, useRevokeOtherSessions, useRevokeSession, useSessions, useUpdatingMe } from '@/api/account';
+import { itemsOf } from '@/api/pages';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
@@ -232,10 +233,7 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
   if (sessions.isPending) return <Waiting lines={2} />;
   if (!sessions.data) return <LoadFailed retry={() => void sessions.refetch()} />;
 
-  const rows = sortedSessions(
-    sessions.data.pages.flatMap(page => page.items),
-    currentId,
-  );
+  const rows = sortedSessions(itemsOf(sessions.data), currentId);
   const shown = all ? rows : rows.slice(0, SESSIONS_SHOWN);
   const rest = rows.length > shown.length || sessions.hasNextPage;
 

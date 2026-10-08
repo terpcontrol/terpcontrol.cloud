@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AdminUserUpdate, User } from '@fg2/shared-types/v1';
 import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '@/api/admin';
+import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { matchesHandle } from '@/ui/handle';
@@ -11,7 +12,6 @@ import { HandleField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { NoMatch } from './NoMatch';
-import { useFollowCursor } from './pages';
 import styles from './Admin.module.css';
 
 /**
@@ -52,7 +52,7 @@ export function Users() {
 
   if (!people.data) return <AdminWaiting head={header} retry={() => void people.refetch()} />;
 
-  const all = people.data.pages.flatMap(page => page.items);
+  const all = itemsOf(people.data);
   const needle = search.trim().toLowerCase().replace(/^@/, '');
   const shown = needle ? all.filter(one => one.handle.toLowerCase().includes(needle) || one.email.toLowerCase().includes(needle)) : all;
 

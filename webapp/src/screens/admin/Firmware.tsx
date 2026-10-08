@@ -11,6 +11,7 @@ import {
   useUpdateFirmware,
   useUploadBinary,
 } from '@/api/admin';
+import { itemsOf, useFollowCursor } from '@/api/pages';
 import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { AdminHead, AdminWaiting } from './parts';
@@ -18,7 +19,6 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, useZone, zoned } from '@/ui/zone';
 import { ClassRollout } from './ClassRollout';
-import { useFollowCursor } from './pages';
 import { pointedAtBy } from './rollout';
 import styles from './Admin.module.css';
 
@@ -54,7 +54,8 @@ export function FirmwareScreen() {
 
   if (!classes.data || !firmwares.data) return <AdminWaiting head={header} retry={() => void classes.refetch()} />;
 
-  const builds = firmwares.data.pages.flatMap(page => page.items);
+  const builds = itemsOf(firmwares.data);
+  const allDevices = itemsOf(devices.data);
   const known = classes.data.items;
 
   return (
@@ -71,7 +72,7 @@ export function FirmwareScreen() {
             key={deviceClass.id}
             deviceClass={deviceClass}
             fleetClass={fleet.data?.classes.find(one => one.classId === deviceClass.id)}
-            devices={devices.data?.pages.flatMap(page => page.items) ?? []}
+            devices={allDevices}
             firmwares={builds}
             now={now}
           />

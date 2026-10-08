@@ -1,8 +1,8 @@
 import { keepPreviousData, type QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { Entry, EntryCreate, EntryPage, EntryUpdate, Media, Phase, PhaseCreate, TaskCompletionCreate } from '@fg2/shared-types/v1';
-import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas/pages.js';
 import { api } from './client';
+import { readEvery } from './pages';
 
 /**
  * The writing half of the diary, and the little of it the Log sheet reads back.
@@ -68,28 +68,14 @@ export const useWindowEntries = (about: { growId: string | null; spaceId: string
   useRead({
     queryKey: ['entries', 'window', about.spaceId ?? about.growId, window],
     queryFn: async ({ signal }): Promise<WindowEntries> => {
-      const items: Entry[] = [];
-      let cursor: string | null = null;
+      const { items, complete } = await readEvery<Entry>(
+        '/entries',
+        signal,
+        { spaceId: about.spaceId, growId: about.spaceId ? null : about.growId, startsAt: window?.from, endsAt: window?.to },
+        WINDOW_PAGES,
+      );
 
-      for (let page = 0; page < WINDOW_PAGES; page += 1) {
-        const answer: EntryPage = await api.get<EntryPage>(
-          '/entries',
-          {
-            spaceId: about.spaceId ?? undefined,
-            growId: about.spaceId ? undefined : (about.growId ?? undefined),
-            startsAt: window?.from,
-            endsAt: window?.to,
-            limit: MAX_PAGE_LIMIT,
-            cursor,
-          },
-          signal,
-        );
-        items.push(...answer.items);
-        cursor = answer.nextCursor;
-        if (!cursor) break;
-      }
-
-      return { items, more: cursor !== null };
+      return { items, more: !complete };
     },
     enabled: window !== null && Boolean(about.spaceId ?? about.growId),
     placeholderData: keepPreviousData,

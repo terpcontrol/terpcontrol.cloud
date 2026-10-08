@@ -10,6 +10,7 @@ import { gaveUp, useCamera, useCameraFrames, useLatestStills, useRequestTimelaps
 import { useDevices } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
+import { itemsOf } from '@/api/pages';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
@@ -167,7 +168,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   // Three films is the resting height of the section, not the whole of it: the
   // rest are behind the control below rather than dropped.
   const [everyFilm, setEveryFilm] = useState(false);
-  const made = filmsOfEachSpan(films.data?.pages.flatMap(page => page.items) ?? []).filter(film => film.id !== job?.id);
+  const made = filmsOfEachSpan(itemsOf(films.data)).filter(film => film.id !== job?.id);
   const shownFilms = everyFilm ? made : made.slice(0, FILMS_AT_REST);
   const moreFilms = () => {
     if (everyFilm && films.hasNextPage) void films.fetchNextPage();
