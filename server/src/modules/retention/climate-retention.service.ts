@@ -111,34 +111,26 @@ export class ClimateRetentionService implements OnModuleInit, OnApplicationShutd
     @Inject(retentionConfig.KEY) private readonly config: ConfigType<typeof retentionConfig>,
   ) {}
 
+  /** A pass, and then the next one at three in the morning. */
   public onModuleInit(): void {
-    this.work.schedule('The first climate retention pass', () => this.runPeriodically(), FIRST_PASS_MS);
+    this.work.loop(
+      'The climate retention sweep',
+      () =>
+        this.run().catch(error => {
+          // Kept as a pass that happened rather than left looking like a pass
+          // that never ran: a sweep throwing before the loop ends is exactly
+          // what an operator has to be able to see on the health card.
+          this.last = { reached: 0, devices: 0, days: 0, errors: 1, ranAt: new Date() };
+          throw error;
+        }),
+      FIRST_PASS_MS,
+      () => untilNextRun(new Date()),
+    );
   }
 
   public onApplicationShutdown(): void {
     logger.info('Stopping the climate retention sweep');
     this.work.stop();
-  }
-
-  /**
-   * A pass, and then the next one at three in the morning. Each run schedules
-   * its successor rather than an interval doing it, so a pass that takes an
-   * hour is not followed immediately by another - and so a server on its way
-   * down refuses the next one rather than only cancelling the timer that
-   * happens to be pending.
-   */
-  private async runPeriodically(): Promise<void> {
-    try {
-      await this.run();
-    } catch (error) {
-      // Kept as a pass that happened rather than left looking like a pass that
-      // never ran: a sweep throwing before the loop ends is exactly what an
-      // operator has to be able to see on the health card.
-      this.last = { reached: 0, devices: 0, days: 0, errors: 1, ranAt: new Date() };
-      logger.error(`The climate retention sweep failed: ${error}`);
-    } finally {
-      this.work.schedule('The climate retention sweep', () => this.runPeriodically(), untilNextRun(new Date()));
-    }
   }
 
   /** The last pass, which `GET /admin/stats` answers, or null on a server that has not swept since it came up. */

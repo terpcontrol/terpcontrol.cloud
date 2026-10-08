@@ -116,7 +116,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   ) {}
 
   public onModuleInit(): void {
-    this.work.schedule('The timelapse builder', () => this.pass(), 60_000);
+    this.work.loop('The timelapse builder', () => this.pass(), 60_000, BUILD_INTERVAL_MS);
   }
 
   public onApplicationShutdown(): void {
@@ -130,37 +130,31 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   }
 
   private async pass(): Promise<void> {
-    try {
-      // What somebody is waiting for goes first; the rolling films are nobody's
-      // stopwatch.
-      await this.drainTheQueue();
+    // What somebody is waiting for goes first; the rolling films are nobody's
+    // stopwatch.
+    await this.drainTheQueue();
 
-      const shouldThin = Date.now() - this.lastThinningRun >= THIN_INTERVAL_MS;
+    const shouldThin = Date.now() - this.lastThinningRun >= THIN_INTERVAL_MS;
 
-      for (const camera of await this.cameras.all()) {
-        // As in the poller: a pass walks every camera and runs ffmpeg as it
-        // goes, so it has to notice the server stopping around it.
-        if (this.work.isStopped) break;
+    for (const camera of await this.cameras.all()) {
+      // As in the poller: a pass walks every camera and runs ffmpeg as it
+      // goes, so it has to notice the server stopping around it.
+      if (this.work.isStopped) break;
 
-        if (camera.removedAt === null) {
-          const zone = await this.cameras.zoneOf(camera);
-          for (const rolling of ROLLING) {
-            await this.buildRolling(camera, rolling, zone);
-          }
+      if (camera.removedAt === null) {
+        const zone = await this.cameras.zoneOf(camera);
+        for (const rolling of ROLLING) {
+          await this.buildRolling(camera, rolling, zone);
         }
-
-        // A camera that is gone keeps its pictures, so they are still thinned
-        // and still swept: what stops is only the making of new films.
-        await this.sweep(camera);
-        if (shouldThin) await this.thin(camera);
       }
 
-      if (shouldThin) this.lastThinningRun = Date.now();
-    } catch (e) {
-      logger.error(`The timelapse builder failed a pass: ${e}`);
-    } finally {
-      this.work.schedule('The timelapse builder', () => this.pass(), BUILD_INTERVAL_MS);
+      // A camera that is gone keeps its pictures, so they are still thinned
+      // and still swept: what stops is only the making of new films.
+      await this.sweep(camera);
+      if (shouldThin) await this.thin(camera);
     }
+
+    if (shouldThin) this.lastThinningRun = Date.now();
   }
 
   // -------------------------------------------------------------------------

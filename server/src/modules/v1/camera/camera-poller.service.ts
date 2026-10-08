@@ -76,7 +76,7 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
   ) {}
 
   public onModuleInit(): void {
-    this.work.schedule('The camera poller', () => this.pass(), 30_000);
+    this.work.loop('The camera poller', () => this.pass(), 30_000, PASS_INTERVAL_MS);
   }
 
   public onApplicationShutdown(): void {
@@ -139,44 +139,34 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
   }
 
   private async pass(): Promise<void> {
-    try {
-      const cameras = await this.cameras.capturable();
-      const controllers = await this.controllersOf(cameras);
+    const cameras = await this.cameras.capturable();
+    const controllers = await this.controllersOf(cameras);
 
-      for (const camera of cameras) {
-        // A pass can outlive the server: it sleeps between cameras, and those
-        // sleeps are not the scheduler's to cancel. Stopping here is what keeps
-        // it from reading cameras and writing to a connection that is closing.
-        if (this.work.isStopped) break;
+    for (const camera of cameras) {
+      // A pass can outlive the server: it sleeps between cameras, and those
+      // sleeps are not the scheduler's to cancel. Stopping here is what keeps
+      // it from reading cameras and writing to a connection that is closing.
+      if (this.work.isStopped) break;
 
-        const controller = camera.deviceId ? (controllers.get(camera.deviceId) ?? null) : null;
+      const controller = camera.deviceId ? (controllers.get(camera.deviceId) ?? null) : null;
 
-        // A camera read through its device - a Terp Cam over the device's relay,
-        // or a stream tunnelled through it - needs the device to answer, and an
-        // offline one cannot: each try would only wait out its timeouts (three
-        // minutes of relay dial-ins for a Terp Cam). Asked before the schedule,
-        // so an offline spell does not grow the backoff. A camera reached
-        // directly is still read.
-        if (readsThroughDevice(camera) && (!controller || isOffline(controller.state.lastSeenAt))) continue;
+      // A camera read through its device - a Terp Cam over the device's relay,
+      // or a stream tunnelled through it - needs the device to answer, and an
+      // offline one cannot: each try would only wait out its timeouts (three
+      // minutes of relay dial-ins for a Terp Cam). Asked before the schedule,
+      // so an offline spell does not grow the backoff. A camera reached
+      // directly is still read.
+      if (readsThroughDevice(camera) && (!controller || isOffline(controller.state.lastSeenAt))) continue;
 
-        if (this.reading.has(camera.id) || !this.isDue(camera) || (await this.isResting(camera, controller))) {
-          continue;
-        }
-
-        const still = this.cameras.withSecret(camera.id).then(withSecret => (withSecret ? this.readAndStore(withSecret) : null));
-        this.track(camera.id, readKey(camera), still);
-        logIfItFails(`Reading camera ${camera.id}`, this.paidFor(camera, still));
-
-        await new Promise(resolve => setTimeout(resolve, BETWEEN_CAMERAS_MS));
+      if (this.reading.has(camera.id) || !this.isDue(camera) || (await this.isResting(camera, controller))) {
+        continue;
       }
-    } catch (error) {
-      // A pass that fails must not take the poller with it: without this the
-      // reschedule below is skipped and no camera is read again.
-      logger.error(`The camera poller failed a pass: ${error}`);
-    } finally {
-      // Each pass schedules the next one, so a stopped server has to refuse it
-      // rather than only cancel the timer that happens to be pending.
-      this.work.schedule('The camera poller', () => this.pass(), PASS_INTERVAL_MS);
+
+      const still = this.cameras.withSecret(camera.id).then(withSecret => (withSecret ? this.readAndStore(withSecret) : null));
+      this.track(camera.id, readKey(camera), still);
+      logIfItFails(`Reading camera ${camera.id}`, this.paidFor(camera, still));
+
+      await new Promise(resolve => setTimeout(resolve, BETWEEN_CAMERAS_MS));
     }
   }
 
