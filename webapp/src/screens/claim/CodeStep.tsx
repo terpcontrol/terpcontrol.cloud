@@ -14,7 +14,8 @@ import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { LegacyMove } from './LegacyMove';
 import { pairsACam } from '@/screens/camera/add/pairers';
-import { cameraName, deviceName, pairsSockets } from './steps';
+import { buildLabel, deviceName } from '@/ui/naming';
+import { cameraName, pairsSockets } from './steps';
 import styles from './Claim.module.css';
 
 /**
@@ -162,24 +163,19 @@ export function ClaimedTitle({ device }: { device: Device }) {
  * grower and cannot be compared with anything; so the build list is what turns
  * it into something readable, and a build with nothing readable about it is
  * left out of the line altogether rather than printed as the uuid it is.
- *
- * What is readable is the version and not the name. Every build carried over
- * from the old cloud is named after its device class, so "fridge" is what a
- * name says about two fridges on two different builds; the version is what the
- * build container stamped and is the only field that tells them apart.
  */
 export function ClaimedFacts({ device, sockets, now }: { device: Device; sockets: SocketPage | undefined; now: DateTime }) {
   const { t } = useTranslation();
   const firmwares = useDeviceFirmwares(device.id, device.state.firmwareId !== null);
   const seen = device.state.lastSeenAt;
-  const build = firmwares.data?.items.find(one => one.id === device.state.firmwareId);
+  const label = buildLabel(firmwares.data?.items.find(one => one.id === device.state.firmwareId));
 
   if (!seen) return <span className={styles.waitingForIt}>{t('claim.code.neverHeard')}</span>;
 
   return (
     <>
       {t(`claim.code.${deviceLiveness(seen, now)}`, { age: ageLabel(seen, now) })}
-      {build?.version || build?.name ? ` · ${t('claim.code.firmware', { version: build.version || build.name })}` : ''}
+      {label ? ` · ${t('claim.code.firmware', { version: label })}` : ''}
       {/* What hangs on it, for the hardware that can have it: a plug pairs no sockets, a light no cam either. */}
       {sockets && pairsSockets(device) ? ` · ${t('claim.code.sockets', { count: sockets.items.length })}` : ''}
       {pairsACam(device) ? ` · ${t('claim.code.camera', { name: cameraName(device, t) })}` : ''}

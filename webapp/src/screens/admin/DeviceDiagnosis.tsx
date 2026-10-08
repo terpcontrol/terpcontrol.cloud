@@ -20,6 +20,7 @@ import { serverNow } from '@/api/clock';
 import { offsetOf, wallClock } from '../control/targets/targets-draft';
 import { flatten } from './fleet-rows';
 import styles from './Admin.module.css';
+import { buildLabel, typeName } from '@/ui/naming';
 
 /** How many of a device's own lines the page lists, newest first: enough for "since yesterday", few enough to read. */
 const LINES = 60;
@@ -60,7 +61,7 @@ export function DeviceDiagnosis() {
 
       <div className={styles.facts}>
         <Fact label={t('admin.diagnosis.device')} value={<span className="mono">{one.id}</span>} />
-        <Fact label={t('admin.diagnosis.type')} value={t(`devices.type.${one.type}`, { defaultValue: one.type })} />
+        <Fact label={t('admin.diagnosis.type')} value={typeName(one.type, t)} />
         <Fact label={t('admin.diagnosis.serial')} value={<span className="mono">{one.serialNumber ?? '—'}</span>} />
         <Fact
           label={t('admin.diagnosis.owner')}
@@ -150,7 +151,7 @@ function Build({ device }: { device: Device }) {
 
   return (
     <span className="mono">
-      {build ? `${build.version || build.name}` : (device.state.firmwareId ?? '—')} · {t(`devices.channel.${device.firmware.channel}`)}
+      {buildLabel(build) ?? device.state.firmwareId ?? '—'} · {t(`devices.channel.${device.firmware.channel}`)}
     </span>
   );
 }

@@ -110,14 +110,6 @@ export const notifySummary = (me: Me | undefined, t: Translate): string | null =
   return alarmsReach(me) ? t('claim.notify.reaches', { channels: channelsLabel(t, reachedBy(me)) }) : t('claim.notify.none');
 };
 
-/**
- * What to call the device. A claim names it after its type where nobody has
- * named it yet, and a type is a key rather than a word, so the list of types is
- * what turns it into one.
- */
-export const deviceName = (device: Device, t: Translate): string =>
-  device.name && device.name !== device.type ? device.name : t(`devices.type.${device.type}`, { defaultValue: device.type });
-
 /** The tail of the paired camera's id, which is as much of it as anybody reads off a screen. */
 export const cameraName = (device: Device | null, t: Translate): string => {
   const paired = device?.state.hardware.webcam_did;

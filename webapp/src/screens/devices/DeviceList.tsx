@@ -4,7 +4,7 @@ import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath, placePath } from '@/app/places';
-import type { ActuatorRuns, Camera, ClimateVerdict, Device, Firmware, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
+import type { ActuatorRuns, Camera, ClimateVerdict, Device, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { useCameras, useLatestStills } from '@/api/cameras';
@@ -32,7 +32,7 @@ import { isLightRole, lightOutputOf } from './lights';
 import { LightOutputRow } from './LightOutputRow';
 import { ControlButton } from './ControlSwitch';
 import { MaintenanceButton, RebootButton } from './Maintenance';
-import { cameraTitle, deviceName, deviceTitle } from '@/ui/naming';
+import { buildLabel, cameraTitle, deviceName, deviceTitle, typeName } from '@/ui/naming';
 import { rowsOf, type SocketRowModel } from './sockets';
 import { SocketRow } from './SocketRow';
 import { PairSocketRow } from './SocketSheets';
@@ -580,7 +580,7 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
               {/* Through the catalogue, like every other place that prints a
                   type: it is a contract key and not a word. A type from a newer
                   contract than this build still prints, rather than a missing key. */}
-              <Fact label={t('devices.fact.type')} value={t(`devices.type.${device.type}`, { defaultValue: device.type })} />
+              <Fact label={t('devices.fact.type')} value={typeName(device.type, t)} />
               <Fact label={t('devices.fact.build')} value={buildLabel(build) ?? '—'} />
               {owedLabel ? <Fact label={t('devices.fact.owed')} value={owedLabel} /> : null}
               {drivesSockets && sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
@@ -653,19 +653,6 @@ function Thumb({ stillId }: { stillId: string | null }) {
     </span>
   );
 }
-
-/**
- * Which build a device is on, in the words that say which one.
- *
- * `version` comes first because it is the only field that tells two builds of
- * one class apart: the build container stamps it with the commit and the branch
- * it came from, while every build carried over from the old cloud is *named*
- * after its class, so two fridges on two different builds both read "fridge".
- * With neither there is nothing to say, and nothing is said - the uuid the
- * device reports means nothing to a grower and cannot be compared with
- * anything.
- */
-const buildLabel = (build: Firmware | undefined): string | null => build?.version || build?.name || null;
 
 /** Live first, then the ones that have gone quiet; two of a kind keep the order the server gave them. */
 const RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };

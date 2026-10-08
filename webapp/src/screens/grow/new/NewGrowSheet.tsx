@@ -26,6 +26,7 @@ import { choicesOf, useHumidifier } from '../../control/germination/germination-
 import { usePlaceController } from '../phase-climate';
 import { dayNumber, growBody, growIn, presetFor, recordsOnly, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
 import styles from './NewGrow.module.css';
+import { typeName } from '@/ui/naming';
 
 /** The kinds of place a grow can be started in. A room holds other places rather than plants, so it is not one of them. */
 const SPACE_KINDS: SpaceKind[] = ['tent', 'fridge', 'balcony', 'other'];
@@ -478,7 +479,7 @@ const standsIn = (space: Space, devices: Device[] | null, cameras: Camera[], t: 
   if (devices === null) return space.name;
 
   const kinds = [...new Set(devices.filter(device => device.spaceId === space.id).map(device => device.type))];
-  const here = kinds.map(kind => t(`devices.type.${kind}`, { defaultValue: kind }));
+  const here = kinds.map(kind => typeName(kind, t));
   if (cameras.some(camera => camera.spaceId === space.id && camera.removedAt === null)) here.push(t('grow.new.cam'));
 
   return here.length === 0 ? space.name : `${space.name} · ${here.join(' + ')}`;

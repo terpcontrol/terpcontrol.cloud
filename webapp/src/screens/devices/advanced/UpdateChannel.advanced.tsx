@@ -9,7 +9,7 @@ import { Refused } from '@/ui/PageState';
 import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
-import { deviceTitle } from '@/ui/naming';
+import { buildLabel, deviceTitle } from '@/ui/naming';
 import sheet from '../Maintenance.module.css';
 import { useChannel } from '../update-channel';
 import styles from './DeviceAdvanced.module.css';
@@ -151,7 +151,7 @@ function PinSheet({ device, build, onClose }: { device: Device; build: DeviceFir
 }
 
 /** A build by what its container stamped it with, which is the one thing that tells two builds of one class apart. */
-const buildName = (build: DeviceFirmware): string => build.version || build.name || build.id.slice(0, 8);
+const buildName = (build: DeviceFirmware): string => buildLabel(build) ?? build.id.slice(0, 8);
 
 export const items = [
   advancedItem({

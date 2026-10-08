@@ -8,7 +8,7 @@ import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { deviceTitle } from '@/ui/naming';
+import { deviceTitle, givenName } from '@/ui/naming';
 import styles from './DeviceSettings.module.css';
 
 /**
@@ -49,7 +49,7 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
   // A claim leaves the type's key as the name - "fridge" - which no screen
   // shows: the field starts empty with the name every screen does show as its
   // placeholder, rather than offering the key to be edited.
-  const stored = device.name && device.name !== device.type ? device.name : null;
+  const stored = givenName(device);
   const name = typed ?? stored ?? '';
   const trimmed = name.trim();
   // An empty field is a device with no name of its own, which is what every

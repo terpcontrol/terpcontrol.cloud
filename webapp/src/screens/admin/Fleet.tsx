@@ -19,6 +19,7 @@ import { HealthCard } from './HealthCard';
 import { NoMatch } from './NoMatch';
 import { RolloutCard } from './RolloutCard';
 import styles from './Admin.module.css';
+import { typeName } from '@/ui/naming';
 
 /**
  * The fleet, as whoever runs this install reads it: every piece of hardware
@@ -220,9 +221,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** A type is the firmware's own word for itself, or a camera kind. Neither is a sentence, so both are translated where there is a word for them. */
 const typeLabel = (type: string, t: Translate): string =>
-  type.startsWith('terpcam') || type === 'rtsp'
-    ? t(`devices.cameraKind.${type}`, { defaultValue: type })
-    : t(`devices.type.${type}`, { defaultValue: type });
+  type.startsWith('terpcam') || type === 'rtsp' ? t(`devices.cameraKind.${type}`, { defaultValue: type }) : typeName(type, t);
 
 function Row({ row, now }: { row: FleetRow; now: DateTime }) {
   const { t } = useTranslation();

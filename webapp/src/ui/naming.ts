@@ -1,4 +1,4 @@
-import type { Camera, Device } from '@fg2/shared-types/v1';
+import type { Camera, Device, Firmware } from '@fg2/shared-types/v1';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -13,13 +13,16 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * Devices tab, under a stream address and beside a camera that has just been
  * paired.
  */
-const given = (device: Device): string | null => (device.name && device.name !== device.type ? device.name : null);
+export const givenName = (device: Device): string | null => (device.name && device.name !== device.type ? device.name : null);
 
 /** The tail of the id, which is as much of it as anybody reads off a screen or a label. */
 export const deviceTag = (device: Device): string => device.id.slice(-6).toUpperCase();
 
+/** A device type in words: the type is the firmware's key for itself, and a key is not a word. */
+export const typeName = (type: string, t: Translate): string => t(`devices.type.${type}`, { defaultValue: type });
+
 /** What to call a device inside a sentence, where the sentence already says which one is meant. */
-export const deviceName = (device: Device, t: Translate): string => given(device) ?? t(`devices.type.${device.type}`, { defaultValue: device.type });
+export const deviceName = (device: Device, t: Translate): string => givenName(device) ?? typeName(device.type, t);
 
 /**
  * What to call a device where the name is the whole of its row. A list of six
@@ -34,7 +37,7 @@ export const deviceName = (device: Device, t: Translate): string => given(device
  * the list there is no telling, and the tag stays.
  */
 export const deviceTitle = (device: Device, t: Translate, among?: Device[]): string => {
-  const name = given(device);
+  const name = givenName(device);
   if (name) return name;
 
   const word = deviceName(device, t);
@@ -59,3 +62,16 @@ export const cameraTag = (camera: Camera): string => (camera.did ?? camera.id).s
  */
 export const cameraTitle = (camera: Camera, carrier: Device | null, t: Translate): string =>
   carrier && camera.name === carrier.type ? t('cameras.add.found.title', { tag: cameraTag(camera) }) : camera.name;
+
+/**
+ * Which build a device is on, in the words that say which one.
+ *
+ * `version` comes first because it is the only field that tells two builds of
+ * one class apart: the build container stamps it with the commit and the branch
+ * it came from, while every build carried over from the old cloud is *named*
+ * after its class, so two fridges on two different builds both read "fridge".
+ * With neither there is nothing to say, and nothing is said - the uuid the
+ * device reports means nothing to a grower and cannot be compared with
+ * anything.
+ */
+export const buildLabel = (build: Pick<Firmware, 'version' | 'name'> | undefined): string | null => build?.version || build?.name || null;

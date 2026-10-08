@@ -11,6 +11,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from '../devices/cameras';
 import styles from './Admin.module.css';
+import { typeName } from '@/ui/naming';
 
 /**
  * What the demo is showing right now.
@@ -74,7 +75,7 @@ export function Demo() {
             return (
               <li key={device.id} className={styles.row}>
                 <span className="mono">{device.id}</span>
-                <span>{device.name ?? t(`devices.type.${device.type}`, { defaultValue: device.type })}</span>
+                <span>{device.name ?? typeName(device.type, t)}</span>
                 <Liveness state={liveness}>
                   {t(`home.liveness.${liveness}`)}
                   {device.state.lastSeenAt ? ` · ${ageLabel(device.state.lastSeenAt, now)}` : ''}
