@@ -1,4 +1,5 @@
 import i18next from 'i18next';
+import type { WeekClimate } from '@fg2/shared-types/v1';
 
 /**
  * How a figure is written, and in whose language.
@@ -68,6 +69,15 @@ export const typedFigure = (typed: string): number | null => {
 
   return trimmed !== '' && Number.isFinite(value) ? value : null;
 };
+
+/** A figure to fixed decimals, or a dash where there is none. */
+export const dashFigure = (value: number | null, decimals: number): string => (value === null ? '–' : decimalFigure(value, decimals));
+
+/** "25.1 / 22.1" where the controller told day from night; the plain mean where it did not. */
+export const dayNightFigure = (row: WeekClimate | undefined, decimals: number): string =>
+  row?.dayAverage !== null && row?.dayAverage !== undefined
+    ? `${dashFigure(row.dayAverage, decimals)} / ${dashFigure(row.nightAverage, decimals)}`
+    : dashFigure(row?.averageValue ?? null, decimals);
 
 /** Spaces that do not break, so a narrow line breaks between two figures and never inside one - between a number and its unit. */
 export const unbroken = (text: string): string => text.replace(/ /g, '\u00a0');

@@ -11,7 +11,7 @@ import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
 import { useCorrecting } from '@/log/corrections';
 import { durationFigure } from '@/ui/age';
-import { decimalFigure, fileSize } from '@/ui/figures';
+import { dayNightFigure, decimalFigure, fileSize } from '@/ui/figures';
 import { growDayOf } from '@/ui/entries';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
@@ -228,9 +228,7 @@ function Chapter({
             the day and night split this line is already drawn from. */}
         {temperature ? (
           <p className={`mono ${styles.chapterMeta}`}>
-            {temperature.dayAverage !== null
-              ? `${decimalFigure(temperature.dayAverage, 1)} / ${temperature.nightAverage === null ? '–' : decimalFigure(temperature.nightAverage, 1)} °C`
-              : `${temperature.averageValue === null ? '–' : decimalFigure(temperature.averageValue, 1)} °C`}
+            {`${dayNightFigure(temperature, 1)} °C`}
             {humidity?.averageValue !== null && humidity !== undefined ? ` · ${decimalFigure(humidity.averageValue, 0)} %` : ''}
             {chapter.lightHours !== null ? ` · ${durationFigure(decimalFigure(chapter.lightHours, 0), 'h')}` : ''}
             {chapter.inBandPercent !== null ? (

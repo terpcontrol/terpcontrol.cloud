@@ -251,22 +251,6 @@
   background: var(--card-2);
 }
 
-/* A week's film is an aside inside the card, not the card - so it is capped
-   rather than laid across it. */
-.weekFilm {
-  display: block;
-  width: 100%;
-  max-width: 420px;
-  aspect-ratio: 16 / 9;
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  background: var(--card-2);
-}
-
-.weekFilmButton {
-  align-self: flex-start;
-}
-
 .filmCaption {
   padding: var(--space-2) var(--space-3);
   border-top: var(--rule-solid);
@@ -423,12 +407,6 @@
 
 .dayTile[data-future='true'] .dayName {
   font-weight: var(--weight-regular);
-}
-
-/* The week's figures, a strip on a hairline under the days. */
-.stats {
-  padding-top: var(--space-3);
-  border-top: var(--rule-solid);
 }
 
 .feeding {

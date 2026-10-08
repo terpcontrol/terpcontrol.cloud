@@ -1,14 +1,14 @@
-import { ChevronDown, Film, Leaf } from 'lucide-react';
+import { ChevronDown, Leaf } from 'lucide-react';
 import { DateTime } from 'luxon';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { GrowWeekCard, WeekClimate } from '@fg2/shared-types/v1';
+import type { GrowWeekCard } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
-import { ageLabel, unitSymbol } from '@/ui/age';
+import { ageLabel } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
-import { decimalFigure, looseFigure } from '@/ui/figures';
+import { WeekClimateStrip, WeekFilm } from '@/ui/GrowFigures';
+import { looseFigure } from '@/ui/figures';
 import { weekDayOf } from '@/ui/entries';
-import { Term } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { Photo } from '@/ui/Photo';
 import { windowIsCurrent } from './window';
@@ -35,14 +35,6 @@ interface DiaryWeekProps {
   asOf: string | null;
 }
 
-const figure = (value: number | null, decimals: number): string => (value === null ? '–' : decimalFigure(value, decimals));
-
-/** "25.5 / 20.7" where the controller told day from night; the plain mean where it did not. */
-const dayNight = (row: WeekClimate | undefined, decimals: number): string =>
-  row?.dayAverage !== null && row?.dayAverage !== undefined
-    ? `${figure(row.dayAverage, decimals)} / ${figure(row.nightAverage, decimals)}`
-    : figure(row?.averageValue ?? null, decimals);
-
 /**
  * One week of a public diary: the seven pictures, how the tent was kept, what
  * was fed and what was written down.
@@ -56,8 +48,6 @@ const dayNight = (row: WeekClimate | undefined, decimals: number): string =>
 export function DiaryWeek({ week, picture, now, current, ended, asOf, explain }: DiaryWeekProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(current);
-  const temperature = week.climate.find(row => row.metric === 'temperature');
-  const humidity = week.climate.find(row => row.metric === 'humidity');
 
   return (
     <article className={styles.week} aria-label={t('grow.dayRange', { from: week.dayFrom, to: week.dayTo })}>
@@ -100,31 +90,7 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf, explain }:
         })}
       </ul>
 
-      {/* Where nothing measures where the grow stood there is no climate to
-          average, and a diary kept by hand is not told on every card what it
-          lacks. Null is not being told, and then the averages speak for
-          themselves. */}
-      {week.deviceIds?.length === 0 ? null : week.climate.length === 0 ? (
-        <p className={`mono ${styles.quiet}`}>{t('grow.nothingMeasured')}</p>
-      ) : (
-        <dl className={`${ui.strip} ${styles.stats}`}>
-          <Stat
-            value={dayNight(temperature, 1)}
-            unit="°C"
-            label={
-              temperature?.dayAverage == null ? (
-                t('grow.average')
-              ) : explain ? (
-                <Term topic="dayNightAverages">{t('grow.dayNight')}</Term>
-              ) : (
-                t('grow.dayNight')
-              )
-            }
-          />
-          <Stat value={figure(humidity?.averageValue ?? null, 0)} unit="%" label={t('grow.humidity')} />
-          <Stat value={figure(week.lightHours, 0)} unit={unitSymbol('h')} label={t('grow.light')} />
-        </dl>
-      )}
+      <WeekClimateStrip week={week} explain={explain} emptyClassName={styles.quiet} />
 
       {open ? (
         <>
@@ -190,39 +156,5 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf, explain }:
         </>
       ) : null}
     </article>
-  );
-}
-
-/**
- * The week's timelapse, asked for only when somebody wants it. A diary of
- * twenty weeks would otherwise put twenty players on the page, each of them a
- * blank rectangle the size of the card until it was pressed.
- */
-function WeekFilm({ src }: { src: string }) {
-  const { t } = useTranslation();
-  const [playing, setPlaying] = useState(false);
-
-  if (!playing) {
-    return (
-      <button type="button" className={`${ui.chip} ${styles.weekFilmButton}`} onClick={() => setPlaying(true)}>
-        <Film size={13} strokeWidth={1.75} aria-hidden />
-        {t('publicPage.weekFilm')}
-      </button>
-    );
-  }
-
-  // Silent by nature, so it starts on the tap that asked for it rather than on a second one.
-  return <video className={styles.weekFilm} src={src} controls autoPlay muted playsInline />;
-}
-
-function Stat({ value, unit, label }: { value: string; unit: string; label: ReactNode }) {
-  return (
-    <div>
-      <dd className={ui.stripValue}>
-        <span className="figure">{value}</span>
-        <span className={`mono ${ui.stripUnit}`}>{unit}</span>
-      </dd>
-      <dt className="caption">{label}</dt>
-    </div>
   );
 }
