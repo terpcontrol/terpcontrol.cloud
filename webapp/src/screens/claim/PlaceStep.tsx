@@ -32,6 +32,9 @@ const KINDS: SpaceKind[] = ['tent', 'fridge', 'other'];
  * hardware that landed in the wrong tent would stay there for good: nothing
  * else in the app moves a device.
  *
+ * Typing the name of a place the account already has is the second half said
+ * the first way, and is taken as that: the device joins the place.
+ *
  * The field follows the stored name until somebody types in it, and follows it
  * again once a rename has gone through: the server's name is the one being
  * corrected, and it arrives a moment after this step opens.
@@ -57,11 +60,16 @@ export function PlaceStep({
   const name = typed ?? space?.name ?? '';
   const trimmed = name.trim();
   const changed = space !== null && trimmed !== '' && trimmed !== space.name;
-  // Two places with one name are legal and sometimes meant, and they are also
-  // how somebody loses track of which tent an alert is about, so the clash is
-  // said before the rename rather than refused after it.
-  const taken = trimmed !== '' && places.some(one => one.id !== space?.id && one.name.trim().toLowerCase() === trimmed.toLowerCase());
+  const sameName = (one: Space) => trimmed !== '' && one.id !== space?.id && one.name.trim().toLowerCase() === trimmed.toLowerCase();
   const elsewhere = placesFor(places).filter(one => one.id !== space?.id);
+  // Typing the name of a place this account already has means that place: the
+  // device joins it rather than a second place of the same name being made,
+  // which would stand beside the first on Start with one device each.
+  const joins = elsewhere.find(sameName) ?? null;
+  // A clash with a place the device cannot join is still said before the
+  // rename: two places of one name are legal, and how somebody loses track of
+  // which tent an alert is about.
+  const taken = joins === null && places.some(sameName);
   const busy = place.isPending || archive.isPending;
 
   // The place the claim invented holds this device and nothing else, so once
@@ -91,15 +99,22 @@ export function PlaceStep({
         <button
           type="button"
           className={ui.fieldAction}
-          disabled={!changed || rename.isPending || busy}
-          onClick={() => changed && rename.mutate({ name: trimmed }, { onSuccess: () => setTyped(null) })}
+          disabled={!changed || rename.isPending || busy || (joins !== null && !deviceId)}
+          onClick={() => (joins ? moveTo(joins.id) : changed && rename.mutate({ name: trimmed }, { onSuccess: () => setTyped(null) }))}
         >
-          {rename.isPending ? t('claim.place.renaming') : t('claim.place.rename')}
+          {joins
+            ? place.isPending
+              ? t('claim.place.joining')
+              : t('claim.place.join')
+            : rename.isPending
+              ? t('claim.place.renaming')
+              : t('claim.place.rename')}
         </button>
       </div>
 
+      {joins ? <p className={ui.note}>{t('claim.place.joins', { name: joins.name })}</p> : null}
       {taken ? <p className={ui.note}>{t('claim.place.nameTaken')}</p> : null}
-      <p className={ui.note}>{t('claim.place.renamesThePlace')}</p>
+      {joins ? null : <p className={ui.note}>{t('claim.place.renamesThePlace')}</p>}
 
       {elsewhere.length > 0 && deviceId ? (
         <>

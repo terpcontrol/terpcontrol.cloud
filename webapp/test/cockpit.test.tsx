@@ -258,11 +258,22 @@ const server = {
   mine: [] as MyGrowCard[],
   /** The rows of the device's socket table, by role; none paired is what most devices answer. */
   sockets: [] as { role: string; state?: string; stateChangedAt?: string | null }[],
+  /** Every write the page sent, as "METHOD /path". */
+  writes: [] as string[],
 };
 
-const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
   const path = pathname.replace(/^\/v1/, '');
+  const method = init?.method ?? 'GET';
+
+  if (method !== 'GET') server.writes.push(`${method} ${path}`);
+  const placed = /^\/spaces\/([^/]+)\/devices\/([^/]+)$/.exec(path);
+  if (method === 'PUT' && placed) {
+    server.devices = server.devices.map(device => (device.id === placed[2] ? { ...device, spaceId: placed[1] } : device));
+    return json(server.devices.find(device => device.id === placed[2]));
+  }
+  if (method === 'DELETE') return new Response(null, { status: 204 });
 
   if (path === '/me') return json(server.me);
   if (path === '/spaces') return json(spacePage(spaceWhere(server.youMay), spaceWhere(server.youMay, { id: 'space-2', name: 'Tent 2' })));
@@ -316,6 +327,7 @@ beforeEach(() => {
   server.plan = null;
   server.customers = [];
   server.sockets = [];
+  server.writes = [];
 });
 
 afterEach(() => {
@@ -544,6 +556,50 @@ describe('a place whose control is switched off', () => {
 
     expect(await screen.findByRole('button', { name: /^Switch control off/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^MaintenancePause/ })).toBeInTheDocument();
+  });
+});
+
+describe('devices brought together in one place', () => {
+  const emptyTent = () => overviewOf({ spaceId: 'space-2', name: 'Tent 2', kind: 'tent', deviceIds: [], values: [], setpoints: [] });
+
+  it('brings a device standing in another place here, and offers the place it left empty for removal without removing it', async () => {
+    server.devices = [fridge(), fridge({ id: 'device-2', type: 'light', name: 'Lamp', spaceId: 'space-2' })];
+    server.overviews.set('space-2', emptyTent());
+    draw(<PlaceCockpit overview={overviewOf()} headed />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^More about/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Bring a device here' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Lamp · Tent 2' }));
+
+    await waitFor(() => expect(server.writes).toEqual(['PUT /spaces/space-1/devices/device-2']));
+    expect(await screen.findByText('Lamp now stands in Fridge 1.')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing stands in Tent 2 any more: no device, no camera, no grow.')).toBeInTheDocument();
+    expect(server.writes).toEqual(['PUT /spaces/space-1/devices/device-2']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tent 2' }));
+    await waitFor(() => expect(server.writes).toContain('DELETE /spaces/space-2'));
+  });
+
+  it('does not offer to bring a device in where every device already stands here', async () => {
+    draw(<PlaceCockpit overview={overviewOf()} headed />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^More about/ }));
+    expect(await screen.findByRole('button', { name: 'Rename' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bring a device here' })).not.toBeInTheDocument();
+  });
+
+  it('offers an empty place for removal on its own page, and leaves one that still holds a grow alone', async () => {
+    server.overviews.set('space-2', emptyTent());
+    const { unmount } = draw(<PlaceCockpit overview={emptyTent()} headed />);
+    expect(await screen.findByRole('button', { name: 'Remove Tent 2' })).toBeInTheDocument();
+    expect(server.writes).toEqual([]);
+    unmount();
+
+    const growing = { ...emptyTent(), grows: [{ growId: 'grow-1' } as never] };
+    server.overviews.set('space-2', growing);
+    draw(<PlaceCockpit overview={growing} headed />);
+    await screen.findAllByText('Tent 2');
+    expect(screen.queryByRole('button', { name: 'Remove Tent 2' })).not.toBeInTheDocument();
   });
 });
 

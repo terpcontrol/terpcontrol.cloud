@@ -1,0 +1,12 @@
+/* What is left of a place, the way to end it, and what ending it keeps: one
+   block, so the button reads as the answer to the sentence above it. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.empty p {
+  margin: 0;
+}

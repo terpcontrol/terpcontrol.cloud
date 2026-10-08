@@ -1913,6 +1913,20 @@
     },
     "noReadingsYet": "Nothing reported yet",
     "growingHere": "Growing here",
+    "deviceHere": {
+      "title": "Bring a device to {{name}}",
+      "which": "Which device",
+      "none": "Every device you control already stands here.",
+      "moved": "{{device}} now stands in {{place}}.",
+      "note": "From now on the device’s readings and camera count for this place. What it measured before stays with the old one.",
+      "done": "Done"
+    },
+    "empty": {
+      "says": "Nothing stands in {{name}} any more: no device, no camera, no grow.",
+      "remove": "Remove {{name}}",
+      "removing": "removing…",
+      "note": "What was measured and written there stays readable."
+    },
     "lastStill": "last one {{age}} ago",
     "stillAlt": "{{name}} at {{time}}",
     "climate24h": "Climate · 24 h",
@@ -3363,10 +3377,13 @@
         "other": "Place {{n}}"
       },
       "nameTaken": "A place is already called that.",
+      "joins": "You already have {{name}}: the device joins it, beside whatever stands there.",
       "renamesThePlace": "The field renames the place itself, not this device’s own name.",
       "alreadyHave": "Or it stands in a place you already have",
       "rename": "rename",
       "renaming": "renaming…",
+      "join": "put it there",
+      "joining": "moving…",
       "kindLabel": "What kind of place it is",
       "kind": {
         "tent": "Tent",
@@ -4295,6 +4312,7 @@
       "preset": "Choose a climate preset",
       "newGrow": "Start a grow",
       "moveGrow": "Move a grow here",
+      "deviceHere": "Bring a device here",
       "members": "Invite members",
       "rename": "Rename",
       "presetLine": "under Control · applies once saved",

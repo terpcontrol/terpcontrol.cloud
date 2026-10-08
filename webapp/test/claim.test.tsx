@@ -556,12 +556,26 @@ describe('adding a device', () => {
     expect(screen.getByRole('button', { name: 'Tent' })).toBeInTheDocument();
   });
 
-  it('says so before a second place is given a name another one already has', async () => {
+  it('puts the device into the place whose name is typed rather than making a second one of that name', async () => {
     state.spaces = [space, { ...space, id: 'space-other', name: 'Mother tent' }];
+    vi.mocked(api.put).mockResolvedValue({ ...device, spaceId: 'space-other' } as never);
     await drawClaimed();
     fireEvent.change(screen.getByRole('textbox', { name: 'Name of the place' }), { target: { value: 'mother tent' } });
 
+    expect(screen.getByText(/You already have Mother tent/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'put it there' }));
+
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/spaces/space-other/devices/sim-controller-7f3a'));
+    expect(api.patch).not.toHaveBeenCalledWith('/spaces/space-new', { name: 'mother tent' });
+  });
+
+  it('says so before a place is given the name of one the device cannot stand in', async () => {
+    state.spaces = [space, { ...space, id: 'space-room', kind: 'room', name: 'Cellar' }];
+    await drawClaimed();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name of the place' }), { target: { value: 'cellar' } });
+
     expect(screen.getByText('A place is already called that.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'rename' })).toBeEnabled();
   });
 
   it('does not report a climate write that no controller took', async () => {
