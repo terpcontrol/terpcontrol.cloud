@@ -116,7 +116,7 @@ describe('the fine settings themselves', () => {
   it('switch CO2 at night on the tap, and say what it means', async () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
     const Co2Night = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'co2-night')!.Item;
-    wrap(<Co2Night device={device()} mayManage offline={false} />);
+    drawAt(<Co2Night device={device()} mayManage offline={false} />);
 
     expect(screen.getByText('CO₂ is dosed only while the light is on.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('switch', { name: 'CO₂ at night too' }));
