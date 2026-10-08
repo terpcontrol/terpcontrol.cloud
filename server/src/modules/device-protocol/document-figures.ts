@@ -98,6 +98,7 @@ const CLIMATE: DocumentFigures = {
   'daynight.minimalDehumidifierOffTime': SECONDS,
   // A controller without a sensor writes 0 itself; the old app offered up to 10,000.
   'co2.target': number(0, 10_000),
+  'co2.night': FLAG,
   'day.temperature': TEMPERATURE,
   'day.humidity': HUMIDITY,
   'night.temperature': TEMPERATURE,

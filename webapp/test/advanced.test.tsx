@@ -31,6 +31,7 @@ const fridge = (over: Partial<Device> = {}): Device =>
     type: 'fridge',
     configuration: { workmode: 'full', daynight: { minimalDehumidifierOffTime: 300 } },
     control: { running: true, drying: false, mode: 'standard', energySaving: true },
+    state: { hardware: {} },
     ...over,
   }) as Device;
 

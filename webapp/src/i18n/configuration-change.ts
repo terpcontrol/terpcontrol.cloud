@@ -30,6 +30,7 @@ const FIELDS: Readonly<Record<string, Field>> = {
   'day.humidity': { kind: 'number', unit: '%' },
   'night.humidity': { kind: 'number', unit: '%' },
   'co2.target': { kind: 'number', unit: 'ppm' },
+  'co2.night': { kind: 'switch' },
   'lights.limit': { kind: 'number', unit: '%' },
   'lights.sunrise': { kind: 'number', unit: 'min' },
   'lights.sunset': { kind: 'number', unit: 'min' },

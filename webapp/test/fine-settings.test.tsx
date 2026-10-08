@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Co2Report, Device, Entry } from '@fg2/shared-types/v1';
+import type { Co2Report, Device, Entry, SocketPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { daysLeftOf, items as co2Items } from '@/screens/cockpit/Co2Report.advanced';
 import { items as sensorItems } from '@/screens/devices/advanced/SensorFactors.advanced';
@@ -69,11 +69,12 @@ beforeEach(() => {
 });
 
 describe('what Erweitert offers a device', () => {
-  it('offers a fridge its ramps, its maintenance light, its fans, its compressor rest and its leaf offsets', () => {
+  it('offers a fridge its ramps, its maintenance light, CO2 at night, its fans, its compressor rest and its leaf offsets', () => {
     expect(ids(device())).toEqual([
       'operating-mode',
       'light-ramps',
       'maintenance-light',
+      'co2-night',
       'fans',
       'compressor-rest',
       'continue-plan',
@@ -85,6 +86,22 @@ describe('what Erweitert offers a device', () => {
   it('offers a tent controller the ramps its lamp runs on, and the lux factor only where it measures light', () => {
     expect(ids(device('controller'))).toEqual(['operating-mode', 'light-ramps', 'continue-plan', 'leaf-offsets', 'update-channel']);
     expect(ids(device('controller', { ppfd: 'on' }))).toContain('lux-factor');
+  });
+
+  it('offers CO2 at night only where the device doses: a CO2 sensor, and a valve - a socket on a tent controller', () => {
+    const withSockets = (one: Device, roles: string[]) =>
+      itemsFor('device', {
+        device: one,
+        mayManage: true,
+        offline: false,
+        sockets: { items: roles.map(role => ({ role })), nextCursor: null, capabilities: {} } as unknown as SocketPage,
+      }).map(item => item.id);
+
+    expect(ids(device('fridge'))).toContain('co2-night');
+    expect(ids(device('fridge', { co2: 'off' }))).not.toContain('co2-night');
+    expect(withSockets(device('controller'), ['co2'])).toContain('co2-night');
+    expect(withSockets(device('controller'), ['light', 'heater'])).not.toContain('co2-night');
+    expect(withSockets(device('controller', { co2: 'off' }), ['co2'])).not.toContain('co2-night');
   });
 
   it('offers nothing to tune before the device has sent its document, and none of this to a lamp or a plug', () => {
@@ -111,6 +128,17 @@ describe('the fine settings themselves', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { sunrise: 30 } }));
+  });
+
+  it('switch CO2 at night on the tap, and say what it means', async () => {
+    vi.mocked(api.patch).mockResolvedValue(device() as never);
+    const Co2Night = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'co2-night')!.Item;
+    wrap(<Co2Night device={device()} mayManage offline={false} />);
+
+    expect(screen.getByText('CO₂ is dosed only while the light is on.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('switch', { name: 'CO₂ at night too' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { co2Night: true } }));
   });
 
   it('ask before a fridge goes dark for germination, and go back to the standard at once', async () => {

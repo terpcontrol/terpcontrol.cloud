@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { MIN_COMPRESSOR_REST_SECONDS } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import type { Device } from '@fg2/shared-types/v1';
+import type { Device, SocketPage } from '@fg2/shared-types/v1';
 import { FieldNumber, FieldSwitch } from '@/ui/advanced/Fields';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
+import { hasCo2Sensor } from '@/ui/climate-hardware';
 
 /**
  * What a few growers tune about the hardware itself, and the app had hidden
@@ -46,6 +47,25 @@ function MaintenanceLight({ device, mayManage }: DeviceContext) {
   );
 }
 
+/**
+ * Dosing in the dark as well, for roots in deep water culture. Drawn only where the device doses at all: it measures
+ * CO2, and has a valve to open - a fridge carries its own, a tent controller opens one on a smart socket.
+ */
+function Co2Night({ device, mayManage }: DeviceContext) {
+  const { t } = useTranslation();
+
+  return (
+    <FieldSwitch
+      device={device}
+      name="co2Night"
+      label={t('tuning.co2Night')}
+      help="advanced.co2Night"
+      disabled={!mayManage}
+      note={on => t(on ? 'tuning.co2NightOn' : 'tuning.co2NightOff')}
+    />
+  );
+}
+
 /** The clip fan that moves the leaves, and the inner fans that move the air, at the least they run at. */
 function Fans({ device, mayManage }: DeviceContext) {
   const { t } = useTranslation();
@@ -74,6 +94,9 @@ function CompressorRest({ device, mayManage }: DeviceContext) {
   );
 }
 
+const dosesCo2 = (device: Device, sockets: SocketPage | undefined): boolean =>
+  device.type === 'fridge' || (device.type === 'controller' && (sockets?.items.some(socket => socket.role === 'co2') ?? false));
+
 const fridge = (device: Device): boolean => device.type === 'fridge' && hasDocument(device);
 
 export const items = [
@@ -85,6 +108,13 @@ export const items = [
     Item: LightRamps,
   }),
   advancedItem({ scope: 'device', id: 'maintenance-light', order: 30, shows: ({ device }) => fridge(device), Item: MaintenanceLight }),
+  advancedItem({
+    scope: 'device',
+    id: 'co2-night',
+    order: 35,
+    shows: ({ device, sockets }) => hasDocument(device) && hasCo2Sensor(device) && dosesCo2(device, sockets),
+    Item: Co2Night,
+  }),
   advancedItem({ scope: 'device', id: 'fans', order: 40, shows: ({ device }) => fridge(device), Item: Fans }),
   advancedItem({ scope: 'device', id: 'compressor-rest', order: 50, shows: ({ device }) => fridge(device), Item: CompressorRest }),
 ];

@@ -4989,7 +4989,11 @@
       },
       "maintenanceLight": {
         "title": "Light on during maintenance",
-        "text": "By day maintenance dims the light to 15 % anyway. Switched on, it also runs at 15 % during the dark period, so you can see what you are doing at night. In flower, light in the dark period disturbs the plants – leave it off then."
+        "text": "By day maintenance dims the light to 15 % anyway. Switched on, it also runs at 15 % during the dark period, so you can see what you are doing at night. In flower, light in the dark period disturbs the plants – leave it off then. A second light on a smart socket stays off during maintenance either way."
+      },
+      "co2Night": {
+        "title": "CO₂ at night too",
+        "text": "Plants take up no CO₂ in the dark, so by default it is only dosed while the light is on. Roots in deep water culture (DWC) breathe round the clock, though – switch this on and the target is held at night as well. Maintenance pauses dosing either way."
       },
       "fans": {
         "title": "Fans",
@@ -5547,6 +5551,9 @@
     "maintenanceLight": "Light on during maintenance",
     "maintenanceLightOn": "The light runs at 15 % during maintenance at night too.",
     "maintenanceLightOff": "At night it stays dark during maintenance.",
+    "co2Night": "CO₂ at night too",
+    "co2NightOn": "CO₂ is dosed to the target in the dark period as well.",
+    "co2NightOff": "CO₂ is dosed only while the light is on.",
     "clipFan": "Clip fan",
     "innerFans": "Inner fans, at least",
     "compressorRest": "Compressor rest"
@@ -5894,7 +5901,8 @@
         "humidity": "Night humidity"
       },
       "co2": {
-        "target": "CO₂ target"
+        "target": "CO₂ target",
+        "night": "CO₂ at night"
       },
       "lights": {
         "limit": "Light limit",

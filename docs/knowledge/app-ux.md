@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, what was left out on purpose; read before changing a screen
 updated: 2026-10-08
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-06); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); checked against webapp/src on 2026-10-08
+source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); checked against webapp/src on 2026-10-08
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -21,6 +21,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   Einfach/Experte tabs are gone: what few growers need sits in a collapsed **Erweitert** section beside the thing it is
   about (device panel, targets, cockpit foot, charts, camera, alarm rule), drawn only where one of its items applies
   ([how an item is made](webapp.md#styling-erweitert-small-helpers)).
+- **A setting is offered only where it can take effect** (Chris, 2026-10-07): "CO₂ auch nachts" needs a CO2 sensor,
+  and on a tent controller a socket paired as `co2` too - a fridge has its own valve (`Tuning.advanced.tsx`).
 - **Grows without devices and devices without grows are both first class** (Chris, 2026-09-16).
 - **Design and judge every screen first with an account of one device, no grow and no diary** (Chris, 2026-10-01);
   an account nothing is known about yet is drawn that way (`app/shell/shape.ts`). The diary and several places are

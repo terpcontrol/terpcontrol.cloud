@@ -207,6 +207,19 @@ namespace fg {
     else {
       state.is_day = false;
     }
+
+    state.light_ramp = state.is_day ? 1.0f : 0.0f;
+    if(state.is_day) {
+      const int SECONDS_PER_DAY = 24 * 60 * 60;
+      if(settings.lights.sunrise > 0 && (state.timeofday + SECONDS_PER_DAY) < (settings.daynight.day + SECONDS_PER_DAY + settings.lights.sunrise * 60)) {
+        state.light_ramp = static_cast<float>(state.timeofday - settings.daynight.day) / (settings.lights.sunrise * 60.0f);
+      }
+      if(settings.lights.sunset > 0 && (state.timeofday + SECONDS_PER_DAY) > (settings.daynight.night + SECONDS_PER_DAY - settings.lights.sunset * 60)) {
+        state.light_ramp = static_cast<float>(settings.daynight.night - state.timeofday) / (settings.lights.sunset * 60.0f);
+      }
+      state.light_ramp = state.light_ramp > 1.0f ? 1.0f : state.light_ramp;
+      state.light_ramp = state.light_ramp < 0.0f ? 0.0f : state.light_ramp;
+    }
   }
 
   void ControllerController::controlCo2() {
@@ -229,7 +242,7 @@ namespace fg {
     }
     co2_inject_start = xTaskGetTickCount();
 
-    if(state.is_day) {
+    if(state.is_day || settings.co2.night > 0) {
       if(tickPassed(co2_inject_end)) {
         if((co2_avg.avg() < settings.co2.target && !isPaused())) {
           co2_valve_open = true;
@@ -258,8 +271,6 @@ namespace fg {
   }
 
   void ControllerController::controlLight() {
-    const int SECONDS_PER_DAY = 24 * 60 * 60;
-
     if(state.is_day) {
 
       static float light_current = 0.0f;
@@ -276,24 +287,7 @@ namespace fg {
         if (out < LIGHT_MIN_DIM) out = LIGHT_MIN_DIM;
       }
 
-      float max_out = 1.0f;
-      if (isPaused()) {
-          max_out = 0.15f;
-      }
-      else
-      {
-          if(settings.lights.sunrise > 0 && (state.timeofday + SECONDS_PER_DAY) < (settings.daynight.day + SECONDS_PER_DAY + settings.lights.sunrise * 60)) {
-            //LOG("TON: %d\n", state.time - settings.daynight.day);
-            max_out = static_cast<float>(state.timeofday - settings.daynight.day) / (settings.lights.sunrise * 60.0f);
-          }
-          if(settings.lights.sunset > 0 && (state.timeofday + SECONDS_PER_DAY) > (settings.daynight.night + SECONDS_PER_DAY - settings.lights.sunset * 60)) {
-            //LOG("TOFF: %d\n", state.time - settings.daynight.night);
-            max_out = static_cast<float>(settings.daynight.night - state.timeofday) / (settings.lights.sunset * 60.0f);
-          }
-      }
-
-      max_out = max_out > 1.0f ? 1.0f : max_out;
-      max_out = max_out < 0.0f ? 0.0f : max_out;
+      const float max_out = isPaused() ? 0.15f : state.light_ramp;
 
       out = out > 1 ? 1 : out;
       out = out < 0 ? 0 : out;
@@ -484,6 +478,7 @@ namespace fg {
       loadIfAvaliable(new_settings.daynight.useLongHumidityAvg, doc["daynight"]["useLongHumidityAvg"]);
       loadIfAvaliable(new_settings.daynight.minimalDehumidifierOffTime, doc["daynight"]["minimalDehumidifierOffTime"]);
       loadIfAvaliable(new_settings.co2.target, doc["co2"]["target"]);
+      loadIfAvaliable(new_settings.co2.night, doc["co2"]["night"]);
       loadIfAvaliable(new_settings.day.temperature, doc["day"]["temperature"]);
       loadIfAvaliable(new_settings.day.humidity, doc["day"]["humidity"]);
       loadIfAvaliable(new_settings.night.temperature, doc["night"]["temperature"]);
@@ -502,6 +497,7 @@ namespace fg {
     Serial.printf("new_settings.daynight.useLongHumidityAvg: %f\n\r", new_settings.daynight.useLongHumidityAvg);
     Serial.printf("new_settings.daynight.minimalDehumidifierOffTime: %lu\n\r", new_settings.daynight.minimalDehumidifierOffTime);
     Serial.printf("new_settings.co2.target: %.0f\n\r", new_settings.co2.target);
+    Serial.printf("new_settings.co2.night: %.0f\n\r", new_settings.co2.night);
     Serial.printf("new_settings.day.temperature: %.2f\n\r", new_settings.day.temperature);
     Serial.printf("new_settings.day.humidity: %.0f\n\r", new_settings.day.humidity);
     Serial.printf("new_settings.night.temperature: %.2f\n\r", new_settings.night.temperature);
@@ -529,6 +525,7 @@ namespace fg {
     doc["daynight"]["useLongHumidityAvg"] = settings.daynight.useLongHumidityAvg;
     doc["daynight"]["minimalDehumidifierOffTime"] = settings.daynight.minimalDehumidifierOffTime;
     doc["co2"]["target"] = settings.co2.target;
+    doc["co2"]["night"] = settings.co2.night;
     doc["day"]["temperature"] = settings.day.temperature;
     doc["day"]["humidity"] = settings.day.humidity;
     doc["night"]["temperature"] = settings.night.temperature;
@@ -956,7 +953,8 @@ namespace fg {
       // the brightness the grower allows. The light sockets follow the output,
       // so they are held with it.
       bool light_forced_on = false;
-      if(wifiLightOutputOverride(light_forced_on)) {
+      const bool light_overridden = wifiLightOutputOverride(light_forced_on);
+      if(light_overridden) {
         state.out_light = light_forced_on ? settings.lights.limit : 0;
         out_light.set(255.0f * (state.out_light / 100.0f));
       }
@@ -967,7 +965,13 @@ namespace fg {
       socket_states.dehumidifier_on = state.out_dehumidifier > 0;
       socket_states.heater_on = state.out_heater > 0;
       socket_states.light_on = state.out_light > 0;
-      socket_states.secondary_light_on = state.out_light > 0;
+      // A second light, typically under the canopy, joins the main light in
+      // the middle of its sunrise and leaves in the middle of its sunset, and
+      // stays dark during maintenance so it does not dazzle whoever works on
+      // the plants.
+      socket_states.secondary_light_on = light_overridden
+          ? light_forced_on
+          : state.out_light > 0 && !isPaused() && state.light_ramp >= 0.5f;
       socket_states.co2_on = co2_valve_open;
       socket_states.humidifier_on = humidifierTarget(state.humidity,
                                                      state.is_day ? settings.day.humidity : settings.night.humidity,

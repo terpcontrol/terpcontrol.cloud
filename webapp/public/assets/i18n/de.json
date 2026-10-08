@@ -4997,7 +4997,11 @@
       },
       "maintenanceLight": {
         "title": "Licht an in der Wartung",
-        "text": "Tagsüber dimmt die Wartung das Licht ohnehin auf 15 %. Eingeschaltet brennt es auch in der Dunkelphase mit 15 %, damit du nachts siehst, was du tust. In der Blüte stört Licht in der Dunkelphase die Pflanzen – dann lieber aus lassen."
+        "text": "Tagsüber dimmt die Wartung das Licht ohnehin auf 15 %. Eingeschaltet brennt es auch in der Dunkelphase mit 15 %, damit du nachts siehst, was du tust. In der Blüte stört Licht in der Dunkelphase die Pflanzen – dann lieber aus lassen. Ein zweites Licht an einer Steckdose bleibt in der Wartung in jedem Fall aus."
+      },
+      "co2Night": {
+        "title": "CO₂ auch nachts",
+        "text": "Im Dunkeln nehmen Pflanzen kein CO₂ auf, deshalb wird es normalerweise nur dosiert, solange das Licht brennt. Wurzeln in Deep Water Culture (DWC) atmen aber rund um die Uhr – eingeschaltet wird der Zielwert auch nachts gehalten. Die Wartung pausiert die Dosierung in jedem Fall."
       },
       "fans": {
         "title": "Lüfter",
@@ -5555,6 +5559,9 @@
     "maintenanceLight": "Licht an in der Wartung",
     "maintenanceLightOn": "Auch nachts brennt das Licht während der Wartung mit 15 %.",
     "maintenanceLightOff": "Nachts bleibt es während der Wartung dunkel.",
+    "co2Night": "CO₂ auch nachts",
+    "co2NightOn": "CO₂ wird auch in der Dunkelphase auf den Zielwert dosiert.",
+    "co2NightOff": "CO₂ wird nur dosiert, solange das Licht an ist.",
     "clipFan": "Klemmlüfter",
     "innerFans": "Innenlüfter, mindestens",
     "compressorRest": "Kompressor-Pause"
@@ -5902,7 +5909,8 @@
         "humidity": "Luftfeuchte Nacht"
       },
       "co2": {
-        "target": "CO₂-Ziel"
+        "target": "CO₂-Ziel",
+        "night": "CO₂ nachts"
       },
       "lights": {
         "limit": "Lichtgrenze",

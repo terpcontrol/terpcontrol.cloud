@@ -86,6 +86,11 @@ const RAMPS = {
     sunrise: { kind: 'number', path: 'lights.sunrise', min: 0, max: 60, step: 1 },
     sunset: { kind: 'number', path: 'lights.sunset', min: 0, max: 60, step: 1 },
 };
+/**
+ * Whether CO2 is dosed in the dark period too, not only while the light is on:
+ * plants take up no CO2 at night, but roots in deep water culture do.
+ */
+const CO2_AT_NIGHT = { co2Night: { kind: 'switch', path: 'co2.night' } };
 const FRIDGE = {
     ...CONTROL,
     ...GERMINATION,
@@ -94,13 +99,14 @@ const FRIDGE = {
     mode: { kind: 'choice', path: null, options: (0, exports.workModesOf)('fridge') },
     compressorRest: { kind: 'number', path: 'daynight.minimalDehumidifierOffTime', min: exports.MIN_COMPRESSOR_REST_SECONDS, max: 900, step: 30 },
     ...RAMPS,
+    ...CO2_AT_NIGHT,
     // The lamp stays at its working brightness through a maintenance window at night too.
     maintenanceLight: { kind: 'switch', path: 'lights.maintenanceOn' },
     // Per cent. The clip fan may stand still; the inner fans keep a tenth, which is the least the firmware runs them at.
     clipFan: { kind: 'number', path: 'fans.external', min: 0, max: 100, step: 5 },
     innerFans: { kind: 'number', path: 'fans.internal', min: 10, max: 100, step: 5 },
 };
-const CONTROLLER = { ...CONTROL, ...GERMINATION, mode: { kind: 'choice', path: null, options: (0, exports.workModesOf)('controller') }, ...RAMPS };
+const CONTROLLER = { ...CONTROL, ...GERMINATION, mode: { kind: 'choice', path: null, options: (0, exports.workModesOf)('controller') }, ...RAMPS, ...CO2_AT_NIGHT };
 /** A time of day as the firmware keeps every one: seconds past midnight UTC. The app writes whole minutes. */
 const TIME_OF_DAY = { kind: 'number', min: 0, max: 86399, step: 60 };
 /**
