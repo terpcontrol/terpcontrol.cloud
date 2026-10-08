@@ -7,7 +7,7 @@ import type { Device, DeviceClaimCreate, DeviceClaimResult, SocketPage, Space } 
 import { claimCodeOf, useClaimDevice } from '@/api/claims';
 import { useDeviceFirmwares } from '@/api/devices';
 import { ageLabel, deviceLiveness } from '@/ui/age';
-import { canScan } from '@/ui/barcode';
+import { useQrScan } from '@/ui/barcode';
 import { Refused } from '@/ui/PageState';
 import { QrScanner } from '@/ui/QrScanner';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
@@ -46,8 +46,6 @@ export function CodeStep({
   const { t } = useTranslation();
   const claim = useClaimDevice();
   const [spaceId, setSpaceId] = useState<string | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanNote, setScanNote] = useState<string | null>(null);
   const form = useForm<DeviceClaimCreate>({ defaultValues: { code: initialCode } });
   // A room groups other places rather than holding anything, so a controller
   // never stands in one.
@@ -65,25 +63,15 @@ export function CodeStep({
     }
   });
 
-  const scan = () => {
-    if (!canScan()) return setScanNote(t('claim.code.scanUnavailable'));
-    setScanNote(null);
-    setScanning(true);
-  };
-
-  const onCode = useCallback(
-    (value: string) => {
-      setScanning(false);
-      form.setValue('code', claimCodeOf(value));
-      void submit();
-    },
-    [form, submit],
+  const { scan, note, scanner } = useQrScan(
+    useCallback(
+      (value: string) => {
+        form.setValue('code', claimCodeOf(value));
+        void submit();
+      },
+      [form, submit],
+    ),
   );
-  const closeScanner = useCallback(() => setScanning(false), []);
-  const onFailed = useCallback(() => {
-    setScanning(false);
-    setScanNote(t('claim.code.scanDenied'));
-  }, [t]);
 
   return (
     <form
@@ -107,14 +95,14 @@ export function CodeStep({
           {...form.register('code', { required: true })}
         />
         <button type="button" className={ui.fieldAction} onClick={scan}>
-          {t('claim.code.orScan')}
+          {t('home.addDevice.orScan')}
           <ChevronRight size={14} strokeWidth={1.75} aria-hidden />
         </button>
       </div>
 
-      {scanNote ? (
+      {note ? (
         <p className={ui.note} role="alert">
-          {scanNote}
+          {note}
         </p>
       ) : null}
 
@@ -143,7 +131,7 @@ export function CodeStep({
 
       <LegacyMove />
 
-      {scanning ? <QrScanner onCode={onCode} onClose={closeScanner} onFailed={onFailed} /> : null}
+      {scanner ? <QrScanner {...scanner} /> : null}
     </form>
   );
 }

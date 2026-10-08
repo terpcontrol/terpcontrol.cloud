@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { claimCodeOf } from '@/api/claims';
 import { session, useSession } from '@/api/session';
-import { canScan } from '@/ui/barcode';
+import { useQrScan } from '@/ui/barcode';
 import { useMayManage } from '@/ui/session-access';
 import { QrScanner } from '@/ui/QrScanner';
 import { LegacyMove } from './claim/LegacyMove';
@@ -153,8 +153,6 @@ function ClaimCode() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [code, setCode] = useState('');
-  const [scanning, setScanning] = useState(false);
-  const [scanNote, setScanNote] = useState<string | null>(null);
 
   const hand = useCallback(
     (value: string) => {
@@ -164,24 +162,7 @@ function ClaimCode() {
     [navigate],
   );
 
-  const scan = () => {
-    if (!canScan()) return setScanNote(t('home.addDevice.scanUnavailable'));
-    setScanNote(null);
-    setScanning(true);
-  };
-
-  const onCode = useCallback(
-    (value: string) => {
-      setScanning(false);
-      hand(value);
-    },
-    [hand],
-  );
-  const closeScanner = useCallback(() => setScanning(false), []);
-  const onFailed = useCallback(() => {
-    setScanning(false);
-    setScanNote(t('home.addDevice.scanDenied'));
-  }, [t]);
+  const { scan, note, scanner } = useQrScan(hand);
 
   return (
     <article className={ui.card}>
@@ -217,9 +198,9 @@ function ClaimCode() {
             <ChevronRight size={14} strokeWidth={1.75} aria-hidden />
           </button>
         </div>
-        {scanNote ? (
+        {note ? (
           <p className={`${ui.note} ${styles.problem}`} role="alert">
-            {scanNote}
+            {note}
           </p>
         ) : null}
       </form>
@@ -233,7 +214,7 @@ function ClaimCode() {
 
       <LegacyMove className={styles.legacy} />
 
-      {scanning ? <QrScanner onCode={onCode} onClose={closeScanner} onFailed={onFailed} /> : null}
+      {scanner ? <QrScanner {...scanner} /> : null}
     </article>
   );
 }
