@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CameraTransport, Device } from '@fg2/shared-types/v1';
-import { deviceName } from '@/screens/devices/naming';
+import { deviceName } from '@/ui/naming';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { Switch } from '@/ui/Switch';

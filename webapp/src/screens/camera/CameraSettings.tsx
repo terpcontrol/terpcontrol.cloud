@@ -7,7 +7,7 @@ import { useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
 import { useSpaces } from '@/api/spaces';
-import { deviceName } from '@/screens/devices/naming';
+import { deviceName } from '@/ui/naming';
 import { countdownDays } from '@/screens/me/premium/entitlement';
 import { missingLine } from '@/screens/me/premium/free-tier';
 import { AdvancedSection } from '@/ui/advanced/Advanced';

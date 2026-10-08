@@ -9,7 +9,7 @@ import { FieldChoice } from '@/ui/advanced/Fields';
 import { figureOf } from '@/ui/climate-hardware';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { Refused } from '@/ui/PageState';
-import { targetFigure, UNIT } from '@/screens/home/units';
+import { targetFigure, UNIT } from '@/ui/units';
 
 /**
  * Betriebsart: what a fridge or a tent controller does as a whole while its

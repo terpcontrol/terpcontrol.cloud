@@ -9,7 +9,7 @@ import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { cameraTitle } from '@/screens/devices/naming';
+import { cameraTitle } from '@/ui/naming';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';

@@ -34,7 +34,7 @@ import type { ConstantHold } from '../timeline/window';
 import { hoursWritten } from '../control/targets/schedule-words';
 import { draftOf, offsetOf, wallClock } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from '../home/attention';
-import { alertLabel, asWritten, figure, isSilence, UNIT } from '../home/units';
+import { alertLabel, asWritten, figure, isSilence, UNIT } from '@/ui/units';
 import { plugModeOf } from '../control/devices/own-summary';
 
 /**

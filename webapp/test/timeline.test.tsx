@@ -11,7 +11,7 @@ import { LogProvider } from '@/log/LogProvider';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
 import { Timeline } from '@/screens/timeline/Timeline';
-import { figure, targetFigure } from '@/screens/home/units';
+import { figure, targetFigure } from '@/ui/units';
 import { dayStopOf, daysOnAxis, frameNear, scaleOf, splitByNight, stretchesOf } from '@/screens/timeline/window';
 
 const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null, asked: [] as string[] }));

@@ -26,7 +26,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, DATED_CLOCK, WEEKDAY_DAY, zoned, zonedAt, zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
-import { deviceName } from '../devices/naming';
+import { deviceName } from '@/ui/naming';
 import { OfflineHelp } from '../home/OfflineHelp';
 import { causeOf } from './capture-failure';
 import { at, stamps, stampFor } from '../timeline/window';

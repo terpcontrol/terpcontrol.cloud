@@ -9,7 +9,7 @@ import { Refused } from '@/ui/PageState';
 import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
-import { deviceTitle } from '../naming';
+import { deviceTitle } from '@/ui/naming';
 import sheet from '../Maintenance.module.css';
 import { useChannel } from '../update-channel';
 import styles from './DeviceAdvanced.module.css';

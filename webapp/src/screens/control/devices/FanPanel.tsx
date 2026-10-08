@@ -5,7 +5,7 @@ import { useCo2Fan, useDevices } from '@/api/devices';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { deviceTitle } from '../../devices/naming';
+import { deviceTitle } from '@/ui/naming';
 import type { Unsaved } from '../targets/LeaveGuard';
 import { TargetRow } from '../targets/TargetRow';
 import { useFieldsDraft } from './fields-draft';

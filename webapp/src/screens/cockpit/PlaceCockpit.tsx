@@ -35,7 +35,7 @@ import { DeviceOffer } from '../home/DeviceOffer';
 import { DiaryOffer } from '../home/DiaryOffer';
 import { LivenessPill } from '../home/LivenessPill';
 import { OfflineHelp } from '../home/OfflineHelp';
-import { targetFigure, UNIT } from '../home/units';
+import { targetFigure, UNIT } from '@/ui/units';
 import { NotifyNotice } from '../notifications/NotifyNotice';
 import { CameraPicture } from './CameraPicture';
 import { GrowBlock } from './GrowBlock';

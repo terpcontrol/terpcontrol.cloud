@@ -10,7 +10,7 @@ import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useUnsilenceA
 import { useDeviceCommand } from '@/api/commands';
 import { useSpaceOverview } from '@/api/spaces';
 import { durationLabel } from '@/screens/devices/sockets';
-import { targetFigure } from '@/screens/home/units';
+import { targetFigure } from '@/ui/units';
 import { timeOf } from '@/screens/notifications/settings';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
@@ -38,7 +38,7 @@ import {
 } from './rules';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import styles from './Alarms.module.css';
-import { deviceName } from '@/screens/devices/naming';
+import { deviceName } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
 
 /**

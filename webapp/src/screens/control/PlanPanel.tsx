@@ -13,7 +13,7 @@ import ui from '@/ui/ui.module.css';
 import { serverNow } from '@/api/clock';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
-import { deviceTitle } from '../devices/naming';
+import { deviceName, deviceTitle } from '@/ui/naming';
 import { PlanEditor } from './PlanEditor';
 import { KeepAsTemplateSheet, StartFromTemplateSheet } from './PlanTemplates';
 import { PlanRefusal } from './Refusal';
@@ -38,7 +38,6 @@ import { offersReadyPlans } from './ready-plans';
 import { durationLabel, followsGermination, stepMeta } from './plan-labels';
 import { offsetOf } from './targets/targets-draft';
 import styles from './Control.module.css';
-import { deviceName } from '@/screens/devices/naming';
 
 /**
  * What one controller is being run by, and the five moves that can be made to

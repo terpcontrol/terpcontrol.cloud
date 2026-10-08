@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useDevices } from '@/api/devices';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
-import { deviceTitle } from '../naming';
+import { deviceTitle } from '@/ui/naming';
 import { PairSocketRow } from '../SocketSheets';
 
 /**

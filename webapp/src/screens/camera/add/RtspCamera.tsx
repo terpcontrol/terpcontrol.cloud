@@ -7,7 +7,7 @@ import { useMe } from '@/api/account';
 import { gaveUp, useCaptureOnce, useCreateCamera, useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
-import { deviceName } from '@/screens/devices/naming';
+import { deviceName } from '@/ui/naming';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { Help, Term } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';

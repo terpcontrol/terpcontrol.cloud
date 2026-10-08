@@ -15,12 +15,12 @@ import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { OfflineSteps } from '../home/OfflineHelp';
-import { figure, targetFigure } from '../home/units';
+import { figure, targetFigure } from '@/ui/units';
 import { beganAt, crossedBound, deliveryOf, lastedLabel } from './inbox';
 import type { AlertNames } from './names';
 import ask from './AlertCard.module.css';
 import styles from './Alerts.module.css';
-import { deviceName } from '@/screens/devices/naming';
+import { deviceName } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
 
 /** How long a silence from the card holds, and how long maintenance does. */

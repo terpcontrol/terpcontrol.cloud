@@ -3,7 +3,7 @@ import type { GerminationChoices as Choices } from '@fg2/shared-types/v1';
 import { GERMINATION_TOO_HUMID } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
-import { targetFigure, UNIT } from '../../home/units';
+import { targetFigure, UNIT } from '@/ui/units';
 import styles from './GerminationChoices.module.css';
 
 /**

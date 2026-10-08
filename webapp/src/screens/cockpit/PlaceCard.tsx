@@ -14,7 +14,7 @@ import { ownStatusOf } from '../control/devices/own-summary';
 import { offsetOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/LivenessPill';
-import { figure, UNIT } from '../home/units';
+import { figure, UNIT } from '@/ui/units';
 import {
   climateDeviceOf,
   controlOffOf,

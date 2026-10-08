@@ -33,7 +33,7 @@ import { isLightRole, lightOutputOf } from './lights';
 import { LightOutputRow } from './LightOutputRow';
 import { ControlButton } from './ControlSwitch';
 import { MaintenanceButton, RebootButton } from './Maintenance';
-import { cameraTitle, deviceName, deviceTitle } from './naming';
+import { cameraTitle, deviceName, deviceTitle } from '@/ui/naming';
 import { rowsOf, type SocketRowModel } from './sockets';
 import { SocketRow } from './SocketRow';
 import { PairSocketRow } from './SocketSheets';

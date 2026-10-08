@@ -18,7 +18,7 @@ import { useDevices } from '@/api/devices';
 import { correctEntry, diaryChanged, startPhase, takeEntryBack, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow } from '@/api/grows';
 import { useHome } from '@/api/home';
-import { deviceTitle } from '@/screens/devices/naming';
+import { deviceTitle } from '@/ui/naming';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { ClimatePick } from '@/screens/grow/ClimatePick';

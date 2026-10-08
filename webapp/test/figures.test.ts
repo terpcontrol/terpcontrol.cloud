@@ -2,7 +2,7 @@ import i18next from 'i18next';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { figure, targetFigure } from '@/screens/home/units';
+import { figure, targetFigure } from '@/ui/units';
 import { readingFigure } from '@/ui/entries';
 import { decimalFigure, looseFigure } from '@/ui/figures';
 
@@ -125,9 +125,9 @@ describe('the figures that must stay English', () => {
       .filter(path => !MACHINE.includes(path) && !path.startsWith('src/ui/figures.ts'))
       .filter(path => /\.toFixed\(/.test(readFileSync(resolve(process.cwd(), path), 'utf8')));
 
-    // `screens/home/units.ts` rounds with `toFixed` and writes with the shared
+    // `ui/units.ts` rounds with `toFixed` and writes with the shared
     // writer, which is the order that keeps the arithmetic out of the reader's
     // hands, and it is the only place left that may round at all.
-    expect(own).toEqual(['src/screens/home/units.ts']);
+    expect(own).toEqual(['src/ui/units.ts']);
   });
 });

@@ -13,7 +13,7 @@ import { Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
 import { boundsOf, channelsLabel, ruleTitle } from '../control/alarms/rules';
-import { targetFigure, UNIT } from '../home/units';
+import { targetFigure, UNIT } from '@/ui/units';
 import { alarmsReach, reachedBy } from '../notifications/reach';
 import { fanSummaryOf, plugSummaryOf } from '../control/devices/own-summary';
 import { offsetOf } from '../control/targets/targets-draft';

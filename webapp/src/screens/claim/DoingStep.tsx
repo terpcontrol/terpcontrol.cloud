@@ -21,7 +21,7 @@ import { choicesOf, useHumidifier } from '../control/germination/germination-cho
 import { usePlaceController } from '../grow/phase-climate';
 import { scheduleTitle } from '../control/targets/schedule-words';
 import { draftOf, offsetOf } from '../control/targets/targets-draft';
-import { targetFigure } from '../home/units';
+import { targetFigure } from '@/ui/units';
 import { MEASURE, presetBodyOf, type Doing } from './steps';
 import styles from './Claim.module.css';
 

@@ -22,7 +22,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, CLOCK, useZone } from '@/ui/zone';
 import { DeviceAdvanced } from '../../devices/DeviceAdvanced';
-import { deviceTitle } from '../../devices/naming';
+import { deviceName, deviceTitle } from '@/ui/naming';
 import { FanPanel } from '../devices/FanPanel';
 import { LightPanel } from '../devices/LightPanel';
 import { PlugPanel } from '../devices/PlugPanel';
@@ -48,9 +48,8 @@ import {
 } from './targets-draft';
 import day from './DayNight.module.css';
 import styles from './Targets.module.css';
-import { deviceName } from '@/screens/devices/naming';
 import { fieldValue } from '@/ui/advanced/field-values';
-import { targetFigure } from '@/screens/home/units';
+import { targetFigure } from '@/ui/units';
 
 /**
  * The targets a tent is held at: what the Control tab opens on, unless a plan

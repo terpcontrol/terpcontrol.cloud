@@ -16,7 +16,7 @@ import { ageLabel, sinceLabel } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
-import { figure, UNIT } from '../home/units';
+import { figure, UNIT } from '@/ui/units';
 import { CameraFrame, Slider } from './CameraFrame';
 import { Lanes } from './Lanes';
 import { Panel } from './Panel';

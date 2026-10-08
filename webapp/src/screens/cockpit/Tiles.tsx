@@ -11,7 +11,7 @@ import { decimalFigure } from '@/ui/figures';
 import { Term } from '@/ui/Help';
 import { clock, useZone } from '@/ui/zone';
 import { LastValue } from '../home/OfflineHelp';
-import { figure, targetFigure, UNIT } from '../home/units';
+import { figure, targetFigure, UNIT } from '@/ui/units';
 import { DayBar } from './DayBar';
 import { MiniCurve, type Tone } from './MiniCurve';
 import {

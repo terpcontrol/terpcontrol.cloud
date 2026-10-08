@@ -14,7 +14,7 @@ import { TopBar } from '@/app/shell/TopBar';
 import { LogProvider } from '@/log/LogProvider';
 import { Alerts } from '@/screens/Alerts';
 import { crossedBound, groupsOf } from '@/screens/alerts/inbox';
-import { alertLabel } from '@/screens/home/units';
+import { alertLabel } from '@/ui/units';
 import { spaceWhere } from './session';
 
 /**

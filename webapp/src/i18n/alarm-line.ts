@@ -1,7 +1,7 @@
 import type { i18n as I18n } from 'i18next';
 import type { Metric } from '@fg2/shared-types/v1';
 import { OFFLINE_RULE_NAME } from '@fg2/shared-types/v1-schemas/alert-routing.js';
-import { figure, targetFigure, UNIT } from '@/screens/home/units';
+import { figure, targetFigure, UNIT } from '@/ui/units';
 
 /**
  * An alarm's diary line, in the reader's language.

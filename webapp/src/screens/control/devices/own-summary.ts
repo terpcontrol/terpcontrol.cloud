@@ -7,7 +7,7 @@ import {
   type TimerWindow,
 } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { fieldValue } from '@/ui/advanced/field-values';
-import { targetFigure, UNIT } from '../../home/units';
+import { targetFigure, UNIT } from '@/ui/units';
 import { wallClock } from '../targets/targets-draft';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;

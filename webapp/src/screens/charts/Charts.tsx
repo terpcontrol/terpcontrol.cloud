@@ -35,7 +35,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR, useZone, zonedAt } from '@/ui/zone';
 import { BackLink } from '@/ui/BackLink';
-import { figure } from '../home/units';
+import { figure } from '@/ui/units';
 import { CameraFrame } from '../timeline/CameraFrame';
 import { at, stampFor, stampForEnds, stamps } from '../timeline/window';
 import {

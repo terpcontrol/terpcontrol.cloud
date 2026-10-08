@@ -22,7 +22,7 @@ import {
   repeatSecondsOf,
   silenceOf,
 } from '@fg2/shared-types/v1-schemas/alert-routing.js';
-import { UNIT, targetFigure } from '@/screens/home/units';
+import { UNIT, targetFigure } from '@/ui/units';
 import { looseFigure } from '@/ui/figures';
 import { isAhead } from '@/ui/age';
 import { zoneOf } from '@/ui/zone';

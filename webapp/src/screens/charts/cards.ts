@@ -26,7 +26,7 @@ import {
 import type { ChartToken } from '@/charts/tokens';
 import type { HelpTopic } from '@/ui/explain';
 import { looseFigure } from '@/ui/figures';
-import { targetFigure, UNIT } from '../home/units';
+import { targetFigure, UNIT } from '@/ui/units';
 import { at, spans, stretchesOf } from '../timeline/window';
 import type { ChartData } from './data';
 import { stepLabel } from './steps';

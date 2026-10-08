@@ -7,7 +7,7 @@ import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { deviceTitle } from '../naming';
+import { deviceTitle } from '@/ui/naming';
 import sheet from '../Maintenance.module.css';
 import styles from './DeviceAdvanced.module.css';
 

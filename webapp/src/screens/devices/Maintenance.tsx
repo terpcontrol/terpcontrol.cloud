@@ -10,7 +10,7 @@ import { MAINTENANCE_MINUTES, parkedLabel, parkedQuiet, parksAnything, quietMinu
 import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
-import { deviceTitle } from './naming';
+import { deviceTitle } from '@/ui/naming';
 import styles from './Maintenance.module.css';
 
 /**

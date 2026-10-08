@@ -11,7 +11,7 @@ import { FieldSwitch } from '@/ui/advanced/Fields';
 import { Help } from '@/ui/Help';
 import { SheetAnswer } from '@/ui/SheetParts';
 import { useSwitchOn } from '../../devices/switch-on';
-import { targetFigure, UNIT } from '../../home/units';
+import { targetFigure, UNIT } from '@/ui/units';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import day from './DayNight.module.css';

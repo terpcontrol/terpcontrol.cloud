@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { Help, Term } from '@/ui/Help';
 import type { HelpTopic } from '@/ui/explain';
-import { figure, targetFigure, UNIT } from '../../home/units';
+import { figure, targetFigure, UNIT } from '@/ui/units';
 import {
   halfOf,
   halvesOf,

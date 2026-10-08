@@ -8,7 +8,7 @@ import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { deviceTitle } from './naming';
+import { deviceTitle } from '@/ui/naming';
 import styles from './DeviceSettings.module.css';
 
 /**
