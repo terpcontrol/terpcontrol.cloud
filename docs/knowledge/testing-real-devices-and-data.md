@@ -1,7 +1,7 @@
 ---
 summary: When a test needs real hardware or real data - /firmware-check beyond its skill and getting builds onto devices, taking over and driving the development devices, the real Terp Cam, restoring and testing on a copy of production data without anything leaving it, verification passes
 updated: 2026-10-08
-source: Chris (instructions 2026-08-25..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); codebase cleanup and its run on the development devices (2026-10-08); checked against the code 2026-10-08
+source: Chris (instructions 2026-08-25..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); codebase cleanup and its run on the development devices, the focused backup's two variants (2026-10-08); checked against the code 2026-10-08
 paths:
   - .claude/skills/firmware-check/**
   - build-fw.sh
@@ -100,8 +100,11 @@ defects on it. A shape found this way goes into the legacy fixture, which also c
 write (grows, plans, alarms).
 - **It is real people's data.** Backups live outside every repository (where: the developer's `CLAUDE.local.md`);
   throwaway copies are deleted when done.
-- **Use the focused backup** (Chris, 2026-09-24): a trimmed copy of a few accounts in the old shape that restores and
-  migrates in about a minute. The full backup takes about half an hour; keep it for what the focused one cannot answer.
+- **Use the focused backup** (Chris, 2026-09-24): a trimmed copy of a few accounts that restores in about a minute.
+  It comes in two variants (Chris, 2026-10-08): the default one is already migrated, so a server starts on it without
+  migrating; the `pre-migrate` one holds the same data in the old shape and is for testing the migration itself. In
+  both, the testing account's password is the one `AGENT_TESTING_PASSWORD` names, and the webhooks are taken out of the
+  migrated one. The full backup takes about half an hour; keep it for what the focused one cannot answer.
   A new one is a restored copy with most of it deleted, saved with `./stop.sh server` and `./backup.sh`
   (`BACKUP_FILENAME` names the `.mongodump`/`.influxdump` pair; `mongo` or `influx` as argument saves one half).
 - **Nothing may leave the copy.** Its server acts on real accounts the moment it boots: the first one at once tried
