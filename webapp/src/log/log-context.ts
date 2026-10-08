@@ -30,6 +30,8 @@ export interface LogTarget {
 /** The eight tiles. `phase` is the one that is not an entry of its own: it is written as a phase and shows up as one. */
 export type TileKind = HumanEntryKind | 'phase';
 
+export const TILE_KINDS: TileKind[] = ['water', 'feed', 'photo', 'note', 'measurement', 'training', 'phase', 'visit'];
+
 /** Where the sheet opens: the screen it was opened from, or a link that names the place and the tile. */
 export interface LogOpening {
   growId?: string | null;
