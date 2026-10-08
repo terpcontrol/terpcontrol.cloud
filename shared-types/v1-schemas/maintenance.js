@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MAINTENANCE_SETTLE_SECONDS = void 0;
+exports.MAINTENANCE_VISIT_SECONDS = exports.MAINTENANCE_SETTLE_SECONDS = void 0;
 /**
  * How much longer than its own window a maintenance window keeps a device's
  * alarms held back.
@@ -23,3 +23,5 @@ exports.MAINTENANCE_SETTLE_SECONDS = void 0;
  * contract into its bundle.
  */
 exports.MAINTENANCE_SETTLE_SECONDS = 10 * 60;
+/** How long a step-in written in the diary parks the hardware: the window the visit tile is labelled with and the server opens. */
+exports.MAINTENANCE_VISIT_SECONDS = 15 * 60;

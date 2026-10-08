@@ -1,5 +1,5 @@
 import type { PlanStep } from '@fg2/shared-types/v1';
-import { dosesFor } from '@fg2/shared-types/v1-schemas';
+import { MAINTENANCE_VISIT_SECONDS, dosesFor } from '@fg2/shared-types/v1-schemas';
 import { AccessContext } from '@common/v1/access.types';
 import { AccessService } from '@common/v1/access.service';
 import { EntryWriterService, UNDO_WINDOW_SECONDS } from '@common/v1/entry-writer.service';
@@ -7,7 +7,7 @@ import { ProblemException } from '@common/v1/problem';
 import { MailService } from '@modules/mail/mail.service';
 import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
 import { StageAlarms } from '@modules/v1/phase/stage-alarms.port';
-import { EntryWritesService, VISIT_SECONDS } from '@modules/v1/diary/entry-writes.service';
+import { EntryWritesService } from '@modules/v1/diary/entry-writes.service';
 import { MaintenancePort } from '@modules/v1/diary/maintenance.port';
 import { TaskCompletionsService } from '@modules/v1/diary/task-completions.service';
 import { planTaskId } from '@modules/v1/diary/task-ids';
@@ -395,8 +395,8 @@ describe('a quarter of an hour in the tent', () => {
 
     expect(entry.kind).toBe('visit');
     expect(quietened).toEqual([
-      { deviceId: DEVICE, forSeconds: VISIT_SECONDS },
-      { deviceId: 'device-2', forSeconds: VISIT_SECONDS },
+      { deviceId: DEVICE, forSeconds: MAINTENANCE_VISIT_SECONDS },
+      { deviceId: 'device-2', forSeconds: MAINTENANCE_VISIT_SECONDS },
     ]);
   });
 

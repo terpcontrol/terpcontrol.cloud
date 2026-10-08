@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import type { Device, OutputMetric } from '@fg2/shared-types/v1';
-import { MAINTENANCE_SETTLE_SECONDS } from '@fg2/shared-types/v1-schemas/maintenance.js';
+import { MAINTENANCE_SETTLE_SECONDS, MAINTENANCE_VISIT_SECONDS } from '@fg2/shared-types/v1-schemas/maintenance.js';
 
 /**
  * What a maintenance window actually does, on the hardware it is sent to.
@@ -45,13 +45,8 @@ const PARKED_BY: Record<string, OutputMetric[]> = {
 export const parkedOutputs = (device: Device): OutputMetric[] =>
   (PARKED_BY[device.type] ?? []).filter(output => output !== 'co2' || device.state?.hardware?.co2 !== 'off');
 
-/**
- * How long a step-in parks the hardware, as the server counts it
- * (`VISIT_SECONDS` in the diary's entry writer). The window is the server's to
- * decide, so this is a mirror of it and not a choice: it is here rather than in
- * the sheet because the alarms page, the Home chip and the panel all name it.
- */
-export const VISIT_MINUTES = 15;
+/** How long a step-in parks the hardware, in minutes: the alarms page, the Home chip and the panel all name it. */
+export const VISIT_MINUTES = MAINTENANCE_VISIT_SECONDS / 60;
 
 /**
  * The windows a grower picks from: a look and a watering, repotting or

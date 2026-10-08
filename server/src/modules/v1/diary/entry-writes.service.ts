@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { Entry, EntryCreate, EntryUpdate } from '@fg2/shared-types/v1';
+import { MAINTENANCE_VISIT_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Need } from '@common/v1/access.types';
 import { serialiseEntry } from '@common/v1/entries';
@@ -33,9 +34,6 @@ import { MAINTENANCE_STARTER, MaintenancePort } from './maintenance.port';
  * a line a device wrote are the same document and the timeline reads as one
  * thing.
  */
-
-/** "In the tent 15 min": the window the tile is labelled with. */
-export const VISIT_SECONDS = 15 * 60;
 
 /**
  * How far ahead an entry may be dated. A backdated entry is ordinary - the
@@ -181,7 +179,7 @@ export class EntryWritesService {
     if (spaceIds.length === 0) return;
 
     const here = await this.devices.find({ spaceId: { $in: spaceIds } }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>();
-    await Promise.all(here.map(device => this.maintenance.startMaintenance(device.id, VISIT_SECONDS)));
+    await Promise.all(here.map(device => this.maintenance.startMaintenance(device.id, MAINTENANCE_VISIT_SECONDS)));
   }
 
   /**
