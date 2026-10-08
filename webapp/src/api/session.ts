@@ -3,6 +3,7 @@ import type { SessionCreate, SessionResult, SessionTokens, SessionUser } from '@
 import { serverNow } from './clock';
 import { v1 } from './config';
 import { ApiError, readProblem } from './problem';
+import { queryClient } from './query-client';
 
 /**
  * The session the API expects: a short-lived bearer token for every call, a
@@ -168,6 +169,8 @@ class SessionStore {
   private listeners = new Set<() => void>();
   private stayLoggedIn = false;
   private inFlight: Promise<Tokens | null> | null = null;
+  /** The account the query cache holds answers for; null until a session goes live in this tab, and again once it ends. */
+  private cacheFor: string | null = null;
 
   public subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -179,6 +182,23 @@ class SessionStore {
   private publish(next: Partial<SessionState>) {
     this.state = { ...this.state, ...next };
     for (const listener of this.listeners) listener();
+  }
+
+  /**
+   * Hands the query cache to another account, or to nobody, emptying it first.
+   * Every account asks the same questions - `['home']`, `['me']`, the alerts -
+   * so whatever one was answered would otherwise be drawn for the next until
+   * it went stale. The same account keeps its answers: a refresh, or a server
+   * that could not be reached, is not a change of person.
+   *
+   * A cache that held nobody's answers is left alone. A stored session refused
+   * at boot then ends without pulling a public page's answer from under it
+   * while that page still waits for it.
+   */
+  private handCacheTo(account: string | null) {
+    if (account === this.cacheFor) return;
+    if (this.cacheFor !== null) queryClient.clear();
+    this.cacheFor = account;
   }
 
   /** Signs in and keeps the session. */
@@ -204,6 +224,8 @@ class SessionStore {
     // Nothing is carried over: whoever signs in here gets their own media
     // token, and never the one the last person to use this tab was given.
     const tokens = tokensOf(result, null);
+    // Before the new account is published, so nothing drawn for it reads the last one's answers.
+    this.handCacheTo(result.user.id);
     this.publish({ user: result.user, tokens, sessionId: result.sessionId, restored: true, unreachable: false, ended: false });
     writeStored({
       refreshToken: tokens.refreshToken,
@@ -235,6 +257,7 @@ class SessionStore {
    */
   private forget(ended = false) {
     writeStored(null);
+    this.handCacheTo(null);
     this.publish({ user: null, tokens: null, sessionId: null, restored: true, unreachable: false, ended });
   }
 
@@ -322,8 +345,11 @@ class SessionStore {
     }
 
     const tokens = tokensOf((await response.json()) as SessionTokens, this.state.tokens);
-    this.publish({ tokens, unreachable: false });
     const { user, sessionId } = this.state;
+    // At boot the stored account goes live here, and it may not be the one
+    // this tab last held answers for: another tab can sign in meanwhile.
+    if (user) this.handCacheTo(user.id);
+    this.publish({ tokens, unreachable: false });
     if (user && sessionId) {
       writeStored({
         refreshToken: tokens.refreshToken,

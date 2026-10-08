@@ -294,3 +294,107 @@ describe('a refresh the server could not answer', () => {
     expect(localStorage.getItem('terp.session')).not.toBeNull();
   });
 });
+
+/**
+ * Whose answers the query cache holds.
+ *
+ * Every account asks the same questions - `['home']`, `['me']` - so the cache
+ * is emptied whenever the account changes or the session ends, and the next
+ * person is drawn nothing of the last one. A change that is not one of person -
+ * a refresh, a server that could not be reached - keeps the answers.
+ */
+describe('the query cache across accounts', () => {
+  const OTHER: SessionUser = { id: 'user-2', handle: 'other', isAdmin: false, isDemo: false };
+  const DEMO: SessionUser = { id: 'demo', handle: 'demo', isAdmin: false, isDemo: true };
+
+  const storedAs = (user: SessionUser, refreshToken: string) =>
+    JSON.stringify({ refreshToken, refreshTokenUntil: Date.now() + 30 * DAY_MS, user, sessionId: `session-${user.id}`, stayLoggedIn: true });
+
+  /** One answer with a status, as the refresh route gives it when it refuses or falls over. */
+  const failing = (status: number): void => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ status, code: 'x', title: 'x', detail: 'x', errors: [] }), { status })),
+    );
+  };
+
+  /** A fresh store, signed in, with an answer of that account's in the cache. */
+  const signedIn = async (extra: unknown[] = []) => {
+    serve([result('first', 30 * DAY_MS), ...extra]);
+    const { session } = await freshSession();
+    const { queryClient } = await import('@/api/query-client');
+    await session.logIn({ email: 'you@example.com', password: 'secret', stayLoggedIn: true });
+    queryClient.setQueryData(['home'], 'the first account’s places');
+    return { session, queryClient };
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('is emptied on signing out, before the next account signs in', async () => {
+    const { session, queryClient } = await signedIn([{}]);
+
+    await session.logOut();
+
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+  });
+
+  it('is emptied when the demo replaces the session, which passes no sign-in page', async () => {
+    const { session, queryClient } = await signedIn([{ ...triple('demo', 30 * DAY_MS), sessionId: 'session-demo', user: DEMO }]);
+
+    await session.openDemo();
+
+    expect(queryClient.getQueryData(['home'])).toBeUndefined();
+  });
+
+  it('is emptied when a refresh says the session is gone', async () => {
+    const { session, queryClient } = await signedIn();
+
+    failing(401);
+    await session.refresh(session.snapshot().tokens?.refreshToken);
+
+    expect(queryClient.getQueryData(['home'])).toBeUndefined();
+  });
+
+  it('keeps the same account’s answers through a refresh and through a server that cannot be reached', async () => {
+    const { session, queryClient } = await signedIn([triple('second', 30 * DAY_MS)]);
+
+    await session.refresh(session.snapshot().tokens?.refreshToken);
+    failing(503);
+    await session.refresh(session.snapshot().tokens?.refreshToken);
+
+    expect(queryClient.getQueryData(['home'])).toBe('the first account’s places');
+  });
+
+  it('is emptied when the session that comes back is somebody else’s, signed in from another tab meanwhile', async () => {
+    const { session, queryClient } = await signedIn();
+    failing(503);
+    await session.refresh(session.snapshot().tokens?.refreshToken);
+
+    localStorage.setItem('terp.session', storedAs(OTHER, 'refresh-other'));
+    serve([triple('other', 30 * DAY_MS)]);
+    await session.restore();
+
+    expect(session.snapshot().user).toEqual(OTHER);
+    expect(queryClient.getQueryData(['home'])).toBeUndefined();
+  });
+
+  it('leaves a public page’s answer alone when a stored session is refused at boot, since it held nobody’s', async () => {
+    localStorage.setItem('terp.session', storedAs(USER, 'refresh-stored'));
+    failing(401);
+    const { session } = await freshSession();
+    const { queryClient } = await import('@/api/query-client');
+    queryClient.setQueryData(['public', 'grow', 'a-grow'], 'a public grow');
+
+    await session.restore();
+
+    expect(session.snapshot()).toMatchObject({ user: null, ended: true });
+    expect(queryClient.getQueryData(['public', 'grow', 'a-grow'])).toBe('a public grow');
+  });
+});

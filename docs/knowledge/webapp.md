@@ -114,6 +114,17 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   2025-11, that a failed refresh must not sign out).
 - `RequireSession` carries the whole address (`pathname + search + hash`) through sign-in and `SignIn` replays it,
   so deep links keep their subject. Sign-out forgets locally first, then sends `DELETE /v1/sessions/:id`.
+- **The query cache belongs to one account.** Query keys carry no user (`['home']`, `['me']`), so the store empties
+  the cache whenever the account it holds answers for changes or ends - sign-out, a 401 on the refresh, a sign-in or
+  the demo over another account, a restore that brings back someone else's stored session - and never on a refresh
+  or an unreachable server. Before this, a second account signing in in the same tab saw the first one's places,
+  bell and address until each query went stale. `RequireSession` keys the shell by `user.id`, because opening the
+  demo from the home replaces the session without passing `/sign-in`: an observer mounted over a cleared cache
+  keeps drawing what it held, and the Log sheet's lines would be retried with the demo's token.
+- `queryClient.clear()` under a mounted observer whose fetch is in flight cancels that fetch silently and leaves the
+  observer pending until its component re-renders (checked against TanStack Query 5.103). So a cache that held no
+  session's answers is not cleared: a stored session refused at boot on `/g/:slug`, whose read waits on that very
+  refresh, could otherwise leave the public grow loading.
 - The demo is `POST /v1/sessions/demo` and has no account: account routes (`/v1/me` and its kin) answer 403
   `no_account`, so account reads are gated - `useMe(false, user !== null && user.isDemo !== true)` - and
   `src/ui/session-access.ts` answers `view` for it in every place, so it is offered no write. Public pages fire no

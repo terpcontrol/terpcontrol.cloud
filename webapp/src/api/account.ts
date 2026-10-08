@@ -132,21 +132,11 @@ export const useTelegramLink = () => useMutation({ mutationFn: () => api.post<Te
 /**
  * Leaving for good. The route answers when the deletion has finished rather
  * than when it started, so what comes back is a server that has already
- * forgotten this account - which is why the session ends and the cache is
- * emptied here rather than on the screen: every query still held is a question
- * nobody will answer.
+ * forgotten this account - which is why the session ends here rather than on
+ * the screen. Ending it empties the cache too: every query still held is a
+ * question nobody will answer.
  */
-export const useDeleteAccount = () => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => api.delete('/me'),
-    onSuccess: async () => {
-      await session.logOut();
-      client.clear();
-    },
-  });
-};
+export const useDeleteAccount = () => useMutation({ mutationFn: () => api.delete('/me'), onSuccess: () => session.logOut() });
 
 /**
  * A new password. The current one travels with it, because a stolen session

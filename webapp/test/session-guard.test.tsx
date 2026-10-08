@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -78,7 +79,8 @@ const freshGuard = async () => {
   const { session } = await import('@/api/session');
   // Imported after the same reset, so the form and the guard read one store.
   const { SignIn } = await import('@/screens/SignIn');
-  return { RequireSession, session, SignIn };
+  const { queryClient } = await import('@/api/query-client');
+  return { RequireSession, session, SignIn, queryClient };
 };
 
 beforeAll(async () => {
@@ -162,5 +164,37 @@ describe('a deep link followed while the session is gone', () => {
     fireEvent.click(button);
 
     expect(await screen.findByTestId('landed')).toHaveTextContent('/charts?grow=grow-1&range=grow#vpd');
+  });
+});
+
+describe('the demo opened over a signed-in session', () => {
+  /** A screen that reads the home, as every screen behind the guard reads something. */
+  function Places() {
+    const home = useQuery({ queryKey: ['home'], queryFn: async () => 'the demo’s places' });
+    return <p data-testid="places">{home.data ?? 'loading'}</p>;
+  }
+
+  it('draws the screens anew, so nothing read for the grower stays on screen for the demo', async () => {
+    answering(200, TOKENS);
+    const { RequireSession, session, queryClient } = await freshGuard();
+    await session.restore();
+    queryClient.setQueryData(['home'], 'the grower’s places');
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/']}>
+          <RequireSession>
+            <Places />
+          </RequireSession>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByTestId('places')).toHaveTextContent('the grower’s places');
+
+    answering(200, { ...TOKENS, sessionId: 'session-demo', user: { id: 'demo', handle: 'demo', isAdmin: false, isDemo: true } });
+    await act(() => session.openDemo());
+
+    expect(screen.getByTestId('places')).not.toHaveTextContent('the grower’s places');
+    expect(await screen.findByText('the demo’s places')).toBeInTheDocument();
   });
 });
