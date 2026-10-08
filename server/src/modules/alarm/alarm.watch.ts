@@ -12,7 +12,7 @@ import { MetricSample } from '@modules/device-protocol/device-sinks';
  */
 
 /** A band, where the watch has one. A running output is on or off and has none. */
-export interface Band {
+interface Band {
   upper: number | null;
   lower: number | null;
 }
