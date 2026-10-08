@@ -1,4 +1,4 @@
-import type { TFunction } from 'i18next';
+import type { Translate } from '@/i18n/i18n';
 import type { DateTime } from 'luxon';
 
 /**
@@ -18,7 +18,7 @@ export const KEEP: { key: string; days: number | null }[] = [
 ];
 
 /** A window in the menu's own words, wherever it is named; one the menu does not offer is counted in days. */
-export const retentionLabel = (t: TFunction, days: number | null): string => {
+export const retentionLabel = (t: Translate, days: number | null): string => {
   const option = KEEP.find(candidate => candidate.days === days);
 
   return option ? t(`me.privacy.keep.${option.key}`) : t('me.door.privacy.days', { count: days });

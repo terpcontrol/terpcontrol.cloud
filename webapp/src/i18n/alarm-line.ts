@@ -1,7 +1,7 @@
 import type { i18n as I18n } from 'i18next';
 import type { Metric } from '@fg2/shared-types/v1';
 import { OFFLINE_RULE_NAME } from '@fg2/shared-types/v1-schemas/alert-routing.js';
-import { figureWithUnit, targetFigure, UNIT } from '@/ui/units';
+import { figureWithUnit, targetWithUnit, UNIT } from '@/ui/units';
 
 /**
  * An alarm's diary line, in the reader's language.
@@ -60,7 +60,7 @@ const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | 
   const upper = numberOf(rawUpper);
   const lower = numberOf(rawLower);
   const extreme = numberOf(rawExtreme);
-  const edge = (sign: string, bound: number) => [sign, targetFigure(bound, watched), UNIT[watched]].filter(Boolean).join(' ');
+  const edge = (sign: string, bound: number) => `${sign} ${targetWithUnit(bound, watched)}`;
   const crossed = upper !== null && value > upper ? edge('›', upper) : lower !== null && value < lower ? edge('‹', lower) : null;
 
   const parts = [`${ruleName(i18n, name)} · ${metric} ${figureWithUnit(value, watched)}${triggered && crossed ? ` ${crossed}` : ''}`];

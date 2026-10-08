@@ -9,8 +9,8 @@ import { pathOf, payloadOf } from './screens/notifications/push-route';
  * arrives.
  *
  * The caching half is what the plugin used to generate on its own - the shell
- * and both catalogues precached, the drawings kept once they are looked at.
- * It is written out here because a generated worker has no ear for a push: the
+ * and both catalogues precached, the rest of `/assets/` (icons, pictures,
+ * feeding schemes) kept once it is looked at. It is written out here because a generated worker has no ear for a push: the
  * browser hands a push to the worker and to nothing else, so a worker without
  * these two handlers is a subscription that shows nobody anything.
  */

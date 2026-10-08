@@ -15,7 +15,7 @@ import { readStored, writeStored } from '@/ui/stored';
 export const LANGUAGES = ['en', 'de'] as const;
 export type Language = (typeof LANGUAGES)[number];
 
-export const FALLBACK_LANGUAGE: Language = 'en';
+const FALLBACK_LANGUAGE: Language = 'en';
 
 /** The translate function as the helpers outside a component take it: `t` from `useTranslation`, or i18next's own. */
 export type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -41,7 +41,7 @@ const catalogue = async (language: Language): Promise<Record<string, unknown>> =
   return (await response.json()) as Record<string, unknown>;
 };
 
-export const preferredLanguage = (): Language => {
+const preferredLanguage = (): Language => {
   const stored = readStored(STORAGE_KEY);
   if (stored && (LANGUAGES as readonly string[]).includes(stored)) return stored as Language;
   const fromBrowser = navigator.languages.map(tag => tag.split('-')[0]).find(tag => (LANGUAGES as readonly string[]).includes(tag));

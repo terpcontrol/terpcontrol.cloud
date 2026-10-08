@@ -1,4 +1,4 @@
-import type { TFunction } from 'i18next';
+import type { Translate } from '@/i18n/i18n';
 import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -178,7 +178,7 @@ export function SignIn() {
  * a server or a connection that failed, whose own words are written for
  * whoever runs the install rather than for whoever is standing at the form.
  */
-const refusalOf = (error: unknown, t: TFunction, email: string): string => {
+const refusalOf = (error: unknown, t: Translate, email: string): string => {
   if (!(error instanceof ApiError)) return t('shell.signInFailed');
   if (error.problem.code === 'account_not_activated') return t('login.notActivated', { email: email.trim() });
 

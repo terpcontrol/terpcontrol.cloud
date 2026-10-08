@@ -1,4 +1,5 @@
 import type { Translate } from '@/i18n/i18n';
+
 /** Every step the old charts offered, finest first; "automatic" is the width of the window deciding. */
 export const STEPS = [5, 10, 20, 60, 300, 900, 1800, 3600, 4 * 3600, 24 * 3600, 7 * 24 * 3600];
 

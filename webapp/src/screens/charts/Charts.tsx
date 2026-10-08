@@ -53,7 +53,7 @@ import {
   type Card,
   type Picked,
 } from './cards';
-import { pickedOf, settingsOf, showOf, zoomOf, zoomValue } from './address';
+import { pickedOf, settingsOf, settingsParams, showOf, zoomOf, zoomValue } from './address';
 import { ChartCard } from './ChartCard';
 import { useChartData, type ChartData } from './data';
 import { MESSAGE_CATEGORIES } from './message-columns';
@@ -333,12 +333,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     });
   };
 
-  const change = (over: Partial<ChartSettings>) =>
-    setQuery({
-      ...('stepSeconds' in over ? { step: over.stepSeconds ? String(over.stepSeconds) : null } : {}),
-      ...('vpdHalf' in over ? { vpd: over.vpdHalf && over.vpdHalf !== 'all' ? over.vpdHalf : null } : {}),
-      ...('live' in over ? { live: over.live ? '1' : null } : {}),
-    });
+  const change = (over: Partial<ChartSettings>) => setQuery(settingsParams(over));
 
   const toggle = <T extends string>(list: T[], one: T): T[] => (list.includes(one) ? list.filter(other => other !== one) : [...list, one]);
 

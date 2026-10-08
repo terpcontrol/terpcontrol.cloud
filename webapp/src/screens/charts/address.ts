@@ -17,6 +17,13 @@ export const settingsOf = (params: URLSearchParams): ChartSettings => {
   };
 };
 
+/** The address parameters that carry the settings `over` changes; a default is written as no parameter at all. */
+export const settingsParams = (over: Partial<ChartSettings>): Record<string, string | null> => ({
+  ...('stepSeconds' in over ? { step: over.stepSeconds ? String(over.stepSeconds) : null } : {}),
+  ...('vpdHalf' in over ? { vpd: over.vpdHalf && over.vpdHalf !== 'all' ? over.vpdHalf : null } : {}),
+  ...('live' in over ? { live: over.live ? '1' : null } : {}),
+});
+
 const OUTPUT_MARK = 'out.';
 const MEASUREMENT_MARK = 'm.';
 

@@ -280,8 +280,8 @@ its name, so the chips and the header are the legend (in dark mode the chip is t
 the line's colour). The server's timelapse overlays and share-link cards use
 the dark palette's ink, muted ink, navy plate and signal colours.
 
-**Shape.** The site's three radii: 6 px for a control (a button, a field, a rail item), 12 px for a card, 20 px
-for a large panel; 4 px for the option inside a segmented track. Every button is 6 px, the small action chips
+**Shape.** The site's radii: 6 px for a control (a button, a field, a rail item) and 12 px for a card; 4 px for
+the option inside a segmented track. Every button is 6 px, the small action chips
 (Measurements, Share, Silence 1 h, Save view) and the native menus included; a chip that is a choice - a range, a
 place, a series, anything pressed or not - stays a pill, as do tags, the live pill and badges, as the site keeps
 pills for badges and filters. 1 px rules; under a card in light mode the site's low two-layer shadow
@@ -291,7 +291,7 @@ action 36, a chip 30. The one primary action on a screen is filled green; the qu
 (Photo, Note, Alarms off) are a filled tint with no outline; everything else is the site's ghost button - white,
 its words in the brand blue, an edge that turns blue under the pointer.
 
-**Spacing.** A 4 px unit: 4, 8, 12, 16, 24 and 36 inside a page, 48 and 64 between the sections of a long one;
+**Spacing.** A 4 px unit: 4, 8, 12, 16, 24 and 36 inside a page, 48 between the sections of a long one;
 a card's padding is 16 on a phone and 20 from 900 px.
 
 **Layout.** Phone first, with a frosted top bar and tab bar; from 900 px the navy rail replaces both and each
@@ -311,8 +311,8 @@ something that has to take `currentColor` and a stroke width.
 Workbox generates the service worker; the manifest is the one the Angular app already had, kept in `public/`
 because it still fits — same name, same icons; its theme and background colours follow the brand's
 blue and the page's grey. Precached is the shell, the two catalogues and the face's latin and latin-ext cuts
-(200 KiB of it); the drawings under `assets/` and the onboarding videos are tens of
-megabytes and are cached once they are actually looked at. The app updates itself (`registerType: 'autoUpdate'`)
+(200 KiB of it); the rest of `assets/` - icons, pictures, feeding schemes - is cached once it is actually looked
+at. The app updates itself (`registerType: 'autoUpdate'`)
 rather than asking. A native store build, if it comes, wraps this same bundle — which is why the build stays a
 plain static directory with no server half and no framework-specific output.
 

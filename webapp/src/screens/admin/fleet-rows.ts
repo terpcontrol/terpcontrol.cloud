@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import type { Camera, Device, DeviceClass, Firmware, User } from '@fg2/shared-types/v1';
+import { typedHandle } from '@/ui/handle';
 
 /**
  * The fleet table's rows, worked out away from the screen that draws them.
@@ -160,7 +161,7 @@ const diagnosisPath = (deviceId: string): string => `/admin/devices/${encodeURIC
  * searchable on no screen but the accounts.
  */
 export const filteredRows = (rows: FleetRow[], filter: FleetFilter, now: DateTime): FleetRow[] => {
-  const needle = filter.search.trim().toLowerCase().replace(/^@/, '');
+  const needle = typedHandle(filter.search).toLowerCase();
   const quietBefore = now.minus({ hours: QUIET_HOURS });
 
   return rows.filter(row => {

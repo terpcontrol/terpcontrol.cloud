@@ -5,7 +5,7 @@ import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '@/ap
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
-import { matchesHandle } from '@/ui/handle';
+import { matchesHandle, typedHandle } from '@/ui/handle';
 import { Refused } from '@/ui/PageState';
 import { AdminHead, AdminNotLoaded } from './parts';
 import { HandleField } from '@/ui/SheetParts';
@@ -53,7 +53,7 @@ export function Users() {
   if (!people.data) return <AdminNotLoaded head={header} retry={() => void people.refetch()} />;
 
   const all = itemsOf(people.data);
-  const needle = search.trim().toLowerCase().replace(/^@/, '');
+  const needle = typedHandle(search).toLowerCase();
   const shown = needle ? all.filter(one => one.handle.toLowerCase().includes(needle) || one.email.toLowerCase().includes(needle)) : all;
 
   // Who could still run the install if one of them were taken out of it. The

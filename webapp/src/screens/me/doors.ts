@@ -1,4 +1,4 @@
-import type { TFunction } from 'i18next';
+import type { Translate } from '@/i18n/i18n';
 import { type DateTime } from 'luxon';
 import type { Camera, GrowListItem, Me, Scheme, ShareLink, UnitPreference } from '@fg2/shared-types/v1';
 import { growSchemeLabel, type SchemeSummary } from '@/api/schemes';
@@ -27,7 +27,7 @@ import { isDead } from './sharing/links';
 export const joined = (parts: (string | null)[]): string => parts.filter((part): part is string => part !== null && part !== '').join(' · ');
 
 /** "1 public · 2 private · terpcontrol.cloud/@chrisgrows", or that there is nothing to count yet. */
-export const publicLine = (t: TFunction, grows: GrowListItem[], me: Me, host: string): string => {
+export const publicLine = (t: Translate, grows: GrowListItem[], me: Me, host: string): string => {
   const own = grows.filter(grow => grow.ownerId === me.id && !grow.isDemo);
   if (own.length === 0) return joined([t('me.door.public.none'), profilePart(t, me, host)]);
   const isPublic = own.filter(grow => grow.visibility === 'public').length;
@@ -40,9 +40,9 @@ export const publicLine = (t: TFunction, grows: GrowListItem[], me: Me, host: st
 };
 
 /** Where the profile is, or that it is off: the address is only worth reading when something answers at it. */
-const profilePart = (t: TFunction, me: Me, host: string): string => (me.publicProfile ? `${host}/@${me.handle}` : t('me.door.public.profileOff'));
+const profilePart = (t: Translate, me: Me, host: string): string => (me.publicProfile ? `${host}/@${me.handle}` : t('me.door.public.profileOff'));
 
-export const followingLine = (t: TFunction, count: number): string =>
+export const followingLine = (t: Translate, count: number): string =>
   count === 0 ? t('me.door.following.none') : t('me.door.following.grows', { count });
 
 /**
@@ -51,7 +51,7 @@ export const followingLine = (t: TFunction, count: number): string =>
  * says: it was ended by hand, and the person who ended it should find it
  * counted that way.
  */
-export const shareLinksLine = (t: TFunction, links: ShareLink[], now: DateTime): string => {
+export const shareLinksLine = (t: Translate, links: ShareLink[], now: DateTime): string => {
   if (links.length === 0) return t('me.door.shareLinks.none');
   const revoked = links.filter(link => link.revokedAt !== null).length;
   const live = links.filter(link => !isDead(link, now)).length;
@@ -74,7 +74,7 @@ export const shareLinksLine = (t: TFunction, links: ShareLink[], now: DateTime):
  * promise a self-hosted grower something they have not got and could not lose.
  */
 export const premiumLine = (
-  t: TFunction,
+  t: Translate,
   cameras: Camera[],
   now: DateTime,
   enforced: boolean,
@@ -106,7 +106,7 @@ export const premiumLine = (
 };
 
 /** Premium is "active"; a camera whose year has run out is "expired", and one that never had one is "free". */
-const stateWord = (t: TFunction, camera: Camera, now: DateTime): string => {
+const stateWord = (t: Translate, camera: Camera, now: DateTime): string => {
   if (camera.entitlement.tier === 'premium') return t('me.door.premium.state.active');
   const { validUntil } = camera.entitlement;
 
@@ -114,7 +114,7 @@ const stateWord = (t: TFunction, camera: Camera, now: DateTime): string => {
 };
 
 /** The channels that are on, in the order of the cards on the page they lead to, then the quiet hours. */
-export const notificationsLine = (t: TFunction, me: Me, now: DateTime): string => {
+export const notificationsLine = (t: Translate, me: Me, now: DateTime): string => {
   const { quietHours, mutedUntil } = me.notifications;
   const on = CHANNELS.filter(channel => isConfigured(me, channel)).map(channel => t(`notifications.channel.${channel}`));
 
@@ -125,7 +125,7 @@ export const notificationsLine = (t: TFunction, me: Me, now: DateTime): string =
   ]);
 };
 
-export const privacyLine = (t: TFunction, me: Me): string => {
+export const privacyLine = (t: Translate, me: Me): string => {
   const { hideWeights, hideCounts } = me.privacy;
   const hidden = hideWeights && hideCounts ? 'both' : hideWeights ? 'weights' : hideCounts ? 'counts' : 'nothing';
 
@@ -133,11 +133,11 @@ export const privacyLine = (t: TFunction, me: Me): string => {
 };
 
 /** "°C, g, l": the three unit choices as their symbols, in the order the page asks them. */
-const unitsLabel = (t: TFunction, units: UnitPreference): string =>
+const unitsLabel = (t: Translate, units: UnitPreference): string =>
   [units.temperature, units.weight, units.volume].map(unit => t(`me.appearance.unit.${unit}`)).join(', ');
 
 /** The theme, the units where an account states them, and the language; the demo has no units to state. */
-export const appearanceLine = (t: TFunction, theme: ThemeChoice, units: UnitPreference | null, language: string): string =>
+export const appearanceLine = (t: Translate, theme: ThemeChoice, units: UnitPreference | null, language: string): string =>
   joined([
     t('me.door.appearance.theme', { theme: t(`me.theme.${theme}`) }),
     units ? t('me.door.appearance.units', { units: unitsLabel(t, units) }) : null,
@@ -145,7 +145,7 @@ export const appearanceLine = (t: TFunction, theme: ThemeChoice, units: UnitPref
   ]);
 
 /** A language in its own name, which is the one spelling every reader recognises. */
-export const languageName = (t: TFunction, language: string): string => {
+export const languageName = (t: Translate, language: string): string => {
   const key = `me.appearance.languageNames.${language}`;
 
   return t(key) === key ? language : t(key);
@@ -156,7 +156,7 @@ export const languageName = (t: TFunction, language: string): string => {
  * One scheme across every running grow is named; more than one is counted,
  * because naming the first would be naming it for the wrong grow.
  */
-export const schemesLine = (t: TFunction, grows: GrowListItem[], shipped: SchemeSummary[], own: Scheme[]): string => {
+export const schemesLine = (t: Translate, grows: GrowListItem[], shipped: SchemeSummary[], own: Scheme[]): string => {
   const running = grows.filter(grow => grow.endedAt === null && grow.scheme !== null && !grow.isDemo);
   const names = new Map<string, boolean>();
   for (const grow of running) {
@@ -175,7 +175,7 @@ export const schemesLine = (t: TFunction, grows: GrowListItem[], shipped: Scheme
 };
 
 /** "v0.0.1 · production build": what the bundle knows about itself, which is also the About page's first line. */
-export const versionLine = (t: TFunction, version: string, mode: string): string => {
+export const versionLine = (t: Translate, version: string, mode: string): string => {
   const key = `me.about.build.${mode}`;
 
   return t('me.door.about', { version, build: t(key) === key ? mode : t(key) });
