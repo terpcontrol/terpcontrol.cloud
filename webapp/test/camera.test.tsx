@@ -1,7 +1,5 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Camera, Device, GrowListItem, TestCapture, TimelapseCreate } from '@fg2/shared-types/v1';
 import { NoAnswerInTime } from '@/api/cameras';
@@ -11,6 +9,7 @@ import { causeOf, filmCauseOf } from '@/screens/camera/capture-failure';
 import { Composer } from '@/screens/camera/Composer';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
 import { Film } from '@/screens/camera/Film';
+import { drawAt } from './harness';
 import { THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
@@ -185,18 +184,14 @@ const grow = {
 } as unknown as GrowListItem;
 
 const draw = (one: GrowListItem | null, over: Partial<Camera> = {}) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <Composer
-          camera={{ ...camera, state: { ...camera.state, lastStillAt: serverNow().toISO()! }, ...over }}
-          grow={one}
-          pending={false}
-          onRender={body => state.asked.push(body)}
-          onClose={() => {}}
-        />
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <Composer
+      camera={{ ...camera, state: { ...camera.state, lastStillAt: serverNow().toISO()! }, ...over }}
+      grow={one}
+      pending={false}
+      onRender={body => state.asked.push(body)}
+      onClose={() => {}}
+    />,
   );
 
 beforeAll(() => translate());
@@ -293,13 +288,7 @@ describe('the composer', () => {
   });
 
   it('leaves the phase and the whole grow out where they are not asked to be offered', () => {
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <Composer camera={camera} grow={null} growFilms={false} pending={false} onRender={() => {}} onClose={() => {}} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<Composer camera={camera} grow={null} growFilms={false} pending={false} onRender={() => {}} onClose={() => {}} />);
 
     expect(screen.getByRole('button', { name: 'Week' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Phase/ })).not.toBeInTheDocument();
@@ -347,14 +336,10 @@ describe('the composer', () => {
  */
 describe('the camera page, by who is reading', () => {
   const drawPage = () =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <CameraScreen
-            camera={{ ...camera, ownerId: state.youMay === 'own' ? YOU : THE_HOST, state: { ...camera.state, lastError: state.lastError } }}
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    drawAt(
+      <CameraScreen
+        camera={{ ...camera, ownerId: state.youMay === 'own' ? YOU : THE_HOST, state: { ...camera.state, lastError: state.lastError } }}
+      />,
     );
 
   it('gives the owner the test image, the films, the form and the way to unpair it', () => {
@@ -603,13 +588,7 @@ describe('what a failed capture is called', () => {
  */
 describe('what the camera is set to', () => {
   const drawSettings = (over: Partial<Camera> = {}, mayManage = true) =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <CameraSettings camera={{ ...camera, ...over }} mayManage={mayManage} mayOwn={mayManage} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<CameraSettings camera={{ ...camera, ...over }} mayManage={mayManage} mayOwn={mayManage} />);
 
   it('draws every switch the camera carries, in the state the server gave', () => {
     drawSettings({ maintenanceOff: true, staleWarning: true, logErrors: false, nightOff: false });
@@ -679,14 +658,7 @@ describe('what the camera is set to', () => {
  * floor rather than drawn as the day's total.
  */
 describe('the films and the pictures behind the first page', () => {
-  const drawPage = (over: Partial<Camera> = {}) =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <CameraScreen camera={{ ...camera, ownerId: YOU, ...over }} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  const drawPage = (over: Partial<Camera> = {}) => drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...over }} />);
 
   const filmsNumbering = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `film-${index}` }));
   const drawn = () => within(screen.getByRole('list', { name: 'Timelapses' })).getAllByRole('listitem');
@@ -730,12 +702,8 @@ describe('the films and the pictures behind the first page', () => {
    */
   it('refuses a day film on a camera that has taken no picture in the last day', () => {
     state.frames = { items: [], partial: false };
-    const dark = render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ days: 4 }).toISO()! } }} />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    const dark = drawAt(
+      <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ days: 4 }).toISO()! } }} />,
     );
 
     expect(screen.getByRole('button', { name: /Film of today/ })).toBeDisabled();
@@ -744,12 +712,8 @@ describe('the films and the pictures behind the first page', () => {
 
     // Still delivering: the bucket the server works out cannot start earlier
     // than a day ago, so a picture inside that day is proof it holds frames.
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ minutes: 5 }).toISO()! } }} />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    drawAt(
+      <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ minutes: 5 }).toISO()! } }} />,
     );
 
     expect(screen.getByRole('button', { name: /Film of today/ })).toBeEnabled();
@@ -787,13 +751,7 @@ describe('the films and the pictures behind the first page', () => {
    */
   it('refuses a week film only where the camera took nothing in any week the server could pick', () => {
     const drawDarkFor = (days: number) =>
-      render(
-        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-          <MemoryRouter>
-            <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ days }).toISO()! } }} />
-          </MemoryRouter>
-        </QueryClientProvider>,
-      );
+      drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ days }).toISO()! } }} />);
 
     const recent = drawDarkFor(5);
     expect(screen.getByRole('button', { name: /Film of today/ })).toBeDisabled();
@@ -811,19 +769,15 @@ describe('the films and the pictures behind the first page', () => {
    * only that the server would not take it.
    */
   it('refuses the week film of a camera paired since the last complete week began, and says when its first one ends', () => {
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <CameraScreen
-            camera={{
-              ...camera,
-              ownerId: YOU,
-              createdAt: serverNow().minus({ hours: 1 }).toISO()!,
-              state: { ...camera.state, lastStillAt: serverNow().toISO()! },
-            }}
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    drawAt(
+      <CameraScreen
+        camera={{
+          ...camera,
+          ownerId: YOU,
+          createdAt: serverNow().minus({ hours: 1 }).toISO()!,
+          state: { ...camera.state, lastStillAt: serverNow().toISO()! },
+        }}
+      />,
     );
 
     expect(screen.getByRole('button', { name: /Week film/ })).toBeDisabled();
@@ -860,12 +814,8 @@ describe('the films and the pictures behind the first page', () => {
     // and dated, never hidden.
     state.frames = { items: [], partial: false };
     state.lastStill = 'still-old';
-    const { container } = render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-19T02:28:17.000Z' } }} />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    const { container } = drawAt(
+      <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-19T02:28:17.000Z' } }} />,
     );
 
     const still = container.querySelector('img[src="/media/still-old"]')!;
@@ -884,12 +834,8 @@ describe('the films and the pictures behind the first page', () => {
    */
   it('names the width a free camera is served at, and says nothing where the install serves it whole', () => {
     const drawFree = () =>
-      render(
-        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-          <MemoryRouter>
-            <CameraScreen camera={{ ...camera, ownerId: YOU, entitlement: { validUntil: null, grant: null, tier: 'free', renewalVisible: true } }} />
-          </MemoryRouter>
-        </QueryClientProvider>,
+      drawAt(
+        <CameraScreen camera={{ ...camera, ownerId: YOU, entitlement: { validUntil: null, grant: null, tier: 'free', renewalVisible: true } }} />,
       );
 
     const count = (container: HTMLElement) => [...container.querySelectorAll('p')].find(line => line.textContent?.includes('pictures today'))!;
@@ -912,13 +858,7 @@ describe('the films and the pictures behind the first page', () => {
       const taken = serverNow().minus({ minutes: minutesAgo }).toISO()!;
       state.frames = { items: [{ id: 'still-1', capturedAt: taken }], partial: false };
 
-      return render(
-        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-          <MemoryRouter>
-            <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: taken } }} />
-          </MemoryRouter>
-        </QueryClientProvider>,
-      );
+      return drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: taken } }} />);
     };
 
     // Inside two of its 30 s intervals, which is what the pill calls live.
@@ -940,13 +880,7 @@ describe('the films and the pictures behind the first page', () => {
     // taken just now, under a label that said 19 Sep and a frame drawn dimmed.
     state.frames = { items: [], partial: false };
     state.lastStill = 'still-old';
-    const stale = render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-19T02:28:17.000Z' } }} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    const stale = drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-19T02:28:17.000Z' } }} />);
 
     expect(stale.container.querySelector('img[src="/media/still-old"]')).toHaveAttribute('alt', 'Terp Cam 1 at 19 Sep 02:28');
     stale.unmount();
@@ -1040,13 +974,7 @@ describe('the films and the pictures behind the first page', () => {
   it('draws the scrubber only where there are pictures for it to walk between', () => {
     state.frames = { items: [], partial: false };
     state.lastStill = 'still-old';
-    const dark = render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-15T02:28:17.000Z' } }} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    const dark = drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-15T02:28:17.000Z' } }} />);
 
     expect(dark.container.querySelector('input[type=range]')).toBeNull();
     // The day's own count and the picture standing in for it are still said.

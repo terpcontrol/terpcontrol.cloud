@@ -1,13 +1,13 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, SpaceOverview } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import { PlacePage } from '@/screens/place/PlacePage';
 import { useFreshness } from '@/ui/freshness';
 import { LogProvider } from '@/log/LogProvider';
+import { drawAt } from './harness';
 import { translate } from './translations';
 
 // A picture's address needs the session's media token, and what a screen offers
@@ -206,16 +206,13 @@ beforeAll(() => translate());
  */
 describe('a tent that is no longer shared with the reader', () => {
   const drawPage = () =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/spaces/space-1']}>
-          <LogProvider>
-            <Routes>
-              <Route path="/spaces/:spaceId" element={<PlacePage />} />
-            </Routes>
-          </LogProvider>
-        </MemoryRouter>
-      </QueryClientProvider>,
+    drawAt(
+      <LogProvider>
+        <Routes>
+          <Route path="/spaces/:spaceId" element={<PlacePage />} />
+        </Routes>
+      </LogProvider>,
+      { at: '/spaces/space-1' },
     );
 
   it('says so, and offers the way home rather than a retry that can never work', () => {
@@ -244,16 +241,13 @@ describe('a tent that is no longer shared with the reader', () => {
  */
 describe('the banner over a page that could not refresh', () => {
   const drawPage = () =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/spaces/space-1']}>
-          <LogProvider>
-            <Routes>
-              <Route path="/spaces/:spaceId" element={<PlacePage />} />
-            </Routes>
-          </LogProvider>
-        </MemoryRouter>
-      </QueryClientProvider>,
+    drawAt(
+      <LogProvider>
+        <Routes>
+          <Route path="/spaces/:spaceId" element={<PlacePage />} />
+        </Routes>
+      </LogProvider>,
+      { at: '/spaces/space-1' },
     );
 
   it('dates itself by the half that failed, not by the half that has already come back', () => {
@@ -291,17 +285,14 @@ describe('how old a place´s page says it is', () => {
   }
 
   const drawPage = () =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/spaces/space-1']}>
-          <LogProvider>
-            <Routes>
-              <Route path="/spaces/:spaceId" element={<PlacePage />} />
-            </Routes>
-            <Reported />
-          </LogProvider>
-        </MemoryRouter>
-      </QueryClientProvider>,
+    drawAt(
+      <LogProvider>
+        <Routes>
+          <Route path="/spaces/:spaceId" element={<PlacePage />} />
+        </Routes>
+        <Reported />
+      </LogProvider>,
+      { at: '/spaces/space-1' },
     );
 
   it('leaves the line under the wordmark empty, because the pill already says how old the readings are', () => {

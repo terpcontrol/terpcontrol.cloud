@@ -1,7 +1,5 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import type {
@@ -21,6 +19,7 @@ import { LogProvider } from '@/log/LogProvider';
 import { Home } from '@/screens/Home';
 import { PlaceCockpit } from '@/screens/cockpit/PlaceCockpit';
 import { holdVerdictOf, judgedPanel, outputsFor, statusOf } from '@/screens/cockpit/place';
+import { drawAt, json } from './harness';
 import { spacePage, spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -261,8 +260,6 @@ const server = {
   sockets: [] as { role: string; state?: string; stateChangedAt?: string | null }[],
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
   const path = pathname.replace(/^\/v1/, '');
@@ -299,14 +296,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   return json({ items: [], nextCursor: null });
 });
 
-const draw = (node: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <LogProvider>{node}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (node: React.ReactNode) => drawAt(<LogProvider>{node}</LogProvider>);
 
 /** The tile of one reading, found by the link its name is. */
 const tile = async (name: string) => (await screen.findByRole('link', { name })).closest('article')!;

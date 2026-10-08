@@ -1,13 +1,12 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, HomeSpaceCard } from '@fg2/shared-types/v1';
 import { LooseGrowCard, PlaceCard } from '@/screens/cockpit/PlaceCard';
 import { attentionOf, livenessOf, sortedByAttention } from '@/screens/home/attention';
 import { DueStrip, FollowingStrip } from '@/screens/home/Strips';
 import { LogProvider } from '@/log/LogProvider';
+import { drawAt } from './harness';
 import { translate } from './translations';
 
 // What a card offers depends on who is looking, so a test says who that is.
@@ -116,14 +115,7 @@ const card = (over: Partial<HomeSpaceCard>): HomeSpaceCard => ({
 
 // Every card can log: the sheet and the toast live above the screens, so a
 // screen drawn on its own is drawn inside them.
-const draw = (node: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <LogProvider>{node}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (node: React.ReactNode) => drawAt(<LogProvider>{node}</LogProvider>);
 
 beforeAll(() => translate());
 

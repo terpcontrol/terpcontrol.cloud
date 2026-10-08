@@ -1,10 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { screen } from '@testing-library/react';
+import { Route, Routes } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device } from '@fg2/shared-types/v1';
 import { Control } from '@/screens/control/Control';
 import { ControlTab } from '@/screens/place/ControlTab';
+import { drawAt, json } from './harness';
 import { SIGNED_IN, spacePage, spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -40,8 +40,6 @@ const CUSTOMER: Device = {
   state: { lastSeenAt: new Date().toISOString(), hardware: {}, maintenanceUntil: null },
 } as unknown as Device;
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
   // The administrator's own account: one place of its own and no device at all.
@@ -61,13 +59,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('Steuerung of a customer´s place, read by support', () => {
   it('shows the customer´s targets read only rather than offering to add a device', async () => {
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <Control spaceId="space-customer" sub={null} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<Control spaceId="space-customer" sub={null} />);
 
     expect(await screen.findByText('Targets')).toBeInTheDocument();
     const day = await screen.findByRole('spinbutton', { name: 'Day temperature' });
@@ -81,14 +73,11 @@ describe('Steuerung of a customer´s place, read by support', () => {
 
   /** The tab picked the place from the administrator's own home, found none, and said there was nothing to steer. */
   it('opens the tab on the customer´s place the address names, said to be somebody else´s', async () => {
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/control?space=space-customer']}>
-          <Routes>
-            <Route path="/control/:page?" element={<ControlTab />} />
-          </Routes>
-        </MemoryRouter>
-      </QueryClientProvider>,
+    drawAt(
+      <Routes>
+        <Route path="/control/:page?" element={<ControlTab />} />
+      </Routes>,
+      { at: '/control?space=space-customer' },
     );
 
     expect(await screen.findByRole('heading', { name: /Control · Kundenzelt/ })).toHaveTextContent("support view of a customer's place");

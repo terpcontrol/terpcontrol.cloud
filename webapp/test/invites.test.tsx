@@ -1,12 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Invite, InviteCreate, MembershipPage, Space, SpaceCreate, SpaceKind, SpaceUpdate } from '@fg2/shared-types/v1';
 import { Members } from '@/screens/space/members/Members';
 import { expiresAtFor, liveInvites } from '@/screens/space/members/invites';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 /**
@@ -69,10 +68,6 @@ const server = {
   wrote: [] as { method: string; path: string; body: unknown }[],
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
-const NOT_FOUND = { status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] };
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const path = String(input).replace(/^.*\/v1/, '');
   const method = init?.method ?? 'GET';
@@ -116,14 +111,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
-const wrapped = (node: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter>
-        <ThemeProvider>{node}</ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const wrapped = (node: React.ReactNode) => drawAt(<ThemeProvider>{node}</ThemeProvider>);
 
 const drawTab = (roomId: string | null = null, kind: SpaceKind = 'tent', spaceId = 'space-1', name = 'Blue Dream tent') =>
   wrapped(<Members spaceId={spaceId} name={name} kind={kind} roomId={roomId} />);

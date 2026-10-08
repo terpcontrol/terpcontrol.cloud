@@ -1,10 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChartViewSpan, GrowListItem, GrowSeries, TimelineTargets } from '@fg2/shared-types/v1';
 import { chartViewCreate } from '@fg2/shared-types/v1-schemas/diary.js';
@@ -12,6 +10,7 @@ import { Charts } from '@/screens/charts/Charts';
 import { cardsOf, csvForCards, offeredBy, type Offered } from '@/screens/charts/cards';
 import { csvOf, levelPoints, niceScale, plotOption, readAt, stepPoints } from '@/charts/series';
 import { DAY_MS } from '@/ui/days';
+import { drawAt } from './harness';
 import { catalogue, translate } from './translations';
 
 const state = vi.hoisted(() => ({
@@ -207,16 +206,7 @@ const earlier: GrowSeries = {
   measurements: [],
 };
 
-const drawAt = (entry: string) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[entry]}>
-        <Charts />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-
-const draw = () => drawAt('/charts?grow=grow-1');
+const draw = (at = '/charts?grow=grow-1') => drawAt(<Charts />, { at });
 
 beforeAll(() => translate(['en', 'de']));
 
@@ -535,7 +525,7 @@ describe('the Charts view', () => {
    * skeletons that never resolved, with no word about why.
    */
   it('says a custom range it cannot read, rather than waiting on a read it never makes', async () => {
-    drawAt('/charts?grow=grow-1&range=custom&from=banana&to=2026-09-22');
+    draw('/charts?grow=grow-1&range=custom&from=banana&to=2026-09-22');
 
     expect(await screen.findByText('That is not a date this can read — pick both ends again.')).toBeInTheDocument();
     expect(screen.queryByText('loading')).not.toBeInTheDocument();
@@ -549,7 +539,7 @@ describe('the Charts view', () => {
    * on that needs no id at all.
    */
   it('offers the account´s grows when the address names neither a grow nor a tent', async () => {
-    drawAt('/charts');
+    draw('/charts');
 
     expect(await screen.findByText('No device stands anywhere yet. Pick a grow whose measurements are drawn.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Spring run' })).toHaveAttribute('href', '/charts?grow=grow-1');
@@ -559,7 +549,7 @@ describe('the Charts view', () => {
 
   it('keeps the plain sentence for an account that has no grow anywhere yet', async () => {
     state.grows = [];
-    drawAt('/charts');
+    draw('/charts');
 
     expect(await screen.findByText("Nothing to draw yet: charts show a device's readings or a grow's measurements.")).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Spring run' })).not.toBeInTheDocument();
@@ -574,7 +564,7 @@ describe('the Charts view', () => {
    * two fields that no longer described it.
    */
   it('says a custom range whose ends are the wrong way round, and takes the chart of the other range down', async () => {
-    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-20&to=2026-09-22');
+    draw('/charts?grow=grow-1&range=custom&from=2026-09-20&to=2026-09-22');
     await screen.findByText('Temp + RH');
     // The place's curves and the grow's own readings beside them.
     expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(2);
@@ -592,7 +582,7 @@ describe('the Charts view', () => {
   });
 
   it('says the same of an inverted range that arrives in the address, and asks nothing of the route', async () => {
-    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-22&to=2026-01-19');
+    draw('/charts?grow=grow-1&range=custom&from=2026-09-22&to=2026-01-19');
 
     expect(await screen.findByText('That range ends before it begins — pick a From that is earlier than the To.')).toBeInTheDocument();
     expect(screen.queryByText('loading')).not.toBeInTheDocument();
@@ -601,18 +591,18 @@ describe('the Charts view', () => {
   });
 
   it('draws a range of one day, which begins and ends on the same date and is not backwards', async () => {
-    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-21&to=2026-09-21');
+    draw('/charts?grow=grow-1&range=custom&from=2026-09-21&to=2026-09-21');
 
     expect(await screen.findByText('Temp + RH')).toBeInTheDocument();
     expect(screen.queryByText(/ends before it begins/)).not.toBeInTheDocument();
   });
 
   it('says it for the other end too, and keeps the plain sentence for an end nobody has picked yet', async () => {
-    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-20&to=nonsense');
+    draw('/charts?grow=grow-1&range=custom&from=2026-09-20&to=nonsense');
 
     expect(await screen.findByText('That is not a date this can read — pick both ends again.')).toBeInTheDocument();
 
-    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-20');
+    draw('/charts?grow=grow-1&range=custom&from=2026-09-20');
 
     expect(await screen.findByText('Pick both ends and the chart is drawn between them.')).toBeInTheDocument();
   });
@@ -1075,7 +1065,7 @@ describe('what a plot is made of', () => {
         { output: 'dehumidifier', deviceId: 'device-1', spans: [{ startsAt: at(8), endsAt: at(24) }], heardUntil: at(24) },
       ],
     };
-    drawAt('/charts?grow=grow-1&show=out.light,out.co2,out.dehumidifier');
+    draw('/charts?grow=grow-1&show=out.light,out.co2,out.dehumidifier');
 
     const reading = await screen.findByRole('status');
     expect(reading).toHaveTextContent('Light 62 %');
@@ -1101,7 +1091,7 @@ describe('what a plot is made of', () => {
       outputs: [{ output: 'dehumidifier', deviceId: 'device-1', fridge: true, spans: [{ startsAt: at(8), endsAt: at(9) }], heardUntil: at(24) }],
     };
     await i18next.changeLanguage('de');
-    drawAt('/charts?grow=grow-1&show=out.dehumidifier');
+    draw('/charts?grow=grow-1&show=out.dehumidifier');
 
     expect(await screen.findByRole('button', { name: 'Kompressor' })).toBeInTheDocument();
     expect((await screen.findByRole('status')).textContent).toContain('Kompressor');

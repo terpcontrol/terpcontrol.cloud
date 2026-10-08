@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionTokens, SessionUser } from '@fg2/shared-types/v1';
+import { json } from './harness';
 import { translate } from './translations';
 
 /**
@@ -37,7 +38,7 @@ const TOKENS: SessionTokens = {
 const answering = (status: number, body: unknown): void => {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })),
+    vi.fn(async () => json(body, status)),
   );
 };
 
@@ -48,16 +49,10 @@ const answeringSignedOut = (): void => {
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith('/sessions/refresh')) {
-        return new Response(JSON.stringify({ status: 401, code: 'unauthenticated', title: 'Gone', detail: 'Spent.', errors: [] }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return json({ status: 401, code: 'unauthenticated', title: 'Gone', detail: 'Spent.', errors: [] }, 401);
       }
 
-      return new Response(JSON.stringify({ ...TOKENS, sessionId: 'session-2', user: USER }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return json({ ...TOKENS, sessionId: 'session-2', user: USER });
     }),
   );
 };

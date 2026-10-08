@@ -1,10 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Rail } from '@/app/shell/Rail';
 import { TabBar } from '@/app/shell/TabBar';
 import { LogProvider } from '@/log/LogProvider';
+import { drawAt, json } from './harness';
 import { translate } from './translations';
 
 // What a card offers depends on who is looking, so a test says who that is.
@@ -16,8 +15,6 @@ vi.mock('@/api/session', async importOriginal => {
 
 const wire = vi.hoisted(() => ({ diary: false }));
 
-const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
   if (path === '/home') return json({ spaces: [], followedGrows: [], people: [], layers: { diary: wire.diary } });
@@ -26,14 +23,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   return json({ items: [], nextCursor: null });
 });
 
-const draw = (node: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <LogProvider>{node}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (node: React.ReactNode) => drawAt(<LogProvider>{node}</LogProvider>);
 
 /**
  * The bar is Start · Verlauf · Steuerung · Gerät for every account, and every

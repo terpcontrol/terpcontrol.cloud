@@ -1,10 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, Me, ShareLink, ShareLinkCreate, Space } from '@fg2/shared-types/v1';
 import { ShareLinks } from '@/screens/me/sharing/ShareLinks';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 /**
@@ -121,8 +120,6 @@ const pageOf = <T extends { id: string }>(rows: T[], url: URL) => {
   return { items, nextCursor: more && items.length > 0 ? items[items.length - 1].id : null };
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = new URL(String(input), 'http://localhost');
   const path = url.pathname.replace(/^\/v1/, '');
@@ -153,17 +150,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (path === '/spaces') return json(pageOf(server.owns ? spaces : [], url));
   if (path === '/me') return json(me);
   if (path === '/cameras') return json({ items: server.cameras.map(spaceId => ({ id: `camera-${spaceId}`, spaceId })), nextCursor: null });
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
-const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/me/share-links']}>
-        <ShareLinks />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = () => drawAt(<ShareLinks />, { at: '/me/share-links' });
 
 const drawLoaded = async () => {
   draw();

@@ -1,11 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Alert } from '@fg2/shared-types/v1';
 import { clockOffsetMs, fetchedAt, forgetServerClock, noteServerDate, serverNow } from '@/api/clock';
 import { Alerts } from '@/screens/Alerts';
+import { drawAt } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -101,14 +100,7 @@ const answer = (path: string): Response => {
   return json({ items: [], nextCursor: null });
 };
 
-const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <Alerts />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = () => drawAt(<Alerts />);
 
 /** The one card, once the reads behind it have landed: the whole of what a reader is told about the quiet tent. */
 const inbox = async (): Promise<string> => {

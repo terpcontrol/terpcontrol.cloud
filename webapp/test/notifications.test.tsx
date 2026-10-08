@@ -1,8 +1,6 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate, NotificationChannels, NotificationRouting, NotificationSettings, Problem } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
@@ -14,6 +12,7 @@ import { pathOf, payloadOf } from '@/screens/notifications/push-route';
 import { minuteOf, routingWith, timeOf } from '@/screens/notifications/settings';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { headersOf, headersText } from '@/ui/headers';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 /**
@@ -75,8 +74,6 @@ const server = {
   cameras: [] as { id: string; removedAt: string | null; isDemo: boolean }[],
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = String(input);
   const method = init?.method ?? 'GET';
@@ -107,17 +104,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     server.posted.push(url);
     return json({ url: 'https://t.me/terpbot?start=abc', validUntil: DateTime.now().plus({ minutes: 15 }).toISO() }, 201);
   }
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 });
 
-const wrapped = (screenUnderTest: ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/me/notifications']}>
-        <LogProvider>{screenUnderTest}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const wrapped = (screenUnderTest: ReactNode) => drawAt(<LogProvider>{screenUnderTest}</LogProvider>, { at: '/me/notifications' });
 
 const draw = () => wrapped(<Notifications />);
 

@@ -1,9 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Scheme, SchemeUpdate, SchemeWeek } from '@fg2/shared-types/v1';
 import { Schemes } from '@/screens/me/schemes/Schemes';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 /**
@@ -63,8 +62,6 @@ const OWN: Scheme = {
 
 const server = { own: [OWN], patched: [] as { id: string; body: SchemeUpdate }[], deleted: [] as string[], asked: [] as string[] };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
   const method = init?.method ?? 'GET';
@@ -86,17 +83,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     server.own = server.own.filter(scheme => scheme.id !== id);
     return new Response(null, { status: 204 });
   }
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 });
 
-const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/me/schemes']}>
-        <Schemes />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = () => drawAt(<Schemes />, { at: '/me/schemes' });
 
 beforeAll(() => translate());
 

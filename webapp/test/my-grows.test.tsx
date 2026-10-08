@@ -1,13 +1,14 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, type InitialEntry, RouterProvider } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, MyGrowCard } from '@fg2/shared-types/v1';
 import { LogProvider } from '@/log/LogProvider';
 import { GrowHeader, GrowPage } from '@/screens/grow/GrowPage';
 import { MyGrows, MyGrowsLine } from '@/screens/grow/MyGrows';
 import { NoLongerHere } from '@/ui/PageState';
+import { drawAt, json, testClient } from './harness';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
 import { translate } from './translations';
 
@@ -84,27 +85,18 @@ const LAST_YEAR = card('last-year', {
 
 const wire = { grows: [] as MyGrowCard[], calls: [] as string[] };
 
-const jsonOf = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 vi.stubGlobal(
   'fetch',
   vi.fn(async (input: RequestInfo | URL) => {
     const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
     wire.calls.push(path);
 
-    if (path === '/home/grows') return jsonOf({ items: wire.grows, nextCursor: null });
-    return jsonOf({ status: 404, code: 'not_found', title: 'not_found', detail: `No stub for ${path}`, errors: [] }, 404);
+    if (path === '/home/grows') return json({ items: wire.grows, nextCursor: null });
+    return json({ status: 404, code: 'not_found', title: 'not_found', detail: `No stub for ${path}`, errors: [] }, 404);
   }),
 );
 
-const draw = (node: React.ReactNode, entries: Parameters<typeof MemoryRouter>[0]['initialEntries'] = ['/']) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={entries}>
-        <LogProvider>{node}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (node: React.ReactNode, at?: InitialEntry) => drawAt(<LogProvider>{node}</LogProvider>, { at });
 
 const shelf = (name: string) => screen.getByRole('region', { name });
 
@@ -181,7 +173,7 @@ describe('the page', () => {
     expect(await screen.findByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     start.unmount();
 
-    draw(<MyGrows />, [{ pathname: '/grows', state: { from: 'me' } }]);
+    draw(<MyGrows />, { pathname: '/grows', state: { from: 'me' } });
     expect(await screen.findByRole('link', { name: 'Me' })).toHaveAttribute('href', '/me');
   });
 
@@ -299,7 +291,7 @@ describe('the way back from a grow', () => {
       initialEntries: [{ pathname: '/grows/spring', state: { from: 'grows' } }],
     });
     render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider client={testClient()}>
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
@@ -309,7 +301,7 @@ describe('the way back from a grow', () => {
   });
 
   it('leads to "My grows" when the grow was opened there', () => {
-    draw(<GrowHeader grow={grow} plants={[]} spaces={spaces} now={NOW} onShare={null} />, [{ pathname: '/grows/spring', state: { from: 'grows' } }]);
+    draw(<GrowHeader grow={grow} plants={[]} spaces={spaces} now={NOW} onShare={null} />, { pathname: '/grows/spring', state: { from: 'grows' } });
 
     expect(screen.getByRole('link', { name: 'Back to My grows' })).toHaveAttribute('href', '/grows');
   });

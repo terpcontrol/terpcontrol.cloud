@@ -1,9 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { session } from '@/api/session';
 import { EmptyHome } from '@/screens/EmptyHome';
+import { drawAt } from './harness';
 import { translate } from './translations';
 
 // Every door here depends on who is looking, so there has to be somebody: the
@@ -31,14 +30,7 @@ describe('the empty home', () => {
     who.is = 'you';
   });
 
-  const draw = (onStartGrow: () => void = () => undefined) =>
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter>
-          <EmptyHome onStartGrow={onStartGrow} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  const draw = (onStartGrow: () => void = () => undefined) => drawAt(<EmptyHome onStartGrow={onStartGrow} />);
 
   it('offers the three doors in the decided order', () => {
     draw();

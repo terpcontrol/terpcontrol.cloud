@@ -1,6 +1,5 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
@@ -8,6 +7,7 @@ import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { Measurements } from '@/screens/grow/measurements/Measurements';
+import { drawAt } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
@@ -142,17 +142,14 @@ const answers = (path: string) => {
 const target = { key: 'grow:grow-1', label: 'Spring run', growId: 'grow-1', spaceId: null, plantIds: [], dayNumber: 35, standsIn: 'space-1' };
 
 const draw = (node: React.ReactNode, path = '/grows/grow-1/measurements') =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[path]}>
-        <LogProvider>
-          <Routes>
-            <Route path="/grows/:growId/measurements" element={node} />
-            <Route path="*" element={node} />
-          </Routes>
-        </LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <LogProvider>
+      <Routes>
+        <Route path="/grows/:growId/measurements" element={node} />
+        <Route path="*" element={node} />
+      </Routes>
+    </LogProvider>,
+    { at: path },
   );
 
 const drawScreen = async () => {

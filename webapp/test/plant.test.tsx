@@ -1,12 +1,12 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
+import { drawAt } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
@@ -139,16 +139,13 @@ const answers = (path: string) => {
 };
 
 const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/grows/grow-1/plants/plant-1']}>
-        <LogProvider>
-          <Routes>
-            <Route path="/grows/:growId/plants/:plantId" element={<PlantPage />} />
-          </Routes>
-        </LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <LogProvider>
+      <Routes>
+        <Route path="/grows/:growId/plants/:plantId" element={<PlantPage />} />
+      </Routes>
+    </LogProvider>,
+    { at: '/grows/grow-1/plants/plant-1' },
   );
 
 const drawLoaded = async () => {

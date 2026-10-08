@@ -1,11 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate, Media } from '@fg2/shared-types/v1';
 import { cutoffDay, narrows } from '@/screens/me/privacy/climate';
 import { Privacy } from '@/screens/me/privacy/Privacy';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 /**
@@ -77,8 +76,6 @@ const exportRow = (status: 'queued' | 'ready'): Media =>
 
 const server = { me: me(), patched: [] as MeUpdate[], deleted: 0, exportsAsked: 0 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = String(input);
   const method = init?.method ?? 'GET';
@@ -99,17 +96,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     return json({ media: exportRow('queued'), queued: true }, 202);
   }
   if (url.endsWith('/v1/media/media-export') && method === 'GET') return json(exportRow('ready'));
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
-const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/me/privacy']}>
-        <Privacy />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = () => drawAt(<Privacy />, { at: '/me/privacy' });
 
 const drawLoaded = async (over: Partial<Me> = {}) => {
   server.me = me(over);

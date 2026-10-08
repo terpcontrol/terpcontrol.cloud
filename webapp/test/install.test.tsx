@@ -1,11 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Me } from '@fg2/shared-types/v1';
 import { catchInstallPrompt } from '@/app/install';
 import { InstallRow } from '@/screens/me/appearance/InstallRow';
 import { PushCard } from '@/screens/notifications/Channels';
+import { drawAt } from './harness';
 import { translate } from './translations';
 
 /**
@@ -27,12 +26,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const draw = (node: React.ReactNode, at = '/me/appearance') =>
-  render(
-    <QueryClientProvider client={new QueryClient()}>
-      <MemoryRouter initialEntries={[at]}>{node}</MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (node: React.ReactNode, at = '/me/appearance') => drawAt(node, { at });
 
 const onIphone = () => vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE);
 

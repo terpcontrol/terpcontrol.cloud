@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -8,6 +8,7 @@ import { screens } from '@/app/routes';
 import { AppShell } from '@/app/shell/AppShell';
 import { tabsOf } from '@/app/shell/tabs';
 import { openingOf } from '@/log/underneath';
+import { json, testClient } from './harness';
 import { spacePage, spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -166,8 +167,6 @@ const server = {
   sent: [] as { method: string; path: string; body: unknown }[],
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const home = (): HomeAnswer => ({
   spaces: server.places.map(([id, name]) => card(id, name)),
   followedGrows: [],
@@ -218,7 +217,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
 const open = (path: string) => {
   const router = createMemoryRouter([{ element: <AppShell />, children: screens }], { initialEntries: [path] });
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={testClient()}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );

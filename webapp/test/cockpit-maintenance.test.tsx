@@ -1,12 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, SpaceOverview } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { LogProvider } from '@/log/LogProvider';
 import { PlaceCockpit } from '@/screens/cockpit/PlaceCockpit';
+import { drawAt } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -83,14 +82,10 @@ const me = {
 };
 
 const draw = (minutesOld = 0.3) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <LogProvider>
-          <PlaceCockpit overview={place(minutesOld)} />
-        </LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <LogProvider>
+      <PlaceCockpit overview={place(minutesOld)} />
+    </LogProvider>,
   );
 
 beforeAll(() => translate());

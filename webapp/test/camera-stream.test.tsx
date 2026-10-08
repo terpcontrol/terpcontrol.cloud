@@ -1,10 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
+import { drawAt } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -82,14 +81,7 @@ const answers = (path: string) => {
   throw new Error(`nothing mocked for ${path}`);
 };
 
-const draw = (camera: Camera, mayManage = true) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayManage} />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (camera: Camera, mayManage = true) => drawAt(<CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayManage} />);
 
 /** Every read the card starts, answered and drawn. */
 const settle = async () => {

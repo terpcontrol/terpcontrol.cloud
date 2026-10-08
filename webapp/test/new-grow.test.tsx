@@ -1,7 +1,5 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device, GrowListItem, Space } from '@fg2/shared-types/v1';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
@@ -10,6 +8,7 @@ import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { dayNumber } from '@/screens/grow/new/new-grow';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
+import { drawAt } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -116,14 +115,7 @@ const answers = (path: string): unknown => {
   throw new Error(`No fixture for ${path}`);
 };
 
-const draw = (spaceId?: string) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <NewGrowSheet spaceId={spaceId} onClose={() => undefined} />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (spaceId?: string) => drawAt(<NewGrowSheet spaceId={spaceId} onClose={() => undefined} />);
 
 /**
  * The sheet waits for the places, the grows and the scheme index; the questions

@@ -1,5 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
@@ -8,6 +7,7 @@ import { fieldValue } from '@/ui/advanced/field-values';
 import { FieldNumber, FieldSwitch } from '@/ui/advanced/Fields';
 import { advancedItem, type AdvancedItem } from '@/ui/advanced/item';
 import { itemsFor } from '@/ui/advanced/registry';
+import { drawAt } from './harness';
 import { translate } from './translations';
 
 /**
@@ -30,9 +30,6 @@ const fridge = (over: Partial<Device> = {}): Device =>
     state: { hardware: {} },
     ...over,
   }) as Device;
-
-const wrap = (children: React.ReactNode) =>
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>);
 
 beforeAll(() => translate());
 
@@ -63,7 +60,7 @@ describe('a section', () => {
   ];
 
   it('draws its items folded, in their order, with the context of its scope', () => {
-    wrap(<AdvancedSection scope="place" context={{ spaceId: 'space-1', devices: [fridge()], mayManage: true }} items={ITEMS} />);
+    drawAt(<AdvancedSection scope="place" context={{ spaceId: 'space-1', devices: [fridge()], mayManage: true }} items={ITEMS} />);
 
     const section = screen.getByText('Advanced').closest('details')!;
     expect(section).not.toHaveAttribute('open');
@@ -76,7 +73,7 @@ describe('a section', () => {
   });
 
   it('is not drawn at all where none of its items applies', () => {
-    const { container } = wrap(
+    const { container } = drawAt(
       <AdvancedSection
         scope="place"
         context={{ spaceId: 'space-1', devices: [], mayManage: true }}
@@ -98,7 +95,7 @@ describe('the controls an item is made of', () => {
 
   it('writes a switch on the tap, by its name', async () => {
     vi.mocked(api.patch).mockResolvedValue(fridge() as never);
-    wrap(<FieldSwitch device={fridge()} name="energySaving" label="Energy saving" />);
+    drawAt(<FieldSwitch device={fridge()} name="energySaving" label="Energy saving" />);
 
     const toggle = screen.getByRole('switch', { name: 'Energy saving' });
     expect(toggle).toHaveAttribute('aria-checked', 'true');
@@ -109,7 +106,7 @@ describe('the controls an item is made of', () => {
 
   it('saves a figure only once it is typed whole and inside the range the type allows', async () => {
     vi.mocked(api.patch).mockResolvedValue(fridge() as never);
-    wrap(<FieldNumber device={fridge()} name="compressorRest" label="Compressor rest" unit="s" />);
+    drawAt(<FieldNumber device={fridge()} name="compressorRest" label="Compressor rest" unit="s" />);
 
     const field = screen.getByRole('textbox', { name: 'Compressor rest' });
     expect(field).toHaveValue('300');

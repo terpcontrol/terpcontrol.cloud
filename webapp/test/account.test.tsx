@@ -1,13 +1,13 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { type QueryClient } from '@tanstack/react-query';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, Media, PasswordChange, Session } from '@fg2/shared-types/v1';
 import { fileSize } from '@/ui/figures';
 import { Account } from '@/screens/me/account/Account';
 import { deviceLabel, sortedSessions } from '@/screens/me/account/sessions';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 /**
@@ -101,8 +101,6 @@ const server = {
   builtAt: null as string | null,
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
   const method = init?.method ?? 'GET';
@@ -138,21 +136,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     server.mediaAsked += 1;
     return json(exportRow('ready'));
   }
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 });
 
-const freshClient = () => new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-
-const drawIn = (client: QueryClient) =>
-  render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/me/account']}>
-        <Account />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-
-const draw = () => drawIn(freshClient());
+const draw = (client?: QueryClient) => drawAt(<Account />, { at: '/me/account', client });
 
 const drawLoaded = async () => {
   draw();
@@ -365,15 +352,14 @@ describe('taking everything away', () => {
    * finished file was orphaned and the wait started again.
    */
   it('finds the finished file again after a walk to another screen and back', async () => {
-    const client = freshClient();
-    const first = drawIn(client);
+    const first = draw();
     await screen.findByText('login@example.org');
 
     fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
     expect(await screen.findByRole('button', { name: /Download · 12\.4 MB/ })).toBeInTheDocument();
 
     first.unmount();
-    drawIn(client);
+    draw(first.client);
 
     // A button, not a link: the zip is served to a session, and nothing sets an
     // Authorization header on a navigation - so the bytes are fetched and handed

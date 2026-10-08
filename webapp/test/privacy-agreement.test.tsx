@@ -1,10 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { fireEvent, screen } from '@testing-library/react';
+import { Route, Routes } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { session } from '@/api/session';
 import { SignUp } from '@/screens/SignUp';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { drawAt, json } from './harness';
 import { translate } from './translations';
 
 /**
@@ -25,10 +25,7 @@ beforeEach(() => {
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       wrote.push(`${init?.method ?? 'GET'} ${String(input).replace(/^.*\/v1/, '')}`);
-      return new Response(JSON.stringify({ id: 'u', createdAt: '2026-01-01T00:00:00Z', email: 'a@b.c', handle: 'a', isActive: false }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return json({ id: 'u', createdAt: '2026-01-01T00:00:00Z', email: 'a@b.c', handle: 'a', isActive: false }, 201);
     }),
   );
 });
@@ -39,16 +36,13 @@ afterEach(async () => {
 });
 
 const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/sign-up']}>
-        <ThemeProvider>
-          <Routes>
-            <Route path="/sign-up" element={<SignUp />} />
-          </Routes>
-        </ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <ThemeProvider>
+      <Routes>
+        <Route path="/sign-up" element={<SignUp />} />
+      </Routes>
+    </ThemeProvider>,
+    { at: '/sign-up' },
   );
 
 const fill = () => {

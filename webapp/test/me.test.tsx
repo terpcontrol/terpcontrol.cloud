@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
@@ -9,6 +8,7 @@ import { About } from '@/screens/me/about/About';
 import { premiumLine, shareLinksLine } from '@/screens/me/doors';
 import { Me as MeScreen } from '@/screens/Me';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 /**
@@ -172,8 +172,6 @@ const server = {
   held: {} as Record<string, Promise<Response> | undefined>,
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
   server.asked.push(pathname);
@@ -190,18 +188,15 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   if (pathname === '/v1/cameras') return json({ items: server.cameras, nextCursor: null });
   if (pathname === '/v1/schemes') return json({ items: server.own, nextCursor: null });
   if (pathname === '/assets/schemes/index.json') return json(INDEX);
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 });
 
 const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/me']}>
-        <ThemeProvider>
-          <MeScreen />
-        </ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <ThemeProvider>
+      <MeScreen />
+    </ThemeProvider>,
+    { at: '/me' },
   );
 
 /** The line under a door, once it says something other than that it is loading. */

@@ -1,15 +1,14 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { MemoryRouter } from 'react-router';
 import { LogProvider } from '@/log/LogProvider';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
 import { Timeline } from '@/screens/timeline/Timeline';
 import { figure, targetFigure } from '@/ui/units';
 import { dayStopOf, daysOnAxis, frameNear, scaleOf, splitByNight, stretchesOf } from '@/screens/timeline/window';
+import { drawAt } from './harness';
 import { translate } from './translations';
 
 const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null, asked: [] as string[] }));
@@ -148,16 +147,12 @@ const answer: SpaceTimeline = {
   people: [{ id: 'user-1', handle: 'you' }],
 };
 
+// The rail opens a line to be corrected, which is the shell's sheet.
 const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        {/* The rail opens a line to be corrected, which is the shell's sheet. */}
-        <LogProvider>
-          <Timeline spaceId="space-1" />
-        </LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <LogProvider>
+      <Timeline spaceId="space-1" />
+    </LogProvider>,
   );
 
 /** The scrubber is what a thumb has, so the tests move the cursor the way a thumb does. */
@@ -502,21 +497,18 @@ describe('the timeline', () => {
  * stack the grower then has to search.
  */
 describe('a timeline opened on one reading', () => {
-  const drawAt = (url: string) =>
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={[url]}>
-          <LogProvider>
-            <Timeline spaceId="space-1" />
-          </LogProvider>
-        </MemoryRouter>
-      </QueryClientProvider>,
+  const drawOn = (at: string) =>
+    drawAt(
+      <LogProvider>
+        <Timeline spaceId="space-1" />
+      </LogProvider>,
+      { at },
     );
 
   it('scrolls to the panel of that reading and marks it, and no other', () => {
     const scrolled = vi.fn();
     Element.prototype.scrollIntoView = scrolled;
-    drawAt('/timeline?focus=humidity');
+    drawOn('/timeline?focus=humidity');
 
     const humidity = screen.getByText('Humidity').closest('section')!;
     expect(humidity).toHaveAttribute('data-focus', 'true');
@@ -539,7 +531,7 @@ describe('a timeline opened on one reading', () => {
         { metric: 'lux', points: Array.from({ length: 24 }, (_, hour) => ({ measuredAt: at(hour), value: hour < 6 ? 0 : 41_250 })), targets: [] },
       ],
     };
-    drawAt('/timeline?focus=leafTemperature');
+    drawOn('/timeline?focus=leafTemperature');
 
     const leaf = screen.getByText('Leaf temperature').closest('section')!;
     const light = screen.getByText('Light intensity').closest('section')!;
@@ -555,17 +547,17 @@ describe('a timeline opened on one reading', () => {
   it('opens on the shortest window that holds a moment the link names, an alert´s start from yesterday on the week', () => {
     Element.prototype.scrollIntoView = vi.fn();
     state.asked = [];
-    drawAt(`/timeline?focus=temperature&at=${encodeURIComponent(DateTime.now().minus({ hours: 26 }).toISO()!)}`);
+    drawOn(`/timeline?focus=temperature&at=${encodeURIComponent(DateTime.now().minus({ hours: 26 }).toISO()!)}`);
     expect(state.asked[0]).toBe('7d');
 
     state.asked = [];
-    drawAt(`/timeline?at=${encodeURIComponent(DateTime.now().minus({ hours: 3 }).toISO()!)}`);
+    drawOn(`/timeline?at=${encodeURIComponent(DateTime.now().minus({ hours: 3 }).toISO()!)}`);
     expect(state.asked[0]).toBe('24h');
   });
 
   it('marks the lamp´s lane for the light', () => {
     Element.prototype.scrollIntoView = vi.fn();
-    drawAt('/timeline?focus=light');
+    drawOn('/timeline?focus=light');
 
     expect(screen.getByText('Light').closest('div')).toHaveAttribute('data-focus', 'true');
     expect(screen.getByText('Heater').closest('div')).not.toHaveAttribute('data-focus');

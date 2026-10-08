@@ -1,13 +1,13 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, SpaceSeries, TimelineTargets } from '@fg2/shared-types/v1';
 import { Charts } from '@/screens/charts/Charts';
 import { defaultPick, halfOf } from '@/screens/charts/cards';
 import { categoryOf, columnsOf, nearestColumn } from '@/screens/charts/message-columns';
 import { rangeOfSpan, stepped, windowOf, WIDTHS, zoomedIn } from '@/screens/charts/span';
+import { drawAt } from './harness';
 import { translate } from './translations';
 
 /**
@@ -125,22 +125,19 @@ function Address() {
 }
 
 const draw = (at = '/charts?space=space-2') =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <Routes>
-          <Route
-            path="*"
-            element={
-              <>
-                <Charts />
-                <Address />
-              </>
-            }
-          />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <Routes>
+      <Route
+        path="*"
+        element={
+          <>
+            <Charts />
+            <Address />
+          </>
+        }
+      />
+    </Routes>,
+    { at },
   );
 
 interface SeriesRead {

@@ -1,7 +1,5 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceCapabilities, Socket, SocketPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
@@ -9,6 +7,7 @@ import { DeviceList } from '@/screens/devices/DeviceList';
 import { draftFor, problemOf, rolesFor, secondsOfSpan, spanOf, updateOf } from '@/screens/devices/socket-form';
 import { SocketRow } from '@/screens/devices/SocketRow';
 import { rowsOf } from '@/screens/devices/sockets';
+import { drawAt } from './harness';
 import { SIGNED_IN, spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -90,13 +89,7 @@ const drawWith = async (device: Device, sockets: Socket[] = []) => {
     if (path.endsWith('/firmwares')) return Promise.resolve({ items: BUILDS, nextCursor: null }) as never;
     return Promise.resolve({ items: [], nextCursor: null }) as never;
   });
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <DeviceList />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  drawAt(<DeviceList />);
   fireEvent.click(await screen.findByText('Controller'));
 };
 
@@ -220,13 +213,7 @@ describe('giving a device up', () => {
       if (path.endsWith('/sockets')) return Promise.resolve({ items: [], nextCursor: null, capabilities: CAPABILITIES }) as never;
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter>
-          <DeviceList />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawAt(<DeviceList />);
     fireEvent.click(await screen.findByText('Controller'));
     await advanced();
 
@@ -304,20 +291,18 @@ const socket = (over: Partial<Socket> = {}): Socket => ({
 describe('a socket’s timer and its Advanced', () => {
   const drawRow = (one: Socket, capabilities = CAPABILITIES) => {
     const [row] = rowsOf([one]);
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <SocketRow
-          row={row}
-          deviceId="device-1"
-          refusal={null}
-          unheard={null}
-          mayManage
-          runs={null}
-          now={DateTime.now()}
-          capabilities={capabilities}
-          deviceName="Tent controller"
-        />
-      </QueryClientProvider>,
+    drawAt(
+      <SocketRow
+        row={row}
+        deviceId="device-1"
+        refusal={null}
+        unheard={null}
+        mayManage
+        runs={null}
+        now={DateTime.now()}
+        capabilities={capabilities}
+        deviceName="Tent controller"
+      />,
     );
     fireEvent.click(screen.getByRole('button', { name: /^Details of .*, and how long/ }));
   };

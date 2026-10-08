@@ -1,10 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate } from '@fg2/shared-types/v1';
 import { DiaryOffer } from '@/screens/home/DiaryOffer';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 vi.mock('@/api/session', async importOriginal => {
@@ -51,8 +50,6 @@ const me = (): Me => ({
 
 const server = { me: me(), patched: [] as MeUpdate[], asked: [] as string[] };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
   const method = init?.method ?? 'GET';
@@ -66,17 +63,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     server.me = { ...server.me, ...body, preferences: { ...server.me.preferences, ...body.preferences }, layers: { diary: diary === 'on' } } as Me;
     return json(server.me);
   }
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 });
 
-const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter>
-        <DiaryOffer />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = () => drawAt(<DiaryOffer />);
 
 beforeAll(() => translate());
 

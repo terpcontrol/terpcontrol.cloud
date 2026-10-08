@@ -1,14 +1,14 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Invite, InvitePreview, Membership, MembershipPage, Problem, Space } from '@fg2/shared-types/v1';
 import { JoinRoute } from '@/screens/join/JoinRoute';
 import { Members } from '@/screens/space/members/Members';
 import { decidesHere, guestsOf, peopleCount, viaRoomCount } from '@/screens/space/members/people';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 /**
@@ -118,10 +118,6 @@ const server = {
   cameras: [] as { id: string; removedAt: string | null; isDemo: boolean }[],
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
-const NOT_FOUND = { status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] };
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const path = String(input).replace(/^.*\/v1/, '');
   const method = init?.method ?? 'GET';
@@ -161,14 +157,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
-const wrapped = (node: ReactNode, at = '/') =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <ThemeProvider>{node}</ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const wrapped = (node: ReactNode, at = '/') => drawAt(<ThemeProvider>{node}</ThemeProvider>, { at });
 
 const drawTab = (roomId: string | null = 'room-1') => wrapped(<Members spaceId="space-1" name="Blue Dream tent" kind="tent" roomId={roomId} />);
 

@@ -1,13 +1,12 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Me, PremiumFree } from '@fg2/shared-types/v1';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
 import { countdownDays } from '@/screens/me/premium/entitlement';
 import { Premium } from '@/screens/me/premium/Premium';
 import { Privacy } from '@/screens/me/privacy/Privacy';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { spacePage, spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -132,8 +131,6 @@ const rtsp = camera({
 
 const server = { me: me(), cameras: [] as Camera[] };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const url = String(input);
 
@@ -141,19 +138,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   if (url.endsWith('/v1/cameras')) return json({ items: server.cameras, nextCursor: null });
   if (url.endsWith('/v1/spaces')) return json(spacePage(spaceWhere('own'), spaceWhere('own', { id: 'space-2', name: 'Tent 2' })));
   if (url.endsWith('/v1/devices')) return json({ items: [], nextCursor: null });
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
-const client = () => new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-
-const draw = () =>
-  render(
-    <QueryClientProvider client={client()}>
-      <MemoryRouter initialEntries={['/me/premium']}>
-        <Premium />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = () => drawAt(<Premium />, { at: '/me/premium' });
 
 const drawLoaded = async () => {
   draw();
@@ -459,14 +447,7 @@ describe('what Premium covers', () => {
 });
 
 describe('the two screens that describe the free tier', () => {
-  const drawPrivacy = () =>
-    render(
-      <QueryClientProvider client={client()}>
-        <MemoryRouter initialEntries={['/me/privacy']}>
-          <Privacy />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  const drawPrivacy = () => drawAt(<Privacy />, { at: '/me/privacy' });
 
   it('agree that nothing of a free camera is deleted where the install names no window', async () => {
     server.me = me({ enforced: false, extendUrl: null, priceLabel: null });
@@ -501,14 +482,7 @@ describe('the camera page', () => {
   // The camera page works out what this reader may do with this camera and
   // hands it down as two answers: its settings are `manage` where it stands,
   // and taking it off the account is `own`.
-  const drawSettings = (one: Camera) =>
-    render(
-      <QueryClientProvider client={client()}>
-        <MemoryRouter>
-          <CameraSettings camera={one} mayManage={false} mayOwn={false} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  const drawSettings = (one: Camera) => drawAt(<CameraSettings camera={one} mayManage={false} mayOwn={false} />);
 
   it('lets a camera without Premium say what it misses on this install, with the door to what Premium covers', async () => {
     drawSettings(rtsp);

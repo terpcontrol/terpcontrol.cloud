@@ -1,13 +1,12 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
 import { fanSummaryOf, ownFactOf, ownStatusOf, plugSummaryOf } from '@/screens/control/devices/own-summary';
 import { Targets } from '@/screens/control/targets/Targets';
 import { climateDeviceOf, lightWindowOf, rangeVerdictOf, switchRangeOf } from '@/screens/cockpit/place';
+import { drawAt, json } from './harness';
 import { translate } from './translations';
 
 /**
@@ -69,8 +68,6 @@ const device = (id: string, type: string, configuration: DeviceConfiguration | n
 
 const calls: { method: string; path: string; body: { set?: Record<string, unknown> } }[] = [];
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 vi.stubGlobal(
   'fetch',
   vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -87,14 +84,7 @@ vi.stubGlobal(
 
 const patches = () => calls.filter(call => call.method === 'PATCH');
 
-const draw = (devices: Device[]) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter>
-        <Targets spaceId="space-1" devices={devices} mayManage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (devices: Device[]) => drawAt(<Targets spaceId="space-1" devices={devices} mayManage />);
 
 const t = (key: string, options?: Record<string, unknown>) => i18next.t(key, options);
 

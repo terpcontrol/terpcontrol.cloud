@@ -1,7 +1,5 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime, Settings } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Entry, GrowListItem, Reminder, Task } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
@@ -9,6 +7,7 @@ import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { Tasks } from '@/screens/Tasks';
 import { dateLabel, groupOf } from '@/screens/tasks/tasks';
+import { drawAt } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
@@ -173,14 +172,10 @@ const answers = (path: string, query?: Record<string, unknown>) => {
 const written = { id: 'entry-new', kind: 'water', undoUntil: null } as unknown as Entry;
 
 const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <LogProvider>
-          <Tasks />
-        </LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <LogProvider>
+      <Tasks />
+    </LogProvider>,
   );
 
 /**

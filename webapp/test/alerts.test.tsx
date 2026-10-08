@@ -1,8 +1,6 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AlarmRule, Alert, Me, OpenAlert, Problem } from '@fg2/shared-types/v1';
 import { Rail } from '@/app/shell/Rail';
@@ -11,6 +9,7 @@ import { LogProvider } from '@/log/LogProvider';
 import { Alerts } from '@/screens/Alerts';
 import { crossedBound, groupsOf } from '@/screens/alerts/inbox';
 import { alertLabel } from '@/ui/units';
+import { drawAt, json } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -151,9 +150,6 @@ const server = {
   sent: [] as { method: string; path: string; body: unknown }[],
 };
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': status < 400 ? 'application/json' : 'application/problem+json' } });
-
 const answer = (method: string, path: string, body: unknown): Response => {
   if (state.refuse && state.refuse.method === method && path.startsWith(state.refuse.path))
     return json(state.refuse.problem, state.refuse.problem.status);
@@ -185,14 +181,7 @@ const answer = (method: string, path: string, body: unknown): Response => {
   return json({ status: 404, code: 'not_found', title: 'Not found', detail: `No route for ${method} ${path}`, errors: [] }, 404);
 };
 
-const draw = (ui: React.ReactNode = <Alerts />) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <LogProvider>{ui}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = (ui: React.ReactNode = <Alerts />) => drawAt(<LogProvider>{ui}</LogProvider>);
 
 const sentTo = (method: string, path: string) => server.sent.filter(one => one.method === method && one.path.startsWith(path));
 

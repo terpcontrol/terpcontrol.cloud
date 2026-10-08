@@ -1,12 +1,12 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Problem } from '@fg2/shared-types/v1';
 import { session } from '@/api/session';
 import { SignIn } from '@/screens/SignIn';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { drawAt, json } from './harness';
 import { translate } from './translations';
 
 /**
@@ -23,21 +23,16 @@ const problem = (status: number, code: string, detail: string): Problem => ({ st
 
 const refusal = { body: problem(401, 'credentials_wrong', 'That is not an address and password of an account here.') };
 
-const fetchStub = vi.fn(
-  async () => new Response(JSON.stringify(refusal.body), { status: refusal.body.status, headers: { 'Content-Type': 'application/json' } }),
-) as unknown as typeof fetch;
+const fetchStub = vi.fn(async () => json(refusal.body, refusal.body.status)) as unknown as typeof fetch;
 
 const draw = (state: unknown = null) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={[{ pathname: '/sign-in', state }]}>
-        <ThemeProvider>
-          <Routes>
-            <Route path="/sign-in" element={<SignIn />} />
-          </Routes>
-        </ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <ThemeProvider>
+      <Routes>
+        <Route path="/sign-in" element={<SignIn />} />
+      </Routes>
+    </ThemeProvider>,
+    { at: { pathname: '/sign-in', state } },
   );
 
 /** Fill the form in with credentials that are right, and ask. */

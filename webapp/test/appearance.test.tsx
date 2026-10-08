@@ -1,12 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
-import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate } from '@fg2/shared-types/v1';
 import { Appearance } from '@/screens/me/appearance/Appearance';
 import { THEME_STORAGE_KEY } from '@/theme/theme-context';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 /**
@@ -54,8 +53,6 @@ const me = (): Me => ({
 
 const server = { me: me(), patched: [] as MeUpdate[], asked: [] as string[] };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
   const method = init?.method ?? 'GET';
@@ -70,18 +67,15 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   }
   // The German catalogue, as the language switch fetches it before switching.
   if (pathname === '/assets/i18n/de.json') return json({ me: { appearance: { title: 'Darstellung' } } });
-  return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  return json(NOT_FOUND, 404);
 });
 
 const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/me/appearance']}>
-        <ThemeProvider>
-          <Appearance />
-        </ThemeProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <ThemeProvider>
+      <Appearance />
+    </ThemeProvider>,
+    { at: '/me/appearance' },
   );
 
 beforeAll(() => translate());

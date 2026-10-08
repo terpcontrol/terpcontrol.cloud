@@ -1,8 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
-import { createMemoryRouter, Link, MemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import type { Device, DeviceConfiguration, DeviceLive, Me, Plan, PlanStep, Setpoints } from '@fg2/shared-types/v1';
@@ -13,6 +13,7 @@ import { draftOf, vpdOf, withDraft } from '@/screens/control/targets/targets-dra
 import { secondsOf, wallClock } from '@/ui/wall-clock';
 import { STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { CLIMATE_CHOICES, presetsOf } from '@/ui/presets';
+import { drawAt, json, testClient } from './harness';
 import { translate } from './translations';
 
 /**
@@ -156,8 +157,6 @@ const wire = {
   calls: [] as Call[],
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const problem = (status: number, code: string, detail: string) => json({ status, code, title: code, detail, errors: [] }, status);
 
 vi.stubGlobal(
@@ -216,13 +215,7 @@ vi.stubGlobal(
 const sent = (method: string) => wire.calls.filter(call => call.method === method);
 
 const draw = (devices: Device[] = [device()], mayManage = true, crumb = false) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter>
-        <Targets spaceId="space-1" devices={devices} mayManage={mayManage} crumb={crumb} />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  drawAt(<Targets spaceId="space-1" devices={devices} mayManage={mayManage} crumb={crumb} />);
 
 /** The page once the plan has been read, which is when the table is drawn. */
 const drawn = async (devices?: Device[], mayManage?: boolean) => {
@@ -1152,7 +1145,7 @@ describe('the targets page', () => {
       { initialEntries: ['/control?space=space-1'] },
     );
     render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+      <QueryClientProvider client={testClient()}>
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
@@ -1200,7 +1193,7 @@ describe('the targets page', () => {
       { initialEntries: ['/control?space=space-1'] },
     );
     render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+      <QueryClientProvider client={testClient()}>
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );

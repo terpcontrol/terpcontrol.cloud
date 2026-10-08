@@ -1,10 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { screen } from '@testing-library/react';
+import { Route, Routes, useLocation } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DevicePage } from '@fg2/shared-types/v1';
 import { OldDevice } from '@/app/OldAddresses';
 import { screens } from '@/app/routes';
+import { drawAt, json } from './harness';
 import { translate } from './translations';
 
 /**
@@ -54,13 +54,7 @@ beforeEach(() => {
   devices.items = [fridge()];
   vi.stubGlobal(
     'fetch',
-    vi.fn(
-      async () =>
-        new Response(JSON.stringify({ items: devices.items, nextCursor: null } satisfies DevicePage), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-    ),
+    vi.fn(async () => json({ items: devices.items, nextCursor: null } satisfies DevicePage)),
   );
 });
 
@@ -70,15 +64,12 @@ function Landed() {
 }
 
 const draw = (at: string) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <Routes>
-          <Route path="/device/:deviceId/:page?" element={<OldDevice />} />
-          <Route path="*" element={<Landed />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <Routes>
+      <Route path="/device/:deviceId/:page?" element={<OldDevice />} />
+      <Route path="*" element={<Landed />} />
+    </Routes>,
+    { at },
   );
 
 describe('an old device page', () => {

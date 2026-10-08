@@ -1,13 +1,13 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceCapabilities, GrowListItem, Me, NotificationSettings, Space } from '@fg2/shared-types/v1';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Claim } from '@/screens/claim/Claim';
+import { drawAt } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -134,13 +134,12 @@ function Watch() {
 const address = () => screen.getByTestId('address').textContent;
 
 const draw = (at = '/claim') =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <Claim />
-        <Watch />
-      </MemoryRouter>
-    </QueryClientProvider>,
+  drawAt(
+    <>
+      <Claim />
+      <Watch />
+    </>,
+    { at },
   );
 
 /** The screen with a device claimed on it, which is every step after the first. */

@@ -1,10 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
+import { drawAt } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -47,13 +46,7 @@ const answers = (path: string): unknown => {
 };
 
 const draw = async (at: string) => {
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <NewGrowRoute />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  drawAt(<NewGrowRoute />, { at });
   await waitFor(() => expect(screen.getByRole('button', { name: /Start the grow/ })).toBeEnabled());
 };
 

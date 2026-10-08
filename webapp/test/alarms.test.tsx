@@ -1,8 +1,6 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AlarmRule, AlarmRuleCreate, Device, Me, SpaceOverview } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
@@ -13,6 +11,7 @@ import { boundLabel, repeatsEvery, scaleNote, watchLabel } from '@/screens/contr
 import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
 import { headersOf } from '@/ui/headers';
+import { drawAt } from './harness';
 import { catalogue, translate } from './translations';
 
 /**
@@ -134,13 +133,7 @@ const answers = (path: string): unknown => {
 };
 
 const draw = (devices: Device[] = [device()], mayManage = true, at = '/control/alarms?space=space-1') =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={[at]}>
-        <Alarms spaceId="space-1" devices={devices} mayManage={mayManage} />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  drawAt(<Alarms spaceId="space-1" devices={devices} mayManage={mayManage} />, { at });
 
 const card = async (name: string) => (await screen.findByText(name)).closest('li')!;
 
@@ -483,13 +476,7 @@ describe('the alarm rules page', () => {
     await new Promise(settle => setTimeout(settle, 30));
 
     const ended = device({ state: { ...device().state, maintenanceUntil: DateTime.now().toISO()! } });
-    drawn.rerender(
-      <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter initialEntries={['/control/alarms?space=space-1']}>
-          <Alarms spaceId="space-1" devices={[ended]} mayManage />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    drawn.rerender(<Alarms spaceId="space-1" devices={[ended]} mayManage />);
 
     expect(await screen.findByText(/Out of maintenance/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'End now' })).not.toBeInTheDocument();

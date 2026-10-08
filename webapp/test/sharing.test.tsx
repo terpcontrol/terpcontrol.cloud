@@ -1,10 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, ShareLink } from '@fg2/shared-types/v1';
 import { ShareSheet } from '@/screens/grow/ShareSheet';
+import { drawAt } from './harness';
 import { translate } from './translations';
 
 /**
@@ -90,14 +89,7 @@ const link = (over: Partial<ShareLink>): ShareLink => ({
   ...over,
 });
 
-const draw = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <ShareSheet grow={grow} onClose={() => undefined} />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const draw = () => drawAt(<ShareSheet grow={grow} onClose={() => undefined} />);
 
 beforeAll(() => translate());
 
