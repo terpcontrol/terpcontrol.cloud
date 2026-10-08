@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Invite, MemberRole, SpaceKind } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
@@ -6,7 +6,7 @@ import { useCreateInvite } from '@/api/invites';
 import { useDiaryLayer } from '@/api/layers';
 import { useSpaceOverview } from '@/api/spaces';
 import { Sheet } from '@/ui/Sheet';
-import { copyText } from '@/ui/clipboard';
+import { useCopied } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
 import { Refused } from '@/ui/PageState';
 import { QrCode } from '@/ui/QrCode';
@@ -210,15 +210,8 @@ function Made({ invite }: { invite: Invite }) {
  */
 function ShareButton({ url, title }: { url: string; title: string }) {
   const { t } = useTranslation();
-  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [state, copy] = useCopied();
   const canShare = typeof navigator.share === 'function';
-
-  // Back to the offer on its own, so a second tap is not told about the first.
-  useEffect(() => {
-    if (state === 'idle') return;
-    const timer = setTimeout(() => setState('idle'), 2500);
-    return () => clearTimeout(timer);
-  }, [state]);
 
   const share = async () => {
     if (canShare) {
@@ -229,7 +222,7 @@ function ShareButton({ url, title }: { url: string; title: string }) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
       }
     }
-    setState((await copyText(url)) ? 'copied' : 'failed');
+    await copy(url);
   };
 
   return (
