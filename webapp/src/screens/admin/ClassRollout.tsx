@@ -2,12 +2,13 @@ import type { DateTime } from 'luxon';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceClass, DeviceClassUpdate, Firmware, FleetClass } from '@fg2/shared-types/v1';
+import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas/firmware-channels.js';
 import { useUpdateDeviceClass } from '@/api/admin';
 import { Sheet } from '@/ui/Sheet';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { CHANNELS, channelStands, classSize, staged } from './rollout';
+import { channelStands, classSize, staged } from './rollout';
 import styles from './Admin.module.css';
 
 /**
@@ -52,7 +53,7 @@ const changesOf = (deviceClass: DeviceClass, draft: Draft): DeviceClassUpdate =>
   const update: DeviceClassUpdate = {};
   const ids = { stable: draft.stable, beta: draft.beta, alpha: draft.alpha };
 
-  if (CHANNELS.some(channel => deviceClass.firmwareIds[channel] !== ids[channel])) update.firmwareIds = ids;
+  if (RELEASE_CHANNELS.some(channel => deviceClass.firmwareIds[channel] !== ids[channel])) update.firmwareIds = ids;
   if (deviceClass.rollout.percent !== draft.percent || deviceClass.rollout.paused !== draft.paused) {
     update.rollout = { percent: draft.percent, paused: draft.paused };
   }
@@ -93,7 +94,7 @@ export function ClassRollout({
 
   // What applying the draft would do, one sentence per thing that changed.
   const consequences: string[] = [];
-  for (const channel of CHANNELS) {
+  for (const channel of RELEASE_CHANNELS) {
     const stand = stands.find(one => one.channel === channel)!;
     if (deviceClass.firmwareIds[channel] === draft[channel]) continue;
     consequences.push(
@@ -141,7 +142,7 @@ export function ClassRollout({
         </span>
       </div>
 
-      {CHANNELS.map(channel => {
+      {RELEASE_CHANNELS.map(channel => {
         const stand = stands.find(one => one.channel === channel)!;
 
         return (

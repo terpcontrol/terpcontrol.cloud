@@ -14,6 +14,7 @@ import {
   FleetClass,
   FleetFirmwareStats,
 } from '@fg2/shared-types/v1';
+import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas';
 import { BackgroundWork } from '@common/background-work';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound } from '@common/v1/problem';
@@ -25,7 +26,7 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredFirmware } from '@database/schemas/v1/firmwares.schema';
 import { StoredFirmwareBinary } from '@database/schemas/v1/firmware-binaries.schema';
 import { logger } from '@utils/logger';
-import { RELEASE_CHANNELS, updateFilters } from './firmware-rollout.service';
+import { updateFilters } from './firmware-rollout.service';
 
 /**
  * The builds this cloud hands out and the classes they are handed out to.

@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { ConfigType } from '@nestjs/config';
 import { InfluxDB, Point, WriteApi } from '@influxdata/influxdb-client';
 import { DeviceLive, DeviceSeries, DeviceSettings, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
+import { finiteOrNull } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { logger } from '@utils/logger';
 import {
   fieldOfMetric,
@@ -37,7 +38,6 @@ import {
   levelsQuery,
   liveQuery,
   newestSampleQuery,
-  numberOf,
   oldestSampleQuery,
   OutputSwitching,
   pointsOf,
@@ -533,7 +533,7 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
   /** How often a device's CO2 valve opened over a stretch (see `valveOpeningsQuery`); nought where it never reported one. */
   public async valveOpenings(deviceId: string, window: TimeWindow): Promise<number> {
     const rows = await this.read(valveOpeningsQuery(this.bucket, deviceId, window));
-    return rows.reduce((sum, row) => sum + (numberOf(row._value) ?? 0), 0);
+    return rows.reduce((sum, row) => sum + (finiteOrNull(row._value) ?? 0), 0);
   }
 
   /**

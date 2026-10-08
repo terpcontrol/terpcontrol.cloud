@@ -1,5 +1,6 @@
 import { DeviceSettings, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { METRIC_DECIMALS } from '@fg2/shared-types/v1-schemas';
+import { finiteOrNull } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { fieldOfMetric, fieldOfOutputMetric } from '@common/v1/metrics';
 import { isSentinel, NO_CO2_VALVE } from '@common/v1/sentinels';
@@ -221,7 +222,7 @@ export const levelsByField = (rows: (FluxRow & { result?: string })[]): Map<stri
   const byField = new Map<string, Map<string, number>>();
 
   for (const row of rows) {
-    const value = numberOf(row._value);
+    const value = finiteOrNull(row._value);
     if (!row._field || !row._time || value === null) continue;
     const windows = byField.get(row._field) ?? new Map<string, number>();
     const known = windows.get(row._time);
@@ -292,7 +293,7 @@ export const switchingsByField = (rows: FluxRow[]): Map<string, OutputSwitching[
   const byField = new Map<string, OutputSwitching[]>();
 
   for (const row of rows) {
-    const value = numberOf(row._value);
+    const value = finiteOrNull(row._value);
     if (!row._field || !row._time || value === null) continue;
     byField.set(row._field, [...(byField.get(row._field) ?? []), { at: row._time, on: value > 0 }]);
   }
@@ -449,8 +450,6 @@ export interface FluxRow {
   device_id?: string;
 }
 
-export const numberOf = (value: number | null | undefined): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
-
 /** The instants the rows carry, those that are instants at all. */
 export const instantsOf = (rows: readonly FluxRow[]): number[] => rows.map(row => (row._time ? Date.parse(row._time) : NaN)).filter(Number.isFinite);
 
@@ -466,7 +465,7 @@ export const latestByField = (rows: FluxRow[]): Map<string, { value: number; mea
   const latest = new Map<string, { value: number; measuredAt: Date }>();
 
   for (const row of rows) {
-    const value = numberOf(row._value);
+    const value = finiteOrNull(row._value);
     const measuredAt = row._time ? new Date(row._time) : null;
     if (!row._field || value === null || !measuredAt || Number.isNaN(measuredAt.getTime())) continue;
     if (isSentinel(row._field, value)) continue;
@@ -506,7 +505,7 @@ export const gridOf = (rows: FluxRow[]): SeriesGrid => {
     // and an empty window of the one falls on the start of a day the other has
     // a figure for, which would otherwise blank it.
     const known = values.get(row._time);
-    const read = numberOf(row._value);
+    const read = finiteOrNull(row._value);
     const value = read !== null && isSentinel(row._field, read) ? null : read;
     if (!(value === null && known !== null && known !== undefined)) values.set(row._time, value);
     valuesByField.set(row._field, values);
@@ -630,7 +629,7 @@ export const dailySummariesOf = (rows: FluxRow[]): DailySummary[] => {
   const days = new Map<string, Record<string, number>>();
 
   for (const row of rows) {
-    const value = numberOf(row._value);
+    const value = finiteOrNull(row._value);
     if (!row._field || !row._time || value === null) continue;
 
     const fields = days.get(row._time) ?? {};

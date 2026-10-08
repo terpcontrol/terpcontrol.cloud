@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import type { DeviceConfiguration } from '@fg2/shared-types/v1';
-import { finiteOrNull, isSection } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { finiteOrNull, isSection, nestedAt } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { lightWindowOf, lightWindowTimes, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import type { ScheduleClock } from '@database/schemas/v1/devices.schema';
 
@@ -34,17 +34,10 @@ import type { ScheduleClock } from '@database/schemas/v1/devices.schema';
  * move together, because a CO2 window left on UTC while the light it belongs
  * to moved would spend an hour of gas in the dark.
  */
-const CLOCK_TIMES: readonly (readonly string[])[] = [
-  ['daynight', 'day'],
-  ['daynight', 'night'],
-  ['day'],
-  ['night'],
-  ['co2inject', 'day'],
-  ['co2inject', 'night'],
-];
+const CLOCK_TIMES = ['daynight.day', 'daynight.night', 'day', 'night', 'co2inject.day', 'co2inject.night'];
 
 /** Where a smart socket keeps its timer: a list of windows, each switched on at `ontime`. */
-const TIMER_WINDOWS = ['timer', 'timeframes'] as const;
+const TIMER_WINDOWS = 'timer.timeframes';
 
 /** The clock a schedule written now is kept on, or null where the owner has never picked a zone. */
 export const scheduleClockOf = (preferences: { timezone?: string; timezoneChosen?: boolean } | null | undefined, at: Date): ScheduleClock | null => {
@@ -64,31 +57,25 @@ export const sameClock = (one: ScheduleClock | null, other: ScheduleClock | null
  */
 export const driftBetween = (kept: ScheduleClock | null, now: ScheduleClock | null): number => (kept && now ? (kept.offset - now.offset) * 60 : 0);
 
-const timeAt = (configuration: DeviceConfiguration | null, path: readonly string[]): number | null => {
-  let value: unknown = configuration;
-  for (const key of path) value = isSection(value) ? value[key] : undefined;
-  return finiteOrNull(value);
-};
+const timeAt = (configuration: DeviceConfiguration | null, path: string): number | null => finiteOrNull(nestedAt(configuration, path));
 
 const windowsOf = (configuration: DeviceConfiguration | null): unknown[] | null => {
-  const timer = isSection(configuration) ? configuration[TIMER_WINDOWS[0]] : undefined;
-  const windows = isSection(timer) ? timer[TIMER_WINDOWS[1]] : undefined;
+  const windows = nestedAt(configuration, TIMER_WINDOWS);
   return Array.isArray(windows) ? windows : null;
 };
 
-const startOf = (window: unknown): number | null =>
-  isSection(window) && typeof window.ontime === 'number' && Number.isFinite(window.ontime) ? window.ontime : null;
+const startOf = (window: unknown): number | null => (isSection(window) ? finiteOrNull(window.ontime) : null);
 
 /** The times of day a document states, by their dotted path. A section of the same name - a controller's `day` targets - is not one. */
 export const clockTimesOf = (configuration: DeviceConfiguration | null): Record<string, number> =>
   Object.fromEntries([
     ...CLOCK_TIMES.flatMap(path => {
       const seconds = timeAt(configuration, path);
-      return seconds === null ? [] : [[path.join('.'), seconds]];
+      return seconds === null ? [] : [[path, seconds]];
     }),
     ...(windowsOf(configuration) ?? []).flatMap((window, index) => {
       const seconds = startOf(window);
-      return seconds === null ? [] : [[`${TIMER_WINDOWS.join('.')}.${index}.ontime`, seconds]];
+      return seconds === null ? [] : [[`${TIMER_WINDOWS}.${index}.ontime`, seconds]];
     }),
   ]);
 
@@ -112,8 +99,8 @@ export const sameClockTimes = (one: DeviceConfiguration | null, other: DeviceCon
 export const withClockTimesMoved = (configuration: DeviceConfiguration, seconds: number): DeviceConfiguration => {
   const moved = (value: number) => roundTheClock(value + seconds);
   const next: DeviceConfiguration = { ...configuration };
-  const on = timeAt(configuration, ['daynight', 'day']);
-  const off = timeAt(configuration, ['daynight', 'night']);
+  const on = timeAt(configuration, 'daynight.day');
+  const off = timeAt(configuration, 'daynight.night');
   const window = on !== null && off !== null ? lightWindowOf(on, off) : null;
   if (window) {
     next.daynight = {
@@ -124,16 +111,16 @@ export const withClockTimesMoved = (configuration: DeviceConfiguration, seconds:
 
   for (const path of CLOCK_TIMES) {
     const value = timeAt(configuration, path);
-    if (value === null || (window && path[0] === 'daynight')) continue;
+    const [first, second] = path.split('.');
+    if (value === null || (window && first === 'daynight')) continue;
 
-    const [first, second] = path;
     if (second === undefined) next[first] = moved(value);
     else next[first] = { ...(next[first] as Record<string, unknown>), [second]: moved(value) };
   }
 
   const windows = windowsOf(configuration);
   if (windows) {
-    const [section, list] = TIMER_WINDOWS;
+    const [section, list] = TIMER_WINDOWS.split('.');
     next[section] = {
       ...(next[section] as Record<string, unknown>),
       [list]: windows.map(window => {

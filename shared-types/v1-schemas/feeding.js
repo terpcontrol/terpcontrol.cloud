@@ -30,9 +30,9 @@ const moment = (at) => new Date(at).getTime();
 const growOriginOf = (grow) => new Date(Math.min(moment(grow.startedAt), ...grow.phases.map(phase => moment(phase.startedAt))));
 exports.growOriginOf = growOriginOf;
 /**
- * A grow's day does not begin at midnight. Day 1 begins the moment the first
- * phase did, because a grow begun at 23:00 would otherwise be two days old
- * within the hour.
+ * A grow's day does not begin at midnight. Day 1 begins at the grow's origin
+ * (`growOriginOf`), because a grow begun at 23:00 would otherwise be two days
+ * old within the hour.
  */
 const growDayAt = (origin, at) => Math.max(1, Math.floor((moment(at) - origin.getTime()) / DAY_MS) + 1);
 exports.growDayAt = growDayAt;

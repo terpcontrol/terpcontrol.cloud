@@ -301,13 +301,16 @@ export const sectionOf = (document: Document, key: string): Readonly<Record<stri
 
 export const finiteOrNull = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 
+/** A value of a document by its dotted path, nested as the firmware writes it, or undefined where the document does not reach it. */
+export const nestedAt = (document: unknown, path: string): unknown =>
+  path.split('.').reduce<unknown>((node, key) => (isSection(node) ? node[key] : undefined), document);
+
 /**
  * A value of a document by its dotted path, nested as the firmware writes it or
  * flat as an older client did. Both mean the same thing; the nested one is read
  * first, the server's and every screen's reading alike.
  */
-export const valueAt = (document: Document, path: string): unknown =>
-  path.split('.').reduce<unknown>((node, key) => (isSection(node) ? node[key] : undefined), document) ?? document?.[path];
+export const valueAt = (document: Document, path: string): unknown => nestedAt(document, path) ?? document?.[path];
 
 /** A figure of a document by its dotted path (`valueAt`), or null where it states none. */
 export const figureAt = (document: Document, path: string): number | null => finiteOrNull(valueAt(document, path));

@@ -24,7 +24,7 @@
  * different places. No schema, so a client imports it without pulling zod in.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.figureAt = exports.valueAt = exports.finiteOrNull = exports.sectionOf = exports.isSection = exports.configurationFieldsOf = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.workModeOf = exports.workModesOf = exports.WORK_MODES_BY_TYPE = exports.WORK_MODES = exports.OPERATING_MODES = void 0;
+exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.figureAt = exports.valueAt = exports.nestedAt = exports.finiteOrNull = exports.sectionOf = exports.isSection = exports.configurationFieldsOf = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.workModeOf = exports.workModesOf = exports.WORK_MODES_BY_TYPE = exports.WORK_MODES = exports.OPERATING_MODES = void 0;
 /**
  * What a fridge or a controller is set to do as a whole, in a person's words:
  * the standard climate control, temperature only (the firmware's `temp`), or
@@ -208,12 +208,15 @@ const sectionOf = (document, key) => {
 exports.sectionOf = sectionOf;
 const finiteOrNull = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 exports.finiteOrNull = finiteOrNull;
+/** A value of a document by its dotted path, nested as the firmware writes it, or undefined where the document does not reach it. */
+const nestedAt = (document, path) => path.split('.').reduce((node, key) => ((0, exports.isSection)(node) ? node[key] : undefined), document);
+exports.nestedAt = nestedAt;
 /**
  * A value of a document by its dotted path, nested as the firmware writes it or
  * flat as an older client did. Both mean the same thing; the nested one is read
  * first, the server's and every screen's reading alike.
  */
-const valueAt = (document, path) => path.split('.').reduce((node, key) => ((0, exports.isSection)(node) ? node[key] : undefined), document) ?? document?.[path];
+const valueAt = (document, path) => (0, exports.nestedAt)(document, path) ?? document?.[path];
 exports.valueAt = valueAt;
 /** A figure of a document by its dotted path (`valueAt`), or null where it states none. */
 const figureAt = (document, path) => (0, exports.finiteOrNull)((0, exports.valueAt)(document, path));

@@ -28,3 +28,4 @@ export * from './value-age.js';
 export * from './steering.js';
 export * from './pages.js';
 export * from './entitlement.js';
+export * from './firmware-channels.js';

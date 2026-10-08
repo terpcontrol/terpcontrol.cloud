@@ -29,36 +29,22 @@ __exportStar(require("./accounts.js"), exports);
 __exportStar(require("./devices.js"), exports);
 __exportStar(require("./growing.js"), exports);
 __exportStar(require("./diary.js"), exports);
-// No schema, so nothing of it reaches `v1.d.ts` or the API document: constants
-// the server and the simulator both decode a device's socket report with, the
-// arithmetic the feed sheet and the entry writer both read a grid with, the days
-// and weeks a stage covers that the phase bar, the week cards and the report's
-// chapters all state, the curve the charts and the targets screen both work a
-// VPD out along, and the span the alarm engine holds a worked-on device's alarms
-// for that the screens offering a maintenance window have to promise. And the
-// settings beyond the targets a device's type offers, which the server checks a
-// change against and the screens draw their controls from. And day and night as
-// the firmware keeps them, which the server judges by, the screens draw and the
-// simulator runs. And how long one read of a camera may take, which the poller
-// keeps and the test button promises, and the kinds of failure it is named as.
-// And the clock on a plan's step, which the engine walks the plan by and the
-// screens say its next pass from.
-__exportStar(require("./socket-report.js"), exports);
-__exportStar(require("./feeding.js"), exports);
-__exportStar(require("./grow-days.js"), exports);
-__exportStar(require("./climate-presets.js"), exports);
-__exportStar(require("./alert-routing.js"), exports);
-__exportStar(require("./vpd.js"), exports);
-__exportStar(require("./maintenance.js"), exports);
-__exportStar(require("./configuration-fields.js"), exports);
-__exportStar(require("./day-night.js"), exports);
-__exportStar(require("./capture.js"), exports);
-__exportStar(require("./plan-clock.js"), exports);
-// Also without a schema: how old a value is, which the server answers and the
-// screens age further; which readings a controller steers and how far from a
-// target still counts as on it; the largest page any list answers; and how long
-// before its year runs out a camera's renewal is offered.
-__exportStar(require("./value-age.js"), exports);
-__exportStar(require("./steering.js"), exports);
-__exportStar(require("./pages.js"), exports);
-__exportStar(require("./entitlement.js"), exports);
+// No schema, so nothing of these reaches `v1.d.ts` or the API document: the
+// figures and the arithmetic the server, the screens and the simulator have to
+// agree on.
+__exportStar(require("./socket-report.js"), exports); // how a device's socket report is decoded
+__exportStar(require("./feeding.js"), exports); // the doses a feeding grid makes on a day of a grow
+__exportStar(require("./grow-days.js"), exports); // the days and weeks a stage covers
+__exportStar(require("./climate-presets.js"), exports); // the figures each growth stage asks of a tent
+__exportStar(require("./alert-routing.js"), exports); // which row of the routing grid an alarm falls in
+__exportStar(require("./vpd.js"), exports); // the curve a VPD is worked out along
+__exportStar(require("./maintenance.js"), exports); // how long after a maintenance window alarms stay held
+__exportStar(require("./configuration-fields.js"), exports); // the settings beyond the targets a device's type offers
+__exportStar(require("./day-night.js"), exports); // day and night as the firmware keeps them
+__exportStar(require("./capture.js"), exports); // how long one read of a camera may take, and how a failed one is named
+__exportStar(require("./plan-clock.js"), exports); // the clock on a plan's step
+__exportStar(require("./value-age.js"), exports); // how old a value is
+__exportStar(require("./steering.js"), exports); // which readings a controller steers, and how far off still counts as on target
+__exportStar(require("./pages.js"), exports); // the largest page any list answers
+__exportStar(require("./entitlement.js"), exports); // when a camera's renewal is offered
+__exportStar(require("./firmware-channels.js"), exports); // the channels a build is handed out on

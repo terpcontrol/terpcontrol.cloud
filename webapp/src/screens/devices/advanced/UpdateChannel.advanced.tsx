@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceFirmware, FirmwareChannel } from '@fg2/shared-types/v1';
+import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas/firmware-channels.js';
 import { useDeviceFirmwares, useDevices, useUpdateDevice } from '@/api/devices';
 import { Sheet } from '@/ui/Sheet';
 import { SettingRow } from '@/ui/advanced/SettingRow';
@@ -25,7 +26,7 @@ import styles from './DeviceAdvanced.module.css';
  * build it has until a version is installed below, which asks first because the
  * device restarts with it.
  */
-const CHANNELS: readonly FirmwareChannel[] = ['stable', 'beta', 'alpha', 'manual'];
+const CHANNELS: readonly FirmwareChannel[] = [...RELEASE_CHANNELS, 'manual'];
 
 function UpdateChannel({ device, mayManage, isAdmin }: DeviceContext) {
   const { t } = useTranslation();

@@ -133,6 +133,8 @@ type Document = Readonly<Record<string, unknown>> | null | undefined;
 export declare const isSection: (value: unknown) => value is Record<string, unknown>;
 export declare const sectionOf: (document: Document, key: string) => Readonly<Record<string, unknown>> | null;
 export declare const finiteOrNull: (value: unknown) => number | null;
+/** A value of a document by its dotted path, nested as the firmware writes it, or undefined where the document does not reach it. */
+export declare const nestedAt: (document: unknown, path: string) => unknown;
 /**
  * A value of a document by its dotted path, nested as the firmware writes it or
  * flat as an older client did. Both mean the same thing; the nested one is read

@@ -1,5 +1,6 @@
 import type { DateTime } from 'luxon';
 import type { Device, DeviceClass, Firmware, FirmwareChannel, FleetClass } from '@fg2/shared-types/v1';
+import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas/firmware-channels.js';
 import { deviceLiveness } from '@/ui/age';
 
 /**
@@ -12,9 +13,6 @@ import { deviceLiveness } from '@/ui/age';
  * devices a change would reach - so every figure here is counted before a
  * control is pressed rather than reported after it.
  */
-
-/** The channels a class hands a build out on. `manual` is the absence of one and is never swept, so it is not here. */
-export const CHANNELS: readonly Exclude<FirmwareChannel, 'manual'>[] = ['stable', 'beta', 'alpha'];
 
 interface ChannelStand {
   channel: Exclude<FirmwareChannel, 'manual'>;
@@ -46,7 +44,7 @@ export const channelStands = (
   const ours = devices.filter(device => device.classId === deviceClass.id);
   const builds = new Map(firmwares.map(one => [one.id, one]));
 
-  return CHANNELS.map(channel => {
+  return RELEASE_CHANNELS.map(channel => {
     const firmwareId = deviceClass.firmwareIds[channel];
     const on = ours.filter(device => device.firmware.channel === channel);
     const build = firmwareId ? builds.get(firmwareId) : undefined;
@@ -103,5 +101,5 @@ export const pointedAtBy = (
   classes: DeviceClass[],
 ): { deviceClass: DeviceClass; channel: Exclude<FirmwareChannel, 'manual'> }[] =>
   classes.flatMap(deviceClass =>
-    CHANNELS.filter(channel => deviceClass.firmwareIds[channel] === firmwareId).map(channel => ({ deviceClass, channel })),
+    RELEASE_CHANNELS.filter(channel => deviceClass.firmwareIds[channel] === firmwareId).map(channel => ({ deviceClass, channel })),
   );

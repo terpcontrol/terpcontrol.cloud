@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { createHash } from 'node:crypto';
 import { FirmwareChannel } from '@fg2/shared-types/v1';
-import { firmwareChannel } from '@fg2/shared-types/v1-schemas';
+import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas';
 import { BackgroundWork, logIfItFails } from '@common/background-work';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { startedNow } from '@common/v1/firmware-instruction';
@@ -35,9 +35,6 @@ const UPGRADE_TIMEOUT_MS = 10 * 60 * 1000;
 const INSTRUCTION_INITIAL_DELAY_MS = 30 * 1000;
 const INSTRUCTION_MAX_DELAY_MS = 24 * 60 * 60 * 1000;
 const SWEEP_INTERVAL_MS = 10 * 1000;
-
-/** The channels a class hands a build out on. `manual` is the absence of one and is never swept. */
-export const RELEASE_CHANNELS = firmwareChannel.exclude(['manual']).options;
 
 /** Told before this and still not back is a failed update rather than a running one. */
 export const updateDeadline = (now: Date): Date => new Date(now.getTime() - UPGRADE_TIMEOUT_MS);

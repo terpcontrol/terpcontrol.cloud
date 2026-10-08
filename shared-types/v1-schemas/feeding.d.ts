@@ -35,9 +35,9 @@ export interface GrowDays {
  */
 export declare const growOriginOf: (grow: GrowDays) => Date;
 /**
- * A grow's day does not begin at midnight. Day 1 begins the moment the first
- * phase did, because a grow begun at 23:00 would otherwise be two days old
- * within the hour.
+ * A grow's day does not begin at midnight. Day 1 begins at the grow's origin
+ * (`growOriginOf`), because a grow begun at 23:00 would otherwise be two days
+ * old within the hour.
  */
 export declare const growDayAt: (origin: Date, at: string | Date) => number;
 /**

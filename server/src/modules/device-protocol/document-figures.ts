@@ -1,5 +1,5 @@
 import type { DeviceConfiguration, ProblemError } from '@fg2/shared-types/v1';
-import { isSection, MOST_TIMER_WINDOWS, PLUG_SWITCHING } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { isSection, MOST_TIMER_WINDOWS, nestedAt, PLUG_SWITCHING } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { DAY_SECONDS } from '@fg2/shared-types/v1-schemas/day-night.js';
 
 /**
@@ -211,10 +211,6 @@ const documentFiguresOf = (type: string): DocumentFigures => DOCUMENT_FIGURES[ty
 
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 
-/** The value at a dotted place, or undefined where the document does not reach it. */
-const valueAt = (document: unknown, path: string): unknown =>
-  path.split('.').reduce<unknown>((node, key) => (isSection(node) ? node[key] : undefined), document);
-
 /** The sections a table reads into, by their dotted places: `limits` and `limits.overtemperature` for a socket's. */
 const sectionsOf = (figures: DocumentFigures): string[] => [
   ...new Set(
@@ -307,18 +303,18 @@ export const figureRefusals = (
 
   if (!isSection(document)) return [{ field, code: 'invalid_type', detail: 'The settings of a device are an object.' }];
 
-  const unchanged = (path: string, value: unknown): boolean => stored !== null && JSON.stringify(valueAt(stored, path)) === JSON.stringify(value);
+  const unchanged = (path: string, value: unknown): boolean => stored !== null && JSON.stringify(nestedAt(stored, path)) === JSON.stringify(value);
 
   // A place under a section that is not one reads as nothing, so only the section itself is named.
   for (const section of sectionsOf(figures)) {
-    const value = valueAt(document, section);
+    const value = nestedAt(document, section);
     if (value !== undefined && !isSection(value) && !unchanged(section, value)) {
       errors.push({ field: name(section), code: 'invalid_type', detail: `The ${type} reads this as a section of its settings: an object.` });
     }
   }
 
   for (const [path, figure] of Object.entries(figures)) {
-    const value = valueAt(document, path);
+    const value = nestedAt(document, path);
     if (value === undefined || unchanged(path, value)) continue;
     const fault = faultOf(value, figure, type, true);
     if (fault) errors.push({ field: name(path), ...fault });
@@ -376,14 +372,14 @@ export const withFiguresHeld = (
   const dropped: string[] = [];
 
   for (const [path, figure] of Object.entries(figures)) {
-    const value = valueAt(next, path);
+    const value = nestedAt(next, path);
     if (value === undefined) continue;
     const read = readable(value, figure);
     if (faultOf(read, figure, type, false) === null) {
       if (read !== value) next = withValueAt(next, path.split('.'), read);
       continue;
     }
-    const kept = readable(valueAt(fallback, path), figure);
+    const kept = readable(nestedAt(fallback, path), figure);
     next = withValueAt(next, path.split('.'), kept !== undefined && faultOf(kept, figure, type, false) === null ? kept : undefined);
     dropped.push(path);
   }

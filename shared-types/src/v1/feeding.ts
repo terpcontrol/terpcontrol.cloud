@@ -44,9 +44,9 @@ export interface GrowDays {
 export const growOriginOf = (grow: GrowDays): Date => new Date(Math.min(moment(grow.startedAt), ...grow.phases.map(phase => moment(phase.startedAt))));
 
 /**
- * A grow's day does not begin at midnight. Day 1 begins the moment the first
- * phase did, because a grow begun at 23:00 would otherwise be two days old
- * within the hour.
+ * A grow's day does not begin at midnight. Day 1 begins at the grow's origin
+ * (`growOriginOf`), because a grow begun at 23:00 would otherwise be two days
+ * old within the hour.
  */
 export const growDayAt = (origin: Date, at: string | Date): number => Math.max(1, Math.floor((moment(at) - origin.getTime()) / DAY_MS) + 1);
 

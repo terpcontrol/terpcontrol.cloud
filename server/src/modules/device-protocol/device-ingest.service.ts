@@ -2,6 +2,7 @@ import { Inject, Injectable, OnApplicationShutdown, OnModuleInit, Optional } fro
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Subscription } from 'rxjs';
+import { isSection } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { HARDWARE_INFO_PREFIX, deviceMessageFact, parseDeviceMessage } from '@common/v1/device-messages';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { metricOfField, outputMetricOfField } from '@common/v1/metrics';
@@ -416,8 +417,7 @@ const parsed = (payload: string): unknown => {
   }
 };
 
-const asRecord = (value: unknown): Record<string, unknown> | null =>
-  value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+const asRecord = (value: unknown): Record<string, unknown> | null => (isSection(value) ? value : null);
 
 /** The numbers of one flat object, as the device sends them. Anything else is not a reading. */
 const numbers = (value: unknown): Record<string, number> => {

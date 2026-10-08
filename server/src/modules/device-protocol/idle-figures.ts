@@ -1,5 +1,5 @@
 import type { DeviceConfiguration } from '@fg2/shared-types/v1';
-import { finiteOrNull, isSection, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { finiteOrNull, isSection, nestedAt } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 
 /**
@@ -44,17 +44,10 @@ const IDLE_IN_MODE: Readonly<Record<string, readonly string[]>> = {
 const IDLE_ALWAYS_DAY = ['night.temperature', 'night.humidity'];
 const IDLE_ALWAYS_NIGHT = ['day.temperature', 'day.humidity', 'co2.target', 'lights.limit'];
 
-const valueAt = (document: DeviceConfiguration | null, path: string): unknown => {
-  const [section, key] = path.split('.');
-  return sectionOf(document, section)?.[key];
-};
-
-const numberAt = (document: DeviceConfiguration | null, path: string): number | null => finiteOrNull(valueAt(document, path));
-
 /** The light hours a document's schedule makes, or null where it states none. */
 const hoursOf = (document: DeviceConfiguration | null): number | null => {
-  const day = numberAt(document, 'daynight.day');
-  const night = numberAt(document, 'daynight.night');
+  const day = finiteOrNull(nestedAt(document, 'daynight.day'));
+  const night = finiteOrNull(nestedAt(document, 'daynight.night'));
   return day === null || night === null ? null : lightWindowOf(day, night).lightHours;
 };
 
@@ -73,7 +66,7 @@ export const withIdleFiguresKept = (before: DeviceConfiguration | null, asked: D
 
   const next: DeviceConfiguration = { ...asked };
   for (const path of idle) {
-    const kept = valueAt(before, path);
+    const kept = nestedAt(before, path);
     if (kept === undefined) continue;
 
     const [section, key] = path.split('.');
