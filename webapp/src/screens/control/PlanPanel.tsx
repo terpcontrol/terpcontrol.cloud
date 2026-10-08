@@ -36,7 +36,7 @@ import {
 } from './plan-clock';
 import { draftOf, emptyDraft, type PlanDraft } from './plan-edit';
 import { offersReadyPlans } from './ready-plans';
-import { durationLabel, followsGermination, stepMeta } from './plan-labels';
+import { followsGermination, stepLengthLabel, stepMeta } from './plan-labels';
 import styles from './Control.module.css';
 
 /**
@@ -416,7 +416,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
       {asking === 'extend' ? (
         <Asking
           note={t('space.control.ask.extend')}
-          yes={t('space.control.ask.extendYes', { length: durationLabel(t, by) })}
+          yes={t('space.control.ask.extendYes', { length: stepLengthLabel(t, by) })}
           busy={busy}
           onYes={() => move.mutate({ kind: 'extend', by }, { onSuccess: close })}
           onCancel={close}

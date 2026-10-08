@@ -6,7 +6,7 @@ import type { GrowWeekCard } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
 import { ageLabel } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
-import { WeekClimateStrip, WeekFilm } from '@/ui/GrowFigures';
+import { WeekClimateStrip, WeekFilm } from '@/ui/WeekCardParts';
 import { looseFigure } from '@/ui/figures';
 import { weekDayOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';

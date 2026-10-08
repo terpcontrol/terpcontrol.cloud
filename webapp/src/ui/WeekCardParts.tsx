@@ -6,7 +6,7 @@ import { unitSymbol } from './age';
 import { dashFigure, dayNightFigure } from './figures';
 import { Term } from './Help';
 import ui from './ui.module.css';
-import styles from './GrowFigures.module.css';
+import styles from './WeekCardParts.module.css';
 
 /**
  * The week's temperatures, humidity and hours of light, a strip under the

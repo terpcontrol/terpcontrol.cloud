@@ -15,7 +15,7 @@ import { hoursWritten } from './targets/schedule-words';
  */
 
 /** The words a length is written in - "3 wk", "10 d" - or what a step with no length really is. */
-export const durationLabel = (t: Translate, duration: StepDuration): string =>
+export const stepLengthLabel = (t: Translate, duration: StepDuration): string =>
   duration.value > 0 ? t(`space.control.unit.${duration.unit}`, { count: duration.value }) : t('space.control.openEnded');
 
 /** The facts of a step that its line is made of, which a saved step and one being written both have. */
@@ -62,7 +62,7 @@ export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = 
   return [
     step.stage ? stageChoiceName(t, step.stage) : t('space.control.noStage'),
     step.preset ? t(`grow.presetName.${step.preset}`, { defaultValue: step.preset }) : null,
-    durationLabel(t, step.duration),
+    stepLengthLabel(t, step.duration),
     hours !== null
       ? own !== null && offset !== null
         ? t('planLight.shortFrom', { hours: hoursWritten(hours), time: wallClock(own, offset) })

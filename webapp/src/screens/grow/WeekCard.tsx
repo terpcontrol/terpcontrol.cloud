@@ -8,7 +8,7 @@ import { useCorrecting } from '@/log/corrections';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { DAY_MS } from '@/ui/days';
 import { EntryRow } from '@/ui/EntryRow';
-import { WeekClimateStrip, WeekFilm } from '@/ui/GrowFigures';
+import { WeekClimateStrip, WeekFilm } from '@/ui/WeekCardParts';
 import { looseFigure } from '@/ui/figures';
 import { weekDayOf } from '@/ui/entries';
 import { Term } from '@/ui/Help';

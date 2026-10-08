@@ -105,7 +105,7 @@ const stores = (): Storage[] => {
  * a session being ended: nothing can be refreshed from a string that is not
  * JSON, and leaving it would make every later boot fail on it again.
  */
-const readStored = (): Stored | null => {
+const readSession = (): Stored | null => {
   for (const store of stores()) {
     const raw = store.getItem(STORAGE_KEY);
     if (!raw) continue;
@@ -118,7 +118,7 @@ const readStored = (): Stored | null => {
   return null;
 };
 
-const writeStored = (value: Stored | null) => {
+const writeSession = (value: Stored | null) => {
   for (const store of stores()) store.removeItem(STORAGE_KEY);
   if (!value) return;
   const [forever, forThisTab] = stores();
@@ -227,7 +227,7 @@ class SessionStore {
     // Before the new account is published, so nothing drawn for it reads the last one's answers.
     this.handCacheTo(result.user.id);
     this.publish({ user: result.user, tokens, sessionId: result.sessionId, restored: true, unreachable: false, ended: false });
-    writeStored({
+    writeSession({
       refreshToken: tokens.refreshToken,
       refreshTokenUntil: tokens.refreshTokenUntil,
       user: result.user,
@@ -256,7 +256,7 @@ class SessionStore {
    * that ended.
    */
   private forget(ended = false) {
-    writeStored(null);
+    writeSession(null);
     this.handCacheTo(null);
     this.publish({ user: null, tokens: null, sessionId: null, restored: true, unreachable: false, ended });
   }
@@ -269,7 +269,7 @@ class SessionStore {
    */
   public async restore(): Promise<void> {
     if (this.state.restored && !this.state.unreachable) return;
-    const stored = readStored();
+    const stored = readSession();
     if (!stored) {
       this.publish({ restored: true, unreachable: false });
       return;
@@ -289,7 +289,7 @@ class SessionStore {
   public async validToken(): Promise<string | null> {
     const tokens = this.state.tokens;
     if (tokens && tokens.userTokenUntil - REFRESH_MARGIN_MS > serverNow().toMillis()) return tokens.userToken;
-    const refreshed = await this.refresh(tokens?.refreshToken ?? readStored()?.refreshToken);
+    const refreshed = await this.refresh(tokens?.refreshToken ?? readSession()?.refreshToken);
     return refreshed?.userToken ?? null;
   }
 
@@ -351,7 +351,7 @@ class SessionStore {
     if (user) this.handCacheTo(user.id);
     this.publish({ tokens, unreachable: false });
     if (user && sessionId) {
-      writeStored({
+      writeSession({
         refreshToken: tokens.refreshToken,
         refreshTokenUntil: tokens.refreshTokenUntil,
         user,
