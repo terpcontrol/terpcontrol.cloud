@@ -14,14 +14,12 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { DataService } from '@modules/data/data.service';
-import { READING_KINDS } from '../diary/diary-entries';
+import { READING_KINDS, readingsIn } from '../diary/diary-entries';
 import { horizonOf } from '../diary/grow-calendar';
-import { spacesDuring } from '../diary/grow-places';
-import { cyclesOf, recordOf } from '../phase/target-record';
-import { CHART_FRAME_SLOTS, framesOf } from '../timeline/frames';
-import { lastReadingOf } from '../timeline/last-reading';
-import { fridgesOf, lanesOf, nightsOf, panelsOf, transitionsOf } from '../timeline/timeline-series';
-import { TimelineWindow, narrowedTo, steeringOf, stretchesOf, windowOf } from '../timeline/timeline-window';
+import { chartSeriesOf } from '../timeline/chart-series';
+import { shownCameras } from '../timeline/frames';
+import { TimelineWindow, narrowedTo, windowOf } from '../timeline/timeline-window';
+import { spacesDuring } from './grow-places';
 import { Redaction } from './grow-serialiser';
 import { GrowsService } from './grows.service';
 
@@ -89,59 +87,36 @@ export class GrowSeriesService {
     const window = this.windowFor(grow, grant, asked, now);
     const keys = this.keysOf(grow, asked.measurements ?? []);
 
-    const devices = asked.metrics?.length || asked.outputs?.length ? await this.devicesWhereItStood(grow, window) : ([] as StoredDevice[]);
+    const metrics = asked.metrics ?? [];
+    const outputs = asked.outputs ?? [];
+    const spaceIds = spacesDuring(grow, window.startsAt, window.endsAt).filter((id): id is string => id !== null);
 
-    const [series, readings, aimed, cameras] = await Promise.all([
-      Promise.all(
-        devices.map(device =>
-          this.data.history(
-            device.id,
-            {
-              startsAt: window.startsAt,
-              endsAt: window.endsAt,
-              stepSeconds: window.stepSeconds,
-              metrics: asked.metrics ?? [],
-              outputs: asked.outputs ?? [],
-            },
-            true,
-          ),
-        ),
-      ),
-      keys.length > 0 ? this.readingsIn(grow.id, window) : Promise.resolve([] as EntryDocument[]),
-      recordOf(this.targetRecord, steeringOf(devices)?.id ?? null, window),
-      grant.includeCameras ? this.camerasWhereItStood(grow, window) : Promise.resolve([] as CameraDocument[]),
+    const [devices, cameras] = await Promise.all([
+      metrics.length > 0 || outputs.length > 0 ? this.devicesIn(spaceIds) : Promise.resolve([]),
+      shownCameras(this.cameras, spaceIds, grant.includeCameras),
     ]);
-    const frames = await framesOf(this.media, cameras, window, CHART_FRAME_SLOTS);
-
-    const climate = panelsOf(
-      series.map(one => one.series),
-      stretchesOf(grow, devices, window, now, aimed),
-      asked.metrics ?? [],
-    );
+    const [charts, readings] = await Promise.all([
+      chartSeriesOf(
+        { data: this.data, targetRecord: this.targetRecord, media: this.media },
+        grant,
+        grow,
+        devices,
+        cameras,
+        window,
+        { metrics, outputs },
+        now,
+      ),
+      keys.length > 0 ? this.readingEntriesIn(grow.id, window) : Promise.resolve([]),
+    ]);
 
     return {
       growId: grow.id,
       range: asked.range,
-      startsAt: window.startsAt.toISOString(),
-      endsAt: window.endsAt.toISOString(),
-      stepSeconds: series.length === 0 ? 0 : window.stepSeconds,
       originAt: growOriginOf(grow).toISOString(),
       dayFrom: window.dayFrom,
       dayTo: window.dayTo,
-      deviceIds: grant.redacted ? null : devices.map(device => device.id),
-      climate,
-      // The tent's own Timeline dates a silence and this screen did not, so the
-      // same grower was told twice about one quiet tent and once in a way that
-      // sounded like a fault in the range they had picked. It is the same read
-      // the Timeline pays, under the same guard: only a window that drew no
-      // curve has the question to answer, and only a caller that asked about
-      // the climate at all can have been wondering.
-      lastReadingAt: climate.length === 0 && asked.metrics?.length ? await lastReadingOf(this.data, devices) : null,
-      outputs: lanesOf(series, window, grant.redacted, fridgesOf(devices)),
-      nights: nightsOf(series, window, cyclesOf(aimed, window)),
-      transitions: transitionsOf(cyclesOf(aimed, window)),
       measurements: measurementsOf(keys, readings, hide),
-      cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),
+      ...charts,
     };
   }
 
@@ -204,7 +179,7 @@ export class GrowSeriesService {
   }
 
   /**
-   * Whatever stands where the grow stood over this window. A grow that moved
+   * Whatever stands where the grow stood over the window. A grow that moved
    * between tents is read from the controllers of both, because the line the
    * chart draws is what its plants lived through and not what one tent did.
    *
@@ -212,8 +187,7 @@ export class GrowSeriesService {
    * moved out is not read for the days it kept - the same limit the week cards
    * already have.
    */
-  private devicesWhereItStood(grow: GrowDocument, window: TimelineWindow): Promise<StoredDevice[]> {
-    const spaceIds = spacesDuring(grow, window.startsAt, window.endsAt).filter((id): id is string => id !== null);
+  private devicesIn(spaceIds: readonly string[]): Promise<StoredDevice[]> {
     if (spaceIds.length === 0) return Promise.resolve([]);
 
     return this.devices
@@ -222,24 +196,13 @@ export class GrowSeriesService {
       .lean<StoredDevice[]>();
   }
 
-  /** The cameras standing in the places the grow stood in over the window. */
-  private camerasWhereItStood(grow: GrowDocument, window: TimelineWindow): Promise<CameraDocument[]> {
-    const spaceIds = spacesDuring(grow, window.startsAt, window.endsAt).filter((id): id is string => id !== null);
-    if (spaceIds.length === 0) return Promise.resolve([]);
-
-    return this.cameras
-      .find({ spaceId: { $in: spaceIds }, removedAt: null })
-      .sort({ createdAt: 1, id: 1 })
-      .lean<CameraDocument[]>();
-  }
-
   /**
    * The entries that carry readings, over the window. A reading taken while
    * watering is a reading, so all three kinds that can hold one are read - the
    * week card counts them the same way, and a chart that only counted the
    * Measure tile would draw a different history of the same grow.
    */
-  private async readingsIn(growId: string, window: TimelineWindow): Promise<EntryDocument[]> {
+  private async readingEntriesIn(growId: string, window: TimelineWindow): Promise<EntryDocument[]> {
     const rows = await this.entries
       .find({ $and: [{ growId, kind: { $in: READING_KINDS } }, withinRange('occurredAt', window)] })
       .sort({ occurredAt: -1, id: -1 })
@@ -272,6 +235,3 @@ const measurementsOf = (keys: readonly string[], entries: readonly EntryDocument
       ),
     ),
   }));
-
-const readingsIn = (entry: EntryDocument): { key: string; value: number; plantId: string | null }[] =>
-  'readings' in entry.values ? entry.values.readings : [];

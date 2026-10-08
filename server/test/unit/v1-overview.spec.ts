@@ -94,6 +94,7 @@ const build = (): OverviewService => {
     places,
     new SpaceLiveService(db.devices, db.cameras, fakeData),
     fakeData,
+    db.targetChanges,
   );
 };
 

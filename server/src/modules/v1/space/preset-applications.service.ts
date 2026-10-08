@@ -8,7 +8,6 @@ import { AccessContext } from '@common/v1/access.types';
 import { unprocessable } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { NOTHING_HIDDEN } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { PhaseWriterService } from '../phase/phase-writer.service';
@@ -45,7 +44,6 @@ const DECISIONS: GrowDecision[] = ['start_grow', 'move_grow', 'climate_only'];
 export class PresetApplicationsService {
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
-    @InjectModel(MODEL_V1.grow) private readonly growRows: Model<GrowDocument>,
     private readonly climate: ClimatePresetsService,
     private readonly spaces: SpacesService,
     private readonly phases: PhaseWriterService,
@@ -105,7 +103,7 @@ export class PresetApplicationsService {
       growId,
       // The phase the grow already stood in is not appended again, and the
       // answer names it rather than claiming nothing happened.
-      phaseId: phase?.id ?? (growId === null ? null : await this.standingPhase(growId, body.stage, preset)),
+      phaseId: phase?.id ?? (growId === null ? null : ((await this.phases.standingPhase(growId, body.stage, preset))?.id ?? null)),
       growDecisionNeeded: asks,
       decisions: asks ? DECISIONS : [],
       planEffect,
@@ -128,7 +126,7 @@ export class PresetApplicationsService {
     growId: string | null,
     startedAt: Date,
   ): Promise<string | null> {
-    const standing = await this.phases.growInSpace(spaceId);
+    const standing = await this.phases.growIdIn(spaceId);
     if (standing !== null || decision !== 'move_grow') return standing;
 
     if (!growId) {
@@ -169,16 +167,5 @@ export class PresetApplicationsService {
     }
 
     return 'none';
-  }
-
-  /** The phase a grow already stands in, for an application that appended none. */
-  private async standingPhase(growId: string, stage: GrowthStage, preset: string | null): Promise<string | null> {
-    const grow = await this.growRows.findOne({ id: growId }, { phases: 1 }).lean<Pick<GrowDocument, 'phases'>>();
-    const matching = (grow?.phases ?? []).filter(phase => phase.stage === stage && phase.preset === preset);
-
-    return (
-      matching.reduce<GrowDocument['phases'][number] | null>((best, phase) => (best && best.startedAt > phase.startedAt ? best : phase), null)?.id ??
-      null
-    );
   }
 }

@@ -1,3 +1,4 @@
+import { FilterQuery } from 'mongoose';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 
 /**
@@ -15,3 +16,10 @@ export const spacesDuring = (grow: GrowDocument, startsAt: Date, endsAt: Date): 
       .map(placement => placement.spaceId),
   ),
 ];
+
+/** The spaces a grow's plants stand in now: its open placements that name one. */
+export const spacesNow = (grow: Pick<GrowDocument, 'placements'>): string[] =>
+  grow.placements.flatMap(placement => (placement.endedAt === null && placement.spaceId ? [placement.spaceId] : []));
+
+/** A grow still going with an open placement in the space. */
+export const standingIn = (spaceId: string): FilterQuery<GrowDocument> => ({ endedAt: null, placements: { $elemMatch: { spaceId, endedAt: null } } });

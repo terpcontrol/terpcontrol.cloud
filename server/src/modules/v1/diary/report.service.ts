@@ -1,23 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { EntryKind, GrowHarvest, GrowReport, GrowReportPhase, GrowTotals, PhaseTargets } from '@fg2/shared-types/v1';
+import type { EntryKind, GrowReport, GrowReportPhase, GrowTotals, PhaseTargets } from '@fg2/shared-types/v1';
 import { STAGES_WITH_CLIMATE, type StageSpan, growDayAt, growOriginOf, stageSpansOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant } from '@common/v1/access.types';
-import { clampRange, outsideRange, overlapsRange, seenOf, storyEndsAt, withinRange } from '@common/v1/range';
+import { peopleNamed } from '@common/v1/people';
+import { clampRange, overlapsRange, seenOf, storyEndsAt, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { GrowDocument, PhaseDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
-import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
-import { Redaction, growUpTo } from '../grow/grow-serialiser';
+import { spacesDuring } from '../grow/grow-places';
+import { Redaction, growUpTo, harvestOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
-import { DIARY_KINDS, authorIdsOf, peopleOf, serialiseDiaryEntry } from './diary-entries';
+import { DIARY_KINDS, serialiseDiaryEntry } from './diary-entries';
 import { horizonOf } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
-import { spacesDuring } from './grow-places';
 
 /**
  * The Report tab: the grow told as chapters, one per phase.
@@ -38,9 +38,6 @@ import { spacesDuring } from './grow-places';
  * one twice over.
  */
 
-/** The kinds a chapter counts and the totals are of: what a person did, not what a device reported. */
-const CHAPTER_KINDS = DIARY_KINDS;
-
 /** How far from the middle of a chapter its cover may have been taken. A phase is weeks long; half a day of slack is nothing. */
 const COVER_WINDOW_MS = 12 * 60 * 60 * 1000;
 
@@ -48,7 +45,7 @@ const COVER_WINDOW_MS = 12 * 60 * 60 * 1000;
 const MAX_ENTRIES = 5000;
 
 /** One stretch of the grow at one stage, before it is answered: the shared span with its phase. */
-type Chapter = StageSpan<GrowDocument['phases'][number]>;
+type Chapter = StageSpan<PhaseDocument>;
 
 @Injectable()
 export class GrowReportService {
@@ -98,8 +95,10 @@ export class GrowReportService {
     const chapters = stageSpansOf(grow, horizon).filter(chapter => overlapsRange(range, chapter.startsAt, chapter.endsAt ?? horizon));
     const told = await Promise.all(chapters.map(chapter => this.chapterOf(chapter, { grow, hide, grant, range, horizon, diary })));
 
-    const named = told.flatMap(chapter => chapter.training);
-    const rows = await this.users.find({ id: { $in: authorIdsOf(named) } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
+    const people = await peopleNamed(
+      this.users,
+      told.flatMap(chapter => chapter.training.map(entry => entry.authorId)),
+    );
 
     return {
       growId: grow.id,
@@ -117,7 +116,7 @@ export class GrowReportService {
       phases: told.reverse(),
       harvest: harvestOf(plants, hide, range),
       totals,
-      people: peopleOf(named, rows),
+      people,
     };
   }
 
@@ -241,7 +240,7 @@ export class GrowReportService {
 
   private diaryOf(growId: string, grant: Grant): Promise<EntryDocument[]> {
     return this.entries
-      .find({ $and: [{ growId, kind: { $in: CHAPTER_KINDS } }, withinRange('occurredAt', clampRange(grant))] })
+      .find({ $and: [{ growId, kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', clampRange(grant))] })
       .sort({ occurredAt: 1, id: 1 })
       .limit(MAX_ENTRIES)
       .lean<EntryDocument[]>();
@@ -268,7 +267,7 @@ export class GrowReportService {
   public async totalsOf(growId: string, grant: Grant): Promise<GrowTotals> {
     const pictures = { $size: { $ifNull: ['$mediaIds', []] } };
     const rows = await this.entries.aggregate<{ _id: EntryKind; count: number; pictures: number }>([
-      { $match: { $and: [{ growId, kind: { $in: CHAPTER_KINDS } }, withinRange('occurredAt', clampRange(grant))] } },
+      { $match: { $and: [{ growId, kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', clampRange(grant))] } },
       {
         $group: {
           _id: '$kind',
@@ -320,30 +319,6 @@ interface ReportWorld {
   horizon: Date;
   diary: EntryDocument[];
 }
-
-/**
- * One harvest for the whole grow: when the first plant came down, and what the
- * lot weighed. The report and the public page both state it, and a weight that
- * two places worked out separately is a weight one of them could state wrongly.
- *
- * A harvest is dated, so it belongs to the window like any other line: a plant
- * that came down after a link's window closed has not come down as far as that
- * link is concerned, and a grow whose whole harvest falls outside it has none to
- * state.
- */
-export const harvestOf = (plants: readonly PlantDocument[], hide: Redaction, range: AccessRange): GrowHarvest | null => {
-  const harvested = plants.flatMap(plant => (plant.harvest && !outsideRange(plant.harvest.harvestedAt, range) ? [plant.harvest] : []));
-  if (harvested.length === 0) return null;
-
-  const total = (weights: (number | null)[]): number | null =>
-    weights.some(weight => weight !== null) ? weights.reduce<number>((sum, weight) => sum + (weight ?? 0), 0) : null;
-
-  return {
-    harvestedAt: new Date(Math.min(...harvested.map(one => one.harvestedAt.getTime()))).toISOString(),
-    wetWeightG: hide.weights ? null : total(harvested.map(one => one.wetWeightG)),
-    dryWeightG: hide.weights ? null : total(harvested.map(one => one.dryWeightG)),
-  };
-};
 
 /**
  * A chapter the cameras did not see lit around its middle is told under the

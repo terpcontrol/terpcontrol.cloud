@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { ExistingProvider, Global, Module } from '@nestjs/common';
 import { AlarmEngineService } from '@modules/alarm/alarm-engine.service';
 import { AlarmModule } from '@modules/alarm/alarm.module';
 import { DataModule } from '@modules/data/data.module';
@@ -28,8 +28,6 @@ import { CLIMATE_PRESETS } from '@modules/v1/grow/climate-presets.port';
 import { ALARM_ROUTING, GROW_IN_SPACE } from '@modules/alarm/alarm.types';
 import { GerminationAlarmsService } from '@modules/alarm/germination-alarms.service';
 import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
-import { GrowsService } from '@modules/v1/grow/grows.service';
-import { GrowModule } from '@modules/v1/grow/grow.module';
 import { NotificationModule } from '@modules/v1/notification/notification.module';
 import { NotificationService } from '@modules/v1/notification/notification.service';
 import { PlanAnnouncerService } from '@modules/v1/notification/plan-announcer.service';
@@ -43,6 +41,57 @@ import { PLAN_ANNOUNCER } from '@modules/v1/plan/plan-announcer.port';
 import { PlanModule } from '@modules/v1/plan/plan.module';
 import { PlanService } from '@modules/v1/plan/plan.service';
 import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/climate-presets.service';
+
+const PORTS: ExistingProvider[] = [
+  // What a device published, once it has been read: the measurement store,
+  // the alarm state machine, the camera pipeline, the tunnel, and the rollout
+  // that decides from a device being there whether it is told to update.
+  { provide: DEVICE_SAMPLE_SINK, useExisting: DataService },
+  { provide: DEVICE_METRIC_SINK, useExisting: AlarmEngineService },
+  { provide: DEVICE_CAMERA_REPORT_SINK, useExisting: TerpCamDirectService },
+  { provide: DEVICE_TUNNEL_SINK, useExisting: TunnelService },
+  { provide: DEVICE_PRESENCE_SINK, useExisting: FirmwareRolloutService },
+  // A device written into germination, or told what germination does about
+  // the humidity, has its "too humid" rested or given a rule to warn with by
+  // the alarms, which the protocol module only knows to tell.
+  { provide: DEVICE_GERMINATION_SINK, useExisting: GerminationAlarmsService },
+  // What the camera pipeline needs of a device: a relay to its camera on
+  // request, and whether its light is on, which is the one thing `nightOff` asks.
+  { provide: RELAY_REQUEST, useExisting: DevicePublisherService },
+  { provide: LIGHT_STATE_READER, useExisting: DataService },
+  // And what the composer needs of one: the climate it draws over the frames,
+  // and the light output that says which of them were taken in the dark.
+  { provide: SERIES_READER, useExisting: DataService },
+  // The plan puts a device on the settings its step carries, and the protocol
+  // module is what knows how to say so.
+  { provide: DEVICE_CONFIGURATION_WRITER, useExisting: DeviceConfigurationService },
+  // And when the protocol module moves a device's times of day onto its
+  // owner's clock, the plan's steps hold times written on the same clock.
+  { provide: SCHEDULE_FOLLOWER, useExisting: PlanService },
+  // A quarter of an hour in the tent keeps its devices quiet, and the same
+  // module is what knows how to tell them.
+  { provide: MAINTENANCE_STARTER, useExisting: DevicePublisherService },
+  // A grow entering a phase with a preset puts the tent it stands in on that
+  // climate, which is the space slice's table and the space slice's write.
+  { provide: CLIMATE_PRESETS, useExisting: ClimatePresetsService },
+  // And the same phase moves the thresholds the stage binds, which are rules
+  // the alarms own and the phase writer only knows the stage of.
+  { provide: STAGE_ALARMS, useExisting: StageAlarmsService },
+  // A device stood in a tent that is already in a stage takes that stage's
+  // thresholds, and which stage that is only the phase writer can say.
+  { provide: DEVICE_PLACEMENT, useExisting: PhaseWriterService },
+  // An alarm is said out loud by the person's own notification settings
+  // unless the rule addresses itself, and the alarms know only that there may
+  // be somewhere to route a message to.
+  { provide: ALARM_ROUTING, useExisting: NotificationService },
+  // And a recipe step that waits for somebody is the same arrangement: the
+  // plan knows it is standing still, and who keeps the tent and what each of
+  // them asked to be told on is the notifications part's to answer.
+  { provide: PLAN_ANNOUNCER, useExisting: PlanAnnouncerService },
+  // And an alarm belongs in the diary of whatever is growing where it
+  // happened, which the phase writer answers from the grows' placements.
+  { provide: GROW_IN_SPACE, useExisting: PhaseWriterService },
+];
 
 /**
  * Where the slices are joined to each other.
@@ -68,81 +117,12 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     DataModule,
     DeviceProtocolModule,
     FleetModule,
-    GrowModule,
     NotificationModule,
     PhaseModule,
     PlanModule,
     TunnelModule,
   ],
-  providers: [
-    // What a device published, once it has been read: the measurement store,
-    // the alarm state machine, the camera pipeline, the tunnel, and the rollout
-    // that decides from a device being there whether it is told to update.
-    { provide: DEVICE_SAMPLE_SINK, useExisting: DataService },
-    { provide: DEVICE_METRIC_SINK, useExisting: AlarmEngineService },
-    { provide: DEVICE_CAMERA_REPORT_SINK, useExisting: TerpCamDirectService },
-    { provide: DEVICE_TUNNEL_SINK, useExisting: TunnelService },
-    { provide: DEVICE_PRESENCE_SINK, useExisting: FirmwareRolloutService },
-    // A device written into germination, or told what germination does about
-    // the humidity, has its "too humid" rested or given a rule to warn with by
-    // the alarms, which the protocol module only knows to tell.
-    { provide: DEVICE_GERMINATION_SINK, useExisting: GerminationAlarmsService },
-    // What the camera pipeline needs of a device: a relay to its camera on
-    // request, and whether its light is on, which is the one thing `nightOff` asks.
-    { provide: RELAY_REQUEST, useExisting: DevicePublisherService },
-    { provide: LIGHT_STATE_READER, useExisting: DataService },
-    // And what the composer needs of one: the climate it draws over the frames,
-    // and the light output that says which of them were taken in the dark.
-    { provide: SERIES_READER, useExisting: DataService },
-    // The plan puts a device on the settings its step carries, and the protocol
-    // module is what knows how to say so.
-    { provide: DEVICE_CONFIGURATION_WRITER, useExisting: DeviceConfigurationService },
-    // And when the protocol module moves a device's times of day onto its
-    // owner's clock, the plan's steps hold times written on the same clock.
-    { provide: SCHEDULE_FOLLOWER, useExisting: PlanService },
-    // A quarter of an hour in the tent keeps its devices quiet, and the same
-    // module is what knows how to tell them.
-    { provide: MAINTENANCE_STARTER, useExisting: DevicePublisherService },
-    // A grow entering a phase with a preset puts the tent it stands in on that
-    // climate, which is the space slice's table and the space slice's write.
-    { provide: CLIMATE_PRESETS, useExisting: ClimatePresetsService },
-    // And the same phase moves the thresholds the stage binds, which are rules
-    // the alarms own and the phase writer only knows the stage of.
-    { provide: STAGE_ALARMS, useExisting: StageAlarmsService },
-    // A device stood in a tent that is already in a stage takes that stage's
-    // thresholds, and which stage that is only the phase writer can say.
-    { provide: DEVICE_PLACEMENT, useExisting: PhaseWriterService },
-    // An alarm is said out loud by the person's own notification settings
-    // unless the rule addresses itself, and the alarms know only that there may
-    // be somewhere to route a message to.
-    { provide: ALARM_ROUTING, useExisting: NotificationService },
-    // And a recipe step that waits for somebody is the same arrangement: the
-    // plan knows it is standing still, and who keeps the tent and what each of
-    // them asked to be told on is the notifications part's to answer.
-    { provide: PLAN_ANNOUNCER, useExisting: PlanAnnouncerService },
-    // And an alarm belongs in the diary of whatever is growing where it
-    // happened, which only the grow slice can answer.
-    { provide: GROW_IN_SPACE, useExisting: GrowsService },
-  ],
-  exports: [
-    DEVICE_SAMPLE_SINK,
-    DEVICE_METRIC_SINK,
-    DEVICE_CAMERA_REPORT_SINK,
-    DEVICE_TUNNEL_SINK,
-    DEVICE_PRESENCE_SINK,
-    DEVICE_GERMINATION_SINK,
-    RELAY_REQUEST,
-    LIGHT_STATE_READER,
-    SERIES_READER,
-    DEVICE_CONFIGURATION_WRITER,
-    SCHEDULE_FOLLOWER,
-    MAINTENANCE_STARTER,
-    CLIMATE_PRESETS,
-    STAGE_ALARMS,
-    DEVICE_PLACEMENT,
-    ALARM_ROUTING,
-    PLAN_ANNOUNCER,
-    GROW_IN_SPACE,
-  ],
+  providers: PORTS,
+  exports: PORTS.map(port => port.provide),
 })
 export class WiringModule {}

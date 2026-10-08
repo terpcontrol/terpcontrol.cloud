@@ -1,5 +1,7 @@
 import type {
   FollowedGrowCard,
+  GrowCard,
+  GrowHarvest,
   GrowListItem,
   GrowthStage,
   GrowLocation,
@@ -11,7 +13,9 @@ import type {
   UserPrivacy,
 } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf, growWeekAt, spineOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { AccessRange } from '@common/v1/access.types';
+import { outsideRange } from '@common/v1/range';
+import { GrowDocument, PhaseDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 
 /**
@@ -26,9 +30,6 @@ import { PlantDocument } from '@database/schemas/v1/plants.schema';
  * nobody could see in the data. They ride on every answer that carries a grow
  * instead.
  */
-
-type StoredPhase = GrowDocument['phases'][number];
-type StoredPlacement = GrowDocument['placements'][number];
 
 /**
  * What is left out of an answer. A grow read by somebody who is neither its
@@ -64,18 +65,6 @@ export const redactionOf = (redacted: boolean, privacy: UserPrivacy | null | und
 const scope = (plantIds: string[] | null, hide: Redaction): string[] | null => (hide.counts && plantIds !== null ? [] : plantIds);
 
 /**
- * Day 1 is the day the grow began: its start or its earliest phase, whichever
- * came first - `growOriginOf`, the origin the week cards, the diary's day
- * stamps, the report and the timeline all count from. Counted in elapsed days
- * rather than in calendar days: the grower's midnight is not the server's, and
- * a grow begun at 23:00 would otherwise be two days old within the hour.
- *
- * The header used to count from the first phase instead. A grow written down on
- * the 20th and put into veg on the 24th then read "day 1" above a week card
- * that put today on day 5, a diary line stamped "D 5" and a report of five
- * days: one grow with two ages on one screen.
- */
-/**
  * Which day of its phase the grow is on, counted in the grow's own days.
  *
  * The phase bar and the report's chapters state the same stretch as a count of
@@ -91,14 +80,16 @@ const phaseDayOf = (origin: Date, startedAt: Date, asOf: Date): number => Math.m
 
 const covers = (plantIds: string[] | null, plantId: string): boolean => plantIds === null || plantIds.includes(plantId);
 
-const latest = (phases: StoredPhase[]): StoredPhase | null =>
-  phases.reduce<StoredPhase | null>((best, phase) => (best && best.startedAt > phase.startedAt ? best : phase), null);
+/** The phase begun last; of two begun at the same instant, the one written later. */
+export const latestPhase = <P extends { startedAt: Date }>(phases: readonly P[]): P | null =>
+  phases.reduce<P | null>((best, phase) => (best && best.startedAt > phase.startedAt ? best : phase), null);
 
 /** Where a plant stands: the latest phase written over a scope that includes it. */
-const phaseOf = (phases: StoredPhase[], plantId: string): StoredPhase | null => latest(phases.filter(phase => covers(phase.plantIds, plantId)));
+const phaseOf = (phases: PhaseDocument[], plantId: string): PhaseDocument | null =>
+  latestPhase(phases.filter(phase => covers(phase.plantIds, plantId)));
 
 interface Group {
-  phase: StoredPhase;
+  phase: PhaseDocument;
   plantIds: string[];
 }
 
@@ -108,7 +99,7 @@ interface Group {
  * the newer phase, so a grow that has just been split reads as what it has
  * become rather than as what it was.
  */
-const groupsOf = (phases: StoredPhase[], plants: PlantDocument[]): Group[] => {
+const groupsOf = (phases: PhaseDocument[], plants: PlantDocument[]): Group[] => {
   const byPhase = new Map<string, Group>();
 
   for (const plant of plants) {
@@ -123,14 +114,14 @@ const groupsOf = (phases: StoredPhase[], plants: PlantDocument[]): Group[] => {
   return [...byPhase.values()].sort((one, other) => other.plantIds.length - one.plantIds.length || compare(other.phase, one.phase));
 };
 
-const compare = (one: StoredPhase, other: StoredPhase): number => one.startedAt.getTime() - other.startedAt.getTime();
+const compare = (one: PhaseDocument, other: PhaseDocument): number => one.startedAt.getTime() - other.startedAt.getTime();
 
 /**
  * Where the plants are now. A grow whose plants are all gone - a migrated one,
  * which has none, or one that has been harvested - still stands somewhere, and
  * the card that draws it says where.
  */
-const locationsOf = (placements: StoredPlacement[], plantIds: string[], hide: Redaction): GrowLocation[] => {
+const locationsOf = (placements: PlacementDocument[], plantIds: string[], hide: Redaction): GrowLocation[] => {
   const open = placements.filter(placement => placement.endedAt === null).sort((one, other) => one.startedAt.getTime() - other.startedAt.getTime());
 
   if (plantIds.length === 0) return [...new Set(open.map(placement => placement.spaceId))].map(spaceId => ({ spaceId, plantIds: [] }));
@@ -189,7 +180,7 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
   // every screen beneath it.
   const origin = growOriginOf(grow);
   const groups = groupsOf(grow.phases, plants);
-  const headline = groups[0]?.phase ?? latest(grow.phases);
+  const headline = groups[0]?.phase ?? latestPhase(grow.phases);
   const dayNumber = grow.phases.length > 0 ? growDayAt(origin, asOf) : null;
 
   const told: PhaseGroup[] = groups.map(group => ({
@@ -223,6 +214,30 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
     ),
   };
 };
+
+/** A grow as a card draws it: Home's card of a place, and every grow on a tent's overview. */
+export const growCardOf = (
+  grow: GrowDocument,
+  plants: PlantDocument[],
+  hide: Redaction,
+  now: Date,
+  summary: GrowSummary = summaryOf(grow, plants, hide, now),
+): GrowCard => ({
+  growId: grow.id,
+  name: grow.name,
+  type: grow.type,
+  dayNumber: summary.dayNumber,
+  phaseDay: summary.phaseDay,
+  stageWeek: summary.stageWeek,
+  stage: summary.stage,
+  stagesReached: stagesReachedOf(grow, summary.stage, now),
+  preset: summary.preset,
+  isAuto: summary.isAuto,
+  plantCount: hide.counts ? null : plants.length,
+  strains: [...new Set(plants.map(plant => plant.strain))],
+  coverMediaId: grow.coverMediaId,
+  stageGroups: summary.groups.map(group => ({ stage: group.stage, plantCount: hide.counts ? null : group.plantIds.length })),
+});
 
 /**
  * A public grow as it is named rather than opened: among the grows somebody
@@ -264,7 +279,7 @@ export const serialisePublicCard = (
   };
 };
 
-export const serialisePhase = (phase: StoredPhase, hide: Redaction): Phase => ({
+export const serialisePhase = (phase: PhaseDocument, hide: Redaction): Phase => ({
   id: phase.id,
   stage: phase.stage,
   preset: phase.preset,
@@ -276,7 +291,7 @@ export const serialisePhase = (phase: StoredPhase, hide: Redaction): Phase => ({
   setBy: phase.setBy,
 });
 
-export const serialisePlacement = (placement: StoredPlacement, hide: Redaction): Placement => ({
+export const serialisePlacement = (placement: PlacementDocument, hide: Redaction): Placement => ({
   id: placement.id,
   spaceId: placement.spaceId,
   startedAt: placement.startedAt.toISOString(),
@@ -323,3 +338,27 @@ export const serialiseGrow = (grow: GrowDocument, plants: PlantDocument[], hide:
   updatedAt: grow.updatedAt.toISOString(),
   summary: summaryOf(grow, plants, hide, now),
 });
+
+/**
+ * One harvest for the whole grow: when the first plant came down, and what the
+ * lot weighed. The report and the public page both state it, and a weight that
+ * two places worked out separately is a weight one of them could state wrongly.
+ *
+ * A harvest is dated, so it belongs to the window like any other line: a plant
+ * that came down after a link's window closed has not come down as far as that
+ * link is concerned, and a grow whose whole harvest falls outside it has none to
+ * state.
+ */
+export const harvestOf = (plants: readonly PlantDocument[], hide: Redaction, range: AccessRange): GrowHarvest | null => {
+  const harvested = plants.flatMap(plant => (plant.harvest && !outsideRange(plant.harvest.harvestedAt, range) ? [plant.harvest] : []));
+  if (harvested.length === 0) return null;
+
+  const total = (weights: (number | null)[]): number | null =>
+    weights.some(weight => weight !== null) ? weights.reduce<number>((sum, weight) => sum + (weight ?? 0), 0) : null;
+
+  return {
+    harvestedAt: new Date(Math.min(...harvested.map(one => one.harvestedAt.getTime()))).toISOString(),
+    wetWeightG: hide.weights ? null : total(harvested.map(one => one.wetWeightG)),
+    dryWeightG: hide.weights ? null : total(harvested.map(one => one.dryWeightG)),
+  };
+};

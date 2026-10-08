@@ -6,6 +6,7 @@ import { entryValuesDraft } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { badRequest, conflict, notFound } from '@common/v1/problem';
+import { isDuplicateKey } from '@database/duplicate-key';
 import { MODEL_V1 } from '@database/models';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
@@ -34,9 +35,6 @@ const ENTRY_KIND: Readonly<Record<ReminderKind, EntryCreate['kind']>> = {
   chore: 'note',
   custom: 'note',
 };
-
-/** Mongo says 11000 when a unique index refuses a write; the driver types it as an unknown error. */
-const isDuplicateKey = (error: unknown): boolean => typeof error === 'object' && error !== null && (error as { code?: number }).code === 11000;
 
 @Injectable()
 export class TaskCompletionsService {
@@ -140,6 +138,11 @@ export class TaskCompletionsService {
    * `taskId`. This check stays because it is what turns the common case into an
    * answer a person can read rather than a rejected write.
    */
+  private async requireUndone(taskId: string): Promise<void> {
+    const done = await this.entries.exists({ taskId });
+    if (done) throw conflict('task_done_already', 'That task has been ticked off already.');
+  }
+
   /**
    * The write itself, with the collection's refusal turned into the answer the
    * check above gives: two people ticking one task at the same moment is a
@@ -153,11 +156,6 @@ export class TaskCompletionsService {
       if (isDuplicateKey(error)) throw conflict('task_done_already', 'That task has been ticked off already.');
       throw error;
     }
-  }
-
-  private async requireUndone(taskId: string): Promise<void> {
-    const done = await this.entries.exists({ taskId });
-    if (done) throw conflict('task_done_already', 'That task has been ticked off already.');
   }
 }
 

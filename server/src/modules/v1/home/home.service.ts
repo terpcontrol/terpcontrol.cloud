@@ -1,21 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
-import type {
-  AccountLayers,
-  CardTrend,
-  DueTask,
-  FollowedGrowCard,
-  GrowCard,
-  HomeAnswer,
-  HomeSpaceCard,
-  LatestStill,
-  Person,
-  SeriesPoint,
-  UserPrivacy,
-} from '@fg2/shared-types/v1';
+import type { AccountLayers, CardTrend, DueTask, FollowedGrowCard, HomeAnswer, HomeSpaceCard, LatestStill, SeriesPoint } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
 import { serialiseEntry } from '@common/v1/entries';
+import { peopleNamed } from '@common/v1/people';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
@@ -32,12 +21,14 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { layersOf } from '../account/diary-layer';
 import { diaryMovedAt } from '../diary/diary-entries';
-import { NOTHING_HIDDEN, Redaction, redactionOf, serialisePublicCard, stagesReachedOf, summaryOf } from '../grow/grow-serialiser';
+import { completionsOf, dueTasksOf, remindersAbout } from '../diary/due-tasks';
+import { spacesNow } from '../grow/grow-places';
+import { growCardOf, redactionOf, serialisePublicCard } from '../grow/grow-serialiser';
+import { ownerRedactions } from '../grow/redactions';
 import { mergeLive } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
-import { dueTasksOf, occurrencePrefix } from './due-tasks';
-import { openAlertReader } from './open-alerts';
+import { alertsRaisedIn, openAlertReader } from './open-alerts';
 
 /**
  * The home screen: one card per space, with everything the card shows already
@@ -129,9 +120,13 @@ export class HomeService {
     // person to the top anyway.
     const cards: Card[] = [
       ...spaces
-        .map(space => ({ space, grow: grows.find(grow => standsIn(grow, space.id)) ?? null }))
+        .map(space => ({ space, grow: grows.find(grow => spacesNow(grow).includes(space.id)) ?? null }))
         .filter(({ space, grow }) => space.kind !== 'room' || grow !== null || devices.some(device => device.spaceId === space.id)),
-      ...grows.filter(standsNowhere).map(grow => ({ space: null, grow })),
+      // Placeless: started on "no fixed place", which stores a placement with no
+      // space, or moved out of everywhere since. A grow whose open placement
+      // names a space the reader cannot see is not one, so an archived tent
+      // keeps its grow hidden rather than turning it into a placeless card.
+      ...grows.filter(grow => spacesNow(grow).length === 0).map(grow => ({ space: null, grow })),
     ];
     const growIds = cards.flatMap(card => (card.grow ? [card.grow.id] : []));
 
@@ -149,20 +144,25 @@ export class HomeService {
         .lean<PlantDocument[]>(),
       this.cameras.find({ spaceId: { $in: spaceIds }, removedAt: null }, { id: 1, spaceId: 1 }).lean<CameraDocument[]>(),
       this.alerts
-        .find({ resolvedAt: null, $or: [{ spaceId: { $in: spaceIds } }, { deviceId: { $in: devices.map(device => device.id) } }] })
+        .find({
+          resolvedAt: null,
+          ...alertsRaisedIn(
+            spaceIds,
+            devices.map(device => device.id),
+          ),
+        })
         .sort({ startedAt: -1 })
         .lean<StoredAlert[]>(),
-      this.reminders
-        .find({
-          $or: [
-            { 'subject.type': 'space', 'subject.id': { $in: spaceIds } },
-            { 'subject.type': 'grow', 'subject.id': { $in: growIds } },
-          ],
-        })
-        .lean<ReminderDocument[]>(),
-      this.redactionFor(ctx, cards),
+      this.reminders.find(remindersAbout(spaceIds, growIds)).lean<ReminderDocument[]>(),
+      // A card is only ever read by an owner, a member or the demo tour, so the
+      // tour is the one reader anything is hidden from.
+      ownerRedactions(
+        this.users,
+        ctx.isDemo,
+        cards.flatMap(card => (card.grow ? [card.grow.ownerId] : [])),
+      ),
     ]);
-    const [completions, openAlertOf] = await Promise.all([this.completionsOf(reminders), openAlertReader(this.rules, alerts)]);
+    const [completions, openAlertOf] = await Promise.all([completionsOf(this.entries, reminders), openAlertReader(this.rules, alerts)]);
     const tasks = dueTasksOf(reminders, completions, now);
 
     const answers = await Promise.all(
@@ -185,7 +185,7 @@ export class HomeService {
             ? growCardOf(
                 grow,
                 plants.filter(plant => plant.growId === grow.id),
-                hide.get(grow.ownerId) ?? NOTHING_HIDDEN,
+                hide(grow.ownerId),
                 now,
               )
             : null,
@@ -201,7 +201,10 @@ export class HomeService {
 
     const [followedGrows, people, layers] = await Promise.all([
       ctx.userId && !ctx.isDemo ? this.followed(ctx.userId, now) : Promise.resolve([]),
-      this.peopleIn(answers),
+      peopleNamed(
+        this.users,
+        answers.flatMap(card => [...card.entries.map(entry => entry.authorId), ...card.dueTasks.map(task => task.assigneeId)]),
+      ),
       this.layersOf(ctx),
     ]);
 
@@ -219,19 +222,6 @@ export class HomeService {
       memberships: this.memberships,
       spaces: this.spaces,
     });
-  }
-
-  /**
-   * Whose privacy applies to each grow. A card is only ever read by an owner, a
-   * member or the demo tour, so the tour is the one reader anything is hidden from.
-   */
-  private async redactionFor(ctx: AccessContext, cards: Card[]): Promise<Map<string, Redaction>> {
-    if (!ctx.isDemo) return new Map();
-
-    const ownerIds = [...new Set(cards.flatMap(card => (card.grow ? [card.grow.ownerId] : [])))];
-    const owners = await this.users.find({ id: { $in: ownerIds } }, { id: 1, privacy: 1 }).lean<Pick<StoredUser, 'id' | 'privacy'>[]>();
-
-    return new Map(owners.map(owner => [owner.id, redactionOf(true, owner.privacy as UserPrivacy)]));
   }
 
   /** The grow's diary where there is a grow; the space's own lines - a device's, an alarm's - where there is none. */
@@ -266,15 +256,6 @@ export class HomeService {
     const lightOff = newest.lit === false;
     const still = lightOff ? ((await newestOf(true)) ?? newest) : newest;
     return still.cameraId ? { mediaId: still.id, cameraId: still.cameraId, capturedAt: still.capturedAt.toISOString(), lightOff } : null;
-  }
-
-  /** The entries that completed a task of these reminders: a one-off by its id, a rhythm by any of its occurrences. */
-  private completionsOf(reminders: ReminderDocument[]): Promise<EntryDocument[]> {
-    if (reminders.length === 0) return Promise.resolve([]);
-
-    return this.entries
-      .find({ $or: reminders.map(reminder => ({ taskId: reminder.onceAt ? reminder.id : { $regex: `^${occurrencePrefix(reminder.id)}` } })) })
-      .lean<EntryDocument[]>();
   }
 
   /**
@@ -313,29 +294,7 @@ export class HomeService {
       ];
     });
   }
-
-  /** Everyone the cards name, once, so "Mia fed" needs no second read. */
-  private async peopleIn(cards: HomeSpaceCard[]): Promise<Person[]> {
-    const ids = new Set(cards.flatMap(card => [...card.entries.map(entry => entry.authorId), ...card.dueTasks.map(task => task.assigneeId)]));
-    ids.delete(null);
-    if (ids.size === 0) return [];
-
-    const people = await this.users.find({ id: { $in: [...ids] } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
-    return people.map(person => ({ id: person.id, handle: person.handle }));
-  }
 }
-
-const standsIn = (grow: GrowDocument, spaceId: string): boolean =>
-  grow.placements.some(placement => placement.spaceId === spaceId && placement.endedAt === null);
-
-/**
- * A grow with no open placement into any space: either started on "no fixed
- * place", which stores a placement with no space, or moved out of everywhere
- * since. A grow whose open placement names a space the reader cannot see is
- * not one of these, so an archived tent keeps its grow hidden rather than
- * turning it into a placeless card.
- */
-const standsNowhere = (grow: GrowDocument): boolean => !grow.placements.some(placement => placement.spaceId !== null && placement.endedAt === null);
 
 /**
  * The grows a placeless card may be drawn from. Standing in no space, such a
@@ -355,24 +314,3 @@ const trendOf = (deviceIds: string[], trends: Map<string, SeriesPoint[]>, window
 
 const isAbout = (task: DueTask, spaceId: string | null, growId: string | null): boolean =>
   task.subject.type === 'space' ? task.subject.id === spaceId : task.subject.id === growId;
-
-const growCardOf = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction, now: Date): GrowCard => {
-  const summary = summaryOf(grow, plants, hide, now);
-
-  return {
-    growId: grow.id,
-    name: grow.name,
-    type: grow.type,
-    dayNumber: summary.dayNumber,
-    phaseDay: summary.phaseDay,
-    stageWeek: summary.stageWeek,
-    stage: summary.stage,
-    stagesReached: stagesReachedOf(grow, summary.stage, now),
-    preset: summary.preset,
-    isAuto: summary.isAuto,
-    plantCount: hide.counts ? null : plants.length,
-    strains: [...new Set(plants.map(plant => plant.strain))],
-    coverMediaId: grow.coverMediaId,
-    stageGroups: summary.groups.map(group => ({ stage: group.stage, plantCount: hide.counts ? null : group.plantIds.length })),
-  };
-};

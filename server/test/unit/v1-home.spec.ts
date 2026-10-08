@@ -3,7 +3,7 @@ import { AccessContext } from '@common/v1/access.types';
 import type { SeriesPoint } from '@fg2/shared-types/v1';
 import { DataService, LiveReading } from '@modules/data/data.service';
 import { DevicesService } from '@modules/v1/device/devices.service';
-import { dueTasksOf } from '@modules/v1/home/due-tasks';
+import { dueTasksOf } from '@modules/v1/diary/due-tasks';
 import { HomeService } from '@modules/v1/home/home.service';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
 import { SpacesService } from '@modules/v1/space/spaces.service';
@@ -443,6 +443,29 @@ describe('the grow half', () => {
       strains: ['Amnesia', 'Gelato'],
       stageGroups: [],
     });
+  });
+
+  // The demo tour is the one reader a card hides anything from, and an owner
+  // whose privacy cannot be read hides everything, as every other list does.
+  it('hides the counts from the demo tour where the owner´s privacy cannot be read', async () => {
+    await db.grows.create({
+      id: 'grow-demo',
+      ownerId: 'user-gone',
+      name: 'Demo run',
+      type: 'photoperiod',
+      phases: [],
+      placements: [{ id: 'placement-demo', spaceId: null, startedAt: STARTED_AT, endedAt: null, plantIds: null }],
+      slug: 'demo-run',
+      isDemo: true,
+      startedAt: STARTED_AT,
+      endedAt: null,
+    });
+    await db.plants.create({ id: 'plant-demo', growId: 'grow-demo', strain: 'Amnesia', label: 'Amnesia 1', status: 'active', createdAt: STARTED_AT });
+    const demo: AccessContext = { userId: null, isAdmin: false, isDemo: true, shareToken: null };
+
+    const [card] = (await home.read(demo, NOW)).spaces;
+
+    expect(card.grow).toMatchObject({ growId: 'grow-demo', plantCount: null, strains: ['Amnesia'] });
   });
 
   it('has no grow where nothing is growing', async () => {

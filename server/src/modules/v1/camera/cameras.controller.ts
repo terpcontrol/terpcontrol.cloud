@@ -21,6 +21,7 @@ import { AccessContext, Grant, Grantee } from '@common/v1/access.types';
 import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
 import { V1Query, inOrder, instantQuery, pageQuery } from '@common/v1/validation';
+import { isDuplicateKey } from '@database/duplicate-key';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { CamerasService } from './cameras.service';
@@ -499,9 +500,6 @@ const settingsOf = (body: CameraCreate): CameraUpdate => ({
 /** The fields only an RTSP camera has; a Terp Cam is reached by its own id. */
 const namesAStream = (body: CameraUpdate): boolean =>
   changesTheStream(body) || body.transport !== undefined || body.tunnel !== undefined || body.model !== undefined;
-
-/** What the unique index says when two requests raced for the same film. */
-const isDuplicateKey = (error: unknown): boolean => (error as { code?: number } | null)?.code === 11000;
 
 /**
  * Which span was meant. `day`, `week` and `month` are worked out around the

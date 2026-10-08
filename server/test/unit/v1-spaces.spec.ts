@@ -134,16 +134,7 @@ const presetsOf = (): PresetApplicationsService => {
     new PlanProgressService(db.plans, db.devices, db.users, written, phases, { send: async () => undefined } as unknown as MailService),
   );
 
-  return new PresetApplicationsService(
-    db.devices,
-    db.grows,
-    new ClimatePresetsService(db.devices, configuration),
-    spaces,
-    phases,
-    plans,
-    grows,
-    access,
-  );
+  return new PresetApplicationsService(db.devices, new ClimatePresetsService(db.devices, configuration), spaces, phases, plans, grows, access);
 };
 
 beforeEach(async () => {

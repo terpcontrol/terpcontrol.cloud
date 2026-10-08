@@ -7,6 +7,7 @@ import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
 import { badRequest, conflict, forbidden, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
+import { isDuplicateKey } from '@database/duplicate-key';
 import { MODEL_V1 } from '@database/models';
 import { StoredPlanTemplate } from '@database/schemas/v1/plan-templates.schema';
 import { figureRefusals, TEMPLATE_FIGURES } from '@modules/device-protocol/document-figures';
@@ -178,6 +179,3 @@ const mustBeReadable = (steps: PlanTemplateCreate['steps'], template: StoredPlan
   );
   if (errors.length > 0) throw badRequest('validation_failed', 'A step carries settings that do not fit what a device reads.', errors);
 };
-
-/** Mongo says 11000 when a unique index refuses a write; the driver types it as an unknown error. */
-const isDuplicateKey = (error: unknown): boolean => typeof error === 'object' && error !== null && (error as { code?: number }).code === 11000;

@@ -22,7 +22,7 @@ import { SpacesService } from '../space/spaces.service';
  * is not that - which is what keeps a shared tent page free of tasks.
  */
 
-export interface VisibleSubjects {
+interface VisibleSubjects {
   spaceIds: string[];
   growIds: string[];
 }

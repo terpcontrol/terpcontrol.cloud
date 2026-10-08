@@ -1,5 +1,5 @@
 import { Model } from 'mongoose';
-import type { TimelineCamera } from '@fg2/shared-types/v1';
+import type { CameraStill } from '@fg2/shared-types/v1';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 
@@ -26,15 +26,23 @@ export const CHART_FRAME_SLOTS = 240;
  * a day and eighty-four over a week. Every frame still carries the instant of
  * the picture it actually is, so nothing is dated by its slot.
  */
-export const framesOf = async (
+export const framesOf = (
   media: Model<MediaDocument>,
   cameras: readonly Pick<CameraDocument, 'id'>[],
   window: { startsAt: Date; endsAt: Date },
   slots: number,
-): Promise<Map<string, TimelineCamera['frames']>> => {
+): Promise<Map<string, CameraStill[]>> =>
+  framesEvery(media, cameras, window, Math.max(1, Math.floor((window.endsAt.getTime() - window.startsAt.getTime()) / slots)));
+
+/** The same frames with slots of a width of their own rather than a count of them, which is how the overview's strip cuts a day. */
+export const framesEvery = async (
+  media: Model<MediaDocument>,
+  cameras: readonly Pick<CameraDocument, 'id'>[],
+  window: { startsAt: Date; endsAt: Date },
+  slotMs: number,
+): Promise<Map<string, CameraStill[]>> => {
   if (cameras.length === 0 || window.endsAt <= window.startsAt) return new Map();
 
-  const slotMs = Math.max(1, Math.floor((window.endsAt.getTime() - window.startsAt.getTime()) / slots));
   const rows = await media.aggregate<{ _id: { cameraId: string }; mediaId: string; capturedAt: Date }>([
     {
       $match: {
@@ -54,7 +62,7 @@ export const framesOf = async (
     { $sort: { capturedAt: 1 } },
   ]);
 
-  const frames = new Map<string, TimelineCamera['frames']>();
+  const frames = new Map<string, CameraStill[]>();
   for (const row of rows) {
     const own = frames.get(row._id.cameraId) ?? [];
     frames.set(row._id.cameraId, [...own, { mediaId: row.mediaId, capturedAt: row.capturedAt.toISOString() }]);
@@ -62,3 +70,15 @@ export const framesOf = async (
 
   return frames;
 };
+
+/**
+ * The cameras a chart of these places shows, oldest first: none to a reader who
+ * is not shown cameras, and none that has been removed.
+ */
+export const shownCameras = (cameras: Model<CameraDocument>, spaceIds: readonly string[], include: boolean): Promise<CameraDocument[]> =>
+  include && spaceIds.length > 0
+    ? cameras
+        .find({ spaceId: { $in: spaceIds }, removedAt: null })
+        .sort({ createdAt: 1, id: 1 })
+        .lean<CameraDocument[]>()
+    : Promise.resolve([]);

@@ -17,6 +17,5 @@ import { TimelineService } from './timeline.service';
   imports: [ModelsModule, V1CommonModule, DataModule, SpaceModule],
   controllers: [TimelineController],
   providers: [TimelineService, SpaceSeriesService, OptionalSessionGuard],
-  exports: [TimelineService],
 })
 export class TimelineModule {}

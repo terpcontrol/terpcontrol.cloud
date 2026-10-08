@@ -11,6 +11,7 @@ import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
+import { remindersAbout } from './due-tasks';
 import { VisibleSubjectsService } from './visible-subjects.service';
 
 /**
@@ -151,12 +152,7 @@ export class RemindersService {
     const { spaceIds, growIds } = await this.visible.subjectsOf(ctx);
     if (spaceIds.length === 0 && growIds.length === 0) return null;
 
-    return {
-      $or: [
-        { 'subject.type': 'space', 'subject.id': { $in: spaceIds } },
-        { 'subject.type': 'grow', 'subject.id': { $in: growIds } },
-      ],
-    };
+    return remindersAbout(spaceIds, growIds);
   }
 
   /**

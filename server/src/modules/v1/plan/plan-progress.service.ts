@@ -287,7 +287,7 @@ export class PlanProgressService {
 
     return {
       spaceId: device?.spaceId ?? null,
-      growId: await this.phases.growInSpace(device?.spaceId ?? null),
+      growId: await this.phases.growIdIn(device?.spaceId ?? null),
       ownerId: device?.ownerId ?? null,
       configuration: device?.configuration ?? null,
     };

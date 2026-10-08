@@ -2,6 +2,7 @@ import { Inject, Injectable, Module } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
+import { WORK_MODES_BY_TYPE } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { MODEL_V1 } from '@database/models';
 import { ModelsModule } from '@database/models.module';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -39,7 +40,7 @@ export class ClimatePresetsService implements ClimatePresets {
     if (stage === 'germination') return;
 
     const here = await this.devices
-      .find({ spaceId, type: { $in: WITH_WORK_MODES } }, { id: 1, configuration: 1 })
+      .find({ spaceId, type: { $in: Object.keys(WORK_MODES_BY_TYPE) } }, { id: 1, configuration: 1 })
       .lean<Pick<StoredDevice, 'id' | 'configuration'>[]>();
 
     for (const device of here) {
@@ -95,9 +96,6 @@ export class ClimatePresetsService implements ClimatePresets {
     return applied;
   }
 }
-
-/** The hardware whose firmware reads a work mode. */
-const WITH_WORK_MODES = ['fridge', 'controller'];
 
 /**
  * Its own module, so that the write can be bound to `CLIMATE_PRESETS` where the

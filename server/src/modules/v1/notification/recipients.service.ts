@@ -7,6 +7,7 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
+import { spacesNow } from '../grow/grow-places';
 
 /**
  * Who is told about something that happened in a place.
@@ -48,8 +49,7 @@ export class RecipientsService {
     const grow = await this.grows.findOne({ id: growId }, { ownerId: 1, placements: 1 }).lean<GrowDocument>();
     if (!grow) return [];
 
-    const here = grow.placements.filter(placement => placement.endedAt === null && placement.spaceId);
-    const perSpace = await Promise.all(here.map(placement => this.forSpace(placement.spaceId!)));
+    const perSpace = await Promise.all(spacesNow(grow).map(spaceId => this.forSpace(spaceId)));
 
     return [...new Set([grow.ownerId, ...perSpace.flat()])];
   }

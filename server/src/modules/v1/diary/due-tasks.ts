@@ -1,3 +1,4 @@
+import { FilterQuery, Model } from 'mongoose';
 import type { DueTask } from '@fg2/shared-types/v1';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
@@ -15,13 +16,36 @@ import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** How far ahead a card looks. Anything overdue is due; tomorrow is close enough to prepare for. */
-export const DUE_HORIZON_MS = 2 * DAY_MS;
+const DUE_HORIZON_MS = 2 * DAY_MS;
 
 /** How far ahead the task list looks: its board has a column for the rest of the week. */
 export const WEEK_HORIZON_MS = 7 * DAY_MS;
 
 /** The prefix of every occurrence of a rhythm, which is how its completions are found. */
-export const occurrencePrefix = (reminderId: string): string => `${reminderId}:`;
+const occurrencePrefix = (reminderId: string): string => `${reminderId}:`;
+
+/** The reminder a task id names: a one-off is its id, a rhythm its id and the occurrence. */
+export const reminderIdOf = (taskId: string): string => taskId.split(':')[0];
+
+/** The reminder among these that a task came from. */
+export const reminderOfTask = (reminders: readonly ReminderDocument[], taskId: string): ReminderDocument | undefined =>
+  reminders.find(reminder => taskId === reminder.id || taskId.startsWith(occurrencePrefix(reminder.id)));
+
+/** The reminders about any of these spaces or grows. */
+export const remindersAbout = (spaceIds: readonly string[], growIds: readonly string[]): FilterQuery<ReminderDocument> => ({
+  $or: [
+    { 'subject.type': 'space', 'subject.id': { $in: spaceIds } },
+    { 'subject.type': 'grow', 'subject.id': { $in: growIds } },
+  ],
+});
+
+/** The entries that completed a task of these reminders: a one-off by its id, a rhythm by any of its occurrences. */
+export const completionsOf = (entries: Model<EntryDocument>, reminders: readonly ReminderDocument[]): Promise<EntryDocument[]> =>
+  reminders.length === 0
+    ? Promise.resolve([])
+    : entries
+        .find({ $or: reminders.map(reminder => ({ taskId: reminder.onceAt ? reminder.id : { $regex: `^${occurrencePrefix(reminder.id)}` } })) })
+        .lean<EntryDocument[]>();
 
 /**
  * An occurrence is named by the millisecond it falls due, not by its day.

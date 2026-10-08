@@ -1,6 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { GrowthStage, PhaseSource, PhaseTargets } from '@fg2/shared-types/v1';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
@@ -8,9 +8,13 @@ import { notFound } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { GrowDocument, PhaseDocument } from '@database/schemas/v1/grows.schema';
+import type { GrowInSpace } from '@modules/alarm/alarm.types';
+import { hasWorkModes } from '@modules/device-protocol/work-modes';
 import { logger } from '@utils/logger';
 import { DevicePlacement } from '../device/placement.port';
+import { standingIn } from '../grow/grow-places';
+import { latestPhase } from '../grow/grow-serialiser';
 import { STAGE_ALARMS, StageAlarms } from './stage-alarms.port';
 
 /**
@@ -23,8 +27,6 @@ import { STAGE_ALARMS, StageAlarms } from './stage-alarms.port';
  * says so, and the alarm thresholds the stage binds - so they all come through
  * here instead of each appending a phase of its own.
  */
-
-export type StoredPhase = GrowDocument['phases'][number];
 
 export interface PhaseRequest {
   growId: string;
@@ -63,7 +65,7 @@ export interface PhaseCorrection {
 }
 
 @Injectable()
-export class PhaseWriterService implements DevicePlacement {
+export class PhaseWriterService implements DevicePlacement, GrowInSpace {
   constructor(
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
     private readonly entries: EntryWriterService,
@@ -84,14 +86,14 @@ export class PhaseWriterService implements DevicePlacement {
    * row - two flowering steps, a re-saved plan, a preset applied again - is not
    * a phase change and leaves no second entry in the diary.
    */
-  public async setPhase(request: PhaseRequest): Promise<StoredPhase | null> {
+  public async setPhase(request: PhaseRequest): Promise<PhaseDocument | null> {
     const grow = await this.grows.findOne({ id: request.growId }).lean<GrowDocument>().exec();
     if (!grow) return null;
 
     const standing = currentPhase(grow, request.plantIds);
     if (standing && standing.stage === request.stage && standing.preset === request.preset) return null;
 
-    const phase: StoredPhase = {
+    const phase: PhaseDocument = {
       id: uuidv4(),
       stage: request.stage,
       preset: request.preset,
@@ -136,14 +138,14 @@ export class PhaseWriterService implements DevicePlacement {
    * which controller the targets were read from, so the snapshot the phase draws
    * its band from stays the one that was really running.
    */
-  public async correctPhase(growId: string, phaseId: string, changes: PhaseCorrection): Promise<StoredPhase> {
+  public async correctPhase(growId: string, phaseId: string, changes: PhaseCorrection): Promise<PhaseDocument> {
     const grow = await this.grows.findOne({ id: growId }).lean<GrowDocument>().exec();
     if (!grow) throw notFound('grow_not_found', 'There is no grow with that id.');
 
     const standing = grow.phases.find(phase => phase.id === phaseId);
     if (!standing) throw notFound('phase_not_found', 'There is no phase of that grow with that id.');
 
-    const corrected: StoredPhase = {
+    const corrected: PhaseDocument = {
       ...standing,
       stage: changes.stage ?? standing.stage,
       preset: changes.preset === undefined ? standing.preset : changes.preset,
@@ -211,7 +213,7 @@ export class PhaseWriterService implements DevicePlacement {
     // them to stand in: a grow with none keeps the alarms it has. Nothing
     // writes a climate.
     const removed = grow.phases.find(phase => phase.id === phaseId)!;
-    const standingOf = (phases: StoredPhase[]) => latestOf(phases.filter(phase => overlap(phase.plantIds, removed.plantIds)));
+    const standingOf = (phases: PhaseDocument[]) => latestPhase(phases.filter(phase => overlap(phase.plantIds, removed.plantIds)));
     const standing = standingOf(left);
     if (standingOf(grow.phases)?.id === phaseId && standing) await this.rereadThresholds({ ...grow, phases: left }, standing, false);
   }
@@ -229,7 +231,7 @@ export class PhaseWriterService implements DevicePlacement {
    * by: "too cold" under 20 °C would trip every night of a flowering tent.
    * Where the device there already germinates, the bands are its own.
    */
-  private async rereadThresholds(grow: GrowDocument, phase: StoredPhase, climateWritten: boolean): Promise<void> {
+  private async rereadThresholds(grow: GrowDocument, phase: PhaseDocument, climateWritten: boolean): Promise<void> {
     if (!this.alarms) return;
 
     const spaceIds = spacesOf(grow, phase.plantIds);
@@ -273,7 +275,7 @@ export class PhaseWriterService implements DevicePlacement {
   }
 
   /** The thresholds are the alarm engine's, and a device that could not be told must not undo the phase the grow is in. */
-  private async applyStageTo(deviceId: string, phase: StoredPhase): Promise<void> {
+  private async applyStageTo(deviceId: string, phase: PhaseDocument): Promise<void> {
     try {
       await this.alarms?.applyStage(deviceId, phase.stage, phase.preset);
     } catch (error) {
@@ -282,29 +284,38 @@ export class PhaseWriterService implements DevicePlacement {
   }
 
   /**
-   * The grow standing in a space: the one whose placement there is still open.
-   * Null when there is none - a controller merely being on invents no grow.
+   * What is growing in a place right now, as an id and nothing more: the grow
+   * whose placement there is still open. Null when there is none - a controller
+   * merely being on invents no grow.
+   *
+   * It is also what the alarms ask through `GROW_IN_SPACE`: an alarm happens in
+   * a tent, and a tent with a grow standing in it has a diary the line belongs
+   * in. The newest open placement answers it, because two grows can share a
+   * tent while one is on its way out.
    */
-  public async growInSpace(spaceId: string | null): Promise<string | null> {
+  public async growIdIn(spaceId: string | null): Promise<string | null> {
     if (!spaceId) return null;
 
-    const grow = await this.grows.findOne(standingIn(spaceId), { id: 1 }).sort({ startedAt: -1 }).lean<{ id: string }>().exec();
+    const grow = await this.grows.findOne(standingIn(spaceId), { id: 1 }).sort({ startedAt: -1, id: -1 }).lean<Pick<GrowDocument, 'id'>>().exec();
     return grow?.id ?? null;
+  }
+
+  /** The phase a grow already stands in with this stage and preset, for a request that appended none. */
+  public async standingPhase(growId: string, stage: GrowthStage, preset: string | null): Promise<PhaseDocument | null> {
+    const grow = await this.grows.findOne({ id: growId }, { phases: 1 }).lean<Pick<GrowDocument, 'phases'>>().exec();
+    return latestPhase((grow?.phases ?? []).filter(phase => phase.stage === stage && phase.preset === preset));
   }
 }
 
-/** A fridge or a controller running a mode other than germination: its work mode is a word, and not `breed`. */
+/** A device with work modes running a mode other than germination: its work mode is a word, and not `breed`. */
 const holdsAnotherMode = (device: Pick<StoredDevice, 'type' | 'configuration'>): boolean => {
   const workmode = device.configuration?.workmode;
-  return (device.type === 'fridge' || device.type === 'controller') && typeof workmode === 'string' && workmode !== 'breed';
+  return hasWorkModes(device.type) && typeof workmode === 'string' && workmode !== 'breed';
 };
 
-/** A grow still going with an open placement in the space. The newest wins where two share a tent while one is on its way out. */
-const standingIn = (spaceId: string): FilterQuery<GrowDocument> => ({ endedAt: null, placements: { $elemMatch: { spaceId, endedAt: null } } });
+const byDate = (one: PhaseDocument, other: PhaseDocument): number => one.startedAt.getTime() - other.startedAt.getTime();
 
-const byDate = (one: StoredPhase, other: StoredPhase): number => one.startedAt.getTime() - other.startedAt.getTime();
-
-const earliestOf = (phases: StoredPhase[]): Date | null =>
+const earliestOf = (phases: PhaseDocument[]): Date | null =>
   phases.reduce<Date | null>((first, phase) => (first && first <= phase.startedAt ? first : phase.startedAt), null);
 
 /**
@@ -319,7 +330,7 @@ const earliestOf = (phases: StoredPhase[]): Date | null =>
  * than every phase - a grow written down first and put into a stage days later -
  * is a start of its own and stays; a grow left with no phase keeps it too.
  */
-const startCarriedBy = (grow: Pick<GrowDocument, 'phases' | 'startedAt'>, phases: StoredPhase[]): Date | null => {
+const startCarriedBy = (grow: Pick<GrowDocument, 'phases' | 'startedAt'>, phases: PhaseDocument[]): Date | null => {
   const before = earliestOf(grow.phases);
   const after = earliestOf(phases);
   if (!before || !after || before.getTime() !== grow.startedAt.getTime()) return null;
@@ -327,12 +338,9 @@ const startCarriedBy = (grow: Pick<GrowDocument, 'phases' | 'startedAt'>, phases
   return after.getTime() === before.getTime() ? null : after;
 };
 
-const latestOf = (phases: StoredPhase[]): StoredPhase | null =>
-  phases.reduce<StoredPhase | null>((latest, phase) => (latest && latest.startedAt > phase.startedAt ? latest : phase), null);
-
 /** Where the plants a phase is about stand now: the latest phase written over the same scope. */
-const currentPhase = (grow: GrowDocument, plantIds: string[] | null): StoredPhase | null =>
-  latestOf(grow.phases.filter(phase => sameScope(phase.plantIds, plantIds)));
+const currentPhase = (grow: GrowDocument, plantIds: string[] | null): PhaseDocument | null =>
+  latestPhase(grow.phases.filter(phase => sameScope(phase.plantIds, plantIds)));
 
 /** Whether two scopes share a plant. Null is every plant of the grow, so it overlaps anything. */
 const overlap = (one: string[] | null, other: string[] | null): boolean =>
@@ -348,9 +356,9 @@ const spacesOf = (grow: GrowDocument, plantIds: string[] | null): string[] => [
 ];
 
 /** The phase the plants standing in a space are in: the latest one written over any of them. */
-const phaseStandingIn = (grow: GrowDocument, spaceId: string): StoredPhase | null => {
+const phaseStandingIn = (grow: GrowDocument, spaceId: string): PhaseDocument | null => {
   const placed = grow.placements.filter(placement => placement.endedAt === null && placement.spaceId === spaceId);
-  return latestOf(grow.phases.filter(phase => placed.some(placement => overlap(placement.plantIds, phase.plantIds))));
+  return latestPhase(grow.phases.filter(phase => placed.some(placement => overlap(placement.plantIds, phase.plantIds))));
 };
 
 const sameScope = (one: string[] | null, other: string[] | null): boolean => {

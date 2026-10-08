@@ -1,10 +1,12 @@
 import type {
+  CameraStill,
   DeviceSeries,
   GrowthStage,
   Metric,
   OutputMetric,
   PhaseTargets,
   SeriesPoint,
+  SpaceTimeline,
   TimelineOutputLane,
   TimelinePanel,
   TimelineSpan,
@@ -14,10 +16,12 @@ import type {
 import { DAY_ONLY, METRIC_DECIMALS, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
 import { cycleKindOf, nightsIn, transitionsIn, type Cycle, type Span } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { OUTPUT_LEVEL } from '@common/v1/metrics';
+import type { CameraDocument } from '@database/schemas/v1/cameras.schema';
+import type { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import type { DeviceHistory, OutputHistory } from '@modules/data/data.service';
 import type { OutputSwitching } from '@modules/data/flux';
 import { bandAround, halvesHeld, recordedBandAt, unionOf, type RecordedClimate } from '../device/held-targets';
-import type { CycleStretch } from '../phase/target-record';
+import { cyclesOf, type CycleStretch } from '../phase/target-record';
 
 /**
  * What the windows of a read mean once they are on the screen: the stacked
@@ -258,8 +262,35 @@ export const lanesOf = (
     ),
   );
 
+/**
+ * What every chart of a place carries around its curves - the Timeline, a
+ * place's charts and a grow's - read off the same histories the same way, so
+ * that the three screens cannot disagree about a night, a lane or a camera.
+ */
+export const chartPartsOf = (read: {
+  histories: readonly DeviceHistory[];
+  devices: readonly { id: string; type: string }[];
+  window: SeriesWindow & { stepSeconds: number };
+  redacted: boolean;
+  /** The steering device's target record over the window, which the night and the transitions are read from. */
+  aimed: readonly StoredTargetChange[];
+  cameras: readonly Pick<CameraDocument, 'id' | 'name'>[];
+  frames: ReadonlyMap<string, CameraStill[]>;
+}): Pick<SpaceTimeline, 'stepSeconds' | 'deviceIds' | 'outputs' | 'nights' | 'transitions' | 'cameras'> => {
+  const cycles = cyclesOf(read.aimed, read.window);
+
+  return {
+    stepSeconds: read.histories.length === 0 ? 0 : read.window.stepSeconds,
+    deviceIds: read.redacted ? null : read.devices.map(device => device.id),
+    outputs: lanesOf(read.histories, read.window, read.redacted, fridgesOf(read.devices)),
+    nights: nightsOf(read.histories, read.window, cycles),
+    transitions: transitionsOf(cycles),
+    cameras: read.cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: read.frames.get(camera.id) ?? [] })),
+  };
+};
+
 /** The devices of a read that are fridge modules, which is what names a lane's compressor. */
-export const fridgesOf = (devices: readonly { id: string; type: string }[]): ReadonlySet<string> =>
+const fridgesOf = (devices: readonly { id: string; type: string }[]): ReadonlySet<string> =>
   new Set(devices.filter(device => device.type === 'fridge').map(device => device.id));
 
 /** The level of one output in the contract's unit, where it has one and the read asked for it. */
@@ -295,7 +326,7 @@ const outputIn = (history: DeviceHistory, output: OutputMetric): OutputHistory =
   history.outputs.find(one => one.output === output) ?? { output, switchings: [] };
 
 /** The window the lanes and the night are read against. */
-export interface SeriesWindow {
+interface SeriesWindow {
   startsAt: Date;
   endsAt: Date;
 }

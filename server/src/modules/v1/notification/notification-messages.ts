@@ -1,6 +1,6 @@
-import { DateTime } from 'luxon';
 import type { PlanStep, Task } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
+import { localOf } from '@common/v1/local-time';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -114,10 +114,7 @@ export const weeklyTimelapseAnnouncement = (
 });
 
 /** The day in the owner's zone, where the week was cut; UTC where the account names none. */
-const dayOf = (at: Date, zone: string | null): string => {
-  const local = DateTime.fromJSDate(at, { zone: zone || 'utc' });
-  return (local.isValid ? local : DateTime.fromJSDate(at, { zone: 'utc' })).setLocale('en').toFormat('d LLLL yyyy');
-};
+const dayOf = (at: Date, zone: string | null): string => localOf(at, zone).setLocale('en').toFormat('d LLLL yyyy');
 
 /** What an alert with no rule behind it is called: the health loop's own two. */
 const kindReads: Record<StoredAlert['kind'], string> = {

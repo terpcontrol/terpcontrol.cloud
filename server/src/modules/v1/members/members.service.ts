@@ -6,6 +6,7 @@ import type { Membership, MembershipCreate, MembershipPage, MembershipUpdate, Pe
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { peopleNamed } from '@common/v1/people';
 import { conflict, forbidden, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -273,16 +274,12 @@ export class MembersService {
     return new Set([...owned.map(space => space.id), ...joined.map(row => row.spaceId)]);
   }
 
-  private async peopleOf(rows: readonly MembershipDocument[], ownerId: string): Promise<Person[]> {
+  private peopleOf(rows: readonly MembershipDocument[], ownerId: string): Promise<Person[]> {
     // The owner holds no membership row, so a list built from the rows alone
     // leaves the one person who runs the tent as the only nameless face on it -
     // which is exactly backwards for a guest trying to work out whose diary
     // they are reading. A handle is the only name anybody ever gets anyway.
-    const ids = [...new Set([ownerId, ...rows.map(row => row.userId)])];
-    if (ids.length === 0) return [];
-
-    const people = await this.users.find({ id: { $in: ids } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
-    return people.map(person => ({ id: person.id, handle: person.handle }));
+    return peopleNamed(this.users, [ownerId, ...rows.map(row => row.userId)]);
   }
 
   /** A grant that says the caller is really in this space, rather than holding a key to what stands in it. */

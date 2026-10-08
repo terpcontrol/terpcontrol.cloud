@@ -13,6 +13,7 @@ import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { MediaTally } from '@modules/v1/camera/media.service';
+import { readingsIn } from '../diary/diary-entries';
 
 /**
  * What an export's CSVs say.
@@ -128,9 +129,6 @@ export const measurementsCsv = (
     ),
   );
 };
-
-export const readingsIn = (entry: EntryDocument): { key: string; value: number; plantId: string | null }[] =>
-  'readings' in entry.values ? entry.values.readings : [];
 
 /**
  * The climate, a row per instant per device: every metric it measured and every
@@ -255,6 +253,25 @@ export const accountSettingsJson = (user: StoredUser): Buffer =>
       2,
     )}\n`,
     'utf8',
+  );
+
+/** What the account itself is, on one row. The password hash is the one thing here that is never anybody's to export. */
+export const accountCsv = (user: StoredUser): Buffer =>
+  csvOf(
+    ['handle', 'email', 'createdAt', 'isActive', 'isAdmin', 'locale', 'timezone', 'publicProfile', 'userId'],
+    [
+      [
+        user.handle,
+        user.email,
+        user.createdAt,
+        user.isActive,
+        user.isAdmin,
+        user.preferences.locale,
+        user.preferences.timezone,
+        user.publicProfile,
+        user.id,
+      ],
+    ],
   );
 
 /** The places, with the people each is shared with - which is the half of a tent that is not in the tent. */

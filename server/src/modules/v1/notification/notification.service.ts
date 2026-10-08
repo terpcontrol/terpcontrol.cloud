@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { DateTime } from 'luxon';
 import type { NotificationChannel, Severity } from '@fg2/shared-types/v1';
 import { inQuietWindow, silenceOf } from '@fg2/shared-types/v1-schemas';
+import { localOf } from '@common/v1/local-time';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
@@ -127,10 +127,7 @@ const heldBack = (settings: StoredNotificationSettings, severity: Severity, time
 
 /** Quiet hours read in the person's own time zone, so the same setting means the same night wherever the server stands. */
 export const inQuietHours = (quiet: StoredNotificationSettings['quietHours'], timezone: string, at: Date = new Date()): boolean => {
-  // A time zone the account carries but this host has never heard of would
-  // otherwise make every window unreadable; UTC is the server's own clock.
-  const local = DateTime.fromJSDate(at, { zone: timezone || 'UTC' });
-  const clock = local.isValid ? local : DateTime.fromJSDate(at, { zone: 'UTC' });
+  const clock = localOf(at, timezone);
 
   return inQuietWindow(quiet, clock.hour * 60 + clock.minute);
 };

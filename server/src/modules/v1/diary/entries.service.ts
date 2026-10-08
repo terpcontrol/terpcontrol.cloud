@@ -30,7 +30,7 @@ import { serialiseDiaryEntry } from './diary-entries';
 /** What a timeline can be about. In the order a refusal names them. */
 const SCOPES: readonly SubjectType[] = ['grow', 'space', 'device', 'plant'];
 
-export interface EntryListQuery {
+interface EntryListQuery {
   growId?: string;
   spaceId?: string;
   deviceId?: string;

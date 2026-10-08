@@ -8,7 +8,7 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { logger } from '@utils/logger';
-import { dueTasksOf, occurrencePrefix } from '../home/due-tasks';
+import { completionsOf, dueTasksOf, reminderOfTask } from '../diary/due-tasks';
 import { taskAnnouncement } from './notification-messages';
 import { NotificationService } from './notification.service';
 import { RecipientsService } from './recipients.service';
@@ -64,13 +64,13 @@ export class TaskAnnouncerService implements OnModuleInit, OnApplicationShutdown
     const wanted = reminders.filter(reminder => kept.has(reminder.subject.id));
     if (wanted.length === 0) return;
 
-    const completions = await this.completionsOf(wanted);
+    const completions = await completionsOf(this.entries, wanted);
     // Due now, not due soon: a card may show tomorrow's work so somebody can
     // prepare for it, but nobody's phone should go off about it the day before.
     const due = dueTasksOf(wanted, completions, now).filter(task => Date.parse(task.dueAt) <= now.getTime());
 
     for (const task of due) {
-      const reminder = wanted.find(candidate => task.id === candidate.id || task.id.startsWith(occurrencePrefix(candidate.id)));
+      const reminder = reminderOfTask(wanted, task.id);
       if (!reminder) continue;
 
       for (const userId of await this.whoToTell(reminder)) await this.notifications.tellOnce(userId, taskAnnouncement(task));
@@ -104,12 +104,5 @@ export class TaskAnnouncerService implements OnModuleInit, OnApplicationShutdown
     ]);
 
     return new Set([...grows.map(grow => grow.id), ...spaces.map(space => space.id)]);
-  }
-
-  /** The entries that ticked a task of these reminders off: a one-off by its id, a rhythm by any of its occurrences. */
-  private completionsOf(reminders: ReminderDocument[]): Promise<EntryDocument[]> {
-    return this.entries
-      .find({ $or: reminders.map(reminder => ({ taskId: reminder.onceAt ? reminder.id : { $regex: `^${occurrencePrefix(reminder.id)}` } })) })
-      .lean<EntryDocument[]>();
   }
 }

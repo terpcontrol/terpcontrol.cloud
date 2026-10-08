@@ -9,13 +9,11 @@ import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { DataService } from '@modules/data/data.service';
-import { cyclesOf, recordOf } from '../phase/target-record';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
-import { CHART_FRAME_SLOTS, framesOf } from './frames';
-import { lastReadingOf } from './last-reading';
-import { fridgesOf, lanesOf, nightsOf, panelsOf, transitionsOf } from './timeline-series';
-import { narrowedTo, steeringOf, stretchesOf } from './timeline-window';
+import { chartSeriesOf } from './chart-series';
+import { shownCameras } from './frames';
+import { narrowedTo } from './timeline-window';
 
 /** What the route was asked for, after the query string has been checked against the contract. */
 export interface SpaceSeriesQuery {
@@ -61,42 +59,23 @@ export class SpaceSeriesService {
       ]);
     }
 
-    const [space, devices] = await Promise.all([this.places.require(spaceId), this.live.devicesIn([spaceId])]);
-    const window = narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, null, now, asked.stepSeconds);
-    const metrics = asked.metrics ?? [];
-    const outputs = asked.outputs ?? [];
-    const read = metrics.length > 0 || outputs.length > 0;
-
-    const [series, aimed, cameras] = await Promise.all([
-      Promise.all(
-        (read ? devices : []).map(device =>
-          this.data.history(device.id, { startsAt: window.startsAt, endsAt: window.endsAt, stepSeconds: window.stepSeconds, metrics, outputs }, true),
-        ),
-      ),
-      recordOf(this.targetRecord, steeringOf(devices)?.id ?? null, window),
-      grant.includeCameras
-        ? this.cameras.find({ spaceId, removedAt: null }).sort({ createdAt: 1, id: 1 }).lean<CameraDocument[]>()
-        : Promise.resolve([] as CameraDocument[]),
+    const [space, devices, cameras] = await Promise.all([
+      this.places.require(spaceId),
+      this.live.devicesIn([spaceId]),
+      shownCameras(this.cameras, [spaceId], grant.includeCameras),
     ]);
-    const frames = await framesOf(this.media, cameras, window, CHART_FRAME_SLOTS);
-    const climate = panelsOf(
-      series.map(one => one.series),
-      stretchesOf(null, devices, window, now, aimed),
-      metrics,
+    const window = narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, null, now, asked.stepSeconds);
+    const charts = await chartSeriesOf(
+      { data: this.data, targetRecord: this.targetRecord, media: this.media },
+      grant,
+      null,
+      devices,
+      cameras,
+      window,
+      { metrics: asked.metrics ?? [], outputs: asked.outputs ?? [] },
+      now,
     );
 
-    return {
-      spaceId: space.id,
-      startsAt: window.startsAt.toISOString(),
-      endsAt: window.endsAt.toISOString(),
-      stepSeconds: series.length === 0 ? 0 : window.stepSeconds,
-      deviceIds: grant.redacted ? null : devices.map(device => device.id),
-      climate,
-      lastReadingAt: climate.length === 0 && metrics.length > 0 ? await lastReadingOf(this.data, devices) : null,
-      outputs: lanesOf(series, window, grant.redacted, fridgesOf(devices)),
-      nights: nightsOf(series, window, cyclesOf(aimed, window)),
-      transitions: transitionsOf(cyclesOf(aimed, window)),
-      cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),
-    };
+    return { spaceId: space.id, ...charts };
   }
 }

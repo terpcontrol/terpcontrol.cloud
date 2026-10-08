@@ -1,5 +1,5 @@
-import { DateTime } from 'luxon';
 import type { MediaWindow } from '@fg2/shared-types/v1';
+import { localOf } from '@common/v1/local-time';
 
 /**
  * The day, the week and the month a rolling film covers, cut on the calendar
@@ -24,12 +24,6 @@ export interface Period {
   startsAt: Date;
   endsAt: Date;
 }
-
-/** The zone a period is cut in: the account's, or UTC where it names none or one Luxon does not know. */
-const localOf = (at: Date, zone: string | null | undefined): DateTime => {
-  const local = DateTime.fromJSDate(at, { zone: zone || 'UTC' });
-  return local.isValid ? local : DateTime.fromJSDate(at, { zone: 'UTC' });
-};
 
 /** The period of this window that holds the instant. */
 export const periodAround = (window: RollingWindow, at: Date, zone: string | null | undefined): Period => {

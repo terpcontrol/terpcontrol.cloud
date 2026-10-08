@@ -6,7 +6,7 @@ import { AccessService } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { ProblemException } from '@common/v1/problem';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { GrowDocument, PhaseDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { AppliedPreset, ClimatePresets } from '@modules/v1/grow/climate-presets.port';
 import { NOTHING_HIDDEN, growUpTo, serialiseGrow, stagesReachedOf, summaryOf } from '@modules/v1/grow/grow-serialiser';
@@ -131,10 +131,7 @@ beforeEach(async () => {
 // What the two lists mean
 // ---------------------------------------------------------------------------
 
-type Phase = GrowDocument['phases'][number];
-type Placement = GrowDocument['placements'][number];
-
-const phase = (over: Partial<Phase>): Phase => ({
+const phase = (over: Partial<PhaseDocument>): PhaseDocument => ({
   id: 'phase',
   stage: 'vegetative',
   preset: null,
@@ -147,7 +144,7 @@ const phase = (over: Partial<Phase>): Phase => ({
   ...over,
 });
 
-const placement = (over: Partial<Placement>): Placement => ({
+const placement = (over: Partial<PlacementDocument>): PlacementDocument => ({
   id: 'placement',
   spaceId: TENT,
   startedAt: STARTED_AT,
