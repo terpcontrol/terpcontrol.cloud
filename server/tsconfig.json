@@ -21,7 +21,6 @@
     "noEmit": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "importHelpers": true,
     "baseUrl": "src",
     "paths": {
       "@/*": ["*"],
@@ -32,6 +31,6 @@
       "@utils/*": ["utils/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.json", ".env"],
-  "exclude": ["node_modules", "src/logs"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
 }
