@@ -1,6 +1,7 @@
 /**
- * Reading one picture from a camera: how long it may take, and what a failed
- * one is called.
+ * Reading one picture from a camera: how long it may take, what a failed one
+ * is called and when it goes through the camera's device - and the sentences a
+ * failed render stores.
  *
  * One read has `CAPTURE_BUDGET_SECONDS` from the moment it is asked for until
  * the camera has delivered or it is given up - every attempt it makes, and the
@@ -76,7 +77,7 @@ export const readsThroughDevice = (camera: { kind: string; tunnel: boolean }): b
  * words in the language the page is in; anything else a render stores, such as
  * an encoder's own message, is `unknown`.
  */
-export const RENDER_FAILURES = {
+export const RENDER_FAILURE_TEXT = {
   // The span held pictures and the render kept none of them: they were all taken with the light off.
   allDark: 'every picture in that span was taken with the light off',
   tooFew: 'there are not enough pictures in that span to make a film',
@@ -85,8 +86,8 @@ export const RENDER_FAILURES = {
   encodeFailed: 'the pictures in that span could not be made into a film',
 } as const;
 
-type RenderFailure = keyof typeof RENDER_FAILURES;
+type RenderFailure = keyof typeof RENDER_FAILURE_TEXT;
 
 /** What kind of failure the words a failed render left behind describe. */
 export const renderFailureOf = (error: string): RenderFailure | 'unknown' =>
-  (Object.keys(RENDER_FAILURES) as RenderFailure[]).find(cause => error.includes(RENDER_FAILURES[cause])) ?? 'unknown';
+  (Object.keys(RENDER_FAILURE_TEXT) as RenderFailure[]).find(cause => error.includes(RENDER_FAILURE_TEXT[cause])) ?? 'unknown';

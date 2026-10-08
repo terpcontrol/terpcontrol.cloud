@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderFailureOf = exports.RENDER_FAILURES = exports.readsThroughDevice = exports.captureFailureOf = exports.CAPTURE_FAILURES = exports.CAPTURE_BUDGET_SECONDS = void 0;
+exports.renderFailureOf = exports.RENDER_FAILURE_TEXT = exports.readsThroughDevice = exports.captureFailureOf = exports.CAPTURE_FAILURES = exports.CAPTURE_BUDGET_SECONDS = void 0;
 /**
- * Reading one picture from a camera: how long it may take, and what a failed
- * one is called.
+ * Reading one picture from a camera: how long it may take, what a failed one
+ * is called and when it goes through the camera's device - and the sentences a
+ * failed render stores.
  *
  * One read has `CAPTURE_BUDGET_SECONDS` from the moment it is asked for until
  * the camera has delivered or it is given up - every attempt it makes, and the
@@ -74,7 +75,7 @@ exports.readsThroughDevice = readsThroughDevice;
  * words in the language the page is in; anything else a render stores, such as
  * an encoder's own message, is `unknown`.
  */
-exports.RENDER_FAILURES = {
+exports.RENDER_FAILURE_TEXT = {
     // The span held pictures and the render kept none of them: they were all taken with the light off.
     allDark: 'every picture in that span was taken with the light off',
     tooFew: 'there are not enough pictures in that span to make a film',
@@ -83,5 +84,5 @@ exports.RENDER_FAILURES = {
     encodeFailed: 'the pictures in that span could not be made into a film',
 };
 /** What kind of failure the words a failed render left behind describe. */
-const renderFailureOf = (error) => Object.keys(exports.RENDER_FAILURES).find(cause => error.includes(exports.RENDER_FAILURES[cause])) ?? 'unknown';
+const renderFailureOf = (error) => Object.keys(exports.RENDER_FAILURE_TEXT).find(cause => error.includes(exports.RENDER_FAILURE_TEXT[cause])) ?? 'unknown';
 exports.renderFailureOf = renderFailureOf;

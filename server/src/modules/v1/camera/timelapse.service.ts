@@ -4,7 +4,7 @@ import { join } from 'path';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import { MediaQuality, TimelapseCreate } from '@fg2/shared-types/v1';
-import { RENDER_FAILURES } from '@fg2/shared-types/v1-schemas';
+import { RENDER_FAILURE_TEXT } from '@fg2/shared-types/v1-schemas';
 import { logger } from '@utils/logger';
 import { BackgroundWork } from '@common/background-work';
 import { badRequest, unprocessable } from '@common/v1/problem';
@@ -366,7 +366,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     const camera = job.cameraId ? await this.cameras.byId(job.cameraId) : null;
     if (!queued) return;
     if (!camera) {
-      await this.media.setRender(job.id, { ...queued, status: 'failed', endedAt: new Date(), error: RENDER_FAILURES.cameraGone });
+      await this.media.setRender(job.id, { ...queued, status: 'failed', endedAt: new Date(), error: RENDER_FAILURE_TEXT.cameraGone });
       return;
     }
 
@@ -762,10 +762,10 @@ const sameFilm = (existing: MediaDocument, render: NonNullable<MediaDocument['re
  * it is the one cause of the three the person reading can do something about.
  */
 export const whyNoFilm = (stills: number, frames: number): string => {
-  if (frames >= MINIMUM_FRAMES) return RENDER_FAILURES.encodeFailed;
-  if (stills >= MINIMUM_FRAMES) return RENDER_FAILURES.allDark;
+  if (frames >= MINIMUM_FRAMES) return RENDER_FAILURE_TEXT.encodeFailed;
+  if (stills >= MINIMUM_FRAMES) return RENDER_FAILURE_TEXT.allDark;
 
-  return RENDER_FAILURES.tooFew;
+  return RENDER_FAILURE_TEXT.tooFew;
 };
 
 /** Whether a still, walked oldest first, is kept when no two kept ones may lie closer than `minIntervalMs`. */

@@ -1,6 +1,7 @@
 /**
- * Reading one picture from a camera: how long it may take, and what a failed
- * one is called.
+ * Reading one picture from a camera: how long it may take, what a failed one
+ * is called and when it goes through the camera's device - and the sentences a
+ * failed render stores.
  *
  * One read has `CAPTURE_BUDGET_SECONDS` from the moment it is asked for until
  * the camera has delivered or it is given up - every attempt it makes, and the
@@ -40,13 +41,13 @@ export declare const readsThroughDevice: (camera: {
  * words in the language the page is in; anything else a render stores, such as
  * an encoder's own message, is `unknown`.
  */
-export declare const RENDER_FAILURES: {
+export declare const RENDER_FAILURE_TEXT: {
     readonly allDark: "every picture in that span was taken with the light off";
     readonly tooFew: "there are not enough pictures in that span to make a film";
     readonly cameraGone: "the camera this was asked of is gone";
     readonly encodeFailed: "the pictures in that span could not be made into a film";
 };
-type RenderFailure = keyof typeof RENDER_FAILURES;
+type RenderFailure = keyof typeof RENDER_FAILURE_TEXT;
 /** What kind of failure the words a failed render left behind describe. */
 export declare const renderFailureOf: (error: string) => RenderFailure | "unknown";
 export {};
