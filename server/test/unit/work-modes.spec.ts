@@ -274,9 +274,9 @@ describe('a setting changed by name', () => {
 
     const lines = (await db.entries.find({}).sort({ _id: 1 }).lean()).map(entry => entry.message);
     expect(lines).toEqual([
-      { key: 'message-device-configuration-updated', params: ['workmode: small → full'] },
-      { key: 'message-device-configuration-updated', params: ['workmode: full → off'] },
-      { key: 'message-device-configuration-updated', params: ['workmode: off → full'] },
+      { key: 'message-device-configuration-updated', params: ['workmode: small → full', '', 'fridge'] },
+      { key: 'message-device-configuration-updated', params: ['workmode: full → off', '', 'fridge'] },
+      { key: 'message-device-configuration-updated', params: ['workmode: off → full', '', 'fridge'] },
     ]);
   });
 
@@ -361,7 +361,7 @@ describe('every other way a document is written', () => {
     expect(after.workmode).toBe('full');
     expect(after.daynight).toMatchObject({ maxDehumidifySeconds: 900, targetHumidityDiff: 0, useLongHumidityAvg: 1 });
     // What the person moved is written down; what the server tuned from it is not.
-    expect((await db.entries.findOne({}).lean())?.message?.params).toEqual(['day.humidity: 60 → 50\nworkmode: off → full']);
+    expect((await db.entries.findOne({}).lean())?.message?.params).toEqual(['day.humidity: 60 → 50\nworkmode: off → full', '', 'fridge']);
   });
 
   it('dries for a drying preset or step, and goes back to the remembered mode for the next', async () => {

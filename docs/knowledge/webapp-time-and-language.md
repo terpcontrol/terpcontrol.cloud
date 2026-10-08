@@ -111,7 +111,8 @@ its line.
   catalogues - English and the active language - so rewording either string orphans the plans paused before it.
 - `src/i18n/device-message.ts` resolves a stored `{ key, params }`: `<key>:<params>-title|text` first, then
   `<key>-title|text` with `{{value}}`, else the key as it came, so a key a newer firmware invents is readable.
-  Alarm lines (`alarm-line.ts`) and settings changes (`configuration-change.ts`) are reworded from their parameters;
+  Alarm lines (`alarm-line.ts`) and settings changes (`configuration-change.ts`, which names a place by the device
+  type the line carries where that type holds something else there) are reworded from their parameters;
   migrated machine lines without a key are split at their first blank line into headline and detail
   (`machineLineParts`); a person's own words are never translated.
 - `test/device-message.test.ts` runs against the shipped catalogues and requires a title and a text in both

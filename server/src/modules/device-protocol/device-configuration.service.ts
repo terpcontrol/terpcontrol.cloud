@@ -237,17 +237,22 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * The two times of the light schedule are named together whenever either
    * moved: 24 hours and none are each written as a pair - a day that never
    * ends, a light that goes off as it comes on - and one of them alone reads as
-   * a time of day that means nothing. Where the device holds the night's
-   * figures round the clock - drying, germination - the mode it is in goes with
-   * the line, so the screens can say the drying room's humidity moved rather
-   * than the night's.
+   * a time of day that means nothing.
+   *
+   * Beside the lines go the mode the device holds the night's figures round
+   * the clock in - drying, germination; empty otherwise - so the screens can
+   * say the drying room's humidity moved rather than the night's, and the
+   * device's type, because one place holds different things on different
+   * hardware: a smart socket's `daynight` times are where its day starts for
+   * its switch points, a controller's are its lamp's. A line written before
+   * either carries the figures alone, or the figures and the mode.
    */
   private async writeDown(deviceId: string, written: Written, by: string | null): Promise<void> {
     const moved = [...withScheduleWhole(changedFigures(written.before, written.after), written.after), ...choicesMoved(written.choices)];
     if (moved.length === 0) return;
     const mode = written.after.workmode;
 
-    const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
+    const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1, type: 1 }).lean<Pick<StoredDevice, 'spaceId' | 'type'> | null>();
     await this.entries.write({
       source: 'device',
       authorId: by,
@@ -255,7 +260,10 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       spaceId: device?.spaceId ?? null,
       deviceId,
       severity: 'info',
-      message: { key: 'message-device-configuration-updated', params: [moved.join('\n'), ...(mode === 'dry' || mode === 'breed' ? [mode] : [])] },
+      message: {
+        key: 'message-device-configuration-updated',
+        params: [moved.join('\n'), mode === 'dry' || mode === 'breed' ? mode : '', device?.type ?? ''],
+      },
     });
   }
 
@@ -577,10 +585,11 @@ const figuresMoved = (before: unknown, after: unknown, path: string): string[] =
 };
 
 /**
- * Where a document keeps the two times of its light: under `daynight` on a
- * controller, a fridge and a smart socket, at the top of a stand-alone LIGHT's.
- * An AIR fan has none - its day is what its light sensor sees, and its
- * `day`/`night` are sections of figures.
+ * Where a document keeps the two times its day starts and ends at: under
+ * `daynight` on a controller, a fridge and a smart socket - on a socket no
+ * lamp's, but when its switch points by night take over from those by day -
+ * and at the top of a stand-alone LIGHT's. An AIR fan has none - its day is
+ * what its light sensor sees, and its `day`/`night` are sections of figures.
  */
 const LIGHT_WINDOWS = [
   ['daynight.day', 'daynight.night'],

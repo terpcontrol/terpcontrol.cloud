@@ -46,11 +46,12 @@ export const resolveDeviceMessage = (i18n: I18n, message: EntryMessage, part: Me
   }
 
   // A change of settings names its figures by the firmware's keys; they are said in the app's words.
-  // The server writes the mode a drying room or a germination was left in beside them.
+  // The server writes beside them the mode a drying room or a germination was left in (empty for any
+  // other) and the device's type; an older line carries the mode alone, or neither.
   if (message.key === CONFIGURATION_CHANGE && value) {
-    const [lines = '', mode = null] = message.params;
+    const [lines = '', mode = '', type = ''] = message.params;
     if (part === 'title') return configurationTitle(i18n, lines) ?? i18n.t(`${message.key}-title`);
-    return i18n.t(`${message.key}-text`, { value: configurationChange(i18n, lines, { ...context, mode }) });
+    return i18n.t(`${message.key}-text`, { value: configurationChange(i18n, lines, { ...context, mode: mode || null, type: type || null }) });
   }
 
   const specific = value ? `${message.key}:${value}-${part}` : null;

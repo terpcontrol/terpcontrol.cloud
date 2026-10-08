@@ -165,9 +165,11 @@ describe('device messages against the shipped catalogue', () => {
  * A stand-alone LIGHT keeps its figures at the top of its document and an AIR
  * fan keeps speeds beside its targets, and the diary named none of them: a
  * lamp's schedule read as "day: 21600 → 21660", seconds past midnight UTC, and
- * a fan's mode as "mode: 0 → 1". Lines as the server writes them for both.
+ * a fan's mode as "mode: 0 → 1". A stand-alone smart socket keeps its day where
+ * a controller keeps its lamp's, and the diary read it as a light plan. Lines
+ * as the server writes them for each.
  */
-describe('a LIGHT´s and an AIR fan´s settings, changed', () => {
+describe('a LIGHT´s, an AIR fan´s and a smart socket´s settings, changed', () => {
   const berlin = { zone: 'Europe/Berlin', at: '2026-10-03T09:48:22.000Z' };
   const reader: Record<'en' | 'de', I18n> = { en: i18next.createInstance(), de: i18next.createInstance() };
   const said = (language: 'en' | 'de', lines: string) => configurationChange(reader[language], lines, berlin);
@@ -221,6 +223,24 @@ describe('a LIGHT´s and an AIR fan´s settings, changed', () => {
     expect(said('de', 'co2inject.speed: 100 → 40\nco2inject.usedaynight: 0 → 1')).toBe(
       'Drehzahl, während CO₂ dosiert wird: 100 % → 40 %\nCO₂ nur tagsüber dosiert: aus → an',
     );
+  });
+
+  /**
+   * A socket's day is when its switch points by night give way to those by
+   * day, which no lamp follows: its two times are said as its panel says them,
+   * each alone. A line from before the server wrote the type is read as ever.
+   */
+  it('says a smart socket´s day and night in the words of its panel, where the line names its type', () => {
+    const text = (language: 'en' | 'de', params: string[]) =>
+      resolveDeviceMessage(reader[language], { key: 'message-device-configuration-updated', params }, 'text', berlin);
+    const times = 'daynight.day: 21600 → 25200\ndaynight.night: 64800 → 64800';
+
+    expect(text('en', [times, '', 'plug'])).toContain('Day from: 08:00 → 09:00\nNight from: 20:00 → 20:00');
+    expect(text('de', [times, '', 'plug'])).toContain('Tag ab: 08:00 → 09:00\nNacht ab: 20:00 → 20:00');
+    // A controller's are its lamp's, typed or not.
+    expect(text('de', [times, '', 'controller'])).toContain('Lichtplan: Licht an 08:00–20:00 · 12 Std → Licht an 09:00–20:00 · 11 Std');
+    expect(text('en', [times])).toContain('Light plan: Light on 08:00–20:00 · 12 h → Light on 09:00–20:00 · 11 h');
+    expect(text('de', [times, 'dry'])).toContain('Lichtplan: Licht an 08:00–20:00 · 12 Std → Licht an 09:00–20:00 · 11 Std');
   });
 
   /** A fan's day and night are sections; where one appears whole it is no time of a lamp, and no plan. */

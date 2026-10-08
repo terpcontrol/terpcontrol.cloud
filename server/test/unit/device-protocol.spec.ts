@@ -619,9 +619,26 @@ describe('what the cloud tells a device', () => {
         authorId: OWNER,
         deviceId: DEVICE,
         severity: 'info',
-        message: { key: 'message-device-configuration-updated', params: ['day.temperature: 24 → 25'] },
+        message: { key: 'message-device-configuration-updated', params: ['day.temperature: 24 → 25', '', 'controller'] },
       }),
     ]);
+  });
+
+  /**
+   * A smart socket keeps its day under `daynight` as a controller does, but no
+   * lamp follows it: its switch points by night take over from those by day.
+   * Read without its type, the line said a socket's day as a light plan.
+   */
+  it('writes the type of device beside the figures, so a smart socket´s day is not read as a lamp´s', async () => {
+    await device({ type: 'plug', configuration: { workmode: 'heater', usedaynight: 1, daynight: { day: 21600, night: 79200 } } });
+    const configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries));
+
+    await configuration.configure(DEVICE, { dayFrom: 25200 }, OWNER);
+
+    expect((await db.entries.findOne({}).lean())?.message).toEqual({
+      key: 'message-device-configuration-updated',
+      params: ['daynight.day: 21600 → 25200\ndaynight.night: 79200 → 79200', '', 'plug'],
+    });
   });
 
   it('records the targets each write moved, whoever made it, and nothing for a write that moved none', async () => {

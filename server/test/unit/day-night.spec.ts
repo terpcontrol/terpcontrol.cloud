@@ -722,7 +722,10 @@ describe('a save of the targets', () => {
     await configuration.replace(DEVICE, fridge({ workmode: 'dry', night: { temperature: 18, humidity: 55 } }), 'user-1');
 
     const lines = (await db.entries.find({}).sort({ _id: 1 }).lean()).map(entry => entry.message?.params);
-    expect(lines).toEqual([['daynight.day: 21600 → 21600\ndaynight.night: 64800 → 21600'], ['night.humidity: 58 → 55', 'dry']]);
+    expect(lines).toEqual([
+      ['daynight.day: 21600 → 21600\ndaynight.night: 64800 → 21600', '', 'fridge'],
+      ['night.humidity: 58 → 55', 'dry', 'fridge'],
+    ]);
   });
 
   it('writes both times of a LIGHT down too, which keeps them at the top of its document, and pairs nothing of a fan´s', async () => {
@@ -746,9 +749,9 @@ describe('a save of the targets', () => {
 
     const lines = (await db.entries.find({}).sort({ _id: 1 }).lean()).map(entry => entry.message?.params);
     expect(lines).toEqual([
-      ['day: 21600 → 25200\nnight: 64800 → 64800'],
-      ['day: 25200 → 25200\nlimit: 80 → 90\nnight: 64800 → 72000'],
-      ['day.fixed_speed: 60 → 70'],
+      ['day: 21600 → 25200\nnight: 64800 → 64800', '', 'light'],
+      ['day: 25200 → 25200\nlimit: 80 → 90\nnight: 64800 → 72000', '', 'light'],
+      ['day.fixed_speed: 60 → 70', '', 'fan'],
     ]);
   });
 });

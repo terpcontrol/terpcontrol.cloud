@@ -16,12 +16,13 @@ import { offsetOf, wallClock } from '@/ui/wall-clock';
  * the words their controls carry, with their unit; a figure the app does not
  * know - a key a newer firmware adds - is shown as it came.
  *
- * A line names no type of device, only the place of each figure, so a place is
- * read alike whatever wrote it. A stand-alone LIGHT keeps its schedule,
- * brightness and ramps at the top of its document, where no other type keeps a
- * figure, and an AIR fan's day and night are sections holding the temperature
- * and humidity a controller's do; a fan's whole section, written where a LIGHT
- * keeps a time, is no time and is shown as it came.
+ * A place is read alike whatever wrote it, but for the few that hold something
+ * else on one type of device (`OWN_WORDS`), where the line names its type. A
+ * stand-alone LIGHT keeps its schedule, brightness and ramps at the top of its
+ * document, where no other type keeps a figure, and an AIR fan's day and night
+ * are sections holding the temperature and humidity a controller's do; a fan's
+ * whole section, written where a LIGHT keeps a time, is no time and is shown as
+ * it came.
  */
 
 type Kind = 'mode' | 'fanMode' | 'switch' | 'coupled' | 'time' | 'number';
@@ -82,6 +83,24 @@ const FIELDS: Readonly<Record<string, Field>> = {
   mqttcontrol: { kind: 'switch' },
 };
 
+/**
+ * Places that hold something else on one type of device than on a controller,
+ * in the words of that type's own panel. A stand-alone smart socket keeps a day
+ * and a night under `daynight` as a controller does, but no lamp follows them:
+ * they are when its switch points by night take over from those by day, so
+ * each is said alone and the two are no light plan. A line from before the
+ * server wrote the type is read as it always was.
+ */
+const OWN_WORDS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  plug: { 'daynight.day': 'plugSettings.dayFrom', 'daynight.night': 'plugSettings.nightFrom' },
+};
+
+/** The words a place goes by on the type of device the line was written for, where they are its own. */
+const ownWords = (type: string | null | undefined, place: string): string | null => {
+  const words = type && Object.hasOwn(OWN_WORDS, type) ? OWN_WORDS[type] : null;
+  return words && Object.hasOwn(words, place) ? words[place] : null;
+};
+
 /** The two times of a light schedule, where each type keeps them: a controller's and a fridge's, and a LIGHT's. */
 const SCHEDULES = [
   ['daynight.day', 'daynight.night'],
@@ -95,12 +114,14 @@ const LINE = /^(.+?): (.*) → (.*)$/;
  * written, which together say on what wall clock its times of day were meant -
  * the server moves them when the clocks change, so a line from before the
  * change is read with the offset of then. `mode` is the work mode the device
- * was left in where it holds the night's figures round the clock.
+ * was left in where it holds the night's figures round the clock, and `type`
+ * the type of the device, where the line says it.
  */
 export interface ChangeContext {
   zone?: string | null;
   at?: string | null;
   mode?: string | null;
+  type?: string | null;
 }
 
 /** How far the account's wall clock was ahead of UTC when the line was written. */
@@ -168,9 +189,12 @@ const lineOf = (i18n: I18n, line: string, context: ChangeContext): string => {
   const [before, after] = [valueOf(i18n, field, match[2], context), valueOf(i18n, field, match[3], context)];
   if (before === null || after === null) return line;
 
-  const name = HELD_IN[context.mode ?? '']?.includes(match[1])
-    ? i18n.t(`configChange.held.${context.mode}.${match[1]}`)
-    : i18n.t(`configChange.field.${field.as ?? match[1]}`);
+  const own = ownWords(context.type, match[1]);
+  const name = own
+    ? i18n.t(own)
+    : HELD_IN[context.mode ?? '']?.includes(match[1])
+      ? i18n.t(`configChange.held.${context.mode}.${match[1]}`)
+      : i18n.t(`configChange.field.${field.as ?? match[1]}`);
   return `${name}: ${before} → ${after}`;
 };
 
@@ -199,6 +223,7 @@ export const configurationChange = (i18n: I18n, value: string, context: ChangeCo
   // The two times of a schedule are said as one line, where the first of them stood.
   const said = new Map<number, string | null>();
   for (const [on, off] of SCHEDULES) {
+    if (ownWords(context.type, on)) continue;
     const day = matches.findIndex(match => match?.[1] === on && readsAsTimes(match));
     const night = matches.findIndex(match => match?.[1] === off && readsAsTimes(match));
     const [dayMatch, nightMatch] = [matches[day], matches[night]];
