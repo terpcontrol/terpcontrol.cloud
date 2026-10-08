@@ -126,6 +126,12 @@
   }
 }
 
+/* The top right is where the cameras are picked, so the picture's time takes the other corner. */
+.frame .stamp {
+  right: auto;
+  left: var(--space-2);
+}
+
 .dots {
   position: absolute;
   right: var(--space-2);

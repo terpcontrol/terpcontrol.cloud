@@ -80,6 +80,8 @@ interface FfmpegOptions {
   watermark: string | null;
   framesPerSecond?: number;
   size?: FrameSize;
+  /** Frames of more than one size, each fitted into this one rather than stretched to the first. */
+  fit?: FrameSize;
 }
 
 /**
@@ -96,8 +98,12 @@ interface EncodeOptions extends Omit<FfmpegOptions, 'watermark'> {
   } | null;
 }
 
-/** What an `sd` render is scaled to. `hd` keeps the frames at the size the camera delivered them. */
-const SD_WIDTH = 1280;
+/**
+ * The longer edge an `sd` render is scaled to, which is its width for a camera
+ * the right way round and its height for one turned into portrait. `hd` keeps
+ * the frames at the size the camera delivered them.
+ */
+const SD_EDGE = 1280;
 
 @Injectable()
 export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
@@ -364,10 +370,23 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
 
     try {
       let written = 0;
+      // A camera turned during the span delivered frames of two shapes, and
+      // ffmpeg stretches every frame to the size of the first. A film with a
+      // shape of its own brings each frame to it; the rolling films copy the
+      // stills as they are, so theirs are measured.
+      const measured = !options.compose && !options.size;
+      const sizes = new Set<string>();
+      let newest: FrameSize | null = null;
       for (const frame of frames) {
         try {
-          await this.writeFrame(frame, options, join(directory, `${written + 1}.jpeg`));
+          const path = join(directory, `${written + 1}.jpeg`);
+          await this.writeFrame(frame, options, path);
           written++;
+          const size = measured ? await sizeOf(path) : null;
+          if (size) {
+            newest = size;
+            sizes.add(`${size.width}x${size.height}`);
+          }
         } catch (e) {
           logger.error(`Skipping frame ${frame.id} of camera ${camera.id}: ${e}`);
         }
@@ -376,7 +395,9 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       if (written < MINIMUM_FRAMES) return false;
 
       const watermark = options.watermark ? await this.drawWatermark(directory) : null;
-      await this.runFfmpeg(directory, film, { ...options, watermark });
+      // The newest shape is the one the camera is set to now, which is what the film is shown at.
+      const fit = sizes.size > 1 && newest ? newest : undefined;
+      await this.runFfmpeg(directory, film, { ...options, watermark, fit });
       await store(film);
       return true;
     } catch (e) {
@@ -563,16 +584,28 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
  * person who picked 9:16 was looking at.
  */
 const filterArguments = (options: FfmpegOptions): string[] => {
-  const scale = options.size
+  const fit = options.fit
+    ? `scale=${options.fit.width}:${options.fit.height}:force_original_aspect_ratio=decrease,pad=${options.fit.width}:${options.fit.height}:(ow-iw)/2:(oh-ih)/2`
+    : null;
+  const resize = options.size
     ? `scale=${options.size.width}:${options.size.height}:force_original_aspect_ratio=increase,crop=${options.size.width}:${options.size.height}`
     : options.quality === 'hd'
       ? null
-      : `scale=${SD_WIDTH}:-2`;
+      : `scale=${SD_EDGE}:${SD_EDGE}:force_original_aspect_ratio=decrease:force_divisible_by=2`;
+  const scale = [fit, resize].filter(Boolean).join(',') || null;
   const overlay = 'overlay=W-w-24:H-h-24';
 
   if (!options.watermark) return scale ? ['-vf', scale] : [];
 
   return ['-filter_complex', scale ? `[0:v]${scale}[base];[base][1:v]${overlay}` : `[0:v][1:v]${overlay}`];
+};
+
+/** The size a frame on disk was stored at, read from its header alone; null where it cannot be read, which ffmpeg then finds out for itself. */
+const sizeOf = async (path: string): Promise<FrameSize | null> => {
+  const { width, height } = await sharp(path)
+    .metadata()
+    .catch(() => ({ width: undefined, height: undefined }));
+  return width && height ? { width, height } : null;
 };
 
 /**

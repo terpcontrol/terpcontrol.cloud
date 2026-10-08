@@ -5,6 +5,7 @@ import { withoutCredentials } from '@common/log-path';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraWithSecret } from './cameras.service';
 import { streamSlot } from './ffmpeg-slots';
+import { orientationArgs, orientationOf } from './orientation';
 import { TerpCamDirectService } from './terpcam-direct.service';
 
 /**
@@ -64,9 +65,10 @@ export class CaptureService {
   ) {}
 
   /**
-   * One still. A Terp Cam is read in full resolution or not at all: there is no
-   * smaller picture to fall back on, and a poll left without one is better than
-   * a downgraded one in the timelapse.
+   * One still, turned the way the camera is set to be. A Terp Cam is read in
+   * full resolution or not at all: there is no smaller picture to fall back on,
+   * and a poll left without one is better than a downgraded one in the
+   * timelapse.
    */
   public readStill(camera: CameraWithSecret): Promise<Buffer> {
     const deadline = Date.now() + CAPTURE_BUDGET_SECONDS * 1000;
@@ -112,7 +114,7 @@ export class CaptureService {
 
   private runFfmpegStill(
     streamUrl: string,
-    camera: Pick<CameraWithSecret, 'url' | 'transport'>,
+    camera: Pick<CameraWithSecret, 'url' | 'transport' | 'orientation'>,
     probeArgs: string[],
     timeoutMs: number,
   ): Promise<{ stdout: Buffer; stderr: string; failure?: Error; timedOut?: boolean }> {
@@ -139,6 +141,7 @@ export class CaptureService {
           'nokey',
           '-i',
           streamUrl,
+          ...orientationArgs(orientationOf(camera)),
           '-q:v',
           '20',
           '-vframes',

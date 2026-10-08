@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
 updated: 2026-10-08
-source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; checked against the code 2026-10-08
+source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and #132 and their sessions; commits since 2026-01; checked against the code 2026-10-08
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -36,6 +36,10 @@ way and what the code has to respect. Internal notes on the camera exist.
   thinning (2026-08-19); the test button waits exactly as long as a regular capture (2026-10-03).
 - Device RAM is scarce, so firmware camera code must not leak: it allocates only while it runs and frees on every
   exit (2026-08-19). Code says the product name, `terpcam*`, not the manufacturer's (2026-09-08).
+- A stored still carries no overlay: the time it was taken is drawn by the app on display only, and the camera is told
+  to stop stamping its own clock when it is paired - cameras paired before are not migrated (2026-09-29, PR #132).
+- A camera's rotation and mirroring are applied to the stored picture, and every still keeps the orientation it was
+  stored with, so a wrong setting can be taken back off the pictures later (2026-09-29, PR #132).
 
 ## Kinds of camera (`cameras.kind`)
 - `terpcam_controller`: a Terp Cam paired in the menu of a fridge module, controller, AIR (fan) or Smart Socket
@@ -58,6 +62,8 @@ way and what the code has to respect. Internal notes on the camera exist.
   by using it (`get_status.cgi` until the reply carries `deviceid`), not by parsing the reply: shapes differ and the
   change can drop the session. Kept in NVS, reported as `webcam_pwd`; a camera that refuses keeps the default and
   pairs anyway, and is secured later from the idle loop (`terpCamNeedsSecuring`, one attempt even on a zero budget).
+- The same session then switches the camera's on-picture clock (OSD) off, fire and forget, twice on request index 3
+  (PR #132); a camera that misses it keeps its stamp. Not yet confirmed on hardware (2026-10-08).
 - "disconnect cam" asks, ends a running relay and sends `restore_factory.cgi` over a checked session for 4 s (the
   camera reboots before it answers), which puts it back on its setup AP and default login for the next pairing. Best
   effort: `forgetTerpCam` erases every camera key (Chris, 2026-09-30) and reports the `webcam_*` keys as `none` either
@@ -163,8 +169,13 @@ way and what the code has to respect. Internal notes on the camera exist.
 - `lit`: the controller's light output at capture time, else `false` for a picture too dark to show anything (mean
   luma under 24), else null, which counts as lit. Pictures meant to show plants (week, home, cockpit and grow cards)
   query `lit != false`; a week's day takes the lit still nearest midday.
-- The camera burns its own local time into the picture; the app shows the account's zone, so a mismatch means the
-  account's zone is wrong (Me > Appearance), not the app.
+- Orientation (`cameras.orientation`: mirrored left-right and/or top-bottom first, then 0/90/180/270 deg clockwise)
+  is applied as ffmpeg filters while the still is encoded - the RTSP grab and the keyframe decode alike - so a turned
+  picture costs no second JPEG generation (`orientation.ts`). Each still stores the orientation it was taken with in
+  `media.orientation`; null (rows from before) means as delivered.
+- The app stamps the capture instant on the camera page, timeline and cockpit tile (`StillStamp`), in the account's
+  zone. A camera paired before PR #132 still burns in its own local time, which may disagree with it: the account's
+  zone (Me > Appearance) is the one to trust.
 - Thinning, once a day after the films: older than 1 day one per minute, 7 days one per 5 min, 30 days one per 15
   min, 90 days one per hour (`THINNING_TIERS`). Stills the previous release still holds rows for are left alone
   until the release that drops `legacy_*`. Stills go after 3 years; cameras without Premium only earlier where the
@@ -178,12 +189,13 @@ way and what the code has to respect. Internal notes on the camera exist.
   2026-09-23) exists only on the hotfix branch `patch-2026-09-23`, not in this builder.
 - The open period is rebuilt only after 1 h (day), 4 h (week) or 12 h (month) of new stills past the film's end, a
   closed one once. Frames at least 2, 14 or 60 min apart, 25 fps; fewer than 13 frames make no film. ffmpeg
-  `-threads 1`, libx265; SD is 1280 wide, HD as captured; cameras without Premium get SD and a mark.
+  `-threads 1`, libx265; SD bounds the longer edge at 1280 (a portrait camera's film is 720x1280, not upscaled), HD as
+  captured; cameras without Premium get SD and a mark.
 - Rebuilding loses frames once thinning has run (a day older than 7 days: ~288 frames instead of ~720), so deleting
   films to regenerate them is not free.
-- A rolling film takes the size of its first frame and ffmpeg scales every later one to it, so a film across a change
-  of the camera's resolution (640x360 stills from before PR #120, a stream switched) comes out at the older size; a
-  composed film is drawn at the size it was asked for (PR #91).
+- ffmpeg stretches every frame of a film to the size of its first. A rolling film copies stills as stored, so when its
+  frames differ in size (a camera turned, a resolution change) each is fitted - letterboxed - into the newest frame's
+  size instead (PR #132). A composed film is drawn at the size it was asked for and needs no fit (PR #91).
 - The composer (`POST /v1/cameras/{id}/timelapses`) queues a render and answers 202 (200 when that film exists);
   overlays and the mark are SVG composited with sharp, because ffmpeg's text filter needs fonts and freetype. A film
   of a span still running ends at its last frame, so the hourly pass carries it on and a later tap films the rest.
@@ -196,6 +208,10 @@ way and what the code has to respect. Internal notes on the camera exist.
 - A failed scheduled read writes `message-rtsp-stream-error` to the diary only with `logErrors` on (default off).
   Firmware older than the relay logs `message-cam-capture:*` and `message-aux-command-failed:cam_capture`: the
   ingest drops `...:ok` always and the failures unless `logErrors` is on (`device-ingest.service.ts`).
+- The orientation editor's preview turns the newest still by the difference between the draft and the still's own
+  `orientation`, not by the whole setting, so it stays right between a save and the next still. lucide's
+  `FlipHorizontal2` is the icon with a horizontal centre line, which reads as a top-bottom mirror: the editor uses
+  the explicit `TrianglesCenterlineDashed*` names.
 - The app names a stored error with the contract's `captureFailureOf`, as the server names a failed test; the raw
   text is owner-only, it can name the tunnel's address. The day view reads frames in pages of 200 up to 15 pages and
   refetches every 30 s from its newest picture only (`webapp/src/api/cameras.ts`).

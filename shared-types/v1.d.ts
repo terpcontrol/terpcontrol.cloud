@@ -2927,6 +2927,21 @@ export interface EntryUpdate {
   values?: EntryValuesDraft;
 }
 
+export interface CameraOrientation {
+  /**
+   * Degrees clockwise, after the flips.
+   */
+  rotation: 0 | 90 | 180 | 270;
+  /**
+   * Mirrored left to right.
+   */
+  flipHorizontal: boolean;
+  /**
+   * Mirrored top to bottom.
+   */
+  flipVertical: boolean;
+}
+
 export interface MediaOverlays {
   dayCounter: boolean;
   /**
@@ -2997,6 +3012,10 @@ export interface Media {
   window: MediaWindow | null;
   quality: MediaQuality | null;
   lengthSeconds: number | null;
+  /**
+   * How a camera's still was turned before it was stored, which is what it takes to turn it back. Null on everything else and on the stills from before a camera could be turned, which are as the camera delivered them.
+   */
+  orientation: CameraOrientation | null;
   render: MediaRender | null;
   /**
    * Set on an `export` row and on nothing else; it is what the export is polled by.
@@ -3084,6 +3103,7 @@ export interface Camera {
   tunnel: boolean;
   model: CameraModel | null;
   stillIntervalSeconds: number;
+  orientation: CameraOrientation;
   nightOff: boolean;
   maintenanceOff: boolean;
   logErrors: boolean;
@@ -3128,6 +3148,7 @@ export interface ControllerCameraCreate {
   looksAt?: string | null;
   plantIds?: string[];
   stillIntervalSeconds?: number;
+  orientation?: CameraOrientation;
   nightOff?: boolean;
   maintenanceOff?: boolean;
   logErrors?: boolean;
@@ -3148,6 +3169,7 @@ export interface StandaloneCameraCreate {
   looksAt?: string | null;
   plantIds?: string[];
   stillIntervalSeconds?: number;
+  orientation?: CameraOrientation;
   nightOff?: boolean;
   maintenanceOff?: boolean;
   logErrors?: boolean;
@@ -3168,6 +3190,7 @@ export interface RtspCameraCreate {
   looksAt?: string | null;
   plantIds?: string[];
   stillIntervalSeconds?: number;
+  orientation?: CameraOrientation;
   nightOff?: boolean;
   maintenanceOff?: boolean;
   logErrors?: boolean;
@@ -3209,6 +3232,7 @@ export interface CameraUpdate {
   looksAt?: string | null;
   plantIds?: string[];
   stillIntervalSeconds?: number;
+  orientation?: CameraOrientation;
   nightOff?: boolean;
   maintenanceOff?: boolean;
   logErrors?: boolean;

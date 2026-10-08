@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import { Camera, CameraEntitlement, CameraState } from '@fg2/shared-types/v1';
+import { Camera, CameraEntitlement, CameraOrientation, CameraState } from '@fg2/shared-types/v1';
 import { cameraKind, cameraModel, cameraTransport, grantKind } from '@fg2/shared-types/v1-schemas';
 
 /**
@@ -40,6 +40,16 @@ const entitlementSchema = new Schema<CameraEntitlementDocument>(
   { _id: false },
 );
 
+/** The picture as the camera delivers it unless somebody turns it. */
+export const orientationSchema = new Schema<CameraOrientation>(
+  {
+    rotation: { type: Number, enum: [0, 90, 180, 270], required: true, default: 0 },
+    flipHorizontal: { type: Boolean, required: true, default: false },
+    flipVertical: { type: Boolean, required: true, default: false },
+  },
+  { _id: false },
+);
+
 /** Maintained by the poller and the protocol module; never written by a client. */
 const stateSchema = new Schema<CameraStateDocument>(
   {
@@ -73,6 +83,9 @@ export const camerasSchema = new Schema<CameraDocument>(
     tunnel: { type: Boolean, required: true, default: false },
     model: { type: String, enum: cameraModel.options, default: null },
     stillIntervalSeconds: { type: Number, required: true, default: DEFAULT_STILL_INTERVAL_SECONDS },
+    // A row written before cameras could be turned has none, which every
+    // reader takes as the picture as delivered.
+    orientation: { type: orientationSchema, required: true, default: () => ({}) },
     nightOff: { type: Boolean, required: true, default: false },
     maintenanceOff: { type: Boolean, required: true, default: false },
     logErrors: { type: Boolean, required: true, default: false },

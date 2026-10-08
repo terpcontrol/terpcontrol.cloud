@@ -9173,6 +9173,45 @@
       }
     }
   },
+  "CameraOrientation": {
+    "type": "object",
+    "properties": {
+      "rotation": {
+        "anyOf": [
+          {
+            "type": "number",
+            "const": 0
+          },
+          {
+            "type": "number",
+            "const": 90
+          },
+          {
+            "type": "number",
+            "const": 180
+          },
+          {
+            "type": "number",
+            "const": 270
+          }
+        ],
+        "description": "Degrees clockwise, after the flips."
+      },
+      "flipHorizontal": {
+        "type": "boolean",
+        "description": "Mirrored left to right."
+      },
+      "flipVertical": {
+        "type": "boolean",
+        "description": "Mirrored top to bottom."
+      }
+    },
+    "required": [
+      "rotation",
+      "flipHorizontal",
+      "flipVertical"
+    ]
+  },
   "MediaWindow": {
     "type": "string",
     "enum": [
@@ -9497,6 +9536,17 @@
           }
         ]
       },
+      "orientation": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CameraOrientation"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "How a camera's still was turned before it was stored, which is what it takes to turn it back. Null on everything else and on the stills from before a camera could be turned, which are as the camera delivered them."
+      },
       "render": {
         "anyOf": [
           {
@@ -9534,6 +9584,7 @@
       "window",
       "quality",
       "lengthSeconds",
+      "orientation",
       "render",
       "exportJob"
     ]
@@ -9874,6 +9925,9 @@
         "minimum": -9007199254740991,
         "maximum": 9007199254740991
       },
+      "orientation": {
+        "$ref": "#/components/schemas/CameraOrientation"
+      },
       "nightOff": {
         "type": "boolean"
       },
@@ -9929,6 +9983,7 @@
       "tunnel",
       "model",
       "stillIntervalSeconds",
+      "orientation",
       "nightOff",
       "maintenanceOff",
       "logErrors",
@@ -9997,6 +10052,9 @@
         "minimum": -9007199254740991,
         "maximum": 9007199254740991
       },
+      "orientation": {
+        "$ref": "#/components/schemas/CameraOrientation"
+      },
       "nightOff": {
         "type": "boolean"
       },
@@ -10061,6 +10119,9 @@
         "minimum": -9007199254740991,
         "maximum": 9007199254740991
       },
+      "orientation": {
+        "$ref": "#/components/schemas/CameraOrientation"
+      },
       "nightOff": {
         "type": "boolean"
       },
@@ -10123,6 +10184,9 @@
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991
+      },
+      "orientation": {
+        "$ref": "#/components/schemas/CameraOrientation"
       },
       "nightOff": {
         "type": "boolean"
@@ -10244,6 +10308,9 @@
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991
+      },
+      "orientation": {
+        "$ref": "#/components/schemas/CameraOrientation"
       },
       "nightOff": {
         "type": "boolean"

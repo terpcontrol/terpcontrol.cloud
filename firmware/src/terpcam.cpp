@@ -659,6 +659,16 @@ namespace fg {
           delay(5);
         }
       }
+
+      // The camera burns its clock into every picture by default. The cloud
+      // stores stills without overlays and draws the time on display, so the
+      // OSD is switched off once, here, while the session is open anyway.
+      // Fire and forget: a camera that misses it only keeps its timestamp.
+      snprintf(cgi, sizeof(cgi), "camera_control.cgi?param=10&value=0&%s", secured ? probe_auth.c_str() : camAuth().c_str());
+      for(int i = 0; i < 2; i++) {
+        sendPacket(udp, peer_ip, peer_port, buildCgi(CMD_CHANNEL, 3, cgi));
+        for(int j = 0; j < 4; j++) { delay(100); esp_task_wdt_reset(); }
+      }
     }
 
     if(secured) {

@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
-import type { Camera, CameraUpdate } from '@fg2/shared-types/v1';
+import type { Camera, CameraOrientation, CameraUpdate } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
@@ -18,6 +18,8 @@ import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import styles from './CameraPage.module.css';
+import { Orientation } from './Orientation';
+import { sameOrientation } from './turning';
 import { refusalText } from '@/ui/refusal';
 
 /**
@@ -205,6 +207,15 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
           ) : (
             <span className={`mono ${styles.settingValue}`}>{camera.looksAt ?? '—'}</span>
           )}
+        </Row>
+
+        {/* Turned back to what is saved is no change, so Save is not offered for it. */}
+        <Row label={t('camera.orientation.label')}>
+          <Orientation
+            camera={camera}
+            value={(value('orientation') as CameraOrientation | undefined) ?? camera.orientation}
+            onChange={mayManage ? next => set('orientation', sameOrientation(next, camera.orientation) ? undefined : next) : undefined}
+          />
         </Row>
 
         <Row label={t('camera.premium')} help={enforced ? 'premiumCamera' : undefined}>

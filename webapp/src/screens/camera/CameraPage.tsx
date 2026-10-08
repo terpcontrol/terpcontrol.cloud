@@ -21,6 +21,7 @@ import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { enough, useMayWith } from '@/ui/session-access';
 import { Help } from '@/ui/Help';
+import { StillStamp } from '@/ui/StillStamp';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, DATED_CLOCK, WEEKDAY_DAY, zoned, zonedAt, zoneOf } from '@/ui/zone';
@@ -274,6 +275,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
               {dayPictures === 'waiting' ? t('home.waiting') : dayPictures === 'unread' ? t('camera.framesUnread') : t('camera.noFramesToday')}
             </p>
           )}
+          {shown ? <StillStamp at={shown.capturedAt} /> : older && camera.state.lastStillAt ? <StillStamp at={camera.state.lastStillAt} /> : null}
           {shown ? (
             <span className={ui.photoCaption}>
               {zonedAt(at(shown.capturedAt), zone).toFormat(stamps()[stampFor(to - from)])}

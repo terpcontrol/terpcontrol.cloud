@@ -240,6 +240,26 @@
   white-space: nowrap;
 }
 
+/* The instant a camera's picture was taken, where the camera's own stamp used
+   to be: plain figures on the picture, held off it by a shadow rather than a
+   plate, so it reads on a lit tent and a dark one alike. */
+.stillStamp {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  font-family: var(--font-figure);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--line-tight);
+  color: var(--on-overlay);
+  text-shadow:
+    0 0 2px rgb(0 0 0 / 0.9),
+    0 1px 3px rgb(0 0 0 / 0.6);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* A row wider than its screen that scrolls sideways - tabs, chips, a day's
    stills - and says so: its far edge is veiled while there is more to reach.
    The veil is laid over the row rather than a mask put on it, because a mask

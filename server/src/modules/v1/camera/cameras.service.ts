@@ -13,6 +13,7 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { EntitlementService, yearFrom } from './entitlement.service';
+import { orientationOf, UPRIGHT } from './orientation';
 import { changesTheStream, streamUrl, withoutUserInfo } from './stream-url';
 
 /**
@@ -191,6 +192,7 @@ export class CamerasService {
       tunnel: body.kind === 'rtsp' ? (body.tunnel ?? (device !== null && body.transport !== 'udp')) : false,
       model: body.kind === 'rtsp' ? (body.model ?? null) : 'terp_cam',
       stillIntervalSeconds: body.stillIntervalSeconds ?? DEFAULT_STILL_INTERVAL_SECONDS,
+      orientation: body.orientation ?? UPRIGHT,
       nightOff: body.nightOff ?? false,
       maintenanceOff: body.maintenanceOff ?? false,
       logErrors: body.logErrors ?? false,
@@ -274,6 +276,7 @@ export class CamerasService {
       tunnel: camera.tunnel,
       model: camera.model,
       stillIntervalSeconds: camera.stillIntervalSeconds,
+      orientation: orientationOf(camera),
       nightOff: camera.nightOff,
       maintenanceOff: camera.maintenanceOff,
       logErrors: camera.logErrors,

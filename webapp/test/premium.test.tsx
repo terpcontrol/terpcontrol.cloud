@@ -98,6 +98,7 @@ const camera = (over: Partial<Camera> & { entitlement: Camera['entitlement'] }):
   tunnel: false,
   model: 'terp_cam',
   stillIntervalSeconds: 30,
+  orientation: { rotation: 0, flipHorizontal: false, flipVertical: false },
   nightOff: false,
   maintenanceOff: false,
   logErrors: false,
@@ -131,6 +132,7 @@ const rtsp = camera({
   kind: 'rtsp',
   url: 'rtsp://192.168.1.41/stream1',
   stillIntervalSeconds: 60,
+  orientation: { rotation: 0, flipHorizontal: false, flipVertical: false },
   entitlement: { validUntil: null, grant: null, tier: 'free', renewalVisible: true },
 });
 

@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Camera, Device, GrowListItem, TestCapture, TimelapseCreate } from '@fg2/shared-types/v1';
+import type { AccessNeed, Camera, CameraOrientation, Device, GrowListItem, TestCapture, TimelapseCreate } from '@fg2/shared-types/v1';
 import { NoAnswerInTime } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
 import { CameraScreen } from '@/screens/camera/CameraPage';
@@ -47,6 +47,7 @@ const state = vi.hoisted(() => ({
   /** The width this install serves a free camera's stills at; null serves them whole. */
   stillWidth: null as number | null,
   lastStill: null as string | null,
+  lastStillOrientation: null as CameraOrientation | null,
   /** The day the page asked the camera for, which is the account's and not this machine's. */
   askedForDay: null as { startsAt: string; endsAt: string } | null,
   /** What the test button's press answered, which is a picture or a reason and never an error. */
@@ -102,6 +103,7 @@ vi.mock('@/api/cameras', async importOriginal => ({
   ...(await importOriginal<object>()),
   useCameras: () => ({ data: { items: [], nextCursor: null } }),
   useLatestStills: () => new Map<string, string | null>(state.lastStill ? [['camera-1', state.lastStill]] : []),
+  useLatestStill: () => ({ data: state.lastStill ? { id: state.lastStill, orientation: state.lastStillOrientation } : null }),
   // One film under the microscope is `film`; a list of them is served from the
   // rows themselves, and only those a test gave a span to - the rest stand for
   // reads that have not answered, which is what the paging tests draw.
@@ -163,6 +165,7 @@ const camera: Camera = {
   tunnel: false,
   model: 'terp_cam',
   stillIntervalSeconds: 30,
+  orientation: { rotation: 0, flipHorizontal: false, flipVertical: false },
   nightOff: false,
   maintenanceOff: false,
   logErrors: true,
@@ -222,6 +225,7 @@ beforeEach(() => {
   state.stillWidth = null;
   state.askedForDay = null;
   state.lastStill = null;
+  state.lastStillOrientation = null;
   state.capture = null;
   state.captureError = null;
   state.diary = true;
@@ -675,6 +679,52 @@ describe('what the camera is set to', () => {
     expect(screen.getByRole('checkbox', { name: 'off during maintenance' })).not.toBeChecked();
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
+
+  it('turns the picture with the buttons, shows it turned, and offers Save only for a change', () => {
+    state.lastStill = 'still-9';
+    const preview = () => drawn.container.querySelector<HTMLImageElement>('img[src="/media/still-9"]')!;
+    const drawn = drawSettings();
+
+    expect(screen.getByText('as the camera sees it')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Turn right' }));
+
+    expect(screen.getByText('turned 90° · portrait')).toBeInTheDocument();
+    expect(preview().style.transform).toBe('rotate(90deg) scaleX(1)');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+
+    // Turned back is no change at all.
+    fireEvent.click(screen.getByRole('button', { name: 'Turn left' }));
+    expect(screen.getByText('as the camera sees it')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
+  it('turns the preview of a camera already turned by the difference, because its picture was stored turned', () => {
+    state.lastStill = 'still-9';
+    state.lastStillOrientation = { rotation: 180, flipHorizontal: false, flipVertical: false };
+    const drawn = drawSettings({ orientation: { rotation: 180, flipHorizontal: false, flipVertical: false } });
+    const preview = drawn.container.querySelector<HTMLImageElement>('img[src="/media/still-9"]')!;
+
+    expect(screen.getByText('turned 180°')).toBeInTheDocument();
+    expect(preview.style.transform).toBe('rotate(0deg) scaleX(1)');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to how the camera sees it ›' }));
+    expect(preview.style.transform).toBe('rotate(180deg) scaleX(1)');
+  });
+
+  it('turns a picture taken before the camera was turned by the whole setting, so a save does not look undone', () => {
+    // Saved a moment ago: the newest still is still the one stored as the camera delivered it.
+    state.lastStill = 'still-9';
+    const drawn = drawSettings({ orientation: { rotation: 90, flipHorizontal: true, flipVertical: false } });
+
+    expect(drawn.container.querySelector<HTMLImageElement>('img[src="/media/still-9"]')!.style.transform).toBe('rotate(90deg) scaleX(-1)');
+  });
+
+  it('tells a reader who may not manage how the pictures are turned, with nothing to press', () => {
+    drawSettings({ orientation: { rotation: 270, flipHorizontal: true, flipVertical: false } }, false);
+
+    expect(screen.getByText('turned 270° · mirrored · portrait')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Turn right' })).not.toBeInTheDocument();
+  });
 });
 
 /**
@@ -979,6 +1029,14 @@ describe('the films and the pictures behind the first page', () => {
     // The same instant for an account kept in Berlin, which is two hours on.
     state.zone = 'Europe/Berlin';
     expect(drawPage().container.textContent).toContain('10:03');
+  });
+
+  it('lays the instant a picture was taken over it, to the second, in the account´s zone', () => {
+    // The stored picture carries no stamp of its own, so the screen draws the one the camera used to burn in.
+    state.zone = 'Europe/Berlin';
+    state.frames = { items: [{ id: 'still-1', capturedAt: '2026-09-19T08:03:07.000Z' }], partial: false };
+
+    expect(drawPage().container.textContent).toContain('19 Sep 2026 10:03:07');
   });
 
   it('walks the account´s day, so "today" is the day the account is having', () => {

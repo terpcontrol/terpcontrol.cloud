@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
 updated: 2026-10-08
-source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); checked against the code 2026-10-08
+source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144, #132); the rewrite handover's rules (2026-09); checked against the code 2026-10-08
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -50,6 +50,9 @@ hardware, the development devices and copies of production data are in
 - `tsconfig.json` type-checks `src/` only. For the unit specs and fixtures:
   `./node_modules/.bin/tsc --noEmit -p tsconfig.unit.json --skipLibCheck --pretty false` (without `--skipLibCheck`
   mongodb-memory-server's own declarations report a missing `semver` type).
+- `capture-budget.spec.ts` and `timelapse-turned.spec.ts` run the real `ffmpeg` and `ffprobe`; CI installs them, a
+  machine without them fails those two only (`apt-get install -y ffmpeg` in a sandbox). libx265 crashes on frames
+  only a few dozen pixels wide, so film specs use realistic sizes (320x180).
 - The integration suite fakes InfluxDB and SMTP, so a live probe against a stack still finds what it cannot
   ([rebuild its server first](#own-test-stacks)).
 
@@ -154,6 +157,13 @@ hardware, the development devices and copies of production data are in
   close leftover browsers by their own PID - a broad `pkill` kills other agents' browsers. Close browsers in `finally`.
 - **Pulls hang** when `docker-credential-desktop` waits on a keychain prompt; `DOCKER_CONFIG` pointing at a directory
   with a credential-free `config.json` gets builds going.
+- **Docker Hub answers 429** to anonymous pulls from a shared sandbox address: pull the same image from Google's
+  mirror and tag it, e.g. `docker pull mirror.gcr.io/library/mongo:9.0 && docker tag mirror.gcr.io/library/mongo:9.0
+  mongo:9.0` (likewise `node:24-alpine`, `influxdb`, `rabbitmq:management`, `debian:11.7-slim`, `debian`).
+- **`build-fw.sh` in a sandbox** fails in the build container's `pip install platformio` on the egress proxy's TLS.
+  Shadow its base with a local `debian:11.7-slim` that copies the proxy CA bundle in and points `SSL_CERT_FILE`,
+  `REQUESTS_CA_BUNDLE`, `PIP_CERT`, `GIT_SSL_CAINFO` and `CURL_CA_BUNDLE` at it; then
+  `FW_NO_UPLOAD=1 FW_VERSION_ID=<tag> ./build-fw.sh controller` compile-checks without touching a device.
 - **RabbitMQ crash-loops with `failed_to_parse_configuration_file`:** its entrypoint edits the config inside the
   container (with MQTTS it appends the TLS block on every start), so a restart keeps whatever the file has become.
   Recreate it (`./up.sh rabbitmq`). `docker compose restart rabbitmq` restarts the broker alone since the server's
