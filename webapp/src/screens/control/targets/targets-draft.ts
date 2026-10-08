@@ -1,8 +1,7 @@
-import type { DateTime } from 'luxon';
 import type { DeviceConfiguration, DeviceSettings } from '@fg2/shared-types/v1';
 import { climatePreset, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import { lightWindowOf, lightWindowTimes, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { figureOf } from '@/ui/climate-hardware';
 import type { ClimateChoice } from '@/ui/presets';
@@ -37,8 +36,6 @@ export interface TargetsDraft {
 
 /** The two figures of a light schedule, which is all the light window is worked out from. */
 export type LightSchedule = Pick<TargetsDraft, 'lightsOn' | 'lightHours'>;
-
-const HOUR_SECONDS = 60 * 60;
 
 /** The firmware's own defaults, for a document that has never stated a figure. Its light window's are the shared module's. */
 const DEFAULTS: Omit<TargetsDraft, 'lightsOn' | 'lightHours'> = {
@@ -180,43 +177,3 @@ export const vpdOf = (temperature: number, humidity: number, leafOffset: number)
 
 export const leafOffset = (settings: DeviceSettings, when: 'day' | 'night'): number =>
   when === 'day' ? settings.vpdLeafOffsetDay : settings.vpdLeafOffsetNight;
-
-/* ---------------------------------------------------------------- the clock */
-
-/**
- * How far the account's wall clock is ahead of UTC right now, in seconds.
- *
- * The document holds seconds past midnight UTC, so a tent in Berlin that
- * lights at eight is stored as six in summer. The times on this page are the
- * clock on the wall where the account is kept - the zone the server reads the
- * same account's quiet hours in, not wherever the phone reading this happens to
- * be - and they are turned into the document's seconds at today's offset. The
- * server remembers that offset and moves the seconds when it changes, so eight
- * stays eight when the clocks go back; read the same way, the page goes on
- * saying eight.
- */
-export const offsetOf = (now: DateTime, zone: string | null): number => (zone ? now.setZone(zone) : now.toLocal()).offset * 60;
-
-const twoDigits = (value: number): string => String(value).padStart(2, '0');
-
-/**
- * "08:00": seconds past midnight UTC on the account's wall clock, to the
- * nearest minute - a light written to go off a second before midnight goes off
- * at midnight as far as anybody reading a clock is concerned.
- */
-export const wallClock = (seconds: number, offset: number): string => {
-  const there = roundTheClock(Math.round((seconds + offset) / 60) * 60);
-  return `${twoDigits(Math.floor(there / HOUR_SECONDS))}:${twoDigits(Math.floor((there % HOUR_SECONDS) / 60))}`;
-};
-
-/** "08:00" on the account's wall clock as the document's seconds past midnight UTC, or null for what is not a time of day. */
-export const secondsOf = (time: string, offset: number): number | null => {
-  const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(time.trim());
-  if (!match) return null;
-
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) return null;
-
-  return roundTheClock(hours * HOUR_SECONDS + minutes * 60 - offset);
-};

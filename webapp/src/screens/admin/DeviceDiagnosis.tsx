@@ -17,7 +17,7 @@ import { AdminHead, AdminWaiting, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { serverNow } from '@/api/clock';
-import { offsetOf, wallClock } from '../control/targets/targets-draft';
+import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { flatten } from './fleet-rows';
 import { buildLabel, typeName } from '@/ui/naming';
 import styles from './Admin.module.css';

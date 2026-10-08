@@ -2,7 +2,7 @@ import { Minus, Plus } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { decimalFigure, typedFigure } from '@/ui/figures';
-import { secondsOf, wallClock } from './targets-draft';
+import { TimeInput } from '../TimeInput';
 import styles from './DayNight.module.css';
 
 /**
@@ -165,13 +165,9 @@ const HALF_HOUR = 30 * 60;
  * A time of day, set the same way: the buttons move it by half an hour along
  * the account's wall clock, landing on the half hour, and the field in the
  * middle is the browser's own time field - a wheel on a phone - for a time
- * that is easier typed. A time field hands over a whole time after every
- * keystroke and nothing while a part of it is cleared, so it keeps what is
- * being typed while it has the focus and the draft takes every whole time it
- * hands over.
+ * that is easier typed.
  */
 export function ClockStepper({ name, seconds, offset, less, more, changed = false, disabled = false, onChange }: ClockStepperProps) {
-  const [typing, setTyping] = useState<string | null>(null);
   const local = roundTheClock(seconds + offset);
 
   const by = (direction: 1 | -1) => () => {
@@ -187,19 +183,13 @@ export function ClockStepper({ name, seconds, offset, less, more, changed = fals
         <Minus size={16} strokeWidth={2} aria-hidden />
       </button>
       <span className={styles.stepFigure}>
-        <input
+        <TimeInput
           className={`mono ${styles.stepInput} ${styles.stepClock}`}
-          type="time"
           aria-label={name}
-          value={typing ?? wallClock(seconds, offset)}
+          seconds={seconds}
+          offset={offset}
           disabled={disabled}
-          onChange={event => {
-            const time = event.target.value;
-            setTyping(document.activeElement === event.target ? time : null);
-            const typed = secondsOf(time, offset);
-            if (typed !== null) onChange(typed);
-          }}
-          onBlur={() => setTyping(null)}
+          onChange={onChange}
         />
       </span>
       <button type="button" className={styles.stepButton} aria-label={more} disabled={disabled} {...up}>

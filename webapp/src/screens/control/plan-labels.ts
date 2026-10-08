@@ -1,8 +1,8 @@
 import type { DeviceConfiguration, GerminationChoices, GrowthStage, StepDuration } from '@fg2/shared-types/v1';
 import { stageChoiceName } from '@/ui/presets';
+import { wallClock } from '@/ui/wall-clock';
 import { isDarkStage, stepLightHours, stepLightsOn } from './plan-edit';
 import { hoursWritten } from './targets/schedule-words';
-import { wallClock } from './targets/targets-draft';
 
 /**
  * What a step says about itself in one line, wherever it is drawn.

@@ -18,10 +18,11 @@ import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { offsetOf, secondsOf, wallClock } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import type { Unsaved } from '../targets/LeaveGuard';
 import { TargetRow } from '../targets/TargetRow';
-import { offsetOf, secondsOf, wallClock } from '../targets/targets-draft';
+import { TimeInput } from '../TimeInput';
 import { useFieldsDraft, type FieldsDraft } from './fields-draft';
 import { OwnPanel, TimeRow } from './OwnPanel';
 import styles from './Own.module.css';
@@ -303,7 +304,6 @@ function WindowRow({
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
-  const [typing, setTyping] = useState<string | null>(null);
   const [minutes, setMinutes] = useState<string | null>(null);
   const ends = wallClock(window.ontime + window.duration * 60, offset);
 
@@ -311,20 +311,14 @@ function WindowRow({
     <div className={styles.window}>
       <label className={styles.windowPart}>
         <span className={styles.windowWord}>{t('plugSettings.windows.at')}</span>
-        <input
+        <TimeInput
           id={id}
           className={`mono ${ui.input} ${styles.windowTime}`}
-          type="time"
           aria-label={t('plugSettings.windows.atLabel', { number })}
-          value={typing ?? wallClock(window.ontime, offset)}
+          seconds={window.ontime}
+          offset={offset}
           disabled={disabled}
-          onChange={event => {
-            const time = event.target.value;
-            setTyping(document.activeElement === event.target ? time : null);
-            const seconds = secondsOf(time, offset);
-            if (seconds !== null) onChange({ ...window, ontime: seconds });
-          }}
-          onBlur={() => setTyping(null)}
+          onChange={ontime => onChange({ ...window, ontime })}
         />
       </label>
       <label className={styles.windowPart}>

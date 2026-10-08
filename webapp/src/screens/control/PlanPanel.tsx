@@ -12,6 +12,7 @@ import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { serverNow } from '@/api/clock';
 import { useNow } from '@/ui/useNow';
+import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { deviceName, deviceTitle } from '@/ui/naming';
 import { PlanEditor } from './PlanEditor';
@@ -36,7 +37,6 @@ import {
 import { draftOf, emptyDraft, type PlanDraft } from './plan-edit';
 import { offersReadyPlans } from './ready-plans';
 import { durationLabel, followsGermination, stepMeta } from './plan-labels';
-import { offsetOf } from './targets/targets-draft';
 import styles from './Control.module.css';
 
 /**

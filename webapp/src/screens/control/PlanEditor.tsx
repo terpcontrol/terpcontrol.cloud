@@ -13,6 +13,7 @@ import { STAGES } from '@/ui/stages';
 import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { serverNow } from '@/api/clock';
 import { germinates } from '../grow/phase-climate';
@@ -20,7 +21,7 @@ import { GerminationChoices } from './germination/GerminationChoices';
 import { choicesOf, useHumidifier } from './germination/germination-choices';
 import { DURATION_UNITS } from './plan-clock';
 import { scheduleTitle } from './targets/schedule-words';
-import { draftOf as targetsOf, offsetOf, secondsOf, wallClock } from './targets/targets-draft';
+import { draftOf as targetsOf } from './targets/targets-draft';
 import {
   asWritableBy,
   editEffect,
@@ -47,6 +48,7 @@ import {
 } from './plan-edit';
 import { followsGermination, stepMeta } from './plan-labels';
 import { PlanRefusal } from './Refusal';
+import { TimeInput } from './TimeInput';
 import styles from './Control.module.css';
 
 /**
@@ -419,7 +421,6 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
   const own = stepLightsOn(step.settings);
   const hours = stepLightHours(step);
   const lightsOn = own ?? (device.configuration ? targetsOf(device.configuration).lightsOn : null);
-  const [typing, setTyping] = useState<string | null>(null);
 
   return (
     <>
@@ -447,17 +448,12 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
           <span className={styles.figureLabel}>
             <label htmlFor={`${id}-on`}>{t('planLight.lightsOn')}</label>
           </span>
-          <input
+          <TimeInput
             id={`${id}-on`}
             className={`mono ${styles.figureInput} ${styles.figureClock}`}
-            type="time"
-            value={typing ?? wallClock(own, offset)}
-            onChange={event => {
-              setTyping(event.target.value);
-              const seconds = secondsOf(event.target.value, offset);
-              if (seconds !== null) onChange(withStepLightsOn(step, seconds));
-            }}
-            onBlur={() => setTyping(null)}
+            seconds={own}
+            offset={offset}
+            onChange={seconds => onChange(withStepLightsOn(step, seconds))}
           />
         </span>
       ) : null}

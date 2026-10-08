@@ -12,7 +12,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, nowThere, useZone } from '@/ui/zone';
 import type { Unsaved } from '../targets/LeaveGuard';
-import { secondsOf, wallClock } from '../targets/targets-draft';
+import { TimeInput } from '../TimeInput';
 import type { FieldsDraft } from './fields-draft';
 import targets from '../targets/Targets.module.css';
 
@@ -112,10 +112,6 @@ export function OwnPanel({
  * A time of day, on the account's wall clock: the firmware keeps it as seconds
  * past midnight UTC, and the server moves those when the clock changes, so the
  * time read here is the one that stays.
- *
- * A time field hands over a whole time after every keystroke and nothing while
- * a part of it is cleared, so the field keeps what is typed while it has the
- * focus and the draft takes every whole time it hands over.
  */
 export function TimeRow({
   id,
@@ -138,8 +134,6 @@ export function TimeRow({
   aside?: ReactNode;
   onChange: (seconds: number) => void;
 }) {
-  const [typing, setTyping] = useState<string | null>(null);
-
   return (
     <div className={`${targets.row} ${targets.clockRow}`}>
       <label className={targets.rowLabel} htmlFor={id}>
@@ -147,19 +141,13 @@ export function TimeRow({
         {help ? <Help topic={help} /> : null}
       </label>
       <span className={targets.clockValue}>
-        <input
+        <TimeInput
           id={id}
           className={`mono ${ui.input} ${targets.clock}`}
-          type="time"
-          value={typing ?? wallClock(seconds, offset)}
+          seconds={seconds}
+          offset={offset}
           disabled={disabled}
-          onChange={event => {
-            const time = event.target.value;
-            setTyping(document.activeElement === event.target ? time : null);
-            const next = secondsOf(time, offset);
-            if (next !== null) onChange(next);
-          }}
-          onBlur={() => setTyping(null)}
+          onChange={onChange}
         />
         {aside ? <span className={`mono ${targets.aside}`}>{aside}</span> : null}
       </span>

@@ -13,7 +13,8 @@ import type { Device, DeviceConfiguration, DeviceLive, Me, Plan, PlanStep, Setpo
 import { Targets } from '@/screens/control/targets/Targets';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { nowHoldingOf, ownedBy, phaseOf, shapeOf } from '@/screens/control/targets/day-night';
-import { draftOf, secondsOf, vpdOf, wallClock, withDraft } from '@/screens/control/targets/targets-draft';
+import { draftOf, vpdOf, withDraft } from '@/screens/control/targets/targets-draft';
+import { secondsOf, wallClock } from '@/ui/wall-clock';
 import { STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { CLIMATE_CHOICES, presetsOf } from '@/ui/presets';
 

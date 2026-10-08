@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { ALWAYS_LIT_FROM, lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { serverNow } from '@/api/clock';
 import { scheduleTitle } from '@/screens/control/targets/schedule-words';
-import { offsetOf, wallClock } from '@/screens/control/targets/targets-draft';
+import { offsetOf, wallClock } from '@/ui/wall-clock';
 
 /**
  * The line the server writes when somebody changes a device's settings names

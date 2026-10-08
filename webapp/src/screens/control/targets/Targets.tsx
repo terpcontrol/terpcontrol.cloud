@@ -20,6 +20,7 @@ import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/pre
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { nowThere, CLOCK, useZone } from '@/ui/zone';
 import { DeviceAdvanced } from '../../devices/DeviceAdvanced';
 import { deviceName, deviceTitle } from '@/ui/naming';
@@ -34,18 +35,7 @@ import { ControlState, EnergySaving } from './Operation';
 import { GerminationChoices } from '../germination/GerminationChoices';
 import { choicesOf, choicesSaid, useHumidifier } from '../germination/germination-choices';
 import { stepLightHours, stepLightsOn } from '../plan-edit';
-import {
-  draftOf,
-  equalsPreset,
-  offsetOf,
-  prefilled,
-  presetOf,
-  sameDraft,
-  wallClock,
-  withDraft,
-  type LightSchedule,
-  type TargetsDraft,
-} from './targets-draft';
+import { draftOf, equalsPreset, prefilled, presetOf, sameDraft, withDraft, type LightSchedule, type TargetsDraft } from './targets-draft';
 import day from './DayNight.module.css';
 import styles from './Targets.module.css';
 import { fieldValue } from '@/ui/advanced/field-values';

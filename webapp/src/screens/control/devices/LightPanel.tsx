@@ -3,10 +3,10 @@ import type { Device } from '@fg2/shared-types/v1';
 import { FIRMWARE_LIGHTS_OFF, FIRMWARE_LIGHTS_ON, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { Block } from '@/ui/SheetParts';
 import { useNow } from '@/ui/useNow';
+import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import type { Unsaved } from '../targets/LeaveGuard';
 import { TargetRow } from '../targets/TargetRow';
-import { offsetOf } from '../targets/targets-draft';
 import { useFieldsDraft } from './fields-draft';
 import { OwnPanel, TimeRow } from './OwnPanel';
 
