@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Plant } from '@fg2/shared-types/v1';
 import { useUpdatePlant } from '@/api/grows';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { Block } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';

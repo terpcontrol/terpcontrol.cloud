@@ -5,7 +5,7 @@ import { serverNow } from '@/api/clock';
 import { useCreateInvite } from '@/api/invites';
 import { useDiaryLayer } from '@/api/layers';
 import { useSpaceOverview } from '@/api/spaces';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { copyText } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
 import { Refused } from '@/ui/PageState';

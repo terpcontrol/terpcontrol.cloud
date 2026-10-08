@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Space } from '@fg2/shared-types/v1';
 import { useSession } from '@/api/session';
 import { useSetRoom, useSpaces } from '@/api/spaces';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { useCreateSpace } from '@/screens/grow/new/create-space';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';

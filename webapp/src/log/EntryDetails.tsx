@@ -34,7 +34,7 @@ import { useZone } from '@/ui/zone';
 import { dayAt, dosesOf, lastCan, litresOf, nextStage, readingsOf, schemeStep, startsAfter, stoppedAfter } from './defaults';
 import { about, lineLabel } from './lines';
 import { useLog, type LogTarget, type TileKind } from './log-context';
-import { Sheet } from './Sheet';
+import { Sheet } from '@/ui/Sheet';
 import styles from './Log.module.css';
 
 /**

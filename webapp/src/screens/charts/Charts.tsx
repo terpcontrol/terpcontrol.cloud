@@ -19,7 +19,7 @@ import { dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
 import { timeTicks } from '@/charts/ticks';
 import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
 import { linkAddress } from '@/screens/me/sharing/links';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { AdvancedSection } from '@/ui/advanced/Advanced';
 import type { ChartSettings } from '@/ui/advanced/item';
 import { ageLabel } from '@/ui/age';

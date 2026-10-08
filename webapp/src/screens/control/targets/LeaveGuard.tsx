@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UNSAFE_DataRouterContext, useBlocker, type Location } from 'react-router';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import styles from './Targets.module.css';
 

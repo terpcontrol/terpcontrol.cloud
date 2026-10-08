@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceFirmware, FirmwareChannel } from '@fg2/shared-types/v1';
 import { useDeviceFirmwares, useDevices, useUpdateDevice } from '@/api/devices';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { Refused } from '@/ui/PageState';

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowthStage, Plant, Space } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useSplit } from '@/api/lifecycle';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { presetsOf } from '@/ui/presets';

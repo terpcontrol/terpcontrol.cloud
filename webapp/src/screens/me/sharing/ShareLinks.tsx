@@ -7,7 +7,7 @@ import { useEveryGrow } from '@/api/grows';
 import { useSession } from '@/api/session';
 import { useDeleteShareLink, useRevokeShareLink, useShareLinks } from '@/api/sharing';
 import { useEverySpace } from '@/api/spaces';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';

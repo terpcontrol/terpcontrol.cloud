@@ -8,7 +8,7 @@ import { diaryChanged, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { about, lineLabel } from '@/log/lines';
 import { useLog, type LogTarget } from '@/log/log-context';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { readingFigure } from '@/ui/entries';
 import { Refused } from '@/ui/PageState';

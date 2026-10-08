@@ -12,7 +12,7 @@ import {
   useUpdateFirmware,
   useUploadBinary,
 } from '@/api/admin';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';

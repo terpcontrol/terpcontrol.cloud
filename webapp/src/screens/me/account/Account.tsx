@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Me } from '@fg2/shared-types/v1';
 import { useChangePassword, useMe, useRevokeOtherSessions, useRevokeSession, useSessions, useUpdatingMe } from '@/api/account';
 import { useSession } from '@/api/session';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';

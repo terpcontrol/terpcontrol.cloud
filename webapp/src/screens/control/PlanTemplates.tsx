@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify } from '@fg2/shared-types/v1';
 import { usePlanTemplates, useSavePlanTemplate } from '@/api/plans';
 import { useSession } from '@/api/session';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Waiting } from '@/ui/PageState';
 import { Block } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';

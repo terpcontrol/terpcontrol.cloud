@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import type { AdminUserUpdate, User } from '@fg2/shared-types/v1';
 import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '@/api/admin';
 import { useSession } from '@/api/session';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';

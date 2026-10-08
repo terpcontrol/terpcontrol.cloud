@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, DeviceCommandResult } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useDevicesCommand } from '@/api/commands';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { MAINTENANCE_MINUTES, parkedLabel, parkedQuiet, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
 import { Refused } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';

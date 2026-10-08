@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Scheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { schemeVersionLabel, useDeleteScheme, useOwnSchemes, useScheme, useSchemes, useUpdateScheme, type SchemeSummary } from '@/api/schemes';
 import { useSession } from '@/api/session';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { GridEditor } from '@/screens/grow/scheme/GridEditor';
 import { SchemeGrid } from '@/screens/grow/scheme/SchemeGrid';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';

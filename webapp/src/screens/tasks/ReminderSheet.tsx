@@ -7,7 +7,7 @@ import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
 import { channelsLabel, isConfigured } from '@/screens/control/alarms/rules';
 import { useCreateReminder, useDeleteReminder, useUpdateReminder } from '@/api/reminders';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { dayOf, startOfDayOn } from '@/ui/days';
 import { Refused } from '@/ui/PageState';

@@ -5,7 +5,7 @@ import type { GrowListItem, HarvestResult, Plant } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useUpdateGrow } from '@/api/grows';
 import { useHarvest } from '@/api/lifecycle';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { readingFigure } from '@/ui/entries';
 import { Help } from '@/ui/Help';

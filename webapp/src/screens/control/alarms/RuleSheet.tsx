@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { AlarmRule, Device, Me, Metric, OutputMetric, Severity, WebhookMethod } from '@fg2/shared-types/v1';
 import { useCreateAlarmRule, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { EmailAlarmsOffer } from '@/screens/notifications/NotifyNotice';
 import { Refused } from '@/ui/PageState';
 import advanced from '@/ui/advanced/Advanced.module.css';

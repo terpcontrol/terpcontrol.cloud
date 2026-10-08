@@ -17,7 +17,7 @@ import { lastCan, newestOf, nextStage, schemeStep } from './defaults';
 import { lineLabel, oneTapBody } from './lines';
 import { useLog, type LogOpening, type LogTarget, type TileKind } from './log-context';
 import { narrowerTargets, openingTarget, targetsOf } from './targets';
-import { Sheet } from './Sheet';
+import { Sheet } from '@/ui/Sheet';
 import styles from './Log.module.css';
 
 /**

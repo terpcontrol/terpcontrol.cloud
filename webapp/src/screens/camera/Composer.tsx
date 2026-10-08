@@ -7,7 +7,7 @@ import { useCameras, useLatestStills } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { ageLabel, instantOf } from '@/ui/age';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';

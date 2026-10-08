@@ -2,7 +2,7 @@ import { type DateTime } from 'luxon';
 import { useState } from 'react';
 import type { Me } from '@fg2/shared-types/v1';
 import { useTranslation } from 'react-i18next';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import { DAY } from '@/ui/zone';
 import { Menu, Row } from '../parts';

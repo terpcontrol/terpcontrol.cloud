@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { useConfigure } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { TwoLines } from './Maintenance';

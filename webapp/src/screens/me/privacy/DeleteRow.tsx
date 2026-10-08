@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useDeleteAccount } from '@/api/account';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { Row } from '../parts';

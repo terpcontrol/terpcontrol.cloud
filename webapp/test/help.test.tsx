@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Help, Term } from '@/ui/Help';
 import { anchorOf, HELP_TOPICS, placeBubble } from '@/ui/explain';
 

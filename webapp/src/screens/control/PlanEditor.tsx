@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, GrowthStage, Plan, PlanNotifyMode } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useSavePlan } from '@/api/plans';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { awaitingClimate, figureOf as documentFigure, hasCo2Sensor } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
 import { presetsOf, stageChoiceName } from '@/ui/presets';

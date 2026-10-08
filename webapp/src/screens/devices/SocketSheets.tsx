@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DeviceCapabilities, DeviceCommandResult, SocketRole } from '@fg2/shared-types/v1';
 import { useRemoveSocket, useSetSocket } from '@/api/devices';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';

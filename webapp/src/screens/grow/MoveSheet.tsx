@@ -5,7 +5,7 @@ import type { GrowListItem, Placement, Plant, Space } from '@fg2/shared-types/v1
 import { serverNow } from '@/api/clock';
 import { ApiError } from '@/api/problem';
 import { useCorrectPlacement, useMovePlants, useWithdrawPlacement } from '@/api/lifecycle';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { enough } from '@/ui/session-access';

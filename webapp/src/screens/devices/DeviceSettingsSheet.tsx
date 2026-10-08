@@ -4,7 +4,7 @@ import type { Device, Space } from '@fg2/shared-types/v1';
 import { useDevices, useUpdateDevice } from '@/api/devices';
 import { useSpaces } from '@/api/spaces';
 import { movesAnywhere, placesFor } from './moving';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';

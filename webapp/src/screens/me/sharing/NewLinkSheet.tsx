@@ -5,7 +5,7 @@ import type { GrowListItem, GrowOrSpaceRef, ShareKind, ShareLink, Space } from '
 import { serverNow } from '@/api/clock';
 import { useCameras } from '@/api/cameras';
 import { useCreateShareLink } from '@/api/sharing';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';

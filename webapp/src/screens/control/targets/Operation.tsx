@@ -6,7 +6,7 @@ import { devicesPath } from '@/app/places';
 import type { Device, DryingReturn } from '@fg2/shared-types/v1';
 import type { WorkMode } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useConfigure } from '@/api/devices';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { FieldSwitch } from '@/ui/advanced/Fields';
 import { Help } from '@/ui/Help';
 import { useSwitchOn } from '../../devices/switch-on';

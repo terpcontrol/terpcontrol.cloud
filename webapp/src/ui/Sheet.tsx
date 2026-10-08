@@ -5,8 +5,8 @@ import { useModalFocus } from '@/ui/modal-focus';
 import styles from './Sheet.module.css';
 
 /**
- * What logging happens in: a sheet over the screen you were on, so that a tap
- * on the raised button never costs you the page you were reading.
+ * The app's one modal: a sheet over the screen you were on, so that a question
+ * asked or an entry logged never costs you the page you were reading.
  *
  * On a phone it comes up from the bottom edge, within a thumb's reach; from the
  * desktop breakpoint it is the same panel in the middle of the window. Escape

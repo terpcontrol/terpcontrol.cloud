@@ -11,7 +11,7 @@ import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
 import { about, lineLabel } from './lines';
 import { useLog, type LogTarget } from './log-context';
-import { Sheet } from './Sheet';
+import { Sheet } from '@/ui/Sheet';
 import styles from './Log.module.css';
 
 /**

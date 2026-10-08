@@ -3,7 +3,7 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceClass, DeviceClassUpdate, Firmware, FleetClass } from '@fg2/shared-types/v1';
 import { useUpdateDeviceClass } from '@/api/admin';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';

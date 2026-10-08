@@ -5,7 +5,7 @@ import type { GrowListItem, ShareLink, TimeRange } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
 import { useShape } from '@/app/shell/shape';
 import { useCreateShareLink, useDeleteShareLink, useRevokeShareLink, useShareLinks, useUpdateShareLink } from '@/api/sharing';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { appUrl } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';

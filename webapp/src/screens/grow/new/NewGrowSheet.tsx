@@ -12,7 +12,7 @@ import { serverNow } from '@/api/clock';
 import { useApplyPreset } from '@/api/lifecycle';
 import { growSchemeOf, useScheme, useSchemes, type SchemeSummary } from '@/api/schemes';
 import { useSpaces } from '@/api/spaces';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import { stageChoiceName, writesClimate } from '@/ui/presets';

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowScheme, Scheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { growSchemeOf, schemeVersionLabel, useCreateScheme, useScheme, type SchemeSummary } from '@/api/schemes';
-import { Sheet } from '@/log/Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
