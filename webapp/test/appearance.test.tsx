@@ -1,15 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate } from '@fg2/shared-types/v1';
 import { Appearance } from '@/screens/me/appearance/Appearance';
 import { THEME_STORAGE_KEY } from '@/theme/theme-context';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { translate } from './translations';
 
 /**
  * Me › Appearance: the theme and the language stay the browser's, the units
@@ -86,12 +84,7 @@ const draw = () =>
     </QueryClientProvider>,
   );
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

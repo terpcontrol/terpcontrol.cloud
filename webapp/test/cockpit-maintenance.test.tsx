@@ -1,10 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, SpaceOverview } from '@fg2/shared-types/v1';
@@ -12,6 +8,7 @@ import { api } from '@/api/client';
 import { LogProvider } from '@/log/LogProvider';
 import { PlaceCockpit } from '@/screens/cockpit/PlaceCockpit';
 import { spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * The cockpit's maintenance: what used to read "Alarms off 25 min" and in fact
@@ -96,12 +93,7 @@ const draw = (minutesOld = 0.3) =>
     </QueryClientProvider>,
   );
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   answer.devices = [fridge()];

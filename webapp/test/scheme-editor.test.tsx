@@ -1,15 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { Feeding } from '@/screens/grow/Feeding';
 import { forgetSchemeEdit } from '@/screens/grow/scheme/edit-store';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
+import { translate } from './translations';
 
 /**
  * What the Feeding tab promises: that it draws the grid the grow carries and
@@ -145,12 +142,7 @@ const patched = () => wire.calls.filter(call => call.method === 'PATCH');
 
 const posted = () => wire.calls.filter(call => call.method === 'POST' && call.path === '/schemes');
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   wire.calls = [];

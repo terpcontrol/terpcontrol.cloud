@@ -1,25 +1,14 @@
 import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { alarmLineText } from '@/i18n/alarm-line';
+import { translate } from './translations';
 
 /**
  * An alarm's diary line is stored as the server's English prose; the reader
  * gets it in their own words, with the reading rounded and written in their
  * decimals - the way the alert card writes the same instant.
  */
-beforeAll(async () => {
-  const [en, de] = await Promise.all(
-    ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
-  );
-  await i18next.init({
-    lng: 'de',
-    resources: { en: { translation: en }, de: { translation: de } },
-    nsSeparator: false,
-    interpolation: { escapeValue: false },
-  });
-});
+beforeAll(() => translate(['en', 'de'], 'de'));
 
 afterEach(async () => {
   await i18next.changeLanguage('de');

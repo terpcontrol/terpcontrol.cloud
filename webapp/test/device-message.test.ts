@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { entryDetail, entryHeadline, resolveDeviceMessage } from '@/i18n/device-message';
+import { catalogue } from './translations';
 
 /**
  * The catalogue is the one the devices have always written into, so this reads
@@ -179,9 +180,9 @@ describe('every key the firmware sends', () => {
     expect(keys.length).toBeGreaterThan(10);
 
     for (const language of both) {
-      const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8')) as Record<string, unknown>;
+      const messages = await catalogue(language);
       const missing = keys.flatMap(key =>
-        ['title', 'text'].filter(part => typeof catalogue[`${key}-${part}`] !== 'string').map(part => `${key}-${part}`),
+        ['title', 'text'].filter(part => typeof messages[`${key}-${part}`] !== 'string').map(part => `${key}-${part}`),
       );
 
       expect({ language, missing }).toEqual({ language, missing: [] });
@@ -201,9 +202,7 @@ describe('the punctuation of a title, across the two catalogues', () => {
   const terminal = (wording: string): string => (/[.!?]$/.test(wording) ? wording.slice(-1) : '');
 
   it('ends a German title wherever its English twin ends, and nowhere else', async () => {
-    const read = async (language: string) =>
-      JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8')) as Record<string, unknown>;
-    const [english, german] = await Promise.all([read('en'), read('de')]);
+    const [english, german] = await Promise.all([catalogue('en'), catalogue('de')]);
 
     const titles = Object.keys(english).filter(key => key.startsWith('message-') && key.endsWith('-title'));
     expect(titles.length).toBeGreaterThan(20);

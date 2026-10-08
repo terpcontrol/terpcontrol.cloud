@@ -1,10 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Me, PremiumFree } from '@fg2/shared-types/v1';
@@ -13,6 +9,7 @@ import { countdownDays } from '@/screens/me/premium/entitlement';
 import { Premium } from '@/screens/me/premium/Premium';
 import { Privacy } from '@/screens/me/privacy/Privacy';
 import { spacePage, spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * Me › Premium, and the marks a camera carries elsewhere.
@@ -177,12 +174,7 @@ const tableSays = () =>
         .map(cell => (cell.querySelector('svg') ? '✓' : cell.textContent)),
     );
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

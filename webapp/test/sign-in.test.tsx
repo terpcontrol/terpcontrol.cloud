@@ -1,15 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Problem } from '@fg2/shared-types/v1';
 import { session } from '@/api/session';
 import { SignIn } from '@/screens/SignIn';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { translate } from './translations';
 
 /**
  * What the sign-in card says when it is turned away.
@@ -49,17 +47,7 @@ const signIn = (email = 'Email', password = 'Password', button = 'Sign in') => {
   fireEvent.click(screen.getByRole('button', { name: button }));
 };
 
-beforeAll(async () => {
-  const [en, de] = await Promise.all(
-    ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
-  );
-  await i18next.use(initReactI18next).init({
-    lng: 'en',
-    resources: { en: { translation: en }, de: { translation: de } },
-    nsSeparator: false,
-    interpolation: { escapeValue: false },
-  });
-});
+beforeAll(() => translate(['en', 'de']));
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

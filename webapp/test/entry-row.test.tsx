@@ -1,12 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { DateTime } from 'luxon';
-import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry } from '@fg2/shared-types/v1';
 import { EntryRow } from '@/ui/EntryRow';
+import { translate } from './translations';
 
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN } = await import('./session');
@@ -62,12 +59,7 @@ const entryOf = (over: Partial<Entry>): Entry => ({
   ...over,
 });
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   account.zone = null;

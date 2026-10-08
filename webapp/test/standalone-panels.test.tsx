@@ -2,15 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
 import { fanSummaryOf, ownFactOf, ownStatusOf, plugSummaryOf } from '@/screens/control/devices/own-summary';
 import { Targets } from '@/screens/control/targets/Targets';
 import { climateDeviceOf, lightWindowOf, rangeVerdictOf, switchRangeOf } from '@/screens/cockpit/place';
+import { translate } from './translations';
 
 /**
  * What a smart socket, an AIR fan and a LIGHT are set to under Steuerung: each
@@ -102,10 +100,7 @@ const t = (key: string, options?: Record<string, unknown>) => i18next.t(key, opt
 
 beforeAll(async () => {
   Settings.defaultZone = 'utc';
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  await translate();
 });
 
 afterAll(() => {

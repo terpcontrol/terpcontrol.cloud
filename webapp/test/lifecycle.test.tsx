@@ -1,10 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Device, GrowListItem, Plant } from '@fg2/shared-types/v1';
@@ -16,6 +12,7 @@ import { SplitSheet } from '@/screens/grow/SplitSheet';
 import { PhaseSheet } from '@/screens/grow/PhaseSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
 import { spaceWhere } from './session';
+import { translate } from './translations';
 
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN } = await import('./session');
@@ -108,12 +105,7 @@ const draw = (node: React.ReactNode) =>
     </QueryClientProvider>,
   );
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 /**
  * The name, which is the one thing about a grow the app could not change.

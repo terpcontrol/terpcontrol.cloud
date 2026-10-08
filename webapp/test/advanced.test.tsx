@@ -1,9 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
@@ -12,6 +8,7 @@ import { fieldValue } from '@/ui/advanced/field-values';
 import { FieldNumber, FieldSwitch } from '@/ui/advanced/Fields';
 import { advancedItem, type AdvancedItem } from '@/ui/advanced/item';
 import { itemsFor } from '@/ui/advanced/registry';
+import { translate } from './translations';
 
 /**
  * The Erweitert sections and what goes into them: an item is a file of its
@@ -37,12 +34,7 @@ const fridge = (over: Partial<Device> = {}): Device =>
 const wrap = (children: React.ReactNode) =>
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>);
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => vi.mocked(api.patch).mockReset());
 

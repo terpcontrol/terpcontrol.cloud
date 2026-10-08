@@ -1,10 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, HomeSpaceCard } from '@fg2/shared-types/v1';
@@ -12,6 +8,7 @@ import { LooseGrowCard, PlaceCard } from '@/screens/cockpit/PlaceCard';
 import { attentionOf, livenessOf, sortedByAttention } from '@/screens/home/attention';
 import { DueStrip, FollowingStrip } from '@/screens/home/Strips';
 import { LogProvider } from '@/log/LogProvider';
+import { translate } from './translations';
 
 // What a card offers depends on who is looking, so a test says who that is.
 vi.mock('@/api/session', async importOriginal => {
@@ -128,12 +125,7 @@ const draw = (node: React.ReactNode) =>
     </QueryClientProvider>,
   );
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 /**
  * A place on the Start of an account with several: its name opens its cockpit,

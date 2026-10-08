@@ -1,11 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import type { ReactNode } from 'react';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate, NotificationChannels, NotificationRouting, NotificationSettings, Problem } from '@fg2/shared-types/v1';
@@ -18,6 +14,7 @@ import { pathOf, payloadOf } from '@/screens/notifications/push-route';
 import { minuteOf, routingWith, timeOf } from '@/screens/notifications/settings';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { headersOf, headersText } from '@/ui/headers';
+import { translate } from './translations';
 
 /**
  * Where notifications go, and what one switch sends.
@@ -132,12 +129,7 @@ const drawLoaded = async () => {
 
 const lastPatch = (): NotificationSettings => server.patched.at(-1)!.notifications!;
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

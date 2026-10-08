@@ -4,7 +4,6 @@ import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChartViewSpan, GrowListItem, GrowSeries, TimelineTargets } from '@fg2/shared-types/v1';
@@ -13,6 +12,7 @@ import { Charts } from '@/screens/charts/Charts';
 import { cardsOf, csvForCards, offeredBy, type Offered } from '@/screens/charts/cards';
 import { csvOf, levelPoints, niceScale, plotOption, readAt, stepPoints } from '@/charts/series';
 import { DAY_MS } from '@/ui/days';
+import { catalogue, translate } from './translations';
 
 const state = vi.hoisted(() => ({
   series: null as GrowSeries | null,
@@ -218,17 +218,7 @@ const drawAt = (entry: string) =>
 
 const draw = () => drawAt('/charts?grow=grow-1');
 
-beforeAll(async () => {
-  const [en, de] = await Promise.all(
-    ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
-  );
-  await i18next.use(initReactI18next).init({
-    lng: 'en',
-    resources: { en: { translation: en }, de: { translation: de } },
-    nsSeparator: false,
-    interpolation: { escapeValue: false },
-  });
-});
+beforeAll(() => translate(['en', 'de']));
 
 afterEach(async () => {
   await i18next.changeLanguage('en');
@@ -1290,10 +1280,10 @@ describe('the leaf offset the VPD band rests on', () => {
     // Wrapping is only an improvement if the wrap cannot fall between "−2" and
     // "°C", which is where German broke first.
     for (const language of ['en', 'de']) {
-      const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'));
+      const { about } = (await catalogue(language)).charts as { about: Record<string, string> };
       for (const key of ['leaf', 'leafHalves']) {
-        expect(catalogue.charts.about[key]).not.toMatch(/}} °C/);
-        expect(catalogue.charts.about[key]).toMatch(/}}\u00a0°C/);
+        expect(about[key]).not.toMatch(/}} °C/);
+        expect(about[key]).toMatch(/}}\u00a0°C/);
       }
     }
   });

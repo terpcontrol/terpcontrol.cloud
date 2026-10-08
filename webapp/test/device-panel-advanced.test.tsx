@@ -1,10 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceCapabilities, Socket, SocketPage } from '@fg2/shared-types/v1';
@@ -14,6 +10,7 @@ import { draftFor, problemOf, rolesFor, secondsOfSpan, spanOf, updateOf } from '
 import { SocketRow } from '@/screens/devices/SocketRow';
 import { rowsOf } from '@/screens/devices/sockets';
 import { SIGNED_IN, spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * What a device's panel lets its owner do beyond the everyday: whether it
@@ -107,12 +104,7 @@ const advanced = async () => {
   fireEvent.click(await screen.findByText('Advanced', { selector: 'summary' }));
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   who.admin = false;

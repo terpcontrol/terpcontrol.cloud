@@ -1,11 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import type { ReactNode } from 'react';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Invite, InvitePreview, Membership, MembershipPage, Problem, Space } from '@fg2/shared-types/v1';
@@ -13,6 +9,7 @@ import { JoinRoute } from '@/screens/join/JoinRoute';
 import { Members } from '@/screens/space/members/Members';
 import { decidesHere, guestsOf, peopleCount, viaRoomCount } from '@/screens/space/members/people';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { translate } from './translations';
 
 /**
  * Sharing a tent, from both ends: the member list its owner keeps, and the
@@ -181,12 +178,7 @@ const drawnPeople = async () => {
   return screen.getAllByRole('listitem');
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

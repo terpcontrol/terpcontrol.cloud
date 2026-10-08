@@ -1,14 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DevicePage } from '@fg2/shared-types/v1';
 import { OldDevice } from '@/app/OldAddresses';
 import { screens } from '@/app/routes';
+import { translate } from './translations';
 
 /**
  * A bookmark of the old app's device pages, followed by somebody signed in:
@@ -51,12 +48,7 @@ const fridge = (over: Partial<Device> = {}): Device => ({
 
 const devices = { items: [fridge()] };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   devices.items = [fridge()];

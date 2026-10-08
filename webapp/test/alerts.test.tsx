@@ -2,9 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AlarmRule, Alert, Me, OpenAlert, Problem } from '@fg2/shared-types/v1';
@@ -15,6 +12,7 @@ import { Alerts } from '@/screens/Alerts';
 import { crossedBound, groupsOf } from '@/screens/alerts/inbox';
 import { alertLabel } from '@/ui/units';
 import { spaceWhere } from './session';
+import { translate } from './translations';
 
 /**
  * The inbox behind the bell is the alarm engine's own record drawn as it came,
@@ -201,12 +199,7 @@ const sentTo = (method: string, path: string) => server.sent.filter(one => one.m
 /** Reads of one route exactly, for counting them: `/v1/devices` is not `/v1/devices/device-1/alarm-rules`. */
 const readsOf = (path: string) => server.sent.filter(one => one.method === 'GET' && one.path.split('?')[0] === path);
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   state.who = 'you';

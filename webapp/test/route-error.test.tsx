@@ -1,11 +1,8 @@
 import { render, screen } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RouteError } from '@/app/RouteError';
+import { translate } from './translations';
 
 /**
  * What a screen that throws leaves behind.
@@ -29,12 +26,7 @@ const drawWithBoundary = () =>
     />,
   );
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 afterEach(() => {
   vi.restoreAllMocks();

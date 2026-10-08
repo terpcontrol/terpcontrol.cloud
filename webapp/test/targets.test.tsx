@@ -2,9 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { createMemoryRouter, Link, MemoryRouter, RouterProvider } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
@@ -16,6 +13,7 @@ import { draftOf, vpdOf, withDraft } from '@/screens/control/targets/targets-dra
 import { secondsOf, wallClock } from '@/ui/wall-clock';
 import { STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { CLIMATE_CHOICES, presetsOf } from '@/ui/presets';
+import { translate } from './translations';
 
 /**
  * What the targets page promises: that a chip only moves the figures,
@@ -257,15 +255,7 @@ const bar = () => screen.getByRole('button', { name: 'Save' }).parentElement!;
 beforeAll(async () => {
   // The light window is said in the reader's own time; the document holds UTC, so the test reads in UTC.
   Settings.defaultZone = 'utc';
-  const [en, de] = await Promise.all(
-    ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
-  );
-  await i18next.use(initReactI18next).init({
-    lng: 'en',
-    resources: { en: { translation: en }, de: { translation: de } },
-    nsSeparator: false,
-    interpolation: { escapeValue: false },
-  });
+  await translate(['en', 'de']);
 });
 
 afterEach(async () => {

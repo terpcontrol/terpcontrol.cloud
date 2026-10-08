@@ -1,12 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Timeline } from '@/screens/Timeline';
+import { translate } from './translations';
 
 // Which of the two sessions is looking, because the tab's empty state is the
 // one thing on it that differs between them.
@@ -30,12 +27,7 @@ vi.mock('@/api/home', () => ({ useHome: () => ({ isPending: false, data: { space
  * timeline.test.tsx; what is asked here is who the empty state is addressed to.
  */
 describe('the timeline tab with nothing to draw', () => {
-  beforeAll(async () => {
-    const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-    await i18next
-      .use(initReactI18next)
-      .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-  });
+  beforeAll(() => translate());
 
   beforeEach(() => {
     who.is = 'you';

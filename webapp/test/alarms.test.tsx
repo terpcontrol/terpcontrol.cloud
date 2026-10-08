@@ -2,9 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AlarmRule, AlarmRuleCreate, Device, Me, SpaceOverview } from '@fg2/shared-types/v1';
@@ -16,6 +13,7 @@ import { boundLabel, repeatsEvery, scaleNote, watchLabel } from '@/screens/contr
 import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
 import { headersOf } from '@/ui/headers';
+import { catalogue, translate } from './translations';
 
 /**
  * The alarm rules page: what it says about each rule, and what the two things
@@ -146,12 +144,7 @@ const draw = (devices: Device[] = [device()], mayManage = true, at = '/control/a
 
 const card = async (name: string) => (await screen.findByText(name)).closest('li')!;
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   session.demo = false;
@@ -1328,11 +1321,11 @@ describe('what a rule is called', () => {
    */
   it('writes the three severities in one case in each language, and writes them the same way in the inbox', async () => {
     for (const language of ['en', 'de']) {
-      const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'));
-      const cased = Object.values(catalogue.alarms.severity).map(label => /^\p{Lu}/u.test(String(label)));
+      const { alarms, alerts } = (await catalogue(language)) as Record<string, { severity: Record<string, string> }>;
+      const cased = Object.values(alarms.severity).map(label => /^\p{Lu}/u.test(label));
 
       expect(new Set(cased).size).toBe(1);
-      expect(catalogue.alerts.severity).toEqual(catalogue.alarms.severity);
+      expect(alerts.severity).toEqual(alarms.severity);
     }
   });
 });

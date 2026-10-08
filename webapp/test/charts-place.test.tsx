@@ -1,10 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, SpaceSeries, TimelineTargets } from '@fg2/shared-types/v1';
@@ -12,6 +8,7 @@ import { Charts } from '@/screens/charts/Charts';
 import { defaultPick, halfOf } from '@/screens/charts/cards';
 import { categoryOf, columnsOf, nearestColumn } from '@/screens/charts/message-columns';
 import { rangeOfSpan, stepped, windowOf, WIDTHS, zoomedIn } from '@/screens/charts/span';
+import { translate } from './translations';
 
 /**
  * The charts page of a place, which is how every old chart comes back: a place
@@ -156,12 +153,7 @@ interface SeriesRead {
 const lastRead = () => state.asked.filter(read => read.path.includes('/series')).at(-1)!.query as unknown as SeriesRead;
 const widthOf = (read: SeriesRead) => Date.parse(read.to) - Date.parse(read.from);
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8')) as Record<string, unknown>;
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   state.asked = [];

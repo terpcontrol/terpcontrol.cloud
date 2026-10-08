@@ -1,10 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, SpaceOverview } from '@fg2/shared-types/v1';
@@ -12,6 +8,7 @@ import { ApiError } from '@/api/problem';
 import { PlacePage } from '@/screens/place/PlacePage';
 import { useFreshness } from '@/ui/freshness';
 import { LogProvider } from '@/log/LogProvider';
+import { translate } from './translations';
 
 // A picture's address needs the session's media token, and what a screen offers
 // depends on who is looking, so both are answered here rather than reached for.
@@ -196,12 +193,7 @@ const overview: SpaceOverview = {
   people: [{ id: 'user-anna', handle: 'anna' }],
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 /**
  * Being taken out of somebody's tent while standing in it.

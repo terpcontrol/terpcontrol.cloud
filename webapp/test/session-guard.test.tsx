@@ -1,12 +1,9 @@
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionTokens, SessionUser } from '@fg2/shared-types/v1';
+import { translate } from './translations';
 
 /**
  * What stands in front of the screens while the stored session is being checked.
@@ -82,12 +79,7 @@ const freshGuard = async () => {
   return { RequireSession, session, SignIn, queryClient };
 };
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   localStorage.clear();

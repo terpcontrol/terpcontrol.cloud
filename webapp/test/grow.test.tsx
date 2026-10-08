@@ -2,9 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { LogProvider } from '@/log/LogProvider';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,6 +12,7 @@ import { PhaseBar } from '@/screens/grow/PhaseBar';
 import { Report } from '@/screens/grow/Report';
 import { WeekCard } from '@/screens/grow/WeekCard';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
+import { catalogue, translate } from './translations';
 
 // A picture's address needs the session's media token, and what a screen offers
 // depends on who is looking, so both are answered here rather than reached for.
@@ -180,12 +178,7 @@ const draw = (node: React.ReactNode) =>
     </QueryClientProvider>,
   );
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 /**
  * The export is a job rather than a file: the button asks for it, the row it
@@ -331,8 +324,7 @@ describe('the report tab', () => {
    * in. It now tells nobody anything, and the writer asks the app.
    */
   it('writes the size with the decimal the app is being read in, not the browser´s', async () => {
-    const german = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/de.json'), 'utf8'));
-    i18next.addResourceBundle('de', 'translation', german);
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
     await i18next.changeLanguage('de');
 
     try {

@@ -1,10 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
@@ -26,6 +22,7 @@ import { Home } from '@/screens/Home';
 import { PlaceCockpit } from '@/screens/cockpit/PlaceCockpit';
 import { holdVerdictOf, judgedPanel, outputsFor, statusOf } from '@/screens/cockpit/place';
 import { spacePage, spaceWhere } from './session';
+import { translate } from './translations';
 
 /** Who reads the cockpit: the grower, or support reading a customer's place. */
 const who = vi.hoisted(() => ({ admin: false }));
@@ -314,12 +311,7 @@ const draw = (node: React.ReactNode) =>
 /** The tile of one reading, found by the link its name is. */
 const tile = async (name: string) => (await screen.findByRole('link', { name })).closest('article')!;
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);

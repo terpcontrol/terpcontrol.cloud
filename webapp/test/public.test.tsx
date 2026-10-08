@@ -1,10 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Entry, GrowWeekCard, PublicGrowPage, SpaceOverview } from '@fg2/shared-types/v1';
@@ -19,6 +15,7 @@ import { SharedRoute } from '@/screens/public/SharedRoute';
 import { SharedSpace } from '@/screens/public/SharedSpace';
 import { windowIsCurrent } from '@/screens/public/window';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { translate } from './translations';
 
 /**
  * A diary read by somebody who is not in it.
@@ -235,10 +232,7 @@ beforeAll(async () => {
   const { SIGNED_OUT } = await import('./session');
   state.session = SIGNED_OUT;
 
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  await translate();
 });
 
 describe('a public diary', () => {

@@ -1,14 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Rail } from '@/app/shell/Rail';
 import { TabBar } from '@/app/shell/TabBar';
 import { LogProvider } from '@/log/LogProvider';
+import { translate } from './translations';
 
 // What a card offers depends on who is looking, so a test says who that is.
 vi.mock('@/api/session', async importOriginal => {
@@ -46,12 +43,7 @@ const draw = (node: React.ReactNode) =>
  * goes nowhere. Tasks are no tab: they are reached from a grow and the bell.
  */
 describe('the navigation', () => {
-  beforeAll(async () => {
-    const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-    await i18next
-      .use(initReactI18next)
-      .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-  });
+  beforeAll(() => translate());
 
   beforeEach(() => {
     vi.stubGlobal('fetch', fetchStub);

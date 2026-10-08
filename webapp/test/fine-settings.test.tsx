@@ -1,10 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Co2Report, Device, Entry, SocketPage } from '@fg2/shared-types/v1';
@@ -14,6 +10,7 @@ import { items as sensorItems } from '@/screens/devices/advanced/SensorFactors.a
 import { PhaseTips } from '@/screens/grow/PhaseTips';
 import { itemsFor } from '@/ui/advanced/registry';
 import { EntryRow } from '@/ui/EntryRow';
+import { translate } from './translations';
 
 /**
  * The settings few growers need, back under Erweitert where the old app had
@@ -54,12 +51,7 @@ const wrap = (children: React.ReactNode) =>
 
 const ids = (one: Device, mayManage = true) => itemsFor('device', { device: one, mayManage, offline: false }).map(item => item.id);
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   vi.mocked(api.get).mockReset();

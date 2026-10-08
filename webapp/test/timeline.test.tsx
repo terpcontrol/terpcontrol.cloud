@@ -1,10 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { LogProvider } from '@/log/LogProvider';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,6 +10,7 @@ import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
 import { Timeline } from '@/screens/timeline/Timeline';
 import { figure, targetFigure } from '@/ui/units';
 import { dayStopOf, daysOnAxis, frameNear, scaleOf, splitByNight, stretchesOf } from '@/screens/timeline/window';
+import { translate } from './translations';
 
 const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null, asked: [] as string[] }));
 
@@ -167,12 +166,7 @@ const scrubTo = (hour: number) =>
 
 const header = () => screen.getByRole('status');
 
-beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
-});
+beforeAll(() => translate());
 
 beforeEach(() => {
   state.answer = answer;
