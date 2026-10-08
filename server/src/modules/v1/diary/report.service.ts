@@ -181,7 +181,7 @@ export class GrowReportService {
       feedCount: counted('feed'),
       // Oldest first, like the diary this was read from: "topped d18 · LST d20"
       // is the order it happened in.
-      training: entries.filter(entry => entry.kind === 'training').map(entry => serialiseDiaryEntry(entry, world.hide, world.grant.includeCameras)),
+      training: entries.filter(entry => entry.kind === 'training').map(entry => serialiseDiaryEntry(entry, world.hide, world.grant)),
     };
   }
 

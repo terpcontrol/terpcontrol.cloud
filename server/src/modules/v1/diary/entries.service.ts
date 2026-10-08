@@ -60,7 +60,7 @@ export class EntriesService {
     const conditions = [await this.about(scope), withinRange('occurredAt', range), kindsOf(query.kinds)];
     const page = await findPage(this.entries, conditions, query, { field: 'occurredAt' });
 
-    return mapPage(page, row => serialiseDiaryEntry(row, hide, grant.includeCameras));
+    return mapPage(page, row => serialiseDiaryEntry(row, hide, grant));
   }
 
   /**
@@ -79,7 +79,7 @@ export class EntriesService {
     const entry = await this.entries.findOne({ id }).lean<EntryDocument>();
     if (!entry || outsideRange(entry.occurredAt, clampRange(grant))) throw notFound('entry_not_found', 'There is no entry with that id.');
 
-    return serialiseDiaryEntry(entry, await this.grows.redaction(grant), grant.includeCameras);
+    return serialiseDiaryEntry(entry, await this.grows.redaction(grant), grant);
   }
 
   /**

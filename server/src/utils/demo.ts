@@ -1,4 +1,4 @@
-import { Camera, Device, Socket } from '@fg2/shared-types/v1';
+import { Camera, Device, Entry, Socket } from '@fg2/shared-types/v1';
 // The `hardware-info` report's own vocabulary.
 import { socketListChunk } from '@fg2/shared-types/v1-schemas';
 
@@ -59,4 +59,15 @@ export const demoCamera = (camera: Camera): Camera => ({
   ip: null,
   url: camera.url ? DEMO_WEBCAM_URL : null,
   state: { ...camera.state, lastError: camera.state.lastError ? hidden(camera.state.lastError) : null },
+});
+
+/**
+ * A line keeps what happened and loses the address it quotes. Credentials are
+ * already stripped when it is written, but a webhook's endpoint carries its
+ * secret in the path.
+ */
+export const demoEntry = (entry: Entry): Entry => ({
+  ...entry,
+  text: entry.text ? hidden(entry.text) : null,
+  message: entry.message ? { ...entry.message, params: entry.message.params.map(hidden) } : null,
 });

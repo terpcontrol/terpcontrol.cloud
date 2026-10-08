@@ -19,6 +19,7 @@ import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
+import { demoEntry } from '@utils/demo';
 import { layersOf } from '../account/diary-layer';
 import { diaryMovedAt } from '../diary/diary-entries';
 import { completionsOf, dueTasksOf, remindersAbout } from '../diary/due-tasks';
@@ -189,7 +190,8 @@ export class HomeService {
                 now,
               )
             : null,
-          entries: entries.map(serialiseEntry),
+          // The tour reads a stranger's tent, whose device lines quote URLs.
+          entries: entries.map(entry => (ctx.isDemo ? demoEntry(serialiseEntry(entry)) : serialiseEntry(entry))),
           latestStill: still,
           dueTasks: tasks.filter(task => isAbout(task, space?.id ?? null, grow?.id ?? null)),
           openAlerts: alerts

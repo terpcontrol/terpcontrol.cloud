@@ -213,7 +213,7 @@ export class GrowWeeksService {
       readings: readingsOf(grow, world.readings, seen, world.range),
       waterCount: counted('water'),
       feedCount: counted('feed'),
-      entries: entries.slice(0, ENTRIES_PER_WEEK).map(entry => serialiseDiaryEntry(entry, world.hide, world.grant.includeCameras)),
+      entries: entries.slice(0, ENTRIES_PER_WEEK).map(entry => serialiseDiaryEntry(entry, world.hide, world.grant)),
       entryCount: entries.length,
       timelapseMediaId: filmOf(world.films, week),
     };

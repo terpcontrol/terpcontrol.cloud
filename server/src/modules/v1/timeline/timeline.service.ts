@@ -158,7 +158,7 @@ export class TimelineService {
       framesOf(this.media, cameras, window, FRAME_SLOTS),
       grantRedaction(this.users, grant),
     ]);
-    const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant.includeCameras));
+    const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant));
     const panels = panelsOf(
       series.map(one => one.series),
       stretchesOf(grow, devices, window, at, aimed),

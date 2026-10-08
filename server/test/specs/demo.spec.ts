@@ -16,6 +16,9 @@ import { markAsDemoDevice } from '../support/fixtures';
 const RTSP_STREAM = 'rtsp://camera-user:hunter2@127.0.0.1:1/stream1';
 const CAMERA_DID = 'DEMOCAM01';
 const CAMERA_IP = '192.168.1.77';
+// An endpoint whose secret is its path: write-time stripping only takes a
+// `user:password@` out of a line.
+const WEBHOOK = 'https://hooks.example.com/services/T0/secret-path';
 
 let owner: Session;
 let demo: Session;
@@ -114,6 +117,35 @@ describe('what a demo session is shown', () => {
     const mine = await owner.client.get('/v1/cameras').expect(200);
     const real = mine.body.items.find((candidate: { kind: string }) => candidate.kind === 'terpcam_controller');
     expect(real).toMatchObject({ did: CAMERA_DID, ip: CAMERA_IP });
+  });
+
+  it('hides the URLs a device line quotes, which the owner reads whole', async () => {
+    await simulator.publish('log', { message: `message-alarm-webhook-error:${WEBHOOK}`, severity: 2, time: Date.now() });
+    await simulator.publish('log', { message: `Upload to ${WEBHOOK} timed out`, severity: 1, time: Date.now() });
+    await settle(800);
+
+    interface Line {
+      id: string;
+      text: string | null;
+      message: { key: string; params: string[] } | null;
+    }
+    const linesOf = async (session: Session) => {
+      const lines: Line[] = (await session.client.get(`/v1/entries?deviceId=${device.deviceId}`).expect(200)).body.items;
+      return {
+        message: lines.find(line => line.message?.key === 'message-alarm-webhook-error'),
+        text: lines.find(line => line.text?.startsWith('Upload to')),
+      };
+    };
+
+    const shown = await linesOf(demo);
+    expect(shown.message?.message?.params).toEqual(['[hidden]']);
+    expect(shown.text?.text).toBe('Upload to [hidden] timed out');
+    const read = await demo.client.get(`/v1/entries/${shown.message?.id}`).expect(200);
+    expect(read.body.message.params).toEqual(['[hidden]']);
+
+    const mine = await linesOf(owner);
+    expect(mine.message?.message?.params).toEqual([WEBHOOK]);
+    expect(mine.text?.text).toBe(`Upload to ${WEBHOOK} timed out`);
   });
 
   it('reaches nothing but the demo objects', async () => {

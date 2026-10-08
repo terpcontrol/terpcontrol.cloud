@@ -212,7 +212,7 @@ export class OverviewService {
     // hiding, and a photo line names the camera a link may not have been made
     // to carry.
     const lines = redactionOf(grant.redacted, owner?.privacy);
-    const told = entries.map(entry => serialiseDiaryEntry(entry, lines, grant.includeCameras));
+    const told = entries.map(entry => serialiseDiaryEntry(entry, lines, grant));
 
     return {
       spaceId: space.id,
