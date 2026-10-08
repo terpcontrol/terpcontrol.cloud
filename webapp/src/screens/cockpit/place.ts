@@ -20,8 +20,8 @@ import type {
   TimelineTarget,
 } from '@fg2/shared-types/v1';
 import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { switchPointName, type PlugMode, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import { lightsOffOf, roundTheClock, utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { switchPointName, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { roundTheClock, utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { STEERED, TARGET_BAND, type Steered } from '@fg2/shared-types/v1-schemas/steering.js';
 import { timelinePath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
@@ -33,11 +33,11 @@ import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { clock } from '@/ui/zone';
 import { nowHoldingOf, setpointsOf, storedShapeOf, type Half, type NowHolding, type Regime } from '../control/targets/day-night';
 import type { ConstantHold } from '../timeline/window';
-import { hoursWritten } from '../control/targets/schedule-words';
+import { hoursWritten, windowWords } from '../control/targets/schedule-words';
 import { draftOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from '../home/attention';
 import { alertLabel, asWritten, figureWithUnit, isSilence } from '@/ui/units';
-import { PLUG_READING, plugModeOf } from '../control/devices/own-summary';
+import { plugModeOf, plugReadingOf } from '../control/devices/own-summary';
 
 /**
  * What a place's cockpit decides before it draws anything: which device holds
@@ -235,9 +235,6 @@ const MOVERS: Record<string, Partial<Record<Steered, OutputMetric[]>>> = {
 /** The catalogue word an output is called by everywhere on the cockpit. */
 type OutputWord = 'compressor' | 'heater' | 'dehumidifier' | 'co2' | 'socket' | 'humidifier';
 
-/** The reading a stand-alone smart socket switches by, per mode. */
-const PLUG_FOLLOWS: Partial<Record<PlugMode, Steered>> = PLUG_READING;
-
 /** Between the two points a socket switches at, which is the range it holds its reading in. */
 interface SwitchRange {
   low: number;
@@ -252,7 +249,7 @@ interface SwitchRange {
  */
 export const switchRangeOf = (device: Device | null, metric: Steered, now: DateTime): SwitchRange | null => {
   const mode = plugModeOf(device);
-  if (!device || !mode || PLUG_FOLLOWS[mode] !== metric) return null;
+  if (!device || !mode || plugReadingOf(mode) !== metric) return null;
 
   const night = fieldValue(device, 'dayNight') === true && mode !== 'co2' && isNightFor(device, now);
   const point = (edge: 'on' | 'off'): number | null => {
@@ -314,7 +311,7 @@ export const outputsFor = (
   const mode = plugModeOf(device);
   if (mode) {
     const level = live.outputs.relais?.value;
-    if (PLUG_FOLLOWS[mode] !== metric || level === null || level === undefined) return [];
+    if (plugReadingOf(mode) !== metric || level === null || level === undefined) return [];
     const lane = lanes?.find(one => one.output === 'relais' && (one.deviceId === null || one.deviceId === device.id));
     return [{ output: 'relais', word: 'socket', on: level > 0, since: level > 0 ? runningSince(lane) : null }];
   }
@@ -376,16 +373,9 @@ export const lightWindowOf = (device: Device | null, now: DateTime, zone: string
   if (!device?.configuration || !statesTargets(device.configuration) || device.type === 'fan') return null;
   const draft = draftOf(device.configuration);
   const offset = offsetOf(now, zone);
+  const { on, off, always, never } = windowWords(draft, offset);
 
-  return {
-    start: roundTheClock(draft.lightsOn + offset) / 3600,
-    hours: draft.lightHours,
-    on: wallClock(draft.lightsOn, offset),
-    off: wallClock(lightsOffOf(draft), offset),
-    limit: draft.lightLimit,
-    always: draft.lightHours >= 24,
-    never: draft.lightHours <= 0,
-  };
+  return { start: roundTheClock(draft.lightsOn + offset) / 3600, hours: draft.lightHours, on, off, limit: draft.lightLimit, always, never };
 };
 
 /** A LIGHT keeps its times and its brightness at the top of its document. */

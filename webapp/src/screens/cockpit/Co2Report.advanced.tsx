@@ -6,7 +6,7 @@ import { useCo2Report, useWriteRefill } from '@/api/co2-report';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type PlaceContext } from '@/ui/advanced/item';
 import { useUnfolded } from '@/ui/advanced/unfolded';
-import { hasCo2Sensor } from '@/ui/climate-hardware';
+import { CO2_HOLDERS, hasCo2Sensor } from '@/ui/climate-hardware';
 import { DAY_MS } from '@/ui/days';
 import { decimalFigure, typedFigure } from '@/ui/figures';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
@@ -31,7 +31,7 @@ import styles from './Co2Report.module.css';
 const USUAL_FILL_GRAMS = 425;
 
 /** The hardware here that doses from a cylinder: a fridge or a tent controller, each with a CO2 sensor beside its valve. */
-const dosing = (device: Device): boolean => (device.type === 'fridge' || device.type === 'controller') && hasCo2Sensor(device);
+const dosing = (device: Device): boolean => CO2_HOLDERS.includes(device.type) && hasCo2Sensor(device);
 
 const grams = (value: number): string => decimalFigure(Math.round(value), 0);
 

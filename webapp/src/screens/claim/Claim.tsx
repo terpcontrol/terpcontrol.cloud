@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { placePath } from '@/app/places';
 import type { Device } from '@fg2/shared-types/v1';
+import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useMe } from '@/api/account';
 import { useClaimedDevice, useNameNewPlace } from '@/api/claims';
 import { useSocketTables } from '@/api/devices';
@@ -21,18 +22,7 @@ import { pairsACam } from '@/screens/camera/add/pairers';
 import { NotifyStep } from '@/screens/notifications/NotifyNotice';
 import { PlaceStep } from './PlaceStep';
 import { Step } from './Step';
-import {
-  doingSummary,
-  hardwareSummary,
-  MEASURE,
-  newPlaceName,
-  NOTHING_DOING,
-  notifySummary,
-  pairsSockets,
-  placeSummary,
-  presetBodyOf,
-  type Doing,
-} from './steps';
+import { doingSummary, hardwareSummary, MEASURE, newPlaceName, NOTHING_DOING, notifySummary, placeSummary, presetBodyOf, type Doing } from './steps';
 import styles from './Claim.module.css';
 
 /** The steps, in order, so the bottom button can carry the next one's name. */
@@ -119,7 +109,7 @@ export function Claim() {
   const lost = device.error instanceof ApiError && !device.data;
   // Sockets and a cam are paired at a fridge module or a controller, a cam alone
   // at a smart socket or an AIR fan; a LIGHT has neither and is not asked.
-  const camOnly = claimed !== null && !pairsSockets(claimed);
+  const camOnly = claimed !== null && !SOCKET_HOST_TYPES.includes(claimed.type);
   const shown = STEPS.flatMap((name, index) => (name === 'hardware' && claimed && !pairsACam(claimed) ? [] : [index]));
   // What a step is called, which for the fourth depends on what the device pairs.
   const keyOf = (index: number): string => (STEPS[index] === 'hardware' && camOnly ? 'camOnly' : STEPS[index]);

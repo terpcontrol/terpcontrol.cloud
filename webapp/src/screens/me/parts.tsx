@@ -59,30 +59,34 @@ export function MePage({ title, demo, children }: { title: string; demo?: string
 }
 
 /**
- * A page about the account itself, drawn from `/me`: waited for, said when it
- * could not be read, and handed over with whether its controls hold still -
- * while this session may not manage the account, and while a change is on its
- * way, because every write is the whole object and two crossing would each
- * carry the other's old state back.
+ * The account itself, drawn from `/me`: waited for, said when it could not be
+ * read, and handed over with whether its controls hold still - while this
+ * session may not manage the account, and while a change is on its way,
+ * because every write is the whole object and two crossing would each carry
+ * the other's old state back.
  */
-export function AccountPage({ title, demo, children }: { title: string; demo: string; children: (me: Me, held: boolean) => ReactNode }) {
+export function AccountRead({ lines, children }: { lines: number; children: (me: Me, held: boolean) => ReactNode }) {
   const now = useNow();
   const me = useAccountMe();
   const mayManage = useMayManage();
   const updating = useUpdatingMe();
 
+  if (me.isPending) return <Waiting lines={lines} />;
+  if (!me.data) return <LoadFailed retry={() => void me.refetch()} />;
+
+  return (
+    <>
+      <RefreshFailed failedAt={me.isError ? me.dataUpdatedAt : null} now={now} />
+      {children(me.data, !mayManage || updating)}
+    </>
+  );
+}
+
+/** A page about the account itself, which the demo has none of. */
+export function AccountPage({ title, demo, children }: { title: string; demo: string; children: (me: Me, held: boolean) => ReactNode }) {
   return (
     <MePage title={title} demo={demo}>
-      {me.isPending ? (
-        <Waiting lines={4} />
-      ) : !me.data ? (
-        <LoadFailed retry={() => void me.refetch()} />
-      ) : (
-        <>
-          <RefreshFailed failedAt={me.isError ? me.dataUpdatedAt : null} now={now} />
-          {children(me.data, !mayManage || updating)}
-        </>
-      )}
+      <AccountRead lines={4}>{children}</AccountRead>
     </MePage>
   );
 }

@@ -57,6 +57,9 @@ export const climateLanding = (device: Device): ClimateLanding =>
  */
 export const hasCo2Sensor = (device: Device): boolean => device.state.hardware.co2 !== 'off';
 
+/** The hardware fitted with a CO2 sensor beside its valve unless it says otherwise; a plug's sensor is an extra it has to announce. */
+export const CO2_HOLDERS: readonly string[] = ['controller', 'fridge'];
+
 /**
  * Why a device keeps its lamp dark whatever its window says, or null: switched
  * off, drying, or germinating in the dark. The window is then no promise, and

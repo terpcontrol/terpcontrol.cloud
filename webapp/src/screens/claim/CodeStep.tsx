@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceClaimCreate, DeviceClaimResult, SocketPage, Space } from '@fg2/shared-types/v1';
+import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { claimCodeOf, useClaimDevice } from '@/api/claims';
 import { useDeviceFirmwares } from '@/api/devices';
 import { ageLabel, deviceLiveness } from '@/ui/age';
@@ -15,7 +16,7 @@ import ui from '@/ui/ui.module.css';
 import { LegacyMove } from './LegacyMove';
 import { pairsACam } from '@/screens/camera/add/pairers';
 import { buildLabel, deviceName } from '@/ui/naming';
-import { cameraName, pairsSockets } from './steps';
+import { cameraName } from './steps';
 import styles from './Claim.module.css';
 
 /**
@@ -177,7 +178,7 @@ export function ClaimedFacts({ device, sockets, now }: { device: Device; sockets
       {t(`claim.code.${deviceLiveness(seen, now)}`, { age: ageLabel(seen, now) })}
       {label ? ` · ${t('claim.code.firmware', { version: label })}` : ''}
       {/* What hangs on it, for the hardware that can have it: a plug pairs no sockets, a light no cam either. */}
-      {sockets && pairsSockets(device) ? ` · ${t('claim.code.sockets', { count: sockets.items.length })}` : ''}
+      {sockets && SOCKET_HOST_TYPES.includes(device.type) ? ` · ${t('claim.code.sockets', { count: sockets.items.length })}` : ''}
       {pairsACam(device) ? ` · ${t('claim.code.camera', { name: cameraName(device, t) })}` : ''}
     </>
   );

@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { instantOf } from './age';
 import { zonedAt } from './zone';
 
 /**
@@ -45,3 +46,7 @@ export const endOfDayOn = (day: string, zone: string | null): Date =>
   DateTime.fromISO(day, { zone: zone ?? undefined })
     .endOf('day')
     .toJSDate();
+
+/** A day a date field holds as the contract's instant at one of its edges, or null for a field left empty. */
+export const dayEdgeInstant = (day: string, edge: typeof startOfDayOn, zone: string | null): string | null =>
+  day ? instantOf(DateTime.fromJSDate(edge(day, zone))) : null;

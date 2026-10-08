@@ -144,11 +144,14 @@ export interface Figure {
   field: string;
 }
 
+/** The night's humidity, which is also what a germination step holds. */
+export const NIGHT_HUMIDITY: Figure = { key: 'nightHumidity', section: 'night', field: 'humidity' };
+
 export const CLIMATE_FIGURES: Figure[] = [
   { key: 'dayTemperature', section: 'day', field: 'temperature' },
   { key: 'dayHumidity', section: 'day', field: 'humidity' },
   { key: 'nightTemperature', section: 'night', field: 'temperature' },
-  { key: 'nightHumidity', section: 'night', field: 'humidity' },
+  NIGHT_HUMIDITY,
   { key: 'co2', section: 'co2', field: 'target' },
   { key: 'light', section: 'lights', field: 'limit' },
 ];

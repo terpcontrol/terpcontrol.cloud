@@ -8,10 +8,10 @@ import { useCreateShareLink, useDeleteShareLink, useRevokeShareLink, useShareLin
 import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { isDead, linkAddress } from '@/screens/me/sharing/links';
-import { ageLabel, instantOf } from '@/ui/age';
+import { ageLabel } from '@/ui/age';
 import { appUrl } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
-import { dayOf, endOfDayOn, startOfDayOn } from '@/ui/days';
+import { dayEdgeInstant, dayOf, endOfDayOn, startOfDayOn } from '@/ui/days';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
@@ -132,7 +132,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
                     subject: { type: 'grow', id: grow.id },
                     range: rangeOf(draft, zone),
                     includeCameras: draft.includeCameras,
-                    expiresAt: instantOn(draft.expires, endOfDayOn, zone),
+                    expiresAt: dayEdgeInstant(draft.expires, endOfDayOn, zone),
                   },
                   { onSuccess: () => setDrafting(false) },
                 )
@@ -191,7 +191,11 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
             update.mutate(
               {
                 id: link.id,
-                body: { range: rangeOf(draft, zone), includeCameras: draft.includeCameras, expiresAt: instantOn(draft.expires, endOfDayOn, zone) },
+                body: {
+                  range: rangeOf(draft, zone),
+                  includeCameras: draft.includeCameras,
+                  expiresAt: dayEdgeInstant(draft.expires, endOfDayOn, zone),
+                },
               },
               { onSuccess: () => setChanging(false) },
             )
@@ -354,12 +358,8 @@ const describe = (t: Translate, link: ShareLink, now: DateTime, zone: string | n
 /** A link's stored instant as the day its date field holds, or nothing for an open end. */
 const fieldDay = (at: string | null, zone: string | null): string => (at ? dayOf(new Date(at), zone) : '');
 
-/** A day the field holds as the instant at one of its edges, where the account is, or nothing for an open end. */
-const instantOn = (day: string, edge: typeof startOfDayOn, zone: string | null): string | null =>
-  day ? instantOf(DateTime.fromJSDate(edge(day, zone))) : null;
-
 /** An open end is a link that keeps up with the diary as it goes on, which is what sharing a running grow means. */
 const rangeOf = (draft: Draft, zone: string | null): TimeRange => ({
-  startsAt: instantOn(draft.from, startOfDayOn, zone),
-  endsAt: instantOn(draft.to, endOfDayOn, zone),
+  startsAt: dayEdgeInstant(draft.from, startOfDayOn, zone),
+  endsAt: dayEdgeInstant(draft.to, endOfDayOn, zone),
 });

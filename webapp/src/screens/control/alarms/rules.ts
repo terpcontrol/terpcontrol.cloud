@@ -23,7 +23,7 @@ import {
   silenceOf,
 } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { UNIT, targetFigure } from '@/ui/units';
-import { hasCo2Sensor, outputWord } from '@/ui/climate-hardware';
+import { CO2_HOLDERS, hasCo2Sensor, outputWord } from '@/ui/climate-hardware';
 import { looseFigure } from '@/ui/figures';
 import { isAhead } from '@/ui/age';
 import { zoneOf } from '@/ui/zone';
@@ -143,10 +143,7 @@ const HARDWARE_KEY: Record<Sensor, string> = { co2: 'co2', leaf: 'leaf_temp', li
  * where the device says so.
  */
 const isFitted = (device: Device, sensor: Sensor): boolean =>
-  sensor === 'co2' && CLIMATE_HOLDERS.includes(device.type) ? hasCo2Sensor(device) : device.state.hardware[HARDWARE_KEY[sensor]] === 'on';
-
-/** The hardware whose CO2 the cockpit and the targets assume until it says otherwise; a plug's sensor is an extra. */
-const CLIMATE_HOLDERS: readonly string[] = ['controller', 'fridge'];
+  sensor === 'co2' && CO2_HOLDERS.includes(device.type) ? hasCo2Sensor(device) : device.state.hardware[HARDWARE_KEY[sensor]] === 'on';
 
 /** The sensor a rule needs and the device does not have, or null where it reports what the rule watches. */
 export const missingSensor = (watch: AlarmWatch, device: Device): Sensor | null => {

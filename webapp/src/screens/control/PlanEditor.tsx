@@ -5,7 +5,7 @@ import type { Device, GrowthStage, Plan, PlanNotifyMode, StepDuration } from '@f
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useSavePlan } from '@/api/plans';
 import { Sheet } from '@/ui/Sheet';
-import { awaitingClimate, figureOf as documentFigure, germinates, hasCo2Sensor } from '@/ui/climate-hardware';
+import { awaitingClimate, germinates, hasCo2Sensor } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
 import { presetsOf, stageChoiceName } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
@@ -32,6 +32,7 @@ import {
   lightHoursFit,
   moveStep,
   newStep,
+  NIGHT_HUMIDITY,
   otherSections,
   replaceBody,
   stepLightHours,
@@ -313,8 +314,8 @@ function StepFields({
           humidifier={humidifier}
           // The humidity the step holds, or what the device goes on holding where it names none.
           humidity={
-            documentFigure(step.settings, 'night', 'humidity') ??
-            (germinates(device) && device.configuration ? documentFigure(device.configuration, 'night', 'humidity') : GERMINATION_HUMIDITY)
+            figureOf(step.settings, NIGHT_HUMIDITY) ??
+            (germinates(device) && device.configuration ? figureOf(device.configuration, NIGHT_HUMIDITY) : GERMINATION_HUMIDITY)
           }
         />
       ) : null}

@@ -7,7 +7,7 @@ import { serverNow } from '@/api/clock';
 import { channelsLabel, isConfigured } from '@/screens/notifications/reach';
 import { useCreateReminder, useDeleteReminder, useUpdateReminder } from '@/api/reminders';
 import { Sheet } from '@/ui/Sheet';
-import { dayOf, startOfDayOn } from '@/ui/days';
+import { dayEdgeInstant, dayOf, startOfDayOn } from '@/ui/days';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -361,7 +361,7 @@ const bodyOf = (draft: Draft, onceOn: string, userId: string, assigneeId: string
     kind: draft.kind,
     label: draft.label.trim(),
     everyDays: draft.rhythm === 'every' ? draft.everyDays : null,
-    onceAt: draft.rhythm === 'once' ? startOfDayOn(onceOn, zone).toISOString() : null,
+    onceAt: draft.rhythm === 'once' ? dayEdgeInstant(onceOn, startOfDayOn, zone) : null,
     assigneeId: draft.forWhom === 'me' ? userId : draft.forWhom === 'other' ? assigneeId : null,
     defaults: asksForCan && draft.litres !== '' && litres > 0 ? { kind: draft.kind, litres } : null,
   };

@@ -6,6 +6,7 @@ import {
   type PlugSwitching,
   type TimerWindow,
 } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import type { Steered } from '@fg2/shared-types/v1-schemas/steering.js';
 import type { Translate } from '@/i18n/i18n';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { targetWithUnit } from '@/ui/units';
@@ -24,13 +25,16 @@ interface SummaryRow {
 }
 
 /** The reading a mode's points are figures of. */
-export const PLUG_READING: Record<PlugSwitching | 'co2', 'temperature' | 'humidity' | 'co2'> = {
+export const PLUG_READING: Record<PlugSwitching | 'co2', Steered> = {
   heater: 'temperature',
   cooler: 'temperature',
   humidify: 'humidity',
   dehumidify: 'humidity',
   co2: 'co2',
 };
+
+/** The reading a socket switches by, or null for one on a timer or switched off. */
+export const plugReadingOf = (mode: PlugMode): Steered | null => (mode === 'off' || mode === 'timer' ? null : PLUG_READING[mode]);
 
 /** Which way a mode switches: on below its point and off above it, or the other way round. */
 export const RISING: readonly string[] = ['heater', 'humidify', 'co2'];
