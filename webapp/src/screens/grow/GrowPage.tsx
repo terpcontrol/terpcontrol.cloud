@@ -2,7 +2,7 @@ import { CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router';
-import { MY_GROWS, openedFromMyGrows, placePath, useBackToPlace } from '@/app/places';
+import { FROM_MY_GROWS, MY_GROWS, openedFrom, placePath, useBackToPlace } from '@/app/places';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
@@ -164,7 +164,7 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
   // it last stood in.
   const toPlace = useBackToPlace(places.find(place => place.spaceId !== null)?.spaceId ?? stood?.spaceId ?? null);
   const { state } = useLocation();
-  const back = openedFromMyGrows(state) || endedOn ? { to: MY_GROWS, name: t('grow.mine.title') } : toPlace;
+  const back = openedFrom(state, FROM_MY_GROWS) || endedOn ? { to: MY_GROWS, name: t('grow.mine.title') } : toPlace;
   const said: ReactNode[] = [
     ...(plants.length > 0 ? [strainsOf(plants)] : []),
     ...places.map(place => placeLink(place.spaceId, place.name)),

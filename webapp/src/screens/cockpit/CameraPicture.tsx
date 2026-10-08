@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { useLatestStills } from '@/api/cameras';
+import { FROM_PLACE } from '@/app/places';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { useCameraCalled } from '@/ui/camera-name';
@@ -43,7 +44,7 @@ export function CameraPicture({
     : called(camera.name);
 
   return (
-    <Link to={`/cameras/${camera.cameraId}`} state={{ from: 'place' }} className={styles.camera} aria-label={t('cockpit.camera.open')}>
+    <Link to={`/cameras/${camera.cameraId}`} state={FROM_PLACE} className={styles.camera} aria-label={t('cockpit.camera.open')}>
       {src ? (
         <img src={src} alt={t('home.card.stillAlt', { name: overview.name })} loading="lazy" />
       ) : (

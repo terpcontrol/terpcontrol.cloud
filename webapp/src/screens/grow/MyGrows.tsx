@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import type { MyGrowCard } from '@fg2/shared-types/v1';
-import { FROM_MY_GROWS, MY_GROWS, openedFromMe } from '@/app/places';
+import { FROM_ME, FROM_MY_GROWS, MY_GROWS, openedFrom } from '@/app/places';
 import { useMyGrows } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { Help } from '@/ui/Help';
@@ -41,7 +41,7 @@ export function MyGrows() {
   const [starting, setStarting] = useState(false);
   // Back to where the page was opened from: Ich has a door to it, and Start the rest of the ways in.
   const { state } = useLocation();
-  const back = openedFromMe(state) ? { to: '/me', label: t('me.title') } : { to: '/', label: t('shell.tabs.home') };
+  const back = openedFrom(state, FROM_ME) ? { to: '/me', label: t('me.title') } : { to: '/', label: t('shell.tabs.home') };
 
   if (grows.isPending) {
     return (

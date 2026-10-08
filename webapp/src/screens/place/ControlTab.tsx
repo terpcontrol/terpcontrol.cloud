@@ -1,12 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { useCurrentPlace } from '@/app/places';
 import { useSession } from '@/api/session';
-import { useSpaceOverview } from '@/api/spaces';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { Control } from '../control/Control';
-import { PlaceHeading } from './PlaceHeading';
+import { PlaceHeading, VisitingTitle } from './PlaceHeading';
 import heading from './PlaceHeading.module.css';
 import styles from './Place.module.css';
 
@@ -21,16 +20,21 @@ export function ControlTab() {
   const { t } = useTranslation();
   const { user } = useSession();
   const { page = null } = useParams();
-  const { home, places, here, choose } = useCurrentPlace();
-  const [params] = useSearchParams();
-  const asked = params.get('space');
+  const { home, places, here, visiting, choose } = useCurrentPlace();
 
   if (home.isPending) return <Waiting lines={4} />;
   if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
 
   // Support, reading a customer's place: the place the address names, read only,
   // rather than "nothing to steer here" over a place that steers plenty.
-  if (user?.isAdmin === true && asked && !places.some(place => place.spaceId === asked)) return <Visiting spaceId={asked} page={page} />;
+  if (visiting) {
+    return (
+      <section className={`${styles.page} ${styles.reading}`}>
+        <VisitingTitle title={t('shell.tabs.control')} spaceId={visiting} />
+        <Control spaceId={visiting} sub={page} />
+      </section>
+    );
+  }
 
   if (!here) {
     return (
@@ -53,22 +57,6 @@ export function ControlTab() {
     <section className={`${styles.page} ${styles.reading}`}>
       <PlaceHeading title={t('shell.tabs.control')} places={places} here={here} onChoose={choose} />
       <Control key={here.spaceId} spaceId={here.spaceId} sub={page} />
-    </section>
-  );
-}
-
-/** A customer's place, read by support: its Steuerung, said to be somebody else's. */
-function Visiting({ spaceId, page }: { spaceId: string; page: string | null }) {
-  const { t } = useTranslation();
-  const overview = useSpaceOverview(spaceId);
-
-  return (
-    <section className={`${styles.page} ${styles.reading}`}>
-      <h1 className={heading.title}>
-        {t('shell.tabs.control')} · {overview.data?.name ?? '…'}
-        <span className={`mono ${styles.visiting}`}>{t('timeline.visiting')}</span>
-      </h1>
-      <Control spaceId={spaceId} sub={page} />
     </section>
   );
 }

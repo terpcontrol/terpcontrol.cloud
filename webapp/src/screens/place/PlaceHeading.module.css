@@ -12,6 +12,14 @@
   color: var(--muted);
 }
 
+/* Whose place it is, where support reads a customer's. */
+.visiting {
+  margin-left: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
 /* The name gives way before the pill does: which place it is can be truncated, how alive it is cannot.
    Only the pill is pushed to the end - a place with no pill keeps its name beside the title. */
 .pill {

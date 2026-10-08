@@ -1,5 +1,6 @@
 import { ChartLine, Cpu, House, Plus, SlidersHorizontal, type LucideIcon } from 'lucide-react';
 import { useLocation } from 'react-router';
+import { FROM_PLACE, openedFrom } from '@/app/places';
 import { useMayLog } from '@/log/log-context';
 import { useShape, type Shape } from './shape';
 
@@ -59,7 +60,7 @@ export const useTabs = (): Tab[] => tabsOf(useShape(), useMayLog());
  */
 export const useIsOn = (): ((tab: Tab) => boolean) => {
   const { pathname, state } = useLocation();
-  const fromPlace = pathname.startsWith('/cameras/') && (state as { from?: string } | null)?.from === 'place';
+  const fromPlace = pathname.startsWith('/cameras/') && openedFrom(state, FROM_PLACE);
 
   return tab => {
     if (fromPlace) return tab.path === '/';
