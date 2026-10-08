@@ -253,8 +253,7 @@ const stepIndexOf = (message: string | undefined): number => {
  * and the title where a client saved none.
  */
 const repeatedKeyOf = (log: LegacyDeviceLog): string | null => {
-  const message = textOf(log.message);
-  const key = (message?.startsWith('message-') ? message : textOf(log.title))?.split(':')[0] ?? null;
+  const key = (lineOf(log.message).message ?? lineOf(log.title).message)?.key ?? null;
   return key !== null && REPEATED.includes(key) ? key : null;
 };
 

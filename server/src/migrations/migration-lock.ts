@@ -1,5 +1,6 @@
 import { hostname } from 'node:os';
 import { mongo } from 'mongoose';
+import { isDuplicateKey } from '@database/duplicate-key';
 import { logger } from '@utils/logger';
 
 /**
@@ -68,7 +69,7 @@ export class MigrationLock {
 
         return new MigrationLock(locks, owner, renewal);
       } catch (error) {
-        if (!(error instanceof mongo.MongoServerError) || error.code !== 11000) throw error;
+        if (!isDuplicateKey(error)) throw error;
       }
 
       if (Date.now() >= until) throw new Error('Migrations: another instance has held the migration lock for too long');

@@ -9,7 +9,7 @@ import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { logger } from '@utils/logger';
-import { reminderIdOf } from '../diary/due-tasks';
+import { reminderIdOf } from '../diary/task-ids';
 import { NotificationLogService } from './notification-log.service';
 import { TelegramBotService } from './telegram-bot.service';
 

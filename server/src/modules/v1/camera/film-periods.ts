@@ -1,17 +1,13 @@
 import type { MediaWindow } from '@fg2/shared-types/v1';
 import { localOf } from '@common/v1/local-time';
+import { Span } from '@common/v1/range';
 
 /**
  * The day, the week and the month a rolling film covers, cut on the calendar
- * of the account that owns the camera.
- *
- * They used to be cut off the epoch: a day was a UTC day whatever the account's
- * zone, a week began on a Thursday because 1 January 1970 was one, and a month
- * was a block of thirty days that happened to start on 4 September this year.
- * A film called "Week" then ran Thursday to Thursday, "Today" ran from two in
- * the morning for a Berlin grower, and the weekly push arrived on a Thursday
- * about a week nobody would recognise. Here a day starts at the account's
- * midnight, a week on its Monday, and a month on the first.
+ * of the account that owns the camera: a day starts at the account's midnight,
+ * a week on its Monday, and a month on the first. Cut off the epoch instead, a
+ * week would begin on a Thursday - 1 January 1970 was one - and "Today" would
+ * run from two in the morning for a Berlin grower.
  */
 
 export type RollingWindow = Extract<MediaWindow, 'day' | 'week' | 'month'>;
@@ -20,17 +16,12 @@ const ROLLING_WINDOWS: RollingWindow[] = ['day', 'week', 'month'];
 
 export const isRolling = (window: MediaWindow): window is RollingWindow => (ROLLING_WINDOWS as MediaWindow[]).includes(window);
 
-interface Period {
-  startsAt: Date;
-  endsAt: Date;
-}
-
 /** The period of this window that holds the instant. */
-export const periodAround = (window: RollingWindow, at: Date, zone: string | null | undefined): Period => {
+export const periodAround = (window: RollingWindow, at: Date, zone: string | null | undefined): Span => {
   const startsAt = localOf(at, zone).startOf(window);
   return { startsAt: startsAt.toJSDate(), endsAt: startsAt.plus({ [`${window}s`]: 1 }).toJSDate() };
 };
 
 /** The period just before this one. */
-export const periodBefore = (window: RollingWindow, period: Period, zone: string | null | undefined): Period =>
+export const periodBefore = (window: RollingWindow, period: Span, zone: string | null | undefined): Span =>
   periodAround(window, new Date(period.startsAt.getTime() - 1), zone);

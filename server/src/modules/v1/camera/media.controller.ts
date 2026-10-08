@@ -15,9 +15,9 @@ import { V1Query } from '@common/v1/validation';
 import { problemErrorsOf } from '@common/zod-validation.pipe';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { MediaDeliveryService } from './media-delivery.service';
-import { ApiPictureBytes, MediaPresentationService, pictureSizeQuery, renderSizeOf } from './media-presentation.service';
+import { MediaPresentationService, pictureSizeQuery, renderSizeOf } from './media-presentation.service';
 import { MediaService } from './media.service';
-import { V1Answer } from '../answer-shape';
+import { ApiPictureBytes, V1Answer } from '../answer-shape';
 import { PICTURE_READ_OPERATION } from '../../../openapi';
 
 /**

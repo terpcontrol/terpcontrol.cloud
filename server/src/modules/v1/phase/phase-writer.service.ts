@@ -13,7 +13,7 @@ import type { GrowInSpace } from '@modules/alarm/alarm.types';
 import { hasWorkModes } from '@modules/device-protocol/work-modes';
 import { logger } from '@utils/logger';
 import { DevicePlacement } from '../device/placement.port';
-import { standingIn } from '../grow/grow-places';
+import { spacesNow, standingIn } from '../grow/grow-places';
 import { latestPhase } from '../grow/grow-serialiser';
 import { STAGE_ALARMS, StageAlarms } from './stage-alarms.port';
 
@@ -353,13 +353,9 @@ const currentPhase = (grow: GrowDocument, plantIds: string[] | null): PhaseDocum
 const overlap = (one: string[] | null, other: string[] | null): boolean =>
   one === null || other === null || one.some(plantId => other.includes(plantId));
 
-/** The spaces the plants of a scope stand in: every open placement that covers one of them. */
+/** The spaces the plants of a scope stand in now: `spacesNow` of the placements that cover one of them, each once. */
 const spacesOf = (grow: GrowDocument, plantIds: string[] | null): string[] => [
-  ...new Set(
-    grow.placements
-      .filter(placement => placement.endedAt === null && placement.spaceId !== null && overlap(placement.plantIds, plantIds))
-      .map(placement => placement.spaceId as string),
-  ),
+  ...new Set(spacesNow({ placements: grow.placements.filter(placement => overlap(placement.plantIds, plantIds)) })),
 ];
 
 /** The phase the plants standing in a space are in: the latest one written over any of them. */

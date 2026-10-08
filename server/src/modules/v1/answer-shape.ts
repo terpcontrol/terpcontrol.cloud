@@ -1,4 +1,4 @@
-import { HttpStatus } from '@nestjs/common';
+import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { ApiResponse, ApiResponseOptions } from '@nestjs/swagger';
 import { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 import { registry } from '@fg2/shared-types/v1-schemas';
@@ -32,3 +32,26 @@ const answerSchema = (schema: ZodType): SchemaObject => {
  */
 export const V1Answer = (schema: ZodType, options: ApiResponseOptions = {}) =>
   ApiResponse({ status: HttpStatus.OK, ...options, schema: answerSchema(schema) });
+
+/** What the store holds: stills and photos as they were taken, films as they were rendered. */
+const PICTURE_BYTES = {
+  'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+  'image/png': { schema: { type: 'string', format: 'binary' } },
+  'video/mp4': { schema: { type: 'string', format: 'binary' } },
+};
+
+/**
+ * What a route that hands out stored bytes answers: the file, the range a
+ * player asked for, or - for a range that starts past the end of the file - a
+ * refusal like every other rather than an empty body.
+ */
+export const ApiPictureBytes = () =>
+  applyDecorators(
+    ApiResponse({ status: HttpStatus.OK, description: 'The file itself, in the type it was stored as.', content: PICTURE_BYTES }),
+    ApiResponse({ status: HttpStatus.PARTIAL_CONTENT, description: 'The byte range a <video> element asked for.', content: PICTURE_BYTES }),
+    ApiResponse({
+      status: HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
+      description: 'The byte range asked for starts past the end of the file. `Content-Range` says how long it is.',
+      content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/Problem' } } },
+    }),
+  );

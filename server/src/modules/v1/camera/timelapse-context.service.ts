@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SeriesPoint } from '@fg2/shared-types/v1';
+import { Span } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -47,11 +48,6 @@ const CURVE_POINTS = 240;
 /** No more than this many lines are drawn; a busy week would otherwise be nothing but captions. */
 const MAX_CAPTIONS = 60;
 
-interface TimelapseSpan {
-  startsAt: Date;
-  endsAt: Date;
-}
-
 @Injectable()
 export class TimelapseContextService {
   constructor(
@@ -68,7 +64,7 @@ export class TimelapseContextService {
    */
   public async contextFor(
     camera: Pick<CameraDocument, 'spaceId' | 'deviceId'>,
-    span: TimelapseSpan,
+    span: Span,
     wants: { dayCounter: boolean; climate: boolean; captions: boolean; light: boolean },
   ): Promise<TimelapseContext> {
     const grow = wants.dayCounter || wants.captions ? await this.growIn(camera.spaceId, span) : null;
@@ -89,13 +85,13 @@ export class TimelapseContextService {
    * "Der ganze Grow als Film" from `filmMediaId`, and nothing ever set it, so a
    * grower who rendered one in HD found it only on the camera page.
    */
-  public async attachGrowFilm(camera: Pick<CameraDocument, 'spaceId'>, span: TimelapseSpan, mediaId: string): Promise<void> {
+  public async attachGrowFilm(camera: Pick<CameraDocument, 'spaceId'>, span: Span, mediaId: string): Promise<void> {
     const grow = await this.growIn(camera.spaceId, span);
     if (grow) await this.grows.updateOne({ id: grow.id }, { $set: { filmMediaId: mediaId } });
   }
 
   /** The grow that stood in this space while the frames were taken. */
-  private async growIn(spaceId: string | null, span: TimelapseSpan): Promise<GrowDocument | null> {
+  private async growIn(spaceId: string | null, span: Span): Promise<GrowDocument | null> {
     if (spaceId === null) return null;
 
     const candidates = await this.grows.find({ 'placements.spaceId': spaceId }).sort({ startedAt: -1 }).limit(10).lean<GrowDocument[]>();
@@ -110,7 +106,7 @@ export class TimelapseContextService {
    */
   private async climateOf(
     camera: Pick<CameraDocument, 'spaceId' | 'deviceId'>,
-    span: TimelapseSpan,
+    span: Span,
     climate: boolean,
     light: boolean,
   ): Promise<Pick<TimelapseContext, 'temperature' | 'humidity' | 'light'>> {
@@ -154,7 +150,7 @@ export class TimelapseContextService {
    * rather than words - the translations are the client's - so only what a
    * person typed becomes a caption.
    */
-  private async captionsOf(grow: GrowDocument | null, spaceId: string | null, span: TimelapseSpan): Promise<TimelapseCaption[]> {
+  private async captionsOf(grow: GrowDocument | null, spaceId: string | null, span: Span): Promise<TimelapseCaption[]> {
     const of = grow ? { growId: grow.id } : spaceId ? { spaceId } : null;
     if (of === null) return [];
 

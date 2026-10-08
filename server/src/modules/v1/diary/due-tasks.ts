@@ -2,6 +2,7 @@ import { FilterQuery, Model } from 'mongoose';
 import type { DueTask } from '@fg2/shared-types/v1';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
+import { reminderIdOf } from './task-ids';
 
 /**
  * The tasks a reminder puts on a card, worked out at read time.
@@ -24,12 +25,9 @@ export const WEEK_HORIZON_MS = 7 * DAY_MS;
 /** The prefix of every occurrence of a rhythm, which is how its completions are found. */
 const occurrencePrefix = (reminderId: string): string => `${reminderId}:`;
 
-/** The reminder a task id names: a one-off is its id, a rhythm its id and the occurrence. */
-export const reminderIdOf = (taskId: string): string => taskId.split(':')[0];
-
 /** The reminder among these that a task came from. */
 export const reminderOfTask = (reminders: readonly ReminderDocument[], taskId: string): ReminderDocument | undefined =>
-  reminders.find(reminder => taskId === reminder.id || taskId.startsWith(occurrencePrefix(reminder.id)));
+  reminders.find(reminder => reminder.id === reminderIdOf(taskId));
 
 /** The reminders about any of these spaces or grows. */
 export const remindersAbout = (spaceIds: readonly string[], growIds: readonly string[]): FilterQuery<ReminderDocument> => ({

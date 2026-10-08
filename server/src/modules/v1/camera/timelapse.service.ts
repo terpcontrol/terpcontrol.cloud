@@ -8,6 +8,7 @@ import { RENDER_FAILURE_TEXT } from '@fg2/shared-types/v1-schemas';
 import { logger } from '@utils/logger';
 import { BackgroundWork } from '@common/background-work';
 import { badRequest, unprocessable } from '@common/v1/problem';
+import { Span } from '@common/v1/range';
 import { isDuplicateKey } from '@database/duplicate-key';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
@@ -333,7 +334,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
    * nearly - a film being made is the one asked for, and a ready one stays it
    * for a few minutes of pictures, so a second tap does not render again.
    */
-  private async reachesTheNewest(film: MediaDocument, cameraId: string, span: { startsAt: Date; endsAt: Date }): Promise<boolean> {
+  private async reachesTheNewest(film: MediaDocument, cameraId: string, span: Span): Promise<boolean> {
     if (film.render?.status === 'queued' || film.render?.status === 'rendering') return true;
 
     const [newest] = await this.media.latestPositions({ cameraId, kind: 'still', from: span.startsAt, before: span.endsAt }, 1);
@@ -342,8 +343,8 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   }
 
   /**
-   * The renders that are waiting. A row is queued by the route and drained here,
-   * so the request answers at once and the person polls the row.
+   * The renders that are waiting. A row is queued by `request` and drained here,
+   * so the route answers at once and the person polls the row.
    */
   private async drainTheQueue(): Promise<void> {
     if (this.draining) return;
@@ -695,7 +696,7 @@ const coveredBy = (film: Pick<MediaDocument, 'endsAt' | 'render'>): Date | null 
  * grow and a range somebody drew each read both ends, because where a phase or
  * a grow began is the client's to say.
  */
-const spanOf = (body: TimelapseCreate, zone: string | null): { startsAt: Date; endsAt: Date } => {
+const spanOf = (body: TimelapseCreate, zone: string | null): Span => {
   if (!isRolling(body.window)) {
     if (!body.startsAt || !body.endsAt) {
       throw badRequest('span_missing', 'A film of a phase, a whole grow or a span of your choosing needs both ends of it.');

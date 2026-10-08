@@ -3,12 +3,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { randomBytes } from 'node:crypto';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import type { ShareLink, ShareLinkCreate, ShareLinkUpdate, TimeRange } from '@fg2/shared-types/v1';
+import type { ShareLink, ShareLinkCreate, ShareLinkUpdate } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound, unprocessable } from '@common/v1/problem';
-import { isoRange, stillValid } from '@common/v1/range';
+import { dateRange, isoRange, stillValid } from '@common/v1/range';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
@@ -102,7 +102,7 @@ export class ShareLinksService {
     const createdBy = accountOf(ctx);
     await this.access.require(ctx, subjectRef(body.subject.type, body.subject.id), 'own');
 
-    const range = rangeOf(body.range);
+    const range = dateRange(body.range ?? { startsAt: null, endsAt: null });
     const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
     refuseADeadWindow(range, expiresAt);
     if (body.kind === 'public_page') await this.refuseAPageThatIsNotThere(body.subject);
@@ -138,7 +138,7 @@ export class ShareLinksService {
     const link = await this.require(ctx, id);
 
     const changes = {
-      ...(body.range === undefined ? {} : { range: rangeOf(body.range) }),
+      ...(body.range === undefined ? {} : { range: dateRange(body.range) }),
       ...(body.includeCameras === undefined ? {} : { includeCameras: body.includeCameras }),
       ...(body.expiresAt === undefined ? {} : { expiresAt: body.expiresAt ? new Date(body.expiresAt) : null }),
     };
@@ -294,11 +294,6 @@ const refuseADeadWindow = (range: ShareLinkDocument['range'], expiresAt: Date | 
 };
 
 /** An open end is a link that keeps up with a diary as it goes on, which is what sharing a running grow means. */
-const rangeOf = (range: TimeRange | undefined): ShareLinkDocument['range'] => ({
-  startsAt: range?.startsAt ? new Date(range.startsAt) : null,
-  endsAt: range?.endsAt ? new Date(range.endsAt) : null,
-});
-
 /** Field by field, because `_id` rides on a stored document and never leaves the server. */
 const serialise = (link: ShareLinkDocument): ShareLink => ({
   id: link.id,

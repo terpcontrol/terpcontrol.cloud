@@ -2,7 +2,7 @@ import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { CAMERA_STILLS, OFFLINE_RULE_NAME, VALUE_AGE, heardAt } from '@fg2/shared-types/v1-schemas';
+import { CAMERA_STILLS, OFFLINE_RULE_NAME, VALUE_AGE, heardAt, repeatSecondsOf } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -31,9 +31,6 @@ import { ALARM_DEVICE_FIELDS, AlarmDevice } from './alarm.types';
  */
 
 const TICK_MS = 60 * 1000;
-
-/** How often a device that stays gone is said to be gone. */
-const OFFLINE_REPEAT_SECONDS = 30 * 60;
 
 /** What one pass did, which is what the health card is drawn from and what a test reads. */
 export interface AlarmHealthPass {
@@ -235,11 +232,11 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
             'watch.upper': null,
             'watch.lower': null,
             // A controller that has gone quiet is the one alarm nothing else
-            // can raise, so it is critical and said again until the device is
-            // back, as the decided screen has it. Once written it is the
+            // can raise, so it is critical and, like every critical alarm, said
+            // again until the device is back. Once written it is the
             // grower's rule: a severity or a repeat they changed stays changed.
             severity: 'critical',
-            repeatSeconds: OFFLINE_REPEAT_SECONDS,
+            repeatSeconds: repeatSecondsOf('critical'),
             origin: 'always',
           },
         },

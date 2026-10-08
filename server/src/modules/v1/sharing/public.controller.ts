@@ -9,11 +9,11 @@ import { Caller } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage } from '@common/v1/pages';
 import { V1Query } from '@common/v1/validation';
-import { ApiPictureBytes, pictureSizeQuery, renderSizeOf } from '@modules/v1/camera/media-presentation.service';
+import { pictureSizeQuery, renderSizeOf } from '@modules/v1/camera/media-presentation.service';
 import { MediaDeliveryService } from '@modules/v1/camera/media-delivery.service';
 import { weeksQuery } from '@modules/v1/diary/weeks.service';
 import { PUBLIC_OPERATION } from '../../../openapi';
-import { V1Answer } from '../answer-shape';
+import { ApiPictureBytes, V1Answer } from '../answer-shape';
 import { CARD_CACHE_SECONDS, CARD_HEIGHT, CARD_WIDTH } from './link-card';
 import { PublicPagesService } from './public-pages.service';
 

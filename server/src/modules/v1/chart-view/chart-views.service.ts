@@ -7,7 +7,7 @@ import { AccessContext } from '@common/v1/access.types';
 import { ownRows, requireOwned } from '@common/v1/owned-rows';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { notFound } from '@common/v1/problem';
-import { isoRange } from '@common/v1/range';
+import { dateRange, isoRange } from '@common/v1/range';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { ChartViewDocument } from '@database/schemas/v1/chart-views.schema';
@@ -84,13 +84,7 @@ export class ChartViewsService {
 const storedSpan = (span: ChartViewSpan): StoredDefinition['span'] => ({
   kind: span.kind,
   forSeconds: span.kind === 'last' ? span.forSeconds : null,
-  range:
-    span.kind === 'fixed'
-      ? {
-          startsAt: span.range.startsAt === null ? null : new Date(span.range.startsAt),
-          endsAt: span.range.endsAt === null ? null : new Date(span.range.endsAt),
-        }
-      : null,
+  range: span.kind === 'fixed' ? dateRange(span.range) : null,
 });
 
 const storedDefinition = (definition: ChartViewDefinition): StoredDefinition => ({

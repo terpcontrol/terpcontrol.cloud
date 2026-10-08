@@ -23,6 +23,12 @@ export const isoRange = (range: AccessRange): TimeRange => ({
   endsAt: range.endsAt?.toISOString() ?? null,
 });
 
+/** The contract's window as the server keeps it, the other way round from `isoRange`. */
+export const dateRange = (range: TimeRange): AccessRange => ({
+  startsAt: range.startsAt ? new Date(range.startsAt) : null,
+  endsAt: range.endsAt ? new Date(range.endsAt) : null,
+});
+
 /**
  * The range as a filter on one instant field. Both ends count as inside, and an
  * open range filters nothing - which is what an owner reading their own diary

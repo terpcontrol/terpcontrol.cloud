@@ -31,6 +31,9 @@ const PLAN_PREFIX = 'plan:';
 export const planTaskId = (deviceId: string, stepIndex: number, stepStartedAt: Date | null): string =>
   `${PLAN_PREFIX}${deviceId}:${stepIndex}:${stepStartedAt ? stepStartedAt.getTime() : 0}`;
 
+/** The reminder a reminder's task id names: a one-off is its id, a rhythm its id and the occurrence. */
+export const reminderIdOf = (taskId: string): string => taskId.split(':')[0];
+
 export const parseTaskId = (taskId: string): TaskRef => {
   if (taskId.startsWith(PLAN_PREFIX)) {
     const rest = taskId.slice(PLAN_PREFIX.length);
@@ -49,8 +52,6 @@ export const parseTaskId = (taskId: string): TaskRef => {
     return { source: 'plan_step', deviceId, stepIndex };
   }
 
-  const cut = taskId.indexOf(':');
-  return cut < 0
-    ? { source: 'reminder', reminderId: taskId, occurrence: null }
-    : { source: 'reminder', reminderId: taskId.slice(0, cut), occurrence: taskId.slice(cut + 1) };
+  const reminderId = reminderIdOf(taskId);
+  return { source: 'reminder', reminderId, occurrence: reminderId === taskId ? null : taskId.slice(reminderId.length + 1) };
 };
