@@ -84,11 +84,6 @@
   color: var(--brand);
 }
 
-.exportStatus {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
 /*
  * The sweep stands apart from the two chips that ask for more of the list: it
  * ends sessions rather than showing them, and a row of three identical chips

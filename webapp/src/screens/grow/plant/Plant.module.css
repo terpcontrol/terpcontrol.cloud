@@ -153,10 +153,6 @@
   border-top-color: var(--muted);
 }
 
-.chartHead .label {
-  margin-left: auto;
-}
-
 .sectionHead {
   display: flex;
   align-items: baseline;

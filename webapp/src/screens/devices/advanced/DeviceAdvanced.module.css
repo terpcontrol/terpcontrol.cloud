@@ -48,10 +48,3 @@
   width: 4.5rem;
   text-align: right;
 }
-
-/* A choice that spells out what it means under the chips. */
-.choices {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}

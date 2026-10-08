@@ -208,12 +208,6 @@
   font-size: var(--text-xs);
 }
 
-/* The label heads the chips it names, on a line of its own, rather than
-   standing in the row as if it were the first of them. */
-.more > .label {
-  flex-basis: 100%;
-}
-
 .addField {
   color: var(--muted);
 }

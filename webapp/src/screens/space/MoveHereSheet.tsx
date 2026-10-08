@@ -12,7 +12,7 @@ import { Block, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { GrowPicker } from './GrowPicker';
 import { useMovableGrows } from './movable-grows';
-import styles from './PresetSheet.module.css';
+import styles from './MoveHereSheet.module.css';
 
 /**
  * A grow moved in here, asked from the tent's side.

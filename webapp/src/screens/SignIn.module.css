@@ -112,13 +112,6 @@
   text-underline-offset: 3px;
 }
 
-/* The way through a move from the old cloud, folded until it is asked for. */
-.legacy {
-  width: 100%;
-  max-width: 400px;
-  margin-top: var(--space-4);
-}
-
 .fieldNote {
   margin-top: var(--space-1);
   font-size: var(--text-xs);

@@ -255,19 +255,8 @@
   gap: var(--space-2);
 }
 
-.quickWrap {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
 .quick {
   gap: var(--space-2);
-}
-
-.quickWhy {
-  font-size: 10px;
-  color: var(--label);
 }
 
 .premium {
