@@ -74,6 +74,11 @@ export default defineConfig(({ mode }) => ({
         // The app speaks English and German; the other subsets of the face
         // are downloaded if a name ever needs them, not kept for offline.
         globIgnores: ['**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
+        // The plugin trusts every file under `assets/` to carry its hash in its name and precaches it without a
+        // revision - which a precached file is then never fetched again for. The catalogues live under `assets/`
+        // too and keep their names, so a release's new code ran on the first release's words and showed raw keys.
+        // Only what Vite actually hashed may go without a revision; the same pattern nginx.conf trusts for a year.
+        dontCacheBustURLsMatching: /-[A-Za-z0-9_-]{8}\.(js|css|woff2)$/,
       },
       devOptions: { enabled: false },
     }),

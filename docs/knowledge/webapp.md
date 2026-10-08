@@ -161,6 +161,11 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   push handler. It precaches the shell (js, css, html, woff2 without the non-latin font subsets) and both
   catalogues, answers navigations with `index.html`, caches `/assets/` stale-while-revalidate once fetched, shows a
   push and opens its target (`src/screens/notifications/push-route.ts`).
+- A precache entry without a revision is never fetched again. vite-plugin-pwa leaves the revision off everything
+  under `assets/` by default, assuming Vite hashed it - but `public/assets/` (catalogues, help pages) keeps its names.
+  Until October 2026 that froze the catalogues at the first release a browser saw: new code, old words, raw keys
+  (`cockpit.tile.hourMean`, `operatingMode.drying`). `dontCacheBustURLsMatching` in `vite.config.ts` now exempts only
+  hashed names; `grep -o '{"revision":null[^}]*}' dist/sw.js` after a build must list hashed files only.
 - `src/sw.ts` calls neither `self.skipWaiting()` nor `clientsClaim()`, which the plugin adds only to a generated
   worker. Despite `registerType: 'autoUpdate'`, a new release therefore takes over only once every window of the app
   has been closed; until then the old precached shell is served (open question 4 in
