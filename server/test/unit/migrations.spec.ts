@@ -461,6 +461,11 @@ describe('users', () => {
     expect(await one<{ notifications: { channels: { email: string | null } } }>('users', { id: LEGACY_USER_IDS.ada })).toMatchObject({
       notifications: { channels: { email: null } },
     });
+
+    // Private by default, like a new account.
+    expect(await one<{ privacy: { hideWeights: boolean; hideCounts: boolean } }>('users', { id: LEGACY_USER_IDS.ada })).toMatchObject({
+      privacy: { hideWeights: true, hideCounts: true },
+    });
   });
 
   it('reads a flag the way the release that wrote it read it', async () => {

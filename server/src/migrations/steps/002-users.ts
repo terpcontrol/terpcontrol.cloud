@@ -68,7 +68,9 @@ export const users: MigrationStep = {
         bio: null,
         avatarMediaId: null,
         publicProfile: false,
-        privacy: { hideWeights: false, hideCounts: false },
+        // Private by default, as a new account is: the old cloud had no such setting, so no carried-over
+        // account has a choice this would override.
+        privacy: { hideWeights: true, hideCounts: true },
         preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: context.locale, timezone: 'UTC' },
         retention: { climateDays: null },
         notifications: {
