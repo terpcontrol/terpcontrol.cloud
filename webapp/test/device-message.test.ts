@@ -2,6 +2,7 @@ import i18next, { type i18n as I18n } from 'i18next';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { configurationChange } from '@/i18n/configuration-change';
 import { entryDetail, entryHeadline, resolveDeviceMessage } from '@/i18n/device-message';
 import { catalogue } from './translations';
 
@@ -157,6 +158,81 @@ describe('device messages against the shipped catalogue', () => {
     expect(entryDetail(i18n, plants)).toBeNull();
     // Its two halves differ by a word, so only being named keeps it quiet.
     expect(entryDetail(i18n, sensor)).toBeNull();
+  });
+});
+
+/**
+ * A stand-alone LIGHT keeps its figures at the top of its document and an AIR
+ * fan keeps speeds beside its targets, and the diary named none of them: a
+ * lamp's schedule read as "day: 21600 → 21660", seconds past midnight UTC, and
+ * a fan's mode as "mode: 0 → 1". Lines as the server writes them for both.
+ */
+describe('a LIGHT´s and an AIR fan´s settings, changed', () => {
+  const berlin = { zone: 'Europe/Berlin', at: '2026-10-03T09:48:22.000Z' };
+  const reader: Record<'en' | 'de', I18n> = { en: i18next.createInstance(), de: i18next.createInstance() };
+  const said = (language: 'en' | 'de', lines: string) => configurationChange(reader[language], lines, berlin);
+
+  beforeAll(async () => {
+    const [en, de] = await Promise.all([catalogue('en'), catalogue('de')]);
+    for (const language of ['en', 'de'] as const) {
+      await reader[language].init({
+        lng: language,
+        fallbackLng: 'en',
+        resources: { en: { translation: en }, de: { translation: de } },
+        nsSeparator: false,
+        interpolation: { escapeValue: false },
+      });
+    }
+  });
+
+  it('says a lamp´s times on the account´s clock and its figures with their names and units', () => {
+    const lines = 'day: 21600 → 21660\nlimit: 100 → 95\nmax_temperature: 25 → 26.5\nsunrise: 15 → 20';
+
+    expect(said('en', lines)).toBe('Light on at: 08:00 → 08:01\nLight limit: 100 % → 95 %\nDim from: 25 °C → 26.5 °C\nSunrise: 15 min → 20 min');
+    expect(said('de', lines)).toBe(
+      'Licht an um: 08:00 → 08:01\nLichtgrenze: 100 % → 95 %\nDimmen ab: 25 °C → 26,5 °C\nSonnenaufgang: 15 Min → 20 Min',
+    );
+  });
+
+  it('says both times of a lamp as its light plan, where the first of them stood', () => {
+    const lines = 'day: 21600 → 25200\nlimit: 80 → 90\nnight: 64800 → 72000';
+
+    expect(said('en', lines)).toBe('Light plan: Light on 08:00–20:00 · 12 h → Light on 09:00–22:00 · 13 h\nLight limit: 80 % → 90 %');
+    expect(said('de', lines)).toBe('Lichtplan: Licht an 08:00–20:00 · 12 Std → Licht an 09:00–22:00 · 13 Std\nLichtgrenze: 80 % → 90 %');
+  });
+
+  it('says a fan´s mode as its word and its speeds by the names of its panel', () => {
+    const lines = 'day.fixed_speed: 100 → 80\nmin_speed: 10 → 20\nmode: 0 → 1\nnight.max_speed: 100 → 60';
+
+    expect(said('en', lines)).toBe(
+      'Speed by day: 100 % → 80 %\nLowest speed: 10 % → 20 %\nThe fan runs: fixed → by temperature\nHighest speed at night: 100 % → 60 %',
+    );
+    expect(said('de', lines)).toBe(
+      'Drehzahl tagsüber: 100 % → 80 %\nMindestdrehzahl: 10 % → 20 %\nLüfter läuft: fest → nach Temperatur\nHöchstdrehzahl nachts: 100 % → 60 %',
+    );
+    // A mode a newer firmware adds keeps its code.
+    expect(said('en', 'mode: 3 → 7')).toBe('The fan runs: by both → 7');
+  });
+
+  it('says the windows a socket slows a fan in, which move with the clocks', () => {
+    expect(said('en', 'co2inject.day: 21600 → 25200\nco2inject.device_id: – → sim-plug-1\nco2inject.period: 60 → 30')).toBe(
+      'CO₂ dosing · day from: 08:00 → 09:00\nSlowed while CO₂ is dosed: off → on\nCO₂ dosing · interval: 60 min → 30 min',
+    );
+    expect(said('de', 'co2inject.speed: 100 → 40\nco2inject.usedaynight: 0 → 1')).toBe(
+      'Drehzahl, während CO₂ dosiert wird: 100 % → 40 %\nCO₂ nur tagsüber dosiert: aus → an',
+    );
+  });
+
+  /** A fan's day and night are sections; where one appears whole it is no time of a lamp, and no plan. */
+  it('keeps a whole section where a lamp keeps a time as it came', () => {
+    const lines = 'day: – → {"fixed_speed":80}\nnight: – → {"fixed_speed":40}';
+
+    expect(said('en', lines)).toBe(lines);
+  });
+
+  it('writes a figure without grouping its thousands, in the reader´s decimals', () => {
+    expect(said('en', 'co2.target: 800 → 1200')).toBe('CO₂ target: 800 ppm → 1200 ppm');
+    expect(said('de', 'co2.target: 800 → 1200')).toBe('CO₂-Ziel: 800 ppm → 1200 ppm');
   });
 });
 

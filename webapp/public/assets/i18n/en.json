@@ -5043,11 +5043,15 @@
       "workmode": "Operation",
       "day": {
         "temperature": "Day temperature",
-        "humidity": "Day humidity"
+        "humidity": "Day humidity",
+        "fixed_speed": "Speed by day",
+        "max_speed": "Highest speed by day"
       },
       "night": {
         "temperature": "Night temperature",
-        "humidity": "Night humidity"
+        "humidity": "Night humidity",
+        "fixed_speed": "Speed at night",
+        "max_speed": "Highest speed at night"
       },
       "co2": {
         "target": "CO₂ target",
@@ -5072,7 +5076,20 @@
       "germination": {
         "warnTooHumid": "Germination · warn when it gets too humid",
         "humidifierHolds": "Germination · hold the humidity with the humidifier"
-      }
+      },
+      "mode": "The fan runs",
+      "min_speed": "Lowest speed",
+      "max_temperature": "Dim from",
+      "co2inject": {
+        "device_id": "Slowed while CO₂ is dosed",
+        "speed": "Speed while CO₂ is dosed",
+        "usedaynight": "CO₂ dosed by day only",
+        "day": "CO₂ dosing · day from",
+        "night": "CO₂ dosing · night from",
+        "period": "CO₂ dosing · interval",
+        "duration": "CO₂ dosing · per interval"
+      },
+      "mqttcontrol": "Direct control of the outputs"
     },
     "mode": {
       "off": "control off",
@@ -5081,6 +5098,12 @@
       "temp": "greenhouse",
       "breed": "germination",
       "dry": "drying"
+    },
+    "fanMode": {
+      "fixed": "fixed",
+      "temperature": "by temperature",
+      "humidity": "by humidity",
+      "both": "by both"
     },
     "on": "on",
     "off": "off",

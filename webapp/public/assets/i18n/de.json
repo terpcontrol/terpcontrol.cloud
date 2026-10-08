@@ -5051,11 +5051,15 @@
       "workmode": "Betrieb",
       "day": {
         "temperature": "Temperatur Tag",
-        "humidity": "Luftfeuchte Tag"
+        "humidity": "Luftfeuchte Tag",
+        "fixed_speed": "Drehzahl tagsüber",
+        "max_speed": "Höchstdrehzahl tagsüber"
       },
       "night": {
         "temperature": "Temperatur Nacht",
-        "humidity": "Luftfeuchte Nacht"
+        "humidity": "Luftfeuchte Nacht",
+        "fixed_speed": "Drehzahl nachts",
+        "max_speed": "Höchstdrehzahl nachts"
       },
       "co2": {
         "target": "CO₂-Ziel",
@@ -5080,7 +5084,20 @@
       "germination": {
         "warnTooHumid": "Keimung · Warnen, wenn es zu feucht wird",
         "humidifierHolds": "Keimung · Luftfeuchte mit dem Befeuchter halten"
-      }
+      },
+      "mode": "Lüfter läuft",
+      "min_speed": "Mindestdrehzahl",
+      "max_temperature": "Dimmen ab",
+      "co2inject": {
+        "device_id": "Gedrosselt, während CO₂ dosiert wird",
+        "speed": "Drehzahl, während CO₂ dosiert wird",
+        "usedaynight": "CO₂ nur tagsüber dosiert",
+        "day": "CO₂-Dosierung · Tag ab",
+        "night": "CO₂-Dosierung · Nacht ab",
+        "period": "CO₂-Dosierung · Intervall",
+        "duration": "CO₂-Dosierung · je Intervall"
+      },
+      "mqttcontrol": "Direktsteuerung der Ausgänge"
     },
     "mode": {
       "off": "Regelung aus",
@@ -5089,6 +5106,12 @@
       "temp": "Gewächshaus",
       "breed": "Keimung",
       "dry": "Trocknung"
+    },
+    "fanMode": {
+      "fixed": "fest",
+      "temperature": "nach Temperatur",
+      "humidity": "nach Luftfeuchte",
+      "both": "nach beidem"
     },
     "on": "an",
     "off": "aus",
