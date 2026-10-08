@@ -52,7 +52,7 @@ on the still-running old container.
 Skip the per-PR loop if any preflight check fails; the whole point of preflight is that any later failure is attributable to the new firmware, not to the environment.
 
 1. **Stack is up.** `docker compose ps` must show `server`, `mongodb`, `rabbitmq`, `webapp`, `influxdb` as `Up`. If anything is down, ask before `docker compose up -d`.
-2. **`.env` is loaded.** Read `API_URL_EXTERNAL`, `AUTOMATION_TOKEN`, `AGENT_TESTING_USERNAME`, `AGENT_TESTING_PASSWORD` from `.env`. The default user account is `extr3m0@email.de` (these are the values in `.env` for the test fleet).
+2. **`.env` is loaded.** Read `API_URL_EXTERNAL`, `AUTOMATION_TOKEN`, `AGENT_TESTING_USERNAME`, `AGENT_TESTING_PASSWORD` from `.env`. The user account that owns the test fleet is `AGENT_TESTING_USERNAME`.
 3. **Devices are online.** Log in with the user credentials, `GET /v1/devices`, and confirm every device has `state.lastSeenAt` within the last 10 min (`VALUE_AGE.staleSeconds`). Treat a null `state.firmwareId` as offline. If any device is offline, stop and tell the user which one — don't roll out to a fleet that already has an unknown problem.
 4. **No device is on the `manual` channel.** In the same `GET /v1/devices`, check each device's `firmware.channel`. A device set to `manual` is never offered an update, so it can only ever time the cycle out — drop its hardware type from the list and say so in the report, or have the user move it to another channel. `stable`, `beta` and `alpha` are all fine.
 5. **Build container is present.** `docker images | grep plantalytix-buildcontainer` should show a row; if not, the first `build-fw.sh` will rebuild it (slower but fine).
