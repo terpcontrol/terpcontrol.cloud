@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OUTPUT_METRIC_FIELD = exports.METRIC_FIELD = exports.METRIC_DECIMALS = exports.TARGET_BAND = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.accountLayers = exports.diaryChoice = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.seriesPoint = exports.metricValue = exports.VALUE_AGE = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.person = exports.memberRole = exports.germinationChoices = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
-exports.FIELD_OUTPUT_METRIC = exports.FIELD_METRIC = void 0;
+exports.METRIC_DECIMALS = exports.TARGET_BAND = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.accountLayers = exports.diaryChoice = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.seriesPoint = exports.metricValue = exports.VALUE_AGE = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.person = exports.memberRole = exports.germinationChoices = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
 const zod_1 = require("zod");
 /**
  * The base of the `/v1` wire contract: the registry, the scalar helpers, the
@@ -309,7 +308,7 @@ exports.schemeWeek = (0, exports.named)('SchemeWeek', zod_1.z.object({
  * `vpd` and `ppfd` are computed per device from temperature, humidity, leaf
  * temperature and lux with the device's own factors; `offline` is derived from
  * `devices.state.lastSeenAt` for the always-on alarm and the health loop.
- * Neither is stored, which is what a `null` field below says.
+ * None of them is stored.
  */
 exports.metric = (0, exports.named)('Metric', zod_1.z.enum(['temperature', 'humidity', 'co2', 'leafTemperature', 'lux', 'vpd', 'ppfd', 'offline']));
 /** A controller's outputs, as a series. Their state is what the timeline draws under the climate charts. */
@@ -346,45 +345,3 @@ exports.METRIC_DECIMALS = {
     ppfd: 0,
     offline: 0,
 };
-/**
- * The device's InfluxDB field names are frozen - they are written by firmware in
- * the field and by three years of stored points - so the translation lives here
- * and nowhere else. The device writes sensors under their bare name and outputs
- * with an `out_` prefix, three of them hyphenated.
- *
- * The remaining fields a device writes (`avg`, `p`, `i`, `d`, `rpm`, `day`,
- * `sensor_type`) are controller diagnostics that no screen asks for, so the API
- * names no metric for them; they keep being written and stay readable in Influx.
- */
-exports.METRIC_FIELD = {
-    temperature: 'temperature',
-    humidity: 'humidity',
-    co2: 'co2',
-    leafTemperature: 'leaf_temperature',
-    lux: 'lux',
-    vpd: null,
-    ppfd: null,
-    offline: null,
-};
-exports.OUTPUT_METRIC_FIELD = {
-    heater: 'out_heater',
-    dehumidifier: 'out_dehumidifier',
-    co2: 'out_co2',
-    light: 'out_light',
-    fan: 'out_fan',
-    relais: 'out_relais',
-    fanInternal: 'out_fan-internal',
-    fanExternal: 'out_fan-external',
-    fanBackwall: 'out_fan-backwall',
-};
-const byField = (fields) => {
-    const map = {};
-    for (const [name, field] of Object.entries(fields)) {
-        if (field !== null)
-            map[field] = name;
-    }
-    return map;
-};
-/** The other direction, for reading a point back out of Influx. Derived, so the two cannot drift. */
-exports.FIELD_METRIC = byField(exports.METRIC_FIELD);
-exports.FIELD_OUTPUT_METRIC = byField(exports.OUTPUT_METRIC_FIELD);
