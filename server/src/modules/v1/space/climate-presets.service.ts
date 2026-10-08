@@ -29,10 +29,6 @@ export class ClimatePresetsService implements ClimatePresets {
     @Inject(DEVICE_CONFIGURATION_WRITER) private readonly configuration: DeviceConfigurationWriter,
   ) {}
 
-  public applyToSpace(spaceId: string, stage: GrowthStage, preset: string | null, choices?: Partial<GerminationChoices>): Promise<AppliedPreset[]> {
-    return this.writeTo(spaceId, stage, preset, choices);
-  }
-
   public async modeToSpace(spaceId: string, stage: GrowthStage): Promise<void> {
     // Germination is dark, and a device goes dark for it only where its climate
     // was asked for: a grow written into germination without one is a record of
@@ -71,7 +67,12 @@ export class ClimatePresetsService implements ClimatePresets {
    * What germination does about the humidity goes with the germination stage
    * alone: a choice about the dark is not one any other climate makes.
    */
-  public async writeTo(spaceId: string, stage: GrowthStage, preset: string | null, choices?: Partial<GerminationChoices>): Promise<AppliedPreset[]> {
+  public async applyToSpace(
+    spaceId: string,
+    stage: GrowthStage,
+    preset: string | null,
+    choices?: Partial<GerminationChoices>,
+  ): Promise<AppliedPreset[]> {
     const here = await this.devices.find({ spaceId }, { id: 1, configuration: 1, 'state.hardware': 1 }).lean<StoredDevice[]>();
     const applied: AppliedPreset[] = [];
     const germination = stage === 'germination' ? choices : undefined;

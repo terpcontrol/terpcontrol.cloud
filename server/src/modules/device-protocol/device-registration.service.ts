@@ -3,6 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
+import { readableCode } from '@common/readable-code';
 import { startedNow } from '@common/v1/firmware-instruction';
 import { MODEL_V1 } from '@database/models';
 import { StoredClaimCode } from '@database/schemas/v1/claim-codes.schema';
@@ -22,9 +23,6 @@ import { ClaimCodeRequest, RegisterDeviceRequest } from './protocol.schemas';
  * answer in the device's own vocabulary.
  */
 
-// The characters a claim code is made of: those that cannot be read as one
-// another off a small display - no O or 0, no I, J, L or 1, no Q.
-const CLAIM_CODE_ALPHABET = 'ABCDEFGHKMNPRSTUVWXYZ23456789';
 const CLAIM_CODE_LENGTH = 6;
 
 /** What `POST /device/register` answers: the build the device is to install. */
@@ -215,10 +213,8 @@ export class DeviceRegistrationService {
   }
 
   private async unusedCode(): Promise<string> {
-    const letter = () => CLAIM_CODE_ALPHABET[Math.floor(Math.random() * CLAIM_CODE_ALPHABET.length)];
-
     for (;;) {
-      const code = Array.from({ length: CLAIM_CODE_LENGTH }, letter).join('');
+      const code = readableCode(CLAIM_CODE_LENGTH);
       if (!(await this.claimCodes.exists({ code }))) return code;
     }
   }

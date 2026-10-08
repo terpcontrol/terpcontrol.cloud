@@ -62,10 +62,10 @@ interface Principal {
   isDemo: boolean;
 }
 
-/** The tour that needs no account: nobody's owner, nobody's member, and never privileged. */
 /** How long a code sent again on a sign-in stands before another sign-in sends it once more. */
 const RESEND_AFTER_MS = 10 * 60 * 1000;
 
+/** The tour that needs no account: nobody's owner, nobody's member, and never privileged. */
 const DEMO_USER: SessionUser = { id: DEMO_USER_ID, handle: 'demo', isAdmin: false, isDemo: true };
 
 @Injectable()
@@ -98,7 +98,7 @@ export class SessionsService {
       throw forbidden('account_not_activated', 'This account still has to be activated: its code has been sent to its address again.');
     }
 
-    return this.open(user, stayLoggedIn, userAgent);
+    return this.begin({ id: user.id, handle: user.handle, isAdmin: user.isAdmin, isDemo: false }, stayLoggedIn, userAgent);
   }
 
   /**
@@ -114,10 +114,6 @@ export class SessionsService {
 
     this.resent.set(user.id, Date.now());
     await this.mails.activation(user.email, user.activationCode);
-  }
-
-  public async open(user: StoredUser, stayLoggedIn: boolean, userAgent: string | null): Promise<SessionResult> {
-    return this.begin({ id: user.id, handle: user.handle, isAdmin: user.isAdmin, isDemo: false }, stayLoggedIn, userAgent);
   }
 
   /** Anyone may open the demo. It reads the objects marked as demo, redacted, and writes nothing. */

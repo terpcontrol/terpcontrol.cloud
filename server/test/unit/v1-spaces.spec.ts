@@ -387,7 +387,7 @@ describe('ending one', () => {
     await spaces.remove(SPACE);
 
     expect((await spaces.list(session(OWNER), {}, {})).items.map(space => space.id)).toEqual([ROOM, OTHER_SPACE]);
-    expect((await spaces.byId(SPACE))?.archivedAt).not.toBeNull();
+    expect((await spaces.require(SPACE)).archivedAt).not.toBeNull();
   });
 
   it('takes the rest of the way in with it', async () => {
@@ -413,7 +413,7 @@ describe('ending one', () => {
       { field: 'id', code: 'member_here', detail: 'Somebody else is a member of this space. Remove them from it first.' },
     ]);
     // And the space is still there, unarchived: a refusal changes nothing.
-    expect((await spaces.byId(SPACE))?.archivedAt).toBeNull();
+    expect((await spaces.require(SPACE)).archivedAt).toBeNull();
   });
 
   it('counts the people it is waiting for', async () => {
@@ -427,7 +427,7 @@ describe('ending one', () => {
     await emptyOfPeople();
     await spaces.remove(SPACE);
 
-    expect((await spaces.byId(SPACE))?.archivedAt).not.toBeNull();
+    expect((await spaces.require(SPACE)).archivedAt).not.toBeNull();
   });
 
   /**
@@ -441,7 +441,7 @@ describe('ending one', () => {
     await emptyOfPeople();
     await spaces.remove(SPACE);
 
-    expect((await spaces.byId(SPACE))?.archivedAt).not.toBeNull();
+    expect((await spaces.require(SPACE)).archivedAt).not.toBeNull();
     expect(await db.memberships.countDocuments({ spaceId: ROOM })).toBe(1);
   });
 
@@ -506,7 +506,7 @@ describe('ending one', () => {
     });
 
     await spaces.remove(SPACE);
-    expect((await spaces.byId(SPACE))?.archivedAt).not.toBeNull();
+    expect((await spaces.require(SPACE)).archivedAt).not.toBeNull();
   });
 
   it('refuses a room that still groups spaces, and names its own members beside them', async () => {

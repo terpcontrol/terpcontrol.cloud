@@ -56,12 +56,8 @@ export class SpacesService {
     private readonly access: AccessService,
   ) {}
 
-  public byId(id: string): Promise<SpaceDocument | null> {
-    return this.spaces.findOne({ id }).lean<SpaceDocument>();
-  }
-
   public async require(id: string): Promise<SpaceDocument> {
-    const space = await this.byId(id);
+    const space = await this.spaces.findOne({ id }).lean<SpaceDocument>();
     if (!space) throw notFound('space_not_found', 'There is no space with that id.');
 
     return space;

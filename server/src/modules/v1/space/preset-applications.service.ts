@@ -62,7 +62,7 @@ export class PresetApplicationsService {
     // hourly, so a preset written beside a plan that is still running would be
     // undone within the hour.
     const planEffect = await this.nudgePlan(spaceId, body.stage, ctx.userId);
-    const applied = await this.climate.writeTo(spaceId, body.stage, preset, body.germinationChoices);
+    const applied = await this.climate.applyToSpace(spaceId, body.stage, preset, body.germinationChoices);
 
     const growId = await this.growHere(ctx, spaceId, decision, body.growId ?? null, appliedAt);
     const controller = applied.at(0) ?? null;

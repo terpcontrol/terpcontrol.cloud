@@ -16,6 +16,7 @@ import { InviteDocument } from '@database/schemas/v1/invites.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
+import { SpacesService } from '@modules/v1/space/spaces.service';
 import { accountOf } from '../caller';
 
 /**
@@ -47,6 +48,7 @@ export class MembersService {
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
     @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
     private readonly access: AccessService,
+    private readonly spacesService: SpacesService,
   ) {}
 
   /**
@@ -60,7 +62,7 @@ export class MembersService {
    * yes.
    */
   public async list(spaceId: string, grant: Grant, query: PageQuery): Promise<MembershipPage> {
-    const space = await this.require(spaceId);
+    const space = await this.spacesService.require(spaceId);
     this.refuseAnOutsider(grant);
 
     const covering = space.roomId ? [spaceId, space.roomId] : [spaceId];
@@ -125,7 +127,7 @@ export class MembersService {
    * act.
    */
   public async add(ctx: AccessContext, spaceId: string, body: MembershipCreate): Promise<Membership> {
-    const space = await this.require(spaceId);
+    const space = await this.spacesService.require(spaceId);
     const person = await this.knownTo(ctx, body.handle);
 
     if (person.id === space.ownerId) throw conflict('owner_here', 'This account owns the space, which is more than any membership gives.');
@@ -230,7 +232,7 @@ export class MembersService {
     const row = await this.memberships.findOne({ spaceId, userId }).lean<MembershipDocument>();
     if (row) return row;
 
-    const space = await this.require(spaceId);
+    const space = await this.spacesService.require(spaceId);
     const viaRoom = space.roomId ? await this.memberships.exists({ spaceId: space.roomId, userId }) : null;
 
     throw viaRoom
@@ -280,13 +282,6 @@ export class MembersService {
     if (grant.grantee !== 'owner' && grant.grantee !== 'member' && grant.grantee !== 'admin') {
       throw notFound('space_not_found', 'There is no space with that id.');
     }
-  }
-
-  public async require(id: string): Promise<SpaceDocument> {
-    const space = await this.spaces.findOne({ id }).lean<SpaceDocument>();
-    if (!space) throw notFound('space_not_found', 'There is no space with that id.');
-
-    return space;
   }
 }
 
