@@ -2,15 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, mongo } from 'mongoose';
 import { V1_MODELS_MIGRATED_IN_PLACE } from '@database/models.module';
+import type { MigrationRejectDocument } from '@database/schemas/v1/migrations.schema';
 import { migrationConfig } from '@config/configuration';
 import { errorText, logger } from '@utils/logger';
 import { derivedId } from './ids';
-import { MigrationContext, MigrationReject, MigrationStep } from './migration';
+import { MigrationContext, MigrationStep } from './migration';
 import { MigrationLock } from './migration-lock';
 import {
+  MigrationRefusal,
   PreflightFailure,
   StaleMigrationRecord,
   TwoGenerationsOfOldData,
+  plural,
   preflight,
   twoGenerationsOfOldData,
   unmigratedCollections,
@@ -20,25 +23,24 @@ import { MIGRATION_STEPS } from './steps';
 /** Where a run is recorded, and what says a migration has already been applied. */
 const MIGRATIONS = 'migrations';
 
-export interface MigrationOutcome {
+interface MigrationOutcome {
   name: string;
   durationMs: number;
   stats: Record<string, number>;
-  rejects: MigrationReject[];
+  rejects: MigrationRejectDocument[];
   rejectCount: number;
 }
 
 /**
  * What a run throws when a transform could not take a row.
  *
- * It carries the step's whole outcome rather than a sentence, so whoever reads
- * it sees every row that step rejected and why - which is the thing to act on,
- * and the thing a count alone hides.
+ * Its message is the step's whole report rather than a sentence, so whoever
+ * reads it sees every row that step rejected and why - which is the thing to
+ * act on, and the thing a count alone hides.
  */
-export class RejectedRows extends Error {
-  constructor(public readonly outcome: MigrationOutcome) {
+export class RejectedRows extends MigrationRefusal {
+  constructor(outcome: MigrationOutcome) {
     super(formatRejects(outcome));
-    this.name = 'RejectedRows';
   }
 }
 
@@ -52,7 +54,7 @@ const formatRejects = (outcome: MigrationOutcome): string => {
   const more = outcome.rejectCount > shown.length ? `\n  … and ${outcome.rejectCount - shown.length} more of the same kind.` : '';
 
   return [
-    `${outcome.name} could not take ${outcome.rejectCount} row${outcome.rejectCount === 1 ? '' : 's'}, and the run stopped there.`,
+    `${outcome.name} could not take ${plural(outcome.rejectCount, 'row')}, and the run stopped there.`,
     '',
     'What it was written after is kept, so fixing these and running again carries on rather than starting over.',
     'If leaving them behind is what you want, run again with --allow-rejects (MIGRATION_ALLOW_REJECTS=true at boot).',
@@ -87,7 +89,7 @@ export type RunEvent =
   | { at: 'finished'; applied: MigrationOutcome[]; durationMs: number }
   | { at: 'stopped'; step: string | null };
 
-export type RunWatcher = (event: RunEvent) => void;
+type RunWatcher = (event: RunEvent) => void;
 
 /**
  * One wording for what a run is doing, so the boot log and the command cannot
@@ -141,8 +143,6 @@ export const runProgress = (event: RunEvent, dryRun = false): { level: 'info' | 
   }
 };
 
-const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`;
-
 /**
  * Every document a run copied - and on a rehearsal, every document it did not.
  *
@@ -159,16 +159,7 @@ export const documentsCopied = (applied: MigrationOutcome[]): number =>
   );
 
 /** A refusal is a report to read, not a crash: it prints as it was written, with no stack in front of it. */
-export const migrationFailureText = (error: unknown): string => {
-  if (
-    error instanceof PreflightFailure ||
-    error instanceof RejectedRows ||
-    error instanceof StaleMigrationRecord ||
-    error instanceof TwoGenerationsOfOldData
-  )
-    return error.message;
-  return errorText(error);
-};
+export const migrationFailureText = (error: unknown): string => (error instanceof MigrationRefusal ? error.message : errorText(error));
 
 /**
  * Applies the migrations in order, once each.
@@ -211,6 +202,32 @@ export class MigrationRunner {
   }
 
   /**
+   * Everything a run refuses to start on, in the order it asks: the database
+   * against itself and the record against the database first, because an answer
+   * about a database holding two copies of the old data is an answer about
+   * neither of them. `migrate:check` is this and nothing else.
+   */
+  public async check(): Promise<void> {
+    await this.refuseTwoGenerationsOfOldData();
+    await this.refuseAStaleRecord();
+    await this.refuseUnmigratableRows();
+  }
+
+  /**
+   * Two copies of the old data, which no run can choose between.
+   *
+   * Asked before the record is, and whether or not there is a record at all: the
+   * advice that follows a stale record is to drop `migrations` and start again,
+   * and on this database that would transform the migration-day copy and discard
+   * the restore somebody had just performed. So it is a refusal of its own, in
+   * the same words `migrate:check` refuses it in.
+   */
+  private async refuseTwoGenerationsOfOldData(): Promise<void> {
+    const found = await twoGenerationsOfOldData(this.db);
+    if (found.length > 0) throw new TwoGenerationsOfOldData(found);
+  }
+
+  /**
    * The record is not believed on its own, where it claims a step has run.
    *
    * A dump taken before the upgrade and restored into a database this release
@@ -232,20 +249,6 @@ export class MigrationRunner {
    * A `listCollections` and at most twelve counts, on a boot that would
    * otherwise do nothing at all.
    */
-  /**
-   * Two copies of the old data, which no run can choose between.
-   *
-   * Asked before the record is, and whether or not there is a record at all: the
-   * advice that follows a stale record is to drop `migrations` and start again,
-   * and on this database that would transform the migration-day copy and discard
-   * the restore somebody had just performed. So it is a refusal of its own, in
-   * the same words `migrate:check` refuses it in.
-   */
-  public async refuseTwoGenerationsOfOldData(): Promise<void> {
-    const found = await twoGenerationsOfOldData(this.db);
-    if (found.length > 0) throw new TwoGenerationsOfOldData(found);
-  }
-
   public async refuseAStaleRecord(): Promise<void> {
     const applied = await this.appliedNames();
     if (applied.size === 0) return;
@@ -255,13 +258,10 @@ export class MigrationRunner {
     if (stale.length > 0) throw new StaleMigrationRecord(stale, applied.size, MIGRATION_STEPS.length);
   }
 
-  /** How far this database has been taken, for a report that has to say where a run stopped. */
-  public async progress(): Promise<{ applied: string[]; pending: string[] }> {
-    const applied = await this.appliedNames();
-    return {
-      applied: MIGRATION_STEPS.filter(step => applied.has(step.name)).map(step => step.name),
-      pending: MIGRATION_STEPS.filter(step => !applied.has(step.name)).map(step => step.name),
-    };
+  /** Two rows that claim to be one thing, or a row pointing at one that is not there. */
+  private async refuseUnmigratableRows(): Promise<void> {
+    const found = await preflight(this.db);
+    if (found.problems.length > 0) throw new PreflightFailure(found);
   }
 
   public async run({
@@ -295,8 +295,7 @@ export class MigrationRunner {
     // half-migrate and ask about afterwards. Only where something is still
     // pending - a database every step has run on holds the new shapes, which
     // these checks say nothing about.
-    const found = await preflight(this.db);
-    if (found.problems.length > 0) throw new PreflightFailure(found);
+    await this.refuseUnmigratableRows();
 
     // Taken before the pending list is read again: the instance that waited for
     // it has just finished, and what it applied has to count as applied here.

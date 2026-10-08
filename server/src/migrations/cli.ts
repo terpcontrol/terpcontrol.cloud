@@ -5,7 +5,6 @@ import { V1_MODELS_MIGRATED_IN_PLACE, registerV1Models } from '@database/models.
 import { ENV_FILE, databaseConfig } from '../config/configuration';
 import { mongoConnectionSettings } from '../database/mongo-connection';
 import { MigrationRunner, MigrationRunReport, documentsCopied, migrationFailureText, runProgress } from './migration-runner';
-import { PreflightFailure, preflight } from './preflight';
 
 /**
  * `npm run migrate`, its `--dry-run` and its `--check`.
@@ -114,22 +113,15 @@ const main = async (): Promise<void> => {
   await connection.asPromise();
 
   try {
+    const runner = new MigrationRunner(connection);
+
     if (process.argv.includes('--check')) {
-      // The database against itself and the record against the database, in the
-      // order a run asks them: an answer about a database holding two copies of
-      // the old data is an answer about neither of them.
-      await new MigrationRunner(connection).refuseTwoGenerationsOfOldData();
-      await new MigrationRunner(connection).refuseAStaleRecord();
-
-      const found = await preflight(connection.db!);
-      if (found.problems.length > 0) throw new PreflightFailure(found);
-
+      await runner.check();
       report('\nNothing stands in the way of a migration.');
       return;
     }
 
     const dryRun = process.argv.includes('--dry-run');
-    const runner = new MigrationRunner(connection);
     if (!dryRun) await likeABoot(connection);
 
     printRun(

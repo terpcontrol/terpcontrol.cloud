@@ -1,5 +1,5 @@
 import { derivedId, planIdOf } from '../ids';
-import { LEGACY, LegacyDevice, LegacyRecipeStep, createdAtOf, flagOf, fromTable, instantOf, numberOf, textOf } from '../legacy';
+import { LEGACY, LEGACY_STAGES, LegacyDevice, LegacyRecipeStep, createdAtOf, flagOf, fromTable, instantOf, numberOf, oneOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 
 /**
@@ -31,8 +31,6 @@ import { MigrationContext, MigrationStep } from '../migration';
 const NOTIFY_MODE: Record<string, string> = { off: 'off', onStep: 'on_step', onConfirmation: 'on_confirmation' };
 
 const DURATION_UNITS = ['minutes', 'hours', 'days', 'weeks'];
-
-const STAGES = ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing'];
 
 export const plans: MigrationStep = {
   name: '006-plans',
@@ -88,24 +86,19 @@ export const plans: MigrationStep = {
   },
 };
 
-export const planStep = (context: MigrationContext, owner: string, step: LegacyRecipeStep, index: number): Record<string, unknown> => {
-  const stage = textOf(step.stage);
-  const unit = textOf(step.durationUnit);
-
-  return {
-    // The step's own id, stable across edits, so a running step survives another
-    // being inserted above it. Derived from where it sits, which is all the old
-    // shape has.
-    id: derivedId('planStep', owner, index),
-    name: textOf(step.name) ?? `Step ${index + 1}`,
-    stage: stage && STAGES.includes(stage) ? stage : null,
-    preset: null,
-    duration: { value: numberOf(step.duration) ?? 0, unit: unit && DURATION_UNITS.includes(unit) ? unit : 'days' },
-    settings: settingsOf(context, owner, index, step.settings),
-    waitForConfirmation: flagOf(step.waitForConfirmation),
-    confirmationMessage: textOf(step.confirmationMessage),
-  };
-};
+export const planStep = (context: MigrationContext, owner: string, step: LegacyRecipeStep, index: number): Record<string, unknown> => ({
+  // The step's own id, stable across edits, so a running step survives another
+  // being inserted above it. Derived from where it sits, which is all the old
+  // shape has.
+  id: derivedId('planStep', owner, index),
+  name: textOf(step.name) ?? `Step ${index + 1}`,
+  stage: oneOf(step.stage, LEGACY_STAGES),
+  preset: null,
+  duration: { value: numberOf(step.duration) ?? 0, unit: oneOf(step.durationUnit, DURATION_UNITS) ?? 'days' },
+  settings: settingsOf(context, owner, index, step.settings),
+  waitForConfirmation: flagOf(step.waitForConfirmation),
+  confirmationMessage: textOf(step.confirmationMessage),
+});
 
 const settingsOf = (context: MigrationContext, owner: string, index: number, settings: LegacyRecipeStep['settings']): Record<string, unknown> => {
   if (settings !== null && typeof settings === 'object') return settings as Record<string, unknown>;

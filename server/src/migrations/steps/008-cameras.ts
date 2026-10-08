@@ -1,4 +1,4 @@
-import { LEGACY, LegacyDevice, createdAtOf, flagOf, textOf } from '../legacy';
+import { LEGACY, LegacyDevice, createdAtOf, flagOf, notNone, oneOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 import { loadDeviceFacts } from '../device-facts';
 
@@ -128,9 +128,9 @@ export const cameras: MigrationStep = {
         // A Terp Cam is reached by its id, not by a URL: the stream field holds
         // the marker and the id, which is the camera's `did` and not an address.
         url: fact.terpCamLabel ? null : fact.stream,
-        transport: enumOf(device.cloudSettings?.rtspStreamTransport, TRANSPORTS),
+        transport: oneOf(device.cloudSettings?.rtspStreamTransport, TRANSPORTS),
         tunnel: flagOf(device.cloudSettings?.tunnelRtspStream),
-        model: enumOf(device.cloudSettings?.webcamModel, MODELS),
+        model: oneOf(device.cloudSettings?.webcamModel, MODELS),
         stillIntervalSeconds: STILL_INTERVAL_SECONDS,
         nightOff: false,
         maintenanceOff: flagOf(device.cloudSettings?.maintenanceWebcamOff),
@@ -146,15 +146,4 @@ export const cameras: MigrationStep = {
       if (fact.cameraRetired) context.count('cameras.retired');
     }
   },
-};
-
-/** The report spells "there is none" as the word, which is not a value. */
-const notNone = (value: string | undefined): string | null => {
-  const text = textOf(value);
-  return text === null || text === 'none' ? null : text;
-};
-
-const enumOf = (value: string | undefined, allowed: string[]): string | null => {
-  const text = textOf(value);
-  return text !== null && allowed.includes(text) ? text : null;
 };

@@ -3,7 +3,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { mongo } from 'mongoose';
 import { IMAGE_BUCKET_NAME, deleteStoredImages } from '@database/image-store';
-import { LEGACY } from '../legacy';
+import { LEGACY, bytesOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 
 /**
@@ -30,11 +30,6 @@ import { MigrationContext, MigrationStep } from '../migration';
 const BATCH = 200;
 
 type Inline = { _id: mongo.ObjectId; image_id?: string; data?: unknown };
-
-const bytesOf = (value: unknown): Buffer | null => {
-  if (Buffer.isBuffer(value)) return value;
-  return value instanceof mongo.Binary ? Buffer.from(value.buffer) : null;
-};
 
 const digest = (data: Buffer): string => createHash('sha256').update(data).digest('hex');
 

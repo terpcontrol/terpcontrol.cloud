@@ -6,7 +6,7 @@ import { MigrationContext, MigrationStep } from '../migration';
 const DRYER = 'dryer';
 
 /** Forgets every reading one device ever wrote. */
-export type ReadingsEraser = (deviceId: string) => Promise<void>;
+type ReadingsEraser = (deviceId: string) => Promise<void>;
 
 // The whole of time as the store reads it: a device with a wrong clock writes
 // readings decades away from today.

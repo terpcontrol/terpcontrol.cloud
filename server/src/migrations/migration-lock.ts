@@ -18,7 +18,7 @@ import { logger } from '@utils/logger';
  */
 
 /** The one collection this release writes through the raw driver, with no model of its own. */
-export const MIGRATION_LOCK_COLLECTION = 'migrationLock';
+const MIGRATION_LOCK_COLLECTION = 'migrationLock';
 
 const LOCK_ID = 'migrations';
 

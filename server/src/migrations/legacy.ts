@@ -28,7 +28,10 @@ export const LEGACY = {
   passwordTokens: 'passwordtokens',
 } as const;
 
-export interface LegacyDocument {
+/** The stages the old app wrote, in the order a grow runs through them. */
+export const LEGACY_STAGES: string[] = ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing'];
+
+interface LegacyDocument {
   _id: mongo.ObjectId;
 }
 
@@ -80,7 +83,7 @@ export interface LegacyRecipeStep {
   stage?: string;
 }
 
-export interface LegacyRecipe {
+interface LegacyRecipe {
   steps?: LegacyRecipeStep[];
   activeStepIndex?: number;
   activeSince?: number;
@@ -90,7 +93,7 @@ export interface LegacyRecipe {
   email?: string;
 }
 
-export interface LegacyCloudSettings {
+interface LegacyCloudSettings {
   autoFirmwareUpdate?: boolean;
   firmwareChannel?: 'stable' | 'beta' | 'alpha' | 'manual';
   pendingFirmware?: string;
@@ -210,6 +213,24 @@ export const instantOf = (value: number | null | undefined): Date | null =>
 export const textOf = (value: string | null | undefined): string | null => {
   const trimmed = typeof value === 'string' ? value.trim() : '';
   return trimmed.length > 0 ? trimmed : null;
+};
+
+/** What a device reported, where it spells "there is none" as the word, which is not a value. */
+export const notNone = (value: string | undefined): string | null => {
+  const text = textOf(value);
+  return text === 'none' ? null : text;
+};
+
+/** A value out of a fixed vocabulary, or null for anything else. */
+export const oneOf = (value: string | undefined, allowed: readonly string[]): string | null => {
+  const text = textOf(value);
+  return text !== null && allowed.includes(text) ? text : null;
+};
+
+/** Bytes kept in the document itself: a Binary as the driver reads it, or a Buffer. */
+export const bytesOf = (value: unknown): Buffer | null => {
+  if (Buffer.isBuffer(value)) return value;
+  return value instanceof mongo.Binary ? Buffer.from(value.buffer) : null;
 };
 
 /**

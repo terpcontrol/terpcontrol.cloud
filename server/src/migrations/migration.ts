@@ -1,4 +1,5 @@
 import { mongo } from 'mongoose';
+import type { MigrationRejectDocument } from '@database/schemas/v1/migrations.schema';
 import { logger } from '@utils/logger';
 
 /**
@@ -11,19 +12,6 @@ import { logger } from '@utils/logger';
  * says "none is null, never absent", and a default filled in by mongoose would
  * hide a field the transform forgot to decide.
  */
-
-/** A document a transform could not take, or a part of one. It never stops the run. */
-export interface MigrationReject {
-  /** The collection the document was read from. */
-  source: string;
-  /** Whatever names it there: its id, or its `_id` when it has no other. */
-  id: string;
-  reason: string;
-  /** False when the document was still written and only the part named in `reason` was left out. */
-  dropped: boolean;
-  /** The value that could not be taken, where keeping it is what makes the reject actionable. */
-  detail: string | null;
-}
 
 export interface MigrationStep {
   /** Unique, ordered by it, and what the `migrations` record says has already run. */
@@ -60,7 +48,7 @@ const RECORDED_REJECTS = 200;
 
 export class MigrationContext {
   private readonly counters = new Map<string, number>();
-  private readonly recorded: MigrationReject[] = [];
+  private readonly recorded: MigrationRejectDocument[] = [];
   private readonly queued = new Map<string, mongo.AnyBulkWriteOperation[]>();
   private existing: Set<string> | null = null;
   private rejected = 0;
@@ -124,7 +112,7 @@ export class MigrationContext {
     this.counters.set(key, (this.counters.get(key) ?? 0) + by);
   }
 
-  public reject(reject: MigrationReject): void {
+  public reject(reject: MigrationRejectDocument): void {
     this.rejected++;
     this.count(`${reject.source}.rejected`);
     if (this.recorded.length < RECORDED_REJECTS) this.recorded.push(reject);
@@ -185,7 +173,7 @@ export class MigrationContext {
     return { ...Object.fromEntries(this.counters), rejected: this.rejected };
   }
 
-  public get rejects(): MigrationReject[] {
+  public get rejects(): MigrationRejectDocument[] {
     return this.recorded;
   }
 

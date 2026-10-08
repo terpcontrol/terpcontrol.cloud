@@ -1,5 +1,5 @@
 import { spaceIdOf } from '../ids';
-import { LEGACY, LegacyDevice, createdAtOf, flagOf, instantOf, numberOf, textOf } from '../legacy';
+import { LEGACY, LegacyDevice, createdAtOf, flagOf, instantOf, notNone, numberOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 
 /**
@@ -82,7 +82,7 @@ export const devices: MigrationStep = {
           ppfdLuxFactor: numberOf(cloud.ppfdLuxFactor) ?? DEFAULT_SETTINGS.ppfdLuxFactor,
         },
         isDemo: flagOf(device.demoDevice),
-        cameraSecret: cameraSecretOf(device.hardwareInfo),
+        cameraSecret: notNone(device.hardwareInfo?.webcam_pwd),
         state: {
           lastSeenAt: instantOf(device.lastseen),
           claimedAt: null,
@@ -131,9 +131,3 @@ const configurationOf = (context: MigrationContext, id: string, stored: string |
 
 const hardwareOf = (reported: Record<string, string> | undefined): Record<string, string> =>
   Object.fromEntries(Object.entries(reported ?? {}).filter(([key]) => !HIDDEN_HARDWARE_KEYS.includes(key)));
-
-/** What the device last said its camera is secured with; empty and `none` are the default. */
-const cameraSecretOf = (reported: Record<string, string> | undefined): string | null => {
-  const secret = textOf(reported?.webcam_pwd);
-  return secret === 'none' ? null : secret;
-};

@@ -1,6 +1,6 @@
 import { logger } from '@utils/logger';
 import { derivedId, growIdOf } from './ids';
-import { LEGACY, LegacyDevice, LegacyDeviceLog, textOf } from './legacy';
+import { LEGACY, LEGACY_STAGES, LegacyDevice, LegacyDeviceLog, textOf } from './legacy';
 import { MigrationContext } from './migration';
 import { DeviceFacts } from './device-facts';
 
@@ -8,12 +8,8 @@ import { DeviceFacts } from './device-facts';
  * The grows the old database never stored, read back out of the lifecycle
  * entries that did get stored.
  *
- * The rule is the one the grow report draws with today
- * (`webapp/.../grow-report.component.ts`): a cycle runs until a lifecycle entry
- * goes back in stage order or names a different plant, and the entries in
- * between are its phases. It is restated here rather than shared, because the
- * webapp's copy goes with the Angular app and this one describes what the old
- * data meant.
+ * A cycle runs until a lifecycle entry goes back in stage order or names a
+ * different plant, and the entries in between are its phases.
  *
  * Three migrations need the same answer - the grows themselves, the entries that
  * have to name the grow they happened in, and the photos that reach their grow
@@ -22,13 +18,10 @@ import { DeviceFacts } from './device-facts';
  * it never wrote.
  */
 
-/** The six stages, in the order a grow runs through them. Going back is what ends a cycle. */
-const STAGE_ORDER = ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing'];
-
 /** Both category slugs a lifecycle entry has been written under. */
 const LIFECYCLE_CATEGORIES = ['diary-plant-lifecycle', 'plant-lifecycle'];
 
-export interface ReconstructedPhase {
+interface ReconstructedPhase {
   id: string;
   stage: string;
   startedAt: Date;
@@ -36,7 +29,7 @@ export interface ReconstructedPhase {
   source: 'human' | 'plan';
 }
 
-export interface ReconstructedGrow {
+interface ReconstructedGrow {
   id: string;
   deviceId: string;
   name: string;
@@ -83,8 +76,8 @@ const lifecycleEntries = async (context: MigrationContext): Promise<Map<string, 
   const logs = await context.source(LEGACY.deviceLogs);
   const byDevice = new Map<string, LegacyDeviceLog[]>();
 
-  // Deleted entries included, because that is what the grow report reads: what
-  // `deleted` meant on a lifecycle entry was never "this stage did not happen".
+  // Deleted entries included: what `deleted` meant on a lifecycle entry was
+  // never "this stage did not happen".
   const cursor = logs.find<LegacyDeviceLog>({ categories: { $in: LIFECYCLE_CATEGORIES } }).sort({ time: 1 });
   for await (const log of cursor) {
     const deviceId = textOf(log.device_id);
@@ -102,7 +95,7 @@ const cyclesOf = (deviceId: string, entries: LegacyDeviceLog[]): ReconstructedGr
 
   for (const entry of entries) {
     const stage = textOf(entry.data?.newLifecycleStage as string | undefined);
-    const order = stage ? STAGE_ORDER.indexOf(stage) : -1;
+    const order = stage ? LEGACY_STAGES.indexOf(stage) : -1;
     if (!stage || order < 0) continue;
 
     const at = entry.time as Date;
@@ -170,7 +163,7 @@ const planGrows = async (
       .slice(0, activeIndex + 1)
       .reverse()
       .map(step => textOf(step.stage))
-      .find(candidate => candidate !== null && STAGE_ORDER.includes(candidate));
+      .find(candidate => candidate !== null && LEGACY_STAGES.includes(candidate));
 
     if (!stage) {
       if (report) {

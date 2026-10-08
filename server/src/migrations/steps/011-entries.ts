@@ -1,7 +1,8 @@
 import { mongo } from 'mongoose';
+import { parseDeviceMessage } from '@common/v1/device-messages';
 import { logger } from '@utils/logger';
 import { derivedId, planIdOf } from '../ids';
-import { LEGACY, LegacyDevice, LegacyDeviceLog, createdAtOf, fromTable, textOf } from '../legacy';
+import { LEGACY, LEGACY_STAGES, LegacyDevice, LegacyDeviceLog, createdAtOf, fromTable, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 import { DeviceFacts, loadDeviceFacts } from '../device-facts';
 import { GrowsByDevice, growAt, isLifecycleEntry, reconstructGrows } from '../grow-cycles';
@@ -60,8 +61,6 @@ const DIARY_KIND: Record<string, string> = {
   'diary-co2-refill': 'measurement',
 };
 
-const STAGES = ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing'];
-
 /**
  * The English sentences the old app put at the head of a diary line, which it
  * wrote in place of the key whenever the line was made by a client that had
@@ -76,9 +75,12 @@ const STAGES = ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 
  */
 const RENDERED_TITLES = new Set(['Plant log entry', 'Fridge log entry', 'Plant phase change', 'User measurement', 'CO2 cylinder was refilled']);
 
+/** A title or a body, read the way a live device line is so that migrated and live entries agree. */
+const lineOf = (value: unknown) => (typeof value === 'string' ? parseDeviceMessage(value) : { message: null, text: null });
+
 /** What somebody typed, with the old app's own heading taken off the front of it. */
 const ownTitle = (title: string | undefined): string | null => {
-  const said = freeText(title);
+  const said = lineOf(title).text;
   return said !== null && RENDERED_TITLES.has(said) ? null : said;
 };
 
@@ -149,8 +151,9 @@ const migrateEntry = async (
   // rendering, the same sentence for every stage - while what somebody typed
   // went into the body. Keeping it would put "Plant phase change" in front of
   // the stage on every migrated phase row, in every language.
-  const said = kind === 'phase' ? [freeText(log.message)] : [ownTitle(log.title), freeText(log.message)];
-  const message = kind === 'phase' ? null : (messageOf(log.message) ?? messageOf(log.title));
+  const body = lineOf(log.message);
+  const said = kind === 'phase' ? [body.text] : [ownTitle(log.title), body.text];
+  const message = kind === 'phase' ? null : (body.message ?? lineOf(log.title).message);
   const text = said.filter(part => part !== null).join('\n\n');
 
   await context.write('entries', {
@@ -205,7 +208,7 @@ const sourceOf = (slugs: string[]): string => {
 const kindOf = (slugs: string[], log: LegacyDeviceLog, hasReadings: boolean, hasPlan: boolean, hasGrow: boolean): string => {
   if (slugs.includes('alarm')) return 'alarm';
   if (slugs.includes('recipe')) return hasPlan ? 'plan' : 'system';
-  if (hasGrow && isLifecycleEntry(log) && STAGES.includes(textOf(log.data?.newLifecycleStage as string | undefined) ?? '')) return 'phase';
+  if (hasGrow && isLifecycleEntry(log) && LEGACY_STAGES.includes(textOf(log.data?.newLifecycleStage as string | undefined) ?? '')) return 'phase';
   if (hasReadings) return 'measurement';
 
   const diary = slugs.map(slug => fromTable(DIARY_KIND, slug)).find(candidate => candidate !== undefined);
@@ -239,24 +242,9 @@ const valuesOf = (
 
 /** The engine writes the step number into its own message, counted from one. */
 const stepIndexOf = (message: string | undefined): number => {
-  const parameter = messageOf(message)?.params[0];
+  const parameter = lineOf(message).message?.params[0];
   const number = parameter ? Number.parseInt(parameter, 10) : Number.NaN;
   return Number.isFinite(number) && number > 0 ? number - 1 : 0;
-};
-
-/** A `message-<key>[:<param>]` line, parsed once. The colon splits the key from the whole of the rest. */
-const messageOf = (value: string | undefined): { key: string; params: string[] } | null => {
-  const text = textOf(value);
-  if (!text?.startsWith('message-')) return null;
-
-  const separator = text.indexOf(':');
-  return separator < 0 ? { key: text, params: [] } : { key: text.slice(0, separator), params: [text.slice(separator + 1)] };
-};
-
-/** Whatever is not one of the device's message keys is what a person wrote. */
-const freeText = (value: string | undefined): string | null => {
-  const text = textOf(value);
-  return text === null || text.startsWith('message-') ? null : text;
 };
 
 /**
