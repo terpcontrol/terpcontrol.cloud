@@ -1,9 +1,7 @@
-import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ageLabel, countdownLabel, deviceLiveness, spanLabel, valueAge } from '@/ui/age';
+import { catalogue, translate } from './translations';
 
 describe('the age beside a value', () => {
   const now = DateTime.fromISO('2026-09-18T12:00:00Z');
@@ -100,13 +98,12 @@ describe('an age in German', () => {
   const ago = (seconds: number) => now.minus({ seconds }).toISO();
 
   it('writes each unit the way the German catalogue does', async () => {
-    const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/de.json'), 'utf8'));
-    await i18next.init({ lng: 'de', resources: { de: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+    await translate(['de'], 'de');
 
     expect(ageLabel(ago(4 * 60), now)).toBe('4 Min');
     expect(ageLabel(ago(2 * 3600), now)).toBe('2 Std');
     expect(ageLabel(ago(5 * 86_400), now)).toBe('5 T');
     expect(countdownLabel(7 * 86_400)).toBe('7 T');
-    expect(translation.grow.days_other).toBe('{{count}} T');
+    expect(await catalogue('de')).toHaveProperty(['grow', 'days_other'], '{{count}} T');
   });
 });

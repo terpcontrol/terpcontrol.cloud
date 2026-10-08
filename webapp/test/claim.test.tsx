@@ -9,7 +9,7 @@ import { ApiError } from '@/api/problem';
 import { Claim } from '@/screens/claim/Claim';
 import { deviceWith } from './fixtures';
 import { drawAt } from './harness';
-import { spaceWhere } from './session';
+import { meWith, spaceWhere } from './session';
 import { translate } from './translations';
 
 /**
@@ -22,7 +22,7 @@ import { translate } from './translations';
  * making another, and a stage is applied to that space and nothing else.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const who = vi.hoisted(() => ({ demo: false }));
@@ -86,17 +86,11 @@ const UNREACHED: NotificationSettings = {
   mutedUntil: null,
 };
 
-const meWith = (notifications: NotificationSettings): Me =>
-  ({
-    id: 'user-1',
-    email: 'grower@example.org',
-    handle: 'you',
-    preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'UTC', notifyLaterUntil: null },
-    notifications,
-    pushSubscribed: false,
-  }) as unknown as Me;
+/** The account with nothing but the ways it is reached changed. */
+const meReaching = (notifications: NotificationSettings): Me =>
+  meWith({ email: 'grower@example.org', preferences: { ...meWith().preferences, timezone: 'UTC', notifyLaterUntil: null }, notifications });
 
-const state = { spaces: [] as Space[], grows: [] as GrowListItem[], me: meWith(UNREACHED) };
+const state = { spaces: [] as Space[], grows: [] as GrowListItem[], me: meReaching(UNREACHED) };
 
 const answers = (path: string) => {
   if (path === '/devices/sim-controller-7f3a') return device;
@@ -153,14 +147,14 @@ beforeEach(() => {
   who.demo = false;
   state.spaces = [space];
   state.grows = [];
-  state.me = meWith(UNREACHED);
+  state.me = meReaching(UNREACHED);
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.post).mockImplementation((path: string) =>
     path === '/devices/claims'
       ? (Promise.resolve({ device, spaceCreated: true }) as never)
       : path === '/me/email-alarms'
         ? (Promise.resolve(
-            meWith({
+            meReaching({
               ...UNREACHED,
               channels: { ...UNREACHED.channels, email: 'grower@example.org' },
               routing: { ...UNREACHED.routing, alerts: ['email'] },
@@ -309,7 +303,7 @@ describe('adding a device', () => {
   });
 
   it('says how alarms already reach an account that has a way, and offers nothing to tap', async () => {
-    state.me = meWith({
+    state.me = meReaching({
       ...UNREACHED,
       channels: { ...UNREACHED.channels, telegram: { chatId: '1', linkedAt: NOW.toISO()! } },
       routing: { ...UNREACHED.routing, alerts: ['telegram'] },

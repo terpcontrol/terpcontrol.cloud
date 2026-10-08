@@ -24,7 +24,7 @@ import { catalogue, translate } from './translations';
  * and a rule about a sensor the device does not have is drawn but not switched.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const session = vi.hoisted(() => ({ demo: false }));

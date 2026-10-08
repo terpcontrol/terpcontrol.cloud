@@ -14,7 +14,7 @@ describe('device messages against the shipped catalogue', () => {
   let i18n: I18n;
 
   beforeAll(async () => {
-    const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
+    const translation = await catalogue('en');
     i18n = i18next.createInstance();
     await i18n.init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
   });

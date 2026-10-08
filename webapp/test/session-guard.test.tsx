@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionTokens, SessionUser } from '@fg2/shared-types/v1';
+import { DAY_MS, MINUTE_MS } from '@/ui/days';
 import { json } from './harness';
 import { translate } from './translations';
 
@@ -21,9 +22,6 @@ import { translate } from './translations';
  * query, so a round trip through the form that kept only the path would land on
  * the right screen with nothing on it.
  */
-
-const MINUTE_MS = 60 * 1000;
-const DAY_MS = 24 * 60 * MINUTE_MS;
 
 const USER: SessionUser = { id: 'user-1', handle: 'you', isAdmin: false, isDemo: false };
 

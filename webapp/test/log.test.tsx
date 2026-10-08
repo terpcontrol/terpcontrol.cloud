@@ -17,7 +17,7 @@ import { translate } from './translations';
  * from the newest line of that kind, and a feed's doses are the scheme's.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
 
 // A phase is the one tile on this sheet that is not a diary line, so the sheet
