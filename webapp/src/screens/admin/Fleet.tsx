@@ -12,7 +12,7 @@ import type { Translate } from '@/i18n/i18n';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { RefreshFailed } from '@/ui/PageState';
-import { AdminHead, AdminWaiting, Liveness } from './parts';
+import { AdminHead, AdminNotLoaded, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { filteredRows, fleetRows, NO_FILTER, typesOf, type FleetFilter, type FleetRow } from './fleet-rows';
@@ -71,9 +71,9 @@ export function Fleet() {
 
   const header = <AdminHead title={t('admin.fleet.title')} />;
 
-  if (fleet.isPending || devices.isPending) return <AdminWaiting head={header} />;
+  if (fleet.isPending || devices.isPending) return <AdminNotLoaded head={header} />;
 
-  if (!fleet.data || !devices.data) return <AdminWaiting head={header} retry={() => void fleet.refetch()} />;
+  if (!fleet.data || !devices.data) return <AdminNotLoaded head={header} retry={() => void fleet.refetch()} />;
 
   const known: Map<string, User> = new Map(itemsOf(people.data).map(one => [one.id, one]));
   const allDevices = itemsOf(devices.data);

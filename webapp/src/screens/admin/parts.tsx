@@ -26,7 +26,7 @@ export function AdminHead({ title, crumb, children }: { title: string; crumb?: R
 }
 
 /** An admin screen with nothing to show yet: its head over the waiting block, or over the way to try again once the read has failed. */
-export function AdminWaiting({ head, lines = 4, retry }: { head: ReactNode; lines?: number; retry?: () => void }) {
+export function AdminNotLoaded({ head, lines = 4, retry }: { head: ReactNode; lines?: number; retry?: () => void }) {
   return (
     <section className={styles.page}>
       {head}

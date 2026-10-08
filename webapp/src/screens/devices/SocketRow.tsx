@@ -229,6 +229,7 @@ function Control({ row, name, forced, refusal, onFlip, onSet, onHoldStart, onHol
     );
   }
 
+  // Drawn here rather than with ui/Switch: the same switch also listens for the hold that asks for a timed switch.
   return (
     <button
       type="button"

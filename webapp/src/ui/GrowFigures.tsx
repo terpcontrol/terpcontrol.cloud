@@ -11,10 +11,11 @@ import styles from './GrowFigures.module.css';
 /**
  * The week's temperatures, humidity and hours of light, a strip under the
  * days, on the owner's week card and the public diary's alike. Where nothing
- * measures where the grow stood there is no climate to
- * average, and a diary kept by hand is not told on every card what it lacks:
- * null is not being told, and then the strip is left out. Each card keeps its
- * own look for the line that says nothing was measured.
+ * measures where the grow stood (an empty `deviceIds`) there is no climate to
+ * average, and a diary kept by hand is not told on every card what it lacks,
+ * so the strip is left out. Null is not being told, and then the averages
+ * speak for themselves. Each card keeps its own look for the line that says
+ * nothing was measured.
  */
 export function WeekClimateStrip({ week, explain, emptyClassName }: { week: GrowWeekCard; explain?: boolean; emptyClassName: string }) {
   const { t } = useTranslation();

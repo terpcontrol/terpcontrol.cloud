@@ -34,9 +34,9 @@ export const daysUntil = (dueAt: string, now: DateTime, zone: string | null): nu
 
 /**
  * "today", "tomorrow", "in 3 d", or how overdue: a task counted down on the
- * account's calendar as this tab counts it. With `since`, a task due today
- * whose hour has passed says since when, rather than "today" an hour after it
- * fell due.
+ * account's calendar as the home strip and the cockpit say it. With `since`, a
+ * task due today whose hour has passed says since when, rather than "today" an
+ * hour after it fell due.
  */
 export const dueLabel = (t: Translate, dueAt: string, now: DateTime, zone: string | null, { since = false } = {}): string => {
   const days = daysUntil(dueAt, now, zone);

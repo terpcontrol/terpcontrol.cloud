@@ -6,7 +6,7 @@ import { useGrows } from '@/api/grows';
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSpaces } from '@/api/spaces';
 import { ageLabel, deviceLiveness } from '@/ui/age';
-import { AdminHead, AdminWaiting, Liveness } from './parts';
+import { AdminHead, AdminNotLoaded, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from '../devices/cameras';
@@ -44,9 +44,9 @@ export function Demo() {
 
   const header = <AdminHead title={t('admin.demo.title')} crumb={t('admin.demo.title')} />;
 
-  if (devices.isPending) return <AdminWaiting head={header} lines={3} />;
+  if (devices.isPending) return <AdminNotLoaded head={header} lines={3} />;
 
-  if (!devices.data) return <AdminWaiting head={header} retry={() => void devices.refetch()} />;
+  if (!devices.data) return <AdminNotLoaded head={header} retry={() => void devices.refetch()} />;
 
   const shownDevices = itemsOf(devices.data).filter(device => device.isDemo);
   const shownSpaces = (spaces.data?.items ?? []).filter(space => space.isDemo);

@@ -35,9 +35,10 @@ export function Expand({ open, label, onToggle }: { open: boolean; label: string
 /**
  * What a switch command answered. MQTT hands back no receipt, so the honest
  * line is that it went out and whether anybody was listening - never that the
- * output switched - and, for a hold, how long it was asked to hold for: a device
- * reports no override of its own output, so a hold whose length is not stated
- * here is a lamp forced on with no word about when it hands itself back.
+ * output switched - and, for a hold, how long it was asked to hold for. A
+ * socket's own line counts its hold down from the override the device reports,
+ * so only the light output, which reports none, passes `heldFor`: without it a
+ * lamp forced on would carry no word about when it hands itself back.
  */
 export function Receipt({
   result,

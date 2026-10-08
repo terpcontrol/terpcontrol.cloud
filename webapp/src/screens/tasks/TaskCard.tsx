@@ -264,11 +264,11 @@ const metaLine = (t: Translate, task: Task, name: string | null, reminder: Remin
     if (litres !== null) parts.push(t('log.litres', { litres: looseFigure(litres) }));
   }
 
-  parts.push(dueLabel(t, task, now, zone));
+  parts.push(taskDueLabel(t, task, now, zone));
   return parts.join(' · ');
 };
 
-const dueLabel = (t: Translate, task: Task, now: DateTime, zone: string | null): string => {
+const taskDueLabel = (t: Translate, task: Task, now: DateTime, zone: string | null): string => {
   const days = daysUntil(task.dueAt, now, zone);
   if (days < 0) return t('tasks.due.overdue', { count: -days });
   if (days === 0) return t('tasks.due.today');

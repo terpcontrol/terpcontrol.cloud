@@ -17,14 +17,14 @@ export const settingsOf = (params: URLSearchParams): ChartSettings => {
   };
 };
 
+const OUTPUT_MARK = 'out.';
+const MEASUREMENT_MARK = 'm.';
+
 /**
  * The curves an address names: a metric by its name, an output and a grow's own
  * measurement each behind a prefix of its own, comma separated. Nothing named is
  * the board's own pick; named and empty is every curve turned off.
  */
-const OUTPUT_MARK = 'out.';
-const MEASUREMENT_MARK = 'm.';
-
 export const pickedOf = (value: string | null): Picked | null => {
   if (value === null) return null;
   const names = value.split(',').filter(Boolean);

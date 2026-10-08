@@ -7,7 +7,7 @@ import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { matchesHandle } from '@/ui/handle';
 import { Refused } from '@/ui/PageState';
-import { AdminHead, AdminWaiting } from './parts';
+import { AdminHead, AdminNotLoaded } from './parts';
 import { HandleField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
@@ -48,9 +48,9 @@ export function Users() {
 
   const header = <AdminHead title={t('admin.users.title')} crumb={t('admin.users.title')} />;
 
-  if (people.isPending) return <AdminWaiting head={header} />;
+  if (people.isPending) return <AdminNotLoaded head={header} />;
 
-  if (!people.data) return <AdminWaiting head={header} retry={() => void people.refetch()} />;
+  if (!people.data) return <AdminNotLoaded head={header} retry={() => void people.refetch()} />;
 
   const all = itemsOf(people.data);
   const needle = search.trim().toLowerCase().replace(/^@/, '');

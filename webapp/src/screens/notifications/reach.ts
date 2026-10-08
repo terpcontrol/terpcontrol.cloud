@@ -15,7 +15,7 @@ import { CHANNELS } from './settings';
  */
 
 /** What a screen says about a channel: its name, and whether the account has it to be reached on at all. */
-export interface RoutedChannel {
+interface RoutedChannel {
   channel: NotificationChannel;
   configured: boolean;
 }

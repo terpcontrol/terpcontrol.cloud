@@ -14,7 +14,7 @@ import {
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
-import { AdminHead, AdminWaiting } from './parts';
+import { AdminHead, AdminNotLoaded } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, useZone, zoned } from '@/ui/zone';
@@ -50,9 +50,9 @@ export function FirmwareScreen() {
 
   const header = <AdminHead title={t('admin.firmware.title')} crumb={t('admin.firmware.title')} />;
 
-  if (classes.isPending || firmwares.isPending) return <AdminWaiting head={header} />;
+  if (classes.isPending || firmwares.isPending) return <AdminNotLoaded head={header} />;
 
-  if (!classes.data || !firmwares.data) return <AdminWaiting head={header} retry={() => void classes.refetch()} />;
+  if (!classes.data || !firmwares.data) return <AdminNotLoaded head={header} retry={() => void classes.refetch()} />;
 
   const builds = itemsOf(firmwares.data);
   const allDevices = itemsOf(devices.data);

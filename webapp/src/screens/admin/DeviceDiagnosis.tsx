@@ -14,7 +14,7 @@ import { ageLabel, deviceLiveness } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
 import { foldRepeats } from '@/ui/entries';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
-import { AdminHead, AdminWaiting, Liveness } from './parts';
+import { AdminHead, AdminNotLoaded, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { serverNow } from '@/api/clock';
@@ -47,9 +47,9 @@ export function DeviceDiagnosis() {
 
   const head = <AdminHead title={t('admin.diagnosis.title')} crumb={deviceId} />;
 
-  if (device.isPending) return <AdminWaiting head={head} />;
+  if (device.isPending) return <AdminNotLoaded head={head} />;
   if (!device.data) {
-    return noLongerThere(device.error) ? <NoLongerHere what="device" /> : <AdminWaiting head={head} retry={() => void device.refetch()} />;
+    return noLongerThere(device.error) ? <NoLongerHere what="device" /> : <AdminNotLoaded head={head} retry={() => void device.refetch()} />;
   }
 
   const one = device.data;

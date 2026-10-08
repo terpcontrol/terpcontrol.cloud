@@ -88,11 +88,11 @@ export function Privacy() {
             />
 
             {/*
-        What a free camera's pictures are actually kept for is the install's own
-        configuration, so the line states the days this install names and says
-        plainly that nothing is deleted where it names none - which is the
-        default, and was the promise made when the sweep was left off.
-      */}
+              What a free camera's pictures are actually kept for is the install's own
+              configuration, so the line states the days this install names and says
+              plainly that nothing is deleted where it names none - which is the
+              default, and was the promise made when the sweep was left off.
+            */}
             <Row
               title={t('me.privacy.stills.title')}
               line={
@@ -102,10 +102,10 @@ export function Privacy() {
               }
             >
               {/*
-          The chip is a price tag, and an install that gates nothing is not
-          selling this - the Premium screen says so in as many words, and a
-          badge here saying otherwise is the same claim twice removed.
-        */}
+                The chip is a price tag, and an install that gates nothing is not
+                selling this - the Premium screen says so in as many words, and a
+                badge here saying otherwise is the same claim twice removed.
+              */}
               {account.premium.enforced ? <span className={ui.chip}>{t('me.privacy.premium')}</span> : null}
             </Row>
 

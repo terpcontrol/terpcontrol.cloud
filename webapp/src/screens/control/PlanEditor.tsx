@@ -284,7 +284,7 @@ function StepFields({
       ) : null}
 
       <span className="label">{t('space.control.step.duration')}</span>
-      <DurationField value={step.duration} min={0} onChange={duration => onChange({ duration })} />
+      <DurationField value={step.duration} min={0} fractional onChange={duration => onChange({ duration })} />
       {step.duration.value <= 0 ? <p className={ui.note}>{t('space.control.step.openEndedNote')}</p> : null}
 
       <span className="label">{t('space.control.step.settings')}</span>
@@ -382,7 +382,22 @@ const fromController = (step: StepDraft, device: Device): Partial<StepDraft> => 
 };
 
 /** A length and its unit. A step may be open-ended at nought; anything else is at least one of its unit. */
-export function DurationField({ value, min, onChange }: { value: StepDuration; min: 0 | 1; onChange: (duration: StepDuration) => void }) {
+export function DurationField({
+  value,
+  min,
+  fractional = false,
+  onChange,
+}: {
+  value: StepDuration;
+  min: 0 | 1;
+  /**
+   * Whether a fraction stands, as it does on a step: a recipe migrated from the
+   * old app may hold half a day on one, and a browser that calls that invalid
+   * would put a red ring around a length the tent is actually running.
+   */
+  fractional?: boolean;
+  onChange: (duration: StepDuration) => void;
+}) {
   const { t } = useTranslation();
 
   return (
@@ -391,10 +406,7 @@ export function DurationField({ value, min, onChange }: { value: StepDuration; m
         className={`${ui.input} ${styles.number}`}
         type="number"
         min={min}
-        // Not whole numbers only on a step: a recipe written before the rewrite
-        // may hold half a day on one, and a browser that calls that invalid
-        // would put a red ring around a length the tent is actually running.
-        step={min === 0 ? 'any' : undefined}
+        step={fractional ? 'any' : undefined}
         value={value.value}
         aria-label={t('space.control.step.durationValue')}
         onChange={event => onChange({ ...value, value: Math.max(min, Number(event.target.value) || min) })}

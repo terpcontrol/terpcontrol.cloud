@@ -178,7 +178,7 @@ export function ClockStepper({ name, seconds, offset, less, more, changed = fals
   const up = useRepeat(by(1));
 
   return (
-    <span className={`${styles.stepper} ${styles.clockStepper}`} data-changed={changed || undefined}>
+    <span className={styles.stepper} data-changed={changed || undefined}>
       <button type="button" className={styles.stepButton} aria-label={less} disabled={disabled} {...down}>
         <Minus size={16} strokeWidth={2} aria-hidden />
       </button>
