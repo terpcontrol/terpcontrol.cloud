@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { V1CommonModule } from '@common/v1/v1.module';
 import { ModelsModule } from '@database/models.module';
 import { SchemesController } from './schemes.controller';
 import { SchemesService } from './schemes.service';
@@ -13,7 +12,7 @@ import { SchemesService } from './schemes.service';
  * scheme is edited.
  */
 @Module({
-  imports: [ModelsModule, V1CommonModule],
+  imports: [ModelsModule],
   controllers: [SchemesController],
   providers: [SchemesService],
 })

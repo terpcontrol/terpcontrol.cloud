@@ -89,7 +89,7 @@ export class SchemesService {
 }
 
 /** The stored document as the contract has it: instants as ISO strings. */
-export const schemeOf = (scheme: SchemeDocument): Scheme => ({
+const schemeOf = (scheme: SchemeDocument): Scheme => ({
   id: scheme.id,
   createdAt: scheme.createdAt.toISOString(),
   ownerId: scheme.ownerId,

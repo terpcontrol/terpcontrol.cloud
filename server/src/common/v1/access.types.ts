@@ -1,3 +1,5 @@
+import type { AccessNeed } from '@fg2/shared-types/v1';
+
 /**
  * What every request of `/v1` is decided by. The decision itself is
  * `AccessService.access`; these are the three things it is asked about and the
@@ -17,7 +19,7 @@
  *   one's own entries.
  * - `view`: every read.
  */
-export type Need = 'own' | 'manage' | 'log' | 'view';
+export type Need = AccessNeed;
 
 /** Everything a request can be about. Each resolves to the same handful of facts. */
 export type SubjectType = 'device' | 'space' | 'grow' | 'plant' | 'camera' | 'entry' | 'media';

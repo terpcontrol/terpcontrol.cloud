@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { V1CommonModule } from '@common/v1/v1.module';
 import { ModelsModule } from '@database/models.module';
 import { ChartViewsController } from './chart-views.controller';
 import { ChartViewsService } from './chart-views.service';
@@ -12,7 +11,7 @@ import { ChartViewsService } from './chart-views.service';
  * is settled when the chart is drawn, by the routes that draw it.
  */
 @Module({
-  imports: [ModelsModule, V1CommonModule],
+  imports: [ModelsModule],
   controllers: [ChartViewsController],
   providers: [ChartViewsService],
 })

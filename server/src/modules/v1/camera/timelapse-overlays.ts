@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { MediaAspect, MediaOverlays, SeriesPoint } from '@fg2/shared-types/v1';
+import { MediaAspect, MediaOverlays, MediaQuality, SeriesPoint } from '@fg2/shared-types/v1';
 import { TimelapseContext } from './timelapse-context.service';
 
 /**
@@ -47,7 +47,7 @@ const CAPTION_WINDOW_MS = 30 * 60 * 1000;
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 
 /** The long side of a film, by the resolution it was asked for. */
-const ASPECT_LONG_SIDE: Readonly<Record<'sd' | 'hd', number>> = { sd: 1280, hd: 1920 };
+const ASPECT_LONG_SIDE: Readonly<Record<MediaQuality, number>> = { sd: 1280, hd: 1920 };
 
 const ASPECT_RATIOS: Readonly<Record<MediaAspect, number>> = { '16_9': 16 / 9, '9_16': 9 / 16, '1_1': 1 };
 
@@ -60,7 +60,7 @@ export interface FrameSize {
 const even = (value: number): number => Math.max(2 * Math.round(value / 2), 2);
 
 /** What one frame of this film measures. */
-export const sizeFor = (aspect: MediaAspect, quality: 'sd' | 'hd'): FrameSize => {
+export const sizeFor = (aspect: MediaAspect, quality: MediaQuality): FrameSize => {
   const long = ASPECT_LONG_SIDE[quality];
   const ratio = ASPECT_RATIOS[aspect];
 

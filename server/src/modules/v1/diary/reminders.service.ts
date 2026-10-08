@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import type { Reminder, ReminderCreate, ReminderPage, ReminderUpdate } from '@fg2/shared-types/v1';
+import type { GrowOrSpaceRef, Reminder, ReminderCreate, ReminderPage, ReminderUpdate } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { findPage, mapPage } from '@common/v1/pages';
@@ -152,7 +152,7 @@ export class RemindersService {
    * the board, so the reminder would sit there producing them unseen until
    * somebody opened that grow's own list.
    */
-  private async requireRunning(subject: { type: 'grow' | 'space'; id: string }): Promise<void> {
+  private async requireRunning(subject: GrowOrSpaceRef): Promise<void> {
     if (subject.type !== 'grow') return;
 
     const ended = await this.grows.exists({ id: subject.id, endedAt: { $ne: null } });
@@ -169,7 +169,7 @@ export class RemindersService {
    * function that decides every other request - asked on their behalf rather
    * than on the caller's.
    */
-  private async requireAssignee(subject: { type: 'grow' | 'space'; id: string }, assigneeId: string | null): Promise<void> {
+  private async requireAssignee(subject: GrowOrSpaceRef, assigneeId: string | null): Promise<void> {
     if (assigneeId === null) return;
 
     const asThem = { userId: assigneeId, isAdmin: false, isDemo: false, shareToken: null };

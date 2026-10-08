@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { GrowDecision, GrowthStage, PresetApplication, PresetApplicationCreate, PresetPlanEffect } from '@fg2/shared-types/v1';
+import { growDecision } from '@fg2/shared-types/v1-schemas';
 import { nextStepIndex } from '@fg2/shared-types/v1-schemas/plan-clock.js';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
@@ -36,9 +37,6 @@ import { SpacesService } from './spaces.service';
 
 /** What a plan's pause says it is waiting for, so the plan card can say why it stopped. */
 const PAUSED_BY_A_PRESET = 'A climate preset was applied by hand.';
-
-/** What a client may do about the grow when a preset is applied to a space with none in it. */
-const DECISIONS: GrowDecision[] = ['start_grow', 'move_grow', 'climate_only'];
 
 @Injectable()
 export class PresetApplicationsService {
@@ -105,7 +103,7 @@ export class PresetApplicationsService {
       // answer names it rather than claiming nothing happened.
       phaseId: phase?.id ?? (growId === null ? null : ((await this.phases.standingPhase(growId, body.stage, preset))?.id ?? null)),
       growDecisionNeeded: asks,
-      decisions: asks ? DECISIONS : [],
+      decisions: asks ? growDecision.options : [],
       planEffect,
     };
   }
