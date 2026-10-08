@@ -213,8 +213,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
 
 ## 10. Privacy in the app
 No location, no comments, no feed, no directory (Chris, 2026-09-16). Harvest weights and plant counts can be logged
-and are hidden from shared views by a setting (`hideWeights`, `hideCounts`), which a new account starts with on
-(Chris, 2026-10-08; existing accounts keep what they hold). The handle is the only name others see;
+and are hidden from shared views by a setting (`hideWeights`, `hideCounts`), which is on by default - for a new
+account and for one the migration carries over (Chris, 2026-10-08: privacy is the default). The handle is the only name others see;
 no real name is stored (`shared-types/src/v1/accounts.ts`). Following a public grow puts it on one's own Start;
 Follow is offered on the grow's public page and its author's profile to an account of its own, never to the demo nor
 through a share link, which is a window, not a subscription (`screens/public/FollowButton.tsx`). Every sign-up agrees
