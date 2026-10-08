@@ -28,7 +28,7 @@ import { STAGE_ALARMS, StageAlarms } from './stage-alarms.port';
  * here instead of each appending a phase of its own.
  */
 
-export interface PhaseRequest {
+interface PhaseRequest {
   growId: string;
   stage: GrowthStage;
   /** The climate preset applied on top of the stage, such as `late_flowering`. */
@@ -57,7 +57,7 @@ export interface PhaseRequest {
  * is", which is why every one of them is optional rather than nullable: `null`
  * is a value two of them really take.
  */
-export interface PhaseCorrection {
+interface PhaseCorrection {
   stage?: GrowthStage;
   preset?: string | null;
   startedAt?: Date;

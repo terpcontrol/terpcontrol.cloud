@@ -63,7 +63,7 @@ interface WindowsFigure {
 
 export type DocumentFigure = NumberFigure | FlagFigure | WordFigure | WindowsFigure;
 
-type DocumentFigures = Readonly<Record<string, DocumentFigure>>;
+export type DocumentFigures = Readonly<Record<string, DocumentFigure>>;
 
 const UINT32_MAX = 4_294_967_295;
 

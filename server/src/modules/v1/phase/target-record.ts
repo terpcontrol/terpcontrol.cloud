@@ -18,7 +18,7 @@ import { targetsOf } from './phase-targets';
  */
 
 /** The row a write leaves, or nothing where the targets and the cycle came out of it where they went in. */
-export const targetChangeOf = (deviceId: string, type: string, before: unknown, after: unknown, at: Date): StoredTargetChange | null => {
+const targetChangeOf = (deviceId: string, type: string, before: unknown, after: unknown, at: Date): StoredTargetChange | null => {
   const targets = targetsOf(asConfiguration(after));
   const cycle = cycleOf(type, asConfiguration(after));
   const same =

@@ -1,9 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { DeviceConfiguration, PlanStep, PlanStepInput } from '@fg2/shared-types/v1';
+import type { DeviceConfiguration, PlanStep, PlanStepInput, ProblemError } from '@fg2/shared-types/v1';
 import { finiteOrNull, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { unprocessable } from '@common/v1/problem';
 import { StoredPlanState } from '@database/schemas/v1/plans.schema';
+import { DocumentFigures, figureRefusals } from '@modules/device-protocol/document-figures';
 
 /**
  * What a plan's steps are, and the state a plan stands in. Nothing here touches
@@ -12,14 +13,14 @@ import { StoredPlanState } from '@database/schemas/v1/plans.schema';
  */
 
 /**
- * The state a step runs in from now. What the step asked and what it applied are
- * the step's own, so entering one forgets both rather than inheriting them from
- * the step before.
+ * A plan entering a state. What a step asked and what it applied are the step's
+ * own, so entering one forgets both rather than inheriting them from the step
+ * before.
  */
-export const running = (activeStepIndex: number, now: Date): StoredPlanState => ({
-  status: 'running',
+const stateOf = (status: StoredPlanState['status'], activeStepIndex: number, stepStartedAt: Date | null): StoredPlanState => ({
+  status,
   activeStepIndex,
-  stepStartedAt: now,
+  stepStartedAt,
   pausedElapsedMs: 0,
   pauseReason: null,
   lastAppliedAt: null,
@@ -27,6 +28,9 @@ export const running = (activeStepIndex: number, now: Date): StoredPlanState => 
   confirmationAskedAt: null,
   confirmationAskTriedAt: null,
 });
+
+/** The state a step runs in from now. */
+export const running = (activeStepIndex: number, now: Date): StoredPlanState => stateOf('running', activeStepIndex, now);
 
 /**
  * A plan that is not running. It keeps its steps and stands at the first one,
@@ -37,21 +41,9 @@ export const running = (activeStepIndex: number, now: Date): StoredPlanState => 
  * always left behind and what the migration writes for a recipe whose
  * `activeSince` was zero.
  */
-const atRest = (status: 'completed' | 'stopped'): StoredPlanState => ({
-  status,
-  activeStepIndex: 0,
-  stepStartedAt: null,
-  pausedElapsedMs: 0,
-  pauseReason: null,
-  lastAppliedAt: null,
-  confirmationNotifiedAt: null,
-  confirmationAskedAt: null,
-  confirmationAskTriedAt: null,
-});
+export const completed = (): StoredPlanState => stateOf('completed', 0, null);
 
-export const completed = (): StoredPlanState => atRest('completed');
-
-export const stopped = (): StoredPlanState => atRest('stopped');
+export const stopped = (): StoredPlanState => stateOf('stopped', 0, null);
 
 /**
  * The steps as they are stored, from the steps a client wrote.
@@ -101,6 +93,22 @@ export const stepsOf = (steps: PlanStepInput[]): PlanStep[] => {
     ),
   );
 };
+
+/**
+ * What a firmware would refuse in the steps a client wrote, each figure held to
+ * it as a document saved by hand is (`figureRefusals`) and refused with the step
+ * and the place named - `steps.0.settings.night.temperature`. A figure the same
+ * step already carried is not held to its range again: a recipe migrated from
+ * the old app keeps what it was written with.
+ */
+export const stepRefusals = (type: string, steps: PlanStepInput[], earlier: readonly PlanStep[] | null, figures?: DocumentFigures): ProblemError[] =>
+  steps.flatMap((step, index) =>
+    figureRefusals(type, step.settings, {
+      field: `steps.${index}.settings`,
+      figures,
+      stored: earlier?.find(previous => step.id !== undefined && previous.id === step.id)?.settings ?? null,
+    }),
+  );
 
 /** A step as the contract answers it: one stored before it could name light hours or germination choices names none. */
 export const answeredStep = (step: PlanStep): PlanStep => ({

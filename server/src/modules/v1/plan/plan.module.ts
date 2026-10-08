@@ -21,6 +21,6 @@ import { PlanService } from './plan.service';
   imports: [ModelsModule, V1CommonModule, MailModule, PhaseModule],
   controllers: [DevicePlanController, PlanTemplatesController],
   providers: [PlanEngineService, PlanProgressService, PlanService, PlanTemplatesService],
-  exports: [PlanService, PlanProgressService],
+  exports: [PlanService],
 })
 export class PlanModule {}

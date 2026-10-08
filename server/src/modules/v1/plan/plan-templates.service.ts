@@ -10,9 +10,9 @@ import { PageQuery } from '@common/v1/validation';
 import { isDuplicateKey } from '@database/duplicate-key';
 import { MODEL_V1 } from '@database/models';
 import { StoredPlanTemplate } from '@database/schemas/v1/plan-templates.schema';
-import { figureRefusals, TEMPLATE_FIGURES } from '@modules/device-protocol/document-figures';
+import { TEMPLATE_FIGURES } from '@modules/device-protocol/document-figures';
 import { accountOf } from '../caller';
-import { stepsOf } from './plan-steps';
+import { stepRefusals, stepsOf } from './plan-steps';
 import { planTemplateOf } from './plan.wire';
 
 /**
@@ -150,12 +150,6 @@ export class PlanTemplatesService {
  * not held to its range again.
  */
 const mustBeReadable = (steps: PlanTemplateCreate['steps'], template: StoredPlanTemplate | null): void => {
-  const errors = steps.flatMap((step, index) =>
-    figureRefusals('device', step.settings, {
-      field: `steps.${index}.settings`,
-      figures: TEMPLATE_FIGURES,
-      stored: template?.steps.find(earlier => step.id !== undefined && earlier.id === step.id)?.settings ?? null,
-    }),
-  );
+  const errors = stepRefusals('device', steps, template?.steps ?? null, TEMPLATE_FIGURES);
   if (errors.length > 0) throw badRequest('validation_failed', 'A step carries settings that do not fit what a device reads.', errors);
 };
