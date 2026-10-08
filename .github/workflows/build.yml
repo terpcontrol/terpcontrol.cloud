@@ -34,10 +34,11 @@ jobs:
           touches() { grep -qE "^($1)" <<<"$changed" && echo true || echo false; }
           ci='\.github/workflows/build\.yml$'
           shared="shared-types/|$ci"
+          fmt='\.prettierrc$'
           compose='docker-compose\.yaml$|\.dockerignore$'
           {
-            echo "webapp=$(touches "webapp/|$shared")"
-            echo "server=$(touches "server/|$shared")"
+            echo "webapp=$(touches "webapp/|$fmt|$shared")"
+            echo "server=$(touches "server/|$fmt|$shared")"
             echo "shared_types=$(touches "$shared")"
             echo "docker_webapp=$(touches "webapp/|$shared|$compose")"
             echo "docker_server=$(touches "server/|$shared|$compose")"
