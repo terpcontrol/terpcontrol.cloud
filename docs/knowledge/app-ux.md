@@ -49,6 +49,12 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   (one status sentence, or the offline box with three things to check), would I be told, what does it read and what
   runs, what is it set to, what grows here, what happened. On a 390×844 phone status, reading tiles and the light fit
   without scrolling. The cockpit summarises and Steuerung changes - never a second set of sliders.
+- **A place holds any number of devices** (Chris, 2026-10-08): a claim and the migration put each device in a place
+  of its own, so the place's ⋯ offers "Gerät hierher holen" (`screens/space/DeviceHereSheet.tsx`), and typing the
+  name of an existing place in the claim's "Wo steht es?" puts the device there instead of making a second place of
+  that name. **A place left empty is never removed by itself**: one with no device, camera or grow is offered to its
+  owner for removal ("Ort entfernen", `screens/space/EmptyPlace.tsx`), and the owner decides. The claim's own
+  invented place, archived once the device leaves it in that step, is the one exception that predates this rule.
 - **Steuerung opens on Zielwerte** (a running plan is the exception) with Alarme and "Automatisch nach Grow-Plan
   steuern" as rows under them. Leaving with unsaved figures asks "Speichern und weiter / Verwerfen / Weiter
   bearbeiten"; on a phone the save bar takes the tab bar's place.

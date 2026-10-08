@@ -1921,6 +1921,20 @@
     },
     "noReadingsYet": "Noch nichts gemeldet",
     "growingHere": "Wächst hier",
+    "deviceHere": {
+      "title": "Gerät nach {{name}} holen",
+      "which": "Welches Gerät",
+      "none": "Alle Geräte, die du steuerst, stehen schon hier.",
+      "moved": "{{device}} steht jetzt in {{place}}.",
+      "note": "Ab jetzt zählen die Messwerte und die Kamera des Geräts zu diesem Ort. Was es bisher gemessen hat, bleibt beim alten.",
+      "done": "Fertig"
+    },
+    "empty": {
+      "says": "In {{name}} steht nichts mehr: kein Gerät, keine Kamera, kein Grow.",
+      "remove": "{{name}} entfernen",
+      "removing": "wird entfernt…",
+      "note": "Was dort gemessen und geschrieben wurde, bleibt lesbar."
+    },
     "lastStill": "letztes vor {{age}}",
     "stillAlt": "{{name}} um {{time}}",
     "climate24h": "Klima · 24 Std",
@@ -3371,10 +3385,13 @@
         "other": "Ort {{n}}"
       },
       "nameTaken": "Ein Ort heißt schon so.",
+      "joins": "{{name}} gibt es schon: Das Gerät kommt dorthin, zu dem, was dort schon steht.",
       "renamesThePlace": "Das Feld benennt den Ort selbst um, nicht den Namen dieses Geräts.",
       "alreadyHave": "Oder es steht an einem Ort, den du schon hast",
       "rename": "umbenennen",
       "renaming": "wird umbenannt…",
+      "join": "dorthin stellen",
+      "joining": "wird verschoben…",
       "kindLabel": "Was für ein Ort das ist",
       "kind": {
         "tent": "Zelt",
@@ -4303,6 +4320,7 @@
       "preset": "Klima-Preset wählen",
       "newGrow": "Grow starten",
       "moveGrow": "Grow hierher holen",
+      "deviceHere": "Gerät hierher holen",
       "members": "Mitglieder einladen",
       "rename": "Umbenennen",
       "presetLine": "unter Steuerung · gilt erst nach Speichern",
