@@ -115,9 +115,12 @@ export interface Moves {
   remove: boolean;
 }
 
+/** Whether the plan has a clock: one that is running or paused does, and one at rest has none. */
+export const isGoing = (state: PlanState): boolean => state.status === 'running' || state.status === 'paused';
+
 export const movesOf = (plan: Plan, now: DateTime): Moves => {
   const { status } = plan.state;
-  const going = status === 'running' || status === 'paused';
+  const going = isGoing(plan.state);
 
   return {
     confirm: isWaiting(plan, now),

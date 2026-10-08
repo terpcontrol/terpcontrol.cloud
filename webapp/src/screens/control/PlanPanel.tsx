@@ -8,21 +8,20 @@ import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { serverNow } from '@/api/clock';
 import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { deviceName, deviceTitle } from '@/ui/naming';
-import { PlanEditor } from './PlanEditor';
+import { DurationField, PlanEditor } from './PlanEditor';
 import { KeepAsTemplateSheet, StartFromTemplateSheet } from './PlanTemplates';
 import { PlanRefusal } from './Refusal';
 import {
   activeStep,
   countdownLabel,
-  DURATION_UNITS,
   elapsedMs,
+  isGoing,
   isOpenEnded,
   isWaiting,
   leftMs,
@@ -85,6 +84,23 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   const anyTemplate = templates.data?.items.length !== 0 || ready;
 
   const name = deviceName(device, t);
+  const sheets = (
+    <>
+      {editing ? <PlanEditor device={device} plan={plan.data ?? null} draft={editing} onClose={() => setEditing(null)} /> : null}
+      {keeping && plan.data ? <KeepAsTemplateSheet plan={plan.data} onClose={() => setKeeping(false)} /> : null}
+      {picking ? (
+        <StartFromTemplateSheet
+          device={device}
+          notify={plan.data?.notify ?? DEFAULT_NOTIFY}
+          onClose={() => setPicking(false)}
+          onChosen={draft => {
+            setPicking(false);
+            setEditing(draft);
+          }}
+        />
+      ) : null}
+    </>
+  );
   // The page is headed "Grow plan", so the panel is headed by whose plan it is.
   // What a plan is, is said by the sentence under the title while there is
   // none, and by the (i) beside it once there is one to read.
@@ -148,18 +164,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
           <LoadFailed retry={() => void plan.refetch()} />
         )}
 
-        {editing ? <PlanEditor device={device} plan={null} draft={editing} onClose={() => setEditing(null)} /> : null}
-        {picking ? (
-          <StartFromTemplateSheet
-            device={device}
-            notify={DEFAULT_NOTIFY}
-            onClose={() => setPicking(false)}
-            onChosen={draft => {
-              setPicking(false);
-              setEditing(draft);
-            }}
-          />
-        ) : null}
+        {sheets}
       </section>
     );
   }
@@ -205,19 +210,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
         </div>
       ) : null}
 
-      {editing ? <PlanEditor device={device} plan={plan.data} draft={editing} onClose={() => setEditing(null)} /> : null}
-      {keeping ? <KeepAsTemplateSheet plan={plan.data} onClose={() => setKeeping(false)} /> : null}
-      {picking ? (
-        <StartFromTemplateSheet
-          device={device}
-          notify={plan.data.notify}
-          onClose={() => setPicking(false)}
-          onChosen={draft => {
-            setPicking(false);
-            setEditing(draft);
-          }}
-        />
-      ) : null}
+      {sheets}
     </section>
   );
 }
@@ -253,7 +246,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
   // A plan at rest has no clock, so it is not given one: the step it stands at
   // is where starting it would begin, and a bar filling up beside a tent that
   // is being run by nothing would be the screen inventing a state.
-  const going = plan.state.status === 'running' || plan.state.status === 'paused';
+  const going = isGoing(plan.state);
   // A plan that has run every step stands at none of them. The server puts it
   // back at the first, which is where starting it again begins, and the note
   // below says so; a step line would say it is standing there.
@@ -313,7 +306,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
       ) : null}
 
       <p className={ui.note}>
-        {plan.state.status !== 'running' && plan.state.status !== 'paused'
+        {!going
           ? t(plan.state.status === 'completed' ? 'space.control.next.completed' : 'space.control.next.atRest')
           : next === null
             ? t('space.control.next.ends')
@@ -432,23 +425,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
       {asking === 'extend' ? (
         <div className={styles.asking}>
           <p className={ui.note}>{t('space.control.ask.extend')}</p>
-          <div className={styles.duration}>
-            <input
-              className={`${ui.input} ${styles.number}`}
-              type="number"
-              min={1}
-              value={by.value}
-              aria-label={t('space.control.step.durationValue')}
-              onChange={event => setBy({ ...by, value: Math.max(1, Number(event.target.value) || 1) })}
-            />
-            <Choices label={t('space.control.step.durationUnit')}>
-              {DURATION_UNITS.map(unit => (
-                <Choice key={unit} chosen={by.unit === unit} onChoose={() => setBy({ ...by, unit })}>
-                  {t(`space.control.unitName.${unit}`)}
-                </Choice>
-              ))}
-            </Choices>
-          </div>
+          <DurationField value={by} min={1} onChange={setBy} />
           <div className={styles.actions}>
             <button
               type="button"
@@ -539,7 +516,7 @@ function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
   const { t } = useTranslation();
   const zone = useZone();
   const offset = offsetOf(serverNow(), zone);
-  const running = plan.state.status === 'running' || plan.state.status === 'paused';
+  const running = isGoing(plan.state);
 
   if (plan.steps.length === 0) return null;
 

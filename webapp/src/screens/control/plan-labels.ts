@@ -1,7 +1,7 @@
 import type { DeviceConfiguration, GerminationChoices, GrowthStage, StepDuration } from '@fg2/shared-types/v1';
 import { stageChoiceName } from '@/ui/presets';
 import { wallClock } from '@/ui/wall-clock';
-import { isDarkStage, stepLightHours, stepLightsOn } from './plan-edit';
+import { isDarkStage, stepLightHours, stepLightsOn, writesNothing } from './plan-edit';
 import { hoursWritten } from './targets/schedule-words';
 
 /**
@@ -72,7 +72,7 @@ export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = 
     step.stage === 'germination' && step.germinationChoices?.warnTooHumid ? t('space.control.step.warnsTooHumid') : null,
     step.stage === 'germination' && step.germinationChoices?.humidifierHolds === false ? t('space.control.step.humidifierRests') : null,
     step.waitForConfirmation ? t('space.control.waits') : null,
-    !isDarkStage(step.stage) && Object.keys(step.settings).length === 0 && step.lightHours == null
+    !isDarkStage(step.stage) && writesNothing(settings) && step.lightHours == null
       ? t(afterGermination ? 'space.control.step.endsGerminationShort' : 'space.control.step.writesNothingShort')
       : null,
   ]

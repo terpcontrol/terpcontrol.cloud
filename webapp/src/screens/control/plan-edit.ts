@@ -14,7 +14,7 @@ import { GERMINATION_HUMIDITY, GERMINATION_TEMPERATURE } from '@fg2/shared-types
 import { figureAt, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { lightWindowOf, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
-import { elapsedMs } from './plan-clock';
+import { elapsedMs, isGoing } from './plan-clock';
 
 /**
  * The recipe while it is being written, and what saving it would do to the tent
@@ -64,12 +64,15 @@ let drawn = 0;
 /** A step as the editor holds it, with a key of its own to draw the list by. */
 export const keyedStep = (step: Omit<StepDraft, 'key'>): StepDraft => ({ ...step, key: `draft-${++drawn}` });
 
+const stepDraftOf = (step: Omit<PlanStep, 'id'> & { id?: string }): StepDraft =>
+  keyedStep({ ...step, lightHours: step.lightHours ?? null, germinationChoices: step.germinationChoices ?? null });
+
 export const draftOf = (plan: Plan): PlanDraft => ({
   name: plan.name,
   templateId: plan.templateId,
   loop: plan.loop,
   notify: { ...plan.notify },
-  steps: plan.steps.map(step => keyedStep({ ...step, lightHours: step.lightHours ?? null, germinationChoices: step.germinationChoices ?? null })),
+  steps: plan.steps.map(stepDraftOf),
 });
 
 /**
@@ -82,9 +85,7 @@ export const draftFromTemplate = (steps: PlanStep[], name: string, templateId: s
   templateId,
   loop: false,
   notify,
-  steps: steps.map(({ id: _id, ...step }) =>
-    keyedStep({ ...step, lightHours: step.lightHours ?? null, germinationChoices: step.germinationChoices ?? null }),
-  ),
+  steps: steps.map(({ id: _id, ...step }) => stepDraftOf(step)),
 });
 
 export const emptyDraft = (name: string, notify: PlanNotify): PlanDraft => ({ name, templateId: null, loop: false, notify, steps: [] });
@@ -233,7 +234,7 @@ export const asWritableBy = (draft: PlanDraft, device: Device): PlanDraft => {
   return {
     ...draft,
     steps: draft.steps.map(step => {
-      const held = isDarkStage(step.stage) ? { ...step, ...heldByStage(step, step.stage) } : step;
+      const held = { ...step, ...heldByStage(step, step.stage) };
       return { ...held, settings: dropped.reduce((settings, figure) => withFigure(settings, figure, null), held.settings) };
     }),
   };
@@ -364,8 +365,7 @@ export interface PlanEditEffect {
  */
 export const editEffect = (plan: Plan, steps: StepDraft[], now: DateTime): PlanEditEffect => {
   const nothing: PlanEditEffect = { atRest: false, keeps: null, restarts: null, empties: false, resends: false };
-  const running = plan.state.status === 'running' || plan.state.status === 'paused';
-  if (!running) return { ...nothing, atRest: true };
+  if (!isGoing(plan.state)) return { ...nothing, atRest: true };
   if (steps.length === 0) return { ...nothing, empties: true };
 
   const from = plan.state.activeStepIndex;

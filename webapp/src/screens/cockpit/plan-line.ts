@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
 import type { Plan } from '@fg2/shared-types/v1';
 import { DAY_MS, HOUR_MS } from '@/ui/days';
-import { activeStep, isOpenEnded, isWaiting, leftMs, nextStepIndex, readingAt } from '../control/plan-clock';
+import { activeStep, isGoing, isOpenEnded, isWaiting, leftMs, nextStepIndex, readingAt } from '../control/plan-clock';
 
 /**
  * "Flower, 12 more days, then late flower": where a running plan stands and
@@ -15,7 +15,7 @@ const leftWords = (t: Translate, ms: number): string =>
   ms >= DAY_MS ? t('planLine.days', { count: Math.ceil(ms / DAY_MS) }) : t('planLine.hours', { count: Math.max(1, Math.ceil(ms / HOUR_MS)) });
 
 export const planLineOf = (t: Translate, plan: Plan, now: DateTime): string | null => {
-  if (plan.state?.status !== 'running' && plan.state?.status !== 'paused') return null;
+  if (!plan.state || !isGoing(plan.state)) return null;
   const step = activeStep(plan);
   if (!step) return null;
   // A paused plan sets nothing, but one that stands still unnoticed is a grow that stops moving on.

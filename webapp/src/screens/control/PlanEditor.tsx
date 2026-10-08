@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Device, GrowthStage, Plan, PlanNotifyMode } from '@fg2/shared-types/v1';
+import type { Device, GrowthStage, Plan, PlanNotifyMode, StepDuration } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useSavePlan } from '@/api/plans';
 import { Sheet } from '@/ui/Sheet';
@@ -234,7 +234,7 @@ function StepFields({
       stage,
       preset: keep ? step.preset : null,
       germinationChoices: stage === 'germination' ? choices : null,
-      ...(isDarkStage(stage) ? heldByStage(step, stage) : {}),
+      ...heldByStage(step, stage),
     });
   };
   // Held round the clock in the dark: drying, or germination.
@@ -284,27 +284,7 @@ function StepFields({
       ) : null}
 
       <span className="label">{t('space.control.step.duration')}</span>
-      <div className={styles.duration}>
-        <input
-          className={`${ui.input} ${styles.number}`}
-          type="number"
-          min={0}
-          // Not whole numbers only: a recipe written before the rewrite may hold
-          // half a day on a step, and a browser that calls that invalid would
-          // put a red ring around a length the tent is actually running.
-          step="any"
-          value={step.duration.value}
-          aria-label={t('space.control.step.durationValue')}
-          onChange={event => onChange({ duration: { ...step.duration, value: Math.max(0, Number(event.target.value) || 0) } })}
-        />
-        <Choices label={t('space.control.step.durationUnit')}>
-          {DURATION_UNITS.map(unit => (
-            <Choice key={unit} chosen={step.duration.unit === unit} onChoose={() => onChange({ duration: { ...step.duration, unit } })}>
-              {t(`space.control.unitName.${unit}`)}
-            </Choice>
-          ))}
-        </Choices>
-      </div>
+      <DurationField value={step.duration} min={0} onChange={duration => onChange({ duration })} />
       {step.duration.value <= 0 ? <p className={ui.note}>{t('space.control.step.openEndedNote')}</p> : null}
 
       <span className="label">{t('space.control.step.settings')}</span>
@@ -400,6 +380,35 @@ const fromController = (step: StepDraft, device: Device): Partial<StepDraft> => 
     lightHours: statesLight && !isDarkStage(step.stage) ? Math.round(targetsOf(configuration).lightHours) : step.lightHours,
   };
 };
+
+/** A length and its unit. A step may be open-ended at nought; anything else is at least one of its unit. */
+export function DurationField({ value, min, onChange }: { value: StepDuration; min: 0 | 1; onChange: (duration: StepDuration) => void }) {
+  const { t } = useTranslation();
+
+  return (
+    <div className={styles.duration}>
+      <input
+        className={`${ui.input} ${styles.number}`}
+        type="number"
+        min={min}
+        // Not whole numbers only on a step: a recipe written before the rewrite
+        // may hold half a day on one, and a browser that calls that invalid
+        // would put a red ring around a length the tent is actually running.
+        step={min === 0 ? 'any' : undefined}
+        value={value.value}
+        aria-label={t('space.control.step.durationValue')}
+        onChange={event => onChange({ ...value, value: Math.max(min, Number(event.target.value) || min) })}
+      />
+      <Choices label={t('space.control.step.durationUnit')}>
+        {DURATION_UNITS.map(unit => (
+          <Choice key={unit} chosen={value.unit === unit} onChoose={() => onChange({ ...value, unit })}>
+            {t(`space.control.unitName.${unit}`)}
+          </Choice>
+        ))}
+      </Choices>
+    </div>
+  );
+}
 
 /**
  * How long the light is on while the step runs: what turns a vegetative tent

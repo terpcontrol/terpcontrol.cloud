@@ -4,6 +4,7 @@ import { useDevicePlan, usePlanTransition } from '@/api/plans';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import ui from '@/ui/ui.module.css';
+import { isGoing } from '../../control/plan-clock';
 import { PlanRefusal } from '../../control/Refusal';
 import styles from './ContinuePlan.module.css';
 
@@ -27,7 +28,7 @@ function ContinuePlan({ device, mayManage }: DeviceContext) {
   const steps = plan.data?.steps ?? [];
   if (steps.length === 0) return null;
 
-  const going = plan.data?.state.status === 'running' || plan.data?.state.status === 'paused';
+  const going = plan.data ? isGoing(plan.data.state) : false;
   const standing = going ? (plan.data?.state.activeStepIndex ?? null) : null;
   const pick = chosen ?? steps[standing === null ? 0 : Math.min(standing + 1, steps.length - 1)].id;
   const index = steps.findIndex(step => step.id === pick);
