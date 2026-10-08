@@ -3,7 +3,6 @@ import { logger } from '@utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
 import { createServer, Server } from 'node:net';
-import { EventEmitter } from 'node:events';
 import { Semaphore, SemaphoreInterface, withTimeout } from 'async-mutex';
 
 const TUNNEL_CHUNK_SIZE = 128;
@@ -19,58 +18,6 @@ type TunnelStreamTxData = {
 type TunnelStreamRxData = Pick<TunnelStreamTxData, 'connection_id' | 'payload' | 'disconnected'> & {
   sequence: number;
 };
-
-// UDP relay (O-KAM camera P2P) — datagrams carry their own peer host/port.
-type UdpTunnelRxData = {
-  connection_id: string;
-  udp?: boolean;
-  host?: string;
-  port?: number;
-  payload?: string;
-  disconnected?: boolean;
-  sequence?: number;
-};
-
-type UdpTunnelTxData = {
-  connection_id: string;
-  udp: true;
-} & ({ disconnected: true } | { host: string; port: number; payload: string });
-
-/**
- * A datagram socket whose packets are relayed through the controller's MQTT
- * tunnel. Mirrors the small surface of node's dgram.Socket the P2P client needs:
- *   .send(buf, port, host)   emits nothing; fire-and-forget
- *   .on('message', (buf, rinfo) => ...)
- *   .close()
- */
-export class TunnelUdpSocket extends EventEmitter {
-  constructor(
-    private device_id: string,
-    public readonly connectionId: string,
-    private onClose: () => void,
-    private readonly mqtt: MqttClientService,
-  ) {
-    super();
-  }
-
-  public send(buf: Buffer, port: number, host: string): void {
-    const message: UdpTunnelTxData = {
-      connection_id: this.connectionId,
-      udp: true,
-      host,
-      port,
-      payload: buf.toString('base64'),
-    };
-    this.mqtt.publish('/devices/' + this.device_id + '/tunnel_write', JSON.stringify(message));
-  }
-
-  public close(): void {
-    const message: UdpTunnelTxData = { connection_id: this.connectionId, udp: true, disconnected: true };
-    this.mqtt.publish('/devices/' + this.device_id + '/tunnel_write', JSON.stringify(message));
-    this.onClose();
-    this.removeAllListeners();
-  }
-}
 
 type TunnelConnectionData = {
   nextSequence: number;
@@ -89,7 +36,6 @@ export class TunnelService implements BeforeApplicationShutdown {
 
   private deviceIdToTunnelConnection = new Map<string, Map<string, TunnelConnectionData>>();
   private deviceIdToSemaphore = new Map<string, SemaphoreInterface>();
-  private deviceIdToUdpTunnel = new Map<string, Map<string, TunnelUdpSocket>>();
   /** The listening ends of the proxies, so they can be given up on the way down. */
   private readonly proxyServers = new Set<Server>();
   /** Set on the way down: every connection has already been said goodbye to. */
@@ -127,16 +73,6 @@ export class TunnelService implements BeforeApplicationShutdown {
     }
     this.deviceIdToTunnelConnection.clear();
 
-    for (const sockets of this.deviceIdToUdpTunnel.values()) {
-      // Each says its own goodbye and unregisters itself, which is why this
-      // walks a copy.
-      for (const socket of [...sockets.values()]) {
-        dropped++;
-        socket.close();
-      }
-    }
-    this.deviceIdToUdpTunnel.clear();
-
     for (const server of this.proxyServers) {
       server.close();
     }
@@ -147,41 +83,9 @@ export class TunnelService implements BeforeApplicationShutdown {
     }
   }
 
-  /**
-   * Open a UDP relay to the given device's LAN. The returned socket sends and
-   * receives datagrams through the controller (see the firmware UDP tunnel).
-   * Used by the O-KAM camera P2P client to reach the camera behind the controller.
-   */
-  public openUdpTunnel(device_id: string): TunnelUdpSocket {
-    const connectionId = uuidv4();
-    let sockets = this.deviceIdToUdpTunnel.get(device_id);
-    if (!sockets) {
-      sockets = new Map();
-      this.deviceIdToUdpTunnel.set(device_id, sockets);
-    }
-    const socket = new TunnelUdpSocket(device_id, connectionId, () => this.deviceIdToUdpTunnel.get(device_id)?.delete(connectionId), this.mqtt);
-    sockets.set(connectionId, socket);
-    return socket;
-  }
-
   public onTunnelReadDataReceived(device_id: string, data: string): Promise<void> {
     try {
       const parsed: TunnelStreamRxData = JSON.parse(data);
-
-      // UDP datagrams (O-KAM camera P2P) bypass the ordered TCP-stream machinery:
-      // they carry their own peer host/port and have no sequence guarantees.
-      const udpRegistry = this.deviceIdToUdpTunnel.get(device_id)?.get(parsed.connection_id);
-      if (udpRegistry && ((parsed as UdpTunnelRxData).udp || (parsed as UdpTunnelRxData).host)) {
-        const u = parsed as UdpTunnelRxData;
-        if (u.disconnected) {
-          udpRegistry.emit('close');
-        } else if (u.payload && u.host) {
-          // rinfo shaped like node's dgram (address/port) so the P2P client can
-          // run over either a real dgram socket or this tunnelled one.
-          udpRegistry.emit('message', Buffer.from(u.payload, 'base64'), { address: u.host, port: u.port });
-        }
-        return Promise.resolve();
-      }
 
       const connection = this.deviceIdToTunnelConnection.get(device_id)?.get(parsed.connection_id);
       if (!connection) {

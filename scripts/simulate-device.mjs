@@ -1488,7 +1488,6 @@ class SimulatedDevice {
     } catch {
       return;
     }
-    if (message.udp) return;
 
     const open = this.#tunnels.get(message.connection_id);
     if (message.disconnected) {
