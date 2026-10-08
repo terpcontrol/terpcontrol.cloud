@@ -6,6 +6,7 @@ set -e
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 . scripts/compose.sh
+. scripts/mongodb.sh
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "error: $ENV_FILE not found - see \"Launching the stack locally\" in CLAUDE.md." >&2
@@ -47,9 +48,8 @@ if [ "$1" = "demo" ]; then
     exit 1
   fi
 
-  matched=$(terpcontrol_compose exec -T mongodb mongosh --quiet \
-    -u "$MONGODB_ADMINUSERNAME" -p "$MONGODB_ADMINPASSWORD" --authenticationDatabase admin \
-    "$MONGODB_DATABASE" --eval "
+  matched=$(mongodb_eval "
+      db = db.getSiblingDB('$MONGODB_DATABASE');
       const device = db.devices.findOne({id: '$device_id'});
       if (device) {
         // A demo session reads every object marked as one, so the space the

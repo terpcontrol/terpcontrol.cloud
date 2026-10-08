@@ -8,17 +8,8 @@ if [ -z "$BACKUP_FILENAME" ]; then
     export BACKUP_FILENAME="backup-$(date +%F_%H-%M-%S)"
 fi
 
-MONGO_CONTAINER="$(terpcontrol_compose ps -q mongodb)"
-if [ -z "$MONGO_CONTAINER" ]; then
-    echo "Error: MongoDB container is not running."
-    exit 1
-fi
-
-INFLUX_CONTAINER="$(terpcontrol_compose ps -q influxdb)"
-if [ -z "$INFLUX_CONTAINER" ] && [ "$BACKUP_TARGET" != "mongo" ]; then
-    echo "Error: InfluxDB container is not running."
-    exit 1
-fi
+MONGO_CONTAINER="$(terpcontrol_container mongodb)"
+[ "$BACKUP_TARGET" = mongo ] || INFLUX_CONTAINER="$(terpcontrol_container influxdb)"
 
 if [ "$BACKUP_TARGET" != "influx" ]; then
   terpcontrol_compose exec -T mongodb mongodump \
