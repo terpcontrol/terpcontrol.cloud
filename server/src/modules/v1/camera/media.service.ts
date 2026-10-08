@@ -43,6 +43,7 @@ interface MediaDraft {
   render?: MediaDocument['render'];
   exportJob?: MediaDocument['exportJob'];
   lit?: boolean | null;
+  monochrome?: boolean | null;
 }
 
 /** What a camera holds of one kind, which is what an export says about the stills it cannot carry. */
@@ -201,6 +202,7 @@ export class MediaService {
       render: draft.render ?? null,
       exportJob: draft.exportJob ?? null,
       lit: draft.lit ?? null,
+      monochrome: draft.monochrome ?? null,
     };
 
     await this.media.create(row);

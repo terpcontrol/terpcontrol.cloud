@@ -36,6 +36,14 @@ export type MediaDocument = Omit<Media, 'createdAt' | 'capturedAt' | 'endsAt' | 
    * camera with no controller in a tent that was lit - which counts as lit.
    */
   lit?: boolean | null;
+  /**
+   * Whether a still came out without colour (`monochromeOf`): a camera in its
+   * night mode, or a tent too dark to show anything. It says when the night is
+   * in a place nothing else there can say it of - a smart plug's VPD goes by it
+   * (ADR 0006). Null where the picture could not be read; absent on every still
+   * kept before it was, and either is unknown.
+   */
+  monochrome?: boolean | null;
 };
 
 const overlaysSchema = new Schema<MediaOverlays>(
@@ -108,6 +116,7 @@ export const mediaSchema = new Schema<MediaDocument>(
     render: { type: renderSchema, default: null },
     exportJob: { type: exportSchema, default: null },
     lit: { type: Boolean, default: null },
+    monochrome: { type: Boolean, default: null },
   },
   { collection: 'media', versionKey: false },
 );
