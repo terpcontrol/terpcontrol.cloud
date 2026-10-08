@@ -31,6 +31,7 @@ import {
 import {
   DAY_SECONDS,
   FIRMWARE_LIGHTS_OFF,
+  FIRMWARE_RAMP_MINUTES,
   cycleAt,
   cycleKindOf,
   cycleOf,
@@ -433,8 +434,10 @@ const lightPercent = (config, at, type = 'controller') => {
   const dayStart = flat ? config.day : configValue(config, 'daynight.day', DEFAULT_CONFIG.daynight.day);
   const nightStart = flat ? configValue(config, 'night', FIRMWARE_LIGHTS_OFF) : configValue(config, 'daynight.night', DEFAULT_CONFIG.daynight.night);
   const limit = configValue(config, flat ? 'limit' : 'lights.limit', 100);
-  const rampUp = configValue(config, flat ? 'sunrise' : 'lights.sunrise', 15) * 60;
-  const rampDown = configValue(config, flat ? 'sunset' : 'lights.sunset', 15) * 60;
+  // Where the document states none, the lamp's own firmware ramps the same 15
+  // minutes a fridge's and a controller's do.
+  const rampUp = (flat ? configValue(config, 'sunrise', 15) : configValue(config, 'lights.sunrise', FIRMWARE_RAMP_MINUTES)) * 60;
+  const rampDown = (flat ? configValue(config, 'sunset', 15) : configValue(config, 'lights.sunset', FIRMWARE_RAMP_MINUTES)) * 60;
 
   const isDay =
     dayStart <= nightStart
