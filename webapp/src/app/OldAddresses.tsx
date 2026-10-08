@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useDevices } from '@/api/devices';
 import { session, useSession } from '@/api/session';
-import { Door } from '@/screens/Recover';
+import { Door } from '@/screens/Door';
 import { Nothing } from '@/screens/public/Nothing';
 import { PublicShell } from '@/screens/public/PublicShell';
 import { Waiting } from '@/ui/PageState';

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { useActivateAccount } from '@/api/account';
 import { ApiError } from '@/api/problem';
 import { refusalText } from '@/ui/refusal';
 import ui from '@/ui/ui.module.css';
-import { Door } from './Recover';
+import { BackToSignIn, CodeField, Door, Problem } from './Door';
 import styles from './SignIn.module.css';
 
 /**
@@ -39,30 +39,12 @@ export function Activate() {
   return (
     <Door title={t('activate.title')} onSubmit={() => void submit()}>
       <p className={styles.lead}>{t(code ? 'activate.fromLink' : 'activate.intro')}</p>
-      <label className={`label ${styles.fieldLabel}`} htmlFor="activation-code">
-        {t('login.signUp.activation.code')}
-      </label>
-      <input
-        id="activation-code"
-        className={`mono ${ui.input}`}
-        autoComplete="one-time-code"
-        autoCapitalize="none"
-        spellCheck={false}
-        disabled={activate.isPending}
-        value={typed}
-        onChange={event => setTyped(event.target.value)}
-      />
-      {problem ? (
-        <p className={`${ui.problem} ${styles.problem}`} role="alert">
-          {problem}
-        </p>
-      ) : null}
+      <CodeField value={typed} disabled={activate.isPending} onChange={setTyped} />
+      <Problem>{problem}</Problem>
       <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={activate.isPending || typed.trim() === ''}>
         {t('activate.submit')}
       </button>
-      <p className={styles.links}>
-        <Link to="/sign-in">{t('login.backToLogin')}</Link>
-      </p>
+      <BackToSignIn />
     </Door>
   );
 }
