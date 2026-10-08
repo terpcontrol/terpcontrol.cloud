@@ -627,18 +627,21 @@ describe('what the cloud tells a device', () => {
   /**
    * A smart socket keeps its day under `daynight` as a controller does, but no
    * lamp follows it: its switch points by night take over from those by day.
-   * Read without its type, the line said a socket's day as a light plan.
+   * Read without its type, the line said a socket's day as a light plan. What
+   * its day is for depends on what it switches by - dosing CO2, it doses by
+   * day only - so its mode goes beside the figures too.
    */
-  it('writes the type of device beside the figures, so a smart socket´s day is not read as a lamp´s', async () => {
+  it('writes the type of device and a socket´s mode beside the figures, so a smart socket´s day is not read as a lamp´s', async () => {
     await device({ type: 'plug', configuration: { workmode: 'heater', usedaynight: 1, daynight: { day: 21600, night: 79200 } } });
     const configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries));
 
     await configuration.configure(DEVICE, { dayFrom: 25200 }, OWNER);
+    await configuration.configure(DEVICE, { plugMode: 'co2', dayNight: false }, OWNER);
 
-    expect((await db.entries.findOne({}).lean())?.message).toEqual({
-      key: 'message-device-configuration-updated',
-      params: ['daynight.day: 21600 → 25200\ndaynight.night: 79200 → 79200', '', 'plug'],
-    });
+    expect((await db.entries.find({}).sort({ _id: 1 }).lean()).map(entry => entry.message)).toEqual([
+      { key: 'message-device-configuration-updated', params: ['daynight.day: 21600 → 25200\ndaynight.night: 79200 → 79200', 'heater', 'plug'] },
+      { key: 'message-device-configuration-updated', params: ['usedaynight: 1 → 0\nworkmode: heater → co2', 'co2', 'plug'] },
+    ]);
   });
 
   it('records the targets each write moved, whoever made it, and nothing for a write that moved none', async () => {

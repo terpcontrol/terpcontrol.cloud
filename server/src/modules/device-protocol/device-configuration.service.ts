@@ -239,20 +239,23 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * ends, a light that goes off as it comes on - and one of them alone reads as
    * a time of day that means nothing.
    *
-   * Beside the lines go the mode the device holds the night's figures round
-   * the clock in - drying, germination; empty otherwise - so the screens can
-   * say the drying room's humidity moved rather than the night's, and the
-   * device's type, because one place holds different things on different
-   * hardware: a smart socket's `daynight` times are where its day starts for
-   * its switch points, a controller's are its lamp's. A line written before
-   * either carries the figures alone, or the figures and the mode.
+   * Beside the lines go the work mode where it decides what a figure is, so
+   * the screens can say the drying room's humidity moved rather than the
+   * night's - drying and germination hold the night's figures round the clock,
+   * and a smart socket's day is for its switch points or, dosing CO2, for
+   * whether it doses at all; empty for any other - and the device's type,
+   * because one place holds different things on different hardware: a smart
+   * socket's `daynight` times are where its day starts, a controller's are its
+   * lamp's. A line written before either carries the figures alone, or the
+   * figures and the mode.
    */
   private async writeDown(deviceId: string, written: Written, by: string | null): Promise<void> {
     const moved = [...withScheduleWhole(changedFigures(written.before, written.after), written.after), ...choicesMoved(written.choices)];
     if (moved.length === 0) return;
-    const mode = written.after.workmode;
 
     const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1, type: 1 }).lean<Pick<StoredDevice, 'spaceId' | 'type'> | null>();
+    const mode = typeof written.after.workmode === 'string' ? written.after.workmode : '';
+    const decisive = mode === 'dry' || mode === 'breed' || device?.type === 'plug';
     await this.entries.write({
       source: 'device',
       authorId: by,
@@ -262,7 +265,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       severity: 'info',
       message: {
         key: 'message-device-configuration-updated',
-        params: [moved.join('\n'), mode === 'dry' || mode === 'breed' ? mode : '', device?.type ?? ''],
+        params: [moved.join('\n'), decisive ? mode : '', device?.type ?? ''],
       },
     });
   }

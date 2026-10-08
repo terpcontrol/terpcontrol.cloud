@@ -243,6 +243,74 @@ describe('a LIGHT´s, an AIR fan´s and a smart socket´s settings, changed', ()
     expect(text('de', [times, 'dry'])).toContain('Lichtplan: Licht an 08:00–20:00 · 12 Std → Licht an 09:00–20:00 · 11 Std');
   });
 
+  /**
+   * The rest of a socket's document was shown as the firmware spells it -
+   * "workmode: heater → off", "heater.day.on: 24 → 25" - and its mode read as a
+   * controller's: "Operation: heater → control off". Its panel names each of
+   * them, the switch points by their block and their row.
+   */
+  describe('a smart socket´s own settings, in the words of its panel', () => {
+    const line = (language: 'en' | 'de', params: string[], part: 'title' | 'text' = 'text') =>
+      resolveDeviceMessage(reader[language], { key: 'message-device-configuration-updated', params }, part, berlin);
+
+    it('says what it switches by, in the line and in the title', () => {
+      expect(line('en', ['workmode: heater → off', 'off', 'plug'])).toContain('Switches by: Heating → Off');
+      expect(line('de', ['workmode: heater → off', 'off', 'plug'])).toContain('Schaltet nach: Heizen → Aus');
+      expect(line('en', ['workmode: off → co2', 'co2', 'plug'], 'title')).toBe('Switches by: CO₂');
+      expect(line('de', ['workmode: heater → off', 'off', 'plug'], 'title')).toBe('Schaltet nach: Aus');
+      // A controller's is its control, as ever.
+      expect(line('en', ['workmode: small → off', '', 'controller'], 'title')).toBe('Control switched off');
+    });
+
+    it('names a switch point by its block and its row, in the unit of what the mode switches by', () => {
+      const points = 'heater.day.on: 24 → 25.5\nheater.night.off: 22 → 21\ndehumidify.day.on: 65 → 70\nusedaynight: 0 → 1';
+
+      expect(line('en', [points, 'heater', 'plug'])).toContain(
+        'By day · On below: 24 °C → 25.5 °C\nAt night · Off above: 22 °C → 21 °C\nBy day · On above: 65 % → 70 %\nOwn switch points at night: off → on',
+      );
+      expect(line('de', [points, 'heater', 'plug'])).toContain(
+        'Tagsüber · Ein unter: 24 °C → 25,5 °C\nNachts · Aus über: 22 °C → 21 °C\nTagsüber · Ein über: 65 % → 70 %\nNachts eigene Schaltpunkte: aus → an',
+      );
+    });
+
+    /** Dosing CO2, a socket's day is when it doses at all; a line that does not say the mode names only day and night. */
+    it('says its CO2 dosing, and its day as the mode it is in uses it', () => {
+      const dosing = 'co2.duration: 10 → 15\nco2.mode: const → periodic\nco2.on: 600 → 700\nco2.period: 60 → 30\nusedaynight: 0 → 1';
+
+      expect(line('en', [dosing, 'co2', 'plug'])).toContain(
+        'CO₂ dosing · Dosing for: 10 min → 15 min\nCO₂ dosing: Throughout → In intervals\nSwitch points · On below: 600 ppm → 700 ppm\nCO₂ dosing · Interval: 60 min → 30 min\nDose by day only: off → on',
+      );
+      expect(line('de', [dosing, 'co2', 'plug'])).toContain(
+        'CO₂-Dosierung · Davon dosieren: 10 Min → 15 Min\nCO₂-Dosierung: Durchgehend → In Intervallen\nSchaltpunkte · Ein unter: 600 ppm → 700 ppm\nCO₂-Dosierung · Intervall: 60 Min → 30 Min\nNur tagsüber dosieren: aus → an',
+      );
+      expect(line('de', ['usedaynight: 1 → 0', '', 'plug'])).toContain('Tag und Nacht: an → aus');
+      expect(line('de', ['fan: {"device_id":"none","speed":100} → {"device_id":"sim-fan-1","speed":30}', 'co2', 'plug'])).toContain(
+        'AIR-Lüfter drosseln: Keinen → 30 %',
+      );
+    });
+
+    it('says its protections under the switch that keeps them', () => {
+      const protections =
+        'limits.overtemperature.enabled: false → true\nlimits.overtemperature.limit: 30 → 32\nlimits.time.min_on: 0 → 60\nlimits.undertemperature.hysteresis: 1 → 1.5';
+
+      expect(line('en', [protections, 'heater', 'plug'])).toContain(
+        'Off when too hot: off → on\nOff when too hot · Off above: 30 °C → 32 °C\nLeast times · On at least: 0 s → 60 s\nOff when too cold · On again once this much warmer: 1 °C → 1.5 °C',
+      );
+      expect(line('de', [protections, 'heater', 'plug'])).toContain(
+        'Aus bei Übertemperatur: aus → an\nAus bei Übertemperatur · Aus über: 30 °C → 32 °C\nMindestzeiten · Mindestens an: 0 s → 60 s\nAus bei Untertemperatur · Wieder an, wenn so viel wärmer: 1 °C → 1,5 °C',
+      );
+    });
+
+    it('says its timer´s windows on the account´s clock', () => {
+      const windows = 'timer.timeframes: [] → [{"ontime":28800,"duration":30},{"ontime":79200,"duration":180}]';
+
+      expect(line('en', [windows, 'timer', 'plug'])).toContain('Time windows: none → 10:00–10:30, 00:00–03:00');
+      expect(line('de', [windows, 'timer', 'plug'])).toContain('Zeitfenster: keine → 10:00–10:30, 00:00–03:00');
+      // What is no list of windows is shown as it came.
+      expect(line('en', ['timer.timeframes: 3 → {}', 'timer', 'plug'])).toContain('timer.timeframes: 3 → {}');
+    });
+  });
+
   /** A fan's day and night are sections; where one appears whole it is no time of a lamp, and no plan. */
   it('keeps a whole section where a lamp keeps a time as it came', () => {
     const lines = 'day: – → {"fixed_speed":80}\nnight: – → {"fixed_speed":40}';
