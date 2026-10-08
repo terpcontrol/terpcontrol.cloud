@@ -199,8 +199,8 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
 
   /**
    * Whether this session reaches a need on a subject. A rhythm is asked the
-   * same question as the cards ask of a task, because the list reaches rhythms
-   * no card is drawing: a member may see the arrangements of the tent they were
+   * same question the cards ask of a task, because the list reaches rhythms no
+   * card is drawing: a member may see the arrangements of the tent they were
    * let into and may not rewrite them.
    */
   const mayOn = (subject: GrowOrSpaceRef, need: AccessNeed): boolean => {

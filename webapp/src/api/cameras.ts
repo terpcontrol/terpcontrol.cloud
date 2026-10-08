@@ -90,8 +90,8 @@ export const useCamera = (cameraId: string) =>
   });
 
 /**
- * How many pages one day is walked over before the walk gives up. A
- * camera asked for a picture every thirty seconds delivers 2,880 a day, so this
+ * How many pages one day is walked over before the walk gives up. A camera
+ * asked for a picture every thirty seconds delivers 2,880 a day, so this
  * reaches the end of any ordinary day in a handful of reads; the cap is there
  * only so that a day nobody expected - two cameras writing into one, a shorter
  * interval than the pipeline promises - cannot turn one screen into an

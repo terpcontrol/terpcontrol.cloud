@@ -5,7 +5,9 @@ import { api } from './client';
 import { readEvery } from './pages';
 
 /**
- * The writing half of the diary, and the little of it the Log sheet reads back.
+ * The writing half of the diary, and the reads of its lines: what the Log
+ * sheet reads back, the window under a chart, a grow's photos and a device's
+ * own lines.
  *
  * Writing is a plain function rather than a mutation hook: the sheet
  * acknowledges before the request is answered and keeps the line itself until
