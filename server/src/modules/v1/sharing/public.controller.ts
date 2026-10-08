@@ -9,7 +9,7 @@ import { Caller } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage } from '@common/v1/pages';
 import { V1Query } from '@common/v1/validation';
-import { RANGE_REFUSAL, parseDimension, pictureSizeQuery } from '@modules/v1/camera/media-presentation.service';
+import { ApiPictureBytes, pictureSizeQuery, renderSizeOf } from '@modules/v1/camera/media-presentation.service';
 import { MediaDeliveryService } from '@modules/v1/camera/media-delivery.service';
 import { weeksQuery } from '@modules/v1/diary/weeks.service';
 import { PUBLIC_OPERATION } from '../../../openapi';
@@ -37,12 +37,6 @@ import { PublicPagesService } from './public-pages.service';
 
 /** A rendered card is a PNG and nothing else. */
 const CARD_BYTES = { 'image/png': { schema: { type: 'string', format: 'binary' } } };
-
-const PICTURE_BYTES = {
-  'image/jpeg': { schema: { type: 'string', format: 'binary' } },
-  'image/png': { schema: { type: 'string', format: 'binary' } },
-  'video/mp4': { schema: { type: 'string', format: 'binary' } },
-};
 
 /**
  * A page of a whole grow draws one thumbnail per day of up to twenty-six weeks,
@@ -123,9 +117,7 @@ export class PublicController {
   @Get('public/grows/:slug/media/:id')
   @RateLimited({ limit: PICTURES_PER_MINUTE, message: 'Too many pictures asked for, please try again later.' })
   @ApiOperation({ summary: 'A picture of a public grow', ...PUBLIC_OPERATION })
-  @ApiResponse({ status: HttpStatus.OK, description: 'The file itself, in the type it was stored as.', content: PICTURE_BYTES })
-  @ApiResponse({ status: HttpStatus.PARTIAL_CONTENT, description: 'The byte range a <video> element asked for.', content: PICTURE_BYTES })
-  @ApiResponse(RANGE_REFUSAL)
+  @ApiPictureBytes()
   public async picture(
     @Caller() ctx: AccessContext,
     @Param('slug') slug: string,
@@ -137,13 +129,7 @@ export class PublicController {
     const { grow, grant } = await this.pages.publicGrow(ctx, slug);
     const picture = await this.pages.pictureOf(grow, grant, id);
 
-    return this.delivery.deliver(
-      request,
-      reply,
-      picture,
-      { width: parseDimension(query.width), height: parseDimension(query.height) },
-      grant.redacted,
-    );
+    return this.delivery.deliver(request, reply, picture, renderSizeOf(query), grant.redacted);
   }
 
   @Get('public/grows/:slug/card.png')

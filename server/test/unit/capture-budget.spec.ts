@@ -1,7 +1,7 @@
 import { AddressInfo, createServer, Server, Socket } from 'node:net';
 import { jest } from '@jest/globals';
 import { CaptureService } from '@modules/v1/camera/capture.service';
-import { STREAM_RUNS, streamSlot } from '@modules/v1/camera/ffmpeg-slots';
+import { STREAM_RUNS, streamSlot } from '@modules/v1/camera/ffmpeg';
 import { TerpCamService } from '@modules/v1/camera/terpcam.service';
 
 /**

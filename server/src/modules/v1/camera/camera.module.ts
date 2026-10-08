@@ -51,6 +51,6 @@ import { TimelapseService } from './timelapse.service';
     TimelapseContextService,
     TimelapseService,
   ],
-  exports: [CamerasService, MediaService, MediaDeliveryService, EntitlementService, TerpCamDirectService],
+  exports: [MediaService, MediaDeliveryService, TerpCamDirectService],
 })
 export class CameraModule {}

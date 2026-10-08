@@ -1,3 +1,4 @@
+import { execFile, ExecFileException } from 'node:child_process';
 import pLimit from 'p-limit';
 
 /**
@@ -20,7 +21,36 @@ import pLimit from 'p-limit';
  * streams queued behind cameras that are only slow to answer.
  */
 export const STREAM_RUNS = 8;
-export const DECODE_RUNS = 2;
+const DECODE_RUNS = 2;
 
 export const streamSlot = pLimit(STREAM_RUNS);
 export const decodeSlot = pLimit(DECODE_RUNS);
+
+interface FfmpegRun {
+  error: ExecFileException | null;
+  stdout: Buffer;
+  stderr: string;
+}
+
+/**
+ * One run of ffmpeg on one thread, overwriting its output. A run that fails
+ * resolves too, with its error beside what it wrote, because what it wrote is
+ * what says why. `stdin` is fed to it where there is one.
+ */
+export const runFfmpeg = (
+  args: string[],
+  options: { loglevel: 'error' | 'warning'; timeoutMs: number; maxBuffer: number; stdin?: Buffer },
+): Promise<FfmpegRun> =>
+  new Promise(resolve => {
+    const child = execFile(
+      'ffmpeg',
+      ['-loglevel', options.loglevel, '-threads', '1', '-y', ...args],
+      { timeout: options.timeoutMs, maxBuffer: options.maxBuffer, encoding: 'buffer' },
+      (error, stdout, stderr) => resolve({ error, stdout: stdout ?? Buffer.alloc(0), stderr: String(stderr) }),
+    );
+    if (options.stdin) {
+      // An ffmpeg that exits before it has read all of it fails on its own; the EPIPE says nothing more.
+      child.stdin?.on('error', () => undefined);
+      child.stdin?.end(options.stdin);
+    }
+  });

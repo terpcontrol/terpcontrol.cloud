@@ -29,8 +29,11 @@ function drw(index: number, payload: Buffer): Buffer {
   return Buffer.concat([head, payload]);
 }
 
-type Session = { socket: { send(msg: Buffer): void }; peer: { address: string; port: number }; inbox: unknown[]; auth: string; next: number };
-type Internals = { readKeyframe(session: Session, deadline?: number): Promise<Buffer | null>; login(...args: unknown[]): Promise<void> };
+type Session = { socket: { did: Buffer; send(msg: Buffer): void }; inbox: Buffer[]; auth: string; next: number };
+type Internals = {
+  readKeyframe(session: Session, deadline?: number): Promise<Buffer | null>;
+  login(session: Session, label: string, deadline?: number): Promise<void>;
+};
 
 /**
  * The camera: on `livestream.cgi` it bursts the keyframe, dropping the fragments
@@ -45,10 +48,10 @@ function camera(frame: Buffer, lost: number[], options: { stallMs?: number; stuc
   const acked = new Set<number>();
   const sent: number[] = [];
   const timers: NodeJS.Timeout[] = [];
-  const session: Session = { socket: { send: () => undefined }, peer: { address: 'relay', port: 1 }, inbox: [], auth: '', next: 1 };
+  const session: Session = { socket: { did: Buffer.alloc(20), send: () => undefined }, inbox: [], auth: '', next: 1 };
   const deliver = (index: number) => {
     sent.push(index);
-    if (index !== options.stuck) session.inbox.push({ message: drw(index, fragments[index]), from: session.peer });
+    if (index !== options.stuck) session.inbox.push(drw(index, fragments[index]));
   };
   session.socket.send = (msg: Buffer) => {
     const m = deobfuscate(msg);
@@ -176,8 +179,8 @@ it('names every index in one DrwAck', () => {
 });
 
 describe('the login', () => {
-  const login = (socket: { send(msg: Buffer): void }, inbox: unknown[], deadline?: number) =>
-    service().login(socket, inbox, Buffer.alloc(20), { address: 'relay', port: 1 }, '', 'AAC2851962SPLP', deadline);
+  const login = (socket: { send(msg: Buffer): void }, inbox: Buffer[], deadline?: number) =>
+    service().login({ socket: { ...socket, did: Buffer.alloc(20) }, inbox, auth: '', next: 1 }, 'AAC2851962SPLP', deadline);
 
   it('gives up at the capture´s deadline where that comes first', async () => {
     const started = Date.now();
@@ -193,11 +196,11 @@ describe('the login', () => {
 
   it('waits out a choppy link that holds the first answer back for seconds', async () => {
     // Two lost TCP segments on the relay: ~3s and then ~6s before a resend gets through.
-    const inbox: unknown[] = [];
+    const inbox: Buffer[] = [];
     const reply = Buffer.from('result= 0;var realdeviceid="AAC2851962SPLP";', 'latin1');
     const head = Buffer.from([0xf1, 0xd0, 0, 0, 0xd1, 0, 0, 0]);
     head.writeUInt16BE(reply.length + 4, 2);
-    const timer = setTimeout(() => inbox.push({ message: Buffer.concat([head, reply]), from: { address: 'relay', port: 1 } }), 8_000);
+    const timer = setTimeout(() => inbox.push(Buffer.concat([head, reply])), 8_000);
     try {
       await expect(login({ send: () => undefined }, inbox)).resolves.toBeUndefined();
     } finally {

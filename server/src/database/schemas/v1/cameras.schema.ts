@@ -13,7 +13,7 @@ import { cameraKind, cameraModel, cameraTransport, grantKind } from '@fg2/shared
  */
 
 /** How often the pipeline has always asked a camera for a picture. */
-const DEFAULT_STILL_INTERVAL_SECONDS = 30;
+export const DEFAULT_STILL_INTERVAL_SECONDS = 30;
 
 /** `tier` and `renewalVisible` are read from `validUntil` and the install's configuration on every serialisation, so neither is stored. */
 type CameraEntitlementDocument = Omit<CameraEntitlement, 'validUntil' | 'tier' | 'renewalVisible'> & { validUntil: Date | null };

@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { execFile } from 'node:child_process';
-import { decodeSlot } from './ffmpeg-slots';
+import { decodeSlot, runFfmpeg } from './ffmpeg';
 
 /**
  * What a Terp Cam still ends in: a raw H.264 keyframe turned into a JPEG.
@@ -26,23 +25,15 @@ export class TerpCamService {
     return decodeSlot(() => this.decode(h264));
   }
 
-  private decode(h264: Buffer): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      const child = execFile(
-        'ffmpeg',
-        ['-loglevel', 'warning', '-threads', '1', '-y', '-f', 'h264', '-i', 'pipe:0', '-frames:v', '1', '-q:v', '2', '-f', 'mjpeg', 'pipe:1'],
-        { timeout: FFMPEG_TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024, encoding: 'buffer' },
-        (error, stdout, stderr) => {
-          if (error || !stdout || (stdout as unknown as Buffer).length === 0) {
-            reject(new Error(`ffmpeg h264 decode failed: ${error?.message ?? ''} ${String(stderr)}`));
-            return;
-          }
-          resolve(stdout as unknown as Buffer);
-        },
-      );
-      // feed the elementary stream on stdin
-      child.stdin?.on('error', () => undefined); // ignore EPIPE if ffmpeg exits early
-      child.stdin?.end(h264);
+  private async decode(h264: Buffer): Promise<Buffer> {
+    const { error, stdout, stderr } = await runFfmpeg(['-f', 'h264', '-i', 'pipe:0', '-frames:v', '1', '-q:v', '2', '-f', 'mjpeg', 'pipe:1'], {
+      loglevel: 'warning',
+      timeoutMs: FFMPEG_TIMEOUT_MS,
+      maxBuffer: 8 * 1024 * 1024,
+      stdin: h264,
     });
+    if (error || stdout.length === 0) throw new Error(`ffmpeg h264 decode failed: ${error?.message ?? ''} ${stderr}`);
+
+    return stdout;
   }
 }

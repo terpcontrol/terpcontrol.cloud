@@ -12,7 +12,7 @@ import { EntitlementService } from '@modules/v1/camera/entitlement.service';
 import { MediaService } from '@modules/v1/camera/media.service';
 import { OverlayFrame, composeFrame, overlayLayer, sizeFor, wasDark } from '@modules/v1/camera/timelapse-overlays';
 import { TimelapseContextService } from '@modules/v1/camera/timelapse-context.service';
-import { whyNoFilm } from '@modules/v1/camera/timelapse.service';
+import { TimelapseService, whyNoFilm } from '@modules/v1/camera/timelapse.service';
 import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 
 /**
@@ -75,9 +75,10 @@ const build = (): void => {
   const poller = { settingsChanged: () => undefined, forget: () => undefined };
   // The builder is asked to take the queue now rather than on its hourly pass;
   // what it then renders is the builder's own test.
-  const builder = { renderQueued: () => undefined };
+  const builder = new TimelapseService(cameras, media, entitlement, {} as never);
+  builder.renderQueued = () => undefined;
 
-  controller = new CamerasController(cameras, media, poller as never, builder as never, entitlement, access, {} as never);
+  controller = new CamerasController(cameras, media, poller as never, builder, access, {} as never);
 };
 
 const world = async (entitledUntil: Date | null): Promise<void> => {

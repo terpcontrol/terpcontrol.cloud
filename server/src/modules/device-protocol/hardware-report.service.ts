@@ -8,6 +8,7 @@ import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { logger } from '@utils/logger';
+import { yearFrom } from '../v1/camera/entitlement.service';
 import { DEVICE_CAMERA_REPORT_SINK, DeviceCameraReportSink } from './device-sinks';
 import { decodeSockets } from './sockets';
 
@@ -37,9 +38,6 @@ const NONE = 'none';
 
 /** A Terp Cam's P2P device id, which goes on to be part of a URL. */
 const CAMERA_ID = /^[A-Za-z0-9_-]{4,32}$/;
-
-/** A camera's year of Premium, from the day it is first paired. Nothing renews on its own. */
-const ENTITLEMENT_MONTHS = 12;
 
 /**
  * Two reported values never reach `devices.state.hardware`: the camera's
@@ -174,9 +172,6 @@ export class HardwareReportService {
       return;
     }
 
-    const validUntil = new Date();
-    validUntil.setMonth(validUntil.getMonth() + ENTITLEMENT_MONTHS);
-
     await this.cameras.create({
       id: uuidv4(),
       ownerId: device.ownerId,
@@ -189,7 +184,7 @@ export class HardwareReportService {
       ip: notNone(device.state.hardware.webcam_ip),
       secret: await this.reportedSecret(device.id),
       model: 'terp_cam',
-      entitlement: { validUntil, grant: 'included' },
+      entitlement: { validUntil: yearFrom(new Date()), grant: 'included' },
       isDemo: device.isDemo,
     });
 

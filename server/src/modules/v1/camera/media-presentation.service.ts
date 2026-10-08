@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { applyDecorators, HttpStatus, Injectable } from '@nestjs/common';
+import { ApiResponse } from '@nestjs/swagger';
 import sharp from 'sharp';
 import { z } from 'zod';
 
@@ -35,25 +36,34 @@ export const pictureSizeQuery = z.object({
   height: dimension.describe(`The same for the height. Never enlarged, and never more than ${MAX_DIMENSION}.`),
 });
 
+/** The size a picture was asked for at, never past the limit; a side not asked for is left to the picture. */
+export const renderSizeOf = (query: z.infer<typeof pictureSizeQuery>): RenderSize => ({
+  width: query.width && Math.min(query.width, MAX_DIMENSION),
+  height: query.height && Math.min(query.height, MAX_DIMENSION),
+});
+
+/** What the store holds: stills and photos as they were taken, films as they were rendered. */
+const PICTURE_BYTES = {
+  'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+  'image/png': { schema: { type: 'string', format: 'binary' } },
+  'video/mp4': { schema: { type: 'string', format: 'binary' } },
+};
+
 /**
- * A byte range that starts past the end of the file, refused as every other
- * refusal is rather than with an empty body.
+ * What a route that hands out stored bytes answers: the file, the range a
+ * player asked for, or - for a range that starts past the end of the file - a
+ * refusal like every other rather than an empty body.
  */
-export const RANGE_REFUSAL = {
-  status: 416,
-  description: 'The byte range asked for starts past the end of the file. `Content-Range` says how long it is.',
-  content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/Problem' } } },
-};
-
-/** A dimension a client asked for, or nothing at all - which is the stored picture whole. */
-export const parseDimension = (value: unknown): number | undefined => {
-  if (value === undefined || value === null || value === '') return undefined;
-
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
-
-  return Math.min(Math.floor(parsed), MAX_DIMENSION);
-};
+export const ApiPictureBytes = () =>
+  applyDecorators(
+    ApiResponse({ status: HttpStatus.OK, description: 'The file itself, in the type it was stored as.', content: PICTURE_BYTES }),
+    ApiResponse({ status: HttpStatus.PARTIAL_CONTENT, description: 'The byte range a <video> element asked for.', content: PICTURE_BYTES }),
+    ApiResponse({
+      status: HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
+      description: 'The byte range asked for starts past the end of the file. `Content-Range` says how long it is.',
+      content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/Problem' } } },
+    }),
+  );
 
 /** The narrower of what was asked for and what the tier allows; a cap is never widened by a request. */
 export const narrowestOf = (asked: RenderSize, cap: number | undefined): RenderSize =>
@@ -91,10 +101,8 @@ export class MediaPresentationService {
     return sharp(body).rotate().jpeg({ quality: 90, force: false }).toBuffer();
   }
 
-  /** Resizes when there is anything to do, never enlarging. */
-  public async resize(body: Buffer, size: RenderSize): Promise<Buffer> {
-    if (!size.width && !size.height) return body;
-
+  /** Never enlarges. */
+  public resize(body: Buffer, size: RenderSize): Promise<Buffer> {
     return sharp(body)
       .rotate()
       .resize({ ...size, fit: 'inside', withoutEnlargement: true })

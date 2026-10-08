@@ -28,7 +28,7 @@ import { picturesTheWayBackHolds } from '@/migrations/way-back';
  */
 
 /** What a picture is of, beside the bytes. The writer owns the id, the size and when the row was made. */
-export interface MediaDraft {
+interface MediaDraft {
   kind: MediaKind;
   mime: string;
   cameraId?: string | null;
@@ -59,7 +59,7 @@ export interface MediaPosition {
   capturedAt: Date;
 }
 
-export interface MediaFilter {
+interface MediaFilter {
   cameraId?: string;
   kind?: MediaKind;
   window?: MediaWindow | null;
@@ -271,17 +271,15 @@ export class MediaService {
     return this.store.copyToFile(id, path);
   }
 
-  public async delete(id: string): Promise<boolean> {
-    const result = await this.media.deleteOne({ id });
-    return (result?.deletedCount ?? 0) > 0;
+  public async delete(id: string): Promise<void> {
+    await this.media.deleteOne({ id });
   }
 
   /** In batches, for the sweeps: one round trip per batch rather than per picture. */
-  public async deleteMany(ids: string[]): Promise<number> {
-    if (ids.length === 0) return 0;
+  public async deleteMany(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
 
-    const result = await this.media.deleteMany({ id: { $in: ids } });
-    return result?.deletedCount ?? 0;
+    await this.media.deleteMany({ id: { $in: ids } });
   }
 
   /** Of these pictures, the ones the previous release still holds a row for, which no sweep of ours may remove yet. */

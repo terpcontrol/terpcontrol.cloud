@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { execFile } from 'node:child_process';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { withoutCredentials } from '@common/log-path';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraWithSecret } from './cameras.service';
-import { streamSlot } from './ffmpeg-slots';
+import { runFfmpeg, streamSlot } from './ffmpeg';
 import { TerpCamDirectService } from './terpcam-direct.service';
 
 /**
@@ -110,64 +109,51 @@ export class CaptureService {
     return attempt.stdout;
   }
 
-  private runFfmpegStill(
+  private async runFfmpegStill(
     streamUrl: string,
     camera: Pick<CameraWithSecret, 'url' | 'transport'>,
     probeArgs: string[],
     timeoutMs: number,
   ): Promise<{ stdout: Buffer; stderr: string; failure?: Error; timedOut?: boolean }> {
-    return new Promise(resolve => {
-      execFile(
-        'ffmpeg',
-        [
-          // Decoder messages about corrupt/truncated frames (e.g. "EOI missing,
-          // emulating") are logged at warning level, so "error" would hide them.
-          '-loglevel',
-          'warning',
-          '-threads',
-          '1',
-          '-y',
-          ...(camera.url?.startsWith('rtsp://') ? ['-rtsp_transport', camera.transport ?? 'tcp'] : []),
-          // We only need a single still frame, so decode nothing but keyframes and
-          // hand them on without buffering.
-          '-fflags',
-          'nobuffer',
-          '-flags',
-          'low_delay',
-          ...probeArgs,
-          '-skip_frame',
-          'nokey',
-          '-i',
-          streamUrl,
-          '-q:v',
-          '20',
-          '-vframes',
-          '1',
-          '-f',
-          'mjpeg',
-          '-',
-        ],
-        {
-          timeout: timeoutMs,
-          maxBuffer: 5 * 1024 * 1024,
-          encoding: 'buffer',
-        },
-        (error, stdout, stderr) => {
-          // Ended by the timeout above rather than finished. execFile also kills a
-          // run whose output overflows, which is a failure of another kind.
-          const timedOut = !!error?.killed && error.code !== 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER';
-          const corruptionIndicator = !error && FFMPEG_CORRUPT_FRAME_PATTERN.exec(String(stderr))?.[0];
-          const failure = timedOut
-            ? new Error(`timed out after ${Math.round(timeoutMs / 1000)} s without a picture`)
-            : (error ??
-              (corruptionIndicator
-                ? new CorruptFrameError(`discarding corrupt frame ("${corruptionIndicator}")`)
-                : !stdout || stdout.length === 0
-                  ? new Error('ffmpeg produced no output')
-                  : undefined));
-          resolve({ stdout: stdout ?? Buffer.alloc(0), stderr: String(stderr), failure, timedOut });
-        },
-      );
-    });
+    const { error, stdout, stderr } = await runFfmpeg(
+      [
+        ...(camera.url?.startsWith('rtsp://') ? ['-rtsp_transport', camera.transport ?? 'tcp'] : []),
+        // We only need a single still frame, so decode nothing but keyframes and
+        // hand them on without buffering.
+        '-fflags',
+        'nobuffer',
+        '-flags',
+        'low_delay',
+        ...probeArgs,
+        '-skip_frame',
+        'nokey',
+        '-i',
+        streamUrl,
+        '-q:v',
+        '20',
+        '-vframes',
+        '1',
+        '-f',
+        'mjpeg',
+        '-',
+      ],
+      // Decoder messages about corrupt/truncated frames (e.g. "EOI missing,
+      // emulating") are logged at warning level, so "error" would hide them.
+      { loglevel: 'warning', timeoutMs, maxBuffer: 5 * 1024 * 1024 },
+    );
+
+    // Ended by the timeout above rather than finished. execFile also kills a
+    // run whose output overflows, which is a failure of another kind.
+    const timedOut = !!error?.killed && error.code !== 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER';
+    const corruptionIndicator = !error && FFMPEG_CORRUPT_FRAME_PATTERN.exec(stderr)?.[0];
+    const failure = timedOut
+      ? new Error(`timed out after ${Math.round(timeoutMs / 1000)} s without a picture`)
+      : (error ??
+        (corruptionIndicator
+          ? new CorruptFrameError(`discarding corrupt frame ("${corruptionIndicator}")`)
+          : stdout.length === 0
+            ? new Error('ffmpeg produced no output')
+            : undefined));
+    return { stdout, stderr, failure, timedOut };
   }
 }

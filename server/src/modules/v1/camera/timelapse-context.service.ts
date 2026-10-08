@@ -8,6 +8,7 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { logger } from '@utils/logger';
+import { spacesDuring } from '../grow/grow-places';
 import { SERIES_READER, SeriesReader } from './series-reader';
 
 /**
@@ -23,7 +24,7 @@ import { SERIES_READER, SeriesReader } from './series-reader';
  */
 
 /** A caption, and the instant it belongs to; the frames around it carry it. */
-export interface TimelapseCaption {
+interface TimelapseCaption {
   at: Date;
   text: string;
 }
@@ -46,7 +47,7 @@ const CURVE_POINTS = 240;
 /** No more than this many lines are drawn; a busy week would otherwise be nothing but captions. */
 const MAX_CAPTIONS = 60;
 
-export interface TimelapseSpan {
+interface TimelapseSpan {
   startsAt: Date;
   endsAt: Date;
 }
@@ -83,7 +84,6 @@ export class TimelapseContextService {
     };
   }
 
-  /** The grow that stood in this space while the frames were taken. */
   /**
    * A film of a whole grow becomes that grow's film: the public diary shows
    * "Der ganze Grow als Film" from `filmMediaId`, and nothing ever set it, so a
@@ -94,19 +94,13 @@ export class TimelapseContextService {
     if (grow) await this.grows.updateOne({ id: grow.id }, { $set: { filmMediaId: mediaId } });
   }
 
+  /** The grow that stood in this space while the frames were taken. */
   private async growIn(spaceId: string | null, span: TimelapseSpan): Promise<GrowDocument | null> {
     if (spaceId === null) return null;
 
     const candidates = await this.grows.find({ 'placements.spaceId': spaceId }).sort({ startedAt: -1 }).limit(10).lean<GrowDocument[]>();
 
-    return (
-      candidates.find(grow =>
-        grow.placements.some(
-          placement =>
-            placement.spaceId === spaceId && placement.startedAt < span.endsAt && (placement.endedAt === null || placement.endedAt > span.startsAt),
-        ),
-      ) ?? null
-    );
+    return candidates.find(grow => spacesDuring(grow, span.startsAt, span.endsAt).includes(spaceId)) ?? null;
   }
 
   /**

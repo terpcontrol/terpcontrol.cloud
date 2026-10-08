@@ -59,8 +59,8 @@ describe('an install that enforces', () => {
   });
 
   it('gives a free render the lesser resolution and the mark', () => {
-    expect(gate(enforced).allowedQuality(camera(lastMonth), 'hd')).toBe('sd');
-    expect(gate(enforced).allowedQuality(camera(inAYear), 'hd')).toBe('hd');
+    expect(gate(enforced).isEntitled(camera(lastMonth))).toBe(false);
+    expect(gate(enforced).isEntitled(camera(inAYear))).toBe(true);
     expect(gate(enforced).watermarks(camera(lastMonth))).toBe(true);
     expect(gate(enforced).watermarks(camera(inAYear))).toBe(false);
   });
@@ -75,13 +75,14 @@ describe('deleting a free camera´s older pictures', () => {
   // A switch of its own, so that turning enforcement on narrows what is served
   // and never what is kept.
   it('is off until an install turns it on and says how many days', () => {
-    expect(gate({ enforced: true, freeStillDays: 30 }).freeRetention()).toBeNull();
-    expect(gate({ enforced: true, freeRetention: true }).freeRetention()).toBeNull();
-    expect(gate({ freeRetention: true, freeStillDays: 30 }).freeRetention()).toBeNull();
+    const kept = { stillDays: null, timelapseDays: null };
+    expect(gate({ enforced: true, freeStillDays: 30 }).freeTier()).toMatchObject(kept);
+    expect(gate({ enforced: true, freeRetention: true }).freeTier()).toMatchObject(kept);
+    expect(gate({ freeRetention: true, freeStillDays: 30 }).freeTier()).toMatchObject(kept);
   });
 
   it('applies the windows the install named once both are set', () => {
-    expect(gate({ enforced: true, freeRetention: true, freeStillDays: 30, freeTimelapseDays: 90 }).freeRetention()).toEqual({
+    expect(gate({ enforced: true, freeRetention: true, freeStillDays: 30, freeTimelapseDays: 90 }).freeTier()).toMatchObject({
       stillDays: 30,
       timelapseDays: 90,
     });

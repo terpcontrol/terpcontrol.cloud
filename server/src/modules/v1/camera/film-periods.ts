@@ -16,11 +16,11 @@ import { localOf } from '@common/v1/local-time';
 
 export type RollingWindow = Extract<MediaWindow, 'day' | 'week' | 'month'>;
 
-export const ROLLING_WINDOWS: RollingWindow[] = ['day', 'week', 'month'];
+const ROLLING_WINDOWS: RollingWindow[] = ['day', 'week', 'month'];
 
 export const isRolling = (window: MediaWindow): window is RollingWindow => (ROLLING_WINDOWS as MediaWindow[]).includes(window);
 
-export interface Period {
+interface Period {
   startsAt: Date;
   endsAt: Date;
 }

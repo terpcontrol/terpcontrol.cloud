@@ -8,7 +8,7 @@ import { AccessContext, AccessRange, Grantee } from '@common/v1/access.types';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
-import { CameraDocument } from '@database/schemas/v1/cameras.schema';
+import { CameraDocument, DEFAULT_STILL_INTERVAL_SECONDS } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
@@ -27,7 +27,7 @@ import { changesTheStream, streamUrl, withoutUserInfo } from './stream-url';
  */
 
 /** What a list of cameras may be narrowed by. */
-export interface CameraFilter {
+interface CameraFilter {
   spaceId?: string;
   deviceId?: string;
   /** Tombstones are left out unless somebody is looking for a camera that is gone. */
@@ -243,7 +243,7 @@ export class CamerasService {
    * and are none of their business - which is what the tent page next door
    * already answers for the same camera through the same kind of link.
    */
-  public serialise(camera: CameraDocument, to: Grantee = 'owner', now: Date = new Date(), seen: AccessRange = OPEN_ENDED): Camera {
+  public serialise(camera: CameraDocument, to: Grantee, now: Date = new Date(), seen: AccessRange = OPEN_ENDED): Camera {
     const served: Camera = {
       id: camera.id,
       createdAt: camera.createdAt.toISOString(),
@@ -323,9 +323,6 @@ const withoutTheOwner = (camera: Camera): Camera => ({
   deviceId: null,
   entitlement: { ...camera.entitlement, validUntil: null, grant: null, renewalVisible: false },
 });
-
-/** How often the pipeline has always asked a camera for a picture. */
-export const DEFAULT_STILL_INTERVAL_SECONDS = 30;
 
 const narrowing = (filter: CameraFilter): FilterQuery<CameraDocument> => ({
   ...(filter.spaceId ? { spaceId: filter.spaceId } : {}),

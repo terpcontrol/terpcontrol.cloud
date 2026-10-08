@@ -35,11 +35,6 @@ const TEMPERATURE = '#ffa166';
 const HUMIDITY = '#5fd4cf';
 
 export const TEXT_FAMILY = 'Inter, DejaVu Sans, sans-serif';
-/**
- * The same face. Each reading on a frame starts at a fixed place of its own, so
- * one whose width changes from frame to frame moves nothing beside it.
- */
-export const FIGURE_FAMILY = TEXT_FAMILY;
 
 /** How far either side of a diary line its caption is shown. */
 const CAPTION_WINDOW_MS = 30 * 60 * 1000;
@@ -203,7 +198,7 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
       line.reading === null
         ? []
         : [
-            `<text x="${left + 8 + index * size * 5}" y="${top + size}" font-family="${FIGURE_FAMILY}" font-size="${size}"
+            `<text x="${left + 8 + index * size * 5}" y="${top + size}" font-family="${TEXT_FAMILY}" font-size="${size}"
                    font-weight="700" fill="${line.colour}">${line.reading}</text>`,
           ],
     )
