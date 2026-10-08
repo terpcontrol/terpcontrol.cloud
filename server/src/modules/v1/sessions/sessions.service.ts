@@ -6,9 +6,10 @@ import { InjectModel } from '@nestjs/mongoose';
 // imports break wherever this file is loaded as an ES module.
 import jwt from 'jsonwebtoken';
 import { Model } from 'mongoose';
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { AuthToken, AutomationSession, Session, SessionResult, SessionTokens, SessionUser } from '@fg2/shared-types/v1';
 import { DataStoredInToken } from '@common/auth/auth.interface';
+import { sameSecret } from '@common/same-secret';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { forbidden, notFound, unauthenticated } from '@common/v1/problem';
@@ -310,19 +311,3 @@ const serialiseSession = (session: StoredSession): Session => ({
   lastSeenAt: session.lastSeenAt.toISOString(),
   expiresAt: session.expiresAt.toISOString(),
 });
-
-/**
- * A comparison whose duration says nothing about how much of the secret was
- * right. Both sides are padded to one length first, because the comparison
- * itself refuses buffers of different sizes - and the lengths are compared
- * afterwards, so a prefix is not accepted.
- */
-const sameSecret = (supplied: string, expected: string): boolean => {
-  const width = Math.max(supplied.length, expected.length, 32);
-  const a = Buffer.alloc(width);
-  const b = Buffer.alloc(width);
-  a.write(supplied, 0, 'utf8');
-  b.write(expected, 0, 'utf8');
-
-  return timingSafeEqual(a, b) && supplied.length === expected.length;
-};

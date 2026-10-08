@@ -8,6 +8,7 @@ import { pushSubscription as pushSubscriptionShape, pushSubscriptionCreate, tele
 import { AuthGuard } from '@common/auth/auth.guard';
 import { CurrentUser } from '@common/auth/current-user.decorator';
 import { AuthContext } from '@common/auth/token.service';
+import { sameSecret } from '@common/same-secret';
 import { conflict, notFound } from '@common/v1/problem';
 import { V1Body } from '@common/zod-validation.pipe';
 import { MODEL_V1 } from '@database/models';
@@ -120,7 +121,7 @@ export class TelegramWebhookController {
   @HttpCode(HttpStatus.OK)
   public async receive(@Param('secret') secret: string, @Body() body: TelegramUpdate): Promise<{ ok: true }> {
     const expected = this.bot.webhookSecret;
-    if (!expected || secret !== expected) throw notFound('not_found', 'There is nothing here.');
+    if (!expected || !sameSecret(secret, expected)) throw notFound('not_found', 'There is nothing here.');
 
     await this.updates.receive(body ?? {});
     return { ok: true };
