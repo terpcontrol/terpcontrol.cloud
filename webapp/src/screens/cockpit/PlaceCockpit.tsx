@@ -2,7 +2,7 @@ import { ChevronRight, CircleCheck, Clock, Info, Power, TriangleAlert, Wrench, t
 import { useAccountMe } from '@/api/account';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { controlPath, devicesPath, timelinePath, useRememberPlace } from '@/app/places';
 import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
@@ -38,6 +38,7 @@ import { LivenessPill } from '../home/LivenessPill';
 import { OfflineHelp } from '../home/OfflineHelp';
 import { targetWithUnit } from '@/ui/units';
 import { NotifyNotice } from '../notifications/NotifyNotice';
+import { EmptyPlace } from '../space/EmptyPlace';
 import { CameraPicture } from './CameraPicture';
 import { GrowBlock } from './GrowBlock';
 import {
@@ -88,6 +89,7 @@ export function PlaceCockpit({
   const now = useNow();
   const zone = useZone();
   const { user } = useSession();
+  const navigate = useNavigate();
   const spaceId = overview.spaceId;
   const hasDevice = overview.deviceIds === null || overview.deviceIds.length > 0;
   const here = usePlaceDevices(spaceId, overview.deviceIds ?? [], hasDevice).items;
@@ -147,6 +149,8 @@ export function PlaceCockpit({
         </header>
       ) : null}
       {headed ? <RefreshFailed failedAt={failedAt} now={now} /> : null}
+      {/* Devices moved together leave their old places empty; whether one goes is for its owner to say. */}
+      {visiting ? null : <EmptyPlace spaceId={spaceId} onRemoved={() => void navigate('/')} />}
       {visiting ? (
         <p className={styles.status} data-tone="quiet" role="status">
           <Info size={18} strokeWidth={2} aria-hidden />

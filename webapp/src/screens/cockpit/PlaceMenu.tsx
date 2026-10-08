@@ -9,15 +9,17 @@ import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
 import { useMayInSpace, useMayManage } from '@/ui/session-access';
 import { RenameSheet } from '../place/RenameSheet';
+import { DeviceHereSheet } from '../space/DeviceHereSheet';
+import { useDevicesElsewhere } from '../space/devices-elsewhere';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import styles from './Cockpit.module.css';
 
-type Sheet = 'rename' | 'move';
+type Sheet = 'rename' | 'move' | 'device';
 
 /**
  * What is done to a place now and then rather than every day, behind the ⋯
- * beside its name: its name, who else is let in, a climate preset, and its
- * grow. None of it is a reading, so none of it takes room on the cockpit itself.
+ * beside its name: its name, who else is let in, the devices standing in it,
+ * a climate preset, and its grow. None of it is a reading, so none of it takes room on the cockpit itself.
  *
  * Each item that changes more than its name says so on a line under it - and
  * starting a grow puts the place on the preset of the stage it starts in, and
@@ -41,6 +43,8 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
   const listId = useId();
   // A place with nothing standing in it has no document a preset could be written into.
   const hasDevice = (overview.deviceIds?.length ?? 0) > 0;
+  // A place holds any number of devices; bringing one in is offered wherever one stands somewhere else.
+  const mayBringDevice = useDevicesElsewhere(overview.spaceId, mayManage).length > 0 && mayManage;
   const grow = diary ? (overview.grows[0] ?? null) : null;
   const mayOwnGrow = mayManage && user !== null && user.isDemo !== true;
   // Somebody who said no to the diary is not offered a grow through the back door; the answer can be changed under Me.
@@ -93,6 +97,11 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
               {t('cockpit.menu.members')}
             </Link>
           ) : null}
+          {mayBringDevice ? (
+            <button type="button" onClick={() => choose('device')}>
+              {t('cockpit.menu.deviceHere')}
+            </button>
+          ) : null}
           {mayManage && hasDevice ? (
             <Link to={controlPath(overview.spaceId, null, {}, 'presets')} onClick={() => setOpen(false)}>
               {t('cockpit.menu.preset')} <span className={styles.menuLine}>{t('cockpit.menu.presetLine')}</span>
@@ -131,6 +140,7 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
         </div>
       ) : null}
       {sheet === 'rename' ? <RenameSheet spaceId={overview.spaceId} name={overview.name} onClose={() => setSheet(null)} /> : null}
+      {sheet === 'device' ? <DeviceHereSheet spaceId={overview.spaceId} spaceName={overview.name} onClose={() => setSheet(null)} /> : null}
       {sheet === 'move' ? <MoveHereSheet spaceId={overview.spaceId} spaceName={overview.name} onClose={() => setSheet(null)} /> : null}
     </div>
   );
