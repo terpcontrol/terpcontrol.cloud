@@ -21,6 +21,7 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "baseUrl": "src",
     "paths": {
       "@/*": ["*"]

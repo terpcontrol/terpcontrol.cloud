@@ -1,5 +1,5 @@
-import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { shared } from './vite.config.ts';
 
 /**
  * The contract tests: they run against a stack that is up, in node rather than
@@ -7,9 +7,7 @@ import { defineConfig } from 'vitest/config';
  * `npm test` so a checkout without a stack still has a green test run.
  */
 export default defineConfig({
-  resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
-  },
+  ...shared,
   test: {
     globals: true,
     environment: 'node',

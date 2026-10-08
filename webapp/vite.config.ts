@@ -14,6 +14,12 @@ import { VitePWA } from 'vite-plugin-pwa';
 /** The version the app states about itself, read from its own package rather than typed a second time. */
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
+/** What the app is compiled with, which the vitest configs take too: the version and the `@` alias. */
+export const shared = {
+  define: { __APP_VERSION__: JSON.stringify(version) },
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+};
+
 /**
  * The contract's runtime modules are pre-bundled once and cached, and Vite keys
  * that cache on the lockfile and this config - not on the modules, which
@@ -51,7 +57,7 @@ const followContract = (): Plugin => ({
 });
 
 export default defineConfig(({ mode }) => ({
-  define: { __APP_VERSION__: JSON.stringify(version) },
+  ...shared,
   plugins: [
     react(),
     followContract(),
@@ -82,9 +88,6 @@ export default defineConfig(({ mode }) => ({
       devOptions: { enabled: false },
     }),
   ],
-  resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
-  },
   optimizeDeps: {
     // The contract's runtime half is CommonJS, and a linked package is not
     // pre-bundled unless it is named: without this the development server hands

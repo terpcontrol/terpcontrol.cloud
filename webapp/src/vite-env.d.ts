@@ -14,5 +14,5 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-/** The app's own version, as `package.json` states it; both Vite configs define it from there. */
+/** The app's own version, as `package.json` states it; `vite.config.ts` defines it, and the vitest configs share that. */
 declare const __APP_VERSION__: string;
