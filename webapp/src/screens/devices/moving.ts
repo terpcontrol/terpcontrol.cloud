@@ -6,7 +6,7 @@ import { enough } from '@/ui/session-access';
  * well as on the device - and a room groups other places rather than holding
  * hardware, so nothing stands in one.
  */
-export const placesFor = (spaces: Space[]): Space[] => spaces.filter(space => space.kind !== 'room' && enough(space.youMay, 'manage'));
+export const placesFor = (spaces: readonly Space[]): Space[] => spaces.filter(space => space.kind !== 'room' && enough(space.youMay, 'manage'));
 
 /** Whether there is a place other than the one it stands in that the device could be moved to. */
-export const movesAnywhere = (spaces: Space[], device: Device): boolean => placesFor(spaces).some(space => space.id !== device.spaceId);
+export const movesAnywhere = (spaces: readonly Space[], device: Device): boolean => placesFor(spaces).some(space => space.id !== device.spaceId);
