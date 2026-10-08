@@ -145,12 +145,10 @@ export class MediaService {
     return this.media.findOne(where(filter)).sort({ capturedAt: -1 }).lean<MediaDocument>();
   }
 
-  public async page(filter: MediaFilter, page: PageQuery): Promise<CursorPage<Media>> {
-    const rows = await findPage(this.media, [where(filter)], page, { field: 'capturedAt' });
-    // Row by row rather than by handing `serialise` to `map`, which would feed it
-    // the index as its second argument. Nothing is held back here: this lists a
-    // camera's own stills and films, and neither carries a space or an uploader.
-    return mapPage(rows, row => serialise(row));
+  public async page(filter: MediaFilter, query: PageQuery): Promise<CursorPage<Media>> {
+    // Nothing is held back here: this lists a camera's own stills and films, and
+    // neither carries a space or an uploader.
+    return mapPage(await findPage(this.media, [where(filter)], query, { field: 'capturedAt' }), serialise);
   }
 
   /**

@@ -78,6 +78,9 @@ export const pageOf = <T>(rows: T[], limit: number, positionOf: (row: T) => Page
   return { items, nextCursor: hasMore && items.length > 0 ? encodeCursor(positionOf(items[items.length - 1])) : null };
 };
 
+/** The fields of a row that hold an instant, which is what a list can be sorted and continued by. */
+type InstantKey<T> = { [K in keyof T]-?: T[K] extends Date ? K : never }[keyof T] & string;
+
 /**
  * One page of a collection, sorted by `field` and then by `id`, holding the rows
  * that match every one of `conditions` and continuing after `query.cursor`.
@@ -92,7 +95,7 @@ export const findPage = async <T extends { id: string }>(
   model: Model<T>,
   conditions: FilterQuery<T>[],
   query: { limit?: number | null; cursor?: string | null },
-  { field = 'createdAt', order = 'desc' }: { field?: string; order?: 'asc' | 'desc' } = {},
+  { field = 'createdAt' as InstantKey<T>, order = 'desc' }: { field?: InstantKey<T>; order?: 'asc' | 'desc' } = {},
 ): Promise<CursorPage<T>> => {
   const limit = pageLimit(query.limit);
   const direction = order === 'desc' ? -1 : 1;
@@ -102,11 +105,15 @@ export const findPage = async <T extends { id: string }>(
     .limit(readLimit(limit))
     .lean<T[]>();
 
-  return pageOf(rows, limit, row => ({ at: (row as Record<string, unknown>)[field] as Date, id: row.id }));
+  return pageOf(rows, limit, row => ({ at: row[field] as Date, id: row.id }));
 };
 
-/** The same page with every row turned into what the route answers. */
+/**
+ * The same page with every row turned into what the route answers. The row is
+ * all `answer` is handed, so a serialiser with an optional second parameter can
+ * be passed as it is.
+ */
 export const mapPage = <T, U>(page: CursorPage<T>, answer: (row: T) => U): CursorPage<U> => ({
-  items: page.items.map(answer),
+  items: page.items.map(row => answer(row)),
   nextCursor: page.nextCursor,
 });

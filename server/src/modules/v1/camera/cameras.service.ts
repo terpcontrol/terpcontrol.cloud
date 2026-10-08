@@ -99,9 +99,9 @@ export class CamerasService {
     return this.cameras.find({}).sort({ id: 1 }).lean<CameraDocument[]>();
   }
 
-  public async list(ctx: AccessContext, filter: CameraFilter, page: PageQuery): Promise<CursorPage<Camera>> {
-    const rows = await findPage(this.cameras, [await this.visibleTo(ctx), narrowing(filter)], page);
-    return mapPage(rows, camera => this.serialise(camera, this.granteeOf(ctx, camera)));
+  public async list(ctx: AccessContext, filter: CameraFilter, query: PageQuery): Promise<CursorPage<Camera>> {
+    const page = await findPage(this.cameras, [await this.visibleTo(ctx), narrowing(filter)], query);
+    return mapPage(page, camera => this.serialise(camera, this.granteeOf(ctx, camera)));
   }
 
   /**

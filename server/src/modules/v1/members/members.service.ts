@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Membership, MembershipCreate, MembershipPage, MembershipUpdate, Person } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { findPage } from '@common/v1/pages';
+import { findPage, mapPage } from '@common/v1/pages';
 import { peopleNamed } from '@common/v1/people';
 import { conflict, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
@@ -70,8 +70,7 @@ export class MembersService {
     const room = space.roomId ? await this.spaces.findOne({ id: space.roomId }, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>>() : null;
 
     return {
-      items: page.items.map(serialise),
-      nextCursor: page.nextCursor,
+      ...mapPage(page, serialise),
       people: await this.peopleOf(page.items, space.ownerId),
       // Named rather than left as an id, because somebody who is in the tent
       // alone never meets the room in any other list and would have nothing to
