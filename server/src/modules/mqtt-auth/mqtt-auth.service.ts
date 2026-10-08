@@ -2,6 +2,7 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuthUserDto, AuthVhostDto, AuthResourceDto, AuthTopicDto } from '@modules/mqtt-auth/mqtt-auth.types';
+import { sameSecret } from '@common/same-secret';
 import { logger } from '@utils/logger';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 import { MODEL_V1 } from '@database/models';
@@ -26,7 +27,7 @@ export class MqttAuthService {
   ) {}
 
   public async user(authData: AuthUserDto): Promise<boolean> {
-    if (this.isServer(authData) && authData.password === this.mqtt.password) {
+    if (this.isServer(authData) && sameSecret(authData.password ?? '', this.mqtt.password)) {
       return true;
     }
 
