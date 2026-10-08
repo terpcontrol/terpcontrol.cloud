@@ -89,6 +89,11 @@ export class GrowSeriesService {
 
     const metrics = asked.metrics ?? [];
     const outputs = asked.outputs ?? [];
+    // Wherever the grow stood over the window: a grow that moved between tents
+    // is read from the devices and cameras of both, because the chart draws what
+    // its plants lived through and not what one tent did. A device knows only
+    // where it stands now, so one that has since been moved out is not read for
+    // the days it kept - the same limit the week cards have.
     const spaceIds = spacesDuring(grow, window.startsAt, window.endsAt).filter((id): id is string => id !== null);
 
     const [devices, cameras] = await Promise.all([
@@ -178,15 +183,7 @@ export class GrowSeriesService {
     return [...new Set(asked)];
   }
 
-  /**
-   * Whatever stands where the grow stood over the window. A grow that moved
-   * between tents is read from the controllers of both, because the line the
-   * chart draws is what its plants lived through and not what one tent did.
-   *
-   * A device knows only where it stands now, so a controller that has since been
-   * moved out is not read for the days it kept - the same limit the week cards
-   * already have.
-   */
+  /** The devices standing in these spaces now, oldest first. */
   private devicesIn(spaceIds: readonly string[]): Promise<StoredDevice[]> {
     if (spaceIds.length === 0) return Promise.resolve([]);
 

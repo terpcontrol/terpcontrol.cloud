@@ -4,10 +4,10 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 /**
  * What a grow's weeks are, as the grow page draws them.
  *
- * A grow's day does not begin at midnight. Day 1 begins the moment the grow's
- * first phase did, because a grow begun at 23:00 would otherwise be two days old
- * within the hour. Weeks are seven of those days, so week 1 is days 1 to 7 and
- * lines up with the feeding scheme's first row.
+ * A grow's day does not begin at midnight. Day 1 begins at the grow's origin -
+ * its start or its earliest phase, whichever came first - so that a grow begun
+ * at 23:00 is not two days old within the hour. Weeks are seven of those days,
+ * so week 1 is days 1 to 7 and lines up with the feeding scheme's first row.
  *
  * The counting itself is the contract's (`growOriginOf`, `growDayAt`,
  * `growWeekAt`), because the log sheet counts a grow's weeks too - it draws the

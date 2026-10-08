@@ -7,9 +7,9 @@ import { logger } from '@utils/logger';
 import { ProblemException, problemOf } from '@common/v1/problem';
 
 /**
- * A refusal that answers with a bare string rather than the usual JSON body.
- * The device access checks have always answered this way and clients read the
- * text, so the shape is kept as it was.
+ * A refusal that answers with a bare string rather than the usual JSON body:
+ * RabbitMQ's HTTP auth backend reads the text, which is why the plain shape is
+ * kept.
  */
 export class PlainTextException extends HttpException {
   constructor(
@@ -77,8 +77,8 @@ const describe = (exception: unknown): { status: number; message: string } => {
 
     return {
       status: exception.getStatus(),
-      // Nest reports several validation failures as an array; the API has
-      // always sent a single string.
+      // Nest reports several validation failures as an array; the API sends a
+      // single string.
       message: Array.isArray(message) ? message.join(', ') : String(message),
     };
   }
@@ -90,9 +90,9 @@ const describe = (exception: unknown): { status: number; message: string } => {
 };
 
 /**
- * Most of the legacy half answers `{ message }`, but a few routes have always
- * answered `{ error }`. A controller picks the second by throwing with an
- * object body, which is passed through as it is.
+ * The routes outside `/v1` answer `{ message }`. An object body without one is
+ * passed through as it is, as the device protocol's `{ status: 'unauthorized' }`
+ * is.
  */
 const body = (exception: unknown, message: string): Record<string, unknown> => {
   if (exception instanceof HttpException) {
@@ -107,11 +107,12 @@ const body = (exception: unknown, message: string): Record<string, unknown> => {
 
 /**
  * One filter for the whole server, answering each half in its own shape: a
- * problem document under `/v1`, and the `{ message }` the Angular app has always
- * read everywhere else. One global filter rather than two, because Nest runs a
- * single global chain and a second one registered beside this would simply never
- * be asked - and because a `/v1` controller that forgot to bind its own filter
- * would answer the wrong shape without anything saying so.
+ * problem document under `/v1`, and `{ message }` everywhere else, which is what
+ * the device protocol and the share shells beside it read. One global filter
+ * rather than two, because Nest runs a single global chain and a second one
+ * registered beside this would simply never be asked - and because a `/v1`
+ * controller that forgot to bind its own filter would answer the wrong shape
+ * without anything saying so.
  */
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
@@ -137,10 +138,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof PlainTextException) {
-      // Express sent strings as text/html, and one of these repeats the device
-      // id out of the URL - so a browser opening a crafted link would have
-      // rendered whatever it carried. The text is what clients read; the type
-      // says what it is.
+      // The text is what the broker reads; the type says what it is.
       void reply.status(status).type('text/plain; charset=utf-8').send(exception.text);
       return;
     }

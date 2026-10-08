@@ -193,6 +193,8 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
     return { path, colour: line.colour, reading: now === null ? null : `${now.toFixed(1)}${line.unit}` };
   });
 
+  // Each reading starts at a fixed place of its own, so one whose width changes
+  // from frame to frame moves nothing beside it.
   const readings = drawn
     .flatMap((line, index) =>
       line.reading === null

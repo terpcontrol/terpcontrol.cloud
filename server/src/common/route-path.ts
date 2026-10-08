@@ -1,4 +1,4 @@
-/** Everything under it answers RFC 7807; everything beside it is the Angular app's API. */
+/** Everything under it answers RFC 7807; beside it are the device protocol and the share shells. */
 const V1_PREFIX = '/v1';
 
 /**
