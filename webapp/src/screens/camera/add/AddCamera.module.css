@@ -1,5 +1,5 @@
-/* Adding a camera: one page with three ways in, each of which is a different
-   thing to explain rather than a different field to fill in. The three panels
+/* Adding a camera: one page with two ways in, each of which is a different
+   thing to explain rather than a different field to fill in. The two panels
    share this file because they are one screen and read as one. */
 
 .page {
@@ -190,11 +190,6 @@
 
 .login > input {
   min-width: 0;
-}
-
-.coming {
-  font-weight: var(--weight-semibold);
-  color: var(--ink);
 }
 
 /* The way out of a tab that cannot do its own job: a button at its own width

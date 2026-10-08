@@ -662,8 +662,9 @@ export const controllerCameraCreate = named(
 
 /**
  * A Terp Cam the cloud reaches itself, addressed by the P2P id printed on it.
- * The model and the server-side path exist; the tab that would pair one says it
- * is coming, because the flow is unproven against a camera on a desk.
+ * The kind is part of the model, but the cloud reaches a Terp Cam only through
+ * the device it is paired at, so `POST /cameras` refuses this body with
+ * `not_yet` and the app does not offer it.
  */
 export const standaloneCameraCreate = named(
   'StandaloneCameraCreate',
