@@ -43,6 +43,9 @@ here produce knowledge for both.
 - **Safety nets** in `.claude/settings.json`:
   - a prompt Stop hook asks at the end of every turn whether knowledge came up that is not recorded yet, or whether
     the reply shows company knowledge written here, and sends the agent back to the `remember` skill;
+  - `.claude/hooks/recorded.mjs` covers what that hook cannot see - it gets only the agent's reply: when the person's
+    last message reads like a decision or an instruction and the turn recorded nothing, it sends the agent back
+    once, also when the person asked for nothing but "OK";
   - `.claude/hooks/guard.mjs` runs at the end of every turn and before `git push` and `gh pr create|edit|comment`.
     It scans what the branch adds - files, commit messages, the pull request text - for company terms and amounts
     of money, secrets and server details, and sends the agent back with the lines it found. Each hit is reported
