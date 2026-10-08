@@ -194,12 +194,13 @@
   /* Headings close up, as the site's do. */
   --tracking-title: -0.02em;
 
-  /* Shape: the site's three radii - a card, a control, a small mark - and the
+  /* Shape: the site's three radii - a control, a card, a large panel - and the
      pill a badge or a chip is. Hairline rules and a low shadow in the dark
      blue under a card. */
   --radius: 12px;
   --radius-sm: 6px;
   --radius-xs: 4px;
+  --radius-lg: 20px;
   --radius-pill: 999px;
   --rule-width: 1px;
   --rule-solid: var(--rule-width) solid var(--rule);
@@ -209,8 +210,8 @@
   /* Cast upwards, by the phone's tab bar over the page. */
   --shadow-bar: 0 -8px 24px -16px rgb(31 58 110 / 24%);
 
-  /* A 4 px rhythm, roomier at the top end: 48 separates the sections of a
-     long page rather than the parts of a card. */
+  /* A 4 px rhythm, roomier at the top end: 48 and 64 separate the sections of
+     a long page rather than the parts of a card. */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -218,6 +219,7 @@
   --space-5: 24px;
   --space-6: 36px;
   --space-7: 48px;
+  --space-8: 64px;
 
   /* The inside of a card, solid or dashed: 16 on a phone, and 20 from the
      rail's width up, where a card is wider and 16 read as cramped. */
