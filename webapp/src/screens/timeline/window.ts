@@ -257,7 +257,6 @@ export const scaleOf = (panel: TimelinePanel, stretches: Stretch[]): Scale =>
     ...stretches.flatMap(stretch => [stretch.target.band.low, stretch.target.band.high]),
   ]);
 
-/** The frame to show at the cursor: the newest picture taken by then, and the oldest there is before the first one was taken. */
 /** The least a picture may stand from the cursor and still be the picture of that moment. */
 const FRAME_REACH_MIN = 10 * 60 * 1000;
 
@@ -280,6 +279,7 @@ export const frameNear = (camera: SpaceTimeline['cameras'][number] | undefined, 
   return Math.abs(at(frame.capturedAt) - time) <= Math.max(FRAME_REACH_MIN, 2 * usual) ? frame : null;
 };
 
+/** The frame to show at the cursor: the newest picture taken by then, and the oldest there is before the first one was taken. */
 export const frameAt = (camera: SpaceTimeline['cameras'][number] | undefined, time: number) => {
   if (!camera || camera.frames.length === 0) return null;
   let found = camera.frames[0];

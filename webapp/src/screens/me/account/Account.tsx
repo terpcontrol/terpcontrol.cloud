@@ -306,18 +306,3 @@ function SweepSheet({ sweep, onClose }: { sweep: ReturnType<typeof useRevokeOthe
     </Sheet>
   );
 }
-
-/**
- * Everything the account has, as a file. The zip is built in the background,
- * so this is a button and then a job: the row it is asked for is polled until
- * it is ready or has failed, and a failure says what went wrong rather than
- * sitting at "building" for ever - the same shape, and the same polling, as
- * the export at the end of a grow's report.
- *
- * Which job that is comes from the cache rather than from this component, so
- * that walking to another page and back finds the file instead of a button
- * offering to build one the server has already built. And the file is dated on
- * the chip: the route answers a standing export unchanged while it is under an
- * hour old, so somebody who has just logged a harvest and taps to take a copy
- * away can be handed a zip from before it, and has to be able to see that.
- */
