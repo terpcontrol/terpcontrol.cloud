@@ -17,6 +17,7 @@ import { CamerasService } from './cameras.service';
 import { EntitlementService } from './entitlement.service';
 import { runFfmpeg } from './ffmpeg';
 import { MediaPosition, MediaService } from './media.service';
+import { THINNING_TIERS } from './still-thinning';
 import { TimelapseContextService } from './timelapse-context.service';
 import {
   DEFAULT_ASPECT,
@@ -60,16 +61,6 @@ const DELETE_BATCH = 500;
 
 /** What a still is kept for when nothing says otherwise, which is what this server has always kept. */
 const STILL_RETENTION_DAYS = 3 * 365;
-
-// Gradually thin out stills as they age: once a picture is older than `afterMs`,
-// no more than one is kept per `minIntervalMs`. Ordered oldest-boundary last so
-// each tier only thins pictures younger than the next, coarser tier.
-const THINNING_TIERS = [
-  { afterMs: MS_IN_A_DAY, minIntervalMs: 60 * 1000 },
-  { afterMs: 7 * MS_IN_A_DAY, minIntervalMs: 5 * 60 * 1000 },
-  { afterMs: 30 * MS_IN_A_DAY, minIntervalMs: 15 * 60 * 1000 },
-  { afterMs: 90 * MS_IN_A_DAY, minIntervalMs: 60 * 60 * 1000 },
-];
 
 /** What a film plays at unless it was asked for at another rate; a request at this rate is the plain film. */
 const DEFAULT_FRAME_RATE = 25;

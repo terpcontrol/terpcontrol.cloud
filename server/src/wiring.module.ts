@@ -2,6 +2,7 @@ import { ExistingProvider, Global, Module } from '@nestjs/common';
 import { AlarmEngineService } from '@modules/alarm/alarm-engine.service';
 import { AlarmModule } from '@modules/alarm/alarm.module';
 import { DataModule } from '@modules/data/data.module';
+import { CAMERA_DAYLIGHT } from '@modules/data/camera-daylight.port';
 import { DataService } from '@modules/data/data.service';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
 import { DeviceProtocolModule } from '@modules/device-protocol/device-protocol.module';
@@ -20,6 +21,7 @@ import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraModule } from '@modules/v1/camera/camera.module';
 import { LIGHT_STATE_READER } from '@modules/v1/camera/light-state';
 import { SERIES_READER } from '@modules/v1/camera/series-reader';
+import { StillDaylightService } from '@modules/v1/camera/still-daylight.service';
 import { RELAY_REQUEST } from '@modules/v1/camera/relay-request';
 import { TerpCamDirectService } from '@modules/v1/camera/terpcam-direct.service';
 import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.service';
@@ -62,6 +64,9 @@ const PORTS: ExistingProvider[] = [
   // And what the composer needs of one: the climate it draws over the frames,
   // and the light output that says which of them were taken in the dark.
   { provide: SERIES_READER, useExisting: DataService },
+  // A plug has no lamp, so where it keeps no schedule the store asks the
+  // cameras of its place whether their stills came out in colour or grey.
+  { provide: CAMERA_DAYLIGHT, useExisting: StillDaylightService },
   // The plan puts a device on the settings its step carries, and the protocol
   // module is what knows how to say so.
   { provide: DEVICE_CONFIGURATION_WRITER, useExisting: DeviceConfigurationService },

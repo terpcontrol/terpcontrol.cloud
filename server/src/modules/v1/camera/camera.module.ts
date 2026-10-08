@@ -12,6 +12,7 @@ import { MediaController } from './media.controller';
 import { MediaDeliveryService } from './media-delivery.service';
 import { MediaPresentationService } from './media-presentation.service';
 import { MediaService } from './media.service';
+import { StillDaylightService } from './still-daylight.service';
 import { TerpCamDirectService } from './terpcam-direct.service';
 import { TerpCamService } from './terpcam.service';
 import { TestCapturesService } from './test-captures.service';
@@ -30,9 +31,10 @@ import { TimelapseService } from './timelapse.service';
  * to ask a device to bridge its Terp Cam to the cloud, `LIGHT_STATE_READER`,
  * which is the one thing `nightOff` needs and is not this module's to know, and
  * `SERIES_READER`, which is what the composer draws its climate curve from and
- * reads the light of a past night off. `TerpCamDirectService` goes the other
- * way, told by the protocol module when a device reports something about its
- * camera.
+ * reads the light of a past night off. Two go the other way:
+ * `TerpCamDirectService`, told by the protocol module when a device reports
+ * something about its camera, and `StillDaylightService`, which tells the
+ * series store when the night was where a plug has no lamp to say so.
  */
 @Module({
   imports: [ModelsModule, V1CommonModule, TunnelModule],
@@ -45,12 +47,13 @@ import { TimelapseService } from './timelapse.service';
     MediaService,
     MediaDeliveryService,
     MediaPresentationService,
+    StillDaylightService,
     TerpCamService,
     TerpCamDirectService,
     TestCapturesService,
     TimelapseContextService,
     TimelapseService,
   ],
-  exports: [MediaService, MediaDeliveryService, TerpCamDirectService],
+  exports: [MediaService, MediaDeliveryService, StillDaylightService, TerpCamDirectService],
 })
 export class CameraModule {}

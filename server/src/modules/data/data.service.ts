@@ -1,10 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigType } from '@nestjs/config';
 import { InfluxDB, Point, WriteApi } from '@influxdata/influxdb-client';
 import { DeviceLive, DeviceSeries, DeviceSettings, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { finiteOrNull } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { isDayAt, plugScheduleOf, utcSecondsOf, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { logger } from '@utils/logger';
 import {
   fieldOfMetric,
@@ -23,6 +24,7 @@ import { SeriesReader } from '@modules/v1/camera/series-reader';
 import { MODEL_V1 } from '@database/models';
 import { DEFAULT_DEVICE_SETTINGS, StoredDevice } from '@database/schemas/v1/devices.schema';
 import { influxConfig } from '../../config/configuration';
+import { CAMERA_DAYLIGHT, CameraDaylight } from './camera-daylight.port';
 import {
   computedValue,
   DailySummary,
@@ -202,10 +204,19 @@ interface DeviceSelf {
   factors: DeviceSettings;
   /** The flat `hardware-info` report. An absent key is "the firmware did not say", which is not "not fitted". */
   hardware: Record<string, string>;
+  /**
+   * What a smart plug's VPD tells its day from its night by, having no lamp:
+   * its own schedule where it keeps one, else the place it stands in. Null for
+   * every other device, whose half is read off its lamp.
+   */
+  plug: { schedule: Pick<Cycle, 'day' | 'night'> | null; spaceId: string | null } | null;
 }
 
 /** What the device schema fills in, reached only for a device that is not in the database at all. */
-const UNKNOWN_DEVICE: DeviceSelf = { factors: DEFAULT_DEVICE_SETTINGS, hardware: {} };
+const UNKNOWN_DEVICE: DeviceSelf = { factors: DEFAULT_DEVICE_SETTINGS, hardware: {}, plug: null };
+
+/** Which half of the day each instant (epoch milliseconds) was in: true by day, false by night, null where nothing says. */
+type DayAt = (at: number) => boolean | null;
 
 @Injectable()
 export class DataService implements LightStateReader, SeriesReader, DeviceSampleSink {
@@ -214,6 +225,7 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @Inject(influxConfig.KEY) private readonly config: ConfigType<typeof influxConfig>,
+    @Optional() @Inject(CAMERA_DAYLIGHT) private readonly daylight: CameraDaylight | null = null,
   ) {
     this.influx = new InfluxDB({ url: config.url, token: config.token });
   }
@@ -260,7 +272,7 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       if (output) outputs[output] = metricValueOf(reading.value, reading.measuredAt);
     }
 
-    const readings = readingsOf(field => latest.get(field)?.value ?? null);
+    const readings = readingsOf(field => latest.get(field)?.value ?? null, await this.plugDayAt(self, computedAt('vpd', latest)));
     for (const name of ['vpd', 'ppfd'] as const) {
       const value = computedValue(name, readings, self.factors);
       if (value !== null) metrics[name] = metricValueOf(value, computedAt(name, latest));
@@ -308,19 +320,22 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     // The device itself is read once for both halves: its own factors, which
     // every reading is scaled by, and what its firmware says is fitted, which
     // decides whether a sentinel is a reading at all. The lamp is a read of its
-    // own because only VPD asks for it.
-    const [rows, summaries, self, lamp] = fields.length
+    // own because only VPD asks for it, and so is a plug's day, which waits for
+    // the device to say it is one but not for the store.
+    const self = fields.length ? this.selfOf(deviceId) : null;
+    const [rows, summaries, device, lamp, plugDay] = self
       ? await Promise.all([
           this.read(seriesQuery(this.bucket, deviceId, fields, window)),
           this.read(summaryQuery(this.bucket, deviceId, fields, window)),
-          this.selfOf(deviceId),
+          self,
           this.lampOf(deviceId, request.metrics, window),
+          request.metrics.includes('vpd') ? self.then(known => this.plugDayIn(known, window)) : null,
         ])
-      : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, [] as OutputSwitching[]];
+      : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, [] as OutputSwitching[], null];
 
     const grid = gridOf([...summaries, ...rows]);
     const valueAt = (field: string, instant: string): number | null => grid.valuesByField.get(field)?.get(instant) ?? null;
-    const isDayAt = dayOfCycleIn(lamp, window);
+    const isDayAt = plugDay ? (instant: string) => plugDay(middleOf(instant, window.stepSeconds)) : dayOfCycleIn(lamp, window);
 
     return {
       deviceId,
@@ -334,14 +349,14 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
             ? computedValue(
                 name,
                 readingsOf(input => valueAt(input, instant), isDayAt(instant)),
-                self.factors,
+                device.factors,
               )
             : valueAt(field, instant);
         // A metric the device has no sensor for is answered as the empty series
         // it is, rather than as whatever the store kept before the sensor came
         // out - a panel is built from the points, and a chart of nothing is the
         // honest one.
-        return { metric: name, points: pointsOf(grid.instants, reportsNoSensor(self.hardware, name) ? () => null : at) };
+        return { metric: name, points: pointsOf(grid.instants, reportsNoSensor(device.hardware, name) ? () => null : at) };
       }),
       outputs: outputs.map(name => ({
         output: name,
@@ -655,10 +670,42 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     return switchingsByField(await this.read(switchingsQuery(this.bucket, deviceId, fields, window)));
   }
 
-  /** A device's own VPD offsets, lux factor and hardware report; the defaults for a device that is no longer there. */
+  /** A device's own VPD offsets, lux factor and hardware report, and a plug's day; the defaults for a device that is no longer there. */
   private async selfOf(deviceId: string): Promise<DeviceSelf> {
-    const device = await this.devices.findOne({ id: deviceId }, { settings: 1, 'state.hardware': 1 }).lean();
-    return device ? { factors: device.settings, hardware: device.state?.hardware ?? {} } : UNKNOWN_DEVICE;
+    const device = await this.devices
+      .findOne(
+        { id: deviceId },
+        { type: 1, spaceId: 1, settings: 1, 'state.hardware': 1, 'configuration.usedaynight': 1, 'configuration.daynight': 1 },
+      )
+      .lean();
+    if (!device) return UNKNOWN_DEVICE;
+
+    const plug = device.type === 'plug' ? { schedule: plugScheduleOf(device.type, device.configuration), spaceId: device.spaceId ?? null } : null;
+    return { factors: device.settings, hardware: device.state?.hardware ?? {}, plug };
+  }
+
+  /**
+   * Which half of the day a smart plug was in, for the leaf offset of its VPD
+   * (ADR 0006). A plug has no lamp and says nothing of its day, so its own
+   * schedule decides where it keeps one, exactly as its firmware does; else the
+   * stills of the cameras where it stands, colour by day and grey by night;
+   * else nothing, which is the night's offset as before. Null for every other
+   * device, whose half is read off its lamp.
+   */
+  private async plugDayIn(device: DeviceSelf, window: FluxWindow): Promise<DayAt | null> {
+    const schedule = device.plug?.schedule;
+    if (schedule) return at => isDayAt(schedule, utcSecondsOf(at));
+
+    const spaceId = device.plug?.spaceId;
+    return spaceId && this.daylight ? this.daylight.dayIn(spaceId, window) : null;
+  }
+
+  /** The same at the one instant a live reading was taken at. */
+  private async plugDayAt(device: DeviceSelf, at: Date | null): Promise<boolean | null> {
+    if (!device.plug || !at) return null;
+
+    const dayAt = await this.plugDayIn(device, { startsAt: at, endsAt: at, stepSeconds: 1 });
+    return dayAt ? dayAt(at.getTime()) : null;
   }
 }
 
@@ -682,6 +729,18 @@ const dayOfCycleIn = (lamp: readonly OutputSwitching[], window: FluxWindow): ((i
 
     return knownFrom === null || ends <= knownFrom ? null : runningMostOf(spans, ends - step, ends);
   };
+};
+
+/**
+ * The middle of the window an instant stamps, which is where a plug's half is
+ * read for it: the half that held at its middle is the one that held for most
+ * of a window that holds one switch, as the lamp's is read (`dayOfCycleIn`).
+ * `aggregateWindow` cuts the windows on the step from the epoch and stamps each
+ * at its end.
+ */
+const middleOf = (instant: string, stepSeconds: number): number => {
+  const step = stepSeconds * 1000;
+  return Math.floor((Date.parse(instant) - 1) / step) * step + step / 2;
 };
 
 /**

@@ -555,7 +555,9 @@ const FIELDS_OF_COMPUTED: Partial<Record<Metric, readonly string[]>> = {
  * came on for its last few minutes, and the deficit it answered was a third
  * too low under a night the same answer shades. A single sample has no window
  * to average over, so there the reported level does answer for itself and the
- * caller says nothing.
+ * caller says nothing. A smart plug has no lamp at all: its half is its own
+ * schedule or what the cameras where it stands saw, which the caller says
+ * (`plugDayIn`), and the night where neither can.
  *
  * The curve is the contract's, because the targets screen works out the VPD of
  * a setpoint from the same one, and the figure is rounded as every VPD goes out.
