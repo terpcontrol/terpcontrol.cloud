@@ -15,6 +15,7 @@ import type {
   DeviceFirmwarePage,
   GerminationChoices,
   Metric,
+  SeriesQuery,
   SocketOverrideUpdate,
   SocketPage,
   SocketUpdate,
@@ -22,7 +23,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { STEERED } from '@fg2/shared-types/v1-schemas/steering.js';
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
-import { api, apiRequest } from './client';
+import { api } from './client';
 import { serverNow } from './clock';
 import { invalidate, useWrite, useWriteSettled } from './write';
 
@@ -166,14 +167,14 @@ export const useDaySeries = (deviceId: string | null, metric: Metric, enabled: b
     queryKey: ['devices', deviceId, 'day-series', metric],
     queryFn: ({ signal }) => {
       const endsAt = serverNow().toUTC().startOf('minute');
-      const query = new URLSearchParams({
-        metrics: metric,
-        outputs: 'light',
+      const query = {
+        metrics: [metric],
+        outputs: ['light'],
         startsAt: endsAt.minus({ hours: 24 }).toISO()!,
         endsAt: endsAt.toISO()!,
-        stepSeconds: String(DAY_STEP_SECONDS),
-      });
-      return api.get<DeviceSeries>(`/devices/${deviceId}/series?${query.toString()}`, undefined, signal);
+        stepSeconds: DAY_STEP_SECONDS,
+      } satisfies SeriesQuery;
+      return api.get<DeviceSeries>(`/devices/${deviceId}/series`, query, signal);
     },
     enabled: enabled && deviceId !== null,
     refetchInterval: 5 * 60_000,
@@ -194,13 +195,13 @@ export const useHourMeans = (deviceId: string | null) =>
     queryKey: ['devices', deviceId, 'hour-means'],
     queryFn: async ({ signal }) => {
       const endsAt = serverNow().toUTC().startOf('minute');
-      const query = new URLSearchParams([
-        ...STEERED.map(metric => ['metrics', metric]),
-        ['startsAt', endsAt.minus({ hours: 1 }).toISO()!],
-        ['endsAt', endsAt.toISO()!],
-        ['stepSeconds', String(HOUR_STEP_SECONDS)],
-      ]);
-      const series = await api.get<DeviceSeries>(`/devices/${deviceId}/series?${query.toString()}`, undefined, signal);
+      const query = {
+        metrics: [...STEERED],
+        startsAt: endsAt.minus({ hours: 1 }).toISO()!,
+        endsAt: endsAt.toISO()!,
+        stepSeconds: HOUR_STEP_SECONDS,
+      } satisfies SeriesQuery;
+      const series = await api.get<DeviceSeries>(`/devices/${deviceId}/series`, query, signal);
       return Object.fromEntries(
         series.metrics.flatMap(({ metric, points }) => {
           const values = points.flatMap(point => (point.value === null ? [] : [point.value]));
@@ -351,8 +352,7 @@ export const useSetSocket = () =>
 
 export const useRemoveSocket = () =>
   useWriteSettled(
-    ({ deviceId, slot }: { deviceId: string; slot: number }) =>
-      apiRequest<DeviceCommandResult>(`/devices/${deviceId}/sockets/${slot}`, { method: 'DELETE' }),
+    ({ deviceId, slot }: { deviceId: string; slot: number }) => api.delete<DeviceCommandResult>(`/devices/${deviceId}/sockets/${slot}`),
     tableChanged,
   );
 
@@ -396,9 +396,7 @@ export const useSetOverride = () =>
     const route = `/devices/${deviceId}/sockets/${target.slot}/override`;
     // Handing a socket back is the override's deletion, and answers the same
     // receipt every other command does.
-    return state === 'auto'
-      ? apiRequest<DeviceCommandResult>(route, { method: 'DELETE' })
-      : api.put<DeviceCommandResult>(route, { state, forSeconds });
+    return state === 'auto' ? api.delete<DeviceCommandResult>(route) : api.put<DeviceCommandResult>(route, { state, forSeconds });
   }, tableChanged);
 
 /** Switching a socket on for a moment, which is how a person finds out which plug in the tent it is. */

@@ -35,6 +35,9 @@ export const CHART_METRICS: Metric[] = ['temperature', 'humidity', 'vpd', 'co2',
 /** In the order the board puts them: what a grower steers first stands first, and the rest live behind "+ more". */
 export const CHART_OUTPUTS: OutputMetric[] = ['light', 'dehumidifier', 'heater', 'co2', 'fan', 'fanInternal', 'fanExternal', 'fanBackwall', 'relais'];
 
+/** Every line asked for, as the parameters that name them. */
+const LINES = { metrics: CHART_METRICS, outputs: CHART_OUTPUTS };
+
 export interface SeriesWindow {
   range: GrowSeriesRange;
   /** Both ends of a `custom` range, as a date field speaks them; the server refuses one without the other. */
@@ -67,7 +70,18 @@ export const useGrowSeries = (growId: string | null, window: SeriesWindow) => {
   const { refetchMs = false, ...asked } = window;
   const query = useRead({
     queryKey: ['grow', growId, 'series', asked],
-    queryFn: ({ signal }) => api.get<GrowSeries>(`/grows/${growId}/series?${queryOf(asked)}`, undefined, signal),
+    queryFn: ({ signal }) =>
+      api.get<GrowSeries>(
+        `/grows/${growId}/series`,
+        {
+          range: asked.range,
+          ...(asked.from && asked.to ? { from: asked.from, to: asked.to } : {}),
+          stepSeconds: asked.stepSeconds || undefined,
+          ...(asked.lines !== false ? LINES : {}),
+          measurements: asked.measurements,
+        },
+        signal,
+      ),
     enabled: growId !== null && askable(asked),
     placeholderData: keepPreviousData,
     refetchInterval: refetchMs,
@@ -97,7 +111,12 @@ export const useSpaceSeries = (spaceId: string | null, window: SpanWindow | null
   const { refetchMs = false, ...asked } = window ?? { from: '', to: '' };
   const query = useRead({
     queryKey: ['space', spaceId, 'series', asked],
-    queryFn: ({ signal }) => api.get<SpaceSeries>(`/spaces/${spaceId}/series?${spanQueryOf(asked)}`, undefined, signal),
+    queryFn: ({ signal }) =>
+      api.get<SpaceSeries>(
+        `/spaces/${spaceId}/series`,
+        { from: asked.from, to: asked.to, stepSeconds: asked.stepSeconds || undefined, ...LINES },
+        signal,
+      ),
     enabled: spaceId !== null && window !== null && asked.from < asked.to,
     placeholderData: keepPreviousData,
     refetchInterval: refetchMs,
@@ -118,35 +137,4 @@ const lastOf = <T>(client: QueryClient, queryKey: unknown[], id: string | null):
 
       return state.data && (!found || state.dataUpdatedAt > found.at) ? { data: state.data, at: state.dataUpdatedAt } : found;
     }, null);
-};
-
-/**
- * The route reads a list as the same name repeated, which a flat record of
- * parameters cannot say - so this one call writes its own query string rather
- * than handing the shared client a record it would collapse to one value each.
- */
-const queryOf = (window: SeriesWindow): string => {
-  const parameters = new URLSearchParams({ range: window.range });
-  if (window.from && window.to) {
-    parameters.set('from', window.from);
-    parameters.set('to', window.to);
-  }
-  if (window.stepSeconds) parameters.set('stepSeconds', String(window.stepSeconds));
-  if (window.lines !== false) appendLines(parameters);
-  for (const key of window.measurements) parameters.append('measurements', key);
-
-  return parameters.toString();
-};
-
-const spanQueryOf = (window: Omit<SpanWindow, 'refetchMs'>): string => {
-  const parameters = new URLSearchParams({ from: window.from, to: window.to });
-  if (window.stepSeconds) parameters.set('stepSeconds', String(window.stepSeconds));
-  appendLines(parameters);
-
-  return parameters.toString();
-};
-
-const appendLines = (parameters: URLSearchParams) => {
-  for (const metric of CHART_METRICS) parameters.append('metrics', metric);
-  for (const output of CHART_OUTPUTS) parameters.append('outputs', output);
 };

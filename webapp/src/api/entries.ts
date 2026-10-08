@@ -105,7 +105,7 @@ export const uploadPhoto = (file: File, about: { growId: string | null; spaceId:
   if (about.growId) form.set('growId', about.growId);
   else if (about.spaceId) form.set('spaceId', about.spaceId);
 
-  return api.upload<Media>('/media', form);
+  return api.post<Media>('/media', form);
 };
 
 /**

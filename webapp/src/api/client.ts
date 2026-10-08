@@ -10,7 +10,8 @@ import { session } from './session';
  * in this file knows a shape.
  */
 
-type Query = Record<string, string | number | boolean | null | undefined>;
+/** A route's parameters. A list is written as the same name repeated, which is how the routes read one. */
+export type Query = Record<string, string | number | boolean | readonly (string | number)[] | null | undefined>;
 
 /**
  * A server that accepts the connection and never answers would otherwise hold
@@ -20,7 +21,7 @@ type Query = Record<string, string | number | boolean | null | undefined>;
  */
 const REQUEST_TIMEOUT_MS = 30_000;
 
-export interface RequestOptions {
+interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   query?: Query;
   body?: unknown;
@@ -31,7 +32,8 @@ const withQuery = (path: string, query: Query | undefined): string => {
   if (!query) return path;
   const parameters = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    if (value !== null && value !== undefined) parameters.set(key, String(value));
+    if (value === null || value === undefined) continue;
+    for (const one of Array.isArray(value) ? value : [value]) parameters.append(key, String(one));
   }
   const rendered = parameters.toString();
   return rendered ? `${path}?${rendered}` : path;
@@ -60,7 +62,7 @@ const send = async (path: string, options: RequestOptions, token: string | null)
   return response;
 };
 
-export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+const authorized = async (path: string, options: RequestOptions): Promise<Response> => {
   let response = await send(path, options, await session.validToken());
 
   // The token can die between the check and the call - the server's clock decides, not ours.
@@ -70,6 +72,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   if (!response.ok) throw new ApiError(await readProblem(response));
+  return response;
+};
+
+async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const response = await authorized(path, options);
   if (response.status === 204) return undefined as T;
   // An accepted request - a recovery mail on its way - may answer nothing at all.
   const text = await response.text();
@@ -85,25 +92,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
  * The bytes come back through the ordinary client, with its renewal, and the
  * caller hands the blob to a download and releases it afterwards.
  */
-export async function apiBlob(path: string): Promise<Blob> {
-  let response = await send(path, {}, await session.validToken());
-
-  if (response.status === 401) {
-    const refreshed = await session.refresh(session.snapshot().tokens?.refreshToken);
-    if (refreshed) response = await send(path, {}, refreshed.userToken);
-  }
-
-  if (!response.ok) throw new ApiError(await readProblem(response));
-  return response.blob();
-}
+export const apiBlob = async (path: string): Promise<Blob> => (await authorized(path, {})).blob();
 
 export const api = {
   get: <T>(path: string, query?: Query, signal?: AbortSignal) => apiRequest<T>(path, { query, signal }),
   post: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'POST', body }),
-  /** A picture on its way to the diary: multipart, and not JSON. */
-  upload: <T>(path: string, form: FormData) => apiRequest<T>(path, { method: 'POST', body: form }),
   patch: <T>(path: string, body: unknown) => apiRequest<T>(path, { method: 'PATCH', body }),
   /** A `PUT` that states a fact - a link is revoked, a grow is followed - carries nothing, so the body is optional. */
   put: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'PUT', body }),
-  delete: (path: string) => apiRequest<void>(path, { method: 'DELETE' }),
+  /** Most deletions answer nothing; the ones that hand a device a command answer its receipt. */
+  delete: <T = void>(path: string) => apiRequest<T>(path, { method: 'DELETE' }),
 };

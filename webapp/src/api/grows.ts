@@ -193,21 +193,14 @@ export const useCreateGrow = () =>
  * delete a definition: whether anything has ever been written under its key.
  *
  * Which keys are wanted is said in the request, because a series asked for and
- * thrown away is a read of the store nobody looks at. They repeat as
- * `measurements=` once per definition, which the shared client cannot spell -
- * it writes each parameter once - so this query is built here and travels in
- * the path.
+ * thrown away is a read of the store nobody looks at.
  */
 export const useGrowSeries = (growId: string | null, range: GrowSeriesRange, measurements: string[]) => {
   const keys = [...measurements].sort();
 
   return useRead({
     queryKey: ['grow', growId, 'series', range, keys],
-    queryFn: ({ signal }) => {
-      const query = new URLSearchParams([['range', range], ...keys.map((key): [string, string] => ['measurements', key])]);
-
-      return api.get<GrowSeries>(`/grows/${growId}/series?${query.toString()}`, undefined, signal);
-    },
+    queryFn: ({ signal }) => api.get<GrowSeries>(`/grows/${growId}/series`, { range, measurements: keys }, signal),
     enabled: growId !== null && keys.length > 0,
   });
 };

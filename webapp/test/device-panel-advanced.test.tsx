@@ -9,7 +9,7 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceCapabilities, Socket, SocketPage } from '@fg2/shared-types/v1';
-import { api, apiRequest } from '@/api/client';
+import { api } from '@/api/client';
 import { DeviceList } from '@/screens/devices/DeviceList';
 import { draftFor, problemOf, rolesFor, secondsOfSpan, spanOf, updateOf } from '@/screens/devices/socket-form';
 import { SocketRow } from '@/screens/devices/SocketRow';
@@ -24,8 +24,7 @@ import { SIGNED_IN, spaceWhere } from './session';
  */
 
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
-  apiRequest: vi.fn(),
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const who = vi.hoisted(() => ({ admin: false }));
@@ -118,11 +117,10 @@ beforeAll(async () => {
 
 beforeEach(() => {
   who.admin = false;
-  for (const call of [api.patch, api.put, api.delete, apiRequest]) vi.mocked(call).mockReset();
+  for (const call of [api.patch, api.put, api.delete]) vi.mocked(call).mockReset();
   vi.mocked(api.patch).mockImplementation((_path, body) => Promise.resolve(controller(body as Partial<Device>)) as never);
   vi.mocked(api.put).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
-  vi.mocked(api.delete).mockResolvedValue(undefined);
-  vi.mocked(apiRequest).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
+  vi.mocked(api.delete).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
 });
 
 describe('updates', () => {
@@ -380,7 +378,7 @@ describe('a socket’s timer and its Advanced', () => {
     expect(within(asked).getByText(/forgets the socket \(10.0.0.63\) and resets it/)).toBeInTheDocument();
     fireEvent.click(within(asked).getByRole('button', { name: 'Remove' }));
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalledWith('/devices/device-1/sockets/3', { method: 'DELETE' }));
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/devices/device-1/sockets/3'));
   });
 
   it('changes a socket’s address and keeps its credentials unless new ones are typed', async () => {

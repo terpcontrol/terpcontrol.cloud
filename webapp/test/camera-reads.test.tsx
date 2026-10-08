@@ -25,7 +25,7 @@ import { ApiError } from '@/api/problem';
  */
 
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const DAY = { startsAt: '2026-09-23T00:00:00.000Z', endsAt: '2026-09-23T23:59:59.999Z' };

@@ -25,7 +25,7 @@ import { spaceWhere, THE_HOST, YOU } from './session';
  * asserted is what would go on the wire.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 const who = vi.hoisted(() => ({ demo: false }));
@@ -320,7 +320,13 @@ describe('changing one measurement', () => {
   const openSheet = async (name: string) => {
     await drawScreen();
     // The series read says which keys have readings, so the sheet knows what is settled.
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining('/series'), undefined, expect.anything()));
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith(
+        expect.stringContaining('/series'),
+        expect.objectContaining({ measurements: expect.any(Array) }),
+        expect.anything(),
+      ),
+    );
     fireEvent.click(screen.getByRole('button', { name: `Edit ${name}` }));
   };
 

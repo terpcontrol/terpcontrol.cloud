@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas/pages.js';
-import { api } from './client';
+import { api, type Query } from './client';
 
 /**
  * A list read to its end rather than to its first page.
@@ -33,12 +33,7 @@ export interface EveryPage<T> {
   complete: boolean;
 }
 
-export const readEvery = async <T>(
-  path: string,
-  signal: AbortSignal | undefined,
-  query: Record<string, string | number | boolean | null | undefined> = {},
-  cap = PAGE_CAP,
-): Promise<EveryPage<T>> => {
+export const readEvery = async <T>(path: string, signal: AbortSignal | undefined, query: Query = {}, cap = PAGE_CAP): Promise<EveryPage<T>> => {
   const items: T[] = [];
   let cursor: string | null = null;
 

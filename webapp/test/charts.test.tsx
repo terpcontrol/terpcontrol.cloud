@@ -528,13 +528,12 @@ describe('the Charts view', () => {
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-08-20' } });
     fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-08-20' } });
 
-    const asked = () => state.asked.filter(read => read.path.includes('/series?') && read.path.includes('from=')).at(-1)?.path;
+    const asked = () => state.asked.filter(read => read.path.includes('/series') && read.query?.from).at(-1)?.query;
     await waitFor(() => expect(asked()).toBeDefined());
-    const window = new URLSearchParams(asked()!.split('?')[1]);
 
     // +14: the day the account means began fourteen hours before UTC midnight.
-    expect(window.get('from')).toBe('2026-08-19T10:00:00.000Z');
-    expect(window.get('to')).toBe('2026-08-20T09:59:59.999Z');
+    expect(asked()!.from).toBe('2026-08-19T10:00:00.000Z');
+    expect(asked()!.to).toBe('2026-08-20T09:59:59.999Z');
   });
 
   /**

@@ -23,7 +23,7 @@ import { spaceWhere, THE_HOST, YOU } from './session';
  * it would have carried - what the curve is made of is asserted elsewhere.
  */
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 vi.mock('@/charts/Chart', () => ({ Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} /> }));
@@ -158,7 +158,13 @@ const draw = () =>
 const drawLoaded = async () => {
   draw();
   await screen.findByRole('heading', { name: 'Amnesia 1' });
-  await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining('/series'), undefined, expect.anything()));
+  await waitFor(() =>
+    expect(api.get).toHaveBeenCalledWith(
+      expect.stringContaining('/series'),
+      expect.objectContaining({ measurements: expect.any(Array) }),
+      expect.anything(),
+    ),
+  );
 };
 
 beforeAll(async () => {
