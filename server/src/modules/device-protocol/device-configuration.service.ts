@@ -4,7 +4,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY, germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { co2FanKey, co2FanOf, co2InjectFor, type Co2Fan, type FieldSetting } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { co2FanKey, co2FanOf, co2InjectFor, isSection, type Co2Fan, type FieldSetting } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { SCHEDULED_MODES } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { HttpException } from '@common/http-exception';
 import { badRequest, unprocessable } from '@common/v1/problem';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
@@ -322,7 +323,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // climate. A preset, a phase or a step brings whichever it names.
     const germinated = device.beforeGermination ?? null;
     const germinates = mode?.workmode === 'breed' && before?.workmode !== 'breed' && germinated === null;
-    const backFromGermination = germinated !== null && ['small', 'full', 'temp'].includes(mode?.workmode ?? '');
+    const backFromGermination = germinated !== null && SCHEDULED_MODES.includes(mode?.workmode ?? '');
     // A drying spell begun out of germination for good - the drying chip, a
     // drying stage - ends it too. What the spell puts aside to give back is the
     // night from before germination, not germination's 75 %, which the
@@ -484,8 +485,6 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     return scheduleClockOf(owner?.preferences, at);
   }
 }
-
-const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** Where germination's own humidity is written: the night's, the one half the dark mode holds. */
 const GERMINATION_HUMIDITY_PATH = 'night.humidity';

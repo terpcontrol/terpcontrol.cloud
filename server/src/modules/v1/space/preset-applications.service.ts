@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { GrowDecision, GrowthStage, PresetApplication, PresetApplicationCreate, PresetPlanEffect } from '@fg2/shared-types/v1';
+import { nextStepIndex } from '@fg2/shared-types/v1-schemas/plan-clock.js';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { unprocessable } from '@common/v1/problem';
@@ -11,7 +12,6 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { NOTHING_HIDDEN } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { PhaseWriterService } from '../phase/phase-writer.service';
-import { stepAfterActive } from '../plan/plan-steps';
 import { PlanService } from '../plan/plan.service';
 import { ClimatePresetsService } from './climate-presets.service';
 import { SpacesService } from './spaces.service';
@@ -161,7 +161,7 @@ export class PresetApplicationsService {
       const plan = await this.plans.forDevice(device.id);
       if (!plan || plan.state.status !== 'running') continue;
 
-      const next = stepAfterActive(plan);
+      const next = nextStepIndex(plan);
       const carriesTheStage = next !== null && plan.steps[next]?.stage === stage;
       await this.plans.transition(device.id, carriesTheStage ? { kind: 'skip' } : { kind: 'pause', reason: PAUSED_BY_A_PRESET }, by);
 

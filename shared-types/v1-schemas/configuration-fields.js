@@ -24,7 +24,7 @@
  * different places. No schema, so a client imports it without pulling zod in.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.configurationFieldsOf = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.workModeOf = exports.workModesOf = exports.WORK_MODES_BY_TYPE = exports.WORK_MODES = exports.OPERATING_MODES = void 0;
+exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.figureAt = exports.valueAt = exports.finiteOrNull = exports.sectionOf = exports.isSection = exports.configurationFieldsOf = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.workModeOf = exports.workModesOf = exports.WORK_MODES_BY_TYPE = exports.WORK_MODES = exports.OPERATING_MODES = void 0;
 /**
  * What a fridge or a controller is set to do as a whole, in a person's words:
  * the standard climate control, temperature only (the firmware's `temp`), or
@@ -198,10 +198,26 @@ exports.CONFIGURATION_FIELDS = {
 /** The fields a type of device offers; none for a type this table does not know. */
 const configurationFieldsOf = (type) => exports.CONFIGURATION_FIELDS[type] ?? {};
 exports.configurationFieldsOf = configurationFieldsOf;
-const sectionIn = (document, key) => {
+/** Whether a value of a document is a section of it: an object of keys, not a list. */
+const isSection = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
+exports.isSection = isSection;
+const sectionOf = (document, key) => {
     const value = document?.[key];
-    return typeof value === 'object' && value !== null && !Array.isArray(value) ? value : null;
+    return (0, exports.isSection)(value) ? value : null;
 };
+exports.sectionOf = sectionOf;
+const finiteOrNull = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+exports.finiteOrNull = finiteOrNull;
+/**
+ * A value of a document by its dotted path, nested as the firmware writes it or
+ * flat as an older client did. Both mean the same thing; the nested one is read
+ * first, the server's and every screen's reading alike.
+ */
+const valueAt = (document, path) => path.split('.').reduce((node, key) => ((0, exports.isSection)(node) ? node[key] : undefined), document) ?? document?.[path];
+exports.valueAt = valueAt;
+/** A figure of a document by its dotted path (`valueAt`), or null where it states none. */
+const figureAt = (document, path) => (0, exports.finiteOrNull)((0, exports.valueAt)(document, path));
+exports.figureAt = figureAt;
 const co2FanOf = (plug) => {
     const raw = plug?.fan;
     if (typeof raw !== 'string' || raw === '')
@@ -226,7 +242,7 @@ exports.co2FanKey = co2FanKey;
  * dosing a fan can be slowed for: the fan knows nothing of the socket and
  * simply runs slower in the same windows of the same period.
  */
-const dosesInWindows = (plug) => plug?.workmode === 'co2' && sectionIn(plug, 'co2')?.mode === 'periodic';
+const dosesInWindows = (plug) => plug?.workmode === 'co2' && (0, exports.sectionOf)(plug, 'co2')?.mode === 'periodic';
 exports.dosesInWindows = dosesInWindows;
 /**
  * The section a coupled fan is given: the socket's dosing windows, its day
@@ -236,8 +252,8 @@ exports.dosesInWindows = dosesInWindows;
 const co2InjectFor = (plugId, plug, speed) => {
     if (!(0, exports.dosesInWindows)(plug))
         return {};
-    const co2 = sectionIn(plug, 'co2') ?? {};
-    const daynight = sectionIn(plug, 'daynight') ?? {};
+    const co2 = (0, exports.sectionOf)(plug, 'co2') ?? {};
+    const daynight = (0, exports.sectionOf)(plug, 'daynight') ?? {};
     return {
         device_id: plugId,
         speed,
@@ -251,7 +267,7 @@ const co2InjectFor = (plugId, plug, speed) => {
 exports.co2InjectFor = co2InjectFor;
 /** The smart socket a fan is slowed for, as the fan's own document names it. */
 const co2PlugOf = (fan) => {
-    const id = sectionIn(fan, 'co2inject')?.device_id;
+    const id = (0, exports.sectionOf)(fan, 'co2inject')?.device_id;
     return typeof id === 'string' && id !== '' ? id : null;
 };
 exports.co2PlugOf = co2PlugOf;

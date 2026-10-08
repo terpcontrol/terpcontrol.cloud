@@ -41,6 +41,8 @@ __exportStar(require("./diary.js"), exports);
 // the firmware keeps them, which the server judges by, the screens draw and the
 // simulator runs. And how long one read of a camera may take, which the poller
 // keeps and the test button promises, and the kinds of failure it is named as.
+// And the clock on a plan's step, which the engine walks the plan by and the
+// screens say its next pass from.
 __exportStar(require("./socket-report.js"), exports);
 __exportStar(require("./feeding.js"), exports);
 __exportStar(require("./grow-days.js"), exports);
@@ -51,3 +53,4 @@ __exportStar(require("./maintenance.js"), exports);
 __exportStar(require("./configuration-fields.js"), exports);
 __exportStar(require("./day-night.js"), exports);
 __exportStar(require("./capture.js"), exports);
+__exportStar(require("./plan-clock.js"), exports);

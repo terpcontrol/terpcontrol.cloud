@@ -23,3 +23,4 @@ export * from './maintenance.js';
 export * from './configuration-fields.js';
 export * from './day-night.js';
 export * from './capture.js';
+export * from './plan-clock.js';

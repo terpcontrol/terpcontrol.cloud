@@ -28,7 +28,17 @@ import {
 } from '../shared-types/v1-schemas/socket-report.js';
 // Day and night as the firmware keeps them: the clock window and the work mode.
 // The same module the server judges by, so the stack shows what hardware does.
-import { DAY_SECONDS, cycleAt, cycleKindOf, cycleOf, glidingTarget, isDayAt, rampsAt, utcSecondsOf } from '../shared-types/v1-schemas/day-night.js';
+import {
+  DAY_SECONDS,
+  FIRMWARE_LIGHTS_OFF,
+  cycleAt,
+  cycleKindOf,
+  cycleOf,
+  glidingTarget,
+  isDayAt,
+  rampsAt,
+  utcSecondsOf,
+} from '../shared-types/v1-schemas/day-night.js';
 
 const STATE_DIR = '.simulated-devices';
 const API_URL = process.env.SIM_API_URL.replace(/\/$/, '');
@@ -416,11 +426,11 @@ const lightPercent = (config, at, type = 'controller') => {
     return clamp(configValue(config, 'lights.limit', 100) * share, 0, 100);
   }
 
-  const secondsOfDay = at.getUTCHours() * 3600 + at.getUTCMinutes() * 60 + at.getUTCSeconds();
+  const secondsOfDay = utcSecondsOf(at.getTime());
   // A LIGHT keeps its times, its limit and its ramps at the top of its document.
   const flat = typeof config.day === 'number';
   const dayStart = flat ? config.day : configValue(config, 'daynight.day', DEFAULT_CONFIG.daynight.day);
-  const nightStart = flat ? configValue(config, 'night', 79200) : configValue(config, 'daynight.night', DEFAULT_CONFIG.daynight.night);
+  const nightStart = flat ? configValue(config, 'night', FIRMWARE_LIGHTS_OFF) : configValue(config, 'daynight.night', DEFAULT_CONFIG.daynight.night);
   const limit = configValue(config, flat ? 'limit' : 'lights.limit', 100);
   const rampUp = configValue(config, flat ? 'sunrise' : 'lights.sunrise', 15) * 60;
   const rampDown = configValue(config, flat ? 'sunset' : 'lights.sunset', 15) * 60;
@@ -431,8 +441,8 @@ const lightPercent = (config, at, type = 'controller') => {
       : secondsOfDay >= dayStart || secondsOfDay < nightStart;
   if (!isDay) return 0;
 
-  const sinceSunrise = (secondsOfDay - dayStart + 86400) % 86400;
-  const untilSunset = (nightStart - secondsOfDay + 86400) % 86400;
+  const sinceSunrise = (secondsOfDay - dayStart + DAY_SECONDS) % DAY_SECONDS;
+  const untilSunset = (nightStart - secondsOfDay + DAY_SECONDS) % DAY_SECONDS;
   const ramp = Math.min(rampUp > 0 ? sinceSunrise / rampUp : 1, rampDown > 0 ? untilSunset / rampDown : 1, 1);
   return clamp(limit * ramp, 0, 100);
 };

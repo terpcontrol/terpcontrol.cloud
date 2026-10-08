@@ -104,6 +104,7 @@ export default defineConfig(({ mode }) => ({
       '@fg2/shared-types/v1-schemas/configuration-fields.js',
       '@fg2/shared-types/v1-schemas/day-night.js',
       '@fg2/shared-types/v1-schemas/capture.js',
+      '@fg2/shared-types/v1-schemas/plan-clock.js',
     ],
   },
   // `npm run start:public` is the development server for other machines too - a phone on the network, a host

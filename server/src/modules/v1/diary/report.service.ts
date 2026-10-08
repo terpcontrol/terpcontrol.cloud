@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { EntryKind, GrowHarvest, GrowReport, GrowReportPhase, GrowTotals, PhaseTargets } from '@fg2/shared-types/v1';
-import { STAGES_WITH_CLIMATE, type StageSpan, stageSpansOf } from '@fg2/shared-types/v1-schemas';
+import { STAGES_WITH_CLIMATE, type StageSpan, growDayAt, growOriginOf, stageSpansOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant } from '@common/v1/access.types';
 import { clampRange, outsideRange, overlapsRange, seenOf, storyEndsAt, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
@@ -15,7 +15,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { Redaction, growUpTo } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { DIARY_KINDS, authorIdsOf, peopleOf, serialiseDiaryEntry } from './diary-entries';
-import { dayNumberOf, horizonOf, originOf } from './grow-calendar';
+import { horizonOf } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
 import { spacesDuring } from './grow-places';
 
@@ -85,7 +85,7 @@ export class GrowReportService {
     const range = clampRange(grant);
     const until = storyEndsAt(range, now);
     const grow = growUpTo(await this.grows.require(growId), until);
-    const origin = originOf(grow);
+    const origin = growOriginOf(grow);
     const horizon = horizonOf(grow, until);
 
     const [hide, plants, diary, totals] = await Promise.all([
@@ -108,7 +108,7 @@ export class GrowReportService {
       type: grow.type,
       startedAt: grow.startedAt.toISOString(),
       endedAt: grow.endedAt?.toISOString() ?? null,
-      dayCount: dayNumberOf(origin, horizon),
+      dayCount: growDayAt(origin, horizon),
       plantCount: hide.counts ? null : plants.length,
       strains: [...new Set(plants.map(plant => plant.strain))],
       coverMediaId: grow.coverMediaId,

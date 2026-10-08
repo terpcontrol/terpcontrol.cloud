@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { GrowOrSpaceRef, Task } from '@fg2/shared-types/v1';
+import { activeStep, durationMs, elapsedMs } from '@fg2/shared-types/v1-schemas/plan-clock.js';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, decodeCursor, pageOf } from '@common/v1/pages';
@@ -11,7 +12,6 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { StoredPlan } from '@database/schemas/v1/plans.schema';
-import { activeStep, durationMs, elapsedMs } from '../plan/plan-steps';
 import { WEEK_HORIZON_MS, dueTasksOf, occurrenceDueAt, occurrencePrefix } from '../home/due-tasks';
 import { planTaskId } from './task-ids';
 import { VisibleSubjectsService } from './visible-subjects.service';
@@ -187,7 +187,7 @@ export class TasksService {
     const plans = await this.plans.find({ deviceId: { $in: places.map(place => place.deviceId) }, 'state.status': 'running' }).lean<StoredPlan[]>();
     const waiting = plans.flatMap(plan => {
       const step = activeStep(plan);
-      const served = elapsedMs(plan.state, now);
+      const served = elapsedMs(plan.state, now.getTime());
       const place = places.find(candidate => candidate.deviceId === plan.deviceId);
       if (!step?.waitForConfirmation || !place || served < durationMs(step.duration)) return [];
 

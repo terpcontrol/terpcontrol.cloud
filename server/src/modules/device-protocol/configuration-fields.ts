@@ -1,10 +1,12 @@
 import type { DeviceConfiguration, OperatingMode, ProblemError } from '@fg2/shared-types/v1';
 import {
   configurationFieldsOf,
+  isSection,
   type ConfigurationField,
   type FieldSetting,
   type TimerWindow,
 } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { DAY_SECONDS } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { unprocessable } from '@common/v1/problem';
 import type { WriteIntent } from './work-modes';
 
@@ -73,8 +75,6 @@ const refusalOf = (field: ConfigurationField, value: Value): string | null => {
   }
 };
 
-const DAY_SECONDS = 24 * 60 * 60;
-
 const fitsWindow = (window: TimerWindow, longest: number): boolean =>
   Number.isInteger(window.ontime) &&
   window.ontime >= 0 &&
@@ -95,8 +95,6 @@ const stored = (field: ConfigurationField, value: Value): number | string | Time
 
   return value as number | string;
 };
-
-const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The document with each figure put at its dotted place, every section on the way kept as it was. */
 export const withFigures = (configuration: DeviceConfiguration, figures: FieldChanges['figures']): DeviceConfiguration =>

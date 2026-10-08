@@ -2,8 +2,9 @@ import { CalendarRange, Moon, Sun } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
+import { utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { Help } from '@/ui/Help';
-import { halfOf, phaseOf, rampsFor, rampsOf, utcSecondsOf, type Field, type Half, type NowHolding, type Ramps, type Shape } from './day-night';
+import { halfOf, phaseOf, rampsFor, rampsOf, type Field, type Half, type NowHolding, type Ramps, type Shape } from './day-night';
 import { scheduleTitle, windowWords } from './schedule-words';
 import { ClockStepper, Stepper } from './Stepper';
 import type { LightSchedule, TargetsDraft } from './targets-draft';
@@ -118,7 +119,7 @@ function Schedule(props: LightPlanProps) {
         ramps={ramps}
         dim={baseline.lightLimit <= 0}
         offset={offset}
-        nowMinutes={minutesOf(utcSecondsOf(now) + offset)}
+        nowMinutes={minutesOf(utcSecondsOf(now.toMillis()) + offset)}
         label={scheduleTitle(t, baseline, offset)}
         draftLabel={t('targets.plan.draftBarAlt', { window: scheduleTitle(t, draft, offset) })}
       />

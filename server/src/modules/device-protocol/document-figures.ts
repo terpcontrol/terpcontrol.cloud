@@ -1,5 +1,6 @@
 import type { DeviceConfiguration, ProblemError } from '@fg2/shared-types/v1';
-import { MOST_TIMER_WINDOWS } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { isSection, MOST_TIMER_WINDOWS } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { DAY_SECONDS } from '@fg2/shared-types/v1-schemas/day-night.js';
 
 /**
  * What each type's firmware reads out of its configuration document, place by
@@ -65,7 +66,6 @@ export type DocumentFigure = NumberFigure | FlagFigure | WordFigure | WindowsFig
 export type DocumentFigures = Readonly<Record<string, DocumentFigure>>;
 
 const UINT32_MAX = 4_294_967_295;
-const DAY_SECONDS = 24 * 60 * 60;
 
 const number = (min: number, max: number): NumberFigure => ({ kind: 'number', min, max });
 const FLAG: FlagFigure = { kind: 'flag' };
@@ -210,8 +210,6 @@ export const TEMPLATE_FIGURES: DocumentFigures = { ...FAN, ...CONTROLLER, ...FRI
 export const documentFiguresOf = (type: string): DocumentFigures => DOCUMENT_FIGURES[type] ?? {};
 
 /* ----------------------------------------------------------------- reading */
-
-const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 

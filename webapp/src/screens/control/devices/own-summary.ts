@@ -34,8 +34,6 @@ const READING: Record<PlugSwitching | 'co2', Metric> = {
 
 const RISING: readonly string[] = ['heater', 'humidify', 'co2'];
 
-const DAY_SECONDS = 24 * 60 * 60;
-
 const withUnit = (value: number, metric: Metric): string => `${targetFigure(value, metric)} ${UNIT[metric] ?? ''}`.trim();
 
 const number = (device: Device, name: string): number | null => {
@@ -84,7 +82,7 @@ export const plugSummaryOf = (t: Translate, device: Device, offset: number): Sum
       label: t('plugSettings.windows.label'),
       parts:
         windows.length > 0
-          ? windows.map(window => `${wallClock(window.ontime, offset)}–${wallClock((window.ontime + window.duration * 60) % DAY_SECONDS, offset)}`)
+          ? windows.map(window => `${wallClock(window.ontime, offset)}–${wallClock(window.ontime + window.duration * 60, offset)}`)
           : [t('plugSettings.summary.noWindows')],
     });
   }

@@ -1,5 +1,13 @@
 import { DateTime } from 'luxon';
-import type { DurationUnit, Plan, PlanStep, PlanState, StepDuration } from '@fg2/shared-types/v1';
+import type { DurationUnit, Plan, PlanState, StepDuration } from '@fg2/shared-types/v1';
+import {
+  activeStep,
+  DURATION_UNIT_MS,
+  durationMs,
+  elapsedMs as servedMs,
+  isOver as overAt,
+  nextStepIndex,
+} from '@fg2/shared-types/v1-schemas/plan-clock.js';
 import { countdownLabel as wordsLeftFor, spanLabel as wordsFor } from '@/ui/age';
 
 /**
@@ -8,50 +16,24 @@ import { countdownLabel as wordsLeftFor, spanLabel as wordsFor } from '@/ui/age'
  * The plan is the one thing on these screens that moves without anybody asking:
  * the engine walks it every twenty seconds, so between two reads the step the
  * device is on may already be over. What is worked out here is therefore not a
- * second opinion but the same arithmetic the engine does - `pausedElapsedMs`
- * plus the clock since `stepStartedAt`, against the step's own length - so the
- * screen says what the next pass will do rather than what it would like to be
- * true. The instants are all the server's; only the reading of them is ours.
+ * second opinion but the same arithmetic the engine does (`plan-clock.ts` in
+ * the contract), so the screen says what the next pass will do rather than what
+ * it would like to be true. The instants are all the server's; only the reading
+ * of them is ours.
  *
  * Which of the five moves are offered is the same question asked once: the
  * server refuses the rest, and a button that is only there to be refused is a
  * button that has told somebody nothing.
  */
 
-const UNIT_MS: Readonly<Record<DurationUnit, number>> = {
-  minutes: 60 * 1000,
-  hours: 60 * 60 * 1000,
-  days: 24 * 60 * 60 * 1000,
-  weeks: 7 * 24 * 60 * 60 * 1000,
-};
+export { activeStep, nextStepIndex };
 
-export const DURATION_UNITS: DurationUnit[] = ['minutes', 'hours', 'days', 'weeks'];
-
-/**
- * A step with no length to measure runs until somebody moves it on by hand, and
- * is never over - which is the server's own reading, and the reason a plan that
- * loops does not walk itself through every step on one tick.
- */
-export const durationMs = ({ value, unit }: StepDuration): number => (value > 0 ? value * UNIT_MS[unit] : Number.POSITIVE_INFINITY);
+export const DURATION_UNITS = Object.keys(DURATION_UNIT_MS) as DurationUnit[];
 
 export const isOpenEnded = (duration: StepDuration): boolean => !Number.isFinite(durationMs(duration));
 
-export const activeStep = (plan: Plan): PlanStep | null => plan.steps[plan.state.activeStepIndex] ?? null;
-
-/**
- * What the step has served, across every pause it has been through.
- *
- * Read exactly as the engine reads it, which means unclamped. "More time" is
- * implemented by pushing `stepStartedAt` into the future by the length that was
- * added, so between the extension and that instant the step has served a
- * negative amount of its own length - and holding that at zero threw the whole
- * extension away. The panel then showed a countdown that did not count: the same
- * "4 min on this step, 6 min left" for twenty-one minutes of a ten-minute step
- * the server could not end for another five hours, with the Confirm button
- * withheld for just as long.
- */
-export const elapsedMs = (state: PlanState, now: DateTime): number =>
-  state.pausedElapsedMs + (state.stepStartedAt ? now.toMillis() - DateTime.fromISO(state.stepStartedAt).toMillis() : 0);
+/** What the step has served, unclamped, as the engine reads it (`elapsedMs` in the contract). */
+export const elapsedMs = (state: PlanState, now: DateTime): number => servedMs(state, now.toMillis());
 
 /**
  * How long until the step's own clock begins, where an extension has put it in
@@ -89,10 +71,7 @@ export const readingAt = (state: PlanState, now: DateTime): DateTime => {
   return ahead > 0 && ahead <= CLOCKS_AGREE_MS ? started : now;
 };
 
-export const isOver = (plan: Plan, now: DateTime): boolean => {
-  const step = activeStep(plan);
-  return step !== null && elapsedMs(plan.state, now) >= durationMs(step.duration);
-};
+export const isOver = (plan: Plan, now: DateTime): boolean => overAt(plan, now.toMillis());
 
 /** How much of the step is left, or null where it has no length or is already over. */
 export const leftMs = (plan: Plan, now: DateTime): number | null => {
@@ -112,15 +91,6 @@ export const throughStep = (plan: Plan, now: DateTime): number | null => {
   // Held inside the bar at both ends: a step whose clock has been pushed into
   // the future has served less than none of itself, and a bar cannot draw that.
   return Number.isFinite(total) && total > 0 ? Math.min(1, Math.max(0, elapsedMs(plan.state, now) / total)) : null;
-};
-
-/**
- * Which step follows the one the plan stands on: the next, the first again when
- * it loops, or none, which is where the plan ends.
- */
-export const nextStepIndex = (plan: Plan): number | null => {
-  if (plan.state.activeStepIndex < plan.steps.length - 1) return plan.state.activeStepIndex + 1;
-  return plan.loop ? 0 : null;
 };
 
 /** Whether the step is standing still waiting to be answered, rather than running out its clock. */

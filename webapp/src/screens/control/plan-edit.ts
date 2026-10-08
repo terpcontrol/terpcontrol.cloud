@@ -11,7 +11,8 @@ import type {
   StepDuration,
 } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY, GERMINATION_TEMPERATURE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { figureAt, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { lightWindowOf, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
 import { elapsedMs } from './plan-clock';
 
@@ -238,22 +239,8 @@ export const asWritableBy = (draft: PlanDraft, device: Device): PlanDraft => {
   };
 };
 
-const sectionOf = (settings: DeviceConfiguration, name: string): Record<string, unknown> | null => {
-  const value = settings[name];
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-};
-
-/**
- * One figure of a step. A device that reports its document nested and a client
- * that once wrote it flat mean the same thing, so both are read - exactly as the
- * server reads a setpoint out of the same document.
- */
-export const figureOf = (settings: DeviceConfiguration, figure: Figure): number | null => {
-  const nested = sectionOf(settings, figure.section)?.[figure.field];
-  const value = nested ?? settings[`${figure.section}.${figure.field}`];
-
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-};
+/** One figure of a step, nested or flat, as the server reads a setpoint out of the same document. */
+export const figureOf = (settings: DeviceConfiguration, figure: Figure): number | null => figureAt(settings, `${figure.section}.${figure.field}`);
 
 /**
  * A figure put into, or taken out of, the settings a step carries.
@@ -267,7 +254,7 @@ export const figureOf = (settings: DeviceConfiguration, figure: Figure): number 
  */
 export const withFigure = (settings: DeviceConfiguration, figure: Figure, value: number | null): DeviceConfiguration => {
   const flat = `${figure.section}.${figure.field}`;
-  const section = { ...(sectionOf(settings, figure.section) ?? {}) };
+  const section = { ...sectionOf(settings, figure.section) };
   const next: DeviceConfiguration = { ...settings };
   delete next[flat];
 
@@ -319,7 +306,7 @@ export const withStepLightsOn = (step: StepDraft, seconds: number): Partial<Step
   const off = figureOf(step.settings, LIGHTS_OFF);
   const on = figureOf(step.settings, LIGHTS_ON);
   daynight.day = seconds;
-  if (step.lightHours === null && off !== null && on !== null) daynight.night = (((off + seconds - on) % 86400) + 86400) % 86400;
+  if (step.lightHours === null && off !== null && on !== null) daynight.night = roundTheClock(off + seconds - on);
   const settings: DeviceConfiguration = { ...step.settings, daynight };
   delete settings['daynight.day'];
   delete settings['daynight.night'];

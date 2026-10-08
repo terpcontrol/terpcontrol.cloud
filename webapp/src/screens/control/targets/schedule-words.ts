@@ -1,5 +1,6 @@
+import { lightsOffOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { decimalFigure } from '@/ui/figures';
-import { lightsOffOf, wallClock, type LightSchedule } from './targets-draft';
+import { wallClock, type LightSchedule } from './targets-draft';
 
 /**
  * A light schedule in words, the same wherever one is named: the targets

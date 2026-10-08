@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { GrowMeasurementSeries, GrowSeries, GrowSeriesPoint, GrowSeriesRange, Metric, OutputMetric } from '@fg2/shared-types/v1';
+import { growOriginOf } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
 import { badRequest } from '@common/v1/problem';
 import { withinRange } from '@common/v1/range';
@@ -14,7 +15,7 @@ import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { DataService } from '@modules/data/data.service';
 import { READING_KINDS } from '../diary/diary-entries';
-import { horizonOf, originOf } from '../diary/grow-calendar';
+import { horizonOf } from '../diary/grow-calendar';
 import { spacesDuring } from '../diary/grow-places';
 import { cyclesOf, recordOf } from '../phase/target-record';
 import { CHART_FRAME_SLOTS, framesOf } from '../timeline/frames';
@@ -124,7 +125,7 @@ export class GrowSeriesService {
       startsAt: window.startsAt.toISOString(),
       endsAt: window.endsAt.toISOString(),
       stepSeconds: series.length === 0 ? 0 : window.stepSeconds,
-      originAt: originOf(grow).toISOString(),
+      originAt: growOriginOf(grow).toISOString(),
       dayFrom: window.dayFrom,
       dayTo: window.dayTo,
       deviceIds: grant.redacted ? null : devices.map(device => device.id),

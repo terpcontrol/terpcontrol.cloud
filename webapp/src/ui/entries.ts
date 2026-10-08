@@ -166,9 +166,6 @@ export const doneByOf = (t: Translate, i18n: I18n, entry: Entry, byYou: boolean)
  */
 export const readingFigure = (value: number): string => looseFigure(value);
 
-/** Twenty-four hours, which is how long one of the grow's days is wherever it begins. */
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /**
  * Which of the grow's own days a line falls on, counted from the grow's origin
  * with the contract's own arithmetic - the same the server's week calendar
@@ -187,7 +184,7 @@ export const growDayOf = (grow: GrowListItem, occurredAt: string): number | null
  * because a line is only ever drawn on the card whose week it falls in.
  */
 export const weekDayOf = (week: Pick<GrowWeekCard, 'dayFrom' | 'dayTo' | 'startsAt'>, occurredAt: string): number =>
-  Math.min(week.dayTo, Math.max(week.dayFrom, week.dayFrom + Math.floor((Date.parse(occurredAt) - Date.parse(week.startsAt)) / DAY_MS)));
+  Math.min(week.dayTo, week.dayFrom - 1 + growDayAt(new Date(week.startsAt), occurredAt));
 
 /** A line and how many identical machine lines just before it were folded into it. */
 export interface FoldedEntry {

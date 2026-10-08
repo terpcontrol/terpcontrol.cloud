@@ -21,6 +21,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { switchPointName, workModeOf, type PlugMode, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { lightsOffOf, roundTheClock, utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { timelinePath } from '@/app/places';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
@@ -30,7 +31,7 @@ import { clock } from '@/ui/zone';
 import { nowHoldingOf, setpointsOf, storedShapeOf, type Half, type NowHolding, type Regime } from '../control/targets/day-night';
 import type { ConstantHold } from '../timeline/window';
 import { hoursWritten } from '../control/targets/schedule-words';
-import { draftOf, lightsOffOf, offsetOf } from '../control/targets/targets-draft';
+import { draftOf, offsetOf, wallClock } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from '../home/attention';
 import { alertLabel, asWritten, figure, isSilence, UNIT } from '../home/units';
 import { plugModeOf } from '../control/devices/own-summary';
@@ -279,8 +280,7 @@ const isNightFor = (device: Device, now: DateTime): boolean => {
   const day = fieldValue(device, 'dayFrom');
   const night = fieldValue(device, 'nightFrom');
   if (typeof day !== 'number' || typeof night !== 'number' || day === night) return false;
-  const utc = now.toUTC();
-  const second = utc.hour * 3600 + utc.minute * 60 + utc.second;
+  const second = utcSecondsOf(now.toMillis());
   return day < night ? second < day || second >= night : second >= night && second < day;
 };
 
@@ -358,8 +358,6 @@ export const runningSince = (lane: TimelineOutputLane | undefined): string | nul
   return last && lane && last.endsAt === lane.heardUntil ? last.startsAt : null;
 };
 
-const DAY_SECONDS = 24 * 60 * 60;
-
 /** When the lamp comes on and goes off, on the account's wall clock, as hours past midnight for a bar and as "08:00" for a sentence. */
 export interface LightWindow {
   /** Hours past local midnight, fractional. */
@@ -374,14 +372,6 @@ export interface LightWindow {
   /** No hours of light: dark round the clock. */
   never: boolean;
 }
-
-const twoDigits = (value: number): string => String(value).padStart(2, '0');
-
-/** To the nearest minute: a light written to go off a second before midnight UTC goes off on the hour. */
-const clockOf = (seconds: number): string => {
-  const there = (((Math.round(seconds / 60) * 60) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
-  return `${twoDigits(Math.floor(there / 3600))}:${twoDigits(Math.floor((there % 3600) / 60))}`;
-};
 
 /**
  * The light's window today, read out of the climate device's document. The
@@ -411,13 +401,12 @@ export const lightWindowOf = (device: Device | null, now: DateTime, zone: string
   if (!device?.configuration || !statesTargets(device.configuration) || device.type === 'fan') return null;
   const draft = draftOf(device.configuration);
   const offset = offsetOf(now, zone);
-  const local = (((draft.lightsOn + offset) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
 
   return {
-    start: local / 3600,
+    start: roundTheClock(draft.lightsOn + offset) / 3600,
     hours: draft.lightHours,
-    on: clockOf(draft.lightsOn + offset),
-    off: clockOf(lightsOffOf(draft) + offset),
+    on: wallClock(draft.lightsOn, offset),
+    off: wallClock(lightsOffOf(draft), offset),
     limit: draft.lightLimit,
     always: draft.lightHours >= 24,
     never: draft.lightHours <= 0,
@@ -432,12 +421,12 @@ const lampWindowOf = (device: Device, now: DateTime, zone: string | null): Light
   if (typeof on !== 'number' || typeof off !== 'number') return null;
 
   const offset = offsetOf(now, zone);
-  const seconds = (((off - on) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+  const seconds = roundTheClock(off - on);
   return {
-    start: ((((on + offset) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS) / 3600,
+    start: roundTheClock(on + offset) / 3600,
     hours: seconds / 3600,
-    on: clockOf(on + offset),
-    off: clockOf(off + offset),
+    on: wallClock(on, offset),
+    off: wallClock(off, offset),
     limit: typeof document?.limit === 'number' ? document.limit : 100,
     always: false,
     never: seconds === 0,

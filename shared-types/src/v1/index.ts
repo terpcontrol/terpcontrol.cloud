@@ -26,6 +26,8 @@ export * from './diary.js';
 // the firmware keeps them, which the server judges by, the screens draw and the
 // simulator runs. And how long one read of a camera may take, which the poller
 // keeps and the test button promises, and the kinds of failure it is named as.
+// And the clock on a plan's step, which the engine walks the plan by and the
+// screens say its next pass from.
 export * from './socket-report.js';
 export * from './feeding.js';
 export * from './grow-days.js';
@@ -36,3 +38,4 @@ export * from './maintenance.js';
 export * from './configuration-fields.js';
 export * from './day-night.js';
 export * from './capture.js';
+export * from './plan-clock.js';

@@ -1,11 +1,12 @@
 import type { DateTime } from 'luxon';
 import type { DeviceConfiguration, DeviceSettings } from '@fg2/shared-types/v1';
 import { climatePreset, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { lightsOffOf as lightsOffAt, lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { lightsOffOf, lightWindowOf, lightWindowTimes, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { serverNow } from '@/api/clock';
 import { oClock } from '@/ui/age';
-import { figureOf, sectionOf } from '@/ui/climate-hardware';
+import { figureOf } from '@/ui/climate-hardware';
 import type { ClimateChoice } from '@/ui/presets';
 
 /**
@@ -39,7 +40,6 @@ export interface TargetsDraft {
 /** The two figures of a light schedule, which is all the light window is worked out from. */
 export type LightSchedule = Pick<TargetsDraft, 'lightsOn' | 'lightHours'>;
 
-const DAY_SECONDS = 24 * 60 * 60;
 const HOUR_SECONDS = 60 * 60;
 
 /** The firmware's own defaults, for a document that has never stated a figure. Its light window's are the shared module's. */
@@ -51,19 +51,6 @@ const DEFAULTS: Omit<TargetsDraft, 'lightsOn' | 'lightHours'> = {
   lightLimit: 100,
   co2: 400,
 };
-
-/** Seconds round the clock: 25:00 is 01:00, and an hour before 00:30 is 23:30. */
-const roundTheClock = (seconds: number): number => ((seconds % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
-
-/**
- * When the light goes off, in seconds past midnight UTC, for saying it and for
- * drawing it: the hour it comes on again for a light that never goes off, or
- * never comes on. The times a document is written with are another matter -
- * a whole day, no day and a light off at midnight UTC each have their own form
- * there (`lightWindowTimes`) - and are worked out in the one place the server
- * writes them from.
- */
-export const lightsOffOf = (draft: LightSchedule): number => lightsOffAt(draft);
 
 export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
   // Read the way the firmware reads the two times: a day that never ends is 24

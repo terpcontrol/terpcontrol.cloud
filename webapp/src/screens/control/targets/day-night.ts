@@ -1,8 +1,9 @@
 import type { DateTime } from 'luxon';
 import type { Device, DeviceConfiguration, DeviceLive, Plan, PlanStep, Setpoints } from '@fg2/shared-types/v1';
-import { isDayAt, lightWindowTimes, rampsAt } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { FIRMWARE_RAMP_MINUTES, isDayAt, lightsOffOf, lightWindowTimes, rampsAt, utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { figureOf } from '@/ui/climate-hardware';
-import { draftOf, lightsOffOf, type HeldHalves, type TargetsDraft } from './targets-draft';
+import { activeStep } from '../plan-clock';
+import { draftOf, type HeldHalves, type TargetsDraft } from './targets-draft';
 
 /**
  * Day and night the way the firmware keeps them, for every screen that names
@@ -107,12 +108,6 @@ export const heldOf = (regime: Regime): HeldHalves => (regime === 'drying' ? 'dr
 
 /* ------------------------------------------------------------------ the clock */
 
-/** The time of day in UTC, in seconds: the firmware's own clock. */
-export const utcSecondsOf = (now: DateTime): number => {
-  const utc = now.toUTC();
-  return utc.hour * 3600 + utc.minute * 60 + utc.second;
-};
-
 /**
  * Where in its day the device is.
  *
@@ -127,10 +122,10 @@ export interface Ramps {
   down: number;
 }
 
-/** Minutes of each dimming ramp, the firmware's 15 where the document says nothing. */
+/** Minutes of each dimming ramp, the firmware's own where the document says nothing. */
 export const rampsOf = (configuration: DeviceConfiguration | null): Ramps => ({
-  up: (configuration && figureOf(configuration, 'lights', 'sunrise')) ?? 15,
-  down: (configuration && figureOf(configuration, 'lights', 'sunset')) ?? 15,
+  up: (configuration && figureOf(configuration, 'lights', 'sunrise')) ?? FIRMWARE_RAMP_MINUTES,
+  down: (configuration && figureOf(configuration, 'lights', 'sunset')) ?? FIRMWARE_RAMP_MINUTES,
 });
 
 /**
@@ -155,7 +150,7 @@ export const rampsFor = (device: Device, configuration: DeviceConfiguration | nu
  */
 export const phaseOf = (draft: TargetsDraft, ramps: Ramps, now: DateTime): Phase => {
   const cycle = { ...lightWindowTimes(draft), sunrise: ramps.up, sunset: ramps.down, workmode: null, glides: false };
-  const t = utcSecondsOf(now);
+  const t = utcSecondsOf(now.toMillis());
   if (!isDayAt(cycle, t)) return 'night';
   const { sunrise, sunset } = rampsAt(cycle, t);
   return sunrise < 1 ? 'sunrise' : sunset < 1 ? 'sunset' : 'day';
@@ -263,8 +258,7 @@ const PLACES: Record<Field, [string, string]> = {
 };
 
 /** The step a running plan stands on, which is what puts its figures back every hour. */
-export const runningStep = (plan: Plan | undefined): PlanStep | null =>
-  plan?.state.status === 'running' ? (plan.steps[plan.state.activeStepIndex] ?? null) : null;
+export const runningStep = (plan: Plan | undefined): PlanStep | null => (plan?.state.status === 'running' ? activeStep(plan) : null);
 
 /**
  * The figures a plan's step writes, and so puts back within the hour: the ones

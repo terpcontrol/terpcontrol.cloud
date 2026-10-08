@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowthStage, Phase } from '@fg2/shared-types/v1';
+import { growWeekOfDay } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { serverNow } from '@/api/clock';
 import { useAddPhase, useCorrectPhase, useWithdrawPhase } from '@/api/lifecycle';
 import { Sheet } from '@/log/Sheet';
@@ -11,7 +12,7 @@ import { Refused } from '@/ui/PageState';
 import { climateChoiceName, presetsOf } from '@/ui/presets';
 import { standsIn } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
-import { STAGES, weekOfGrowDay } from '@/ui/stages';
+import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { ClimatePick } from './ClimatePick';
@@ -166,7 +167,7 @@ const nowLine = (t: Translate, grow: GrowListItem, zone: string | null): string 
     stage: label(t, stage, preset),
     phaseDay: phaseDay ?? dayNumber,
     growDay: dayNumber,
-    week: weekOfGrowDay(dayNumber),
+    week: growWeekOfDay(dayNumber),
   });
 };
 
@@ -335,8 +336,8 @@ function Effect({ effect, changed, entry }: { effect: PhaseEffect; changed: bool
       t('grow.lifecycle.phase.effect.growDay', {
         from: effect.growDay.from,
         to: effect.growDay.to,
-        weekFrom: weekOfGrowDay(effect.growDay.from),
-        weekTo: weekOfGrowDay(effect.growDay.to),
+        weekFrom: growWeekOfDay(effect.growDay.from),
+        weekTo: growWeekOfDay(effect.growDay.to),
       }),
     );
   }

@@ -1,4 +1,5 @@
 import type { CardTransition, Metric, Setpoints, SetpointsTransition, TargetBand } from '@fg2/shared-types/v1';
+import { figureAt } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { cycleAt, cycleOf, glidingTarget, type CycleMoment } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { reportsNoSensor } from '@common/v1/sentinels';
 import { DAY_ONLY } from '@common/v1/steering';
@@ -211,16 +212,9 @@ const halfOf = (
 
   for (const [metric, path] of Object.entries(TARGETS[half]) as [Metric, string][]) {
     if (reportsNoSensor(hardware, metric) || (held && !held.metrics.includes(metric))) continue;
-    const value = numberAt(configuration, path);
+    const value = figureAt(configuration, path);
     if (value !== null) targets[metric] = value;
   }
 
   return targets;
-};
-
-const numberAt = (configuration: Record<string, unknown>, path: string): number | null => {
-  const nested = path.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown> | null)?.[key], configuration);
-  const value = nested ?? configuration[path];
-
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 };

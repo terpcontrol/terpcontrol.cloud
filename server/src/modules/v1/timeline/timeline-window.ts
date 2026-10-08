@@ -1,4 +1,5 @@
 import type { TimelineRange } from '@fg2/shared-types/v1';
+import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
 import { clampRange } from '@common/v1/range';
 import { MAX_ASKED_WINDOWS, MIN_STEP_SECONDS as FINEST_STEP_SECONDS } from '@modules/data/flux';
@@ -6,7 +7,7 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { SETTLE_SECONDS, cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { dayNumberOf, horizonOf, originOf } from '../diary/grow-calendar';
+import { horizonOf } from '../diary/grow-calendar';
 import { targetsOf } from '../phase/phase-targets';
 import { TargetStretch } from './timeline-series';
 
@@ -113,16 +114,16 @@ export const narrowedTo = (
 const daysOf = (grow: GrowDocument | null, asOf: Date, startsAt: Date, endsAt: Date): Pick<TimelineWindow, 'dayFrom' | 'dayTo'> => {
   if (!grow) return { dayFrom: null, dayTo: null };
 
-  const origin = originOf(grow);
+  const origin = growOriginOf(grow);
   const horizon = horizonOf(grow, asOf);
   if (endsAt <= origin || startsAt > horizon) return { dayFrom: null, dayTo: null };
 
-  const last = dayNumberOf(origin, horizon);
+  const last = growDayAt(origin, horizon);
   // The last instant inside the window rather than the first outside it: a
   // window ending where day 35 begins is still day 34.
   const inside = new Date(Math.max(startsAt.getTime(), endsAt.getTime() - 1));
 
-  return { dayFrom: Math.min(dayNumberOf(origin, startsAt), last), dayTo: Math.min(dayNumberOf(origin, inside), last) };
+  return { dayFrom: Math.min(growDayAt(origin, startsAt), last), dayTo: Math.min(growDayAt(origin, inside), last) };
 };
 
 const rollingOf = (range: TimelineRange, at: Date): { startsAt: Date; endsAt: Date } => ({
@@ -134,7 +135,7 @@ const rollingOf = (range: TimelineRange, at: Date): { startsAt: Date; endsAt: Da
 const stretchOf = (range: 'phase' | 'grow', grow: GrowDocument, at: Date): { startsAt: Date; endsAt: Date } => {
   const horizon = new Date(Math.min(horizonOf(grow, at).getTime(), at.getTime()));
   const phase = range === 'phase' ? phaseAt(grow, horizon) : null;
-  if (!phase) return { startsAt: originOf(grow), endsAt: horizon };
+  if (!phase) return { startsAt: growOriginOf(grow), endsAt: horizon };
 
   const ends = spineOf(grow).find(one => one.startedAt > phase.startedAt)?.startedAt ?? null;
   return { startsAt: phase.startedAt, endsAt: ends && ends < horizon ? ends : horizon };

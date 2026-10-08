@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import type { DeviceConfiguration } from '@fg2/shared-types/v1';
-import { lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { finiteOrNull, isSection } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { lightWindowOf, lightWindowTimes, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import type { ScheduleClock } from '@database/schemas/v1/devices.schema';
 
 /**
@@ -24,8 +25,6 @@ import type { ScheduleClock } from '@database/schemas/v1/devices.schema';
  * a schedule is only anchored once the zone is a chosen one, and anchoring
  * moves nothing.
  */
-
-const DAY_SECONDS = 24 * 60 * 60;
 
 /**
  * Every time of day a device keeps, by where it keeps it: the controller's,
@@ -65,12 +64,10 @@ export const sameClock = (one: ScheduleClock | null, other: ScheduleClock | null
  */
 export const driftBetween = (kept: ScheduleClock | null, now: ScheduleClock | null): number => (kept && now ? (kept.offset - now.offset) * 60 : 0);
 
-const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-
 const timeAt = (configuration: DeviceConfiguration | null, path: readonly string[]): number | null => {
   let value: unknown = configuration;
   for (const key of path) value = isSection(value) ? value[key] : undefined;
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  return finiteOrNull(value);
 };
 
 const windowsOf = (configuration: DeviceConfiguration | null): unknown[] | null => {
@@ -113,7 +110,7 @@ export const sameClockTimes = (one: DeviceConfiguration | null, other: DeviceCon
  * moved onto midnight UTC would lose its evening ramp.
  */
 export const withClockTimesMoved = (configuration: DeviceConfiguration, seconds: number): DeviceConfiguration => {
-  const moved = (value: number) => (((value + seconds) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+  const moved = (value: number) => roundTheClock(value + seconds);
   const next: DeviceConfiguration = { ...configuration };
   const on = timeAt(configuration, ['daynight', 'day']);
   const off = timeAt(configuration, ['daynight', 'night']);

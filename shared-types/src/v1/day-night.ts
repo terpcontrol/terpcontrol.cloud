@@ -21,17 +21,27 @@
  * (`daynight.linearChange`, which the server always writes); a controller
  * switches them with the clock.
  *
- * No schema and no imports, so a client and the simulator can share the
- * arithmetic without pulling zod and the whole contract in.
+ * No schema, and nothing imported but the schema-free reading of a document,
+ * so a client and the simulator can share the arithmetic without pulling zod
+ * and the whole contract in.
  */
+
+import { finiteOrNull, valueAt } from './configuration-fields.js';
 
 export const DAY_SECONDS = 24 * 60 * 60;
 
-/** The window the firmware runs where its document states none: on at 06:00, off at 22:00 UTC. */
+/** Seconds round the clock: 25:00 is 01:00, and an hour before 00:30 is 23:30. */
+export const roundTheClock = (seconds: number): number => ((seconds % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+
+/**
+ * The window every firmware - a fridge's, a controller's, a socket's, a fan's
+ * and a lamp's - runs where its document states none: on at 06:00, off at
+ * 22:00 UTC.
+ */
 export const FIRMWARE_LIGHTS_ON = 6 * 60 * 60;
 export const FIRMWARE_LIGHTS_OFF = 22 * 60 * 60;
 
-/** Minutes of each dimming ramp where the document states none. */
+/** Minutes of each dimming ramp where a fridge's or a controller's document states none. */
 export const FIRMWARE_RAMP_MINUTES = 15;
 
 /**
@@ -63,9 +73,9 @@ export const SETTLE_SECONDS = 60 * 60;
  * The hour the light came on is kept in the times, so going back to a
  * photoperiod starts from it.
  */
-const ALWAYS_LIT_FROM = 2 * DAY_SECONDS;
+export const ALWAYS_LIT_FROM = 2 * DAY_SECONDS;
 
-const wrap = (seconds: number): number => ((Math.round(seconds) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+const wrap = (seconds: number): number => roundTheClock(Math.round(seconds));
 
 /** The light schedule as a person sets it. */
 export interface LightWindow {
@@ -149,18 +159,15 @@ export interface Cycle {
  * word it does not know as off, and the fridge's experimental mode runs the
  * clock with every output off.
  */
-const SCHEDULED_MODES: readonly string[] = ['small', 'full', 'temp'];
+export const SCHEDULED_MODES: readonly string[] = ['small', 'full', 'temp'];
 
 /** The hardware whose firmware keeps this cycle. An AIR fan's day is what its light sensor sees; a socket and a lamp hold no targets. */
 const WITH_CYCLE: readonly string[] = ['fridge', 'controller'];
 
-const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-
-/** A figure of a document, nested as the firmware writes it or flat as an older client did. */
-const numberAt = (document: Record<string, unknown>, section: string, key: string): number | null => {
-  const nested = isSection(document[section]) ? (document[section] as Record<string, unknown>)[key] : undefined;
-  const value = nested ?? document[`${section}.${key}`];
-  return typeof value === 'number' && Number.isFinite(value) ? value : typeof value === 'boolean' ? Number(value) : null;
+/** A figure of a document (`valueAt`); a flag is 1 or 0, as the firmware reads it. */
+const numberAt = (document: Record<string, unknown>, path: string): number | null => {
+  const value = valueAt(document, path);
+  return typeof value === 'boolean' ? Number(value) : finiteOrNull(value);
 };
 
 /** The cycle a document runs, or null for hardware that keeps none and for no document at all. */
@@ -169,13 +176,13 @@ export const cycleOf = (type: string, configuration: Record<string, unknown> | n
 
   const workmode = configuration.workmode;
   return {
-    day: numberAt(configuration, 'daynight', 'day') ?? FIRMWARE_LIGHTS_ON,
-    night: numberAt(configuration, 'daynight', 'night') ?? FIRMWARE_LIGHTS_OFF,
+    day: numberAt(configuration, 'daynight.day') ?? FIRMWARE_LIGHTS_ON,
+    night: numberAt(configuration, 'daynight.night') ?? FIRMWARE_LIGHTS_OFF,
     workmode: typeof workmode === 'string' ? workmode : null,
-    sunrise: numberAt(configuration, 'lights', 'sunrise') ?? FIRMWARE_RAMP_MINUTES,
-    sunset: numberAt(configuration, 'lights', 'sunset') ?? FIRMWARE_RAMP_MINUTES,
+    sunrise: numberAt(configuration, 'lights.sunrise') ?? FIRMWARE_RAMP_MINUTES,
+    sunset: numberAt(configuration, 'lights.sunset') ?? FIRMWARE_RAMP_MINUTES,
     // A controller's firmware reads no such key and switches with the clock.
-    glides: type === 'fridge' && (numberAt(configuration, 'daynight', 'linearChange') ?? 0) > 0,
+    glides: type === 'fridge' && (numberAt(configuration, 'daynight.linearChange') ?? 0) > 0,
   };
 };
 

@@ -22,16 +22,25 @@
  * (`daynight.linearChange`, which the server always writes); a controller
  * switches them with the clock.
  *
- * No schema and no imports, so a client and the simulator can share the
- * arithmetic without pulling zod and the whole contract in.
+ * No schema, and nothing imported but the schema-free reading of a document,
+ * so a client and the simulator can share the arithmetic without pulling zod
+ * and the whole contract in.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.transitionsIn = exports.nightsIn = exports.cycleAt = exports.glidingTarget = exports.rampsAt = exports.isDayAt = exports.utcSecondsOf = exports.cycleKindOf = exports.cycleOf = exports.lightsOffOf = exports.lightWindowTimes = exports.lightWindowOf = exports.SETTLE_SECONDS = exports.FIRMWARE_RAMP_MINUTES = exports.FIRMWARE_LIGHTS_OFF = exports.FIRMWARE_LIGHTS_ON = exports.DAY_SECONDS = void 0;
+exports.transitionsIn = exports.nightsIn = exports.cycleAt = exports.glidingTarget = exports.rampsAt = exports.isDayAt = exports.utcSecondsOf = exports.cycleKindOf = exports.cycleOf = exports.SCHEDULED_MODES = exports.lightsOffOf = exports.lightWindowTimes = exports.lightWindowOf = exports.ALWAYS_LIT_FROM = exports.SETTLE_SECONDS = exports.FIRMWARE_RAMP_MINUTES = exports.FIRMWARE_LIGHTS_OFF = exports.FIRMWARE_LIGHTS_ON = exports.roundTheClock = exports.DAY_SECONDS = void 0;
+const configuration_fields_js_1 = require("./configuration-fields.js");
 exports.DAY_SECONDS = 24 * 60 * 60;
-/** The window the firmware runs where its document states none: on at 06:00, off at 22:00 UTC. */
+/** Seconds round the clock: 25:00 is 01:00, and an hour before 00:30 is 23:30. */
+const roundTheClock = (seconds) => ((seconds % exports.DAY_SECONDS) + exports.DAY_SECONDS) % exports.DAY_SECONDS;
+exports.roundTheClock = roundTheClock;
+/**
+ * The window every firmware - a fridge's, a controller's, a socket's, a fan's
+ * and a lamp's - runs where its document states none: on at 06:00, off at
+ * 22:00 UTC.
+ */
 exports.FIRMWARE_LIGHTS_ON = 6 * 60 * 60;
 exports.FIRMWARE_LIGHTS_OFF = 22 * 60 * 60;
-/** Minutes of each dimming ramp where the document states none. */
+/** Minutes of each dimming ramp where a fridge's or a controller's document states none. */
 exports.FIRMWARE_RAMP_MINUTES = 15;
 /**
  * How long after a switch between day and night the climate is given to follow
@@ -61,8 +70,8 @@ exports.SETTLE_SECONDS = 60 * 60;
  * The hour the light came on is kept in the times, so going back to a
  * photoperiod starts from it.
  */
-const ALWAYS_LIT_FROM = 2 * exports.DAY_SECONDS;
-const wrap = (seconds) => ((Math.round(seconds) % exports.DAY_SECONDS) + exports.DAY_SECONDS) % exports.DAY_SECONDS;
+exports.ALWAYS_LIT_FROM = 2 * exports.DAY_SECONDS;
+const wrap = (seconds) => (0, exports.roundTheClock)(Math.round(seconds));
 /** How many whole seconds of a day the firmware's comparisons call day. */
 const daySecondsOf = (day, night) => {
     if (day === night)
@@ -109,7 +118,7 @@ const lightWindowTimes = (window) => {
     if (lit <= 0)
         return { day: on, night: on };
     if (lit >= exports.DAY_SECONDS)
-        return { day: ALWAYS_LIT_FROM + on + 1, night: ALWAYS_LIT_FROM + on };
+        return { day: exports.ALWAYS_LIT_FROM + on + 1, night: exports.ALWAYS_LIT_FROM + on };
     const off = wrap(on + lit);
     return { day: on, night: off === 0 ? exports.DAY_SECONDS - 1 : off };
 };
@@ -122,15 +131,13 @@ exports.lightsOffOf = lightsOffOf;
  * word it does not know as off, and the fridge's experimental mode runs the
  * clock with every output off.
  */
-const SCHEDULED_MODES = ['small', 'full', 'temp'];
+exports.SCHEDULED_MODES = ['small', 'full', 'temp'];
 /** The hardware whose firmware keeps this cycle. An AIR fan's day is what its light sensor sees; a socket and a lamp hold no targets. */
 const WITH_CYCLE = ['fridge', 'controller'];
-const isSection = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
-/** A figure of a document, nested as the firmware writes it or flat as an older client did. */
-const numberAt = (document, section, key) => {
-    const nested = isSection(document[section]) ? document[section][key] : undefined;
-    const value = nested ?? document[`${section}.${key}`];
-    return typeof value === 'number' && Number.isFinite(value) ? value : typeof value === 'boolean' ? Number(value) : null;
+/** A figure of a document (`valueAt`); a flag is 1 or 0, as the firmware reads it. */
+const numberAt = (document, path) => {
+    const value = (0, configuration_fields_js_1.valueAt)(document, path);
+    return typeof value === 'boolean' ? Number(value) : (0, configuration_fields_js_1.finiteOrNull)(value);
 };
 /** The cycle a document runs, or null for hardware that keeps none and for no document at all. */
 const cycleOf = (type, configuration) => {
@@ -138,13 +145,13 @@ const cycleOf = (type, configuration) => {
         return null;
     const workmode = configuration.workmode;
     return {
-        day: numberAt(configuration, 'daynight', 'day') ?? exports.FIRMWARE_LIGHTS_ON,
-        night: numberAt(configuration, 'daynight', 'night') ?? exports.FIRMWARE_LIGHTS_OFF,
+        day: numberAt(configuration, 'daynight.day') ?? exports.FIRMWARE_LIGHTS_ON,
+        night: numberAt(configuration, 'daynight.night') ?? exports.FIRMWARE_LIGHTS_OFF,
         workmode: typeof workmode === 'string' ? workmode : null,
-        sunrise: numberAt(configuration, 'lights', 'sunrise') ?? exports.FIRMWARE_RAMP_MINUTES,
-        sunset: numberAt(configuration, 'lights', 'sunset') ?? exports.FIRMWARE_RAMP_MINUTES,
+        sunrise: numberAt(configuration, 'lights.sunrise') ?? exports.FIRMWARE_RAMP_MINUTES,
+        sunset: numberAt(configuration, 'lights.sunset') ?? exports.FIRMWARE_RAMP_MINUTES,
         // A controller's firmware reads no such key and switches with the clock.
-        glides: type === 'fridge' && (numberAt(configuration, 'daynight', 'linearChange') ?? 0) > 0,
+        glides: type === 'fridge' && (numberAt(configuration, 'daynight.linearChange') ?? 0) > 0,
     };
 };
 exports.cycleOf = cycleOf;
@@ -153,7 +160,7 @@ const cycleKindOf = (cycle) => {
         return 'drying';
     if (cycle.workmode === 'breed')
         return 'germination';
-    if (cycle.workmode !== null && !SCHEDULED_MODES.includes(cycle.workmode))
+    if (cycle.workmode !== null && !exports.SCHEDULED_MODES.includes(cycle.workmode))
         return 'off';
     const lit = daySecondsOf(cycle.day, cycle.night);
     return lit === 0 ? 'always_night' : lit >= exports.DAY_SECONDS ? 'always_day' : 'schedule';

@@ -41,8 +41,17 @@ export declare const growOriginOf: (grow: GrowDays) => Date;
  */
 export declare const growDayAt: (origin: Date, at: string | Date) => number;
 /**
- * Which row of the grid the grow is on at that moment: weeks are seven of those
- * days, so week 1 is days 1 to 7 and lines up with a scheme's first row.
+ * Which week of the grow a day of it falls in: weeks are seven of those days,
+ * so week 1 is days 1 to 7 and lines up with a scheme's first row.
+ *
+ * It takes a *grow* day. Handing it a phase's own day counter looks like it
+ * works and answers a different question - how many sevens of that phase have
+ * gone by, rather than which of the grow's weeks the stage is in - which is
+ * what `stageWeekOf` answers.
+ */
+export declare const growWeekOfDay: (day: number) => number;
+/**
+ * Which row of the grid the grow is on at that moment.
  *
  * It is here rather than in either consumer for the same reason `dosesFor` is:
  * the sheet reads the row for the day a feed is dated to and the entry writer

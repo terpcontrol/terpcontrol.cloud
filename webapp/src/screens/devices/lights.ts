@@ -1,4 +1,5 @@
 import type { Device, DeviceCapabilities, DeviceConfiguration, SocketRole } from '@fg2/shared-types/v1';
+import { figureAt, finiteOrNull, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import type { OutputLevel } from '@/api/devices';
 
 /**
@@ -39,22 +40,13 @@ const FIELD = 'limit';
 /** What the controller's own display offers, so a level set here is one a person could have dialled in on the device. */
 export const LEVEL_STEP = 5;
 
-const sectionOf = (configuration: DeviceConfiguration, name: string): Record<string, unknown> | null => {
-  const value = configuration[name];
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-};
-
 /** Whether this document is a Light's, which states its brightness at the top rather than in a section. */
 const statesFlat = (configuration: DeviceConfiguration, type: Device['type']): boolean =>
   type === 'light' || (typeof configuration[FIELD] === 'number' && sectionOf(configuration, SECTION) === null);
 
 export const lightLimitOf = (configuration: DeviceConfiguration | null, type: Device['type']): number | null => {
   if (!configuration) return null;
-  const value = statesFlat(configuration, type)
-    ? configuration[FIELD]
-    : (sectionOf(configuration, SECTION)?.[FIELD] ?? configuration[`${SECTION}.${FIELD}`]);
-
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  return statesFlat(configuration, type) ? finiteOrNull(configuration[FIELD]) : figureAt(configuration, `${SECTION}.${FIELD}`);
 };
 
 /**
@@ -71,7 +63,7 @@ export const withLightLimit = (configuration: DeviceConfiguration, type: Device[
 
   const next: DeviceConfiguration = { ...configuration };
   delete next[`${SECTION}.${FIELD}`];
-  next[SECTION] = { ...(sectionOf(configuration, SECTION) ?? {}), [FIELD]: percent };
+  next[SECTION] = { ...sectionOf(configuration, SECTION), [FIELD]: percent };
 
   return next;
 };

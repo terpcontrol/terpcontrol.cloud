@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { z } from 'zod';
 import type { EntryKind, GrowWeekCard, GrowWeekCardPage, GrowWeekDay, GrowWeekFeeding, GrowWeekReading, SchemeAmount } from '@fg2/shared-types/v1';
+import { growOriginOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant } from '@common/v1/access.types';
 import { decodeCursor, pageOf } from '@common/v1/pages';
 import { Span, clampRange, overlapsRange, picturesWithinRange, seenOf } from '@common/v1/range';
@@ -17,7 +18,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { Redaction } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { DIARY_KINDS, READING_KINDS, authorIdsOf, peopleOf, serialiseDiaryEntry } from './diary-entries';
-import { DAY_MS, GrowWeekSpan, horizonOf, originOf, pictureHourIn, stageWeekIn, weeksOf } from './grow-calendar';
+import { DAY_MS, GrowWeekSpan, horizonOf, pictureHourIn, weeksOf } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
 import { spacesDuring } from './grow-places';
 
@@ -117,7 +118,7 @@ export class GrowWeeksService {
 
   public async page(growId: string, grant: Grant, query: PageRequest, now: Date = new Date()): Promise<GrowWeekCardPage> {
     const grow = await this.grows.require(growId);
-    const origin = originOf(grow);
+    const origin = growOriginOf(grow);
     const range = clampRange(grant);
 
     // Newest first, which is the order the grow page reads in.
@@ -202,7 +203,7 @@ export class GrowWeeksService {
       endsAt: seen.endsAt.toISOString(),
       stage: phase?.stage ?? null,
       preset: phase?.preset ?? null,
-      stageWeek: phase ? stageWeekIn(origin, phase.startedAt, week.weekNumber) : null,
+      stageWeek: phase ? stageWeekOf(origin, phase.startedAt, week.weekNumber) : null,
       // A public diary is a diary and not an inventory: the averages are what a
       // reader is shown, and which controller measured them ties the page to a
       // named piece of somebody's hardware.

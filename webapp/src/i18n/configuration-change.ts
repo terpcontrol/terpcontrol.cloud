@@ -1,6 +1,6 @@
 import type { i18n as I18n } from 'i18next';
 import { DateTime } from 'luxon';
-import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { ALWAYS_LIT_FROM, lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { serverNow } from '@/api/clock';
 import { scheduleTitle } from '@/screens/control/targets/schedule-words';
 import { offsetOf, wallClock } from '@/screens/control/targets/targets-draft';
@@ -63,9 +63,6 @@ export interface ChangeContext {
 
 /** How far the account's wall clock was ahead of UTC when the line was written. */
 const offsetFor = (context: ChangeContext): number => offsetOf(context.at ? DateTime.fromISO(context.at) : serverNow(), context.zone ?? null);
-
-/** Past any time of day: the night of a light that is on round the clock (`lightWindowTimes`). */
-const ALWAYS_LIT_FROM = 2 * 24 * 60 * 60;
 
 /** A figure as the line wrote it, in the reader's words: `–` for one that was not there. */
 const valueOf = (i18n: I18n, field: Field, raw: string, context: ChangeContext): string => {

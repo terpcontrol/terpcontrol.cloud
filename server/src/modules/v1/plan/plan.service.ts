@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { PlanReplace, PlanTransition, StepDuration } from '@fg2/shared-types/v1';
+import { activeStep, durationMs, elapsedMs, isOver } from '@fg2/shared-types/v1-schemas/plan-clock.js';
 import { badRequest, conflict, notFound, unprocessable } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -11,7 +12,7 @@ import { figureRefusals } from '@modules/device-protocol/document-figures';
 import { ScheduleFollower, withClockTimesMoved } from '@modules/device-protocol/schedule-clock';
 import { targetsOf } from '../phase/phase-targets';
 import { PlanProgressService } from './plan-progress.service';
-import { activeStep, durationMs, elapsedMs, isOver, positionIn, stepsOf, stopped } from './plan-steps';
+import { positionIn, stepsOf, stopped } from './plan-steps';
 
 /**
  * The plan a device is being run by, and what a person does to it.
@@ -245,7 +246,7 @@ export class PlanService implements ScheduleFollower {
   /** The answer the step was waiting for. It is the step's end, so the plan moves on as it would have on its own. */
   private async confirm(plan: StoredPlan, now: Date, by: string | null): Promise<StoredPlan> {
     const step = activeStep(plan);
-    if (plan.state.status !== 'running' || !step?.waitForConfirmation || !isOver(plan, now)) {
+    if (plan.state.status !== 'running' || !step?.waitForConfirmation || !isOver(plan, now.getTime())) {
       throw conflict('nothing_to_confirm', 'This plan is not waiting to be confirmed.');
     }
 
@@ -303,7 +304,7 @@ export class PlanService implements ScheduleFollower {
       ...plan.state,
       status: 'paused',
       stepStartedAt: null,
-      pausedElapsedMs: elapsedMs(plan.state, now),
+      pausedElapsedMs: elapsedMs(plan.state, now.getTime()),
       pauseReason: reason,
     });
   }

@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { PlanStep, PlanTransitionKind } from '@fg2/shared-types/v1';
+import { activeStep, nextStepIndex } from '@fg2/shared-types/v1-schemas/plan-clock.js';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -12,7 +13,7 @@ import { MailService } from '@modules/mail/mail.service';
 import { targetsOf } from '../phase/phase-targets';
 import { PhaseWriterService } from '../phase/phase-writer.service';
 import { PLAN_ANNOUNCER, PlanAnnouncer } from './plan-announcer.port';
-import { activeStep, completed, running, stepAfterActive } from './plan-steps';
+import { completed, running } from './plan-steps';
 
 /**
  * Everything that happens when a plan moves: the tick decides *when*, a
@@ -63,7 +64,7 @@ export class PlanProgressService {
    * paused plan writes no phase of its own.
    */
   public async moveOn(plan: StoredPlan, now: Date, transition: PlanTransitionKind | null, by: string | null = null): Promise<StoredPlan> {
-    const next = stepAfterActive(plan);
+    const next = nextStepIndex(plan);
     const looped = next !== null && next !== plan.state.activeStepIndex + 1;
     const paused = plan.state.status === 'paused';
     const moved = await this.store(

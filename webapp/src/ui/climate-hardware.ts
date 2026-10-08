@@ -1,4 +1,5 @@
 import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
+import { figureAt } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 
 /**
  * Whether a climate could land anywhere in a tent, asked of the hardware
@@ -15,16 +16,9 @@ import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
  * two screens come to say opposite things about the same tent.
  */
 
-export const sectionOf = (configuration: DeviceConfiguration, name: string): Record<string, unknown> => {
-  const value = configuration[name];
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-};
-
 /** One figure, nested or flat, as the server reads a setpoint out of the same document. */
-export const figureOf = (configuration: DeviceConfiguration, section: string, field: string): number | null => {
-  const value = sectionOf(configuration, section)[field] ?? configuration[`${section}.${field}`];
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-};
+export const figureOf = (configuration: DeviceConfiguration, section: string, field: string): number | null =>
+  figureAt(configuration, `${section}.${field}`);
 
 /**
  * Whether a document is one a climate could be written to. A plug, a fan or a

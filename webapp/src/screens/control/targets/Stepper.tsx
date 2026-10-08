@@ -1,6 +1,8 @@
 import { Minus, Plus } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { decimalFigure } from '@/ui/figures';
+import { secondsOf, wallClock } from './targets-draft';
 import styles from './DayNight.module.css';
 
 /**
@@ -157,16 +159,7 @@ interface ClockStepperProps {
   onChange: (seconds: number) => void;
 }
 
-const DAY_SECONDS = 24 * 60 * 60;
 const HALF_HOUR = 30 * 60;
-const roundTheClock = (seconds: number): number => ((seconds % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
-const twoDigits = (value: number): string => String(value).padStart(2, '0');
-
-/** "08:00" on the wall clock, to the nearest minute. */
-const wall = (seconds: number, offset: number): string => {
-  const there = roundTheClock(Math.round((seconds + offset) / 60) * 60);
-  return `${twoDigits(Math.floor(there / 3600))}:${twoDigits(Math.floor((there % 3600) / 60))}`;
-};
 
 /**
  * A time of day, set the same way: the buttons move it by half an hour along
@@ -198,15 +191,13 @@ export function ClockStepper({ name, seconds, offset, less, more, changed = fals
           className={`mono ${styles.stepInput} ${styles.stepClock}`}
           type="time"
           aria-label={name}
-          value={typing ?? wall(seconds, offset)}
+          value={typing ?? wallClock(seconds, offset)}
           disabled={disabled}
           onChange={event => {
             const time = event.target.value;
             setTyping(document.activeElement === event.target ? time : null);
-            const match = /^(\d{1,2}):(\d{2})/.exec(time);
-            if (match && Number(match[1]) < 24 && Number(match[2]) < 60) {
-              onChange(roundTheClock(Number(match[1]) * 3600 + Number(match[2]) * 60 - offset));
-            }
+            const typed = secondsOf(time, offset);
+            if (typed !== null) onChange(typed);
           }}
           onBlur={() => setTyping(null)}
         />
