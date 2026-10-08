@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { Device, DeviceClaimCreate, DeviceClaimResult, Space, SpaceUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { deviceQuery } from './devices';
 import { invalidate, useWrite } from './write';
 
 /**
@@ -48,8 +49,7 @@ export const CLAIM_REFRESH_MS = 10_000;
  */
 export const useClaimedDevice = (deviceId: string | null) =>
   useRead({
-    queryKey: ['devices', deviceId],
-    queryFn: ({ signal }) => api.get<Device>(`/devices/${deviceId}`, undefined, signal),
+    ...deviceQuery(deviceId!),
     enabled: deviceId !== null,
     refetchInterval: query => (query.state.error ? false : CLAIM_REFRESH_MS),
   });

@@ -12,6 +12,7 @@ import { useDevices, useDevicesById } from '@/api/devices';
 import { useWindowEntries } from '@/api/entries';
 import { useGrow, useGrowPlants, useGrows, useGrowsEverIn, useSpaceGrows } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
+import { LIVE_BEAT_MS } from '@/api/read';
 import { useSession } from '@/api/session';
 import { useSpaceOverview, useSpaces } from '@/api/spaces';
 import { useScrub, type Selection } from '@/charts/scrub';
@@ -86,9 +87,6 @@ const OUTPUTS_SHOWN = 2;
 
 /** And how many earlier runs of the same tent, which an account that has grown in it for years has plenty of. */
 const RUNS_SHOWN = 3;
-
-/** How often a chart that follows now asks again, which is about as often as a device reports something new. */
-const LIVE_MS = 30_000;
 
 const VPD_HALVES = ['all', 'day', 'night'] as const;
 
@@ -210,7 +208,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   // A rolling window that follows now is moved on by the clock; nothing else moves it.
   useEffect(() => {
     if (!following) return;
-    const timer = setInterval(() => setLiveNow(serverNow().toMillis()), LIVE_MS);
+    const timer = setInterval(() => setLiveNow(serverNow().toMillis()), LIVE_BEAT_MS);
     return () => clearInterval(timer);
   }, [following]);
 
@@ -235,7 +233,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     { growId: grow?.id ?? null, spaceId, keys },
     unasked ? null : window,
     settings.stepSeconds ?? undefined,
-    settings.live && window?.kind === 'grow' && endedAt === null ? LIVE_MS : false,
+    settings.live && window?.kind === 'grow' && endedAt === null ? LIVE_BEAT_MS : false,
   );
 
   const spaces = useSpaces();

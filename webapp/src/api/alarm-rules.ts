@@ -1,5 +1,5 @@
 import { useQueries } from '@tanstack/react-query';
-import { isFirstLoad, useRead } from './read';
+import { isFirstLoad, LIVE_BEAT_MS, useRead } from './read';
 import type { AlarmRule, AlarmRuleCreate, AlarmRulePage, AlarmRuleUpdate, AlarmSilence } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { invalidate, useWriteSettled } from './write';
@@ -16,8 +16,6 @@ import { invalidate, useWriteSettled } from './write';
  * device sends, so the list is read on the beat the device rows age on.
  */
 
-export const RULES_REFRESH_MS = 30_000;
-
 /** Every rule an account could be asked to draw at once: a device has a handful, never a page. */
 const RULES_LIMIT = 100;
 
@@ -30,7 +28,7 @@ export const useDeviceAlarmRules = (deviceId: string) =>
   useRead({
     queryKey: rulesKey(deviceId),
     queryFn: ({ signal }) => readRules(deviceId, signal),
-    refetchInterval: RULES_REFRESH_MS,
+    refetchInterval: LIVE_BEAT_MS,
   });
 
 /**
@@ -42,7 +40,7 @@ export const useDeviceAlarmRules = (deviceId: string) =>
  * a sample arrives, and one read per device on the live beat is most of the
  * traffic such a screen makes. That is what the interval is for.
  */
-export const useAlarmRulesOf = (deviceIds: string[], { refetchIntervalMs = RULES_REFRESH_MS }: { refetchIntervalMs?: number } = {}) =>
+export const useAlarmRulesOf = (deviceIds: string[], { refetchIntervalMs = LIVE_BEAT_MS }: { refetchIntervalMs?: number } = {}) =>
   useQueries({
     queries: deviceIds.map(deviceId => ({
       queryKey: rulesKey(deviceId),

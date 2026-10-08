@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { useMutation, useQueries, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
 import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas/pages.js';
-import { useRead, useReadPages } from './read';
+import { FOLLOWED, useRead, useReadPages } from './read';
 import type {
   Camera,
   CameraCreate,
@@ -52,12 +52,16 @@ export const gaveUp = (error: unknown): boolean => error instanceof NoAnswerInTi
 /** A render is minutes of ffmpeg, so the job is polled rather than waited for. */
 export const RENDER_POLL_MS = 5_000;
 
-export const useCameras = (spaceId?: string) =>
-  useRead({
+export const camerasQuery = (spaceId?: string) =>
+  queryOptions({
     queryKey: ['cameras', spaceId ?? null],
     queryFn: ({ signal }) => api.get<CameraPage>('/cameras', spaceId ? { spaceId } : undefined, signal),
-    refetchInterval: CAMERAS_REFRESH_MS,
   });
+
+export const useCameras = (spaceId?: string) => useRead({ ...camerasQuery(spaceId), refetchInterval: CAMERAS_REFRESH_MS });
+
+/** Every camera, followed rather than polled: how many there are and what they are called, for the navigation and a camera's name. */
+export const useCamerasShape = (enabled = true) => useQuery({ ...camerasQuery(), ...FOLLOWED, enabled });
 
 /**
  * The cameras this account had at the moment this was first read, and never

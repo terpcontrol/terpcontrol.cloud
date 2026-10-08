@@ -1,4 +1,4 @@
-import { useReadPages } from './read';
+import { LIVE_BEAT_MS, useReadPages } from './read';
 import type { AlertPage } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -6,8 +6,8 @@ import { api } from './client';
  * What has gone wrong, for the inbox behind the bell and the count on it.
  *
  * An alert is opened and closed by the alarm engine on the device's own
- * samples, so the list is read on the beat live values age on; a refresh that
- * fails keeps the last answer, and every card carries the instant it started.
+ * samples, so the list is read on the live beat; a refresh that fails keeps
+ * the last answer, and every card carries the instant it started.
  *
  * What is open and what is over are two reads rather than one, because they are
  * two different questions and only one of them is the bell's. The count on the
@@ -15,8 +15,6 @@ import { api } from './client';
  * query however many screens draw a bell - a badge that re-read the whole page
  * beside the page was the same alerts fetched twice a beat.
  */
-
-export const ALERTS_REFRESH_MS = 30_000;
 
 /** More than a beginner's inbox holds in a season, and the page the cursor is followed from. */
 const ALERTS_LIMIT = 100;
@@ -32,7 +30,7 @@ const useAlerts = (open: boolean) =>
     queryFn: ({ pageParam, signal }) => api.get<AlertPage>('/alerts', { open, limit: ALERTS_LIMIT, cursor: pageParam }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
-    refetchInterval: ALERTS_REFRESH_MS,
+    refetchInterval: LIVE_BEAT_MS,
   });
 
 /** Everything still wrong, newest first: the inbox's first group, and the number on the bell. */

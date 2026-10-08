@@ -7,6 +7,7 @@ import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
+import { useDeviceLive } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
 import { useSession } from '@/api/session';
@@ -52,7 +53,7 @@ import {
   type Status,
 } from './place';
 import { PlaceMenu } from './PlaceMenu';
-import { usePlace, useDeviceLive, useHumidifierHold } from './reads';
+import { usePlace, useHumidifierHold } from './reads';
 import { AlarmsSummary, TargetsSummary } from './Summaries';
 import { Tiles } from './Tiles';
 import styles from './Cockpit.module.css';

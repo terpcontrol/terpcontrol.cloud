@@ -1,18 +1,19 @@
-import { useQueries } from '@tanstack/react-query';
-import { useRead } from './read';
+import { queryOptions, useQueries } from '@tanstack/react-query';
+import { LIVE_BEAT_MS, useRead } from './read';
 import type { PresetPrompt, Space, SpaceCreate, SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { readEvery } from './pages';
 import { invalidate, useWrite } from './write';
 
 /**
- * The tent page reads its overview once a minute and its live values every
- * half minute: the overview costs a day of series for the verdict, the live
+ * The tent page reads its overview once a minute and its live values on the
+ * live beat: the overview costs a day of series for the verdict, the live
  * read costs one `last()`, and it is the values that age. A refresh that fails
  * leaves the last answer in place with its ages, which is what the ages are for.
  */
-export const OVERVIEW_REFRESH_MS = 60_000;
-export const LIVE_REFRESH_MS = 30_000;
+const OVERVIEW_REFRESH_MS = 60_000;
+
+export const spacesQuery = queryOptions({ queryKey: ['spaces'], queryFn: ({ signal }) => api.get<SpacePage>('/spaces', undefined, signal) });
 
 /**
  * Every place this account can see. `enabled` is here for the readers that only
@@ -20,12 +21,7 @@ export const LIVE_REFRESH_MS = 30_000;
  * nothing rather than fetching the whole list to answer a question it has not
  * got a place for.
  */
-export const useSpaces = (enabled = true) =>
-  useRead({
-    queryKey: ['spaces'],
-    queryFn: ({ signal }) => api.get<SpacePage>('/spaces', undefined, signal),
-    enabled,
-  });
+export const useSpaces = (enabled = true) => useRead({ ...spacesQuery, enabled });
 
 /**
  * Every place, to the last page of them, for the screens that look a name up
@@ -41,15 +37,14 @@ export const useEverySpace = () =>
     queryFn: ({ signal }) => readEvery<Space>('/spaces', signal),
   });
 
-export const overviewKey = (spaceId: string) => ['space', spaceId, 'overview'];
-
-export const useSpaceOverview = (spaceId: string, enabled = true) =>
-  useRead({
-    queryKey: overviewKey(spaceId),
+const overviewQuery = (spaceId: string) =>
+  queryOptions({
+    queryKey: ['space', spaceId, 'overview'],
     queryFn: ({ signal }) => api.get<SpaceOverview>(`/spaces/${spaceId}/overview`, undefined, signal),
     refetchInterval: OVERVIEW_REFRESH_MS,
-    enabled: enabled && spaceId !== '',
   });
+
+export const useSpaceOverview = (spaceId: string, enabled = true) => useRead({ ...overviewQuery(spaceId), enabled: enabled && spaceId !== '' });
 
 /**
  * The 24 h verdict of several places at once, for a list that draws rows from
@@ -67,11 +62,7 @@ export const useSpaceOverview = (spaceId: string, enabled = true) =>
  */
 export const useSpaceVerdicts = (spaceIds: readonly string[]) =>
   useQueries({
-    queries: spaceIds.map(spaceId => ({
-      queryKey: overviewKey(spaceId),
-      queryFn: ({ signal }: { signal: AbortSignal }) => api.get<SpaceOverview>(`/spaces/${spaceId}/overview`, undefined, signal),
-      refetchInterval: OVERVIEW_REFRESH_MS,
-    })),
+    queries: spaceIds.map(spaceId => overviewQuery(spaceId)),
     combine: (results: { data?: SpaceOverview }[]) => new Map(spaceIds.map((spaceId, index) => [spaceId, results[index]?.data?.verdict])),
   });
 
@@ -79,7 +70,7 @@ export const useSpaceLive = (spaceId: string, enabled: boolean) =>
   useRead({
     queryKey: ['space', spaceId, 'live'],
     queryFn: ({ signal }) => api.get<SpaceLive>(`/spaces/${spaceId}/live`, undefined, signal),
-    refetchInterval: LIVE_REFRESH_MS,
+    refetchInterval: LIVE_BEAT_MS,
     enabled,
   });
 

@@ -1,5 +1,5 @@
-import { useMutation, useQueries, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { hasFailed, isFirstLoad, useRead } from './read';
+import { keepPreviousData, queryOptions, useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { FOLLOWED, hasFailed, isFirstLoad, LIVE_BEAT_MS, useRead } from './read';
 import type {
   Co2FanCoupling,
   Device,
@@ -10,27 +10,46 @@ import type {
   DeviceConfigurationPatch,
   DeviceLive,
   DevicePage,
+  DeviceSeries,
   DeviceUpdate,
   DeviceFirmwarePage,
   GerminationChoices,
+  Metric,
   SocketOverrideUpdate,
   SocketPage,
   SocketUpdate,
   ValueState,
 } from '@fg2/shared-types/v1';
+import { STEERED } from '@fg2/shared-types/v1-schemas/steering.js';
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { api, apiRequest } from './client';
+import { serverNow } from './clock';
 import { invalidate, useWrite, useWriteSettled } from './write';
 
 /**
  * The first read, and the pattern for every one after it: a key, a route, and a
  * type that comes from the contract rather than from here.
  *
- * The device list and the socket tables are refreshed on the beat a value ages
- * at, because a socket row is the device's own report: nothing changes when a
+ * The device list and the socket tables are refreshed on the live beat,
+ * because a socket row is the device's own report: nothing changes when a
  * switch is tapped, only when the device next says what it is doing.
  */
-export const DEVICES_REFRESH_MS = 30_000;
+export const devicesQuery = queryOptions({
+  queryKey: ['devices'],
+  queryFn: ({ signal }) => api.get<DevicePage>('/devices', undefined, signal),
+});
+
+export const deviceQuery = (deviceId: string) =>
+  queryOptions({
+    queryKey: ['devices', deviceId],
+    queryFn: ({ signal }) => api.get<Device>(`/devices/${encodeURIComponent(deviceId)}`, undefined, signal),
+  });
+
+const deviceLiveQuery = (deviceId: string) =>
+  queryOptions({
+    queryKey: ['devices', deviceId, 'live'],
+    queryFn: ({ signal }) => api.get<DeviceLive>(`/devices/${deviceId}/live`, undefined, signal),
+  });
 
 /**
  * Every device this account can see. `enabled` is here for the readers that only
@@ -38,13 +57,10 @@ export const DEVICES_REFRESH_MS = 30_000;
  * for one of its eight tiles should not read the whole fleet for the other
  * seven.
  */
-export const useDevices = (enabled = true) =>
-  useRead({
-    queryKey: ['devices'],
-    queryFn: ({ signal }) => api.get<DevicePage>('/devices', undefined, signal),
-    refetchInterval: DEVICES_REFRESH_MS,
-    enabled,
-  });
+export const useDevices = (enabled = true) => useRead({ ...devicesQuery, refetchInterval: LIVE_BEAT_MS, enabled });
+
+/** The same list, followed rather than polled: how many devices there are, for the navigation. */
+export const useDevicesShape = (enabled = true) => useQuery({ ...devicesQuery, ...FOLLOWED, enabled });
 
 /**
  * Devices read one at a time, for a reader they do not belong to: support
@@ -53,11 +69,7 @@ export const useDevices = (enabled = true) =>
  */
 export const useDevicesById = (deviceIds: readonly string[], enabled = true) =>
   useQueries({
-    queries: deviceIds.map(deviceId => ({
-      queryKey: ['devices', deviceId],
-      queryFn: ({ signal }: { signal: AbortSignal }) => api.get<Device>(`/devices/${deviceId}`, undefined, signal),
-      enabled,
-    })),
+    queries: deviceIds.map(deviceId => ({ ...deviceQuery(deviceId), enabled })),
   });
 
 export const socketsKey = (deviceId: string) => ['devices', deviceId, 'sockets'];
@@ -72,7 +84,7 @@ export const useSocketTables = (deviceIds: string[]) =>
     queries: deviceIds.map(deviceId => ({
       queryKey: socketsKey(deviceId),
       queryFn: ({ signal }: { signal: AbortSignal }) => api.get<SocketPage>(`/devices/${deviceId}/sockets`, undefined, signal),
-      refetchInterval: DEVICES_REFRESH_MS,
+      refetchInterval: LIVE_BEAT_MS,
     })),
     combine: results => ({
       tables: new Map(deviceIds.map((deviceId, index) => [deviceId, results[index]?.data])),
@@ -113,11 +125,7 @@ export interface OutputLevel {
  */
 export const useLiveReads = (deviceIds: string[]) =>
   useQueries({
-    queries: deviceIds.map(deviceId => ({
-      queryKey: ['devices', deviceId, 'live'],
-      queryFn: ({ signal }: { signal: AbortSignal }) => api.get<DeviceLive>(`/devices/${deviceId}/live`, undefined, signal),
-      refetchInterval: DEVICES_REFRESH_MS,
-    })),
+    queries: deviceIds.map(deviceId => ({ ...deviceLiveQuery(deviceId), refetchInterval: LIVE_BEAT_MS })),
     combine: results => ({
       levels: new Map(deviceIds.map((deviceId, index) => [deviceId, lightLevel(results[index]?.data)])),
       measuredAt: new Map(deviceIds.map((deviceId, index) => [deviceId, newestInstant(results[index]?.data)])),
@@ -135,6 +143,75 @@ export const useHeardAt = (device: { id: string; state: { lastSeenAt: string | n
   const reads = useLiveReads([device.id]);
   return heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
 };
+
+/**
+ * One device's newest values, outputs and the half of the cycle it says it is
+ * in. The key is the one the device rows read the same answer under, so a
+ * cockpit and the Devices tab beside it cost one request between them.
+ */
+export const useDeviceLive = (deviceId: string | null) =>
+  useRead({ ...deviceLiveQuery(deviceId!), enabled: deviceId !== null, refetchInterval: LIVE_BEAT_MS });
+
+/** Ten minutes a point: a day of a tile's curve is under a hundred and fifty of them, which is all a stamp-sized line can show. */
+const DAY_STEP_SECONDS = 600;
+
+/**
+ * The last 24 hours of one metric read from the device itself, for a reading
+ * the place's Timeline does not draw a panel for - the leaf temperature. The
+ * light output rides along, because the night is read off the lamp the way the
+ * Timeline reads it.
+ */
+export const useDaySeries = (deviceId: string | null, metric: Metric, enabled: boolean) =>
+  useRead({
+    queryKey: ['devices', deviceId, 'day-series', metric],
+    queryFn: ({ signal }) => {
+      const endsAt = serverNow().toUTC().startOf('minute');
+      const query = new URLSearchParams({
+        metrics: metric,
+        outputs: 'light',
+        startsAt: endsAt.minus({ hours: 24 }).toISO()!,
+        endsAt: endsAt.toISO()!,
+        stepSeconds: String(DAY_STEP_SECONDS),
+      });
+      return api.get<DeviceSeries>(`/devices/${deviceId}/series?${query.toString()}`, undefined, signal);
+    },
+    enabled: enabled && deviceId !== null,
+    refetchInterval: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+
+/** Five minutes a point: windows the server aligns to the clock, small enough that the hour is not cut short by one. */
+const HOUR_STEP_SECONDS = 300;
+
+/**
+ * The mean of each steered reading over the last hour, beside the live value:
+ * a dehumidifier cycling puts the humidity in and out of its band minute by
+ * minute, and an alarm that waits out a duration speaks of that stretch rather
+ * than of the newest sample. Empty windows are left out of the mean.
+ */
+export const useHourMeans = (deviceId: string | null) =>
+  useRead({
+    queryKey: ['devices', deviceId, 'hour-means'],
+    queryFn: async ({ signal }) => {
+      const endsAt = serverNow().toUTC().startOf('minute');
+      const query = new URLSearchParams([
+        ...STEERED.map(metric => ['metrics', metric]),
+        ['startsAt', endsAt.minus({ hours: 1 }).toISO()!],
+        ['endsAt', endsAt.toISO()!],
+        ['stepSeconds', String(HOUR_STEP_SECONDS)],
+      ]);
+      const series = await api.get<DeviceSeries>(`/devices/${deviceId}/series?${query.toString()}`, undefined, signal);
+      return Object.fromEntries(
+        series.metrics.flatMap(({ metric, points }) => {
+          const values = points.flatMap(point => (point.value === null ? [] : [point.value]));
+          return values.length > 0 ? [[metric, values.reduce((sum, value) => sum + value, 0) / values.length]] : [];
+        }),
+      ) as Partial<Record<Metric, number>>;
+    },
+    enabled: deviceId !== null,
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
+  });
 
 /** A device that has never driven a light output answers none, which is not the same as one at nothing. */
 const lightLevel = (live: DeviceLive | undefined): OutputLevel | null => {

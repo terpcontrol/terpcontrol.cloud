@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
-import type { Device, EntryPage } from '@fg2/shared-types/v1';
+import type { Device } from '@fg2/shared-types/v1';
 import { useAdminUsers, useFirmwares } from '@/api/admin';
-import { api } from '@/api/client';
+import { deviceQuery } from '@/api/devices';
+import { useDeviceEntries } from '@/api/entries';
 import { noLongerThere } from '@/api/problem';
 import { useRead } from '@/api/read';
 import { useSpaceOverview } from '@/api/spaces';
@@ -37,14 +38,8 @@ export function DeviceDiagnosis() {
   const { t } = useTranslation();
   const { deviceId = '' } = useParams();
   const now = useNow();
-  const device = useRead({
-    queryKey: ['devices', deviceId],
-    queryFn: ({ signal }) => api.get<Device>(`/devices/${encodeURIComponent(deviceId)}`, undefined, signal),
-  });
-  const lines = useRead({
-    queryKey: ['entries', 'device', deviceId],
-    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { deviceId, limit: LINES }, signal),
-  });
+  const device = useRead(deviceQuery(deviceId));
+  const lines = useDeviceEntries(deviceId, LINES);
   const people = useAdminUsers();
   useFollowCursor(people);
 

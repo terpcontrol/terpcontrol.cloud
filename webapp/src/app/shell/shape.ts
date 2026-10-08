@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import type { CameraPage, DevicePage, LayoutSeen } from '@fg2/shared-types/v1';
-import { api } from '@/api/client';
+import type { LayoutSeen } from '@fg2/shared-types/v1';
+import { useCamerasShape } from '@/api/cameras';
+import { useDevicesShape } from '@/api/devices';
 import { useHomeShape } from '@/api/home';
 import { useDiaryAnswer } from '@/api/layers';
 import { useSession } from '@/api/session';
@@ -32,8 +32,6 @@ export interface Shape {
 /** What an account nothing is known about yet is drawn as: one device, no diary - the customer the app is designed for. */
 const FIRST: Shape = { diary: false, places: 1, devices: 1, steering: true, cameras: 0 };
 
-const QUIET = { refetchInterval: false, staleTime: 5 * 60_000 } as const;
-
 const keyOf = (userId: string) => `terp.shape.${userId}`;
 
 const remembered = (userId: string | null): Shape => (userId ? { ...FIRST, ...readStoredJson<Partial<Shape>>(keyOf(userId)) } : FIRST);
@@ -43,18 +41,8 @@ export const useShape = (): Shape & { ready: boolean } => {
   const signedIn = user !== null;
   const home = useHomeShape(signedIn);
   const diary = useDiaryAnswer();
-  const devices = useQuery({
-    queryKey: ['devices'],
-    queryFn: ({ signal }) => api.get<DevicePage>('/devices', undefined, signal),
-    ...QUIET,
-    enabled: signedIn,
-  });
-  const cameras = useQuery({
-    queryKey: ['cameras', null],
-    queryFn: ({ signal }) => api.get<CameraPage>('/cameras', undefined, signal),
-    ...QUIET,
-    enabled: signedIn,
-  });
+  const devices = useDevicesShape(signedIn);
+  const cameras = useCamerasShape(signedIn);
 
   const known: Shape | null =
     home.data?.spaces && diary !== undefined && devices.data?.items && cameras.data?.items

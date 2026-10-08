@@ -1,6 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
-import type { CameraPage } from '@fg2/shared-types/v1';
-import { api } from '@/api/client';
+import { useCamerasShape } from '@/api/cameras';
 import { useShape } from '@/app/shell/shape';
 
 /** How a camera a controller pairs is named until somebody names it: "Terp Cam · B07171". */
@@ -23,12 +21,7 @@ export const useCameraCalled = (): ((name: string) => string) => {
 /** The same, from a camera's id alone, for a screen that holds the picture but not the camera. */
 export const useCameraNamed = (): ((cameraId: string | null | undefined) => string) => {
   const called = useCameraCalled();
-  const cameras = useQuery({
-    queryKey: ['cameras', null],
-    queryFn: ({ signal }) => api.get<CameraPage>('/cameras', undefined, signal),
-    refetchInterval: false,
-    staleTime: 5 * 60_000,
-  });
+  const cameras = useCamerasShape();
 
   return cameraId => called(cameras.data?.items.find(camera => camera.id === cameraId)?.name ?? 'Terp Cam');
 };

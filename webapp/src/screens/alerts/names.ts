@@ -1,6 +1,9 @@
 import { useQueries } from '@tanstack/react-query';
-import type { CameraPage, Device, DevicePage, SpacePage } from '@fg2/shared-types/v1';
-import { api } from '@/api/client';
+import type { Device } from '@fg2/shared-types/v1';
+import { camerasQuery } from '@/api/cameras';
+import { devicesQuery } from '@/api/devices';
+import { FOLLOWED } from '@/api/read';
+import { spacesQuery } from '@/api/spaces';
 
 /**
  * Where an alert happened and what it happened to, read once for the whole
@@ -25,7 +28,6 @@ import { api } from '@/api/client';
  * how a person knows which tent this is about, and quietly dropping them turns
  * seven cards into seven readings of nothing in particular.
  */
-const NAMES_STALE_MS = 300_000;
 
 export interface AlertNames {
   spaces: Map<string, string>;
@@ -55,21 +57,9 @@ const countBySpace = (devices: Device[]): Map<string, number> => {
 export const useInboxNames = (): InboxNames =>
   useQueries({
     queries: [
-      {
-        queryKey: ['spaces'],
-        queryFn: ({ signal }: { signal: AbortSignal }) => api.get<SpacePage>('/spaces', undefined, signal),
-        staleTime: NAMES_STALE_MS,
-      },
-      {
-        queryKey: ['devices'],
-        queryFn: ({ signal }: { signal: AbortSignal }) => api.get<DevicePage>('/devices', undefined, signal),
-        staleTime: NAMES_STALE_MS,
-      },
-      {
-        queryKey: ['cameras', null],
-        queryFn: ({ signal }: { signal: AbortSignal }) => api.get<CameraPage>('/cameras', undefined, signal),
-        staleTime: NAMES_STALE_MS,
-      },
+      { ...spacesQuery, ...FOLLOWED },
+      { ...devicesQuery, ...FOLLOWED },
+      { ...camerasQuery(), ...FOLLOWED },
     ],
     combine: ([spaces, devices, cameras]) => ({
       names: {

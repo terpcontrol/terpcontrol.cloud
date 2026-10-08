@@ -109,3 +109,19 @@ export const useRead = useStatedQuery as unknown as typeof useQuery;
 
 /** The same for a read that is paged. */
 export const useReadPages = useStatedInfiniteQuery as unknown as typeof useInfiniteQuery;
+
+/**
+ * The beat a live value ages on, and so the beat every read of what the
+ * devices report is taken again on: the device rows, their sockets and live
+ * values, the alerts and rules the alarm engine moves, the plan, the tasks, the
+ * home and the fleet. None of it changes faster than a device reports.
+ */
+export const LIVE_BEAT_MS = 30_000;
+
+/**
+ * A read for the parts of the app around every screen - the navigation, a
+ * name - that need a list's shape and not its figures. It is read once where
+ * nothing has read it yet and otherwise follows whichever screen keeps it
+ * fresh, so it adds no beat of its own to a screen that never asks for it.
+ */
+export const FOLLOWED = { refetchInterval: false, staleTime: 5 * 60_000 } as const;

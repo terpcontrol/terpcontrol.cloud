@@ -13,6 +13,23 @@ import { api } from './client';
  * about what came of it.
  */
 
+/** As many photo lines as a viewer of one grow is worth reading at once. */
+const PHOTO_LIMIT = 200;
+
+/** The photo lines of a grow, which is where its pictures are written. */
+export const useGrowPhotoLines = (growId: string) =>
+  useRead({
+    queryKey: ['entries', 'photos', growId],
+    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { growId, kinds: 'photo', limit: PHOTO_LIMIT }, signal),
+  });
+
+/** A device's own lines, newest first. */
+export const useDeviceEntries = (deviceId: string, limit: number) =>
+  useRead({
+    queryKey: ['entries', 'device', deviceId],
+    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { deviceId, limit }, signal),
+  });
+
 /** The kinds a tile prefills from, asked for in one read. */
 const RECENT_KINDS = ['water', 'feed', 'measurement', 'training', 'visit', 'photo', 'note'].join(',');
 

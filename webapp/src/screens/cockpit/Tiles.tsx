@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { CardSetpoint, CardValue, Device, DeviceLive, Metric, OverviewTargets, SpaceTimeline, TimelinePanel } from '@fg2/shared-types/v1';
 import { STEERED, type Steered } from '@fg2/shared-types/v1-schemas/steering.js';
+import { useDaySeries, useHourMeans } from '@/api/devices';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 import { Term } from '@/ui/Help';
@@ -40,7 +41,6 @@ import {
 } from './place';
 import { storedShapeOf, type Half, type NowHolding } from '../control/targets/day-night';
 import { useHumidifiers } from '../control/germination/germination-choices';
-import { useDaySeries, useHourMeans } from './reads';
 import styles from './Cockpit.module.css';
 
 /**

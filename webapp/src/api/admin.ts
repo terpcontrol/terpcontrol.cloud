@@ -1,5 +1,5 @@
 import { useMutation, type QueryClient } from '@tanstack/react-query';
-import { useRead, useReadPages } from './read';
+import { LIVE_BEAT_MS, useRead, useReadPages } from './read';
 import type {
   AdminStats,
   AdminUserCreate,
@@ -38,9 +38,6 @@ import { invalidate, useWriteSettled } from './write';
  * by its cursor and the screen says what it is showing.
  */
 
-/** The beat a device's liveness ages on, which is what the fleet table is read against. */
-export const FLEET_REFRESH_MS = 30_000;
-
 /**
  * The beat the install's own figures are read on. Each read is a dozen counts
  * across every collection, and what they answer moves on the composer's beat
@@ -63,7 +60,7 @@ export const useFleet = () =>
   useRead({
     queryKey: fleetKey,
     queryFn: ({ signal }) => api.get<Fleet>('/admin/fleet', undefined, signal),
-    refetchInterval: FLEET_REFRESH_MS,
+    refetchInterval: LIVE_BEAT_MS,
   });
 
 /**
@@ -100,7 +97,7 @@ export const useAdminCameras = () =>
     queryFn: ({ pageParam, signal }) => api.get<CameraPage>('/cameras', { limit: MAX_PAGE_LIMIT, cursor: pageParam }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
-    refetchInterval: FLEET_REFRESH_MS,
+    refetchInterval: LIVE_BEAT_MS,
   });
 
 /**
@@ -115,7 +112,7 @@ export const useAdminDevices = () =>
     queryFn: ({ pageParam, signal }) => api.get<DevicePage>('/admin/devices', { limit: MAX_PAGE_LIMIT, cursor: pageParam }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
-    refetchInterval: FLEET_REFRESH_MS,
+    refetchInterval: LIVE_BEAT_MS,
   });
 
 /**

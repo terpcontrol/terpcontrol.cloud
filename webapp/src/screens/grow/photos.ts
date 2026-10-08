@@ -1,7 +1,5 @@
 import type { EntryPage, GrowListItem, GrowWeekCard } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
-import { api } from '@/api/client';
-import { useRead } from '@/api/read';
 import { DAY_IN_YEAR, zoned } from '@/ui/zone';
 
 /** One picture of a grow, with what it is shown under in the viewer. */
@@ -11,16 +9,6 @@ export interface GrowPicture {
   day: number | null;
   text: string | null;
 }
-
-/** As many photo lines as a viewer of one grow is worth reading at once. */
-const PHOTO_LIMIT = 200;
-
-/** The photo lines of a grow, which is where its pictures are written. */
-export const useGrowPhotoLines = (growId: string) =>
-  useRead({
-    queryKey: ['entries', 'photos', growId],
-    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { growId, kinds: 'photo', limit: PHOTO_LIMIT }, signal),
-  });
 
 /**
  * Every picture of a grow, oldest first: what was written into its diary, and

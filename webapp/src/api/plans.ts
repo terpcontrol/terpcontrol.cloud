@@ -1,5 +1,5 @@
-import { useQueries } from '@tanstack/react-query';
-import { isFirstLoad, useRead } from './read';
+import { queryOptions, useQueries } from '@tanstack/react-query';
+import { isFirstLoad, LIVE_BEAT_MS, useRead } from './read';
 import type { Plan, PlanReplace, PlanTemplate, PlanTemplateCreate, PlanTemplatePage, PlanTransition } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { growChanged } from './lifecycle';
@@ -12,8 +12,9 @@ import { invalidate, useWrite } from './write';
  *
  * The plan moves on the engine's clock and not on ours: a step whose time is up
  * is advanced twenty seconds later whether or not anybody is looking, and a step
- * that waits asks for its confirmation the same way. So the plan is read on a
- * beat like the device list is, and every move ends by taking the answer the
+ * that waits asks for its confirmation the same way. So the plan is read on the
+ * live beat like the device list is - the engine's tick is faster, but nothing
+ * here is worth a read per tick - and every move ends by taking the answer the
  * server gave rather than by patching a status in.
  *
  * A device that is not being run by anything answers 404 rather than an empty
@@ -21,17 +22,12 @@ import { invalidate, useWrite } from './write';
  * screen tells those two apart.
  */
 
-/** The same beat a device row ages on: the engine's tick is faster, but nothing here is worth a read per tick. */
-export const PLAN_REFRESH_MS = 30_000;
+const planKey = (deviceId: string) => ['devices', deviceId, 'plan'];
 
-export const planKey = (deviceId: string) => ['devices', deviceId, 'plan'];
+const planQuery = (deviceId: string) =>
+  queryOptions({ queryKey: planKey(deviceId), queryFn: ({ signal }) => api.get<Plan>(`/devices/${deviceId}/plan`, undefined, signal) });
 
-export const useDevicePlan = (deviceId: string) =>
-  useRead({
-    queryKey: planKey(deviceId),
-    queryFn: ({ signal }) => api.get<Plan>(`/devices/${deviceId}/plan`, undefined, signal),
-    refetchInterval: PLAN_REFRESH_MS,
-  });
+export const useDevicePlan = (deviceId: string) => useRead({ ...planQuery(deviceId), refetchInterval: LIVE_BEAT_MS });
 
 /**
  * The plans of everything standing in a place, read under the same keys the
@@ -40,11 +36,7 @@ export const useDevicePlan = (deviceId: string) =>
  */
 export const useDevicePlans = (deviceIds: string[]) =>
   useQueries({
-    queries: deviceIds.map(deviceId => ({
-      queryKey: planKey(deviceId),
-      queryFn: ({ signal }: { signal?: AbortSignal }) => api.get<Plan>(`/devices/${deviceId}/plan`, undefined, signal),
-      refetchInterval: PLAN_REFRESH_MS,
-    })),
+    queries: deviceIds.map(deviceId => ({ ...planQuery(deviceId), refetchInterval: LIVE_BEAT_MS })),
     combine: results => ({
       plans: results.flatMap(result => (result.data ? [result.data] : [])),
       isPending: results.some(isFirstLoad),
