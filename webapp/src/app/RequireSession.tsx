@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation } from 'react-router';
 import { session, useSession } from '@/api/session';
@@ -28,6 +28,12 @@ import styles from './RouteError.module.css';
  * in - so carrying the path by itself lands the round trip on the right screen
  * with its subject stripped off, and a link somebody was sent opens on an empty
  * version of what they were sent.
+ *
+ * What is drawn behind it belongs to one account. Opening the demo from the
+ * home replaces the session without passing the sign-in page, so the shell is
+ * keyed by the account and drawn anew for the next one: nothing that was read
+ * or begun for the last - a query, a line still waiting in the Log sheet - is
+ * left on screen or sent with the next one's token.
  */
 export function RequireSession({ children }: { children: ReactNode }) {
   const { user, restored, unreachable, ended } = useSession();
@@ -51,7 +57,7 @@ export function RequireSession({ children }: { children: ReactNode }) {
   if (asking || (restored && !user && unreachable)) return <CannotReach asking={asking} onAskAgain={askAgain} from={from} />;
   if (!restored) return null;
   if (!user) return <Navigate to="/sign-in" replace state={{ from, ended }} />;
-  return children;
+  return <Fragment key={user.id}>{children}</Fragment>;
 }
 
 /** What is said instead of the screens when the session could not be checked: that it is kept, and what to do. */
