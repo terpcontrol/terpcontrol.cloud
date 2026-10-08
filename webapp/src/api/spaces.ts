@@ -41,10 +41,10 @@ const overviewQuery = (spaceId: string) =>
   queryOptions({
     queryKey: ['space', spaceId, 'overview'],
     queryFn: ({ signal }) => api.get<SpaceOverview>(`/spaces/${spaceId}/overview`, undefined, signal),
-    refetchInterval: OVERVIEW_REFRESH_MS,
   });
 
-export const useSpaceOverview = (spaceId: string, enabled = true) => useRead({ ...overviewQuery(spaceId), enabled: enabled && spaceId !== '' });
+export const useSpaceOverview = (spaceId: string, enabled = true) =>
+  useRead({ ...overviewQuery(spaceId), refetchInterval: OVERVIEW_REFRESH_MS, enabled: enabled && spaceId !== '' });
 
 /**
  * The 24 h verdict of several places at once, for a list that draws rows from
@@ -62,7 +62,7 @@ export const useSpaceOverview = (spaceId: string, enabled = true) => useRead({ .
  */
 export const useSpaceVerdicts = (spaceIds: readonly string[]) =>
   useQueries({
-    queries: spaceIds.map(spaceId => overviewQuery(spaceId)),
+    queries: spaceIds.map(spaceId => ({ ...overviewQuery(spaceId), refetchInterval: OVERVIEW_REFRESH_MS })),
     combine: (results: { data?: SpaceOverview }[]) => new Map(spaceIds.map((spaceId, index) => [spaceId, results[index]?.data?.verdict])),
   });
 

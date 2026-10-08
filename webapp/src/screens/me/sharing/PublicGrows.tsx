@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowListItem } from '@fg2/shared-types/v1';
@@ -126,7 +125,6 @@ function Grows({ userId }: { userId: string | null }) {
  */
 function GrowRow({ grow, links, held }: { grow: GrowListItem; links: string | null; held: boolean }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const update = useUpdateGrow(grow.id);
   const isPublic = grow.visibility === 'public';
   const line = [isPublic ? appUrl(`/g/${grow.slug}`) : t('me.public.private'), links].filter(Boolean).join(' · ');
@@ -138,12 +136,7 @@ function GrowRow({ grow, links, held }: { grow: GrowListItem; links: string | nu
           label={t('me.public.switch', { name: grow.name })}
           on={isPublic}
           disabled={held || update.isPending}
-          onChange={() =>
-            update.mutate(
-              { visibility: isPublic ? 'private' : 'public' },
-              { onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['grows'] }) },
-            )
-          }
+          onChange={() => update.mutate({ visibility: isPublic ? 'private' : 'public' })}
         />
       </Row>
       <Refused error={update.error} />

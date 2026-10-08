@@ -88,7 +88,8 @@ export const useGrowReport = (growId: string) =>
 /**
  * Changing the grow itself: its name, its end, what it shares and how it is
  * fed. The answer is the grow, so it is put in place rather than read again; a
- * new scheme also changes the doses every week card states, so those are read
+ * new scheme also changes the doses every week card states, and a new
+ * visibility the list of grows that says which are public, so those are read
  * again with it.
  */
 export const useUpdateGrow = (growId: string) =>
@@ -98,6 +99,7 @@ export const useUpdateGrow = (growId: string) =>
       client.setQueryData(['grow', growId], grow);
       void invalidate(client, ['home']);
       if (body.scheme !== undefined) void invalidate(client, ['grow', growId, 'weeks']);
+      if (body.visibility !== undefined) void invalidate(client, ['grows']);
     },
   );
 

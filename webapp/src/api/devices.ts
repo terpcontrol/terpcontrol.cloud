@@ -29,7 +29,8 @@ import { invalidate, useWrite, useWriteSettled } from './write';
 
 /**
  * The first read, and the pattern for every one after it: a key, a route, and a
- * type that comes from the contract rather than from here.
+ * type that comes from the contract rather than from here. A device id is the
+ * server's own, so it goes into a route as it is.
  *
  * The device list and the socket tables are refreshed on the live beat,
  * because a socket row is the device's own report: nothing changes when a
@@ -43,7 +44,7 @@ export const devicesQuery = queryOptions({
 export const deviceQuery = (deviceId: string) =>
   queryOptions({
     queryKey: ['devices', deviceId],
-    queryFn: ({ signal }) => api.get<Device>(`/devices/${encodeURIComponent(deviceId)}`, undefined, signal),
+    queryFn: ({ signal }) => api.get<Device>(`/devices/${deviceId}`, undefined, signal),
   });
 
 const deviceLiveQuery = (deviceId: string) =>

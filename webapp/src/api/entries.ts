@@ -13,6 +13,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { readEvery } from './pages';
+import { invalidate } from './write';
 
 /**
  * The writing half of the diary, and the reads of its lines: what the Log
@@ -125,6 +126,4 @@ export const uploadPhoto = (file: File, about: { growId: string | null; spaceId:
  * list at once - a tick is a line, and so is taking it back - so a write says
  * so rather than each screen polling for it.
  */
-export const diaryChanged = (client: QueryClient): void => {
-  for (const key of ['home', 'space', 'grow', 'entries', 'tasks']) void client.invalidateQueries({ queryKey: [key] });
-};
+export const diaryChanged = (client: QueryClient): void => void invalidate(client, ['home'], ['space'], ['grow'], ['entries'], ['tasks']);
