@@ -1,7 +1,7 @@
 ---
 summary: Working on the device firmware or on what the server does with it - build, flash, serial log, OTA and update channels, memory, NVS and RTC limits, connection-loss reboots, safety stops, known gaps
 updated: 2026-10-08
-source: Chris (decisions 2026-07..10); agent sessions and PR descriptions 2026-05..10; commit history; checked against the code on 2026-10-08
+source: Chris (decisions 2026-07..10); agent sessions and PR descriptions 2026-05..10, #145; commit history; checked against the code on 2026-10-08
 paths:
   - firmware/**
   - fw-buildcontainer/**
@@ -110,7 +110,9 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
 - `RTC_DATA_ATTR` does **not** survive a reboot here: the bootloader reloads it on every reset except a wake from
   deep sleep, and these devices never sleep. State that has to outlive a panic, a watchdog or `ESP.restart()` uses
   `RTC_NOINIT_ATTR` behind a magic word, because that memory is garbage after power-on: `g_remote_reboot` in
-  `fridgecloud.cpp`, and the sensor-fault stamps in `fridge.cpp`, which also start afresh on power-on and brownout.
+  `fridgecloud.cpp`, `g_connection_reboot` in `main.cpp`, and the sensor-fault stamps in `fridge.cpp`, which also
+  start afresh on power-on and brownout. The framework's `esp_attr.h` says the same: `.rtc.data` keeps its value
+  "during a deep sleep / wake cycle", `.rtc_noinit` (a `NOLOAD` section) "after restart" as well.
 
 ## Time
 
@@ -132,15 +134,14 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   1 KB was dropped without a word.
 - Connection-loss reboots are set on the device only - menu `Conn. Loss Reboot` under the WiFi settings of every type
   (`rebootwatchdog.cpp`, NVS keys `rbt_*`) - and kept out of the cloud-synced settings at Chris's request (2026-07).
-  Unset, they reboot after 15 min without the cloud whatever the light, and once per 24 h while the outage lasts but
-  only while the light is off. The daily one exists because a broker port that is open but never answers can exhaust
-  LWIP's sockets (errno 11) until only a reboot helps; it waits for darkness so a photoperiod is never cut
-  (`isLightOn()`: the light output, a plug's relay; never on fan or cam - a 24 h light means no daily reboot) and
-  skips devices without WiFi credentials.
-- **Known gap (code reading, 2026-10-08):** the flag meant to make the 15-minute reboot happen once,
-  `g_connection_reboot` in `main.cpp`, is `RTC_DATA_ATTR`, so it is false again after the `ESP.restart()` it guards:
-  during a lasting outage that reboot repeats every delay period, and a device without WiFi credentials (not
-  excluded from it) reboots every 15 min. The fix is `RTC_NOINIT_ATTR` with a magic word, as above.
+  Unset, they reboot once after 15 min without the cloud whatever the light, and once per 24 h while the outage lasts
+  but only while the light is off. `g_connection_reboot` keeps the first to one per outage: set before its
+  `ESP.restart()`, cleared when MQTT connects or by any reset but `ESP_RST_SW`. Until #145 it was `RTC_DATA_ATTR`,
+  so a lasting outage rebooted the device every delay period. The daily one exists because a broker port that is open
+  but never answers can exhaust LWIP's sockets (errno 11) until only a reboot helps; it waits for darkness so a
+  photoperiod is never cut (`isLightOn()`: the light output, a plug's relay; never on fan or cam - a 24 h light means
+  no daily reboot). Neither runs on a device without WiFi credentials, where a reboot recovers nothing; before #145
+  the first one did, every 15 min.
 - The tunnel (RTSP cameras and alarm webhooks on the grower's network) moves data only while the display is idle,
   30 s after the last knob input, and the server closes a connection after 30 s without traffic: using the knob can
   cost an open stream ([device-protocol.md 9.2](../device-protocol.md#92-the-tunnel)).
@@ -178,10 +179,14 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   after 10 consecutive sensor failures (a failed read, an SCD tick without data, a failed re-init without a sensor).
 - The fridge takes the SCD4x readings once its SHT has failed 10 reads; its failsafe (heater, compressor, CO2, light)
   trips when the SCD4x fails 10 times.
-- **Known gap (code reading, 2026-10-08):** both types report their socket targets (`wifiReportSmartSocketOutputs()`)
-  only outside the failsafe branch, so in failsafe every socket keeps the state last reported and is re-sent every
-  minute - on a controller that includes the heater. A fridge skips the report in test mode and under direct MQTT
-  control as well.
+- A socket keeps the last target reported to it (`wifiReportSmartSocketOutputs()`) and has it re-sent every minute,
+  so every branch that zeroes outputs has to report too. Both failsafes report every target off, `running` included,
+  as the OFF mode does; cloud overrides and the timer roles still apply. Until #145 they reported nothing, and a
+  heater socket that was on when the sensor failed kept heating.
+- **Known gaps (code reading, 2026-10-08):** a fridge reports no socket targets in test mode or under direct MQTT
+  control. The controller counts its first passes after boot as valid before any reading has arrived
+  (`sensor_fails` < 10, `state` still 0 °C / 0 %): a controller booted with a dead sensor switches the heater and
+  humidifier sockets on until the failsafe turns them off again, after about the 30 s socket send interval.
 
 ## OTA and update channels
 

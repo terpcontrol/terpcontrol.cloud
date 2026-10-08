@@ -1,7 +1,7 @@
 ---
 summary: How the controller and the fridge pair, identify, drive and report their Tasmota smart sockets, what the cloud and the app do with them, and the stand-alone smart socket (plug) - read before changing any of it
 updated: 2026-10-08
-source: Chris (light set-up rule, 2026-09-19); agents' PRs #23, #77, #82, #103, #104, #136 and sessions 2026-05..10; checked against the code 2026-10-08
+source: Chris (light set-up rule, 2026-09-19); agents' PRs #23, #77, #82, #103, #104, #136, #145 and sessions 2026-05..10; checked against the code 2026-10-08
 paths:
   - firmware/src/wifi.*
   - firmware/src/lanscan.*
@@ -171,9 +171,9 @@ A socket outside the module's /24 is never found.
 
 Both found reading the code on 2026-10-08, neither seen on a device:
 
-- In the failsafe branch neither type reports socket targets (a fridge also not in test mode or under direct MQTT
-  control), so every socket keeps its last state and is re-sent, heater included:
-  [firmware.md](firmware.md#safety-stops-and-failsafe).
+- A fridge reports no socket targets in test mode or under direct MQTT control, so every socket keeps its last
+  state and is re-sent ([firmware.md](firmware.md#safety-stops-and-failsafe); the failsafe reports them off since
+  #145).
 - A fridge's `co2` socket follows `state.out_co2 > 0`, the accumulator the controller stopped using. It is cleared
   with every buffered sample (5 s), but not while the sample buffer is full (no MQTT for about ten minutes), so the
   socket can stay on and be re-sent ON every 60 s.
