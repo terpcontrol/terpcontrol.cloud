@@ -221,9 +221,10 @@ function ClaimCode() {
 
 /**
  * The demo is a session of its own: opening it means leaving this one, so it is
- * not a door out of the demo and is not drawn there. Whether this is the demo
- * is the session's own answer and not a question about hardware, which is a
- * different thing and will part company with it.
+ * not a door out of the demo, and the demo is answered before this card is
+ * drawn. Whether this is the demo is the session's own answer and not a
+ * question about hardware, which is a different thing and will part company
+ * with it.
  *
  * Leaving this one is the whole of what the card costs, so it is asked before
  * it is done rather than discovered afterwards. The two doors above add
@@ -234,7 +235,6 @@ function ClaimCode() {
 function TryDemo() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useSession();
   const [state, setState] = useState<'idle' | 'asking' | 'opening' | 'failed'>('idle');
 
   const open = async () => {
@@ -246,8 +246,6 @@ function TryDemo() {
       setState('failed');
     }
   };
-
-  if (user?.isDemo) return null;
 
   return (
     <article className={`${ui.cardDashed} ${styles.demo}`}>
