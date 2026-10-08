@@ -187,7 +187,7 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
 
     const limit = pageLimit(query.limit);
     const rows = await this.firmwares
-      .find({ ...(everything ? { classId: device.classId } : await this.offeredTo(device)), ...afterCursor('createdAt', query.cursor) })
+      .find({ $and: [everything ? { classId: device.classId } : await this.offeredTo(device), afterCursor('createdAt', query.cursor)] })
       .sort({ createdAt: -1, id: -1 })
       .limit(readLimit(limit))
       .lean<StoredFirmware[]>();
