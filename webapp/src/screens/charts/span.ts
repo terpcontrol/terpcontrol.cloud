@@ -63,7 +63,7 @@ export interface Zoom {
  */
 export type ChartWindow = { kind: 'grow'; range: 'phase' | 'grow' } | { kind: 'span'; from: number; to: number };
 
-export interface SpanInput {
+interface SpanInput {
   range: ChartRange;
   /** The two days of a custom range, as the date fields speak them. */
   from: string;

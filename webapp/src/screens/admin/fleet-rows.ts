@@ -26,9 +26,9 @@ import type { Camera, Device, DeviceClass, Firmware, User } from '@fg2/shared-ty
  */
 
 /** Offline for longer than this is what the board's second chip filters on. */
-export const QUIET_HOURS = 24;
+const QUIET_HOURS = 24;
 
-export type FleetKind = 'device' | 'camera';
+type FleetKind = 'device' | 'camera';
 
 export interface FleetRow {
   id: string;
@@ -75,7 +75,7 @@ const socketsOf = (device: Device): number | null => {
 
 const handleOf = (ownerId: string | null, people: Map<string, User>): string | null => (ownerId && people.get(ownerId)?.handle) || null;
 
-export interface FleetSources {
+interface FleetSources {
   devices: Device[];
   /** The cameras the reader's account can see, which is not every camera on the install. */
   cameras: Camera[];
@@ -151,7 +151,7 @@ const heard = (lastSeenAt: string | null): number => (lastSeenAt ? DateTime.from
 export const typesOf = (rows: FleetRow[]): string[] => [...new Set(rows.map(row => row.type))].sort();
 
 /** A device's support view: its curves, its settings and what it said, whoever owns it. */
-export const diagnosisPath = (deviceId: string): string => `/admin/devices/${encodeURIComponent(deviceId)}`;
+const diagnosisPath = (deviceId: string): string => `/admin/devices/${encodeURIComponent(deviceId)}`;
 
 /**
  * The board's four chips, applied together. The search reads what is on the

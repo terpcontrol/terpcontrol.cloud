@@ -232,13 +232,13 @@ const MOVERS: Record<string, Partial<Record<Steered, OutputMetric[]>>> = {
 };
 
 /** The catalogue word an output is called by everywhere on the cockpit. */
-export type OutputWord = 'compressor' | 'heater' | 'dehumidifier' | 'co2' | 'socket' | 'humidifier';
+type OutputWord = 'compressor' | 'heater' | 'dehumidifier' | 'co2' | 'socket' | 'humidifier';
 
 /** The reading a stand-alone smart socket switches by, per mode. */
 const PLUG_FOLLOWS: Partial<Record<PlugMode, Steered>> = PLUG_READING;
 
 /** Between the two points a socket switches at, which is the range it holds its reading in. */
-export interface SwitchRange {
+interface SwitchRange {
   low: number;
   high: number;
 }
@@ -342,7 +342,7 @@ export const humidifierOutputs = (sockets: readonly Socket[], metric: Steered): 
 };
 
 /** Since when the newest run of an output has gone on, where it is still going at the end of what was heard. */
-export const runningSince = (lane: TimelineOutputLane | undefined): string | null => {
+const runningSince = (lane: TimelineOutputLane | undefined): string | null => {
   const last = lane?.spans.at(-1);
   return last && lane && last.endsAt === lane.heardUntil ? last.startsAt : null;
 };
@@ -492,7 +492,7 @@ export type Status =
   | { kind: 'noTargets' }
   | { kind: 'good' };
 
-export interface StatusInput {
+interface StatusInput {
   values: CardValue[];
   setpoints: CardSetpoint[];
   deviceIds: string[] | null;

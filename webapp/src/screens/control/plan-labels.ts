@@ -20,7 +20,7 @@ export const durationLabel = (t: Translate, duration: StepDuration): string =>
   duration.value > 0 ? t(`space.control.unit.${duration.unit}`, { count: duration.value }) : t('space.control.openEnded');
 
 /** The facts of a step that its line is made of, which a saved step and one being written both have. */
-export interface StepFacts {
+interface StepFacts {
   stage: GrowthStage | null;
   preset: string | null;
   duration: StepDuration;

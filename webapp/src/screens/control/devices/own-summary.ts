@@ -19,7 +19,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * read from the device's own document and never drawn as a control.
  */
 
-export interface SummaryRow {
+interface SummaryRow {
   label: string;
   parts: string[];
 }

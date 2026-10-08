@@ -102,7 +102,7 @@ export const isWaiting = (plan: Plan, now: DateTime): boolean =>
  * is the one in `PlanService`, and a move that is not offered is one that would
  * come back as a refusal rather than as a change.
  */
-export interface Moves {
+interface Moves {
   confirm: boolean;
   skip: boolean;
   extend: boolean;

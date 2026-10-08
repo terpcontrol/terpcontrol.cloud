@@ -20,7 +20,7 @@ export const hoursWritten = (hours: number): string => {
   return Number.isInteger(rounded) ? String(rounded) : decimalFigure(rounded, 1);
 };
 
-export interface WindowWords {
+interface WindowWords {
   /** "08:00" on the account's wall clock. */
   on: string;
   off: string;

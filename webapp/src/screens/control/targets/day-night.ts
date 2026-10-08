@@ -112,7 +112,7 @@ export const heldOf = (regime: Regime): HeldHalves => (regime === 'drying' ? 'dr
  * its way up or down, and a fridge glides its targets between the night's and
  * the day's figures meanwhile.
  */
-export type Phase = 'day' | 'night' | 'sunrise' | 'sunset';
+type Phase = 'day' | 'night' | 'sunrise' | 'sunset';
 
 export interface Ramps {
   up: number;

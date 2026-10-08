@@ -10,7 +10,7 @@ import { ClockStepper, Stepper } from './Stepper';
 import type { LightSchedule, TargetsDraft } from './targets-draft';
 import styles from './DayNight.module.css';
 
-export interface LightPlanProps {
+interface LightPlanProps {
   device: Device;
   /** The shape of the draft, which is what is edited. */
   shape: Shape;

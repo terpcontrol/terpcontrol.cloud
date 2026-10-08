@@ -28,7 +28,7 @@ interface ReadyStep {
   asks?: string;
 }
 
-export interface ReadyPlan {
+interface ReadyPlan {
   id: 'photoperiod' | 'autoflower';
   steps: readonly ReadyStep[];
 }

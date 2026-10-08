@@ -16,7 +16,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 export const givenName = (device: Device): string | null => (device.name && device.name !== device.type ? device.name : null);
 
 /** The tail of the id, which is as much of it as anybody reads off a screen or a label. */
-export const deviceTag = (device: Device): string => device.id.slice(-6).toUpperCase();
+const deviceTag = (device: Device): string => device.id.slice(-6).toUpperCase();
 
 /** A device type in words: the type is the firmware's key for itself, and a key is not a word. */
 export const typeName = (type: string, t: Translate): string => t(`devices.type.${type}`, { defaultValue: type });

@@ -33,7 +33,7 @@ import { createBody, emptyDraft, outputsOf, readingsOf, type Translate } from '.
 
 export type TemplateKey = 'warm' | 'cold' | 'humid' | 'dry' | 'co2Empty' | 'running';
 
-export type TemplateWatch =
+type TemplateWatch =
   | { kind: 'reading'; metric: 'temperature' | 'humidity' | 'co2'; edge: 'upper' | 'lower'; value: number }
   | { kind: 'output_running'; output: OutputMetric };
 

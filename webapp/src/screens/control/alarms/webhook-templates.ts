@@ -14,9 +14,9 @@ import type { RuleDraft, Translate } from './rules';
  * is applied, and stored with the rule as they are.
  */
 
-export type WebhookTemplateId = 'home_assistant' | 'discord' | 'telegram' | 'ntfy';
+type WebhookTemplateId = 'home_assistant' | 'discord' | 'telegram' | 'ntfy';
 
-export interface TemplateField {
+interface TemplateField {
   key: string;
   /** The catalogue key of its label. */
   label: string;
@@ -29,7 +29,7 @@ export interface TemplateField {
 
 export type TemplateValues = Record<string, string>;
 
-export type Filled = Pick<RuleDraft, 'url' | 'method' | 'headers' | 'triggeredPayload' | 'resolvedPayload' | 'tunnel'>;
+type Filled = Pick<RuleDraft, 'url' | 'method' | 'headers' | 'triggeredPayload' | 'resolvedPayload' | 'tunnel'>;
 
 export interface WebhookTemplate {
   id: WebhookTemplateId;

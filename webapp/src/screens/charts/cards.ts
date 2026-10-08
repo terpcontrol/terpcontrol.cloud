@@ -98,13 +98,13 @@ export const leafOffsetsOf = (
 };
 
 /** A plant, as far as a chart needs one: a reading per plant is a line per plant, and each of them is called something. */
-export interface PlantName {
+interface PlantName {
   id: string;
   label: string;
 }
 
 /** The earlier run laid over this one, which is what the day-of-grow layout exists for. */
-export interface Compared {
+interface Compared {
   series: ChartData;
   name: string;
 }
@@ -200,7 +200,7 @@ interface Drawn {
   help?: HelpTopic;
 }
 
-export interface CardsInput {
+interface CardsInput {
   picked: Picked;
   layout: ChartViewLayout;
   offered: Offered;

@@ -44,7 +44,7 @@ export interface SocketRowModel extends Socket {
   target: OverrideRequest['target'];
 }
 
-export const socketRow = (socket: Socket, ordinal: number | null = null): SocketRowModel => ({
+const socketRow = (socket: Socket, ordinal: number | null = null): SocketRowModel => ({
   ...socket,
   key: `socket-${socket.slot}-${socket.role}`,
   titleKey: `devices.role.${socket.role || 'unassigned'}`,

@@ -226,16 +226,6 @@ const cut = (
   });
 };
 
-/** The target that held at the cursor, which is the band the panel header names. */
-export const targetAt = (
-  panel: TimelinePanel,
-  nights: TimelineSpan[],
-  from: number,
-  to: number,
-  time: number,
-  transitions: TimelineSpan[] = [],
-): TimelineTarget | null => stretchAt(stretchesOf(panel, nights, from, to, transitions), time)?.target ?? null;
-
 /** The stretch the cursor stands in. */
 export const stretchAt = (stretches: Stretch[], time: number): Stretch | null =>
   stretches.find(stretch => stretch.from <= time && time <= stretch.to) ?? null;

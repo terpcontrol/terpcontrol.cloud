@@ -18,7 +18,7 @@ import type { OutputLevel } from '@/api/devices';
  */
 
 /** The roles whose sockets follow the controller's light output, and so belong beside it. */
-export const LIGHT_ROLES: readonly SocketRole[] = ['light', 'secondary_light'];
+const LIGHT_ROLES: readonly SocketRole[] = ['light', 'secondary_light'];
 
 export const isLightRole = (role: SocketRole): boolean => LIGHT_ROLES.includes(role);
 
@@ -44,7 +44,7 @@ export const LEVEL_STEP = 5;
 const statesFlat = (configuration: DeviceConfiguration, type: Device['type']): boolean =>
   type === 'light' || (typeof configuration[FIELD] === 'number' && sectionOf(configuration, SECTION) === null);
 
-export const lightLimitOf = (configuration: DeviceConfiguration | null, type: Device['type']): number | null => {
+const lightLimitOf = (configuration: DeviceConfiguration | null, type: Device['type']): number | null => {
   if (!configuration) return null;
   return statesFlat(configuration, type) ? finiteOrNull(configuration[FIELD]) : figureAt(configuration, `${SECTION}.${FIELD}`);
 };

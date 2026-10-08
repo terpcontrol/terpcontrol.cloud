@@ -52,7 +52,7 @@ import styles from './Cockpit.module.css';
  * CO2 and the leaf-and-light tile are drawn only where the place reports them,
  * so a fridge without a sensor is never shown an empty tile it cannot fill.
  */
-export interface TilesProps {
+interface TilesProps {
   spaceId: string;
   values: CardValue[];
   setpoints: CardSetpoint[];

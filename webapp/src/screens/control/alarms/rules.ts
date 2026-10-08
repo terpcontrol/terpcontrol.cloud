@@ -44,7 +44,7 @@ import { zoneOf } from '@/ui/zone';
 export const watchable = (device: Device): boolean => readingsOf(device).length > 0 || outputsOf(device).length > 0;
 
 /** The order the groups are drawn in: what the stage wrote, what the cloud keeps, what the firmware asked for, and what was written here. */
-export const ORIGINS: AlarmOrigin[] = ['preset', 'always', 'device', 'human'];
+const ORIGINS: AlarmOrigin[] = ['preset', 'always', 'device', 'human'];
 
 export const groupRules = (rules: AlarmRule[]): { origin: AlarmOrigin; rules: AlarmRule[] }[] =>
   ORIGINS.map(origin => ({ origin, rules: rules.filter(rule => rule.origin === origin) })).filter(group => group.rules.length > 0);
@@ -127,7 +127,7 @@ export const outputName = (t: Translate, output: OutputMetric, deviceType: strin
  * the device says which. `offline` is the health loop's own and is never
  * offered for a rule written here.
  */
-export type Sensor = 'co2' | 'leaf' | 'light';
+type Sensor = 'co2' | 'leaf' | 'light';
 
 const SENSOR_OF: Partial<Record<Metric, Sensor>> = { co2: 'co2', leafTemperature: 'leaf', lux: 'light', ppfd: 'light' };
 
@@ -200,7 +200,7 @@ const SCALE_OF: Partial<Record<OutputMetric, OutputScale>> = {
 };
 
 /** A level this build has never heard of is described as the commonest of them rather than as a percent, which is the reading that misleads. */
-export const scaleOf = (output: OutputMetric): OutputScale => SCALE_OF[output] ?? 'fraction';
+const scaleOf = (output: OutputMetric): OutputScale => SCALE_OF[output] ?? 'fraction';
 
 /** What the sheet says a level means, where the figure alone does not say it. A percentage says it with its own sign. */
 export const scaleNote = (output: OutputMetric): string | null => {
@@ -415,7 +415,7 @@ export const watchOf = (draft: RuleDraft): AlarmWatch => {
   return { kind: 'output_running', output: draft.watch.output };
 };
 
-export const deliveryOf = (draft: RuleDraft): AlarmDelivery => {
+const deliveryOf = (draft: RuleDraft): AlarmDelivery => {
   if (draft.tellBy === 'routing') return { mode: 'routing', custom: null };
   if (draft.tellBy === 'email')
     return { mode: 'custom', custom: { channel: 'email', target: draft.email.trim(), includeDetails: draft.includeDetails, webhook: null } };

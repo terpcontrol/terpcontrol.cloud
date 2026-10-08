@@ -11,7 +11,7 @@ export type MessageCategory = 'device' | 'alarm' | 'plan' | 'diary';
 export const MESSAGE_CATEGORIES: MessageCategory[] = ['device', 'alarm', 'plan', 'diary'];
 
 /** How many columns the lane is cut into: narrow enough to tap on a phone, enough to place a line within the window. */
-export const COLUMNS = 48;
+const COLUMNS = 48;
 
 export const categoryOf = (entry: Pick<Entry, 'kind' | 'source'>): MessageCategory => {
   if (entry.kind === 'alarm' || entry.source === 'alarm') return 'alarm';
@@ -22,7 +22,7 @@ export const categoryOf = (entry: Pick<Entry, 'kind' | 'source'>): MessageCatego
 
 const RANK: Record<Severity, number> = { info: 0, warning: 1, critical: 2 };
 
-export interface Column {
+interface Column {
   from: number;
   to: number;
   entries: Entry[];

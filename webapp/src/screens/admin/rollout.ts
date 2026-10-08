@@ -16,7 +16,7 @@ import { deviceLiveness } from '@/ui/age';
 /** The channels a class hands a build out on. `manual` is the absence of one and is never swept, so it is not here. */
 export const CHANNELS: readonly Exclude<FirmwareChannel, 'manual'>[] = ['stable', 'beta', 'alpha'];
 
-export interface ChannelStand {
+interface ChannelStand {
   channel: Exclude<FirmwareChannel, 'manual'>;
   /** The build this channel points at, or null while it points nowhere and hands out nothing. */
   firmwareId: string | null;

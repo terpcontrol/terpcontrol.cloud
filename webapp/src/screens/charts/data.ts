@@ -16,7 +16,7 @@ import { instant, type ChartWindow } from './span';
  */
 export type ChartData = Omit<SpaceSeries, 'spaceId'> & Pick<GrowSeries, 'measurements' | 'dayFrom' | 'dayTo'> & { originAt: string | null };
 
-export interface ChartSubject {
+interface ChartSubject {
   growId: string | null;
   spaceId: string | null;
   /** The grow's own measurements worth asking about. */

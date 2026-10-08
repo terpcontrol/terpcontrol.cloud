@@ -19,7 +19,7 @@ import { typedFigure } from '@/ui/figures';
  * build announced is offered, because a role it does not know is dropped when
  * its table is loaded.
  */
-export const OFFERED_ROLES: readonly SocketRole[] = [
+const OFFERED_ROLES: readonly SocketRole[] = [
   'heater',
   'dehumidifier',
   'humidifier',
@@ -75,7 +75,7 @@ export const spanOf = (seconds: number): Span => {
 };
 
 /** Two minutes on, every six hours: a watering pump's cycle, which is the timer people set first. */
-export const DEFAULT_TIMER: SocketTimer = { onSeconds: 120, everySeconds: 6 * 3600 };
+const DEFAULT_TIMER: SocketTimer = { onSeconds: 120, everySeconds: 6 * 3600 };
 
 export interface SocketDraft {
   role: SocketRole | null;
@@ -111,7 +111,7 @@ export const timerOf = (draft: Pick<SocketDraft, 'on' | 'every'>): SocketTimer |
  * can carry; a timer to what the firmware accepts - on for less than its
  * period, and a period of a day at most.
  */
-export type SocketProblem = 'role' | 'address' | 'credentials' | 'timer' | 'timerFirmware';
+type SocketProblem = 'role' | 'address' | 'credentials' | 'timer' | 'timerFirmware';
 
 export const problemOf = (draft: SocketDraft, capabilities: DeviceCapabilities): SocketProblem | null => {
   if (!draft.role || !capabilities.roles.includes(draft.role)) return 'role';

@@ -48,7 +48,7 @@ export function PairSocketRow({ deviceId, deviceName, capabilities }: { deviceId
  * Pairing a new socket (`socket` null) or changing one the table holds. A
  * changed socket keeps its slot, and its credentials unless new ones are typed.
  */
-export function SocketSheet({
+function SocketSheet({
   deviceId,
   deviceName,
   capabilities,
@@ -201,7 +201,7 @@ function RolePick({
 }
 
 /** "on for [2] [min] every [6] [h]". */
-export function CycleFields({
+function CycleFields({
   draft,
   onChange,
   disabled,

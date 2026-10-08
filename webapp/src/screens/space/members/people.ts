@@ -15,13 +15,6 @@ import type { MemberRole, Membership, MembershipPage, Person } from '@fg2/shared
  */
 
 /**
- * When each person last wrote in the space, as the server answers it beside the
- * rows. It is sparse on purpose: somebody who has never written is simply not
- * in it, which is a different thing from somebody whose last entry is old.
- */
-export type Activity = MembershipPage['activity'][number];
-
-/**
  * One person, however many rows carry them: the tent's own row, the room's, and
  * the stronger of the two roles, which is the one the server actually grants.
  */
