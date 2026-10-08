@@ -1,9 +1,25 @@
+---
+summary: Which libraries the React web app is built from and why, its session and API client, its service worker, and the brand look its design tokens carry - read before adding a dependency, changing the build, the service worker, the fonts or a token
+updated: 2026-10-08
+source: Chris (platform 2026-09-16, the brand look 2026-09-24); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
+paths:
+  - webapp/package.json
+  - webapp/vite.config.ts
+  - webapp/eslint.config.mjs
+  - webapp/src/sw.ts
+  - webapp/src/api/**
+  - webapp/src/theme/**
+  - webapp/src/charts/**
+---
 # ADR 0002: The libraries the rewritten web app is built from
 
 - **Status:** accepted on 2026-09-18. The choices below are what `webapp/` is scaffolded on. Amended on
   2026-09-24: the look the libraries carry is the company's brand, recorded under
-  [The look](#the-look-the-brand); it supersedes "Greenhouse", which had replaced "Instrument".
-- **Date:** 2026-09-18, amended 2026-09-24
+  [The look](#the-look-the-brand); it supersedes "Greenhouse", which had replaced "Instrument". Also amended on
+  2026-09-18 (the app runs the contract's schema-free modules, see [Types](#types-only-from-fg2shared-typesv1)),
+  2026-09-22 (the service worker is written by hand, for Web Push) and 2026-09-25 (the tabular digits come from a
+  face of their own). Built and merged with #104 on 2026-10-04.
+- **Date:** 2026-09-18, amended 2026-09-18, 09-22, 09-24 and 09-25
 - **Touches:** `webapp/`
 - **Builds on:** [ADR 0001](0001-app-rewrite-data-model.md), which fixes the model, the `/v1` API and the
   contract in `@fg2/shared-types/v1`.
@@ -53,10 +69,10 @@ app carries no state library at all.
 ### Talking to the API: a small typed `fetch`, not a client library
 
 `src/api/client.ts` attaches the bearer token, retries once behind a fresh one when the server answers 401, and
-turns every failure into an `ApiError` carrying the `application/problem+json` document — `errors[]` keyed by
-field, which is exactly what a form needs. That is about sixty lines and it ends there; axios would add a
-dependency for retries and interceptors the platform's `fetch` and one wrapper already give, and a generated
-client would restate the routes that the contract's types already describe.
+turns every failure into an `ApiError` (`src/api/problem.ts`) carrying the `application/problem+json` document —
+`errors[]` keyed by field, which is exactly what a form needs. That is about a hundred lines and it ends there;
+axios would add a dependency for retries and interceptors the platform's `fetch` and one wrapper already give, and
+a generated client would restate the routes that the contract's types already describe.
 
 The session is the part worth naming. `POST /v1/sessions` answers three tokens: a bearer token that lives five
 minutes, a refresh token, and a media token that rides in the query string of a picture's URL because an `<img>`
@@ -92,8 +108,8 @@ The catalogues at `webapp/public/assets/i18n/{en,de}.json` are kept exactly as t
 choice: they interpolate `{{value}}`, which is i18next's default syntax and ngx-translate's before it, so both
 files load unchanged. FormatJS or Lingui would mean ICU messages and rewriting every placeholder in two files of
 a hundred sections, for a feature — plurals and genders chosen by the message — that these strings do not use.
-Both catalogues are fetched at start-up rather than bundled, so a hundred kilobytes of text stays out of the
-JavaScript, and the service worker precaches them so an offline reload still has words.
+Both catalogues are fetched at start-up rather than bundled, so their text - about 300 kB a language by now - stays
+out of the JavaScript, and the service worker precaches them so an offline reload still has words.
 
 **The device's log messages keep resolving.** A device writes keys, not sentences, and the server parses a log
 line into `message { key, params }` at the device-protocol boundary. The catalogue answers such a key two ways,
@@ -136,9 +152,9 @@ JavaScript bundle and make the theme a React concern, which it is not. The one p
 ECharts' canvas, so `src/charts/tokens.ts` reads the computed values off the document and hands them over —
 still one source, read rather than duplicated.
 
-Fonts are self-hosted through `@fontsource-variable`, with the axes the look uses (see below) and latin subsets
-precached. Google Fonts would be a third-party request on every load, which an installed app cannot rely on and
-which tells somebody else who opened the app.
+Fonts are self-hosted through `@fontsource-variable`, with the axes the look uses (see below) and the latin and
+latin-ext cuts precached. Google Fonts would be a third-party request on every load, which an installed app cannot
+rely on and which tells somebody else who opened the app.
 
 ### The look: the brand
 
@@ -149,21 +165,26 @@ layer in `webapp/src/ui` (groups, joined rows, the one segmented control, figure
 age said by ink rather than opacity) - is not part of the look and did not change with it.
 
 **It supersedes "Greenhouse"**, the warm organic look this section recorded before: Fraunces serif titles and
-wordmark over Nunito Sans, oat paper and warm charcoal, a forest green for the brand. It was rejected by the owner
-for two reasons, and both are now rules. A serif is for special occasions only, and the app has none: no name,
-title, heading or figure is set in a serif anywhere. And the app follows the brand's colours rather than a
-palette of its own, so a grower who comes from the website finds the same blue, the same green and the same
-logo in the app. "Instrument", the look before Greenhouse (IBM Plex Sans, JetBrains Mono on every figure), stays
-retired for the reasons it was retired: a monospaced face on every string, one weight, grey on grey.
+wordmark over Nunito Sans, oat paper and warm charcoal, a forest green for the brand. A panel of agent judges had
+picked it; the owner rejected it for two reasons (Chris, 2026-09-24), and both are now rules. A serif is for
+special occasions only, and the app has none: no name, title, heading or figure is set in a serif anywhere. And
+the app follows the brand's colours rather than a palette of its own, so a grower who comes from the website finds
+the same blue, the same green and the same logo in the app. "Instrument", the look before Greenhouse (IBM Plex
+Sans, JetBrains Mono on every figure), stays retired for the reasons it was retired: a monospaced face on every
+string, one weight, grey on grey.
 
 **Face.** One family, OFL, self-hosted: **Inter Variable** (`@fontsource-variable/inter`, the weight and
 optical-size axes, `opsz.css`). The site sets its text in the system's sans and names Inter in that stack;
 self-hosting Inter gives the app that look on every platform, where the bare stack would be San Francisco on a
-Mac, Segoe on Windows and Roboto on Android. Inter's figures are turned tabular for the whole app
-(`font-variant-numeric: tabular-nums` on `body`), so a column of readings lines up without a second, monospaced
-face, and `--font-figure` is the same family. The optical-size axis cuts a 12 px caption open and a 32 px title
-tight without anybody asking. The server draws its overlays in the same face: `server/scripts/install-fonts.mjs`
-unpacks `@fontsource/inter` at 400, 600 and 700 into the image for librsvg.
+Mac, Segoe on Windows and Roboto on Android. A column of readings lines up without a second, monospaced face,
+because the digits are tabular. *Amended 2026-09-25:* not by `font-variant-numeric: tabular-nums` on `body`, as
+this said first - in Inter that feature also widens the hyphen, the stops, the colon, the brackets and the space,
+so a caption came out with a hyphen a digit wide. `webapp/scripts/tabular-digits.py` cuts Inter's own tabular
+digits (0-9 only, both axes kept) into a 6 KB face, `src/theme/inter-tabular-digits.woff2`, and `--font-figure`
+names it ahead of Inter: digits are a digit wide, everything else is Inter at its own width. The optical-size axis
+cuts a 12 px caption open and a 32 px title tight without anybody asking. The server draws its overlays in the
+same face: `server/scripts/install-fonts.mjs` unpacks `@fontsource/inter` at 400, 600 and 700 into the image for
+librsvg.
 
 **Hierarchy** comes from weight and size, as the site's headings do, never from a second family. A page's title
 is 700, closed up by -0.02 em, in `--heading` (the dark brand blue in light mode, white in dark); a thing's name
@@ -295,12 +316,28 @@ megabytes and are cached once they are actually looked at. The app updates itsel
 rather than asking. A native store build, if it comes, wraps this same bundle — which is why the build stays a
 plain static directory with no server half and no framework-specific output.
 
+*Amended 2026-09-22:* Workbox no longer generates the worker. A browser hands a push to the service worker and to
+nothing else, and a generated worker has no handler for one, so a Web Push subscription would have reached
+nobody. The worker is written out in `src/sw.ts` (`strategies: 'injectManifest'` in `vite.config.ts`): it
+precaches what the generated one did - the list is still decided in `vite.config.ts`, the tabular-digits face
+included - keeps `assets/` once looked at, and adds the two push handlers, one that shows the announcement and
+one that lands a tap on the inbox or the task list. It calls neither `self.skipWaiting()` nor `clientsClaim()`,
+which the plugin adds only to a worker it generates, so despite `registerType: 'autoUpdate'` a new release takes
+over only once every window of the app has been closed; whether that stays is open question 4.
+
 ### Types: only from `@fg2/shared-types/v1`
 
 Every shape on the wire is imported from the contract, and `verbatimModuleSyntax` plus a lint rule make those
 imports explicitly type-only, so the package — which is types and an intentionally empty JavaScript module —
 never reaches the bundle. `strict` is on, for the reason the server has it on: the contract says "none is
 `null`", and only `strictNullChecks` keeps that null in the types the app is written against.
+
+*Amended 2026-09-18 to 10-03:* the app also runs code from the contract - the arithmetic both ends must agree on,
+which `shared-types` keeps in modules without a schema (feeding, grow days, day and night, value ages, climate
+presets, configuration fields, the socket report and a few more; ADR 0001, Conventions). They are imported one by
+one as `@fg2/shared-types/v1-schemas/<module>.js` and listed in `optimizeDeps.include` in `vite.config.ts`, because
+a linked CommonJS package is not pre-bundled unless it is named. Never the index: it would bring zod and every
+schema with it, which is why the forms (above) are not validated in the client.
 
 ### Lint, format and strictness: the server's discipline
 
@@ -311,15 +348,12 @@ and `npm run build` are what they are in `server/`, so "before committing" means
 
 ## What the scaffold contains
 
-`npm run dev` serves on `http://localhost:4200` against the API named in the root `.env`; `npm run build` type
-checks and bundles to `dist/`, which the nginx image serves. `npm test` runs what needs nothing but the
-checkout, and `npm run test:live` runs the tests that need a stack up — one of which signs in and reads
-`/v1/devices` through the app's own session and client.
-
-In place: the shell with the five tabs and the account page, the session with its refresh and its media token,
-the query client, both catalogues with the device-message resolver, the tokens in both modes, the ECharts
-binding, and a placeholder behind each route. The screens themselves are empty on purpose: the look lands in the
-next pass and the screens in the slices after it.
+The scaffold of 2026-09-18 held the shell and the account page, the session with its refresh and its media token,
+the query client, both catalogues with the device-message resolver, the tokens in both modes, the ECharts binding
+and a placeholder behind each route. Every placeholder has since been replaced by its screen - the last, the page
+for an unknown address, in #104 - so the scaffold is the app. `npm run build` type checks and bundles to `dist/`,
+which the nginx image serves; `npm test` runs what needs nothing but the checkout (Vitest, jsdom), and `npm run
+test:live` the tests that need a stack up. Serving it against a local stack is in `CLAUDE.md`.
 
 ## What was kept from the Angular app
 
@@ -333,17 +367,26 @@ system's font files, and the client-side demo fixtures — the demo is a session
 - A second opinion about validation is gone: a form that should refuse something has to be refused by the
   contract's schema on the server, or it is not refused at all. That is one rule in one place, and it is the
   server's.
-- Bundle size is a number somebody has to keep watching. The shell is about 137 kB gzipped with nothing drawn
-  yet; charts are registered piecemeal and route-level code splitting is available but not needed yet.
+- Bundle size is a number somebody has to keep watching. The empty shell was about 137 kB gzipped; with every
+  screen built the app is still one chunk, about 560 kB gzipped in the build of 2026-10-04. Charts are registered
+  piecemeal, and route-level code splitting (open question 3) is the lever left.
 - The catalogues are fetched before the first render, which costs one request on a cold load. A frame of raw
   translation keys is worse.
 
 ## Open questions
 
+All four are open (2026-10-08).
+
 1. **A browser end-to-end runner.** Playwright is the obvious choice and nothing here needs it yet; the question
-   is worth deciding when the first screen with a flow through it lands, not before.
+   is worth deciding when the first screen with a flow through it lands, not before. Every screen has landed
+   since. Agents drive the app with Playwright and the installed Chromium to check a slice, but no browser suite
+   is committed and CI runs none; the app's own tests are Vitest under jsdom.
 2. **The native wrapper.** The record says a store build may follow. Capacitor is what the old app was
    configured for and its config was never filled in; the build output is a plain static directory, so this stays
    open without costing anything.
-3. **Which screens are code-split.** Everything is in one chunk while the screens are empty. The timelapse
-   composer and the charting view are the two that will be worth splitting off.
+3. **Which screens are code-split.** Nothing is yet: the whole app is one chunk (see Consequences). The timelapse
+   composer and the charting view are the two most worth splitting off.
+4. **Does a new release take over at once again?** (2026-10-08) The record says the app updates itself rather
+   than asking; since the worker is written by hand it waits until every window is closed (see the progressive web
+   app). Adding `self.skipWaiting()` and `clientsClaim()` to `src/sw.ts` would restore the record; keeping the
+   wait spares an open screen a reload in the middle of an entry.

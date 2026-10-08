@@ -15,6 +15,7 @@ jobs:
       docker_server: ${{ steps.changes.outputs.docker_server }}
       firmware: ${{ steps.changes.outputs.firmware }}
       garmin: ${{ steps.changes.outputs.garmin }}
+      docs: ${{ steps.changes.outputs.docs }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -42,6 +43,7 @@ jobs:
             echo "docker_server=$(touches "server/|$shared|$compose")"
             echo "firmware=$(touches "firmware/|fw-buildcontainer/|build-fw\.sh$|$ci")"
             echo "garmin=$(touches "garmin/|garmin-buildcontainer/|build-garmin\.sh$|$ci")"
+            echo "docs=$(touches "docs/|scripts/check-docs\.mjs$|$ci")"
           } | tee -a "$GITHUB_OUTPUT"
 
   # Runs on every pull request, whatever it touches: an advisory is published
@@ -69,6 +71,20 @@ jobs:
             fi
           done
           exit "$status"
+
+  # Every document in docs/ carries frontmatter and a line in docs/index.md,
+  # which is loaded into every agent session (docs/adr/0003-knowledge-base.md).
+  docs:
+    needs: detect
+    if: needs.detect.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: node scripts/check-docs.mjs
 
   shared-types:
     needs: detect

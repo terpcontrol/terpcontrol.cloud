@@ -2,18 +2,37 @@
 
 The project conventions live in [AGENTS.md](AGENTS.md); read those as well.
 
+## Knowledge
+Everything people and agents know about the software that the code does not say lives in `docs/`, in English. This
+is its index - read a document when its line says you need it:
+
+@docs/index.md
+
+- **Record what you learn, in the same PR as the code:** a decision or instruction a person gives you, the reason
+  behind something, the cause of a non-obvious failure, a procedure. Use the `remember` skill; it says where and how.
+- **This repository is public.** It takes technical and architectural knowledge about the software, the user guides
+  (Raspberry Pi, firmware upgrade, TriAC fix) and code - nothing else. Everything about the company - business and
+  strategy, market and competitor research, product, roadmap and pricing decisions, reverse engineering of purchased
+  hardware, suppliers, customers, sales, shop, marketing, legal matters - belongs in the private repository
+  terpcontrol.com, checked out at `${TERPCONTROL_COM_DIR:-/Users/work/workspaces/terpcontrol.com}`, also when it
+  comes up here: `remember` writes it there. In doubt it is company knowledge. Code, comments, `docs/`, commit
+  messages and PR descriptions here may say that internal notes exist, never what they say. When a task needs such
+  knowledge, read it there.
+- **Never** write secrets anywhere - only where they are kept - nor anything that tells an attacker about a server:
+  host names or domains of servers, IPs, paths, users, ports, versions, other services there, SSH aliases. That holds
+  for both repositories.
+- Auto memory is off for this project (`.claude/settings.json`): knowledge goes into the repository, not into
+  `~/.claude`. At the end of every turn Stop hooks check whether something should have been recorded and whether
+  this turn put company knowledge, secrets or server details here; the guard runs again before `git push` and
+  `gh pr create`. Each sends you back once.
+- `/docs-consolidate` tidies the whole of `docs/` and opens a PR; run it when asked.
+
 ## Documentation
 - `README.md` is user facing: how to run and use the stack, nothing else. Keep it short, and only add to it when
   somebody running the application would otherwise miss something.
 - Build, CI, deployment and release details are internal. Document them where they live - as comments in the workflow,
-  script or config they describe - and keep them out of the README.
-- **This repository is public.** It holds only what the software itself needs: technical and architectural
-  decisions (`docs/`), user-facing guides (Raspberry Pi, firmware upgrade, TriAC fix) and code. Everything about
-  the company lives in the private `terpcontrol.com` repository under `docs/`: business plans and strategy, market
-  and competitor research, roadmap and pricing decisions, reverse engineering of purchased hardware, supplier,
-  customer and sales information, and anything containing credentials. When a task produces such a document,
-  write it there, never here; when a task needs one, read it there. A code comment may say that internal notes
-  exist, but must not reproduce their content.
+  script or config they describe - and keep them out of the README. What a comment cannot carry, the why and the
+  surroundings, goes into `docs/`.
 
 ## Launching the stack locally
 
@@ -123,7 +142,7 @@ A device counts as offline ten minutes after its last sample, so stopping `run` 
 
 ### What a running device answers
 
-With `run` in the background, everything the webapp can do to a device works end to end: saving settings, test mode,
+With `run` in the background, everything the webapp can do to a device works end to end: saving settings,
 maintenance mode, reboot, pairing and removing smart sockets, and firmware updates (the device reports the new
 firmware id a few seconds after being told to update). Alarms fire too - define one in the webapp and push a value
 past it with `send --set`.

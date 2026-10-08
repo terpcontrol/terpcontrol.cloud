@@ -3,7 +3,7 @@
 # Installing the KS-Fix on the Mainboard
 
 If your refrigerator is running continuously and not receiving on/off signals from the module, then the TriAC is 
-defective. This is noticeable if the back panel is iced up and the humidity reading on the dashboard remains constant 
+defective. This is noticeable if the back panel is iced up and the humidity in the app's charts remains constant 
 for hours and is below the set target value.
 
 ## Overview
