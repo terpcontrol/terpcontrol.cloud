@@ -104,12 +104,13 @@ Pitfalls, each met at least once:
   so changing a factor changes the history. The VPD curve is `shared-types/src/v1/vpd.ts`, the one the targets screen
   uses too. Targets live in Mongo (`targetChanges`, phase snapshots).
 - **Which leaf offset a VPD takes** is the half the device was in: off the lamp for a controller, a fridge and a LIGHT
-  (a series window by the lamp's majority, from its switchings); for a smart plug, which has none, its own schedule
-  (`usedaynight`), else the newest measured still of a camera in its space (grey is night, `media.monochrome`), else
-  the night (Chris, 2026-10-08; [ADR 0006](../adr/0006-day-and-night-by-the-device-clock.md)). A plug window is read
-  at its middle. Without a schedule a plug's read costs two Mongo reads more (`StillDaylightService`: the space's
-  cameras, one `$group` of their stills by half steps), none per point. An AIR fan's VPD takes the night's offset:
-  it reports its day, but no read hands that to `vpdOf`.
+  (a series window by the lamp's majority, from its switchings); for an AIR fan, which has none, the `day` it reports
+  off its light sensor (live its newest, a series window by the majority of its `day` switchings, read in the lamp's
+  scan; only a fan writes `day`, so the others pay nothing for it); for a smart plug, which has neither, its own
+  schedule (`usedaynight`), else the newest measured still of a camera in its space (grey is night,
+  `media.monochrome`), else the night (Chris, 2026-10-08; [ADR 0006](../adr/0006-day-and-night-by-the-device-clock.md)).
+  A plug window is read at its middle. Without a schedule a plug's read costs two Mongo reads more
+  (`StillDaylightService`: the space's cameras, one `$group` of their stills by half steps), none per point.
 - **Written, not served:** the controller diagnostics `avg`, `p`, `i`, `d`, `rpm`, `day`, `sensor_type`.
 - **Reads** (`DataService`): a series is `aggregateWindow(mean)` over `status` and `status_daily`, empty windows kept -
   at most 1,000 windows unasked, an asked step honoured down to 5 s up to 5,000 windows, at most 50,000 points.

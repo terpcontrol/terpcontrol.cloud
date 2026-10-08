@@ -132,7 +132,67 @@ describe('the half of the day a plug´s VPD takes', () => {
       NIGHT_VPD,
       NIGHT_VPD,
     ]);
-    expect(await liveVpd(store({ type: 'fan', spaceId: SPACE, configuration: scheduled }, seen))).toBe(NIGHT_VPD);
+    expect(await liveVpd(store({ type: 'fridge', spaceId: SPACE, configuration: scheduled }, seen))).toBe(NIGHT_VPD);
     expect(seen.asked).toEqual([]);
+  });
+});
+
+/**
+ * An AIR fan has no lamp either, but says which half it is in: its light sensor
+ * decides, and it reports the answer as `day` beside its readings (ADR 0006).
+ * No read handed that to the VPD, which took the night's offset round the clock.
+ */
+describe('the half of the day an AIR fan´s VPD takes', () => {
+  const DEVICE = 'sim-fan-1';
+  const factors = DEFAULT_DEVICE_SETTINGS;
+  const DAY_VPD = parseFloat(vapourPressureDeficit(25, 23, 60).toFixed(2));
+  const NIGHT_VPD = parseFloat(vapourPressureDeficit(25, 25, 60).toFixed(2));
+
+  /** The windows of half an hour from 05:00 to 07:00 UTC, each with the same air. */
+  const startsAt = new Date('2026-01-20T05:00:00.000Z');
+  const endsAt = new Date('2026-01-20T07:00:00.000Z');
+  const stamps = [1, 2, 3, 4].map(half => new Date(startsAt.getTime() + half * 1800_000).toISOString());
+
+  /** A device whose `day` opened the window at night and switched to day at 06:10 UTC, and last said `day` = `liveDay`. */
+  const store = (type: string, liveDay: number): DataService => {
+    const devices = { findOne: () => ({ lean: () => Promise.resolve({ type, settings: factors, configuration: {} }) }) };
+    const data = new DataService(devices as never, { url: 'http://influx.invalid', token: 'x', org: 'org', bucket: 'bucket' } as never);
+    const air = (stamp: string) => [
+      { _time: stamp, _field: 'temperature', _value: 25 },
+      { _time: stamp, _field: 'humidity', _value: 60 },
+    ];
+    (data as unknown as { read: (query: string) => Promise<FluxRow[]> }).read = query =>
+      Promise.resolve(
+        query.includes('difference(')
+          ? query.includes('r["_field"] == "day"')
+            ? [
+                { _time: '2026-01-20T05:00:00.000Z', _field: 'day', _value: 0 },
+                { _time: '2026-01-20T06:10:00.000Z', _field: 'day', _value: 1 },
+              ]
+            : []
+          : query.includes('status_daily')
+            ? []
+            : query.includes('last()')
+              ? [...air('2026-01-20T12:00:00.000Z'), { _time: '2026-01-20T12:00:00.000Z', _field: 'day', _value: liveDay }]
+              : stamps.flatMap(air),
+      );
+    return data;
+  };
+
+  const vpdOver = async (data: DataService): Promise<(number | null)[]> =>
+    (await data.series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: 1800 })).metrics[0].points.map(point => point.value);
+
+  const liveVpd = async (data: DataService): Promise<number | null> => (await data.live(DEVICE)).metrics.vpd?.value ?? null;
+
+  it('follows the day the fan reports, window by window as the lamp´s majority and live', async () => {
+    // The window from 06:00 to 06:30 was day for twenty of its thirty minutes.
+    expect(await vpdOver(store('fan', 1))).toEqual([NIGHT_VPD, NIGHT_VPD, DAY_VPD, DAY_VPD]);
+    expect(await liveVpd(store('fan', 1))).toBe(DAY_VPD);
+    expect(await liveVpd(store('fan', 0))).toBe(NIGHT_VPD);
+  });
+
+  it('is read off the lamp for every other device, as before', async () => {
+    expect(await vpdOver(store('controller', 1))).toEqual([NIGHT_VPD, NIGHT_VPD, NIGHT_VPD, NIGHT_VPD]);
+    expect(await liveVpd(store('fridge', 1))).toBe(NIGHT_VPD);
   });
 });

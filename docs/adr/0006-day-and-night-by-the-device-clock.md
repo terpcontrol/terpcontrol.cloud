@@ -1,7 +1,7 @@
 ---
-summary: Why the cloud, the app and the simulator decide day and night exactly as the firmware does - by the device's clock window and work mode, never by the lamp - through one shared module, how a switch between the halves is judged, and how a plug without a lamp tells day from night for its VPD - read before touching day-night.ts, setpoints, the climate verdict, night bands, a VPD's leaf offset or how a light window is written
+summary: Why the cloud, the app and the simulator decide day and night exactly as the firmware does - by the device's clock window and work mode, never by the lamp - through one shared module, how a switch between the halves is judged, and how a plug or an AIR fan, having no lamp, tells day from night for its VPD - read before touching day-night.ts, setpoints, the climate verdict, night bands, a VPD's leaf offset or how a light window is written
 updated: 2026-10-08
-source: rewrite commits of 2026-10-01 to 10-03 merged with PR #104; checked against shared-types/, server/ and scripts/simulate-device.mjs on 2026-10-08; codebase cleanup (2026-10-08); Chris (a plug's day for its VPD, 2026-10-08)
+source: rewrite commits of 2026-10-01 to 10-03 merged with PR #104; checked against shared-types/, server/ and scripts/simulate-device.mjs on 2026-10-08; codebase cleanup (2026-10-08); Chris (a plug's and an AIR fan's day for their VPD, 2026-10-08)
 paths:
   - shared-types/src/v1/day-night.ts
   - server/src/modules/v1/device/setpoints.ts
@@ -16,7 +16,7 @@ paths:
 # ADR 0006: Day and night are the device's clock, not the lamp
 
 - **Status:** accepted on 2026-10-03; built and merged with #104 on 2026-10-04. Amended on 2026-10-08 (a device
-  without a lamp, for its VPD).
+  without a lamp, for its VPD: a plug, an AIR fan).
 - **Date:** 2026-10-03
 - **Touches:** `shared-types/src/v1/day-night.ts`, `server/` (setpoints, verdict, Timeline, diary), `webapp/`,
   `scripts/simulate-device.mjs`
@@ -87,9 +87,12 @@ glides its targets along the dimming ramps besides.
   of a window with one switch, as the lamp's majority is read). It costs nothing with a schedule and two reads per
   answer without one - the space's camera rows and one aggregation of their stills by half steps - never one per
   point. Only the VPD follows: a plug still holds no targets and shades no nights (`cycleOf` is unchanged), and the
-  app works out no VPD of a reading itself - its VPD band comes from targets, which a plug has none of. An AIR
-  fan's VPD was left as it was: it takes the night's offset too, although the fan reports its day, because no
-  read hands that day to `vpdOf`. The cases are kept by
+  app works out no VPD of a reading itself - its VPD band comes from targets, which a plug has none of.
+
+  **An AIR fan** has no lamp either, but reports its half (`day`, off its light sensor - the exception above), and
+  its VPD now takes that: live its newest `day`, in a series each window by the majority of its `day` switchings,
+  as the lamp's is read and in the same scan. Before, no read handed that day to `vpdOf`, and the fan's VPD took
+  the night's offset round the clock as the plug's did. The cases are kept by
   `server/test/unit/plug-schedule.spec.ts`, `still-light.spec.ts`, `still-daylight.spec.ts`, `vpd-half.spec.ts`
   and `server/test/specs/day-night.spec.ts`.
 

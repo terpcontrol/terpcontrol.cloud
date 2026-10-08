@@ -77,7 +77,7 @@ import {
  * and stay readable in Influx, so a question that is asked one day can be
  * answered from the points that were kept.
  */
-/** 1 while the controller is in the day half of its cycle, 0 in the night half. */
+/** 1 while an AIR fan's light sensor says it is day, 0 by night. No other device writes it. */
 const DAY_FIELD = 'day';
 
 const DIAGNOSTIC_FIELDS = ['avg', 'p', 'i', 'd', 'rpm', DAY_FIELD, 'sensor_type'];
@@ -210,10 +210,12 @@ interface DeviceSelf {
    * every other device, whose half is read off its lamp.
    */
   plug: { schedule: Pick<Cycle, 'day' | 'night'> | null; spaceId: string | null } | null;
+  /** An AIR fan says which half it is in (`DAY_FIELD`), and its VPD goes by that rather than by a lamp it does not have. */
+  reportsDay: boolean;
 }
 
 /** What the device schema fills in, reached only for a device that is not in the database at all. */
-const UNKNOWN_DEVICE: DeviceSelf = { factors: DEFAULT_DEVICE_SETTINGS, hardware: {}, plug: null };
+const UNKNOWN_DEVICE: DeviceSelf = { factors: DEFAULT_DEVICE_SETTINGS, hardware: {}, plug: null, reportsDay: false };
 
 /** Which half of the day each instant (epoch milliseconds) was in: true by day, false by night, null where nothing says. */
 type DayAt = (at: number) => boolean | null;
@@ -272,7 +274,8 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       if (output) outputs[output] = metricValueOf(reading.value, reading.measuredAt);
     }
 
-    const readings = readingsOf(field => latest.get(field)?.value ?? null, await this.plugDayAt(self, computedAt('vpd', latest)));
+    const isDay = self.reportsDay ? flag(latest, DAY_FIELD) : await this.plugDayAt(self, computedAt('vpd', latest));
+    const readings = readingsOf(field => latest.get(field)?.value ?? null, isDay);
     for (const name of ['vpd', 'ppfd'] as const) {
       const value = computedValue(name, readings, self.factors);
       if (value !== null) metrics[name] = metricValueOf(value, computedAt(name, latest));
@@ -328,7 +331,7 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
           this.read(seriesQuery(this.bucket, deviceId, fields, window)),
           this.read(summaryQuery(this.bucket, deviceId, fields, window)),
           self,
-          this.lampOf(deviceId, request.metrics, window),
+          this.lampOf(deviceId, request.metrics, window, self),
           request.metrics.includes('vpd') ? self.then(known => this.plugDayIn(known, window)) : null,
         ])
       : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, [] as OutputSwitching[], null];
@@ -634,12 +637,17 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
    * a caller that ticked the light as well pays for one field twice; that is a
    * scan of one field against a wrong figure on a panel the screen draws by
    * default, and the alternative is to make the two reads wait for each other.
+   *
+   * An AIR fan has no lamp and says its half itself, so for a fan its `day` is
+   * read instead. It rides along in the same scan rather than waiting for the
+   * device to say it is a fan: no other device writes it, so it costs the
+   * others nothing.
    */
-  private async lampOf(deviceId: string, metrics: readonly Metric[], window: TimeWindow): Promise<OutputSwitching[]> {
+  private async lampOf(deviceId: string, metrics: readonly Metric[], window: TimeWindow, self: Promise<DeviceSelf>): Promise<OutputSwitching[]> {
     if (!metrics.includes('vpd')) return [];
-    const switchings = await this.switchingsOf(deviceId, ['light'], window);
+    const [switchings, device] = await Promise.all([this.switchingsOf(deviceId, ['light'], window, [DAY_FIELD]), self]);
 
-    return switchings.get(fieldOfOutputMetric('light')) ?? [];
+    return switchings.get(device.reportsDay ? DAY_FIELD : fieldOfOutputMetric('light')) ?? [];
   }
 
   /**
@@ -681,7 +689,7 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     if (!device) return UNKNOWN_DEVICE;
 
     const plug = device.type === 'plug' ? { schedule: plugScheduleOf(device.type, device.configuration), spaceId: device.spaceId ?? null } : null;
-    return { factors: device.settings, hardware: device.state?.hardware ?? {}, plug };
+    return { factors: device.settings, hardware: device.state?.hardware ?? {}, plug, reportsDay: device.type === 'fan' };
   }
 
   /**
