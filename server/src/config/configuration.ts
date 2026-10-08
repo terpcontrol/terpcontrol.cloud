@@ -9,6 +9,9 @@ import { registerAs } from '@nestjs/config';
  * an existing deployment needs no new settings.
  */
 
+/** The file the server reads its settings from; the process environment wins over it. */
+export const ENV_FILE = `.env.${process.env.NODE_ENV || 'development'}.local`;
+
 const flag = (value: string | undefined): boolean => value === 'true';
 
 const number = (value: string | undefined, fallback: number): number => {
@@ -29,13 +32,7 @@ export const appConfig = registerAs('app', () => ({
    * rather than sending anybody to an address this install has never heard of.
    */
   appUrlExternal: (process.env.APP_URL_EXTERNAL ?? '').trim().replace(/\/+$/, '') || null,
-  // Read by nothing today: the line that passed these to `cors()` has been
-  // commented out since before this migration, so the plugin defaults apply.
-  // They stay here because `.env.sample` still documents them.
-  origin: process.env.ORIGIN,
-  credentials: flag(process.env.CREDENTIALS),
   logFormat: process.env.LOG_FORMAT,
-  logDir: process.env.LOG_DIR,
 }));
 
 export const databaseConfig = registerAs('database', () => ({
@@ -58,8 +55,6 @@ export const influxConfig = registerAs('influx', () => ({
 export const mqttConfig = registerAs('mqtt', () => ({
   url: process.env.MQTT_URL,
   port: number(process.env.MQTT_PORT, 1883),
-  user: process.env.MQTT_USER,
-  password: process.env.MQTT_PASSWORD,
   /** The secret RabbitMQ puts in the path of every auth check. */
   authSharedSecret: process.env.MQTTAUTH_SHARED_SECRET,
 }));
@@ -176,9 +171,13 @@ export const retentionConfig = registerAs('retention', () => ({
  * a migrated grow's measurements are called and what each account's own
  * preference starts as. docker-compose.yaml defaults it to `en`; the fallback
  * here is for `npm run migrate`, which runs outside compose.
+ *
+ * `allowRejects` lets a boot leave behind the rows a transform could not take,
+ * which is otherwise a refusal; nobody types a flag when a container starts.
  */
 export const migrationConfig = registerAs('migration', () => ({
   locale: (process.env.MIGRATION_LOCALE ?? 'en').trim() || 'en',
+  allowRejects: flag(process.env.MIGRATION_ALLOW_REJECTS),
 }));
 
 export const configNamespaces = [

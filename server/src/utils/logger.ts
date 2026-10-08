@@ -2,12 +2,12 @@ import { existsSync, mkdirSync } from 'fs';
 import winston from 'winston';
 import winstonDaily from 'winston-daily-rotate-file';
 import { config } from 'dotenv';
+import { ENV_FILE } from '@config/configuration';
 
 // The logger is built as this file is imported, which is before Nest has read
-// the environment, so it loads the same file ConfigModule does and reads the
-// one setting it needs from it. Anything already in the process environment
-// wins, exactly as it does there.
-config({ path: `.env.${process.env.NODE_ENV || 'development'}.local` });
+// the environment, so it loads ENV_FILE itself for the one setting it needs.
+// Anything already in the process environment wins, exactly as it does there.
+config({ path: ENV_FILE });
 
 // A fallback only so that a missing LOG_DIR is reported by the environment
 // check rather than by this file dying on a path of `undefined` before the
@@ -18,6 +18,9 @@ if (!existsSync(logDir)) {
   mkdirSync(logDir, { recursive: true });
 }
 
+/** What a failure says about itself: its stack where it has one. */
+export const errorText = (error: unknown): string => (error instanceof Error ? (error.stack ?? error.message) : String(error));
+
 // Anything passed after the message. `logger.info('failed:', error)` used to
 // write "failed:" and drop the reason on the floor, which is worth rendering
 // rather than losing - even though a message that interpolates its own detail
@@ -25,7 +28,7 @@ if (!existsSync(logDir)) {
 const SPLAT = Symbol.for('splat') as unknown as string;
 
 const describe = (value: unknown): string => {
-  if (value instanceof Error) return value.stack ?? value.message;
+  if (value instanceof Error) return errorText(value);
   if (typeof value === 'object' && value !== null) {
     try {
       return JSON.stringify(value);
@@ -43,46 +46,23 @@ const logFormat = winston.format.printf(info => {
   return `${info.timestamp} ${info.level}: ${describe(info.message)}${details ? ` ${details}` : ''}`;
 });
 
-/*
- * Log Level
- * error: 0, warn: 1, info: 2, http: 3, verbose: 4, debug: 5, silly: 6
- */
-const logger = winston.createLogger({
-  format: winston.format.combine(
-    winston.format.timestamp({
-      format: 'YYYY-MM-DD HH:mm:ss',
-    }),
-    logFormat,
-  ),
+const dailyFile = (level: 'debug' | 'error', extra: object = {}) =>
+  new winstonDaily({
+    level,
+    datePattern: 'YYYY-MM-DD',
+    dirname: `${logDir}/${level}`,
+    filename: '%DATE%.log',
+    maxFiles: 30,
+    json: false,
+    zippedArchive: true,
+    ...extra,
+  });
+
+export const logger = winston.createLogger({
+  format: winston.format.combine(winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), logFormat),
   transports: [
-    // debug log setting
-    new winstonDaily({
-      level: 'debug',
-      datePattern: 'YYYY-MM-DD',
-      dirname: logDir + '/debug', // log file /logs/debug/*.log in save
-      filename: `%DATE%.log`,
-      maxFiles: 30, // 30 Days saved
-      json: false,
-      zippedArchive: true,
-    }),
-    // error log setting
-    new winstonDaily({
-      level: 'error',
-      datePattern: 'YYYY-MM-DD',
-      dirname: logDir + '/error', // log file /logs/error/*.log in save
-      filename: `%DATE%.log`,
-      maxFiles: 30, // 30 Days saved
-      handleExceptions: true,
-      json: false,
-      zippedArchive: true,
-    }),
+    dailyFile('debug'),
+    dailyFile('error', { handleExceptions: true }),
+    new winston.transports.Console({ format: winston.format.combine(winston.format.splat(), winston.format.colorize()) }),
   ],
 });
-
-logger.add(
-  new winston.transports.Console({
-    format: winston.format.combine(winston.format.splat(), winston.format.colorize()),
-  }),
-);
-
-export { logger };

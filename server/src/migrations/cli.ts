@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { config as readEnvFile } from 'dotenv';
 import { Connection, createConnection } from 'mongoose';
 import { V1_MODELS_MIGRATED_IN_PLACE, registerV1Models } from '@database/models.module';
-import { databaseConfig } from '../config/configuration';
+import { ENV_FILE, databaseConfig } from '../config/configuration';
 import { mongoConnectionSettings } from '../database/mongo-connection';
 import { MigrationRunner, MigrationRunReport, documentsCopied, migrationFailureText, runProgress } from './migration-runner';
 import { PreflightFailure, preflight } from './preflight';
@@ -106,7 +106,7 @@ const likeABoot = async (connection: Connection): Promise<void> => {
 
 const main = async (): Promise<void> => {
   // The same file the server reads, so a local rehearsal is configured the same way.
-  readEnvFile({ path: `.env.${process.env.NODE_ENV || 'development'}.local` });
+  readEnvFile({ path: ENV_FILE });
 
   const settings = mongoConnectionSettings(databaseConfig());
   const { uri, ...options } = settings;

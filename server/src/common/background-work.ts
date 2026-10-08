@@ -1,6 +1,4 @@
-import { logger } from '@utils/logger';
-
-const describe = (error: unknown): string => (error instanceof Error ? (error.stack ?? error.message) : String(error));
+import { errorText, logger } from '@utils/logger';
 
 /**
  * For work started where there is no caller to return a failure to - inside a
@@ -9,7 +7,7 @@ const describe = (error: unknown): string => (error instanceof Error ? (error.st
  * what failed instead.
  */
 export const logIfItFails = (name: string, work: Promise<unknown>): void => {
-  work.catch(error => logger.error(`${name} failed: ${describe(error)}`));
+  work.catch(error => logger.error(`${name} failed: ${errorText(error)}`));
 };
 
 /**
@@ -103,10 +101,10 @@ export class BackgroundWork {
     try {
       const result = work();
       if (result instanceof Promise) {
-        return result.catch(error => logger.error(`${name} failed: ${describe(error)}`));
+        return result.catch(error => logger.error(`${name} failed: ${errorText(error)}`));
       }
     } catch (error) {
-      logger.error(`${name} failed: ${describe(error)}`);
+      logger.error(`${name} failed: ${errorText(error)}`);
     }
 
     return undefined;

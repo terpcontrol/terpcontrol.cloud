@@ -5,7 +5,7 @@ import { DemoReadOnlyGuard } from './common/auth/demo-read-only.guard';
 import { SecurityModule } from './common/auth/auth.module';
 import { ProblemExceptionFilter } from './common/v1/problem.filter';
 import { V1CommonModule } from './common/v1/v1.module';
-import { configNamespaces } from './config/configuration';
+import { ENV_FILE, configNamespaces } from './config/configuration';
 import { validateEnvironment } from './config/validate-environment';
 import { DatabaseModule } from './database/database.module';
 import { MigrationsModule } from './migrations/migrations.module';
@@ -57,9 +57,7 @@ import { WiringModule } from './wiring.module';
       isGlobal: true,
       load: configNamespaces,
       validate: validateEnvironment,
-      // The same file the server has always read, and the process environment
-      // still wins over it.
-      envFilePath: `.env.${process.env.NODE_ENV || 'development'}.local`,
+      envFilePath: ENV_FILE,
       cache: true,
     }),
     DatabaseModule,

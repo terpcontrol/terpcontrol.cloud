@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, mongo } from 'mongoose';
 import { V1_MODELS_MIGRATED_IN_PLACE } from '@database/models.module';
-import { logger } from '@utils/logger';
+import { migrationConfig } from '@config/configuration';
+import { errorText, logger } from '@utils/logger';
 import { derivedId } from './ids';
 import { MigrationContext, MigrationReject, MigrationStep } from './migration';
 import { MigrationLock } from './migration-lock';
@@ -166,7 +167,7 @@ export const migrationFailureText = (error: unknown): string => {
     error instanceof TwoGenerationsOfOldData
   )
     return error.message;
-  return error instanceof Error ? (error.stack ?? error.message) : String(error);
+  return errorText(error);
 };
 
 /**
@@ -193,7 +194,7 @@ export class MigrationRunner {
       // a rejected row is set where the rest of the deployment is.
       await this.run({
         dryRun: false,
-        allowRejects: process.env.MIGRATION_ALLOW_REJECTS === 'true',
+        allowRejects: migrationConfig().allowRejects,
         watch: event => {
           const { level, line } = runProgress(event);
           logger[level](line);
@@ -383,7 +384,7 @@ export class MigrationRunner {
 
   private async apply(step: MigrationStep, dryRun: boolean, allowRejects: boolean): Promise<MigrationOutcome> {
     const startedAt = Date.now();
-    const context = new MigrationContext(this.db, dryRun, new Date(), process.env.MIGRATION_LOCALE?.trim() || 'en');
+    const context = new MigrationContext(this.db, dryRun, new Date(), migrationConfig().locale);
 
     try {
       // The step's own sources, moved out of the way before it reads them. Here
@@ -393,7 +394,7 @@ export class MigrationRunner {
       await step.run(context);
       await context.flushAll();
     } catch (error) {
-      throw new Error(`Migration ${step.name} failed: ${reasonOf(error)}`, { cause: error });
+      throw new Error(`Migration ${step.name} failed: ${errorText(error)}`, { cause: error });
     }
 
     const outcome: MigrationOutcome = {
@@ -422,7 +423,7 @@ export class MigrationRunner {
         // Named like every other failure inside a step: without this the record
         // being unwritable surfaces as a bare driver error with nothing in it
         // saying which migration the run was on.
-        throw new Error(`Migration ${step.name} ran but could not be recorded as applied: ${reasonOf(error)}`, { cause: error });
+        throw new Error(`Migration ${step.name} ran but could not be recorded as applied: ${errorText(error)}`, { cause: error });
       }
     }
 
@@ -437,8 +438,6 @@ export class MigrationRunner {
     return new Set(records.map(record => String(record.name)));
   }
 }
-
-const reasonOf = (error: unknown): string => (error instanceof Error ? (error.stack ?? error.message) : String(error));
 
 const describe = (outcome: MigrationOutcome): string => {
   const counts = Object.entries(outcome.stats)
