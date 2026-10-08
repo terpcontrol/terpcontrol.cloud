@@ -68,3 +68,9 @@ export const startOfDayOn = (day: string, zone: string | null): Date =>
   DateTime.fromISO(day, { zone: zone ?? undefined })
     .startOf('day')
     .toJSDate();
+
+/** That day to its last moment: the closing edge of a span of whole days. */
+export const endOfDayOn = (day: string, zone: string | null): Date =>
+  DateTime.fromISO(day, { zone: zone ?? undefined })
+    .endOf('day')
+    .toJSDate();

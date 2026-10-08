@@ -14,7 +14,7 @@ import { Photo } from '@/ui/Photo';
 import { SharedTimeline } from '../timeline/Timeline';
 import styles from './Public.module.css';
 import { windowIsCurrent } from './window';
-import { DATED_CLOCK } from '@/ui/zone';
+import { clock, DATED_CLOCK } from '@/ui/zone';
 
 /** The four the tent page shows: the three a controller steers and the one it derives. */
 const TILES: Metric[] = ['temperature', 'humidity', 'vpd', 'co2'];
@@ -228,10 +228,10 @@ function Stills({ camera, picture, now }: { camera: OverviewCamera; picture: Pic
           <li key={still.mediaId} className={styles.still}>
             <Photo
               src={picture(still.mediaId, PUBLIC_WIDTH.dayTile)}
-              alt={t('space.stillAlt', { name: camera.name, time: DateTime.fromISO(still.capturedAt).toFormat('HH:mm') })}
+              alt={t('space.stillAlt', { name: camera.name, time: clock(still.capturedAt, null) })}
               className={styles.stillFrame}
             />
-            <span className={`mono ${styles.stillTime}`}>{DateTime.fromISO(still.capturedAt).toFormat('HH:mm')}</span>
+            <span className={`mono ${styles.stillTime}`}>{clock(still.capturedAt, null)}</span>
           </li>
         ))}
       </ul>

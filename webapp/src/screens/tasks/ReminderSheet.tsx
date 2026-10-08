@@ -1,4 +1,3 @@
-import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowOrSpaceRef, Reminder, ReminderCreate, ReminderKind, Space } from '@fg2/shared-types/v1';
@@ -8,7 +7,6 @@ import { serverNow } from '@/api/clock';
 import { channelsLabel, isConfigured } from '@/screens/control/alarms/rules';
 import { useCreateReminder, useDeleteReminder, useUpdateReminder } from '@/api/reminders';
 import { Sheet } from '@/ui/Sheet';
-import { instantOf } from '@/ui/age';
 import { dayOf, startOfDayOn } from '@/ui/days';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
@@ -363,7 +361,7 @@ const bodyOf = (draft: Draft, onceOn: string, userId: string, assigneeId: string
     kind: draft.kind,
     label: draft.label.trim(),
     everyDays: draft.rhythm === 'every' ? draft.everyDays : null,
-    onceAt: draft.rhythm === 'once' ? instantOf(DateTime.fromJSDate(startOfDayOn(onceOn, zone))) : null,
+    onceAt: draft.rhythm === 'once' ? startOfDayOn(onceOn, zone).toISOString() : null,
     assigneeId: draft.forWhom === 'me' ? userId : draft.forWhom === 'other' ? assigneeId : null,
     defaults: asksForCan && draft.litres !== '' && litres > 0 ? { kind: draft.kind, litres } : null,
   };

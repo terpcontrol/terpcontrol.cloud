@@ -4,6 +4,7 @@ import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
+import { isAhead, sinceLabel } from '@/ui/age';
 import { useNow } from '@/ui/useNow';
 import { zoneOf } from '@/ui/zone';
 import { AccountPage } from '@/screens/me/parts';
@@ -12,7 +13,6 @@ import { NotifyNotice } from './NotifyNotice';
 import { useWriteNotifications } from './write';
 import { QuietHoursCard } from './QuietHours';
 import { RoutingGrid } from './Routing';
-import { clockLabel, isMuted } from './settings';
 import styles from './Notifications.module.css';
 
 /**
@@ -35,7 +35,7 @@ export function Notifications() {
     <AccountPage title={t('notifications.title')} demo={t('notifications.demo')}>
       {(me, held) => (
         <>
-          {isMuted(me.notifications.mutedUntil, now) ? <MutedLine me={me} held={held} until={me.notifications.mutedUntil!} /> : null}
+          {isAhead(me.notifications.mutedUntil, now) ? <MutedLine me={me} held={held} until={me.notifications.mutedUntil!} /> : null}
 
           {/* Every "does not reach you" in the app links here, so the fix stands first. */}
           <NotifyNotice />
@@ -75,7 +75,7 @@ function MutedLine({ me, held, until }: { me: Me; held: boolean; until: string }
 
   return (
     <div className={styles.muted} role="status">
-      <span className={`mono ${styles.mutedText}`}>{t('notifications.muted', { time: clockLabel(until, now, zoneOf(me)) })}</span>
+      <span className={`mono ${styles.mutedText}`}>{t('notifications.muted', { time: sinceLabel(until, now, zoneOf(me)) })}</span>
       <button type="button" className={ui.chip} disabled={held} onClick={() => write({ mutedUntil: null })}>
         {t('notifications.unmute')}
       </button>

@@ -1,4 +1,3 @@
-import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
@@ -16,6 +15,7 @@ import { Help } from '@/ui/Help';
 import { useAccountMe } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { calendarDay, zoneOf } from '@/ui/zone';
 import styles from './CameraPage.module.css';
 import { Refused } from '@/ui/PageState';
 
@@ -210,7 +210,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
 
         <Row label={t('camera.premium')} help={enforced ? 'premiumCamera' : undefined}>
           <span className={styles.settingStack}>
-            <span className={`mono ${styles.settingValue}`}>{entitlementLine(t, camera, enforced)}</span>
+            <span className={`mono ${styles.settingValue}`}>{entitlementLine(t, camera, enforced, zoneOf(me.data))}</span>
             {ending !== null ? (
               <span className={`mono ${styles.settingWarning}`} role="status">
                 {ending === 0 ? t('me.premium.endsToday') : t('me.premium.endsIn', { count: ending })}
@@ -393,12 +393,12 @@ const connection = (t: Translate, camera: Camera, through: string | null): strin
  * gates nothing, the date is not the news and is left out; where the server
  * calls a camera free, its date is the day the year ran out and is said as that.
  */
-const entitlementLine = (t: Translate, camera: Camera, enforced: boolean | null): string => {
+const entitlementLine = (t: Translate, camera: Camera, enforced: boolean | null, zone: string | null): string => {
   const { validUntil, grant, tier } = camera.entitlement;
   if (enforced === false) return t('camera.entitlement.ungated');
   if (!validUntil) return t(tier === 'premium' ? 'camera.entitlement.ungated' : 'camera.entitlement.none');
 
-  const date = DateTime.fromISO(validUntil).toFormat('d LLL yyyy');
+  const date = calendarDay(validUntil, zone);
   if (tier === 'free') return t('camera.entitlement.ranOut', { date });
 
   return t(`camera.entitlement.${grant ?? 'purchase'}`, { date });

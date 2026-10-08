@@ -6,16 +6,18 @@ import { useUpdateGrow } from '@/api/grows';
 import { useShape } from '@/app/shell/shape';
 import { useCreateShareLink, useDeleteShareLink, useRevokeShareLink, useShareLinks, useUpdateShareLink } from '@/api/sharing';
 import { Sheet } from '@/ui/Sheet';
-import { ageLabel } from '@/ui/age';
+import { isDead, linkAddress } from '@/screens/me/sharing/links';
+import { ageLabel, instantOf } from '@/ui/age';
 import { appUrl } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
+import { dayOf, endOfDayOn, startOfDayOn } from '@/ui/days';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
-import { calendarDay, useZone, zoned } from '@/ui/zone';
+import { calendarDay, useZone } from '@/ui/zone';
 import styles from './ShareSheet.module.css';
 
 /**
@@ -129,7 +131,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
                     subject: { type: 'grow', id: grow.id },
                     range: rangeOf(draft, zone),
                     includeCameras: draft.includeCameras,
-                    expiresAt: instantOf(draft.expires, 'end', zone),
+                    expiresAt: instantOn(draft.expires, endOfDayOn, zone),
                   },
                   { onSuccess: () => setDrafting(false) },
                 )
@@ -160,8 +162,8 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
   const revoke = useRevokeShareLink();
   const remove = useDeleteShareLink();
 
-  const address = appUrl(`/shared/${link.token}`);
-  const dead = link.revokedAt !== null || (link.expiresAt !== null && DateTime.fromISO(link.expiresAt) <= now);
+  const address = linkAddress(link);
+  const dead = isDead(link, now);
 
   return (
     <li className={styles.link} data-dead={dead}>
@@ -177,9 +179,9 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
           busy={update.isPending}
           error={update.error}
           initial={{
-            from: dayOf(link.range.startsAt, zone),
-            to: dayOf(link.range.endsAt, zone),
-            expires: dayOf(link.expiresAt, zone),
+            from: fieldDay(link.range.startsAt, zone),
+            to: fieldDay(link.range.endsAt, zone),
+            expires: fieldDay(link.expiresAt, zone),
             includeCameras: link.includeCameras,
           }}
           submitLabel={t('sharing.save')}
@@ -188,7 +190,7 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
             update.mutate(
               {
                 id: link.id,
-                body: { range: rangeOf(draft, zone), includeCameras: draft.includeCameras, expiresAt: instantOf(draft.expires, 'end', zone) },
+                body: { range: rangeOf(draft, zone), includeCameras: draft.includeCameras, expiresAt: instantOn(draft.expires, endOfDayOn, zone) },
               },
               { onSuccess: () => setChanging(false) },
             )
@@ -350,30 +352,15 @@ const describe = (t: Translate, link: ShareLink, now: DateTime, zone: string | n
   return parts.join(' · ');
 };
 
-/**
- * A date the field holds, as the instant the contract takes: the whole of that
- * day where the account is.
- *
- * The day is the grower's, so its edges are the grower's midnights. Cut at the
- * browser's instead, a window typed as 1 September to 23 September left on the
- * wire as 31 August 22:00 to 23 September 21:59 - it carried the last two hours
- * of a day that was excluded, including a diary line standing in them, and
- * dropped the last two hours of a day that was included. `dayOf` reads the
- * stored instant back in the same zone, so the field shows the day that was
- * typed, and `describe` above already names the window with `calendarDay`
- * there: one sheet cannot hold two answers to which day a link begins on.
- */
-const instantOf = (day: string, edge: 'start' | 'end', zone: string | null): string | null => {
-  if (!day) return null;
-  const at = DateTime.fromISO(day, { zone: zone ?? undefined });
+/** A link's stored instant as the day its date field holds, or nothing for an open end. */
+const fieldDay = (at: string | null, zone: string | null): string => (at ? dayOf(new Date(at), zone) : '');
 
-  return (edge === 'start' ? at.startOf('day') : at.endOf('day')).toUTC().toISO();
-};
-
-const dayOf = (at: string | null, zone: string | null): string => (at ? zoned(at, zone).toFormat('yyyy-MM-dd') : '');
+/** A day the field holds as the instant at one of its edges, where the account is, or nothing for an open end. */
+const instantOn = (day: string, edge: typeof startOfDayOn, zone: string | null): string | null =>
+  day ? instantOf(DateTime.fromJSDate(edge(day, zone))) : null;
 
 /** An open end is a link that keeps up with the diary as it goes on, which is what sharing a running grow means. */
 const rangeOf = (draft: Draft, zone: string | null): TimeRange => ({
-  startsAt: instantOf(draft.from, 'start', zone),
-  endsAt: instantOf(draft.to, 'end', zone),
+  startsAt: instantOn(draft.from, startOfDayOn, zone),
+  endsAt: instantOn(draft.to, endOfDayOn, zone),
 });

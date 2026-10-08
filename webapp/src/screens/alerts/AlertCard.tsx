@@ -6,10 +6,9 @@ import { controlPath, devicesPath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
-import { clockLabel } from '@/screens/notifications/settings';
 import { maintenanceQuiet, parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
 import { levelFigure, repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
-import { ageAttribute, deviceLiveness, isAhead, offlineLabel, silentSince, spanLabel } from '@/ui/age';
+import { ageAttribute, deviceLiveness, isAhead, offlineLabel, silentSince, sinceLabel, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
@@ -211,7 +210,7 @@ const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Devi
       const quiet = alert.value ?? alert.extremeValue;
       const since = quiet === null ? alert.startedAt : (zoned(alert.startedAt, zone).minus({ seconds: quiet }).toISO() ?? alert.startedAt);
 
-      return { label: t('alerts.what.cameraSince', { time: clockLabel(since, now, zone) }), figure: null };
+      return { label: t('alerts.what.cameraSince', { time: sinceLabel(since, now, zone) }), figure: null };
     }
     case 'threshold': {
       const what = watchedOf(alert, rule);
@@ -349,7 +348,7 @@ const metaOf = (
       // An episode its rule stopped watching - the stage's "too humid" resting in germination - did not get better, and is not said to have.
       alert.resolvedAt
         ? t(alert.rested ? 'alerts.meta.rested' : 'alerts.meta.resolved', { time: clock(alert.resolvedAt, zone), age: lastedLabel(alert, now) })
-        : t('alerts.meta.since', { time: clockLabel(beganAt(alert), now, zone), age: lastedLabel(alert, now) }),
+        : t('alerts.meta.since', { time: sinceLabel(beganAt(alert), now, zone), age: lastedLabel(alert, now) }),
     ),
   ].filter((part): part is string => part !== null);
 

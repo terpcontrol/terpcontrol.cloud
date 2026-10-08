@@ -12,7 +12,7 @@ import { fetchedAt, serverNow } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
-import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
+import { ageAttribute, ageLabel, deviceLiveness, offlineLabel, sinceLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { Help, Term } from '@/ui/Help';
 import { maintenanceQuiet, parksAnything } from '@/ui/maintenance';
@@ -23,7 +23,6 @@ import { useNow } from '@/ui/useNow';
 import { calendarDay, clock, useZone } from '@/ui/zone';
 import { ownFactOf } from '@/screens/control/devices/own-summary';
 import { offsetOf } from '@/screens/control/targets/targets-draft';
-import { clockLabel } from '@/screens/notifications/settings';
 import { cameraFreshness } from './cameras';
 import { DeviceAdvanced } from './DeviceAdvanced';
 import { DeviceSettingsSheet } from './DeviceSettingsSheet';
@@ -411,7 +410,7 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
       : liveness === 'stale' && spokeAt
         ? t('devices.panel.connectedLate', { age: ageLabel(spokeAt, now) })
         : spokeAt
-          ? t('devices.panel.offlineSince', { time: clockLabel(spokeAt, now, zone) })
+          ? t('devices.panel.offlineSince', { time: sinceLabel(spokeAt, now, zone) })
           : t('devices.panel.neverHeard');
 
   // The pill says offline in the words Start and the alerts use for it.

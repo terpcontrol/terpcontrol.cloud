@@ -13,9 +13,9 @@ import { cameraTitle } from '@/ui/naming';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { useZone } from '@/ui/zone';
+import { calendarDay, useZone } from '@/ui/zone';
 import { MePage } from '../parts';
-import { countdownDays, dayLabel } from './entitlement';
+import { countdownDays } from './entitlement';
 import { missingLine, servedWidthCell, stillsKeptCell } from './free-tier';
 import styles from './Premium.module.css';
 
@@ -207,7 +207,7 @@ function CameraCard({
         </span>
         {enforced ? (
           <span className={`mono ${styles.until}`} data-tier={tier}>
-            {entitled ? (validUntil ? t('me.premium.until', { date: dayLabel(validUntil, zone) }) : '') : t('me.premium.tier.free')}
+            {entitled ? (validUntil ? t('me.premium.until', { date: calendarDay(validUntil, zone) }) : '') : t('me.premium.tier.free')}
           </span>
         ) : null}
       </div>
@@ -238,7 +238,7 @@ const lineOf = (t: Translate, camera: Camera, premium: Me['premium'], zone: stri
   if (tier === 'premium') return t(`me.premium.grant.${grant ?? 'granted'}`);
 
   const missing = missingLine(t, premium.free);
-  if (grant && validUntil) return t('me.premium.ranOut', { date: dayLabel(validUntil, zone), missing });
+  if (grant && validUntil) return t('me.premium.ranOut', { date: calendarDay(validUntil, zone), missing });
   if (camera.kind === 'rtsp') return t('me.premium.rtspFree', { seconds: camera.stillIntervalSeconds, missing });
 
   return t('me.premium.free', { missing });

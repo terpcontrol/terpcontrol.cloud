@@ -158,9 +158,9 @@ export const silentSince = (alert: { startedAt: string; value: number | null }):
   alert.value === null ? alert.startedAt : (DateTime.fromISO(alert.startedAt).minus({ seconds: alert.value }).toUTC().toISO() ?? alert.startedAt);
 
 /**
- * The hour something was last heard, where the account is: "10:19" today, and
- * with its day before that, because a bare hour from yesterday reads as one
- * still to come.
+ * The hour of an instant, where the account is: "10:19" today, and with its
+ * day on any other, because a bare hour from yesterday reads as one still to
+ * come and a mute that ends tomorrow as one already past.
  */
 export const sinceLabel = (instant: string, now: DateTime, zone: string | null): string => {
   const at = zoned(instant, zone);

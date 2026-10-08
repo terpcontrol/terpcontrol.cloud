@@ -1,5 +1,5 @@
 import { CameraOff, Clock } from 'lucide-react';
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import type { SharedResolution } from '@fg2/shared-types/v1';
@@ -8,7 +8,7 @@ import { noLongerThere } from '@/api/problem';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
-import { DAY } from '@/ui/zone';
+import { calendarDay } from '@/ui/zone';
 import { Diary } from './Diary';
 import { Nothing } from './Nothing';
 import { PublicShell } from './PublicShell';
@@ -81,7 +81,7 @@ function WindowBanner({ resolution, now }: { resolution: SharedResolution; now: 
   const { t } = useTranslation();
   const { startsAt, endsAt } = resolution.range;
   const current = windowIsCurrent(endsAt, now);
-  const day = (at: string) => DateTime.fromISO(at).toFormat(DAY);
+  const day = (at: string) => calendarDay(at, null);
 
   const window =
     startsAt === null

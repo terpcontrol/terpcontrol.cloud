@@ -6,6 +6,8 @@ import { isAhead } from '@/ui/age';
 import { calendarDay } from '@/ui/zone';
 import type { ThemeChoice } from '@/theme/theme-context';
 import { timeOf } from '@/screens/notifications/settings';
+import { retentionLabel } from './privacy/climate';
+import { isDead } from './sharing/links';
 
 /**
  * The line under each door on Me, worked out from what the server answered
@@ -22,14 +24,6 @@ import { timeOf } from '@/screens/notifications/settings';
 
 /** The parts of a line, in the board's spelling: a middle dot between each. */
 export const joined = (parts: (string | null)[]): string => parts.filter((part): part is string => part !== null && part !== '').join(' · ');
-
-/**
- * The date a door's line carries, in the one shape the app writes a date in and
- * where the account is. It used to be Luxon's medium preset, which resolves
- * through the reader's language and put the American order under a board whose
- * every other date is written day first.
- */
-const shortDate = (instant: string, zone: string | null): string => calendarDay(instant, zone);
 
 /** "1 public · 2 private · terpcontrol.cloud/@chrisgrows", or that there is nothing to count yet. */
 export const publicLine = (t: TFunction, grows: GrowListItem[], me: Me, host: string): string => {
@@ -59,7 +53,7 @@ export const followingLine = (t: TFunction, count: number): string =>
 export const shareLinksLine = (t: TFunction, links: ShareLink[], now: DateTime): string => {
   if (links.length === 0) return t('me.door.shareLinks.none');
   const revoked = links.filter(link => link.revokedAt !== null).length;
-  const live = links.filter(link => link.revokedAt === null && (link.expiresAt === null || isAhead(link.expiresAt, now))).length;
+  const live = links.filter(link => !isDead(link, now)).length;
   const expired = links.length - revoked - live;
 
   return joined([
@@ -94,7 +88,7 @@ export const premiumLine = (
     const [camera] = owned;
     const { validUntil, grant } = camera.entitlement;
     const until =
-      validUntil && grant ? t(`me.door.premium.grant.${grant}`, { date: shortDate(validUntil, zone) }) : t('me.door.premium.noEntitlement');
+      validUntil && grant ? t(`me.door.premium.grant.${grant}`, { date: calendarDay(validUntil, zone) }) : t('me.door.premium.noEntitlement');
 
     return { text: joined([camera.name, until]), aside: stateWord(t, camera, now) };
   }
@@ -133,15 +127,6 @@ export const notificationsLine = (t: TFunction, me: Me, now: DateTime): string =
     on.length === 0 ? t('me.door.notifications.none') : on.join(' · '),
     quietHours ? t('me.door.notifications.quiet', { from: timeOf(quietHours.fromMinute), to: timeOf(quietHours.toMinute) }) : null,
   ]);
-};
-
-/** How long raw climate is kept, in the words the privacy page's menu uses; the page owns the vocabulary. */
-export const retentionLabel = (t: TFunction, climateDays: number | null): string => {
-  const known: Record<number, string> = { 90: 'd90', 180: 'd180', 365: 'd365', 730: 'd730' };
-  if (climateDays === null) return t('me.privacy.keep.forever');
-  const key = known[climateDays];
-
-  return key ? t(`me.privacy.keep.${key}`) : t('me.door.privacy.days', { count: climateDays });
 };
 
 export const privacyLine = (t: TFunction, me: Me): string => {

@@ -1,4 +1,3 @@
-import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Camera, GrowListItem, MediaAspect, MediaOverlays, MediaQuality, MediaWindow, TimelapseCreate } from '@fg2/shared-types/v1';
@@ -8,6 +7,7 @@ import { useDevices } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel, instantOf } from '@/ui/age';
+import { endOfDayOn, startOfDayOn } from '@/ui/days';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
 import { Choice } from '@/ui/SheetParts';
@@ -272,8 +272,8 @@ const spanOf = (
   // A day is a day where the account is: asked for in the browser's zone, a
   // film of "18 September" would start and end a couple of hours out of the day
   // every other screen calls the 18th.
-  const startsAt = DateTime.fromISO(from, { zone: zone ?? undefined }).startOf('day');
-  const endsAt = DateTime.fromISO(to, { zone: zone ?? undefined }).endOf('day');
+  const startsAt = startOfDayOn(from, zone);
+  const endsAt = endOfDayOn(to, zone);
 
-  return endsAt > startsAt ? { startsAt: instantOf(startsAt), endsAt: instantOf(endsAt), reason: null } : { reason: 'composer.backwards' };
+  return endsAt > startsAt ? { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), reason: null } : { reason: 'composer.backwards' };
 };

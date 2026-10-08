@@ -8,7 +8,7 @@ import { PUBLIC_WIDTH, type EarlierWeeks, type Picture } from '@/api/public';
 import ui from '@/ui/ui.module.css';
 import { DiaryWeek } from './DiaryWeek';
 import { Photo } from '@/ui/Photo';
-import { DAY } from '@/ui/zone';
+import { calendarDay, DAY } from '@/ui/zone';
 import styles from './Public.module.css';
 
 interface DiaryProps {
@@ -218,7 +218,7 @@ function Harvest({ harvest }: { harvest: GrowHarvest }) {
   return (
     <p className={`mono ${styles.harvest}`}>
       {t('grow.report.harvest')}
-      {harvest.harvestedAt ? ` · ${DateTime.fromISO(harvest.harvestedAt).toFormat(DAY)}` : ''}
+      {harvest.harvestedAt ? ` · ${calendarDay(harvest.harvestedAt, null)}` : ''}
       {weights.length > 0 ? ` · ${weights.join(' · ')}` : ''}
     </p>
   );
