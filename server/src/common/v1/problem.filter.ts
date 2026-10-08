@@ -1,13 +1,24 @@
-import { ArgumentsHost, Catch, HttpStatus } from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { Problem } from '@fg2/shared-types/v1';
-import { ApiExceptionFilter } from '@common/http-exception.filter';
+import { Error as MongooseError } from 'mongoose';
 import { loggablePath } from '@common/log-path';
+import { isV1Path } from '@common/route-path';
 import { logger } from '@utils/logger';
 import { ProblemException, problemOf } from './problem';
 
-/** Everything under it answers RFC 7807; everything beside it is the Angular app's API. */
-export const V1_PREFIX = '/v1';
+/**
+ * A refusal that answers with a bare string rather than the usual JSON body.
+ * The device access checks have always answered this way and clients read the
+ * text, so the shape is kept as it was.
+ */
+export class PlainTextException extends HttpException {
+  constructor(
+    status: number,
+    public readonly text: string,
+  ) {
+    super(text, status);
+  }
+}
 
 /**
  * What a status is called when the thrower did not say. A route that wants
@@ -38,12 +49,60 @@ const CODES: Readonly<Record<number, string>> = {
 const levelOf = (status: number): 'error' | 'warn' | 'debug' =>
   status >= HttpStatus.INTERNAL_SERVER_ERROR ? 'error' : status === HttpStatus.NOT_FOUND ? 'debug' : 'warn';
 
-// Compared the way the router matches, which ignores case: `/V1/devices` reaches
-// the same handler, and a refusal answered in the other half's shape there would
-// be a way around every promise this filter makes.
-const isV1 = (url: string | undefined): boolean => {
-  const path = (url ?? '/').split('?')[0].toLowerCase();
-  return path === V1_PREFIX || path.startsWith(`${V1_PREFIX}/`);
+/**
+ * The status and the sentence of whatever was thrown.
+ *
+ * A refusal that named its own status is one wherever it was thrown. The
+ * shareable addresses `/g/{slug}` and `/@{handle}` live outside `/v1` because
+ * they are what somebody pastes into a message rather than API routes, and
+ * they refuse the way the rest of the server does - so a diary that is not
+ * public has to answer 404 there rather than becoming a 500 for want of a
+ * version in the path.
+ */
+const describe = (exception: unknown): { status: number; message: string } => {
+  if (exception instanceof ProblemException) return { status: exception.problem.status, message: exception.problem.detail };
+
+  // An id that is not an id at all is a malformed request, not a failure on
+  // this side - and mongoose's own message names the model it tried to load.
+  if (exception instanceof MongooseError.CastError) {
+    return { status: HttpStatus.BAD_REQUEST, message: `Invalid ${exception.path}` };
+  }
+
+  if (exception instanceof HttpException) {
+    const response = exception.getResponse();
+    const message =
+      typeof response === 'string'
+        ? response
+        : ((response as { message?: unknown; error?: unknown })?.message ?? (response as { error?: unknown })?.error ?? exception.message);
+
+    return {
+      status: exception.getStatus(),
+      // Nest reports several validation failures as an array; the API has
+      // always sent a single string.
+      message: Array.isArray(message) ? message.join(', ') : String(message),
+    };
+  }
+
+  return {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    message: exception instanceof Error && exception.message ? exception.message : 'Something went wrong',
+  };
+};
+
+/**
+ * Most of the legacy half answers `{ message }`, but a few routes have always
+ * answered `{ error }`. A controller picks the second by throwing with an
+ * object body, which is passed through as it is.
+ */
+const body = (exception: unknown, message: string): Record<string, unknown> => {
+  if (exception instanceof HttpException) {
+    const response = exception.getResponse();
+    if (response && typeof response === 'object' && !('message' in response)) {
+      return response as Record<string, unknown>;
+    }
+  }
+
+  return { message };
 };
 
 /**
@@ -55,48 +114,38 @@ const isV1 = (url: string | undefined): boolean => {
  * would answer the wrong shape without anything saying so.
  */
 @Catch()
-export class ProblemExceptionFilter extends ApiExceptionFilter {
+export class ProblemExceptionFilter implements ExceptionFilter {
   public catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
     const request = context.getRequest<FastifyRequest>();
+    const reply = context.getResponse<FastifyReply>();
 
-    if (!isV1(request.url)) {
-      super.catch(exception, host);
+    const v1 = isV1Path(request.url);
+    const { status, message } = describe(exception);
+    logger.log(v1 ? levelOf(status) : 'error', `[${request.method}] ${loggablePath(request.url)} >> StatusCode:: ${status}, Message:: ${message}`);
+
+    if (v1) {
+      // A refusal that named itself is answered as it is; everything else - a
+      // Nest exception from a pipe or a guard, a cast that failed, a throw
+      // nobody meant - by the status derived for it above.
+      const problem =
+        exception instanceof ProblemException
+          ? exception.problem
+          : problemOf(status, CODES[status] ?? CODES[HttpStatus.INTERNAL_SERVER_ERROR], message);
+      void reply.status(status).type('application/problem+json; charset=utf-8').send(problem);
       return;
     }
 
-    const problem = this.asProblem(exception);
-    logger.log(
-      levelOf(problem.status),
-      `[${request.method}] ${loggablePath(request.url)} >> StatusCode:: ${problem.status}, Message:: ${problem.detail}`,
-    );
+    if (exception instanceof PlainTextException) {
+      // Express sent strings as text/html, and one of these repeats the device
+      // id out of the URL - so a browser opening a crafted link would have
+      // rendered whatever it carried. The text is what clients read; the type
+      // says what it is.
+      void reply.status(status).type('text/plain; charset=utf-8').send(exception.text);
+      return;
+    }
 
-    void context.getResponse<FastifyReply>().status(problem.status).type('application/problem+json; charset=utf-8').send(problem);
-  }
-
-  /**
-   * A refusal that named itself is answered as it is; everything else - a Nest
-   * exception from a pipe or a guard, a cast that failed, a throw nobody meant -
-   * is described by the status the legacy half already derives for it.
-   */
-  private asProblem(exception: unknown): Problem {
-    if (exception instanceof ProblemException) return exception.problem;
-
-    const { status, message } = this.describe(exception);
-    return problemOf(status, CODES[status] ?? CODES[HttpStatus.INTERNAL_SERVER_ERROR], message);
-  }
-
-  /**
-   * A refusal that named its own status is one wherever it was thrown. The
-   * shareable addresses `/g/{slug}` and `/@{handle}` live outside `/v1` because
-   * they are what somebody pastes into a message rather than API routes, and
-   * they refuse the way the rest of the server does - so a diary that is not
-   * public has to answer 404 there rather than becoming a 500 for want of a
-   * version in the path.
-   */
-  protected describe(exception: unknown): { status: number; message: string } {
-    if (exception instanceof ProblemException) return { status: exception.problem.status, message: exception.problem.detail };
-
-    return super.describe(exception);
+    // The route may have declared another content type; an error is JSON.
+    void reply.status(status).type('application/json; charset=utf-8').send(body(exception, message));
   }
 }

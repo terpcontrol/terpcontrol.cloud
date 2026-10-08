@@ -1,7 +1,6 @@
-import { CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpException, Injectable, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { HttpException } from '@common/http-exception';
 
 export interface RateLimit {
   /** Requests allowed per window, per client address. */
@@ -66,7 +65,7 @@ export class RateLimitGuard implements CanActivate {
 
     if (current.count > config.limit) {
       void reply.header('Retry-After', Math.ceil((current.resetAt - now) / 1000));
-      throw new HttpException(429, config.message);
+      throw new HttpException(config.message, 429);
     }
 
     return true;

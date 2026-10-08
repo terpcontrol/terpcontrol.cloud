@@ -3,7 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
 import { logger } from '@utils/logger';
-import { PlainTextException } from '../../common/http-exception.filter';
+import { PlainTextException } from '@common/v1/problem.filter';
 import { mqttConfig } from '../../config/configuration';
 
 /**

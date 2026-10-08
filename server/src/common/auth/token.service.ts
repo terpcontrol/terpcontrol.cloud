@@ -8,6 +8,7 @@ import { FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { Model } from 'mongoose';
 import { DataStoredInToken } from '@common/auth/auth.interface';
+import { routePath } from '@common/route-path';
 import { MODEL_V1 } from '@database/models';
 import { StoredSession } from '@database/schemas/v1/sessions.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
@@ -42,11 +43,9 @@ export interface AuthenticatedRequest extends FastifyRequest {
 }
 
 // A picture is fetched by <img>, which cannot set headers, so those URLs may
-// carry the token in the query string. Nothing else accepts one there - and the
-// router matches whatever the case, so this compares the path in one. These are
-// also the only reads the image token opens at all, wherever it is carried.
-export const isMediaRead = (request: FastifyRequest): boolean =>
-  request.method === 'GET' && (request.url ?? '').split('?')[0].toLowerCase().startsWith('/v1/media/');
+// carry the token in the query string. Nothing else accepts one there, and these
+// are also the only reads the image token opens at all, wherever it is carried.
+export const isMediaRead = (request: FastifyRequest): boolean => request.method === 'GET' && routePath(request.url).startsWith('/v1/media/');
 
 // A full user session is at least as privileged as the URL-embeddable image token.
 const matchesTokenType = (actual: TokenType, expected: TokenType): boolean => actual === expected || (expected === 'image' && actual === 'user');

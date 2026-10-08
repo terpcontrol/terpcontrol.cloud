@@ -1,7 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { HttpException } from '@common/http-exception';
 import { AuthUserDto, AuthVhostDto, AuthResourceDto, AuthTopicDto } from '@modules/mqtt-auth/mqtt-auth.types';
 import { isEmpty } from '@utils/util';
 import { logger } from '@utils/logger';
@@ -29,7 +28,7 @@ export class MqttAuthService {
 
   public async user(authData: AuthUserDto): Promise<boolean> {
     if (isEmpty(authData)) {
-      throw new HttpException(400, "You're not userData");
+      throw new HttpException("You're not userData", 400);
     }
 
     if (authData.username == this.mqtt.getUser() && authData.password == this.mqtt.getPassword()) {
@@ -58,7 +57,7 @@ export class MqttAuthService {
 
   public async vhost(authData: AuthVhostDto): Promise<boolean> {
     if (isEmpty(authData)) {
-      throw new HttpException(400, "You're not userData");
+      throw new HttpException("You're not userData", 400);
     }
 
     if (authData.username == this.mqtt.getUser()) {
@@ -70,7 +69,7 @@ export class MqttAuthService {
 
   public async topic(authData: AuthTopicDto): Promise<boolean> {
     if (isEmpty(authData)) {
-      throw new HttpException(400, "You're not userData");
+      throw new HttpException("You're not userData", 400);
     }
 
     if (authData.username == this.mqtt.getUser()) {
@@ -90,7 +89,7 @@ export class MqttAuthService {
     }
     if (!authData.routing_key.startsWith(`.devices.${device.id}.`)) {
       logger.info(`mqtt-auth: routing key not allowed: ${authData.routing_key}`);
-      throw new HttpException(403, 'access denied');
+      throw new HttpException('access denied', 403);
     }
 
     return true;
@@ -98,7 +97,7 @@ export class MqttAuthService {
 
   public async resource(authData: AuthResourceDto): Promise<boolean> {
     if (isEmpty(authData)) {
-      throw new HttpException(400, "You're not userData");
+      throw new HttpException("You're not userData", 400);
     }
 
     if (authData.username == this.mqtt.getUser()) {
@@ -117,10 +116,10 @@ export class MqttAuthService {
         return true;
       }
 
-      throw new HttpException(409, 'access denied');
+      throw new HttpException('access denied', 409);
     }
     if (authData.name !== 'amq.topic') {
-      throw new HttpException(409, 'access denied');
+      throw new HttpException('access denied', 409);
     }
 
     return true;

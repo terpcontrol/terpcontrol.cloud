@@ -9,7 +9,7 @@ import {
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import v1Schemas from '@fg2/shared-types/openapi-schemas.json';
 import { appConfig } from './config/configuration';
-import { V1_PREFIX } from './common/v1/problem.filter';
+import { isV1Path } from './common/route-path';
 
 /**
  * Spread into the `@ApiOperation` of a route that needs no token: the document
@@ -103,9 +103,6 @@ const REFUSALS: Record<string, ResponseObject> = {
 
 const refers = (name: string): ReferenceObject => ({ $ref: `#/components/responses/${name}` });
 
-/** Only `/v1` answers problem documents; the routes beside it answer the shape the Angular app has always read. */
-const isV1 = (path: string): boolean => path === V1_PREFIX || path.startsWith(`${V1_PREFIX}/`);
-
 /**
  * Which refusals an operation declares, read off the operation itself rather
  * than off a list kept beside the controllers.
@@ -122,7 +119,8 @@ const declareRefusals = (document: OpenAPIObject): void => {
   document.components = { ...document.components, responses: { ...REFUSALS, ...document.components?.responses } };
 
   for (const [path, item] of Object.entries(document.paths)) {
-    if (!isV1(path)) continue;
+    // Only `/v1` answers problem documents; the routes beside it answer the shape the Angular app has always read.
+    if (!isV1Path(path)) continue;
 
     const byName = /\{[^}]+\}/.test(path);
     for (const operation of Object.values(item) as OperationObject[]) {

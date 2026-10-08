@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { HttpException, Inject, Injectable, Optional } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -6,7 +6,6 @@ import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY, germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { co2FanKey, co2FanOf, co2InjectFor, isSection, type Co2Fan, type FieldSetting } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { SCHEDULED_MODES } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { HttpException } from '@common/http-exception';
 import { badRequest, unprocessable } from '@common/v1/problem';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { MODEL_V1 } from '@database/models';
@@ -209,7 +208,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     const device = await this.devices
       .findOne({ id: deviceId }, { type: 1, configuration: 1 })
       .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
-    if (!device) throw new HttpException(404, 'Device not found');
+    if (!device) throw new HttpException('Device not found', 404);
 
     return device;
   }
@@ -262,7 +261,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // find nothing changed, rather than a stored configuration it was told had
     // failed and a device that goes on running the old one.
     if (!this.publisher.canPublish) {
-      throw new HttpException(503, 'Not connected to the message broker');
+      throw new HttpException('Not connected to the message broker', 503);
     }
 
     const device = await this.devices
@@ -295,7 +294,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
         | 'restedHumidityBand'
       > | null>();
     if (!device) {
-      throw new HttpException(404, 'Device not found');
+      throw new HttpException('Device not found', 404);
     }
 
     const before = device.configuration ?? null;

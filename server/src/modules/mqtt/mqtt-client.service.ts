@@ -1,8 +1,7 @@
-import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
+import { HttpException, Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Subject } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
-import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { mqttConfig } from '../../config/configuration';
 
@@ -133,7 +132,7 @@ export class MqttClientService implements OnApplicationShutdown {
 
   public subscribe(topic: string): Promise<void> {
     if (!this.client) {
-      return Promise.reject(new HttpException(503, 'Not connected to the message broker'));
+      return Promise.reject(new HttpException('Not connected to the message broker', 503));
     }
 
     return new Promise<void>((resolve, reject) => {
