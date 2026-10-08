@@ -1,5 +1,4 @@
 import { DateTime } from 'luxon';
-import { placePath } from '@/app/places';
 import type { Camera, Device, DeviceClass, Firmware, User } from '@fg2/shared-types/v1';
 
 /**
@@ -54,9 +53,7 @@ export interface FleetRow {
   /** The number on the device's type plate, which is what a customer reads out to support; null for a camera. */
   serialNumber: number | null;
   /** Where the row opens: a device's support view, or the camera's own page. */
-  opens: string | null;
-  /** The place the device stands in, where it stands in one. */
-  place: string | null;
+  opens: string;
 }
 
 export interface FleetFilter {
@@ -120,7 +117,6 @@ export const fleetRows = ({ devices, cameras, classes, firmwares, people, reader
       onStable: calledStable === null ? null : device.state.firmwareId === calledStable,
       serialNumber: device.serialNumber,
       opens: diagnosisPath(device.id),
-      place: device.spaceId ? placePath(device.spaceId) : null,
     };
   });
 
@@ -144,7 +140,6 @@ export const fleetRows = ({ devices, cameras, classes, firmwares, people, reader
       onStable: null,
       serialNumber: null,
       opens: `/cameras/${camera.id}`,
-      place: camera.spaceId ? placePath(camera.spaceId) : null,
     }));
 
   return [...deviceRows, ...cameraRows].sort((one, other) => heard(other.lastSeenAt) - heard(one.lastSeenAt));

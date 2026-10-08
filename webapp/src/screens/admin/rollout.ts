@@ -73,11 +73,28 @@ export const channelStands = (
  */
 export const staged = (percent: number, devices: number): number => Math.round((percent / 100) * devices);
 
-/** Every device of the class, and how many are listening. A paused rollout reaches none of them until it is resumed. */
-export const classSize = (deviceClass: DeviceClass, devices: Device[], now: DateTime): { total: number; online: number } => {
+/**
+ * Every device of the class, and how many are listening. A paused rollout
+ * reaches none of them until it is resumed.
+ *
+ * The install's own figure wins wherever it has one: the loaded page of devices
+ * is what this browser holds, not what a stage will reach, and a stage that
+ * told an administrator it reached "16 of 16" while the heading beside it said
+ * 24 is the sort of arithmetic somebody would act on and then find they had
+ * not.
+ */
+export const classSize = (
+  deviceClass: DeviceClass,
+  fleetClass: FleetClass | undefined,
+  devices: Device[],
+  now: DateTime,
+): { total: number; online: number } => {
   const ours = devices.filter(device => device.classId === deviceClass.id);
 
-  return { total: ours.length, online: ours.filter(device => deviceLiveness(device.state.lastSeenAt, now) !== 'offline').length };
+  return {
+    total: fleetClass?.total ?? ours.length,
+    online: fleetClass?.online ?? ours.filter(device => deviceLiveness(device.state.lastSeenAt, now) !== 'offline').length,
+  };
 };
 
 /** A build cannot be deleted while a channel still points at it; the server refuses, and the screen says so before it is asked. */

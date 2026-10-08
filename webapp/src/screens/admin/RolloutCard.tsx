@@ -66,10 +66,7 @@ export function RolloutCard({
       {populated.map(deviceClass => {
         const fleetClass = fleet.classes.find(row => row.classId === deviceClass.id);
         const stands = channelStands(deviceClass, fleetClass, devices, firmwares, now);
-        // The install's own figure where it has one: the loaded page of
-        // devices is what this browser holds, not what the stage will reach.
-        const loaded = classSize(deviceClass, devices, now);
-        const size = { total: fleetClass?.total ?? loaded.total, online: fleetClass?.online ?? loaded.online };
+        const size = classSize(deviceClass, fleetClass, devices, now);
         const paused = deviceClass.rollout.paused;
         const percent = deviceClass.rollout.percent;
 

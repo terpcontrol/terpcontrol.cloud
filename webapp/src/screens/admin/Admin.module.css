@@ -264,12 +264,6 @@
   color: var(--label);
 }
 
-/* A row that opens nothing says so with a dash rather than with a chevron that
-   would go nowhere. */
-.noWhere {
-  color: var(--label);
-}
-
 .cards {
   display: grid;
   grid-template-columns: 1fr;

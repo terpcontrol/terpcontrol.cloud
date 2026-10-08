@@ -250,15 +250,9 @@ function Row({ row, now }: { row: FleetRow; now: DateTime }) {
         {row.sockets ?? '—'} · {row.cams ?? '—'}
       </td>
       <td>
-        {row.opens ? (
-          <Link className={styles.chevron} to={row.opens} aria-label={t('admin.fleet.open', { id: row.id })}>
-            <ChevronRight size={16} strokeWidth={2} aria-hidden />
-          </Link>
-        ) : (
-          <span className={`mono ${styles.noWhere}`} title={t('admin.fleet.noPlace')}>
-            —
-          </span>
-        )}
+        <Link className={styles.chevron} to={row.opens} aria-label={t('admin.fleet.open', { id: row.id })}>
+          <ChevronRight size={16} strokeWidth={2} aria-hidden />
+        </Link>
       </td>
     </tr>
   );
