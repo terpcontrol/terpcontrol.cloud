@@ -1,6 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, ProjectionType } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { GrowthStage, PhaseSource, PhaseTargets } from '@fg2/shared-types/v1';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
@@ -253,7 +253,7 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
    * and back would want.
    */
   public async restateThresholds(deviceId: string, spaceId: string): Promise<void> {
-    const grow = await this.grows.findOne(standingIn(spaceId)).sort({ startedAt: -1 }).lean<GrowDocument>().exec();
+    const grow = await this.standingGrow<GrowDocument>(spaceId);
     if (!grow) return;
 
     const standing = phaseStandingIn(grow, spaceId);
@@ -290,14 +290,21 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
    *
    * It is also what the alarms ask through `GROW_IN_SPACE`: an alarm happens in
    * a tent, and a tent with a grow standing in it has a diary the line belongs
-   * in. The newest open placement answers it, because two grows can share a
-   * tent while one is on its way out.
+   * in.
    */
   public async growIdIn(spaceId: string | null): Promise<string | null> {
     if (!spaceId) return null;
 
-    const grow = await this.grows.findOne(standingIn(spaceId), { id: 1 }).sort({ startedAt: -1, id: -1 }).lean<Pick<GrowDocument, 'id'>>().exec();
+    const grow = await this.standingGrow<Pick<GrowDocument, 'id'>>(spaceId, { id: 1 });
     return grow?.id ?? null;
+  }
+
+  /**
+   * The grow standing in a space: the one begun last, the id breaking a tie,
+   * because two grows can share a tent while one is on its way out.
+   */
+  private standingGrow<T>(spaceId: string, projection?: ProjectionType<GrowDocument>): Promise<T | null> {
+    return this.grows.findOne(standingIn(spaceId), projection).sort({ startedAt: -1, id: -1 }).lean<T>().exec();
   }
 
   /** The phase a grow already stands in with this stage and preset, for a request that appended none. */

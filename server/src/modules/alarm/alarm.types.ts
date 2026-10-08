@@ -42,7 +42,7 @@ export interface AlarmRouting {
   deliver(event: AlarmEvent, alert: StoredAlert, rule: StoredAlarmRule | null): Promise<void>;
 }
 
-/** The grow standing in a space, so an alarm shows up in its diary. Provided by the grows part. */
+/** The grow standing in a space, so an alarm shows up in its diary. Provided by the phase writer. */
 export const GROW_IN_SPACE = 'alarm:grow-in-space';
 
 export interface GrowInSpace {
