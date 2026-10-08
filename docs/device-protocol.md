@@ -1,7 +1,7 @@
 ---
 summary: The frozen contract between a device's firmware and the cloud - HTTP, every MQTT topic and payload, hardware-info, the configuration document, commands, camera relay, tunnel; read before changing firmware, the device-protocol module or the simulator
 updated: 2026-10-08
-source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136, #140, #141; verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
+source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136, #140, #141, #145; verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
 paths:
   - firmware/src/**
   - firmware/src_hwtype/**
@@ -459,7 +459,7 @@ The messages current firmware sends:
 | `message-device-booted:<reason>` | 0 | every type, at init | `fridgecloud.cpp:45-59,165-169` |
 | `message-device-firmware-update` | 0 | every type, queued before an OTA download; it reaches the cloud only from an attempt that failed ([10](#10-the-ota-path)) | `fridgecloud.cpp:197,217` |
 | `message-buffer-overflow` | 1 | every type, reading buffer full | `fridgecloud.cpp:514` |
-| `message-co2-low` | 0 | controller, fridge: CO2 under 200 ppm for 60 passes; at most once per boot, and never once a reading at or above it has set the latch (`co2_warning_triggered` is not cleared again) | `controller.cpp:980-993`, `fridge.cpp:1103-1114` |
+| `message-co2-low` | 0 | controller, fridge: CO2 under 200 ppm for 60 passes; once per low episode, re-armed by a reading at or above it (before #145 the latch was never cleared, so it practically never fired) | `controller.cpp:984-997`, `fridge.cpp:1107-1118` |
 | `message-ext-sensor-deviate`, `message-ext-sensor-fail` | 0 | fridge, when the fault appears and **at most once per 15 min** each (`SENSOR_FAULT_LOG_INTERVAL`, `fridge.cpp:19,90-104`) | `fridge.cpp:206,220` |
 | `message-maintenance-mode-activated:<min>` | 0 | controller, fridge, from the device's menu | `controller.cpp:1118`, `fridge.cpp:1184` |
 | `message-maintenance-mode-activated-remote:<min>` | 0 | controller, fridge, on the `maintenance` command | `controller.cpp:586`, `fridge.cpp:731` |

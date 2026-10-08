@@ -993,6 +993,10 @@ namespace fg {
       out_co2.set(0);
       out_light.set(0);
       state.out_light = 0;
+      // A socket keeps the last target it was given, resent every minute, so
+      // without this a heater socket that was on when the sensor failed would
+      // go on heating with nothing measuring the air.
+      wifiReportSmartSocketOutputs(SmartSocketOutputStates());
     }
     else {
       if(settings.workmode == FridgeControllerSettings::MODE_FULL) {
@@ -1110,7 +1114,7 @@ namespace fg {
       }
       else {
         co2_low_count = 0;
-        co2_warning_triggered = true;
+        co2_warning_triggered = false;
       }
     }
 
