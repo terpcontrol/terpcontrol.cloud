@@ -69,6 +69,9 @@ export const typedFigure = (typed: string): number | null => {
   return trimmed !== '' && Number.isFinite(value) ? value : null;
 };
 
+/** Spaces that do not break, so a narrow line breaks between two figures and never inside one - between a number and its unit. */
+export const unbroken = (text: string): string => text.replace(/ /g, '\u00a0');
+
 /**
  * As many decimals as a measurement anybody types is ever worth. It is the
  * rounding the reading path already did before this existed, kept so that a pH

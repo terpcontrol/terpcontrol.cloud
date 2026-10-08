@@ -10,7 +10,7 @@ import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { useCorrecting } from '@/log/corrections';
-import { authorOf, headlineOf, KIND_ICON, readingFigure } from '@/ui/entries';
+import { authorOf, headlineOf, KIND_ICON } from '@/ui/entries';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -24,6 +24,7 @@ import { SplitSheet } from '../SplitSheet';
 import { PlantChart } from './PlantChart';
 import { RenameSheet } from './RenameSheet';
 import styles from './Plant.module.css';
+import { looseFigure } from '@/ui/figures';
 
 /** How many lines of its own a plant shows before the rest are left to the timeline. */
 const LINES = 12;
@@ -261,7 +262,7 @@ function Figures({ grow, plant, entries, definitions, series }: FiguresProps) {
   return (
     <dl className={ui.strip}>
       {newest && definition ? (
-        <Figure value={readingFigure(newest.value)} label={[definition.unit, movement(t, newest, before)].filter(Boolean).join(' · ')} />
+        <Figure value={looseFigure(newest.value)} label={[definition.unit, movement(t, newest, before)].filter(Boolean).join(' · ')} />
       ) : null}
       {training && trainedOn !== null ? <Figure value={t('grow.dayShort', { day: trainedOn })} label={t('grow.plant.lastTraining')} /> : null}
       <Figure value={String(entries.length)} label={t('grow.plant.entryCount')} />
@@ -366,5 +367,5 @@ const movement = (t: Translate, newest: { value: number; measuredAt: string }, b
   const change = newest.value - before.value;
   const days = Math.max(1, Math.round(DateTime.fromISO(newest.measuredAt).diff(DateTime.fromISO(before.measuredAt), 'days').days));
 
-  return t('grow.plant.sinceLast', { change: `${change > 0 ? '+' : ''}${readingFigure(change)}`, days });
+  return t('grow.plant.sinceLast', { change: `${change > 0 ? '+' : ''}${looseFigure(change)}`, days });
 };

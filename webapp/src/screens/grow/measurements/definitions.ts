@@ -1,5 +1,5 @@
 import type { Entry, EntryReading, GrowMeasurementSeries, MeasurementDefinition } from '@fg2/shared-types/v1';
-import { readingFigure } from '@/ui/entries';
+import { looseFigure } from '@/ui/figures';
 
 /**
  * What the app knows about measurements before a grower has said anything.
@@ -77,10 +77,10 @@ type Band = Pick<MeasurementDefinition, 'targetMin' | 'targetMax'>;
 export const bandOf = (t: Translate, definition: Band): string | null => {
   const [low, high] = bandEnds(definition);
   if (low !== null && high !== null) {
-    return low === high ? readingFigure(low) : t('grow.measurements.bandBetween', { low: readingFigure(low), high: readingFigure(high) });
+    return low === high ? looseFigure(low) : t('grow.measurements.bandBetween', { low: looseFigure(low), high: looseFigure(high) });
   }
-  if (low !== null) return t('grow.measurements.bandFrom', { low: readingFigure(low) });
-  if (high !== null) return t('grow.measurements.bandTo', { high: readingFigure(high) });
+  if (low !== null) return t('grow.measurements.bandFrom', { low: looseFigure(low) });
+  if (high !== null) return t('grow.measurements.bandTo', { high: looseFigure(high) });
 
   return null;
 };
@@ -141,4 +141,4 @@ export const lastReadings = (entries: Entry[]): Map<string, LastReading> => {
 };
 
 /** "58 cm", and "6.3" for the measurements that have no unit at all, such as pH. */
-export const withUnit = (value: number, unit: string): string => [readingFigure(value), unit].filter(Boolean).join(' ');
+export const withUnit = (value: number, unit: string): string => [looseFigure(value), unit].filter(Boolean).join(' ');

@@ -129,8 +129,8 @@ export const headlineOf = (t: Translate, i18n: I18n, entry: Entry): string => {
     const { wetWeightG, dryWeightG } = entry.values;
     return [
       t('home.entryKind.harvest'),
-      wetWeightG === null ? '' : t('grow.report.wet', { grams: readingFigure(wetWeightG) }),
-      dryWeightG === null ? '' : t('grow.report.dry', { grams: readingFigure(dryWeightG) }),
+      wetWeightG === null ? '' : t('grow.report.wet', { grams: looseFigure(wetWeightG) }),
+      dryWeightG === null ? '' : t('grow.report.dry', { grams: looseFigure(dryWeightG) }),
     ]
       .filter(Boolean)
       .join(' · ');
@@ -154,17 +154,6 @@ export const doneByOf = (t: Translate, i18n: I18n, entry: Entry, byYou: boolean)
 
   return t(`home.entryDone.${entry.kind}`, { context: byYou ? 'you' : undefined, defaultValue: '' }) || null;
 };
-
-/**
- * A measured value as a grower would write it.
- *
- * A reading is typed by a person, but a change between two of them is
- * subtraction, and binary floating point turns 1.92 − 0.06 into a number with
- * seventeen digits. Rounding to three decimals and dropping what that leaves
- * trailing keeps every reading anybody takes - a pH to two, an EC to two, a
- * height to none - and never shows the arithmetic.
- */
-export const readingFigure = (value: number): string => looseFigure(value);
 
 /**
  * Which of the grow's own days a line falls on, counted from the grow's origin

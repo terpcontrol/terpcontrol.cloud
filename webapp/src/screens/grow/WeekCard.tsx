@@ -9,13 +9,14 @@ import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { DAY_MS } from '@/ui/days';
 import { EntryRow } from '@/ui/EntryRow';
 import { unitSymbol } from '@/ui/age';
-import { decimalFigure } from '@/ui/figures';
-import { readingFigure, weekDayOf } from '@/ui/entries';
+import { decimalFigure, looseFigure } from '@/ui/figures';
+import { weekDayOf } from '@/ui/entries';
 import { Term } from '@/ui/Help';
 import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { amountLabel, schemeName } from './scheme';
 import styles from './WeekCard.module.css';
+import { stageLabel } from '@/ui/presets';
 
 interface WeekCardProps {
   week: GrowWeekCard;
@@ -79,7 +80,7 @@ export function WeekCard({ week, grow, people, now, current, explain, onPicture 
         </span>
         {week.stage ? (
           <span className={ui.tag}>
-            {week.preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${week.stage}`)}
+            {stageLabel(t, week.stage, week.preset)}
             {week.stageWeek !== null ? ` ${t('home.card.week', { week: week.stageWeek })}` : ''}
           </span>
         ) : null}
@@ -185,10 +186,10 @@ export function WeekCard({ week, grow, people, now, current, explain, onPicture 
                 return (
                   <span key={reading.key}>
                     {index > 0 ? ' · ' : ''}
-                    <span className={styles.readingName}>{definition?.name ?? reading.key}</span> {readingFigure(reading.value)}
+                    <span className={styles.readingName}>{definition?.name ?? reading.key}</span> {looseFigure(reading.value)}
                     {definition?.unit ? ` ${definition.unit}` : ''}
                     {reading.change ? (
-                      <span className={styles.change}>{` ${reading.change > 0 ? '+' : ''}${readingFigure(reading.change)}`}</span>
+                      <span className={styles.change}>{` ${reading.change > 0 ? '+' : ''}${looseFigure(reading.change)}`}</span>
                     ) : null}
                   </span>
                 );

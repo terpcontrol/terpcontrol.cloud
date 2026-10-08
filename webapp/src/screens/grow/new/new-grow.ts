@@ -1,8 +1,8 @@
 import { DateTime } from 'luxon';
-import { PRESETS_OF_STAGE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { growDayAt } from '@fg2/shared-types/v1-schemas/feeding.js';
 import type { GrowCreate, GrowListItem, GrowScheme, GrowthStage, GrowType, PlantBatch } from '@fg2/shared-types/v1';
 import { instantOf } from '@/ui/age';
+import { presetsOf } from '@/ui/presets';
 
 /**
  * What the new-grow sheet is deciding, and the arithmetic behind the sentences
@@ -105,7 +105,7 @@ export const dayNumber = (startedAt: Date, now: DateTime): number => growDayAt(s
  * same for either kind of plant.
  */
 export const presetFor = (type: GrowType, stage: GrowthStage): string | null =>
-  type === 'autoflower' && (PRESETS_OF_STAGE[stage] ?? []).includes('autoflower') ? 'autoflower' : null;
+  type === 'autoflower' && presetsOf(stage).includes('autoflower') ? 'autoflower' : null;
 
 /**
  * The strains as the contract counts them. A row that was never named is still

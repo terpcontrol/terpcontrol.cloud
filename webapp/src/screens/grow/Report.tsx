@@ -22,6 +22,7 @@ import { useShape } from '@/app/shell/shape';
 import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import styles from './Report.module.css';
+import { stageLabel } from '@/ui/presets';
 
 /**
  * The Report tab: the grow as chapters, one per phase, newest first. Each
@@ -212,7 +213,7 @@ function Chapter({
     <article className={styles.chapter}>
       <span className={styles.cover}>{cover ? <img src={cover} alt="" loading="lazy" /> : <Leaf size={22} strokeWidth={1.5} aria-hidden />}</span>
       <div className={styles.chapterText}>
-        <h2 className={styles.chapterTitle}>{chapter.preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${chapter.stage}`)}</h2>
+        <h2 className={styles.chapterTitle}>{stageLabel(t, chapter.stage, chapter.preset)}</h2>
         <p className={`mono ${styles.chapterMeta}`}>
           {chapter.dayTo === null
             ? t('grow.report.dayFromToToday', { from: chapter.dayFrom })

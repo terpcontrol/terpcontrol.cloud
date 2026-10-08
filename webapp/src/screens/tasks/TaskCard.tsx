@@ -6,11 +6,11 @@ import type { Reminder, SessionUser, Task } from '@fg2/shared-types/v1';
 import { useDevicePlan } from '@/api/plans';
 import { initials } from '@/ui/handle';
 import { nextStepIndex } from '@/screens/control/plan-clock';
-import { readingFigure } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
 import { dayLabel, daysUntil, litresOf, onceLabel, type Translate } from './tasks';
 import styles from './Tasks.module.css';
+import { looseFigure } from '@/ui/figures';
 
 interface TaskCardProps {
   task: Task;
@@ -260,7 +260,7 @@ const metaLine = (t: Translate, task: Task, name: string | null, reminder: Remin
     const kind = task.kind === 'custom' ? null : t(`tasks.kindMeta.${task.kind}`);
     if (kind && !task.label.toLowerCase().includes(kind.toLowerCase())) parts.push(kind);
     const litres = litresOf(task.defaults);
-    if (litres !== null) parts.push(t('log.litres', { litres: readingFigure(litres) }));
+    if (litres !== null) parts.push(t('log.litres', { litres: looseFigure(litres) }));
   }
 
   parts.push(dueLabel(t, task, now, zone));

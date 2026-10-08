@@ -14,7 +14,8 @@ import { Targets } from '@/screens/control/targets/Targets';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { nowHoldingOf, ownedBy, phaseOf, shapeOf } from '@/screens/control/targets/day-night';
 import { draftOf, secondsOf, vpdOf, wallClock, withDraft } from '@/screens/control/targets/targets-draft';
-import { CLIMATE_CHOICES, presetsOf, STAGES_WITH_CLIMATE } from '@/ui/presets';
+import { STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { CLIMATE_CHOICES, presetsOf } from '@/ui/presets';
 
 /**
  * What the targets page promises: that a chip only moves the figures,

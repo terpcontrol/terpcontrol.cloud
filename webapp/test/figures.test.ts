@@ -3,7 +3,6 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { figure, targetFigure } from '@/ui/units';
-import { readingFigure } from '@/ui/entries';
 import { decimalFigure, looseFigure, typedFigure } from '@/ui/figures';
 
 /**
@@ -74,11 +73,11 @@ describe('which language that is', () => {
   it('follows the language the app is being read in', async () => {
     await i18next.changeLanguage('de');
     expect(figure(24.4, 'temperature')).toBe('24,4');
-    expect(readingFigure(6.5)).toBe('6,5');
+    expect(looseFigure(6.5)).toBe('6,5');
 
     await i18next.changeLanguage('en');
     expect(figure(24.4, 'temperature')).toBe('24.4');
-    expect(readingFigure(6.5)).toBe('6.5');
+    expect(looseFigure(6.5)).toBe('6.5');
   });
 
   it('still writes nothing as nothing rather than as minus nothing', async () => {

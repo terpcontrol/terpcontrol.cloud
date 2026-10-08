@@ -14,8 +14,9 @@ import { useNow } from '@/ui/useNow';
 import { DAY, DAY_IN_YEAR, useZone, zoned } from '@/ui/zone';
 import { BackLink } from '@/ui/BackLink';
 import { NewGrowSheet } from './new/NewGrowSheet';
-import { countsOf, whole } from './my-grows';
+import { countsOf } from './my-grows';
 import styles from './MyGrows.module.css';
+import { unbroken } from '@/ui/figures';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -143,7 +144,7 @@ function GrowCard({ grow }: { grow: MyGrowCard }) {
   const { t } = useTranslation();
   const zone = useZone();
   // The grow day a finished grow got to opens the line under its dates, which on a phone is as wide as the dates alone.
-  const where = [grow.endedAt && grow.dayNumber !== null ? whole(t('grow.mine.toDay', { day: grow.dayNumber })) : null, placeOf(t, grow)]
+  const where = [grow.endedAt && grow.dayNumber !== null ? unbroken(t('grow.mine.toDay', { day: grow.dayNumber })) : null, placeOf(t, grow)]
     .filter(Boolean)
     .join(' · ');
   const plants = plantsOf(grow);
@@ -219,7 +220,7 @@ const spanOf = (t: Translate, startedAt: string, endedAt: string, zone: string |
   const from = zoned(startedAt, zone);
   const to = zoned(endedAt, zone);
 
-  return t('grow.mine.ran', { from: whole(from.toFormat(from.year === to.year ? DAY_IN_YEAR : DAY)), to: whole(to.toFormat(DAY)) });
+  return t('grow.mine.ran', { from: unbroken(from.toFormat(from.year === to.year ? DAY_IN_YEAR : DAY)), to: unbroken(to.toFormat(DAY)) });
 };
 
 /**
@@ -228,7 +229,7 @@ const spanOf = (t: Translate, startedAt: string, endedAt: string, zone: string |
  * narrow card moves it to the next line rather than leaving its last word there.
  */
 const placeOf = (t: Translate, grow: MyGrowCard): string | null =>
-  grow.places.length === 0 ? null : grow.places.map(place => whole(place.name ?? t('grow.noFixedPlace'))).join(', ');
+  grow.places.length === 0 ? null : grow.places.map(place => unbroken(place.name ?? t('grow.noFixedPlace'))).join(', ');
 
 /** "Gelato ×2 · Amnesia Haze": each strain once, with its count where there is more than one - as the grow page writes it. */
 const plantsOf = (grow: MyGrowCard): string =>
@@ -242,8 +243,8 @@ const harvestOf = (t: Translate, grow: MyGrowCard): string | null => {
   // Each weight whole, so a narrow card breaks the line between two weights and never between a number and its unit.
   return [
     t('grow.mine.harvest'),
-    harvest.dryWeightG !== null ? whole(t('grow.report.dry', { grams: harvest.dryWeightG })) : null,
-    harvest.wetWeightG !== null ? whole(t('grow.report.wet', { grams: harvest.wetWeightG })) : null,
+    harvest.dryWeightG !== null ? unbroken(t('grow.report.dry', { grams: harvest.dryWeightG })) : null,
+    harvest.wetWeightG !== null ? unbroken(t('grow.report.wet', { grams: harvest.wetWeightG })) : null,
   ]
     .filter(Boolean)
     .join(' · ');

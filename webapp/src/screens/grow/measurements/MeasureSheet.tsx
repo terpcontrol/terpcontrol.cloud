@@ -10,8 +10,7 @@ import { about, lineLabel } from '@/log/lines';
 import { useLog, type LogTarget } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
-import { readingFigure } from '@/ui/entries';
-import { typedFigure } from '@/ui/figures';
+import { looseFigure, typedFigure } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
 import { Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -265,7 +264,7 @@ const readingsOf = (typed: Record<string, string>, definitions: MeasurementDefin
     return [{ key, value, plantId: plantId || null }];
   });
 
-const figureOf = (reading: { value: number } | undefined): string => (reading ? readingFigure(reading.value) : '');
+const figureOf = (reading: { value: number } | undefined): string => (reading ? looseFigure(reading.value) : '');
 
 /** What the field is called, so the figure in it can be read as the figure it is. */
 const fieldLabel = (t: Translate, definition: MeasurementDefinition): string =>
@@ -313,9 +312,9 @@ const hintOf = (
   return [
     mine ? t('grow.measurements.measure.last', { value: withUnit(mine.value, definition.unit) }) : t('grow.measurements.measure.never'),
     mine ? t('grow.measurements.measure.ago', { age: ageLabel(mine.at, now) }) : '',
-    moved === null || moved === 0 ? '' : `${moved > 0 ? '+' : ''}${readingFigure(moved)}`,
+    moved === null || moved === 0 ? '' : `${moved > 0 ? '+' : ''}${looseFigure(moved)}`,
     t('grow.measurements.target', { band: band ?? t('grow.measurements.noTarget') }),
-    other?.reading ? t('grow.measurements.measure.otherPlant', { plant: other.plant.label, value: readingFigure(other.reading.value) }) : '',
+    other?.reading ? t('grow.measurements.measure.otherPlant', { plant: other.plant.label, value: looseFigure(other.reading.value) }) : '',
   ]
     .filter(Boolean)
     .join(' · ');

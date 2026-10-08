@@ -7,8 +7,7 @@ import { useUpdateGrow } from '@/api/grows';
 import { useHarvest } from '@/api/lifecycle';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
-import { readingFigure } from '@/ui/entries';
-import { typedFigure } from '@/ui/figures';
+import { looseFigure, typedFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Block, WhenField } from '@/ui/SheetParts';
@@ -252,10 +251,10 @@ const shareNote = (t: Translate, count: number, wet: number | null, dry: number 
   if (count === 0) return t('grow.lifecycle.harvest.pickSomething');
   if (wet === null && dry === null) return t('grow.lifecycle.harvest.weightsOptional');
 
-  const each = (total: number) => readingFigure(Math.round((total / count) * 100) / 100);
+  const each = (total: number) => looseFigure(Math.round((total / count) * 100) / 100);
   const parts = [
-    wet === null ? '' : t('grow.lifecycle.harvest.eachWet', { total: readingFigure(wet), each: each(wet), count }),
-    dry === null ? '' : t('grow.lifecycle.harvest.eachDry', { total: readingFigure(dry), each: each(dry), count }),
+    wet === null ? '' : t('grow.lifecycle.harvest.eachWet', { total: looseFigure(wet), each: each(wet), count }),
+    dry === null ? '' : t('grow.lifecycle.harvest.eachDry', { total: looseFigure(dry), each: each(dry), count }),
   ];
 
   return parts.filter(Boolean).join(' · ');
@@ -264,8 +263,8 @@ const shareNote = (t: Translate, count: number, wet: number | null, dry: number 
 const weightLine = (t: Translate, plant: Plant): string => {
   if (!plant.harvest) return '';
   const parts = [
-    plant.harvest.wetWeightG === null ? '' : t('grow.report.wet', { grams: readingFigure(plant.harvest.wetWeightG) }),
-    plant.harvest.dryWeightG === null ? '' : t('grow.report.dry', { grams: readingFigure(plant.harvest.dryWeightG) }),
+    plant.harvest.wetWeightG === null ? '' : t('grow.report.wet', { grams: looseFigure(plant.harvest.wetWeightG) }),
+    plant.harvest.dryWeightG === null ? '' : t('grow.report.dry', { grams: looseFigure(plant.harvest.dryWeightG) }),
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(' · ') : t('grow.lifecycle.harvest.noWeight');

@@ -6,13 +6,14 @@ import type { GrowWeekCard, WeekClimate } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
 import { ageLabel, unitSymbol } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
-import { decimalFigure } from '@/ui/figures';
-import { readingFigure, weekDayOf } from '@/ui/entries';
+import { decimalFigure, looseFigure } from '@/ui/figures';
+import { weekDayOf } from '@/ui/entries';
 import { Term } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { Photo } from '@/ui/Photo';
 import { windowIsCurrent } from './window';
 import styles from './Public.module.css';
+import { stageLabel } from '@/ui/presets';
 
 interface DiaryWeekProps {
   /** The newest card, whose words explain themselves once for the page. */
@@ -71,7 +72,7 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf, explain }:
         </span>
         {week.stage ? (
           <span className={ui.tag}>
-            {week.preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${week.stage}`)}
+            {stageLabel(t, week.stage, week.preset)}
             {week.stageWeek !== null ? ` ${t('home.card.week', { week: week.stageWeek })}` : ''}
           </span>
         ) : null}
@@ -145,8 +146,8 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf, explain }:
               {week.readings.map((reading, index) => (
                 <span key={reading.key}>
                   {index > 0 ? ' · ' : ''}
-                  <span className={styles.readingName}>{reading.key}</span> {readingFigure(reading.value)}
-                  {reading.change ? <span className={styles.change}>{` ${reading.change > 0 ? '+' : ''}${readingFigure(reading.change)}`}</span> : null}
+                  <span className={styles.readingName}>{reading.key}</span> {looseFigure(reading.value)}
+                  {reading.change ? <span className={styles.change}>{` ${reading.change > 0 ? '+' : ''}${looseFigure(reading.change)}`}</span> : null}
                 </span>
               ))}
             </p>

@@ -9,7 +9,6 @@ import { useHome } from '@/api/home';
 import { livenessOf } from '@/screens/home/attention';
 import { ageLabel } from '@/ui/age';
 import { VISIT_MINUTES } from '@/ui/maintenance';
-import { readingFigure } from '@/ui/entries';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import { Choice } from '@/ui/SheetParts';
 import { useNow } from '@/ui/useNow';
@@ -20,6 +19,7 @@ import { useLog, type LogOpening, type LogTarget, type TileKind } from './log-co
 import { narrowerTargets, openingTarget, targetsOf } from './targets';
 import { Sheet } from '@/ui/Sheet';
 import styles from './Log.module.css';
+import { looseFigure } from '@/ui/figures';
 
 /**
  * The Log sheet: what the line is about, and the eight things it can be.
@@ -167,7 +167,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   const caption = (kind: TileKind): string => {
     switch (kind) {
       case 'water':
-        return [waterLitres === null ? '' : t('log.litres', { litres: readingFigure(waterLitres) }), lastAgo(t, lastWater, now)]
+        return [waterLitres === null ? '' : t('log.litres', { litres: looseFigure(waterLitres) }), lastAgo(t, lastWater, now)]
           .filter(Boolean)
           .join(' · ');
       case 'feed':

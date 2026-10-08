@@ -25,8 +25,7 @@ import { ClimatePick } from '@/screens/grow/ClimatePick';
 import { assetTitle } from '@/screens/grow/scheme';
 import { climateRequest, defaultPick, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
 import { dayOf, momentOn } from '@/ui/days';
-import { readingFigure } from '@/ui/entries';
-import { typedFigure } from '@/ui/figures';
+import { looseFigure, typedFigure } from '@/ui/figures';
 import { parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
 import { useMayManage } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
@@ -257,7 +256,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
           <button type="button" className={styles.step} onClick={() => setLitres(next(litres, -LITRE_STEP))} aria-label={t('log.less')}>
             <Minus size={16} strokeWidth={2} aria-hidden />
           </button>
-          <span className={`figure ${styles.waterFigure}`}>{litres === null ? '—' : t('log.litres', { litres: readingFigure(litres) })}</span>
+          <span className={`figure ${styles.waterFigure}`}>{litres === null ? '—' : t('log.litres', { litres: looseFigure(litres) })}</span>
           <button type="button" className={styles.step} onClick={() => setLitres(next(litres, LITRE_STEP))} aria-label={t('log.more')}>
             <Plus size={16} strokeWidth={2} aria-hidden />
           </button>
@@ -283,7 +282,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
                           : t('log.stopsAfter', { week: until })
                       : `${amount.value} ${amount.unit}`}
                   </span>
-                  <span className={`figure ${styles.doseAmount}`}>{dose ? `${readingFigure(dose.amount)} ${dose.unit}` : '—'}</span>
+                  <span className={`figure ${styles.doseAmount}`}>{dose ? `${looseFigure(dose.amount)} ${dose.unit}` : '—'}</span>
                 </div>
               );
             })
@@ -585,7 +584,7 @@ const whenSaid = (dated: boolean, at: Date): { occurredAt?: string } => (dated ?
 const next = (litres: number | null, by: number): number => Math.max(LITRE_STEP, Math.round(((litres ?? 0) + by) / LITRE_STEP) * LITRE_STEP);
 
 const typed = (readings: EntryReading[]): Record<string, string> =>
-  Object.fromEntries(readings.map(reading => [reading.key, readingFigure(reading.value)]));
+  Object.fromEntries(readings.map(reading => [reading.key, looseFigure(reading.value)]));
 
 /** The fields a kind opens with: what the line already says, else the first few the grow measures. */
 const firstFields = (definitions: MeasurementDefinition[], readings: EntryReading[]): string[] =>

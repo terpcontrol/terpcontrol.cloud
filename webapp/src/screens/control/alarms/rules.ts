@@ -249,15 +249,7 @@ export const unitOf = (watch: AlarmWatch): string => {
   return scaleOf(watch.output) === 'percent' ? '%' : '';
 };
 
-/**
- * A level as the screens write it: as exactly as it was sent, in the reader's
- * own decimals. Rounding it to whole numbers is what turned a heater watched at
- * half power into a rule about "1", on a series that never leaves the range
- * nought to one.
- */
-export const levelFigure = (value: number): string => looseFigure(value);
-
-const figureOf = (watch: AlarmWatch, value: number): string => (watch.kind === 'reading' ? targetFigure(value, watch.metric) : levelFigure(value));
+const figureOf = (watch: AlarmWatch, value: number): string => (watch.kind === 'reading' ? targetFigure(value, watch.metric) : looseFigure(value));
 
 /** The two bounds of a rule as figures with their unit, "30 °C", each null where the rule sets none; an output watched for running sets neither. */
 export const boundsOf = (watch: AlarmWatch): { upper: string | null; lower: string | null } => {

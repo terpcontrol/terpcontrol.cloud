@@ -10,6 +10,7 @@ import { DiaryWeek } from './DiaryWeek';
 import { Photo } from '@/ui/Photo';
 import { calendarDay, DAY } from '@/ui/zone';
 import styles from './Public.module.css';
+import { stageLabel } from '@/ui/presets';
 
 interface DiaryProps {
   page: PublicGrowPage;
@@ -160,7 +161,7 @@ function Facts({ page }: { page: PublicGrowPage }) {
   const until = page.endedAt ? DateTime.fromISO(page.endedAt) : null;
 
   const parts = [
-    page.stage ? (page.preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${page.stage}`)) : t('home.card.noPhase'),
+    page.stage ? stageLabel(t, page.stage, page.preset) : t('home.card.noPhase'),
     // The week of the stage the word before it names, which is what the owner's
     // own header says and what the first card's pill repeats. The week of the
     // whole grow belongs to the cards' own headings: glued to a stage name it

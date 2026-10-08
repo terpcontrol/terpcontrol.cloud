@@ -7,7 +7,7 @@ import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } f
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { maintenanceQuiet, parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
-import { levelFigure, repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
+import { repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
 import { ageAttribute, deviceLiveness, isAhead, offlineLabel, silentSince, sinceLabel, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { Help } from '@/ui/Help';
@@ -21,6 +21,7 @@ import ask from './AlertCard.module.css';
 import styles from './Alerts.module.css';
 import { deviceName } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
+import { looseFigure, unbroken } from '@/ui/figures';
 
 /** How long a silence from the card holds, and how long maintenance does. */
 export const SILENCE_SECONDS = 3600;
@@ -149,8 +150,6 @@ const placeOf = (t: Translate, alert: Alert, names: AlertNames, device: Device |
   return [];
 };
 
-/** What a device is called, or what kind of thing it is where nobody has named it. */
-
 // The inbox writes a metric out in full - "humidity" rather than "RH" - so its
 // own words come first and the short ones the dense cards elsewhere use stand
 // in only where it has none.
@@ -219,9 +218,6 @@ const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Devi
   }
 };
 
-/** A figure and what belongs to it, held together so a narrow card wraps the pair rather than splitting it. */
-const tight = (part: string): string => part.replace(/ /g, ' ');
-
 /** What the episode watched, from whichever of the two still knows. */
 interface Watched {
   watch: AlarmWatch;
@@ -266,7 +262,7 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
       // A rule that trips the moment its output starts has no span to name, and
       // neither has an episode whose rule is gone: the duration the rule asked
       // for was the rule's and is not part of what happened.
-      figure: forSeconds !== null && forSeconds > 0 ? tight(t('alarms.bound.longer', { duration: spanLabel(forSeconds) })) : null,
+      figure: forSeconds !== null && forSeconds > 0 ? unbroken(t('alarms.bound.longer', { duration: spanLabel(forSeconds) })) : null,
     };
   }
 
@@ -277,8 +273,8 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
   // round it to a whole number, so a heater watched at half power read "1 %" on
   // a series whose whole range is nought to one - and the card beside it, which
   // knew better, wrote the same bound with no unit at all.
-  const asFigure = (x: number) => (watch.kind === 'reading' ? figure(x, watch.metric) : levelFigure(x));
-  const asEdge = (x: number) => (watch.kind === 'reading' ? targetFigure(x, watch.metric) : levelFigure(x));
+  const asFigure = (x: number) => (watch.kind === 'reading' ? figure(x, watch.metric) : looseFigure(x));
+  const asEdge = (x: number) => (watch.kind === 'reading' ? targetFigure(x, watch.metric) : looseFigure(x));
   const unit = unitOf(watch);
 
   const figures = [
@@ -290,9 +286,16 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
 
   return {
     label: watch.kind === 'reading' ? metricName(t, watch.metric) : outputName(t, watch.output),
-    figure: figures.length ? figures.map(tight).join(' · ') : null,
+    figure: figures.length ? figures.map(unbroken).join(' · ') : null,
   };
 };
+
+/**
+ * Each "·"-separated piece of a short phrase kept on one line - "resolved 18:08",
+ * "lasted 56 min" - so the line breaks at a dot and never splits a figure from
+ * the word it belongs to.
+ */
+const whole = (phrase: string): string => phrase.split(' · ').map(unbroken).join(' · ');
 
 /**
  * Which rule raised it, how much it matters, when it began and how long it
@@ -320,17 +323,6 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
  * stays behind one, and a card whose rule is merely not in hand goes on saying
  * nothing about delivery at all.
  */
-/**
- * Each "·"-separated piece of a short phrase kept on one line - "resolved 18:08",
- * "lasted 56 min" - so the line breaks at a dot and never splits a figure from
- * the word it belongs to.
- */
-const whole = (phrase: string): string =>
-  phrase
-    .split(' · ')
-    .map(piece => piece.replace(/ /g, '\u00a0'))
-    .join(' · ');
-
 const metaOf = (
   t: Translate,
   alert: Alert,
