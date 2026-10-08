@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnApplicationShutdown, OnModuleInit, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { readsThroughDevice } from '@fg2/shared-types/v1-schemas';
 import { logger } from '@utils/logger';
 import { BackgroundWork, logIfItFails } from '@common/background-work';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
@@ -50,11 +51,6 @@ export interface StoredStill {
 function readKey(camera: Pick<CameraDocument, 'kind' | 'deviceId' | 'url' | 'transport' | 'tunnel'>): string {
   if (camera.kind !== 'rtsp') return JSON.stringify([camera.kind, camera.deviceId]);
   return JSON.stringify([camera.url, camera.transport ?? 'tcp', camera.tunnel, camera.deviceId]);
-}
-
-/** Whether reading the camera goes through its device, so it only works while the device is online. */
-function readsThroughDevice(camera: Pick<CameraDocument, 'kind' | 'tunnel'>): boolean {
-  return camera.kind === 'terpcam_controller' || (camera.kind === 'rtsp' && camera.tunnel);
 }
 
 @Injectable()

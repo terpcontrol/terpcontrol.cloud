@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
-import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
+import { CAPTURE_BUDGET_SECONDS, readsThroughDevice } from '@fg2/shared-types/v1-schemas/capture.js';
 import { useMe } from '@/api/account';
 import { gaveUp, useCamera, useCameraFrames, useLatestStills, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
@@ -115,7 +115,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   // its tunnel - goes dark with that device, and is not even tried while the
   // device is offline. So that is what the page says then, rather than the
   // reason the last try before it failed, and the test button waits for it.
-  const throughDevice = readsThroughDevice(camera);
+  const throughDevice = camera.deviceId !== null && readsThroughDevice(camera);
   const devices = useDevices(throughDevice);
   const carrier = throughDevice ? (devices.data?.items.find(device => device.id === camera.deviceId) ?? null) : null;
   const carrierOffline = carrier !== null && deviceLiveness(carrier.state.lastSeenAt, now) === 'offline';
@@ -680,7 +680,3 @@ const frameAt = (shots: Media[], time: number): Media | null => {
 
   return found;
 };
-
-/** Whether reading the camera goes through its device, which is then the only way to it: as the server decides it. */
-const readsThroughDevice = (camera: Camera): boolean =>
-  camera.deviceId !== null && (camera.kind === 'terpcam_controller' || (camera.kind === 'rtsp' && camera.tunnel));

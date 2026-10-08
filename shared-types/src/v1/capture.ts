@@ -63,3 +63,30 @@ export const CAPTURE_FAILURES = [...SAYS.map(([key]) => key), 'unknown'] as cons
 /** What kind of failure the words a failed read left behind describe. */
 export const captureFailureOf = (error: string): (typeof CAPTURE_FAILURES)[number] =>
   SAYS.find(([, says]) => says.test(error))?.[0] ?? 'unknown';
+
+/** Whether reading the camera goes through its device, so it only works while that device is online. */
+export const readsThroughDevice = (camera: { kind: string; tunnel: boolean }): boolean =>
+  camera.kind === 'terpcam_controller' || (camera.kind === 'rtsp' && camera.tunnel);
+
+/**
+ * Why a film did not render, in the words the render stores. The causes are
+ * the render's own and not a capture's: a render never goes near the camera -
+ * it reads pictures that are already stored - so nothing it fails at is the
+ * camera refusing a login or not answering. The screen names the cause by these
+ * words in the language the page is in; anything else a render stores, such as
+ * an encoder's own message, is `unknown`.
+ */
+export const RENDER_FAILURES = {
+  // The span held pictures and the render kept none of them: they were all taken with the light off.
+  allDark: 'every picture in that span was taken with the light off',
+  tooFew: 'there are not enough pictures in that span to make a film',
+  // The camera was unpaired between the request and the render.
+  cameraGone: 'the camera this was asked of is gone',
+  encodeFailed: 'the pictures in that span could not be made into a film',
+} as const;
+
+type RenderFailure = keyof typeof RENDER_FAILURES;
+
+/** What kind of failure the words a failed render left behind describe. */
+export const renderFailureOf = (error: string): RenderFailure | 'unknown' =>
+  (Object.keys(RENDER_FAILURES) as RenderFailure[]).find(cause => error.includes(RENDER_FAILURES[cause])) ?? 'unknown';

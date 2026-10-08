@@ -5,6 +5,7 @@ import { join } from 'path';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import { MediaQuality } from '@fg2/shared-types/v1';
+import { RENDER_FAILURES } from '@fg2/shared-types/v1-schemas';
 import { logger } from '@utils/logger';
 import { BackgroundWork } from '@common/background-work';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -249,7 +250,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     const camera = job.cameraId ? await this.cameras.byId(job.cameraId) : null;
     if (!queued) return;
     if (!camera) {
-      await this.media.setRender(job.id, { ...queued, status: 'failed', endedAt: new Date(), error: 'the camera this was asked of is gone' });
+      await this.media.setRender(job.id, { ...queued, status: 'failed', endedAt: new Date(), error: RENDER_FAILURES.cameraGone });
       return;
     }
 
@@ -597,16 +598,12 @@ export const coveredBy = (film: Pick<MediaDocument, 'endsAt' | 'render'>, now = 
  * ten lines under the page's own "27 pictures today", and with no mention of
  * the switch that would have kept them. Naming the filter is the whole point:
  * it is the one cause of the three the person reading can do something about.
- *
- * The words are read again by the client, which says them in the language the
- * page is in, so they are phrases to recognise rather than prose to reword
- * lightly: `webapp/src/screens/camera/capture-failure.ts` holds the reading.
  */
 export const whyNoFilm = (stills: number, frames: number): string => {
-  if (frames >= MINIMUM_FRAMES) return 'the pictures in that span could not be made into a film';
-  if (stills >= MINIMUM_FRAMES) return 'every picture in that span was taken with the light off';
+  if (frames >= MINIMUM_FRAMES) return RENDER_FAILURES.encodeFailed;
+  if (stills >= MINIMUM_FRAMES) return RENDER_FAILURES.allDark;
 
-  return 'there are not enough pictures in that span to make a film';
+  return RENDER_FAILURES.tooFew;
 };
 
 /** The nearest picture of the camera shown beside this one, or null where it took none that close. */
