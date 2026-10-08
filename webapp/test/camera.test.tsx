@@ -98,14 +98,18 @@ vi.mock('@/api/account', async importOriginal => ({
   }),
 }));
 
-vi.mock('@/api/cameras', async importOriginal => ({
+vi.mock('@/api/media', async importOriginal => ({
   ...(await importOriginal<object>()),
-  useCameras: () => ({ data: { items: [], nextCursor: null } }),
-  useLatestStills: () => new Map<string, string | null>(state.lastStill ? [['camera-1', state.lastStill]] : []),
   // One film under the microscope is `film`; a list of them is served from the
   // rows themselves, and only those a test gave a span to - the rest stand for
   // reads that have not answered, which is what the paging tests draw.
   useMedia: (id: string) => ({ data: state.film ?? state.films.find(one => one.id === id && one.capturedAt) ?? null, isError: false }),
+}));
+
+vi.mock('@/api/cameras', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useCameras: () => ({ data: { items: [], nextCursor: null } }),
+  useLatestStills: () => new Map<string, string | null>(state.lastStill ? [['camera-1', state.lastStill]] : []),
   useCameraFrames: (_id: string, day: { startsAt: string; endsAt: string }) => {
     state.askedForDay = day;
     if (state.framesPending) return { data: undefined, isPending: true, isError: false, refetch: () => (state.readAgain += 1) };

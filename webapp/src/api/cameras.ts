@@ -49,9 +49,6 @@ export class NoAnswerInTime extends Error {
 /** Whether a call was given up on by this side rather than answered by the other. */
 export const gaveUp = (error: unknown): boolean => error instanceof NoAnswerInTime;
 
-/** A render is minutes of ffmpeg, so the job is polled rather than waited for. */
-export const RENDER_POLL_MS = 5_000;
-
 export const camerasQuery = (spaceId?: string) =>
   queryOptions({
     queryKey: ['cameras', spaceId ?? null],
@@ -184,17 +181,6 @@ export const useTimelapses = (cameraId: string) =>
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
   });
-
-/** One media row, polled while its render is still going and left alone once it is not. */
-export const useMedia = (mediaId: string | null) =>
-  useRead({
-    queryKey: ['media', mediaId],
-    queryFn: ({ signal }) => api.get<Media>(`/media/${mediaId}`, undefined, signal),
-    enabled: mediaId !== null,
-    refetchInterval: query => (isRendering(query.state.data) ? RENDER_POLL_MS : false),
-  });
-
-export const isRendering = (media: Media | undefined): boolean => media?.render?.status === 'queued' || media?.render?.status === 'rendering';
 
 const cameraSaved = (client: QueryClient, camera: Camera) => {
   client.setQueryData(['camera', camera.id], camera);

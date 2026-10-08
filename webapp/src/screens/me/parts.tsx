@@ -2,7 +2,8 @@ import { Download } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { exportFilename, fileSize, isBuilding, useAskAccountExport, useAskedExport, useDownloadExport, useExport } from '@/api/exports';
+import { exportFilename, fileSize, useAskAccountExport, useAskedExport, useDownloadExport } from '@/api/exports';
+import { isBuilding, useMedia } from '@/api/media';
 import { ageLabel } from '@/ui/age';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
@@ -146,7 +147,7 @@ export function ExportRow({ title, line, ask }: { title: string; line: ReactNode
   const now = useNow();
   const request = useAskAccountExport();
   const mediaId = useAskedExport();
-  const job = useExport(mediaId);
+  const job = useMedia(mediaId);
 
   const download = useDownloadExport();
   const row = job.data;

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Media } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
-import { useMedia } from '@/api/cameras';
+import { filmStatus, useMedia } from '@/api/media';
 import { mediaUrl, useSession } from '@/api/session';
 import ui from '@/ui/ui.module.css';
 import { DATED_CLOCK, DAY_IN_YEAR, zoned, zoneOf } from '@/ui/zone';
@@ -44,7 +44,7 @@ export function Film({ mediaId, collapsed, mayOwn = false }: { mediaId: string; 
   }
 
   const film = media.data;
-  const status = film.render?.status ?? 'ready';
+  const status = filmStatus(film);
   const source = status === 'ready' ? mediaUrl(film.id) : null;
 
   return (

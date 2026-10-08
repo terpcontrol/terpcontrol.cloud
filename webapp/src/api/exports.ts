@@ -1,5 +1,4 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useRead } from './read';
 import type { ExportAccepted, Media } from '@fg2/shared-types/v1';
 import { api, apiBlob } from './client';
 import { decimalFigure } from '@/ui/figures';
@@ -15,9 +14,6 @@ import { useWrite } from './write';
  * Asking twice is one export - the route answers the build already in flight,
  * or a finished one still fresh - so the button never needs to guard itself.
  */
-
-/** How often a job that is still being built is asked about. The same beat a film's render is watched at. */
-const EXPORT_POLL_MS = 5_000;
 
 export const useAskExport = (growId: string) =>
   useWrite(
@@ -73,17 +69,6 @@ export const useAskAccountExport = () =>
       client.setQueryData(ASKED_KEY, accepted.media.id);
     },
   );
-
-/** One export's row, asked about while the zip is still being written and left alone once it is not. */
-export const useExport = (mediaId: string | null) =>
-  useRead({
-    queryKey: ['media', mediaId],
-    queryFn: ({ signal }) => api.get<Media>(`/media/${mediaId}`, undefined, signal),
-    enabled: mediaId !== null,
-    refetchInterval: query => (isBuilding(query.state.data) ? EXPORT_POLL_MS : false),
-  });
-
-export const isBuilding = (media: Media | undefined): boolean => media?.exportJob?.status === 'queued' || media?.exportJob?.status === 'rendering';
 
 /**
  * "1.2 GB", "12.4 MB", or "44 kB" for a grow with no pictures in it yet. The

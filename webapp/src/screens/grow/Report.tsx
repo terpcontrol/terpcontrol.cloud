@@ -3,9 +3,10 @@ import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowReportPhase, Space } from '@fg2/shared-types/v1';
-import { exportFilename, fileSize, isBuilding, useAskExport, useDownloadExport, useExport } from '@/api/exports';
+import { exportFilename, fileSize, useAskExport, useDownloadExport } from '@/api/exports';
 import { useGrowPhotoLines } from '@/api/entries';
 import { useGrowReport } from '@/api/grows';
+import { isBuilding, useMedia } from '@/api/media';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
 import { useCorrecting } from '@/log/corrections';
@@ -108,7 +109,7 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
   const { t } = useTranslation();
   const ask = useAskExport(growId);
   const [mediaId, setMediaId] = useState<string | null>(null);
-  const job = useExport(mediaId);
+  const job = useMedia(mediaId);
   const download = useDownloadExport();
 
   if (!mayOwn) return null;

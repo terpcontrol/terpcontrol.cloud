@@ -10,6 +10,7 @@ import { gaveUp, useCamera, useCameraFrames, useLatestStills, useRequestTimelaps
 import { useDevices } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
+import { filmStatus } from '@/api/media';
 import { itemsOf } from '@/api/pages';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
@@ -616,13 +617,10 @@ function TestImage({ cameraId, mayOwn, offline }: { cameraId: string; mayOwn: bo
  * that name the same span and disagree are what the reader cannot tell apart.
  */
 const filmsOfEachSpan = (films: Media[]): Media[] => {
-  const played = new Set(films.filter(film => statusOf(film) === 'ready').map(spanOf));
+  const played = new Set(films.filter(film => filmStatus(film) === 'ready').map(spanOf));
 
-  return films.filter(film => statusOf(film) !== 'failed' || !played.has(spanOf(film)));
+  return films.filter(film => filmStatus(film) !== 'failed' || !played.has(spanOf(film)));
 };
-
-/** A film with no render behind it is one the builder made, and those are only ever there once they are finished. */
-const statusOf = (film: Media): string => film.render?.status ?? 'ready';
 
 /** Which span a film is of, as the two ends the row itself draws. */
 const spanOf = (film: Media): string => `${film.capturedAt}|${film.endsAt ?? ''}`;
