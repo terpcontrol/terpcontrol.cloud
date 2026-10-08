@@ -5,7 +5,7 @@ import { useSpaces } from '@/api/spaces';
 import { Sheet } from '@/ui/Sheet';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
-import { Refused } from '@/ui/PageState';
+import { SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { deviceTitle } from '../naming';
 import sheet from '../Maintenance.module.css';
@@ -55,30 +55,23 @@ function ReleaseSheet({ deviceId, onClose }: { deviceId: string; onClose: () => 
     forget();
   };
 
-  const actions = release.isSuccess ? (
-    <button type="button" className={`${ui.button} ${ui.primary}`} onClick={done}>
-      {t('maintenance.done')}
-    </button>
-  ) : sure ? (
-    <>
-      <Refused error={release.error} />
-      <button type="button" className={styles.dangerButton} disabled={release.isPending} onClick={() => release.mutate()}>
-        {t(release.isPending ? 'release.releasing' : 'release.yes')}
-      </button>
-      <button type="button" className={ui.button} onClick={onClose}>
-        {t('maintenance.cancel')}
-      </button>
-    </>
-  ) : (
-    <>
-      <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => setSure(true)}>
-        {t('release.next')}
-      </button>
-      <button type="button" className={ui.button} onClick={onClose}>
-        {t('maintenance.cancel')}
-      </button>
-    </>
-  );
+  const actions =
+    sure || release.isSuccess ? (
+      <SheetAnswer done={release.isSuccess} error={release.error} onClose={onClose} onDone={done}>
+        <button type="button" className={styles.dangerButton} disabled={release.isPending} onClick={() => release.mutate()}>
+          {t(release.isPending ? 'release.releasing' : 'release.yes')}
+        </button>
+      </SheetAnswer>
+    ) : (
+      <>
+        <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => setSure(true)}>
+          {t('release.next')}
+        </button>
+        <button type="button" className={ui.button} onClick={onClose}>
+          {t('maintenance.cancel')}
+        </button>
+      </>
+    );
 
   return (
     <Sheet

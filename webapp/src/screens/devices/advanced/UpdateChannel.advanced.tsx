@@ -6,7 +6,7 @@ import { Sheet } from '@/ui/Sheet';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { Refused } from '@/ui/PageState';
-import { Choice, Choices } from '@/ui/SheetParts';
+import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { deviceTitle } from '../naming';
@@ -124,26 +124,16 @@ function PinSheet({ device, build, onClose }: { device: Device; build: DeviceFir
       title={t('firmwarePin.title', { name })}
       onClose={onClose}
       actions={
-        pin.isSuccess ? (
-          <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-            {t('maintenance.done')}
+        <SheetAnswer done={pin.isSuccess} error={pin.error} onClose={onClose}>
+          <button
+            type="button"
+            className={`${ui.button} ${ui.primary}`}
+            disabled={pin.isPending}
+            onClick={() => pin.mutate({ firmware: { channel: 'manual', targetId: build.id } })}
+          >
+            {t('firmwarePin.yes')}
           </button>
-        ) : (
-          <>
-            <Refused error={pin.error} />
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              disabled={pin.isPending}
-              onClick={() => pin.mutate({ firmware: { channel: 'manual', targetId: build.id } })}
-            >
-              {t('firmwarePin.yes')}
-            </button>
-            <button type="button" className={ui.button} onClick={onClose}>
-              {t('maintenance.cancel')}
-            </button>
-          </>
-        )
+        </SheetAnswer>
       }
     >
       <div className={sheet.body} role={pin.isSuccess ? 'status' : undefined}>

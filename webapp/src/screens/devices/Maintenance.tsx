@@ -7,8 +7,7 @@ import { serverNow } from '@/api/clock';
 import { useDevicesCommand } from '@/api/commands';
 import { Sheet } from '@/ui/Sheet';
 import { MAINTENANCE_MINUTES, parkedLabel, parkedQuiet, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
-import { Refused } from '@/ui/PageState';
-import { Choice, Choices } from '@/ui/SheetParts';
+import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
 import { deviceTitle } from './naming';
@@ -125,13 +124,8 @@ function MaintenanceSheet({ devices, now, onClose }: { devices: Device[]; now: D
   const start = () => send.mutate({ deviceIds: ids, command: { kind: 'maintenance', forSeconds: minutes * 60 } });
   const end = () => send.mutate({ deviceIds: ids, command: { kind: 'maintenance', forSeconds: 0 } });
 
-  const actions = receipts ? (
-    <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-      {t('maintenance.done')}
-    </button>
-  ) : (
-    <>
-      <Refused error={send.error} />
+  const actions = (
+    <SheetAnswer done={receipts !== null} error={send.error} onClose={onClose}>
       {running ? (
         <button type="button" className={`${ui.button} ${ui.primary}`} disabled={send.isPending} onClick={end}>
           {t(send.isPending ? 'maintenance.ending' : 'maintenance.end')}
@@ -141,10 +135,7 @@ function MaintenanceSheet({ devices, now, onClose }: { devices: Device[]; now: D
           {t('maintenance.start')}
         </button>
       )}
-      <button type="button" className={ui.button} onClick={onClose}>
-        {t('maintenance.cancel')}
-      </button>
-    </>
+    </SheetAnswer>
   );
 
   return (
@@ -232,27 +223,17 @@ function RebootSheet({ device, name, onClose }: { device: Device; name: string; 
       title={t('devices.reboot.title', { name })}
       onClose={onClose}
       actions={
-        receipt ? (
-          <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-            {t('maintenance.done')}
+        <SheetAnswer done={receipt !== null} error={send.error} onClose={onClose}>
+          <button
+            type="button"
+            className={`${ui.button} ${ui.primary}`}
+            disabled={send.isPending}
+            onClick={() => send.mutate({ deviceIds: [device.id], command: { kind: 'reboot' } })}
+          >
+            <RotateCcw size={16} strokeWidth={1.75} aria-hidden />
+            {t('devices.reboot.yes')}
           </button>
-        ) : (
-          <>
-            <Refused error={send.error} />
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              disabled={send.isPending}
-              onClick={() => send.mutate({ deviceIds: [device.id], command: { kind: 'reboot' } })}
-            >
-              <RotateCcw size={16} strokeWidth={1.75} aria-hidden />
-              {t('devices.reboot.yes')}
-            </button>
-            <button type="button" className={ui.button} onClick={onClose}>
-              {t('maintenance.cancel')}
-            </button>
-          </>
-        )
+        </SheetAnswer>
       }
     >
       <div className={styles.body} role={receipt ? 'status' : undefined}>

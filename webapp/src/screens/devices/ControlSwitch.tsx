@@ -6,6 +6,7 @@ import { useConfigure } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
+import { SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { TwoLines } from './Maintenance';
 import { useSwitchOn } from './switch-on';
@@ -80,21 +81,13 @@ function ControlOffSheet({ device, offline, onClose }: { device: Device; offline
   };
 
   const busy = move.isPending || configure.isPending;
-  const actions = done ? (
-    <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-      {t('maintenance.done')}
-    </button>
-  ) : (
-    <>
-      <Refused error={move.error ?? configure.error ?? (planKnown ? null : plan.error)} />
+  const actions = (
+    <SheetAnswer done={done} error={move.error ?? configure.error ?? (planKnown ? null : plan.error)} onClose={onClose}>
       <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy || !planKnown} onClick={() => void switchOff()}>
         <Power size={16} strokeWidth={1.75} aria-hidden />
         {t(busy ? 'climateControl.switching' : 'climateControl.yes')}
       </button>
-      <button type="button" className={ui.button} onClick={onClose}>
-        {t('maintenance.cancel')}
-      </button>
-    </>
+    </SheetAnswer>
   );
 
   return (

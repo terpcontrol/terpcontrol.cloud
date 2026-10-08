@@ -9,6 +9,7 @@ import { useConfigure } from '@/api/devices';
 import { Sheet } from '@/ui/Sheet';
 import { FieldSwitch } from '@/ui/advanced/Fields';
 import { Help } from '@/ui/Help';
+import { SheetAnswer } from '@/ui/SheetParts';
 import { useSwitchOn } from '../../devices/switch-on';
 import { targetFigure, UNIT } from '../../home/units';
 import { Refused } from '@/ui/PageState';
@@ -128,13 +129,8 @@ function EndDryingSheet({ device, back, onClose }: { device: Device; back: Dryin
   const configure = useConfigure(device.id);
   const done = configure.isSuccess;
 
-  const actions = done ? (
-    <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-      {t('maintenance.done')}
-    </button>
-  ) : (
-    <>
-      <Refused error={configure.error} />
+  const actions = (
+    <SheetAnswer done={done} error={configure.error} onClose={onClose}>
       <button
         type="button"
         className={`${ui.button} ${ui.primary}`}
@@ -143,10 +139,7 @@ function EndDryingSheet({ device, back, onClose }: { device: Device; back: Dryin
       >
         {t(configure.isPending ? 'climateControl.switching' : 'climateControl.endDrying')}
       </button>
-      <button type="button" className={ui.button} onClick={onClose}>
-        {t('maintenance.cancel')}
-      </button>
-    </>
+    </SheetAnswer>
   );
 
   return (

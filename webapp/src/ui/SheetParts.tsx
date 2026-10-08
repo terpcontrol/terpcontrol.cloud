@@ -1,15 +1,17 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import { dayOf, momentOn } from './days';
 import type { HelpTopic } from './explain';
 import { Help } from './Help';
+import { Refused } from './PageState';
 import ui from './ui.module.css';
 import { useZone } from './zone';
 import styles from './SheetParts.module.css';
 
 /**
- * The three controls every sheet that records something is built from: a row of
- * things to pick one of, the day it happened, and a label over a block.
+ * The parts sheets are built from: a row of things to pick one of, the day it
+ * happened, a label over a block, and the foot of a sheet that sends a command.
  *
  * They are here rather than on a screen because a phase, a move, a harvest and
  * a climate preset all ask the same two questions - which one, and when - and
@@ -110,5 +112,44 @@ export function Block({
       </header>
       {grouped ? <div className={ui.group}>{children}</div> : children}
     </section>
+  );
+}
+
+/**
+ * The foot of a sheet that sends something and reads the answer: Done once it
+ * is answered; until then the refusal, if there was one, the sheet's own
+ * button and Cancel. `onDone` is for a sheet that lets go of more on the way
+ * out after the answer than on a cancel.
+ */
+export function SheetAnswer({
+  done,
+  error,
+  onClose,
+  onDone = onClose,
+  children,
+}: {
+  done: boolean;
+  error: unknown;
+  onClose: () => void;
+  onDone?: () => void;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+
+  if (done)
+    return (
+      <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onDone}>
+        {t('maintenance.done')}
+      </button>
+    );
+
+  return (
+    <>
+      <Refused error={error} />
+      {children}
+      <button type="button" className={ui.button} onClick={onClose}>
+        {t('maintenance.cancel')}
+      </button>
+    </>
   );
 }

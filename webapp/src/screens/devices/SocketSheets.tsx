@@ -6,7 +6,7 @@ import { Sheet } from '@/ui/Sheet';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
-import { Choice, Choices } from '@/ui/SheetParts';
+import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { draftFor, isTimed, problemOf, rolesFor, TIMER_UNITS, timerOf, updateOf, type SocketDraft, type Span, type TimerUnit } from './socket-form';
 import { durationLabel, type SocketRowModel } from './sockets';
@@ -81,20 +81,12 @@ export function SocketSheet({
     send.mutate({ deviceId, slot, socket: updateOf(draft) });
   };
 
-  const actions = receipt ? (
-    <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-      {t('maintenance.done')}
-    </button>
-  ) : (
-    <>
-      <Refused error={send.error} />
+  const actions = (
+    <SheetAnswer done={receipt !== null} error={send.error} onClose={onClose}>
       <button type="button" className={`${ui.button} ${ui.primary}`} disabled={send.isPending || roles.length === 0 || unreachable} onClick={submit}>
         {t(`socketForm.${word}.yes`)}
       </button>
-      <button type="button" className={ui.button} onClick={onClose}>
-        {t('maintenance.cancel')}
-      </button>
-    </>
+    </SheetAnswer>
   );
 
   return (
@@ -410,26 +402,16 @@ function RemoveSheet({ deviceId, row, name, onClose }: { deviceId: string; row: 
       title={t('socketForm.remove.title', { name })}
       onClose={onClose}
       actions={
-        receipt ? (
-          <button type="button" className={`${ui.button} ${ui.primary}`} onClick={onClose}>
-            {t('maintenance.done')}
+        <SheetAnswer done={receipt !== null} error={remove.error} onClose={onClose}>
+          <button
+            type="button"
+            className={styles.dangerButton}
+            disabled={remove.isPending}
+            onClick={() => remove.mutate({ deviceId, slot: row.slot })}
+          >
+            {t('socketForm.remove.yes')}
           </button>
-        ) : (
-          <>
-            <Refused error={remove.error} />
-            <button
-              type="button"
-              className={styles.dangerButton}
-              disabled={remove.isPending}
-              onClick={() => remove.mutate({ deviceId, slot: row.slot })}
-            >
-              {t('socketForm.remove.yes')}
-            </button>
-            <button type="button" className={ui.button} onClick={onClose}>
-              {t('maintenance.cancel')}
-            </button>
-          </>
-        )
+        </SheetAnswer>
       }
     >
       <div className={styles.form} role={receipt ? 'status' : undefined}>
