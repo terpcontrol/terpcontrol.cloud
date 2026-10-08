@@ -1502,6 +1502,9 @@ class SimulatedDevice {
     } catch {
       return;
     }
+    // The firmware relays a `udp: true` slot as datagrams. This tool has none
+    // to offer, and answering one over TCP would be a different device.
+    if (message.udp) return;
 
     const open = this.#tunnels.get(message.connection_id);
     if (message.disconnected) {
