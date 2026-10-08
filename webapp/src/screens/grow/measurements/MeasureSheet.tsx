@@ -12,6 +12,7 @@ import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { readingFigure } from '@/ui/entries';
 import { Refused } from '@/ui/PageState';
+import { Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { bandOf, lastReadings, slotOf, withUnit } from './definitions';
@@ -148,13 +149,13 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
       {standing.length > 0 && perPlant ? (
         <div className={styles.chips} role="group" aria-label={t('grow.measurements.measure.whichPlant')}>
           {standing.map(plant => (
-            <Chip key={plant.id} chosen={plant.id === plantId} onChoose={() => setChosenPlant(plant.id)}>
+            <Choice key={plant.id} chosen={plant.id === plantId} onChoose={() => setChosenPlant(plant.id)}>
               {plant.label}
-            </Chip>
+            </Choice>
           ))}
-          <Chip chosen={plantId === null} onChoose={() => setChosenPlant(null)}>
+          <Choice chosen={plantId === null} onChoose={() => setChosenPlant(null)}>
             {t('grow.measurements.measure.wholeGrow')}
-          </Chip>
+          </Choice>
         </div>
       ) : null}
 
@@ -162,10 +163,10 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
         {offered.map(one => {
           const shown = typed[slotOf(one.key, one.perPlant ? plantId : null)] || figureOf(last.get(slotOf(one.key, one.perPlant ? plantId : null)));
           return (
-            <Chip key={one.key} chosen={one.key === definition?.key} onChoose={() => setKey(one.key)}>
+            <Choice key={one.key} chosen={one.key === definition?.key} onChoose={() => setKey(one.key)}>
               {one.name}
               {shown ? <span className={styles.chipValue}> · {shown}</span> : null}
-            </Chip>
+            </Choice>
           );
         })}
         {target.growId ? (
@@ -243,14 +244,6 @@ function NothingToMeasure({ target, onClose }: MeasureSheetProps) {
         </Link>
       ) : null}
     </Sheet>
-  );
-}
-
-function Chip({ chosen, onChoose, children }: { chosen: boolean; onChoose: () => void; children: React.ReactNode }) {
-  return (
-    <button type="button" className={ui.chip} data-chosen={chosen} aria-pressed={chosen} onClick={onChoose}>
-      {children}
-    </button>
   );
 }
 

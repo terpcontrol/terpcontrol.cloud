@@ -28,6 +28,7 @@ import { looseFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { stoodIn, useMayManage, useVisiting } from '@/ui/session-access';
+import { Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR, useZone, zonedAt } from '@/ui/zone';
@@ -415,9 +416,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     <>
       <div className={styles.chips} role="group" aria-label={t('charts.rangeLabel')}>
         {shownWidths.map(one => (
-          <button key={one} type="button" className={ui.chip} aria-pressed={zoom === null && one === range} onClick={() => setRange(one)}>
+          <Choice key={one} chosen={zoom === null && one === range} onChoose={() => setRange(one)}>
             {t(`charts.width.${one}`)}
-          </button>
+          </Choice>
         ))}
         <button type="button" className={`${ui.chip} ${styles.more}`} aria-expanded={moreWidths} onClick={() => setMoreWidths(!moreWidths)}>
           {t(moreWidths ? 'charts.fewerWidths' : 'charts.moreWidths')}
@@ -425,14 +426,14 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
         {/* The stretches a grow names are offered where a grow is, and nowhere else. */}
         {grow
           ? (['phase', 'grow'] as const).map(one => (
-              <button key={one} type="button" className={ui.chip} aria-pressed={zoom === null && one === range} onClick={() => setRange(one)}>
+              <Choice key={one} chosen={zoom === null && one === range} onChoose={() => setRange(one)}>
                 {t(`timeline.range.${one}`)}
-              </button>
+              </Choice>
             ))
           : null}
-        <button type="button" className={ui.chip} aria-pressed={zoom === null && range === 'custom'} onClick={() => setRange('custom')}>
+        <Choice chosen={zoom === null && range === 'custom'} onChoose={() => setRange('custom')}>
           {t('charts.range.custom')}
-        </button>
+        </Choice>
         {/* Which days the chart covers, and it covers none while the question is unfinished. */}
         {!unasked && data ? <span className={`mono ${styles.days}`}>{dayLabel(t, data)}</span> : null}
       </div>
@@ -541,15 +542,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
         <div className={styles.chips} role="group" aria-label={t('charts.compareLabel')}>
           <span className="label">{t('charts.compareLabel')}</span>
           {(moreRuns ? others : others.slice(0, RUNS_SHOWN)).map(one => (
-            <button
-              key={one.id}
-              type="button"
-              className={ui.chip}
-              aria-pressed={one.id === comparedId}
-              onClick={() => setQuery({ compare: one.id === comparedId ? null : one.id })}
-            >
+            <Choice key={one.id} chosen={one.id === comparedId} onChoose={() => setQuery({ compare: one.id === comparedId ? null : one.id })}>
               {one.name}
-            </button>
+            </Choice>
           ))}
           {others.length > RUNS_SHOWN ? (
             <button type="button" className={`${ui.chip} ${styles.more}`} aria-expanded={moreRuns} onClick={() => setMoreRuns(!moreRuns)}>
@@ -563,9 +558,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
         <div className={styles.chips} role="group" aria-label={t('charts.savedLabel')}>
           <span className="label">{t('charts.savedLabel')}</span>
           {saved.map(view => (
-            <button key={view.id} type="button" className={ui.chip} aria-pressed={view.id === appliedId} onClick={() => apply(view)}>
+            <Choice key={view.id} chosen={view.id === appliedId} onChoose={() => apply(view)}>
               {view.name}
-            </button>
+            </Choice>
           ))}
         </div>
       ) : null}

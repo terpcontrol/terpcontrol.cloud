@@ -28,6 +28,7 @@ import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
 import { parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
 import { useMayManage } from '@/ui/session-access';
+import { Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
@@ -539,14 +540,14 @@ function Stages({
     );
 
   return (
-    <div className={styles.stages} role="group" aria-label={t('log.tile.phase')}>
+    <Choices label={t('log.tile.phase')}>
       {STAGES.map(one => (
-        <button key={one} type="button" className={ui.chip} data-chosen={one === stage} aria-pressed={one === stage} onClick={() => onPick(one)}>
+        <Choice key={one} chosen={one === stage} onChoose={() => onPick(one)}>
           {t(`home.stage.${one}`)}
           {one === current ? ` · ${t('log.now')}` : ''}
-        </button>
+        </Choice>
       ))}
-    </div>
+    </Choices>
   );
 }
 

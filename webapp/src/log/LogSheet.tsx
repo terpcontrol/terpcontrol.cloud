@@ -11,6 +11,7 @@ import { ageLabel } from '@/ui/age';
 import { VISIT_MINUTES } from '@/ui/maintenance';
 import { readingFigure } from '@/ui/entries';
 import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { Choice } from '@/ui/SheetParts';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
 import { lastCan, newestOf, nextStage, schemeStep } from './defaults';
@@ -199,15 +200,24 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
           ) : null}
           <div className={`${ui.scrollRow} ${styles.targets}`} role="group" aria-label={t('log.targetLabel')}>
             {/* The place first, then what is inside it, then everywhere else:
-                the chips a thumb can reach are the ones about where you are. */}
-            {place ? <TargetChip target={place} chosen={place.key === target?.key} onChoose={() => choose(place, false)} /> : null}
+                the chips a thumb can reach are the ones about where you are.
+                Pressed rather than linked, so the sheet stays where it is. */}
+            {place ? (
+              <Choice chosen={place.key === target?.key} onChoose={() => choose(place, false)}>
+                {place.label}
+              </Choice>
+            ) : null}
             {narrower.map(one => (
-              <TargetChip key={one.key} target={one} chosen={one.key === target?.key} onChoose={() => choose(one, true)} />
+              <Choice key={one.key} chosen={one.key === target?.key} onChoose={() => choose(one, true)}>
+                {one.label}
+              </Choice>
             ))}
             {places
               .filter(one => one.key !== place?.key)
               .map(one => (
-                <TargetChip key={one.key} target={one} chosen={false} onChoose={() => choose(one, false)} />
+                <Choice key={one.key} chosen={false} onChoose={() => choose(one, false)}>
+                  {one.label}
+                </Choice>
               ))}
           </div>
 
@@ -253,15 +263,6 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
         </>
       )}
     </Sheet>
-  );
-}
-
-/** One place the line can be about. Pressed rather than linked: the sheet stays where it is. */
-function TargetChip({ target, chosen, onChoose }: { target: LogTarget; chosen: boolean; onChoose: () => void }) {
-  return (
-    <button type="button" className={ui.chip} data-chosen={chosen} aria-pressed={chosen} onClick={onChoose}>
-      {target.label}
-    </button>
   );
 }
 

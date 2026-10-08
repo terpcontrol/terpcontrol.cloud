@@ -6,6 +6,7 @@ import { useHome } from '@/api/home';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { useCameraNamed } from '@/ui/camera-name';
+import { Choice } from '@/ui/SheetParts';
 import { clock, useZone } from '@/ui/zone';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
@@ -145,23 +146,16 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
       <span className="label">{t('log.tagWhatYouDid')}</span>
       <div className={styles.tags}>
         {TAGS.map(tag => (
-          <button
-            key={tag}
-            type="button"
-            className={ui.chip}
-            data-chosen={tags.includes(tag)}
-            aria-pressed={tags.includes(tag)}
-            onClick={() => toggle(tag)}
-          >
+          <Choice key={tag} chosen={tags.includes(tag)} onChoose={() => toggle(tag)}>
             {t(`log.tags.${tag}`)}
-          </button>
+          </Choice>
         ))}
         {tags
           .filter(tag => !TAGS.includes(tag))
           .map(tag => (
-            <button key={tag} type="button" className={ui.chip} data-chosen aria-pressed onClick={() => toggle(tag)}>
+            <Choice key={tag} chosen onChoose={() => toggle(tag)}>
               {tag}
-            </button>
+            </Choice>
           ))}
         <input
           className={`${ui.chip} ${styles.ownTag}`}

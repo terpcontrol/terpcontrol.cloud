@@ -11,6 +11,7 @@ import { Sheet } from '@/ui/Sheet';
 import { ageLabel, instantOf } from '@/ui/age';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
+import { Choice } from '@/ui/SheetParts';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { zoneOf } from '@/ui/zone';
@@ -114,10 +115,10 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
 
         <Group label={t('composer.range')}>
           {RANGES.filter(one => growFilms || (one !== 'phase' && one !== 'grow')).map(one => (
-            <button key={one} type="button" className={ui.chip} aria-pressed={one === range} onClick={() => setRange(one)}>
+            <Choice key={one} chosen={one === range} onChoose={() => setRange(one)}>
               {t(`camera.window.${one}`)}
               {one === 'phase' && grow?.summary.stage ? ` · ${t(`home.stage.${grow.summary.stage}`)}` : ''}
-            </button>
+            </Choice>
           ))}
         </Group>
 
@@ -135,13 +136,13 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
         ) : null}
 
         <Group label={t('composer.cam')}>
-          <button type="button" className={ui.chip} aria-pressed={secondCameraId === null} onClick={() => setSecondCameraId(null)}>
+          <Choice chosen={secondCameraId === null} onChoose={() => setSecondCameraId(null)}>
             {camera.name}
-          </button>
+          </Choice>
           {others.map(one => (
-            <button key={one.id} type="button" className={ui.chip} aria-pressed={secondCameraId === one.id} onClick={() => setSecondCameraId(one.id)}>
+            <Choice key={one.id} chosen={secondCameraId === one.id} onChoose={() => setSecondCameraId(one.id)}>
               {t('composer.split', { name: one.name })}
-            </button>
+            </Choice>
           ))}
           {others.length === 0 ? <span className={ui.note}>{t('composer.oneCameraHere')}</span> : null}
         </Group>
@@ -168,9 +169,9 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
 
         <Group label={t('composer.format')}>
           {ASPECTS.map(one => (
-            <button key={one} type="button" className={ui.chip} aria-pressed={one === aspect} onClick={() => setAspect(one)}>
+            <Choice key={one} chosen={one === aspect} onChoose={() => setAspect(one)}>
               {t(`composer.aspect.${one}`)}
-            </button>
+            </Choice>
           ))}
         </Group>
 
