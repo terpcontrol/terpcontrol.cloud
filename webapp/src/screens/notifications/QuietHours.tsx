@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Me, QuietHours } from '@fg2/shared-types/v1';
 import { Refused } from '@/ui/PageState';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
-import { Switch } from './parts';
 import { useWriteNotifications } from './write';
 import { DEFAULT_QUIET, minuteOf, timeOf } from './settings';
 import styles from './Notifications.module.css';
@@ -61,7 +61,7 @@ export function QuietHoursCard({ me, held, locked }: { me: Me; held: boolean; lo
           </span>
           <span className={`${ui.note} ${styles.channelLine}`}>{t(shown ? 'notifications.quiet.critical' : 'notifications.quiet.offLine')}</span>
         </div>
-        <Switch name={t('notifications.quietHours')} on={shown !== null} disabled={held} onToggle={toggle} />
+        <Switch label={t('notifications.quietHours')} on={shown !== null} disabled={held} onChange={toggle} />
       </div>
 
       {shown ? (

@@ -258,25 +258,6 @@
   resize: vertical;
 }
 
-.toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.toggleText {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-
-.toggleLabel {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-}
-
 .submit {
   width: 100%;
 }

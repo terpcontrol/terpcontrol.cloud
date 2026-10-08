@@ -8,6 +8,7 @@ import { EmailAlarmsOffer } from '@/screens/notifications/NotifyNotice';
 import { Refused } from '@/ui/PageState';
 import advanced from '@/ui/advanced/Advanced.module.css';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
+import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import {
   channelsLabel,
@@ -542,23 +543,8 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
         placeholder={t('alarms.sheet.payloadHint')}
         onChange={event => onChange({ resolvedPayload: event.target.value })}
       />
-      <Toggle label={t('alarms.sheet.reportErrors')} on={draft.reportErrors} onToggle={reportErrors => onChange({ reportErrors })} />
-      <Toggle label={t('alarms.sheet.tunnel')} note={t('alarms.sheet.tunnelNote')} on={draft.tunnel} onToggle={tunnel => onChange({ tunnel })} />
-    </div>
-  );
-}
-
-/** A switch with what it means beside it: the app's own control, in the row the plan editor draws it in. */
-function Toggle({ label, note, on, onToggle }: { label: string; note?: string; on: boolean; onToggle: (on: boolean) => void }) {
-  return (
-    <div className={styles.toggle}>
-      <span className={styles.toggleText}>
-        <span className={styles.toggleLabel}>{label}</span>
-        {note ? <span className={ui.note}>{note}</span> : null}
-      </span>
-      <button type="button" className={ui.switch} role="switch" aria-checked={on} aria-label={label} onClick={() => onToggle(!on)}>
-        <span className={ui.knob} aria-hidden />
-      </button>
+      <SwitchRow label={t('alarms.sheet.reportErrors')} on={draft.reportErrors} onChange={reportErrors => onChange({ reportErrors })} />
+      <SwitchRow label={t('alarms.sheet.tunnel')} note={t('alarms.sheet.tunnelNote')} on={draft.tunnel} onChange={tunnel => onChange({ tunnel })} />
     </div>
   );
 }

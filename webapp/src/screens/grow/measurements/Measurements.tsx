@@ -7,6 +7,7 @@ import { useGrow, useGrowSeries, useUpdateGrow } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { LoadFailed, NoLongerHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { bandOf, fromTemplate, readingCounts, ruleOf, TEMPLATES } from './definitions';
@@ -198,17 +199,7 @@ function Card({ definition, mayManage, onEdit, onFlip }: CardProps) {
       </button>
       {/* Held rather than hidden for a session that may only look: which
           measurements a grow draws is part of reading it. */}
-      <button
-        type="button"
-        className={ui.switch}
-        role="switch"
-        aria-checked={definition.chart}
-        aria-label={t('grow.measurements.onTheChart', { name: definition.name })}
-        disabled={!mayManage}
-        onClick={onFlip}
-      >
-        <span className={ui.knob} aria-hidden />
-      </button>
+      <Switch label={t('grow.measurements.onTheChart', { name: definition.name })} on={definition.chart} disabled={!mayManage} onChange={onFlip} />
     </li>
   );
 }

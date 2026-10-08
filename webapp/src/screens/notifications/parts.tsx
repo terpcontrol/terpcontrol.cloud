@@ -1,15 +1,7 @@
 import type { ReactNode } from 'react';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import styles from './Notifications.module.css';
-
-/** The switch every card and every cell of the grid carries: the same control as a socket's, drawn on a setting. */
-export function Switch({ name, on, disabled, onToggle }: { name: string; on: boolean; disabled?: boolean; onToggle: () => void }) {
-  return (
-    <button type="button" className={ui.switch} role="switch" aria-checked={on} aria-label={name} disabled={disabled} onClick={onToggle}>
-      <span className={ui.knob} aria-hidden />
-    </button>
-  );
-}
 
 /**
  * A channel: its name, one line about where it stands, and the switch at the
@@ -44,7 +36,7 @@ export function ChannelCard({
         </div>
         <div className={styles.channelActions}>
           {action}
-          <Switch name={title} on={on} disabled={disabled} onToggle={onToggle} />
+          <Switch label={title} on={on} disabled={disabled} onChange={onToggle} />
         </div>
       </div>
       {children}

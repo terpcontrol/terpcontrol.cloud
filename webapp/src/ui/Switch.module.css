@@ -1,0 +1,21 @@
+/* A switch with what it means beside it: the text on the left, the switch on
+   the right, as every setting row in the app. */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+/* The help mark runs on after the last word, as it does beside every other label, rather than standing apart from a label that wraps. */
+.label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}

@@ -6,6 +6,7 @@ import { useConfigure } from '@/api/devices';
 import type { HelpTopic } from '@/ui/explain';
 import { Refused } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { SettingRow } from './SettingRow';
 import { fieldValue } from './field-values';
@@ -40,17 +41,7 @@ export function FieldSwitch({ device, name, label, help, disabled, alone, note }
   return (
     <>
       <SettingRow label={label} help={help} note={note?.(on)} alone={alone}>
-        <button
-          type="button"
-          className={ui.switch}
-          role="switch"
-          aria-checked={on}
-          aria-label={label}
-          disabled={disabled || configure.isPending}
-          onClick={() => configure.mutate({ [name]: !on })}
-        >
-          <span className={ui.knob} aria-hidden />
-        </button>
+        <Switch label={label} on={on} disabled={disabled || configure.isPending} onChange={next => configure.mutate({ [name]: next })} />
       </SettingRow>
       <Refused error={configure.error} />
     </>

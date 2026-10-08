@@ -3,9 +3,9 @@ import type { Me, NotificationChannel } from '@fg2/shared-types/v1';
 import { useCameras } from '@/api/cameras';
 import { ownsCamera } from '@/screens/devices/cameras';
 import { Refused } from '@/ui/PageState';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { usePushSubscription } from './push';
-import { Switch } from './parts';
 import { useWriteNotifications } from './write';
 import { CATEGORIES, CHANNELS, routes, routingWith } from './settings';
 import styles from './Notifications.module.css';
@@ -71,13 +71,13 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
                 return (
                   <td key={channel} className={styles.gridCell}>
                     <Switch
-                      name={t('notifications.grid.cell', {
+                      label={t('notifications.grid.cell', {
                         category: t(`notifications.category.${category}`),
                         channel: t(`notifications.channel.${channel}`),
                       })}
                       on={on && configured[channel]}
                       disabled={held || !configured[channel]}
-                      onToggle={() => write({ routing: routingWith(routing, category, channel, !on) })}
+                      onChange={() => write({ routing: routingWith(routing, category, channel, !on) })}
                     />
                   </td>
                 );

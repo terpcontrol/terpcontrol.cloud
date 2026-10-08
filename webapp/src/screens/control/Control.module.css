@@ -381,25 +381,6 @@
   color: var(--muted);
 }
 
-.toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.toggleText {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-
-.toggleLabel {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-}
-
 /* What a save will do to a tent that is already running, said before it does
    it. Sentences rather than bullets: a marker in front would read as options. */
 .effect {

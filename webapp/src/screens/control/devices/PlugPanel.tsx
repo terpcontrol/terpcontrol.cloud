@@ -15,6 +15,7 @@ import {
 import { DAY_SECONDS, FIRMWARE_LIGHTS_OFF, FIRMWARE_LIGHTS_ON } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { Help } from '@/ui/Help';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
@@ -113,17 +114,12 @@ export function PlugPanel(props: {
             {t(mode === 'co2' ? 'plugSettings.dayOnly' : 'plugSettings.dayNight')}
             <Help topic="plugDayNight" />
           </span>
-          <button
-            type="button"
-            className={ui.switch}
-            role="switch"
-            aria-checked={dayNight}
-            aria-label={t(mode === 'co2' ? 'plugSettings.dayOnly' : 'plugSettings.dayNight')}
+          <Switch
+            label={t(mode === 'co2' ? 'plugSettings.dayOnly' : 'plugSettings.dayNight')}
+            on={dayNight}
             disabled={readOnly}
-            onClick={() => draft.set('dayNight', !dayNight)}
-          >
-            <span className={ui.knob} aria-hidden />
-          </button>
+            onChange={on => draft.set('dayNight', on)}
+          />
           <p className={`${ui.note} ${styles.switchNote}`}>
             {t(
               mode === 'co2'

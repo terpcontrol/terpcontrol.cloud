@@ -11,6 +11,7 @@ import { Sheet } from '@/ui/Sheet';
 import { ageLabel, instantOf } from '@/ui/age';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { zoneOf } from '@/ui/zone';
 import styles from './CameraPage.module.css';
@@ -236,9 +237,7 @@ function Toggle({
         {help ? <Help topic={help} /> : null}
         {hint ? <span className={styles.toggleHint}>{hint}</span> : null}
       </span>
-      <button type="button" className={ui.switch} role="switch" aria-checked={on} aria-label={label} onClick={() => onToggle(!on)}>
-        <span className={ui.knob} aria-hidden />
-      </button>
+      <Switch label={label} on={on} onChange={onToggle} />
     </div>
   );
 }

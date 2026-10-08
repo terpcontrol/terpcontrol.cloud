@@ -10,6 +10,7 @@ import { Help } from '@/ui/Help';
 import { presetsOf, stageChoiceName } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
+import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
@@ -101,11 +102,11 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
             onChange={event => setDraft({ ...draft, name: event.target.value })}
             autoComplete="off"
           />
-          <Toggle
+          <SwitchRow
             label={t('space.control.editor.loop')}
             note={t('space.control.editor.loopNote')}
             on={draft.loop}
-            onToggle={loop => setDraft({ ...draft, loop })}
+            onChange={loop => setDraft({ ...draft, loop })}
           />
         </Block>
 
@@ -362,11 +363,11 @@ function StepFields({
         </button>
       ) : null}
 
-      <Toggle
+      <SwitchRow
         label={t('space.control.step.waits')}
         note={t('space.control.step.waitsNote')}
         on={step.waitForConfirmation}
-        onToggle={waitForConfirmation => onChange({ waitForConfirmation })}
+        onChange={waitForConfirmation => onChange({ waitForConfirmation })}
       />
       {step.waitForConfirmation ? (
         <input
@@ -544,28 +545,13 @@ function Notify({ draft, onChange }: { draft: PlanDraft; onChange: (notify: Plan
         </>
       )}
 
-      <Toggle
+      <SwitchRow
         label={t('space.control.notify.writeEntries')}
         note={t('space.control.notify.writeEntriesNote')}
         on={draft.notify.writeEntries}
-        onToggle={writeEntries => onChange({ ...draft.notify, writeEntries })}
+        onChange={writeEntries => onChange({ ...draft.notify, writeEntries })}
       />
     </Block>
-  );
-}
-
-/** A switch with what it means beside it, which is the app's own control and not a second one. */
-function Toggle({ label, note, on, onToggle }: { label: string; note?: string; on: boolean; onToggle: (on: boolean) => void }) {
-  return (
-    <div className={styles.toggle}>
-      <span className={styles.toggleText}>
-        <span className={styles.toggleLabel}>{label}</span>
-        {note ? <span className={ui.note}>{note}</span> : null}
-      </span>
-      <button type="button" className={ui.switch} role="switch" aria-checked={on} aria-label={label} onClick={() => onToggle(!on)}>
-        <span className={ui.knob} aria-hidden />
-      </button>
-    </div>
   );
 }
 

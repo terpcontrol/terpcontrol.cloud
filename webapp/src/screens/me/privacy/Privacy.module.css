@@ -1,37 +1,6 @@
 /* Me › Privacy: the page itself is the shared frame under Me; what is here is
-   the setting row the sharing pages still borrow, and the one row on the
-   screen that is coloured. */
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.rowText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-
-.rowTitle {
-  font-weight: var(--weight-semibold);
-}
-
-.row[data-danger] .rowTitle {
-  color: var(--alarm);
-}
-
-.rowLine {
-  font-size: var(--text-sm);
-  line-height: 1.4;
-}
-
-.rowControl {
-  flex: none;
-}
+   the colour of the rows that cannot be taken back, and the sheets that ask
+   before they are. */
 
 .danger {
   border-color: var(--alarm);

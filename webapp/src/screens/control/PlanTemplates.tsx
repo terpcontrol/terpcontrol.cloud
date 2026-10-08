@@ -6,6 +6,7 @@ import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { Waiting } from '@/ui/PageState';
 import { Block } from '@/ui/SheetParts';
+import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { draftFromTemplate, type PlanDraft } from './plan-edit';
 import { offersReadyPlans, READY_PLANS, readyDraft, weeksOf } from './ready-plans';
@@ -44,22 +45,7 @@ export function KeepAsTemplateSheet({ plan, onClose }: { plan: Plan; onClose: ()
           <p className={ui.note}>{t('space.control.template.keepNote', { count: plan.steps.length })}</p>
         </Block>
 
-        <div className={styles.toggle}>
-          <span className={styles.toggleText}>
-            <span className={styles.toggleLabel}>{t('space.control.template.publish')}</span>
-            <span className={ui.note}>{t('space.control.template.publishNote')}</span>
-          </span>
-          <button
-            type="button"
-            className={ui.switch}
-            role="switch"
-            aria-checked={isPublic}
-            aria-label={t('space.control.template.publish')}
-            onClick={() => setPublic(!isPublic)}
-          >
-            <span className={ui.knob} aria-hidden />
-          </button>
-        </div>
+        <SwitchRow label={t('space.control.template.publish')} note={t('space.control.template.publishNote')} on={isPublic} onChange={setPublic} />
 
         <PlanRefusal error={keep.error} />
 

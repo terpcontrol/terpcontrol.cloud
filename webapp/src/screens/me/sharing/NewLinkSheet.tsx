@@ -9,8 +9,8 @@ import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
-import { Switch } from '../privacy/parts';
 import styles from './sharing.module.css';
 
 /**
@@ -177,7 +177,7 @@ export function NewLinkSheet({
                 <span>{t('sharing.cameras')}</span>
                 <span className={ui.note}>{t('sharing.camerasNote')}</span>
               </div>
-              <Switch name={t('sharing.cameras')} on={cams} onToggle={() => setCams(!cams)} />
+              <Switch label={t('sharing.cameras')} on={cams} onChange={setCams} />
             </div>
           </Block>
         ) : null}

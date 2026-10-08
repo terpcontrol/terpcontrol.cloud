@@ -5,12 +5,12 @@ import { useSession } from '@/api/session';
 import { Help } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { ExportRow, MePage, Row } from '../parts';
 import { ClimateRow } from './ClimateRow';
 import { DeleteRow } from './DeleteRow';
-import { Switch } from './parts';
 
 /**
  * Me › Privacy: what other people are shown, how long anything is kept, and
@@ -86,28 +86,28 @@ export function Privacy() {
 
       <Row title={t('me.privacy.weights.title')} line={t('me.privacy.weights.line')}>
         <Switch
-          name={t('me.privacy.weights.title')}
+          label={t('me.privacy.weights.title')}
           on={privacy.hideWeights}
           disabled={held}
-          onToggle={() => update.mutate({ privacy: { ...privacy, hideWeights: !privacy.hideWeights } })}
+          onChange={hideWeights => update.mutate({ privacy: { ...privacy, hideWeights } })}
         />
       </Row>
 
       <Row title={t('me.privacy.counts.title')} line={t('me.privacy.counts.line')}>
         <Switch
-          name={t('me.privacy.counts.title')}
+          label={t('me.privacy.counts.title')}
           on={privacy.hideCounts}
           disabled={held}
-          onToggle={() => update.mutate({ privacy: { ...privacy, hideCounts: !privacy.hideCounts } })}
+          onChange={hideCounts => update.mutate({ privacy: { ...privacy, hideCounts } })}
         />
       </Row>
 
       <Row title={t('me.privacy.profile.title')} line={t('me.privacy.profile.line', { handle: account.handle })} help="publicProfile">
         <Switch
-          name={t('me.privacy.profile.title')}
+          label={t('me.privacy.profile.title')}
           on={account.publicProfile}
           disabled={held}
-          onToggle={() => update.mutate({ publicProfile: !account.publicProfile })}
+          onChange={publicProfile => update.mutate({ publicProfile })}
         />
       </Row>
 

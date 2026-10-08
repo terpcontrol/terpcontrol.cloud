@@ -16,6 +16,7 @@ import { targetFigure } from '@/screens/home/units';
 import { timeOf } from '@/screens/notifications/settings';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { maintenanceQuiet } from '@/ui/maintenance';
 import { useNow } from '@/ui/useNow';
@@ -490,17 +491,7 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
             the tent; the switch that changes it belongs to whoever manages the
             device, so the other reader is given the fact and not the control. */}
         {mayManage ? (
-          <button
-            type="button"
-            className={ui.switch}
-            role="switch"
-            aria-checked={rule.enabled}
-            aria-label={t('alarms.enable', { name: title })}
-            disabled={missing !== null || busy}
-            onClick={() => onToggle(!rule.enabled)}
-          >
-            <span className={ui.knob} aria-hidden />
-          </button>
+          <Switch label={t('alarms.enable', { name: title })} on={rule.enabled} disabled={missing !== null || busy} onChange={onToggle} />
         ) : (
           <span className={`mono ${styles.state}`}>{t(rule.enabled ? 'misc.on' : 'misc.off')}</span>
         )}

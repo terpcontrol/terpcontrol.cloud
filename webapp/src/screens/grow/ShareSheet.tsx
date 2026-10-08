@@ -12,6 +12,7 @@ import { CopyButton } from '@/ui/CopyButton';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
+import { Switch } from '@/ui/Switch';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone, zoned } from '@/ui/zone';
@@ -61,17 +62,12 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
                 {t(cameras && grow.publicCameras !== false ? 'sharing.publicPageNoteCameras' : 'sharing.publicPageNote')}
               </span>
             </div>
-            <button
-              type="button"
-              className={ui.switch}
-              role="switch"
-              aria-checked={isPublic}
-              aria-label={t('sharing.publicPage')}
+            <Switch
+              label={t('sharing.publicPage')}
+              on={isPublic}
               disabled={update.isPending}
-              onClick={() => update.mutate({ visibility: isPublic ? 'private' : 'public' })}
-            >
-              <span className={ui.knob} aria-hidden />
-            </button>
+              onChange={next => update.mutate({ visibility: next ? 'public' : 'private' })}
+            />
           </div>
 
           {/* The camera's pictures are the most private thing a public page carries, so whether it does is said and switched here, as a link's is. */}
@@ -81,17 +77,12 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
                 <span>{t('sharing.cameras')}</span>
                 <span className={ui.note}>{t('sharing.publicCamerasNote')}</span>
               </div>
-              <button
-                type="button"
-                className={ui.switch}
-                role="switch"
-                aria-checked={grow.publicCameras !== false}
-                aria-label={t('sharing.publicCameras')}
+              <Switch
+                label={t('sharing.publicCameras')}
+                on={grow.publicCameras !== false}
                 disabled={update.isPending}
-                onClick={() => update.mutate({ publicCameras: grow.publicCameras === false })}
-              >
-                <span className={ui.knob} aria-hidden />
-              </button>
+                onChange={publicCameras => update.mutate({ publicCameras })}
+              />
             </div>
           ) : null}
 
@@ -280,16 +271,7 @@ function Editor({
             <span>{t('sharing.cameras')}</span>
             <span className={ui.note}>{t('sharing.camerasNote')}</span>
           </div>
-          <button
-            type="button"
-            className={ui.switch}
-            role="switch"
-            aria-checked={draft.includeCameras}
-            aria-label={t('sharing.cameras')}
-            onClick={() => set('includeCameras', !draft.includeCameras)}
-          >
-            <span className={ui.knob} aria-hidden />
-          </button>
+          <Switch label={t('sharing.cameras')} on={draft.includeCameras} onChange={on => set('includeCameras', on)} />
         </div>
       ) : null}
 

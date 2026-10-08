@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { advancedItem, type ChartsContext } from '@/ui/advanced/item';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Choice, Choices } from '@/ui/SheetParts';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { STEPS, stepLabel } from '../steps';
 
@@ -65,16 +66,7 @@ function Live({ settings, change, endsNow }: ChartsContext) {
 
   return (
     <SettingRow label={t('chartFine.live')} help="advanced.chartLive" note={settings.live && !endsNow ? t('chartFine.liveHeld') : undefined}>
-      <button
-        type="button"
-        className={ui.switch}
-        role="switch"
-        aria-checked={settings.live}
-        aria-label={t('chartFine.live')}
-        onClick={() => change({ live: !settings.live })}
-      >
-        <span className={ui.knob} aria-hidden />
-      </button>
+      <Switch label={t('chartFine.live')} on={settings.live} onChange={live => change({ live })} />
     </SettingRow>
   );
 }

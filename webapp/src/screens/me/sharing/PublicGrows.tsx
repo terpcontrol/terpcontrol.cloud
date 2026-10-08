@@ -10,9 +10,10 @@ import { appUrl } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { Row, Switch } from '../privacy/parts';
+import { Row } from '../parts';
 import { isDead } from './links';
 import { Page, SectionHead } from './Page';
 import styles from './sharing.module.css';
@@ -142,10 +143,10 @@ function GrowRow({ grow, links, held }: { grow: GrowListItem; links: string | nu
     <>
       <Row title={grow.name} line={<span className="mono">{line}</span>}>
         <Switch
-          name={t('me.public.switch', { name: grow.name })}
+          label={t('me.public.switch', { name: grow.name })}
           on={isPublic}
           disabled={held || update.isPending}
-          onToggle={() =>
+          onChange={() =>
             update.mutate(
               { visibility: isPublic ? 'private' : 'public' },
               { onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['grows'] }) },
