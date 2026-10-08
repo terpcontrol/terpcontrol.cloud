@@ -724,4 +724,31 @@ describe('a save of the targets', () => {
     const lines = (await db.entries.find({}).sort({ _id: 1 }).lean()).map(entry => entry.message?.params);
     expect(lines).toEqual([['daynight.day: 21600 → 21600\ndaynight.night: 64800 → 21600'], ['night.humidity: 58 → 55', 'dry']]);
   });
+
+  it('writes both times of a LIGHT down too, which keeps them at the top of its document, and pairs nothing of a fan´s', async () => {
+    await db.devices.create({
+      id: 'sim-light-1',
+      type: 'light',
+      ownerId: 'user-1',
+      configuration: { day: 6 * HOUR, night: 18 * HOUR, max_temperature: 35, limit: 80, sunrise: 15, sunset: 15 },
+    });
+    await db.devices.create({
+      id: 'sim-fan-1',
+      type: 'fan',
+      ownerId: 'user-1',
+      configuration: { mode: 0, min_speed: 10, day: { fixed_speed: 60 }, night: { fixed_speed: 30 } },
+    });
+
+    await configuration.configure('sim-light-1', { lightsOn: 7 * HOUR }, 'user-1');
+    await configuration.configure('sim-light-1', { lightsOff: 20 * HOUR, brightness: 90 }, 'user-1');
+    // A fan's day and night are what its light sensor sees, and their figures are sections.
+    await configuration.configure('sim-fan-1', { fixedDay: 70 }, 'user-1');
+
+    const lines = (await db.entries.find({}).sort({ _id: 1 }).lean()).map(entry => entry.message?.params);
+    expect(lines).toEqual([
+      ['day: 21600 → 25200\nnight: 64800 → 64800'],
+      ['day: 25200 → 25200\nlimit: 80 → 90\nnight: 64800 → 72000'],
+      ['day.fixed_speed: 60 → 70'],
+    ]);
+  });
 });

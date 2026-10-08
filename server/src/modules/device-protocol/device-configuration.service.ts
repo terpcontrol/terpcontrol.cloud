@@ -4,7 +4,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY, germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { co2FanKey, co2FanOf, co2InjectFor, isSection, type Co2Fan, type FieldSetting } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import {
+  co2FanKey,
+  co2FanOf,
+  co2InjectFor,
+  isSection,
+  nestedAt,
+  type Co2Fan,
+  type FieldSetting,
+} from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { SCHEDULED_MODES } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { badRequest, unprocessable } from '@common/v1/problem';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
@@ -568,17 +576,27 @@ const figuresMoved = (before: unknown, after: unknown, path: string): string[] =
   return [`${path || 'configuration'}: ${figureOf(before)} → ${figureOf(after)}`];
 };
 
-/** Both times of the light schedule where one of them moved, the one that stayed written as itself on both sides. */
-const withScheduleWhole = (lines: string[], after: DeviceConfiguration): string[] => {
-  const named = (key: string) => lines.some(line => line.startsWith(`daynight.${key}: `));
-  if (named('day') === named('night')) return lines;
+/**
+ * Where a document keeps the two times of its light: under `daynight` on a
+ * controller, a fridge and a smart socket, at the top of a stand-alone LIGHT's.
+ * An AIR fan has none - its day is what its light sensor sees, and its
+ * `day`/`night` are sections of figures.
+ */
+const LIGHT_WINDOWS = [
+  ['daynight.day', 'daynight.night'],
+  ['day', 'night'],
+] as const;
 
-  const missing = named('day') ? 'night' : 'day';
-  const section = after.daynight;
-  const value = isSection(section) ? section[missing] : undefined;
-  if (typeof value !== 'number') return lines;
-  return [...lines, `daynight.${missing}: ${value} → ${value}`].sort();
-};
+/** Both times of the light schedule where one of them moved, the one that stayed written as itself on both sides. */
+const withScheduleWhole = (lines: string[], after: DeviceConfiguration): string[] =>
+  LIGHT_WINDOWS.reduce<string[]>((all, [on, off]) => {
+    const named = (path: string) => all.some(line => line.startsWith(`${path}: `));
+    if (named(on) === named(off)) return all;
+
+    const missing = named(on) ? off : on;
+    const value = nestedAt(after, missing);
+    return typeof value === 'number' ? [...all, `${missing}: ${value} → ${value}`].sort() : all;
+  }, lines);
 
 /** A device that has never sent its document: a write would reach it as the change alone. */
 const sentNoSettings = (configuration: DeviceConfiguration | null | undefined): boolean => !configuration || Object.keys(configuration).length === 0;

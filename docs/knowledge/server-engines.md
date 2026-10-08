@@ -68,7 +68,9 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   current work mode does not use (`idle-figures.ts`); drying and germination remember what to return to
   (`drying-return.ts`, `germination-memory.ts`). Which modes end germination and get the night from before it back is
   `SCHEDULED_MODES` in `day-night.ts`, the modes with a day and a night: a mode added there changes how germination
-  ends too. A person's save writes one diary line naming what moved, a save that moves nothing writes none.
+  ends too. A person's save writes one diary line naming what moved, a save that moves nothing writes none. A light
+  window is named whole when either of its times moved - `daynight.day`/`night`, or a LIGHT's own `day`/`night` at
+  the top of its document - since one time alone says nothing of 24 hours or none (`withScheduleWhole`).
 - A person changes figures one at a time with `PATCH /v1/devices/{id}/configuration` and `set`; the table per type,
   with the ranges the server holds them to, is `shared-types/src/v1/configuration-fields.ts` (a choice the firmware
   keeps as a number, such as an AIR's fan mode, is written as its code; the keys are in
