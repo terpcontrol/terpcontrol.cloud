@@ -24,6 +24,7 @@ import { switchPointName, type PlugMode, type PlugSwitching } from '@fg2/shared-
 import { lightsOffOf, roundTheClock, utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { STEERED, TARGET_BAND, type Steered } from '@fg2/shared-types/v1-schemas/steering.js';
 import { timelinePath } from '@/app/places';
+import type { Translate } from '@/i18n/i18n';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
 import { darkReasonOf, figureOf, hasCo2Sensor, outputWord, statesTargets } from '@/ui/climate-hardware';
@@ -563,8 +564,6 @@ export const toneOf = (status: Status): 'good' | 'warn' | 'alarm' | 'quiet' => {
       return 'quiet';
   }
 };
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** The status in words, the same on the cockpit and on a place's card. */
 export const statusText = (t: Translate, status: Status, now: DateTime, zone: string | null): string => {

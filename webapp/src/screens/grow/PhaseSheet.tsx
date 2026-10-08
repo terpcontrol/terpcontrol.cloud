@@ -5,6 +5,7 @@ import type { GrowListItem, GrowthStage, Phase } from '@fg2/shared-types/v1';
 import { growWeekOfDay } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { serverNow } from '@/api/clock';
 import { useAddPhase, useCorrectPhase, useWithdrawPhase } from '@/api/lifecycle';
+import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { nextStage } from '@/log/defaults';
 import { instantOf } from '@/ui/age';
@@ -143,8 +144,6 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
     </Sheet>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What the server last said the grow reads as. Nothing here counts a day; the

@@ -12,6 +12,7 @@ import { fetchedAt, serverNow } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
+import type { Translate } from '@/i18n/i18n';
 import { ageAttribute, ageLabel, deviceLiveness, LIVENESS_RANK, offlineLabel, sinceLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { Help, Term } from '@/ui/Help';
@@ -648,8 +649,6 @@ function Thumb({ stillId }: { stillId: string | null }) {
     </span>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** What the build announced it takes. A build that announced nothing is sent nothing new, and this is where that is read. */
 const capabilityLine = (t: Translate, sockets: SocketPage): string => {

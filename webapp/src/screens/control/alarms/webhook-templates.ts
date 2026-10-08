@@ -1,4 +1,5 @@
-import type { RuleDraft, Translate } from './rules';
+import type { Translate } from '@/i18n/i18n';
+import type { RuleDraft } from './rules';
 
 /**
  * Ready-made webhooks for the services growers point their alarms at: the

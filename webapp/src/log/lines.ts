@@ -1,9 +1,8 @@
 import type { EntryCreate } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import type { LogTarget, TileKind } from './log-context';
 
 /** What a written line says it is, and what it is written against. Shared by the tiles, the details and the toast. */
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "Watered · Spring run · Day 34": what the toast says it wrote, in the words the timeline uses. */
 export const lineLabel = (t: Translate, kind: TileKind, target: LogTarget): string =>

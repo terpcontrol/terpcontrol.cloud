@@ -1,4 +1,5 @@
 import type { PremiumFree } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 
 /**
  * What a camera without Premium gets on this install, in words - worked out
@@ -13,7 +14,6 @@ import type { PremiumFree } from '@fg2/shared-types/v1';
  * than the threatening one. The Premium table and a free camera's own line
  * both read from here, which is how the two stay one answer.
  */
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The clause a free camera's sentence hangs on: what it is missing here. The

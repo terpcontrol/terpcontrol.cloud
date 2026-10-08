@@ -1,4 +1,5 @@
 import type { DeviceConfiguration, GerminationChoices, GrowthStage, StepDuration } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import { stageChoiceName } from '@/ui/presets';
 import { wallClock } from '@/ui/wall-clock';
 import { isDarkStage, stepLightHours, stepLightsOn, writesNothing } from './plan-edit';
@@ -12,8 +13,6 @@ import { hoursWritten } from './targets/schedule-words';
  * read differently in the two would be two steps. So the line is written here
  * and nowhere else.
  */
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** The words a length is written in - "3 wk", "10 d" - or what a step with no length really is. */
 export const durationLabel = (t: Translate, duration: StepDuration): string =>

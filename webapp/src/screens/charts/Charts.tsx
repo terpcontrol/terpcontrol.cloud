@@ -17,6 +17,7 @@ import { useSpaceOverview, useSpaces } from '@/api/spaces';
 import { useScrub, type Selection } from '@/charts/scrub';
 import { dayOfGrow, readAt, type PlotLine } from '@/charts/series';
 import { timeTicks } from '@/charts/ticks';
+import type { Translate } from '@/i18n/i18n';
 import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
 import { linkAddress } from '@/screens/me/sharing/links';
 import { Sheet } from '@/ui/Sheet';
@@ -909,8 +910,6 @@ function ScrubHeader({ cards, cursor, stamp }: { cards: Card[]; cursor: number; 
     </p>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What one line says at the cursor: a figure and its unit, on or off for an

@@ -6,6 +6,7 @@ import type { GrowListItem } from '@fg2/shared-types/v1';
 import { useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { useHome } from '@/api/home';
+import type { Translate } from '@/i18n/i18n';
 import { livenessOf } from '@/screens/home/attention';
 import { ageLabel } from '@/ui/age';
 import { VISIT_MINUTES } from '@/ui/maintenance';
@@ -265,8 +266,6 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
     </Sheet>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** Whether this is a screen that is touched rather than pointed at, which decides how a tile's details are reached. */
 const touch = (): boolean => typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches === true;

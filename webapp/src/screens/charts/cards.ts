@@ -26,6 +26,7 @@ import {
   type PlotSpan,
 } from '@/charts/series';
 import type { ChartToken } from '@/charts/tokens';
+import type { Translate } from '@/i18n/i18n';
 import type { VpdHalf } from '@/ui/advanced/item';
 import { outputWord } from '@/ui/climate-hardware';
 import type { HelpTopic } from '@/ui/explain';
@@ -65,8 +66,6 @@ const METRIC_COLOUR: Partial<Record<Metric, ChartToken>> = { temperature: 'tempe
 
 /** The colour a metric's line is drawn in, which its chip is filled with once it is on. */
 export const metricColour = (metric: Metric): ChartToken => METRIC_COLOUR[metric] ?? 'ink';
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** How far the leaf sits under the air in either half of the cycle, which is what turns a pair of targets into a deficit. */
 interface LeafOffsets {

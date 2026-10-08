@@ -6,11 +6,10 @@ import {
   type PlugSwitching,
   type TimerWindow,
 } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import type { Translate } from '@/i18n/i18n';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { targetWithUnit } from '@/ui/units';
 import { wallClock } from '@/ui/wall-clock';
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What a smart socket is set to, in the few lines the cockpit's summary has:

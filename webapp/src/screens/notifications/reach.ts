@@ -1,10 +1,9 @@
 import type { DateTime } from 'luxon';
 import type { Me, NotificationCategory, NotificationChannel, Severity } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
+import type { Translate } from '@/i18n/i18n';
 import { isAhead } from '@/ui/age';
 import { CHANNELS } from './settings';
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * Whether anything reaches this account when something goes wrong.

@@ -9,6 +9,7 @@ import { serverNow } from '@/api/clock';
 import { useGrow } from '@/api/grows';
 import type { Picture } from '@/api/public';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
+import type { Translate } from '@/i18n/i18n';
 import { useScrub } from '@/charts/scrub';
 import { useCorrecting } from '@/log/corrections';
 import { outputWord } from '@/ui/climate-hardware';
@@ -430,8 +431,6 @@ function ScrubHeader({ timeline, cursor, resting, nameOf }: { timeline: SpaceTim
     </p>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** The instants a panel's first and last readings in the window were taken at, or null where no panel has one. */
 const readingsSpan = (timeline: SpaceTimeline): { first: number; last: number } | null => {

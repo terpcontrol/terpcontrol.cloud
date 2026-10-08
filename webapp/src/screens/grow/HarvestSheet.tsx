@@ -5,6 +5,7 @@ import type { GrowListItem, HarvestResult, Plant } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useUpdateGrow } from '@/api/grows';
 import { useHarvest } from '@/api/lifecycle';
+import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { looseFigure, typedFigure } from '@/ui/figures';
@@ -182,8 +183,6 @@ export function HarvestSheet({
     </Sheet>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The sheet over a grow whose record holds no plants: everything brought over

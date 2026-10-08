@@ -5,6 +5,7 @@ import type { GrowListItem, ShareLink, TimeRange } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
 import { useShape } from '@/app/shell/shape';
 import { useCreateShareLink, useDeleteShareLink, useRevokeShareLink, useShareLinks, useUpdateShareLink } from '@/api/sharing';
+import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { isDead, linkAddress } from '@/screens/me/sharing/links';
 import { ageLabel, instantOf } from '@/ui/age';
@@ -326,8 +327,6 @@ function Field({
     </label>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "1 Sep → open end · with pictures · opened 3× · last 2 h ago", and what stopped it where something did. */
 const describe = (t: Translate, link: ShareLink, now: DateTime, zone: string | null): string => {

@@ -17,6 +17,9 @@ export type Language = (typeof LANGUAGES)[number];
 
 export const FALLBACK_LANGUAGE: Language = 'en';
 
+/** The translate function as the helpers outside a component take it: `t` from `useTranslation`, or i18next's own. */
+export type Translate = (key: string, options?: Record<string, unknown>) => string;
+
 const STORAGE_KEY = 'terp.language';
 
 /**

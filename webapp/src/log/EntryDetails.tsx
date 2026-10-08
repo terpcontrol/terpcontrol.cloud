@@ -18,6 +18,7 @@ import { useDevices } from '@/api/devices';
 import { correctEntry, diaryChanged, startPhase, takeEntryBack, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow } from '@/api/grows';
 import { useHome } from '@/api/home';
+import type { Translate } from '@/i18n/i18n';
 import { deviceTitle } from '@/ui/naming';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
@@ -398,8 +399,6 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
     </Sheet>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** What a visit line is about to quieten: where it reaches, and what stands there. */
 interface Quietened {

@@ -6,6 +6,7 @@ import { devicesPath } from '@/app/places';
 import type { Device, DryingReturn } from '@fg2/shared-types/v1';
 import type { WorkMode } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useConfigure } from '@/api/devices';
+import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { FieldSwitch } from '@/ui/advanced/Fields';
 import { Help } from '@/ui/Help';
@@ -157,8 +158,6 @@ function EndDryingSheet({ device, back, onClose }: { device: Device; back: Dryin
     </Sheet>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "Tag 25 °C · 60 %, Nacht 20 °C · 55 %, Licht 80 %, CO₂ 900 ppm", leaving out what the document never stated. */
 const returnLine = (t: Translate, back: DryingReturn): string => {

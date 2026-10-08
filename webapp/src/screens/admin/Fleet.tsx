@@ -8,6 +8,7 @@ import { useAdminCameras, useAdminDevices, useAdminStats, useAdminUsers, useDevi
 import { fetchedAt } from '@/api/clock';
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSession } from '@/api/session';
+import type { Translate } from '@/i18n/i18n';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { RefreshFailed } from '@/ui/PageState';
@@ -216,8 +217,6 @@ function Filters({ filter, onChange, types }: { filter: FleetFilter; onChange: (
     </div>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** A type is the firmware's own word for itself, or a camera kind. Neither is a sentence, so both are translated where there is a word for them. */
 const typeLabel = (type: string, t: Translate): string =>

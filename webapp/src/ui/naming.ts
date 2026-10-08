@@ -1,6 +1,5 @@
 import type { Camera, Device, Firmware } from '@fg2/shared-types/v1';
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+import type { Translate } from '@/i18n/i18n';
 
 /**
  * What a device is called wherever one is written down.

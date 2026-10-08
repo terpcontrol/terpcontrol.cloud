@@ -9,6 +9,7 @@ import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
+import type { Translate } from '@/i18n/i18n';
 import { cameraTitle } from '@/ui/naming';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -221,8 +222,6 @@ function CameraCard({
     </li>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The sentence under a camera's name. It is read from `grant`, which is the

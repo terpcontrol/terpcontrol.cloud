@@ -7,6 +7,7 @@ import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
 import { fetchedAt } from '@/api/clock';
 import { itemsOf } from '@/api/pages';
 import { useSession } from '@/api/session';
+import type { Translate } from '@/i18n/i18n';
 import { instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { Help } from '@/ui/Help';
@@ -186,7 +187,7 @@ export function Alerts() {
   );
 }
 
-const headingOf = (t: ReturnType<typeof useTranslation>['t'], heading: GroupHeading): string =>
+const headingOf = (t: Translate, heading: GroupHeading): string =>
   heading.kind === 'day' ? heading.day.toFormat(WEEKDAY_DAY) : t(`alerts.group.${heading.kind}`);
 
 /**

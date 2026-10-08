@@ -1,4 +1,5 @@
 import type { GrowthStage } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import { PRESETS_OF_STAGE, STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 
 /**
@@ -66,8 +67,6 @@ export const CLIMATE_CHOICES: readonly ClimateChoice[] = (() => {
  * is the one choice that darkens.
  */
 const NAMED_BY_LIGHT: readonly GrowthStage[] = ['germination', 'seedling'];
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "Keimung · dunkel", "Sämling · mit Licht", "Blüte": a stage as it is offered wherever one is chosen. */
 export const stageChoiceName = (t: Translate, stage: GrowthStage): string =>

@@ -1,4 +1,5 @@
 import type { Entry, EntryReading, GrowMeasurementSeries, MeasurementDefinition } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import { looseFigure } from '@/ui/figures';
 
 /**
@@ -33,8 +34,6 @@ export const TEMPLATES: MeasurementTemplate[] = [
   { key: 'leaf_temp', unit: '°C', perPlant: false, chart: true },
   { key: 'runoff_ec', unit: 'mS/cm', perPlant: false, chart: true },
 ];
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** A template as a definition of this grow, named in the reader's language. */
 export const fromTemplate = (t: Translate, template: MeasurementTemplate): MeasurementDefinition => ({

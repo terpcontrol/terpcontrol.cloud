@@ -8,6 +8,7 @@ import { useGrow, useGrowPlants, useGrowSeries, usePlantEntries } from '@/api/gr
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
+import type { Translate } from '@/i18n/i18n';
 import { useCorrecting } from '@/log/corrections';
 import { authorOf, growDayOf, headlineOf, KIND_ICON } from '@/ui/entries';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -202,8 +203,6 @@ type PlantSheet = 'move' | 'split' | 'harvest' | 'rename';
 
 /** Still in the ground, which is what the harvest sheet means by a plant it can cut. */
 const standing = (plant: Plant): boolean => plant.status === 'active' && plant.harvest === null;
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** The strain, the stage this plant is in - its own where a split gave it one - and what has become of it. */
 const subtitle = (t: Translate, grow: GrowListItem, plant: Plant): string => {

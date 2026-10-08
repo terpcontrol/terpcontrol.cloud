@@ -1,7 +1,6 @@
 import type { GrowListItem, Space } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import { enough } from '@/ui/session-access';
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The places a grow can be put in. Starting, moving or splitting a grow into a

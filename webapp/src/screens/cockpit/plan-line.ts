@@ -1,5 +1,6 @@
 import type { DateTime } from 'luxon';
 import type { Plan } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import { DAY_MS, HOUR_MS } from '@/ui/days';
 import { activeStep, isGoing, isOpenEnded, isWaiting, leftMs, nextStepIndex, readingAt } from '../control/plan-clock';
 
@@ -7,8 +8,6 @@ import { activeStep, isGoing, isOpenEnded, isWaiting, leftMs, nextStepIndex, rea
  * "Flower, 12 more days, then late flower": where a running plan stands and
  * when it changes the targets next, in the words of the cockpit's plan line.
  */
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "12 days", or "5 hours" on the last day: a step is counted in the unit a grower plans by, rounded up so it never reads short. */
 const leftWords = (t: Translate, ms: number): string =>

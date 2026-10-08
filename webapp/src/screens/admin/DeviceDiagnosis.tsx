@@ -9,6 +9,7 @@ import { noLongerThere } from '@/api/problem';
 import { useRead } from '@/api/read';
 import { useSpaceOverview } from '@/api/spaces';
 import { placePath, timelinePath } from '@/app/places';
+import type { Translate } from '@/i18n/i18n';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
 import { foldRepeats } from '@/ui/entries';
@@ -158,8 +159,6 @@ function Build({ device }: { device: Device }) {
 
 /** Where a document keeps a time of day, as seconds past midnight UTC: a controller's and a fridge's, a lamp's own, a fan's CO2 window. */
 const CLOCK_PATHS = ['daynight.day', 'daynight.night', 'day', 'night', 'co2inject.day', 'co2inject.night'];
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The seconds a time of day is kept as, with the clock times they are beside

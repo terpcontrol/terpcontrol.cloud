@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { CardSetpoint, CardValue, Device, DeviceLive, Metric, OverviewTargets, SpaceTimeline, TimelinePanel } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import { STEERED, type Steered } from '@fg2/shared-types/v1-schemas/steering.js';
 import { useDaySeries, useHourMeans } from '@/api/devices';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
@@ -201,8 +202,6 @@ function ClimateTile({
     </Frame>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** Why a fridge holds no target at all for a reading, where the reason is the mode it runs. */
 const unheldBy = (device: Device | null): 'off' | 'drying' | 'germination' | 'greenhouse' | null => {

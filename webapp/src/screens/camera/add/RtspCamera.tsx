@@ -6,6 +6,7 @@ import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js'
 import { useMe } from '@/api/account';
 import { gaveUp, useCaptureOnce, useCreateCamera, useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
+import type { Translate } from '@/i18n/i18n';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { deviceName } from '@/ui/naming';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
@@ -391,8 +392,6 @@ function NewPlace({ onMade }: { onMade: (space: Space) => void }) {
     </section>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** What the place the camera was put into is called, or nothing where the list no longer holds it. */
 const placeOf = (spaces: Space[], spaceId: string | null): string | null => spaces.find(space => space.id === spaceId)?.name ?? null;

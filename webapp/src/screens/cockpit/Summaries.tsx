@@ -8,6 +8,7 @@ import { controlPath } from '@/app/places';
 import type { AlarmRule, CardSetpoint, Device, DeviceLive, Me, Metric, OverviewTargets } from '@fg2/shared-types/v1';
 import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
+import type { Translate } from '@/i18n/i18n';
 import { awaitingClimate, darkReasonOf } from '@/ui/climate-hardware';
 import { Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -220,8 +221,6 @@ export function AlarmsSummary({ spaceId, devices, me, mayChange }: { spaceId: st
     </Summary>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 const lineOf = (t: Translate, rule: AlarmRule): string => {
   const title = ruleTitle(t, rule);

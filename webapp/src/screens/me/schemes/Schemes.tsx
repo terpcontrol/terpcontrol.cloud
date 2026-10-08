@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Scheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { schemeVersionLabel, useDeleteScheme, useOwnSchemes, useScheme, useSchemes, useUpdateScheme, type SchemeSummary } from '@/api/schemes';
 import { useSession } from '@/api/session';
+import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { GridEditor } from '@/screens/grow/scheme/GridEditor';
 import { SchemeGrid } from '@/screens/grow/scheme/SchemeGrid';
@@ -91,7 +92,7 @@ export function Schemes() {
 }
 
 /** Where an own scheme started: the chart it was kept from, by the name this build gives that chart, or by hand. */
-const originLabel = (t: (key: string, options?: Record<string, unknown>) => string, scheme: Scheme, shipped: SchemeSummary[]): string =>
+const originLabel = (t: Translate, scheme: Scheme, shipped: SchemeSummary[]): string =>
   scheme.origin.assetId === null
     ? t('me.schemes.byHand')
     : t('me.schemes.fromAsset', { name: shipped.find(summary => summary.id === scheme.origin.assetId)?.name ?? scheme.origin.assetId });

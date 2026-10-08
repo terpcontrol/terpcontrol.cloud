@@ -1,3 +1,4 @@
+import type { Translate } from '@/i18n/i18n';
 import { DateTime } from 'luxon';
 import type { EntryKind, GrowListItem, GrowOrSpaceRef, Reminder, ReminderKind, Space, Task } from '@fg2/shared-types/v1';
 import { readStored, writeStored } from '@/ui/stored';
@@ -15,8 +16,6 @@ import { clock, DAY, nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
  * today's as well, because the list is what is waiting rather than a calendar,
  * and the most overdue task is the one at the top.
  */
-
-export type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 export type Scope = 'mine' | 'all';
 

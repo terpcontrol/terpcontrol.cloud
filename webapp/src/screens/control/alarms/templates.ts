@@ -1,8 +1,9 @@
 import type { AlarmRule, AlarmRuleCreate, Device, OutputMetric } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import { CRITICAL_REPEAT_SECONDS } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { statesTargets } from '@/ui/climate-hardware';
 import { draftOf as targetsOf } from '../targets/targets-draft';
-import { createBody, emptyDraft, outputsOf, readingsOf, type Translate } from './rules';
+import { createBody, emptyDraft, outputsOf, readingsOf } from './rules';
 
 /**
  * The alarms almost everybody with one tent wants, in their words: too warm,

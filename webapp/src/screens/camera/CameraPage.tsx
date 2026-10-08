@@ -15,6 +15,7 @@ import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { placePath, timelinePath } from '@/app/places';
+import type { Translate } from '@/i18n/i18n';
 import { rowReaches } from '@/screens/notifications/reach';
 import { useCameraCalled } from '@/ui/camera-name';
 import { ageLabel, deviceLiveness, instantOf } from '@/ui/age';
@@ -520,8 +521,6 @@ const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now
     },
   ];
 };
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * One picture, now. A camera that could not be read says the reason it gave,

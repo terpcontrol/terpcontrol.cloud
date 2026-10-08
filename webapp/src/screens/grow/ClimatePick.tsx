@@ -2,6 +2,7 @@ import type { GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset, GERMINATION_TOO_HUMID, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
+import type { Translate } from '@/i18n/i18n';
 import { germinates } from '@/ui/climate-hardware';
 import { climateChoiceName, presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
@@ -143,8 +144,6 @@ export function ClimatePick({
     </Block>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What the phase does to the alarms its stage binds. Germination watches the

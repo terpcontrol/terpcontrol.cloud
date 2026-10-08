@@ -6,6 +6,7 @@ import { controlPath, devicesPath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
+import type { Translate } from '@/i18n/i18n';
 import { maintenanceQuiet, maintenanceSpans, parkedLabel, parksAnything, VISIT_MINUTES } from '@/ui/maintenance';
 import { repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
 import { ageAttribute, deviceLiveness, isAhead, offlineLabel, silentSince, sinceLabel, spanLabel } from '@/ui/age';
@@ -28,8 +29,6 @@ export const SILENCE_SECONDS = 3600;
 
 /** The maintenance the card offers is a step-in, and the question and the receipt name all three of its spans. */
 const SPANS = maintenanceSpans(VISIT_MINUTES);
-
-type Translate = ReturnType<typeof useTranslation>['t'];
 
 interface AlertCardProps {
   alert: Alert;

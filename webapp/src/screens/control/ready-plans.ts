@@ -1,5 +1,6 @@
 import type { Device, GrowthStage, PlanNotify } from '@fg2/shared-types/v1';
 import { climatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import type { Translate } from '@/i18n/i18n';
 import { CLIMATE_FIGURES, keyedStep, withFigure, type PlanDraft, type StepDraft } from './plan-edit';
 
 /**
@@ -63,8 +64,6 @@ export const offersReadyPlans = (device: Device): boolean => device.type === 'fr
 
 /** How many weeks a plan runs, rounded the way its description says it. */
 export const weeksOf = (plan: ReadyPlan): number => Math.round(plan.steps.reduce((sum, step) => sum + step.days, 0) / 7);
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * One step as the editor holds it: the climate figures of the preset table for

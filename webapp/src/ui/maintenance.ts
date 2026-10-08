@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import type { Device, OutputMetric } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import { MAINTENANCE_SETTLE_SECONDS, MAINTENANCE_VISIT_SECONDS } from '@fg2/shared-types/v1-schemas/maintenance.js';
 import { hasCo2Sensor, outputWord } from './climate-hardware';
 
@@ -20,8 +21,6 @@ import { hasCo2Sensor, outputWord } from './climate-hardware';
  * three things that fan does not have, in answer to an order it never reads.
  * Everything here exists so that the sentence over a device names that device.
  */
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The outputs a device stops driving while somebody is working on it, by type.

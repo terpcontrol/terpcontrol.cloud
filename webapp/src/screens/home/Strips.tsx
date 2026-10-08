@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { DueTask, FollowedGrowCard, HomeSpaceCard } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, publicPicture } from '@/api/public';
+import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
 import { followedMeta } from '@/screens/public/followed';
 import { useMayLogIn } from '@/ui/session-access';
@@ -17,8 +18,6 @@ import styles from './Strips.module.css';
  * The two strips around the cards. Each is there only while it has something
  * to say: a task that is due, a grow that is followed.
  */
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 export function DueStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime }) {
   const { t } = useTranslation();

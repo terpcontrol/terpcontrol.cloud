@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ActuatorRuns, DeviceCapabilities, SocketOverrideState } from '@fg2/shared-types/v1';
 import { useSetOverride, useTestSocket } from '@/api/devices';
+import type { Translate } from '@/i18n/i18n';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { ageLabel, durationLabel, leftLabel } from '@/ui/age';
@@ -246,8 +247,6 @@ function Control({ row, name, forced, refusal, onFlip, onSet, onHoldStart, onHol
     </button>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The row's name: the role, numbered where the role holds more than one socket.

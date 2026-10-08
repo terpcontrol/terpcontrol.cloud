@@ -1,3 +1,4 @@
+import type { Translate } from '@/i18n/i18n';
 import { lightsOffOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { decimalFigure } from '@/ui/figures';
 import { wallClock } from '@/ui/wall-clock';
@@ -11,8 +12,6 @@ import type { LightSchedule } from './targets-draft';
  * because light hours set from the hour the device already has can burn until
  * two in the morning, and the hours alone would not say so.
  */
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "12" or "12,5": a length of day the way a person says it, in the reader's own decimals. */
 export const hoursWritten = (hours: number): string => {

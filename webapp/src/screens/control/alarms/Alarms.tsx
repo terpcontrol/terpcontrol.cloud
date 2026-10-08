@@ -9,6 +9,7 @@ import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/clima
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { useSpaceOverview } from '@/api/spaces';
+import type { Translate } from '@/i18n/i18n';
 import { targetWithUnit } from '@/ui/units';
 import { channelsLabel, routedChannels, severityReaches } from '@/screens/notifications/reach';
 import { timeOf } from '@/screens/notifications/settings';
@@ -24,7 +25,7 @@ import { clock, zoneOf } from '@/ui/zone';
 import { AddDeviceNote } from '../AddDeviceNote';
 import { RuleSheet } from './RuleSheet';
 import { ruleFor, templateBody, templatesFor, type AlarmTemplate, type TemplateKey } from './templates';
-import { boundLabel, groupRules, heldBackBy, missingSensor, repeatsEvery, ruleTitle, type Translate, watchable, watchLabel } from './rules';
+import { boundLabel, groupRules, heldBackBy, missingSensor, repeatsEvery, ruleTitle, watchable, watchLabel } from './rules';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import styles from './Alarms.module.css';
 import { deviceName } from '@/ui/naming';

@@ -6,6 +6,7 @@ import { useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
 import { useSpaces } from '@/api/spaces';
+import type { Translate } from '@/i18n/i18n';
 import { deviceName } from '@/ui/naming';
 import { countdownDays } from '@/screens/me/premium/entitlement';
 import { missingLine } from '@/screens/me/premium/free-tier';
@@ -347,8 +348,6 @@ function Row({ label, help, children }: { label: string; help?: HelpTopic; child
     </li>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * Where the cloud reaches this camera: the stream it pulls, read some other way

@@ -7,6 +7,7 @@ import { useEveryGrow } from '@/api/grows';
 import { useSession } from '@/api/session';
 import { useDeleteShareLink, useRevokeShareLink, useShareLinks } from '@/api/sharing';
 import { useEverySpace } from '@/api/spaces';
+import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
@@ -282,8 +283,6 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
     </Sheet>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "Tent 1 · timeline · for 7 days": what it is about, of which kind, and for how long it was made. */
 const titleOf = (t: Translate, link: ShareLink, subject: Subject): string => {

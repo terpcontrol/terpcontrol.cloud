@@ -1,5 +1,6 @@
 import type { Metric, OpenAlert } from '@fg2/shared-types/v1';
 import type { DateTime } from 'luxon';
+import type { Translate } from '@/i18n/i18n';
 import { offlineLabel, silentSince } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 
@@ -55,8 +56,6 @@ export const figureWithUnit = (value: number, metric: Metric): string => `${figu
 
 /** "26 °C": a target with its unit, or alone where the metric has none. */
 export const targetWithUnit = (value: number, metric: Metric): string => `${targetFigure(value, metric)} ${UNIT[metric] ?? ''}`.trim();
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * "Mould watch · 78 % RH": the rule and the reading that set it off, in the

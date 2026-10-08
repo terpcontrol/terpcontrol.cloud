@@ -1,4 +1,5 @@
 import type { DateTime } from 'luxon';
+import type { Translate } from '@/i18n/i18n';
 import { headersOf } from '@/ui/headers';
 import type {
   AlarmDelivery,
@@ -272,8 +273,6 @@ export const heldBackBy = (me: Me | undefined, severity: Severity, now: DateTime
 
   return silenceOf(severity, isAhead(me.notifications.mutedUntil ?? null, now), quiet);
 };
-
-export type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What a rule watches, where its title does not already say it.

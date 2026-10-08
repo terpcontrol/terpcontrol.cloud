@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { Entry, EntryKind, GrowListItem, GrowReadingNames, GrowWeekCard, Person, ReadingName } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
+import type { Translate } from '@/i18n/i18n';
 import { looseFigure } from '@/ui/figures';
 import { entryHeadline, machineLineParts } from '@/i18n/device-message';
 
@@ -70,8 +71,6 @@ export const KIND_ICON: Record<EntryKind, LucideIcon> = {
  * kind added to it cannot be forgotten here.
  */
 export const DIARY_KINDS: EntryKind[] = (Object.keys(KIND_ICON) as EntryKind[]).filter(kind => kind !== 'system' && kind !== 'plan');
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * Who a line is by, in one word: "you", a handle, or what wrote it when nobody

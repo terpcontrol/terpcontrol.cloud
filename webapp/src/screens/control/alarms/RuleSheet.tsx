@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { AlarmRule, Device, Me, Metric, OutputMetric, Severity } from '@fg2/shared-types/v1';
 import { useCreateAlarmRule, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
+import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { EmailAlarmsOffer } from '@/screens/notifications/NotifyNotice';
 import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
@@ -25,7 +26,6 @@ import {
   type RuleDraft,
   ruleTitle,
   scaleNote,
-  type Translate,
   unitOf,
   updateBody,
   watchesOffline,

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { DiaryChoice, Me, UnitPreference } from '@fg2/shared-types/v1';
 import { useMe, useUpdateMe, useUpdatingMe } from '@/api/account';
 import { useSession } from '@/api/session';
-import { LANGUAGES, setLanguage, type Language } from '@/i18n/i18n';
+import { LANGUAGES, setLanguage, type Language, type Translate } from '@/i18n/i18n';
 import { useTheme, type ThemeChoice } from '@/theme/theme-context';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
@@ -197,7 +197,7 @@ const offeredZones = (kept: string): string[] => {
 };
 
 /** Why the zone matters, and what this device is in where that is something else - the one hint an account still on the migration's UTC needs. */
-const zoneLine = (t: (key: string, options?: Record<string, unknown>) => string, kept: string): string => {
+const zoneLine = (t: Translate, kept: string): string => {
   const here = browserZone();
 
   return [t('me.appearance.timezoneLine'), here && here !== kept ? t('me.appearance.timezoneHere', { zone: here }) : null].filter(Boolean).join(' ');

@@ -8,6 +8,7 @@ import type {
   SocketPage,
   Space,
 } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { alarmsReach, channelsLabel, reachedBy } from '@/screens/notifications/reach';
 
@@ -41,8 +42,6 @@ export const presetBodyOf = (stage: GrowthStage, doing: Doing): PresetApplicatio
     : { stage };
 
 export const NOTHING_DOING: Doing = { chosen: null, applied: null };
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What to call the place a claim has just made.

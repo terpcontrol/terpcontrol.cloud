@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import type { EntryCreate, EntryReading, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { diaryChanged, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow, useGrowPlants } from '@/api/grows';
+import type { Translate } from '@/i18n/i18n';
 import { about, lineLabel } from '@/log/lines';
 import { useLog, type LogTarget } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
@@ -246,8 +247,6 @@ function NothingToMeasure({ target, onClose }: MeasureSheetProps) {
     </Sheet>
   );
 }
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What everything typed comes to. A field left empty is not a reading of

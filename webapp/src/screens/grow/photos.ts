@@ -1,5 +1,6 @@
 import type { EntryPage, GrowListItem, GrowWeekCard } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
+import type { Translate } from '@/i18n/i18n';
 import { DAY_IN_YEAR, zoned } from '@/ui/zone';
 
 /** One picture of a grow, with what it is shown under in the viewer. */
@@ -32,8 +33,6 @@ export const picturesOf = (grow: GrowListItem, lines: EntryPage | undefined, wee
     .filter(picture => (seen.has(picture.mediaId) ? false : (seen.add(picture.mediaId), true)))
     .sort((one, other) => one.takenAt.localeCompare(other.takenAt));
 };
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "Tag 15 · 26. Sep · Nach dem Toppen …": which day, which date, and what was written with it. */
 export const pictureCaption = (t: Translate, picture: GrowPicture, zone: string | null): string =>

@@ -1,9 +1,8 @@
 import type { DateTime } from 'luxon';
 import type { FollowedGrowCard } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 import { ageLabel } from '@/ui/age';
 import { calendarDay } from '@/ui/zone';
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * "Day 42 · Flower · 2 h ago": the line under a public grow, which reads one

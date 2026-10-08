@@ -6,6 +6,7 @@ import type { MyGrowCard } from '@fg2/shared-types/v1';
 import { FROM_ME, FROM_MY_GROWS, MY_GROWS, openedFrom } from '@/app/places';
 import { useMyGrows } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
+import type { Translate } from '@/i18n/i18n';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
@@ -17,8 +18,6 @@ import { NewGrowSheet } from './new/NewGrowSheet';
 import { countsOf } from './my-grows';
 import { unbroken } from '@/ui/figures';
 import styles from './MyGrows.module.css';
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * "My grows": every grow of the account on one page, the running ones above

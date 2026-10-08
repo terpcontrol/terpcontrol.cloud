@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Reminder, SessionUser, Task } from '@fg2/shared-types/v1';
 import { useDevicePlan } from '@/api/plans';
+import type { Translate } from '@/i18n/i18n';
 import { initials } from '@/ui/handle';
 import { nextStepIndex } from '@/screens/control/plan-clock';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
-import { dayLabel, daysUntil, litresOf, onceLabel, type Translate } from './tasks';
+import { dayLabel, daysUntil, litresOf, onceLabel } from './tasks';
 import { looseFigure } from '@/ui/figures';
 import styles from './Tasks.module.css';
 

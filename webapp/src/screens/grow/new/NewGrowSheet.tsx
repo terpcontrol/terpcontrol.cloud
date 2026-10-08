@@ -11,6 +11,7 @@ import { useCreateGrow, useGrows } from '@/api/grows';
 import { serverNow } from '@/api/clock';
 import { useAddPhase, useApplyPreset } from '@/api/lifecycle';
 import { growSchemeOf, useScheme, useSchemes, type SchemeSummary } from '@/api/schemes';
+import type { Translate } from '@/i18n/i18n';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
@@ -466,8 +467,6 @@ function Form({
 
 /** A row's key, which only has to differ from the others: one more than the largest there is. */
 const nextKey = (rows: PlantRow[]): string => String(Math.max(0, ...rows.map(row => Number(row.key) || 0)) + 1);
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * "Tent 1 · Controller + Cam": the place, and what stands in it, because that is
