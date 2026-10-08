@@ -1,7 +1,7 @@
 import { Minus, Plus } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { decimalFigure } from '@/ui/figures';
+import { decimalFigure, typedFigure } from '@/ui/figures';
 import { secondsOf, wallClock } from './targets-draft';
 import styles from './DayNight.module.css';
 
@@ -99,8 +99,8 @@ export function Stepper({ name, value, min, max, step, decimals, unit, less, mor
 
   const commit = () => {
     if (typing === null) return;
-    const typed = Number(typing.replace(',', '.'));
-    if (typing.trim() !== '' && Number.isFinite(typed)) onChange(clamp(typed));
+    const typed = typedFigure(typing);
+    if (typed !== null) onChange(clamp(typed));
     setTyping(null);
   };
 

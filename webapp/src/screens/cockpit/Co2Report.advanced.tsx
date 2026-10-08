@@ -7,7 +7,7 @@ import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type PlaceContext } from '@/ui/advanced/item';
 import { useUnfolded } from '@/ui/advanced/unfolded';
 import { DAY_MS } from '@/ui/days';
-import { decimalFigure } from '@/ui/figures';
+import { decimalFigure, typedFigure } from '@/ui/figures';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -135,8 +135,8 @@ function RefillForm({ spaceId, deviceId, hadOne, onDone }: { spaceId: string; de
   const write = useWriteRefill(spaceId);
   const [filled, setFilled] = useState(String(USUAL_FILL_GRAMS));
   const [rest, setRest] = useState('');
-  const number = (typed: string) => Number(typed.replace(',', '.'));
-  const filledFits = filled.trim() !== '' && number(filled) > 0 && number(filled) <= 100_000;
+  const number = (typed: string) => typedFigure(typed) ?? Number.NaN;
+  const filledFits = number(filled) > 0 && number(filled) <= 100_000;
   const restFits = rest.trim() === '' || (number(rest) >= 0 && number(rest) <= 100_000);
 
   return (
@@ -173,9 +173,7 @@ function RefillForm({ spaceId, deviceId, hadOne, onDone }: { spaceId: string; de
           type="button"
           className={`${ui.button} ${ui.primary}`}
           disabled={!filledFits || !restFits || write.isPending}
-          onClick={() =>
-            write.mutate({ filledGrams: number(filled), restGrams: rest.trim() === '' ? null : number(rest), deviceId }, { onSuccess: onDone })
-          }
+          onClick={() => write.mutate({ filledGrams: number(filled), restGrams: typedFigure(rest), deviceId }, { onSuccess: onDone })}
         >
           {t('co2Report.save')}
         </button>

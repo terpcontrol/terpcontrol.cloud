@@ -26,6 +26,7 @@ import { assetTitle } from '@/screens/grow/scheme';
 import { climateRequest, defaultPick, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
 import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
+import { typedFigure } from '@/ui/figures';
 import { parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
 import { useMayManage } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
@@ -597,8 +598,8 @@ const firstFields = (definitions: MeasurementDefinition[], readings: EntryReadin
  */
 const readingsFrom = (typedIn: Record<string, string>, shown: string[], definitions: MeasurementDefinition[], target: LogTarget): EntryReading[] =>
   shown.flatMap(key => {
-    const value = Number((typedIn[key] ?? '').replace(',', '.').trim());
-    if (!(typedIn[key] ?? '').trim() || !Number.isFinite(value)) return [];
+    const value = typedFigure(typedIn[key] ?? '');
+    if (value === null) return [];
     const perPlant = definitions.find(definition => definition.key === key)?.perPlant ?? false;
 
     return [{ key, value, plantId: perPlant ? (target.plantIds[0] ?? null) : null }];

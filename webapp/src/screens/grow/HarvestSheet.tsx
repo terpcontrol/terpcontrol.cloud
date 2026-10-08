@@ -8,6 +8,7 @@ import { useHarvest } from '@/api/lifecycle';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { readingFigure } from '@/ui/entries';
+import { typedFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Block, WhenField } from '@/ui/SheetParts';
@@ -75,8 +76,8 @@ export function HarvestSheet({
   const body = {
     plantIds: chosen,
     harvestedAt: instantOf(DateTime.fromJSDate(at)),
-    wetWeightG: gramsOf(wet),
-    dryWeightG: gramsOf(dry),
+    wetWeightG: typedFigure(wet),
+    dryWeightG: typedFigure(dry),
   };
 
   return (
@@ -245,12 +246,6 @@ function Weight({ label, value, onChange }: { label: string; value: string; onCh
     </label>
   );
 }
-
-/** What a scale said, as a number. An empty field is not a weight of nothing, so it stays null. */
-const gramsOf = (typed: string): number | null => {
-  const value = Number(typed.replace(',', '.').trim());
-  return typed.trim() && Number.isFinite(value) ? value : null;
-};
 
 /** "300 g wet over 3 plants · 100 g each": what the server will do with the total, before it does it. */
 const shareNote = (t: Translate, count: number, wet: number | null, dry: number | null): string => {

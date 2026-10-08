@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { GrowListItem, MeasurementDefinition } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
 import { Sheet } from '@/ui/Sheet';
-import { looseFigure } from '@/ui/figures';
+import { looseFigure, typedFigure } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -66,8 +66,8 @@ export function MeasurementSheet({ grow, definition, readings, onClose }: Measur
       // The scope of a measurement that has been written under is the one it
       // already had, whatever the held control shows.
       perPlant: settled && definition ? definition.perPlant : draft.perPlant,
-      targetMin: endOf(draft.from),
-      targetMax: endOf(draft.to),
+      targetMin: typedFigure(draft.from),
+      targetMax: typedFigure(draft.to),
       chart: definition?.chart ?? true,
     };
     const measurements = definition ? grow.measurements.map(one => (one.key === definition.key ? written : one)) : [...grow.measurements, written];
@@ -187,13 +187,6 @@ const draftOf = (definition: MeasurementDefinition | null): Draft => ({
 
 /**
  * An end as this reader writes it, so a German field opens on "5,8" - the
- * figure the list above it shows - rather than on "5.8". `endOf` reads either.
+ * figure the list above it shows - rather than on "5.8". `typedFigure` reads either.
  */
 const end = (value: number | null): string => (value === null ? '' : looseFigure(value));
-
-/** An end nobody typed is an end nobody is aiming at, and so is one that is not a number. */
-const endOf = (typed: string): number | null => {
-  const value = Number(typed.replace(',', '.').trim());
-
-  return typed.trim() === '' || !Number.isFinite(value) ? null : value;
-};

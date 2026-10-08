@@ -11,6 +11,7 @@ import { useLog, type LogTarget } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { readingFigure } from '@/ui/entries';
+import { typedFigure } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
 import { Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -258,8 +259,8 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 const readingsOf = (typed: Record<string, string>, definitions: MeasurementDefinition[]): EntryReading[] =>
   Object.entries(typed).flatMap(([slot, text]) => {
     const [key, plantId] = slot.split('|');
-    const value = Number(text.replace(',', '.').trim());
-    if (!text.trim() || !Number.isFinite(value) || !definitions.some(one => one.key === key)) return [];
+    const value = typedFigure(text);
+    if (value === null || !definitions.some(one => one.key === key)) return [];
 
     return [{ key, value, plantId: plantId || null }];
   });
@@ -298,8 +299,8 @@ const hintOf = (
   now: ReturnType<typeof useNow>,
 ): string => {
   const mine = last.get(slotOf(definition.key, definition.perPlant ? plantId : null));
-  const typed = Number(draft.replace(',', '.'));
-  const moved = mine && draft.trim() !== '' && Number.isFinite(typed) ? typed - mine.value : null;
+  const typed = typedFigure(draft);
+  const moved = mine && typed !== null ? typed - mine.value : null;
   const band = bandOf(t, definition);
 
   const other = definition.perPlant

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SchemeWeek } from '@fg2/shared-types/v1';
-import { decimalFigure } from '@/ui/figures';
+import { decimalFigure, typedFigure } from '@/ui/figures';
 import { ecTargetAt, hasEcTargets, productsOf, valueAt, type Product } from './grid';
 import styles from './Scheme.module.css';
 
@@ -176,8 +176,8 @@ function CellInput({
   const commit = () => {
     const trimmed = text.trim();
     if (trimmed === '') return onDone(null);
-    const next = Number(trimmed.replace(',', '.'));
-    return Number.isFinite(next) && next >= 0 ? onDone(next) : onCancel();
+    const next = typedFigure(trimmed);
+    return next !== null && next >= 0 ? onDone(next) : onCancel();
   };
 
   return (

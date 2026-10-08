@@ -5,6 +5,7 @@ import {
   SOCKET_HOLD_MAX_SECONDS,
   TIMED_SOCKET_ROLES,
 } from '@fg2/shared-types/v1-schemas/socket-report.js';
+import { typedFigure } from '@/ui/figures';
 
 /**
  * What pairing a socket by its address and changing one is made of: the role
@@ -61,9 +62,10 @@ const secondsPer = (unit: TimerUnit): number => TIMER_UNITS.find(one => one.unit
 
 /** The seconds a typed span stands for, or null while it is not a whole positive number. */
 export const secondsOfSpan = (span: Span): number | null => {
-  const value = Number(span.value.replace(',', '.'));
+  const value = typedFigure(span.value);
+  if (value === null) return null;
   const seconds = Math.round(value * secondsPer(span.unit));
-  return span.value.trim() !== '' && Number.isFinite(value) && seconds > 0 ? seconds : null;
+  return seconds > 0 ? seconds : null;
 };
 
 /** A number of seconds in the coarsest unit it is whole in, as the field shows it. */

@@ -58,6 +58,18 @@ export const decimalFigure = (value: number, decimals: number, language: string 
   }).format(value);
 
 /**
+ * A figure the reader typed, read back whichever way their language writes the
+ * decimals - "5,8" or "5.8". Nothing typed, or something that is not a number,
+ * is null.
+ */
+export const typedFigure = (typed: string): number | null => {
+  const trimmed = typed.trim();
+  const value = Number(trimmed.replace(',', '.'));
+
+  return trimmed !== '' && Number.isFinite(value) ? value : null;
+};
+
+/**
  * As many decimals as a measurement anybody types is ever worth. It is the
  * rounding the reading path already did before this existed, kept so that a pH
  * stored as 6.500000000000001 goes on reading "6.5".

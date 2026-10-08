@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { figure, targetFigure } from '@/ui/units';
 import { readingFigure } from '@/ui/entries';
-import { decimalFigure, looseFigure } from '@/ui/figures';
+import { decimalFigure, looseFigure, typedFigure } from '@/ui/figures';
 
 /**
  * A reading is written in the reader's language, not in the one the code was
@@ -43,6 +43,14 @@ describe('a figure in the reader´s language', () => {
   it('writes a change that rounds away as nothing, and not as minus nothing', () => {
     expect(looseFigure(-0.0001, 'en')).toBe('0');
     expect(looseFigure(-0.0001, 'de')).toBe('0');
+  });
+
+  it('reads a typed figure back with either decimal mark, and nothing or junk as no figure at all', () => {
+    expect(typedFigure(' 5,8 ')).toBe(5.8);
+    expect(typedFigure('5.8')).toBe(5.8);
+    expect(typedFigure('0')).toBe(0);
+    expect(typedFigure('  ')).toBeNull();
+    expect(typedFigure('abc')).toBeNull();
   });
 });
 
