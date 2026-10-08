@@ -53,7 +53,7 @@ import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { badRequest, forbidden } from '@common/v1/problem';
-import { PageQuery, V1Query, inOrder, pageQuery } from '@common/v1/validation';
+import { PageQuery, V1Query, inOrder, pageQuery, repeated } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { demoSockets } from '@utils/demo';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
@@ -84,21 +84,13 @@ const deviceListQuery = pageQuery.extend({ spaceId: z.string().optional() });
  * parameter arrives as one value or as many, and every number as text. The
  * shape itself is the contract's; only how the wire spells it is said here.
  */
-const one = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]);
-
 const seriesFromQuery = inOrder(
   seriesQuery.extend({
     // The contract's list of metrics may be empty, and a caller that wants only
     // what an output did - the level a dimmable light is running at - names none:
     // a metric asked for and thrown away is a second field read off the store.
-    metrics: z
-      .union([metric, z.array(metric)])
-      .transform(one)
-      .optional(),
-    outputs: z
-      .union([outputMetric, z.array(outputMetric)])
-      .transform(one)
-      .optional(),
+    metrics: repeated(metric).optional(),
+    outputs: repeated(outputMetric).optional(),
     stepSeconds: z.coerce.number().int().positive().optional(),
   }),
   'startsAt',

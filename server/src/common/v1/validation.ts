@@ -83,6 +83,10 @@ export const pageQuery = z.object({
 
 export type PageQuery = z.infer<typeof pageQuery>;
 
+/** A repeated query parameter arrives as one value or as many; the route wants a list either way. */
+export const repeated = <T extends ZodType>(item: T) =>
+  z.union([item, z.array(item)]).transform((value): z.output<T>[] => (Array.isArray(value) ? value : [value]));
+
 /**
  * An instant in a query string, as every instant in the contract is written -
  * ISO 8601 in UTC - and handed to the route as a date. Not `z.coerce.date()`,

@@ -5,7 +5,7 @@ import type { SpaceSeries, SpaceTimeline } from '@fg2/shared-types/v1';
 import { metric, outputMetric, spaceSeries, spaceTimeline, timelineRange } from '@fg2/shared-types/v1-schemas';
 import { AccessGuard, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { Grant } from '@common/v1/access.types';
-import { V1Query, inOrder, instantQuery } from '@common/v1/validation';
+import { V1Query, inOrder, instantQuery, repeated } from '@common/v1/validation';
 import { OptionalSessionGuard } from '@common/auth/auth.guard';
 import { V1Answer } from '../answer-shape';
 import { SpaceSeriesService } from './space-series.service';
@@ -26,9 +26,6 @@ const timelineQuery = z.object({
   at: instantQuery().optional().describe('The instant the window ends at; now by default, and earlier when somebody has scrubbed back.'),
 });
 
-/** A repeated query parameter arrives as one value or as many; the shape below wants a list either way. */
-const many = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]);
-
 /**
  * What the charts page of a place asks for: two instants, the lines it wants,
  * and the step where somebody chose one.
@@ -43,14 +40,8 @@ const seriesQuery = inOrder(
       .positive()
       .optional()
       .describe('The window each point summarises, where somebody chose one; widened where it would build more points than one read holds.'),
-    metrics: z
-      .union([metric, z.array(metric)])
-      .transform(many)
-      .optional(),
-    outputs: z
-      .union([outputMetric, z.array(outputMetric)])
-      .transform(many)
-      .optional(),
+    metrics: repeated(metric).optional(),
+    outputs: repeated(outputMetric).optional(),
   }),
   'from',
   'to',
