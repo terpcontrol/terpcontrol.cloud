@@ -3079,7 +3079,7 @@ export interface Camera {
   url: string | null;
   transport: CameraTransport | null;
   /**
-   * Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly.
+   * Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel.
    */
   tunnel: boolean;
   model: CameraModel | null;
@@ -3177,7 +3177,7 @@ export interface RtspCameraCreate {
   staleWarning?: boolean;
   transport?: CameraTransport | null;
   /**
-   * Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly.
+   * Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel.
    */
   tunnel?: boolean;
   model?: CameraModel | null;
@@ -3218,7 +3218,7 @@ export interface CameraUpdate {
   staleWarning?: boolean;
   transport?: CameraTransport | null;
   /**
-   * Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly.
+   * Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel.
    */
   tunnel?: boolean;
   model?: CameraModel | null;

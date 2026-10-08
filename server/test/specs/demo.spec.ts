@@ -44,9 +44,11 @@ beforeAll(async () => {
   await simulator.publish('log', { message: 'hardware-info:co2=on', severity: 0, time: Date.now() });
   await settle(800);
 
+  // Opened by the cloud itself, so that the address above is what fails: the
+  // simulator relays nothing, and a read through its tunnel would wait.
   const camera = await owner.client
     .post('/v1/cameras')
-    .send({ kind: 'rtsp', deviceId: device.deviceId, name: 'The tent', url: RTSP_STREAM })
+    .send({ kind: 'rtsp', deviceId: device.deviceId, tunnel: false, name: 'The tent', url: RTSP_STREAM })
     .expect(201);
   rtspCameraId = camera.body.id;
 

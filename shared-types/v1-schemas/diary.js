@@ -436,7 +436,9 @@ exports.camera = (0, common_js_1.named)('Camera', zod_1.z.object({
     ip: zod_1.z.string().nullable().describe('Last address on the local network, as the controller reported it.'),
     url: zod_1.z.string().nullable().describe('The stream URL with its credentials removed.'),
     transport: exports.cameraTransport.nullable(),
-    tunnel: zod_1.z.boolean().describe('Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly.'),
+    tunnel: zod_1.z
+        .boolean()
+        .describe('Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel.'),
     model: exports.cameraModel.nullable(),
     stillIntervalSeconds: zod_1.z.number().int(),
     nightOff: zod_1.z.boolean(),

@@ -9857,7 +9857,7 @@
       },
       "tunnel": {
         "type": "boolean",
-        "description": "Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly."
+        "description": "Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel."
       },
       "model": {
         "anyOf": [
@@ -10149,7 +10149,7 @@
       },
       "tunnel": {
         "type": "boolean",
-        "description": "Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly."
+        "description": "Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel."
       },
       "model": {
         "anyOf": [
@@ -10270,7 +10270,7 @@
       },
       "tunnel": {
         "type": "boolean",
-        "description": "Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly."
+        "description": "Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel."
       },
       "model": {
         "anyOf": [
