@@ -645,6 +645,8 @@ describe('who may read it', () => {
    * row leaves their grows standing, so it was reachable.
    */
   it('hides everything where the owner´s settings cannot be read at all', async () => {
+    // An owner who shows the counts, so that what the missing row hides is not what the setting hides.
+    await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: false, hideCounts: false } } });
     const token = await linkFor({});
     const known = await readAs(visitor(token));
     expect(known.grows.map(grow => grow.plantCount)).not.toContain(null);

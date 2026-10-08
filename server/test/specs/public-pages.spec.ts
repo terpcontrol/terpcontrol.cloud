@@ -185,6 +185,37 @@ describe('a public grow at its own address', () => {
     // and three digits turn up inside a uuid often enough to fail on a Tuesday.
     expect(JSON.stringify(page.body)).not.toMatch(/\b420\b/);
   });
+
+  it('hides them for an account that has not said, and shows them once its owner does', async () => {
+    const quiet = await createAccount('public-unsaid');
+    const theirs = (
+      await quiet.client
+        .post('/v1/grows')
+        .send({ name: 'Numbers unsaid', type: 'autoflower', plants: [{ strain: 'Gelato', count: 3 }] })
+        .expect(201)
+    ).body;
+    await quiet.client.post(`/v1/grows/${theirs.id}/phases`).send({ stage: 'drying' }).expect(201);
+    await quiet.client.patch(`/v1/grows/${theirs.id}`).send({ visibility: 'public' }).expect(200);
+
+    const plants = await quiet.client.get(`/v1/grows/${theirs.id}/plants`).expect(200);
+    await quiet.client
+      .patch(`/v1/plants/${plants.body.items[0].id}`)
+      .send({ harvest: { harvestedAt: new Date().toISOString(), wetWeightG: 430, dryWeightG: 97 } })
+      .expect(200);
+
+    const hidden = await anonymous().get(`/v1/public/grows/${theirs.slug}`).expect(200);
+    expect(hidden.body.plantCount).toBeNull();
+    expect(hidden.body.harvest).toMatchObject({ wetWeightG: null, dryWeightG: null });
+
+    await quiet.client
+      .patch('/v1/me')
+      .send({ privacy: { hideWeights: false, hideCounts: false } })
+      .expect(200);
+
+    const shown = await anonymous().get(`/v1/public/grows/${theirs.slug}`).expect(200);
+    expect(shown.body.plantCount).toBe(3);
+    expect(shown.body.harvest).toMatchObject({ wetWeightG: 430, dryWeightG: 97 });
+  });
 });
 
 describe('a public diary longer than one page of weeks', () => {

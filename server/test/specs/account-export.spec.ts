@@ -146,7 +146,7 @@ describe('GET /v1/me/export', () => {
     expect(JSON.parse(files.get('account.json')!.toString('utf8'))).toMatchObject({
       handle: owner.handle,
       email: owner.username,
-      privacy: { hideWeights: false, hideCounts: false },
+      privacy: { hideWeights: true, hideCounts: true },
     });
   });
 

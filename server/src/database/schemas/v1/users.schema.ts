@@ -103,9 +103,14 @@ export const usersSchema = new Schema<StoredUser>(
     bio: { type: String, default: null },
     avatarMediaId: { type: String, default: null },
     publicProfile: { type: Boolean, required: true, default: false },
+    // Hidden from everybody outside the place - a link, a public page, a follow -
+    // until the person shows them; the owner and the members see them either
+    // way. A default only fills a new document, so an account written with both
+    // shown - every one `002-users` carried over among them - keeps that until
+    // its owner changes it.
     privacy: {
-      hideWeights: { type: Boolean, required: true, default: false },
-      hideCounts: { type: Boolean, required: true, default: false },
+      hideWeights: { type: Boolean, required: true, default: true },
+      hideCounts: { type: Boolean, required: true, default: true },
     },
     preferences: {
       // Presentation only: everything is stored in the first value of each enum.

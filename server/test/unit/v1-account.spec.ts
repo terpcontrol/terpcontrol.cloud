@@ -125,7 +125,8 @@ describe('signing up', () => {
       bio: null,
       avatarMediaId: null,
       publicProfile: false,
-      privacy: { hideWeights: false, hideCounts: false },
+      // A shared view leaves the harvest weights and the plant counts out until the person shows them.
+      privacy: { hideWeights: true, hideCounts: true },
       retention: { climateDays: null },
       deletionStartedAt: null,
     });
