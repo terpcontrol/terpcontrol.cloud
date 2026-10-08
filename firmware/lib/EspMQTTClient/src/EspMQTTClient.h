@@ -210,9 +210,9 @@ public:
   };
 
   // Bound how long the MQTT layer (PubSubClient) may wait on a single
-  // socket read (CONNACK, keepalive PINGRESP, ...). Default is 15s which
-  // can easily exceed our 25s task watchdog when combined with other
-  // blocking calls in the same loop iteration.
+  // socket read (CONNACK, keepalive PINGRESP, ...). Default is 15s, a large
+  // share of the task watchdog once other blocking calls in the same loop
+  // iteration add to it.
   inline void setSocketTimeout(uint16_t seconds) { _mqttClient.setSocketTimeout(seconds); };
 
   // Bound how long the underlying WiFiClient may block while retrying a

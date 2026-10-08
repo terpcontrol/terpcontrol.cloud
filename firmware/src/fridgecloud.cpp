@@ -413,7 +413,7 @@ namespace fg {
   void Fridgecloud::loop() {
     // Feed the WDT at the start of our loop so a temporarily blocking
     // MQTT/WiFiClient write (errno 11 / EAGAIN on a stuck send buffer) does
-    // not push the loopTask past the 25s task-watchdog and reboot the device.
+    // not push the loopTask past the task watchdog and reboot the device.
     esp_task_wdt_reset();
 
     client->loop();
@@ -470,7 +470,7 @@ namespace fg {
     // drop the broken socket so EspMQTTClient opens a fresh one on its
     // next reconnection attempt. Without this the broken socket can stay
     // stuck for minutes, each publish call blocking ~10s and eventually
-    // triggering the 25s task-watchdog reboot.
+    // triggering a task-watchdog reboot.
     if(++publish_failure_count >= MAX_PUBLISH_FAILURES) {
       Serial.println("forcing mqtt reconnect after repeated publish failures");
       client->forceDisconnect();
@@ -758,7 +758,7 @@ namespace fg {
 
           // Each publish() can block for the configured WiFiClient write
           // timeout. Feed the WDT between iterations so closing multiple
-          // tunnels at once can never trip the 25s task watchdog.
+          // tunnels at once can never trip the task watchdog.
           esp_task_wdt_reset();
           client->publish(topic_tunnel_read.c_str(), buf);
           esp_task_wdt_reset();
