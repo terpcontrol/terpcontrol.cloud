@@ -2956,8 +2956,7 @@
       "ask": "This confirms the step and starts {{name}}; it cannot be taken back.",
       "askEnds": "This confirms the last step and completes the plan; it cannot be taken back.",
       "askUnnamed": "This confirms the step and starts the next one; it cannot be taken back.",
-      "yes": "Confirm the step",
-      "cancel": "Cancel"
+      "yes": "Confirm the step"
     },
     "stepIsManaged": "Confirming a step moves the plan on and sends the next step's targets to the controller. Only whoever steers the place can do that.",
     "every_one": "every day",
@@ -3079,7 +3078,6 @@
       "always": "Light on round the clock · 24 h",
       "never": "Light off round the clock · 0 h",
       "alwaysShort": "on round the clock",
-      "neverShort": "off round the clock",
       "drying": "Light off · drying",
       "germination": "Light off · germination",
       "dryingLine": "The light stays off while drying runs. Afterwards the light plan holds again: {{window}}.",
@@ -3699,8 +3697,7 @@
     "s": "s",
     "min": "min",
     "h": "h",
-    "d": "d",
-    "oClock": "h"
+    "d": "d"
   },
   "problem": {
     "status": {

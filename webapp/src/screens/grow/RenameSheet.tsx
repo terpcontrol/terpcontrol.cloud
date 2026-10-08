@@ -34,7 +34,7 @@ export function RenameSheet({ grow, onClose }: { grow: GrowListItem; onClose: ()
 
   return (
     <Sheet title={t('grow.rename.title', { name: grow.name })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <Block label={t('grow.rename.name')}>
           <input
             className={ui.input}

@@ -41,7 +41,7 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
 
   return (
     <Sheet title={t('space.moveHereTitle', { name: spaceName })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <Block label={t('space.presets.whichGrow')}>
           {movable.pending ? (
             <p className={ui.note}>{t('home.waiting')}</p>

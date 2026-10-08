@@ -1,11 +1,4 @@
-/* A grow moved into the tent. The sheet, the chips and the buttons are the app's own. */
-
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-2) 0;
-}
+/* A grow moved into the tent. The sheet, its insides, the chips and the buttons are the app's own. */
 
 .submit {
   width: 100%;

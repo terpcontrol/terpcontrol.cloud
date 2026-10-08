@@ -1,12 +1,10 @@
 /* Me › Privacy: the page itself is the shared frame under Me; what is here is
-   the colour of the rows that cannot be taken back, and the sheets that ask
-   before they are. */
+   the outlined button that does what cannot be taken back, and the sheets that
+   ask before it does. */
 
 /* The button that does what cannot be taken back - ending the account, or
-   throwing readings away for a shorter window. Outlined rather than filled,
-   unlike every other primary in the app: a solid alarm would need an ink
-   colour that reads on it in both themes, and there is no such token; the
-   outline says the same thing and says it in both. */
+   throwing readings away for a shorter window: outlined in the alarm colour,
+   as a sheet's own answer to such a step is everywhere in the app. */
 .dangerButton {
   display: inline-flex;
   align-items: center;

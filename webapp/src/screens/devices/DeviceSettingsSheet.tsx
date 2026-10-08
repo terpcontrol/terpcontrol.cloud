@@ -9,7 +9,6 @@ import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { deviceTitle, givenName } from '@/ui/naming';
-import styles from './DeviceSettings.module.css';
 
 /**
  * What a device is called, and which place it stands in.
@@ -65,7 +64,7 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
 
   return (
     <Sheet title={t('devices.settings.title', { name: title })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <Block label={t('devices.settings.name')}>
           <div className={ui.fieldRow}>
             <input

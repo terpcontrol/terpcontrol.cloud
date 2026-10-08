@@ -79,7 +79,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
   return (
     <Sheet title={t('grow.lifecycle.phase.title', { name: grow.name })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <p className={`mono ${styles.now}`}>{nowLine(t, grow, zone)}</p>
 
         <Block label={t(ended ? 'grow.lifecycle.phase.record' : 'grow.lifecycle.phase.enter')} help="stage">

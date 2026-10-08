@@ -54,11 +54,8 @@
 }
 
 .name {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
   flex: 1;
   min-width: 0;
-  line-height: var(--line-tight);
 }
 
 /* On a phone the camera's name has the row to itself at the size a place's

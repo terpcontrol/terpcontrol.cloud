@@ -399,12 +399,7 @@ function RemoveSheet({ deviceId, row, name, onClose }: { deviceId: string; row: 
       onClose={onClose}
       actions={
         <SheetAnswer done={receipt !== null} error={remove.error} onClose={onClose}>
-          <button
-            type="button"
-            className={styles.dangerButton}
-            disabled={remove.isPending}
-            onClick={() => remove.mutate({ deviceId, slot: row.slot })}
-          >
+          <button type="button" className={ui.dangerOutline} disabled={remove.isPending} onClick={() => remove.mutate({ deviceId, slot: row.slot })}>
             {t('socketForm.remove.yes')}
           </button>
         </SheetAnswer>

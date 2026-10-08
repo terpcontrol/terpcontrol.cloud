@@ -67,8 +67,8 @@
   text-decoration: underline;
 }
 
-/* Outlined rather than filled, as the privacy page's is: a solid alarm would
-   need an ink that reads on it in both themes, and there is no such token. */
+/* The yes to deleting a scheme, outlined in the alarm colour as the privacy
+   page's is. */
 .dangerButton {
   background: transparent;
   border-color: var(--alarm);

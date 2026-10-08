@@ -304,7 +304,7 @@ function Form({
         )
       }
     >
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <label className={`${ui.card} ${styles.name}`}>
           <input
             className={styles.nameInput}

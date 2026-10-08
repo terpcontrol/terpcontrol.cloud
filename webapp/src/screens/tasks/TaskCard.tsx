@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { Reminder, SessionUser, Task } from '@fg2/shared-types/v1';
 import { useDevicePlan } from '@/api/plans';
 import type { Translate } from '@/i18n/i18n';
+import { Asking } from '@/ui/Asking';
 import { initials } from '@/ui/handle';
 import { nextStepIndex } from '@/screens/control/plan-clock';
 import ui from '@/ui/ui.module.css';
@@ -87,24 +88,16 @@ export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEd
       {!onDone && why ? <p className={`${ui.note} ${styles.why}`}>{why}</p> : null}
 
       {asking && onDone ? (
-        <div className={ui.asking}>
-          {deviceId ? <NextStep deviceId={deviceId} /> : <p className={ui.note}>{t('tasks.confirm.askUnnamed')}</p>}
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              onClick={() => {
-                setAsking(false);
-                onDone();
-              }}
-            >
-              {t('tasks.confirm.yes')}
-            </button>
-            <button type="button" className={ui.button} onClick={() => setAsking(false)}>
-              {t('tasks.confirm.cancel')}
-            </button>
-          </div>
-        </div>
+        <Asking
+          note={deviceId ? <NextStep deviceId={deviceId} /> : t('tasks.confirm.askUnnamed')}
+          yes={t('tasks.confirm.yes')}
+          busy={false}
+          onYes={() => {
+            setAsking(false);
+            onDone();
+          }}
+          onCancel={() => setAsking(false)}
+        />
       ) : null}
     </li>
   );
@@ -120,14 +113,12 @@ function NextStep({ deviceId }: { deviceId: string }) {
   const { t } = useTranslation();
   const plan = useDevicePlan(deviceId);
 
-  if (!plan.data) return <p className={ui.note}>{t('tasks.confirm.askUnnamed')}</p>;
+  if (!plan.data) return t('tasks.confirm.askUnnamed');
 
   const next = nextStepIndex(plan.data);
   const name = next === null ? null : (plan.data.steps[next]?.name ?? null);
 
-  return (
-    <p className={ui.note}>{next === null ? t('tasks.confirm.askEnds') : name ? t('tasks.confirm.ask', { name }) : t('tasks.confirm.askUnnamed')}</p>
-  );
+  return next === null ? t('tasks.confirm.askEnds') : name ? t('tasks.confirm.ask', { name }) : t('tasks.confirm.askUnnamed');
 }
 
 /**

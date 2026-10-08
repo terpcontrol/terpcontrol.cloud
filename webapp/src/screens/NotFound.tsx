@@ -9,7 +9,7 @@ export function NotFound() {
 
   return (
     <section className={styles.screen}>
-      <h1 className={styles.title}>{t('notFound.title')}</h1>
+      <h1>{t('notFound.title')}</h1>
       <p className={ui.note}>{t('notFound.text')}</p>
       <Link className={ui.button} to="/">
         {t('notFound.home')}

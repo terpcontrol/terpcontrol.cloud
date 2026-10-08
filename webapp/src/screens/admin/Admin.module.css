@@ -60,15 +60,6 @@
   gap: var(--space-2);
 }
 
-/* A chip that is on, drawn as every chosen chip in the app is: the brand
-   blue, not the primary's green, so it does not read as a second primary
-   beside the rollout's. */
-.chipOn {
-  background: var(--selected);
-  border-color: var(--selected-edge);
-  color: var(--on-selected);
-}
-
 /* A chip that is a menu: the native select, keeping its keyboard and the
    platform's own picker, giving up only its arrow and its padding. */
 .menu {

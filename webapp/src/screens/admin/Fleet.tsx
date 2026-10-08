@@ -12,6 +12,7 @@ import type { Translate } from '@/i18n/i18n';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { RefreshFailed } from '@/ui/PageState';
+import { Choice } from '@/ui/SheetParts';
 import { AdminHead, AdminNotLoaded, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -187,23 +188,13 @@ function Filters({ filter, onChange, types }: { filter: FleetFilter; onChange: (
         ))}
       </select>
 
-      <button
-        type="button"
-        className={`${ui.chip} ${filter.quiet ? styles.chipOn : ''}`}
-        aria-pressed={filter.quiet}
-        onClick={() => onChange({ ...filter, quiet: !filter.quiet })}
-      >
+      <Choice chosen={filter.quiet} onChoose={() => onChange({ ...filter, quiet: !filter.quiet })}>
         {t('admin.fleet.filter.quiet')}
-      </button>
+      </Choice>
 
-      <button
-        type="button"
-        className={`${ui.chip} ${filter.behind ? styles.chipOn : ''}`}
-        aria-pressed={filter.behind}
-        onClick={() => onChange({ ...filter, behind: !filter.behind })}
-      >
+      <Choice chosen={filter.behind} onChoose={() => onChange({ ...filter, behind: !filter.behind })}>
         {t('admin.fleet.filter.behind')}
-      </button>
+      </Choice>
 
       <input
         className={`mono ${ui.input} ${styles.search}`}

@@ -133,7 +133,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
 
   return (
     <Sheet title={t(rule ? 'alarms.sheet.title' : 'alarms.sheet.newTitle')} actions={actions} onClose={onClose}>
-      <div className={styles.sheet}>
+      <div className={ui.sheetBody}>
         {/* The cloud's own offline rule is titled from the kind of hardware it
             watches, in the language the page is being read in, and never from
             the name it carries: a name typed here would reach only the push the
@@ -301,7 +301,7 @@ function RuleAdvanced({ draft, onChange }: { draft: RuleDraft; onChange: (over: 
         {t('advanced.title')}
       </summary>
       {open ? (
-        <div className={styles.sheet}>
+        <div className={ui.sheetBody}>
           {webhook ? <TemplateFields draft={draft} onChange={onChange} /> : null}
           {quiet ? <Repeat draft={draft} onChange={onChange} help="alarmRepeat" /> : null}
         </div>

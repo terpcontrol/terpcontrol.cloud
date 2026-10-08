@@ -9,7 +9,6 @@ import { SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { deviceTitle } from '@/ui/naming';
 import sheet from '../Maintenance.module.css';
-import styles from './DeviceAdvanced.module.css';
 
 /**
  * Giving a device up: after a sale, a move to another account or a swap, the
@@ -58,7 +57,7 @@ function ReleaseSheet({ deviceId, onClose }: { deviceId: string; onClose: () => 
   const actions =
     sure || release.isSuccess ? (
       <SheetAnswer done={release.isSuccess} error={release.error} onClose={onClose} onDone={done}>
-        <button type="button" className={styles.dangerButton} disabled={release.isPending} onClick={() => release.mutate()}>
+        <button type="button" className={ui.dangerOutline} disabled={release.isPending} onClick={() => release.mutate()}>
           {t(release.isPending ? 'release.releasing' : 'release.yes')}
         </button>
       </SheetAnswer>

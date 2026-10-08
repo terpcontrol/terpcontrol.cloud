@@ -29,9 +29,6 @@
   align-items: baseline;
   gap: 0 var(--space-2);
   min-width: 0;
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
 }
 
 .titleNote {

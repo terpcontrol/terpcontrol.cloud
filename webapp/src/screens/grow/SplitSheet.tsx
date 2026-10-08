@@ -69,7 +69,7 @@ export function SplitSheet({
   if (plants.length === 0) {
     return (
       <Sheet title={t('grow.lifecycle.split.title', { name: grow.name })} onClose={onClose}>
-        <div className={styles.body}>
+        <div className={ui.sheetBody}>
           <p className={ui.note}>{t('grow.lifecycle.split.noPlantsRecorded')}</p>
         </div>
       </Sheet>
@@ -78,7 +78,7 @@ export function SplitSheet({
 
   return (
     <Sheet title={t('grow.lifecycle.split.title', { name: grow.name })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <p className={`mono ${styles.now}`}>{t('grow.lifecycle.split.what')}</p>
 
         <Block

@@ -91,7 +91,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
 
   return (
     <Sheet title={t(plan ? 'space.control.editor.title' : 'space.control.editor.newTitle')} onClose={onClose}>
-      <div className={styles.editor}>
+      <div className={ui.sheetBody}>
         <Block label={t('space.control.editor.plan')}>
           <label className="label" htmlFor="plan-name">
             {t('space.control.editor.name')}

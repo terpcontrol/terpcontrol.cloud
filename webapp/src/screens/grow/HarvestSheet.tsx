@@ -82,7 +82,7 @@ export function HarvestSheet({
 
   return (
     <Sheet title={t('grow.lifecycle.harvest.title', { name: grow.name })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         {plants.length === 0 ? (
           <NothingPlanted grow={grow} onClose={onClose} />
         ) : standing.length === 0 ? (

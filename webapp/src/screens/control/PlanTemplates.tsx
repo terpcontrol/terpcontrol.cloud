@@ -33,7 +33,7 @@ export function KeepAsTemplateSheet({ plan, onClose }: { plan: Plan; onClose: ()
 
   return (
     <Sheet title={t('space.control.template.keepTitle')} onClose={onClose}>
-      <div className={styles.editor}>
+      <div className={ui.sheetBody}>
         <Block label={t('space.control.template.name')}>
           <input
             className={ui.input}
@@ -92,7 +92,7 @@ export function StartFromTemplateSheet({
 
   return (
     <Sheet title={t('space.control.template.startTitle')} onClose={onClose}>
-      <div className={styles.editor}>
+      <div className={ui.sheetBody}>
         <p className={ui.note}>{t('space.control.template.startNote')}</p>
 
         {ready ? (

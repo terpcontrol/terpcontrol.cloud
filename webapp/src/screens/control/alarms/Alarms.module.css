@@ -170,14 +170,6 @@
   text-align: center;
 }
 
-/* The sheet's insides: a few questions apart, like every other sheet. */
-.sheet {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-2) 0;
-}
-
 .fields {
   display: flex;
   flex-direction: column;

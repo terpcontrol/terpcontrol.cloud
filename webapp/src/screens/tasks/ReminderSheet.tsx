@@ -98,7 +98,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
 
   return (
     <Sheet title={t(reminder ? 'tasks.sheet.editTitle' : 'tasks.sheet.newTitle')} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <Block label={t('tasks.sheet.what')}>
           <input
             className={ui.input}
@@ -227,7 +227,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
               <>
                 <p className={ui.note}>{t('tasks.sheet.deleteAsk')}</p>
                 <Refused error={remove.error} />
-                <div className={styles.actions}>
+                <div className={ui.askingActions}>
                   <button
                     type="button"
                     className={`${ui.button} ${ui.dangerFilled}`}

@@ -1,30 +1,6 @@
 /* What the device panel's Erweitert items draw beyond the rows and controls the
-   section already has: the outlined alarm of a step that cannot be taken back,
-   a list of builds, and the small forms a socket is paired and changed with. */
-
-/* Outlined rather than filled, like the account's own end: there is no ink that
-   reads on a solid alarm in both themes. */
-.dangerButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  height: var(--control-height);
-  padding: 0 var(--space-4);
-  background: transparent;
-  border: var(--rule-width) solid var(--alarm);
-  border-radius: var(--radius);
-  color: var(--alarm);
-  font: inherit;
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-}
-
-.dangerButton:disabled {
-  border-color: var(--rule);
-  color: var(--muted);
-  cursor: default;
-}
+   section already has: a list of builds, and the small forms a socket is paired
+   and changed with. */
 
 .inline {
   display: flex;

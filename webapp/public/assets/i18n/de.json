@@ -2964,8 +2964,7 @@
       "ask": "Das bestätigt den Schritt und startet {{name}}; es lässt sich nicht zurücknehmen.",
       "askEnds": "Das bestätigt den letzten Schritt und schließt den Plan ab; es lässt sich nicht zurücknehmen.",
       "askUnnamed": "Das bestätigt den Schritt und startet den nächsten; es lässt sich nicht zurücknehmen.",
-      "yes": "Schritt bestätigen",
-      "cancel": "Abbrechen"
+      "yes": "Schritt bestätigen"
     },
     "stepIsManaged": "Einen Schritt zu bestätigen, rückt den Plan weiter und schickt die Zielwerte des nächsten Schritts an den Controller. Das kann nur, wer den Ort steuert.",
     "every_one": "jeden Tag",
@@ -3087,7 +3086,6 @@
       "always": "Licht durchgehend an · 24 Std",
       "never": "Licht durchgehend aus · 0 Std",
       "alwaysShort": "durchgehend an",
-      "neverShort": "durchgehend aus",
       "drying": "Licht aus · Trocknung",
       "germination": "Licht aus · Keimung",
       "dryingLine": "Das Licht bleibt aus, solange die Trocknung läuft. Danach gilt wieder der Lichtplan: {{window}}.",
@@ -3707,8 +3705,7 @@
     "s": "s",
     "min": "Min",
     "h": "Std",
-    "d": "T",
-    "oClock": "Uhr"
+    "d": "T"
   },
   "problem": {
     "status": {

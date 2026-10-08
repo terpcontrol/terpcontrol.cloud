@@ -60,7 +60,7 @@ export function MoveSheet({
 
   return (
     <Sheet title={t('grow.lifecycle.move.title', { name: grow.name })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         <p className={`mono ${styles.now}`}>
           {stood
             ? t('grow.stoodIn', { name: placeName(t, spaces, stood.spaceId) })
