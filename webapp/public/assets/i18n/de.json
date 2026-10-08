@@ -2868,7 +2868,6 @@
       "runs": "läuft {{length}} am Stück"
     },
     "channelOff": "{{channel}} (aus)",
-    "addDevice": "Gerät hinzufügen",
     "bound": {
       "above": "über {{value}}",
       "below": "unter {{value}}",
@@ -3349,12 +3348,9 @@
       "field": "Claim-Code",
       "whichPlace": "Wo es steht",
       "newPlace": "ein neuer Ort",
-      "orScan": "oder scannen",
       "claim": "Übernehmen",
       "claiming": "Wird übernommen…",
       "claimed": "Übernommen",
-      "scanUnavailable": "Dieser Browser kann keine QR-Codes lesen; tipp den Code ein.",
-      "scanDenied": "Die Kamera wurde nicht freigegeben — tipp den Code ein oder erlaube der Seite die Kamera.",
       "live": "online vor {{age}}",
       "stale": "zuletzt gemeldet vor {{age}}",
       "offline": "offline · zuletzt gemeldet vor {{age}}",
@@ -5043,10 +5039,6 @@
     "leastOn": "Mindestens an",
     "leastOff": "Mindestens aus",
     "needsFirmware": "Diese Firmware hält die Schutzfunktionen nicht ein. Ein Firmware-Update bringt sie; bis dahin lassen sie sich nicht einstellen."
-  },
-  "lightRamp": {
-    "sunrise": "Sonnenaufgang",
-    "sunset": "Sonnenuntergang"
   },
   "lightOverheat": {
     "label": "Dimmen ab",

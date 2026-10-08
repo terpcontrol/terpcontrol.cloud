@@ -2860,7 +2860,6 @@
       "runs": "runs {{length}} without a break"
     },
     "channelOff": "{{channel}} (off)",
-    "addDevice": "Add a device",
     "bound": {
       "above": "above {{value}}",
       "below": "below {{value}}",
@@ -3341,12 +3340,9 @@
       "field": "Claim code",
       "whichPlace": "Where it stands",
       "newPlace": "a new place",
-      "orScan": "or scan",
       "claim": "Claim it",
       "claiming": "Claiming…",
       "claimed": "Claimed",
-      "scanUnavailable": "This browser cannot read QR codes; type the code instead.",
-      "scanDenied": "The camera was not allowed — type the code instead, or allow the camera for this site.",
       "live": "online {{age}} ago",
       "stale": "last heard {{age}} ago",
       "offline": "offline · last heard {{age}} ago",
@@ -5035,10 +5031,6 @@
     "leastOn": "On at least",
     "leastOff": "Off at least",
     "needsFirmware": "This firmware does not keep to the protections. A firmware update brings them; until then they cannot be set."
-  },
-  "lightRamp": {
-    "sunrise": "Sunrise",
-    "sunset": "Sunset"
   },
   "lightOverheat": {
     "label": "Dim from",
