@@ -110,6 +110,7 @@ export default defineConfig(({ mode }) => ({
       '@fg2/shared-types/v1-schemas/steering.js',
       '@fg2/shared-types/v1-schemas/pages.js',
       '@fg2/shared-types/v1-schemas/entitlement.js',
+      '@fg2/shared-types/v1-schemas/firmware-channels.js',
     ],
   },
   // `npm run start:public` is the development server for other machines too - a phone on the network, a host
