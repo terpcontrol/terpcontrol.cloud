@@ -5,6 +5,7 @@ import type { Invite, SpaceKind } from '@fg2/shared-types/v1';
 import { useAddMember } from '@/api/members';
 import { useInvites, useRevokeInvite } from '@/api/invites';
 import { CopyButton } from '@/ui/CopyButton';
+import { typedHandle } from '@/ui/handle';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -113,16 +114,15 @@ export function InviteBlock({ spaceId, spaceName, kind }: { spaceId: string; spa
 
 /**
  * Adding by name. It is a form so that Enter sends it, which is how a field
- * with one button beside it is used; the leading `@` people type out of habit
- * is dropped, because the handle is the name and the sigil is decoration.
- * Somebody added by name walks in able to log, as the board says under the
- * field; a wider role is a change on their row afterwards.
+ * with one button beside it is used. Somebody added by name walks in able to
+ * log, as the board says under the field; a wider role is a change on their
+ * row afterwards.
  */
 function AddByHandle({ spaceId }: { spaceId: string }) {
   const { t } = useTranslation();
   const [typed, setTyped] = useState('');
   const add = useAddMember(spaceId);
-  const handle = typed.trim().replace(/^@/, '');
+  const handle = typedHandle(typed);
 
   return (
     <>

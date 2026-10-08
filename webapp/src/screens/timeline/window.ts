@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import type { Metric, SpaceTimeline, TimelineAlarm, TimelinePanel, TimelineSpan, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
 import { niceScale, type PlotScale } from '@/charts/series';
-import { HOUR_MS } from '@/ui/days';
+import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/ui/days';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY_IN_YEAR, zonedAt } from '@/ui/zone';
 
 /**
@@ -40,8 +40,8 @@ export const stamps = (): readonly string[] => [CLOCK, `ccc ${CLOCK}`, DATED_CLO
  */
 export const stampFor = (span: number): number => {
   if (span <= 36 * HOUR_MS) return 0;
-  if (span <= 10 * 24 * HOUR_MS) return 1;
-  return span <= 400 * 24 * HOUR_MS ? 2 : 3;
+  if (span <= 10 * DAY_MS) return 1;
+  return span <= 400 * DAY_MS ? 2 : 3;
 };
 
 export const stampOf = (time: number, span: number, zone: string | null = null): string => zonedAt(time, zone).toFormat(stamps()[stampFor(span)]);
@@ -61,13 +61,13 @@ export const stampForEnds = (span: number): number => (span <= 36 * HOUR_MS ? 0 
 
 /** A picture says which day it was taken whatever the window is: it is a thing from a moment rather than the moment itself. */
 export const captureOf = (time: number, span: number, zone: string | null = null): string =>
-  zonedAt(time, zone).toFormat(span <= 10 * 24 * HOUR_MS ? `ccc ${CLOCK}` : DATED_CLOCK);
+  zonedAt(time, zone).toFormat(span <= 10 * DAY_MS ? `ccc ${CLOCK}` : DATED_CLOCK);
 
 /** The same rule for the axis, where the clock stops being worth the room a wide window gives it. */
 export const stopOf = (time: number, span: number, zone: string | null = null): string => {
   const stamp = zonedAt(time, zone);
   if (span <= 36 * HOUR_MS) return stamp.toFormat(CLOCK);
-  if (span <= 10 * 24 * HOUR_MS) return stamp.toFormat('ccc');
+  if (span <= 10 * DAY_MS) return stamp.toFormat('ccc');
   return stamp.toFormat(DAY_IN_YEAR);
 };
 
@@ -84,7 +84,7 @@ const MOST_DAY_STOPS = 4;
  */
 export const daysOnAxis = (from: number, to: number, zone: string | null, live: boolean): number[] | null => {
   const span = to - from;
-  if (span <= 36 * HOUR_MS || span > 10 * 24 * HOUR_MS) return null;
+  if (span <= 36 * HOUR_MS || span > 10 * DAY_MS) return null;
 
   const midnights: number[] = [];
   for (let day = zonedAt(from, zone).startOf('day').plus({ days: 1 }); day.toMillis() < to; day = day.plus({ days: 1 })) {
@@ -251,7 +251,7 @@ export const scaleOf = (panel: TimelinePanel, stretches: Stretch[]): PlotScale =
   ]);
 
 /** The least a picture may stand from the cursor and still be the picture of that moment. */
-const FRAME_REACH_MIN = 10 * 60 * 1000;
+const FRAME_REACH_MIN = 10 * MINUTE_MS;
 
 /**
  * The picture of the moment the cursor is on, or null where the camera took

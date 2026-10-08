@@ -16,6 +16,7 @@ import { outputWord } from '@/ui/climate-hardware';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { ageLabel, sinceLabel } from '@/ui/age';
+import { DAY_MS, HOUR_MS } from '@/ui/days';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
@@ -474,7 +475,7 @@ const dayLabel = (t: Translate, timeline: SpaceTimeline): string => {
 /** The shortest rolling window that still holds an instant, a month at most. */
 const rangeHolding = (at: number, now: number): TimelineRange => {
   const age = now - at;
-  if (age < 23 * 3_600_000) return '24h';
-  if (age < 6.5 * 86_400_000) return '7d';
+  if (age < 23 * HOUR_MS) return '24h';
+  if (age < 6.5 * DAY_MS) return '7d';
   return '30d';
 };

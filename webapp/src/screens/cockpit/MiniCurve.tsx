@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TimelinePanel, TimelineSpan } from '@fg2/shared-types/v1';
+import { HOUR_MS } from '@/ui/days';
 import { Term } from '@/ui/Help';
 import { CLOCK, useZone, zonedAt } from '@/ui/zone';
 import { at, stretchesOf } from '../timeline/window';
@@ -9,7 +10,7 @@ import styles from './Cockpit.module.css';
 const WIDTH = 240;
 const HEIGHT = 56;
 /** An hour without a sample is a gap in the line; a missed sample is not. */
-const GAP_MS = 60 * 60 * 1000;
+const GAP_MS = HOUR_MS;
 
 type Tone = 'temperature' | 'humidity' | 'co2' | 'leaf';
 

@@ -1,7 +1,6 @@
-import { DateTime } from 'luxon';
 import type { ChartViewSpan } from '@fg2/shared-types/v1';
 import { instantOf } from '@/ui/age';
-import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/ui/days';
+import { DAY_MS, endOfDayOn, HOUR_MS, MINUTE_MS, startOfDayOn } from '@/ui/days';
 import { zoned, zonedAt } from '@/ui/zone';
 
 /**
@@ -102,10 +101,10 @@ export const windowOf = (input: SpanInput): ChartWindow | null => {
  */
 export const dayBounds = (from: string, to: string, zone: string | null): { from: number; to: number } | null => {
   if (!from || !to) return null;
-  const start = DateTime.fromISO(from, { zone: zone ?? undefined }).startOf('day');
-  const end = DateTime.fromISO(to, { zone: zone ?? undefined }).endOf('day');
+  const start = startOfDayOn(from, zone).getTime();
+  const end = endOfDayOn(to, zone).getTime();
 
-  return start.isValid && end.isValid ? { from: start.toMillis(), to: end.toMillis() } : null;
+  return Number.isNaN(start) || Number.isNaN(end) ? null : { from: start, to: end };
 };
 
 /** An instant as the contract spells one: UTC to the millisecond, so two of them sort in the order they run. */

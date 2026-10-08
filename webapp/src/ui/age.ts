@@ -77,12 +77,15 @@ export const ageAttribute = (state: ValueState): { 'data-age': ValueState } => (
 export const LIVENESS_RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };
 
 /**
- * How alive a device is, from the last thing it said. No answer carries it, so
- * it is worked out here against the contract's constant and the server's clock
- * rather than the reader's, which can be an hour out.
+ * The state the contract's constant gives the age of an instant, on the
+ * server's clock rather than the reader's, which can be an hour out. Nothing
+ * heard at all is offline.
  */
-export const deviceLiveness = (lastSeenAt: string | null, now: DateTime): ValueState =>
-  lastSeenAt ? valueStateOfAge((now.toMillis() - DateTime.fromISO(lastSeenAt).toMillis()) / 1000) : 'offline';
+const stateAt = (instant: string | null, now: DateTime): ValueState =>
+  instant ? valueStateOfAge((now.toMillis() - DateTime.fromISO(instant).toMillis()) / 1000) : 'offline';
+
+/** How alive a device is, from the last thing it said. No answer carries it, so it is worked out here. */
+export const deviceLiveness = (lastSeenAt: string | null, now: DateTime): ValueState => stateAt(lastSeenAt, now);
 
 /**
  * How old a value is *now*, which is what a screen draws it by: the older of the
@@ -90,7 +93,7 @@ export const deviceLiveness = (lastSeenAt: string | null, now: DateTime): ValueS
  * calling a reading live while its age counts on beside it.
  */
 export const valueAge = (value: Pick<MetricValue, 'state' | 'measuredAt'>, now: DateTime = serverNow()): ValueState => {
-  const drawn = deviceLiveness(value.measuredAt, now);
+  const drawn = stateAt(value.measuredAt, now);
   return LIVENESS_RANK[drawn] > LIVENESS_RANK[value.state] ? drawn : value.state;
 };
 
