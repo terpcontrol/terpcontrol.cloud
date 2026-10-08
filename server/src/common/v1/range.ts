@@ -1,4 +1,4 @@
-import type { MediaKind } from '@fg2/shared-types/v1';
+import type { MediaKind, TimeRange } from '@fg2/shared-types/v1';
 import { AccessRange } from './access.types';
 
 /**
@@ -16,6 +16,12 @@ export const clampRange = (grant: { range: AccessRange } | undefined, asked: Par
 
 const latest = (one: Date | null, other: Date | null): Date | null => (one && other ? (one > other ? one : other) : (one ?? other));
 const earliest = (one: Date | null, other: Date | null): Date | null => (one && other ? (one < other ? one : other) : (one ?? other));
+
+/** The window as the contract has it: instants as ISO strings, a null end open at that end. */
+export const isoRange = (range: AccessRange): TimeRange => ({
+  startsAt: range.startsAt?.toISOString() ?? null,
+  endsAt: range.endsAt?.toISOString() ?? null,
+});
 
 /**
  * The range as a filter on one instant field. Both ends count as inside, and an
@@ -55,7 +61,7 @@ export const outsideRange = (at: Date, range: AccessRange): boolean =>
  * Structural rather than the stored document, because the rule is about those
  * fields and the two places that ask it hold different rows.
  */
-export interface DatedPicture {
+interface DatedPicture {
   kind: MediaKind;
   capturedAt: Date;
   endsAt: Date | null;
@@ -138,3 +144,10 @@ export const seenOf = (span: Span, range: AccessRange): Span => ({
  * was not sent September.
  */
 export const storyEndsAt = (range: AccessRange, now: Date): Date => (range.endsAt !== null && range.endsAt < now ? range.endsAt : now);
+
+/**
+ * Whether a key handed out with an end - a share link, an invite - still opens
+ * anything: neither revoked nor past its day.
+ */
+export const stillValid = (key: { revokedAt: Date | null; expiresAt: Date | null }, now: Date = new Date()): boolean =>
+  key.revokedAt === null && (key.expiresAt === null || key.expiresAt.getTime() > now.getTime());

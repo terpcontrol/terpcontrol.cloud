@@ -8,6 +8,7 @@ import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound } from '@common/v1/problem';
+import { stillValid } from '@common/v1/range';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { InviteDocument } from '@database/schemas/v1/invites.schema';
@@ -126,7 +127,7 @@ export class InvitesService {
    */
   public async preview(code: string, now: Date = new Date()): Promise<InvitePreview> {
     const invite = await this.invites.findOne({ code }).lean<InviteDocument>();
-    if (!invite || !isOpen(invite, now)) return NOTHING_THERE;
+    if (!invite || !stillValid(invite, now)) return NOTHING_THERE;
 
     const space = await this.spaces.findOne({ id: invite.spaceId }, { name: 1, kind: 1, archivedAt: 1 }).lean<SpaceDocument>();
     if (!space || space.archivedAt !== null) return NOTHING_THERE;
@@ -160,7 +161,7 @@ export class InvitesService {
     const gone = notFound('invite_not_found', 'That invite leads nowhere.');
 
     const invite = await this.invites.findOne({ code }).lean<InviteDocument>();
-    if (!invite || !isOpen(invite, now)) throw gone;
+    if (!invite || !stillValid(invite, now)) throw gone;
 
     const space = await this.spacesService.require(invite.spaceId);
     if (space.archivedAt !== null) throw gone;
@@ -206,10 +207,6 @@ export class InvitesService {
     throw conflict('code_unavailable', 'No free invite code could be found. Please try again.');
   }
 }
-
-/** Neither revoked nor past its day. Whether the space still stands is asked separately. */
-const isOpen = (invite: InviteDocument, now: Date): boolean =>
-  invite.revokedAt === null && (invite.expiresAt === null || invite.expiresAt.getTime() > now.getTime());
 
 const inDays = (days: number): Date => new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 

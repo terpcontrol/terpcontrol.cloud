@@ -7,6 +7,7 @@ import { AccessContext } from '@common/v1/access.types';
 import { ownRows, requireOwned } from '@common/v1/owned-rows';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { notFound } from '@common/v1/problem';
+import { isoRange } from '@common/v1/range';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { ChartViewDocument } from '@database/schemas/v1/chart-views.schema';
@@ -112,10 +113,7 @@ const storedDefinition = (definition: ChartViewDefinition): StoredDefinition => 
 const spanOf = (span: StoredDefinition['span']): ChartViewSpan => {
   if (span.kind === 'last') return { kind: 'last', forSeconds: span.forSeconds ?? 0 };
   if (span.kind === 'fixed') {
-    return {
-      kind: 'fixed',
-      range: { startsAt: span.range?.startsAt?.toISOString() ?? null, endsAt: span.range?.endsAt?.toISOString() ?? null },
-    };
+    return { kind: 'fixed', range: isoRange(span.range ?? { startsAt: null, endsAt: null }) };
   }
 
   return { kind: span.kind };

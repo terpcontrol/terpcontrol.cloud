@@ -2,15 +2,17 @@ import { CanActivate, ExecutionContext, HttpException, Injectable, SetMetadata }
 import { Reflector } from '@nestjs/core';
 import { FastifyReply, FastifyRequest } from 'fastify';
 
-export interface RateLimit {
-  /** Requests allowed per window, per client address. */
+interface RateLimit {
+  /** Requests allowed per minute, per client address. */
   limit: number;
-  windowMs: number;
   /** What the caller is told once the budget is spent. */
   message: string;
 }
 
 const RATE_LIMIT = 'rate-limit';
+
+/** The window every budget is counted in. */
+const WINDOW_MS = 60_000;
 
 export const RateLimited = (limit: RateLimit) => SetMetadata(RATE_LIMIT, limit);
 
@@ -54,7 +56,7 @@ export class RateLimitGuard implements CanActivate {
 
     const key = `${context.getClass().name}.${context.getHandler().name}:${request.ip}`;
     const window = this.windows.get(key);
-    const current = !window || window.resetAt <= now ? { count: 0, resetAt: now + config.windowMs } : window;
+    const current = !window || window.resetAt <= now ? { count: 0, resetAt: now + WINDOW_MS } : window;
 
     current.count += 1;
     this.windows.set(key, current);

@@ -8,6 +8,7 @@ import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound, unprocessable } from '@common/v1/problem';
+import { isoRange, stillValid } from '@common/v1/range';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
@@ -25,7 +26,7 @@ import { accountOf } from '../caller';
  * made it and how often it has been opened are the server's; a client names the
  * subject and the window and nothing else.
  *
- * Resolving a link is the other half and lives in `SharedController`: what is
+ * Resolving a link is the other half and lives in `PublicPagesService`: what is
  * read *through* a link never carries the link.
  */
 
@@ -177,7 +178,7 @@ export class ShareLinksService {
    */
   public async remove(ctx: AccessContext, id: string, now: Date = new Date()): Promise<void> {
     const link = await this.require(ctx, id);
-    if (link.revokedAt === null && (link.expiresAt === null || link.expiresAt.getTime() > now.getTime())) {
+    if (stillValid(link, now)) {
       throw conflict('share_link_live', 'This link still works. Revoke it first; a link that has stopped can then be taken off the list.');
     }
 
@@ -199,9 +200,7 @@ export class ShareLinksService {
    */
   public async open(token: string, now: Date = new Date()): Promise<ShareLinkDocument> {
     const link = await this.shareLinks.findOne({ token }).lean<ShareLinkDocument>();
-    if (!link || link.revokedAt !== null || (link.expiresAt !== null && link.expiresAt.getTime() <= now.getTime())) {
-      throw notFound('share_link_not_found', 'That link leads nowhere.');
-    }
+    if (!link || !stillValid(link, now)) throw notFound('share_link_not_found', 'That link leads nowhere.');
 
     if (this.countable(token, now)) {
       await this.shareLinks.updateOne({ id: link.id }, { $inc: { 'state.openCount': 1 }, $set: { 'state.lastOpenedAt': now } });
@@ -307,7 +306,7 @@ const serialise = (link: ShareLinkDocument): ShareLink => ({
   token: link.token,
   kind: link.kind,
   subject: { type: link.subject.type, id: link.subject.id },
-  range: { startsAt: link.range.startsAt?.toISOString() ?? null, endsAt: link.range.endsAt?.toISOString() ?? null },
+  range: isoRange(link.range),
   includeCameras: link.includeCameras,
   createdBy: link.createdBy,
   expiresAt: link.expiresAt?.toISOString() ?? null,
