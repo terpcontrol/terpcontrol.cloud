@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { ExportAccepted, Media } from '@fg2/shared-types/v1';
 import { api, apiBlob } from './client';
-import { decimalFigure } from '@/ui/figures';
+import { saveFile } from '@/ui/download';
 import { useWrite } from './write';
 
 /**
@@ -71,37 +71,6 @@ export const useAskAccountExport = () =>
   );
 
 /**
- * "1.2 GB", "12.4 MB", or "44 kB" for a grow with no pictures in it yet. The
- * unit changes because it has to at both ends: a diary of a fortnight rounds
- * to 0.0 MB, and a download that says it is nothing reads as an export that
- * went wrong - while a whole account with a year of diary photos and films in
- * it is a gigabyte and more, and four digits of megabytes is a figure nobody
- * can weigh against the room on their disk.
- *
- * The steps are the binary ones under the SI labels, which is what this app
- * writes a size in everywhere, so the same zip reads the same on the account
- * page and on the administrator's health card. The decimal is always written
- * where there is room for one, because "1 GB" beside "1.2 GB" reads as the
- * rounder of two answers rather than as the same kind of figure.
- *
- * Which decimal that is comes from `ui/figures`, the one writer every reading
- * in the app goes through, and not from an argument. It was an argument, and
- * two of the three callers passed it: the grow report's button therefore wrote
- * "171.9 MB" with a full stop directly under chapter lines of its own reading
- * "18,5 °C · 66 %", on a German page, because the browser underneath was an
- * English one. A size is a figure a person reads, so it is written the way the
- * app is being read rather than the way the machine happens to be set, and the
- * only way to keep that true at every call site is to leave the caller nothing
- * to forget.
- */
-export const fileSize = (bytes: number): string => {
-  if (bytes >= 1024 ** 3) return `${decimalFigure(bytes / 1024 ** 3, 1)} GB`;
-  if (bytes >= 1024 ** 2) return `${decimalFigure(bytes / 1024 ** 2, 1)} MB`;
-
-  return `${decimalFigure(Math.round(bytes / 1024), 0)} kB`;
-};
-
-/**
  * What the zip is called once it is on somebody's disk. The server names no
  * file, and a browser left to itself would call it after the media id - which
  * is nothing anybody could find again among a year of downloads.
@@ -118,23 +87,13 @@ export const exportFilename = (row: Media): string =>
 /**
  * Handing the finished zip over. The route wants a session rather than the
  * token a picture's URL carries, so the bytes are fetched and given to a
- * download of their own making; the object URL is released on the next tick,
- * once the browser has taken it.
+ * download of their own making.
  *
  * It answers what went wrong rather than throwing into nothing, because the
  * one thing worse than a refused download is a button that does nothing twice.
  */
 export const useDownloadExport = () =>
   useMutation({
-    mutationFn: async ({ mediaId, filename }: { mediaId: string; filename: string }) => {
-      const blob = await apiBlob(`/media/${mediaId}/content`);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
-    },
+    mutationFn: async ({ mediaId, filename }: { mediaId: string; filename: string }) =>
+      saveFile(await apiBlob(`/media/${mediaId}/content`), filename),
   });

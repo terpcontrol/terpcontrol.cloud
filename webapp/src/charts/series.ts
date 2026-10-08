@@ -475,13 +475,3 @@ const cell = (value: number | null): string => (value === null ? '' : String(val
 
 /** A name a grower gave a measurement may hold a comma, so every heading is quoted and its own quotes doubled. */
 const quoted = (cell: string): string => `"${cell.replace(/"/g, '""')}"`;
-
-/** A table the browser saves rather than opens: the one download the screen does entirely out of what it already has. */
-export const downloadCsv = (name: string, csv: string): void => {
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  link.click();
-  URL.revokeObjectURL(url);
-};

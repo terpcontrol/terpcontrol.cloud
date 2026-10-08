@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useParams } from 'react-router';
 import { publicPicture, usePublicGrow, usePublicGrowWeeks } from '@/api/public';
-import { ApiError } from '@/api/problem';
+import { noLongerThere } from '@/api/problem';
 import { session } from '@/api/session';
 import { FollowButton } from './FollowButton';
 import { LoadFailed, Waiting } from '@/ui/PageState';
@@ -45,7 +45,7 @@ export function PublicGrowRoute() {
   if (!grow.data) {
     return (
       <PublicShell>
-        {grow.error instanceof ApiError && grow.error.status === 404 ? (
+        {noLongerThere(grow.error) ? (
           <Nothing titleKey="publicPage.noDiary.title" bodyKey="publicPage.noDiary.body" />
         ) : (
           <LoadFailed retry={() => void grow.refetch()} />

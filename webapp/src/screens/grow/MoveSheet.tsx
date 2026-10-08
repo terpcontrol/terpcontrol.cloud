@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, Placement, Plant, Space } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
-import { ApiError } from '@/api/problem';
+import { refusalCode } from '@/api/problem';
 import { useCorrectPlacement, useMovePlants, useWithdrawPlacement } from '@/api/lifecycle';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
@@ -273,7 +273,7 @@ function PlacementWithdrawal({ grow, placement, onDone }: { grow: GrowListItem; 
 
   // Offered only on a grow still running: one that has ended moves nowhere, and
   // the server refuses the move the escape would start with.
-  const standsNowhere = withdraw.error instanceof ApiError && withdraw.error.problem.code === 'grow_stands_nowhere' && !grow.endedAt;
+  const standsNowhere = refusalCode(withdraw.error) === 'grow_stands_nowhere' && !grow.endedAt;
 
   /** The escape the refusal asks for: somewhere to stand, and then the row that never happened is free to go. */
   const rescue = () =>

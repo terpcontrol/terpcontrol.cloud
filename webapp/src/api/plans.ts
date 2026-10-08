@@ -3,7 +3,7 @@ import { isFirstLoad, LIVE_BEAT_MS, useRead } from './read';
 import type { Plan, PlanReplace, PlanTemplate, PlanTemplateCreate, PlanTemplatePage, PlanTransition } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { growChanged } from './lifecycle';
-import { ApiError } from './problem';
+import { refusalCode } from './problem';
 import { invalidate, useWrite } from './write';
 
 /**
@@ -44,10 +44,7 @@ export const useDevicePlans = (deviceIds: string[]) =>
   });
 
 /** A device that runs no plan, which is what the screen offers to write one for. */
-export const isMissing = (error: unknown): boolean => error instanceof ApiError && error.problem.code === 'plan_not_found';
-
-/** The code the server refused with, for the screens that can offer a way out of one particular refusal. */
-export const refusalCode = (error: unknown): string | null => (error instanceof ApiError ? error.problem.code : null);
+export const isMissing = (error: unknown): boolean => refusalCode(error) === 'plan_not_found';
 
 /**
  * The whole plan, in place of whatever the device had. It does not start it:

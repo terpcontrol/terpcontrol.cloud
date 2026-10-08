@@ -20,10 +20,8 @@ import i18next from 'i18next';
  * A file size is one of them, and it is here for the reason the rest are. It
  * asked each caller for the language instead of asking the app, two of three
  * callers answered, and the third put "171.9 MB" on a German page under its own
- * "18,5 °C". `api/exports.ts` now rounds a byte count to its unit and hands the
- * number here, which is the division of labour the reading screens already
- * have: the caller knows what the figure means, and this knows who is reading
- * it.
+ * "18,5 °C". `fileSize` at the end of this file now rounds a byte count to its
+ * unit and writes the number as every reading is written.
  *
  * What does not belong here: an ISO instant, a `yyyy-MM-dd` a date field
  * speaks, a CSV cell, an id, a firmware version, a co-ordinate in an SVG path.
@@ -79,4 +77,28 @@ export const looseFigure = (value: number, language: string | undefined = reader
   const rounded = Number(value.toFixed(MOST_DECIMALS));
 
   return new Intl.NumberFormat(language, { maximumFractionDigits: MOST_DECIMALS, useGrouping: false }).format(rounded === 0 ? 0 : rounded);
+};
+
+/**
+ * "1.2 GB", "12.4 MB", or "44 kB" for a grow with no pictures in it yet. The
+ * unit changes because it has to at both ends: a diary of a fortnight rounds
+ * to 0.0 MB, and a download that says it is nothing reads as an export that
+ * went wrong - while a whole account with a year of diary photos and films in
+ * it is a gigabyte and more, and four digits of megabytes is a figure nobody
+ * can weigh against the room on their disk.
+ *
+ * The steps are the binary ones under the SI labels, which is what this app
+ * writes a size in everywhere, so the same zip reads the same on the account
+ * page and on the administrator's health card. The decimal is always written
+ * where there is room for one, because "1 GB" beside "1.2 GB" reads as the
+ * rounder of two answers rather than as the same kind of figure.
+ *
+ * The decimal itself is `decimalFigure`'s and never the caller's, for the
+ * reason given at the top of this file.
+ */
+export const fileSize = (bytes: number): string => {
+  if (bytes >= 1024 ** 3) return `${decimalFigure(bytes / 1024 ** 3, 1)} GB`;
+  if (bytes >= 1024 ** 2) return `${decimalFigure(bytes / 1024 ** 2, 1)} MB`;
+
+  return `${decimalFigure(Math.round(bytes / 1024), 0)} kB`;
 };

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { FollowedGrowCard, PublicUserPage } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, publicPicture, usePublicUser } from '@/api/public';
-import { ApiError } from '@/api/problem';
+import { noLongerThere } from '@/api/problem';
 import { session, useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, Waiting } from '@/ui/PageState';
@@ -61,7 +61,7 @@ function Profile({ handle }: { handle: string }) {
   if (!page.data) {
     return (
       <PublicShell>
-        {page.error instanceof ApiError && page.error.status === 404 ? (
+        {noLongerThere(page.error) ? (
           <Nothing titleKey="publicPage.noProfile.title" bodyKey="publicPage.noProfile.body" />
         ) : (
           <LoadFailed retry={() => void page.refetch()} />

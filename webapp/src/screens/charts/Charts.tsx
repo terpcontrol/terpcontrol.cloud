@@ -16,7 +16,7 @@ import { LIVE_BEAT_MS } from '@/api/read';
 import { useSession } from '@/api/session';
 import { useSpaceOverview, useSpaces } from '@/api/spaces';
 import { useScrub, type Selection } from '@/charts/scrub';
-import { dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
+import { dayOfGrow, readAt, type PlotLine } from '@/charts/series';
 import { timeTicks } from '@/charts/ticks';
 import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
 import { linkAddress } from '@/screens/me/sharing/links';
@@ -25,6 +25,7 @@ import { AdvancedSection } from '@/ui/advanced/Advanced';
 import type { ChartSettings } from '@/ui/advanced/item';
 import { ageLabel } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
+import { saveFile } from '@/ui/download';
 import { looseFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -732,7 +733,12 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
             type="button"
             className={ui.chip}
             disabled={cards.length === 0}
-            onClick={() => downloadCsv(csvName(grow?.name ?? spaceRow?.name ?? '', range), csvForCards(t, data, input, zone))}
+            onClick={() =>
+              saveFile(
+                new Blob([csvForCards(t, data, input, zone)], { type: 'text/csv;charset=utf-8' }),
+                csvName(grow?.name ?? spaceRow?.name ?? '', range),
+              )
+            }
           >
             {t('charts.csv')}
           </button>

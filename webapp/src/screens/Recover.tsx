@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useRedeemReset, useRequestReset } from '@/api/account';
-import { ApiError } from '@/api/problem';
+import { ApiError, refusalCode } from '@/api/problem';
 import { refusalText } from '@/ui/refusal';
 import ui from '@/ui/ui.module.css';
 import { BackToSignIn, Door, Problem } from './Door';
@@ -141,7 +141,7 @@ function NewPassword({ token }: { token: string }) {
     } catch (error) {
       // A link used once, or older than its hour, is the one refusal a retry
       // cannot fix: it is said as that, with the way to a new one.
-      if (error instanceof ApiError && error.problem.code === 'reset_unknown') setSpent(true);
+      if (refusalCode(error) === 'reset_unknown') setSpent(true);
       else setProblem(error instanceof ApiError ? (Object.values(error.fieldErrors)[0] ?? refusalText(error)) : refusalText(error));
     }
   };

@@ -19,9 +19,6 @@ import { api } from './client';
 /** More than a beginner's inbox holds in a season, and the page the cursor is followed from. */
 const ALERTS_LIMIT = 100;
 
-/** The largest number the bell draws. Beyond it the badge says so rather than counting a page that is not the whole of it. */
-export const MANY_OPEN = 99;
-
 export const alertsKey = (open: boolean) => ['alerts', open ? 'open' : 'closed'];
 
 const useAlerts = (open: boolean) =>
@@ -55,18 +52,4 @@ export const useOpenAlertCount = (): OpenAlerts | undefined => {
   if (!open.data) return undefined;
 
   return { open: open.data.pages.reduce((count, page) => count + page.items.length, 0), more: open.hasNextPage };
-};
-
-/**
- * What the bell draws and what it says it is, or nothing at all while no alert
- * is open, so a quiet account reads as quiet rather than as a zero. A count
- * taken from one page would understate an account with more than fits on it,
- * so that one says "99+" and means it.
- */
-export const bellOf = (alerts: OpenAlerts | undefined): { text: string; key: string; count: number } | null => {
-  if (!alerts || alerts.open === 0) return null;
-
-  return alerts.more
-    ? { text: `${MANY_OPEN}+`, key: 'alerts.bellMore', count: MANY_OPEN }
-    : { text: String(alerts.open), key: 'alerts.bell', count: alerts.open };
 };

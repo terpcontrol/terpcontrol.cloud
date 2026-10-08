@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import type { SharedResolution } from '@fg2/shared-types/v1';
 import { sharedPicture, useSharedLink, useSharedWeeks } from '@/api/public';
-import { ApiError } from '@/api/problem';
+import { noLongerThere } from '@/api/problem';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
@@ -47,7 +47,7 @@ export function SharedRoute() {
   if (!link.data) {
     return (
       <PublicShell>
-        {link.error instanceof ApiError && link.error.status === 404 ? (
+        {noLongerThere(link.error) ? (
           <Nothing titleKey="publicPage.deadLink.title" bodyKey="publicPage.deadLink.body" />
         ) : (
           <LoadFailed retry={() => void link.refetch()} />

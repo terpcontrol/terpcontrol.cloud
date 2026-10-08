@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import type { SessionCreate } from '@fg2/shared-types/v1';
 import { CUSTOM_LINKS_HTML } from '@/api/config';
-import { ApiError } from '@/api/problem';
+import { ApiError, refusalCode } from '@/api/problem';
 import { session, useSession } from '@/api/session';
 import ui from '@/ui/ui.module.css';
 import { Door, Problem } from './Door';
@@ -65,7 +65,7 @@ export function SignIn() {
         for (const [field, detail] of Object.entries(error.fieldErrors)) form.setError(field as keyof SessionCreate, { message: detail });
       }
       setProblem(refusalOf(error, t, credentials.email));
-      setInactive(error instanceof ApiError && error.problem.code === 'account_not_activated');
+      setInactive(refusalCode(error) === 'account_not_activated');
     }
   });
 

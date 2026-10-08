@@ -9,7 +9,7 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, Media, PasswordChange, Session } from '@fg2/shared-types/v1';
-import { fileSize } from '@/api/exports';
+import { fileSize } from '@/ui/figures';
 import { Account } from '@/screens/me/account/Account';
 import { deviceLabel, sortedSessions } from '@/screens/me/account/sessions';
 
