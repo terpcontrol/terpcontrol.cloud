@@ -51,10 +51,11 @@ export declare const silenceOf: (severity: Severity, muted: boolean, quiet: bool
  * it: it is minutes from the person's own midnight, which each end reads on the
  * account's clock, so the same setting means the same night wherever it is
  * read. A window that crosses midnight has its start after its end, which is
- * what the two branches are.
+ * what the two branches are. No window - none set, or an account stored before
+ * the field was - is never quiet.
  */
 export declare const inQuietWindow: (quiet: {
     fromMinute: number;
     toMinute: number;
-} | null, minute: number) => boolean;
+} | null | undefined, minute: number) => boolean;
 export {};

@@ -154,6 +154,13 @@ describe('what keeps a person undisturbed', () => {
     expect(await notifications.tell(OWNER, alarm('critical'))).toEqual(['email']);
   });
 
+  it('tells an account that has no quiet hours stored at all', async () => {
+    await account(OWNER, routed(['email']));
+    await db.users.updateOne({ id: OWNER }, { $unset: { 'notifications.quietHours': 1 } });
+
+    expect(await notifications.tell(OWNER, alarm('warning'))).toEqual(['email']);
+  });
+
   it('reads a window in the person´s own time zone, not the server´s', () => {
     const at = new Date('2026-09-19T23:30:00.000Z');
 

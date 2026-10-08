@@ -269,7 +269,7 @@ export const heldBackBy = (me: Me | undefined, severity: Severity, now: DateTime
   if (!me) return null;
   const zone = zoneOf(me);
   const local = zone ? now.setZone(zone) : now;
-  const quiet = inQuietWindow(me.notifications.quietHours ?? null, local.hour * 60 + local.minute);
+  const quiet = inQuietWindow(me.notifications.quietHours, local.hour * 60 + local.minute);
 
   return silenceOf(severity, isAhead(me.notifications.mutedUntil ?? null, now), quiet);
 };
