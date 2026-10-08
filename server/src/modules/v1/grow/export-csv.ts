@@ -87,7 +87,8 @@ export const diaryRows = (entries: readonly EntryDocument[], grow: GrowDocument 
     entry.source,
     entry.authorId ? (people.get(entry.authorId) ?? entry.authorId) : null,
     entry.text,
-    entry.message ? [entry.message.key, ...entry.message.params].join(' ') : null,
+    // An empty parameter only keeps the place of one the line leaves out, such as a settings line's mode.
+    entry.message ? [entry.message.key, ...entry.message.params.filter(param => param !== '')].join(' ') : null,
     entry.plantIds.map(id => plants.get(id) ?? id).join(' | '),
     entry.growId,
     entry.spaceId,

@@ -448,6 +448,29 @@ describe('what is in the zip', () => {
     expect(diary).not.toContain('entry-in-the-tent');
   });
 
+  /** A settings line keeps an empty place for the mode a device holds none of; the sheet left a double space there. */
+  it('writes a device´s line as its key and parameters, without the empty ones', async () => {
+    await db.entries.create({
+      id: 'entry-settings',
+      kind: 'system',
+      occurredAt: new Date('2026-06-09T12:00:00.000Z'),
+      source: 'device',
+      authorId: OWNER,
+      growId: GROW,
+      deviceId: CONTROLLER,
+      severity: 'info',
+      message: { key: 'message-device-configuration-updated', params: ['day.temperature: 24 → 25', '', 'controller'] },
+      values: { kind: 'system' },
+      mediaIds: [],
+    });
+
+    const asked = await exports.ask(OWNER, 'grow', GROW, NOW);
+    await exports.drain();
+
+    const diary = (await archiveOf(asked.media.id)).get('diary.csv')!.toString('utf8');
+    expect(diary).toContain(',message-device-configuration-updated day.temperature: 24 → 25 controller,');
+  });
+
   it('leaves out a picture whose bytes are gone, and says which', async () => {
     const picture = (await db.media.findOne({ kind: 'photo' }).lean())!;
     await store.delete([picture.id]);
