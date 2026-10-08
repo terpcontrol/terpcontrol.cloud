@@ -28,7 +28,7 @@ const registration = async (): Promise<ServiceWorkerRegistration | null> => {
   return Promise.race([navigator.serviceWorker.ready, none]);
 };
 
-export const currentSubscription = async (): Promise<PushSubscription | null> => {
+const currentSubscription = async (): Promise<PushSubscription | null> => {
   const worker = await registration();
   return worker ? worker.pushManager.getSubscription() : null;
 };
@@ -39,7 +39,7 @@ export const pushKey = ['push-subscription'];
 export const usePushSubscription = () => useQuery({ queryKey: pushKey, queryFn: currentSubscription, staleTime: Infinity });
 
 /** The VAPID key travels as base64url and the push manager wants the bytes. */
-export const applicationServerKey = (base64url: string): Uint8Array => {
+const applicationServerKey = (base64url: string): Uint8Array => {
   const padded = base64url.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (base64url.length % 4)) % 4);
   const raw = atob(padded);
   return Uint8Array.from(raw, character => character.charCodeAt(0));

@@ -39,7 +39,7 @@ import type { WeekClimate } from '@fg2/shared-types/v1';
  * reading them. Nothing having answered yet leaves the browser to it, which is
  * the best guess available before the catalogue has loaded.
  */
-export const readerLanguage = (): string | undefined => i18next.language || undefined;
+const readerLanguage = (): string | undefined => i18next.language || undefined;
 
 /**
  * A number as this reader writes it, to a fixed number of decimals.

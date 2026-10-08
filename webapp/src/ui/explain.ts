@@ -120,14 +120,14 @@ export type AdvancedHelpTopic = `advanced.${string}`;
 
 export type HelpTopic = (typeof HELP_TOPICS)[number] | AdvancedHelpTopic;
 
-export interface Box {
+interface Box {
   top: number;
   bottom: number;
   left: number;
   right: number;
 }
 
-export interface Placement {
+interface Placement {
   top: number;
   left: number;
   side: 'above' | 'below';

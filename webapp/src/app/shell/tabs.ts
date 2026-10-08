@@ -4,7 +4,7 @@ import { FROM_PLACE, openedFrom } from '@/app/places';
 import { useMayLogIn } from '@/ui/session-access';
 import { useShape, type Shape } from './shape';
 
-export interface Tab {
+interface Tab {
   path: string;
   labelKey: string;
   Icon: LucideIcon;

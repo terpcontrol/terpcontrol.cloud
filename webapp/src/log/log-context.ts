@@ -66,7 +66,7 @@ export interface CompleteOptions {
   undoable?: boolean;
 }
 
-export interface LogState {
+interface LogState {
   openSheet: (opening?: LogOpening) => void;
   openDetails: (kind: TileKind, target: LogTarget, entry?: Entry | null) => void;
   /** Write a line now: the sheet closes, the toast appears, and the request is somebody else's problem. */

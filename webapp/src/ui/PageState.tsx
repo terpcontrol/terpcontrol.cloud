@@ -51,7 +51,7 @@ export function LoadFailed({ retry }: { retry: () => void }) {
 }
 
 /** The four things a page can be about that somebody can stop being able to reach. */
-export type Subject = 'space' | 'grow' | 'camera' | 'device';
+type Subject = 'space' | 'grow' | 'camera' | 'device';
 
 /**
  * A page whose subject the server says is not there for this account.

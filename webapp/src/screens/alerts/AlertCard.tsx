@@ -25,7 +25,7 @@ import { deviceName } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
 
 /** How long a silence from the card holds. */
-export const SILENCE_SECONDS = 3600;
+const SILENCE_SECONDS = 3600;
 
 /** The maintenance the card offers is a step-in, and the question and the receipt name all three of its spans. */
 const SPANS = maintenanceSpans(VISIT_MINUTES);

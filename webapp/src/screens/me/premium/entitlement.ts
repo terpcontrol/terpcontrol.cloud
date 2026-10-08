@@ -14,7 +14,7 @@ import type { Camera } from '@fg2/shared-types/v1';
  */
 
 /** Whole days until the entitlement ends; negative once it has; null where there is no date at all. */
-export const daysLeft = (validUntil: string | null, now: DateTime): number | null =>
+const daysLeft = (validUntil: string | null, now: DateTime): number | null =>
   validUntil === null ? null : Math.floor(DateTime.fromISO(validUntil).diff(now, 'days').days);
 
 /**

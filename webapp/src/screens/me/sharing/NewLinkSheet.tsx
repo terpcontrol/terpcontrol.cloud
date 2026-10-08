@@ -34,7 +34,7 @@ import styles from './sharing.module.css';
 const LIFETIMES: (number | null)[] = [7, 30, 90, null];
 
 /** A window the link may be held to: the one the charts were showing, and how they named it. */
-export interface ShareWindow {
+interface ShareWindow {
   startsAt: string;
   endsAt: string;
   label: string;

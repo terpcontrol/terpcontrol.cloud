@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
  * browser, so a scan asks `canScan()` first and says so where it is missing
  * rather than showing a button that does nothing.
  */
-export interface BarcodeDetectorLike {
+interface BarcodeDetectorLike {
   detect(source: HTMLVideoElement): Promise<{ rawValue: string }[]>;
 }
 

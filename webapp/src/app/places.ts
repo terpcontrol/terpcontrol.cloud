@@ -68,7 +68,7 @@ const KEY = 'terp.place';
 
 const lastPlace = (): string | null => readStored(KEY);
 
-export const rememberPlace = (spaceId: string) => writeStored(KEY, spaceId);
+const rememberPlace = (spaceId: string) => writeStored(KEY, spaceId);
 
 /** Looking at a place makes it the one the tabs open on next. */
 export const useRememberPlace = (spaceId: string) => {

@@ -76,7 +76,7 @@ export const putAway = (me: Me, now: DateTime): boolean => isAhead(me.preference
  * a diary. Somebody who keeps a diary without a device has no critical alarm
  * that could ever reach them, and was offered only that.
  */
-export interface Callers {
+interface Callers {
   steering: boolean;
   cameras: boolean;
   diary: boolean;

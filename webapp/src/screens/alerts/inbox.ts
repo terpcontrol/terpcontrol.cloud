@@ -14,7 +14,7 @@ import { nowThere, zoned } from '@/ui/zone';
 
 export type GroupHeading = { kind: 'now' } | { kind: 'earlierToday' } | { kind: 'yesterday' } | { kind: 'day'; day: DateTime };
 
-export interface AlertGroup {
+interface AlertGroup {
   key: string;
   heading: GroupHeading;
   alerts: Alert[];
@@ -110,7 +110,7 @@ export const lastedLabel = (alert: Alert, now: DateTime): string =>
   ageLabel(beganAt(alert), alert.resolvedAt ? DateTime.fromISO(alert.resolvedAt) : now);
 
 /** What the card says will happen about this alert, as the key it is said in. */
-export type Delivery = 'notAnnounced' | 'unheard' | 'once' | 'repeats';
+type Delivery = 'notAnnounced' | 'unheard' | 'once' | 'repeats';
 
 /**
  * Whether anybody was told, and how often they will be told again.

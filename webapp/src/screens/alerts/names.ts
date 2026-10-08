@@ -41,7 +41,7 @@ export interface AlertNames {
   failed: boolean;
 }
 
-export interface InboxNames {
+interface InboxNames {
   names: AlertNames;
   /** Whether anything at all can raise an alert here: alarm rules live on a device, and stale pictures on a cam. */
   watching: boolean;

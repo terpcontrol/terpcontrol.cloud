@@ -20,7 +20,7 @@ import { clock, DAY, nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
 export type Scope = 'mine' | 'all';
 
 /** The three groups of what is waiting. What was ticked off is a fourth list with its own read. */
-export type Group = 'today' | 'tomorrow' | 'week';
+type Group = 'today' | 'tomorrow' | 'week';
 
 export const GROUPS: Group[] = ['today', 'tomorrow', 'week'];
 

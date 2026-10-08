@@ -6,7 +6,7 @@ import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 
 /** What the bell carries, and whether it is alarms (red) or only work that is due (the brand's blue). */
-export interface Bell {
+interface Bell {
   text: string;
   key: string;
   count: number;

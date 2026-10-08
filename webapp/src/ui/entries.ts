@@ -175,7 +175,7 @@ export const weekDayOf = (week: Pick<GrowWeekCard, 'dayFrom' | 'dayTo' | 'starts
   Math.min(week.dayTo, week.dayFrom - 1 + growDayAt(new Date(week.startsAt), occurredAt));
 
 /** A line and how many identical machine lines just before it were folded into it. */
-export interface FoldedEntry {
+interface FoldedEntry {
   entry: Entry;
   /** How many lines this one stands for, itself included. */
   count: number;

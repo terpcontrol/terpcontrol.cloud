@@ -133,7 +133,7 @@ export const privacyLine = (t: TFunction, me: Me): string => {
 };
 
 /** "°C, g, l": the three unit choices as their symbols, in the order the page asks them. */
-export const unitsLabel = (t: TFunction, units: UnitPreference): string =>
+const unitsLabel = (t: TFunction, units: UnitPreference): string =>
   [units.temperature, units.weight, units.volume].map(unit => t(`me.appearance.unit.${unit}`)).join(', ');
 
 /** The theme, the units where an account states them, and the language; the demo has no units to state. */

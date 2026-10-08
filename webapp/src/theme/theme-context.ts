@@ -5,7 +5,7 @@ export type ThemeChoice = 'system' | 'light' | 'dark';
 
 export const THEME_STORAGE_KEY = 'terp.theme';
 
-export interface ThemeState {
+interface ThemeState {
   choice: ThemeChoice;
   setChoice: (choice: ThemeChoice) => void;
 }

@@ -33,7 +33,7 @@ const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
 const SHARED_RANGES: TimelineRange[] = ['24h', '7d', '30d'];
 
 /** Somebody reading through a link: its token, and where its pictures come from. */
-export interface SharedReader {
+interface SharedReader {
   token: string;
   picture: Picture;
 }

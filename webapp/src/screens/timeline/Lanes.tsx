@@ -43,7 +43,7 @@ interface LanesProps {
 }
 
 /** The way a line is put right - `useCorrecting` in the app, which a reader through a link has no use for. */
-export type Correcting = (entry: Entry, on: { label: string; spaceId: string }) => (() => void) | undefined;
+type Correcting = (entry: Entry, on: { label: string; spaceId: string }) => (() => void) | undefined;
 
 const NOT_CORRECTED: Correcting = () => undefined;
 
