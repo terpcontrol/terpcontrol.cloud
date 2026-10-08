@@ -1,7 +1,7 @@
 ---
 summary: Changing how a fridge or tent controller regulates, or explaining it in the app - day and night by UTC, the work modes, ramps, CO2 dosing, heat dimming of the lamp, the dehumidifier and cooling rules, and the quirks left as they are
 updated: 2026-10-08
-source: agent sessions 2026-10-01..04 that read fridge.cpp and controller.cpp for the app's help texts; Chris (2026-08-20, heater); checked against the code on 2026-10-08
+source: agent sessions 2026-10-01..04 that read fridge.cpp and controller.cpp for the app's help texts; Chris (2026-08-20, heater); checked against the code on 2026-10-08; Chris (second light, CO2 at night, 2026-09-28)
 paths:
   - firmware/src_hwtype/fridge/**
   - firmware/src_hwtype/controller/**
@@ -49,10 +49,11 @@ rest of at least 240 s.
 
 - `lights.sunrise` and `lights.sunset` are ramps in minutes inside the window (15 by default). A fridge glides its
   temperature and humidity targets through them when `daynight.linearChange > 0`; a controller switches at once.
-- CO2 is dosed only by day, while the mean of 20 readings is below `co2.target` and the device is not in
+- CO2 is dosed by day - and with `co2.night` at night too, for roots in deep water culture, which breathe round the
+  clock (Chris, 2026-09-28) - while the mean of 20 readings is below `co2.target` and the device is not in
   maintenance, and stops above target + 300 ppm. Controller (only with its SCD sensor): the valve socket opens 2 s
   every 120 s. Fridge: a 0.2 s pulse every 120 s that doubles while CO2 stays low and halves once it is reached; with
-  `co2.sunsetOff` no dosing during the evening ramp. The reported `co2` output is valve-open time in ticks, not
+  `co2.sunsetOff` no dosing during the evening ramp (a rule by day only: with `co2.night` dosing resumes at night). The reported `co2` output is valve-open time in ticks, not
   openings.
 
 ## Lamp
@@ -61,6 +62,11 @@ rest of at least 240 s.
   15 %, and is off above + 7 °C. The output follows its target by 1 % of the gap per second.
 - In maintenance the lamp is capped at 15 % by day; `lights.maintenanceOn` (read by the fridge only) holds it at 15 %
   whatever the time.
+- A second light on a `secondary_light` socket (typically an under-canopy bar) is not a copy of the lamp (Chris,
+  2026-09-28): it comes on in the middle of the sunrise ramp and goes off in the middle of the sunset ramp - a hard
+  switch cannot follow a dimmed ramp, and following the lamp to the end kept it on through the whole sunset - and it
+  stays off in maintenance, whatever the lamp does, so it does not dazzle whoever works under it. A light override
+  holds it like the lamp. Controller: `state.light_ramp`; fridge: `sunrise_factor` / `sunset_factor`, each ≥ 0.5.
 
 ## Dehumidifier and cooling
 
