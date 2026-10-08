@@ -1,5 +1,5 @@
 import i18next from 'i18next';
-import { DateTime, Duration } from 'luxon';
+import { DateTime } from 'luxon';
 import type { MetricValue, ValueState } from '@fg2/shared-types/v1';
 import { valueStateOfAge } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { serverNow } from '@/api/clock';
@@ -44,15 +44,8 @@ export const unitSymbol = (unit: DurationUnit): string => (i18next.exists(`units
 export const durationFigure = (figure: number | string, unit: DurationUnit): string => `${figure} ${unitSymbol(unit)}`;
 
 /** "20 s", "4 min", "2 h", "3 d" - short, so it fits beside the figure it belongs to. */
-export const ageLabel = (measuredAt: string | null, now: DateTime = serverNow()): string => {
-  if (!measuredAt) return '—';
-  const elapsed = Duration.fromMillis(Math.max(0, now.toMillis() - DateTime.fromISO(measuredAt).toMillis()));
-  const seconds = Math.floor(elapsed.as('seconds'));
-  if (seconds < 60) return durationFigure(seconds, 's');
-  if (seconds < 3600) return durationFigure(Math.floor(seconds / 60), 'min');
-  if (seconds < 86_400) return durationFigure(Math.floor(seconds / 3600), 'h');
-  return durationFigure(Math.floor(seconds / 86_400), 'd');
-};
+export const ageLabel = (measuredAt: string | null, now: DateTime = serverNow()): string =>
+  measuredAt ? spanLabel((now.toMillis() - DateTime.fromISO(measuredAt).toMillis()) / 1000) : '—';
 
 /**
  * The same words for a span somebody hands us in seconds rather than as an
