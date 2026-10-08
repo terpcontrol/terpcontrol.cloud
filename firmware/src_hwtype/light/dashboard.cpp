@@ -15,15 +15,29 @@ namespace fg {
     UserInterface::display.setTextColor(SSD1306_WHITE); // Draw white text
     UserInterface::display.setTextSize(1);
 
+    // Until the sensor has given a reading both are NAN, drawn as dashes
+    // rather than as "nan".
     std::stringstream value_print;
     UserInterface::display.drawBitmap(1, 1, ICON_TEMPERATURE, 16, 16, SSD1306_WHITE);
-    value_print << std::fixed << std::setprecision(1) << *temperature << "C";
+    if(isnan(*temperature)) {
+      value_print << "--";
+    }
+    else {
+      value_print << std::fixed << std::setprecision(1) << *temperature;
+    }
+    value_print << "C";
     UserInterface::display.setCursor(18, 4);
     UserInterface::display.write(value_print.str().c_str());
 
     value_print.str(std::string());
     UserInterface::display.drawBitmap(60, 1, ICON_HUMIDITY, 16, 16, SSD1306_WHITE);
-    value_print << std::fixed << std::setprecision(1) << *humidity << "%";
+    if(isnan(*humidity)) {
+      value_print << "--";
+    }
+    else {
+      value_print << std::fixed << std::setprecision(1) << *humidity;
+    }
+    value_print << "%";
     UserInterface::display.setCursor(78, 4);
     UserInterface::display.write(value_print.str().c_str());
 

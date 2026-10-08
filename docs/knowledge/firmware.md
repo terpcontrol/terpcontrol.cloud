@@ -179,14 +179,36 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   after 10 consecutive sensor failures (a failed read, an SCD tick without data, a failed re-init without a sensor).
 - The fridge takes the SCD4x readings once its SHT has failed 10 reads; its failsafe (heater, compressor, CO2, light)
   trips when the SCD4x fails 10 times.
+- The light's overheat protection (`max_temperature`, menu `Overheat Protection`) dims the lamp from full at that
+  temperature to dark 1 °C above it, on the light's own SHT. Until the SHT has given a reading since boot, the light
+  reports no temperature or humidity and does not dim. Before 2026-10-08 a placeholder of 20 °C and 20 % stood in
+  for both, which the cloud stored as readings and the protection acted on - never dimming under the default 25 °C,
+  dimming or darkening the lamp under a setting below 20.
+- The light's failsafe, like the controller's (Chris, 2026-10-08): after 10 passes in a row without a reading the
+  lamp is dark until a read succeeds, and then its schedule, ramps and `limit` take over again, from the level the
+  lamp had before. While it holds, the light reports no temperature or humidity rather than the last reading, and
+  it writes `message-ext-sensor-fail` (severity 1, the fridge's line for a failed SHT) when it trips, at most once
+  per 15 min, so the diary says why the lamp went dark. Fewer failures hold the last good reading, as on every
+  type. So a light without a working sensor stays dark, after following its schedule unprotected for the ten
+  passes the failsafe takes to trip. Direct control (`mqttcontrol`) overrides it, as on the fridge. Before, a
+  sensor that died left the protection dimming by its last reading for good.
+- The AIR fan's temperature, humidity and combined modes steer its speed between `min_speed` and the half's
+  `max_speed` by its own SHT. Until the SHT has given a reading since boot, the fan reports no temperature or
+  humidity and a regulating mode runs at the half's `fixed_speed`, as the fixed mode does (Chris, 2026-10-08); a
+  plug's CO2 dosing still slows it. Before that a placeholder of 20 °C and 20 % stood in for both, which the cloud
+  stored as readings and the regulation acted on: a fan without a sensor ran as if the air were 20 °C and 20 %,
+  at `min_speed` under the default targets. A read that fails later holds the last good reading; the fan counts
+  no failures and has no failsafe.
 - A socket keeps the last target reported to it (`wifiReportSmartSocketOutputs()`) and has it re-sent every minute,
-  so every branch that zeroes outputs has to report too. Both failsafes report every target off, `running` included,
-  as the OFF mode does; cloud overrides and the timer roles still apply. Until #145 they reported nothing, and a
-  heater socket that was on when the sensor failed kept heating.
+  so every branch that zeroes outputs has to report too. The controller's and the fridge's failsafes report every
+  target off, `running` included, as the OFF mode does; cloud overrides and the timer roles still apply. Until #145
+  they reported nothing, and a heater socket that was on when the sensor failed kept heating.
 - **Known gaps (code reading, 2026-10-08):** a fridge reports no socket targets in test mode or under direct MQTT
   control. The controller counts its first passes after boot as valid before any reading has arrived
   (`sensor_fails` < 10, `state` still 0 °C / 0 %): a controller booted with a dead sensor switches the heater and
-  humidifier sockets on until the failsafe turns them off again, after about the 30 s socket send interval.
+  humidifier sockets on until the failsafe turns them off again, after about the 30 s socket send interval. The
+  controller's failsafe writes no diary line (`sensor_fail_logged` in `controller.h` is never used) and keeps
+  sending its last temperature and humidity; only `sensor_type` 0 tells the cloud.
 
 ## OTA and update channels
 

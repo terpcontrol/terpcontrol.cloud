@@ -35,14 +35,29 @@ namespace fg {
     static constexpr float LIGHT_TEMP_HYST = 1.0f;
     static constexpr float LIGHT_CONTROL_SPEED = 0.01f;
 
+    // Passes in a row without a reading before the failsafe darkens the lamp,
+    // as on the controller.
+    static constexpr unsigned SENSOR_FAILSAFE_FAILS = 10;
+    // The least time between two diary lines about the failed sensor, so a
+    // loose contact does not write one every few seconds. The tick of the last
+    // line is kept, 0 before the first.
+    static constexpr TickType_t SENSOR_FAIL_LOG_INTERVAL = configTICK_RATE_HZ * 15 * 60;
+    unsigned sensor_fails = 0;
+    TickType_t sensor_fail_logged = 0;
+
     static constexpr TickType_t DIRECTMODE_TIMEOUT = configTICK_RATE_HZ * 60;
     TickType_t directmode_timer = 0;
     struct {
       bool is_day;
       uint32_t timeofday;
 
-      float temperature = 20;
-      float humidity = 20;
+      // NAN until the sensor has given its first reading, and again once the
+      // failsafe holds the lamp dark: the light then reports no temperature or
+      // humidity, and its overheat protection does not act, instead of both
+      // taking a made-up or stale figure for the air. A read that fails before
+      // the failsafe keeps the last good one.
+      float temperature = NAN;
+      float humidity = NAN;
 
       float out_light = 0.0;
     } state;
