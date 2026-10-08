@@ -10,7 +10,7 @@ import ui from '@/ui/ui.module.css';
 import { deviceTitle } from '@/ui/naming';
 import { useDevicesElsewhere } from './devices-elsewhere';
 import { EmptyPlace } from './EmptyPlace';
-import styles from './PresetSheet.module.css';
+import styles from './MoveHereSheet.module.css';
 
 /**
  * A device brought into this place from wherever it stands, asked from the
@@ -34,7 +34,7 @@ export function DeviceHereSheet({ spaceId, spaceName, onClose }: { spaceId: stri
 
   return (
     <Sheet title={t('space.deviceHere.title', { name: spaceName })} onClose={onClose}>
-      <div className={styles.body}>
+      <div className={ui.sheetBody}>
         {moved ? (
           <>
             <p className={ui.note} role="status">
