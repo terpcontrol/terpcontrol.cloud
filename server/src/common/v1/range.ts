@@ -147,7 +147,8 @@ export const storyEndsAt = (range: AccessRange, now: Date): Date => (range.endsA
 
 /**
  * Whether a key handed out with an end - a share link, an invite - still opens
- * anything: neither revoked nor past its day.
+ * anything: neither revoked nor past its day. Whether what it opens still
+ * stands - an invite's space, a link's grow - is asked separately.
  */
 export const stillValid = (key: { revokedAt: Date | null; expiresAt: Date | null }, now: Date = new Date()): boolean =>
   key.revokedAt === null && (key.expiresAt === null || key.expiresAt.getTime() > now.getTime());

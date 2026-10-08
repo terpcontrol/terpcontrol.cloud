@@ -185,6 +185,7 @@ describe('writing the diary', () => {
   });
 
   it('takes a picture in whatever the phone took it as, and stores one JPEG of it', async () => {
+    // A PNG, so the JPEG that comes back proves the conversion rather than the passthrough.
     const picture = (
       await owner.client.post('/v1/media').field('kind', 'photo').field('growId', growId).attach('file', A_PICTURE, 'leaf.png').expect(201)
     ).body;

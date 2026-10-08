@@ -126,11 +126,7 @@ const kindReads: Record<StoredAlert['kind'], string> = {
 const watched = (alert: StoredAlert, rule: StoredAlarmRule | null): string =>
   rule ? `Watching ${watchedName(rule.watch)} on device ${alert.deviceId}.` : `Device ${alert.deviceId ?? alert.cameraId}.`;
 
-/**
- * The reading, and the worst of it once the episode is over. A rule with no
- * band - an output watched for running at all, and the health metrics - has no
- * threshold to state, exactly as the alarm on a fridge compressor never had.
- */
+/** The reading, and the worst of it once the episode is over, with the thresholds `statedBand` says the rule has. */
 const value = (alert: StoredAlert, rule: StoredAlarmRule | null, over: boolean): string => {
   const bounds = statedBand(rule);
   const thresholds = bounds

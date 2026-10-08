@@ -379,7 +379,7 @@ export class GrowsService {
   public async updatePlant(id: string, body: PlantUpdate, hide: Redaction): Promise<Plant> {
     const changes: Record<string, unknown> = {};
     for (const [field, value] of Object.entries(body)) {
-      if (value !== undefined) changes[field] = field === 'harvest' ? harvestOf(body.harvest) : value;
+      if (value !== undefined) changes[field] = field === 'harvest' ? storedHarvestOf(body.harvest) : value;
     }
 
     const changed = await this.plants.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<PlantDocument>();
@@ -908,7 +908,7 @@ const requireDistinctKeys = (definitions: MeasurementDefinition[]): void => {
   ]);
 };
 
-const harvestOf = (harvest: PlantUpdate['harvest']): PlantDocument['harvest'] =>
+const storedHarvestOf = (harvest: PlantUpdate['harvest']): PlantDocument['harvest'] =>
   harvest ? { ...harvest, harvestedAt: new Date(harvest.harvestedAt) } : null;
 
 /** Where the plants a request is about stand: the open placement that still covers them. */

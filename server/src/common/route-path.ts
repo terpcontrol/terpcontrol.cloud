@@ -1,5 +1,5 @@
 /** Everything under it answers RFC 7807; everything beside it is the Angular app's API. */
-export const V1_PREFIX = '/v1';
+const V1_PREFIX = '/v1';
 
 /**
  * A request's path compared the way the router matches it, which ignores case:

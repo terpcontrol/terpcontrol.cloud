@@ -9,12 +9,6 @@ import { context, Session } from './api';
  * operator's shell do - a webcam still at a chosen age, a device in the public
  * demo. The assertions still go through HTTP; this only puts the state there.
  */
-/** A 2x2 PNG, small enough to be stored a dozen times without mattering. */
-export const A_PICTURE = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR42mP4z8DAAMIM/4EAAB/uBfvxq7p3AAAAAElFTkSuQmCC',
-  'base64',
-);
-
 const withDatabase = async <T>(use: (database: mongo.Db) => Promise<T>): Promise<T> => {
   const client = new mongo.MongoClient(context.mongoUri);
   try {
@@ -24,6 +18,12 @@ const withDatabase = async <T>(use: (database: mongo.Db) => Promise<T>): Promise
     await client.close();
   }
 };
+
+/** A 2x2 PNG, small enough to be stored a dozen times without mattering. */
+export const A_PICTURE = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR42mP4z8DAAMIM/4EAAB/uBfvxq7p3AAAAAElFTkSuQmCC',
+  'base64',
+);
 
 /**
  * Puts a device into the public demo. There is no API for it - an operator sets

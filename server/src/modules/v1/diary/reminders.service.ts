@@ -29,7 +29,7 @@ import { VisibleSubjectsService } from './visible-subjects.service';
  * card, which is the same kind of decision as a tent's configuration.
  */
 
-/** What a list of reminders narrows by: the grow or the space they are about. */
+/** A page of reminders, narrowed to the grow or the space they are about where one is named. */
 type ReminderQuery = PageQuery & { growId?: string; spaceId?: string };
 
 @Injectable()
