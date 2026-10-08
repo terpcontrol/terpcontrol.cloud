@@ -66,7 +66,7 @@ export const devicesPath = (spaceId: string | null = null): string => (spaceId ?
  */
 const KEY = 'terp.place';
 
-export const lastPlace = (): string | null => readStored(KEY);
+const lastPlace = (): string | null => readStored(KEY);
 
 export const rememberPlace = (spaceId: string) => writeStored(KEY, spaceId);
 

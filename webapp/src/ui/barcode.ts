@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 /**
  * The platform's own QR reader, where there is one. It is not in every
- * browser, so a screen asks `canScan()` first and says so where it is missing
+ * browser, so a scan asks `canScan()` first and says so where it is missing
  * rather than showing a button that does nothing.
  */
 export interface BarcodeDetectorLike {
@@ -16,7 +16,7 @@ declare global {
   }
 }
 
-export const canScan = (): boolean => typeof window !== 'undefined' && !!window.BarcodeDetector && !!navigator.mediaDevices?.getUserMedia;
+const canScan = (): boolean => typeof window !== 'undefined' && !!window.BarcodeDetector && !!navigator.mediaDevices?.getUserMedia;
 
 /**
  * The scan offered beside a code field: `scan` opens the reader, or says why
