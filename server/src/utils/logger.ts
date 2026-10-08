@@ -3,6 +3,7 @@ import winston from 'winston';
 import winstonDaily from 'winston-daily-rotate-file';
 import { config } from 'dotenv';
 import { ENV_FILE } from '@config/configuration';
+import { errorText } from './error-text';
 
 // The logger is built as this file is imported, which is before Nest has read
 // the environment, so it loads ENV_FILE itself for the one setting it needs.
@@ -17,9 +18,6 @@ const logDir: string = process.env.LOG_DIR || 'logs';
 if (!existsSync(logDir)) {
   mkdirSync(logDir, { recursive: true });
 }
-
-/** What a failure says about itself: its stack where it has one. */
-export const errorText = (error: unknown): string => (error instanceof Error ? (error.stack ?? error.message) : String(error));
 
 // Anything passed after the message. `logger.info('failed:', error)` used to
 // write "failed:" and drop the reason on the floor, which is worth rendering

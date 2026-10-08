@@ -21,7 +21,6 @@ const level = (name: string) =>
  */
 jest.unstable_mockModule('@utils/logger', () => ({
   logger: Object.fromEntries(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'].map(name => [name, level(name)])),
-  errorText: (error: unknown) => (error instanceof Error ? (error.stack ?? error.message) : String(error)),
 }));
 
 (globalThis as Record<string, unknown>).__serverLog = {

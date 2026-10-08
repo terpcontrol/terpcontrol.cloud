@@ -1,4 +1,5 @@
-import { errorText, logger } from '@utils/logger';
+import { errorText } from '@utils/error-text';
+import { logger } from '@utils/logger';
 
 /**
  * For work started where there is no caller to return a failure to - inside a
