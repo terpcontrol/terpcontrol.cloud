@@ -19,7 +19,7 @@ import { api } from './client';
 /** More than a beginner's inbox holds in a season, and the page the cursor is followed from. */
 const ALERTS_LIMIT = 100;
 
-export const alertsKey = (open: boolean) => ['alerts', open ? 'open' : 'closed'];
+const alertsKey = (open: boolean) => ['alerts', open ? 'open' : 'closed'];
 
 const useAlerts = (open: boolean) =>
   useReadPages({

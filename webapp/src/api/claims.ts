@@ -37,7 +37,7 @@ export const useClaimDevice = () =>
  * a controller that has just been given Wi-Fi reports within a few seconds, and
  * half a minute of "not heard from yet" reads as a box that does not work.
  */
-export const CLAIM_REFRESH_MS = 10_000;
+const CLAIM_REFRESH_MS = 10_000;
 
 /**
  * The claimed device on its own, so that its firmware, its age and its camera

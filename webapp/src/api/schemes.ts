@@ -25,13 +25,13 @@ import { invalidate, useWrite } from './write';
 const FOLDER = '/assets/schemes';
 
 /** What a grow's `scheme.plantType` may be set to: the medium or plant type the chart is published for. */
-export interface SchemePlantType {
+interface SchemePlantType {
   key: string;
   name: string;
 }
 
 /** The chart a scheme was read from, so a figure can always be taken back to what printed it. */
-export interface SchemeSource {
+interface SchemeSource {
   title: string;
   url: string;
   readAt: string;
@@ -74,9 +74,9 @@ const readAsset = async <T>(file: string, signal?: AbortSignal): Promise<T> => {
   return (await response.json()) as T;
 };
 
-export const schemesKey = ['schemes'];
+const schemesKey = ['schemes'];
 
-export const schemeKey = (id: string | null) => ['schemes', id];
+const schemeKey = (id: string | null) => ['schemes', id];
 
 /**
  * An asset ships with the build and cannot change under a running app, so it is
@@ -162,7 +162,7 @@ export const growSchemeOf = (
  * That is said on the screen as well, where somebody is about to expect
  * otherwise.
  */
-export const ownSchemesKey = ['own-schemes'];
+const ownSchemesKey = ['own-schemes'];
 
 /**
  * One page is every scheme a person has written; no shelf is long enough to

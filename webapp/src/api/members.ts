@@ -18,7 +18,7 @@ import { invalidate, useWrite } from './write';
  * end must not be quietly moved in the cache as though it had not been.
  */
 
-export const membersKey = (spaceId: string) => ['space', spaceId, 'members'];
+const membersKey = (spaceId: string) => ['space', spaceId, 'members'];
 
 export const useMembers = (spaceId: string, enabled = true) =>
   useRead({

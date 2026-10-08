@@ -25,7 +25,7 @@ import { invalidate, useWrite } from './write';
  * old a picture may be is the camera's own `stillIntervalSeconds` and not the
  * two minutes a sensor reading is judged by.
  */
-export const CAMERAS_REFRESH_MS = 30_000;
+const CAMERAS_REFRESH_MS = 30_000;
 
 /**
  * How long a test picture is waited for: the read the server makes of a camera
@@ -97,10 +97,10 @@ export const useCamera = (cameraId: string) =>
  * interval than the pipeline promises - cannot turn one screen into an
  * unbounded run of requests.
  */
-export const MAX_FRAME_PAGES = 15;
+const MAX_FRAME_PAGES = 15;
 
 /** A day of stills, and whether the walk reached the end of it. */
-export interface CameraDay {
+interface CameraDay {
   items: Media[];
   /** The cap stopped the walk with rows still to come, so the count is a floor and not the day's total. */
   partial: boolean;
@@ -165,7 +165,7 @@ export const useCameraFrames = (cameraId: string, span: { startsAt: string; ends
 };
 
 /** A screenful of films, which is also the largest page the composer's own list needs. */
-export const TIMELAPSES_PER_PAGE = 20;
+const TIMELAPSES_PER_PAGE = 20;
 
 /**
  * The films of one camera, newest first and continued by the cursor the route

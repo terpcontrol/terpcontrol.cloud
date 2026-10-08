@@ -14,7 +14,7 @@ import { invalidate, useWrite } from './write';
  * it is the only place that knows so.
  */
 
-export const chartViewsKey = ['chart-views'];
+const chartViewsKey = ['chart-views'];
 
 /** One page is every view this account has, so there is no cursor to follow. */
 export const useChartViews = () =>

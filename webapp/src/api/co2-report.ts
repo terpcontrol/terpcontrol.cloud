@@ -11,7 +11,7 @@ import { useWrite } from './write';
  * keys, so the lines migrated from it and the ones written here are one record.
  */
 
-export const co2ReportKey = (spaceId: string) => ['space', spaceId, 'co2-report'];
+const co2ReportKey = (spaceId: string) => ['space', spaceId, 'co2-report'];
 
 /** Read only when asked for: it sums the valve's openings over every cylinder, which is not a read to make on every visit. */
 export const useCo2Report = (spaceId: string, enabled: boolean) =>
@@ -21,7 +21,7 @@ export const useCo2Report = (spaceId: string, enabled: boolean) =>
     enabled,
   });
 
-export interface Refill {
+interface Refill {
   /** What the new cylinder holds. */
   filledGrams: number;
   /** What was left in the old one, where somebody weighed it; nothing at all is a cylinder that ran empty. */

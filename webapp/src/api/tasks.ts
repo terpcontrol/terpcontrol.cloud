@@ -18,7 +18,7 @@ import { api } from './client';
 /** A week ahead of tasks and two days of ticks fit in one page; there is no cursor to follow. */
 const LIMIT = 100;
 
-export const tasksKey = (done: boolean) => ['tasks', done ? 'done' : 'waiting'];
+const tasksKey = (done: boolean) => ['tasks', done ? 'done' : 'waiting'];
 
 /** What is waiting, the most overdue first - or, with `done`, what was ticked off in the last two days. */
 export const useTasks = (done: boolean, enabled = true) =>

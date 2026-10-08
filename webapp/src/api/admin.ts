@@ -45,15 +45,15 @@ import { invalidate, useWriteSettled } from './write';
  * retention pass runs once a night, so a minute is as fresh as the answer can
  * usefully be.
  */
-export const STATS_REFRESH_MS = 60_000;
+const STATS_REFRESH_MS = 60_000;
 
-export const fleetKey = ['admin', 'fleet'];
-export const adminStatsKey = ['admin', 'stats'];
-export const adminCamerasKey = ['admin', 'cameras'];
-export const adminDevicesKey = ['admin', 'devices'];
-export const adminUsersKey = ['admin', 'users'];
-export const deviceClassesKey = ['admin', 'device-classes'];
-export const firmwaresKey = (classId: string | null) => ['admin', 'firmwares', classId];
+const fleetKey = ['admin', 'fleet'];
+const adminStatsKey = ['admin', 'stats'];
+const adminCamerasKey = ['admin', 'cameras'];
+const adminDevicesKey = ['admin', 'devices'];
+const adminUsersKey = ['admin', 'users'];
+const deviceClassesKey = ['admin', 'device-classes'];
+const firmwaresKey = (classId: string | null) => ['admin', 'firmwares', classId];
 
 /** What the fleet is running, class by class. The totals on the heading are this answer's, not a count of loaded rows. */
 export const useFleet = () =>
@@ -191,7 +191,7 @@ export const useUploadBinary = () =>
 
 const CHUNK = 0x8000;
 
-export const base64Of = (bytes: ArrayBuffer): string => {
+const base64Of = (bytes: ArrayBuffer): string => {
   const view = new Uint8Array(bytes);
   let binary = '';
   for (let at = 0; at < view.length; at += CHUNK) binary += String.fromCharCode(...view.subarray(at, at + CHUNK));

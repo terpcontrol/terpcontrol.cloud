@@ -73,7 +73,7 @@ export const useDevicesById = (deviceIds: readonly string[], enabled = true) =>
     queries: deviceIds.map(deviceId => ({ ...deviceQuery(deviceId), enabled })),
   });
 
-export const socketsKey = (deviceId: string) => ['devices', deviceId, 'sockets'];
+const socketsKey = (deviceId: string) => ['devices', deviceId, 'sockets'];
 
 /**
  * The socket tables of several devices at once. One read per device: a table is

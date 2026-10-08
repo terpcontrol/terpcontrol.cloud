@@ -154,7 +154,7 @@ export const useChangePassword = () => useMutation({ mutationFn: (body: Password
  * a phone, a laptop and a tab or two has a handful, and the one who has a
  * hundred is the one who most wants to see the end of the list.
  */
-export const sessionsKey = ['sessions'];
+const sessionsKey = ['sessions'];
 
 export const useSessions = (enabled = true) =>
   useReadPages({

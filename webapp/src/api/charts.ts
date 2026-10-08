@@ -63,7 +63,7 @@ export interface SeriesWindow {
  * Both ends are written the one way the contract spells an instant, which is
  * UTC to the millisecond, so the two sort in the order they run.
  */
-export const askable = (window: SeriesWindow): boolean => window.range !== 'custom' || (!!window.from && !!window.to && window.from < window.to);
+const askable = (window: SeriesWindow): boolean => window.range !== 'custom' || (!!window.from && !!window.to && window.from < window.to);
 
 export const useGrowSeries = (growId: string | null, window: SeriesWindow) => {
   const client = useQueryClient();
@@ -91,7 +91,7 @@ export const useGrowSeries = (growId: string | null, window: SeriesWindow) => {
 };
 
 /** The window of a place: two instants, and the step where somebody chose one. */
-export interface SpanWindow {
+interface SpanWindow {
   from: string;
   to: string;
   stepSeconds?: number;

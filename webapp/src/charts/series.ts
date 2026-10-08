@@ -17,7 +17,7 @@ import type { ChartPalette, ChartToken } from './tokens';
  */
 
 /** A day of grow is a number and a date is an instant, which are two different axes to ECharts. */
-export type PlotAxis = 'time' | 'day';
+type PlotAxis = 'time' | 'day';
 
 export interface PlotSpan {
   from: number;
@@ -25,7 +25,7 @@ export interface PlotSpan {
 }
 
 /** The green band that was aimed at over one stretch: it moves with the phase and with the light. */
-export interface PlotBand extends PlotSpan {
+interface PlotBand extends PlotSpan {
   low: number;
   high: number;
 }
@@ -164,7 +164,7 @@ export const plotOption = (palette: ChartPalette, plot: Plot): ChartOption => {
 export const nightColour = (palette: ChartPalette, nights: number): string => (nights > 14 ? palette['night-long'] : palette.night);
 
 /** What a line read at the cursor: the last point at or before it, which is what was true there. */
-export const valueAt = (points: readonly [number, number | null][], x: number): number | null => {
+const valueAt = (points: readonly [number, number | null][], x: number): number | null => {
   let found: number | null = null;
   for (const [time, value] of points) {
     if (time > x) break;

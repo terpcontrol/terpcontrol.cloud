@@ -19,7 +19,7 @@ import { invalidate, useWriteSettled } from './write';
 /** Every rule an account could be asked to draw at once: a device has a handful, never a page. */
 const RULES_LIMIT = 100;
 
-export const rulesKey = (deviceId: string) => ['devices', deviceId, 'alarm-rules'];
+const rulesKey = (deviceId: string) => ['devices', deviceId, 'alarm-rules'];
 
 const readRules = (deviceId: string, signal?: AbortSignal) =>
   api.get<AlarmRulePage>(`/devices/${deviceId}/alarm-rules`, { limit: RULES_LIMIT }, signal);

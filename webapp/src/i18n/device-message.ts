@@ -15,7 +15,7 @@ import { configurationChange, configurationTitle, type ChangeContext } from './c
  * came, so a key a newer firmware invents is readable before it is translated.
  */
 
-export type MessagePart = 'title' | 'text';
+type MessagePart = 'title' | 'text';
 
 const ALARM_LINES = new Set(['message-alarm-triggered', 'message-alarm-resolved']);
 
@@ -120,7 +120,7 @@ export const machineLineParts = (entry: EntryWords): { headline: string; detail:
 export const entryHeadline = (i18n: I18n, entry: EntryWords): string =>
   machineLineParts(entry)?.headline ?? ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'title') : (entry.text ?? ''));
 
-export const entryBody = (i18n: I18n, entry: EntryWords, context: ChangeContext = {}): string =>
+const entryBody = (i18n: I18n, entry: EntryWords, context: ChangeContext = {}): string =>
   ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'text', context) : (entry.text ?? ''));
 
 /**

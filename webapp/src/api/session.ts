@@ -14,7 +14,7 @@ import { queryClient } from './query-client';
  * so exactly one refresh is in flight however many requests are waiting.
  */
 
-export interface Tokens {
+interface Tokens {
   userToken: string;
   userTokenUntil: number;
   refreshToken: string;

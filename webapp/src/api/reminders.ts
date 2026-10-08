@@ -12,7 +12,7 @@ import { invalidate, useWrite } from './write';
  * whoever manages the place the rhythm is about.
  */
 
-export const remindersKey = ['reminders'];
+const remindersKey = ['reminders'];
 
 /**
  * Every rhythm this account keeps, read to the end of the list rather than to

@@ -25,9 +25,9 @@ interface Page<T> {
 }
 
 /** At most this many reads for one list, so that a pathological account cannot hold a screen open for ever. */
-export const PAGE_CAP = 10;
+const PAGE_CAP = 10;
 
-export interface EveryPage<T> {
+interface EveryPage<T> {
   items: T[];
   /** True when the cursor ran out rather than the cap: only then does "not among these" mean "not there". */
   complete: boolean;
