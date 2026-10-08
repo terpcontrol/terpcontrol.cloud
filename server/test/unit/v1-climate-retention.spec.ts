@@ -1,8 +1,8 @@
 import { jest } from '@jest/globals';
-import { DailySummary, dailySummariesOf, FluxRow, gridOf, startOfDay } from '@modules/data/flux';
+import { DailySummary, dailySummariesOf, FluxRow, gridOf } from '@modules/data/flux';
 import { DataService } from '@modules/data/data.service';
 import { ClimateRetentionService, DEVICES_PER_PASS, untilNextRun } from '@modules/retention/climate-retention.service';
-import { chunkOf, climateWindowOf, cutoffOf } from '@modules/retention/climate-window';
+import { chunkOf, climateWindowOf, cutoffOf, startOfDay } from '@modules/retention/climate-window';
 import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 
 /**

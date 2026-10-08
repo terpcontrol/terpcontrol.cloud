@@ -1,3 +1,5 @@
+import { fieldOfMetric, fieldOfOutputMetric } from './metrics';
+
 /**
  * The values a device writes that are not measurements.
  *
@@ -21,12 +23,6 @@
  * no negative concentration and a room holds none at zero either.
  */
 
-/** The stored field a controller's CO2 sensor is written under. */
-const CO2_FIELD = 'co2';
-
-/** And the one its CO2 valve is written under, which carries the same "there is none" the same way. */
-export const CO2_OUTPUT_FIELD = 'out_co2';
-
 /**
  * What that `-1` looks like once it has been through the wire.
  *
@@ -40,8 +36,9 @@ export const CO2_OUTPUT_FIELD = 'out_co2';
  */
 export const NO_CO2_VALVE = 4294967295;
 
+/** A controller's CO2 reading, and its CO2 valve, which carries the same "there is none" the same way. */
 export const isSentinel = (field: string, value: number): boolean =>
-  (field === CO2_FIELD && value <= 0) || (field === CO2_OUTPUT_FIELD && (value < 0 || value === NO_CO2_VALVE));
+  (field === fieldOfMetric('co2') && value <= 0) || (field === fieldOfOutputMetric('co2') && (value < 0 || value === NO_CO2_VALVE));
 
 /**
  * The other way a device says a sensor is not there: the `hardware-info` report
@@ -54,4 +51,4 @@ export const isSentinel = (field: string, value: number): boolean =>
  * the store and a live read looks a month back, so without this the air of a
  * fortnight ago would go on being answered as what the tent reads now.
  */
-export const reportsNoSensor = (hardware: Record<string, string>, metric: string): boolean => metric === 'co2' && hardware[CO2_FIELD] === 'off';
+export const reportsNoSensor = (hardware: Record<string, string>, metric: string): boolean => metric === 'co2' && hardware.co2 === 'off';

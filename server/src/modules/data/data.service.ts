@@ -2,8 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigType } from '@nestjs/config';
-import { InfluxDB, Point } from '@influxdata/influxdb-client';
-import { DeviceLive, DeviceSeries, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
+import { InfluxDB, Point, WriteApi } from '@influxdata/influxdb-client';
+import { DeviceLive, DeviceSeries, DeviceSettings, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { logger } from '@utils/logger';
 import {
   fieldOfMetric,
@@ -16,27 +16,28 @@ import {
 } from '@common/v1/metrics';
 import { reportsNoSensor } from '@common/v1/sentinels';
 import { metricValueOf } from '@common/v1/value-age';
+import { DeviceSample, DeviceSampleSink } from '@modules/device-protocol/device-sinks';
 import { LightStateReader } from '@modules/v1/camera/light-state';
+import { SeriesReader } from '@modules/v1/camera/series-reader';
 import { MODEL_V1 } from '@database/models';
-import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { DEFAULT_DEVICE_SETTINGS, StoredDevice } from '@database/schemas/v1/devices.schema';
 import { influxConfig } from '../../config/configuration';
 import {
   computedValue,
   DailySummary,
   dailyMeanQuery,
   dailySummariesOf,
-  DEFAULT_PPFD_LUX_FACTOR,
-  DeviceFactors,
   fieldsFor,
   FluxRow,
   FluxWindow,
   gridOf,
+  instantsOf,
   latestByField,
   levelsByField,
   levelsQuery,
   liveQuery,
   newestSampleQuery,
-  newestSampleSinceQuery,
+  numberOf,
   oldestSampleQuery,
   OutputSwitching,
   pointsOf,
@@ -44,12 +45,14 @@ import {
   readingsOf,
   runningMostOf,
   runningSpansOf,
+  SAMPLE_MEASUREMENT,
   seriesQuery,
   stepFor,
   summaryQuery,
   SUMMARY_MEASUREMENT,
   switchingsByField,
   switchingsQuery,
+  TimeWindow,
   trendQuery,
   valveOpeningsQuery,
 } from './flux';
@@ -112,13 +115,6 @@ export interface NewestSamples {
   spokeAt: Map<string, Date>;
   /** The devices the store did not answer for, whose last word is unknown rather than absent. */
   unread: ReadonlySet<string>;
-}
-
-/** One status message, in the device's own vocabulary. The device-protocol module translates the rest. */
-export interface DeviceSample {
-  measuredAt: Date;
-  sensors: Record<string, unknown>;
-  outputs: Record<string, unknown>;
 }
 
 /**
@@ -194,13 +190,6 @@ export interface DeviceHistory {
   days?: OutputSwitching[];
 }
 
-/** What the device schema fills in, reached only for a device that is not in the database at all. */
-const DEFAULT_FACTORS: DeviceFactors = {
-  vpdLeafOffsetDay: -2,
-  vpdLeafOffsetNight: 0,
-  ppfdLuxFactor: DEFAULT_PPFD_LUX_FACTOR,
-};
-
 /**
  * What a device says about itself that a read of its points cannot do without:
  * the factors its computed metrics are worked out with, and the hardware report
@@ -210,15 +199,16 @@ const DEFAULT_FACTORS: DeviceFactors = {
  * knowing both costs what knowing one used to.
  */
 interface DeviceSelf {
-  factors: DeviceFactors;
+  factors: DeviceSettings;
   /** The flat `hardware-info` report. An absent key is "the firmware did not say", which is not "not fitted". */
   hardware: Record<string, string>;
 }
 
-const UNKNOWN_DEVICE: DeviceSelf = { factors: DEFAULT_FACTORS, hardware: {} };
+/** What the device schema fills in, reached only for a device that is not in the database at all. */
+const UNKNOWN_DEVICE: DeviceSelf = { factors: DEFAULT_DEVICE_SETTINGS, hardware: {} };
 
 @Injectable()
-export class DataService implements LightStateReader {
+export class DataService implements LightStateReader, SeriesReader, DeviceSampleSink {
   private readonly influx: InfluxDB;
 
   constructor(
@@ -230,18 +220,15 @@ export class DataService implements LightStateReader {
 
   /** What a device just reported, stored. A failure is logged and swallowed: a lost sample must not drop the connection. */
   public async writeSample(deviceId: string, sample: DeviceSample): Promise<void> {
-    // Org and bucket are required environment - without them there is no
-    // database to write to at all.
-    const writeApi = this.influx.getWriteApi(this.config.org!, this.config.bucket!, 'ns');
-    writeApi.useDefaultTags({ device_id: deviceId });
+    const writeApi = this.writer(deviceId);
 
     try {
-      const point = new Point('status');
+      const point = new Point(SAMPLE_MEASUREMENT);
       for (const field of SENSOR_FIELDS) {
-        if (sample.sensors[field] != null) point.floatField(field, parseFloat(String(sample.sensors[field])));
+        if (sample.sensors[field] != null) point.floatField(field, sample.sensors[field]);
       }
       for (const output of OUTPUT_KEYS) {
-        if (sample.outputs[output.key] != null) point.floatField(output.field, parseFloat(String(sample.outputs[output.key])));
+        if (sample.outputs[output.key] != null) point.floatField(output.field, sample.outputs[output.key]);
       }
 
       point.timestamp(sample.measuredAt);
@@ -460,7 +447,7 @@ export class DataService implements LightStateReader {
    * silent, and a store that could not be asked is not evidence that it has.
    *
    * The reads are one per device and not one for the set, for the reason
-   * `newestSampleSinceQuery` gives. A few at a time, because the caller is a
+   * `newestSampleQuery` gives. A few at a time, because the caller is a
    * loop over a whole fleet and a fleet's worth of reads one after another is a
    * pass that takes longer than the interval between passes; and under a budget,
    * because the loop this serves protects every device on the install and must
@@ -498,7 +485,7 @@ export class DataService implements LightStateReader {
         // deadline nobody is waiting for it any more, and a rejection with no
         // caller left would reach the handler in `main.ts`, which ends the
         // process - one slow store taking the whole API down with it.
-        const read = this.newestSampleSince(next.deviceId, next.since).then(
+        const read = this.newestSampleAt(next.deviceId, next.since).then(
           at => ({ at }),
           (error: unknown) => {
             firstRefusal ??= error;
@@ -527,11 +514,9 @@ export class DataService implements LightStateReader {
     return { spokeAt, unread };
   }
 
-  /** The newest raw sample one device wrote since an instant, whatever field it was of. */
-  private async newestSampleSince(deviceId: string, since: Date): Promise<Date | null> {
-    const rows = await this.read(newestSampleSinceQuery(this.bucket, deviceId, since));
-    const instants = rows.map(row => (row._time ? new Date(row._time).getTime() : NaN)).filter(at => Number.isFinite(at));
-
+  /** The newest raw sample one device wrote from an instant on, up to another or to the present, whatever field it was of. */
+  private async newestSampleAt(deviceId: string, startsAt: Date, endsAt?: Date): Promise<Date | null> {
+    const instants = instantsOf(await this.read(newestSampleQuery(this.bucket, deviceId, startsAt, endsAt)));
     return instants.length === 0 ? null : new Date(Math.max(...instants));
   }
 
@@ -541,16 +526,14 @@ export class DataService implements LightStateReader {
    * which is how a device that has been swept says it is done.
    */
   public async oldestSampleBefore(deviceId: string, before: Date): Promise<Date | null> {
-    const rows = await this.read(oldestSampleQuery(this.bucket, deviceId, before));
-    const instants = rows.map(row => (row._time ? new Date(row._time).getTime() : NaN)).filter(at => Number.isFinite(at));
-
+    const instants = instantsOf(await this.read(oldestSampleQuery(this.bucket, deviceId, before)));
     return instants.length > 0 ? new Date(Math.min(...instants)) : null;
   }
 
   /** How often a device's CO2 valve opened over a stretch (see `valveOpeningsQuery`); nought where it never reported one. */
-  public async valveOpenings(deviceId: string, window: { startsAt: Date; endsAt: Date }): Promise<number> {
+  public async valveOpenings(deviceId: string, window: TimeWindow): Promise<number> {
     const rows = await this.read(valveOpeningsQuery(this.bucket, deviceId, window));
-    return rows.reduce((sum, row) => sum + (typeof row._value === 'number' && Number.isFinite(row._value) ? row._value : 0), 0);
+    return rows.reduce((sum, row) => sum + (numberOf(row._value) ?? 0), 0);
   }
 
   /**
@@ -558,7 +541,7 @@ export class DataService implements LightStateReader {
    * points are answered rather than written so that the sweep decides what to do
    * with them - and so that the arithmetic can be looked at without a store.
    */
-  public async dailySummariesOf(deviceId: string, window: { startsAt: Date; endsAt: Date }): Promise<DailySummary[]> {
+  public async dailySummariesOf(deviceId: string, window: TimeWindow): Promise<DailySummary[]> {
     return dailySummariesOf(await this.read(dailyMeanQuery(this.bucket, deviceId, window)));
   }
 
@@ -571,8 +554,7 @@ export class DataService implements LightStateReader {
   public async writeDailySummaries(deviceId: string, summaries: readonly DailySummary[]): Promise<void> {
     if (summaries.length === 0) return;
 
-    const writeApi = this.influx.getWriteApi(this.config.org!, this.bucket, 'ns');
-    writeApi.useDefaultTags({ device_id: deviceId });
+    const writeApi = this.writer(deviceId);
 
     for (const day of summaries) {
       const point = new Point(SUMMARY_MEASUREMENT);
@@ -610,9 +592,16 @@ export class DataService implements LightStateReader {
     if (!answer.ok) throw new Error(`The store refused to drop ${deviceId}'s raw samples: ${answer.status} ${await answer.text()}`);
   }
 
+  // Org and bucket are required environment - without them there is no
+  // database to write to or read from at all.
   private get bucket(): string {
-    // Required environment, as in `writeSample`.
     return this.config.bucket!;
+  }
+
+  private writer(deviceId: string): WriteApi {
+    const writeApi = this.influx.getWriteApi(this.config.org!, this.bucket, 'ns');
+    writeApi.useDefaultTags({ device_id: deviceId });
+    return writeApi;
   }
 
   private read(query: string): Promise<FluxRow[]> {
@@ -631,7 +620,7 @@ export class DataService implements LightStateReader {
    * scan of one field against a wrong figure on a panel the screen draws by
    * default, and the alternative is to make the two reads wait for each other.
    */
-  private async lampOf(deviceId: string, metrics: readonly Metric[], window: { startsAt: Date; endsAt: Date }): Promise<OutputSwitching[]> {
+  private async lampOf(deviceId: string, metrics: readonly Metric[], window: TimeWindow): Promise<OutputSwitching[]> {
     if (!metrics.includes('vpd')) return [];
     const switchings = await this.switchingsOf(deviceId, ['light'], window);
 
@@ -648,20 +637,16 @@ export class DataService implements LightStateReader {
    * Only a caller that asked about an output pays for it. Nothing else reads it,
    * so a chart of the climate alone is the read it always was.
    */
-  private async newestSampleIn(deviceId: string, outputs: readonly OutputMetric[], window: { startsAt: Date; endsAt: Date }): Promise<string | null> {
+  private async newestSampleIn(deviceId: string, outputs: readonly OutputMetric[], window: TimeWindow): Promise<string | null> {
     if (outputs.length === 0 || window.endsAt <= window.startsAt) return null;
-
-    const rows = await this.read(newestSampleQuery(this.bucket, deviceId, window));
-    const instants = rows.flatMap(row => (row._time ? [new Date(row._time).getTime()] : [])).filter(at => Number.isFinite(at));
-
-    return instants.length === 0 ? null : new Date(Math.max(...instants)).toISOString();
+    return (await this.newestSampleAt(deviceId, window.startsAt, window.endsAt))?.toISOString() ?? null;
   }
 
   /** The switchings of the outputs that were asked for, by the field they are stored under. A window of no width holds none. */
   private async switchingsOf(
     deviceId: string,
     outputs: readonly OutputMetric[],
-    window: { startsAt: Date; endsAt: Date },
+    window: TimeWindow,
     extra: readonly string[] = [],
   ): Promise<Map<string, OutputSwitching[]>> {
     if (outputs.length === 0 || window.endsAt <= window.startsAt) return new Map();

@@ -2,7 +2,7 @@ import type { TimelineRange } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
 import { clampRange } from '@common/v1/range';
-import { MAX_ASKED_WINDOWS, MIN_STEP_SECONDS as FINEST_STEP_SECONDS } from '@modules/data/flux';
+import { stepFor as storeStepFor } from '@modules/data/flux';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
@@ -142,12 +142,11 @@ const stretchOf = (range: 'phase' | 'grow', grow: GrowDocument, at: Date): { sta
 };
 
 const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
-  const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
   // A step somebody chose - the charts page offers five seconds to a week - is
-  // kept down to what the store answers at, and widened only where the window
-  // would hold more windows than one read builds.
-  if (asked && asked > 0) return Math.max(Math.trunc(asked), FINEST_STEP_SECONDS, Math.ceil(seconds / MAX_ASKED_WINDOWS));
+  // held to the store's own rule for one.
+  if (asked && asked > 0) return storeStepFor(startsAt, endsAt, asked);
 
+  const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
   return Math.max(MIN_STEP_SECONDS, Math.ceil(seconds / PANEL_WINDOWS));
 };
 

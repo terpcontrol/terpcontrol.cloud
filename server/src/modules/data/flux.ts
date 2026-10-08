@@ -1,7 +1,8 @@
-import { Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
-import { calculateVpd } from '@utils/calculateVpd';
+import { DeviceSettings, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
+import { METRIC_DECIMALS } from '@fg2/shared-types/v1-schemas';
+import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { fieldOfMetric, fieldOfOutputMetric } from '@common/v1/metrics';
-import { CO2_OUTPUT_FIELD, isSentinel, NO_CO2_VALVE } from '@common/v1/sentinels';
+import { isSentinel, NO_CO2_VALVE } from '@common/v1/sentinels';
 
 /**
  * What is sent to InfluxDB and what comes back, kept apart from the service so
@@ -14,7 +15,7 @@ import { CO2_OUTPUT_FIELD, isSentinel, NO_CO2_VALVE } from '@common/v1/sentinels
  */
 
 /** The measurement a device's status has always been written into. */
-const MEASUREMENT = 'status';
+export const SAMPLE_MEASUREMENT = 'status';
 
 /**
  * Where a day that has left the retention window ends up: one point per field
@@ -29,13 +30,6 @@ export const SUMMARY_MEASUREMENT = 'status_daily';
 
 /** Days are cut in UTC, because the points are stamped in it and a summary must not move when somebody changes their time zone. */
 const A_DAY = '1d';
-
-/**
- * The lux a light meter reports becomes PPFD through a factor that depends on
- * the spectrum, so it is a per-device calibration rather than physics. The
- * default assumes a white full-spectrum LED.
- */
-export const DEFAULT_PPFD_LUX_FACTOR = 0.015;
 
 /**
  * Flux is built by interpolation, so what may be interpolated is spelled out
@@ -55,10 +49,10 @@ const MAX_WINDOWS = 1000;
  * which is what the charts page offers - is drawn the points they asked for, up
  * to this many, and only a step finer than that is widened.
  */
-export const MAX_ASKED_WINDOWS = 5000;
+const MAX_ASKED_WINDOWS = 5000;
 
 /** The narrowest step there is, picked or asked for: what a device reports at. */
-export const MIN_STEP_SECONDS = 5;
+const MIN_STEP_SECONDS = 5;
 
 /** No range answers more points than this per series, whatever the caller asked for. */
 const MAX_POINTS = 50000;
@@ -82,16 +76,19 @@ const storedField = (name: Metric): string => {
   return field;
 };
 
-const head = (bucket: string, deviceId: string, range: string): string => `
+const head = (bucket: string, deviceId: string, range: string, measurement = SAMPLE_MEASUREMENT): string => `
   from(bucket: "${safe(bucket, SAFE_NAME, 'bucket')}")
     |> range(${range})
-    |> filter(fn: (r) => r["_measurement"] == "${MEASUREMENT}")
+    |> filter(fn: (r) => r["_measurement"] == "${measurement}")
     |> filter(fn: (r) => r["device_id"] == "${safe(deviceId, SAFE_NAME, 'device id')}")`;
 
-const rangeOf = (window: Omit<FluxWindow, 'stepSeconds'>): string => `start: ${window.startsAt.toISOString()}, stop: ${window.endsAt.toISOString()}`;
+const rangeOf = (window: TimeWindow): string => `start: ${window.startsAt.toISOString()}, stop: ${window.endsAt.toISOString()}`;
 
-const aggregate = (window: FluxWindow): string => `
-    |> aggregateWindow(every: ${Math.max(1, Math.trunc(window.stepSeconds))}s, fn: mean, createEmpty: true)
+/** A row of any of these fields. */
+const anyField = (fields: readonly string[]): string => fields.map(field => `r["_field"] == "${safe(field, FIELD_NAME, 'field name')}"`).join(' or ');
+
+const aggregate = (window: FluxWindow, fn = 'mean', createEmpty = true): string => `
+    |> aggregateWindow(every: ${Math.max(1, Math.trunc(window.stepSeconds))}s, fn: ${fn}, createEmpty: ${createEmpty})
     |> limit(n: ${MAX_POINTS})`;
 
 /**
@@ -114,19 +111,19 @@ export const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number =>
   return Math.max(MIN_STEP_SECONDS, Math.ceil(seconds / MAX_WINDOWS));
 };
 
-export interface FluxWindow {
+export interface TimeWindow {
   startsAt: Date;
   endsAt: Date;
+}
+
+export interface FluxWindow extends TimeWindow {
   stepSeconds: number;
 }
 
 /** One aggregated point per window per field, empty windows included so a chart draws the gap rather than joining across it. */
-export const seriesQuery = (bucket: string, deviceId: string, fields: readonly string[], window: FluxWindow): string => {
-  const filter = fields.map(field => `r["_field"] == "${safe(field, FIELD_NAME, 'field name')}"`).join(' or ');
-
-  return `${head(bucket, deviceId, rangeOf(window))}
-    |> filter(fn: (r) => ${filter})${aggregate(window)}`;
-};
+export const seriesQuery = (bucket: string, deviceId: string, fields: readonly string[], window: FluxWindow): string =>
+  `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${anyField(fields)})${aggregate(window)}`;
 
 /**
  * How finely an output's switchings are looked for, at every width of window.
@@ -153,6 +150,9 @@ const SWITCHING_GRAIN_SECONDS = 300;
  */
 const MAX_SWITCHINGS = 10000;
 
+/** A figure of the CO2 valve that is a count of openings rather than its "there is no valve", written in Flux. */
+const REAL_VALVE_FIGURE = `r["_value"] >= 0.0 and r["_value"] != ${NO_CO2_VALVE}.0`;
+
 /**
  * The one sentinel that has to be excluded in the store rather than on the way
  * back out, written in Flux.
@@ -162,9 +162,9 @@ const MAX_SWITCHINGS = 10000;
  * `max` per grain and then mapped to "running" or "not" inside InfluxDB, so a
  * controller's "there is no valve" figure would arrive as a plain 1.0 with
  * nothing left to tell it from a valve that really ran. It says the same thing
- * as `isSentinel` and is kept beside the constant it is built from.
+ * as `isSentinel`, in the same field name and the same constant.
  */
-const NOT_A_SENTINEL = `r["_field"] != "${CO2_OUTPUT_FIELD}" or (r["_value"] >= 0.0 and r["_value"] != ${NO_CO2_VALVE}.0)`;
+const NOT_A_SENTINEL = `r["_field"] != "${fieldOfOutputMetric('co2')}" or (${REAL_VALVE_FIGURE})`;
 
 /**
  * How often a device's CO2 valve opened over a stretch. Each sample counts the
@@ -177,14 +177,14 @@ const NOT_A_SENTINEL = `r["_field"] != "${CO2_OUTPUT_FIELD}" or (r["_value"] >= 
  * window is kept as its mean, and a mean of counts says nothing about how many
  * samples it was taken over.
  */
-export const valveOpeningsQuery = (bucket: string, deviceId: string, window: Omit<FluxWindow, 'stepSeconds'>): string =>
+export const valveOpeningsQuery = (bucket: string, deviceId: string, window: TimeWindow): string =>
   `${head(bucket, deviceId, rangeOf(window))}
-    |> filter(fn: (r) => r["_field"] == "${CO2_OUTPUT_FIELD}")
-    |> filter(fn: (r) => r["_value"] >= 0.0 and r["_value"] != ${NO_CO2_VALVE}.0)
+    |> filter(fn: (r) => r["_field"] == "${fieldOfOutputMetric('co2')}")
+    |> filter(fn: (r) => ${REAL_VALVE_FIGURE})
     |> sum()`;
 
 /** The two answers `levelsQuery` yields: a share of full output, and what the CO2 valve dosed. */
-export const LEVEL_RESULT = { level: 'level', dose: 'dose' } as const;
+const LEVEL_RESULT = { level: 'level', dose: 'dose' } as const;
 
 /**
  * How hard each output was driven, window by window, at the step the curves
@@ -199,18 +199,14 @@ export const LEVEL_RESULT = { level: 'level', dose: 'dose' } as const;
  * Only raw samples are read: a day summarised into its mean has kept neither.
  */
 export const levelsQuery = (bucket: string, deviceId: string, levels: readonly string[], doses: readonly string[], window: FluxWindow): string => {
-  const of = (fields: readonly string[]) => fields.map(field => `r["_field"] == "${safe(field, FIELD_NAME, 'field name')}"`).join(' or ');
-  const every = `${Math.max(1, Math.trunc(window.stepSeconds))}s`;
   const read = (fields: readonly string[], keep: string, fn: string, name: string) => `${head(bucket, deviceId, rangeOf(window))}
-    |> filter(fn: (r) => ${of(fields)})
-    |> filter(fn: (r) => ${keep})
-    |> aggregateWindow(every: ${every}, fn: ${fn}, createEmpty: false)
-    |> limit(n: ${MAX_POINTS})
+    |> filter(fn: (r) => ${anyField(fields)})
+    |> filter(fn: (r) => ${keep})${aggregate(window, fn, false)}
     |> yield(name: "${name}")`;
 
   return [
     levels.length > 0 ? read(levels, 'r._value > 0.0', 'mean', LEVEL_RESULT.level) : null,
-    doses.length > 0 ? read(doses, `r._value >= 0.0 and r._value != ${NO_CO2_VALVE}.0`, 'sum', LEVEL_RESULT.dose) : null,
+    doses.length > 0 ? read(doses, REAL_VALVE_FIGURE, 'sum', LEVEL_RESULT.dose) : null,
   ]
     .filter(Boolean)
     .join('\n');
@@ -242,7 +238,7 @@ export const levelsByField = (rows: (FluxRow & { result?: string })[]): Map<stri
 };
 
 /** The two answers `switchingsQuery` yields, which is what tells the state a window opens in from a switching inside it. */
-export const SWITCHING_RESULT = { opening: 'opening', switching: 'switching' } as const;
+const SWITCHING_RESULT = { opening: 'opening', switching: 'switching' } as const;
 
 /** One thing an output did: the instant it was first reported doing it, and whether it was running. */
 export interface OutputSwitching {
@@ -269,11 +265,9 @@ export interface OutputSwitching {
  * stop InfluxDB pushing the aggregate down into the storage engine, which is the
  * difference between half a second and half a minute over a season.
  */
-export const switchingsQuery = (bucket: string, deviceId: string, fields: readonly string[], window: Omit<FluxWindow, 'stepSeconds'>): string => {
-  const filter = fields.map(field => `r["_field"] == "${safe(field, FIELD_NAME, 'field name')}"`).join(' or ');
-
-  return `runs = ${head(bucket, deviceId, rangeOf(window))}
-    |> filter(fn: (r) => ${filter})
+export const switchingsQuery = (bucket: string, deviceId: string, fields: readonly string[], window: TimeWindow): string =>
+  `runs = ${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${anyField(fields)})
     |> filter(fn: (r) => ${NOT_A_SENTINEL})
     |> aggregateWindow(every: ${SWITCHING_GRAIN_SECONDS}s, fn: max, createEmpty: false, timeSrc: "_start")
     |> map(fn: (r) => ({ r with _value: if r._value > 0.0 then 1.0 else 0.0 }))
@@ -283,7 +277,6 @@ runs
     |> filter(fn: (r) => r._value != 0.0)
     |> limit(n: ${MAX_SWITCHINGS})
     |> yield(name: "${SWITCHING_RESULT.switching}")`;
-};
 
 /**
  * The rows of that read, gathered per field and in order.
@@ -350,17 +343,10 @@ export const runningMostOf = (spans: readonly RunningSpan[], from: number, to: n
  * each day over the empty windows around it; the points go into the same grid as
  * the raw ones at the instants they carry, which is the start of their day.
  */
-export const summaryQuery = (bucket: string, deviceId: string, fields: readonly string[], window: Omit<FluxWindow, 'stepSeconds'>): string => {
-  const filter = fields.map(field => `r["_field"] == "${safe(field, FIELD_NAME, 'field name')}"`).join(' or ');
-
-  return `
-  from(bucket: "${safe(bucket, SAFE_NAME, 'bucket')}")
-    |> range(${rangeOf(window)})
-    |> filter(fn: (r) => r["_measurement"] == "${SUMMARY_MEASUREMENT}")
-    |> filter(fn: (r) => r["device_id"] == "${safe(deviceId, SAFE_NAME, 'device id')}")
-    |> filter(fn: (r) => ${filter})
+export const summaryQuery = (bucket: string, deviceId: string, fields: readonly string[], window: TimeWindow): string =>
+  `${head(bucket, deviceId, rangeOf(window), SUMMARY_MEASUREMENT)}
+    |> filter(fn: (r) => ${anyField(fields)})
     |> limit(n: ${MAX_POINTS})`;
-};
 
 /**
  * The oldest raw sample a device still has that is older than an instant, which
@@ -379,8 +365,9 @@ export const oldestSampleQuery = (bucket: string, deviceId: string, before: Date
     |> first()`;
 
 /**
- * The newest raw sample a device wrote inside a window, whatever field it was
- * of, which is the last instant it was heard from at all.
+ * The newest raw sample a device wrote from an instant on - up to another, or
+ * to the present - whatever field it was of: the last instant it was heard from
+ * at all.
  *
  * It is asked for separately because the windowed read cannot answer it: an
  * aggregation window carries the instant it closes rather than the instant the
@@ -388,14 +375,6 @@ export const oldestSampleQuery = (bucket: string, deviceId: string, before: Date
  * whole step later than anything the device really said. `last()` answers one
  * row per field and the latest of them is the answer, in the same shape and at
  * the same cost as a live read.
- */
-export const newestSampleQuery = (bucket: string, deviceId: string, window: Omit<FluxWindow, 'stepSeconds'>): string =>
-  `${head(bucket, deviceId, rangeOf(window))}
-    |> last()`;
-
-/**
- * The same question asked from an instant to the present rather than over a
- * window: when did this device last write anything at all.
  *
  * It names one device in an equality, which is what makes it answerable. A set
  * of devices reads naturally as `contains(value: r["device_id"], set: [...])`
@@ -409,10 +388,10 @@ export const newestSampleQuery = (bucket: string, deviceId: string, window: Omit
  * rather than at the oldest of everybody's, which is the only instant that can
  * answer anything about it.
  */
-export const newestSampleSinceQuery = (bucket: string, deviceId: string, since: Date): string => `${head(
+export const newestSampleQuery = (bucket: string, deviceId: string, startsAt: Date, endsAt?: Date): string => `${head(
   bucket,
   deviceId,
-  `start: ${since.toISOString()}`,
+  `start: ${startsAt.toISOString()}${endsAt ? `, stop: ${endsAt.toISOString()}` : ''}`,
 )}
     |> last()`;
 
@@ -428,11 +407,7 @@ export const newestSampleSinceQuery = (bucket: string, deviceId: string, since: 
  * `timeSrc` stamps each day at its start rather than at its end, so a summary
  * falls inside the day it is about.
  */
-export const dailyMeanQuery = (bucket: string, deviceId: string, window: Omit<FluxWindow, 'stepSeconds'>): string => `${head(
-  bucket,
-  deviceId,
-  rangeOf(window),
-)}
+export const dailyMeanQuery = (bucket: string, deviceId: string, window: TimeWindow): string => `${head(bucket, deviceId, rangeOf(window))}
     |> aggregateWindow(every: ${A_DAY}, fn: mean, createEmpty: false, timeSrc: "_start")
     |> limit(n: ${MAX_POINTS})`;
 
@@ -445,7 +420,7 @@ export const dailyMeanQuery = (bucket: string, deviceId: string, window: Omit<Fl
  * stand in `status_daily`.
  */
 export const rawSamplePredicate = (deviceId: string): string =>
-  `_measurement="${MEASUREMENT}" AND device_id="${safe(deviceId, SAFE_NAME, 'device id')}"`;
+  `_measurement="${SAMPLE_MEASUREMENT}" AND device_id="${safe(deviceId, SAFE_NAME, 'device id')}"`;
 
 /** Every point one device ever wrote: its raw samples and the daily summaries made of them. */
 export const everySamplePredicate = (deviceId: string): string => `device_id="${safe(deviceId, SAFE_NAME, 'device id')}"`;
@@ -461,9 +436,9 @@ export const trendQuery = (bucket: string, deviceIds: readonly string[], field: 
   return `
   from(bucket: "${safe(bucket, SAFE_NAME, 'bucket')}")
     |> range(${rangeOf(window)})
-    |> filter(fn: (r) => r["_measurement"] == "${MEASUREMENT}")
+    |> filter(fn: (r) => r["_measurement"] == "${SAMPLE_MEASUREMENT}")
     |> filter(fn: (r) => contains(value: r["device_id"], set: [${ids}]))
-    |> filter(fn: (r) => r["_field"] == "${safe(field, FIELD_NAME, 'field name')}")${aggregate(window)}`;
+    |> filter(fn: (r) => ${anyField([field])})${aggregate(window)}`;
 };
 
 /** A row as the client hands it back. `_value` is empty for a window that holds no reading. */
@@ -474,7 +449,10 @@ export interface FluxRow {
   device_id?: string;
 }
 
-const numberOf = (value: number | null | undefined): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+export const numberOf = (value: number | null | undefined): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+/** The instants the rows carry, those that are instants at all. */
+export const instantsOf = (rows: readonly FluxRow[]): number[] => rows.map(row => (row._time ? Date.parse(row._time) : NaN)).filter(Number.isFinite);
 
 /**
  * The newest reading of each field, by field name.
@@ -537,13 +515,6 @@ export const gridOf = (rows: FluxRow[]): SeriesGrid => {
   return { instants: [...instants].sort(), valuesByField };
 };
 
-/** The factors a device computes its own metrics with, as `devices.settings` holds them. */
-export interface DeviceFactors {
-  vpdLeafOffsetDay: number;
-  vpdLeafOffsetNight: number;
-  ppfdLuxFactor: number;
-}
-
 /** The readings a computed metric is built from, at one instant. */
 export interface Readings {
   temperature: number | null;
@@ -586,8 +557,11 @@ const FIELDS_OF_COMPUTED: Partial<Record<Metric, readonly string[]>> = {
  * too low under a night the same answer shades. A single sample has no window
  * to average over, so there the reported level does answer for itself and the
  * caller says nothing.
+ *
+ * The curve is the contract's, because the targets screen works out the VPD of
+ * a setpoint from the same one, and the figure is rounded as every VPD goes out.
  */
-export const vpdOf = (readings: Readings, factors: DeviceFactors): number | null => {
+export const vpdOf = (readings: Readings, factors: DeviceSettings): number | null => {
   if (readings.temperature === null || readings.humidity === null) return null;
 
   // A reading whose own lamp level is zero was taken in the dark, whatever the
@@ -597,14 +571,13 @@ export const vpdOf = (readings: Readings, factors: DeviceFactors): number | null
   const isDay = readings.light === 0 ? false : (readings.isDay ?? (readings.light ?? 0) > 0.5);
   const leaf = readings.leafTemperature ?? readings.temperature + (isDay ? factors.vpdLeafOffsetDay : factors.vpdLeafOffsetNight);
 
-  return calculateVpd(readings.temperature, leaf, readings.humidity);
+  return parseFloat(vapourPressureDeficit(readings.temperature, leaf, readings.humidity).toFixed(METRIC_DECIMALS.vpd));
 };
 
-export const ppfdOf = (readings: Readings, factors: DeviceFactors): number | null =>
-  readings.lux === null ? null : readings.lux * factors.ppfdLuxFactor;
+const ppfdOf = (readings: Readings, factors: DeviceSettings): number | null => (readings.lux === null ? null : readings.lux * factors.ppfdLuxFactor);
 
 /** What a computed metric is worth at one instant, or null where its inputs are missing. */
-export const computedValue = (name: Metric, readings: Readings, factors: DeviceFactors): number | null => {
+export const computedValue = (name: Metric, readings: Readings, factors: DeviceSettings): number | null => {
   switch (name) {
     case 'vpd':
       return vpdOf(readings, factors);
@@ -671,6 +644,3 @@ export const dailySummariesOf = (rows: FluxRow[]): DailySummary[] => {
     .filter(day => !Number.isNaN(day.at.getTime()))
     .sort((one, other) => one.at.getTime() - other.at.getTime());
 };
-
-/** The start of the UTC day an instant falls in, which is where a summary is stamped and where a sweep's chunks begin and end. */
-export const startOfDay = (at: Date): Date => new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));

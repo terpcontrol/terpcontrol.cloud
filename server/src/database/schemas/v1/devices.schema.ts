@@ -144,12 +144,20 @@ const firmwareTargetSchema = new Schema<Device['firmware']>(
   { _id: false, versionKey: false },
 );
 
+/**
+ * The offsets and the factor the cloud has always computed VPD and PPFD with.
+ *
+ * The lux a light meter reports becomes PPFD through a factor that depends on
+ * the spectrum, so it is a per-device calibration rather than physics. The
+ * default assumes a white full-spectrum LED.
+ */
+export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 };
+
 const settingsSchema = new Schema<DeviceSettings>(
   {
-    // The offsets and the factor the cloud has always computed VPD and PPFD with.
-    vpdLeafOffsetDay: { type: Number, required: true, default: -2 },
-    vpdLeafOffsetNight: { type: Number, required: true, default: 0 },
-    ppfdLuxFactor: { type: Number, required: true, default: 0.015 },
+    vpdLeafOffsetDay: { type: Number, required: true, default: DEFAULT_DEVICE_SETTINGS.vpdLeafOffsetDay },
+    vpdLeafOffsetNight: { type: Number, required: true, default: DEFAULT_DEVICE_SETTINGS.vpdLeafOffsetNight },
+    ppfdLuxFactor: { type: Number, required: true, default: DEFAULT_DEVICE_SETTINGS.ppfdLuxFactor },
   },
   { _id: false, versionKey: false },
 );

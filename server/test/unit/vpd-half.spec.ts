@@ -1,5 +1,6 @@
+import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
+import { DEFAULT_DEVICE_SETTINGS } from '@database/schemas/v1/devices.schema';
 import { vpdOf } from '@modules/data/flux';
-import { calculateVpd } from '@utils/calculateVpd';
 
 /**
  * Which leaf offset a VPD reading takes. The cycle a series is read against
@@ -9,7 +10,8 @@ import { calculateVpd } from '@utils/calculateVpd';
  * VPD that neither the device nor the Overview gave.
  */
 describe('the half of the cycle a VPD reading takes', () => {
-  const factors = { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 };
+  const factors = DEFAULT_DEVICE_SETTINGS;
+  const vpd = (air: number, leaf: number, rh: number) => parseFloat(vapourPressureDeficit(air, leaf, rh).toFixed(2));
   const reading = (light: number | null, isDay: boolean | null) => ({
     temperature: 20,
     humidity: 20,
@@ -20,15 +22,15 @@ describe('the half of the cycle a VPD reading takes', () => {
   });
 
   it('is night where the reading´s own lamp level is zero, whatever the cycle around it says', () => {
-    expect(vpdOf(reading(0, true), factors)).toBe(calculateVpd(20, 20, 20));
+    expect(vpdOf(reading(0, true), factors)).toBe(vpd(20, 20, 20));
   });
 
   it('follows the cycle where the lamp was lit during the reading', () => {
-    expect(vpdOf(reading(40, true), factors)).toBe(calculateVpd(20, 18, 20));
-    expect(vpdOf(reading(40, false), factors)).toBe(calculateVpd(20, 20, 20));
+    expect(vpdOf(reading(40, true), factors)).toBe(vpd(20, 18, 20));
+    expect(vpdOf(reading(40, false), factors)).toBe(vpd(20, 20, 20));
   });
 
   it('follows the cycle where the device reports no lamp at all', () => {
-    expect(vpdOf(reading(null, true), factors)).toBe(calculateVpd(20, 18, 20));
+    expect(vpdOf(reading(null, true), factors)).toBe(vpd(20, 18, 20));
   });
 });
