@@ -16,16 +16,6 @@
   padding-top: var(--space-2);
 }
 
-/* The page's name for a screen reader; the cards are what the eye reads it by. */
-.hiddenTitle {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 .cards {
   display: flex;
   flex-direction: column;

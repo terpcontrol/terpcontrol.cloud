@@ -113,8 +113,8 @@ export function Fleet() {
               <th>{t('admin.fleet.column.lastSeen')}</th>
               <th>{t('admin.fleet.column.sockets')}</th>
               {/* The arrows say what the column does; its name is there for a screen reader and costs the row no width. */}
-              <th className={styles.openHead}>
-                <span>{t('admin.fleet.column.open')}</span>
+              <th>
+                <span className={ui.visuallyHidden}>{t('admin.fleet.column.open')}</span>
               </th>
             </tr>
           </thead>

@@ -164,7 +164,7 @@ function AccountRow({ account, isMe, lastAdmin }: { account: User; isMe: boolean
           <button type="button" className={ui.chip} onClick={() => setOpen('change')}>
             {t('admin.users.change')}
           </button>
-          <button type="button" className={`${ui.chip} ${styles.danger}`} onClick={() => setOpen('delete')}>
+          <button type="button" className={`${ui.chip} ${ui.danger}`} onClick={() => setOpen('delete')}>
             {t('admin.users.delete')}
           </button>
         </span>
@@ -284,7 +284,7 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
             <button type="button" className={ui.button} disabled={change.isPending} onClick={() => setAsking(false)}>
               {t('admin.users.confirmNo')}
             </button>
-            <button type="button" className={`${ui.button} ${styles.danger}`} disabled={change.isPending} onClick={save}>
+            <button type="button" className={`${ui.button} ${ui.danger}`} disabled={change.isPending} onClick={save}>
               {t('admin.users.confirmMine')}
             </button>
           </>
@@ -389,7 +389,7 @@ function DeleteSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
       actions={
         <button
           type="button"
-          className={`${ui.button} ${styles.danger}`}
+          className={`${ui.button} ${ui.danger}`}
           disabled={!sure || remove.isPending}
           onClick={() => remove.mutate(account.id, { onSuccess: onClose })}
         >

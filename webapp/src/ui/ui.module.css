@@ -578,6 +578,43 @@
   opacity: 0.45;
 }
 
+/* A step that cannot be taken back, on a chip or a button: outlined in the
+   alarm colour. These follow the button and chip rules so they win the tie on
+   equal weight. */
+.danger {
+  border-color: var(--alarm);
+  color: var(--alarm);
+}
+
+/* The yes to a question asked before such a step. */
+.dangerFilled {
+  background: var(--alarm);
+  border-color: var(--alarm);
+  color: var(--on-green);
+}
+
+/* A two-line action and the (i) that says more about it. Two share a line
+   where the card is wide enough, and stack on a phone. */
+.withHelp {
+  display: flex;
+  flex: 1 1 15rem;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Read aloud but not drawn. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* The title of a page below a tab - Manual targets, Alarms - with the way
    back to the tab beside it. It names the page, so it is set as a name, not
    as one more section label on a rule over the section labels under it. */

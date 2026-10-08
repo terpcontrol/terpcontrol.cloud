@@ -157,7 +157,7 @@ export function MeasurementSheet({ grow, definition, readings, onClose }: Measur
               <>
                 <p className={ui.note}>{t('grow.measurements.sheet.deleteAsk')}</p>
                 <div className={styles.actions}>
-                  <button type="button" className={`${ui.button} ${styles.dangerButton}`} disabled={update.isPending} onClick={remove}>
+                  <button type="button" className={`${ui.button} ${ui.danger}`} disabled={update.isPending} onClick={remove}>
                     {t('grow.measurements.sheet.deleteYes')}
                   </button>
                   <button type="button" className={ui.button} onClick={() => setAskingDelete(false)}>

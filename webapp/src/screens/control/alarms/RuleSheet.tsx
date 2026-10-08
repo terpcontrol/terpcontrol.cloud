@@ -118,7 +118,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
             <div className={styles.actions}>
               <button
                 type="button"
-                className={`${ui.button} ${styles.dangerButton}`}
+                className={`${ui.button} ${ui.dangerFilled}`}
                 disabled={busy}
                 onClick={() => remove.mutate(rule.id, { onSuccess: onClose })}
               >
@@ -130,7 +130,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
             </div>
           </div>
         ) : (
-          <button type="button" className={`${ui.button} ${styles.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
+          <button type="button" className={`${ui.button} ${ui.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
             {t('alarms.sheet.delete')}
           </button>
         )

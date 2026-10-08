@@ -92,7 +92,7 @@ export function PlantPage() {
       <header className={styles.head}>
         <BackLink to={`/grows/${growId}/plants`} label={t('grow.plant.back')} className={styles.back} />
         <div className={styles.titles}>
-          <h1 className={styles.title}>{plant.label}</h1>
+          <h1>{plant.label}</h1>
           <p className={styles.subtitle}>{subtitle(t, grow.data, plant)}</p>
         </div>
         <span className={`mono ${styles.corner}`}>

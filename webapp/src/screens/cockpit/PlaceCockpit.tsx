@@ -179,7 +179,7 @@ export function PlaceCockpit({
             {/* Switched off, the way back on stands under the sentence that says so rather than under the tiles. */}
             {mayManage && device?.control && !device.control.running ? (
               <div className={styles.actions}>
-                <span className={styles.withHelp}>
+                <span className={ui.withHelp}>
                   <ControlButton device={device} offline={offline} />
                   <Help topic="climateControl" />
                 </span>
@@ -207,7 +207,7 @@ export function PlaceCockpit({
               <div className={styles.actions}>
                 {!offline && here.some(parksAnything) ? <MaintenanceButton devices={here} now={now} className={ui.quiet} /> : null}
                 {device?.control?.running ? (
-                  <span className={styles.withHelp}>
+                  <span className={ui.withHelp}>
                     <ControlButton device={device} offline={offline} className={ui.quiet} />
                     <Help topic="climateControl" />
                   </span>

@@ -94,11 +94,6 @@
   margin-bottom: var(--space-2);
 }
 
-.danger {
-  border-color: var(--alarm);
-  color: var(--alarm);
-}
-
 .dangerButton {
   display: inline-flex;
   align-items: center;

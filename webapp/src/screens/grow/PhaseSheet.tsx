@@ -229,7 +229,7 @@ function PhaseRow({
           <button type="button" className={ui.chip} onClick={() => onOpen('correct')}>
             {t('grow.lifecycle.phase.correct')}
           </button>
-          <button type="button" className={`${ui.chip} ${styles.danger}`} onClick={() => onOpen('withdraw')}>
+          <button type="button" className={`${ui.chip} ${ui.danger}`} onClick={() => onOpen('withdraw')}>
             {t('grow.lifecycle.phase.withdraw')}
           </button>
         </div>
@@ -313,7 +313,7 @@ function PhaseWithdrawal({ grow, phase, onDone }: { grow: GrowListItem; phase: P
       <div className={styles.rowActions}>
         <button
           type="button"
-          className={`${ui.button} ${styles.dangerButton}`}
+          className={`${ui.button} ${ui.dangerFilled}`}
           disabled={withdraw.isPending}
           onClick={() => withdraw.mutate(phase.id, { onSuccess: onDone })}
         >

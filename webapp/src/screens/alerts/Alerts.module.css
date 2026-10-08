@@ -13,12 +13,6 @@
   gap: var(--space-3);
 }
 
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
-}
-
 /* The mute, top right: a chip, and while it holds the hour it holds until above it. */
 .corner {
   display: flex;

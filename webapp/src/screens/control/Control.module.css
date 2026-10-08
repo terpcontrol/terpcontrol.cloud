@@ -155,17 +155,6 @@
   border-radius: var(--radius);
 }
 
-.danger {
-  color: var(--alarm);
-  border-color: var(--alarm);
-}
-
-.dangerButton {
-  background: var(--alarm);
-  border-color: var(--alarm);
-  color: var(--on-green);
-}
-
 .refusal {
   display: flex;
   flex-wrap: wrap;

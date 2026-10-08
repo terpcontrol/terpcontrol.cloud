@@ -245,13 +245,8 @@
   gap: var(--space-3);
 }
 
-.danger,
-.dangerButton {
+.danger {
   color: var(--alarm);
-}
-
-.dangerButton {
-  border-color: var(--alarm);
 }
 
 .picture {

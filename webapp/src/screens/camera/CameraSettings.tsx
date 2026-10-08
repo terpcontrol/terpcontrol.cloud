@@ -298,7 +298,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
               {/* The one of the two that cannot be taken back is drawn in the alarm's colour, so it is not mistaken for keeping. */}
               <button
                 type="button"
-                className={`${ui.button} ${styles.unpairYes}`}
+                className={`${ui.button} ${ui.danger}`}
                 disabled={remove.isPending}
                 onClick={() => remove.mutate(camera.id, { onSuccess: () => void navigate('/devices') })}
               >

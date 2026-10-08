@@ -142,7 +142,7 @@ function Places({
           as the cockpit of a single place does: the title it had - "Start · 2
           Orte · nach Dringlichkeit" - was the old Start's and stands only for
           whoever hears the page rather than sees it. */}
-      <h1 className={styles.hiddenTitle}>{t('shell.tabs.home')}</h1>
+      <h1 className={ui.visuallyHidden}>{t('shell.tabs.home')}</h1>
 
       <RefreshFailed failedAt={failedAt} now={now} />
 

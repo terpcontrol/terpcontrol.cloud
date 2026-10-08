@@ -37,12 +37,6 @@
   gap: var(--space-3);
 }
 
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
-}
-
 /* The counts beside the heading: figures, so mono. */
 .counts {
   flex: 1;
@@ -182,15 +176,6 @@
    one, and the same hover as the rest of its row. Where the table fits, the
    rule is simply the last column's divider. The row a filter empties spans
    every column, so it is not pinned to anything. */
-.openHead > span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 .table thead th:last-child,
 .table tbody td:last-child:not([colspan]) {
   position: sticky;
@@ -367,11 +352,6 @@
 
 .paused {
   color: var(--warning);
-}
-
-.danger {
-  border-color: var(--alarm);
-  color: var(--alarm);
 }
 
 /* A figure that says something has gone wrong - renders the composer gave up

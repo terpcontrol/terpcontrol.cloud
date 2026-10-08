@@ -242,7 +242,7 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
           {dead ? (
             <button
               type="button"
-              className={`${ui.button} ${styles.end}`}
+              className={`${ui.button} ${ui.danger}`}
               disabled={remove.isPending}
               onClick={() => remove.mutate(link.id, { onSuccess: onClose })}
             >
@@ -251,7 +251,7 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
           ) : (
             <button
               type="button"
-              className={`${ui.button} ${styles.end}`}
+              className={`${ui.button} ${ui.danger}`}
               disabled={revoke.isPending}
               onClick={() => revoke.mutate(link.id, { onSuccess: onClose })}
             >

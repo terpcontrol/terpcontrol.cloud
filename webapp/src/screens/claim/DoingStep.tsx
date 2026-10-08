@@ -88,7 +88,7 @@ export function DoingStep({
       {/* A live region has to be on the page and empty before it is filled, so
           this one is always drawn and says nothing until a write has happened.
           What it reads is what the lines below say, so nothing is read twice. */}
-      <p className={styles.announce} role="status">
+      <p className={ui.visuallyHidden} role="status">
         {applied ? [wroteLine, phaseLine, asking ? t(wrote ? 'claim.doing.question' : 'claim.doing.questionNothingWritten') : ''].join(' ') : ''}
       </p>
 

@@ -2,11 +2,6 @@
    section already has: the outlined alarm of a step that cannot be taken back,
    a list of builds, and the small forms a socket is paired and changed with. */
 
-.danger {
-  border-color: var(--alarm);
-  color: var(--alarm);
-}
-
 /* Outlined rather than filled, like the account's own end: there is no ink that
    reads on a solid alarm in both themes. */
 .dangerButton {

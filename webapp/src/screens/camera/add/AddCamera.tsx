@@ -36,7 +36,7 @@ export function AddCamera() {
     <section className={styles.page}>
       <header className={styles.header}>
         <BackLink to="/devices" label={t('shell.tabs.devices')} />
-        <h1 className={styles.title}>{t('cameras.add.title')}</h1>
+        <h1>{t('cameras.add.title')}</h1>
       </header>
 
       {mayManage ? <Ways /> : <p className={`${ui.cardDashed} ${ui.note}`}>{t('cameras.add.demo')}</p>}

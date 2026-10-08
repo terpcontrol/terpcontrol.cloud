@@ -562,11 +562,6 @@
   color: var(--alarm);
 }
 
-.unpairYes {
-  border-color: var(--alarm);
-  color: var(--alarm);
-}
-
 /* --------------------------------------------------------------- composer */
 
 .composer {

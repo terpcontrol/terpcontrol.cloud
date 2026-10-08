@@ -265,7 +265,7 @@ export function TelegramCard({ me, held }: CardProps) {
           <div className={styles.actions}>
             <button
               type="button"
-              className={`${ui.button} ${styles.dangerButton}`}
+              className={`${ui.button} ${ui.dangerFilled}`}
               disabled={held}
               onClick={() => {
                 setAsking(false);

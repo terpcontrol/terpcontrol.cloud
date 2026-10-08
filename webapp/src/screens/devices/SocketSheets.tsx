@@ -369,7 +369,7 @@ export function SocketAdvanced({
       </SettingRow>
       {/* Offline, the holds above already say why it is grey. */}
       <SettingRow label={t('socketForm.remove.label')} help="advanced.removeSocket">
-        <button type="button" className={`${ui.chip} ${styles.danger}`} disabled={unheard !== null || row.slot < 0} onClick={() => setRemoving(true)}>
+        <button type="button" className={`${ui.chip} ${ui.danger}`} disabled={unheard !== null || row.slot < 0} onClick={() => setRemoving(true)}>
           {t('socketForm.remove.open')}
         </button>
       </SettingRow>

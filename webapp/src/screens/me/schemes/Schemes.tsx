@@ -242,7 +242,7 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
           </div>
         ) : (
           <div>
-            <button type="button" className={`${ui.chip} ${styles.danger}`} onClick={() => setAsking(true)}>
+            <button type="button" className={`${ui.chip} ${ui.danger}`} onClick={() => setAsking(true)}>
               {t('me.schemes.delete')}
             </button>
           </div>

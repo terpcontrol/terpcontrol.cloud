@@ -32,7 +32,7 @@ export function DeleteRow({ handle, disabled }: { handle: string; disabled: bool
       <Row title={t('me.privacy.delete.title')} line={t('me.privacy.delete.line')} danger help="deleteAccount">
         <button
           type="button"
-          className={`${ui.chip} ${styles.danger}`}
+          className={`${ui.chip} ${ui.danger}`}
           aria-label={t('me.privacy.delete.title')}
           disabled={disabled}
           onClick={() => setAsking(true)}

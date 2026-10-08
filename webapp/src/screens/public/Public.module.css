@@ -91,12 +91,6 @@
   padding: var(--space-6) 0;
 }
 
-.nothingTitle {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
-}
-
 .nothingBody {
   max-width: 48ch;
   color: var(--muted);
@@ -150,12 +144,6 @@
 .titles {
   flex: 1;
   min-width: 0;
-}
-
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
 }
 
 .day {

@@ -61,7 +61,7 @@ export function MyGrows() {
     <section className={styles.page}>
       <header className={styles.head}>
         <BackLink to={back.to} label={back.label} />
-        <h1 className={styles.title}>{t('grow.mine.title')}</h1>
+        <h1>{t('grow.mine.title')}</h1>
         <Help topic="myGrows" />
       </header>
 

@@ -94,7 +94,7 @@ function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => v
     <header className={styles.head}>
       <div className={styles.titleRow}>
         <BackLink to={back.to} label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')} />
-        <h1 className={styles.title}>{t('tasks.title')}</h1>
+        <h1>{t('tasks.title')}</h1>
       </div>
       {scope && onScope ? (
         <div className={ui.segments} role="radiogroup" aria-label={t('tasks.scopeLabel')}>

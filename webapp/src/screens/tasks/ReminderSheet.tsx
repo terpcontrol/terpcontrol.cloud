@@ -230,7 +230,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
                 <div className={styles.actions}>
                   <button
                     type="button"
-                    className={`${ui.button} ${styles.dangerButton}`}
+                    className={`${ui.button} ${ui.dangerFilled}`}
                     disabled={busy}
                     onClick={() => remove.mutate(undefined, { onSuccess: onClose })}
                   >
@@ -242,7 +242,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
                 </div>
               </>
             ) : (
-              <button type="button" className={`${ui.button} ${styles.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
+              <button type="button" className={`${ui.button} ${ui.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
                 {t('tasks.sheet.delete')}
               </button>
             )}

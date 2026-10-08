@@ -533,18 +533,18 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
               for it with the reason under them rather than vanishing. */}
           {mayCorrect ? (
             <div className={styles.actions}>
-              <span className={styles.withHelp}>
+              <span className={ui.withHelp}>
                 <RebootButton device={device} name={title} disabled={offline} />
                 <Help topic="reboot" />
               </span>
               {parksAnything(device) ? (
-                <span className={styles.withHelp}>
+                <span className={ui.withHelp}>
                   <MaintenanceButton devices={[device]} now={now} disabled={offline} />
                   <Help topic="maintenance" />
                 </span>
               ) : null}
               {device.control ? (
-                <span className={styles.withHelp}>
+                <span className={ui.withHelp}>
                   <ControlButton device={device} offline={offline} />
                   <Help topic="climateControl" />
                 </span>

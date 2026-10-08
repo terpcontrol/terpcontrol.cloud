@@ -18,12 +18,6 @@
   gap: var(--space-3);
 }
 
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
-}
-
 .stepSeparator,
 .stepCount {
   font-family: var(--font-text);
@@ -44,19 +38,6 @@
     margin-top: 2px;
     font-size: var(--text-sm);
   }
-}
-
-/* What has just opened, for a screen reader alone: the heading beside it is
-   seen, and a second copy of it would be read twice. */
-.announce {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 /* Leaving is a way out rather than an action, so it is drawn as the lesser of

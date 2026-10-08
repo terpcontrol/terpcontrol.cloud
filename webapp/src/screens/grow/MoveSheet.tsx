@@ -170,7 +170,7 @@ function PlacementRow({
           <button type="button" className={ui.chip} onClick={() => onOpen('correct')}>
             {t('grow.lifecycle.move.correct')}
           </button>
-          <button type="button" className={`${ui.chip} ${styles.danger}`} onClick={() => onOpen('withdraw')}>
+          <button type="button" className={`${ui.chip} ${ui.danger}`} onClick={() => onOpen('withdraw')}>
             {t('grow.lifecycle.move.withdraw')}
           </button>
         </div>
@@ -288,7 +288,7 @@ function PlacementWithdrawal({ grow, placement, onDone }: { grow: GrowListItem; 
         ) : (
           <button
             type="button"
-            className={`${ui.button} ${styles.dangerButton}`}
+            className={`${ui.button} ${ui.dangerFilled}`}
             disabled={withdraw.isPending}
             onClick={() => withdraw.mutate(placement.id, { onSuccess: onDone })}
           >

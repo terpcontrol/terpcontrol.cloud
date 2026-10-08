@@ -23,12 +23,6 @@
   min-width: 0;
 }
 
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
-}
-
 .group {
   display: flex;
   flex-direction: column;
@@ -284,17 +278,6 @@ button.none {
 
 .submit {
   width: 100%;
-}
-
-.danger {
-  color: var(--alarm);
-  border-color: var(--alarm);
-}
-
-.dangerButton {
-  background: var(--alarm);
-  border-color: var(--alarm);
-  color: var(--on-green);
 }
 
 /* The pages that share the rail read as one column of the same width, so that

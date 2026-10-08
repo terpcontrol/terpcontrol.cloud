@@ -267,17 +267,6 @@
   border-radius: var(--radius);
 }
 
-.danger {
-  color: var(--alarm);
-  border-color: var(--alarm);
-}
-
-.dangerButton {
-  background: var(--alarm);
-  border-color: var(--alarm);
-  color: var(--on-green);
-}
-
 /* That the device below is being worked on: the state, and the way out of it.
    It stands over the rules because it decides what all of them are doing, and
    it wraps rather than shrinking the button away on a narrow screen. */

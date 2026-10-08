@@ -62,7 +62,7 @@ export function Me() {
 
   return (
     <section className={styles.screen}>
-      <h1 className={styles.title}>{t('me.title')}</h1>
+      <h1>{t('me.title')}</h1>
 
       {isDemo ? <DemoDoors handle={user?.handle ?? '?'} /> : <AccountDoors handle={user?.handle ?? '?'} />}
 

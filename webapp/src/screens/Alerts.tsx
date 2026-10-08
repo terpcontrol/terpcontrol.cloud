@@ -81,7 +81,7 @@ export function Alerts() {
 
   const head = (
     <header className={styles.head}>
-      <h1 className={styles.title}>{t('shell.alerts')}</h1>
+      <h1>{t('shell.alerts')}</h1>
       {/* Nothing here can raise an alarm without a device or a cam, so there is nothing to mute either. */}
       {mayWriteAtAll && watching ? <MuteCorner account={me.data} now={now} /> : null}
     </header>

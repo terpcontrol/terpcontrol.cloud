@@ -210,7 +210,7 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
             </button>
           ) : null}
           {dead ? (
-            <button type="button" className={`${ui.chip} ${styles.forget}`} disabled={remove.isPending} onClick={() => remove.mutate(link.id)}>
+            <button type="button" className={`${ui.chip} ${ui.danger}`} disabled={remove.isPending} onClick={() => remove.mutate(link.id)}>
               {t('sharing.forget')}
             </button>
           ) : null}

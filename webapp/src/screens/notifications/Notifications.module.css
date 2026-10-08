@@ -100,12 +100,6 @@
   border-radius: var(--radius);
 }
 
-.dangerButton {
-  background: var(--alarm);
-  border-color: var(--alarm);
-  color: var(--on-green);
-}
-
 /* The what-goes-where grid: the category takes what is left after four switches. */
 .gridBlock {
   display: flex;

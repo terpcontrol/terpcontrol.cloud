@@ -10,12 +10,6 @@
   margin-bottom: var(--space-1);
 }
 
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
-}
-
 .text {
   margin-top: var(--space-2);
   color: var(--muted);

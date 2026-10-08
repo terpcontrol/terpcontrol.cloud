@@ -213,7 +213,7 @@ function BuildRow({ build, classes, fleet }: { build: Firmware; classes: DeviceC
               write that is known to come back. */}
           <button
             type="button"
-            className={`${ui.chip} ${styles.danger}`}
+            className={`${ui.chip} ${ui.danger}`}
             disabled={pointers.length > 0}
             title={pointers.length > 0 ? t('admin.firmware.inUse') : undefined}
             onClick={() => setOpen('delete')}
@@ -325,7 +325,7 @@ function DeleteSheet({ build, onClose }: { build: Firmware; onClose: () => void 
       actions={
         <button
           type="button"
-          className={`${ui.button} ${styles.danger}`}
+          className={`${ui.button} ${ui.danger}`}
           disabled={remove.isPending}
           onClick={() => remove.mutate(build.id, { onSuccess: onClose })}
         >

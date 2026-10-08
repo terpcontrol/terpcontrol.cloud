@@ -68,7 +68,7 @@ export function Measurements() {
     <section className={styles.page}>
       <header className={styles.head}>
         <BackLink to={`/grows/${growId}/weeks`} label={t('grow.measurements.back')} />
-        <h1 className={styles.title}>{t('grow.measurements.title')}</h1>
+        <h1>{t('grow.measurements.title')}</h1>
         <span className={`mono ${styles.growName}`}>{grow.data.name}</span>
       </header>
 

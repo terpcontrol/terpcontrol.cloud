@@ -28,7 +28,7 @@ function Release({ device }: DeviceContext) {
   return (
     <>
       <SettingRow label={t('release.label')} help="advanced.release" note={t('release.note')}>
-        <button type="button" className={`${ui.chip} ${styles.danger}`} onClick={() => setAsking(true)}>
+        <button type="button" className={`${ui.chip} ${ui.danger}`} onClick={() => setAsking(true)}>
           {t('release.open')}
         </button>
       </SettingRow>

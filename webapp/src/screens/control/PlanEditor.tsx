@@ -152,7 +152,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
                     </button>
                     <button
                       type="button"
-                      className={`${ui.chip} ${styles.danger}`}
+                      className={`${ui.chip} ${ui.danger}`}
                       onClick={() => steps(draft.steps.filter(one => one.key !== step.key))}
                     >
                       {t('space.control.step.remove')}

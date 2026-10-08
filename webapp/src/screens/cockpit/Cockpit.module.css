@@ -609,15 +609,6 @@
   gap: var(--space-2);
 }
 
-/* A two-line action and the (i) that says more about it, as on a device's panel. */
-.withHelp {
-  display: flex;
-  flex: 1 1 15rem;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
 /* --------------------------------------------------------- the summaries */
 
 .summary {

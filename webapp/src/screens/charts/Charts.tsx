@@ -936,7 +936,7 @@ function Header({ spaceId, growId, subject }: { spaceId: string | null; growId: 
   return (
     <header className={styles.header}>
       <BackLink to={back} label={t('charts.back')} className={styles.back} />
-      <h1 className={styles.title}>{t('charts.title')}</h1>
+      <h1>{t('charts.title')}</h1>
       {subject ? <span className={`mono ${styles.subject}`}>{subject}</span> : null}
     </header>
   );

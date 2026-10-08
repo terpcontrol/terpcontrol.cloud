@@ -191,7 +191,7 @@ export function Claim() {
   return (
     <section className={styles.screen}>
       <header className={styles.head}>
-        <h1 className={styles.title}>{stepped(t('claim.title', { step: position, of: shown.length }))}</h1>
+        <h1>{stepped(t('claim.title', { step: position, of: shown.length }))}</h1>
         <button type="button" className={styles.skip} onClick={leave}>
           {t('claim.skip')}
         </button>
@@ -200,7 +200,7 @@ export function Claim() {
       {/* Nothing announces a step change on its own: the heading's text swaps and
           `aria-current` moves, neither of which is read out. This says what has
           just opened, and stays empty until something has. */}
-      <p className={styles.announce} role="status">
+      <p className={ui.visuallyHidden} role="status">
         {at > 0 ? t('claim.opened', { title: t(`claim.${keyOf(at)}.title`), step: position, of: shown.length }) : ''}
       </p>
 
@@ -312,7 +312,7 @@ function OnlyLooking() {
 
   return (
     <section className={styles.screen}>
-      <h1 className={styles.title}>{stepped(t('claim.title', { step: 1, of: STEPS.length }))}</h1>
+      <h1>{stepped(t('claim.title', { step: 1, of: STEPS.length }))}</h1>
       <p className={`${ui.cardDashed} ${styles.demoNote}`}>{t('claim.demo')}</p>
       <Link className={ui.button} to="/devices">
         {t('claim.backToDevices')}

@@ -388,19 +388,14 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
           </button>
         ) : null}
         {can.stop ? (
-          <button
-            type="button"
-            className={`${ui.button} ${styles.danger}`}
-            disabled={busy}
-            onClick={() => setAsking(asking === 'stop' ? null : 'stop')}
-          >
+          <button type="button" className={`${ui.button} ${ui.danger}`} disabled={busy} onClick={() => setAsking(asking === 'stop' ? null : 'stop')}>
             {t('space.control.move.stop')}
           </button>
         ) : null}
         {can.remove ? (
           <button
             type="button"
-            className={`${ui.button} ${styles.danger}`}
+            className={`${ui.button} ${ui.danger}`}
             disabled={busy}
             onClick={() => setAsking(asking === 'remove' ? null : 'remove')}
           >
@@ -469,7 +464,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
           <div className={styles.actions}>
             <button
               type="button"
-              className={`${ui.button} ${styles.dangerButton}`}
+              className={`${ui.button} ${ui.dangerFilled}`}
               disabled={busy}
               onClick={() => stop.mutate(undefined, { onSuccess: close })}
             >
@@ -488,7 +483,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
           <div className={styles.actions}>
             <button
               type="button"
-              className={`${ui.button} ${styles.dangerButton}`}
+              className={`${ui.button} ${ui.dangerFilled}`}
               disabled={busy}
               onClick={() => remove.mutate(undefined, { onSuccess: close })}
             >

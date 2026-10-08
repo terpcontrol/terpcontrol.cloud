@@ -36,7 +36,7 @@ export function EmptyHome({ onStartGrow, past = null }: { onStartGrow: () => voi
   return (
     <section className={styles.screen}>
       <header className={styles.intro}>
-        <h1 className={styles.title}>{t(past ? 'home.empty.pastTitle' : 'home.empty.title')}</h1>
+        <h1>{t(past ? 'home.empty.pastTitle' : 'home.empty.title')}</h1>
         <p className={styles.text}>{t(past ? 'home.empty.pastText' : 'home.empty.text')}</p>
       </header>
       {past}
@@ -79,7 +79,7 @@ function NothingInTheDemo() {
   return (
     <section className={styles.screen}>
       <header className={styles.intro}>
-        <h1 className={styles.title}>{t('home.demoEmpty.title')}</h1>
+        <h1>{t('home.demoEmpty.title')}</h1>
         <p className={styles.text}>{t('home.demoEmpty.text')}</p>
       </header>
 

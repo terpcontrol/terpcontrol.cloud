@@ -78,7 +78,7 @@ function Invitation({ preview, code, signedIn, isDemo }: { preview: InvitePrevie
   return (
     <section className={styles.invitation}>
       <span className="label">{t('space.members.join.label')}</span>
-      <h1 className={styles.title}>{t('space.members.join.title', { name })}</h1>
+      <h1>{t('space.members.join.title', { name })}</h1>
       <p className={styles.by}>
         {preview.invitedByHandle ? t('space.members.join.by', { handle: preview.invitedByHandle }) : t('space.members.join.bySomebody')}
       </p>
@@ -138,7 +138,7 @@ function CodeEntry() {
   return (
     <section className={styles.invitation}>
       <span className="label">{t('space.members.join.label')}</span>
-      <h1 className={styles.title}>{t('space.members.join.code.title')}</h1>
+      <h1>{t('space.members.join.code.title')}</h1>
       <p className={styles.by}>{t('space.members.join.code.body')}</p>
 
       <form

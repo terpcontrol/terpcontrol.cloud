@@ -14,7 +14,7 @@ export function AdminHead({ title, crumb, children }: { title: string; crumb?: R
 
   return (
     <header className={styles.head}>
-      <h1 className={styles.title}>{title}</h1>
+      <h1>{title}</h1>
       {crumb ? (
         <span className={`mono ${styles.crumb}`}>
           <Link to="/admin/fleet">{t('admin.fleet.title')}</Link> › {crumb}
