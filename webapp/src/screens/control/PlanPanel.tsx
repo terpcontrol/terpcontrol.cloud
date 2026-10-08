@@ -6,6 +6,7 @@ import { useDevices, useHeardAt } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
+import { Asking } from '@/ui/Asking';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -413,87 +414,54 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
       ) : null}
 
       {asking === 'extend' ? (
-        <div className={styles.asking}>
-          <p className={ui.note}>{t('space.control.ask.extend')}</p>
+        <Asking
+          note={t('space.control.ask.extend')}
+          yes={t('space.control.ask.extendYes', { length: durationLabel(t, by) })}
+          busy={busy}
+          onYes={() => move.mutate({ kind: 'extend', by }, { onSuccess: close })}
+          onCancel={close}
+        >
           <DurationField value={by} min={1} onChange={setBy} />
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              disabled={busy}
-              onClick={() => move.mutate({ kind: 'extend', by }, { onSuccess: close })}
-            >
-              {t('space.control.ask.extendYes', { length: durationLabel(t, by) })}
-            </button>
-            <button type="button" className={ui.button} onClick={close}>
-              {t('grow.lifecycle.cancel')}
-            </button>
-          </div>
-        </div>
+        </Asking>
       ) : null}
 
       {asking === 'skip' ? (
-        <div className={styles.asking}>
-          <p className={ui.note}>
-            {next === null
+        <Asking
+          note={
+            next === null
               ? t('space.control.ask.skipEnds')
               : t(plan.state.status === 'paused' ? 'space.control.ask.skipPaused' : 'space.control.ask.skip', {
                   number: next + 1,
                   name: plan.steps[next]?.name ?? '',
-                })}
-          </p>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              disabled={busy}
-              onClick={() => move.mutate({ kind: 'skip' }, { onSuccess: close })}
-            >
-              {t('space.control.ask.skipYes')}
-            </button>
-            <button type="button" className={ui.button} onClick={close}>
-              {t('grow.lifecycle.cancel')}
-            </button>
-          </div>
-        </div>
+                })
+          }
+          yes={t('space.control.ask.skipYes')}
+          busy={busy}
+          onYes={() => move.mutate({ kind: 'skip' }, { onSuccess: close })}
+          onCancel={close}
+        />
       ) : null}
 
       {asking === 'stop' ? (
-        <div className={styles.asking}>
-          <p className={ui.note}>{t('space.control.ask.stop')}</p>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.dangerFilled}`}
-              disabled={busy}
-              onClick={() => stop.mutate(undefined, { onSuccess: close })}
-            >
-              {t('space.control.ask.stopYes')}
-            </button>
-            <button type="button" className={ui.button} onClick={close}>
-              {t('grow.lifecycle.cancel')}
-            </button>
-          </div>
-        </div>
+        <Asking
+          note={t('space.control.ask.stop')}
+          yes={t('space.control.ask.stopYes')}
+          danger
+          busy={busy}
+          onYes={() => stop.mutate(undefined, { onSuccess: close })}
+          onCancel={close}
+        />
       ) : null}
 
       {asking === 'remove' ? (
-        <div className={styles.asking}>
-          <p className={ui.note}>{t('space.control.ask.remove')}</p>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.dangerFilled}`}
-              disabled={busy}
-              onClick={() => remove.mutate(undefined, { onSuccess: close })}
-            >
-              {t('space.control.ask.removeYes')}
-            </button>
-            <button type="button" className={ui.button} onClick={close}>
-              {t('grow.lifecycle.cancel')}
-            </button>
-          </div>
-        </div>
+        <Asking
+          note={t('space.control.ask.remove')}
+          yes={t('space.control.ask.removeYes')}
+          danger
+          busy={busy}
+          onYes={() => remove.mutate(undefined, { onSuccess: close })}
+          onCancel={close}
+        />
       ) : null}
 
       <PlanRefusal error={move.error ?? stop.error ?? remove.error} onRefresh={onRefresh} />

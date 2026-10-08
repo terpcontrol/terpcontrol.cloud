@@ -223,7 +223,7 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
         <p className={ui.note}>{t('me.schemes.copyNote')}</p>
 
         {asking ? (
-          <div className={styles.asking}>
+          <div className={ui.asking}>
             <p className={ui.note}>{t('me.schemes.deleteAsk', { name: scheme.name })}</p>
             <div className={styles.askingActions}>
               <button

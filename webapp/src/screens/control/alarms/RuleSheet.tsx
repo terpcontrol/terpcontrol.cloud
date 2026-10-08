@@ -8,6 +8,7 @@ import { Sheet } from '@/ui/Sheet';
 import { EmailAlarmsOffer } from '@/screens/notifications/NotifyNotice';
 import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { WEBHOOK_METHODS } from '@/screens/notifications/settings';
+import { Asking } from '@/ui/Asking';
 import { Refused } from '@/ui/PageState';
 import advanced from '@/ui/advanced/Advanced.module.css';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
@@ -113,22 +114,14 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
 
       {rule && rule.origin !== 'always' ? (
         askingDelete ? (
-          <div className={styles.asking}>
-            <p className={ui.note}>{t('alarms.sheet.deleteAsk')}</p>
-            <div className={styles.actions}>
-              <button
-                type="button"
-                className={`${ui.button} ${ui.dangerFilled}`}
-                disabled={busy}
-                onClick={() => remove.mutate(rule.id, { onSuccess: onClose })}
-              >
-                {t('alarms.sheet.deleteYes')}
-              </button>
-              <button type="button" className={ui.button} onClick={() => setAskingDelete(false)}>
-                {t('grow.lifecycle.cancel')}
-              </button>
-            </div>
-          </div>
+          <Asking
+            note={t('alarms.sheet.deleteAsk')}
+            yes={t('alarms.sheet.deleteYes')}
+            danger
+            busy={busy}
+            onYes={() => remove.mutate(rule.id, { onSuccess: onClose })}
+            onCancel={() => setAskingDelete(false)}
+          />
         ) : (
           <button type="button" className={`${ui.button} ${ui.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
             {t('alarms.sheet.delete')}

@@ -87,7 +87,7 @@ export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEd
       {!onDone && why ? <p className={`${ui.note} ${styles.why}`}>{why}</p> : null}
 
       {asking && onDone ? (
-        <div className={styles.stepAsk}>
+        <div className={ui.asking}>
           {deviceId ? <NextStep deviceId={deviceId} /> : <p className={ui.note}>{t('tasks.confirm.askUnnamed')}</p>}
           <div className={styles.actions}>
             <button

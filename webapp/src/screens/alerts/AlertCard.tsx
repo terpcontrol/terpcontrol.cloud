@@ -499,7 +499,7 @@ function OpenChips({
       </div>
 
       {asking && device && reachable ? (
-        <div className={ask.asking}>
+        <div className={ui.asking}>
           <p className={ui.note}>{maintenanceAsk(t, device)}</p>
           <div className={ask.actions}>
             <button

@@ -260,7 +260,7 @@ export function TelegramCard({ me, held }: CardProps) {
       ) : null}
       {ran && !linked ? <p className={ui.note}>{t('notifications.telegram.expired')}</p> : null}
       {asking && linked ? (
-        <div className={styles.asking}>
+        <div className={ui.asking}>
           <p className={ui.note}>{t('notifications.telegram.ask')}</p>
           <div className={styles.actions}>
             <button
