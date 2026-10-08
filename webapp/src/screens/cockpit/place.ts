@@ -34,7 +34,7 @@ import type { ConstantHold } from '../timeline/window';
 import { hoursWritten } from '../control/targets/schedule-words';
 import { draftOf, offsetOf, wallClock } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from '../home/attention';
-import { alertLabel, asWritten, figure, isSilence, UNIT } from '@/ui/units';
+import { alertLabel, asWritten, figureWithUnit, isSilence } from '@/ui/units';
 import { plugModeOf } from '../control/devices/own-summary';
 
 /**
@@ -593,7 +593,7 @@ export const statusText = (t: Translate, status: Status, now: DateTime, zone: st
     case 'off': {
       const words = t(`cockpit.status.${status.high ? 'high' : 'low'}${status.since === null ? 'Now' : ''}`, {
         metric: t(`cockpit.metric.${status.metric}`),
-        delta: `${figure(status.delta, status.metric)} ${UNIT[status.metric] ?? ''}`.trim(),
+        delta: figureWithUnit(status.delta, status.metric),
       });
       return status.since ? `${words} · ${t('cockpit.status.since', { time: sinceLabel(status.since, now, zone) })}` : words;
     }

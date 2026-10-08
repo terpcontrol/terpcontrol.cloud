@@ -3,7 +3,7 @@ import type { GerminationChoices as Choices } from '@fg2/shared-types/v1';
 import { GERMINATION_TOO_HUMID } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
-import { targetFigure, UNIT } from '@/ui/units';
+import { targetWithUnit } from '@/ui/units';
 import styles from './GerminationChoices.module.css';
 
 /**
@@ -33,7 +33,7 @@ export function GerminationChoices({
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
-  const held = humidity === null ? null : `${targetFigure(humidity, 'humidity')} ${UNIT.humidity ?? '%'}`;
+  const held = humidity === null ? null : targetWithUnit(humidity, 'humidity');
   const clashes = humidifier && value.humidifierHolds && value.warnTooHumid && humidity !== null && humidity > GERMINATION_TOO_HUMID;
 
   return (

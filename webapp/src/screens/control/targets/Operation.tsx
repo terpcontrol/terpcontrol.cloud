@@ -11,7 +11,7 @@ import { FieldSwitch } from '@/ui/advanced/Fields';
 import { Help } from '@/ui/Help';
 import { SheetAnswer } from '@/ui/SheetParts';
 import { useSwitchOn } from '../../devices/switch-on';
-import { targetFigure, UNIT } from '@/ui/units';
+import { targetWithUnit } from '@/ui/units';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import day from './DayNight.module.css';
@@ -163,10 +163,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 /** "Tag 25 °C · 60 %, Nacht 20 °C · 55 %, Licht 80 %, CO₂ 900 ppm", leaving out what the document never stated. */
 const returnLine = (t: Translate, back: DryingReturn): string => {
   const pair = (temperature: number | null, humidity: number | null) =>
-    [
-      temperature === null ? null : `${targetFigure(temperature, 'temperature')} ${UNIT.temperature}`,
-      humidity === null ? null : `${targetFigure(humidity, 'humidity')} ${UNIT.humidity}`,
-    ]
+    [temperature === null ? null : targetWithUnit(temperature, 'temperature'), humidity === null ? null : targetWithUnit(humidity, 'humidity')]
       .filter(Boolean)
       .join(' · ');
   const day = pair(back.dayTemperature, back.dayHumidity);
@@ -176,7 +173,7 @@ const returnLine = (t: Translate, back: DryingReturn): string => {
     day ? t('climateControl.returns.day', { values: day }) : null,
     night ? t('climateControl.returns.night', { values: night }) : null,
     back.lightLimit === null ? null : t('climateControl.returns.light', { percent: Math.round(back.lightLimit) }),
-    back.co2 === null ? null : t('climateControl.returns.co2', { value: `${targetFigure(back.co2, 'co2')} ${UNIT.co2}` }),
+    back.co2 === null ? null : t('climateControl.returns.co2', { value: targetWithUnit(back.co2, 'co2') }),
   ]
     .filter(Boolean)
     .join(', ');

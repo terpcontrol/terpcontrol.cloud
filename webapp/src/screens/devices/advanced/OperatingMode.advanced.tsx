@@ -9,7 +9,7 @@ import { FieldChoice } from '@/ui/advanced/Fields';
 import { figureOf } from '@/ui/climate-hardware';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { Refused } from '@/ui/PageState';
-import { targetFigure, UNIT } from '@/ui/units';
+import { targetFigure, targetWithUnit } from '@/ui/units';
 
 /**
  * Betriebsart: what a fridge or a tent controller does as a whole while its
@@ -38,7 +38,7 @@ function OperatingMode({ device, mayManage, sockets }: DeviceContext) {
     t(choices.warnTooHumid ? 'germinationChoices.alarmOn' : 'germinationChoices.alarmOff', { line: GERMINATION_TOO_HUMID }),
     humidifier
       ? choices.humidifierHolds
-        ? t('germinationChoices.humidifierOn', { humidity: `${targetFigure(GERMINATION_HUMIDITY, 'humidity')} ${UNIT.humidity ?? '%'}` })
+        ? t('germinationChoices.humidifierOn', { humidity: targetWithUnit(GERMINATION_HUMIDITY, 'humidity') })
         : t('germinationChoices.humidifierOff')
       : null,
     t('operatingMode.choicesAfter'),

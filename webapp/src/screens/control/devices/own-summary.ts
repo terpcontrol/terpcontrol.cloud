@@ -7,7 +7,7 @@ import {
   type TimerWindow,
 } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { fieldValue } from '@/ui/advanced/field-values';
-import { targetFigure, UNIT } from '@/ui/units';
+import { targetWithUnit } from '@/ui/units';
 import { wallClock } from '../targets/targets-draft';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -34,8 +34,6 @@ const READING: Record<PlugSwitching | 'co2', Metric> = {
 
 const RISING: readonly string[] = ['heater', 'humidify', 'co2'];
 
-const withUnit = (value: number, metric: Metric): string => `${targetFigure(value, metric)} ${UNIT[metric] ?? ''}`.trim();
-
 const number = (device: Device, name: string): number | null => {
   const value = fieldValue(device, name);
   return typeof value === 'number' ? value : null;
@@ -60,7 +58,10 @@ export const plugSummaryOf = (t: Translate, device: Device, offset: number): Sum
     const off = number(device, switching === 'co2' ? 'co2Off' : switchPointName(switching, when, 'off'));
     if (on === null || off === null) return null;
     const metric = READING[switching];
-    return t(`plugSettings.summary.${RISING.includes(switching) ? 'rising' : 'falling'}`, { on: withUnit(on, metric), off: withUnit(off, metric) });
+    return t(`plugSettings.summary.${RISING.includes(switching) ? 'rising' : 'falling'}`, {
+      on: targetWithUnit(on, metric),
+      off: targetWithUnit(off, metric),
+    });
   };
 
   if ((PLUG_SWITCHING as readonly string[]).includes(mode)) {

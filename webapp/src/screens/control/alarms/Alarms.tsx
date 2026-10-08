@@ -10,7 +10,7 @@ import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useUnsilenceA
 import { useDeviceCommand } from '@/api/commands';
 import { useSpaceOverview } from '@/api/spaces';
 import { durationLabel } from '@/screens/devices/sockets';
-import { targetFigure } from '@/ui/units';
+import { targetWithUnit } from '@/ui/units';
 import { timeOf } from '@/screens/notifications/settings';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
@@ -32,7 +32,6 @@ import {
   routedChannels,
   ruleTitle,
   type Translate,
-  unitOf,
   watchable,
   watchLabel,
 } from './rules';
@@ -326,7 +325,7 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
           const line =
             watch.kind === 'reading'
               ? t(`alarms.template.${watch.edge}`, {
-                  value: `${targetFigure(watch.value, watch.metric)} ${unitOf({ kind: 'reading', metric: watch.metric, upper: null, lower: null })}`,
+                  value: targetWithUnit(watch.value, watch.metric),
                   length,
                 })
               : t('alarms.template.runs', { length });

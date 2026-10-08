@@ -14,7 +14,7 @@ import { ownStatusOf } from '../control/devices/own-summary';
 import { offsetOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/LivenessPill';
-import { figure, UNIT } from '@/ui/units';
+import { figure, figureWithUnit, UNIT } from '@/ui/units';
 import {
   climateDeviceOf,
   controlOffOf,
@@ -105,9 +105,7 @@ export function PlaceCard({
                   <span className="mono">{UNIT[metric]}</span>
                 </span>
                 {means?.[metric] != null ? (
-                  <span className={`mono ${styles.mean}`}>
-                    {t('cockpit.tile.hourMean', { value: `${figure(means[metric], metric)} ${UNIT[metric] ?? ''}`.trim() })}
-                  </span>
+                  <span className={`mono ${styles.mean}`}>{t('cockpit.tile.hourMean', { value: figureWithUnit(means[metric], metric) })}</span>
                 ) : null}
               </span>
             );

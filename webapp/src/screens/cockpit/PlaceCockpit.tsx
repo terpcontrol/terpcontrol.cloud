@@ -35,7 +35,7 @@ import { DeviceOffer } from '../home/DeviceOffer';
 import { DiaryOffer } from '../home/DiaryOffer';
 import { LivenessPill } from '../home/LivenessPill';
 import { OfflineHelp } from '../home/OfflineHelp';
-import { targetFigure, UNIT } from '@/ui/units';
+import { targetWithUnit } from '@/ui/units';
 import { NotifyNotice } from '../notifications/NotifyNotice';
 import { CameraPicture } from './CameraPicture';
 import { GrowBlock } from './GrowBlock';
@@ -398,7 +398,7 @@ function ModeLine({
       <Info size={18} strokeWidth={2} aria-hidden />
       <span className={styles.statusText}>
         {kind === 'germination' && humidifierHold
-          ? t('cockpit.mode.germinationHumidified', { humidity: `${targetFigure(humidifierHold.target, 'humidity')} ${UNIT.humidity}` })
+          ? t('cockpit.mode.germinationHumidified', { humidity: targetWithUnit(humidifierHold.target, 'humidity') })
           : t(`cockpit.mode.${kind}`)}
         <Help topic={kind === 'greenhouse' ? 'advanced.operatingMode' : kind} />
       </span>

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { Help, Term } from '@/ui/Help';
 import type { HelpTopic } from '@/ui/explain';
-import { figure, targetFigure, UNIT } from '@/ui/units';
+import { figure, targetWithUnit, UNIT } from '@/ui/units';
 import {
   halfOf,
   halvesOf,
@@ -320,10 +320,9 @@ function Notes({ device, shape, baseline, hasCo2 }: TableProps) {
   // to 24 hours of light is not shown as kept when it is not.
   const draft = baseline;
   const pair = (temperature: number, humidity: number) =>
-    [
-      `${targetFigure(temperature, 'temperature')} ${UNIT.temperature}`,
-      holdsHumidity(shape) ? `${targetFigure(humidity, 'humidity')} ${UNIT.humidity}` : null,
-    ].filter((part): part is string => part !== null);
+    [targetWithUnit(temperature, 'temperature'), holdsHumidity(shape) ? targetWithUnit(humidity, 'humidity') : null].filter(
+      (part): part is string => part !== null,
+    );
 
   // What germination gives back to the night, where it is not what germination holds anyway: the
   // temperature, and the humidity - which comes back whether or not a humidifier holds one in the
@@ -341,7 +340,7 @@ function Notes({ device, shape, baseline, hasCo2 }: TableProps) {
             summary: t('targets.table.keptDay'),
             parts: [
               ...pair(draft.dayTemperature, draft.dayHumidity),
-              ...(hasCo2 ? [`CO₂ ${targetFigure(draft.co2, 'co2')} ${UNIT.co2}`] : []),
+              ...(hasCo2 ? [`CO₂ ${targetWithUnit(draft.co2, 'co2')}`] : []),
               t('targets.table.keptLight', { percent: Math.round(draft.lightLimit) }),
             ],
           }
@@ -355,10 +354,10 @@ function Notes({ device, shape, baseline, hasCo2 }: TableProps) {
         <p className={styles.note}>
           {backHumidity !== null
             ? t('targets.table.germinationBackHumidity', {
-                temperature: `${targetFigure(back, 'temperature')} ${UNIT.temperature}`,
-                humidity: `${targetFigure(backHumidity, 'humidity')} ${UNIT.humidity}`,
+                temperature: targetWithUnit(back, 'temperature'),
+                humidity: targetWithUnit(backHumidity, 'humidity'),
               })
-            : t('targets.table.germinationBack', { temperature: `${targetFigure(back, 'temperature')} ${UNIT.temperature}` })}
+            : t('targets.table.germinationBack', { temperature: targetWithUnit(back, 'temperature') })}
         </p>
       ) : null}
       {kept ? (

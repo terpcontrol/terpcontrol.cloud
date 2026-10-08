@@ -1,7 +1,7 @@
 import type { i18n as I18n } from 'i18next';
 import type { Metric } from '@fg2/shared-types/v1';
 import { OFFLINE_RULE_NAME } from '@fg2/shared-types/v1-schemas/alert-routing.js';
-import { figure, targetFigure, UNIT } from '@/ui/units';
+import { figureWithUnit, targetFigure, UNIT } from '@/ui/units';
 
 /**
  * An alarm's diary line, in the reader's language.
@@ -43,8 +43,6 @@ const isReading = (watched: string): watched is Metric => watched in UNIT;
 
 const ruleName = (i18n: I18n, name: string): string => (name === OFFLINE_RULE_NAME ? i18n.t('alarmLine.deviceOffline') : name);
 
-const reading = (value: number, metric: Metric): string => [figure(value, metric), UNIT[metric]].filter(Boolean).join(' ');
-
 const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | null => {
   const match = THRESHOLD.exec(param);
   if (!match) return null;
@@ -65,8 +63,8 @@ const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | 
   const edge = (sign: string, bound: number) => [sign, targetFigure(bound, watched), UNIT[watched]].filter(Boolean).join(' ');
   const crossed = upper !== null && value > upper ? edge('›', upper) : lower !== null && value < lower ? edge('‹', lower) : null;
 
-  const parts = [`${ruleName(i18n, name)} · ${metric} ${reading(value, watched)}${triggered && crossed ? ` ${crossed}` : ''}`];
-  if (!triggered && extreme !== null) parts.push(i18n.t('alarmLine.worst', { value: reading(extreme, watched) }));
+  const parts = [`${ruleName(i18n, name)} · ${metric} ${figureWithUnit(value, watched)}${triggered && crossed ? ` ${crossed}` : ''}`];
+  if (!triggered && extreme !== null) parts.push(i18n.t('alarmLine.worst', { value: figureWithUnit(extreme, watched) }));
 
   return parts.join(' · ');
 };

@@ -13,7 +13,7 @@ import { Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
 import { boundsOf, channelsLabel, ruleTitle } from '../control/alarms/rules';
-import { targetFigure, UNIT } from '@/ui/units';
+import { targetWithUnit } from '@/ui/units';
 import { alarmsReach, reachedBy } from '../notifications/reach';
 import { fanSummaryOf, plugSummaryOf } from '../control/devices/own-summary';
 import { offsetOf } from '../control/targets/targets-draft';
@@ -46,13 +46,11 @@ function Summary({ title, change, children }: { title: string; change: string | 
   );
 }
 
-const withUnit = (value: number, metric: Metric): string => `${targetFigure(value, metric)} ${UNIT[metric] ?? ''}`.trim();
-
 const halfOf = (row: CardSetpoint[], withCo2: boolean, withHumidity: boolean): string[] =>
   (['temperature', ...(withHumidity ? ['humidity'] : []), ...(withCo2 ? ['co2'] : [])] as Metric[]).flatMap(metric => {
     const value = row.find(setpoint => setpoint.metric === metric)?.value;
     if (value == null) return [];
-    return [metric === 'co2' ? `CO₂ ${withUnit(value, metric)}` : withUnit(value, metric)];
+    return [metric === 'co2' ? `CO₂ ${targetWithUnit(value, metric)}` : targetWithUnit(value, metric)];
   });
 
 interface Row {
@@ -111,7 +109,7 @@ export function TargetsSummary({
                 label: t(`cockpit.targets.${regime}`),
                 parts: [
                   ...halfOf(targets.night, false, humidity),
-                  ...(regime === 'germination' && humidifierHold ? [withUnit(humidifierHold.target, 'humidity')] : []),
+                  ...(regime === 'germination' && humidifierHold ? [targetWithUnit(humidifierHold.target, 'humidity')] : []),
                 ],
               },
             ]

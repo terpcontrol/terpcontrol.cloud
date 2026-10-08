@@ -11,7 +11,7 @@ import { decimalFigure } from '@/ui/figures';
 import { Term } from '@/ui/Help';
 import { clock, useZone } from '@/ui/zone';
 import { LastValue } from '../home/OfflineHelp';
-import { figure, targetFigure, UNIT } from '@/ui/units';
+import { figure, figureWithUnit, targetFigure, targetWithUnit, UNIT } from '@/ui/units';
 import { DayBar } from './DayBar';
 import { MiniCurve, type Tone } from './MiniCurve';
 import {
@@ -167,9 +167,7 @@ function ClimateTile({
           <span className={`figure ${styles.figure}`}>{value?.value == null ? '–' : figure(value.value, metric)}</span>
           <span className={`mono ${styles.unit}`}>{UNIT[metric]}</span>
           {mean != null ? (
-            <span className={`mono ${styles.second}`}>
-              {t('cockpit.tile.hourMean', { value: `${figure(mean, metric)} ${UNIT[metric] ?? ''}`.trim() })}
-            </span>
+            <span className={`mono ${styles.second}`}>{t('cockpit.tile.hourMean', { value: figureWithUnit(mean, metric) })}</span>
           ) : null}
           {vpd?.value != null ? (
             <span className={`mono ${styles.second}`}>
@@ -182,7 +180,7 @@ function ClimateTile({
             {range
               ? t('cockpit.tile.switches', {
                   low: targetFigure(range.low, metric),
-                  high: `${targetFigure(range.high, metric)} ${UNIT[metric] ?? ''}`.trim(),
+                  high: targetWithUnit(range.high, metric),
                 })
               : targetLabel(t, metric, setpoint, holdingNowOf(device, live, now, offline), device, offline, hold)}
           </span>
@@ -244,12 +242,12 @@ const targetLabel = (
   // which is said: "nachts kein Ziel" over a drying room's CO2 read as though night were the reason.
   const by = unheldBy(device);
   if (setpoint?.value == null && by === 'germination' && metric === 'humidity' && hold !== null) {
-    return t('cockpit.tile.humidifierHolds', { target: `${targetFigure(hold.target, 'humidity')} ${UNIT.humidity ?? '%'}` });
+    return t('cockpit.tile.humidifierHolds', { target: targetWithUnit(hold.target, 'humidity') });
   }
   if (setpoint?.value == null && by) return t('cockpit.tile.noTargetBy', { mode: t(`cockpit.tile.mode.${by}`) });
   if (setpoint?.value == null && metric === 'co2' && regime === 'never') return t('cockpit.tile.co2Dark');
   if (setpoint?.value == null) return t(metric === 'co2' && half === 'night' ? 'cockpit.tile.co2Night' : 'cockpit.tile.noTarget');
-  const target = `${targetFigure(setpoint.value, metric)} ${UNIT[metric] ?? ''}`.trim();
+  const target = targetWithUnit(setpoint.value, metric);
   if (regime === 'drying') return t('cockpit.tile.target.drying', { target });
   if (regime === 'germination') return t('cockpit.tile.target.germination', { target });
   if (regime === 'always' || regime === 'never') return t('cockpit.tile.target.any', { target });
@@ -281,11 +279,7 @@ function VerdictWords({ verdict, metric, now, explain }: { verdict: Verdict; met
     return <span className={styles.inBand}>{explain ? <Term topic="band">{words}</Term> : words}</span>;
   }
 
-  return (
-    <span className={styles.offBand}>
-      {t(`cockpit.tile.${verdict.kind}`, { delta: `${figure(verdict.delta, metric)} ${UNIT[metric] ?? ''}`.trim() })}
-    </span>
-  );
+  return <span className={styles.offBand}>{t(`cockpit.tile.${verdict.kind}`, { delta: figureWithUnit(verdict.delta, metric) })}</span>;
 }
 
 /** "Kompressor läuft seit 12 Min · Heizung aus": what moves this reading, each output by its one name. */

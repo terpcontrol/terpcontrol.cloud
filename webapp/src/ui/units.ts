@@ -24,6 +24,9 @@ const DECIMALS: Partial<Record<Metric, number>> = { temperature: 1, humidity: 0,
  */
 const grouped = (written: string, metric: Metric): string => (metric === 'lux' ? written.replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f') : written);
 
+/** A reading rounded as it is written, so a judgement made on it agrees with the figure printed beside it. */
+export const asWritten = (value: number, metric: Metric): number => Number(value.toFixed(DECIMALS[metric] ?? 0));
+
 /**
  * A reading as a card writes it. A figure that rounds away to nothing is
  * written as nothing rather than as "-0": a scale is stretched a little past
@@ -36,9 +39,6 @@ const grouped = (written: string, metric: Metric): string => (metric === 'lux' ?
  * the written form is the reader's and a German one has a comma in the middle
  * that no arithmetic here could read back.
  */
-/** A reading rounded as it is written, so a judgement made on it agrees with the figure printed beside it. */
-export const asWritten = (value: number, metric: Metric): number => Number(value.toFixed(DECIMALS[metric] ?? 0));
-
 export const figure = (value: number, metric: Metric): string => {
   const decimals = DECIMALS[metric] ?? 0;
   const rounded = Number(value.toFixed(decimals));
@@ -49,6 +49,12 @@ export const figure = (value: number, metric: Metric): string => {
 /** A target, a band edge and the corner of an axis are round numbers more often than not, and read as one. */
 export const targetFigure = (value: number, metric: Metric): string =>
   Number.isInteger(value) ? grouped(String(value), metric) : figure(value, metric);
+
+/** "24.5 °C": a reading with its unit, or alone where the metric has none. */
+export const figureWithUnit = (value: number, metric: Metric): string => `${figure(value, metric)} ${UNIT[metric] ?? ''}`.trim();
+
+/** "26 °C": a target with its unit, or alone where the metric has none. */
+export const targetWithUnit = (value: number, metric: Metric): string => `${targetFigure(value, metric)} ${UNIT[metric] ?? ''}`.trim();
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -75,9 +81,7 @@ export const alertLabel = (t: Translate, alert: OpenAlert, now: DateTime, zone: 
 
   const reading =
     alert.value !== null && alert.metric
-      ? [figure(alert.value, alert.metric), UNIT[alert.metric], t(`home.metric.${alert.metric}`, { defaultValue: alert.metric })]
-          .filter(Boolean)
-          .join(' ')
+      ? [figureWithUnit(alert.value, alert.metric), t(`home.metric.${alert.metric}`, { defaultValue: alert.metric })].filter(Boolean).join(' ')
       : null;
 
   // A rule's name leads where there is one, as it leads the alert card and the
