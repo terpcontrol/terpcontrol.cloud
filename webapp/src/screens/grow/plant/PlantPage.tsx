@@ -1,8 +1,8 @@
-import { ChevronLeft, Move, Scissors, Split } from 'lucide-react';
+import { Move, Scissors, Split } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import type { Entry, GrowListItem, GrowSeries, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { useGrow, useGrowPlants, useGrowSeries, usePlantEntries } from '@/api/grows';
@@ -16,6 +16,7 @@ import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { zoned, NARROW_DAY, useZone } from '@/ui/zone';
+import { BackLink } from '@/ui/BackLink';
 import { HarvestSheet } from '../HarvestSheet';
 import { withUnit } from '../measurements/definitions';
 import { MoveSheet } from '../MoveSheet';
@@ -93,9 +94,7 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <Link to={`/grows/${growId}/plants`} className={`${ui.back} ${styles.back}`} aria-label={t('grow.plant.back')}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to={`/grows/${growId}/plants`} label={t('grow.plant.back')} className={styles.back} />
         <div className={styles.titles}>
           <h1 className={styles.title}>{plant.label}</h1>
           <p className={styles.subtitle}>{subtitle(t, grow.data, plant)}</p>

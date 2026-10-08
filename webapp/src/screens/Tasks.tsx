@@ -1,8 +1,6 @@
-import { ChevronLeft } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import type { Reminder, Task } from '@fg2/shared-types/v1';
 import { useBackToPlace } from '@/app/places';
 import { fetchedAt } from '@/api/clock';
@@ -20,6 +18,7 @@ import { enough, standsIn, useMayManage, useMayWith, type Standing } from '@/ui/
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, useZone } from '@/ui/zone';
+import { BackLink } from '@/ui/BackLink';
 import { ReminderSheet } from './tasks/ReminderSheet';
 import { DoneCard, RhythmCard, TaskCard } from './tasks/TaskCard';
 import {
@@ -93,9 +92,7 @@ function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => v
   return (
     <header className={styles.head}>
       <div className={styles.titleRow}>
-        <Link to={back.to} className={ui.back} aria-label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to={back.to} label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')} />
         <h1 className={styles.title}>{t('tasks.title')}</h1>
       </div>
       {scope && onScope ? (

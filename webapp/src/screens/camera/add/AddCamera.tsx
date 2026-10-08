@@ -1,12 +1,11 @@
-import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import { useCamerasAsOpened } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
+import { BackLink } from '@/ui/BackLink';
 import { pairersOf } from './pairers';
 import { PairTerpCam } from './PairTerpCam';
 import { RtspCamera } from './RtspCamera';
@@ -36,9 +35,7 @@ export function AddCamera() {
   return (
     <section className={styles.page}>
       <header className={styles.header}>
-        <Link to="/devices" className={ui.back} aria-label={t('shell.tabs.devices')}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to="/devices" label={t('shell.tabs.devices')} />
         <h1 className={styles.title}>{t('cameras.add.title')}</h1>
       </header>
 

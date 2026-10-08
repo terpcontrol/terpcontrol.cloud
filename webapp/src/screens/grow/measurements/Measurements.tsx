@@ -1,7 +1,6 @@
-import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import type { MeasurementDefinition } from '@fg2/shared-types/v1';
 import { useGrow, useGrowSeries, useUpdateGrow } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
@@ -10,6 +9,7 @@ import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { BackLink } from '@/ui/BackLink';
 import { bandOf, fromTemplate, readingCounts, ruleOf, TEMPLATES } from './definitions';
 import { MeasurementSheet } from './MeasurementSheet';
 import styles from './Measurements.module.css';
@@ -72,9 +72,7 @@ function MeasurementsScreen({ growId }: { growId: string }) {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <Link to={`/grows/${growId}/weeks`} className={ui.back} aria-label={t('grow.measurements.back')}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to={`/grows/${growId}/weeks`} label={t('grow.measurements.back')} />
         <h1 className={styles.title}>{t('grow.measurements.title')}</h1>
         <span className={`mono ${styles.growName}`}>{grow.data.name}</span>
       </header>

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, CircleCheck, Clock, Info, Power, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
+import { ChevronRight, CircleCheck, Clock, Info, Power, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -25,6 +25,7 @@ import { useMayManage, useVisiting } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
+import { BackLink } from '@/ui/BackLink';
 import { ownStatusOf } from '../control/devices/own-summary';
 import { offsetOf } from '../control/targets/targets-draft';
 import { ControlButton } from '../devices/ControlSwitch';
@@ -132,11 +133,7 @@ export function PlaceCockpit({
     >
       {headed ? (
         <header className={styles.head} data-back={back || undefined}>
-          {back ? (
-            <Link to="/" className={ui.back} aria-label={t('shell.tabs.home')}>
-              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-            </Link>
-          ) : null}
+          {back ? <BackLink to="/" label={t('shell.tabs.home')} /> : null}
           <h1 className={styles.name} id={`${spaceId}-name`}>
             <Icon size={20} strokeWidth={1.75} aria-hidden />
             <span>{overview.name}</span>

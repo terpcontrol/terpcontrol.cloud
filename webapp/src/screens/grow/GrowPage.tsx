@@ -1,4 +1,4 @@
-import { ChevronLeft, CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
+import { CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router';
@@ -14,6 +14,7 @@ import { Term } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, useZone } from '@/ui/zone';
+import { BackLink } from '@/ui/BackLink';
 import { Feeding } from './Feeding';
 import { GrowLifecycle } from './Lifecycle';
 import { PhaseBar } from './PhaseBar';
@@ -173,13 +174,7 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
   return (
     <header className={styles.header}>
       <div className={styles.titleRow}>
-        <Link
-          to={back.to}
-          className={`${ui.back} ${styles.back}`}
-          aria-label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')}
-        >
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to={back.to} label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')} className={styles.back} />
         <div className={styles.titles}>
           <h1 className={styles.name}>{grow.name}</h1>
           <p className={styles.subtitle}>

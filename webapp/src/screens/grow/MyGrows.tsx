@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Leaf, Plus, Sprout, Users } from 'lucide-react';
+import { ChevronRight, Leaf, Plus, Sprout, Users } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
@@ -12,6 +12,7 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DAY, DAY_IN_YEAR, useZone, zoned } from '@/ui/zone';
+import { BackLink } from '@/ui/BackLink';
 import { NewGrowSheet } from './new/NewGrowSheet';
 import { countsOf, whole } from './my-grows';
 import styles from './MyGrows.module.css';
@@ -59,9 +60,7 @@ export function MyGrows() {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <Link to={back.to} className={ui.back} aria-label={back.label}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to={back.to} label={back.label} />
         <h1 className={styles.title}>{t('grow.mine.title')}</h1>
         <Help topic="myGrows" />
       </header>

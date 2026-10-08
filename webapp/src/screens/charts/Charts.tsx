@@ -32,6 +32,7 @@ import { Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR, useZone, zonedAt } from '@/ui/zone';
+import { BackLink } from '@/ui/BackLink';
 import { figure } from '../home/units';
 import { CameraFrame } from '../timeline/CameraFrame';
 import { at, stampFor, stampForEnds, stamps } from '../timeline/window';
@@ -933,9 +934,7 @@ function Header({ spaceId, growId, subject }: { spaceId: string | null; growId: 
 
   return (
     <header className={styles.header}>
-      <Link to={back} className={`${ui.back} ${styles.back}`} aria-label={t('charts.back')}>
-        <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-      </Link>
+      <BackLink to={back} label={t('charts.back')} className={styles.back} />
       <h1 className={styles.title}>{t('charts.title')}</h1>
       {subject ? <span className={`mono ${styles.subject}`}>{subject}</span> : null}
     </header>

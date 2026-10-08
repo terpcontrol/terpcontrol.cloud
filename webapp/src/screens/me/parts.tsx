@@ -1,4 +1,4 @@
-import { ChevronLeft, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -9,6 +9,7 @@ import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { BackLink } from '@/ui/BackLink';
 import styles from './parts.module.css';
 
 /**
@@ -36,9 +37,7 @@ export function MePage({ title, children }: { title: string; children: ReactNode
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <Link to="/me" className={`${ui.back} ${styles.back}`} aria-label={t('me.title')}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to="/me" label={t('me.title')} className={styles.back} />
         <h1 className={styles.title}>{title}</h1>
         <span className={`mono ${styles.crumb}`}>
           <Link to="/me">{t('me.title')}</Link> › {title}

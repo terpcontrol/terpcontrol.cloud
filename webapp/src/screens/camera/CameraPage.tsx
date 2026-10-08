@@ -1,4 +1,4 @@
-import { ChevronLeft, Clapperboard } from 'lucide-react';
+import { Clapperboard } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -36,6 +36,7 @@ import { Film } from './Film';
 import { CameraSettings } from './CameraSettings';
 import styles from './CameraPage.module.css';
 import { refusalText } from '@/ui/refusal';
+import { BackLink } from '@/ui/BackLink';
 
 /** How many films the section rests at before somebody asks for the rest. */
 const FILMS_AT_REST = 3;
@@ -185,9 +186,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
     <section className={styles.page}>
       <header className={styles.header}>
         {/* The camera belongs to the place it watches: the way back leads there, as the cockpit's picture led here. */}
-        <Link to={place ? placePath(place.id) : '/devices'} className={ui.back} aria-label={place?.name ?? t('shell.tabs.devices')}>
-          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <BackLink to={place ? placePath(place.id) : '/devices'} label={place?.name ?? t('shell.tabs.devices')} />
         <h1 className={styles.name}>{called(camera.name)}</h1>
         <span className={ui.live} data-liveness={liveness}>
           <span className={ui.liveDot} aria-hidden />
