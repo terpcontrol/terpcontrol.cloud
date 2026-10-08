@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import type { HomeSpaceCard } from '@fg2/shared-types/v1';
 import { useHome } from '@/api/home';
 import { useSession } from '@/api/session';
+import { readStored, writeStored } from '@/ui/stored';
 
 /**
  * Where a place's pages are, and which place the tabs that are about one place
@@ -65,21 +66,9 @@ export const devicesPath = (spaceId: string | null = null): string => (spaceId ?
  */
 const KEY = 'terp.place';
 
-export const lastPlace = (): string | null => {
-  try {
-    return localStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-};
+export const lastPlace = (): string | null => readStored(KEY);
 
-export const rememberPlace = (spaceId: string) => {
-  try {
-    localStorage.setItem(KEY, spaceId);
-  } catch {
-    // Private mode: the tabs then open on whatever the home lists first, which is no worse.
-  }
-};
+export const rememberPlace = (spaceId: string) => writeStored(KEY, spaceId);
 
 /** Looking at a place makes it the one the tabs open on next. */
 export const useRememberPlace = (spaceId: string) => {

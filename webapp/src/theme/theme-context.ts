@@ -1,4 +1,5 @@
 import { createContext, use } from 'react';
+import { readStored } from '@/ui/stored';
 
 export type ThemeChoice = 'system' | 'light' | 'dark';
 
@@ -18,10 +19,6 @@ export function useTheme(): ThemeState {
 }
 
 export const storedThemeChoice = (): ThemeChoice => {
-  try {
-    const value = localStorage.getItem(THEME_STORAGE_KEY);
-    return value === 'light' || value === 'dark' ? value : 'system';
-  } catch {
-    return 'system';
-  }
+  const value = readStored(THEME_STORAGE_KEY);
+  return value === 'light' || value === 'dark' ? value : 'system';
 };

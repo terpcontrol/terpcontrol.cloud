@@ -6,6 +6,7 @@ import { useHomeShape } from '@/api/home';
 import { useDiaryAnswer } from '@/api/layers';
 import { useSession } from '@/api/session';
 import { isPlace } from '@/app/places';
+import { readStoredJson, writeStored } from '@/ui/stored';
 
 /**
  * What the navigation is drawn from: whether the diary is laid over the
@@ -35,23 +36,7 @@ const QUIET = { refetchInterval: false, staleTime: 5 * 60_000 } as const;
 
 const keyOf = (userId: string) => `terp.shape.${userId}`;
 
-const remembered = (userId: string | null): Shape => {
-  if (!userId) return FIRST;
-  try {
-    const raw = localStorage.getItem(keyOf(userId));
-    return raw ? { ...FIRST, ...(JSON.parse(raw) as Partial<Shape>) } : FIRST;
-  } catch {
-    return FIRST;
-  }
-};
-
-const remember = (userId: string, shape: string) => {
-  try {
-    localStorage.setItem(keyOf(userId), shape);
-  } catch {
-    // Private mode: the next first frame is drawn from the first guess, which is no worse.
-  }
-};
+const remembered = (userId: string | null): Shape => (userId ? { ...FIRST, ...readStoredJson<Partial<Shape>>(keyOf(userId)) } : FIRST);
 
 export const useShape = (): Shape & { ready: boolean } => {
   const { user } = useSession();
@@ -85,7 +70,7 @@ export const useShape = (): Shape & { ready: boolean } => {
   const written = known ? JSON.stringify(known) : null;
 
   useEffect(() => {
-    if (userId && written) remember(userId, written);
+    if (userId && written) writeStored(keyOf(userId), written);
   }, [userId, written]);
 
   return known ? { ...known, ready: true } : { ...remembered(userId), ready: false };

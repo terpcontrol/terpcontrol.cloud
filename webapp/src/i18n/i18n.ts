@@ -1,6 +1,7 @@
 import i18next from 'i18next';
 import { Settings } from 'luxon';
 import { initReactI18next } from 'react-i18next';
+import { readStored, writeStored } from '@/ui/stored';
 
 /**
  * Both catalogues, loaded as they are. They are the ones the Angular app wrote
@@ -38,22 +39,14 @@ const catalogue = async (language: Language): Promise<Record<string, unknown>> =
 };
 
 export const preferredLanguage = (): Language => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && (LANGUAGES as readonly string[]).includes(stored)) return stored as Language;
-  } catch {
-    // No stored preference is no problem; the browser's answer is next.
-  }
+  const stored = readStored(STORAGE_KEY);
+  if (stored && (LANGUAGES as readonly string[]).includes(stored)) return stored as Language;
   const fromBrowser = navigator.languages.map(tag => tag.split('-')[0]).find(tag => (LANGUAGES as readonly string[]).includes(tag));
   return (fromBrowser as Language) ?? FALLBACK_LANGUAGE;
 };
 
 export const setLanguage = async (language: Language): Promise<void> => {
-  try {
-    localStorage.setItem(STORAGE_KEY, language);
-  } catch {
-    // The choice then lasts as long as the tab, which is better than refusing it.
-  }
+  writeStored(STORAGE_KEY, language);
   // Fetched before the switch, so no screen renders a moment of missing keys.
   if (!i18next.hasResourceBundle(language, 'translation')) {
     i18next.addResourceBundle(language, 'translation', await catalogue(language));

@@ -10,6 +10,7 @@ import { useSaveConfiguration, useSetOverride } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ageLabel } from '@/ui/age';
 import { statesTargets } from '@/ui/climate-hardware';
+import { readStoredJson, writeStored } from '@/ui/stored';
 import { clock, useZone } from '@/ui/zone';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
@@ -433,19 +434,8 @@ const HOLD_KEY = (deviceId: string) => `terp.lightHold.${deviceId}`;
 
 /** What this browser last sent, if anything: a preference of this screen and never a fact the device confirmed. */
 const readHold = (deviceId: string): SentHold | null => {
-  try {
-    const stored = JSON.parse(localStorage.getItem(HOLD_KEY(deviceId)) ?? 'null') as SentHold | null;
-    return stored && (stored.state === 'on' || stored.state === 'off') && typeof stored.until === 'number' ? stored : null;
-  } catch {
-    return null;
-  }
+  const stored = readStoredJson<SentHold>(HOLD_KEY(deviceId));
+  return stored && (stored.state === 'on' || stored.state === 'off') && typeof stored.until === 'number' ? stored : null;
 };
 
-const writeHold = (deviceId: string, hold: SentHold | null) => {
-  try {
-    if (hold) localStorage.setItem(HOLD_KEY(deviceId), JSON.stringify(hold));
-    else localStorage.removeItem(HOLD_KEY(deviceId));
-  } catch {
-    // Private mode: the buttons then mark Auto, which is where a hold ends anyway.
-  }
-};
+const writeHold = (deviceId: string, hold: SentHold | null) => writeStored(HOLD_KEY(deviceId), hold ? JSON.stringify(hold) : null);

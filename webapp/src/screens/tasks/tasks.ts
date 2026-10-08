@@ -1,5 +1,6 @@
 import type { DateTime } from 'luxon';
 import type { GrowListItem, GrowOrSpaceRef, Reminder, Space, Task } from '@fg2/shared-types/v1';
+import { readStored, writeStored } from '@/ui/stored';
 import { DAY, nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
 
 /**
@@ -67,21 +68,9 @@ export const litresOf = (defaults: unknown): number | null => {
 const SCOPE_KEY = 'terp.tasks.scope';
 
 /** Mine, unless All was chosen last time. Storage that is blocked or empty is simply the default. */
-export const storedScope = (): Scope => {
-  try {
-    return localStorage.getItem(SCOPE_KEY) === 'all' ? 'all' : 'mine';
-  } catch {
-    return 'mine';
-  }
-};
+export const storedScope = (): Scope => (readStored(SCOPE_KEY) === 'all' ? 'all' : 'mine');
 
-export const storeScope = (scope: Scope): void => {
-  try {
-    localStorage.setItem(SCOPE_KEY, scope);
-  } catch {
-    // The choice then lasts as long as the tab, which is better than refusing it.
-  }
-};
+export const storeScope = (scope: Scope): void => writeStored(SCOPE_KEY, scope);
 
 /**
  * "Tue 16 Sep": the words in the language the app is being read in, so a German

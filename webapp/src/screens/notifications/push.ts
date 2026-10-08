@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { readStored, writeStored } from '@/ui/stored';
 
 /**
  * The browser's half of the push channel.
@@ -57,26 +58,9 @@ export const subscribe = async (key: string): Promise<PushSubscription | null> =
 
 const storageKey = (endpoint: string): string => `push-subscription:${endpoint}`;
 
-export const rememberId = (endpoint: string, id: string): void => {
-  try {
-    localStorage.setItem(storageKey(endpoint), id);
-  } catch {
-    // Storage that is blocked costs the id, and switching off then leaves the server's row until it is pushed to and fails.
-  }
-};
+/** Storage that is blocked costs the id, and switching off then leaves the server's row until it is pushed to and fails. */
+export const rememberId = (endpoint: string, id: string): void => writeStored(storageKey(endpoint), id);
 
-export const rememberedId = (endpoint: string): string | null => {
-  try {
-    return localStorage.getItem(storageKey(endpoint));
-  } catch {
-    return null;
-  }
-};
+export const rememberedId = (endpoint: string): string | null => readStored(storageKey(endpoint));
 
-export const forgetId = (endpoint: string): void => {
-  try {
-    localStorage.removeItem(storageKey(endpoint));
-  } catch {
-    // Nothing to forget where nothing could be kept.
-  }
-};
+export const forgetId = (endpoint: string): void => writeStored(storageKey(endpoint), null);
