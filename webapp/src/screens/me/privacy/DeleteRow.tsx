@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useDeleteAccount } from '@/api/account';
 import { Sheet } from '@/ui/Sheet';
+import { matchesHandle, typedHandle } from '@/ui/handle';
 import { Refused } from '@/ui/PageState';
+import { HandleField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { Row } from '../parts';
 import styles from './Privacy.module.css';
@@ -44,25 +46,16 @@ export function DeleteRow({ handle, disabled }: { handle: string; disabled: bool
 }
 
 /**
- * The question itself: type the handle, and the button lives.
- *
- * What it asks for has to be what it takes. The prompt is drawn in the small
- * caps this app labels with, so somebody whose handle is `admin` reads "TYPE
- * ADMIN TO CONFIRM", types ADMIN, and used to watch the button stay grey with
- * nothing on the screen saying why - and a phone capitalises the first letter
- * of a one-word handle whether they meant it or not. So the comparison ignores
- * case and the leading at-sign, the field is told not to capitalise or correct
- * what is typed into it, and a mismatch says that it is one rather than
- * refusing in silence. The gate is unchanged in the only way that matters:
- * the whole handle still has to be written out by hand.
+ * The question itself: type the handle, and the button lives. What it asks for
+ * has to be what it takes, so a mismatch says that it is one rather than
+ * leaving the button grey with nothing on the screen saying why.
  */
 function DeleteSheet({ handle, onClose }: { handle: string; onClose: () => void }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const remove = useDeleteAccount();
   const [typed, setTyped] = useState('');
-  const written = typed.trim().replace(/^@/, '');
-  const sure = written.toLocaleLowerCase() === handle.toLocaleLowerCase();
+  const sure = matchesHandle(typed, handle);
 
   return (
     <Sheet
@@ -81,19 +74,8 @@ function DeleteSheet({ handle, onClose }: { handle: string; onClose: () => void 
     >
       <p className={styles.sheetBody}>{t('me.privacy.delete.what')}</p>
       <p className={styles.sheetBody}>{t('me.privacy.delete.grows')}</p>
-      <label className={styles.confirm}>
-        <span className="label">{t('me.privacy.delete.typeHandle', { handle })}</span>
-        <input
-          className={`mono ${ui.input}`}
-          value={typed}
-          autoComplete="off"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          onChange={event => setTyped(event.target.value)}
-        />
-      </label>
-      {written !== '' && !sure ? <p className={ui.problem}>{t('me.privacy.delete.notHandle')}</p> : null}
+      <HandleField className={styles.confirm} label={t('me.privacy.delete.typeHandle', { handle })} value={typed} onChange={setTyped} />
+      {typedHandle(typed) !== '' && !sure ? <p className={ui.problem}>{t('me.privacy.delete.notHandle')}</p> : null}
       <Refused error={remove.error} />
     </Sheet>
   );

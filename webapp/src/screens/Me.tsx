@@ -12,7 +12,7 @@ import { useOwnSchemes, useSchemes } from '@/api/schemes';
 import { session, useSession } from '@/api/session';
 import { useFollows, useShareLinks } from '@/api/sharing';
 import { FROM_ME, MY_GROWS } from '@/app/places';
-import { initials } from '@/app/shell/tabs';
+import { initials } from '@/ui/handle';
 import { ownsCamera } from '@/screens/devices/cameras';
 import { countsOf } from '@/screens/grow/my-grows';
 import { useTheme } from '@/theme/theme-context';

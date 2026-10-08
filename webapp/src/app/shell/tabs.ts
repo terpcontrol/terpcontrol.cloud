@@ -69,6 +69,3 @@ export const useIsOn = (): ((tab: Tab) => boolean) => {
     );
   };
 };
-
-/** Two letters of the handle, which is the only name anyone is shown. */
-export const initials = (handle: string): string => handle.slice(0, 2).toUpperCase();

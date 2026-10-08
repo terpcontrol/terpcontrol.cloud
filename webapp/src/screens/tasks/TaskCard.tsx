@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Reminder, SessionUser, Task } from '@fg2/shared-types/v1';
 import { useDevicePlan } from '@/api/plans';
-import { initials } from '@/app/shell/tabs';
+import { initials } from '@/ui/handle';
 import { nextStepIndex } from '@/screens/control/plan-clock';
 import { readingFigure } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';

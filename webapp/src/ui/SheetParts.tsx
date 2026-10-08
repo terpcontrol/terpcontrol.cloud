@@ -11,7 +11,8 @@ import styles from './SheetParts.module.css';
 
 /**
  * The parts sheets are built from: a row of things to pick one of, the day it
- * happened, a label over a block, and the foot of a sheet that sends a command.
+ * happened, a label over a block, the handle typed to confirm, and the foot of
+ * a sheet that sends a command.
  *
  * They are here rather than on a screen because a phase, a move, a harvest and
  * a climate preset all ask the same two questions - which one, and when - and
@@ -112,6 +113,38 @@ export function Block({
       </header>
       {grouped ? <div className={ui.group}>{children}</div> : children}
     </section>
+  );
+}
+
+/**
+ * The handle typed out by hand before something that cannot be taken back, in
+ * a field that is told not to capitalise or correct it; `matchesHandle` says
+ * whether it is the one asked for.
+ */
+export function HandleField({
+  className,
+  label,
+  value,
+  onChange,
+}: {
+  className?: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className={className}>
+      <span className="label">{label}</span>
+      <input
+        className={`mono ${ui.input}`}
+        value={value}
+        autoComplete="off"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        onChange={event => onChange(event.target.value)}
+      />
+    </label>
   );
 }
 

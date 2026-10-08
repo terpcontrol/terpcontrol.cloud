@@ -7,6 +7,7 @@ import { useActivateAccount, useSignUp } from '@/api/account';
 import { CUSTOM_LINKS_HTML, PRIVACY_URL } from '@/api/config';
 import { ApiError } from '@/api/problem';
 import { session, useSession } from '@/api/session';
+import { typedHandle } from '@/ui/handle';
 import ui from '@/ui/ui.module.css';
 import { CodeField, Door, Problem } from './Door';
 import styles from './SignIn.module.css';
@@ -78,8 +79,7 @@ export function SignUp() {
       setUnagreed(true);
       return;
     }
-    // The sigil people type out of habit is not part of the name.
-    const credentials = { ...body, handle: body.handle.trim().replace(/^@/, '') };
+    const credentials = { ...body, handle: typedHandle(body.handle) };
     try {
       const account = await signUp.mutateAsync(credentials);
       if (account.isActive) await enter(credentials);

@@ -3,7 +3,7 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { MemberRole } from '@fg2/shared-types/v1';
 import { useSetMemberRole } from '@/api/members';
-import { initials } from '@/app/shell/tabs';
+import { initials } from '@/ui/handle';
 import { ageLabel } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';

@@ -3,24 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useSession } from '@/api/session';
 import { useBell } from './bell';
-import { ageLabel } from '@/ui/age';
-import { useFreshness } from '@/ui/freshness';
 import { Logo } from '@/ui/Logo';
-import { useNow } from '@/ui/useNow';
-import { initials } from './tabs';
+import { initials } from '@/ui/handle';
 import styles from './TopBar.module.css';
-
-/** "updated 20 s ago", or nothing while the screen has nothing that ages. */
-export function Freshness({ className }: { className?: string }) {
-  const { t } = useTranslation();
-  const at = useFreshness();
-  const now = useNow();
-  return (
-    <div className={`mono ${styles.freshness} ${className ?? ''}`} aria-live="off">
-      {at ? t('shell.updated', { age: ageLabel(at, now) }) : ''}
-    </div>
-  );
-}
 
 /**
  * The phone's header: the logo, the alerts bell,

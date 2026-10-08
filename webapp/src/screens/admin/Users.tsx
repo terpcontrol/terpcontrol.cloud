@@ -5,7 +5,9 @@ import type { AdminUserUpdate, User } from '@fg2/shared-types/v1';
 import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '@/api/admin';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
+import { matchesHandle } from '@/ui/handle';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
+import { HandleField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { NoMatch } from './NoMatch';
@@ -386,9 +388,7 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
  * The end of somebody else's account. It asks for the handle to be typed, as
  * the account's own deletion does: this is the one control on the screen where
  * being wrong costs another person everything they own, and a confirmation
- * that is one more tap is answered by the same reflex that opened it. The
- * handle is compared without regard to case, because the prompt above the
- * field is set in small caps and a phone capitalises the first letter typed.
+ * that is one more tap is answered by the same reflex that opened it.
  *
  * What the sheet says is what the server does: what the account owns goes,
  * and what the person wrote in other people's tents stays there without their
@@ -401,7 +401,7 @@ function DeleteSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
   const { t } = useTranslation();
   const remove = useDeleteUser();
   const [typed, setTyped] = useState('');
-  const sure = typed.trim().replace(/^@/, '').toLowerCase() === account.handle.toLowerCase();
+  const sure = matchesHandle(typed, account.handle);
 
   return (
     <Sheet
@@ -423,18 +423,7 @@ function DeleteSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
       <p className={styles.sheetBody}>{t('admin.users.deleteDevices')}</p>
       {isMe ? <p className={styles.sheetBody}>{t('admin.users.deleteMine')}</p> : null}
       {account.isAdmin ? <p className={styles.sheetBody}>{t('admin.users.deleteAdmin')}</p> : null}
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.typeHandle', { handle: account.handle })}</span>
-        <input
-          className={`mono ${ui.input}`}
-          value={typed}
-          autoComplete="off"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          onChange={event => setTyped(event.target.value)}
-        />
-      </label>
+      <HandleField className={styles.field} label={t('admin.users.typeHandle', { handle: account.handle })} value={typed} onChange={setTyped} />
       <Refused error={remove.error} />
     </Sheet>
   );
