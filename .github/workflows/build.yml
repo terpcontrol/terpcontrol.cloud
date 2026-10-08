@@ -35,6 +35,7 @@ jobs:
           ci='\.github/workflows/build\.yml$'
           shared="shared-types/|$ci"
           fmt='\.prettierrc$'
+          helpers='scripts/(load-env|quietly)\.sh$'
           compose='docker-compose\.yaml$|\.dockerignore$'
           {
             echo "webapp=$(touches "webapp/|$fmt|$shared")"
@@ -42,8 +43,8 @@ jobs:
             echo "shared_types=$(touches "$shared")"
             echo "docker_webapp=$(touches "webapp/|$shared|$compose")"
             echo "docker_server=$(touches "server/|$shared|$compose")"
-            echo "firmware=$(touches "firmware/|fw-buildcontainer/|build-fw\.sh$|$ci")"
-            echo "garmin=$(touches "garmin/|garmin-buildcontainer/|build-garmin\.sh$|$ci")"
+            echo "firmware=$(touches "firmware/|fw-buildcontainer/|build-fw\.sh$|$helpers|$ci")"
+            echo "garmin=$(touches "garmin/|garmin-buildcontainer/|build-garmin\.sh$|$helpers|$ci")"
             echo "docs=$(touches "docs/|scripts/check-docs\.mjs$|$ci")"
           } | tee -a "$GITHUB_OUTPUT"
 
