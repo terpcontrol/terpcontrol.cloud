@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
 updated: 2026-10-08
-source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08
+source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -115,8 +115,12 @@ way and what the code has to respect. Internal notes on the camera exist.
 
 ## RTSP capture (`capture.service.ts`, `stream-url.ts`)
 - ffmpeg grabs the next keyframe without stream analysis (`-fflags nobuffer -flags low_delay -probesize 32
-  -analyzeduration 0 -skip_frame nokey`), at most 90 s a run; on "Could not find codec parameters" one retry with a
-  full probe (PR #88).
+  -analyzeduration 0 -skip_frame nokey`, `stillArgs`), at most 90 s a run; on "Could not find codec parameters" one
+  retry with a full probe (PR #88). A Terp Cam's keyframe is not read this way; it is decoded from a pipe.
+- An HTTP(S) address is read without `-fflags nobuffer`, which drops what ffmpeg reads while it probes the input: a
+  snapshot URL's one JPEG, so ffmpeg 8 (the server image's 8.1.2) encodes nothing ("Output file is empty"), with
+  either probe. A live stream only loses its first packets. CI's Ubuntu ffmpeg is older and returns the picture
+  either way, so only the unit test pinning both command lines (`capture-budget.spec.ts`) catches it (2026-10-08).
 - A connection dropped mid-frame (common through a tunnel) makes ffmpeg write a smeared frame and exit 0; stderr at
   `-loglevel warning` matching `FFMPEG_CORRUPT_FRAME_PATTERN` discards it as `CorruptFrameError`, which does not grow
   the backoff - the camera answered. Error text is stripped of URL credentials before logs, diary or `lastError`.

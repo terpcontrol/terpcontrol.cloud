@@ -55,6 +55,32 @@ const FFMPEG_FAST_PROBE_ARGS = ['-probesize', '32', '-analyzeduration', '0'];
 const FFMPEG_FULL_PROBE_ARGS = ['-probesize', '5000000', '-analyzeduration', '5000000'];
 const FFMPEG_MISSING_CODEC_PARAMS_PATTERN = /Could not find codec parameters/i;
 
+/**
+ * What ffmpeg is run with for one still off `streamUrl`: only keyframes are
+ * decoded, and the first is handed on at once. `nobuffer` keeps a live stream
+ * from being buffered while ffmpeg looks at it, by dropping what it reads while
+ * it does - over HTTP that is a snapshot URL's one and only JPEG, and ffmpeg 8
+ * then encodes nothing. So an HTTP(S) address is read without it.
+ */
+export const stillArgs = (streamUrl: string, camera: Pick<CameraWithSecret, 'url' | 'transport'>, probeArgs: string[]): string[] => [
+  ...(camera.url?.startsWith('rtsp://') ? ['-rtsp_transport', camera.transport ?? 'tcp'] : []),
+  ...(/^https?:/i.test(camera.url ?? '') ? [] : ['-fflags', 'nobuffer']),
+  '-flags',
+  'low_delay',
+  ...probeArgs,
+  '-skip_frame',
+  'nokey',
+  '-i',
+  streamUrl,
+  '-q:v',
+  '20',
+  '-vframes',
+  '1',
+  '-f',
+  'mjpeg',
+  '-',
+];
+
 @Injectable()
 export class CaptureService {
   constructor(
@@ -116,27 +142,7 @@ export class CaptureService {
     timeoutMs: number,
   ): Promise<{ stdout: Buffer; stderr: string; failure?: Error; timedOut?: boolean }> {
     const { error, stdout, stderr } = await runFfmpeg(
-      [
-        ...(camera.url?.startsWith('rtsp://') ? ['-rtsp_transport', camera.transport ?? 'tcp'] : []),
-        // We only need a single still frame, so decode nothing but keyframes and
-        // hand them on without buffering.
-        '-fflags',
-        'nobuffer',
-        '-flags',
-        'low_delay',
-        ...probeArgs,
-        '-skip_frame',
-        'nokey',
-        '-i',
-        streamUrl,
-        '-q:v',
-        '20',
-        '-vframes',
-        '1',
-        '-f',
-        'mjpeg',
-        '-',
-      ],
+      stillArgs(streamUrl, camera, probeArgs),
       // Decoder messages about corrupt/truncated frames (e.g. "EOI missing,
       // emulating") are logged at warning level, so "error" would hide them.
       { loglevel: 'warning', timeoutMs, maxBuffer: 5 * 1024 * 1024 },
