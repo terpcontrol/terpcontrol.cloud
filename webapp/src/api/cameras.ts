@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
+import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas/pages.js';
 import { useRead, useReadPages } from './read';
 import type {
   Camera,
@@ -14,7 +15,6 @@ import type {
   TimelapseCreate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
-import { PAGE_LIMIT } from './pages';
 import { ApiError } from './problem';
 
 /**
@@ -88,19 +88,12 @@ export const useCamera = (cameraId: string) =>
   });
 
 /**
- * The largest page the route will answer, whatever a client asks for. One
- * figure, kept beside the rest of the paging in `pages.ts`, rather than a
- * second copy of a number the API now states on the `limit` parameter itself.
- */
-const FRAMES_PER_PAGE = PAGE_LIMIT;
-
-/**
- * How many of those pages one day is walked over before the walk gives up. A
- * camera asked for a picture every thirty seconds delivers 2,880 a day, so this
- * reaches the end of any ordinary day in a handful of reads; the cap is there
- * only so that a day nobody expected - two cameras writing into one, a shorter
- * interval than the pipeline promises - cannot turn one screen into an
- * unbounded run of requests.
+ * How many of the route's largest pages one day is walked over before the walk
+ * gives up. A camera asked for a picture every thirty seconds delivers 2,880 a
+ * day, so this reaches the end of any ordinary day in a handful of reads; the
+ * cap is there only so that a day nobody expected - two cameras writing into
+ * one, a shorter interval than the pipeline promises - cannot turn one screen
+ * into an unbounded run of requests.
  */
 export const MAX_FRAME_PAGES = 15;
 
@@ -156,7 +149,7 @@ export const useCameraFrames = (cameraId: string, span: { startsAt: string; ends
       for (let page = 0; page < MAX_FRAME_PAGES; page += 1) {
         const answer: MediaPage = await api.get<MediaPage>(
           `/cameras/${cameraId}/frames`,
-          { startsAt: from, endsAt: span.endsAt, limit: FRAMES_PER_PAGE, cursor },
+          { startsAt: from, endsAt: span.endsAt, limit: MAX_PAGE_LIMIT, cursor },
           signal,
         );
         fresh.push(...answer.items);

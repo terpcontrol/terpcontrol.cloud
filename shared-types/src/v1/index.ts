@@ -40,7 +40,8 @@ export * from './day-night.js';
 export * from './capture.js';
 export * from './plan-clock.js';
 // Also without a schema: how old a value is, which the server answers and the
-// screens age further; and which readings a controller steers and how far from
-// a target still counts as on it.
+// screens age further; which readings a controller steers and how far from a
+// target still counts as on it; and the largest page any list answers.
 export * from './value-age.js';
 export * from './steering.js';
+export * from './pages.js';

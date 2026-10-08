@@ -1,3 +1,4 @@
+import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas/pages.js';
 import { api } from './client';
 
 /**
@@ -22,9 +23,6 @@ interface Page<T> {
   nextCursor: string | null;
 }
 
-/** The largest page the server serves; asking for more gets this. One read stays one read. */
-export const PAGE_LIMIT = 200;
-
 /** At most this many reads for one list, so that a pathological account cannot hold a screen open for ever. */
 export const PAGE_CAP = 10;
 
@@ -43,7 +41,7 @@ export const readEvery = async <T>(
   let cursor: string | null = null;
 
   for (let read = 0; read < PAGE_CAP; read += 1) {
-    const page: Page<T> = await api.get<Page<T>>(path, { ...query, limit: PAGE_LIMIT, cursor }, signal);
+    const page: Page<T> = await api.get<Page<T>>(path, { ...query, limit: MAX_PAGE_LIMIT, cursor }, signal);
     items.push(...page.items);
     cursor = page.nextCursor;
     if (cursor === null) return { items, complete: true };

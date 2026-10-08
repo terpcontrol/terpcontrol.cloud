@@ -1,6 +1,7 @@
 import { keepPreviousData, type QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { Entry, EntryCreate, EntryPage, EntryUpdate, Media, Phase, PhaseCreate, TaskCompletionCreate } from '@fg2/shared-types/v1';
+import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas/pages.js';
 import { api } from './client';
 
 /**
@@ -33,7 +34,6 @@ export const useRecentEntries = (growId: string | null, spaceId: string | null) 
 
 /** The most a window's lines are read in pages of the route's largest, before the rest is only counted as more. */
 const WINDOW_PAGES = 5;
-const WINDOW_PAGE = 200;
 
 /** What happened in a window, newest first, and whether there was more than was read. */
 export interface WindowEntries {
@@ -62,7 +62,7 @@ export const useWindowEntries = (about: { growId: string | null; spaceId: string
             growId: about.spaceId ? undefined : (about.growId ?? undefined),
             startsAt: window?.from,
             endsAt: window?.to,
-            limit: WINDOW_PAGE,
+            limit: MAX_PAGE_LIMIT,
             cursor,
           },
           signal,

@@ -16,6 +16,7 @@ import type {
   Fleet,
   User,
 } from '@fg2/shared-types/v1';
+import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas/pages.js';
 import { api } from './client';
 
 /**
@@ -31,16 +32,13 @@ import { api } from './client';
  *
  * The lists are paged, and the pages are large: an operator looking at the
  * fleet is counting it, and a table that shows the first fifty of three hundred
- * devices answers a different question than the one being asked. Two hundred is
- * the most the server gives for one read, so a bigger fleet is followed by its
- * cursor and the screen says what it is showing.
+ * devices answers a different question than the one being asked. Each read asks
+ * for `MAX_PAGE_LIMIT`, the most the server gives, so a bigger fleet is followed
+ * by its cursor and the screen says what it is showing.
  */
 
 /** The beat a device's liveness ages on, which is what the fleet table is read against. */
 export const FLEET_REFRESH_MS = 30_000;
-
-/** The largest page the server serves. One read stays one read. */
-export const ADMIN_PAGE_LIMIT = 200;
 
 /**
  * The beat the install's own figures are read on. Each read is a dozen counts
@@ -98,7 +96,7 @@ export const useAdminStats = () =>
 export const useAdminCameras = () =>
   useReadPages({
     queryKey: adminCamerasKey,
-    queryFn: ({ pageParam, signal }) => api.get<CameraPage>('/cameras', { limit: ADMIN_PAGE_LIMIT, cursor: pageParam }, signal),
+    queryFn: ({ pageParam, signal }) => api.get<CameraPage>('/cameras', { limit: MAX_PAGE_LIMIT, cursor: pageParam }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
     refetchInterval: FLEET_REFRESH_MS,
@@ -113,7 +111,7 @@ export const useAdminCameras = () =>
 export const useAdminDevices = () =>
   useReadPages({
     queryKey: adminDevicesKey,
-    queryFn: ({ pageParam, signal }) => api.get<DevicePage>('/admin/devices', { limit: ADMIN_PAGE_LIMIT, cursor: pageParam }, signal),
+    queryFn: ({ pageParam, signal }) => api.get<DevicePage>('/admin/devices', { limit: MAX_PAGE_LIMIT, cursor: pageParam }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
     refetchInterval: FLEET_REFRESH_MS,
@@ -128,7 +126,7 @@ export const useAdminDevices = () =>
 export const useAdminUsers = () =>
   useReadPages({
     queryKey: adminUsersKey,
-    queryFn: ({ pageParam, signal }) => api.get<AdminUserPage>('/admin/users', { limit: ADMIN_PAGE_LIMIT, cursor: pageParam }, signal),
+    queryFn: ({ pageParam, signal }) => api.get<AdminUserPage>('/admin/users', { limit: MAX_PAGE_LIMIT, cursor: pageParam }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
   });
@@ -137,7 +135,7 @@ export const useAdminUsers = () =>
 export const useDeviceClasses = () =>
   useRead({
     queryKey: deviceClassesKey,
-    queryFn: ({ signal }) => api.get<DeviceClassPage>('/admin/device-classes', { limit: ADMIN_PAGE_LIMIT }, signal),
+    queryFn: ({ signal }) => api.get<DeviceClassPage>('/admin/device-classes', { limit: MAX_PAGE_LIMIT }, signal),
   });
 
 /** The registered builds, newest first, of one class or of all of them. */
@@ -145,7 +143,7 @@ export const useFirmwares = (classId: string | null) =>
   useReadPages({
     queryKey: firmwaresKey(classId),
     queryFn: ({ pageParam, signal }) =>
-      api.get<FirmwarePage>('/admin/firmwares', { limit: ADMIN_PAGE_LIMIT, cursor: pageParam, classId: classId ?? undefined }, signal),
+      api.get<FirmwarePage>('/admin/firmwares', { limit: MAX_PAGE_LIMIT, cursor: pageParam, classId: classId ?? undefined }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
   });

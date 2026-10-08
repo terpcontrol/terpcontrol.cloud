@@ -1,3 +1,4 @@
+import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas';
 import { badRequest } from './problem';
 
 /**
@@ -18,9 +19,6 @@ export interface CursorPage<T> {
 }
 
 export const DEFAULT_PAGE_LIMIT = 50;
-
-/** A page a client asks to be bigger than this gets this. One read stays one read. */
-export const MAX_PAGE_LIMIT = 200;
 
 export const pageLimit = (limit?: number | null): number => {
   if (!limit || limit < 1) return DEFAULT_PAGE_LIMIT;
