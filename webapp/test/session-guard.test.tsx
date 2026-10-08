@@ -1,4 +1,3 @@
-import '@testing-library/jest-dom/vitest';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';

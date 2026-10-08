@@ -1,4 +1,3 @@
-import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { readFile } from 'node:fs/promises';

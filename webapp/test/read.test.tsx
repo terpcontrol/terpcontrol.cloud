@@ -1,4 +1,3 @@
-import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';

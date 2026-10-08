@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-/// <reference types="vite-plugin-pwa/client" />
 
 interface ImportMetaEnv {
   /** The API this build talks to, written by `scripts/set-env.mjs` or passed by the image build. */
