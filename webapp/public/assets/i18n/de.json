@@ -1,275 +1,21 @@
 {
   "misc": {
     "on": "Ein",
-    "off": "Aus",
-    "day": "Tag",
-    "night": "Nacht",
-    "confirm": "Änderungen bestätigen",
-    "error": "Fehler",
-    "success": "Erfolg",
-    "close": "Schließen",
-    "ok": "Okay",
-    "saving": "speichern...",
-    "loading": "laden...",
-    "save": "Speichern",
-    "settings": "Einstellungen",
-    "errorOccurred": "Fehler aufgetreten",
-    "unableToSaveSettings": "Einstellungen konnten nicht gespeichert werden",
-    "unableToLoadSettings": "Einstellungen konnten nicht geladen werden",
-    "cancel": "Abbrechen",
-    "help": "Hilfe",
-    "increase": "erhöhen",
-    "decrease": "verringern",
-    "noValue": "—"
-  },
-  "settings": {
-    "title": "Einstellungen",
-    "daynight": "Tag/Nacht Zyklus",
-    "daybreak": "Sonnenaufgang",
-    "nightfall": "Sonnenuntergang",
-    "day-climate": "Klima TAG",
-    "night-climate": "Klima NACHT",
-    "climate": "Klima",
-    "temperature": "Temperatur",
-    "humidity": "Luftfeuchtigkeit",
-    "vpd": "VPD",
-    "dayTemperature": "Tag Temperatur",
-    "dayHumidity": "Tag Luftfeuchtigkeit",
-    "dayVpd": "Tag VPD",
-    "vpdPreview": "{{vpd}} kPa (RLF {{humidity}} %)",
-    "nightTemperature": "Nacht Temperatur",
-    "nightHumidity": "Nacht Luftfeuchtigkeit",
-    "nightVpd": "Nacht VPD",
-    "co2": "CO2",
-    "co2SunsetOff": "Kein CO2 bei Sonnenuntergang",
-    "lights": "Licht",
-    "sunrise": "Sonnenaufgangsperiode",
-    "sunset": "Sonnenuntergangsperiode",
-    "daynightLinearChange": "Linearer Übergang zwischen Tag und Nacht",
-    "lightlimit": "Maximalleistung",
-    "lightsOnMaintenanceMode": "Licht AN im Wartungsmodus",
-    "speed": "Geschwindigkeit",
-    "maxspeed": "Maximalgeschwindigkeit",
-    "minspeed": "Minimalgeschwindigkeit",
-    "general": "Allgemein",
-    "templimit": "Temperaturlimit",
-    "fanspeeds": "Lüftergeschwindigkeit",
-    "externalfan": "Klemmlüfter",
-    "internalfan": "Interne lüfter (Minimalgeschwindigkeit)",
-    "maxDehumidifySeconds": "Max. Kühlschrank AN Sekunden",
-    "minimalDehumidifierOffTime": "Min. Kühlschrank Aus-Zeit in Sekunden",
-    "minimalDehumidifierOffTimeHint": "Mindestzeit in Sekunden, die der Kühlschrank/Entfeuchter aus bleibt, bevor er wieder eingeschaltet werden kann. Verhindert häufiges Takten des Kompressors.",
-    "minimalDehumidifierOffTimeWarning": "Warnung: Werte unter 240s können den Kompressor des Kühlschranks durch häufiges Takten beschädigen!",
-    "targetHumidityDiff": "Ziel RLF Differenz",
-    "useLongHumidityAvg": "Lange RLF Durchschnittswerte verwenden (240 statt 100 Werte)",
-    "use-daynight": "Tag/Nacht Zyklus verwenden",
-    "timer": "Timer",
-    "timer-ontime": "Einschaltzeitpunkt",
-    "timer-duration": "Einschaltdauer",
-    "timer-add": "Zeitslot hinzufügen",
-    "timer-remove": "Zeitslot entfernen",
-    "alarms": {
-      "title": "Alarme",
-      "add": "Alarm hinzufügen",
-      "delete": "Alarm löschen",
-      "sensorType": "Sensor Wert",
-      "upperThreshold": "Obere Schwelle",
-      "upperThresholdHint": "Alarm wird ausgelöst, wenn der Wert darüber liegt",
-      "lowerThreshold": "Untere Schwelle",
-      "lowerThresholdHint": "Alarm wird ausgelöst, wenn der Wert darunter liegt",
-      "thresholdSeconds": "Schwellen-Sekunden",
-      "thresholdSecondsHint": "Sekunden, die der Wert die Schwelle über- bzw. unterschreiten muss, bevor der Alarm ausgelöst wird",
-      "actionType": "Aktion",
-      "actionTypeEmail": "Email",
-      "actionTypeWebhook": "Webhook",
-      "actionTypeInfo": "Log-Meldung",
-      "actionTarget": "Ziel",
-      "actionTargetHint": "Email Adresse oder Webhook URL - falls du unterschiedliche Ziele für Auslösung und Behebung von Alarme verwenden möchtest, trenne diese mit einem senkrechten Strich '|' Charakter. Z.B. \"http://example.com/turn-on|http://example.com/turn-off\"",
-      "cooldownSeconds": "Cooldown Sekunden",
-      "cooldownSecondsHint": "Sekunden bis der gleiche Alarm wieder ausgelöst werden kann. Für E-Mail Aktionen ist das Minimum 300.",
-      "retriggerSeconds": "Erneutes Auslösen Sekunden",
-      "retriggerSecondsHint": "Die Sekunden, nach denen der Alarm-Zustand erneut übertragen wird. Falls z.B. ein Schalt-Zustand nicht erfolgreich empfangen wurde, wird dieser nach dieser Zeit erneut gesendet. (Minimum: 60)",
-      "name": "Alarm Name",
-      "enable": "Alarm aktivieren",
-      "disable": "Alarm deaktivieren",
-      "additionalInfo": "Zusätzliche Log-Meldung",
-      "reportWebhookErrors": "Log-Meldung bei Fehler",
-      "webhookMethod": "Webhook Methode",
-      "webhookMethodPOST": "POST",
-      "webhookMethodGET": "GET",
-      "webhookMethodPUT": "PUT",
-      "webhookHeaders": "Eigene Header",
-      "webhookTriggeredPayload": "Payload Auslösung",
-      "webhookTriggeredPayloadHint": "Benutzerdefinierte Payload, die beim Auslösen des Alarms gesendet wird (für POST/PUT). Leer lassen, um die Standard-Payload zu verwenden.",
-      "webhookResolvedPayload": "Payload Behebung",
-      "webhookResolvedPayloadHint": "Benutzerdefinierte Payload, die bei Behebung des Alarms gesendet wird (für POST/PUT). Leer lassen, um die Standard-Payload zu verwenden.",
-      "tunnelWebhook": "Webhook durch Modul tunneln",
-      "tunnelWebhookHint": "Falls aktiviert, wird der Webhook durch das Modul getunnelt, was hilfreich sein kann wenn dein Modul hinter einem NAT oder einer Firewall ist. ACHTUNG: Die Unterstützung von HTTPS kann in diesem Modus nicht garantiert werden.",
-      "addFromTemplate": "Aus Vorlage hinzufügen",
-      "webhookTarget": "Dienst",
-      "sensorTypes": {
-        "temperature": "Temperatur",
-        "humidity": "Luftfeuchte",
-        "co2": "CO2",
-        "co2_valve": "CO2-Ventil",
-        "light": "Licht",
-        "dehumidifier": "Entfeuchter / Kühlung",
-        "heater": "Heizung",
-        "fan": "Lüfter"
-      }
-    },
-    "cloudSettings": "Cloud Einstellungen",
-    "vpdLeafTempOffsetDay": "Tages VPD Blatt Temp. Offset",
-    "vpdLeafTempOffsetNight": "Nacht VPD Blatt Temp. Offset",
-    "ppfdLuxFactor": "PPFD Lux-Faktor",
-    "ppfdLuxFactorHint": "PPFD wird als Lux × diesem Faktor geschätzt. Er hängt vom Lichtspektrum ab (Weiß-LED ≈ 0,015, HPS ≈ 0,0122, Sonnenlicht ≈ 0,0185). Auf die eigene Grow-Lampe kalibrieren. Standard 0,015.",
-    "firmwareChannel": "Firmware-Kanal",
-    "firmwareChannels": {
-      "stable": "Stable",
-      "beta": "Beta (frühe Tester)",
-      "alpha": "Alpha (experimentell)",
-      "manual": "Manuell (Version wählen)"
-    },
-    "firmwareVersion": "Firmware-Version",
-    "betaFeatures": "Beta Funktionen (Cloud)",
-    "rtspStream": "Webcam Stream URL",
-    "rtspStreamTransport": "RTSP Transportprotokoll",
-    "rtspStreamTest": "Webcam Stream testen",
-    "logRtspStreamErrors": "Webcam Stream Fehler loggen",
-    "maintenanceWebcamOff": "Webcam AUS bei Wartungsmodus oder Modus AUS",
-    "tunnelRtspStream": "Webcam Stream tunneln",
-    "deleteDevice": "Gerät entfernen",
-    "edit-value": "Wert ändern",
-    "deleteDeviceConfirmTitle": "Gerät entfernen?",
-    "deleteDeviceConfirmText": "Das Gerät wird aus deinem Konto entfernt — es verschwindet aus der App, bis es erneut verbunden wird.",
-    "deleteDeviceConfirmAgain": "Das Gerät jetzt wirklich entfernen?",
-    "deleteDeviceConfirmButton": "Entfernen",
-    "forever": "unbegrenzt"
-  },
-  "menu": {
-    "devices": "Geräte",
-    "shares": "Geteilte Links",
-    "account": "Benutzer",
-    "logout": "Ausloggen",
-    "darkMode": "Dark Mode",
-    "diagnostics": "Diagnose",
-    "fleet": "Flotte",
-    "installApp": "App installieren"
-  },
-  "share": {
-    "button": "Teilen",
-    "title": "Diese Seite teilen",
-    "pageTitle": "Geteilte Links",
-    "intro": {
-      "charts": "Erstelle einen Link, mit dem jeder diese Graphen-Seite ansehen kann - ganz ohne Konto.",
-      "diary": "Erstelle einen Link, mit dem jeder dieses Tagebuch ansehen kann - ganz ohne Konto."
-    },
-    "viewOnly": "Nur ansehen",
-    "viewOnlyHint": "Besucher sehen genau diese Ansicht und können sie nicht verändern.",
-    "interactive": "Interaktiv",
-    "interactiveHint": {
-      "charts": "Besucher können Zeitraum, Messwerte und Log-Filter ändern.",
-      "diary": "Besucher können Berichte wechseln, Strain und Filter ändern und die Webcam ansehen."
-    },
-    "includeCharts": "Funktionierende Graphen-Links",
-    "includeChartsHint": "Besucher können die im Grow-Report verlinkten Graphen-Ansichten öffnen.",
-    "withCharts": "inkl. Graphen-Links",
-    "expiry": "Link läuft ab",
-    "never": "Nie",
-    "endOfDate": "Ende des {{date}}",
-    "createLink": "Link erstellen",
-    "copy": "Kopieren",
-    "copied": "Kopiert!",
-    "manageHint": "Unter „Geteilte Links“ im Menü siehst du, wie oft der Link geöffnet wurde, und kannst ihn jederzeit zurückziehen.",
-    "activeLinks": "Aktive Links",
-    "inactiveLinks": "Abgelaufene & zurückgezogene Links",
-    "noLinks": "Noch keine geteilten Links. Nutze den Teilen-Button auf einer Graphen- oder Tagebuch-Seite, um einen zu erstellen.",
-    "page": {
-      "charts": "Graph",
-      "diary": "Tagebuch"
-    },
-    "status": {
-      "active": "Aktiv",
-      "expired": "Abgelaufen",
-      "revoked": "Zurückgezogen"
-    },
-    "created": "Erstellt",
-    "expires": "Läuft ab",
-    "expired": "Abgelaufen",
-    "revoked": "Zurückgezogen",
-    "neverExpires": "Läuft nie ab",
-    "openCount": "Aufrufe: {{count}}",
-    "revoke": "Zurückziehen",
-    "revokeConfirmTitle": "Link zurückziehen?",
-    "revokeConfirmText": "Der Link funktioniert sofort nicht mehr. Das kann nicht rückgängig gemacht werden.",
-    "delete": "Löschen",
-    "deleteInactive": "Alle abgelaufenen & zurückgezogenen Links löschen",
-    "expiredTitle": "Dieser Link ist nicht mehr gültig",
-    "expiredText": "Der geteilte Link ist abgelaufen oder wurde vom Besitzer zurückgezogen.",
-    "goToLogin": "Zur Anmeldung"
-  },
-  "account": {
-    "title": "Benutzer",
-    "change-password": "Passwort ändern",
-    "new-password": "Neues Passwort",
-    "repeat-password": "Passwort wiederhohlen",
-    "logout": "Ausloggen",
-    "messages": {
-      "pwmatch": "Passwörter stimmen nicht überein",
-      "confail": "Verbindungsproblem",
-      "changed": "Passwort wurde geändert"
-    }
+    "off": "Aus"
   },
   "demo": {
-    "mode": "Demo-Modus",
-    "opening": "Demo wird geöffnet...",
-    "saveNotSupported": "Speichern wird im Demo-Modus nicht unterstützt",
-    "saveButton": "Speichern (im Demo nicht möglich)"
+    "opening": "Demo wird geöffnet..."
   },
   "login": {
     "sessionEnded": "Deine Sitzung ist abgelaufen, deshalb wurdest du abgemeldet. Melde dich erneut an, um zur vorherigen Seite zurückzukehren.",
-    "welcomeTitle": "Willkommen zurück",
-    "welcomeSubtitle": "Überwache und steuere deinen Grow — von überall.",
-    "registerTitle": "Konto erstellen",
-    "registerSubtitle": "Ein Portal für alle deine Terp Control Geräte.",
     "email": "E-Mail",
     "password": "Passwort",
     "newPassword": "Neues Passwort",
-    "repeatPassword": "Passwort wiederholen",
-    "stayLoggedIn": "Angemeldet bleiben",
-    "login": "Anmelden",
     "createAccount": "Konto erstellen",
     "backToLogin": "Zurück zur Anmeldung",
     "forgotPassword": "Passwort vergessen?",
-    "demoHint": "Nur mal reinschauen? Sieh dir echte Geräte ohne Konto an.",
-    "demoLogin": "Demo öffnen",
-    "sendRecovery": "Wiederherstellungslink senden",
-    "changePassword": "Passwort ändern",
     "acceptPrivacyBefore": "Ich akzeptiere die",
     "acceptPrivacyLink": "Datenschutzbedingungen",
-    "privacyTitle": "Datenschutzbedingungen",
-    "messages": {
-      "loginFailedTitle": "Anmeldung fehlgeschlagen",
-      "errorTitle": "Fehler",
-      "successTitle": "Geschafft",
-      "wrongCredentials": "E-Mail oder Passwort ist falsch.",
-      "notActivated": "Du musst dein Konto zuerst aktivieren. Schau in dein E-Mail-Postfach.",
-      "connectionError": "Verbindungsfehler. Bitte versuche es erneut.",
-      "passwordMismatch": "Die Passwörter stimmen nicht überein.",
-      "invalidActivationCode": "Ungültiger Aktivierungscode.",
-      "accountCreatedTitle": "Konto erstellt",
-      "accountCreatedText": "Ein Aktivierungscode wurde an deine E-Mail-Adresse gesendet.",
-      "accountActivatedTitle": "Konto aktiviert",
-      "accountActivatedText": "Dein Konto wurde aktiviert, du kannst dich jetzt anmelden:",
-      "emailInUse": "Diese E-Mail-Adresse wird bereits verwendet.",
-      "recoverySentTitle": "Gesendet",
-      "recoverySentText": "Der Wiederherstellungslink wurde gesendet.",
-      "wrongRecoveryToken": "Dieser Wiederherstellungslink ist ungültig oder abgelaufen.",
-      "passwordChangedText": "Dein Passwort wurde geändert, du kannst dich jetzt anmelden:",
-      "sessionExpiredTitle": "Sitzung abgelaufen",
-      "sessionExpiredText": "Deine Sitzung ist nicht mehr gültig. Bitte melde dich erneut an.",
-      "demoUnavailable": "Die Demo konnte nicht geöffnet werden. Bitte versuche es erneut."
-    },
     "signIn": "Anmelden",
     "demo": "Demo ausprobieren",
     "demoFailed": "Die Demo konnte nicht geöffnet werden.",
@@ -300,25 +46,6 @@
     "notActivated": "Dieses Konto ist noch nicht aktiviert. Der Code ist eben noch einmal an {{email}} gegangen – öffne den Link in der Mail oder gib den Code ein."
   },
   "growPresets": {
-    "seedling": {
-      "name": "Sämling · mit Licht"
-    },
-    "vegetative": {
-      "name": "Wachstum"
-    },
-    "flowering": {
-      "name": "Frühe Blüte"
-    },
-    "late_flowering": {
-      "name": "Späte Blüte"
-    },
-    "drying": {
-      "name": "Trocknung"
-    },
-    "custom": {
-      "name": "Eigene Werte",
-      "subtitle": "Alles selbst einstellen"
-    },
     "stages": {
       "seedling": "Sämling",
       "vegetative": "Wachstum",
@@ -340,29 +67,10 @@
       "startFlowering": "Bereit für die Blüte? Ab jetzt läuft das Licht 12/12 — bestätige, um umzustellen.",
       "harvest": "Prüfe die Trichome: milchig mit ersten Bernsteintönen? Dann ernten und bestätigen — danach startet die Trocknung.",
       "dryingDone": "Knacken die Zweige statt zu biegen? Dann ist die Trocknung fertig — ab in die Curing-Gläser."
-    },
-    "off": {
-      "name": "Aus",
-      "subtitle": "Nichts regeln"
     }
   },
   "assistant": {
-    "allGood": "Alles im grünen Bereich",
-    "confirmationPending": "Dein Plan wartet auf eine Bestätigung — Einstellungen öffnen",
-    "deviationMonitorHint": "Dein Gerät überwacht nur — passe das manuell in deinem Setup an.",
     "tipsTitle": "Tipps für diese Phase",
-    "matchingChart": "Passende Graphen-Ansicht öffnen",
-    "bannerText": "Lass dich von einem Grow-Plan durch die Phasen führen — Zielwerte passen sich automatisch an, große Schritte bestätigst du.",
-    "deviation": {
-      "temperature": {
-        "above": "Temperatur {{current}} °C — über dem Ziel ({{target}} °C)",
-        "below": "Temperatur {{current}} °C — unter dem Ziel ({{target}} °C)"
-      },
-      "humidity": {
-        "above": "Luftfeuchte {{current}} % — über dem Ziel ({{target}} %)",
-        "below": "Luftfeuchte {{current}} % — unter dem Ziel ({{target}} %)"
-      }
-    },
     "tips": {
       "seedling": {
         "1": "Halte das Medium leicht feucht, nie klatschnass — Sämlinge ertrinken schneller, als sie vertrocknen.",
@@ -396,131 +104,16 @@
       }
     }
   },
-  "chartPresets": {
-    "curated": {
-      "climate": "Klima-Check",
-      "vpd": "VPD-Analyse",
-      "co2": "CO₂-Check",
-      "light": "Licht & Blattdach",
-      "drying": "Trocknung"
-    },
-    "saveView": "Ansicht speichern",
-    "saveTitle": "Diese Ansicht als Preset speichern",
-    "namePlaceholder": "Name des Presets",
-    "save": "Speichern",
-    "cancel": "Abbrechen",
-    "delete": "Löschen",
-    "deleteTitle": "Dieses Preset löschen?",
-    "saveFailed": "Das Preset konnte nicht gespeichert werden."
-  },
-  "wizard": {
-    "title": "Einrichtungsassistent",
-    "back": "Zurück",
-    "next": "Weiter",
-    "apply": "Einrichtung abschließen",
-    "errorSaving": "Speichern fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
-    "name": {
-      "title": "Gib deinem Gerät einen Namen",
-      "text": "Wähle einen Namen, den du wiedererkennst — zum Beispiel „Zelt Wohnzimmer“ oder „Kühlschrank Keller“.",
-      "label": "Gerätename"
-    },
-    "connections": {
-      "title": "Was schaltet dein Controller?",
-      "text": "Dein Controller schaltet über gekoppelte Smart Sockets — die App erkennt automatisch, was verbunden ist. Koppeln kannst du direkt am Controller (Einstellungen → Smart Sockets).",
-      "connected": "Verbunden",
-      "noSockets": "Noch keine Steckdosen gekoppelt — es wird nur überwacht. Du kannst jederzeit welche am Controller koppeln, die App passt sich automatisch an.",
-      "unknown": "Dein Controller meldet den Steckdosen-Status erst nach einem Firmware-Update. Bis dahin zeigen wir alle Steuerungs-Optionen an.",
-      "detected-full": "Erkannt: Dein Controller regelt das Klima.",
-      "detected-light_only": "Erkannt: Dein Controller schaltet nur das Licht — Klimawerte werden überwacht und Zielwerte dienen als Richtwerte.",
-      "detected-monitor": "Erkannt: Nur Überwachung — es wird nichts geschaltet, Zielwerte dienen als Richtwerte.",
-      "refresh": "Neu prüfen"
-    },
-    "stage": {
-      "title": "Wo steht dein Grow gerade?",
-      "text": "Wir tragen bewährte Zielwerte für diese Phase ein — feinjustieren kannst du später alles."
-    },
-    "plan": {
-      "title": "Nur Zielwerte oder gleich ein Grow-Plan?",
-      "text": "Der Grow-Plan führt dich durch die Phasen, passt die Zielwerte automatisch an und fragt vor großen Schritten nach.",
-      "textMonitor": "Im Überwachungsmodus begleitet der Plan deine Phasen, hält das Tagebuch aktuell und zeigt dir die empfohlenen Bereiche je Phase.",
-      "targets": "Nur Zielwerte übernehmen",
-      "targetsMonitor": "Nur Richtwerte setzen",
-      "targetsText": "Werte für die gewählte Phase einmalig setzen.",
-      "durationsTitle": "Phasendauern (anpassbar)",
-      "days": "Tage",
-      "total": "Gesamt: etwa {{days}} Tage ({{weeks}} Wochen).",
-      "confirmNote": "Vor dem Blüte-Umstieg, der Ernte und dem Ende der Trocknung wartet der Plan auf deine Bestätigung — du behältst die Kontrolle.",
-      "startsAtStage": "Bereits vergangene Phasen behalten ihre Standardwerte — du planst nur ab deiner aktuellen Phase."
-    },
-    "done": {
-      "title": "Das war's — ab jetzt übernimmt die Automatik",
-      "titleMonitor": "Das war's — deine Überwachung läuft",
-      "text": "Dein Gerät regelt jetzt rund um die Uhr auf die Zielwerte. Wenn alles optimal läuft, musst du gar nichts tun.",
-      "textMonitor": "Du siehst jetzt Live-Werte, Verlaufsgrafiken und bekommst Alarme, wenn etwas aus dem Ruder läuft. Deine Zielwerte dienen als Richtbereiche.",
-      "step1": "Eingesteckt und verbunden",
-      "step2": "Zielwerte für deine Phase gesetzt",
-      "step3": "Regelung läuft automatisch",
-      "step3Monitor": "Überwachung und Alarme sind aktiv",
-      "close": "Fertig",
-      "auxHint": "Webcam und Smart Sockets verbindest du jederzeit in den Geräte-Einstellungen unter „Angeschlossene Geräte“."
-    }
-  },
-  "onboarding": {
-    "welcomeTitle": "Willkommen in deinem Grow-Portal",
-    "welcomeText": "Verbinde dein erstes Terp Control Gerät und lass die Automatik übernehmen — du behältst von überall den Überblick.",
-    "step1Title": "Gerät einstecken",
-    "step1Text": "Schalte dein Gerät ein und verbinde es mit deinem WLAN — das Display führt dich durch.",
-    "step2Title": "Code am Display ablesen",
-    "step2Text": "Dein Gerät zeigt unter „Connect to portal“ einen kurzen Kopplungscode an.",
-    "step3Title": "Code hier eingeben",
-    "step3Text": "Das Gerät erscheint in deinem Portal und der Einrichtungsassistent übernimmt.",
-    "codePlaceholder": "Kopplungscode",
-    "claimFailed": "Der Code hat nicht funktioniert. Prüfe den Code am Geräte-Display und versuche es erneut.",
-    "helpText": "Hilfe beim Verbinden? Alle Anleitungen findest du auf"
-  },
-  "device-list": {
-    "title": "Meine Geräte",
-    "claim": "Gerätecode eingeben",
-    "claim-button": "Hinzufügen",
-    "addDevice": "Gerät hinzufügen",
-    "load-failed-title": "Geräte konnten nicht geladen werden",
-    "load-failed-text": "Der Server hat nicht geantwortet. Deine Geräte sind weiterhin vorhanden — das ist nur ein Anzeigeproblem.",
-    "retry": "Erneut versuchen"
-  },
   "notFound": {
     "title": "Seite nicht gefunden",
     "text": "Die aufgerufene Seite existiert nicht oder wurde verschoben.",
     "home": "Zurück zur App"
   },
-  "connection-error": {
-    "title": "Server nicht erreichbar",
-    "text": "Deine Geräte konnten nicht geladen werden, weil der Server nicht geantwortet hat. Prüfe deine Internetverbindung und versuche es erneut.",
-    "stillUnreachable": "Der Server antwortet weiterhin nicht.",
-    "retry": "Erneut versuchen",
-    "retrying": "Wird versucht..."
-  },
   "charts": {
     "title": "Graphen",
-    "vpd-mode-label": "VPD Modus",
-    "vpd-mode": {
-      "all": "alles",
-      "day": "nur Tag",
-      "night": "nur Nacht"
-    },
-    "timespan": "Zeitraum",
-    "interval": "Intervall",
-    "offset": "Datum",
-    "logsTitle": "Log-Meldungen",
-    "logsShowAll": "Alle anzeigen",
-    "logsNoEntries": "Keine Log-Meldungen für den gewählten Zeitraum",
-    "logsNoFilteredEntries": "Keine Log-Meldungen für die gewählten Filter",
-    "moreHiddenMessages": "Es gibt {{count}} weitere Log-Meldungen. Bitte Auswahl reduzieren.",
     "noData": "In diesem Zeitraum liegen keine Messwerte vor — bitte den Zeitraum ändern.",
     "quietWindow": "In diesem Zeitraum liegen keine Messwerte vor · zuletzt gemessen vor {{age}} — bitte den Zeitraum ändern.",
     "resetZoom": "Zoom zurücksetzen",
-    "resetZoomTitle": "Zoom auf 1:1 zurücksetzen",
-    "customRange": "Eigener Zeitraum",
-    "resetRange": "Zurücksetzen",
     "back": "Zurück",
     "rangeLabel": "Zeitraum",
     "range": {
@@ -647,207 +240,6 @@
     "ticks_other": "Takte"
   },
   "devices": {
-    "button-settings": "Einstellungen",
-    "button-maintenance-mode": "Wartungsmodus",
-    "page-settings": "Einstellungen",
-    "button-charts": "Graphen",
-    "button-delete": "Löschen",
-    "device-offline": "Gerät offline",
-    "device-log": "Logs",
-    "clear-log": "Logs löschen",
-    "button-diary": "Tagebuch",
-    "fridge": {
-      "title": "Terp Control FRIDGE GROW",
-      "workmode": "Arbeitsmodus",
-      "workmode-small": "Kleine Pflanzen",
-      "workmode-full": "Große Pflanzen",
-      "workmode-temp": "Gewächshaus",
-      "workmode-dry": "Trocknung",
-      "workmode-breed": "Keimung",
-      "workmode-off": "AUS",
-      "workmode-loading": "Lade...",
-      "workmode-unknown": "Unbekannt",
-      "settings": {
-        "floating-day": "Benutzerspezifizierte Tageslänge für Tag/Nacht Zyklus verwenden (statt 24h)",
-        "float-start": "Start des ersten Tags",
-        "day_duration": "Gesamtdauer Tag/Nacht Zyklus",
-        "light_duration": "Dauer der Beleuchtungsperiode"
-      },
-      "settingsmode": "Einstellungsmodus",
-      "settingsmode-manual": "Manuell",
-      "settingsmode-recipe": "Rezept",
-      "manualModeOfflineWarning": "Falls dein Gerät offline ist, werden Einstellungen erst angewendet, wenn das Gerät wieder online ist.",
-      "recipe": {
-        "notRunning": "Nicht gestartet",
-        "stepTimeRemaining": "Verbleibende Zeit",
-        "waitingForConfirmation": "Warten auf Bestätigung",
-        "confirmStep": "Schritt bestätigen",
-        "title-active": "Rezept (Läuft)",
-        "title-inactive": "Rezept (Gestoppt)",
-        "warning": "Warnung: Rezepte sind auf eine stabile Internetverbindung angewiesen. Bei Verbindungsverlust kann es vorkommen, dass das Rezept nicht wie erwartet zum nächsten Schritt übergeht.",
-        "add": "Rezept hinzufügen",
-        "addStep": "Schritt hinzufügen",
-        "deleteStep": "Schritt löschen",
-        "steps": "Rezept Schritte",
-        "activeStep": "Aktiver Schritt",
-        "startTime": "Startzeit Schritt",
-        "etaTime": "Rezept-Ende ETA",
-        "remainingTime": "Rezept beendet nach",
-        "stepRemainingTime": "Schritt beendet nach",
-        "loop": "Endlosschleife",
-        "step": {
-          "name": "Schrittname",
-          "waitForConfirmation": "Auf Bestätigung warten",
-          "duration": "Dauer",
-          "durationUnit": {
-            "minutes": "Minuten",
-            "hours": "Stunden",
-            "days": "Tage",
-            "weeks": "Wochen"
-          },
-          "closeSettings": "Einstellungen schließen",
-          "editSettings": "Einstellungen bearbeiten",
-          "moveUp": "Nach oben",
-          "moveDown": "Nach unten",
-          "duplicate": "Duplizieren",
-          "confirmationMessage": "Bestätigungsnachricht",
-          "setRunning": "Rezept starten",
-          "clearRunning": "Rezept stoppen"
-        },
-        "loadTemplate": "Vorlage laden",
-        "savePublicTemplate": "Öffentliche Vorlage speichern",
-        "savePrivateTemplate": "Private Vorlage speichern",
-        "emailNotifications": "E-Mail Benachrichtigungen",
-        "emailNotifications-none": "Aus",
-        "emailNotifications-onStep": "Bei jedem Schrittwechsel",
-        "emailNotifications-onConfirmation": "Nur bei Bestätigungen",
-        "additionalInfo": "Log-Meldung bei Schrittwechsel",
-        "emailAddress": "E-Mail Adresse",
-        "pleaseStart": "Bitte starte zuerst den Plan",
-        "stepEtaTime": "Schritt-Ende ETA"
-      }
-    },
-    "fan": {
-      "title": "Terp Control AIR",
-      "workmode": "Arbeitsmodus",
-      "workmode-fixed": "Konstante Geschwindigkeit",
-      "workmode-temp": "Temperaturregelung",
-      "workmode-hum": "Luftfeuchteregelung",
-      "workmode-temphum": "Temperatur-/Luftfeuchteregelung",
-      "workmode-loading": "Lade...",
-      "workmode-unknown": "Unbekannt",
-      "co2inject": {
-        "name": "Automatische Geschwindigkeitsreduktion",
-        "description": "Dieser Lüfter ist mit einer Terp Control Smart Socket im CO2 Modus verbunden und seine Geschwindigkeit wird wärend der CO2 Begasung automatisch reduziert!",
-        "clear": "Verbindung aufheben"
-      }
-    },
-    "light": {
-      "title": "Terp Control LIGHT"
-    },
-    "plug": {
-      "title": "Terp Control SMART SOCKET",
-      "workmode": "Arbeitsmodus",
-      "workmode-heater": "Heizung",
-      "workmode-cooler": "Kühlung",
-      "workmode-humidify": "Befeuchter",
-      "workmode-dehumidify": "Entfeuchter",
-      "workmode-co2": "CO2 Anreicherung",
-      "workmode-watering": "Bewässerung",
-      "workmode-off": "Aus",
-      "workmode-timer": "Timer",
-      "workmode-light": "Beleuchtung",
-      "workmode-loading": "Lade...",
-      "workmode-unknown": "Unbekannt",
-      "co2sensor-title": "CO2 Sensor erforderlich!",
-      "co2sensor-text": "Dieser Arbeitsmodus erfordert einen optional erhältlichen CO2 Sensor.",
-      "settings": {
-        "heater-name": "Heizen",
-        "heater-name-day": "Heizen - Tags",
-        "heater-name-night": "Heizen - Nachts",
-        "heater-on": "Einschaltpunkt",
-        "heater-on-desc": "Steckdose wird EIN geschaltet wenn die gemessene Temperatur UNTER diesen Wert sinkt.",
-        "heater-off": "Ausschaltpunkt",
-        "heater-off-desc": "Steckdose wird AUS geschaltet wenn die gemessene Temperatur ÜBER diesen Wert steigt.",
-        "cooler-name": "Kühlen",
-        "cooler-name-day": "Kühlen - Tags",
-        "cooler-name-night": "Kühlen - Nachts",
-        "cooler-on": "Einschaltpunkt",
-        "cooler-on-desc": "Steckdose wird EIN geschaltet wenn die gemessene Temperatur ÜBER diesen Wert steigt.",
-        "cooler-off": "Ausschaltpunkt",
-        "cooler-off-desc": "Steckdose wird AUS geschaltet wenn die gemessene Temperatur UNTER diesen Wert sinkt.",
-        "humidify-name": "Befeuchten",
-        "humidify-name-day": "Befeuchten - Tags",
-        "humidify-name-night": "Befeuchten - Nachts",
-        "humidify-on": "Einschaltpunkt",
-        "humidify-on-desc": "Steckdose wird EIN geschaltet wenn die gemessene Luftfeuchtigkeit UNTER diesen Wert sinkt.",
-        "humidify-off": "Ausschaltpunkt",
-        "humidify-off-desc": "Steckdose wird AUS geschaltet wenn die gemessene Luftfeuchtigkeit ÜBER diesen Wert steigt.",
-        "dehumidify-name": "Entfeuchten",
-        "dehumidify-name-day": "Entfeuchten - Tags",
-        "dehumidify-name-night": "Entfeuchten - Nachts",
-        "dehumidify-on": "Einschaltpunkt",
-        "dehumidify-on-desc": "Steckdose wird EIN geschaltet wenn die gemessene Luftfeuchtigkeit ÜBER diesen Wert steigt.",
-        "dehumidify-off": "Ausschaltpunkt",
-        "dehumidify-off-desc": "Steckdose wird AUS geschaltet wenn die gemessene Luftfeuchtigkeit UNTER diesen Wert sinkt.",
-        "co2": {
-          "dayonly": "Nur tagsüber aktivieren",
-          "mode": "CO2 Modus",
-          "mode-periodic": "Periodische Begasung",
-          "mode-const": "Konstante Begasung",
-          "period": "Begasungsperiode",
-          "duration": "Begasungsdauer",
-          "fan": "Automatische Lüfter Dimmung",
-          "fanspeed": "Lüftergeschwindigkeit wärend der Begasung",
-          "no-fan": "Kein Lüfter / deaktiviert",
-          "no-air-controller": "Kein Air Controller vorhanden",
-          "value": "CO2 Zielwerte",
-          "on": "Steckdose einschalten bei",
-          "off": "Steckdose ausschalten bei"
-        },
-        "limits": {
-          "title": "Schutzfunktionen",
-          "overtemperature": {
-            "enabled": "Übertemperaturschutz aktivieren",
-            "limit": "Temperaturgrenze",
-            "limit-desc": "Steckdose wird beim überschreiten dieser Temperatur ausgeschaltet",
-            "hysteresis": "Wiedereinschalt Hysterese",
-            "hysteresis-desc": "Temperatur muss diesen Wert unter die Temperaturgrenze fallen damit die Steckdose wiedereingeschaltet wird"
-          },
-          "undertemperature": {
-            "enabled": "Untertemperaturschutz aktivieren",
-            "limit": "Temperaturgrenze",
-            "limit-desc": "Steckdose wird beim unterschreiten dieser Temperatur ausgeschaltet",
-            "hysteresis": "Wiedereinschalt Hysterese",
-            "hysteresis-desc": "Temperatur muss diesen Wert über die Temperaturgrenze steigen damit die Steckdose wiedereingeschaltet wird"
-          },
-          "time": {
-            "enabled": "Minimale Schaltzeiten",
-            "min_on": "Minimale Einschaltdauer",
-            "min_on-desc": "Die Steckdose bleibt, nach dem Einschalten, für mindestens diese Zeit eingeschaltet",
-            "min_off": "Minimale Ausschaltdauer",
-            "min_off-desc": "Die Steckdose bleibt, nach dem Ausschalten, für mindestens diese Zeit ausgeschaltet"
-          }
-        }
-      }
-    },
-    "button-setup": "Einrichten",
-    "maintenance": {
-      "title": "Wartungsmodus",
-      "text": "Wie lange soll die Regelung pausieren?",
-      "deactivate": "Beenden",
-      "minutes": "{{minutes}} Minuten",
-      "activated": "Wartungsmodus für {{minutes}} Minuten aktiviert",
-      "deactivated": "Wartungsmodus beendet",
-      "failed": "Wartungsmodus konnte nicht geändert werden",
-      "active": "Wartungsmodus [{{duration}}]"
-    },
-    "device-offline-lastseen": "zuletzt gesehen: {{date}}",
-    "add": "Hinzufügen",
-    "claim": "Übernehmen",
-    "claiming": "Wird übernommen…",
-    "claimLabel": "Der Code auf dem Display",
-    "claimFailed": "Dieser Code wurde nicht angenommen.",
     "controllers_one": "Gerät",
     "controllers_other": "Geräte",
     "cameras": "Kameras",
@@ -857,7 +249,6 @@
       "title": "Lichtausgang",
       "is": "eigener Ausgang des Geräts · dimmbar",
       "brightness": "Lichtgrenze",
-      "force": "Lichtausgang halten",
       "forceFor": "Lichtausgang {{duration}} lang halten",
       "holds": "hält {{duration}}",
       "askedHold": "Gesendet: {{duration}} lang halten. Das Gerät meldet sich innerhalb einer halben Minute zurück.",
@@ -1034,103 +425,6 @@
     "noneYet": "Hier steht noch kein Gerät. Ein Controller oder Kühlschrankmodul misst und regelt das Klima und kommt mit dem Code auf seinem Display dazu; eine Kamera macht Bilder für Tagebuch und Zeitraffer.",
     "addController": "Controller oder Kühlschrankmodul hinzufügen"
   },
-  "diary": {
-    "title": "Tagebuch",
-    "addEntry": "Eintrag hinzufügen",
-    "co2Report": "CO2 Bericht",
-    "growReport": "Grow Bericht",
-    "entriesReport": "Einträge",
-    "entriesIncludeSystem": "Systemeinträge anzeigen",
-    "categories": {
-      "co2Refill": "CO2 Nachfüllung",
-      "plantLog": "Pflanzen-Log",
-      "plantLifecycle": "Pflanzen-Phase",
-      "measurement": "Messung",
-      "fridgeLog": "Fridge-Log",
-      "diary": "Tagebuch",
-      "diary-plant-log": "Pflanzen-Log",
-      "diary-fridge-log": "Geräte-Log",
-      "diary-plant-lifecycle": "Phasenwechsel",
-      "diary-co2-refill": "CO₂-Nachfüllung",
-      "diary-measurement": "Messung",
-      "plant-log": "Pflanzen-Log",
-      "plant-lifecycle": "Phasenwechsel",
-      "recipe": "Grow-Plan",
-      "recipe-confirmation": "Plan-Bestätigung",
-      "device-configuration": "Einstellungen",
-      "alarm": "Alarm",
-      "firmware": "Firmware",
-      "unknown": "Sonstiges"
-    },
-    "labels": {
-      "categories": "Kategorie",
-      "time": "Zeit",
-      "title": "Titel",
-      "co2FillingRest": "Rest im alten Zylinder",
-      "co2FillingInitial": "Füllmenge neuer Zylinder",
-      "message": "Kommentar",
-      "newLifecycleStage": "Neue Phase",
-      "lightMeasurement": "Beleuchtungsstärke",
-      "distanceMeasurement": "Abstandsmessung",
-      "tdsMeasurement": "TDS-Messung",
-      "ecMeasurement": "EC-Messung",
-      "outsideTemperatureMeasurement": "Außentemperatur",
-      "phMeasurement": "pH-Messung",
-      "lifecycleName": "Name der Pflanze"
-    },
-    "lifecycleStages": {
-      "germination": "Keimung",
-      "seedling": "Sämlingsphase",
-      "vegetative": "Vegetative Phase",
-      "flowering": "Blütephase",
-      "drying": "Trocknungsphase",
-      "curing": "Curing"
-    },
-    "actions": {
-      "save": "Speichern",
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "openCamera": "Kamera öffnen",
-      "selectImages": "Bilder auswählen"
-    },
-    "confirmDelete": "Diesen Tagebuch-Eintrag löschen?",
-    "defaults": {
-      "co2RefillTitle": "CO2 Flasche wurde nachgefüllt"
-    },
-    "co2ReportNoData": "Noch keine CO2 Nachfüllungen.",
-    "entriesNoData": "Noch keine Tagebuch-Einträge.",
-    "growReportNoData": "Noch keine Pflanzen-Phase Ereignisse.",
-    "selectGrowCycle": "Grow Zyklus auswählen",
-    "startDate": "Startdatum",
-    "endDate": "Enddatum",
-    "eventCount": "Anzahl der Ereignisse",
-    "events": "Ereignisse",
-    "phaseSummary": "Phasenübersicht",
-    "dayInPhase": "Tag in Phase",
-    "totalDay": "Gesamttage",
-    "day": "Tag",
-    "days": "Tage",
-    "untilToday": "bis heute",
-    "today": "Heute",
-    "viewChart": "Graph anzeigen",
-    "viewCycleChart": "Zyklus-Graph anzeigen",
-    "showWebcam": "Webcam-Fotos anzeigen",
-    "hideWebcam": "Webcam-Fotos ausblenden",
-    "gapPhotos": "Fotos der Tage dazwischen anzeigen",
-    "webcamTime": "Uhrzeit des Fotos",
-    "repeatedEntry": "(Meldung {{count}}× hintereinander)",
-    "showAll": "alle anzeigen",
-    "uploading": "Wird hochgeladen …",
-    "images": "Bilder",
-    "gap": {
-      "later": "{{span}} später",
-      "untilToday": "{{span}} bis heute",
-      "day": "{{count}} Tag",
-      "days": "{{count}} Tage",
-      "week": "{{count}} Woche",
-      "weeks": "{{count}} Wochen"
-    }
-  },
   "message-lost-connection-title": "Verbindungsproblem",
   "message-lost-connection-text": "Die Verbindung zwischen deinem Gerät und unserem Server ist abgebrochen und wurde wiederhergestellt. Wenn dieser Fehler oft auftritt überprüfe bitte dein WLAN und deine Internetverbindung.",
   "message-device-booted-title": "Gerät hat neu gestartet",
@@ -1231,119 +525,6 @@
   "message-aux-command-failed-text": "Das Gerät konnte einen Befehl, der von hier aus geschickt wurde, nicht ausführen ({{value}}).",
   "message-aux-command-failed:cam_capture-title": "Bild nicht aufgenommen",
   "message-aux-command-failed:cam_capture-text": "Das Gerät sollte ein Bild von seiner Kamera holen und hat keines bekommen. Prüfe, ob die Kamera Strom hat und im selben WLAN wie das Gerät ist.",
-  "auxDevices": {
-    "title": "Angeschlossene Geräte",
-    "webcam": {
-      "title": "Webcam",
-      "intro": "Behalte deinen Grow live und im Tagebuch-Zeitraffer im Blick. Wähle deine Kamera:",
-      "models": {
-        "terp_cam": {
-          "name": "Terp Control Cam",
-          "subtitle": "Unsere Kamera — verbindet sich über deinen Controller"
-        },
-        "tapo_c200": {
-          "name": "TP-Link Tapo",
-          "subtitle": "z. B. C100/C200/C210/C310 — RTSP-Vorlage"
-        },
-        "reolink": {
-          "name": "Reolink",
-          "subtitle": "RTSP-Vorlage"
-        },
-        "hikvision": {
-          "name": "Hikvision",
-          "subtitle": "RTSP-Vorlage"
-        },
-        "custom": {
-          "name": "Eigene URL",
-          "subtitle": "Beliebige Stream-URL"
-        }
-      },
-      "user": "Kamera-Benutzername",
-      "password": "Kamera-Passwort",
-      "host": "IP-Adresse oder Hostname",
-      "hostHintTunnel": "Lokale IP der Kamera in deinem Heimnetz — der Stream wird über den Tunnel deines Geräts geholt.",
-      "hostHintPublic": "Öffentliche IP oder DDNS-Name, aus dem Internet erreichbar. Aktiviere Tunneling, um stattdessen eine lokale IP zu nutzen.",
-      "remove": "Webcam entfernen",
-      "savedNote": "Webcam-Änderungen werden beim Speichern der Einstellungen übernommen.",
-      "add": "Webcam hinzufügen",
-      "pickModel": "Welche Kamera hast du? (eine Webcam pro Gerät)",
-      "fillPlaceholders": "Platzhalter ausfüllen",
-      "placeholderHint": "Ersetze <user>, <password> und <ip> in der URL durch die Werte deiner Kamera.",
-      "customHint": "Format: rtsp://benutzer:passwort@ip-oder-hostname:554/pfad — den Stream-Pfad findest du im Handbuch deiner Kamera. Auch HTTP(S)-Snapshot- oder MJPEG-URLs funktionieren.",
-      "customHintTunnel": "Steht die Kamera bei deinem Gerät im selben Netzwerk, aktiviere „Webcam Stream tunneln“ und nutze ihre lokale IP."
-    },
-    "sockets": {
-      "title": "Smart Sockets",
-      "intro": "Dein Gerät schaltet diese Steckdosen. Die Kopplung passiert direkt am Gerät (Einstellungen → Smart Sockets). Pro Funktion sind beliebig viele Steckdosen möglich — sie schalten gemeinsam.",
-      "unknownFirmware": "Diese Firmware meldet ihre Steckdosen noch nicht. Aktualisiere die Geräte-Firmware oder verwalte die Steckdosen am Gerät.",
-      "connected": "Verbunden",
-      "roles": {
-        "dehumidifier": "Entfeuchter",
-        "heater": "Heizung",
-        "light": "Licht",
-        "secondary_light": "Zweites Licht",
-        "co2": "CO2-Ventil"
-      },
-      "remove": "Entfernen",
-      "removeConfirmTitle": "Steckdose entfernen?",
-      "removeConfirmText": "Die Steckdose „{{role}}“ wird entkoppelt und zurückgesetzt. Das passiert sofort.",
-      "offlineHint": "Das Gerät scheint gerade offline zu sein — Steckdosen-Befehle erreichen es möglicherweise nicht.",
-      "pending": "Wird aktualisiert…",
-      "test": "Testen",
-      "edit": "Bearbeiten",
-      "ip": "IP-Adresse",
-      "user": "Benutzername (optional)",
-      "password": "Passwort (leer = Geräte-Standard)",
-      "apply": "Übernehmen",
-      "editHint": "Dein Gerät schaltet die Steckdose unter dieser Adresse (Tasmota-HTTP). Passwort leer lassen, um die Kopplungs-Zugangsdaten zu behalten.",
-      "testNote": "Testen schaltet die Steckdose für ca. 2 Sekunden ein.",
-      "hardwareId": "Hardware-ID",
-      "limitReached": "Dieses Gerät verwaltet bereits die maximalen 32 Smart Sockets.",
-      "add": "Smart Socket hinzufügen",
-      "role": "Funktion",
-      "brands": {
-        "terp": {
-          "name": "Terp Control Smart Socket",
-          "subtitle": "Unsere Steckdose — koppelt über dein Gerät",
-          "hint": "Kopple sie direkt an deinem Gerät: Einstellungen → Smart Sockets → connect socket. Danach erscheint sie hier automatisch."
-        },
-        "tasmota": {
-          "name": "Tasmota / andere",
-          "subtitle": "Beliebige Tasmota-Steckdose per IP",
-          "hint": ""
-        }
-      },
-      "reachabilityHint": "Geschaltet wird immer lokal von deinem Gerät aus (dauerhaft getunnelt) — die Steckdose muss nur für dein Gerät erreichbar sein. Eine Freigabe ins Internet ist nicht nötig."
-    },
-    "manualSetup": "Stattdessen manuell einrichten"
-  },
-  "alarmPresets": {
-    "heat_day": {
-      "name": "Zu heiß am Tag",
-      "description": "Über 30 °C für 5 Minuten"
-    },
-    "cold_night": {
-      "name": "Zu kalt in der Nacht",
-      "description": "Unter 15 °C für 5 Minuten"
-    },
-    "humidity_high": {
-      "name": "Luftfeuchte zu hoch",
-      "description": "Schimmelgefahr — Schwelle folgt der Phase (60% in der Blüte, sonst 75%)"
-    },
-    "humidity_low": {
-      "name": "Luftfeuchte zu niedrig",
-      "description": "Unter 35% für 15 Minuten"
-    },
-    "co2_empty": {
-      "name": "CO2-Flasche leer",
-      "description": "CO2 bleibt trotz Anreicherung unter 350 ppm"
-    },
-    "running_continuously": {
-      "name": "Entfeuchter läuft dauerhaft",
-      "nameFridge": "Kühlschrank läuft dauerhaft",
-      "description": "Ausgang länger als 30 Minuten am Stück an"
-    }
-  },
   "webhookTargets": {
     "msgTriggered": "Alarm",
     "msgResolved": "Wieder ok",
@@ -2025,9 +1206,6 @@
       }
     }
   },
-  "later": {
-    "round": "Kommt mit Runde {{round}}"
-  },
   "grow": {
     "tabsLabel": "Grow-Seite",
     "tabs": {
@@ -2049,13 +1227,11 @@
     "days_one": "{{count}} T",
     "days_other": "{{count}} T",
     "week": "Woche {{week}}",
-    "weekN": "Woche {{week}}",
     "dayRange": "Tag {{from}}–{{to}}",
     "dayShort": "T {{day}}",
     "correctLine": "Diesen Eintrag berichtigen",
     "thisWeek": "diese Woche",
     "dayStillAlt": "Tag {{day}}",
-    "entryPhoto": "Bild {{index}} von {{count}}",
     "dayNight": "Tag / Nacht",
     "average": "Mittel",
     "humidity": "Feuchte",
@@ -2111,8 +1287,6 @@
     "noSchemeNoteEnded": "Dieser Grow wurde nach keinem Schema gedüngt. Nachzutragen, was er wirklich bekommen hat, lohnt sich trotzdem: Seine Wochenkarten lesen dieses Raster, hier und auf einem geteilten Link.",
     "edited": "bearbeitet",
     "strength": "Stärke {{percent}} %",
-    "waterEc": "Wasser-EC {{ec}}",
-    "flipWeek": "Umstellung in Woche {{week}}",
     "report": {
       "days": "Tage",
       "entries": "Einträge",
@@ -2139,7 +1313,6 @@
         "noteNoClimate": "Alles über diesen Grow in einem Zip: das Tagebuch und die Messwerte als CSV, und jedes Foto davon."
       }
     },
-    "dayN": "Tag {{day}}",
     "nothingMeasured": "Diese Woche nichts gemessen",
     "presetName": {
       "late_flowering": "Späte Blüte",
@@ -2348,8 +1521,6 @@
       "bandBetween": "{{low}}–{{high}}",
       "bandFrom": "ab {{low}}",
       "bandTo": "unter {{high}}",
-      "readings_one": "{{count}} Messwert",
-      "readings_other": "{{count}} Messwerte",
       "onTheChart": "{{name}} im Graphen",
       "edit": "{{name}} bearbeiten",
       "templates": "Vorlagen",
@@ -2446,8 +1617,7 @@
       "label": "Bezeichnung",
       "strain": "Sorte",
       "save": "Speichern",
-      "saving": "Speichert…",
-      "cancel": "Abbrechen"
+      "saving": "Speichert…"
     },
     "scheme": {
       "basedOn": "Basiert auf",
@@ -2522,10 +1692,6 @@
     "openDayPicture": "Bilder ab Tag {{day}} ansehen"
   },
   "space": {
-    "later": {
-      "devices": "Jeder Controller, jede Kamera und jede Steckdose hier, mit Rolle und Schalter.",
-      "members": "Wer hier eintragen und wer verwalten darf, und die Einladungen dazu."
-    },
     "control": {
       "title": "Grow-Plan",
       "noController": "Hier steht noch kein Gerät. Zielwerte, Alarme und ein Plan kommen mit dem ersten Gerät an diesem Ort.",
@@ -2753,8 +1919,6 @@
     },
     "noReadingsYet": "Noch nichts gemeldet",
     "growingHere": "Wächst hier",
-    "newGrow": "Grow",
-    "moveHere": "Hierher verschieben",
     "lastStill": "letztes vor {{age}}",
     "stillAlt": "{{name}} um {{time}}",
     "climate24h": "Klima · 24 Std",
@@ -3139,7 +2303,6 @@
     "window": {
       "day": "Heute",
       "week": "Woche",
-      "month": "Monat",
       "phase": "Phase",
       "grow": "Ganzer Grow",
       "custom": "Eigener"
@@ -3333,7 +2496,6 @@
         "failed": "Kein Bild: {{reason}}",
         "shotAlt": "Das Bild aus dem Test",
         "pickAPlace": "Wähle unten den Ort, auf den sie schaut: steht dort ein Gerät, holt die Cloud den Stream darüber aus deinem Netz.",
-        "throughWhich": "Über welches Gerät?",
         "carrier": {
           "stale": "{{device}} hat zuletzt vor {{age}} etwas gemeldet",
           "offline": "{{device}} ist offline · zuletzt gemeldet vor {{age}}, der Stream antwortet also erst wieder, sobald das Gerät zurück ist"
@@ -4250,7 +3412,6 @@
       "climateOnly": "Nur das Klima",
       "climateOnlyNever": "Nur das Klima · nicht mehr fragen",
       "noGrowToMove": "Es gibt keinen anderen laufenden Grow, der hierher umziehen könnte.",
-      "whichGrow": "Welcher Grow zieht hierher",
       "onStage": "auf {{stage}}",
       "measuring": "nur messen",
       "nothingYet": "noch nichts gesetzt",
@@ -4265,7 +3426,6 @@
       "noSockets": "noch keine",
       "notReported": "noch nicht gemeldet",
       "cam": "Cam",
-      "noCam": "keine",
       "socketsAtTheDevice": "Eine Steckdose von Terp Control koppelst du am Gerät selbst – Knopf drücken, dann Smart Sockets –, und sie taucht in dieser Liste auf, sobald das Gerät sie meldet. Eine Tasmota-Steckdose koppelst du später unter Geräte › dein Gerät › Erweitert per IP-Adresse.",
       "pairTheCam": "Terp Cam koppeln",
       "bothCanWait": "Beides hat Zeit: Das Gerät misst den Ort, an dem es steht, auch wenn nichts eingesteckt ist."
@@ -4617,10 +3777,6 @@
     "band": {
       "title": "Im Ziel",
       "text": "Nah genug am Zielwert, um als getroffen zu gelten: bis ±1 °C, ±5 % Feuchte oder ±200 ppm CO₂. Nachts hat CO₂ kein Band, weil das Gerät CO₂ nur am Tag zugibt. Nach jedem Wechsel zwischen Tag und Nacht hat das Klima eine Stunde Zeit, den neuen Werten zu folgen – beim Kühlschrank dazu die Minuten, in denen Lampe und Zielwerte gleiten. Ebenso eine Stunde nach jeder Änderung der Zielwerte, des Lichtplans oder der Betriebsart. Solange zählt alles zwischen dem Band davor und dem danach als im Ziel, und die Kachel sagt „im Übergang“."
-    },
-    "verdict": {
-      "title": "Im Zielband über 24 Stunden",
-      "text": "Der Anteil der letzten 24 Stunden, in dem Temperatur, Feuchte und tagsüber CO₂ alle im Zielband lagen – gemessen an den Zielwerten, wie sie jetzt sind. Abweichungen unter 10 Minuten zählen mit, werden aber nicht einzeln genannt."
     },
     "climatePreset": {
       "title": "Klima-Preset",
@@ -5261,7 +4417,6 @@
     },
     "camera": {
       "open": "Kamera öffnen",
-      "title": "Kamera",
       "caption": "{{name}} · {{time}} · vor {{age}}",
       "none": "Noch kein Bild",
       "lightOff": "{{name}} · Licht aus · Bild von {{time}}",

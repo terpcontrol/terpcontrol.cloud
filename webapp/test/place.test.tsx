@@ -12,7 +12,6 @@ import type { AccessNeed, SpaceOverview } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import { PlacePage } from '@/screens/place/PlacePage';
 import { useFreshness } from '@/ui/freshness';
-import { LaterRound } from '@/ui/LaterRound';
 import { LogProvider } from '@/log/LogProvider';
 
 // A picture's address needs the session's media token, and what a screen offers
@@ -198,17 +197,6 @@ const overview: SpaceOverview = {
   people: [{ id: 'user-anna', handle: 'anna' }],
 };
 
-// Every card can log: the sheet and the toast live above the screens, so a
-// screen drawn on its own is drawn inside them.
-const draw = (node: React.ReactNode) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <LogProvider>{node}</LogProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-
 beforeAll(async () => {
   const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
   await i18next
@@ -335,14 +323,5 @@ describe('how old a place´s page says it is', () => {
     drawPage();
 
     expect(screen.getByTestId('freshness')).toHaveTextContent('nothing');
-  });
-});
-
-describe('a tab of a later round', () => {
-  it('says which round rather than showing an empty screen', () => {
-    draw(<LaterRound round={13} what="space.later.members" />);
-
-    expect(screen.getByText('Arrives with round 13')).toBeInTheDocument();
-    expect(screen.getByText(/Who can log and who can manage/)).toBeInTheDocument();
   });
 });

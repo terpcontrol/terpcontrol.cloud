@@ -258,7 +258,7 @@ const spanOf = (
   const now = serverNow();
 
   if (range === 'week') return { reason: emptyRolling(range, lastStillAt, now) };
-  if (range === 'day' || range === 'month') return { startsAt: instantOf(now), reason: emptyRolling(range, lastStillAt, now) };
+  if (range === 'day') return { startsAt: instantOf(now), reason: emptyRolling(range, lastStillAt, now) };
 
   if (range === 'phase') {
     const started = grow?.phases.at(-1)?.startedAt;

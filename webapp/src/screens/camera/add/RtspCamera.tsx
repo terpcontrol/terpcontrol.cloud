@@ -248,8 +248,8 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
 
       {carriers.length > 1 ? (
         <section className={styles.block}>
-          <span className="label">{t('cameras.add.rtsp.throughWhich')}</span>
-          <Choices label={t('cameras.add.rtsp.throughWhich')}>
+          <span className="label">{t('camera.stream.throughWhich')}</span>
+          <Choices label={t('camera.stream.throughWhich')}>
             {carriers.map(device => (
               <Choice key={device.id} chosen={device.id === carrier?.id} onChoose={() => setCarrierId(device.id)}>
                 {deviceName(device, t)}
