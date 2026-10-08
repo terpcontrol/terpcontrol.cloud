@@ -109,86 +109,19 @@ export const screens: RouteObject[] = [
 ];
 
 /**
- * The tabs of the bar, the account page, the alerts behind the bell, and the
- * two pages a card opens: a grow, with its tab in the path so a tab survives a
- * reload, and a place. Every screen below the shell is behind a session;
- * the sign-in and sign-up pages and the public addresses are the routes that
- * are not.
+ * The sign-in and sign-up pages, recovery, activation, the public addresses and
+ * the old app's addresses (`OldAddresses.tsx` sends them on) sit outside the
+ * session gate rather than behind a check inside it, so a stranger who follows
+ * a link never sees a frame of the sign-in page. `/@{handle}` is read by the
+ * whole-segment `/:handle`, so it ranks below every named route.
  *
- * Recovering a password and activating an account are outside it too, since
- * both happen before there is a session, and so are the addresses the old app
- * answered - its sign-in with the codes its mails carried, its demo, a
- * device's pages - which `OldAddresses.tsx` sends on to where those things are
- * now; the old app's bookmarks inside the session are sent on in the table
- * above.
+ * Inside the gate a static segment outranks the parameter beside it, so
+ * `/cameras/add`, `/grows/new` and `plants/...` are never read as an id or a
+ * tab, and the old app's bookmarks are sent on in the table above.
  *
- * The public ones sit outside the session gate rather than behind a check
- * inside it, so a stranger who follows a link never meets the sign-in page and
- * never sees a frame of it either. An invitation is one of them for that
- * reason above all: it is sent to somebody who has no account yet, and a
- * sign-in form with no explanation in front of it is where they stop - which
- * is also why the sign-up page exists, and why the invitation is what sends
- * somebody to it. `/join` without a code is where a code that was read aloud
- * is typed. `/@{handle}` is matched as a whole first
- * segment because React Router reads a parameter only where a colon follows a
- * slash - which is also why it ranks below every named route and cannot take
- * `/timeline` or `/me` from the shell.
- *
- * Adding a device is a route of its own as well: it is four steps long, every
- * one of them writes as it is answered, and a link may land straight on it with
- * a claim code already in hand.
- *
- * `Log` is a route as well, so that a link and a notification can open the
- * sheet; it is not a screen of its own, and gives the address straight back to
- * the one it opened over. The new-grow sheet has an address for the same
- * reason, and stands over the home when it is followed cold. A camera is the
- * third page a row opens, beside the grow and the space, and adding one is a
- * page of its own above it: a static segment outranks the parameter beside it,
- * so `/cameras/add` is never read as a camera called "add".
- *
- * The home draws the places and what stands in them today, so every grow -
- * running or finished, the account's own or one in a tent it was let into -
- * has a page of its own: `/grows`, "My grows", reached from under the home's
- * cards and from Me. The address the finished ones had before it,
- * `/grows/archive`, is sent on to it; as a static segment it outranks the
- * grow parameter beside it, exactly as `/grows/new` does, so it is never read
- * as a grow called "archive".
- *
- * A grow has two pages below it rather than tabs: what it measures, and one of
- * its plants. Both are about something narrower than the grow and are reached
- * from it, and both keep their own address so that a plant can be linked to.
- * Their static segments outrank the grow's tab parameter beside them, so
- * `plants` is never read as a tab called "plants" once a plant follows it.
- *
- * Charts is a route rather than a tab for the same reason: it is opened from
- * the Timeline header and from a tent page, and carries the grow or the place
- * it is about in its query, so a link to a particular chart is a link somebody
- * can send.
- *
- * A place has one page, its cockpit, and one page below it: who else is let
- * in. Verlauf and Steuerung are tabs of the bar about one place at a time, and
- * carry it in the query; Steuerung's own pages - the targets, the alarm rules,
- * the plan - are a segment of its path, so that a link from an alert opens the
- * rule it came from and a reload lands where it was. The addresses a place had
- * while it was a page of five tabs are sent on to where those things are now.
- * Me is a page of doors rather than a screen of settings, so each of them is a
- * route below it: what is public, what is followed, the links that were sent
- * out, Premium, the feeding schemes, the appearance, the account itself and
- * what this install is. The fleet is the one part of the app that is not for
- * growers: it sits under `/admin`, is reached from the desktop rail alone, and
- * the four screens share one guarded parent - so the guard is stated once, and
- * an account that may not read them, or a window too narrow to draw them, is
- * answered with the sentence that says which of the two it is rather than with
- * an empty page.
- *
- * Two of the routes below carry nothing but an error boundary, and they are
- * where a screen that throws stops. The inner one stands between the shell and
- * the screens, so a screen that fails is replaced while the tabs, the bell and
- * the log button around it keep working - which is most of what "a way back"
- * means on a phone. The outer one is under everything, including the sign-in
- * page, the public addresses and the shell itself, because a failure there has
- * no tabs to fall back on. Neither has a path of its own, so neither changes
- * which address matches what.
+ * The two pathless routes with only an error boundary are where a screen that
+ * throws stops: the inner one replaces the screen while the shell around it
+ * keeps working, the outer one catches what fails outside the shell.
  */
 export const router = createBrowserRouter([
   {

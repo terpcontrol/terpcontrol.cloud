@@ -22,14 +22,9 @@ import { looseFigure } from '@/ui/figures';
 import { entryHeadline, machineLineParts } from '@/i18n/device-message';
 
 /**
- * What the grow a line belongs to calls its measurements, out of the table an
- * answer carries for every grow it draws lines of.
- *
- * Keyed by the line's own grow rather than by the screen's: a tent holds the
- * diary of every grow that has stood in it, so the grow the bands are of is not
- * the grow each line was written in. A line of no grow, and one of a grow the
- * answer does not name, get no names - which is what leaves a reading showing
- * its key, exactly as it did before.
+ * What the grow a line belongs to calls its measurements, keyed by the line's
+ * own grow: a tent's diary holds lines of every grow that stood in it. A line of
+ * no grow, or of a grow the answer does not name, gets no names and shows its key.
  */
 export const readingNamesOf = (named: GrowReadingNames[], growId: string | null): ReadingName[] =>
   (growId === null ? undefined : named.find(one => one.growId === growId)?.readings) ?? [];
@@ -74,17 +69,9 @@ export const DIARY_KINDS: EntryKind[] = (Object.keys(KIND_ICON) as EntryKind[]).
 
 /**
  * Who a line is by, in one word: "you", a handle, or what wrote it when nobody
- * did - a device, the plan, an alarm. Every entry carries its author and every
- * answer carries the people it names, so no lookup is needed here.
- *
- * The author is asked first and the source only after it, because a line the
- * plan engine wrote is not the same as a line the plan engine wrote because
- * somebody pressed a button. A transition carries the person who made it all the
- * way to the entry, and reading the source alone bylined the "Plan started" of
- * somebody pressing Start as "auto".
- * The engine's own moves are exactly the lines that carry no author, which is
- * what "auto" is drawn from: the word means nobody picked this, and where the
- * store knows who did, it says so.
+ * did - a device, the plan, an alarm. The author is asked before the source,
+ * because a plan move somebody pressed carries that person; "auto" is a line
+ * with no author.
  */
 export const authorOf = (t: Translate, entry: Pick<Entry, 'source' | 'authorId'>, people: Person[], userId: string | undefined): string => {
   if (entry.source !== 'human' && entry.authorId === null) return t(`home.author.${entry.source}`);
@@ -93,26 +80,10 @@ export const authorOf = (t: Translate, entry: Pick<Entry, 'source' | 'authorId'>
 };
 
 /**
- * What a row says: a person's own words, a device's line translated, or the
- * kind of thing that was done.
- *
- * Two kinds carry what they were about in their values and say it here: a phase
- * names the stage that was entered, and a harvest names what came off the line.
- * The weights are the ones the server served, which are already null for a
- * reader they are hidden from, so a shared diary says a harvest happened
- * without saying how much it was.
- *
- * A phase says its stage whatever words arrived with it, rather than falling
- * back to them. A line migrated from the old app carries that app's heading for
- * the change - the same sentence for every stage, in English however the grower
- * writes - which says strictly less than the stage does; a phase set in the app
- * today carries no words at all. Anything somebody typed under the heading
- * follows the stage rather than replacing it.
- *
- * A machine's phase line is the one row that reaches its words without going
- * through `entryHeadline`, so it takes the same first paragraph that does: the
- * rest of such a line is drawn under the row as its detail, and putting the
- * whole of it here would print that paragraph twice.
+ * What a row says: a person's own words, a device's line translated, or the kind
+ * of thing done. A phase names its stage before any heading it came with, and a
+ * harvest the weights the server served (null where they are hidden). A machine's
+ * phase line takes only `entryHeadline`'s first paragraph; the rest is the detail.
  */
 export const headlineOf = (t: Translate, i18n: I18n, entry: Entry): string => {
   if (entry.values.kind === 'phase') {
@@ -140,13 +111,9 @@ export const headlineOf = (t: Translate, i18n: I18n, entry: Entry): string => {
 
 /**
  * What a person did, as the rest of a sentence their name opens - "you stepped
- * in", "du bist reingegangen" - for a row that names its author first.
- *
- * Only where the row would otherwise say nothing but the kind: that label is a
- * heading, capitalised and in German without its verb, and after a name it read
- * "you Stepped in" and "du Reingegangen". Somebody's own words, a phase and a
- * harvest already say what happened and keep saying it. German conjugates for
- * "du", so a line of one's own asks for its own form.
+ * in", "du bist reingegangen" - for a row that would otherwise say only its kind,
+ * whose label is a heading. German conjugates for "du", so one's own line has its
+ * own form.
  */
 export const doneByOf = (t: Translate, i18n: I18n, entry: Entry, byYou: boolean): string | null => {
   if (entry.source !== 'human' || entry.values.kind === 'phase' || entry.values.kind === 'harvest' || entryHeadline(i18n, entry)) return null;
@@ -184,15 +151,10 @@ interface FoldedEntry {
 }
 
 /**
- * Runs of identical machine lines folded into one, newest first.
- *
- * A camera that times out writes "Picture not taken" and its advice every few
- * minutes, and a tent's latest lines were three or six of those one above the
- * other, pushing everything else off the list. A device's, the plan's or an
- * alarm's line that says exactly what the one before it said - same source,
- * same device, same key and parameters, no pictures - is the same thing
- * happening again, so it is counted rather than drawn again. What a person
- * wrote is never folded: two waterings are two waterings.
+ * Runs of identical machine lines folded into one, newest first: a device's, the
+ * plan's or an alarm's line that repeats the one before it (same source, device,
+ * key and parameters, no pictures) is counted rather than drawn again. What a
+ * person wrote is never folded.
  */
 export const foldRepeats = (entries: Entry[]): FoldedEntry[] => {
   const folded: FoldedEntry[] = [];

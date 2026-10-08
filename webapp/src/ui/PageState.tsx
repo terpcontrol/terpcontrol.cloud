@@ -8,19 +8,11 @@ import styles from './PageState.module.css';
 import { refusalText } from '@/ui/refusal';
 
 /**
- * What the server said when it refused, under the control that asked.
- *
- * Every refusal arrives as a problem document with a sentence in it written for
- * the person rather than for the client, but written in English only, so
- * `refusalText` shows it to an English reader and words it from the catalogue
- * for anybody else; the code behind it is for the screens that can offer a way
- * out of one particular refusal, and they read it themselves.
- *
- * Anything that is not a problem document never reached the server at all - a
- * dropped connection, a request that timed out - and is said as that. It is a
- * write that was refused rather than a page that would not load, so it offers
- * the same tap again rather than a gesture - in the caller's `fallback` where
- * it can say what was being tried.
+ * What the server said when it refused, under the control that asked: the
+ * problem's sentence for an English reader, the catalogue's words for anybody
+ * else. Anything that is not a problem never reached the server and is said as
+ * that, offering the same tap again - in the caller's `fallback` where it can
+ * say what was being tried.
  */
 export function Refused({ error, fallback, className }: { error: unknown; fallback?: string; className?: string }) {
   // Subscribed so the sentence is written again when the language changes.
@@ -54,26 +46,10 @@ export function LoadFailed({ retry }: { retry: () => void }) {
 type Subject = 'space' | 'grow' | 'camera' | 'device';
 
 /**
- * A page whose subject the server says is not there for this account.
- *
- * It is the one failure that is not worth trying again, and the reason it
- * happens is almost always another person: somebody was taken out of a tent
- * they were standing in, and every read behind the page they are looking at
- * has been answering 404 ever since. Drawn as an ordinary load failure it
- * reads as a broken app and leaves them tapping a button that can never work,
- * so it says what is true - this cannot be opened - and offers the only move
- * that leads anywhere, which is home.
- *
- * What it may not say is that the subject is over. A finished grow opens from
- * the archive and draws every tab, an archived tent is served like any other,
- * and ending a grow withdraws nobody's access - so "it has ended" names a cause
- * this app does not have, and points the one person who has just been taken out
- * of somebody's tent at the wrong explanation, one screen away from the archive
- * that disproves it. Nor may it name a sharer: an id that never existed, a
- * mistyped one and one of somebody else's answer the same 404 - on purpose,
- * so that the answer does not say which ids exist - and "whoever shares it has
- * taken you out" blamed a person there never was. It names the two causes a
- * 404 can have, and neither more nor less.
+ * A page whose subject the server says is not there for this account - usually
+ * because somebody was taken out of a tent. It is not worth trying again, so it
+ * offers home, and names only the two causes a 404 can have: it does not say the
+ * subject ended, nor name a sharer, since a 404 does not tell which ids exist.
  */
 export function NoLongerHere({ what }: { what: Subject }) {
   const { t } = useTranslation();
@@ -93,12 +69,8 @@ export function NoLongerHere({ what }: { what: Subject }) {
 
 /**
  * A refresh that failed while the page still shows what it knew: one line, and
- * nothing removed.
- *
- * The instant is the one this browser noted as the read came back, while `now`
- * is the server's, so it is restated on the server's clock before the two are
- * subtracted. The age itself is the same either way - the offset cancels - but
- * mixing the two clocks would date the failure by however far they differ.
+ * nothing removed. The failure was noted on this browser's clock and `now` is
+ * the server's, so it is restated on the server's before the two are subtracted.
  */
 export function RefreshFailed({ failedAt, now }: { failedAt: number | null; now: DateTime }) {
   const { t } = useTranslation();

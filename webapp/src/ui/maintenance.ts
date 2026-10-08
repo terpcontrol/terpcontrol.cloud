@@ -5,32 +5,16 @@ import { MAINTENANCE_SETTLE_SECONDS, MAINTENANCE_VISIT_SECONDS } from '@fg2/shar
 import { hasCo2Sensor, outputWord } from './climate-hardware';
 
 /**
- * What a maintenance window actually does, on the hardware it is sent to.
- *
- * The cloud's half of it is the same for every device: the alarm engine skips
- * one that is being worked on, whatever kind of thing it is. The hardware's
- * half is not. Only the two types whose firmware carries a maintenance branch -
- * the tent controller and the fridge - park anything at all; a plug, a fan, a
- * lamp and a camera have empty command handlers, and `docs/device-protocol.md`
- * §8 says what becomes of an action a device does not know: it is dropped
- * without a word, with no reply of any kind to tell a caller apart from one
- * that worked.
- *
- * So the app spent a while promising a grower who was standing in front of a
- * fan that its heater, its dehumidifier and its CO2 valve were about to stop -
- * three things that fan does not have, in answer to an order it never reads.
- * Everything here exists so that the sentence over a device names that device.
+ * What a maintenance window does on the hardware it is sent to. The cloud holds
+ * the alarms of any device, but only the controller and the fridge carry a
+ * maintenance branch; every other type drops the command without a reply
+ * (`docs/device-protocol.md` §8), so what a sentence says is stopped is per device.
  */
 
 /**
- * The outputs a device stops driving while somebody is working on it, by type.
- *
- * Both types that honour the command pause the same three loops - the heater
- * PID, the dehumidifier and the CO2 valve all sit behind `isPaused()` - and
- * neither parks its light: that one is dimmed to a working brightness instead,
- * which is not a thing to warn anybody about. A type that is not named here
- * drops the command, and that is the honest answer for it rather than the
- * first entry of some default.
+ * The outputs a device stops driving while somebody works on it, by type: the
+ * heater PID, the dehumidifier and the CO2 valve sit behind `isPaused()`, while
+ * the light is dimmed to a working brightness. A type not named here drops the command.
  */
 const PARKED_BY: Record<string, OutputMetric[]> = {
   controller: ['heater', 'dehumidifier', 'co2'],
@@ -62,16 +46,9 @@ export const parksAnything = (device: Device): boolean => parkedOutputs(device).
 
 /**
  * "the heater, the dehumidifier and the CO₂ valve": what this device will stop,
- * written to stand inside a sentence.
- *
- * The joining word comes from the catalogue rather than from `Intl.ListFormat`,
- * which writes English with the serial comma the rest of this app's prose does
- * not use, and which would make one sentence read differently from every other.
- *
- * The words are the maintenance catalogue's own too, because a German sentence
- * needs them in the case its verb governs and the chip labels elsewhere are not
- * written in it; anything the catalogue has no in-sentence form for falls back
- * to the name the alarm screen uses.
+ * written to stand inside a sentence. The joining word and the in-sentence names
+ * are the catalogue's - `Intl.ListFormat` adds a serial comma, and German needs
+ * the case the verb governs - falling back to the alarm screen's names.
  */
 export const parkedLabel = (t: Translate, device: Device): string => {
   const names = parkedOutputs(device).map(output =>
@@ -87,15 +64,8 @@ export const parksLine = (t: Translate, device: Device): string =>
   parksAnything(device) ? t('log.visit.parksOutputs', { outputs: parkedLabel(t, device) }) : t('log.visit.parksNothing');
 
 /**
- * How long the alarms really stay held, for a window of this many seconds.
- *
- * The device is let go when its window runs out; the cloud goes on holding its
- * alarms for `MAINTENANCE_SETTLE_SECONDS` after that, so the quiet a grower
- * gets is the sum and not the window. Every screen that names a span names this
- * one, because a quarter of an hour was promised by the chip, by the panel that
- * asks and by the receipt afterwards while the quiet ran for twenty-five
- * minutes - and somebody who stepped back out at the sixteenth had ten more in
- * which a tent going wrong would have raised nothing at all.
+ * How long the alarms really stay held for a window of this many seconds: the
+ * window plus `MAINTENANCE_SETTLE_SECONDS`, which is the span every screen names.
  */
 const quietMinutes = (windowSeconds: number): number => Math.round(windowSeconds / 60) + SETTLE_MINUTES;
 
@@ -117,20 +87,9 @@ export interface Quiet {
 }
 
 /**
- * What is standing on this device right now, or null while nothing is.
- *
- * No screen read `maintenanceUntil` at all, so the one state that changes what
- * every alarm on a device will do was invisible: Home said "live · 2 s", the
- * rule card drew its armed switch and its triggered dot over an engine that was
- * refusing every turn, and the alert card went on offering a quarter of an hour
- * of maintenance to a device that was already in it. The only evidence a
- * step-in had done anything was a diary line saying when it began, which says
- * nothing about whether it is still in force.
- *
- * The quiet is read to the end of the settling rather than to the window's own
- * edge, because those last minutes are exactly the ones nothing named - and a
- * device whose hardware is running again while its alarms are still held is a
- * state worth telling apart from both of its neighbours.
+ * What is standing on this device right now, or null while nothing is. The quiet
+ * runs to the end of the settling rather than the window's edge, so a device
+ * running again while its alarms are still held is told apart from both.
  */
 export const maintenanceQuiet = (device: Device, now: DateTime): Quiet | null => {
   const until = device.state.maintenanceUntil;

@@ -31,11 +31,9 @@ const bellOf = (alerts: OpenAlerts | undefined): { text: string; key: string; co
 };
 
 /**
- * The badge on the bell. An open alarm is what it is for and is counted
- * first. Where the diary is kept and no alarm is open, the tasks that are due
- * are counted instead, in a quieter colour: "Gießen" fell due at 19:30 and an
- * hour later neither the bell nor the rail said a word - the task was there
- * only for whoever opened Meldungen or scrolled to the grow block.
+ * The badge on the bell. An open alarm is what it is for and is counted first;
+ * where the diary is kept and no alarm is open, the tasks that are due are
+ * counted instead, in a quieter colour, so a due task is not left to the inbox.
  */
 export const useBell = (): Bell | null => {
   const alarms = bellOf(useOpenAlertCount());

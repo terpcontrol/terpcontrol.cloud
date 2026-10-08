@@ -8,24 +8,10 @@ import { browserZone } from '@/ui/zone';
 
 /**
  * An account that has never picked its zone takes the zone of the device it is
- * signed in on - once, and says so.
- *
- * Every clock the app draws, and every quiet hour the server keeps, is read in
- * the account's zone. Every account starts on UTC, and every account carried
- * over from the old cloud was given UTC too, because the old cloud never knew
- * a zone: a grower in Germany was shown every diary time, every alert and every
- * plan step two hours early, beside a camera still whose own burnt-in clock said
- * otherwise, and was woken inside the quiet hours they had set. Only Me ›
- * Appearance mentioned it, where nobody who did not already suspect it looks.
- *
- * The device a person signs in on is the best evidence there is of where they
- * are, so it is taken without asking. Asking would put a question about time
- * zones in front of somebody who came to check on a tent, and for nearly all of
- * them there is one right answer. It is taken only while the account says the
- * zone was never chosen: the server records a zone somebody picked - UTC kept
- * on purpose included - and this never overrides it, nor adopts again on the
- * next device. The line that says it happened names the zone that was left and
- * how to go back, so the change is never silent.
+ * signed in on - once, and says so. Every account starts on UTC, and every clock
+ * and quiet hour is read in the account's zone, so the signed-in device is the
+ * best evidence of where its owner is. A zone somebody chose, UTC included, is
+ * never overridden, and the line names the zone left behind and how to go back.
  */
 export function ZoneAdoption() {
   const { t, i18n } = useTranslation();
