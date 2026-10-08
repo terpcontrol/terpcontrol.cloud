@@ -2,7 +2,6 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuthUserDto, AuthVhostDto, AuthResourceDto, AuthTopicDto } from '@modules/mqtt-auth/mqtt-auth.types';
-import { isEmpty } from '@utils/util';
 import { logger } from '@utils/logger';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 import { MODEL_V1 } from '@database/models';
@@ -27,11 +26,7 @@ export class MqttAuthService {
   ) {}
 
   public async user(authData: AuthUserDto): Promise<boolean> {
-    if (isEmpty(authData)) {
-      throw new HttpException("You're not userData", 400);
-    }
-
-    if (authData.username == this.mqtt.getUser() && authData.password == this.mqtt.getPassword()) {
+    if (this.isServer(authData) && authData.password === this.mqtt.password) {
       return true;
     }
 
@@ -56,11 +51,7 @@ export class MqttAuthService {
   }
 
   public async vhost(authData: AuthVhostDto): Promise<boolean> {
-    if (isEmpty(authData)) {
-      throw new HttpException("You're not userData", 400);
-    }
-
-    if (authData.username == this.mqtt.getUser()) {
+    if (this.isServer(authData)) {
       return true;
     }
 
@@ -68,11 +59,7 @@ export class MqttAuthService {
   }
 
   public async topic(authData: AuthTopicDto): Promise<boolean> {
-    if (isEmpty(authData)) {
-      throw new HttpException("You're not userData", 400);
-    }
-
-    if (authData.username == this.mqtt.getUser()) {
+    if (this.isServer(authData)) {
       return true;
     }
 
@@ -96,11 +83,7 @@ export class MqttAuthService {
   }
 
   public async resource(authData: AuthResourceDto): Promise<boolean> {
-    if (isEmpty(authData)) {
-      throw new HttpException("You're not userData", 400);
-    }
-
-    if (authData.username == this.mqtt.getUser()) {
+    if (this.isServer(authData)) {
       return true;
     }
 
@@ -125,6 +108,12 @@ export class MqttAuthService {
     return true;
   }
 
+  /** Whether the broker asks about the server's own connection. A body with nothing in it is no question at all. */
+  private isServer(body: { username?: string } | null | undefined): boolean {
+    if (!body || Object.keys(body).length === 0) throw new HttpException("You're not userData", 400);
+    return body.username === this.mqtt.user;
+  }
+
   /** The credentials are excluded from every other read, so this one asks for them by name. */
   private async findDevice(username: string): Promise<DeviceCredentials | null> {
     const device = await this.devices.findOne({ 'mqtt.username': username }).select('id +mqtt').lean<DeviceCredentials>();
@@ -135,5 +124,3 @@ export class MqttAuthService {
     return device;
   }
 }
-
-export default MqttAuthService;

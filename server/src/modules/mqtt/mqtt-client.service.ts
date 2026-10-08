@@ -25,8 +25,8 @@ export class MqttClientService implements OnApplicationShutdown {
   private everConnected = false;
   /** Set on the way down, so a connection given up on purpose is not an outage. */
   private closing = false;
-  private readonly internalUser = uuidv4();
-  private readonly internalPassword = uuidv4();
+  public readonly user = uuidv4();
+  public readonly password = uuidv4();
 
   public readonly messages = new Subject<MqttMessage>();
 
@@ -49,14 +49,6 @@ export class MqttClientService implements OnApplicationShutdown {
     return this.everConnected && !!this.client;
   }
 
-  public getUser(): string {
-    return this.internalUser;
-  }
-
-  public getPassword(): string {
-    return this.internalPassword;
-  }
-
   public connect(): Promise<void> {
     const { url, port } = this.config;
     logger.info(`Connecting to the MQTT broker at ${url}:${port}`);
@@ -73,7 +65,7 @@ export class MqttClientService implements OnApplicationShutdown {
       // decides whether the promise is still to be settled.
       let up = false;
 
-      const client = mqtt.connect(`mqtt://${url}:${port}`, { username: this.internalUser, password: this.internalPassword });
+      const client = mqtt.connect(`mqtt://${url}:${port}`, { username: this.user, password: this.password });
       this.client = client;
 
       client.on('connect', () => {
