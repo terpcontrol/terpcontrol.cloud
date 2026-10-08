@@ -42,6 +42,8 @@ namespace fg {
       }
     }
     if(tries >= 10) {
+      // The last good reading stands, as on the other device types; before
+      // the first one there is none (see `state`).
       Serial.println("failed to read from sensor!!!");
       return;
     }
@@ -71,7 +73,13 @@ namespace fg {
   float t_min, t_max, h_min, h_max, max;
   static float fan_current = 0.0f;
 
-  if(settings.mode != FanControllerSettings::MODE_FIXED) {
+  // A regulating mode steers by the measured air only. Until the sensor has
+  // given a reading the fan runs at the fixed speed of the half, as in the
+  // fixed mode: a made-up figure would steer it by air nobody measured, and a
+  // NAN here would stick in `fan_current` for good.
+  const bool has_reading = !isnan(state.temperature) && !isnan(state.humidity);
+
+  if(settings.mode != FanControllerSettings::MODE_FIXED && has_reading) {
     if(state.is_day) {
       t_min = settings.day.temperature - HALF_HYST_TEMPERATURE;
       t_max = settings.day.temperature + HALF_HYST_TEMPERATURE;
@@ -185,10 +193,17 @@ void FanController::loop() {
     + JSON_OBJECT_SIZE(1)   // outputs: fan
     + 32                    // small headroom
   > status;
-  status["sensors"]["temperature"] = state.temperature;
-  status["sensors"]["humidity"] = state.humidity;
-  status["sensors"]["rpm"] = state.rpm;
-  status["sensors"]["day"] = state.is_day ? 1.0 : 0.0;
+  // A reading goes out only once the sensor has given one, so a fan without a
+  // working sensor leaves no placeholder in the history.
+  JsonObject sensors = status.createNestedObject("sensors");
+  if(!isnan(state.temperature)) {
+    sensors["temperature"] = state.temperature;
+  }
+  if(!isnan(state.humidity)) {
+    sensors["humidity"] = state.humidity;
+  }
+  sensors["rpm"] = state.rpm;
+  sensors["day"] = state.is_day ? 1.0 : 0.0;
   status["outputs"]["fan"] = state.fanspeed;
 
   cloud.updateStatus(status);

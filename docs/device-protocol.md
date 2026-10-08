@@ -386,18 +386,18 @@ A payload that is not JSON carries no `firmware_id` and is dropped rather than r
 - **fridge** (`fridge.cpp:1126-1150`) — sensors `temperature`, `humidity`, `co2`; outputs `co2`, `dehumidifier`,
   `heater`, `light`, `fan-internal`, `fan-external`, `fan-backwall`.
 - **plug** (`plug.cpp:825-841`) — sensors `temperature`, `humidity`, `co2`, `sensor_type`; output `relais`.
-- **fan** (`fan.cpp:182-194`) — sensors `temperature`, `humidity`, `rpm`, `day`; output `fan`.
+- **fan** (`fan.cpp:190-209`) — sensors `temperature`†, `humidity`†, `rpm`, `day`; output `fan`.
 - **light** (`light.cpp:101-120`) — sensors `temperature`†, `humidity`†; output `light`.
 - **cam** — nothing; it never calls `updateStatus` (`cam.cpp:64-66`).
 
 \* sent only when the optional sensor was detected, so no placeholder lands in the history
 (`controller.cpp:1065-1073`).
 
-† sent only once the light's sensor has given a reading since boot; until then `sensors` is an empty object, so
-a light whose sensor is missing or dead leaves nothing in the history (`light.cpp:107-117`, `state` in
-`light.h`). A read that fails later repeats the last good one, as on every type. Light builds from before
-2026-10-08 send `20` and `20` in place of a reading, which the server stores like any other: no rule tells
-them from air.
+† sent only once the device's sensor has given a reading since boot; until then a light sends `sensors` as an
+empty object and a fan only `rpm` and `day`, so a light or fan whose sensor is missing or dead leaves nothing in
+the history (`light.cpp:107-117`, `fan.cpp:196-204`, `state` in `light.h` and `fan.h`). A read that fails later
+repeats the last good one, as on every type. Light and fan builds from before 2026-10-08 send `20` and `20` in
+place of a reading, which the server stores like any other: no rule tells them from air.
 
 Units and conventions:
 
@@ -414,7 +414,7 @@ Units and conventions:
   dimming, the sunrise and sunset ramps and the `lights.limit` cap (`state.out_light = light_current * 100`,
   `controller.cpp:316`, `fridge.cpp:382`). `dehumidifier` and `relais` are 0 or 1. The fridge's three fans are
   0..1 (`fridge.cpp:1143-1145`). The fan's `fan` output is a percentage, and its `day` sensor is `1.0` or `0.0`
-  derived from a light sensor rather than the clock (`fan.cpp:55,191`).
+  derived from a light sensor rather than the clock (`fan.cpp:57,206`).
 - Only the fan reports `day`. For a controller or a fridge the cloud works day and night out of the configuration
   the way the firmware does - the schedule and the work mode, never the light output, because a lamp can be dark
   in the day ([7.3](#73-times-of-day); `shared-types/src/v1/day-night.ts`).
@@ -546,7 +546,7 @@ over it would serialise into truncated JSON and the server would drop the whole 
 
 The `socket_*` keys come from the controller and the fridge only — no other type calls
 `wifiInitAuxCloudReporting`. The `webcam_*` keys come from every type that pairs a Terp Cam: the controller and
-the fridge, and the fan and the plug, which call `wifiInitTerpCamCloudReporting` alone (`fan.cpp:404`,
+the fridge, and the fan and the plug, which call `wifiInitTerpCamCloudReporting` alone (`fan.cpp:419`,
 `plug.cpp:605`). `reportCamIp` (`terpcam.cpp:185-196`) sends `webcam_ip` and `webcam_uid` whenever the device
 has learnt a new value, and only while no relay is running, because the relay task never logs
 (`terpcam.cpp:1073`). Pairing secures the camera before it reports the new id, so `webcam_pwd` arrives before the
@@ -697,7 +697,7 @@ device itself.
 When a device receives one it parses it, adopts it silently, writes it to NVS key `config` and re-runs its
 control loop (`controller.cpp:569-578`). It sends **no acknowledgement and no echo**. The `fridge`, `plug`, `fan`
 and `light` types skip the NVS store while `mqttcontrol` is true, so direct control does not overwrite the saved
-settings (`fridge.cpp:685-691`, `plug.cpp:589-595`, `fan.cpp:380-386`, `light.cpp:357-363`).
+settings (`fridge.cpp:685-691`, `plug.cpp:589-595`, `fan.cpp:395-401`, `light.cpp:357-363`).
 
 When a setting is changed on the device itself, the device publishes its whole document on the same topic
 (`saveAndUploadSettings` over `serializeSettings`, e.g. `controller.cpp:521-553`). The server overwrites
@@ -768,7 +768,7 @@ included, and keeps `minimalDehumidifierOffTime` at 240 s or more (`class-rules.
 the plug slows while it doses CO2, which the firmware keeps without reading it and echoes only in `co2` workmode
 (`""` otherwise).
 
-**fan** (`fan.cpp:428-447`, echo `:227-244`): `mqttcontrol`; `mode` (uint32: 0 fixed, 1 temperature, 2 humidity,
+**fan** (`fan.cpp:443-462`, echo `:242-259`): `mqttcontrol`; `mode` (uint32: 0 fixed, 1 temperature, 2 humidity,
 3 both); `min_speed`; `<day|night>.<temperature|humidity|fixed_speed|max_speed>`;
 `co2inject.device_id` (its presence enables the block) with `co2inject.{speed,usedaynight,day,night,period,
 duration}`. `mqttcontrol` and the `co2inject` block are not echoed. The fan knows nothing of the plug: the server
@@ -790,10 +790,10 @@ Setting `mqttcontrol: true` on a `fridge`, `plug`, `fan` or `light` hands its ou
 `/devices/<id>/control/<output>` — the topic suffix is the output name and the payload is a bare value
 (`fridgecloud.cpp:243-246`). Accepted names: fridge `heater`, `dehumidifier`, `co2`, `light`, `fan-internal`,
 `fan-external`, `fan-backwall` (`fridge.cpp:766-801`); plug `relais` (`plug.cpp:607-614`); fan `fan`
-(`fan.cpp:407-414`); light `light` (`light.cpp:369-376`). The controller has no `onControl` handler at all.
+(`fan.cpp:422-429`); light `light` (`light.cpp:369-376`). The controller has no `onControl` handler at all.
 
 Direct control expires 60 seconds after the last configuration message, after which the NVS configuration is
-reloaded (`DIRECTMODE_TIMEOUT`, `fridge.h:124`, `fridge.cpp:974-978`; `plug.cpp:767-771`; `fan.cpp:166-170`;
+reloaded (`DIRECTMODE_TIMEOUT`, `fridge.h:124`, `fridge.cpp:974-978`; `plug.cpp:767-771`; `fan.cpp:174-178`;
 `light.cpp:84-88`). This server has never published on `control/#`.
 
 ### 7.3 Times of day
@@ -865,7 +865,7 @@ is never sent at all, because an old build drops what it does not know without a
 beyond `reboot`; the `plug` honours `cam_relay` and nothing else (`plug.cpp:601-603`). None of `plug`, `fan`,
 `light` or `cam` calls `wifiInitAuxCloudReporting` or `wifiHandleAuxCommand`, so they never report sockets and
 ignore `socket_*`; the fan and the plug hand `cam_relay` to `wifiHandleTerpCamCommand` directly
-(`fan.cpp:400`, `plug.cpp:602`). The server sends `socket_set` and `socket_override` only to a controller or a
+(`fan.cpp:415`, `plug.cpp:602`). The server sends `socket_set` and `socket_override` only to a controller or a
 fridge (`SOCKET_HOST_TYPES`) and answers 409 `not_for_this_device` for anything else.
 
 **An action a device does not know is dropped silently.** There is no negative acknowledgement, no error log and
@@ -918,7 +918,7 @@ percentage of the control tick the heater is held on (`fridge.cpp:968`). Test mo
 `test` (`fridge.h:126`, `fridge.cpp:965-966`; the `// times 10sec` comment at `fridge.h:126` is stale).
 `stoptest` ends it at once (`fridge.cpp:724-725`).
 
-The fan accepts both actions but reads none of the values (`fan.cpp:393-398`). The controller, plug, light and
+The fan accepts both actions but reads none of the values (`fan.cpp:408-413`). The controller, plug, light and
 cam ignore them entirely.
 
 ### 8.4 The socket commands

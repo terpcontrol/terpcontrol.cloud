@@ -72,8 +72,13 @@ namespace fg {
       bool is_day;
       uint32_t timeofday;
 
-      float temperature = 20;
-      float humidity = 20;
+      // NAN until the sensor has given its first reading. A fan whose sensor
+      // is missing or dead then reports no temperature or humidity, and a
+      // regulating mode runs at the fixed speed, instead of both taking a
+      // made-up figure for the air. A read that fails later keeps the last
+      // good one.
+      float temperature = NAN;
+      float humidity = NAN;
 
       float fanspeed = 0;
       float rpm = 0;

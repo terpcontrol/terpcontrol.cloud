@@ -186,6 +186,13 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   protection acted on - never dimming under the default 25 °C, dimming or darkening the lamp under a setting below
   20. A read that fails later holds the last good reading, as on every type, but the light counts no failures: with
   a sensor that dies, it dims by that last reading until a read succeeds again.
+- The AIR fan's temperature, humidity and combined modes steer its speed between `min_speed` and the half's
+  `max_speed` by its own SHT. Until the SHT has given a reading since boot, the fan reports no temperature or
+  humidity and a regulating mode runs at the half's `fixed_speed`, as the fixed mode does (Chris, 2026-10-08); a
+  plug's CO2 dosing still slows it. Before that a placeholder of 20 °C and 20 % stood in for both, which the cloud
+  stored as readings and the regulation acted on: a fan without a sensor ran as if the air were 20 °C and 20 %,
+  at `min_speed` under the default targets. A read that fails later holds the last good reading; the fan counts
+  no failures and has no failsafe.
 - A socket keeps the last target reported to it (`wifiReportSmartSocketOutputs()`) and has it re-sent every minute,
   so every branch that zeroes outputs has to report too. Both failsafes report every target off, `running` included,
   as the OFF mode does; cloud overrides and the timer roles still apply. Until #145 they reported nothing, and a
