@@ -67,9 +67,8 @@ export default defineConfig(({ mode }) => ({
       srcDir: 'src',
       filename: 'sw.ts',
       injectManifest: {
-        // Offline means the shell and both catalogues. The drawings under
-        // `assets/` are megabytes and the onboarding videos tens of them, so
-        // they are fetched and kept once they are actually looked at.
+        // Offline means the shell and both catalogues. The rest of `assets/` -
+        // icons, pictures, feeding schemes - is kept once it is looked at.
         globPatterns: ['**/*.{js,css,html,woff2}', 'assets/i18n/*.json'],
         // The app speaks English and German; the other subsets of the face
         // are downloaded if a name ever needs them, not kept for offline.
