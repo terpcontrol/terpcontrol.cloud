@@ -1,7 +1,7 @@
 ---
 summary: Working on the device firmware or on what the server does with it - build, flash, serial log, OTA and update channels, memory, NVS and RTC limits, connection-loss reboots, safety stops, known gaps
 updated: 2026-10-08
-source: Chris (decisions 2026-07..10); agent sessions and PR descriptions 2026-05..10, #145; commit history; checked against the code on 2026-10-08
+source: Chris (decisions 2026-07..10); agent sessions and PR descriptions 2026-05..10, #145; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - firmware/**
   - fw-buildcontainer/**
@@ -196,10 +196,12 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   that did not complete, and repeats are the clearest sign an update is not landing. Whether a build took is the
   firmware id the device reports afterwards.
 - Rollout (`server/src/modules/v1/fleet/firmware-rollout.service.ts`): a sweep every 10 s per class and channel
-  (`stable`, `beta`, `alpha`; never `manual`), at most `concurrentUpdates` devices at once, none once `maxFailures`
-  updates have failed, an update failing after 10 min. `rollout.paused` holds a class; `rollout.percent` stages it by
-  a hash of the device id, so a device stays inside or outside the share. A device that owes an update is told 30 s
-  after it is seen, and again with the delay doubling up to 24 h.
+  (`RELEASE_CHANNELS` in `shared-types/src/v1/firmware-channels.ts`, which the admin screens offer: `stable`, `beta`,
+  `alpha`; never `manual`), at most `concurrentUpdates` devices at once, none once `maxFailures` updates have failed,
+  an update failing after 10 min (`updateFilters`/`updateDeadline`, by which the fleet's build stats and the admin
+  health card count too). `rollout.paused` holds a class; `rollout.percent` stages it by a hash of the device id, so a
+  device stays inside or outside the share. A device that owes an update is told 30 s after it is seen, and again with
+  the delay doubling up to 24 h.
 - Channels (`firmware.channel` of a device): a new device starts on `stable`, pinned to the build it registers with
   (Chris, 2026-10-02); registering again re-pins the class's stable build and keeps the channel. A `manual` device
   gets exactly the build it is pinned to: a grower may pick any build that was ever stable, anything newer than the

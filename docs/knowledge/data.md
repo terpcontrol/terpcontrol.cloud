@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
 updated: 2026-10-08
-source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-01); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; checked against the code on 2026-10-08
+source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-01); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -59,8 +59,9 @@ Pitfalls, each met at least once:
 - **Mongoose never changes a built index:** new options under existing data need a step that drops the old index
   (`014-one-line-per-task`); the schema builds the new one at the next boot, and cannot while duplicates exist.
 - **Two `$or` in one object overwrite each other.** `afterCursor()` (`common/v1/pages.ts`) and the visibility filters
-  both answer `$or`; spread into one query, page two of a list held other people's rows - three times. Combine with
-  `{ $and: [visibility, filter, cursor] }` (Chris, 2026-09-18).
+  both answer `$or`; spread into one query, page two of a list held what its filter excluded - other people's rows
+  three times, firmware builds never offered to the device once. Combine with `{ $and: [visibility, filter, cursor] }`
+  (Chris, 2026-09-18), as `findPage` does ([server.md](server.md#the-v1-contract)).
 - **`$in` with `null` matches documents without the field**, so references are `null`, never absent, and sweeps pass
   only real ids (`named()` in `cleanup.service.ts`).
 - **No update path from input:** a device's `hardware-info` key passes `^[a-zA-Z0-9_-]{1,64}$` (value at most 512
@@ -152,4 +153,5 @@ at a time and re-queues a build left in `rendering`.
 - **Written by hand** (`export-zip.ts`: streamed entries, data descriptors, Zip64; no zip library in `server/`). An
   alarm's custom webhook is exported as `custom · webhook` only.
 - **No placement history:** a device row knows only where it stands now, so a grow's climate (export, series, week
-  cards) comes from the devices in its spaces today; one moved out is not read for the days it was there.
+  cards) comes from the devices standing today in the spaces the grow stood in (`spacesDuring`,
+  `modules/v1/grow/grow-places.ts`); one moved out is not read for the days it was there.

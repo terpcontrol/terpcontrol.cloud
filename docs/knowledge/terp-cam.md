@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
 updated: 2026-10-08
-source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; checked against the code 2026-10-08
+source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -134,13 +134,14 @@ way and what the code has to respect. Internal notes on the camera exist.
   backoff and reads at once. `PATCH` refuses less than 30 s (`still_interval_too_short`); `POST /v1/cameras` does not,
   and a camera created with less is read on every 5 s pass (code reading, 2026-10-08). The pauses are in
   [device-protocol 9](../device-protocol.md#9-the-still-cycle); only cameras read through a device are skipped while
-  it is offline (Chris, 2026-10-02).
+  it is offline (Chris, 2026-10-02). Which those are is `readsThroughDevice` (`shared-types/src/v1/capture.ts`),
+  which the camera page reads too: change it there, not on one side.
 - The test button joins a read in flight (a Terp Cam read is the device's camera whatever the settings; an RTSP test
   with other settings reads on its own), and the poller leaves the button's read alone: a device bridges one relay
   at a time. Tests run asynchronously (202, polled every 2 s for 210 s), so no proxy needs a long timeout.
-- ffmpeg lanes (`ffmpeg-slots.ts`): one shared pool let Terp Cam decodes queue behind hanging streams past the test
-  button's wait. Hanging RTSP cameras can still delay other RTSP reads (90 s each), inside the reader's budget.
-  `p-limit` stays at ^3.1.0 (4+ is ESM-only).
+- ffmpeg lanes (`ffmpeg.ts`, beside `runFfmpeg`, which every still, decode and film runs through): one shared pool let
+  Terp Cam decodes queue behind hanging streams past the test button's wait. Hanging RTSP cameras can still delay
+  other RTSP reads (90 s each), inside the reader's budget. `p-limit` stays at ^3.1.0 (4+ is ESM-only).
 - A missed dial-in is an ordinary failed attempt (Chris, 2026-09-30, PR #119): the former 15-min hold made a slow
   link, a busy device or a server restart look like firmware without the relay.
 
@@ -190,15 +191,20 @@ way and what the code has to respect. Internal notes on the camera exist.
 - A good pass logs nothing; check `media` rows of kind `timelapse` per `window` instead.
 
 ## Health, diary, app
+- A camera is aged by the stills it has missed, not by `VALUE_AGE`: live up to 2, stale up to 10, then stopped
+  (`CAMERA_STILLS`, `shared-types/src/v1/value-age.ts`). The camera rows, the admin health card and `camera_stale`
+  all count by it; only the alarm adds a floor of 600 s.
 - `camera_stale` (`alarm-health.service.ts`): one warning when a camera is quiet for max(interval x 10, 600 s); not
   judged without a first still, with `staleWarning` off (opt-out), `nightOff`, in maintenance with `maintenanceOff`,
   or while the device is offline; not raised under `workmode: off`. The alert's value is the quiet span in seconds.
 - A failed scheduled read writes `message-rtsp-stream-error` to the diary only with `logErrors` on (default off).
   Firmware older than the relay logs `message-cam-capture:*` and `message-aux-command-failed:cam_capture`: the
   ingest drops `...:ok` always and the failures unless `logErrors` is on (`device-ingest.service.ts`).
-- The app names a stored error with the contract's `captureFailureOf`, as the server names a failed test; the raw
-  text is owner-only, it can name the tunnel's address. The day view reads frames in pages of 200 up to 15 pages and
-  refetches every 30 s from its newest picture only (`webapp/src/api/cameras.ts`).
+- The app names a stored error with the contract's `captureFailureOf`, as the server names a failed test; the raw text
+  is owner-only, it can name the tunnel's address. A failed film stores one of the `RENDER_FAILURE_TEXT` sentences
+  (`capture.ts`) and the app names it by the whole sentence (`renderFailureOf`): reworded, films that failed before
+  show `unknown`. The day view reads frames in pages of 200 up to 15 pages and refetches every 30 s from its newest
+  picture only (`webapp/src/api/cameras.ts`).
 
 ## Configuration
 - `TERPCAM_RELAY_URL`: `docker-compose.yaml` defaults it to `${API_URL_EXTERNAL}/terpcam/relay` - defaults belong

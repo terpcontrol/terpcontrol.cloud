@@ -361,7 +361,8 @@ rule that names an output and a threshold nothing would read cannot be written d
   GridFS bucket, whose file id is the media id.
 - **Time series** stay in InfluxDB, measurement `status`, tagged by `device_id`. The `user_id` tag, which
   records whoever owned the device when a sample arrived and is never read, is no longer written. The API names
-  metrics with one enum in `shared-types` that maps to the device's field names.
+  metrics with one enum in `shared-types`, which the server maps to the device's field names
+  (`server/src/common/v1/metrics.ts`).
 
 ## Access
 

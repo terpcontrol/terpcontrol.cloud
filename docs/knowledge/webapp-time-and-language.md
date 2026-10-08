@@ -1,7 +1,7 @@
 ---
 summary: The mechanics behind every time, date, figure and translated word in the web app - the server's clock, the account's time zone, the shared date formats, the age helpers, i18next setup, device-message keys, the figure writers, help topics - and the source-reading tests that enforce them
 updated: 2026-10-08
-source: React rewrite sessions 2026-09..10 (clock, zone and figure passes 2026-09-23..10-04); Chris (help texts, 2026-09-24); checked against webapp/ on 2026-10-08
+source: React rewrite sessions 2026-09..10 (clock, zone and figure passes 2026-09-23..10-04); Chris (help texts, 2026-09-24); codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08
 paths:
   - webapp/src/**
   - webapp/public/assets/i18n/**
@@ -29,9 +29,14 @@ date or a figure reads in each language, which words to use - are in [app-ux.md]
 ## The account's time zone
 
 - Clock times and day boundaries are drawn in `me.preferences.timezone` through `src/ui/zone.ts` (`useZone`,
-  `zoned`, `zonedAt`, `clock`, `datedClock`, `calendarDay`, `nowThere`). Date fields read and write their day through
-  `src/ui/days.ts` (`dayOf`, `momentOn`, `startOfDayOn`) in the same zone; reading it browser-local filed backdated
-  lines a grow day early. Ages need no zone.
+  `zoned`, `zonedAt`, `clock`, `calendarDay`, `nowThere`; an hour with its day when not today's is `sinceLabel` in
+  `ui/age.ts`). Date fields read and write their day through `src/ui/days.ts` (`dayOf`, `momentOn`, `startOfDayOn`,
+  `endOfDayOn`, `dayEdgeInstant`) in the same zone; reading it browser-local filed backdated lines a grow day early.
+  Ages need no zone.
+- A device document's times of day are seconds past midnight UTC
+  ([ADR 0005](../adr/0005-device-times-on-the-wall-clock.md)): they are shown and taken on the account's wall clock
+  through `src/ui/wall-clock.ts` (`offsetOf`, `wallClock`, `secondsOf`) and the one time field,
+  `screens/control/TimeInput.tsx`, never formatted as instants.
 - Public pages (`src/screens/public/`) use the reader's zone: the public API does not tell a stranger the owner's.
   `useZone()` reads no account for the demo or a signed-out reader.
 - Migrated accounts are on UTC (the old cloud knew no zone). `src/app/shell/ZoneAdoption.tsx` takes the browser's
@@ -53,10 +58,13 @@ date or a figure reads in each language, which words to use - are in [app-ux.md]
 ## Ages
 
 - `src/ui/age.ts`: `ageLabel` and `spanLabel` floor an elapsed span, `countdownLabel` and `leftLabel` round a span
-  still to run up; unit symbols come from the catalogue's `units` block (`unitSymbol`, `oClock`).
-- `valueAge()` re-judges a value's `MetricValue.state` against `VALUE_AGE` (`shared-types/src/v1/value-age.ts`) at
-  the server's now and keeps the worse verdict. A device's liveness is in no answer: `deviceLiveness(lastSeenAt)`,
-  with `heardAt()` taking the later of `lastSeenAt` and the newest reading; silence is worded by `offlineLabel()`.
+  still to run up, `durationLabel` writes a length somebody chose in its coarsest whole unit (a plan step's length
+  is `stepLengthLabel`, `screens/control/plan-labels.ts`); unit symbols come from the catalogue's `units` block
+  (`unitSymbol`).
+- `valueAge()` re-judges a value's `MetricValue.state` at the server's now and keeps the worse verdict. A device's
+  liveness is in no answer: `deviceLiveness(lastSeenAt)`, with `heardAt()` taking the later of `lastSeenAt` and the
+  newest reading; silence is worded by `offlineLabel()`. The boundaries (`valueStateOfAge`) and `heardAt` are
+  `shared-types/src/v1/value-age.ts`, as on the server and in the simulator.
 - An offline alert's `value` is the seconds of silence, not a reading; the silence began at `silentSince(alert)`
   (`startedAt` minus `value`).
 - `useReportFreshness(at)` (`src/ui/freshness.ts`) feeds the shell's "updated N ago" line: a server-stamped instant
@@ -76,8 +84,8 @@ It reads every file in `src/` and fails when
 - a `Date` calendar getter or setter (`getFullYear`, `setDate`, ...) is used anywhere.
 
 It also round-trips days across browser and account zones. Known offenders sit in `NOT_YET`
-(`screens/camera/CameraSettings.tsx`, `screens/space/members/invites.ts`); the test fails once a listed file stops
-offending, so whoever fixes one deletes its line.
+(`screens/space/members/invites.ts`); the test fails once a listed file stops offending, so whoever fixes one deletes
+its line.
 
 ## Translations
 
@@ -92,6 +100,9 @@ offending, so whoever fixes one deletes its line.
   `_you` keys both catalogues hold the same keys, and no test checks that beyond help topics and device messages: a
   key goes into both files, written by script in their own format
   ([development-workflow.md](development-workflow.md#worktrees-and-parallel-agents)).
+- A key can be read where no literal names it, so grep for its prefix before deleting one as unread: keys built in
+  a template (`` t(`home.entryKind.${kind}`) ``, `` `help.${topic}.title` ``, `` `units.${unit}` ``), the `message-*`
+  keys, and the pause reasons below, compared rather than drawn.
 - Never rename a `message-*` key: devices, the plan and the server store keys, not words. Change the words in both
   catalogues and every stored line reads the new way (as when "Recipe" became "Plan").
 - A plan's pause reason is the exception: it is stored as words, in the language of whoever paused the plan
@@ -109,12 +120,13 @@ offending, so whoever fixes one deletes its line.
 ## Figures
 
 - A figure for a reader is written by `decimalFigure` / `looseFigure` (`src/ui/figures.ts`, `Intl.NumberFormat` in
-  the app language, grouping off), a reading by `figure(value, metric)` / `targetFigure` in the home screens'
-  `units.ts` (`src/screens/home`), which holds each metric's decimals and unit; `asWritten()` rounds a reading the way
-  it is printed, so a verdict agrees with the figure beside it.
+  the app language, grouping off), a reading by `figure(value, metric)` / `targetFigure` (`figureWithUnit`,
+  `targetWithUnit` with the unit) in `src/ui/units.ts`, which holds each metric's decimals and unit; `asWritten()`
+  rounds a reading the way it is printed, so a verdict agrees with the figure beside it. A figure a reader typed is
+  read back by `typedFigure` (`ui/figures.ts`), which takes either decimal mark.
 - Machine output stays on `toFixed` and plain strings: CSV cells, SVG path coordinates, the `yyyy-MM-dd` a date
   field speaks, ids, firmware versions.
-- `test/figures.test.ts` allows `.toFixed(` only in that `units.ts`, `ui/figures.ts` and the machine files
+- `test/figures.test.ts` allows `.toFixed(` only in `ui/units.ts`, `ui/figures.ts` and the machine files
   (`charts/series.ts`, `screens/cockpit/MiniCurve.tsx`, `ui/days.ts`), and keeps the localisers out of the machine
   files.
 

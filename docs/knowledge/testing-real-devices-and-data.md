@@ -1,7 +1,7 @@
 ---
 summary: When a test needs real hardware or real data - /firmware-check beyond its skill and getting builds onto devices, taking over and driving the development devices, the real Terp Cam, restoring and testing on a copy of production data without anything leaving it, verification passes
 updated: 2026-10-08
-source: Chris (instructions 2026-08-25..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); checked against the code 2026-10-08
+source: Chris (instructions 2026-08-25..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); codebase cleanup (2026-10-08); checked against the code 2026-10-08
 paths:
   - .claude/skills/firmware-check/**
   - build-fw.sh
@@ -75,7 +75,8 @@ reboot, firmware update, renaming and moving. The first pass that did found a bl
 - Leave it exactly as found (Chris, 2026-09-08): read a setting before changing it, restore it and read it back -
   blind probing has cost a camera reboot. Never factory-reset it: that unpairs it and drops it to its setup access
   point. LAN access from the test machine is for diagnostics, never for what ships ([rules](terp-cam.md#rules-chris)).
-- Do the cheapest decisive check first: a LAN-direct probe answers a protocol question in minutes, no flashing.
+- Do the cheapest decisive check first: a LAN-direct probe answers a protocol question in minutes, no flashing. The
+  probe scripts are not kept in this repository; internal notes on them exist.
 - Measuring capture success: no probe sessions of your own meanwhile (they take the camera's ~4 session slots); press
   the real test button (`POST /v1/cameras/{id}/test-captures`) at production spacing, e.g. 20 times 30 s apart,
   signing in per call. After changing the light wait 60-75 s (the IR switch has hysteresis); a lit scene makes the

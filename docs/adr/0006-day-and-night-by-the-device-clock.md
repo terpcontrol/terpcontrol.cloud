@@ -1,7 +1,7 @@
 ---
 summary: Why the cloud, the app and the simulator decide day and night exactly as the firmware does - by the device's clock window and work mode, never by the lamp - through one shared module, and how a switch between the halves is judged - read before touching day-night.ts, setpoints, the climate verdict, night bands or how a light window is written
 updated: 2026-10-08
-source: rewrite commits of 2026-10-01 to 10-03 merged with PR #104; checked against shared-types/, server/ and scripts/simulate-device.mjs on 2026-10-08
+source: rewrite commits of 2026-10-01 to 10-03 merged with PR #104; checked against shared-types/, server/ and scripts/simulate-device.mjs on 2026-10-08; codebase cleanup (2026-10-08)
 paths:
   - shared-types/src/v1/day-night.ts
   - server/src/modules/v1/device/setpoints.ts
@@ -36,11 +36,12 @@ glides its targets along the dimming ramps besides.
 ## Decision
 
 - **One arithmetic, the firmware's.** `shared-types/src/v1/day-night.ts` copies the firmware's expressions one for
-  one: strict comparisons, windows that run past midnight UTC, the ramps worked out unsigned and without going
-  round the clock, and the work modes that have no day. It has no schema and no imports, so the server, the app and
-  the simulator all run the same code. It was checked against a harness compiled from the fridge's and the
-  controller's own code on every second of the day for every window and ramp tried; that harness was a one-off,
-  and `server/test/unit/day-night.spec.ts` and `server/test/specs/day-night.spec.ts` keep the cases.
+  one: strict comparisons, windows that run past midnight UTC, the ramps worked out unsigned and without going round
+  the clock, and the work modes that have no day. It has no schema and imports only the schema-free document reader
+  (`configuration-fields.ts`), so the server, the app and the simulator all run the same code. It was checked against
+  a harness compiled from the fridge's and the controller's own code on every second of the day for every window and
+  ramp tried; that harness was a one-off, and `server/test/unit/day-night.spec.ts` and
+  `server/test/specs/day-night.spec.ts` keep the cases.
 - **Everything that names a half follows from it**: the live targets (`setpoints.active`, with `period`, `cycle`,
   `since`, `until` and `transition`), the cards, the climate verdict and its excursions, the night bands of the
   Timeline, a space and a grow, and the diary's day and night averages.

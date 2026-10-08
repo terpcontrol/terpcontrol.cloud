@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-10-08
-source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; checked against webapp/ on 2026-10-08
+source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08
 paths:
   - webapp/**
 ---
@@ -21,8 +21,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 | --- | --- |
 | `src/main.tsx` | keeps the install prompt, loads the catalogues, renders |
 | `src/app/` | `routes.tsx`, `shell/` (bars, rail, notices), `RequireSession.tsx`, `OldAddresses.tsx` + `old-charts.ts`, `places.ts` (deep links), `install.ts` |
-| `src/api/` | one module per resource with its TanStack Query hooks; plumbing: `client.ts`, `session.ts`, `clock.ts`, `read.ts`, `problem.ts`, `config.ts`, `query-client.ts` |
-| `src/ui/` | shared primitives and one-place helpers (`zone.ts`, `age.ts`, `figures.ts`, `session-access.ts`, `refusal.ts`, `Help.tsx`, `advanced/`) |
+| `src/api/` | one module per resource with its TanStack Query hooks and query factories; plumbing: `client.ts`, `session.ts`, `clock.ts`, `read.ts`, `write.ts`, `pages.ts`, `problem.ts`, `config.ts`, `query-client.ts` |
+| `src/ui/` | shared primitives (`Sheet`, `Switch`, `Asking`, `BackLink`, `Help.tsx`, `advanced/`) and one-place helpers (`zone.ts`, `days.ts`, `wall-clock.ts`, `age.ts`, `figures.ts`, `units.ts`, `naming.ts`, `stored.ts`, `session-access.ts`, `refusal.ts`) |
 | `src/log/` | the Log sheet, its send queue and undo toasts, `corrections.ts` |
 | `src/charts/`, `src/i18n/` | ECharts binding and chart arithmetic; i18next setup and device-message resolver |
 | `src/theme/`, `src/styles/`, `src/sw.ts` | `tokens.css`, `ThemeProvider`, `global.css`; the service worker |
@@ -38,7 +38,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   slash) and ranks below every named route.
 - Deep links come from `src/app/places.ts`: a place is `/spaces/:id`; Verlauf and Steuerung carry the place in the
   query (`/timeline?space=&focus=&at=`, `/control/<targets|alarms|plan>?space=`); Charts keeps its whole view in the
-  query (`space`/`grow`, `range`, `zoom`, `show`, `layout`, ...).
+  query (`space`/`grow`, `range`, `zoom`, `show`, `layout`, ...), read and written only in
+  `src/screens/charts/address.ts`, through which `app/old-charts.ts` maps old bookmarks too.
 - The old app's addresses still work (`OldAddresses.tsx`, `old-charts.ts`, redirects at the end of `screens`):
   `/login?recovery=|?code=` from old mails, `/demo` (website buttons; a signed-in user goes straight in), `/list`,
   `/account`, `/shares`, `/diagnostics`, `/device/<id>/<page>` (the same page of the device's place) and old chart
@@ -56,6 +57,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   build args `API_URL_EXTERNAL`, `CUSTOM_LINKS_HTML` (an install's own links under the sign-in form, as HTML) and
   `PRIVACY_URL` (empty: sign-up links the app's own `/privacy`) into `VITE_API_URL`, `VITE_CUSTOM_LINKS_HTML` and
   `VITE_PRIVACY_URL`.
+- `vitest.config.ts` and `vitest.live.config.ts` spread `shared` from `vite.config.ts` (the `__APP_VERSION__` define
+  and the `@` alias): a new define or alias goes there, or the tests compile differently from the app -
+  `npm run test:live`, which CI does not run, once broke that way.
 - `webapp/nginx.conf`: `index.html`, `sw.js` and `registerSW.js` are `no-store`; hashed `*-<8 chars>.js|css|woff2`
   are immutable; `/assets/` is `no-cache`, because those names stay the same across releases.
 
@@ -64,35 +68,49 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - Types only from `@fg2/shared-types/v1`, imported type-only (`verbatimModuleSyntax`, lint rule
   `consistent-type-imports`), so the package never reaches the bundle. Runtime values only from the schema-less
   modules `@fg2/shared-types/v1-schemas/<module>.js`; never the index or a module with schemas, which pull in zod.
+- A schema-less module names zod and the contract's schemas with `import type` only (`import type { z } from 'zod'`),
+  which compiles away; a value import makes it a module with schemas. At runtime it may import another schema-less
+  module (`day-night.ts` reads `configuration-fields.ts`). The simulator loads them too
+  ([testing.md](testing.md#the-simulator-beyond-claudemd)).
 - **Every such module must be listed in `optimizeDeps.include` in `vite.config.ts`.** They are CommonJS written by
   `npm run generate`; an unlisted one makes the dev server hand the browser a module without named exports - a
-  blank page - while the production build works.
+  blank page - while the production build and `npm test` pass. After adding one, open a screen on the dev server.
 - The `followContract` plugin in `vite.config.ts` keys Vite's pre-bundle cache on a hash of
   `shared-types/v1-schemas/*.js` and restarts a running dev server after a generate; before it, a dev server left
   running served the previous contract.
 - A value both sides need is defined once in `shared-types/src/v1/` and used by server and app (Chris, 2026-10-06,
   after drying was missing from the work-mode picker because the modes were defined twice): e.g. `WORK_MODES` /
-  `workModesOf`, `VALUE_AGE`, the VPD formula (`vpd.ts`), the climate presets, `CAPTURE_FAILURES`. Open debt:
-  `heldBackBy` in `src/screens/control/alarms/rules.ts` copies the server's quiet-hours arithmetic (`heldBack` in the
-  notification service); it belongs in `shared-types/src/v1/alert-routing.ts` beside `alertCategory`.
+  `workModesOf`, `VALUE_AGE` and `heardAt` (`value-age.ts`), the VPD formula (`vpd.ts`), the climate presets,
+  `CAPTURE_FAILURES`, quiet hours and alarm routing (`alert-routing.ts`), the plan step clock (`plan-clock.ts`), the
+  steered metrics and bands (`steering.ts`).
 
 ## API client and reads
 
 - `src/api/client.ts` is the only way to call the API: it attaches the bearer token, retries a 401 once behind a
   fresh token, turns every failure into an `ApiError` carrying the problem document (`fieldErrors` for forms) and
-  aborts each attempt after 30 s - a server that accepted and never answered held screens in "refreshing".
+  aborts each attempt after 30 s - a server that accepted and never answered held screens in "refreshing". Only
+  `src/api/` imports it, and every query key lives there: a read used in several places is a query factory
+  (`devicesQuery`, `camerasQuery`, ...), so a second key cannot split the cache.
+- A list in a query goes out as its name repeated (`metrics=a&metrics=b`), as the series routes read it
+  (`test/client.test.ts`); `/entries` takes `kinds` as one comma-joined string, so its callers join that list.
 - Query defaults (`query-client.ts`): `staleTime` 30 s, refetch on window focus, no retry below status 500, two
-  retries otherwise. Each read sets its own `refetchInterval` in its api module (home: 30 s).
+  retries otherwise. Reads of what devices report refetch on `LIVE_BEAT_MS` (30 s, `src/api/read.ts`); the shell's
+  shape reads spread `FOLLOWED` (no beat) over the screens' query factories and so share their cache entries.
+- Writes are `useWrite` / `useWriteSettled` (`src/api/write.ts`): what `then` returns is what `mutateAsync` waits
+  for, so return the `invalidate(...)` to finish only once the re-reads are back.
 - Every read goes through `useRead` / `useReadPages` (`src/api/read.ts`): a read that failed once is no longer a
   first load (`hasFailed`, `isFirstLoad`, via `errorUpdateCount`, which survives the retry that clears the error),
   and the last error is kept to tell a 404 from a dropped connection. What a screen then says: app-ux.md §3.
 - To keep the last good answer drawn: `placeholderData: keepPreviousData`, and where a refetch fails, read the last
-  answer back out of the query cache (`held` / `lastOf` in `src/api/charts.ts`). The lint rejects the obvious
-  alternatives: a ref read or written during render (`react-hooks/refs`) and setState in an effect
-  (`react-hooks/set-state-in-effect`).
+  answer back out of the query cache (`held` / `lastOf` in `src/api/charts.ts`). `lastOf` takes any answer cached
+  under `['grow'|'space', id, 'series']`, so a read of the same route that asks for less needs a key of its own
+  (`'measurement-series'`). The lint rejects the obvious alternatives: a ref read or written during render
+  (`react-hooks/refs`) and setState in an effect (`react-hooks/set-state-in-effect`).
 - `noLongerThere()` (`problem.ts`) is the 404 test: `access()` answers 404 to a reader who may not see a subject and
-  403 to a refused write. Refusals are worded by `refusalText()` (`src/ui/refusal.ts`). `readProblem()` makes up code
-  `unexpected` when a proxy answers HTML, so key on the HTTP status where it matters (sign-in's 429).
+  403 to a refused write. Not every 404 is a subject gone: `GET /v1/devices/{id}/plan` answers 404 `plan_not_found`
+  for a device that runs no plan (`isMissing`, `src/api/plans.ts`). Refusals are worded by `refusalText()`
+  (`src/ui/refusal.ts`). `readProblem()` makes up code `unexpected` when a proxy answers HTML, so key on the HTTP
+  status where it matters (sign-in's 429).
 - Export zips are served to a session only: `apiBlob()` into a blob and an `<a download>` (`useDownloadExport` in
   `src/api/exports.ts`), since a link cannot carry the bearer header.
 - Lifecycle mutations (`src/api/lifecycle.ts`) re-read the grow after the server answers instead of patching the
@@ -126,7 +144,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   session's answers is not cleared: a stored session refused at boot on `/g/:slug`, whose read waits on that very
   refresh, could otherwise leave the public grow loading.
 - The demo is `POST /v1/sessions/demo` and has no account: account routes (`/v1/me` and its kin) answer 403
-  `no_account`, so account reads are gated - `useMe(false, user !== null && user.isDemo !== true)` - and
+  `no_account`, so account reads are gated - `useAccountMe()` in `src/api/account.ts` - and
   `src/ui/session-access.ts` answers `view` for it in every place, so it is offered no write. Public pages fire no
   session-bound read for a stranger or the demo; only a signed-in reader's Follow reads its follows.
 - Access in a place is the server's `space.youMay`, read through `src/ui/session-access.ts` (`useMayInSpace`,
@@ -135,7 +153,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - Browser storage holds per-browser conveniences only (`terp.language`, `terp.theme`, `terp.place`,
   `terp.shape.<user>`, `terp.lightHold.<device>` - the last light hold sent, since no device reports one back -
   ...); whatever has to follow the account (zone, diary layer, notices seen, the language for text the server
-  writes) lives in `me.preferences`.
+  writes) lives in `me.preferences`. `localStorage` is read and written through `src/ui/stored.ts`, which answers
+  null and keeps nothing where storage is blocked; only `src/api/session.ts` has its own, as it uses
+  `sessionStorage` too.
 
 ## Charts
 
@@ -144,7 +164,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   system scheme changes. Colours come from `src/charts/tokens.ts`, which reads the CSS variables - a canvas cannot.
 - ECharts' own axes are hidden (`src/charts/series.ts`); the figures app-ux.md §7 asks for are DOM around the plot
   (`screens/charts/ChartCard.tsx`, the Timeline's panels). The cursor is an HTML overlay - `useScrub` in
-  `src/charts/scrub.ts` on Charts, its own copy without zoom in `screens/timeline/Timeline.tsx` - so a chart is drawn
+  `src/charts/scrub.ts`, on Charts and the Timeline alike (only Charts passes `onSelect`) - so a chart is drawn
   once per answer and scrubbing costs no redraw; on Charts a mouse drag also marks a stretch to zoom into, a touch
   drag only moves the cursor.
 - Axis bounds come from `niceScale()` in `src/charts/series.ts`, shared by Charts and Timeline, with both corners
@@ -201,8 +221,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   settings are `Field*` controls (`src/ui/advanced/Fields.tsx`) named as `CONFIGURATION_FIELDS` names them per type
   (`shared-types/src/v1/configuration-fields.ts`, the AIR fan and the LIGHT included), written on the tap through
   `useConfigure` (`PATCH /v1/devices/{id}/configuration` with `set`); a row then shows what the server stored.
-- Copy through `copyText()` (`src/ui/clipboard.ts`): it falls back to `execCommand` where `navigator.clipboard` is
-  missing (plain HTTP) and says whether it copied.
+- Copy through `useCopied()` (`src/ui/clipboard.ts`): it falls back to `execCommand` where `navigator.clipboard` is
+  missing (plain HTTP) and answers `copied` or `failed` for the button to say.
 - Webhook templates (`src/screens/control/alarms/webhook-templates.ts`: Home Assistant, Discord, Telegram, ntfy)
   only fill in a plain webhook. A stored rule is recognised again (`templateOf(rule).read`), so editing one field
   keeps the others - rebuilding from an empty draft once wiped a Telegram bot token. A template sets the tunnel
@@ -213,11 +233,15 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 
 - `eslint.config.mjs` is the server's flat config plus `react-hooks` 7 `recommended-latest`, which carries the React
   Compiler's rules (`refs`, `set-state-in-effect`, `purity`, ...) although the compiler does not run in the build,
-  and `react-refresh/only-export-components`. `tsconfig.json` is `strict`: the contract spells "none" as `null`.
-- Vitest in jsdom (`vitest.config.ts`; `test/setup.ts` stubs `ResizeObserver`). `test/session.ts` holds session
-  fixtures (`SIGNED_IN`, `ON_THE_DEMO`, `SIGNED_OUT`, `spaceWhere(youMay)`); screen tests mock `@/api/session` and
-  stub `fetch`. Off a terminal only failures are printed, and console output from a passing test is a fault to fix.
-  `npm run test:live` (node environment) signs in with `AGENT_TESTING_*` from the root `.env` against a running stack.
+  and `react-refresh/only-export-components`. Prettier reads the one `.prettierrc` at the repository root, as the
+  server does. `tsconfig.json` is `strict`: the contract spells "none" as `null`.
+- Vitest in jsdom (`vitest.config.ts`; `test/setup.ts` stubs `ResizeObserver`). Tests share their helpers rather than
+  define their own: `test/session.ts` the sessions (`SIGNED_IN`, `ON_THE_DEMO`, `SIGNED_OUT`, `meWith`,
+  `spaceWhere(youMay)`), `test/fixtures.ts` a device (`deviceWith`), `test/harness.tsx` the drawing (`drawAt`,
+  `testClient`, `json`, `NOT_FOUND`), `test/translations.ts` the shipped catalogues (`catalogue`, `translate`). Screen
+  tests mock `@/api/session` and stub `fetch`. Off a terminal only failures are printed, and console output from a
+  passing test is a fault to fix. `npm run test:live` (node environment) signs in with `AGENT_TESTING_*` from the root
+  `.env` against a running stack.
 - Tests that read the source or the assets: `zone.test.ts`, `figures.test.ts`, `help.test.tsx`,
   `device-message.test.ts` (see [webapp-time-and-language.md](webapp-time-and-language.md)) and `schemes.test.ts`
   (the feeding schemes in `public/assets/schemes/` against the contract, `flipWeek` = first flowering week; they are
@@ -237,12 +261,6 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 
 ## Left behind by the Angular app
 
-Its addresses still work (see Routes) and its catalogues were kept. Beyond that:
-
-- The catalogues still carry its keys that no screen reads - `settings.*`, `devices.fridge.recipe.*`,
-  `devices.maintenance.*`, `demo.saveNotSupported` and more - in words [app-wording.md](app-wording.md) retires
-  ("Rezept", "Wartungsmodus"): grep `src/` before taking a key as live.
-- Its browser storage (`id_token`, `refresh_token`, `image_token`, `user`) is not read.
-- `public/assets/` still holds files nothing in `src/` references: the onboarding videos in `wizard/` (~29 MB), the
-  device icons in `icon/` (only `favicon.png` is used), `imgs/`, store badges, old logos, `i18n/help/` and
-  `mwversion.json`.
+Its addresses still work (see Routes), and its catalogues keep the keys a screen reads and every `message-*` key,
+which devices and the server store. Its browser storage (`id_token`, `refresh_token`, `image_token`, `user`) is not
+read.
