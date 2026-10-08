@@ -36,7 +36,7 @@ import { hoursWritten } from '../control/targets/schedule-words';
 import { draftOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from '../home/attention';
 import { alertLabel, asWritten, figureWithUnit, isSilence } from '@/ui/units';
-import { plugModeOf } from '../control/devices/own-summary';
+import { PLUG_READING, plugModeOf } from '../control/devices/own-summary';
 
 /**
  * What a place's cockpit decides before it draws anything: which device holds
@@ -234,14 +234,8 @@ const MOVERS: Record<string, Partial<Record<Steered, OutputMetric[]>>> = {
 /** The catalogue word an output is called by everywhere on the cockpit. */
 export type OutputWord = 'compressor' | 'heater' | 'dehumidifier' | 'co2' | 'socket' | 'humidifier';
 
-/** The reading a stand-alone smart socket switches by, per mode, and the names of its two points. */
-const PLUG_FOLLOWS: Partial<Record<PlugMode, Steered>> = {
-  heater: 'temperature',
-  cooler: 'temperature',
-  humidify: 'humidity',
-  dehumidify: 'humidity',
-  co2: 'co2',
-};
+/** The reading a stand-alone smart socket switches by, per mode. */
+const PLUG_FOLLOWS: Partial<Record<PlugMode, Steered>> = PLUG_READING;
 
 /** Between the two points a socket switches at, which is the range it holds its reading in. */
 export interface SwitchRange {

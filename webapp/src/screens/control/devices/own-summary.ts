@@ -1,4 +1,4 @@
-import type { Device, Metric } from '@fg2/shared-types/v1';
+import type { Device } from '@fg2/shared-types/v1';
 import {
   PLUG_SWITCHING,
   switchPointName,
@@ -24,7 +24,8 @@ export interface SummaryRow {
   parts: string[];
 }
 
-const READING: Record<PlugSwitching | 'co2', Metric> = {
+/** The reading a mode's points are figures of. */
+export const PLUG_READING: Record<PlugSwitching | 'co2', 'temperature' | 'humidity' | 'co2'> = {
   heater: 'temperature',
   cooler: 'temperature',
   humidify: 'humidity',
@@ -32,7 +33,8 @@ const READING: Record<PlugSwitching | 'co2', Metric> = {
   co2: 'co2',
 };
 
-const RISING: readonly string[] = ['heater', 'humidify', 'co2'];
+/** Which way a mode switches: on below its point and off above it, or the other way round. */
+export const RISING: readonly string[] = ['heater', 'humidify', 'co2'];
 
 const number = (device: Device, name: string): number | null => {
   const value = fieldValue(device, name);
@@ -57,7 +59,7 @@ export const plugSummaryOf = (t: Translate, device: Device, offset: number): Sum
     const on = number(device, switching === 'co2' ? 'co2On' : switchPointName(switching, when, 'on'));
     const off = number(device, switching === 'co2' ? 'co2Off' : switchPointName(switching, when, 'off'));
     if (on === null || off === null) return null;
-    const metric = READING[switching];
+    const metric = PLUG_READING[switching];
     return t(`plugSettings.summary.${RISING.includes(switching) ? 'rising' : 'falling'}`, {
       on: targetWithUnit(on, metric),
       off: targetWithUnit(off, metric),

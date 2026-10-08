@@ -25,6 +25,7 @@ import { TargetRow } from '../targets/TargetRow';
 import { TimeInput } from '../TimeInput';
 import { useFieldsDraft, type FieldsDraft } from './fields-draft';
 import { OwnPanel, TimeRow } from './OwnPanel';
+import { PLUG_READING, RISING } from './own-summary';
 import styles from './Own.module.css';
 
 /**
@@ -40,18 +41,6 @@ import styles from './Own.module.css';
  */
 
 const DEFAULT_WINDOW: TimerWindow = { ontime: 10 * 3600, duration: 10 };
-
-/** Which way a mode switches: on below its point and off above it, or the other way round. */
-const RISING: readonly string[] = ['heater', 'humidify', 'co2'];
-
-/** The reading a mode's points are figures of. */
-const UNIT: Record<PlugSwitching | 'co2', 'temperature' | 'humidity' | 'co2'> = {
-  heater: 'temperature',
-  cooler: 'temperature',
-  humidify: 'humidity',
-  dehumidify: 'humidity',
-  co2: 'co2',
-};
 
 const CO2_RANGE = { min: 300, max: 3000, step: 50 };
 
@@ -210,7 +199,7 @@ function Points({
   disabled: boolean;
 }) {
   const { t } = useTranslation();
-  const unit = UNIT[mode];
+  const unit = PLUG_READING[mode];
   const range = mode === 'co2' ? CO2_RANGE : SWITCH_POINT_RANGE[mode];
   const field = (edge: 'on' | 'off') => (mode === 'co2' ? (edge === 'on' ? 'co2On' : 'co2Off') : switchPointName(mode, when, edge));
   const label = titled ? t(`plugSettings.${when}`) : t('plugSettings.points');

@@ -95,7 +95,8 @@ export const countdownLabel = (seconds: number): string => {
  */
 export const ageAttribute = (state: ValueState): { 'data-age': ValueState } => ({ 'data-age': state });
 
-const RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };
+/** Live before quiet before gone: the order two ages are compared and sorted in. */
+export const LIVENESS_RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };
 
 /**
  * How alive a device is, from the last thing it said.
@@ -128,7 +129,7 @@ export const deviceLiveness = (lastSeenAt: string | null, now: DateTime): ValueS
  */
 export const valueAge = (value: Pick<MetricValue, 'state' | 'measuredAt'>, now: DateTime = serverNow()): ValueState => {
   const drawn = deviceLiveness(value.measuredAt, now);
-  return RANK[drawn] > RANK[value.state] ? drawn : value.state;
+  return LIVENESS_RANK[drawn] > LIVENESS_RANK[value.state] ? drawn : value.state;
 };
 
 /**

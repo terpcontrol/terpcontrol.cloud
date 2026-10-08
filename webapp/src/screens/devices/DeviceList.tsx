@@ -4,7 +4,7 @@ import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath, placePath } from '@/app/places';
-import type { ActuatorRuns, Camera, ClimateVerdict, Device, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
+import type { ActuatorRuns, Camera, ClimateVerdict, Device, OutputMetric, SocketPage, SocketRole } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { useCameras, useLatestStills } from '@/api/cameras';
@@ -12,7 +12,7 @@ import { fetchedAt, serverNow } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
-import { ageAttribute, ageLabel, deviceLiveness, offlineLabel, sinceLabel } from '@/ui/age';
+import { ageAttribute, ageLabel, deviceLiveness, LIVENESS_RANK, offlineLabel, sinceLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { Help, Term } from '@/ui/Help';
 import { darkReasonOf } from '@/ui/climate-hardware';
@@ -75,8 +75,9 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
   const reads = useLiveReads(here.map(device => device.id));
   const spokeAt = (device: Device): string | null => heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
   // The device that is talking is the one somebody came here for; one that has
-  // gone quiet keeps its row, its place and its age, further down.
-  const mine = [...here].sort((one, other) => RANK[deviceLiveness(spokeAt(one), now)] - RANK[deviceLiveness(spokeAt(other), now)]);
+  // gone quiet keeps its row, its place and its age, further down; two of a
+  // kind keep the order the server gave them.
+  const mine = [...here].sort((one, other) => LIVENESS_RANK[deviceLiveness(spokeAt(one), now)] - LIVENESS_RANK[deviceLiveness(spokeAt(other), now)]);
   const shown = cameras.data?.items ?? [];
   const tables = useSocketTables(mine.map(device => device.id));
   const stills = useLatestStills(shown.map(camera => camera.id));
@@ -654,9 +655,6 @@ function Thumb({ stillId }: { stillId: string | null }) {
     </span>
   );
 }
-
-/** Live first, then the ones that have gone quiet; two of a kind keep the order the server gave them. */
-const RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

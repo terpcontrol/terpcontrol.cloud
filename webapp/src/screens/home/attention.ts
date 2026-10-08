@@ -1,6 +1,6 @@
 import type { DateTime } from 'luxon';
 import type { CardValue, HomeSpaceCard, Severity, ValueState } from '@fg2/shared-types/v1';
-import { valueAge } from '@/ui/age';
+import { LIVENESS_RANK, valueAge } from '@/ui/age';
 
 /**
  * What the home decides about a card before it is drawn: how alive it is, how
@@ -12,8 +12,6 @@ import { valueAge } from '@/ui/age';
 
 /** A card's liveness: `none` is a place with nothing measuring in it, which shows no dot at all. */
 export type Liveness = ValueState | 'none';
-
-const RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };
 
 /**
  * The best of its values - one live sensor is a live card. A device that has
@@ -29,7 +27,7 @@ export const livenessOf = (card: { values: CardValue[]; deviceIds: string[] | nu
   if (card.values.length === 0) return card.deviceIds === null ? 'none' : 'offline';
   return card.values.reduce<ValueState>((best, value) => {
     const state = valueAge(value, now);
-    return RANK[state] < RANK[best] ? state : best;
+    return LIVENESS_RANK[state] < LIVENESS_RANK[best] ? state : best;
   }, 'offline');
 };
 
