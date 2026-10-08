@@ -175,7 +175,7 @@ const spanOf = (span: StoredDefinition['span']): ChartViewSpan => {
 };
 
 /** The stored document as the contract has it: instants as ISO strings. */
-export const chartViewOf = (view: ChartViewDocument): ChartView => ({
+const chartViewOf = (view: ChartViewDocument): ChartView => ({
   id: view.id,
   createdAt: view.createdAt.toISOString(),
   ownerId: view.ownerId,

@@ -1,4 +1,4 @@
-import { HydratedDocument, Schema } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { Session } from '@fg2/shared-types/v1';
 
 /**
@@ -10,8 +10,6 @@ export interface StoredSession extends Omit<Session, 'createdAt' | 'lastSeenAt' 
   lastSeenAt: Date;
   expiresAt: Date;
 }
-
-export type SessionDocument = HydratedDocument<StoredSession>;
 
 export const sessionsSchema = new Schema<StoredSession>(
   {

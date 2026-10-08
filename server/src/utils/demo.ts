@@ -1,4 +1,4 @@
-import { AlarmRule, Camera, Device, Entry, Plan, Socket } from '@fg2/shared-types/v1';
+import { Camera, Device, Socket } from '@fg2/shared-types/v1';
 // The `hardware-info` report's own vocabulary.
 import { socketListChunk } from '@fg2/shared-types/v1-schemas';
 
@@ -30,7 +30,7 @@ const isSecretHardwareKey = (key: string): boolean => SECRET_HARDWARE_KEYS.inclu
 // The stream URL contains credentials, so demo visitors only learn that a camera
 // exists - the same reduction a share link makes. A readable example URL stands
 // in for it, because the settings form shows this value verbatim.
-export const DEMO_WEBCAM_URL = 'rtsp://demo.terpcontrol.cloud:554/growcam';
+const DEMO_WEBCAM_URL = 'rtsp://demo.terpcontrol.cloud:554/growcam';
 
 // Failures are logged with what the device was configured with: a camera error
 // repeats the stream URL (credentials included), a webhook error its endpoint.
@@ -38,7 +38,7 @@ const URL_PATTERN = /[a-z][a-z0-9+.-]*:\/\/\S+/gi;
 
 const hidden = (value: string): string => value.replace(URL_PATTERN, '[hidden]');
 
-export const demoHardware = (hardware: Record<string, string>): Record<string, string> =>
+const demoHardware = (hardware: Record<string, string>): Record<string, string> =>
   Object.fromEntries(Object.entries(hardware).filter(([key]) => !isSecretHardwareKey(key)));
 
 export const demoDevice = (device: Device): Device => ({
@@ -59,15 +59,4 @@ export const demoCamera = (camera: Camera): Camera => ({
   ip: null,
   url: camera.url ? DEMO_WEBCAM_URL : null,
   state: { ...camera.state, lastError: camera.state.lastError ? hidden(camera.state.lastError) : null },
-});
-
-// Where an alarm reports to is the owner's contact detail, not part of the demo.
-export const demoAlarmRule = (rule: AlarmRule): AlarmRule => ({ ...rule, delivery: { ...rule.delivery, custom: null } });
-
-export const demoPlan = (plan: Plan): Plan => ({ ...plan, notify: { ...plan.notify, email: null } });
-
-export const demoEntry = (entry: Entry): Entry => ({
-  ...entry,
-  text: entry.text ? hidden(entry.text) : null,
-  message: entry.message ? { ...entry.message, params: entry.message.params.map(hidden) } : null,
 });

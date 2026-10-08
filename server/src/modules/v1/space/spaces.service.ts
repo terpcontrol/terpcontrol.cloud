@@ -33,7 +33,7 @@ import { DevicesService } from '../device/devices.service';
  */
 
 /** What a list of spaces narrows by. Neither is a page of its own, so both are query parameters. */
-export interface SpaceFilter {
+interface SpaceFilter {
   roomId?: string;
   /** Archived spaces are their own list: a tombstone is never mixed into the places somebody is growing in. */
   archived?: boolean;
@@ -323,7 +323,7 @@ export class SpacesService {
    * decides by and what this has to agree with exactly - a screen that is told
    * more than the server will allow is worse than one that is told nothing.
    */
-  public async mayIn(ctx: AccessContext, spaces: SpaceDocument[]): Promise<Map<string, AccessNeed>> {
+  private async mayIn(ctx: AccessContext, spaces: SpaceDocument[]): Promise<Map<string, AccessNeed>> {
     const may = new Map<string, AccessNeed>();
     if (spaces.length === 0) return may;
 

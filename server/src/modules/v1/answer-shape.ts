@@ -2,7 +2,8 @@ import { HttpStatus } from '@nestjs/common';
 import { ApiResponse, ApiResponseOptions } from '@nestjs/swagger';
 import { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 import { registry } from '@fg2/shared-types/v1-schemas';
-import { z, ZodType } from 'zod';
+import { ZodType } from 'zod';
+import { jsonSchemaOf } from '@common/zod-validation.pipe';
 import { V1_SCHEMAS } from '../../openapi';
 
 /**
@@ -15,24 +16,12 @@ import { V1_SCHEMAS } from '../../openapi';
  * instead of reading the same object spelled out at twenty routes.
  *
  * A schema the contract does not name - one a route builds out of others - is
- * written into the operation instead. `io: 'output'` is what an answer is: the
- * shape as it leaves, after a schema's own transforms, where a request body is
- * the shape as it arrives. `unrepresentable: 'any'` lets a value with no JSON
- * Schema of its own describe itself through `.meta()`, which leaves `tsType`
- * behind - a hint for the type generator in shared-types, and not a JSON Schema
- * keyword.
+ * written into the operation instead, as the shape it leaves in.
  */
-const notPartOfTheShape = new Set(['$schema', '$id', 'tsType']);
-
-const inlineSchema = (schema: ZodType): SchemaObject =>
-  JSON.parse(JSON.stringify(z.toJSONSchema(schema, { io: 'output', unrepresentable: 'any' })), (key, value) =>
-    notPartOfTheShape.has(key) ? undefined : value,
-  ) as SchemaObject;
-
-export const answerSchema = (schema: ZodType): SchemaObject => {
+const answerSchema = (schema: ZodType): SchemaObject => {
   const name = registry.get(schema)?.id;
 
-  return name && name in V1_SCHEMAS ? ({ $ref: `#/components/schemas/${name}` } as SchemaObject) : inlineSchema(schema);
+  return name && name in V1_SCHEMAS ? ({ $ref: `#/components/schemas/${name}` } as SchemaObject) : jsonSchemaOf(schema, 'output');
 };
 
 /**

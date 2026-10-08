@@ -33,7 +33,7 @@ const target = resolve(process.argv[2] ?? 'fonts');
 const require = createRequire(import.meta.url);
 
 /** A WOFF1 file as the sfnt it wraps: the same tables, uncompressed, behind a TrueType offset table. */
-export const woffToSfnt = woff => {
+const woffToSfnt = woff => {
   if (woff.toString('ascii', 0, 4) !== 'wOFF') throw new Error('not a WOFF1 file');
   const flavor = woff.readUInt32BE(4);
   const count = woff.readUInt16BE(12);

@@ -24,10 +24,10 @@ import { growsVisibleTo } from '../grow/visible-grows';
  * plan or an alarm writes counts, so a grower who only ever paused the
  * controller has kept no diary.
  */
-export const DIARY_WRITTEN_KINDS: EntryKind[] = ['water', 'feed', 'photo', 'note', 'measurement', 'training', 'phase', 'harvest'];
+const DIARY_WRITTEN_KINDS: EntryKind[] = ['water', 'feed', 'photo', 'note', 'measurement', 'training', 'phase', 'harvest'];
 
 /** What the answer is read from. */
-export interface DiaryReads {
+interface DiaryReads {
   grows: Model<GrowDocument>;
   entries: Model<EntryDocument>;
   memberships: Model<MembershipDocument>;

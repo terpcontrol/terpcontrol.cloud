@@ -20,7 +20,7 @@ const CARD_ORDER: readonly Metric[] = [
   ...new Set<Metric>(['temperature', 'humidity', 'co2', 'vpd', ...metric.options.filter(name => name !== 'offline')]),
 ];
 
-export interface DeviceReading {
+interface DeviceReading {
   device: StoredDevice;
   reading: LiveReading;
 }

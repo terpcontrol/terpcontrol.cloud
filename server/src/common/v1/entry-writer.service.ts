@@ -30,7 +30,7 @@ import { deviceEntryValues, deviceMessageFact, isHardwareInfo, parseDeviceMessag
 export const UNDO_WINDOW_SECONDS = 300;
 
 /** What the entry is about. Each is null when the entry is not about one. */
-export interface EntrySubject {
+interface EntrySubject {
   growId?: string | null;
   spaceId?: string | null;
   deviceId?: string | null;
@@ -39,7 +39,7 @@ export interface EntrySubject {
   plantIds?: string[];
 }
 
-export interface EntryDraft extends EntrySubject {
+interface EntryDraft extends EntrySubject {
   source: EntrySource;
   /** Null for everything a device, the plan engine or an alarm wrote. */
   authorId: string | null;
@@ -56,7 +56,7 @@ export interface EntryDraft extends EntrySubject {
 }
 
 /** One line off a device's log topic, with what the protocol module knows about where the device stands. */
-export interface DeviceLogLine extends EntrySubject {
+interface DeviceLogLine extends EntrySubject {
   deviceId: string;
   /** The raw `message` of the log payload: a `message-key:param` line or free text. */
   line: string;

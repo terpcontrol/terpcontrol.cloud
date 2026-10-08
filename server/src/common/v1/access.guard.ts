@@ -43,7 +43,7 @@ export interface AccessRequest extends AuthenticatedRequest {
 const SHARE_HEADER = 'x-share-token';
 const SHARE_PARAMETER = 'share';
 
-export const accessContextOf = (request: AccessRequest): AccessContext => ({
+const accessContextOf = (request: AccessRequest): AccessContext => ({
   userId: request.auth?.userId || null,
   isAdmin: request.auth?.isAdmin === true,
   isDemo: request.auth?.isDemo === true,

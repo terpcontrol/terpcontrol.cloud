@@ -1,4 +1,4 @@
-import { HydratedDocument, Schema } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { LayoutSeen, NotificationChannels, NotificationSettings, TelegramChannel, User, UserPreferences } from '@fg2/shared-types/v1';
 import {
   diaryChoice,
@@ -14,11 +14,11 @@ import {
  * The account as it is stored: the contract's `User`, with its instants as BSON
  * dates, plus the password hash the contract deliberately does not carry.
  */
-export interface StoredTelegramChannel extends Omit<TelegramChannel, 'linkedAt'> {
+interface StoredTelegramChannel extends Omit<TelegramChannel, 'linkedAt'> {
   linkedAt: Date;
 }
 
-export interface StoredNotificationChannels extends Omit<NotificationChannels, 'telegram'> {
+interface StoredNotificationChannels extends Omit<NotificationChannels, 'telegram'> {
   telegram: StoredTelegramChannel | null;
 }
 
@@ -27,7 +27,7 @@ export interface StoredNotificationSettings extends Omit<NotificationSettings, '
   mutedUntil: Date | null;
 }
 
-export interface StoredUserPreferences extends Omit<UserPreferences, 'notifyLaterUntil'> {
+interface StoredUserPreferences extends Omit<UserPreferences, 'notifyLaterUntil'> {
   notifyLaterUntil?: Date | null;
 }
 
@@ -38,8 +38,6 @@ export interface StoredUser extends Omit<User, 'createdAt' | 'deletionStartedAt'
   notifications: StoredNotificationSettings;
   passwordHash: string;
 }
-
-export type UserDocument = HydratedDocument<StoredUser>;
 
 const telegramChannelSchema = new Schema<StoredTelegramChannel>(
   {

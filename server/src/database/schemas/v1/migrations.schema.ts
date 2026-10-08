@@ -7,7 +7,7 @@ import { Migration } from '@fg2/shared-types/v1';
  * keeps whatever that migration counted, rows moved and rows rejected, and is not
  * typed: every migration counts something else.
  */
-export type MigrationDocument = Omit<Migration, 'createdAt' | 'appliedAt'> & {
+type MigrationDocument = Omit<Migration, 'createdAt' | 'appliedAt'> & {
   createdAt: Date;
   appliedAt: Date;
   rejects: MigrationRejectDocument[];

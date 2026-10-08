@@ -12,7 +12,7 @@ import { firmwareChannel } from '@fg2/shared-types/v1-schemas';
  */
 
 /** What the device signs in to the broker with. */
-export interface StoredDeviceMqtt {
+interface StoredDeviceMqtt {
   username: string;
   passwordHash: string;
 }

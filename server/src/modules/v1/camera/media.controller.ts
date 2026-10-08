@@ -3,7 +3,7 @@ import { ApiBody, ApiConsumes, ApiNoContentResponse, ApiOperation, ApiResponse, 
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { Media, MediaUpload } from '@fg2/shared-types/v1';
-import { media as mediaShape, mediaUpload } from '@fg2/shared-types/v1-schemas';
+import { media as mediaShape, mediaUpload, uploadMediaKind } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard, OptionalSessionGuard } from '@common/auth/auth.guard';
 import { AuthenticatedRequest } from '@common/auth/token.service';
 import { AccessGuard, AccessRequest, Caller, Requires } from '@common/v1/access.guard';
@@ -12,6 +12,7 @@ import { AccessContext, Grant } from '@common/v1/access.types';
 import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange, pictureOutsideRange } from '@common/v1/range';
 import { V1Query } from '@common/v1/validation';
+import { problemErrorsOf } from '@common/zod-validation.pipe';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { MediaDeliveryService } from './media-delivery.service';
 import { MediaPresentationService, RANGE_REFUSAL, parseDimension, pictureSizeQuery } from './media-presentation.service';
@@ -65,7 +66,7 @@ export class MediaController {
       required: ['file', 'kind'],
       properties: {
         file: { type: 'string', format: 'binary', description: 'The picture, in whatever format the phone took it.' },
-        kind: { type: 'string', enum: ['photo', 'avatar'] },
+        kind: { type: 'string', enum: [...uploadMediaKind.options] },
         growId: { type: 'string' },
         spaceId: { type: 'string' },
         capturedAt: { type: 'string', format: 'date-time', description: 'When it was taken. Defaults to now.' },
@@ -243,11 +244,7 @@ const parseUpload = (body: Record<string, unknown>): MediaUpload => {
   const parsed = mediaUpload.safeParse(fields);
 
   if (!parsed.success) {
-    throw badRequest(
-      'validation_failed',
-      'The fields beside the picture do not match what this route accepts.',
-      parsed.error.issues.map(issue => ({ field: issue.path.join('.'), code: issue.code, detail: issue.message })),
-    );
+    throw badRequest('validation_failed', 'The fields beside the picture do not match what this route accepts.', problemErrorsOf(parsed.error));
   }
 
   return parsed.data;

@@ -63,13 +63,6 @@ export const outputMetricOfField = (field: string): OutputMetric | null => FIELD
 /** The metrics with points behind them: what a query may ask Influx for. */
 export const STORED_METRICS: readonly Metric[] = metric.options.filter(name => METRIC_FIELD[name] !== null);
 
-/**
- * The rest, which no query can ask for: `vpd` and `ppfd` are computed per device
- * from stored metrics and the device's own factors, `offline` from its
- * `state.lastSeenAt`.
- */
-export const DERIVED_METRICS: readonly Metric[] = metric.options.filter(name => METRIC_FIELD[name] === null);
-
 /** Every field a series query selects, by the name it has in Influx. */
 export const STORED_FIELDS: readonly string[] = STORED_METRICS.map(name => METRIC_FIELD[name] as string);
 

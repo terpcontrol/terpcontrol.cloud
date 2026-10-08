@@ -53,7 +53,7 @@ export class SpaceLiveService {
   }
 
   /** The hour after a change, per device still in one; none where the record cannot be read here. */
-  public settlingOf(devices: StoredDevice[], now: Date = new Date()): ReturnType<typeof settlingsOf> {
+  private settlingOf(devices: StoredDevice[], now: Date = new Date()): ReturnType<typeof settlingsOf> {
     return this.targetRecord ? settlingsOf(this.targetRecord, devices, now) : Promise.resolve(new Map());
   }
 
