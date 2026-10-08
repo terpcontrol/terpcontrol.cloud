@@ -7,11 +7,9 @@ import type { LightSchedule } from './targets-draft';
  * A light schedule in words, the same wherever one is named: the targets
  * page, the cockpit, a preset applied at setup or with a phase, a plan's step.
  *
- * Every place that sets light hours used to say only the hours - "Licht 18
- * Std" - while the hour the light comes on stayed the device's, so somebody
- * putting a new fridge on Veg was never told the lamp would now burn until two
- * in the morning. The window is said whole: when it comes on, when it goes
- * off, how long.
+ * The window is said whole - when it comes on, when it goes off, how long -
+ * because light hours set from the hour the device already has can burn until
+ * two in the morning, and the hours alone would not say so.
  */
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;

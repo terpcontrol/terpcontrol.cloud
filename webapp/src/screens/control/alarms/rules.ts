@@ -162,17 +162,6 @@ export const missingSensor = (watch: AlarmWatch, device: Device): Sensor | null 
  * and VPD follows from those two, so the climate of a place with nothing in it
  * but a fan is measured by that fan.
  *
- * It used to be decided by a two-name list, "controller and fridge", on the
- * grounds that a plug, a fan and a lamp report nothing but what they are
- * driving. They do: the one fan in Place 2 was drawing that place's whole
- * climate on Home and on the space overview - 22.5 °C, 42 %, 1.59 kPa, live -
- * while the sheet for writing a rule on it offered no reading at all. Worse,
- * opening a temperature rule that already existed on the same device did offer
- * one, because the sheet adds a rule's own metric back; so the one climate in
- * that tent could be alarmed on only by somebody who already had an alarm on
- * it, and the server, the engine and every card handled the rule perfectly once
- * it existed.
- *
  * The optional sensors are still asked about rather than assumed, because
  * whether one is fitted is the device's own answer and not its type's.
  */
@@ -193,15 +182,8 @@ export const readingsOf = (device: Device): Metric[] =>
 /**
  * What an output's series actually carries, from `docs/device-protocol.md`
  * section 5.4, which lists it output by output because the outputs disagree
- * with one another.
- *
- * The screens used to sort them into "the light" and "everything else": the
- * sheet told anybody writing a rule on a fan that its level was a fraction of
- * the time it runs, the card printed the saved bound with no unit at all, and
- * the inbox printed the reading beside it as a percent. A fan runs at 100, so
- * somebody who typed the 0.5 the sheet asked for got a rule that was out of
- * band on every sample for ever. One answer per output, taken from what that
- * output sends.
+ * with one another: a fan runs at 100 where a heater runs at 1, so one answer
+ * per output, taken from what that output sends.
  */
 type OutputScale = 'percent' | 'fraction' | 'switch' | 'ticks';
 

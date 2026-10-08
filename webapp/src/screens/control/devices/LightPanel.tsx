@@ -10,10 +10,9 @@ import { TargetRow } from './TargetRow';
 
 /**
  * A LIGHT: when it comes on and goes off, on the account's wall clock, and how
- * bright it gets in between. That is the whole of a lamp module's job, and
- * until now its schedule could only be set on the device's own menu, in UTC.
- * How long it fades in and out and the temperature it protects itself from
- * stand under Erweitert in the device's panel.
+ * bright it gets in between. That is the whole of a lamp module's job; how
+ * long it fades in and out and the temperature it protects itself from stand
+ * under Erweitert in the device's panel.
  */
 
 const FIELDS = ['lightsOn', 'lightsOff', 'brightness'];

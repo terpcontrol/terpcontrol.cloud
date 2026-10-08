@@ -102,8 +102,8 @@ function PlanPage({ spaceId, here, first = false }: { spaceId: string; here: Dev
           so it is asked here per device and handed down: a tent holding a
           controller and a lamp draws a plan for the one and says so about the
           other. It is handed down in all three of its states, because the
-          controller whose document has not arrived is neither of the two the
-          panel used to draw and is the one a step must not be written for. */}
+          controller whose document has not arrived is the one a step must not
+          be written for. */}
       {here.map(device => (
         <PlanPanel key={device.id} device={device} mayManage={mayManage} landing={climateLanding(device)} />
       ))}

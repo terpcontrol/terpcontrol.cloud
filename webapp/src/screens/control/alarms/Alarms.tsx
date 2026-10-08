@@ -339,14 +339,10 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
 }
 
 /**
- * That this device is being worked on, and until when.
- *
- * Nothing in the app read `maintenanceUntil`, so the state that decides what
- * every rule below will do was drawn nowhere: the switches stood armed, the
- * triggered dots stood lit, and the engine was refusing every turn on the
- * device. A rule silenced one at a time says so on its own card, two lines
- * down, which is what makes the silence of the whole device read as an
- * oversight rather than a decision.
+ * That this device is being worked on, and until when: the state that decides
+ * what every rule below will do, while their switches still stand armed. A rule
+ * silenced one at a time says so on its own card, so the silence of the whole
+ * device is said too, or it would read as an oversight rather than a decision.
  *
  * Both halves are named because they end at different times. The hardware is
  * let go when the window runs out; the alarms are held for the settling after

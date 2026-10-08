@@ -58,8 +58,7 @@ import styles from './Control.module.css';
  * the settings it has never sent, and a step written for it would not be a
  * climate added to its tuning but a document put in place of it, with the work
  * mode, the light schedule, the dehumidifier's timings and the ramps back at
- * factory values. This panel used to ask a weaker question than the targets page
- * and offered that tent all six figures without a word.
+ * factory values.
  *
  * A plan that is already on either kind of device is still drawn in full,
  * because a plan nobody can see is a plan nobody can stop - and emptying a
@@ -77,8 +76,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   const [editing, setEditing] = useState<PlanDraft | null>(null);
   const [keeping, setKeeping] = useState(false);
   const [picking, setPicking] = useState(false);
-  // Starting from a template is offered only where there is one to start
-  // from: the button used to open a sheet that said there were none.
+  // Starting from a template is offered only where there is one to start from.
   const templates = usePlanTemplates();
   const ready = offersReadyPlans(device);
   const anyTemplate = templates.data?.items.length !== 0 || ready;
@@ -323,10 +321,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           no `lastAppliedAt` means the step is owed rather than lost: the engine
           clears it to start a plan, and clears it again on every edit purely so
           that the step is re-sent within the tick instead of at the next hour -
-          which the editor has just promised in so many words. Read as "never
-          sent", that line called the editor a liar seconds after it spoke, on a
-          step whose settings were sitting in the controller's document the
-          whole time.
+          which the editor has just promised in so many words.
 
           A plan at rest is the other branch, and nothing recorded tells its two
           cases apart: a plan that ran and was stopped and a plan saved a moment

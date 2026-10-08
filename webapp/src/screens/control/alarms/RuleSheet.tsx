@@ -143,11 +143,9 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
       <div className={styles.sheet}>
         {/* The cloud's own offline rule is titled from the kind of hardware it
             watches, in the language the page is being read in, and never from
-            the name it carries - so a name typed here moved nothing the grower
-            could see. It was not inert either: the server titles the message it
-            sends with it, so the one place the typed name surfaced was a push
-            that every screen then contradicted. The field goes, the way the
-            watch and the bounds already do for this rule. */}
+            the name it carries: a name typed here would reach only the push the
+            server titles with it, which every screen then contradicts. The field
+            goes, the way the watch and the bounds already do for this rule. */}
         {rule?.origin === 'always' ? null : (
           <Block label={t('alarms.sheet.name')}>
             <input

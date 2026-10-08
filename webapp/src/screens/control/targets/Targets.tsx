@@ -84,10 +84,8 @@ export function Targets({
     device.configuration && statesTargets(device.configuration) ? [{ device, configuration: device.configuration }] : [],
   );
   // Which of those two it is matters, because only one of them is anybody's to
-  // do something about: a controller reporting 25.1 °C a tab away, whose
-  // document has simply not arrived yet, was told that nothing standing here
-  // states a climate and offered a second device it has no use for. The
-  // Devices tab of the same tent has always said this correctly.
+  // do something about: a controller whose document has simply not arrived yet
+  // is waited for, not told that nothing standing here states a climate.
   const waiting = devices.filter(awaitingClimate);
   // The panels whose figures stand somewhere nobody has saved, so that leaving the page asks first.
   const [unsaved, setUnsaved] = useState<ReadonlyMap<string, Unsaved>>(new Map());
