@@ -227,10 +227,13 @@ export const oneOf = (value: string | undefined, allowed: readonly string[]): st
   return text !== null && allowed.includes(text) ? text : null;
 };
 
-/** Bytes kept in the document itself: a Binary as the driver reads it, or a Buffer. */
+/**
+ * Bytes kept in the document itself: a Binary as the driver reads it, or a
+ * Buffer. A view rather than a copy, so counting them costs nothing.
+ */
 export const bytesOf = (value: unknown): Buffer | null => {
   if (Buffer.isBuffer(value)) return value;
-  return value instanceof mongo.Binary ? Buffer.from(value.buffer) : null;
+  return value instanceof mongo.Binary ? Buffer.from(value.buffer.buffer, value.buffer.byteOffset, value.buffer.byteLength) : null;
 };
 
 /**
