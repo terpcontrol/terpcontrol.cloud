@@ -1,7 +1,8 @@
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useQueries } from '@tanstack/react-query';
 import { isFirstLoad, useRead } from './read';
 import type { AlarmRule, AlarmRuleCreate, AlarmRulePage, AlarmRuleUpdate, AlarmSilence } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { invalidate, useWriteSettled } from './write';
 
 /**
  * The rules that watch a device, and the five things done to one.
@@ -56,14 +57,8 @@ export const useAlarmRulesOf = (deviceIds: string[], { refetchIntervalMs = RULES
     },
   });
 
-const useRuleMutation = <Body, Result>(deviceId: string, run: (body: Body) => Promise<Result>) => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: run,
-    onSettled: () => client.invalidateQueries({ queryKey: rulesKey(deviceId) }),
-  });
-};
+const useRuleMutation = <Body, Result>(deviceId: string, run: (body: Body) => Promise<Result>) =>
+  useWriteSettled(run, client => invalidate(client, rulesKey(deviceId)));
 
 export const useCreateAlarmRule = (deviceId: string) =>
   useRuleMutation(deviceId, (body: AlarmRuleCreate) => api.post<AlarmRule>(`/devices/${deviceId}/alarm-rules`, body));

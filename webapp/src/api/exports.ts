@@ -1,8 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { ExportAccepted, Media } from '@fg2/shared-types/v1';
 import { api, apiBlob } from './client';
 import { decimalFigure } from '@/ui/figures';
+import { useWrite } from './write';
 
 /**
  * Taking a copy of a whole grow away.
@@ -18,16 +19,13 @@ import { decimalFigure } from '@/ui/figures';
 /** How often a job that is still being built is asked about. The same beat a film's render is watched at. */
 const EXPORT_POLL_MS = 5_000;
 
-export const useAskExport = (growId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => api.get<ExportAccepted>(`/grows/${growId}/export`),
+export const useAskExport = (growId: string) =>
+  useWrite(
+    () => api.get<ExportAccepted>(`/grows/${growId}/export`),
     // The answer is the row itself, so the poll starts from what is already
     // known rather than asking again for what was just handed over.
-    onSuccess: accepted => queryClient.setQueryData(['media', accepted.media.id], accepted.media),
-  });
-};
+    (client, accepted) => client.setQueryData(['media', accepted.media.id], accepted.media),
+  );
 
 /**
  * Which export of the whole account is going, or has gone, in this session.
@@ -67,17 +65,14 @@ export const useAskedExport = (): string | null =>
  * minute, which the card beside this button says and the zip's own README says
  * again; both used to say "every reading", which was a twelfth of the truth.
  */
-export const useAskAccountExport = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => api.get<ExportAccepted>('/me/export'),
-    onSuccess: accepted => {
-      queryClient.setQueryData(['media', accepted.media.id], accepted.media);
-      queryClient.setQueryData(ASKED_KEY, accepted.media.id);
+export const useAskAccountExport = () =>
+  useWrite(
+    () => api.get<ExportAccepted>('/me/export'),
+    (client, accepted) => {
+      client.setQueryData(['media', accepted.media.id], accepted.media);
+      client.setQueryData(ASKED_KEY, accepted.media.id);
     },
-  });
-};
+  );
 
 /** One export's row, asked about while the zip is still being written and left alone once it is not. */
 export const useExport = (mediaId: string | null) =>

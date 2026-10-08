@@ -4,11 +4,10 @@ import { useNavigate } from 'react-router';
 import type { Camera, CameraTransport, CameraUpdate, Device, RtspCameraCreate, Space, SpaceKind } from '@fg2/shared-types/v1';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
 import { useMe } from '@/api/account';
-import { gaveUp, useAmendCamera, useCaptureOnce, useCreateCamera, useDropCamera } from '@/api/cameras';
+import { gaveUp, useCaptureOnce, useCreateCamera, useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
-import { useSpaces } from '@/api/spaces';
+import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { deviceName } from '@/screens/devices/naming';
-import { useCreateSpace } from '@/screens/grow/new/create-space';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { Help, Term } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -58,9 +57,9 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   const me = useMe();
   const spaces = useSpaces();
   const create = useCreateCamera();
-  const amend = useAmendCamera();
+  const amend = useUpdateCamera();
   const capture = useCaptureOnce();
-  const drop = useDropCamera();
+  const drop = useRemoveCamera();
 
   const [url, setUrl] = useState('');
   const [username, setUsername] = useState('');

@@ -1,7 +1,8 @@
-import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { ChartView, ChartViewCreate, ChartViewPage, ChartViewUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { invalidate, useWrite } from './write';
 
 /**
  * The charts somebody saved to come back to.
@@ -22,31 +23,10 @@ export const useChartViews = () =>
     queryFn: ({ signal }) => api.get<ChartViewPage>('/chart-views', { limit: 100 }, signal),
   });
 
-const viewsChanged = (client: QueryClient): void => void client.invalidateQueries({ queryKey: chartViewsKey });
+const viewsChanged = (client: QueryClient): void => void invalidate(client, chartViewsKey);
 
-export const useSaveChartView = () => {
-  const client = useQueryClient();
+export const useSaveChartView = () => useWrite((body: ChartViewCreate) => api.post<ChartView>('/chart-views', body), viewsChanged);
 
-  return useMutation({
-    mutationFn: (body: ChartViewCreate) => api.post<ChartView>('/chart-views', body),
-    onSuccess: () => viewsChanged(client),
-  });
-};
+export const useRenameChartView = (id: string) => useWrite((body: ChartViewUpdate) => api.patch<ChartView>(`/chart-views/${id}`, body), viewsChanged);
 
-export const useRenameChartView = (id: string) => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: ChartViewUpdate) => api.patch<ChartView>(`/chart-views/${id}`, body),
-    onSuccess: () => viewsChanged(client),
-  });
-};
-
-export const useDeleteChartView = (id: string) => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => api.delete(`/chart-views/${id}`),
-    onSuccess: () => viewsChanged(client),
-  });
-};
+export const useDeleteChartView = (id: string) => useWrite(() => api.delete(`/chart-views/${id}`), viewsChanged);

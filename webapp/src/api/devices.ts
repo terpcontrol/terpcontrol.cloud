@@ -1,4 +1,4 @@
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { hasFailed, isFirstLoad, useRead } from './read';
 import type {
   Co2FanCoupling,
@@ -20,6 +20,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { api, apiRequest } from './client';
+import { invalidate, useWrite, useWriteSettled } from './write';
 
 /**
  * The first read, and the pattern for every one after it: a key, a route, and a
@@ -159,11 +160,9 @@ const newestInstant = (live: DeviceLive | undefined): string | null =>
  * it parses at every connect. What comes back is what was stored and sent, never
  * what the device is now running - it sends no acknowledgement at all.
  */
-export const useSaveConfiguration = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
+export const useSaveConfiguration = () =>
+  useWriteSettled(
+    ({
       deviceId,
       configuration,
       drying,
@@ -177,9 +176,8 @@ export const useSaveConfiguration = () => {
       /** What germination does about the humidity, where the page shows it; left out it stands as it was. */
       germinationChoices?: Partial<GerminationChoices>;
     }) => api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, { configuration, drying, germination, germinationChoices }),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['devices'] }),
-  });
-};
+    client => invalidate(client, ['devices']),
+  );
 
 /**
  * Settings beyond the targets, by the names `CONFIGURATION_FIELDS` gives them
@@ -192,20 +190,19 @@ export const useSaveConfiguration = () => {
  * one that is off stays off), so the list is given the answer rather than the
  * request, and the place reads that judge the tent are read again.
  */
-export const useConfigure = (deviceId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (set: DeviceConfigurationPatch['set']) => api.patch<Device>(`/devices/${deviceId}/configuration`, { set }),
-    onSuccess: device => {
-      queryClient.setQueryData<DevicePage>(['devices'], page =>
+export const useConfigure = (deviceId: string) =>
+  useWrite(
+    (set: DeviceConfigurationPatch['set']) => api.patch<Device>(`/devices/${deviceId}/configuration`, { set }),
+    (client, device) => {
+      client.setQueryData<DevicePage>(['devices'], page =>
         page ? { ...page, items: page.items.map(one => (one.id === device.id ? device : one)) } : page,
       );
-      queryClient.setQueryData(['devices', device.id], device);
-      for (const key of ['devices', 'spaces', 'home']) void queryClient.invalidateQueries({ queryKey: [key] });
+      client.setQueryData(['devices', device.id], device);
+      void invalidate(client, ['devices'], ['spaces'], ['home']);
     },
-  });
-};
+  );
+
+const deviceMoved = (client: QueryClient): void => void invalidate(client, ['devices'], ['spaces'], ['home'], ['cameras']);
 
 /**
  * What a person decides about a device: what it is called, and where it stands.
@@ -223,17 +220,14 @@ export const useConfigure = (deviceId: string) => {
  * claim flow reads one device by id and would otherwise go on drawing the place
  * it has just been moved out of.
  */
-export const useUpdateDevice = (deviceId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: DeviceUpdate) => api.patch<Device>(`/devices/${deviceId}`, body),
-    onSuccess: device => {
-      queryClient.setQueryData(['devices', device.id], device);
-      for (const key of ['devices', 'spaces', 'home', 'cameras']) void queryClient.invalidateQueries({ queryKey: [key] });
+export const useUpdateDevice = (deviceId: string) =>
+  useWrite(
+    (body: DeviceUpdate) => api.patch<Device>(`/devices/${deviceId}`, body),
+    (client, device) => {
+      client.setQueryData(['devices', device.id], device);
+      deviceMoved(client);
     },
-  });
-};
+  );
 
 /**
  * Giving a device up: it leaves this account and can be claimed by whoever
@@ -248,25 +242,21 @@ export const useReleaseDevice = (deviceId: string) => {
   const queryClient = useQueryClient();
 
   const release = useMutation({ mutationFn: () => api.delete(`/devices/${deviceId}/claim`) });
-  const forget = () => {
-    for (const key of ['devices', 'spaces', 'home', 'cameras']) void queryClient.invalidateQueries({ queryKey: [key] });
-  };
 
-  return { release, forget };
+  return { release, forget: () => deviceMoved(queryClient) };
 };
 
 /**
  * The AIR fan a stand-alone smart socket slows down while it doses CO2, or
  * none. Two documents change, so both devices are read again.
  */
-export const useCo2Fan = (plugId: string) => {
-  const queryClient = useQueryClient();
+export const useCo2Fan = (plugId: string) =>
+  useWrite(
+    (coupling: Co2FanCoupling) => api.put<Device>(`/devices/${plugId}/co2-fan`, coupling),
+    client => void invalidate(client, ['devices']),
+  );
 
-  return useMutation({
-    mutationFn: (coupling: Co2FanCoupling) => api.put<Device>(`/devices/${plugId}/co2-fan`, coupling),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['devices'] }),
-  });
-};
+const tableChanged = (client: QueryClient, { deviceId }: { deviceId: string }) => invalidate(client, socketsKey(deviceId));
 
 /**
  * Pairing a socket by its address, changing one's address, role or timer, and
@@ -275,25 +265,19 @@ export const useCo2Fan = (plugId: string) => {
  *
  * `slot` null pairs a socket the table does not hold yet.
  */
-export const useSetSocket = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ deviceId, slot, socket }: { deviceId: string; slot: number | null; socket: SocketUpdate }) =>
+export const useSetSocket = () =>
+  useWriteSettled(
+    ({ deviceId, slot, socket }: { deviceId: string; slot: number | null; socket: SocketUpdate }) =>
       api.put<DeviceCommandResult>(`/devices/${deviceId}/sockets/${slot ?? 'new'}`, socket),
-    onSettled: (_result, _error, request) => queryClient.invalidateQueries({ queryKey: socketsKey(request.deviceId) }),
-  });
-};
+    tableChanged,
+  );
 
-export const useRemoveSocket = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ deviceId, slot }: { deviceId: string; slot: number }) =>
+export const useRemoveSocket = () =>
+  useWriteSettled(
+    ({ deviceId, slot }: { deviceId: string; slot: number }) =>
       apiRequest<DeviceCommandResult>(`/devices/${deviceId}/sockets/${slot}`, { method: 'DELETE' }),
-    onSettled: (_result, _error, request) => queryClient.invalidateQueries({ queryKey: socketsKey(request.deviceId) }),
-  });
-};
+    tableChanged,
+  );
 
 /**
  * The builds this device can be put on, which is how the id it reports gets a
@@ -325,26 +309,20 @@ export interface OverrideRequest extends SocketOverrideUpdate {
   target: { kind: 'socket'; slot: number } | { kind: 'output'; output: 'light' };
 }
 
-export const useSetOverride = () => {
-  const queryClient = useQueryClient();
+export const useSetOverride = () =>
+  useWriteSettled(({ deviceId, target, state, forSeconds }: OverrideRequest): Promise<DeviceCommandResult> => {
+    if (target.kind === 'output') {
+      const command: DeviceCommand = { kind: 'socket_override', subject: { type: 'output', id: target.output }, state, forSeconds };
+      return api.post<DeviceCommandResult>(`/devices/${deviceId}/commands`, command);
+    }
 
-  return useMutation({
-    mutationFn: ({ deviceId, target, state, forSeconds }: OverrideRequest): Promise<DeviceCommandResult> => {
-      if (target.kind === 'output') {
-        const command: DeviceCommand = { kind: 'socket_override', subject: { type: 'output', id: target.output }, state, forSeconds };
-        return api.post<DeviceCommandResult>(`/devices/${deviceId}/commands`, command);
-      }
-
-      const route = `/devices/${deviceId}/sockets/${target.slot}/override`;
-      // Handing a socket back is the override's deletion, and answers the same
-      // receipt every other command does.
-      return state === 'auto'
-        ? apiRequest<DeviceCommandResult>(route, { method: 'DELETE' })
-        : api.put<DeviceCommandResult>(route, { state, forSeconds });
-    },
-    onSettled: (_result, _error, request) => queryClient.invalidateQueries({ queryKey: socketsKey(request.deviceId) }),
-  });
-};
+    const route = `/devices/${deviceId}/sockets/${target.slot}/override`;
+    // Handing a socket back is the override's deletion, and answers the same
+    // receipt every other command does.
+    return state === 'auto'
+      ? apiRequest<DeviceCommandResult>(route, { method: 'DELETE' })
+      : api.put<DeviceCommandResult>(route, { state, forSeconds });
+  }, tableChanged);
 
 /** Switching a socket on for a moment, which is how a person finds out which plug in the tent it is. */
 export const useTestSocket = () =>

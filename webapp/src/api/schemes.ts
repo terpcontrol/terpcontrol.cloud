@@ -1,7 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { GrowScheme, GrowSchemeOrigin, GrowType, Scheme, SchemeCreate, SchemePage, SchemeUpdate, SchemeWeek } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { invalidate, useWrite } from './write';
 
 /**
  * The feeding schemes the app ships: a manufacturer's published chart, read
@@ -175,14 +176,9 @@ export const useOwnSchemes = (enabled = true) =>
     enabled,
   });
 
-export const useCreateScheme = () => {
-  const queryClient = useQueryClient();
+const shelfChanged = (client: QueryClient) => invalidate(client, ownSchemesKey);
 
-  return useMutation({
-    mutationFn: (body: SchemeCreate) => api.post<Scheme>('/schemes', body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ownSchemesKey }),
-  });
-};
+export const useCreateScheme = () => useWrite((body: SchemeCreate) => api.post<Scheme>('/schemes', body), shelfChanged);
 
 /**
  * Changing or discarding one off the shelf. Neither reaches a grow: a grow
@@ -190,23 +186,10 @@ export const useCreateScheme = () => {
  * and deleting from it cheap - the seasons already fed by a scheme keep every
  * figure they were started with.
  */
-export const useUpdateScheme = () => {
-  const queryClient = useQueryClient();
+export const useUpdateScheme = () =>
+  useWrite(({ id, body }: { id: string; body: SchemeUpdate }) => api.patch<Scheme>(`/schemes/${id}`, body), shelfChanged);
 
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: SchemeUpdate }) => api.patch<Scheme>(`/schemes/${id}`, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ownSchemesKey }),
-  });
-};
-
-export const useDeleteScheme = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => api.delete(`/schemes/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ownSchemesKey }),
-  });
-};
+export const useDeleteScheme = () => useWrite((id: string) => api.delete(`/schemes/${id}`), shelfChanged);
 
 /**
  * What a grow's scheme is called: the asset's name in the manufacturer's own

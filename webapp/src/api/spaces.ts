@@ -1,8 +1,9 @@
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useQueries } from '@tanstack/react-query';
 import { useRead } from './read';
-import type { PresetPrompt, Space, SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
+import type { PresetPrompt, Space, SpaceCreate, SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { readEvery } from './pages';
+import { invalidate, useWrite } from './write';
 
 /**
  * The tent page reads its overview once a minute and its live values every
@@ -92,17 +93,11 @@ export const useSpaceLive = (spaceId: string, enabled: boolean) =>
  * a memory this session keeps, because a question that comes back on the next
  * phone is not one that was answered.
  */
-export const useSetPresetPrompt = (spaceId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (presetPrompt: PresetPrompt) => api.patch<Space>(`/spaces/${spaceId}`, { presetPrompt }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['spaces'] });
-      void queryClient.invalidateQueries({ queryKey: ['space', spaceId] });
-    },
-  });
-};
+export const useSetPresetPrompt = (spaceId: string) =>
+  useWrite(
+    (presetPrompt: PresetPrompt) => api.patch<Space>(`/spaces/${spaceId}`, { presetPrompt }),
+    client => void invalidate(client, ['spaces'], ['space', spaceId]),
+  );
 
 /**
  * Which room a place stands in, or none.
@@ -117,15 +112,20 @@ export const useSetPresetPrompt = (spaceId: string) => {
  * and a membership held on the room reaches into every tent grouped under it,
  * so the tent's own member list is stale the moment it moves.
  */
-export const useSetRoom = (spaceId: string) => {
-  const queryClient = useQueryClient();
+export const useSetRoom = (spaceId: string) =>
+  useWrite(
+    (roomId: string | null) => api.patch<Space>(`/spaces/${spaceId}`, { roomId }),
+    client => invalidate(client, ['spaces'], ['space', spaceId], ['home']),
+  );
 
-  return useMutation({
-    mutationFn: (roomId: string | null) => api.patch<Space>(`/spaces/${spaceId}`, { roomId }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['spaces'] });
-      await queryClient.invalidateQueries({ queryKey: ['space', spaceId] });
-      await queryClient.invalidateQueries({ queryKey: ['home'] });
-    },
-  });
-};
+/**
+ * A new place, written the moment it is named: a tent invented while a grow is
+ * started, a room on the Members tab, or the place an RTSP camera looks at. What
+ * a sheet then offers as somewhere to put something is a real space with a real
+ * id, and not a promise the next write would have to keep.
+ */
+export const useCreateSpace = () =>
+  useWrite(
+    (body: SpaceCreate) => api.post<Space>('/spaces', body),
+    client => void invalidate(client, ['spaces'], ['home']),
+  );

@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, type QueryClient } from '@tanstack/react-query';
 import { useRead, useReadPages } from './read';
 import type {
   AdminStats,
@@ -18,6 +18,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas/pages.js';
 import { api } from './client';
+import { invalidate, useWriteSettled } from './write';
 
 /**
  * The reads and writes behind `/admin`, which are the only routes of the API
@@ -156,47 +157,26 @@ export const useFirmwares = (classId: string | null) =>
  * this single write. The fleet answer is asked for again afterwards, because
  * every figure the rollout cards show is derived from it.
  */
-export const useUpdateDeviceClass = () => {
-  const queryClient = useQueryClient();
+export const useUpdateDeviceClass = () =>
+  useWriteSettled(
+    ({ classId, body }: { classId: string; body: DeviceClassUpdate }) => api.patch(`/admin/device-classes/${classId}`, body),
+    client => void invalidate(client, deviceClassesKey, fleetKey),
+  );
 
-  return useMutation({
-    mutationFn: ({ classId, body }: { classId: string; body: DeviceClassUpdate }) => api.patch(`/admin/device-classes/${classId}`, body),
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: deviceClassesKey });
-      void queryClient.invalidateQueries({ queryKey: fleetKey });
-    },
-  });
-};
+const firmwaresChanged = (client: QueryClient): void => void invalidate(client, ['admin', 'firmwares']);
 
 /** Registering a build: the row a binary is then uploaded against, and that a channel can be pointed at. */
-export const useCreateFirmware = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: FirmwareCreate) => api.post<Firmware>('/admin/firmwares', body),
-    onSettled: () => void queryClient.invalidateQueries({ queryKey: ['admin', 'firmwares'] }),
-  });
-};
+export const useCreateFirmware = () => useWriteSettled((body: FirmwareCreate) => api.post<Firmware>('/admin/firmwares', body), firmwaresChanged);
 
 /** Relabelling one. A build's version is the uuid its container stamped it with; the name is how a person tells it apart. */
-export const useUpdateFirmware = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ firmwareId, body }: { firmwareId: string; body: FirmwareUpdate }) => api.patch<Firmware>(`/admin/firmwares/${firmwareId}`, body),
-    onSettled: () => void queryClient.invalidateQueries({ queryKey: ['admin', 'firmwares'] }),
-  });
-};
+export const useUpdateFirmware = () =>
+  useWriteSettled(
+    ({ firmwareId, body }: { firmwareId: string; body: FirmwareUpdate }) => api.patch<Firmware>(`/admin/firmwares/${firmwareId}`, body),
+    firmwaresChanged,
+  );
 
 /** Deleting a build and its files. The server refuses while a channel still points at it, and the screen says so first. */
-export const useDeleteFirmware = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (firmwareId: string) => api.delete(`/admin/firmwares/${firmwareId}`),
-    onSettled: () => void queryClient.invalidateQueries({ queryKey: ['admin', 'firmwares'] }),
-  });
-};
+export const useDeleteFirmware = () => useWriteSettled((firmwareId: string) => api.delete(`/admin/firmwares/${firmwareId}`), firmwaresChanged);
 
 /**
  * One file of a build, by the name the device asks for it under.
@@ -222,39 +202,22 @@ export const base64Of = (bytes: ArrayBuffer): string => {
   return btoa(binary);
 };
 
-/** A new account, active at once and with no activation code: whoever made it can hand the password over. */
-export const useCreateUser = () => {
-  const queryClient = useQueryClient();
+const usersChanged = (client: QueryClient): void => void invalidate(client, adminUsersKey);
 
-  return useMutation({
-    mutationFn: (body: AdminUserCreate) => api.post<User>('/admin/users', body),
-    onSettled: () => void queryClient.invalidateQueries({ queryKey: adminUsersKey }),
-  });
-};
+/** A new account, active at once and with no activation code: whoever made it can hand the password over. */
+export const useCreateUser = () => useWriteSettled((body: AdminUserCreate) => api.post<User>('/admin/users', body), usersChanged);
 
 /** Changing one, a reset password among the fields, which is what an administrator does for somebody who cannot receive the mail. */
-export const useUpdateUser = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ userId, body }: { userId: string; body: AdminUserUpdate }) => api.patch<User>(`/admin/users/${userId}`, body),
-    onSettled: () => void queryClient.invalidateQueries({ queryKey: adminUsersKey }),
-  });
-};
+export const useUpdateUser = () =>
+  useWriteSettled(({ userId, body }: { userId: string; body: AdminUserUpdate }) => api.patch<User>(`/admin/users/${userId}`, body), usersChanged);
 
 /**
  * Deleting one. It is the same deletion an account starts for itself: the rows
  * go, and the hardware it had claimed becomes claimable again. The account this
  * install is configured with is refused by the server, which says so.
  */
-export const useDeleteUser = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (userId: string) => api.delete(`/admin/users/${userId}`),
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: adminUsersKey });
-      void queryClient.invalidateQueries({ queryKey: adminDevicesKey });
-    },
-  });
-};
+export const useDeleteUser = () =>
+  useWriteSettled(
+    (userId: string) => api.delete(`/admin/users/${userId}`),
+    client => void invalidate(client, adminUsersKey, adminDevicesKey),
+  );

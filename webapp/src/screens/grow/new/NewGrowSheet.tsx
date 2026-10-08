@@ -7,11 +7,11 @@ import type { Camera, Device, GerminationChoices as ChoiceValues, GrowListItem, 
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
-import { useCreateGrow, useGrows, useStartingPhase } from '@/api/grows';
+import { useCreateGrow, useGrows } from '@/api/grows';
 import { serverNow } from '@/api/clock';
-import { useApplyPreset } from '@/api/lifecycle';
+import { useAddPhase, useApplyPreset } from '@/api/lifecycle';
 import { growSchemeOf, useScheme, useSchemes, type SchemeSummary } from '@/api/schemes';
-import { useSpaces } from '@/api/spaces';
+import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
@@ -24,7 +24,6 @@ import { DAY_IN_YEAR } from '@/ui/zone';
 import { GerminationChoices } from '../../control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '../../control/germination/germination-choices';
 import { usePlaceController } from '../phase-climate';
-import { useCreateSpace } from './create-space';
 import { dayNumber, growBody, growIn, presetFor, recordsOnly, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
 import styles from './NewGrow.module.css';
 
@@ -183,7 +182,7 @@ function Form({
   });
 
   const createGrow = useCreateGrow();
-  const startingPhase = useStartingPhase();
+  const startingPhase = useAddPhase();
   const applyPreset = useApplyPreset(draft.spaceId ?? '');
   const scheme = useScheme(draft.schemeId);
 

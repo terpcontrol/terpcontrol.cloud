@@ -45,7 +45,7 @@ import styles from './Lifecycle.module.css';
 export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () => void }) {
   const { t } = useTranslation();
   const zone = useZone();
-  const add = useAddPhase(grow.id);
+  const add = useAddPhase();
 
   const ended = grow.endedAt !== null;
   const [stage, setStage] = useState<GrowthStage>(() => nextStage(grow) ?? grow.summary.stage ?? STAGES[0]);
@@ -106,7 +106,10 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
             className={`${ui.button} ${ui.primary} ${styles.submit}`}
             disabled={add.isPending}
             onClick={() =>
-              add.mutate({ stage, ...climateRequest(pick, stage), startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })
+              add.mutate(
+                { growId: grow.id, body: { stage, ...climateRequest(pick, stage), startedAt: instantOf(DateTime.fromJSDate(at)) } },
+                { onSuccess: () => onClose() },
+              )
             }
           >
             {add.isPending

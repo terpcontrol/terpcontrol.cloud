@@ -159,7 +159,7 @@ function NoDevice() {
  */
 function FoundCamera({ camera, devices, spaces, stillId }: { camera: Camera; devices: Device[]; spaces: Space[]; stillId: string | null }) {
   const { t } = useTranslation();
-  const rename = useUpdateCamera(camera.id);
+  const rename = useUpdateCamera();
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState(camera.name);
   const [looksAt, setLooksAt] = useState(camera.looksAt ?? '');
@@ -177,7 +177,7 @@ function FoundCamera({ camera, devices, spaces, stillId }: { camera: Camera; dev
 
   const save = () =>
     rename.mutate(
-      { name: name.trim() || camera.name, looksAt: looksAt.trim() || null },
+      { cameraId: camera.id, body: { name: name.trim() || camera.name, looksAt: looksAt.trim() || null } },
       {
         onSuccess: saved => {
           setCalled(saved.name);

@@ -1,9 +1,10 @@
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useQueries } from '@tanstack/react-query';
 import { isFirstLoad, useRead } from './read';
 import type { Plan, PlanReplace, PlanTemplate, PlanTemplateCreate, PlanTemplatePage, PlanTransition } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { growChanged } from './lifecycle';
 import { ApiError } from './problem';
+import { invalidate, useWrite } from './write';
 
 /**
  * The plan a controller is being run by, and the plans somebody keeps to start
@@ -61,42 +62,33 @@ export const refusalCode = (error: unknown): string | null => (error instanceof 
  * saving a plan and running one are two things a person does, and the server
  * creates a new plan at rest for exactly that reason.
  */
-export const useSavePlan = (deviceId: string) => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: PlanReplace) => api.put<Plan>(`/devices/${deviceId}/plan`, body),
-    onSuccess: plan => client.setQueryData(planKey(deviceId), plan),
-  });
-};
+export const useSavePlan = (deviceId: string) =>
+  useWrite(
+    (body: PlanReplace) => api.put<Plan>(`/devices/${deviceId}/plan`, body),
+    (client, plan) => client.setQueryData(planKey(deviceId), plan),
+  );
 
 /**
  * Putting the plan away. It keeps its steps and stands at its first one again,
  * and the controller is left running whatever the last step gave it - so there
  * is nothing to read again but the plan itself.
  */
-export const useStopPlan = (deviceId: string) => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => api.delete(`/devices/${deviceId}/plan`),
-    onSuccess: () => client.invalidateQueries({ queryKey: planKey(deviceId) }),
-  });
-};
+export const useStopPlan = (deviceId: string) =>
+  useWrite(
+    () => api.delete(`/devices/${deviceId}/plan`),
+    client => invalidate(client, planKey(deviceId)),
+  );
 
 /**
  * Taking a plan that is at rest off the device, steps and all. The plan read is
  * reset rather than refreshed: a refresh that fails keeps the plan it last had,
  * and this one is meant to come back as "no plan".
  */
-export const useRemovePlan = (deviceId: string) => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => api.delete(`/devices/${deviceId}/plan?steps=remove`),
-    onSuccess: () => client.resetQueries({ queryKey: planKey(deviceId) }),
-  });
-};
+export const useRemovePlan = (deviceId: string) =>
+  useWrite(
+    () => api.delete(`/devices/${deviceId}/plan?steps=remove`),
+    client => client.resetQueries({ queryKey: planKey(deviceId) }),
+  );
 
 /**
  * Confirming, skipping, extending, pausing and resuming. A move that changes the
@@ -104,17 +96,14 @@ export const useRemovePlan = (deviceId: string) => {
  * cards and the diary are read again - the same list a phase written by hand
  * invalidates, because it is the same fact arriving from the other end.
  */
-export const usePlanTransition = (deviceId: string) => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: PlanTransition) => api.post<Plan>(`/devices/${deviceId}/plan/transitions`, body),
-    onSuccess: plan => {
+export const usePlanTransition = (deviceId: string) =>
+  useWrite(
+    (body: PlanTransition) => api.post<Plan>(`/devices/${deviceId}/plan/transitions`, body),
+    (client, plan) => {
       client.setQueryData(planKey(deviceId), plan);
       growChanged(client);
     },
-  });
-};
+  );
 
 /** Every template this account may start from: its own, and the ones anybody published. Newest first. */
 export const usePlanTemplates = () =>
@@ -123,11 +112,8 @@ export const usePlanTemplates = () =>
     queryFn: ({ signal }) => api.get<PlanTemplatePage>('/plan-templates', { limit: 50 }, signal),
   });
 
-export const useSavePlanTemplate = () => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: PlanTemplateCreate) => api.post<PlanTemplate>('/plan-templates', body),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['plan-templates'] }),
-  });
-};
+export const useSavePlanTemplate = () =>
+  useWrite(
+    (body: PlanTemplateCreate) => api.post<PlanTemplate>('/plan-templates', body),
+    client => invalidate(client, ['plan-templates']),
+  );

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
 import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas/pages.js';
 import { useRead, useReadPages } from './read';
@@ -16,6 +16,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { ApiError } from './problem';
+import { invalidate, useWrite } from './write';
 
 /**
  * The cameras of an account, one camera's page, and the films it is asked for.
@@ -198,70 +199,32 @@ export const useMedia = (mediaId: string | null) =>
 
 export const isRendering = (media: Media | undefined): boolean => media?.render?.status === 'queued' || media?.render?.status === 'rendering';
 
+const cameraSaved = (client: QueryClient, camera: Camera) => {
+  client.setQueryData(['camera', camera.id], camera);
+  void invalidate(client, ['cameras']);
+};
+
 /**
  * Adding a camera: the Terp Cam a controller has paired, which this adopts
  * rather than doubling, or a stream at an address. What comes back is the whole
  * camera, so the screen that made it can go straight to its page.
  */
-export const useCreateCamera = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: CameraCreate) => api.post<Camera>('/cameras', body),
-    onSuccess: created => {
-      queryClient.setQueryData(['camera', created.id], created);
-      void queryClient.invalidateQueries({ queryKey: ['cameras'] });
-    },
-  });
-};
+export const useCreateCamera = () => useWrite((body: CameraCreate) => api.post<Camera>('/cameras', body), cameraSaved);
 
 /**
- * The same change as `useUpdateCamera`, for a screen that learns which camera
- * it is about only while it is running: the camera being set up is made by the
- * tap that tests it, so the id cannot be named when the hook is called.
+ * Changing a camera, and taking one away. The camera is named in the call
+ * rather than in the hook, because a screen may learn which camera it is about
+ * only while it is running: the camera being set up is made by the tap that
+ * tests it, so the id cannot be named when the hook is called.
  */
-export const useAmendCamera = () => {
-  const queryClient = useQueryClient();
+export const useUpdateCamera = () =>
+  useWrite(({ cameraId, body }: { cameraId: string; body: CameraUpdate }) => api.patch<Camera>(`/cameras/${cameraId}`, body), cameraSaved);
 
-  return useMutation({
-    mutationFn: ({ cameraId, body }: { cameraId: string; body: CameraUpdate }) => api.patch<Camera>(`/cameras/${cameraId}`, body),
-    onSuccess: camera => {
-      queryClient.setQueryData(['camera', camera.id], camera);
-      void queryClient.invalidateQueries({ queryKey: ['cameras'] });
-    },
-  });
-};
-
-export const useUpdateCamera = (cameraId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: CameraUpdate) => api.patch<Camera>(`/cameras/${cameraId}`, body),
-    onSuccess: camera => {
-      queryClient.setQueryData(['camera', cameraId], camera);
-      void queryClient.invalidateQueries({ queryKey: ['cameras'] });
-    },
-  });
-};
-
-export const useRemoveCamera = (cameraId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => api.delete(`/cameras/${cameraId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cameras'] }),
-  });
-};
-
-/** Taking one away again by an id the screen only learns while it is running, for the same reason `useAmendCamera` exists. */
-export const useDropCamera = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (cameraId: string) => api.delete(`/cameras/${cameraId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cameras'] }),
-  });
-};
+export const useRemoveCamera = () =>
+  useWrite(
+    (cameraId: string) => api.delete(`/cameras/${cameraId}`),
+    client => invalidate(client, ['cameras']),
+  );
 
 /**
  * Waits `ms`, or rejects as soon as the screen that is waiting goes away. A
@@ -330,22 +293,21 @@ const useWaitSignal = () => {
  * has opened.
  */
 export const useTestCapture = (cameraId: string) => {
-  const queryClient = useQueryClient();
   const signal = useWaitSignal();
 
-  return useMutation({
-    mutationFn: () => takeTestPicture(cameraId, signal()),
-    onSuccess: () =>
-      void queryClient.invalidateQueries({
+  return useWrite(
+    () => takeTestPicture(cameraId, signal()),
+    client =>
+      void client.invalidateQueries({
         predicate: query => {
           const [what, id, part] = query.queryKey as [string, string | undefined, string | undefined];
           return what === 'camera' && id === cameraId && part !== 'timelapses';
         },
       }),
-  });
+  );
 };
 
-/** A picture from a camera named as the request is made, for the same reason `useAmendCamera` exists. */
+/** A picture from a camera named as the request is made, for the same reason `useUpdateCamera` takes its camera in the call. */
 export const useCaptureOnce = () => {
   const signal = useWaitSignal();
 
@@ -357,17 +319,14 @@ export const useCaptureOnce = () => {
  * row of the film: queued when this request made it, and the one that was
  * already there when it did not.
  */
-export const useRequestTimelapse = (cameraId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (body: TimelapseCreate) => api.post<TimelapseAccepted>(`/cameras/${cameraId}/timelapses`, body),
-    onSuccess: accepted => {
-      queryClient.setQueryData(['media', accepted.media.id], accepted.media);
-      void queryClient.invalidateQueries({ queryKey: ['camera', cameraId, 'timelapses'] });
+export const useRequestTimelapse = (cameraId: string) =>
+  useWrite(
+    (body: TimelapseCreate) => api.post<TimelapseAccepted>(`/cameras/${cameraId}/timelapses`, body),
+    (client, accepted) => {
+      client.setQueryData(['media', accepted.media.id], accepted.media);
+      void invalidate(client, ['camera', cameraId, 'timelapses']);
     },
-  });
-};
+  );
 
 /**
  * The newest picture of each of several cameras, which is the thumbnail on a

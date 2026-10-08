@@ -1,8 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Co2Report } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { diaryChanged, writeEntry } from './entries';
 import { useRead } from './read';
+import { useWrite } from './write';
 
 /**
  * What the CO2 cylinders of a place lasted, and the refill that starts the
@@ -30,11 +30,9 @@ export interface Refill {
   deviceId: string | null;
 }
 
-export const useWriteRefill = (spaceId: string) => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ filledGrams, restGrams, deviceId }: Refill) =>
+export const useWriteRefill = (spaceId: string) =>
+  useWrite(
+    ({ filledGrams, restGrams, deviceId }: Refill) =>
       writeEntry({
         kind: 'measurement',
         spaceId,
@@ -47,6 +45,5 @@ export const useWriteRefill = (spaceId: string) => {
           ],
         },
       }),
-    onSuccess: () => diaryChanged(client),
-  });
-};
+    diaryChanged,
+  );

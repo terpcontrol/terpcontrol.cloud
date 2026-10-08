@@ -60,8 +60,8 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   const me = useMe(false, user?.isDemo !== true);
   const enforced = me.data ? me.data.premium.enforced : null;
   const ending = enforced ? countdownDays(camera, now) : null;
-  const update = useUpdateCamera(camera.id);
-  const remove = useRemoveCamera(camera.id);
+  const update = useUpdateCamera();
+  const remove = useRemoveCamera();
   const [draft, setDraft] = useState<CameraUpdate>({});
   const [unpairing, setUnpairing] = useState(false);
   const [readdressing, setReaddressing] = useState(false);
@@ -98,12 +98,15 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   const here = (devices.data?.items ?? []).filter(device => device.spaceId === camera.spaceId || device.id === camera.deviceId);
 
   const save = () =>
-    update.mutate(draft, {
-      onSuccess: () => {
-        setDraft({});
-        setReaddressing(false);
+    update.mutate(
+      { cameraId: camera.id, body: draft },
+      {
+        onSuccess: () => {
+          setDraft({});
+          setReaddressing(false);
+        },
       },
-    });
+    );
 
   return (
     <section className={styles.section}>
@@ -298,7 +301,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
                 type="button"
                 className={`${ui.button} ${styles.unpairYes}`}
                 disabled={remove.isPending}
-                onClick={() => remove.mutate(undefined, { onSuccess: () => void navigate('/devices') })}
+                onClick={() => remove.mutate(camera.id, { onSuccess: () => void navigate('/devices') })}
               >
                 {t('camera.unpairYes')}
               </button>
