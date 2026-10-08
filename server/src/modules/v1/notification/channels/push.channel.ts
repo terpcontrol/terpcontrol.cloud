@@ -5,8 +5,10 @@ import { Model } from 'mongoose';
 // A default import: the package is CommonJS, and a named import cannot be
 // linked from it by a static module reader.
 import webPush from 'web-push';
-import type { PushPayload } from '@fg2/shared-types/v1';
-import { notificationsConfig } from '../../../../config/configuration';
+import { v4 as uuidv4 } from 'uuid';
+import type { PushPayload, PushSubscription, PushSubscriptionCreate } from '@fg2/shared-types/v1';
+import { notFound } from '@common/v1/problem';
+import { notificationsConfig, pushAvailable } from '../../../../config/configuration';
 import { MODEL_V1 } from '@database/models';
 import { StoredPushSubscription } from '@database/schemas/v1/push-subscriptions.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
@@ -37,12 +39,38 @@ export class PushChannel implements NotificationChannelSender {
     @Inject(notificationsConfig.KEY) private readonly config: ConfigType<typeof notificationsConfig>,
   ) {}
 
-  public get configured(): boolean {
-    return !!(this.config.pushPublicKey && this.config.pushPrivateKey && this.config.pushContact);
+  /**
+   * A browser that agreed to be notified. The endpoint is what identifies it,
+   * so a browser that subscribes again - which it does whenever the push
+   * service rotates its endpoint or the page asks a second time - replaces its
+   * own row instead of collecting duplicates that would each be pushed to.
+   */
+  public async subscribe(userId: string, body: PushSubscriptionCreate): Promise<PushSubscription> {
+    const existing = await this.subscriptions.findOne({ endpoint: body.endpoint }).lean<StoredPushSubscription>();
+    if (existing && existing.userId !== userId) {
+      // One browser, one account: two accounts pushed to the same endpoint
+      // would each be reading the other's notifications.
+      await this.subscriptions.deleteOne({ id: existing.id });
+    }
+
+    const stored = await this.subscriptions
+      .findOneAndUpdate(
+        { endpoint: body.endpoint },
+        { $set: { userId, keys: body.keys }, $setOnInsert: { id: uuidv4(), createdAt: new Date(), userAgent: null } },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      )
+      .lean<StoredPushSubscription>();
+
+    return serialise(stored!);
+  }
+
+  public async unsubscribe(userId: string, id: string): Promise<void> {
+    const removed = await this.subscriptions.deleteOne({ id, userId });
+    if (removed.deletedCount === 0) throw notFound('push_subscription_not_found', 'There is no subscription of this account with that id.');
   }
 
   public async send(to: StoredUser, message: Announcement): Promise<Delivered | null> {
-    if (!this.configured) return null;
+    if (!pushAvailable(this.config)) return null;
 
     const subscriptions = await this.subscriptions.find({ userId: to.id }).lean<StoredPushSubscription[]>();
     if (subscriptions.length === 0) return null;
@@ -89,3 +117,12 @@ export class PushChannel implements NotificationChannelSender {
     logger.error(`Failed to push to ${subscription.id}: ${error}`);
   }
 }
+
+const serialise = (subscription: StoredPushSubscription): PushSubscription => ({
+  id: subscription.id,
+  createdAt: subscription.createdAt.toISOString(),
+  userId: subscription.userId,
+  endpoint: subscription.endpoint,
+  keys: { p256dh: subscription.keys.p256dh, auth: subscription.keys.auth },
+  userAgent: subscription.userAgent,
+});

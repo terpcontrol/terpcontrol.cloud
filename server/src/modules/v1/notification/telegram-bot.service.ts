@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { logger } from '@utils/logger';
-import { authConfig, notificationsConfig } from '../../../config/configuration';
+import { authConfig, notificationsConfig, telegramAvailable } from '../../../config/configuration';
 import { LINK_VALID_MS, mintTelegramLink, readTelegramLink } from './telegram-link';
 
 /**
@@ -33,7 +33,7 @@ export class TelegramBotService {
 
   /** Whether this install has a bot at all, which is what `/me` reports and the screens read. */
   public get available(): boolean {
-    return !!(this.config.telegramBotToken && this.config.telegramBotUsername);
+    return telegramAvailable(this.config);
   }
 
   /** Whether the webhook exists. Without a secret in front of it, it does not. */

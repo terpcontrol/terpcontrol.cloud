@@ -16,7 +16,7 @@ import { StoredPushSubscription } from '@database/schemas/v1/push-subscriptions.
 import { StoredSession } from '@database/schemas/v1/sessions.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredNotificationSettings, StoredUser } from '@database/schemas/v1/users.schema';
-import { authConfig, notificationsConfig, premiumConfig, retentionConfig } from '@config/configuration';
+import { authConfig, notificationsConfig, premiumConfig, pushAvailable, retentionConfig, telegramAvailable } from '@config/configuration';
 import { climateWindowOf } from '@modules/retention/climate-window';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { freeTierOf } from '../camera/entitlement.service';
@@ -374,8 +374,8 @@ export class AccountsService implements OnModuleInit {
       // A key pair with a half missing cannot sign anything, and a bot with no
       // name has no link to open, so each is offered only where it could
       // actually send - which is what "the screen says so" needs to be true of.
-      pushPublicKey: this.notifications.pushPrivateKey && this.notifications.pushContact ? this.notifications.pushPublicKey : null,
-      telegramAvailable: !!(this.notifications.telegramBotToken && this.notifications.telegramBotUsername),
+      pushPublicKey: pushAvailable(this.notifications) ? this.notifications.pushPublicKey : null,
+      telegramAvailable: telegramAvailable(this.notifications),
       pushSubscribed,
       layers: await layersOf(user.id, user.preferences.diary, {
         grows: this.grows,

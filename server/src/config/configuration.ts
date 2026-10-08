@@ -1,4 +1,4 @@
-import { registerAs } from '@nestjs/config';
+import { ConfigType, registerAs } from '@nestjs/config';
 
 /**
  * The environment, read once and grouped by what it configures. Providers take
@@ -109,6 +109,14 @@ export const notificationsConfig = registerAs('notifications', () => ({
    */
   telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || null,
 }));
+
+/** Whether Web Push can send at all: a key pair with a half missing cannot sign anything. */
+export const pushAvailable = (config: ConfigType<typeof notificationsConfig>): boolean =>
+  !!(config.pushPublicKey && config.pushPrivateKey && config.pushContact);
+
+/** Whether this install has a bot at all: one with no name has no link to open. */
+export const telegramAvailable = (config: ConfigType<typeof notificationsConfig>): boolean =>
+  !!(config.telegramBotToken && config.telegramBotUsername);
 
 export const terpCamConfig = registerAs('terpcam', () => ({
   /**
