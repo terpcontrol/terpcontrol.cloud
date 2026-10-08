@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import type { ChartViewSpan, GrowSeriesRange } from '@fg2/shared-types/v1';
+import type { ChartViewSpan } from '@fg2/shared-types/v1';
 import { instantOf } from '@/ui/age';
 import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/ui/days';
 import { zoned, zonedAt } from '@/ui/zone';
@@ -163,6 +163,3 @@ export const rangeOfSpan = (span: ChartViewSpan, zone: string | null): { range: 
   const day = (iso: string | null) => (iso ? (zoned(iso, zone).toISODate() ?? undefined) : undefined);
   return { range: 'custom', from: day(span.range.startsAt), to: day(span.range.endsAt) };
 };
-
-/** The ranges a grow's answer is asked with: the two it names, and custom for every other window. */
-export const seriesRangeOf = (window: ChartWindow): GrowSeriesRange => (window.kind === 'grow' ? window.range : 'custom');

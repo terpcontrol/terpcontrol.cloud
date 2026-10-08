@@ -25,9 +25,9 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * where the step lands on a whole one of the first - which is every rolling
  * window, the two the chips offer included. A week is seven days.
  */
-export const stepLabel = (seconds: number, t: Translate | null = null): string => {
+export const stepLabel = (seconds: number, t: Translate): string => {
   // Counted, so a language that writes a day out can say "1 Tag" and "7 Tage".
-  const word = (unit: string, count: number) => (t ? t(`charts.stepUnit.${unit}`, { count }) : unit);
+  const word = (unit: string, count: number) => t(`charts.stepUnit.${unit}`, { count });
   const whole = Math.max(0, Math.round(seconds));
   const index = Math.max(
     0,
