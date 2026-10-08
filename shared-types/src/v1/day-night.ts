@@ -21,6 +21,9 @@
  * (`daynight.linearChange`, which the server always writes); a controller
  * switches them with the clock.
  *
+ * A smart plug compares the same two times the same way, and acts on them only
+ * where its document says to (`plugScheduleOf`).
+ *
  * No schema, and nothing imported but the schema-free reading of a document,
  * so a client and the simulator can share the arithmetic without pulling zod
  * and the whole contract in.
@@ -217,6 +220,30 @@ export const utcSecondsOf = (at: number): number => wrap(Math.floor(at / 1000));
 /** Whether the firmware calls this second of the clock day, by its own strict comparisons. Only the times; the work mode is the caller's. */
 export const isDayAt = (cycle: Pick<Cycle, 'day' | 'night'>, seconds: number): boolean =>
   cycle.day > cycle.night ? seconds > cycle.day || seconds < cycle.night : cycle.day < cycle.night ? seconds > cycle.day && seconds < cycle.night : false;
+
+/**
+ * The day and night a smart plug keeps, or null where it keeps none: the two
+ * times of its document, to be read with `isDayAt`.
+ *
+ * Its firmware works its day out about once a second with the comparisons
+ * above, in every work mode, from `daynight.day` and `daynight.night` (on at
+ * 06:00 and off at 22:00 UTC where the document states none). Only with
+ * `usedaynight` does anything follow it - the night's switch points after dark,
+ * and CO2 dosed by day only. Without it, the firmware's default, the plug holds
+ * its day's switch points round the clock and its day is a figure nothing
+ * reads, so it is no schedule here either.
+ *
+ * A plug has no lamp, and this is what tells its VPD the day from the night
+ * where it has one.
+ */
+export const plugScheduleOf = (type: string, configuration: Record<string, unknown> | null | undefined): Pick<Cycle, 'day' | 'night'> | null => {
+  if (type !== 'plug' || !configuration || !numberAt(configuration, 'usedaynight')) return null;
+
+  return {
+    day: numberAt(configuration, 'daynight.day') ?? FIRMWARE_LIGHTS_ON,
+    night: numberAt(configuration, 'daynight.night') ?? FIRMWARE_LIGHTS_OFF,
+  };
+};
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 

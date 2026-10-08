@@ -21,6 +21,9 @@
  * (`daynight.linearChange`, which the server always writes); a controller
  * switches them with the clock.
  *
+ * A smart plug compares the same two times the same way, and acts on them only
+ * where its document says to (`plugScheduleOf`).
+ *
  * No schema, and nothing imported but the schema-free reading of a document,
  * so a client and the simulator can share the arithmetic without pulling zod
  * and the whole contract in.
@@ -141,6 +144,22 @@ export declare const cycleKindOf: (cycle: Cycle) => CycleKind;
 export declare const utcSecondsOf: (at: number) => number;
 /** Whether the firmware calls this second of the clock day, by its own strict comparisons. Only the times; the work mode is the caller's. */
 export declare const isDayAt: (cycle: Pick<Cycle, "day" | "night">, seconds: number) => boolean;
+/**
+ * The day and night a smart plug keeps, or null where it keeps none: the two
+ * times of its document, to be read with `isDayAt`.
+ *
+ * Its firmware works its day out about once a second with the comparisons
+ * above, in every work mode, from `daynight.day` and `daynight.night` (on at
+ * 06:00 and off at 22:00 UTC where the document states none). Only with
+ * `usedaynight` does anything follow it - the night's switch points after dark,
+ * and CO2 dosed by day only. Without it, the firmware's default, the plug holds
+ * its day's switch points round the clock and its day is a figure nothing
+ * reads, so it is no schedule here either.
+ *
+ * A plug has no lamp, and this is what tells its VPD the day from the night
+ * where it has one.
+ */
+export declare const plugScheduleOf: (type: string, configuration: Record<string, unknown> | null | undefined) => Pick<Cycle, "day" | "night"> | null;
 /**
  * How far the morning and the evening ramp have come at this second of the
  * day: 1 is the lamp at full and a fridge on its day's figures. Worked out as
