@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { DemoReadOnlyGuard } from './common/auth/demo-read-only.guard';
 import { SecurityModule } from './common/auth/auth.module';
-import { ProblemExceptionFilter } from './common/v1/problem.filter';
+import { ApiExceptionFilter } from './common/exception.filter';
 import { V1CommonModule } from './common/v1/v1.module';
 import { ENV_FILE, configNamespaces } from './config/configuration';
 import { validateEnvironment } from './config/validate-environment';
@@ -111,7 +111,7 @@ import { WiringModule } from './wiring.module';
     WiringModule,
   ],
   providers: [
-    { provide: APP_FILTER, useClass: ProblemExceptionFilter },
+    { provide: APP_FILTER, useClass: ApiExceptionFilter },
     { provide: APP_GUARD, useClass: DemoReadOnlyGuard },
   ],
 })

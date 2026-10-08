@@ -4,7 +4,7 @@ import { Error as MongooseError } from 'mongoose';
 import { loggablePath } from '@common/log-path';
 import { isV1Path } from '@common/route-path';
 import { logger } from '@utils/logger';
-import { ProblemException, problemOf } from './problem';
+import { ProblemException, problemOf } from '@common/v1/problem';
 
 /**
  * A refusal that answers with a bare string rather than the usual JSON body.
@@ -114,7 +114,7 @@ const body = (exception: unknown, message: string): Record<string, unknown> => {
  * would answer the wrong shape without anything saying so.
  */
 @Catch()
-export class ProblemExceptionFilter implements ExceptionFilter {
+export class ApiExceptionFilter implements ExceptionFilter {
   public catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
     const request = context.getRequest<FastifyRequest>();
