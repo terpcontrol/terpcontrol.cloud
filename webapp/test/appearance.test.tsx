@@ -6,6 +6,7 @@ import { Appearance } from '@/screens/me/appearance/Appearance';
 import { THEME_STORAGE_KEY } from '@/theme/theme-context';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { drawAt, json, NOT_FOUND } from './harness';
+import { meWith } from './session';
 import { translate } from './translations';
 
 /**
@@ -28,30 +29,7 @@ vi.mock('@/api/session', async importOriginal => {
   return { ...(await importOriginal<object>()), useSession: () => (session.demo ? ON_THE_DEMO : SIGNED_IN) };
 });
 
-const me = (): Me => ({
-  id: 'user-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  email: 'login@example.org',
-  isAdmin: false,
-  isActive: true,
-  handle: 'you',
-  bio: null,
-  avatarMediaId: null,
-  publicProfile: false,
-  privacy: { hideWeights: false, hideCounts: false },
-  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
-  retention: { climateDays: null },
-  climateRetention: { installDays: null, appliesDays: null },
-  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
-  deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
-  pushPublicKey: null,
-  telegramAvailable: false,
-  pushSubscribed: false,
-  layers: { diary: true },
-});
-
-const server = { me: me(), patched: [] as MeUpdate[], asked: [] as string[] };
+const server = { me: meWith(), patched: [] as MeUpdate[], asked: [] as string[] };
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
@@ -83,7 +61,7 @@ beforeAll(() => translate());
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
   session.demo = false;
-  server.me = me();
+  server.me = meWith();
   server.patched = [];
   server.asked = [];
 });
@@ -157,7 +135,7 @@ describe('the grow diary', () => {
   });
 
   it('hands the question back to the account´s use when "automatic" is chosen again', async () => {
-    server.me = { ...me(), preferences: { ...me().preferences, diary: 'off' } };
+    server.me = { ...meWith(), preferences: { ...meWith().preferences, diary: 'off' } };
     draw();
 
     const diary = await screen.findByRole('combobox', { name: 'Grow diary' });
@@ -171,7 +149,7 @@ describe('the grow diary', () => {
 
 describe('the time zone', () => {
   it('draws the zone the account keeps and offers this device its own', async () => {
-    server.me = { ...me(), preferences: { ...me().preferences, timezone: 'UTC' } };
+    server.me = { ...meWith(), preferences: { ...meWith().preferences, timezone: 'UTC' } };
     draw();
 
     const menu = await screen.findByRole('combobox', { name: 'Time zone' });

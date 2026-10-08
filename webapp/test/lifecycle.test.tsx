@@ -9,6 +9,7 @@ import { RenameSheet } from '@/screens/grow/RenameSheet';
 import { SplitSheet } from '@/screens/grow/SplitSheet';
 import { PhaseSheet } from '@/screens/grow/PhaseSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
+import { deviceWith } from './fixtures';
 import { drawAt, json } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
@@ -405,36 +406,21 @@ describe('the phase sheet over a grow that has ended', () => {
   });
 });
 
-const standing = (over: Partial<Device> = {}): Device => ({
-  id: 'device-1',
-  createdAt: at(60),
-  type: 'controller',
-  classId: null,
-  serialNumber: 42,
-  ownerId: 'user-1',
-  spaceId: 'space-1',
-  name: 'Blue Dream controller',
-  firmware: { channel: 'stable', targetId: null },
-  configuration: { day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 } },
-  settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
-  state: {
-    lastSeenAt: at(0),
-    claimedAt: at(60),
-    firmwareId: 'build-1',
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
-    // With the sensor, which is what makes the preset's CO2 row one that is
-    // written at all: a controller reporting none holds its target at zero.
-    hardware: { co2: 'on' },
-    socketStateChangedAt: {},
-    socketsReportedAt: null,
-  },
-  ...over,
-});
+const standing = (over: Partial<Device> = {}): Device =>
+  deviceWith({
+    createdAt: at(60),
+    name: 'Blue Dream controller',
+    configuration: { day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 } },
+    state: {
+      lastSeenAt: at(0),
+      claimedAt: at(60),
+      firmwareId: 'build-1',
+      // With the sensor, which is what makes the preset's CO2 row one that is
+      // written at all: a controller reporting none holds its target at zero.
+      hardware: { co2: 'on' },
+    },
+    ...over,
+  });
 
 /**
  * Moving into a stage asks whether the tent's climate moves with it. Moving

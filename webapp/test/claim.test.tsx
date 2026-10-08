@@ -7,6 +7,7 @@ import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-preset
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Claim } from '@/screens/claim/Claim';
+import { deviceWith } from './fixtures';
 import { drawAt } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
@@ -43,33 +44,21 @@ const CAPABILITIES: DeviceCapabilities = {
   pulseSeconds: {},
 };
 
-const device: Device = {
+const device: Device = deviceWith({
   id: 'sim-controller-7f3a',
   createdAt: NOW.minus({ days: 2 }).toISO()!,
-  type: 'controller',
   classId: 'class-1',
-  serialNumber: 42,
-  ownerId: 'user-1',
   spaceId: 'space-new',
   name: 'Terp Controller',
-  firmware: { channel: 'stable', targetId: null },
-  configuration: null,
   settings: { vpdLeafOffsetDay: 0, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
   state: {
     lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!,
     claimedAt: NOW.toISO()!,
     firmwareId: 'build-uuid',
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
     hardware: { firmware_version: '2.4.1', webcam_did: 'none' },
-    socketStateChangedAt: {},
     socketsReportedAt: NOW.toISO()!,
   },
-};
+});
 
 // A device is moved into a place by managing it, so every place here says so.
 const space: Space = spaceWhere('own', { id: 'space-new', kind: 'other', name: 'Terp Controller' });

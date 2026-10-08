@@ -3,11 +3,12 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Me, Media, PasswordChange, Session } from '@fg2/shared-types/v1';
+import type { Media, PasswordChange, Session } from '@fg2/shared-types/v1';
 import { fileSize } from '@/ui/figures';
 import { Account } from '@/screens/me/account/Account';
 import { deviceLabel, sortedSessions } from '@/screens/me/account/sessions';
 import { drawAt, json, NOT_FOUND } from './harness';
+import { meWith } from './session';
 import { translate } from './translations';
 
 /**
@@ -32,29 +33,6 @@ vi.mock('@/api/session', async importOriginal => {
     mediaUrl: (id: string) => `/media/${id}/content`,
     useSession: () => (session.demo ? ON_THE_DEMO : SIGNED_IN),
   };
-});
-
-const me = (): Me => ({
-  id: 'user-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  email: 'login@example.org',
-  isAdmin: false,
-  isActive: true,
-  handle: 'you',
-  bio: null,
-  avatarMediaId: null,
-  publicProfile: false,
-  privacy: { hideWeights: false, hideCounts: false },
-  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
-  retention: { climateDays: null },
-  climateRetention: { installDays: null, appliesDays: null },
-  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
-  deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
-  pushPublicKey: null,
-  telegramAvailable: false,
-  pushSubscribed: false,
-  layers: { diary: true },
 });
 
 const at = (id: string, userAgent: string | null, lastSeenAt: string): Session => ({
@@ -87,7 +65,7 @@ const exportRow = (status: 'queued' | 'ready'): Media =>
   }) as unknown as Media;
 
 const server = {
-  me: me(),
+  me: meWith(),
   sessions: SESSIONS,
   wrongPassword: false,
   passwords: [] as PasswordChange[],
@@ -151,7 +129,7 @@ beforeAll(() => translate());
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
   session.demo = false;
-  server.me = me();
+  server.me = meWith();
   server.sessions = SESSIONS;
   server.wrongPassword = false;
   server.passwords = [];

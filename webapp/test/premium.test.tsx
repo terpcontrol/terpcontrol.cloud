@@ -7,7 +7,7 @@ import { countdownDays } from '@/screens/me/premium/entitlement';
 import { Premium } from '@/screens/me/premium/Premium';
 import { Privacy } from '@/screens/me/privacy/Privacy';
 import { drawAt, json, NOT_FOUND } from './harness';
-import { spacePage, spaceWhere } from './session';
+import { meWith, spacePage, spaceWhere } from './session';
 import { translate } from './translations';
 
 /**
@@ -45,34 +45,17 @@ vi.mock('@/ui/useNow', () => ({ useNow: () => NOW }));
 /** The install's own figures where it has set them all, as the hosted install would answer. */
 const CONFIGURED: PremiumFree = { stillWidth: 640, stillDays: 90, timelapseDays: 30 };
 
-const me = (premium: Partial<Me['premium']> = {}): Me => ({
-  id: 'user-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  email: 'login@example.org',
-  isAdmin: false,
-  isActive: true,
-  handle: 'chrisgrows',
-  bio: null,
-  avatarMediaId: null,
-  publicProfile: false,
-  privacy: { hideWeights: false, hideCounts: false },
-  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
-  retention: { climateDays: null },
-  climateRetention: { installDays: null, appliesDays: null },
-  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
-  deletionStartedAt: null,
-  premium: {
-    enforced: true,
-    extendUrl: 'https://shop.example.org/premium',
-    priceLabel: '€ 29 / year',
-    free: { stillWidth: null, stillDays: null, timelapseDays: null },
-    ...premium,
-  },
-  pushPublicKey: null,
-  telegramAvailable: false,
-  pushSubscribed: false,
-  layers: { diary: true },
-});
+const me = (premium: Partial<Me['premium']> = {}): Me =>
+  meWith({
+    handle: 'chrisgrows',
+    premium: {
+      enforced: true,
+      extendUrl: 'https://shop.example.org/premium',
+      priceLabel: '€ 29 / year',
+      free: { stillWidth: null, stillDays: null, timelapseDays: null },
+      ...premium,
+    },
+  });
 
 const camera = (over: Partial<Camera> & { entitlement: Camera['entitlement'] }): Camera => ({
   id: `camera-${over.name ?? 'x'}`,

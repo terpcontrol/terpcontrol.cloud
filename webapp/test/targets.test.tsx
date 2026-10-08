@@ -13,7 +13,9 @@ import { draftOf, vpdOf, withDraft } from '@/screens/control/targets/targets-dra
 import { secondsOf, wallClock } from '@/ui/wall-clock';
 import { STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { CLIMATE_CHOICES, presetsOf } from '@/ui/presets';
+import { deviceWith } from './fixtures';
 import { drawAt, json, testClient } from './harness';
+import { meWith } from './session';
 import { translate } from './translations';
 
 /**
@@ -47,34 +49,19 @@ const CONFIGURATION: DeviceConfiguration = {
   daynight: { day: 21600, night: 64800, maxDehumidifySeconds: 120 },
 };
 
-const device = (over: Partial<Device> = {}, hardware: Record<string, string> = { co2: 'on' }): Device => ({
-  id: 'device-1',
-  createdAt: NOW.minus({ days: 60 }).toISO()!,
-  type: 'controller',
-  classId: null,
-  serialNumber: 42,
-  ownerId: 'user-1',
-  spaceId: 'space-1',
-  name: 'Blue Dream tent',
-  firmware: { channel: 'stable', targetId: null },
-  configuration: CONFIGURATION,
-  settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
-  state: {
-    lastSeenAt: DateTime.now().minus({ seconds: 20 }).toISO()!,
-    claimedAt: NOW.minus({ days: 60 }).toISO()!,
-    firmwareId: 'build-1',
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
-    hardware,
-    socketStateChangedAt: {},
-    socketsReportedAt: null,
-  },
-  ...over,
-});
+const device = (over: Partial<Device> = {}, hardware: Record<string, string> = { co2: 'on' }): Device =>
+  deviceWith({
+    createdAt: NOW.minus({ days: 60 }).toISO()!,
+    name: 'Blue Dream tent',
+    configuration: CONFIGURATION,
+    state: {
+      lastSeenAt: DateTime.now().minus({ seconds: 20 }).toISO()!,
+      claimedAt: NOW.minus({ days: 60 }).toISO()!,
+      firmwareId: 'build-1',
+      hardware,
+    },
+    ...over,
+  });
 
 /** The step a running plan stands on: its own figures and twelve hours of light, the hour it comes on left to the device. */
 const STEP: PlanStep = {
@@ -113,28 +100,8 @@ const plan = (status: Plan['state']['status']): Plan => ({
 });
 
 /** The account, for the one thing this page reads off it: the zone its clock times are in. */
-const account = (timezone: string): Me => ({
-  id: 'user-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  email: 'login@example.org',
-  isAdmin: false,
-  isActive: true,
-  handle: 'you',
-  bio: null,
-  avatarMediaId: null,
-  publicProfile: false,
-  privacy: { hideWeights: false, hideCounts: false },
-  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone },
-  retention: { climateDays: null },
-  climateRetention: { installDays: null, appliesDays: null },
-  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
-  deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
-  pushPublicKey: null,
-  telegramAvailable: false,
-  pushSubscribed: false,
-  layers: { diary: true },
-});
+const account = (timezone: string): Me =>
+  meWith({ preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone } });
 
 /* ------------------------------------------------------------- the wire */
 

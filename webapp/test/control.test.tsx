@@ -20,6 +20,7 @@ import {
   withFigure,
 } from '@/screens/control/plan-edit';
 import { climateLanding } from '@/ui/climate-hardware';
+import { deviceWith } from './fixtures';
 import { drawAt } from './harness';
 import { translate } from './translations';
 
@@ -143,33 +144,13 @@ const plan = (over: Partial<Plan> = {}, stateOver: Partial<Plan['state']> = {}):
 /** What the controller is running now: two sections, each with a figure beside the ones a step edits. */
 const CONFIGURATION = { day: { temperature: 25, humidity: 60, heating: 'hard' }, lights: { limit: 80, sunrise: 15 } };
 
-const device = (lastSeenAt = NOW.minus({ seconds: 20 })): Device => ({
-  id: 'device-1',
-  createdAt: NOW.minus({ days: 60 }).toISO()!,
-  type: 'controller',
-  classId: null,
-  serialNumber: 42,
-  ownerId: 'user-1',
-  spaceId: 'space-1',
-  name: 'Blue Dream tent',
-  firmware: { channel: 'stable', targetId: null },
-  configuration: CONFIGURATION,
-  settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
-  state: {
-    lastSeenAt: lastSeenAt.toISO()!,
-    claimedAt: NOW.minus({ days: 60 }).toISO()!,
-    firmwareId: 'build-1',
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
-    hardware: {},
-    socketStateChangedAt: {},
-    socketsReportedAt: null,
-  },
-});
+const device = (lastSeenAt = NOW.minus({ seconds: 20 })): Device =>
+  deviceWith({
+    createdAt: NOW.minus({ days: 60 }).toISO()!,
+    name: 'Blue Dream tent',
+    configuration: CONFIGURATION,
+    state: { lastSeenAt: lastSeenAt.toISO()!, claimedAt: NOW.minus({ days: 60 }).toISO()!, firmwareId: 'build-1' },
+  });
 
 /** The same controller with the sensor the CO2 target needs, which the one above does not report. */
 const withCo2 = (): Device => {

@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DevicePage } from '@fg2/shared-types/v1';
 import { OldDevice } from '@/app/OldAddresses';
 import { screens } from '@/app/routes';
+import { deviceWith } from './fixtures';
 import { drawAt, json } from './harness';
 import { translate } from './translations';
 
@@ -17,34 +18,8 @@ vi.mock('@/api/session', async importOriginal => {
   return { ...(await importOriginal<object>()), useSession: () => SIGNED_IN };
 });
 
-const fridge = (over: Partial<Device> = {}): Device => ({
-  id: 'sim-fridge-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  type: 'fridge',
-  classId: 'class-fridge',
-  serialNumber: 7,
-  ownerId: 'user-1',
-  spaceId: 'space-9',
-  name: null,
-  firmware: { channel: 'stable', targetId: null },
-  configuration: null,
-  settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
-  state: {
-    lastSeenAt: '2026-01-01T00:00:00.000Z',
-    claimedAt: '2026-01-01T00:00:00.000Z',
-    firmwareId: null,
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
-    hardware: {},
-    socketStateChangedAt: {},
-    socketsReportedAt: null,
-  },
-  ...over,
-});
+const fridge = (over: Partial<Device> = {}): Device =>
+  deviceWith({ id: 'sim-fridge-1', type: 'fridge', classId: 'class-fridge', serialNumber: 7, spaceId: 'space-9', ...over });
 
 const devices = { items: [fridge()] };
 

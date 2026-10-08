@@ -14,6 +14,7 @@ import { filteredRows, flatten, fleetRows, NO_FILTER } from '@/screens/admin/fle
 import { staged } from '@/screens/admin/rollout';
 import { Users } from '@/screens/admin/Users';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { deviceWith } from './fixtures';
 import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
@@ -73,33 +74,20 @@ const BUILD: Firmware = {
   wasStable: true,
 };
 
-const device = (over: Partial<Device> & { id: string }): Device => ({
-  createdAt: NOW.minus({ months: 6 }).toISO()!,
-  type: 'controller',
-  classId: 'class-controller',
-  serialNumber: 7,
-  ownerId: 'user-2',
-  spaceId: 'space-1',
-  name: null,
-  firmware: { channel: 'stable', targetId: null },
-  configuration: null,
-  settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-  control: null,
-  isDemo: false,
-  state: {
-    lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!,
-    claimedAt: NOW.minus({ months: 6 }).toISO()!,
-    firmwareId: 'build-1',
-    updateStartedAt: null,
-    updateEndedAt: null,
-    updateFailedAt: null,
-    maintenanceUntil: null,
-    hardware: { sockets_n: '6' },
-    socketStateChangedAt: {},
-    socketsReportedAt: null,
-  },
-  ...over,
-});
+const device = (over: Partial<Device> & { id: string }): Device =>
+  deviceWith({
+    createdAt: NOW.minus({ months: 6 }).toISO()!,
+    classId: 'class-controller',
+    serialNumber: 7,
+    ownerId: 'user-2',
+    state: {
+      lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!,
+      claimedAt: NOW.minus({ months: 6 }).toISO()!,
+      firmwareId: 'build-1',
+      hardware: { sockets_n: '6' },
+    },
+    ...over,
+  });
 
 const DEVICES: Device[] = [
   device({ id: 'tc-7f3a', name: 'Tent 1' }),

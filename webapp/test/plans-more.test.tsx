@@ -13,6 +13,7 @@ import { followsGermination, stepMeta } from '@/screens/control/plan-labels';
 import { READY_PLANS, readyDraft } from '@/screens/control/ready-plans';
 import { items as continueItems } from '@/screens/devices/advanced/ContinuePlan.advanced';
 import { climateLanding } from '@/ui/climate-hardware';
+import { deviceWith } from './fixtures';
 import { drawAt } from './harness';
 import { translate } from './translations';
 
@@ -100,33 +101,14 @@ const plan = (over: Partial<Plan> = {}, stateOver: Partial<Plan['state']> = {}):
 });
 
 const device = (type = 'fridge', hardware: Record<string, string> = {}): Device =>
-  ({
-    id: 'device-1',
+  deviceWith({
     createdAt: NOW.minus({ days: 60 }).toISO()!,
-    type,
-    classId: null,
-    serialNumber: 42,
-    ownerId: 'user-1',
-    spaceId: 'space-1',
+    type: type as Device['type'],
     name: 'Fridge',
-    firmware: { channel: 'stable', targetId: null },
     configuration: { day: { temperature: 25, humidity: 60 }, daynight: { day: 6 * 3600, night: 0 }, lights: { limit: 80 } },
-    settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
     control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-    isDemo: false,
-    state: {
-      lastSeenAt: DateTime.now().toISO()!,
-      claimedAt: null,
-      firmwareId: null,
-      updateStartedAt: null,
-      updateEndedAt: null,
-      updateFailedAt: null,
-      maintenanceUntil: null,
-      hardware,
-      socketStateChangedAt: {},
-      socketsReportedAt: null,
-    },
-  }) as Device;
+    state: { lastSeenAt: DateTime.now().toISO()!, claimedAt: null, hardware },
+  });
 
 const t = (key: string, options?: Record<string, unknown>) => i18next.t(key, options);
 

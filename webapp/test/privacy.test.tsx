@@ -5,6 +5,7 @@ import type { Me, MeUpdate, Media } from '@fg2/shared-types/v1';
 import { cutoffDay, narrows } from '@/screens/me/privacy/climate';
 import { Privacy } from '@/screens/me/privacy/Privacy';
 import { drawAt, json, NOT_FOUND } from './harness';
+import { meWith } from './session';
 import { translate } from './translations';
 
 /**
@@ -41,29 +42,8 @@ vi.mock('@/api/session', async importOriginal => {
   };
 });
 
-const me = (over: Partial<Me> = {}): Me => ({
-  id: 'user-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  email: 'login@example.org',
-  isAdmin: false,
-  isActive: true,
-  handle: 'chrisgrows',
-  bio: null,
-  avatarMediaId: null,
-  publicProfile: false,
-  privacy: { hideWeights: true, hideCounts: false },
-  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
-  retention: { climateDays: 365 },
-  climateRetention: { installDays: null, appliesDays: null },
-  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
-  deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
-  pushPublicKey: null,
-  telegramAvailable: false,
-  pushSubscribed: false,
-  layers: { diary: true },
-  ...over,
-});
+const me = (over: Partial<Me> = {}): Me =>
+  meWith({ handle: 'chrisgrows', privacy: { hideWeights: true, hideCounts: false }, retention: { climateDays: 365 }, ...over });
 
 const exportRow = (status: 'queued' | 'ready'): Media =>
   ({

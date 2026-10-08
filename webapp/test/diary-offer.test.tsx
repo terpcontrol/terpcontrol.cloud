@@ -4,6 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { Me, MeUpdate } from '@fg2/shared-types/v1';
 import { DiaryOffer } from '@/screens/home/DiaryOffer';
 import { drawAt, json, NOT_FOUND } from './harness';
+import { meWith } from './session';
 import { translate } from './translations';
 
 vi.mock('@/api/session', async importOriginal => {
@@ -19,34 +20,17 @@ vi.mock('@/api/session', async importOriginal => {
  * preference alone, because `PATCH /me` keeps what a body leaves out.
  */
 
-const me = (): Me => ({
-  id: 'user-1',
-  createdAt: '2026-01-01T00:00:00.000Z',
-  email: 'login@example.org',
-  isAdmin: false,
-  isActive: true,
-  handle: 'you',
-  bio: null,
-  avatarMediaId: null,
-  publicProfile: false,
-  privacy: { hideWeights: false, hideCounts: false },
-  preferences: {
-    units: { temperature: 'celsius', weight: 'grams', volume: 'liters' },
-    locale: 'de',
-    timezone: 'Europe/Berlin',
-    timezoneChosen: true,
-    diary: null,
-  },
-  retention: { climateDays: null },
-  climateRetention: { installDays: null, appliesDays: null },
-  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
-  deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
-  pushPublicKey: null,
-  telegramAvailable: false,
-  pushSubscribed: false,
-  layers: { diary: false },
-});
+const me = (): Me =>
+  meWith({
+    preferences: {
+      units: { temperature: 'celsius', weight: 'grams', volume: 'liters' },
+      locale: 'de',
+      timezone: 'Europe/Berlin',
+      timezoneChosen: true,
+      diary: null,
+    },
+    layers: { diary: false },
+  });
 
 const server = { me: me(), patched: [] as MeUpdate[], asked: [] as string[] };
 
