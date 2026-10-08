@@ -9,7 +9,7 @@ import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { AlarmDeliveryService } from './alarm-delivery.service';
 import { AlarmEvent, GROW_IN_SPACE, GrowInSpace } from './alarm.types';
-import { bandOf, watchedName } from './alarm.watch';
+import { statedBand, watchedOf } from './alarm.watch';
 
 /**
  * An alert's life: one document from the moment something is wrong to the moment
@@ -163,12 +163,10 @@ export class AlertService {
 const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null, event: AlarmEvent): string => {
   if (alert.kind === 'offline' || alert.kind === 'camera_stale') return silence(subject, alert, value, event);
 
-  const rule = subject.rule;
-  const watched = rule ? bandOf(rule.watch) : null;
-  const band = watched && (watched.upper !== null || watched.lower !== null) ? watched : null;
+  const band = statedBand(subject.rule);
 
   return (
-    `${subject.name} (${rule ? watchedName(rule.watch) : alert.kind}), value=${value}` +
+    `${subject.name} (${watchedOf(subject.rule, alert)}), value=${value}` +
     (band ? `, upper threshold=${band.upper ?? 'n/a'}, lower threshold=${band.lower ?? 'n/a'}` : '') +
     (event === 'resolved' && band ? `, extreme value=${alert.extremeValue ?? 'n/a'}` : '')
   );

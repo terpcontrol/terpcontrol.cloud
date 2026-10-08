@@ -14,7 +14,7 @@ import { applyWebhookTemplate } from '@utils/webhookTemplate';
 import { MailService } from '../mail/mail.service';
 import { TunnelService } from '../tunnel/tunnel.service';
 import { ALARM_ROUTING, AlarmEvent, AlarmRouting } from './alarm.types';
-import { Band, bandOf, watchedName } from './alarm.watch';
+import { statedBand, watchedOf } from './alarm.watch';
 
 /**
  * Where an alarm is said out loud.
@@ -82,7 +82,7 @@ export class AlarmDeliveryService {
     value: number | null,
   ): Promise<void> {
     const subject = `[TERP CONTROL] Alarm ${name} ${event} for Device ${alert.deviceId}`;
-    const bounds = band(rule);
+    const bounds = statedBand(rule);
     const details =
       `Sensor: ${watchedOf(rule, alert)}\n` +
       (bounds
@@ -115,10 +115,10 @@ export class AlarmDeliveryService {
     }
 
     const webhook = custom.webhook;
-    const bounds = band(rule);
+    const bounds = statedBand(rule);
     // The keys are what somebody's home automation reads, so they are the ones
     // the cloud has always sent even where the model now names the field otherwise.
-    const defaultPayload = JSON.stringify({
+    const fields = {
       deviceId: alert.deviceId,
       sensorType: watchedOf(rule, alert),
       value,
@@ -128,9 +128,9 @@ export class AlarmDeliveryService {
       event,
       alarmName: name,
       alarmId: alert.ruleId ?? alert.id,
-      lastTriggeredAt: alert.startedAt.getTime(),
-      extremeValue: event === 'resolved' && bounds ? (alert.extremeValue ?? undefined) : undefined,
-    });
+    };
+    const extremeValue = event === 'resolved' && bounds ? (alert.extremeValue ?? undefined) : undefined;
+    const defaultPayload = JSON.stringify({ ...fields, lastTriggeredAt: alert.startedAt.getTime(), extremeValue });
 
     const template = event === 'triggered' ? webhook?.triggeredPayload : webhook?.resolvedPayload;
     let payload = template || defaultPayload;
@@ -139,19 +139,7 @@ export class AlarmDeliveryService {
     // the target URL; the default payload is already structured JSON.
     if (template?.includes('{{') || target.includes('{{')) {
       const device = alert.deviceId ? await this.devices.findOne({ id: alert.deviceId }, { name: 1 }).lean() : null;
-      const variables: Record<string, unknown> = {
-        deviceId: alert.deviceId,
-        deviceName: device?.name || alert.deviceId,
-        sensorType: watchedOf(rule, alert),
-        value,
-        upperThreshold: bounds?.upper ?? undefined,
-        lowerThreshold: bounds?.lower ?? undefined,
-        event,
-        timestamp: new Date().toISOString(),
-        alarmName: name,
-        alarmId: alert.ruleId ?? alert.id,
-        extremeValue: event === 'resolved' && bounds ? (alert.extremeValue ?? undefined) : undefined,
-      };
+      const variables: Record<string, unknown> = { ...fields, deviceName: device?.name || alert.deviceId, extremeValue };
       if (template) payload = applyWebhookTemplate(template, variables, 'json');
       target = applyWebhookTemplate(target, variables, 'url');
     }
@@ -207,25 +195,6 @@ export class AlarmDeliveryService {
     });
   }
 }
-
-/**
- * The band a rule reports, where it has one to report. A rule watching
- * something with no band around it - the health metrics, and an output watched
- * for running at all - says nothing about thresholds, exactly as the alarm on a
- * fridge compressor always has.
- */
-const band = (rule: StoredAlarmRule | null): Band | null => {
-  const watched = rule ? bandOf(rule.watch) : null;
-  return watched && (watched.upper !== null || watched.lower !== null) ? watched : null;
-};
-
-/**
- * What the rule watches, in the word somebody's home automation has always read
- * off `sensorType`: the metric, or the output - which is the same word the old
- * alarms sent for four of the five outputs, `co2_valve` having become `co2`.
- * An alert with no rule says what kind of alert it is, as it always has.
- */
-const watchedOf = (rule: StoredAlarmRule | null, alert: StoredAlert): string => (rule ? watchedName(rule.watch) : alert.kind);
 
 /** One target for the trigger and another for the all-clear, as a single field with a separator. */
 const targetFor = (target: string, event: AlarmEvent): string => {

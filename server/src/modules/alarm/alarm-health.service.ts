@@ -264,17 +264,11 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
 
       if (!stale && open) await this.alerts.settle(subjectOf(camera), open, quietSeconds, at);
       // A picture always ends an alert; only raising one asks whether the tent
-      // is switched off, and only for a camera that looks quiet.
-      if (stale && !open && !(await this.switchedOff(camera.deviceId))) await this.alerts.raise(subjectOf(camera), quietSeconds, at);
+      // is switched off - a controller in `workmode: off` is not driving it, so
+      // nothing asks its camera for a picture.
+      const switchedOff = !!camera.deviceId && devices.get(camera.deviceId)?.configuration?.workmode === 'off';
+      if (stale && !open && !switchedOff) await this.alerts.raise(subjectOf(camera), quietSeconds, at);
     }
-  }
-
-  /** A controller in `workmode: off` is not driving its tent, so nothing asks its camera for a picture. */
-  private async switchedOff(deviceId: string | null): Promise<boolean> {
-    if (!deviceId) return false;
-
-    const device = await this.devices.findOne({ id: deviceId }, { configuration: 1 }).lean();
-    return (device?.configuration as { workmode?: unknown } | null)?.workmode === 'off';
   }
 
   /**

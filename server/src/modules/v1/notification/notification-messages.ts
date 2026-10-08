@@ -7,7 +7,7 @@ import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { AlarmEvent } from '@modules/alarm/alarm.types';
-import { bandOf, watchedName } from '@modules/alarm/alarm.watch';
+import { statedBand, watchedName } from '@modules/alarm/alarm.watch';
 import { Announcement } from './notification.types';
 
 /**
@@ -135,8 +135,7 @@ const watched = (alert: StoredAlert, rule: StoredAlarmRule | null): string =>
  * threshold to state, exactly as the alarm on a fridge compressor never had.
  */
 const value = (alert: StoredAlert, rule: StoredAlarmRule | null, over: boolean): string => {
-  const band = rule ? bandOf(rule.watch) : null;
-  const bounds = band && (band.upper !== null || band.lower !== null) ? band : null;
+  const bounds = statedBand(rule);
   const thresholds = bounds
     ? ` (${[bounds.upper !== null ? `above ${bounds.upper}` : '', bounds.lower !== null ? `below ${bounds.lower}` : ''].filter(Boolean).join(' or ')})`
     : '';
