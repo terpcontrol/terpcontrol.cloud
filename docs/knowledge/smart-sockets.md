@@ -197,4 +197,9 @@ Both found reading the code on 2026-10-08, neither seen on a device:
   from the socket's document whenever the server writes the socket ([device-protocol.md](../device-protocol.md) §7,
   §7.1; `followCo2Fan()`). Uploads from either device's own menu are not passed on: PR #136 did that and was
   reverted by #154 (owner's decision, 2026-10-09) because the fan's control had worked before it. A fan that is gone
-  does not fail the socket's write.
+  does not fail the socket's write. A change on the fan's own menu ends the slowing until the socket is saved again
+  in the app (the device loads its own upload back, [device-protocol.md](../device-protocol.md) §7).
+  The pre-rewrite app (before #104) named these "Automatische Lüfter Dimmung" (the fan),
+  "Lüftergeschwindigkeit während der Begasung" (`co2inject.speed`) and "Tag/Nacht Zyklus → Nur tagsüber aktivieren"
+  (`usedaynight`, today "Nur tagsüber dosieren"); growers still use those words. With `usedaynight` the fan is
+  slowed only inside the socket's day window, in the dosing slices of each period, never at night.

@@ -714,7 +714,10 @@ and `light` types skip the NVS store while `mqttcontrol` is true, so direct cont
 settings (`fridge.cpp:685-691`, `plug.cpp:589-595`, `fan.cpp:395-401`, `light.cpp:379-385`).
 
 When a setting is changed on the device itself, the device publishes its whole document on the same topic
-(`saveAndUploadSettings` over `serializeSettings`, e.g. `controller.cpp:521-553`). The server overwrites
+(`saveAndUploadSettings` over `serializeSettings`, e.g. `controller.cpp:521-553`). The device subscribes to that
+topic too (`fridgecloud.cpp:186`, publish `:580`), so it receives its own upload back and loads it as a new
+configuration - a key its upload leaves out takes the compile-time default on the device itself, not only in the
+cloud. The server likewise hears its own sends on this topic and handles them as uploads. The server overwrites
 `devices.configuration` with it (`device-ingest.service.ts`, `configuration`) - a menu change on the device is the
 one write from the device that beats the cloud's copy - holding it to the type's rules (`class-rules.ts`) and
 reading the night humidity of a rested humidifier back to the one it keeps (`offTheWire`). A device that left
@@ -791,6 +794,9 @@ section where the plug no longer names the fan or doses in no windows (`followCo
 a fan's own upload is stored as it comes and not passed on: following them (#136) was reverted by #154, by the
 owner's decision of 2026-10-09, because the fan's control had worked before it. Settings made in the app give the
 fan the same `co2inject` with and without #136; it only differed after changes on a device's own menu.
+Consequence of the self-echo above: a change on the fan's own menu uploads a document without `co2inject`, the fan
+loads it back and stops slowing for the plug, day and night, and the cloud stores it without the section, so the
+app shows the fan as uncoupled. It stays so until the plug's settings are saved again in the app.
 
 **light** (`light.cpp:441-447`, echo `:154-167`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
 (seconds UTC), `max_temperature`, `limit`, `sunrise`, `sunset`. A plan step or a climate preset never writes to
