@@ -203,3 +203,11 @@ Both found reading the code on 2026-10-08, neither seen on a device:
   "Lüftergeschwindigkeit während der Begasung" (`co2inject.speed`) and "Tag/Nacht Zyklus → Nur tagsüber aktivieren"
   (`usedaynight`, today "Nur tagsüber dosieren"); growers still use those words. With `usedaynight` the fan is
   slowed only inside the socket's day window, in the dosing slices of each period, never at night.
+- **Fans coupled in the pre-rewrite app are slowed on the wrong window.** That app wrote the fan's `co2inject`
+  itself (`updateFanSettings`) with `day: settings.daynight?.day` / `night: ...`, but its `settings.daynight` held
+  only `floating`, `float_start`, `day_duration` and `light_duration`: `day` and `night` were always undefined and
+  left out. The fan then takes its compile-time 06:00-22:00 UTC (`fan.h`) whatever the socket's window, so with
+  `usedaynight` it is slowed from 08:00 to midnight in German summer time - through the socket's night - and not in
+  the socket's early-morning hours. No migration rewrote `co2inject`; the first save of the socket in the new app
+  (`followCo2Fan`) writes the right window. Found 2026-10-09 from a grower's report (window 20:00-14:00, fan still
+  slowed after 14:00).
