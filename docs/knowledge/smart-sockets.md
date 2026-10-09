@@ -1,7 +1,7 @@
 ---
 summary: How the controller and the fridge pair, identify, drive and report their Tasmota smart sockets, what the cloud and the app do with them, and the stand-alone smart socket (plug) - read before changing any of it
-updated: 2026-10-08
-source: Chris (light set-up rule, 2026-09-19); agents' PRs #23, #77, #82, #103, #104, #136, #145 and sessions 2026-05..10; checked against the code 2026-10-08
+updated: 2026-10-09
+source: Chris (light set-up rule, 2026-09-19); agents' PRs #23, #77, #82, #103, #104, #136 (reverted by #154, owner 2026-10-09), #145 and sessions 2026-05..10; checked against the code 2026-10-08
 paths:
   - firmware/src/wifi.*
   - firmware/src/lanscan.*
@@ -192,7 +192,9 @@ Both found reading the code on 2026-10-08, neither seen on a device:
 - The app sets it by named settings: `PATCH /v1/devices/{id}/configuration` with `set`; the names and ranges are
   `PLUG` in `shared-types/src/v1/configuration-fields.ts`.
 - **CO2 and an AIR fan**: `PUT /v1/devices/{id}/co2-fan` (`manage` on both devices) names the fan a socket slows
-  while it doses CO2; only `periodic` dosing slows one. Neither firmware knows the other: the server keeps the fan's
-  `co2inject` section in step with the socket's document on every write of it, also one from the socket's own menu,
-  and keeps the section through the fan's own uploads ([device-protocol.md](../device-protocol.md) §7, §7.1;
-  `followCo2Fan()`). A fan that is gone does not fail the socket's write.
+  while it doses CO2, and the speed it slows to (`co2inject.speed`, set by the owner, not a fixed figure); only
+  `periodic` dosing slows one. Neither firmware knows the other: the server writes the fan's `co2inject` section
+  from the socket's document whenever the server writes the socket ([device-protocol.md](../device-protocol.md) §7,
+  §7.1; `followCo2Fan()`). Uploads from either device's own menu are not passed on: PR #136 did that and was
+  reverted by #154 (owner's decision, 2026-10-09) because the fan's control had worked before it. A fan that is gone
+  does not fail the socket's write.

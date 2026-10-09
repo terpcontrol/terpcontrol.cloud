@@ -1,7 +1,7 @@
 ---
 summary: The frozen contract between a device's firmware and the cloud - HTTP, every MQTT topic and payload, hardware-info, the configuration document, commands, camera relay, tunnel; read before changing firmware, the device-protocol module or the simulator
-updated: 2026-10-08
-source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136, #140, #141, #145; codebase cleanup (2026-10-08); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
+updated: 2026-10-09
+source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
 paths:
   - firmware/src/**
   - firmware/src_hwtype/**
@@ -721,10 +721,9 @@ reading the night humidity of a rested humidifier back to the one it keeps (`off
 germination from its own menu gets back what germination kept - the night from before it, the humidifier's band -
 and the server lets that memory and the grower's germination choices go, as it does when germination ends from
 the cloud. Times of day set on the device were set by today's clock, so the clock the old ones were kept on is let
-go ([7.3](#73-times-of-day)). A plug's day and CO2 dosing windows are passed on to the AIR fan it slows, and a
-fan's upload, which never carries the `co2inject` section, keeps the one the server wrote from the plug
-([7.1](#71-keys-per-hardware-type)). Where any of this changed the document, the server sends it back; otherwise
-it answers nothing.
+go ([7.3](#73-times-of-day)). A device upload is not passed on to a coupled AIR fan: only a write the server makes
+to a plug writes the fan's `co2inject` ([7.1](#71-keys-per-hardware-type)). Where any of this changed the document,
+the server sends it back; otherwise it answers nothing.
 
 **A key a device does not know is ignored, and disappears.** Parsing is key by key
 (`loadIfAvaliable`, `controller.cpp:442-458`): a key that is missing takes the struct's compile-time default -
@@ -786,9 +785,12 @@ the plug slows while it doses CO2, which the firmware keeps without reading it a
 3 both); `min_speed`; `<day|night>.<temperature|humidity|fixed_speed|max_speed>`;
 `co2inject.device_id` (its presence enables the block) with `co2inject.{speed,usedaynight,day,night,period,
 duration}`. `mqttcontrol` and the `co2inject` block are not echoed. The fan knows nothing of the plug: the server
-writes `co2inject` from the plug's document - its id, its dosing windows and day, and the speed - whenever the
-plug's document is written, from the cloud or from the plug's own menu, and an empty section where the plug no
-longer names the fan or doses in no windows (`followCo2Fan`, `co2InjectFor`).
+writes `co2inject` from the plug's document - its id, its dosing windows and day, and the speed the owner set
+for the coupling in the plug's settings (`fan` key) - whenever the server writes the plug's document, and an empty
+section where the plug no longer names the fan or doses in no windows (`followCo2Fan`, `co2InjectFor`). A plug's or
+a fan's own upload is stored as it comes and not passed on: following them (#136) was reverted by #154, by the
+owner's decision of 2026-10-09, because the fan's control had worked before it. Settings made in the app give the
+fan the same `co2inject` with and without #136; it only differed after changes on a device's own menu.
 
 **light** (`light.cpp:441-447`, echo `:154-167`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
 (seconds UTC), `max_temperature`, `limit`, `sunrise`, `sunset`. A plan step or a climate preset never writes to
