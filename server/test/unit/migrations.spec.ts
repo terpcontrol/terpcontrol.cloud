@@ -34,6 +34,7 @@ import { workModes } from '@/migrations/steps/019-work-modes';
 import { readingsStore, retiredDryersWith } from '@/migrations/steps/020-retired-dryers';
 import { lightWindows } from '@/migrations/steps/021-light-windows';
 import { darkGermination } from '@/migrations/steps/022-dark-germination';
+import { co2FanWindows } from '@/migrations/steps/023-co2-fan-windows';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -845,6 +846,134 @@ describe('germination in the dark', () => {
     expect(again.stats['planTemplates.written'] ?? 0).toBe(0);
     expect(again.stats['grows.written'] ?? 0).toBe(0);
     expect(again.stats['entries.written'] ?? 0).toBe(0);
+  });
+});
+
+describe('the fans slowed for a socket´s CO2', () => {
+  const HOUR = 3600;
+  const CLOCK = { zone: 'Europe/Berlin', offset: 120 };
+  const socket = (id: string, fan: string, configuration: Record<string, unknown> = {}) => ({
+    id,
+    type: 'plug',
+    scheduleClock: CLOCK,
+    configuration: {
+      workmode: 'co2',
+      usedaynight: true,
+      // Doses by day, from 20:00 to 08:00 in German summer time.
+      daynight: { day: 18 * HOUR, night: 6 * HOUR, floating: false },
+      co2: { mode: 'periodic', period: 60, duration: 15, on: 823, off: 1101 },
+      fan: JSON.stringify({ device_id: fan, speed: 3 }),
+      ...configuration,
+    },
+  });
+  // What the old app wrote: everything but the socket's day and night.
+  const oldSection = (plug: string) => ({ device_id: plug, speed: 3, usedaynight: true, period: 60, duration: 15 });
+  const fan = (id: string, co2inject?: Record<string, unknown>) => ({
+    id,
+    type: 'fan',
+    scheduleClock: null,
+    configuration: { mode: 0, day: { fixed_speed: 20 }, night: { fixed_speed: 24 }, ...(co2inject ? { co2inject } : {}) },
+  });
+  const sectionOf = async (id: string) => (await one<Record<string, any>>('devices', { id }))?.configuration.co2inject;
+
+  it('gives a coupled fan its socket´s window, couples a fan the old app left uncoupled, and writes nothing the second time', async () => {
+    await migrate();
+    await collection('devices').insertMany([
+      socket('socket-by-day', 'fan-of-day'),
+      fan('fan-of-day', oldSection('socket-by-day')),
+      // Cleared by the old app after it had been written, while the socket still names it.
+      socket('socket-raced', 'fan-raced'),
+      fan('fan-raced', {}),
+      // Constant dosing slows no fan.
+      socket('socket-constant', 'fan-of-constant', { co2: { mode: 'const', period: 60, duration: 10, on: 600, off: 1000 } }),
+      fan('fan-of-constant', oldSection('socket-constant')),
+      // Names a socket that names another fan.
+      fan('fan-let-go', oldSection('socket-by-day')),
+      fan('fan-alone'),
+      { id: 'fan-without-settings', type: 'fan', configuration: null },
+      socket('socket-of-a-silent-fan', 'fan-without-settings'),
+    ]);
+
+    const context = new MigrationContext(db(), false, new Date(AT + DAY));
+    await co2FanWindows.run(context);
+
+    expect(await sectionOf('fan-of-day')).toEqual({
+      device_id: 'socket-by-day',
+      speed: 3,
+      usedaynight: 1,
+      day: 18 * HOUR,
+      night: 6 * HOUR,
+      period: 60,
+      duration: 15,
+    });
+    expect((await one<Record<string, any>>('devices', { id: 'fan-of-day' }))?.scheduleClock).toEqual(CLOCK);
+    // The rest of the fan's document is its own.
+    expect((await one<Record<string, any>>('devices', { id: 'fan-of-day' }))?.configuration.night).toEqual({ fixed_speed: 24 });
+    expect(await sectionOf('fan-raced')).toMatchObject({ device_id: 'socket-raced', day: 18 * HOUR, night: 6 * HOUR });
+    expect(await sectionOf('fan-of-constant')).toEqual({});
+    expect(await sectionOf('fan-let-go')).toEqual({});
+    expect((await one<Record<string, any>>('devices', { id: 'fan-let-go' }))?.scheduleClock).toBeNull();
+    expect(await sectionOf('fan-alone')).toBeUndefined();
+    expect((await one<Record<string, any>>('devices', { id: 'fan-without-settings' }))?.configuration).toBeNull();
+    expect(context.stats).toMatchObject({ 'fans.windowsWritten': 2, 'fans.notSlowed': 1, 'fans.uncoupled': 1, 'devices.written': 4 });
+
+    const again = new MigrationContext(db(), false, new Date(AT + 2 * DAY));
+    await co2FanWindows.run(again);
+    expect(again.stats['devices.written'] ?? 0).toBe(0);
+  });
+
+  it('carries a coupling the old app wrote through the whole run', async () => {
+    // As production stored it: the documents as strings, the fan's section without the socket's day and night.
+    const legacy = (id: string, type: string, configuration: Record<string, unknown>, serial: number) => ({
+      device_id: id,
+      username: `mqtt-${id}`,
+      password: 'x',
+      class_id: `class-${type}`,
+      device_type: type,
+      owner_id: LEGACY_USER_IDS.ada,
+      name: id,
+      configuration: JSON.stringify(configuration),
+      serialnumber: 100 + serial,
+      lastseen: AT,
+      current_firmware: `fw-${type}`,
+      fwupdate_start: 0,
+      fwupdate_end: 0,
+      __v: 0,
+    });
+    const plug = socket('legacy-socket', 'legacy-fan');
+    const { daynight, ...rest } = plug.configuration;
+    await collection('devices').insertMany([
+      legacy('legacy-socket', 'plug', { ...rest, daynight: { ...(daynight as object), day_duration: 86400, light_duration: 43200 } }, 1),
+      legacy('legacy-fan', 'fan', { ...fan('legacy-fan', oldSection('legacy-socket')).configuration, mode_str: '0' }, 2),
+    ]);
+
+    await migrate();
+
+    expect(await sectionOf('legacy-fan')).toEqual({
+      device_id: 'legacy-socket',
+      speed: 3,
+      usedaynight: 1,
+      day: 18 * HOUR,
+      night: 6 * HOUR,
+      period: 60,
+      duration: 15,
+    });
+  });
+
+  it('lets the socket that doses in windows have a fan two sockets name', async () => {
+    await migrate();
+    await collection('devices').insertMany([
+      socket('a-socket-constant', 'shared-fan', { co2: { mode: 'const' } }),
+      socket('b-socket-periodic', 'shared-fan'),
+      socket('c-socket-periodic', 'shared-fan', { daynight: { day: 4 * HOUR, night: 22 * HOUR } }),
+      fan('shared-fan', oldSection('a-socket-constant')),
+    ]);
+
+    const context = new MigrationContext(db(), false, new Date(AT + DAY));
+    await co2FanWindows.run(context);
+
+    expect(await sectionOf('shared-fan')).toMatchObject({ device_id: 'b-socket-periodic', day: 18 * HOUR, night: 6 * HOUR });
+    expect(context.stats).toMatchObject({ 'fans.namedTwice': 2 });
   });
 });
 
