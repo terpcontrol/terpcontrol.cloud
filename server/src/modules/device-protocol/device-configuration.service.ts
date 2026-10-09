@@ -478,10 +478,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * socket's document is written the fan's section is written from it again - a
    * fan the socket no longer names is told it is slowed for nothing, and while
    * the socket does not dose in windows its fan is told the same. Neither may
-   * fail the socket's own write: the socket is where the person is. A document
-   * the socket sends from its own menu is followed the same way (`DeviceIngestService`).
+   * fail the socket's own write: the socket is where the person is.
    */
-  public async followCo2Fan(plugId: string, before: DeviceConfiguration | null, after: DeviceConfiguration): Promise<void> {
+  private async followCo2Fan(plugId: string, before: DeviceConfiguration | null, after: DeviceConfiguration): Promise<void> {
     const was = co2FanOf(before);
     const now = co2FanOf(after);
     const inject = (fanId: string, section: Record<string, unknown>) =>

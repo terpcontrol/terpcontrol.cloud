@@ -2,7 +2,6 @@ import { ProblemException } from '@common/v1/problem';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { fieldChangesOf } from '@modules/device-protocol/configuration-fields';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
-import { DeviceIngestService } from '@modules/device-protocol/device-ingest.service';
 import { Published, deviceStackOn } from './support/device-stack';
 import { useV1TestDatabase } from './support/v1-database';
 
@@ -23,7 +22,6 @@ const HOUR = 3600;
 const db = useV1TestDatabase();
 let published: Published[];
 let configuration: DeviceConfigurationService;
-let ingest: DeviceIngestService;
 
 const plugDocument = (over: Record<string, unknown> = {}) => ({
   workmode: 'heater',
@@ -64,7 +62,7 @@ const refusal = (type: string, set: Parameters<typeof fieldChangesOf>[1]) => {
 
 beforeEach(async () => {
   await db.reset();
-  ({ published, configuration, ingest } = deviceStackOn(db));
+  ({ published, configuration } = deviceStackOn(db));
 });
 
 describe('a smart socket', () => {
@@ -200,37 +198,5 @@ describe('the fan a socket slows while it doses CO2', () => {
 
     await expect(configuration.configure(PLUG, { co2Every: 45 }, OWNER)).resolves.toBe(true);
     expect((await stored(PLUG)).configuration).toMatchObject({ co2: { period: 45 } });
-  });
-
-  it('passes the day the socket was given on its own menu on to the fan, so the fan is not slowed through the night', async () => {
-    const coupled = periodic({ usedaynight: false, fan: JSON.stringify({ device_id: FAN, speed: 4 }) });
-    const roundTheClock = { device_id: PLUG, speed: 4, usedaynight: 0, day: 6 * HOUR, night: 22 * HOUR, period: 60, duration: 10 };
-    await make(PLUG, 'plug', coupled);
-    await make(FAN, 'fan', fanDocument({ co2inject: roundTheClock }));
-
-    const fromItsMenu = { ...coupled, usedaynight: true, daynight: { day: 20 * HOUR, night: 14 * HOUR } };
-    await ingest.handle(`/devices/${PLUG}/configuration`, JSON.stringify(fromItsMenu));
-
-    expect((await stored(FAN)).configuration!.co2inject).toEqual({
-      device_id: PLUG,
-      speed: 4,
-      usedaynight: 1,
-      day: 20 * HOUR,
-      night: 14 * HOUR,
-      period: 60,
-      duration: 10,
-    });
-    expect(sent().some(one => one.topic.includes(FAN) && (one.message.co2inject as { night?: number })?.night === 14 * HOUR)).toBe(true);
-  });
-
-  it('keeps the socket’s windows in a fan that sends its own document from its menu', async () => {
-    const co2inject = { device_id: PLUG, speed: 4, usedaynight: 1, day: 20 * HOUR, night: 14 * HOUR, period: 60, duration: 10 };
-    await make(PLUG, 'plug', periodic({ fan: JSON.stringify({ device_id: FAN, speed: 4 }) }));
-    await make(FAN, 'fan', fanDocument({ co2inject }));
-
-    await ingest.handle(`/devices/${FAN}/configuration`, JSON.stringify(fanDocument({ min_speed: 20 })));
-
-    expect((await stored(FAN)).configuration).toMatchObject({ min_speed: 20, co2inject });
-    expect(sent().some(one => one.topic.includes(FAN) && JSON.stringify(one.message.co2inject) === JSON.stringify(co2inject))).toBe(true);
   });
 });
