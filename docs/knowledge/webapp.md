@@ -1,6 +1,6 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
-updated: 2026-10-08
+updated: 2026-10-09
 source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08
 paths:
   - webapp/**
@@ -197,10 +197,15 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   Until October 2026 that froze the catalogues at the first release a browser saw: new code, old words, raw keys
   (`cockpit.tile.hourMean`, `operatingMode.drying`). `dontCacheBustURLsMatching` in `vite.config.ts` now exempts only
   hashed names; `grep -o '{"revision":null[^}]*}' dist/sw.js` after a build must list hashed files only.
-- `src/sw.ts` calls neither `self.skipWaiting()` nor `clientsClaim()`, which the plugin adds only to a generated
-  worker. Despite `registerType: 'autoUpdate'`, a new release therefore takes over only once every window of the app
-  has been closed; until then the old precached shell is served (open question 4 in
-  [ADR 0002](../adr/0002-app-rewrite-frontend-stack.md#open-questions)).
+- A new release takes over at once. `src/sw.ts` calls `skipWaiting()` and `clients.claim()` itself - the plugin adds
+  them only to a generated worker, and `registerType: 'autoUpdate'` does nothing without them: until October 2026 a
+  release waited for every window of the app to close, so an installed app or a tab left open kept the old one
+  until somebody emptied the browser's cache. `followReleases()` (`src/app/update.ts`, from `main.tsx`) reloads the
+  page once when a new worker claims it - not when the very first one does - and asks for an update whenever the app
+  comes back to the front, since a page that never navigates never looks. The injected `registerSW.js` only
+  registers the worker. Check it on two builds in a real browser (the browser pane refuses service workers):
+  load one, build again with another `VITE_API_URL`, bring the page to the front, and it must reload once onto the
+  new bundle.
 - The dev server runs no worker (`devOptions.enabled: false`): try push on a build (the image, or
   `npm run build && npm run preview`), in a secure context.
 - `catchInstallPrompt()` in `main.tsx` keeps Chromium's `beforeinstallprompt`, which fires once at load, for Me ›

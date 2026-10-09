@@ -1,12 +1,13 @@
 ---
 summary: Which libraries the React web app is built from and why, its session and API client, its service worker, and the brand look its design tokens carry - read before adding a dependency, changing the build, the service worker, the fonts or a token
-updated: 2026-10-08
-source: Chris (platform 2026-09-16, the brand look 2026-09-24); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
+updated: 2026-10-09
+source: Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
 paths:
   - webapp/package.json
   - webapp/vite.config.ts
   - webapp/eslint.config.mjs
   - webapp/src/sw.ts
+  - webapp/src/app/update.ts
   - webapp/src/api/**
   - webapp/src/theme/**
   - webapp/src/charts/**
@@ -329,6 +330,13 @@ over only once every window of the app has been closed; whether that stays is op
 worker keeps once looked at is what is left there - the app icons, the logos and the feeding schemes, under a
 megabyte together.
 
+*Amended 2026-10-09 (Chris):* a new release takes over at once again, as the record first said. A colleague had to
+empty the browser's cache to see a release, because the hand-written worker waited for every window to close. It
+now calls `skipWaiting()` and `clients.claim()`, and the page reloads itself once when a new worker claims it
+(`src/app/update.ts`), so the code that runs and the files the worker answers with are always one release. The
+page also asks for an update whenever it comes back to the front. The price is accepted: a screen open in the
+middle of an entry reloads when a release lands, which happens seldom and costs that entry.
+
 ### Types: only from `@fg2/shared-types/v1`
 
 Every shape on the wire is imported from the contract, and `verbatimModuleSyntax` plus a lint rule make those
@@ -379,7 +387,7 @@ system's font files, and the client-side demo fixtures — the demo is a session
 
 ## Open questions
 
-All four are open (2026-10-08).
+Three are open (2026-10-09); the fourth is decided.
 
 1. **A browser end-to-end runner.** Playwright is the obvious choice and nothing here needs it yet; the question
    is worth deciding when the first screen with a flow through it lands, not before. Every screen has landed
@@ -390,7 +398,5 @@ All four are open (2026-10-08).
    open without costing anything.
 3. **Which screens are code-split.** Nothing is yet: the whole app is one chunk (see Consequences). The timelapse
    composer and the charting view are the two most worth splitting off.
-4. **Does a new release take over at once again?** (2026-10-08) The record says the app updates itself rather
-   than asking; since the worker is written by hand it waits until every window is closed (see the progressive web
-   app). Adding `self.skipWaiting()` and `clientsClaim()` to `src/sw.ts` would restore the record; keeping the
-   wait spares an open screen a reload in the middle of an entry.
+4. ~~**Does a new release take over at once again?**~~ Decided 2026-10-09: yes, with a reload (see the progressive
+   web app).
