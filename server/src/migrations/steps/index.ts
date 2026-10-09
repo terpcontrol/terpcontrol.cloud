@@ -21,9 +21,10 @@ import { workModes } from './019-work-modes';
 import { retiredDryers } from './020-retired-dryers';
 import { lightWindows } from './021-light-windows';
 import { darkGermination } from './022-dark-germination';
+import { co2FanWindows } from './023-co2-fan-windows';
 
 /**
- * In order, and the order matters in eight places:
+ * In order, and the order matters in nine places:
  *
  * - the picture bytes move first, because that job looks for its documents in
  *   `images` and every step after it has moved that collection aside;
@@ -44,7 +45,9 @@ import { darkGermination } from './022-dark-germination';
  *   and the cycle each device runs is added to the record that step 018 opened;
  * - germination is renamed where it meant the seedling climate over the plans,
  *   templates, grows and diary lines in the new shape, reading the dark mode a
- *   step carries after the work modes have cleared `small` and `full` away.
+ *   step carries after the work modes have cleared `small` and `full` away;
+ * - a fan coupled to a socket's CO2 is written from the socket's document in
+ *   the new shape, so after the devices have been migrated.
  *
  * Everything else is independent, and every step is a no-op on a database that
  * does not have the collection it reads - which is what a fresh install is.
@@ -72,4 +75,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   retiredDryers,
   lightWindows,
   darkGermination,
+  co2FanWindows,
 ];

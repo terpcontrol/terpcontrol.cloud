@@ -796,7 +796,9 @@ owner's decision of 2026-10-09, because the fan's control had worked before it. 
 fan the same `co2inject` with and without #136; it only differed after changes on a device's own menu.
 Consequence of the self-echo above: a change on the fan's own menu uploads a document without `co2inject`, the fan
 loads it back and stops slowing for the plug, day and night, and the cloud stores it without the section, so the
-app shows the fan as uncoupled. It stays so until the plug's settings are saved again in the app.
+app shows the fan as uncoupled. It stays so until the plug's settings are saved again in the app. A fan coupled in the
+pre-rewrite app was written its section without `day` and `night` and runs the compile-time 06:00-22:00 UTC;
+migration `023-co2-fan-windows` writes it from the plug's document ([smart-sockets.md](knowledge/smart-sockets.md)).
 
 **light** (`light.cpp:441-447`, echo `:154-167`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
 (seconds UTC), `max_temperature`, `limit`, `sunrise`, `sunset`. A plan step or a climate preset never writes to
