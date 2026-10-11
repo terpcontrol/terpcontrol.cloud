@@ -11,9 +11,10 @@ import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { serverNow } from '@/api/clock';
 import { useDeviceLive, useDevices, useHeardAt, useLiveReads, useSaveConfiguration, useSocketTables } from '@/api/devices';
-import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
+import { isMissing, useDevicePlan, usePlanTransition, useStopPlan } from '@/api/plans';
 import { ageAttribute, deviceLiveness, offlineLabel } from '@/ui/age';
 import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
+import { Asking } from '@/ui/Asking';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/presets';
@@ -324,6 +325,8 @@ function Panel({
   const live = liveRead.data;
   const save = useSaveConfiguration();
   const move = usePlanTransition(device.id);
+  const stop = useStopPlan(device.id);
+  const [stopping, setStopping] = useState(false);
   const [edit, setEdit] = useState<Edit | null>(null);
   const [sent, setSent] = useState<Sent | null>(null);
 
@@ -375,7 +378,7 @@ function Panel({
   // says it, so the two lines on one screen do not name two different minutes.
   const spoke = useLiveReads([device.id]).measuredAt.get(device.id) ?? heard;
   const offline = liveness === 'offline' ? offlineLabel(spoke, now, zone, true) : null;
-  const busy = save.isPending || move.isPending;
+  const busy = save.isPending || move.isPending || stop.isPending;
   const name = deviceName(device, t);
   const offset = offsetOf(now, zone);
 
@@ -562,12 +565,26 @@ function Panel({
               <button type="button" className={ui.button} disabled={busy} onClick={() => move.mutate({ kind: 'resume' })}>
                 {t('targets.resume')}
               </button>
+              {/* Paused is where a plan lands once targets are set by hand, and the tab opens here then - so ending it is offered here too. */}
+              <button type="button" className={`${ui.button} ${ui.danger}`} disabled={busy} onClick={() => setStopping(!stopping)}>
+                {t('space.control.move.stop')}
+              </button>
               <Help topic="resumePlan" />
             </>
           ) : null}
+          {mayManage && stopping ? (
+            <Asking
+              note={t('space.control.ask.stop')}
+              yes={t('space.control.ask.stopYes')}
+              danger
+              busy={busy}
+              onYes={() => stop.mutate(undefined, { onSuccess: () => setStopping(false) })}
+              onCancel={() => setStopping(false)}
+            />
+          ) : null}
         </div>
       ) : null}
-      {!dirty ? <Refused error={move.error} /> : null}
+      {!dirty ? <Refused error={move.error ?? stop.error} /> : null}
 
       {/* Under the table rather than over it: what the tab is opened for is
           the figures the tent holds now, and a stage is one way of setting

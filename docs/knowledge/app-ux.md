@@ -137,7 +137,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - "Regelung aus" stops everything and pauses a running plan, whose next step would switch it on again; on is one tap.
   - Saving a figure a running plan writes (a target, the light limit) pauses the plan first - it would put the step's
     figure back within the hour - with its reason ("Zielwerte von Hand gesetzt", "Lichtgrenze von Hand"), says so in
-    amber before the save and offers to resume.
+    amber before the save and offers to resume - and to stop: Steuerung opens on Zielwerte for a paused plan, and a
+    way out of it that is only one row further down was not found.
   - A Betriebsart other than Standard asks first: Keimung and Trocknung darken the device, Gewächshaus stops holding
     the humidity, and a tap in bloom would cost a night of light. Back to Standard is one tap.
   - Opening the demo replaces the grower's session, so it asks first. Starting a grow says beside the button that it

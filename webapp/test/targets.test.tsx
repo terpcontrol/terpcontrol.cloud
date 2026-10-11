@@ -162,6 +162,10 @@ vi.stubGlobal(
     if (method === 'GET' && path === '/devices/device-1/plan') {
       return wire.plan ? json(wire.plan) : problem(404, 'plan_not_found', 'This device is not being run by a plan.');
     }
+    if (method === 'DELETE' && path === '/devices/device-1/plan') {
+      wire.plan = plan('stopped');
+      return new Response(null, { status: 204 });
+    }
     if (method === 'POST' && path === '/devices/device-1/plan/transitions') {
       wire.plan = plan(body.kind === 'pause' ? 'paused' : 'running');
       return json(wire.plan);
@@ -1034,6 +1038,18 @@ describe('the targets page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resume plan' }));
 
     await waitFor(() => expect(sent('POST')).toEqual([{ method: 'POST', path: '/devices/device-1/plan/transitions', body: { kind: 'resume' } }]));
+  });
+
+  it('offers to stop a paused plan, asking first', async () => {
+    wire.plan = plan('paused');
+    await drawn();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    expect(sent('DELETE')).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Stop the plan' }));
+
+    await waitFor(() => expect(sent('DELETE')).toEqual([{ method: 'DELETE', path: '/devices/device-1/plan', body: undefined }]));
+    await waitFor(() => expect(screen.queryByText('The plan is paused while these targets hold.')).not.toBeInTheDocument());
   });
 
   it('has no CO2 row without a CO2 sensor', async () => {
