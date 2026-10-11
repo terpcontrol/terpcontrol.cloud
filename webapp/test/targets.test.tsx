@@ -1195,6 +1195,29 @@ describe('the targets page', () => {
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
   });
 
+  it('sets a fridge’s clip fan and inner fans under its targets, saved on their own and not again under Erweitert', async () => {
+    await drawn([
+      device({
+        type: 'fridge',
+        configuration: { ...CONFIGURATION, fans: { external: 40, internal: 30 } },
+        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ]);
+    expect(screen.getByText('Fans')).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Clip fan' })).toHaveValue('40');
+    expect(screen.getByRole('slider', { name: 'Inner fans, at least' })).toHaveValue('30');
+
+    fireEvent.click(screen.getByText('Advanced', { selector: 'summary' }));
+    expect(screen.getByRole('textbox', { name: 'Compressor rest' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Clip fan' })).not.toBeInTheDocument();
+
+    type('Clip fan, typed', 0);
+    tap('Save');
+
+    await waitFor(() => expect(sent('PATCH')).toEqual([{ method: 'PATCH', path: '/devices/device-1/configuration', body: { set: { clipFan: 0 } } }]));
+    expect(sent('PUT')).toEqual([]);
+  });
+
   it('holds no humidity in greenhouse mode, says so over the table rather than in a dead row, and offers no energy saving there', async () => {
     await drawn([
       device({

@@ -43,11 +43,14 @@ export function OwnPanel({
   report,
   asking,
   invalid = null,
+  saysReadOnly = true,
   children,
 }: OwnPanelProps & {
   draft: FieldsDraft;
   /** Why the draft cannot be saved as it stands, said over the bar. */
   invalid?: string | null;
+  /** False where a panel above it on the same page already says the session may only look. */
+  saysReadOnly?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -70,7 +73,7 @@ export function OwnPanel({
       {titled ? <h2 className={targets.deviceName}>{name}</h2> : null}
       {children}
 
-      {mayManage ? null : <p className={ui.note}>{t('targets.readOnly')}</p>}
+      {mayManage || !saysReadOnly ? null : <p className={ui.note}>{t('targets.readOnly')}</p>}
 
       {sentAt && !draft.dirty ? (
         <p className={`mono ${targets.sent}`} role="status">

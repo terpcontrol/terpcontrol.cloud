@@ -25,6 +25,7 @@ import { nowThere, CLOCK, useZone } from '@/ui/zone';
 import { DeviceAdvanced } from '../../devices/DeviceAdvanced';
 import { deviceName, deviceTitle } from '@/ui/naming';
 import { FanPanel } from '../devices/FanPanel';
+import { FridgeFansPanel } from '../devices/FridgeFansPanel';
 import { LightPanel } from '../devices/LightPanel';
 import type { OwnPanelProps } from '../devices/OwnPanel';
 import { PlugPanel } from '../devices/PlugPanel';
@@ -100,6 +101,8 @@ export function Targets({
   }, []);
   // A fan's speeds are a second panel of the same device, handed up under a key of their own.
   const fanReport = useCallback((deviceId: string, entry: Unsaved | null) => report(`${deviceId}:speeds`, entry), [report]);
+  // A fridge's fans are one as well.
+  const fridgeFansReport = useCallback((deviceId: string, entry: Unsaved | null) => report(`${deviceId}:fans`, entry), [report]);
   const [asking, setAsking] = useState(false);
   // What grows here, for the one line under the chips that says the phase is not theirs to move.
   const home = useHome();
@@ -200,6 +203,16 @@ export function Targets({
               asking={asking}
             />
           )}
+          {device.type === 'fridge' ? (
+            <FridgeFansPanel
+              device={device}
+              name={deviceName(device, t)}
+              titled={false}
+              mayManage={mayManage}
+              report={fridgeFansReport}
+              asking={asking}
+            />
+          ) : null}
         </Fragment>
       ))}
       {panels}
