@@ -10,7 +10,7 @@ firmware/src/mqtt_ca.gen.h
 mqtts-ca.key
 
 # Local compose overrides for development.
-docker-compose.override.yml
+docker-compose.override.yaml
 
 # What simulate-device.sh keeps for a simulated device between runs, standing in
 # for the NVS of real hardware.
