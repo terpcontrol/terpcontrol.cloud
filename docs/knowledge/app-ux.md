@@ -1,6 +1,6 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, what was left out on purpose; read before changing a screen
-updated: 2026-10-08
+updated: 2026-10-11
 source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08
 paths:
   - webapp/src/**
@@ -133,7 +133,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - "Regelung aus" stops everything and pauses a running plan, whose next step would switch it on again; on is one tap.
   - Saving a figure a running plan writes (a target, the light limit) pauses the plan first - it would put the step's
     figure back within the hour - with its reason ("Zielwerte von Hand gesetzt", "Lichtgrenze von Hand"), says so in
-    amber before the save and offers to resume.
+    amber before the save and offers to resume - and to stop: Steuerung opens on Zielwerte for a paused plan, and a
+    way out of it that is only one row further down was not found.
   - A Betriebsart other than Standard asks first: Keimung and Trocknung darken the device, Gewächshaus stops holding
     the humidity, and a tap in bloom would cost a night of light. Back to Standard is one tap.
   - Opening the demo replaces the grower's session, so it asks first. Starting a grow says beside the button that it
