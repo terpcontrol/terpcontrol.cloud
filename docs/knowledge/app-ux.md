@@ -1,6 +1,6 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, what was left out on purpose; read before changing a screen
-updated: 2026-10-08
+updated: 2026-10-11
 source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08
 paths:
   - webapp/src/**
@@ -32,8 +32,12 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   the shell says once per account what moved (`app/shell/LayoutNotice.tsx`) - never a silent flip.
 - **Every device setting is reachable where values are changed**: Start → place → "Ändern" beside Zielwerte draws the
   same device Erweitert as the panel under Geräte - one shared component, `DeviceAdvanced`, so a new setting lands in
-  both. The targets page leaves out only what it offers itself (Betriebsart, linked as "Betriebsart unter Geräte")
-  (Chris, 2026-10-06, PR #139).
+  both. The targets page leaves out only what it offers itself (Betriebsart, linked as "Betriebsart unter Geräte";
+  a fridge's fans) (Chris, 2026-10-06, PR #139).
+- **A fridge's fan speeds stand under its targets** (Chris, 2026-10-11): Klemmlüfter (`fans.external`) and
+  Innenlüfter (`fans.internal`) are changed as often as the climate, so the targets page draws them in a block of
+  their own under the day and night figures, with its own Save (`screens/control/devices/FridgeFansPanel.tsx`);
+  under Geräte they stay in Erweitert.
 - **No old capability disappears silently**: replace it with an equivalent or decide it away with Chris (Chris,
   2026-10-02, first said of the charts). What was decided away is in §11.
 
@@ -235,5 +239,6 @@ Old-app settings that stay out (Chris, 2026-10-02; still absent on 2026-10-08) -
 - Alarm cooldown seconds and the extra log message per alarm; the chart presets (§7).
 
 Everything else the old expert mode offered is under an Erweitert section (the `*.advanced.tsx` files), among them
-the maintenance light, the Kompressor-Pause (at least 240 s), light ramps, fan levels, sensor factors and the update
+the maintenance light, the Kompressor-Pause (at least 240 s), light ramps, fan levels (also under a fridge's targets),
+sensor factors and the update
 channel with Manuell (Chris, 2026-10-06); the alarm sheet keeps the webhook templates.

@@ -12,10 +12,11 @@ import ui from '@/ui/ui.module.css';
 /**
  * What the targets page offers itself, and is left out of a device's Erweitert
  * drawn under it: germination in the dark is one of its climates, together with
- * what germination does about the humidity, and the same choice twice on one
- * page would be two buttons of one name doing it two ways.
+ * what germination does about the humidity, and a fridge's fans stand under its
+ * targets. The same setting twice on one page would be two controls of one name
+ * doing it two ways.
  */
-const BESIDE_TARGETS = ['operating-mode'];
+const BESIDE_TARGETS = ['operating-mode', 'fans'];
 
 /**
  * A device's Erweitert, wherever its settings are reached from: its own panel
@@ -56,7 +57,7 @@ export function DeviceAdvanced({
   };
   // A fridge's temperature-only mode has no chip among the targets, so where
   // the mode is left out the section says where it is set.
-  const elsewhere = besideTargets && itemsFor('device', context).some(item => BESIDE_TARGETS.includes(item.id));
+  const elsewhere = besideTargets && itemsFor('device', context).some(item => item.id === 'operating-mode');
 
   return (
     <AdvancedSection

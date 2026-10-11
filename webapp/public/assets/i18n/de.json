@@ -3072,6 +3072,7 @@
       "germinationBack": "Endet die Keimung ohne neues Klima, gilt wieder die Nachttemperatur von vorher: {{temperature}}.",
       "germinationBackHumidity": "Endet die Keimung ohne neues Klima, gilt wieder die Nacht von vorher: {{temperature}} · {{humidity}}."
     },
+    "fans": "Lüfter",
     "stepLess": "{{name}}: weniger",
     "stepMore": "{{name}}: mehr",
     "planTable": {

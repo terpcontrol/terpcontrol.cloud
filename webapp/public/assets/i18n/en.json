@@ -3064,6 +3064,7 @@
       "germinationBack": "Where germination ends without a new climate, the night temperature from before holds again: {{temperature}}.",
       "germinationBackHumidity": "Where germination ends without a new climate, the night from before holds again: {{temperature}} · {{humidity}}."
     },
+    "fans": "Fans",
     "stepLess": "{{name}}: less",
     "stepMore": "{{name}}: more",
     "planTable": {
