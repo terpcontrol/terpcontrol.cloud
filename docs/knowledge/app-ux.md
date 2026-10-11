@@ -65,7 +65,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   2026-10-11): where two devices here hold targets, the cockpit gives each a block of its own - its name and pill,
   status sentence, work mode, tiles with its own curves, and its targets beside them - and an open alarm is said
   once above the blocks, since an alert names no device; the Start card gives each its figures under its name and
-  lets the worst status speak for the card, prefixed with that device. One climate keeps the page as it was
+  lets the worst status speak for the card, prefixed with that device. From the second device on the cockpit also
+  lists every device at its foot ("3 Geräte hier": name, type, live or offline since), and Verlauf and Graphen
+  offer "Alle Geräte" or one climate (`?device=`, `screens/cockpit/ClimatePicker.tsx`) - Chris, 2026-10-11: that a
+  place holds several devices has to stand out. One climate keeps the page as it was
   ([ADR 0001](../adr/0001-app-rewrite-data-model.md#behaviour-the-model-implies)).
 - **Steuerung opens on Zielwerte** (a running plan is the exception) with Alarme and "Automatisch nach Grow-Plan
   steuern" as rows under them. Leaving with unsaved figures asks "Speichern und weiter / Verwerfen / Weiter

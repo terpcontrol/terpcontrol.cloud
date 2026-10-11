@@ -17,6 +17,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { LogProvider } from '@/log/LogProvider';
 import { Home } from '@/screens/Home';
+import { ClimatePicker } from '@/screens/cockpit/ClimatePicker';
 import { PlaceCockpit } from '@/screens/cockpit/PlaceCockpit';
 import { holdVerdictOf, judgedPanel, outputsFor, statusOf } from '@/screens/cockpit/place';
 import { drawAt, json } from './harness';
@@ -586,6 +587,9 @@ describe('devices brought together in one place', () => {
     const { unmount } = draw(<PlaceCockpit overview={overviewOf({ deviceIds: ['device-1', 'device-2'] })} headed />);
 
     expect(await screen.findByRole('link', { name: /^2 devices · .+ · Lamp – open the devices$/ })).toHaveAttribute('href', '/devices?space=space-1');
+    const listed = screen.getByRole('region', { name: '2 devices here' });
+    expect(listed).toHaveTextContent('Lamp');
+    expect(listed).toHaveTextContent('Light · live');
     unmount();
 
     server.devices = [fridge()];
@@ -660,6 +664,26 @@ describe('a place holding several climates', () => {
     await screen.findByRole('heading', { name: /^Mother controller/ });
     const asked = fetchStub.mock.calls.map(([input]) => String(input)).filter(url => url.includes('/timeline'));
     await waitFor(() => expect(asked.some(url => url.includes('deviceId=device-2'))).toBe(true));
+  });
+
+  it('offers to draw one climate of several on its own, and every device together', async () => {
+    server.devices = [fridge(), module()];
+    server.overviews.set('space-1', twoClimates());
+    const chosen = vi.fn();
+    draw(<ClimatePicker spaceId="space-1" chosen={null} onChoose={chosen} />);
+
+    const picker = await screen.findByRole('group', { name: 'Which device' });
+    expect(within(picker).getByRole('button', { name: 'All devices' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(await within(picker).findByRole('button', { name: 'Mother controller' }));
+    expect(chosen).toHaveBeenCalledWith('device-2');
+  });
+
+  it('offers no choice where the place holds one climate', async () => {
+    server.overviews.set('space-1', overviewOf({ climates: [{ ...twoClimates().climates[0] }] }));
+    draw(<ClimatePicker spaceId="space-1" chosen={null} onChoose={() => {}} />);
+
+    await waitFor(() => expect(fetchStub).toHaveBeenCalledWith(expect.stringContaining('/spaces/space-1/overview'), expect.anything()));
+    expect(screen.queryByRole('group', { name: 'Which device' })).not.toBeInTheDocument();
   });
 
   it('keeps one set of tiles for a place with one climate', async () => {

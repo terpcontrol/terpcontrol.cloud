@@ -4,7 +4,10 @@ import type { ReactNode } from 'react';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { controlPath } from '@/app/places';
+import { controlPath, devicesPath } from '@/app/places';
+import { useDevices } from '@/api/devices';
+import { deviceLiveness, offlineLabel } from '@/ui/age';
+import { deviceTitle, givenName, typeName } from '@/ui/naming';
 import type { AlarmRule, CardSetpoint, Device, DeviceLive, Me, Metric, OverviewTargets } from '@fg2/shared-types/v1';
 import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
@@ -236,3 +239,45 @@ const lineOf = (t: Translate, rule: AlarmRule): string => {
           : null;
   return bound ? `${title} ${bound}` : title;
 };
+
+/**
+ * Every device standing in the place, at the foot of its page: what it is, whether
+ * it is heard from - so a tent with a controller, a lamp and a fan reads as one
+ * with three devices rather than as the controller alone. Drawn from the second device on, and leading
+ * to their panels under Geräte.
+ */
+export function DevicesSummary({ spaceId, devices, now, mayChange }: { spaceId: string; devices: Device[]; now: DateTime; mayChange: boolean }) {
+  const { t } = useTranslation();
+  const zone = useZone();
+  const among = useDevices(devices.length > 1).data?.items;
+  if (devices.length < 2) return null;
+
+  return (
+    <Summary title={t('cockpit.devices.title', { count: devices.length })} change={mayChange ? devicesPath(spaceId) : null}>
+      <dl className={styles.facts}>
+        {devices.map(device => {
+          const heard = deviceLiveness(device.state.lastSeenAt, now);
+          const title = deviceTitle(device, t, among);
+          const type = typeName(device.type, t);
+          const parts = [
+            givenName(device) && title !== type ? type : null,
+            heard === 'offline' ? offlineLabel(device.state.lastSeenAt, now, zone) : t(`home.liveness.${heard}`),
+          ].filter((part): part is string => part !== null);
+          return (
+            <div key={device.id}>
+              <dt>{title}</dt>
+              <dd className="mono" data-heard={heard}>
+                {parts.map((part, index) => (
+                  <Fragment key={part}>
+                    {index > 0 ? ' · ' : ''}
+                    <span className={styles.part}>{part}</span>
+                  </Fragment>
+                ))}
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+    </Summary>
+  );
+}

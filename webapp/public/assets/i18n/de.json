@@ -4334,7 +4334,11 @@
       "count_one": "{{count}} Gerät",
       "count_other": "{{count}} Geräte",
       "open": "{{devices}} – Geräte öffnen",
-      "waiting": "Gerät wird gelesen …"
+      "waiting": "Gerät wird gelesen …",
+      "pick": "Welches Gerät",
+      "all": "Alle Geräte",
+      "title_one": "{{count}} Gerät hier",
+      "title_other": "{{count}} Geräte hier"
     },
     "status": {
       "good": "Alles im Ziel",

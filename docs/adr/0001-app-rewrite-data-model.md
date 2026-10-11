@@ -487,9 +487,11 @@ OpenAPI document the server serves at `/api-docs`.
   devices. `GET /spaces/{id}/overview` answers `climates[]` (each device's values, setpoints, both halves' targets
   and 24-hour verdict; the device id is null on a shared read) and `GET /home` a `climates[]` per card (values and
   setpoints); the flat `values`, `setpoints`, `targets` and `verdict` stay, as the place merged and its first
-  climate. `GET /spaces/{id}/timeline?deviceId=` narrows panels, bands, nights and lanes to one device, which is
-  how the cockpit draws each climate's curves. Still pooled or of the first climate: the Timeline and charts pages,
-  a week's climate and report, the phase snapshot's one `deviceId`, and the shared tent page.
+  climate. `GET /spaces/{id}/timeline?deviceId=` and `GET /spaces/{id}/series?deviceId=` narrow panels, bands,
+  nights and lanes to one device (404 `device_not_here` for one that does not stand there), which is how the
+  cockpit draws each climate's curves and how Verlauf and Graphen offer "Alle Geräte" or one device. Still pooled
+  or of the first climate: a week's climate and report, the phase snapshot's one `deviceId`, and the shared tent
+  page.
 - **One phase writer.** `GrowService.setPhase` is called by the grow routes, the plan engine and
   `preset-applications`. It appends the phase, writes the `phase` entry and re-reads stage-bound alarm
   thresholds from one table in `shared-types`. Applying a preset to a space with an open grow sets its phase;

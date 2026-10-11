@@ -4326,7 +4326,11 @@
       "count_one": "{{count}} device",
       "count_other": "{{count}} devices",
       "open": "{{devices}} – open the devices",
-      "waiting": "Reading the device …"
+      "waiting": "Reading the device …",
+      "pick": "Which device",
+      "all": "All devices",
+      "title_one": "{{count}} device here",
+      "title_other": "{{count}} devices here"
     },
     "status": {
       "good": "All on target",

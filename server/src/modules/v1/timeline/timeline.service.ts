@@ -26,7 +26,7 @@ import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
 import { lastReadingOf } from './last-reading';
 import { PANEL_METRICS, chartPartsOf, panelsOf } from './timeline-series';
-import { TimelineWindow, steeringOf, stretchesOf, windowOf } from './timeline-window';
+import { TimelineWindow, narrowedToDevice, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
  * The Timeline tab, as one answer.
@@ -116,10 +116,7 @@ export class TimelineService {
         .lean<GrowDocument[]>(),
     ]);
 
-    // One climate of several, where one was asked for. A device that does not
-    // stand here is answered as one that does not exist, whoever asks.
-    const devices = asked.deviceId ? standing.filter(device => device.id === asked.deviceId) : standing;
-    if (asked.deviceId && devices.length === 0) throw notFound('device_not_here', 'That device does not stand in this space.');
+    const devices = narrowedToDevice(standing, asked.deviceId);
 
     // A link's window decides which grows it is told about: the ones that stood
     // here inside it, not whatever moved in after the window closed.

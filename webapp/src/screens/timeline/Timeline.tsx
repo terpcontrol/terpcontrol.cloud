@@ -26,6 +26,7 @@ import { Lanes } from './Lanes';
 import { Panel } from './Panel';
 import { ReadingPanel } from './ReadingPanel';
 import { at, momentOf, pointAt, spans, stampOf } from './window';
+import { ClimatePicker } from '../cockpit/ClimatePicker';
 import styles from './Timeline.module.css';
 
 const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
@@ -80,8 +81,10 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const focus = params.get('focus');
+  // One climate of several, where the place holds more than one and somebody chose it; a link is shown the tent.
+  const device = shared ? null : params.get('device');
   // A link that names a moment - an alert's "Verlauf öffnen" - opens on the
   // shortest window that holds it, with the cursor standing on it.
   const [moment] = useState(() => momentOf(params.get('at')));
@@ -94,7 +97,7 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
   const screen = useRef<HTMLDivElement>(null);
   const focused = useRef<string | null>(null);
 
-  const timeline = useTimeline(spaceId, range, pinned, shared?.token ?? null);
+  const timeline = useTimeline(spaceId, range, pinned, shared?.token ?? null, device);
   const data = timeline.data;
   const nameOf = useOutputName();
 
@@ -192,12 +195,30 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
       {data ? <span className={`mono ${styles.days}`}>{dayLabel(t, data)}</span> : null}
     </div>
   );
+  const picker = shared ? null : (
+    <ClimatePicker
+      spaceId={spaceId}
+      chosen={device}
+      onChoose={next =>
+        setParams(
+          kept => {
+            const params = new URLSearchParams(kept);
+            if (next === null) params.delete('device');
+            else params.set('device', next);
+            return params;
+          },
+          { replace: true },
+        )
+      }
+    />
+  );
 
   if (timeline.isPending) {
     return (
       <div className={styles.screen}>
         {heading}
         {chips}
+        {picker}
         <Waiting lines={3} />
         <Waiting lines={4} />
       </div>
@@ -233,6 +254,7 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
         </Link>
       ) : null}
       {chips}
+      {picker}
       <RefreshFailed failedAt={timeline.isError ? timeline.dataUpdatedAt : null} now={now} />
 
       {frames.length > 0 ? (

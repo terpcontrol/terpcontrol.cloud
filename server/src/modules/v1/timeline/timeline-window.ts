@@ -1,6 +1,7 @@
 import type { TimelineRange } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf, spineOf } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
+import { notFound } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
 import { stepFor as storeStepFor } from '@modules/data/flux';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -139,6 +140,18 @@ const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
 
   const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
   return Math.max(MIN_STEP_SECONDS, Math.ceil(seconds / PANEL_WINDOWS));
+};
+
+/**
+ * One device of a place, where a reader asked for one climate of several:
+ * every reading, band and lane is then that device's alone. A device that does
+ * not stand here is answered as one that does not exist, whoever asks.
+ */
+export const narrowedToDevice = (devices: StoredDevice[], deviceId: string | undefined): StoredDevice[] => {
+  if (!deviceId) return devices;
+  const one = devices.filter(device => device.id === deviceId);
+  if (one.length === 0) throw notFound('device_not_here', 'That device does not stand in this space.');
+  return one;
 };
 
 /**

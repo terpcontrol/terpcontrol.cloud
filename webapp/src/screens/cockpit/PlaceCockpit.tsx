@@ -57,7 +57,7 @@ import {
 } from './place';
 import { PlaceMenu } from './PlaceMenu';
 import { usePlace, useHumidifierHold } from './reads';
-import { AlarmsSummary, TargetsSummary } from './Summaries';
+import { AlarmsSummary, DevicesSummary, TargetsSummary } from './Summaries';
 import { Tiles } from './Tiles';
 import styles from './Cockpit.module.css';
 
@@ -200,6 +200,7 @@ export function PlaceCockpit({
             </div>
             <div className={styles.column}>
               <AlarmsSummary spaceId={spaceId} devices={here} me={visiting ? undefined : me.data} mayChange={mayManage} />
+              <DevicesSummary spaceId={spaceId} devices={here} now={now} mayChange={mayManage} />
               {diary && !growUp ? <GrowBlock overview={overview} still={shown?.mediaId ?? null} now={now} mine={!visiting} /> : null}
               <Latest overview={overview} now={now} pictured={growUp ? (pictured?.mediaId ?? null) : null} />
               {offerDiary ? <DiaryOffer /> : null}
@@ -278,6 +279,7 @@ export function PlaceCockpit({
             {hasDevice && here.length > 0 ? (
               <AlarmsSummary spaceId={spaceId} devices={here} me={visiting ? undefined : me.data} mayChange={mayManage} />
             ) : null}
+            <DevicesSummary spaceId={spaceId} devices={here} now={now} mayChange={mayManage} />
             {diary && !growUp ? <GrowBlock overview={overview} still={shown?.mediaId ?? null} now={now} mine={!visiting} /> : null}
             <Latest overview={overview} now={now} pictured={growUp ? (pictured?.mediaId ?? null) : null} />
             {offerDiary ? <DiaryOffer /> : null}

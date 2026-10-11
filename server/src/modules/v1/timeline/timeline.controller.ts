@@ -47,6 +47,11 @@ const seriesQuery = inOrder(
       .describe('The window each point summarises, where somebody chose one; widened where it would build more points than one read holds.'),
     metrics: repeated(metric).optional(),
     outputs: repeated(outputMetric).optional(),
+    deviceId: z
+      .string()
+      .min(1)
+      .optional()
+      .describe('One device standing here, for a place that holds several climates: every line is then that device’s alone.'),
   }),
   'from',
   'to',

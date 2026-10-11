@@ -37,6 +37,7 @@ import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR, useZone, zonedAt } from '@/ui/zone';
 import { BackLink } from '@/ui/BackLink';
 import { figure } from '@/ui/units';
+import { ClimatePicker } from '../cockpit/ClimatePicker';
 import { CameraFrame } from '../timeline/CameraFrame';
 import { at, momentOf, stampFor, stampForEnds, stamps } from '../timeline/window';
 import {
@@ -229,8 +230,10 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
 
   const definitions = useMemo(() => (grow?.measurements ?? []).filter(definition => definition.chart), [grow]);
   const keys = useMemo(() => definitions.map(definition => definition.key), [definitions]);
+  // One climate of several, where the place holds more than one and somebody chose it.
+  const device = params.get('device');
   const series = useChartData(
-    { growId: grow?.id ?? null, spaceId, keys },
+    { growId: grow?.id ?? null, spaceId, keys, deviceId: device },
     unasked ? null : window,
     settings.stepSeconds ?? undefined,
     settings.live && window?.kind === 'grow' && endedAt === null ? LIVE_BEAT_MS : false,
@@ -408,6 +411,10 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
 
   const chips = (
     <>
+      {/* A grow's stretch is the grow's answer, which is not told the devices apart; the place's windows are. */}
+      {window?.kind === 'span' ? (
+        <ClimatePicker spaceId={spaceId} chosen={device} onChoose={next => setQuery({ device: next })} className={styles.chips} />
+      ) : null}
       <div className={styles.chips} role="group" aria-label={t('charts.rangeLabel')}>
         {shownWidths.map(one => (
           <Choice key={one} chosen={zoom === null && one === range} onChoose={() => setRange(one)}>
