@@ -1,7 +1,7 @@
 ---
 summary: Why CI, the image builds, the deploy pipeline and firmware releases work as they do, the GitHub settings behind them and their traps - read before changing .github/, a Dockerfile, up.sh or build-fw.sh, and before deploying by hand
-updated: 2026-10-08
-source: Chris (2026-09-23, 2026-09-30, 2026-10-01, 2026-10-04); PRs #21, #34, #61, #63, #64, #71, #73, #80, #89, #95, #104, #105, #121, #126, #142; sessions 2026-08..10; codebase cleanup (2026-10-08); GitHub repository settings read 2026-10-08
+updated: 2026-10-11
+source: Chris (2026-09-23, 2026-09-30, 2026-10-01, 2026-10-04); PRs #21, #34, #61, #63, #64, #71, #73, #80, #89, #95, #104, #105, #121, #126, #142; sessions 2026-08..10; codebase cleanup (2026-10-08); GitHub repository settings read 2026-10-08; Deploy runs read 2026-10-11
 paths:
   - .github/**
   - docker-compose.yaml
@@ -115,6 +115,12 @@ header. A full green run went from 53,301 log lines to about 5,100; most of the 
   container there (`./up.sh` forces it), and does the same on production once a reviewer approves. Keep a pull
   request a draft until `master` may ship it. Staging (the dev stack) is deployed from `master`, so a fix shows there
   only after its merge.
+- **Merged is not deployed.** A bug reported from staging or production that `master` already fixes: first check
+  that the Deploy run of the fix's commit, or a later one, passed on that track. From 2026-10-08 to 2026-10-09 every
+  `staging-cloud` deploy failed at "Bring the stack up", so #149 to #155 reached staging only with `922c730` on
+  2026-10-11, and a report of the previous account's home after switching accounts (fixed in #150) most likely came from that
+  gap. A page opened before #155 also keeps the old release until every window of the app was closed once
+  ([webapp](webapp.md)).
 - **Tracks** (header of `deploy.yml`): cloud `staging-cloud` -> `production-cloud`, firmware `staging-firmware` ->
   `production-firmware`, and `garmin`. Only `production-cloud` waits for a reviewer. While it waits it holds its
   environment's lock: later `production-cloud` deploys queue behind it, GitHub keeps only the newest waiting one, and
