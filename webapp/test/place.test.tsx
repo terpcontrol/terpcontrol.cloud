@@ -81,6 +81,7 @@ const at = (secondsAgo: number) => NOW.minus({ seconds: secondsAgo }).toISO()!;
 const overview: SpaceOverview = {
   spaceId: 'space-1',
   name: 'Tent 1',
+  climates: [],
   kind: 'tent',
   roomId: null,
   deviceIds: ['device-1'],

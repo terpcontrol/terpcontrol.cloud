@@ -397,10 +397,48 @@ describe('the climate half', () => {
     ]);
   });
 
+  it('says each climate of the place on its own, and the plug beside them in none', async () => {
+    await db.devices.create({
+      id: 'device-fridge-module',
+      type: 'fridge',
+      ownerId: OWNER,
+      spaceId: TENT,
+      configuration: { day: { temperature: 21, humidity: 60 }, night: { temperature: 18 } },
+    });
+    readings['device-fridge-module'] = reading({ temperature: [20.6, 10], humidity: [61, 10] });
+
+    const [tent] = (await home.read(session(OWNER), NOW)).spaces;
+
+    expect(tent.climates.map(climate => climate.deviceId)).toEqual([CONTROLLER, 'device-fridge-module']);
+    expect(tent.climates[1].values.map(value => [value.metric, value.value])).toEqual([
+      ['temperature', 20.6],
+      ['humidity', 61],
+    ]);
+    expect(tent.climates[1].setpoints).toEqual([
+      { metric: 'temperature', value: 21, band: 1 },
+      { metric: 'humidity', value: 60, band: 5 },
+    ]);
+  });
+
+  it('counts an AIR fan as a climate only where nothing else here holds targets', async () => {
+    await db.devices.create({
+      id: 'device-air',
+      type: 'fan',
+      ownerId: OWNER,
+      spaceId: TENT,
+      configuration: { day: { temperature: 25, humidity: 55 }, night: { temperature: 20 } },
+    });
+
+    expect((await home.read(session(OWNER), NOW)).spaces[0].climates.map(climate => climate.deviceId)).toEqual([CONTROLLER]);
+
+    await db.devices.deleteOne({ id: CONTROLLER });
+    expect((await home.read(session(OWNER), NOW)).spaces[0].climates.map(climate => climate.deviceId)).toEqual(['device-air']);
+  });
+
   it('has no values and no targets where there is no device', async () => {
     const balcony = (await home.read(session(OWNER), NOW)).spaces.find(card => card.spaceId === BALCONY);
 
-    expect(balcony).toMatchObject({ deviceIds: [], values: [], setpoints: [], trend: null });
+    expect(balcony).toMatchObject({ deviceIds: [], values: [], setpoints: [], climates: [], trend: null });
   });
 
   it('carries a day of temperature on the card, so the sparkline costs no read of its own', async () => {

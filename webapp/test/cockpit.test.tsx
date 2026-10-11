@@ -128,6 +128,7 @@ const reboot = (id: string, minutes: number) =>
 const overviewOf = (over: Partial<SpaceOverview> = {}): SpaceOverview => ({
   spaceId: 'space-1',
   name: 'Fridge 1',
+  climates: [],
   kind: 'fridge',
   roomId: null,
   deviceIds: ['device-1'],
@@ -613,6 +614,59 @@ describe('devices brought together in one place', () => {
     draw(<PlaceCockpit overview={growing} headed />);
     await screen.findAllByText('Tent 2');
     expect(screen.queryByRole('button', { name: 'Remove Tent 2' })).not.toBeInTheDocument();
+  });
+});
+
+describe('a place holding several climates', () => {
+  const module = (): Device => fridge({ id: 'device-2', type: 'controller', name: 'Mother controller' });
+  const twoClimates = () =>
+    overviewOf({
+      deviceIds: ['device-1', 'device-2'],
+      climates: [
+        { deviceId: 'device-1', values: values(), setpoints, targets: overviewOf().targets, verdict: overviewOf().verdict },
+        {
+          deviceId: 'device-2',
+          values: [{ metric: 'temperature', value: 20.6, measuredAt: ago(0.3), state: 'live' }],
+          setpoints: [{ metric: 'temperature', value: 25, band: 1 }],
+          targets: { day: [{ metric: 'temperature', value: 25, band: 1 }], night: [] },
+          verdict: { ...overviewOf().verdict, deviceId: 'device-2' },
+        },
+      ],
+    });
+
+  it('draws each climate as its own block, with its own readings, status and targets', async () => {
+    server.devices = [fridge(), module()];
+    draw(<PlaceCockpit overview={twoClimates()} headed />);
+
+    const mother = (await screen.findByRole('heading', { name: /^Mother controller/ })).closest('section')!;
+    const tile = within(mother)
+      .getAllByRole('link', { name: /^Temperature/ })
+      .map(link => link.closest('article'))
+      .find(Boolean);
+    expect(tile).toHaveTextContent('20.6');
+    expect(within(mother).getByRole('status')).toHaveTextContent(/Temperature 4.4 °C too low/);
+
+    const headings = screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent);
+    expect(headings.some(text => text?.startsWith('Mother controller'))).toBe(true);
+    expect(headings).toHaveLength(2);
+    expect(within(mother).getByRole('region', { name: 'Targets' })).toHaveTextContent('25 °C');
+    expect(screen.getAllByRole('region', { name: 'Targets' })).toHaveLength(2);
+  });
+
+  it('draws each block´s curves from its own device rather than the place pooled', async () => {
+    server.devices = [fridge(), module()];
+    draw(<PlaceCockpit overview={twoClimates()} headed />);
+
+    await screen.findByRole('heading', { name: /^Mother controller/ });
+    const asked = fetchStub.mock.calls.map(([input]) => String(input)).filter(url => url.includes('/timeline'));
+    await waitFor(() => expect(asked.some(url => url.includes('deviceId=device-2'))).toBe(true));
+  });
+
+  it('keeps one set of tiles for a place with one climate', async () => {
+    draw(<PlaceCockpit overview={overviewOf({ climates: [{ ...twoClimates().climates[0] }] })} headed />);
+
+    await screen.findByRole('link', { name: /^Temperature/ });
+    expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0);
   });
 });
 
@@ -1271,6 +1325,7 @@ describe('Start', () => {
   const card = (spaceId: string, name: string): HomeSpaceCard => ({
     spaceId,
     name,
+    climates: [],
     kind: 'fridge',
     roomId: null,
     deviceIds: spaceId === 'space-1' ? ['device-1'] : [],
@@ -1331,6 +1386,29 @@ describe('Start', () => {
     draw(<Home />);
     expect(await screen.findByRole('heading', { name: 'Fridge 1' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^My grows/ })).not.toBeInTheDocument();
+  });
+
+  it('gives each climate of a place its own figures on its card, and lets the worst speak for it', async () => {
+    server.devices = [fridge(), fridge({ id: 'device-2', type: 'controller', name: 'Mother controller' })];
+    const both = {
+      ...card('space-1', 'Fridge 1'),
+      deviceIds: ['device-1', 'device-2'],
+      climates: [
+        { deviceId: 'device-1', values: values(), setpoints },
+        {
+          deviceId: 'device-2',
+          values: [{ metric: 'temperature' as const, value: 20.6, measuredAt: ago(0.3), state: 'live' as const }],
+          setpoints: [{ metric: 'temperature' as const, value: 25, band: 1 }],
+        },
+      ],
+    };
+    server.home = answer(both, card('space-2', 'Tent 2'));
+    draw(<Home />);
+
+    const placeCard = (await screen.findByRole('link', { name: 'Fridge 1' })).closest('article')!;
+    expect(await within(placeCard).findByText('Mother controller')).toBeInTheDocument();
+    expect(placeCard).toHaveTextContent('20.6');
+    expect(placeCard).toHaveTextContent(/Mother controller · Temperature 4.4 °C too low/);
   });
 
   it('leads to every grow from under the cards where there are several places', async () => {

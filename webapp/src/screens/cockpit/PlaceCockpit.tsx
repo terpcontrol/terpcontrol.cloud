@@ -4,14 +4,15 @@ import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { controlPath, devicesPath, timelinePath, useRememberPlace } from '@/app/places';
-import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
+import type { Device, OverviewCamera, OverviewClimate, SpaceOverview } from '@fg2/shared-types/v1';
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { serverNow } from '@/api/clock';
-import { useDeviceLive } from '@/api/devices';
+import { useDeviceLive, useDevices } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
 import { useSession } from '@/api/session';
 import { useTimeline } from '@/api/timeline';
+import { deviceTitle } from '@/ui/naming';
 import { useCorrecting } from '@/log/corrections';
 import { ageLabel, sinceLabel } from '@/ui/age';
 import { AdvancedSection } from '@/ui/advanced/Advanced';
@@ -125,6 +126,12 @@ export function PlaceCockpit({
   const pictured = camera ? shownStill(camera) : null;
   const shown = growUp ? null : pictured;
 
+  // Several climates stand here - a tent controller and a fridge module, say -
+  // and each is drawn as its own: a block with its readings, status and
+  // targets, rather than one set of tiles speaking for whichever came first. A
+  // shared read is shown the tent rather than its hardware, and keeps one.
+  const several = overview.climates.length > 1 && overview.climates.every(climate => climate.deviceId !== null);
+
   // Verlauf and Steuerung land on the place last looked at, and looking at one here is what makes it that place.
   useRememberPlace(spaceId);
 
@@ -150,7 +157,7 @@ export function PlaceCockpit({
         </header>
       ) : null}
       {headed ? <RefreshFailed failedAt={failedAt} now={now} /> : null}
-      <DevicesHere spaceId={spaceId} devices={here} lead={device} />
+      <DevicesHere spaceId={spaceId} devices={here} lead={here.find(one => one.id === overview.climates[0]?.deviceId) ?? device} />
       {/* Devices moved together leave their old places empty; whether one goes is for its owner to say. */}
       {visiting ? null : <EmptyPlace spaceId={spaceId} onRemoved={() => void navigate('/')} />}
       {visiting ? (
@@ -169,6 +176,37 @@ export function PlaceCockpit({
             {offerDevice ? <DeviceOffer /> : null}
           </div>
         </div>
+      ) : several ? (
+        <>
+          {visiting ? null : <NotifyNotice later />}
+          {/* An alarm is the place's rather than one climate's, so it is said once, over all of them. */}
+          {status.kind === 'alert' ? (
+            <StatusLine status={status} overview={overview} camera={camera} diary={diary} now={now} zone={zone} mayManage={mayManage} />
+          ) : null}
+          {overview.climates.map(climate => (
+            <ClimateRow key={climate.deviceId} overview={overview} climate={climate} here={here} now={now} zone={zone} mayManage={mayManage} />
+          ))}
+          <div className={styles.columns}>
+            <div className={styles.column}>
+              {growUp && camera ? (
+                <GrowBlock overview={overview} camera={camera} still={pictured?.mediaId ?? null} now={now} mine={!visiting} />
+              ) : null}
+              {camera && !growUp ? <CameraPicture overview={overview} camera={camera} now={now} /> : null}
+              {mayManage && !offline && here.some(parksAnything) ? (
+                <div className={styles.actions}>
+                  <MaintenanceButton devices={here} now={now} className={ui.quiet} />
+                </div>
+              ) : null}
+            </div>
+            <div className={styles.column}>
+              <AlarmsSummary spaceId={spaceId} devices={here} me={visiting ? undefined : me.data} mayChange={mayManage} />
+              {diary && !growUp ? <GrowBlock overview={overview} still={shown?.mediaId ?? null} now={now} mine={!visiting} /> : null}
+              <Latest overview={overview} now={now} pictured={growUp ? (pictured?.mediaId ?? null) : null} />
+              {offerDiary ? <DiaryOffer /> : null}
+              <AdvancedSection scope="place" context={{ spaceId, devices: here, mayManage }} />
+            </div>
+          </div>
+        </>
       ) : (
         <div className={styles.columns}>
           <div className={styles.column}>
@@ -247,6 +285,116 @@ export function PlaceCockpit({
           </div>
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * One climate of a place that holds several: the device's name and how fresh
+ * its readings are, its status sentence and work mode, its tiles - curves of
+ * its own series, not of the place pooled - and beside them what it is set to.
+ * It is the single-climate cockpit's first half, once per device.
+ */
+function ClimateRow({
+  overview,
+  climate,
+  here,
+  now,
+  zone,
+  mayManage,
+}: {
+  overview: SpaceOverview;
+  climate: OverviewClimate;
+  here: Device[];
+  now: DateTime;
+  zone: string | null;
+  mayManage: boolean;
+}) {
+  const { t } = useTranslation();
+  const devices = useDevices().data?.items;
+  const device = here.find(one => one.id === climate.deviceId) ?? null;
+  const live = useDeviceLive(device?.id ?? null).data;
+  const timeline = useTimeline(overview.spaceId, '24h', null, null, climate.deviceId).data;
+  const humidifierHold = useHumidifierHold(device);
+  const mine = device ? [device] : [];
+  const reading = { values: climate.values, deviceIds: climate.deviceId ? [climate.deviceId] : [] };
+  const liveness = livenessOf(reading, now);
+  const offline = liveness === 'offline';
+  const status = statusOf(
+    {
+      ...reading,
+      setpoints: climate.setpoints,
+      verdict: climate.verdict,
+      // An open alert is not told which device raised it, so it is said once over the climates rather than in each.
+      openAlerts: [],
+      quiet: quietOf(mine, now),
+      controlOff: controlOffOf(mine),
+      humidifierHold,
+    },
+    now,
+  );
+  const id = `${overview.spaceId}-${climate.deviceId}`;
+
+  return (
+    <section className={styles.climate} aria-labelledby={id}>
+      <h2 className={styles.climateName} id={id}>
+        <span>{device ? deviceTitle(device, t, devices) : t('cockpit.devices.waiting')}</span>
+        <LivenessPill liveness={liveness} measuredAt={measuredAtOf(climate.values)} now={now} />
+      </h2>
+      <div className={styles.columns}>
+        <div className={styles.column}>
+          <StatusLine
+            status={status}
+            overview={overview}
+            camera={null}
+            diary={false}
+            now={now}
+            zone={zone}
+            mayManage={mayManage}
+            ownLine={ownStatusOf(t, device, offsetOf(now, zone))}
+          />
+          <ModeLine device={device} spaceId={overview.spaceId} mayManage={mayManage} humidifierHold={humidifierHold} />
+          {mayManage && device?.control && !device.control.running ? (
+            <div className={styles.actions}>
+              <span className={ui.withHelp}>
+                <ControlButton device={device} offline={offline} />
+                <Help topic="climateControl" />
+              </span>
+            </div>
+          ) : null}
+          <Tiles
+            spaceId={overview.spaceId}
+            values={climate.values}
+            setpoints={climate.setpoints}
+            targets={climate.targets}
+            device={device}
+            live={live}
+            timeline={timeline}
+            now={now}
+            offline={offline}
+          />
+          {mayManage && device?.control?.running ? (
+            <div className={styles.actions}>
+              <span className={ui.withHelp}>
+                <ControlButton device={device} offline={offline} className={ui.quiet} />
+                <Help topic="climateControl" />
+              </span>
+            </div>
+          ) : null}
+        </div>
+        <div className={styles.column}>
+          <TargetsSummary
+            spaceId={overview.spaceId}
+            targets={climate.targets}
+            device={device}
+            live={live}
+            now={now}
+            offline={offline}
+            mayChange={mayManage}
+            humidifierHold={humidifierHold}
+          />
+        </div>
+      </div>
     </section>
   );
 }

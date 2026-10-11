@@ -3549,6 +3549,12 @@ export interface GrowCard {
   stageGroups: GrowCardStageGroup[];
 }
 
+export interface HomeClimate {
+  deviceId: string;
+  values: CardValue[];
+  setpoints: CardSetpoint[];
+}
+
 export interface HomeSpaceCard {
   /**
    * Null is “no fixed place”: the card stands for the grow alone.
@@ -3564,8 +3570,15 @@ export interface HomeSpaceCard {
   kind: SpaceKind | null;
   roomId: string | null;
   deviceIds: string[];
+  /**
+   * Every device here merged: the newest reading per metric, the first target. With several climates, `climates` says each.
+   */
   values: CardValue[];
   setpoints: CardSetpoint[];
+  /**
+   * Each device here that holds a climate of its own, in the order the place lists its devices; empty where none does. An AIR fan counts only where nothing else holds targets: it follows the tent’s controller.
+   */
+  climates: HomeClimate[];
   /**
    * The last 24 hours of temperature, from the first device in the space that has any.
    */
@@ -3758,6 +3771,23 @@ export interface OverviewTargets {
   night: CardSetpoint[];
 }
 
+export interface OverviewClimate {
+  /**
+   * Null on a shared or public read, which is shown the tent rather than the hardware in it.
+   */
+  deviceId: string | null;
+  /**
+   * Empty on a read through a window that has closed.
+   */
+  values: CardValue[];
+  setpoints: CardSetpoint[];
+  /**
+   * Null on a read through a window that has closed.
+   */
+  targets: OverviewTargets | null;
+  verdict: ClimateVerdict;
+}
+
 export interface SpaceOverview {
   spaceId: string;
   name: string;
@@ -3779,7 +3809,11 @@ export interface SpaceOverview {
    * Null in a space whose devices hold no targets at all, and on a read through a window that has closed.
    */
   targets: OverviewTargets | null;
-  verdict: ClimateVerdict;
+  verdict: ClimateVerdict1;
+  /**
+   * Each device here that holds a climate of its own, in the order the place lists its devices. `values`, `setpoints`, `targets` and `verdict` above are the place merged and its first climate; a page drawing several climates draws these.
+   */
+  climates: OverviewClimate[];
   /**
    * Every grow with open plants here, newest first.
    */
@@ -3799,6 +3833,32 @@ export interface SpaceOverview {
    * Everyone the answer names, so an entry can say who wrote it without another read.
    */
   people: Person[];
+}
+
+/**
+ * The first climate’s: `climates[0]`, or a verdict of nothing where no device here holds targets.
+ */
+
+export interface ClimateVerdict1 {
+  /**
+   * The device the window was read from; null in a space that has none.
+   */
+  deviceId: string | null;
+  startsAt: string;
+  endsAt: string;
+  forSeconds: number;
+  stepSeconds: number;
+  rating: VerdictRating | null;
+  /**
+   * 0 to 1: the share of the measured time in which every steered metric that was measured stood in its band; the "91 % in band" of the headline. Null when nothing here is steered.
+   */
+  inBandFraction: number | null;
+  metrics: ClimateVerdictMetric[];
+  actuators: ActuatorRuns[];
+  /**
+   * The same window as a line, coarsened; it comes out of the aggregation that was read anyway.
+   */
+  trend: CardTrend | null;
 }
 
 export interface SpaceLiveDevice {

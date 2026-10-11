@@ -61,7 +61,12 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   undone (Chris left the call to the agent, 2026-10-08). From the second device on, the place says what stands in it
   - "3 Geräte · Zeltcontroller · Licht · Lüfter" under its name, linking to Geräte, and the same words on its Start
   card (`screens/cockpit/DevicesHere.tsx`): the tiles speak for the climate device only, and without the line the
-  others first showed up under Steuerung (Chris, 2026-10-11).
+  others first showed up under Steuerung (Chris, 2026-10-11). **Several climates are drawn as several** (Chris,
+  2026-10-11): where two devices here hold targets, the cockpit gives each a block of its own - its name and pill,
+  status sentence, work mode, tiles with its own curves, and its targets beside them - and an open alarm is said
+  once above the blocks, since an alert names no device; the Start card gives each its figures under its name and
+  lets the worst status speak for the card, prefixed with that device. One climate keeps the page as it was
+  ([ADR 0001](../adr/0001-app-rewrite-data-model.md#behaviour-the-model-implies)).
 - **Steuerung opens on Zielwerte** (a running plan is the exception) with Alarme and "Automatisch nach Grow-Plan
   steuern" as rows under them. Leaving with unsaved figures asks "Speichern und weiter / Verwerfen / Weiter
   bearbeiten"; on a phone the save bar takes the tab bar's place.

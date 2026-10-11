@@ -55,6 +55,7 @@ const device = (id: string, spaceId: string, type: Device['type'] = 'fridge'): D
 const card = (spaceId: string, name: string): HomeSpaceCard => ({
   spaceId,
   name,
+  climates: [],
   kind: spaceId === 'space-1' ? 'fridge' : 'tent',
   roomId: null,
   deviceIds: [`device-${spaceId.slice(-1)}`],

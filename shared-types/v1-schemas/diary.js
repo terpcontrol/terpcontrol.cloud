@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.growReadingNames = exports.readingName = exports.entryReading = void 0;
-exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardTransition = exports.cardValue = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCapture = exports.captureFailure = exports.testCaptureState = exports.cameraStill = exports.cameraUpdate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = void 0;
+exports.overviewClimate = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.homeClimate = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardTransition = exports.cardValue = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCapture = exports.captureFailure = exports.testCaptureState = exports.cameraStill = exports.cameraUpdate = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = void 0;
 const zod_1 = require("zod");
 const capture_js_1 = require("./capture.js");
 const common_js_1 = require("./common.js");
@@ -910,14 +910,28 @@ exports.growCard = (0, common_js_1.named)('GrowCard', zod_1.z.object({
  * hole in the home, and the app opens it at the grow because there is no space
  * page to open.
  */
+/**
+ * One climate of a place on its Start card: a device that holds targets of its
+ * own, with what it reads and aims at now. A place may hold several - a tent
+ * controller and a fridge module stood together - and each is a climate of its
+ * own rather than a share of one merged figure.
+ */
+exports.homeClimate = (0, common_js_1.named)('HomeClimate', zod_1.z.object({
+    deviceId: (0, common_js_1.id)(),
+    values: zod_1.z.array(exports.cardValue),
+    setpoints: zod_1.z.array(exports.cardSetpoint),
+}));
 exports.homeSpaceCard = (0, common_js_1.named)('HomeSpaceCard', zod_1.z.object({
     spaceId: (0, common_js_1.id)().nullable().describe('Null is “no fixed place”: the card stands for the grow alone.'),
     name: zod_1.z.string().describe('The place’s name, or the grow’s own where the card stands for no place.'),
     kind: common_js_1.spaceKind.nullable().describe('Null where there is no place, and so no kind of one.'),
     roomId: (0, common_js_1.id)().nullable(),
     deviceIds: zod_1.z.array((0, common_js_1.id)()),
-    values: zod_1.z.array(exports.cardValue),
+    values: zod_1.z.array(exports.cardValue).describe('Every device here merged: the newest reading per metric, the first target. With several climates, `climates` says each.'),
     setpoints: zod_1.z.array(exports.cardSetpoint),
+    climates: zod_1.z
+        .array(exports.homeClimate)
+        .describe('Each device here that holds a climate of its own, in the order the place lists its devices; empty where none does. An AIR fan counts only where nothing else holds targets: it follows the tent’s controller.'),
     trend: exports.cardTrend.nullable().describe('The last 24 hours of temperature, from the first device in the space that has any.'),
     grow: exports.growCard.nullable(),
     entries: zod_1.z.array(exports.entry).describe('The grow’s newest entries, newest first.'),
@@ -1060,6 +1074,17 @@ exports.overviewTargets = (0, common_js_1.named)('OverviewTargets', zod_1.z.obje
     night: zod_1.z.array(exports.cardSetpoint),
 }));
 /**
+ * One climate of a place on its page: a device that holds targets of its own,
+ * with what it reads, what it aims at and how its last 24 hours went.
+ */
+exports.overviewClimate = (0, common_js_1.named)('OverviewClimate', zod_1.z.object({
+    deviceId: (0, common_js_1.id)().nullable().describe('Null on a shared or public read, which is shown the tent rather than the hardware in it.'),
+    values: zod_1.z.array(exports.cardValue).describe('Empty on a read through a window that has closed.'),
+    setpoints: zod_1.z.array(exports.cardSetpoint),
+    targets: exports.overviewTargets.nullable().describe('Null on a read through a window that has closed.'),
+    verdict: exports.climateVerdict,
+}));
+/**
  * `GET /spaces/{id}/overview`, the tent page's landing tab: what is true here
  * now, what needs a human, what grows here, what the cameras saw today, how the
  * last 24 hours went and what was last written.
@@ -1077,7 +1102,10 @@ exports.spaceOverview = (0, common_js_1.named)('SpaceOverview', zod_1.z.object({
     values: zod_1.z.array(exports.cardValue).describe('Empty on a read through a window that has closed, which has no "now" to answer with.'),
     setpoints: zod_1.z.array(exports.cardSetpoint),
     targets: exports.overviewTargets.nullable().describe('Null in a space whose devices hold no targets at all, and on a read through a window that has closed.'),
-    verdict: exports.climateVerdict,
+    verdict: exports.climateVerdict.describe('The first climate’s: `climates[0]`, or a verdict of nothing where no device here holds targets.'),
+    climates: zod_1.z
+        .array(exports.overviewClimate)
+        .describe('Each device here that holds a climate of its own, in the order the place lists its devices. `values`, `setpoints`, `targets` and `verdict` above are the place merged and its first climate; a page drawing several climates draws these.'),
     grows: zod_1.z.array(exports.overviewGrow).describe('Every grow with open plants here, newest first.'),
     cameras: zod_1.z.array(exports.overviewCamera),
     entries: zod_1.z.array(exports.entry).describe('The newest lines of this space and of the grows standing in it, newest first.'),

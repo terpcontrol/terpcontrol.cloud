@@ -4325,7 +4325,8 @@
     "devices": {
       "count_one": "{{count}} device",
       "count_other": "{{count}} devices",
-      "open": "{{devices}} – open the devices"
+      "open": "{{devices}} – open the devices",
+      "waiting": "Reading the device …"
     },
     "status": {
       "good": "All on target",

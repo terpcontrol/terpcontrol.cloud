@@ -105,7 +105,7 @@ export class TimelineService {
 
   public async read(grant: Grant, spaceId: string, asked: TimelineQuery, now: Date = new Date()): Promise<SpaceTimeline> {
     const at = asked.at ?? now;
-    const [space, devices, stood] = await Promise.all([
+    const [space, standing, stood] = await Promise.all([
       this.places.require(spaceId),
       this.live.devicesIn([spaceId]),
       // Every grow that has ever stood here, newest first: the one the bands are
@@ -115,6 +115,11 @@ export class TimelineService {
         .sort({ startedAt: -1, id: -1 })
         .lean<GrowDocument[]>(),
     ]);
+
+    // One climate of several, where one was asked for. A device that does not
+    // stand here is answered as one that does not exist, whoever asks.
+    const devices = asked.deviceId ? standing.filter(device => device.id === asked.deviceId) : standing;
+    if (asked.deviceId && devices.length === 0) throw notFound('device_not_here', 'That device does not stand in this space.');
 
     // A link's window decides which grows it is told about: the ones that stood
     // here inside it, not whatever moved in after the window closed.
@@ -301,6 +306,7 @@ interface TimelineQuery {
   growId?: string;
   /** The instant the window ends at; now, unless somebody scrubbed back. */
   at?: Date;
+  deviceId?: string;
 }
 
 /** The window on its own, for the readers that take a window and nothing else. */

@@ -455,6 +455,7 @@ describe('a tent behind a link', () => {
   const sharedSpace = (measuredAt: string): SpaceOverview => ({
     spaceId: 'space-1',
     name: 'Tent 1',
+    climates: [],
     kind: 'tent',
     roomId: null,
     deviceIds: null,

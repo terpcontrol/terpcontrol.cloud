@@ -9,6 +9,7 @@ import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { SETTLE_SECONDS, cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { horizonOf } from '../diary/grow-calendar';
 import { targetsOf } from '../phase/phase-targets';
+import { climatesOf } from '../space/space-live';
 import { TargetStretch } from './timeline-series';
 
 /**
@@ -141,12 +142,11 @@ const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
 };
 
 /**
- * The device a place's band is the targets of: the first standing there whose
- * configuration states any, which is the one the cockpit judges the place's
- * readings against.
+ * The device a place's band is the targets of: its first climate, which is the
+ * one the cockpit judges the place's readings against where it draws one.
  */
 export const steeringOf = (devices: readonly StoredDevice[]): StoredDevice | null =>
-  devices.find(device => targetsOf(device.configuration) !== null) ?? null;
+  climatesOf(devices.filter(device => targetsOf(device.configuration) !== null))[0] ?? null;
 
 /**
  * The stretches the bands are drawn over: the grow's own phases, clipped to the

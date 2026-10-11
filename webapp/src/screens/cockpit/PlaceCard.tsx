@@ -4,7 +4,8 @@ import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { placePath } from '@/app/places';
-import type { Device, HomeSpaceCard, Metric } from '@fg2/shared-types/v1';
+import type { CardSetpoint, CardValue, Device, HomeClimate, HomeSpaceCard, Metric } from '@fg2/shared-types/v1';
+import { deviceTitle } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
 import { DevicesHere } from './DevicesHere';
 import { useDeviceLive, useHourMeans } from '@/api/devices';
@@ -30,6 +31,7 @@ import {
   statusText,
   toneOf,
   valueOf,
+  type HumidifierHold,
   type Status,
 } from './place';
 import { useHumidifierHold } from './reads';
@@ -71,16 +73,33 @@ export function PlaceCard({
   const here = (devices ?? []).filter(device => card.deviceIds.includes(device.id));
   const device = climateDeviceOf(here, card.deviceIds);
   const live = useDeviceLive(device?.id ?? null).data;
-  const means = useHourMeans(device?.id ?? null).data;
   const quiet = here.map(one => maintenanceQuiet(one, DateTime.max(now, serverNow()))).find((one): one is Quiet => one !== null) ?? null;
   const humidifierHold = useHumidifierHold(device);
-  const status = statusOf({ ...card, quiet, controlOff: controlOffOf(here), humidifierHold }, now);
+  // A place holding several climates is said climate by climate: the worst of
+  // them speaks for the card, named by its device, and each has its own figures.
+  const several = card.climates.length > 1;
+  const climates = card.climates.map(climate => {
+    const mine = here.filter(one => one.id === climate.deviceId);
+    const status = statusOf(
+      {
+        ...card,
+        values: climate.values,
+        setpoints: climate.setpoints,
+        deviceIds: [climate.deviceId],
+        quiet,
+        controlOff: controlOffOf(mine),
+        humidifierHold: null,
+      },
+      now,
+    );
+    return { climate, device: mine[0] ?? null, status };
+  });
+  const worst = several ? [...climates].sort((a, b) => TONE_RANK[toneOf(b.status)] - TONE_RANK[toneOf(a.status)])[0] : null;
+  const status = worst?.status ?? statusOf({ ...card, quiet, controlOff: controlOffOf(here), humidifierHold }, now);
   const Icon = card.kind === null ? Leaf : KIND_ICON[card.kind];
   const StatusIcon = STATUS_ICON[status.kind] ?? Info;
-  const shown = SHOWN.flatMap(metric => {
-    const value = valueOf(card.values, metric);
-    return value ? [{ metric, value }] : [];
-  });
+  const said =
+    (status.kind === 'noTargets' ? ownStatusOf(t, worst?.device ?? device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone);
 
   return (
     <article className={styles.placeCard} data-tone={toneOf(status)}>
@@ -93,28 +112,17 @@ export function PlaceCard({
       </header>
       <p className={styles.cardStatus} data-tone={toneOf(status)}>
         <StatusIcon size={15} strokeWidth={2} aria-hidden />
-        <span>{(status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone)}</span>
+        <span>{worst?.device && status.kind !== 'alert' ? `${deviceTitle(worst.device, t, devices)} · ${said}` : said}</span>
       </p>
-      {shown.length > 0 ? (
-        <div className={styles.cardValues}>
-          {shown.map(({ metric, value }) => {
-            const verdict = judgedOf(value, setpointOf(card.setpoints, metric), humidifierHold, now);
-            return (
-              <span key={metric} className={styles.cardReading}>
-                <span className={styles.cardValue} data-verdict={verdict?.kind} {...ageAttribute(valueAge(value, now))}>
-                  <span className="figure">{figure(value.value!, metric)}</span>
-                  <span className="mono">{UNIT[metric]}</span>
-                </span>
-                {means?.[metric] != null ? (
-                  <span className={`mono ${styles.mean}`}>{t('cockpit.tile.hourMean', { value: figureWithUnit(means[metric], metric) })}</span>
-                ) : null}
-              </span>
-            );
-          })}
-        </div>
-      ) : null}
-      <DeviceLine device={device} live={live} now={now} zone={zone} quiet={status.kind === 'offline'} />
-      <DevicesHere spaceId={card.spaceId} devices={here} lead={device} linked={false} />
+      {several ? (
+        climates.map(({ climate, device: one, status: own }) => (
+          <CardClimate key={climate.deviceId} climate={climate} device={one} devices={devices} now={now} zone={zone} quiet={own.kind === 'offline'} />
+        ))
+      ) : (
+        <Figures values={card.values} setpoints={card.setpoints} deviceId={device?.id ?? null} hold={humidifierHold} now={now} />
+      )}
+      {several ? null : <DeviceLine device={device} live={live} now={now} zone={zone} quiet={status.kind === 'offline'} />}
+      <DevicesHere spaceId={card.spaceId} devices={here} lead={climates[0]?.device ?? device} linked={false} />
       {diary && card.grow ? (
         <p className={`mono ${styles.cardLine}`}>
           {[
@@ -127,6 +135,79 @@ export function PlaceCard({
         </p>
       ) : null}
     </article>
+  );
+}
+
+/** One climate of several on a card: its device's name, its figures and what its outputs are doing. */
+function CardClimate({
+  climate,
+  device,
+  devices,
+  now,
+  zone,
+  quiet,
+}: {
+  climate: HomeClimate;
+  device: Device | null;
+  devices: Device[] | undefined;
+  now: DateTime;
+  zone: string | null;
+  quiet: boolean;
+}) {
+  const { t } = useTranslation();
+  const live = useDeviceLive(device?.id ?? null).data;
+
+  return (
+    <div className={styles.cardClimate}>
+      <p className={styles.cardClimateName}>{device ? deviceTitle(device, t, devices) : null}</p>
+      <Figures values={climate.values} setpoints={climate.setpoints} deviceId={climate.deviceId} hold={null} now={now} />
+      <DeviceLine device={device} live={live} now={now} zone={zone} quiet={quiet} />
+    </div>
+  );
+}
+
+/** How urgently a tone asks for a person, so the worst climate of several speaks for its card. */
+const TONE_RANK: Record<ReturnType<typeof toneOf>, number> = { alarm: 3, warn: 2, quiet: 1, good: 0 };
+
+/** The readings a card has room for, each with its verdict and its last hour's mean. */
+function Figures({
+  values,
+  setpoints,
+  deviceId,
+  hold,
+  now,
+}: {
+  values: CardValue[];
+  setpoints: CardSetpoint[];
+  deviceId: string | null;
+  hold: HumidifierHold | null;
+  now: DateTime;
+}) {
+  const { t } = useTranslation();
+  const means = useHourMeans(deviceId).data;
+  const shown = SHOWN.flatMap(metric => {
+    const value = valueOf(values, metric);
+    return value ? [{ metric, value }] : [];
+  });
+  if (shown.length === 0) return null;
+
+  return (
+    <div className={styles.cardValues}>
+      {shown.map(({ metric, value }) => {
+        const verdict = judgedOf(value, setpointOf(setpoints, metric), hold, now);
+        return (
+          <span key={metric} className={styles.cardReading}>
+            <span className={styles.cardValue} data-verdict={verdict?.kind} {...ageAttribute(valueAge(value, now))}>
+              <span className="figure">{figure(value.value!, metric)}</span>
+              <span className="mono">{UNIT[metric]}</span>
+            </span>
+            {means?.[metric] != null ? (
+              <span className={`mono ${styles.mean}`}>{t('cockpit.tile.hourMean', { value: figureWithUnit(means[metric], metric) })}</span>
+            ) : null}
+          </span>
+        );
+      })}
+    </div>
   );
 }
 

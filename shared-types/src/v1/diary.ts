@@ -1199,6 +1199,21 @@ export const growCard = named(
  * hole in the home, and the app opens it at the grow because there is no space
  * page to open.
  */
+/**
+ * One climate of a place on its Start card: a device that holds targets of its
+ * own, with what it reads and aims at now. A place may hold several - a tent
+ * controller and a fridge module stood together - and each is a climate of its
+ * own rather than a share of one merged figure.
+ */
+export const homeClimate = named(
+  'HomeClimate',
+  z.object({
+    deviceId: id(),
+    values: z.array(cardValue),
+    setpoints: z.array(cardSetpoint),
+  }),
+);
+
 export const homeSpaceCard = named(
   'HomeSpaceCard',
   z.object({
@@ -1207,8 +1222,11 @@ export const homeSpaceCard = named(
     kind: spaceKind.nullable().describe('Null where there is no place, and so no kind of one.'),
     roomId: id().nullable(),
     deviceIds: z.array(id()),
-    values: z.array(cardValue),
+    values: z.array(cardValue).describe('Every device here merged: the newest reading per metric, the first target. With several climates, `climates` says each.'),
     setpoints: z.array(cardSetpoint),
+    climates: z
+      .array(homeClimate)
+      .describe('Each device here that holds a climate of its own, in the order the place lists its devices; empty where none does. An AIR fan counts only where nothing else holds targets: it follows the tent’s controller.'),
     trend: cardTrend.nullable().describe('The last 24 hours of temperature, from the first device in the space that has any.'),
     grow: growCard.nullable(),
     entries: z.array(entry).describe('The grow’s newest entries, newest first.'),
@@ -1399,6 +1417,21 @@ export const overviewTargets = named(
 );
 
 /**
+ * One climate of a place on its page: a device that holds targets of its own,
+ * with what it reads, what it aims at and how its last 24 hours went.
+ */
+export const overviewClimate = named(
+  'OverviewClimate',
+  z.object({
+    deviceId: id().nullable().describe('Null on a shared or public read, which is shown the tent rather than the hardware in it.'),
+    values: z.array(cardValue).describe('Empty on a read through a window that has closed.'),
+    setpoints: z.array(cardSetpoint),
+    targets: overviewTargets.nullable().describe('Null on a read through a window that has closed.'),
+    verdict: climateVerdict,
+  }),
+);
+
+/**
  * `GET /spaces/{id}/overview`, the tent page's landing tab: what is true here
  * now, what needs a human, what grows here, what the cameras saw today, how the
  * last 24 hours went and what was last written.
@@ -1418,7 +1451,12 @@ export const spaceOverview = named(
     values: z.array(cardValue).describe('Empty on a read through a window that has closed, which has no "now" to answer with.'),
     setpoints: z.array(cardSetpoint),
     targets: overviewTargets.nullable().describe('Null in a space whose devices hold no targets at all, and on a read through a window that has closed.'),
-    verdict: climateVerdict,
+    verdict: climateVerdict.describe('The first climate’s: `climates[0]`, or a verdict of nothing where no device here holds targets.'),
+    climates: z
+      .array(overviewClimate)
+      .describe(
+        'Each device here that holds a climate of its own, in the order the place lists its devices. `values`, `setpoints`, `targets` and `verdict` above are the place merged and its first climate; a page drawing several climates draws these.',
+      ),
     grows: z.array(overviewGrow).describe('Every grow with open plants here, newest first.'),
     cameras: z.array(overviewCamera),
     entries: z.array(entry).describe('The newest lines of this space and of the grows standing in it, newest first.'),

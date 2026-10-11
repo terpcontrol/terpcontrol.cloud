@@ -55,6 +55,7 @@ const since = (instant: string, now = NOW) => {
 const card = (over: Partial<HomeSpaceCard>): HomeSpaceCard => ({
   spaceId: 'space-1',
   name: 'Tent 1',
+  climates: [],
   kind: 'tent',
   roomId: null,
   deviceIds: ['device-1'],

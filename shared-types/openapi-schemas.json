@@ -11407,6 +11407,32 @@
       "stageGroups"
     ]
   },
+  "HomeClimate": {
+    "type": "object",
+    "properties": {
+      "deviceId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "values": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CardValue"
+        }
+      },
+      "setpoints": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CardSetpoint"
+        }
+      }
+    },
+    "required": [
+      "deviceId",
+      "values",
+      "setpoints"
+    ]
+  },
   "HomeSpaceCard": {
     "type": "object",
     "properties": {
@@ -11459,13 +11485,21 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/CardValue"
-        }
+        },
+        "description": "Every device here merged: the newest reading per metric, the first target. With several climates, `climates` says each."
       },
       "setpoints": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/CardSetpoint"
         }
+      },
+      "climates": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/HomeClimate"
+        },
+        "description": "Each device here that holds a climate of its own, in the order the place lists its devices; empty where none does. An AIR fan counts only where nothing else holds targets: it follows the tent’s controller."
       },
       "trend": {
         "anyOf": [
@@ -11526,6 +11560,7 @@
       "deviceIds",
       "values",
       "setpoints",
+      "climates",
       "trend",
       "grow",
       "entries",
@@ -12194,6 +12229,57 @@
       "night"
     ]
   },
+  "OverviewClimate": {
+    "type": "object",
+    "properties": {
+      "deviceId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null on a shared or public read, which is shown the tent rather than the hardware in it."
+      },
+      "values": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CardValue"
+        },
+        "description": "Empty on a read through a window that has closed."
+      },
+      "setpoints": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CardSetpoint"
+        }
+      },
+      "targets": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/OverviewTargets"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null on a read through a window that has closed."
+      },
+      "verdict": {
+        "$ref": "#/components/schemas/ClimateVerdict"
+      }
+    },
+    "required": [
+      "deviceId",
+      "values",
+      "setpoints",
+      "targets",
+      "verdict"
+    ]
+  },
   "SpaceOverview": {
     "type": "object",
     "properties": {
@@ -12259,7 +12345,15 @@
         "description": "Null in a space whose devices hold no targets at all, and on a read through a window that has closed."
       },
       "verdict": {
+        "description": "The first climate’s: `climates[0]`, or a verdict of nothing where no device here holds targets.",
         "$ref": "#/components/schemas/ClimateVerdict"
+      },
+      "climates": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/OverviewClimate"
+        },
+        "description": "Each device here that holds a climate of its own, in the order the place lists its devices. `values`, `setpoints`, `targets` and `verdict` above are the place merged and its first climate; a page drawing several climates draws these."
       },
       "grows": {
         "type": "array",
@@ -12318,6 +12412,7 @@
       "setpoints",
       "targets",
       "verdict",
+      "climates",
       "grows",
       "cameras",
       "entries",

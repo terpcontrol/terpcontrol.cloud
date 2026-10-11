@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
-import type { CameraStill, OverviewCamera, OverviewGrow, OverviewTargets, SpaceOverview, Setpoints } from '@fg2/shared-types/v1';
+import type { CameraStill, ClimateVerdict, OverviewCamera, OverviewGrow, OverviewTargets, SpaceOverview, Setpoints } from '@fg2/shared-types/v1';
 import { STEERED, growDayAt, growOriginOf, metric as metricSchema, outputMetric } from '@fg2/shared-types/v1-schemas';
 import { cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { AccessRange, Grant } from '@common/v1/access.types';
@@ -11,6 +11,7 @@ import { clampRange, seenOf, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
@@ -28,7 +29,7 @@ import { standingIn } from '../grow/grow-places';
 import { Redaction, growCardOf, growUpTo, redactionOf, summaryOf } from '../grow/grow-serialiser';
 import { ownerRedactions } from '../grow/redactions';
 import { alertsRaisedIn, openAlertReader } from '../home/open-alerts';
-import { liveOfDevice, mergeLive, setpointOf } from '../space/space-live';
+import { climatesOf, liveOfDevice, mergeLive, setpointOf } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { framesEvery, shownCameras } from '../timeline/frames';
@@ -136,24 +137,28 @@ export class OverviewService {
     ]);
     const growIds = grows.map(grow => grow.id);
 
-    // The controller is what a tent's climate is; a plug's thermometer standing
+    // A controller is what a tent's climate is; a plug's thermometer standing
     // beside it reports a temperature but aims at nothing, so it gets no verdict.
-    // Which device that is follows from its configuration rather than from a
-    // reading, so a window with no "now" in it still knows where to read the
+    // Which devices those are follows from their configuration rather than from
+    // a reading, so a window with no "now" in it still knows where to read the
     // series from - what is not answered through it is the targets themselves.
-    const [steering = null] = devices.flatMap(device => {
-      const targets = setpointsOf(
-        device.configuration,
-        readings.find(one => one.device.id === device.id)?.reading.isDay ?? true,
-        device.state?.hardware,
-        device.type,
-        until,
-      );
-      return targets ? [{ deviceId: device.id, targets, cycle: cycleOf(device.type, device.configuration) }] : [];
-    });
+    // A place may hold several, and each is judged as a climate of its own.
+    const climates = climatesOf(
+      devices.flatMap(device => {
+        const targets = setpointsOf(
+          device.configuration,
+          readings.find(one => one.device.id === device.id)?.reading.isDay ?? true,
+          device.state?.hardware,
+          device.type,
+          until,
+        );
+        return targets ? [{ deviceId: device.id, type: device.type, targets, cycle: cycleOf(device.type, device.configuration) }] : [];
+      }),
+    );
+    const steering = climates[0] ?? null;
     const window = seenOf({ startsAt: new Date(until.getTime() - VERDICT_HOURS * 3600 * 1000), endsAt: until }, range);
 
-    const [plants, reminders, entries, stills, lit, hide, series, record, settling] = await Promise.all([
+    const [plants, reminders, entries, stills, lit, hide, settling, verdicts] = await Promise.all([
       this.plants
         .find({ growId: { $in: growIds } })
         .sort({ createdAt: 1, _id: 1 })
@@ -171,30 +176,13 @@ export class OverviewService {
         grant.redacted,
         grows.map(grow => grow.ownerId),
       ),
-      steering
-        ? this.data.series(steering.deviceId, {
-            // Only the metrics a band can be drawn around: nothing is fetched the verdict has nothing to say about.
-            metrics: STEERED,
-            // Every output in the same read: what the verdict counts runs of, and
-            // the light it tells day from night by.
-            outputs: outputMetric.options,
-            ...window,
-            stepSeconds: VERDICT_STEP_SECONDS,
-          })
-        : Promise.resolve(null),
-      // What the steering device aimed at over the window, change by change:
-      // the day is judged by what held then, not by what was saved since.
-      steering && !closed ? recordOf(this.targetRecord, steering.deviceId, window) : Promise.resolve([]),
       !closed ? settlingsOf(this.targetRecord, devices, until) : Promise.resolve(new Map()),
+      Promise.all(climates.map(climate => this.judged(climate, devices, window, closed))),
     ]);
 
     const [completions, openAlertOf] = await Promise.all([completionsOf(this.entries, reminders), openAlertReader(this.rules, alerts)]);
-    // The band a window is judged against is the controller's configuration as
-    // it stands now, which a closed window may not be told either - so a tent
-    // read through one is stated rather than graded.
-    const band = closed ? null : (steering?.targets ?? null);
-    const hardware = devices.find(device => device.id === steering?.deviceId)?.state?.hardware ?? {};
-    const verdict = verdictOf(series, band, window, steering?.cycle ?? null, record.map(climateOf), hardware);
+    const verdict = verdicts[0] ?? verdictOf(null, null, window, null, [], {});
+    const lives = readings.map(reading => liveOfDevice(reading, now, settling.get(reading.device.id) ?? null));
 
     /**
      * What is due here and what is alarming are the working half of the page,
@@ -223,9 +211,19 @@ export class OverviewService {
       // and a device id tie it to the rest of an account.
       roomId: grant.redacted ? null : space.roomId,
       deviceIds: grant.redacted ? null : devices.map(device => device.id),
-      ...mergeLive(readings.map(reading => liveOfDevice(reading, now, settling.get(reading.device.id) ?? null))),
+      ...mergeLive(lives),
       targets: closed || !steering ? null : targetsOf(steering.targets),
       verdict: grant.redacted ? { ...verdict, deviceId: null } : verdict,
+      climates: climates.map((climate, index) => {
+        const live = lives.find(one => one.deviceId === climate.deviceId);
+        return {
+          deviceId: grant.redacted ? null : climate.deviceId,
+          values: live?.values ?? [],
+          setpoints: live?.setpoints ?? [],
+          targets: closed ? null : targetsOf(climate.targets),
+          verdict: grant.redacted ? { ...verdicts[index], deviceId: null } : verdicts[index],
+        };
+      }),
       grows: grows.map(grow =>
         growHere(
           growUpTo(grow, until),
@@ -242,6 +240,35 @@ export class OverviewService {
       openAlerts: forKeepers ? alerts.map(openAlertOf) : [],
       people: await peopleNamed(this.users, [...told.map(entry => entry.authorId), ...dueTasks.map(task => task.assigneeId)]),
     };
+  }
+
+  /**
+   * How one climate's last 24 hours went. The band a window is judged against
+   * is the device's configuration as it stands now, which a closed window may
+   * not be told either - so a tent read through one is stated rather than
+   * graded. What the device aimed at over the window is read change by change:
+   * the day is judged by what held then, not by what was saved since.
+   */
+  private async judged(
+    climate: { deviceId: string; targets: Setpoints; cycle: ReturnType<typeof cycleOf> },
+    devices: StoredDevice[],
+    window: ReturnType<typeof seenOf>,
+    closed: boolean,
+  ): Promise<ClimateVerdict> {
+    const [series, record] = await Promise.all([
+      this.data.series(climate.deviceId, {
+        // Only the metrics a band can be drawn around: nothing is fetched the verdict has nothing to say about.
+        metrics: STEERED,
+        // Every output in the same read: what the verdict counts runs of, and the light it tells day from night by.
+        outputs: outputMetric.options,
+        ...window,
+        stepSeconds: VERDICT_STEP_SECONDS,
+      }),
+      closed ? Promise.resolve([]) : recordOf(this.targetRecord, climate.deviceId, window),
+    ]);
+    const hardware = devices.find(device => device.id === climate.deviceId)?.state?.hardware ?? {};
+
+    return verdictOf(series, closed ? null : climate.targets, window, climate.cycle, record.map(climateOf), hardware);
   }
 
   /**

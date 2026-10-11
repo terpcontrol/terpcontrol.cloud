@@ -24,6 +24,11 @@ const timelineQuery = z.object({
   range: timelineRange,
   growId: z.string().min(1).optional().describe('Which grow the bands and the day counter are of. Required by `phase` and `grow`.'),
   at: instantQuery().optional().describe('The instant the window ends at; now by default, and earlier when somebody has scrubbed back.'),
+  deviceId: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('One device standing here, for a place that holds several climates: the panels, bands, nights and lanes are then that device’s alone.'),
 });
 
 /**
