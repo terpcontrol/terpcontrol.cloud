@@ -4322,6 +4322,11 @@
       "growWrites": "puts the targets on the stage",
       "shareGrow": "Share the grow"
     },
+    "devices": {
+      "count_one": "{{count}} device",
+      "count_other": "{{count}} devices",
+      "open": "{{devices}} – open the devices"
+    },
     "status": {
       "good": "All on target",
       "high": "{{metric}} {{delta}} too high",

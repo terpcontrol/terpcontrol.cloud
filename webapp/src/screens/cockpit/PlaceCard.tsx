@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import { placePath } from '@/app/places';
 import type { Device, HomeSpaceCard, Metric } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
+import { DevicesHere } from './DevicesHere';
 import { useDeviceLive, useHourMeans } from '@/api/devices';
 import { ageAttribute, valueAge } from '@/ui/age';
 import { maintenanceQuiet, type Quiet } from '@/ui/maintenance';
@@ -113,6 +114,7 @@ export function PlaceCard({
         </div>
       ) : null}
       <DeviceLine device={device} live={live} now={now} zone={zone} quiet={status.kind === 'offline'} />
+      <DevicesHere spaceId={card.spaceId} devices={here} lead={device} linked={false} />
       {diary && card.grow ? (
         <p className={`mono ${styles.cardLine}`}>
           {[

@@ -1,6 +1,6 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, what was left out on purpose; read before changing a screen
-updated: 2026-10-08
+updated: 2026-10-11
 source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08
 paths:
   - webapp/src/**
@@ -58,7 +58,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   leaves within that same step (`screens/claim/PlaceStep.tsx`): it was the claim's guess, never the grower's, holds
   no history, and left standing it would greet somebody adding a second device to a tent with an empty card on Start
   and an errand - the very "one device per place" the rule is meant to end. The archive is a tombstone and can be
-  undone (Chris left the call to the agent, 2026-10-08).
+  undone (Chris left the call to the agent, 2026-10-08). From the second device on, the place says what stands in it
+  - "3 Geräte · Zeltcontroller · Licht · Lüfter" under its name, linking to Geräte, and the same words on its Start
+  card (`screens/cockpit/DevicesHere.tsx`): the tiles speak for the climate device only, and without the line the
+  others first showed up under Steuerung (Chris, 2026-10-11).
 - **Steuerung opens on Zielwerte** (a running plan is the exception) with Alarme and "Automatisch nach Grow-Plan
   steuern" as rows under them. Leaving with unsaved figures asks "Speichern und weiter / Verwerfen / Weiter
   bearbeiten"; on a phone the save bar takes the tab bar's place.

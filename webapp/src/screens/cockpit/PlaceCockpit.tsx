@@ -40,6 +40,7 @@ import { targetWithUnit } from '@/ui/units';
 import { NotifyNotice } from '../notifications/NotifyNotice';
 import { EmptyPlace } from '../space/EmptyPlace';
 import { CameraPicture } from './CameraPicture';
+import { DevicesHere } from './DevicesHere';
 import { GrowBlock } from './GrowBlock';
 import {
   climateDeviceOf,
@@ -149,6 +150,7 @@ export function PlaceCockpit({
         </header>
       ) : null}
       {headed ? <RefreshFailed failedAt={failedAt} now={now} /> : null}
+      <DevicesHere spaceId={spaceId} devices={here} lead={device} />
       {/* Devices moved together leave their old places empty; whether one goes is for its owner to say. */}
       {visiting ? null : <EmptyPlace spaceId={spaceId} onRemoved={() => void navigate('/')} />}
       {visiting ? (

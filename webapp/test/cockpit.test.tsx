@@ -580,6 +580,19 @@ describe('devices brought together in one place', () => {
     await waitFor(() => expect(server.writes).toContain('DELETE /spaces/space-2'));
   });
 
+  it('names every device standing here under the place´s name, and none where only one does', async () => {
+    server.devices = [fridge(), fridge({ id: 'device-2', type: 'light', name: 'Lamp', spaceId: 'space-1' })];
+    const { unmount } = draw(<PlaceCockpit overview={overviewOf({ deviceIds: ['device-1', 'device-2'] })} headed />);
+
+    expect(await screen.findByRole('link', { name: /^2 devices · .+ · Lamp – open the devices$/ })).toHaveAttribute('href', '/devices?space=space-1');
+    unmount();
+
+    server.devices = [fridge()];
+    draw(<PlaceCockpit overview={overviewOf()} headed />);
+    await screen.findByRole('button', { name: /^More about/ });
+    expect(screen.queryByRole('link', { name: /devices · / })).not.toBeInTheDocument();
+  });
+
   it('does not offer to bring a device in where every device already stands here', async () => {
     draw(<PlaceCockpit overview={overviewOf()} headed />);
 

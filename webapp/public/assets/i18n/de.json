@@ -4330,6 +4330,11 @@
       "growWrites": "setzt die Zielwerte der Phase",
       "shareGrow": "Grow teilen"
     },
+    "devices": {
+      "count_one": "{{count}} Gerät",
+      "count_other": "{{count}} Geräte",
+      "open": "{{devices}} – Geräte öffnen"
+    },
     "status": {
       "good": "Alles im Ziel",
       "high": "{{metric}} {{delta}} zu hoch",
