@@ -30,6 +30,16 @@
 
 #endif
 
+// The longest wait between two connection attempts while the broker stays
+// unreachable. Every wait gets up to a quarter more at random, so a fleet that
+// lost the broker together does not come back in one burst.
+#define MQTT_RECONNECT_MAX_DELAY_MS (60 * 1000)
+
+// A TLS handshake that has not finished by then is abandoned. The framework's
+// default is 120 s, and a broker that accepts connections but never answers
+// held every attempt that long.
+#define MQTT_TLS_HANDSHAKE_TIMEOUT_S 30
+
 void onConnectionEstablished(); // MUST be implemented in your sketch. Called once everythings is connected (Wifi, mqtt).
 
 typedef std::function<void()> ConnectionEstablishedCallback;
@@ -75,6 +85,17 @@ private:
   bool _mqttLastWillRetain;
   unsigned int _failedMQTTConnectionAttemptCount;
 
+  // A broker connection attempt - DNS, TCP, TLS handshake, CONNECT/CONNACK -
+  // runs in a task of its own, so a broker that accepts the connection but
+  // never answers cannot hold the loop task. While it runs, the socket and
+  // _mqttClient belong to that task: nothing else may touch them.
+  enum ConnectOutcome : uint8_t { CONNECT_RUNNING, CONNECT_SUCCEEDED, CONNECT_FAILED };
+  TaskHandle_t _connectTask = nullptr;
+  volatile ConnectOutcome _connectOutcome = CONNECT_FAILED;
+  volatile UBaseType_t _connectStackLeft = 0;
+  bool _abandonConnect = false;
+  unsigned long _connectStartedMillis = 0;
+
   PubSubClient _mqttClient;
 
   struct TopicSubscriptionRecord {
@@ -102,7 +123,6 @@ private:
   // General behaviour related
   ConnectionEstablishedCallback _connectionEstablishedCallback;
   bool _enableSerialLogs;
-  bool _drasticResetOnConnectionFailures;
   unsigned int _connectionEstablishedCount; // Incremented before each _connectionEstablishedCallback call
 
 public:
@@ -152,7 +172,6 @@ public:
   void enableOTA(const char *password = NULL, const uint16_t port = 0); // Activate OTA updater, must be set before the first loop() call.
   void enableMQTTPersistence(); // Tell the broker to establish a persistent connection. Disabled by default. Must be called before the first loop() execution
   void enableLastWillMessage(const char* topic, const char* message, const bool retain = false); // Must be set before the first loop() call.
-  void enableDrasticResetOnConnectionFailures() {_drasticResetOnConnectionFailures = true;} // Can be usefull in special cases where the ESP board hang and need resetting (#59)
 
 #ifndef ESP8266
   // Switch the MQTT transport to TLS. Must be called before the first loop().
@@ -194,20 +213,14 @@ public:
   // Useful to recover from a half-open / stuck socket where writes block forever.
   // The library's main loop() will reconnect automatically after the regular
   // reconnection delay.
-  inline void disconnect() {
-    _mqttClient.disconnect();
-    _mqttConnected = false;
-    _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
-  };
+  void disconnect();
 
   // Hard-close the underlying TCP socket without writing an MQTT DISCONNECT
   // packet. Use this when writes are already failing with EAGAIN/ENOMEM;
   // PubSubClient::disconnect() itself may otherwise block/retry in write().
-  inline void forceDisconnect() {
-    _activeClient->stop();
-    _mqttConnected = false;
-    _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
-  };
+  // During a connection attempt the socket is the attempt's: its outcome is
+  // discarded instead, and the next attempt follows after the regular delay.
+  void forceDisconnect();
 
   // Bound how long the MQTT layer (PubSubClient) may wait on a single
   // socket read (CONNACK, keepalive PINGRESP, ...). Default is 15s, a large
@@ -215,19 +228,13 @@ public:
   // iteration add to it.
   inline void setSocketTimeout(uint16_t seconds) { _mqttClient.setSocketTimeout(seconds); };
 
-  // Bound how long the underlying WiFiClient may block while retrying a
-  // write that returns EAGAIN (full LWIP send buffer). Default is several
-  // seconds; lowering it prevents a single publish() from monopolising the
-  // loop when the TCP socket is wedged.
-  //
-  // NOTE: WiFiClient::setTimeout() on Arduino-ESP32 2.x takes SECONDS
-  // (it internally multiplies by 1000 to get ms). Keeping the parameter
-  // name in seconds here so the API matches reality and setSocketTimeout
-  // above. Also note that this only bounds the initial select() inside
-  // WiFiClient::write(); the EAGAIN retry loop is hardcoded to
-  // WIFI_CLIENT_MAX_WRITE_RETRY (10) iterations of 1s and cannot be
-  // shortened from the application.
-  inline void setWriteTimeout(uint32_t seconds) { _activeClient->setTimeout(seconds); };
+  // Bound how long the transport may block: the TCP connect, and on the TLS
+  // client a write that makes no progress (full send buffer). The plain
+  // client's write retries EAGAIN up to 10 times whatever is set here. Set on
+  // both clients by their own type: through a Client* it reached
+  // Stream::setTimeout, a read timeout in milliseconds, and left the TLS
+  // client at its 30 s default.
+  void setWriteTimeout(uint32_t seconds);
   inline unsigned int getConnectionEstablishedCount() const { return _connectionEstablishedCount; }; // Return the number of time onConnectionEstablished has been called since the beginning.
 
   inline const char* getMqttClientName() { return _mqttClientName; };
@@ -237,7 +244,8 @@ public:
   // Default to onConnectionEstablished, you might want to override this for special cases like two MQTT connections in the same sketch
   inline void setOnConnectionEstablishedCallback(ConnectionEstablishedCallback callback) { _connectionEstablishedCallback = callback; };
 
-  // Allow to set the minimum delay between each MQTT reconnection attempt. 15 seconds by default.
+  // The delay before the first reconnection attempt, 15 seconds by default. It
+  // doubles with every failed attempt, up to MQTT_RECONNECT_MAX_DELAY_MS.
   inline void setMqttReconnectionAttemptDelay(const unsigned int milliseconds) { _mqttReconnectionAttemptDelay = milliseconds; };
 
   // Allow to set the minimum delay between each WiFi reconnection attempt. 60 seconds by default.
@@ -253,6 +261,10 @@ private:
 
   void connectToWifi();
   bool connectToMqttBroker();
+  void startMqttConnectionAttempt();
+  void finishMqttConnectionAttempt();
+  unsigned long reconnectionDelay() const;
+  static void connectTaskEntry(void* param);
   void processDelayedExecutionRequests();
   bool mqttTopicMatch(const String &topic1, const String &topic2);
   void mqttMessageReceivedCallback(char* topic, uint8_t* payload, unsigned int length);

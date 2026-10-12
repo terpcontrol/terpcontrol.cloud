@@ -17,7 +17,7 @@ matters are not kept here - is [ADR 0003](adr/0003-knowledge-base.md).
 - [Device protocol](device-protocol.md) - before changing anything a device and the cloud say to each other; what is frozen and how to extend it
 
 ## Knowledge (`knowledge/`)
-- [Firmware](knowledge/firmware.md) - building, flashing, OTA and update channels, memory and NVS limits, connection loss, safety stops
+- [Firmware](knowledge/firmware.md) - building, flashing, OTA and update channels, memory and NVS limits, reconnecting after a connection loss, safety stops
 - [Firmware regulation](knowledge/firmware-regulation.md) - how a fridge or tent controller regulates: work modes, ramps, CO2, lamp dimming, dehumidifier, cooling
 - [Smart sockets](knowledge/smart-sockets.md) - pairing, driving and reporting Tasmota sockets, and the stand-alone plug
 - [Terp Cam and other cameras](knowledge/terp-cam.md) - camera pairing, the device relay, RTSP capture, stills, timelapses, limits and failure modes
@@ -32,7 +32,7 @@ matters are not kept here - is [ADR 0003](adr/0003-knowledge-base.md).
 - [Garmin widget](knowledge/garmin.md) - the Connect IQ widget, the routes it calls, its build and release
 - [CI and release](knowledge/ci-and-release.md) - CI jobs, images, deploys and firmware releases; when a job or a deploy fails
 - [Testing](knowledge/testing.md) - the suites and their pitfalls, the simulator beyond `CLAUDE.md`, test stacks, browser checks
-- [Testing with real devices and data](knowledge/testing-real-devices-and-data.md) - /firmware-check, the development devices, copies of production data
+- [Testing with real devices and data](knowledge/testing-real-devices-and-data.md) - /firmware-check, connection-loss tests, the development devices, copies of production data
 - [Development workflow](knowledge/development-workflow.md) - branches, pushing, review comments, rounds, commit and PR texts, what needs Chris's word
 - [The app rewrite](app-rewrite-handover.md) - the rewrite is complete: where its knowledge lives and what it left open
 

@@ -1,7 +1,7 @@
 ---
 summary: The frozen contract between a device's firmware and the cloud - HTTP, every MQTT topic and payload, hardware-info, the configuration document, commands, camera relay, tunnel; read before changing firmware, the device-protocol module or the simulator
-updated: 2026-10-09
-source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
+updated: 2026-10-12
+source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
 paths:
   - firmware/src/**
   - firmware/src_hwtype/**
@@ -120,17 +120,17 @@ itself with its own provisioning password in the body, or not at all.
 
 | Request | When | Firmware |
 | --- | --- | --- |
-| `POST {API_URL}/device/register` | "change server" from the menu or the phone form | `fridgecloud.cpp:702-737` |
-| `POST {API_URL}/device/claimcode` | "connect to portal" from the menu | `fridgecloud.cpp:675-700` |
-| `GET {API_URL}/device/firmware/<id>/firmware.bin` | after a `firmware` message | `fridgecloud.cpp:587-595` |
-| `GET <url>` | after an `fwupdate` message | `fridgecloud.cpp:597-673` |
+| `POST {API_URL}/device/register` | "change server" from the menu or the phone form | `fridgecloud.cpp:710-745` |
+| `POST {API_URL}/device/claimcode` | "connect to portal" from the menu | `fridgecloud.cpp:683-708` |
+| `GET {API_URL}/device/firmware/<id>/firmware.bin` | after a `firmware` message | `fridgecloud.cpp:595-603` |
+| `GET <url>` | after an `fwupdate` message | `fridgecloud.cpp:605-681` |
 
 `{API_URL}` is the base URL compiled into the build (`pioenv.py:11`). ADR 0001 puts the new `/v1` API under that
 same base, so these four paths keep their place beside it.
 
 ### 3.1 `POST /device/register`
 
-Body, `Content-Type: application/json` (`fridgecloud.cpp:709-714`):
+Body, `Content-Type: application/json` (`fridgecloud.cpp:717-722`):
 
 | Key | Value |
 | --- | --- |
@@ -140,7 +140,7 @@ Body, `Content-Type: application/json` (`fridgecloud.cpp:709-714`):
 | `username` | provisioning NVS `mqtt_user` |
 | `password` | provisioning NVS `mqtt_password` |
 
-The firmware checks for **201** (`fridgecloud.cpp:719`). On 201 it reads `fw` from the answer and immediately
+The firmware checks for **201** (`fridgecloud.cpp:727`). On 201 it reads `fw` from the answer and immediately
 downloads `<api_url>/device/firmware/<fw>/firmware.bin`, which reboots it into the new cloud's build
 (`:727-733`). Anything else is ignored, and the call returns `false` either way (`:736`): it only returns at all
 when no new build was installed, and the display then says the connection failed (`wifi.cpp:1718-1724,2112`).
@@ -160,7 +160,7 @@ also forces `state.hardware.claimcode_auth` to `'off'`, which is what lets a re-
 
 ### 3.2 `POST /device/claimcode`
 
-Body (`fridgecloud.cpp:681-683`):
+Body (`fridgecloud.cpp:689-691`):
 
 | Key | Value |
 | --- | --- |
@@ -180,9 +180,9 @@ device or a wrong password answers 401 `{ status: 'unauthorized' }`.
 ### 3.3 `GET /device/firmware/:firmware_id/:binary`
 
 The OTA download. The firmware builds the URL as `<API_URL>/device/firmware/<id>/firmware.bin`
-(`fridgecloud.cpp:587-595`) and streams the body straight into the ESP32 `Update` partition.
+(`fridgecloud.cpp:595-603`) and streams the body straight into the ESP32 `Update` partition.
 
-What the firmware requires of the answer (`fridgecloud.cpp:597-673`):
+What the firmware requires of the answer (`fridgecloud.cpp:605-681`):
 
 - It accepts **any** `httpResponseCode > 0` (`:605-606`) — it does **not** check for 200. An error page would be
   written to the OTA partition and rejected later by `Update.end()`, which is a silent failure.
@@ -211,7 +211,7 @@ provisioning flow (`fw-buildcontainer/cli.py`).
 
 They are served by `LegacyDeviceProtocolController` (`device-protocol.controller.ts`) and excluded from the API
 document. **No build in this repository uses them**: current firmware calls `/device/claimcode`
-(`fridgecloud.cpp:678`) and `/device/firmware/...` (`:589`). They exist for builds shipped before the paths were
+(`fridgecloud.cpp:686`) and `/device/firmware/...` (`:597`). They exist for builds shipped before the paths were
 shortened, and have to stay until no device in the field asks for them.
 
 ### 3.5 What a device never does over HTTP
@@ -297,16 +297,17 @@ keeps nothing for a device that is not connected.
 - `sensors` and `outputs` are flat objects of numbers. Which keys a device sends depends on its hardware type;
   see [5.4](#54-which-keys-each-hardware-type-reports).
 - `timestamp` is **epoch seconds**, added only when the device's clock is plausible (`> 1e9`,
-  `fridgecloud.cpp:522-525`). Without a valid clock the sample is discarded rather than sent undated.
+  `fridgecloud.cpp:530-533`). Without a valid clock the sample is discarded rather than sent undated.
 
-Cadence and buffering (`fridgecloud.cpp:503-578`, constants in `fridgecloud.h:33-35`): `updateStatus()` is
+Cadence and buffering (`fridgecloud.cpp:503-586`, constants in `fridgecloud.h:33-35`): `updateStatus()` is
 called once per control tick, and `main.cpp:284-287` runs the control tick every second. One sample in
 `SAMPLE_INTERVAL = 5` is kept, so a document is produced every 5 s. It is serialised into a 512-byte buffer
-(`fridgecloud.cpp:527-528`) and pushed onto a deque of at most `MAX_BUFFER_LEN = 120` entries; because
+(`fridgecloud.cpp:535-536`) and pushed onto a deque of at most `MAX_BUFFER_LEN = 120` entries; because
 `UPLOAD_INTERVAL = 1`, the buffer is drained immediately, so the wire sees **one `bulk` message every five
-seconds**. When the buffer is full the sample is dropped and `message-buffer-overflow` is logged once at severity 1
-(`fridgecloud.cpp:511-517`). The drain stops on the first failed publish and keeps the rest for the next attempt
-(`fridgecloud.cpp:563-575`).
+seconds**. When the buffer is full the sample is dropped and `message-buffer-overflow` is logged once at severity 1;
+a full buffer is still drained as soon as the device is connected again (`fridgecloud.cpp:511-525`). Builds before
+2026-10-12 returned before the drain, so a device offline for ten minutes sent no reading again until it rebooted.
+The drain stops on the first failed publish and keeps the rest for the next attempt (`fridgecloud.cpp:571-583`).
 
 Server side (`device-ingest.service.ts`): the ingest stamps `devices.state.lastSeenAt`, then hands the document
 on with the instant the device dated it. Readings are written to InfluxDB, measurement `status`, tagged
@@ -325,7 +326,7 @@ readings and are dropped at ingest: a `co2` at or below zero, and an `out_co2` b
 ### 5.2 `status` in custom-MQTT mode
 
 **device → server.** A device in custom-MQTT mode does not buffer and does not publish on `bulk`. It publishes
-each value on its own sub-topic, as a bare value with no JSON envelope (`fridgecloud.cpp:543-553`):
+each value on its own sub-topic, as a bare value with no JSON envelope (`fridgecloud.cpp:551-561`):
 
 ```
 /devices/<id>/status/sensors/<key>     23.5
@@ -466,7 +467,7 @@ The messages current firmware sends:
 | --- | --- | --- | --- |
 | `message-device-booted:<reason>` | 0 | every type, at init | `fridgecloud.cpp:45-59,165-169` |
 | `message-device-firmware-update` | 0 | every type, queued before an OTA download; it reaches the cloud only from an attempt that failed ([10](#10-the-ota-path)) | `fridgecloud.cpp:197,217` |
-| `message-buffer-overflow` | 1 | every type, reading buffer full | `fridgecloud.cpp:514` |
+| `message-buffer-overflow` | 1 | every type, reading buffer full | `fridgecloud.cpp:521` |
 | `message-co2-low` | 0 | controller, fridge: CO2 under 200 ppm for 60 passes; once per low episode, re-armed by a reading at or above it (before #145 the latch was never cleared, so it practically never fired) | `controller.cpp:984-997`, `fridge.cpp:1107-1118` |
 | `message-ext-sensor-deviate`, `message-ext-sensor-fail` | 0 | fridge, when the fault appears and **at most once per 15 min** each (`SENSOR_FAULT_LOG_INTERVAL`, `fridge.cpp:19,90-104`) | `fridge.cpp:206,220` |
 | `message-ext-sensor-fail` | 1 | light, when its failsafe darkens the lamp after ten passes without a reading; **at most once per 15 min** (`SENSOR_FAIL_LOG_INTERVAL`, `light.h`) | `light.cpp:49-55` |
@@ -705,7 +706,7 @@ device itself.
 | --- | --- | --- |
 | server → device | the stored document, serialised | `device-configuration.service.ts` |
 | server → device | the same document, as the reply to a `fetch` | `device-ingest.service.ts` |
-| device → server | the device's whole settings object as JSON, after a change on its own menu | `fridgecloud.cpp:580-585` |
+| device → server | the device's whole settings object as JSON, after a change on its own menu | `fridgecloud.cpp:588-593` |
 | device → server | the same object, inside every `fetch`; kept only while the cloud has none | `fridgecloud.cpp:370-404` |
 
 When a device receives one it parses it, adopts it silently, writes it to NVS key `config` and re-runs its
@@ -1145,7 +1146,7 @@ carries it, with three slots (`TUNNEL_COUNT`, `fridgecloud.h:102`).
   only `disconnected` ends it. The server has no code for it any more and answers a datagram on `tunnel_read` with
   `disconnected`, as for any connection it does not know; the Terp Cam went to the relay ([9.1](#91-the-relay)).
 
-**device → server** on `tunnel_read` (`handleTunnelReads`, `handleTunnelCloses`, `fridgecloud.cpp:740-850`):
+**device → server** on `tunnel_read` (`handleTunnelReads`, `handleTunnelCloses`, `fridgecloud.cpp:748-858`):
 
 ```json
 { "connection_id": "<uuid>", "length": 97, "sequence": 12, "payload": "<base64>" }
@@ -1184,7 +1185,7 @@ carries it, with three slots (`TUNNEL_COUNT`, `fridgecloud.h:102`).
    until the reboot and nothing else would push the OFF command out (`controller.cpp:596-615`,
    `fridge.cpp:743-764`, `wifiForceAllSmartSocketsOff`, `wifi.cpp:473-513`). The plug, fan and light have no
    update handler. A download that fails fires the subject again with `false` and the device carries on
-   (`fridgecloud.cpp:672`).
+   (`fridgecloud.cpp:680`).
 6. On success the device restarts, and the new id goes out on `fetch` and as `hardware-info:firmware_version`.
 7. The server compares the reported id: equal to the one it was running, nothing happens; different from the
    pending one, `devices.state.firmwareId` is updated and no more; equal to the pending one, the update is closed
@@ -1207,9 +1208,12 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 | --- | --- | --- |
 | MQTT maximum packet size | 4096 bytes, set on every connect | `fridgecloud.h:39`, `.cpp:182` |
 | MQTT socket / write timeout | 5 s | `fridgecloud.cpp:158-159` |
+| MQTT connection attempt | DNS 15 s, TCP 5 s, TLS handshake 30 s, CONNACK 5 s; in a task of its own | `EspMQTTClient.h`, `.cpp` |
+| MQTT reconnect delay | 15 s after a loss, doubling per failed attempt to 60 s, each plus up to 25 % at random | `EspMQTTClient.h`, `.cpp` |
+| Recovery reboot while the cloud stays away | once per 24 h, by default only while the light is off; set on the device | `main.cpp`, `rebootwatchdog.cpp` |
 | `fetch` document | 4096 bytes; without the settings where they do not fit | `fridgecloud.h:40`, `.cpp:388-395` |
-| Reading document serialisation buffer | 512 bytes | `fridgecloud.cpp:527-528` |
-| Reading buffer | 120 documents, then `message-buffer-overflow` and drop | `fridgecloud.h:33`, `.cpp:511-517` |
+| Reading document serialisation buffer | 512 bytes | `fridgecloud.cpp:535-536` |
+| Reading buffer | 120 documents, then `message-buffer-overflow` and drop; drained on reconnect | `fridgecloud.h:33`, `.cpp:511-525` |
 | Reading cadence | one sample per 5 control ticks → one `bulk` / 5 s | `fridgecloud.h:34-35`, `main.cpp:70` |
 | Log queue | 32 entries; further entries dropped silently | `fridgecloud.h:37`, `.cpp:406-411` |
 | Log message serialisation buffer | 384 bytes | `fridgecloud.cpp:442-443` |
@@ -1220,9 +1224,9 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 | Consecutive failed publishes before a forced reconnect | 3 | `fridgecloud.h:99`, `.cpp:465-480` |
 | Command document | 1024 bytes; one that does not parse is dropped | `fridgecloud.cpp:226-231` |
 | Tunnel slots | 3 | `fridgecloud.h:102` |
-| Tunnel TCP frame | ≤ 127 raw bytes, base64-encoded | `fridgecloud.h:21`, `.cpp:813-830` |
-| Tunnel messages per loop | ≤ 6 TCP and ≤ 41 UDP, shared across slots | `fridgecloud.h:22,27`, `.cpp:774,786,816` |
-| Tunnel activity | only while the display is idle (30 s after the last input) | `fridgecloud.cpp:741-743,770-772` |
+| Tunnel TCP frame | ≤ 127 raw bytes, base64-encoded | `fridgecloud.h:21`, `.cpp:821-838` |
+| Tunnel messages per loop | ≤ 6 TCP and ≤ 41 UDP, shared across slots | `fridgecloud.h:22,27`, `.cpp:782,794,824` |
+| Tunnel activity | only while the display is idle (30 s after the last input) | `fridgecloud.cpp:749-751,778-780` |
 | Tunnel frame / connection idle / proxy (cloud side) | 128 raw bytes / 30 s / 300 s | `tunnel.service.ts` |
 | Relay dial-in / header / close (cloud side) | 45 s / 20 s / 10 s | `terpcam-direct.service.ts` |
 | Login / transfer per attempt (cloud side) | 15 s / 60 s | `terpcam-direct.service.ts` |

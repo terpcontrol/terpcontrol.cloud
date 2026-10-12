@@ -261,6 +261,9 @@ boolean PubSubClient::connect(const char *id, const char *user, const char *pass
                     _client->stop();
                     return false;
                 }
+                // Waiting for CONNACK; spinning here took the whole core from
+                // the tasks sharing it for up to socketTimeout.
+                delay(10);
             }
             uint8_t llen;
             uint32_t len = readPacket(&llen);
