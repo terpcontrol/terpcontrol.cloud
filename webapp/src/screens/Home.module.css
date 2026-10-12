@@ -22,12 +22,14 @@
   gap: var(--space-3);
 }
 
-/* The places of one room, under the room's name: a heading and the cards, nothing that frames them. */
+/* The places of one room, under the room's name, closed by a rule so the place after it is not read as one of them. */
 .room {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   margin-top: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--rule-solid);
 }
 
 .roomName {
