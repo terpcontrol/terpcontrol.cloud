@@ -61,7 +61,7 @@ const drawTab = async (youMay: AccessNeed = 'own') => {
 
   drawAt(<DeviceList />);
   // The account's one plug is called a plug: the tail of its id is for telling two apart.
-  fireEvent.click(await screen.findByRole('button', { name: 'Details of Plug' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Details of Plantalytix Socket' }));
 };
 
 beforeAll(() => translate());

@@ -238,7 +238,7 @@ export class DevicesController {
   @Put(':id/co2-fan')
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('manage', 'device')
-  @ApiOperation({ summary: 'Slow an AIR fan while this smart socket doses CO2, or stop' })
+  @ApiOperation({ summary: 'Slow an AIR fan while this Plantalytix Socket doses CO2, or stop' })
   @V1Answer(deviceShape)
   public async coupleCo2Fan(@Caller() ctx: AccessContext, @Param('id') id: string, @V1Body(co2FanCoupling) body: Co2FanCoupling): Promise<Device> {
     if (body.fanId) await this.access.require(ctx, subjectRef('device', body.fanId), 'manage');

@@ -210,7 +210,7 @@ describe('pairing a Terp Cam at a device', () => {
   });
 
   it.each([
-    ['plug', plug, 'At the plug'],
+    ['plug', plug, 'At the Plantalytix Socket'],
     ['fan', fan, 'At the fan'],
   ])(
     'pairs a cam at a %s as it does at a controller, the only device some accounts have, by the name the device list gives it',
@@ -341,7 +341,7 @@ describe('an account with no device to pair a cam at', () => {
     await openTab('Terp Cam');
 
     expect(panel().getByText('No device yet')).toBeInTheDocument();
-    expect(panel().getByText(/a fridge module, a controller, a fan or a plug/)).toBeInTheDocument();
+    expect(panel().getByText(/a fridge module, a controller, a fan or a Plantalytix Socket/)).toBeInTheDocument();
     expect(panel().getByRole('link', { name: /Claim a device/ })).toHaveAttribute('href', '/claim');
     // A watch that nothing could ever cross is not left running.
     expect(panel().queryByText('Nothing new yet. This list fills itself for as long as it is open.')).not.toBeInTheDocument();

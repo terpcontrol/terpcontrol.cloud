@@ -475,7 +475,7 @@ describe('the log sheet', () => {
     // By the name each device's own row carries, and only the ones standing here:
     // the one plug of the account is called a plug, with no tail of its id.
     expect(within(asked).getByText('Big tent controller')).toBeInTheDocument();
-    expect(within(asked).getByText('Plug')).toBeInTheDocument();
+    expect(within(asked).getByText('Plantalytix Socket')).toBeInTheDocument();
     expect(within(asked).queryByText('Somewhere else')).not.toBeInTheDocument();
     // The window is fifteen minutes and the quiet is twenty-five: the engine
     // holds a worked-on device's alarms for ten minutes after it is let go, and
@@ -516,7 +516,7 @@ describe('the log sheet', () => {
     const controller = (await within(asked).findByText('Big tent controller')).closest('li')!;
     expect(controller).toHaveTextContent('stops the heater, the dehumidifier and the CO₂ valve');
 
-    const plug = within(asked).getByText('Plug').closest('li')!;
+    const plug = within(asked).getByText('Plantalytix Socket').closest('li')!;
     expect(plug).toHaveTextContent('stops nothing: this hardware takes no maintenance command');
     expect(plug).not.toHaveTextContent('heater');
   });

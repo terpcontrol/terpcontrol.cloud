@@ -1,7 +1,7 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
-updated: 2026-10-08
-source: Chris (naming decisions 2025-11 to 2026-10-04); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08
+updated: 2026-10-12
+source: Chris (naming decisions 2025-11 to 2026-10-12); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08
 paths:
   - webapp/public/assets/i18n/**
   - webapp/src/ui/figures.ts
@@ -43,12 +43,18 @@ string exists in English and German, with no English left in the German catalogu
 | a fridge's dehumidifier output | compressor | Kompressor (a tent's dehumidifier keeps its name) |
 | the valve, apart from the reading | CO₂ valve | CO₂-Ventil |
 | what the valve's dosing counter counts | ticks | Takte, never Öffnungen |
+| a Tasmota plug a controller or fridge switches | smart socket | smarte Steckdose, short Steckdose; never Smart-Steckdose |
+| the stand-alone device type `plug` | Plantalytix Socket | der Plantalytix Socket |
 | the brand | Terp Control, Terp Cam | Terp Control, Terp Cam |
 
 - The brand is two words in every user-visible text (Chris, 2026-06-25). Factual references to the original product
   (where the app came from, the privacy text) keep its name.
-- "Abluft", "Umluft" and "Lüfter" are only roles a smart socket is given (an AIR is the Lüfter); the fan and plug
-  device types are "Lüfter" and "Steckdose" everywhere.
+- "Abluft", "Umluft" and "Lüfter" are only roles a smart socket is given (an AIR is the Lüfter); the fan device
+  type is "Lüfter" everywhere.
+- "Smart socket" and "Steckdose" mean only the Tasmota plugs a controller or a fridge switches, the ones Terp Control
+  sells included. The stand-alone device type `plug` is the "Plantalytix Socket" in both languages, masculine in
+  German ("der Plantalytix Socket", "er"), and never a "Steckdose", because the two sat side by side under one word
+  (Chris, 2026-10-12). A device a grower named keeps the name they gave it.
 - An output is named through `outputWord` (`ui/climate-hardware.ts`), never by its raw key, so a fridge's
   dehumidifier is the compressor on every screen.
 - The CO₂ dosing counter is in "Takte": the firmware adds up how long the valve was open, in ticks of its clock

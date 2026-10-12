@@ -354,7 +354,7 @@
     "type": {
       "controller": "Controller",
       "fridge": "Fridge module",
-      "plug": "Plug",
+      "plug": "Plantalytix Socket",
       "fan": "Fan",
       "light": "Light"
     },
@@ -407,7 +407,7 @@
       "runs": "Came on",
       "runsValue_one": "{{count}}× in the last 24 h",
       "runsValue_other": "{{count}}× in the last 24 h",
-      "isPlug": "smart plug",
+      "isPlug": "smart socket",
       "numbered": "{{name}} {{number}}"
     },
     "noDevicesHere": "No device here.",
@@ -647,7 +647,7 @@
     },
     "addDevice": {
       "title": "Add a device",
-      "text": "A fridge module, a controller, a fan or a plug, with a Terp Cam too – or a light. The claim code is on the display or the box.",
+      "text": "A fridge module, a controller, a fan or a Plantalytix Socket, with a Terp Cam too – or a light. The claim code is on the display or the box.",
       "scan": "scan QR",
       "code": "Claim code",
       "orScan": "or scan",
@@ -1618,9 +1618,9 @@
       "choose": "Choose a scheme",
       "strength": "Strength",
       "strengthStep": {
+        "1": "as published",
         "0_5": "light · 50 %",
         "0_75": "reduced · 75 %",
-        "1": "as published",
         "1_25": "strong · 125 %"
       },
       "water": "Water",
@@ -2465,12 +2465,12 @@
           "fridge": "At the fridge module",
           "controller": "At the controller",
           "fan": "At the fan",
-          "plug": "At the plug",
+          "plug": "At the Plantalytix Socket",
           "device": "At the device"
         },
         "noDevice": {
           "label": "No device yet",
-          "text": "A Terp Cam is paired at the display of a Terp Control device – a fridge module, a controller, a fan or a plug – and this account has none claimed. Claim one first and this tab will walk you through the pairing.",
+          "text": "A Terp Cam is paired at the display of a Terp Control device – a fridge module, a controller, a fan or a Plantalytix Socket – and this account has none claimed. Claim one first and this tab will walk you through the pairing.",
           "claim": "Claim a device"
         }
       },
@@ -4148,15 +4148,15 @@
       },
       "co2Dosing": {
         "title": "CO₂ dosing",
-        "text": "Throughout opens the valve whenever the reading drops below the switch-on point. In intervals, the socket doses only in one window of every interval – for example 10 minutes every hour – so a fan can be slowed during that time."
+        "text": "Throughout opens the valve whenever the reading drops below the switch-on point. In intervals, the Plantalytix Socket doses only in one window of every interval – for example 10 minutes every hour – so a fan can be slowed during that time."
       },
       "co2Fan": {
         "title": "Slow an AIR fan",
-        "text": "While the socket doses in intervals, an AIR fan runs at the set speed at most, so the CO₂ is not blown out again right away. The fan knows the socket's dosing windows for it; when its interval changes, the fan is told."
+        "text": "While the Plantalytix Socket doses in intervals, an AIR fan runs at the set speed at most, so the CO₂ is not blown out again right away. The fan knows the Plantalytix Socket's dosing windows for it; when its interval changes, the fan is told."
       },
       "plugProtections": {
         "title": "Protections",
-        "text": "Switch the socket off whatever it is regulating: above a temperature, below a temperature, and they keep least times on and off so an appliance does not switch every few seconds. It comes back on only once the reading is back by the set gap."
+        "text": "Switch the Plantalytix Socket off whatever it is regulating: above a temperature, below a temperature, and they keep least times on and off so an appliance does not switch every few seconds. It comes back on only once the reading is back by the set gap."
       },
       "lightRamp": {
         "title": "Sunrise and sunset",
@@ -4253,19 +4253,19 @@
     },
     "plugMode": {
       "title": "Switches by",
-      "text": "What the socket regulates with its own sensor: heating, cooling, humidifying, dehumidifying or CO₂ – then it switches at two points of the reading. With a timer it switches at set times of day, and Off keeps it off."
+      "text": "What the Plantalytix Socket regulates with its own sensor: heating, cooling, humidifying, dehumidifying or CO₂ – then it switches at two points of the reading. With a timer it switches at set times of day, and Off keeps it off."
     },
     "plugDayNight": {
       "title": "Day and night",
-      "text": "The socket knows the day only as a time: it begins at “Day from” and ends at “Night from”, on your clock. With switch points of their own at night it regulates to other values at night; in CO₂ mode it does not dose at night at all."
+      "text": "The Plantalytix Socket knows the day only as a time: it begins at “Day from” and ends at “Night from”, on your clock. With switch points of their own at night it regulates to other values at night; in CO₂ mode it does not dose at night at all."
     },
     "switchPoints": {
       "title": "Switch points",
-      "text": "Two values rather than one target: at one the socket switches on, at the other off. The gap between them keeps it from switching back and forth with every reading – the wider it is, the less often it switches, and the further the reading swings."
+      "text": "Two values rather than one target: at one the Plantalytix Socket switches on, at the other off. The gap between them keeps it from switching back and forth with every reading – the wider it is, the less often it switches, and the further the reading swings."
     },
     "timerWindows": {
       "title": "Time windows",
-      "text": "When the socket is on, the same every day: from a time of day for so many minutes. A window may run past midnight. The times are on your clock and move with daylight saving time."
+      "text": "When the Plantalytix Socket is on, the same every day: from a time of day for so many minutes. A window may run past midnight. The times are on your clock and move with daylight saving time."
     },
     "fanMode": {
       "title": "The fan runs",
@@ -4427,7 +4427,7 @@
       "heater": "Heater",
       "dehumidifier": "Dehumidifier",
       "co2": "CO₂ valve",
-      "socket": "Socket",
+      "socket": "Plantalytix Socket",
       "humidifier": "Humidifier"
     },
     "outputs": {
@@ -4929,7 +4929,7 @@
     "title": "Settings",
     "waiting": "{{device}} has not sent its settings yet, so there is nothing to change here. Changing any setting on the device itself sends them; connecting alone does not.",
     "sentNote": "The device acknowledges no setting; what it really does shows in its readings.",
-    "status": "Readings arrive · socket: {{mode}}",
+    "status": "Readings arrive · Plantalytix Socket: {{mode}}",
     "statusLight": "Readings arrive · light {{on}}–{{off}}",
     "statusFan": "Readings arriving · fan runs: {{mode}}",
     "sentAt": "Sent to the device at {{time}}"
@@ -4946,13 +4946,13 @@
       "timer": "Timer"
     },
     "modeNote": {
-      "off": "The socket stays off.",
+      "off": "The Plantalytix Socket stays off.",
       "heater": "For a heater: on once it is colder than the switch-on point, off above the switch-off point.",
       "cooler": "For a cooler or a fan: on once it is warmer than the switch-on point, off below the switch-off point.",
       "humidify": "For a humidifier: on once the air is drier than the switch-on point, off above the switch-off point.",
       "dehumidify": "For a dehumidifier: on once the air is more humid than the switch-on point, off below the switch-off point.",
-      "co2": "For a CO₂ valve: on below the switch-on point, off above the switch-off point. Needs the CO₂ sensor sold as an accessory; without it the socket stays off. Dosing in intervals and slowing an AIR down are under Devices › this socket › Advanced.",
-      "timer": "The socket switches at set times of day, whatever the readings say."
+      "co2": "For a CO₂ valve: on below the switch-on point, off above the switch-off point. Needs the CO₂ sensor sold as an accessory; without it the Plantalytix Socket stays off. Dosing in intervals and slowing an AIR down are under Devices › this Plantalytix Socket › Advanced.",
+      "timer": "The Plantalytix Socket switches at set times of day, whatever the readings say."
     },
     "dayNight": "Own switch points at night",
     "dayNightOn": "Day and night each have their own switch points.",
@@ -4978,12 +4978,12 @@
     },
     "pointName": "{{edge}} – {{half}}",
     "crossed": {
-      "rising": "The switch-on point has to be below the switch-off point, or the socket keeps switching back and forth.",
-      "falling": "The switch-on point has to be above the switch-off point, or the socket keeps switching back and forth."
+      "rising": "The switch-on point has to be below the switch-off point, or the Plantalytix Socket keeps switching back and forth.",
+      "falling": "The switch-on point has to be above the switch-off point, or the Plantalytix Socket keeps switching back and forth."
     },
     "windows": {
       "label": "Time windows",
-      "none": "No time window: the socket stays off.",
+      "none": "No time window: the Plantalytix Socket stays off.",
       "add": "+ Time window",
       "most": "{{count}} time windows at most.",
       "at": "on at",
