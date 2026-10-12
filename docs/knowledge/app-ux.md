@@ -194,7 +194,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   grower keeps.
 - **A Timeline lane says how hard an output worked, not only when it ran** (Chris, 2026-10-12): each slice is the
   share of its time the output ran times the level it ran at, so a compressor cycling all week reads as how often
-  it ran instead of one solid bar. The pinned header keeps one place per lane with its share at the cursor, `—`
+  it ran instead of one solid bar. A lane is drawn like the curves above it - a line over a pale area between two
+  grid rules - and its average over the window stands under its name in the gutter, not in a column of its own,
+  so its line starts and ends where every panel's does (Chris chose this from four drafts). The pinned header keeps one place per lane with its share at the cursor, `—`
   where the device was not heard, and every figure in it at a fixed width: words appearing as an output switched
   on rewrapped the header and made the whole stack jump under a moving mouse.
 - **Dimming does not shorten the day**: light hours and the Timeline count a window as lit above `out_light` 0.5 %, so

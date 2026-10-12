@@ -59,3 +59,37 @@ const sliced = (lane: TimelineOutputLane, from: number, to: number, stepSeconds:
 /** The slice a moment falls into. */
 export const sliceAt = (load: readonly (number | null)[], from: number, to: number, time: number): number | null =>
   load[Math.min(load.length - 1, Math.max(0, Math.floor(((time - from) / (to - from)) * load.length)))] ?? null;
+
+/** How hard the output worked across the whole of what was heard of the window, or null where nothing was. */
+export const averageOf = (load: readonly (number | null)[]): number | null => {
+  const heard = load.filter((share): share is number => share !== null);
+  return heard.length === 0 ? null : heard.reduce((sum, share) => sum + share, 0) / heard.length;
+};
+
+/**
+ * The load as the line a lane draws: each slice at its middle, eased with its
+ * two neighbours so the line does not saw between slices that differ by one
+ * short run, and broken where nothing was heard. Closed, it is the area under
+ * that line. Drawn on a canvas one unit per slice wide and one unit high.
+ */
+export const curveOf = (load: readonly (number | null)[], closed: boolean): string => {
+  const eased = load.map((share, index) => {
+    if (share === null) return null;
+    const near = [load[index - 1], share, load[index + 1]].filter((one): one is number => one !== null && one !== undefined);
+    return near.reduce((sum, one) => sum + one, 0) / near.length;
+  });
+
+  let path = '';
+  eased.forEach((share, index) => {
+    if (share === null) return;
+    const y = 1 - share;
+    const first = eased[index - 1] === null || index === 0;
+    const last = eased[index + 1] === null || index === eased.length - 1;
+    // A stretch reaches the edges of its first and last slice, so a lane heard all window runs from end to end.
+    if (first) path += closed ? `M${index} 1L${index} ${y}` : `M${index} ${y}`;
+    path += `L${index + 0.5} ${y}`;
+    if (last) path += closed ? `L${index + 1} ${y}L${index + 1} 1Z` : `L${index + 1} ${y}`;
+  });
+
+  return path;
+};

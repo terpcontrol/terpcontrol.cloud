@@ -6,7 +6,7 @@ import { EntryRow, type EntryPicture } from '@/ui/EntryRow';
 import { KIND_ICON, readingNamesOf } from '@/ui/entries';
 import { useZone } from '@/ui/zone';
 import type { OutputName } from './Timeline';
-import { loadOf } from './load';
+import { averageOf, curveOf, loadOf } from './load';
 import { at, dayStopOf, daysOnAxis, fractionOf, stampOf, stopOf } from './window';
 import styles from './Timeline.module.css';
 
@@ -105,9 +105,9 @@ export function Lanes({
     <section className={styles.lanes}>
       {timeline.outputs.map((lane, index) => (
         <div key={`${lane.deviceId ?? index}-${lane.output}`} className={styles.lane} data-focus={lane.output === focus || undefined}>
-          <span className={`caption ${styles.laneName}`}>{nameOf(lane)}</span>
+          <LaneName name={nameOf(lane)} load={loadOf(lane, from, to, timeline.stepSeconds)} />
           <div className={styles.track} {...scrub}>
-            <LoadArea load={loadOf(lane, from, to, timeline.stepSeconds)} />
+            <LoadLine load={loadOf(lane, from, to, timeline.stepSeconds)} />
             <span className={styles.cursor} style={{ left }} />
           </div>
         </div>
@@ -198,17 +198,36 @@ export function Lanes({
 }
 
 /**
- * How hard an output worked, as an area rising from the lane's floor: a slice
- * at full height ran all of its time at all of its strength. A slice nothing
- * was heard in is left out rather than drawn as zero, which would say "off".
+ * A lane's name, and under it how hard the output worked across the window on
+ * average - which answers "how often did the compressor run?" without moving
+ * the cursor. It stands in the gutter the panels' scale figures stand in, so
+ * the lane's line starts and ends where every curve above it does.
  */
-function LoadArea({ load }: { load: readonly (number | null)[] }) {
-  // Each slice is a column of its own, so the area steps rather than sloping between two slices that have nothing between them.
-  const path = load.map((share, index) => (share ? `M${index} 1V${1 - share}h1V1z` : '')).join('');
+function LaneName({ name, load }: { name: string; load: readonly (number | null)[] }) {
+  const { t } = useTranslation();
+  const average = averageOf(load);
 
   return (
+    <span className={`caption ${styles.laneName}`}>
+      {name}
+      {average === null ? null : (
+        <span className={`mono ${styles.laneAverage}`}>{t('timeline.laneAverage', { share: Math.round(average * 100) })}</span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * How hard an output worked, as a line over a pale area like the curves above
+ * it: at the top it ran all of the time at all of its strength, at the foot it
+ * was off. Where nothing was heard the line breaks rather than drop to the
+ * foot, which would say "off".
+ */
+function LoadLine({ load }: { load: readonly (number | null)[] }) {
+  return (
     <svg className={styles.load} viewBox={`0 0 ${load.length} 1`} preserveAspectRatio="none" aria-hidden>
-      <path d={path} />
+      <path className={styles.loadArea} d={curveOf(load, true)} />
+      <path className={styles.loadLine} d={curveOf(load, false)} />
     </svg>
   );
 }

@@ -2283,7 +2283,8 @@
       "drying": "Trocknungsziel {{low}}–{{high}}",
       "germination": "Keimungsziel {{low}}–{{high}}"
     },
-    "legendNone": "Keine Nacht: ein Ziel rund um die Uhr"
+    "legendNone": "Keine Nacht: ein Ziel rund um die Uhr",
+    "laneAverage": "Ø {{share}} %"
   },
   "camera": {
     "never": "nie",

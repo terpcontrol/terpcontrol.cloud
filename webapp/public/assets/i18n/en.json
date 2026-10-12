@@ -2275,7 +2275,8 @@
       "drying": "Drying target {{low}}–{{high}}",
       "germination": "Germination target {{low}}–{{high}}"
     },
-    "legendNone": "No night: one target round the clock"
+    "legendNone": "No night: one target round the clock",
+    "laneAverage": "avg {{share}} %"
   },
   "camera": {
     "never": "never",
