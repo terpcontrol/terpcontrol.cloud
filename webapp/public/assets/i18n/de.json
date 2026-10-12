@@ -2246,8 +2246,6 @@
     "panelAlt": "{{metric}} über den Zeitraum",
     "band": "Ziel {{low}}–{{high}}",
     "noTarget": "kein Ziel",
-    "allOff": "alles aus",
-    "outputOn": "{{output}} an",
     "output": {
       "heater": "Heizung",
       "dehumidifier": "Entfeuchter",

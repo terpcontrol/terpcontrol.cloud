@@ -3988,7 +3988,7 @@ export interface TimelineOutputLane {
 }
 
 /**
- * Only on a charts read, and only for an output the device drives at a level; absent where the output is a switch and nothing more.
+ * Only for an output the device drives at a level; absent where the output is a switch and nothing more.
  */
 
 export interface TimelineOutputLevel1 {

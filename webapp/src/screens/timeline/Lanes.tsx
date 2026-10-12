@@ -6,6 +6,7 @@ import { EntryRow, type EntryPicture } from '@/ui/EntryRow';
 import { KIND_ICON, readingNamesOf } from '@/ui/entries';
 import { useZone } from '@/ui/zone';
 import type { OutputName } from './Timeline';
+import { loadOf } from './load';
 import { at, dayStopOf, daysOnAxis, fractionOf, stampOf, stopOf } from './window';
 import styles from './Timeline.module.css';
 
@@ -49,7 +50,7 @@ const NOT_CORRECTED: Correcting = () => undefined;
 
 /**
  * What the outputs did and what anybody wrote, under the curves they explain.
- * A lane says when something ran, not what it measured; a mark on the rail says
+ * A lane says when and how hard something ran, not what it measured; a mark on the rail says
  * that a line exists there, and tapping it puts the line under the rail and the
  * cursor on its moment - which is the whole reason the two are drawn together.
  */
@@ -106,13 +107,7 @@ export function Lanes({
         <div key={`${lane.deviceId ?? index}-${lane.output}`} className={styles.lane} data-focus={lane.output === focus || undefined}>
           <span className={`caption ${styles.laneName}`}>{nameOf(lane)}</span>
           <div className={styles.track} {...scrub}>
-            {lane.spans.map(span => (
-              <span
-                key={span.startsAt}
-                className={styles.bar}
-                style={{ left: `${fractionOf(at(span.startsAt), from, to) * 100}%`, width: `${widthOf(span, from, to)}%` }}
-              />
-            ))}
+            <LoadArea load={loadOf(lane, from, to, timeline.stepSeconds)} />
             <span className={styles.cursor} style={{ left }} />
           </div>
         </div>
@@ -202,9 +197,21 @@ export function Lanes({
   );
 }
 
-/** A run never leaves the lane; one too short to be a bar is kept visible by the lane's own minimum. */
-const widthOf = (span: { startsAt: string; endsAt: string }, from: number, to: number): number =>
-  (fractionOf(at(span.endsAt), from, to) - fractionOf(at(span.startsAt), from, to)) * 100;
+/**
+ * How hard an output worked, as an area rising from the lane's floor: a slice
+ * at full height ran all of its time at all of its strength. A slice nothing
+ * was heard in is left out rather than drawn as zero, which would say "off".
+ */
+function LoadArea({ load }: { load: readonly (number | null)[] }) {
+  // Each slice is a column of its own, so the area steps rather than sloping between two slices that have nothing between them.
+  const path = load.map((share, index) => (share ? `M${index} 1V${1 - share}h1V1z` : '')).join('');
+
+  return (
+    <svg className={styles.load} viewBox={`0 0 ${load.length} 1`} preserveAspectRatio="none" aria-hidden>
+      <path d={path} />
+    </svg>
+  );
+}
 
 interface Mark {
   key: string;

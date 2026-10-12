@@ -4699,7 +4699,7 @@ export declare const timelineOutputLevel: z.ZodObject<{
         value: z.ZodNullable<z.ZodNumber>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
-/** One output over the window, as the lanes under the panels draw it: when it was on, and on the charts how hard it ran. */
+/** One output over the window, as the lanes under the panels draw it: when it was on, and how hard it ran. */
 export declare const timelineOutputLane: z.ZodObject<{
     output: z.ZodEnum<{
         dehumidifier: "dehumidifier";

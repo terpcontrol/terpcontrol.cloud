@@ -1635,7 +1635,7 @@ export const timelineOutputLevel = named(
   }),
 );
 
-/** One output over the window, as the lanes under the panels draw it: when it was on, and on the charts how hard it ran. */
+/** One output over the window, as the lanes under the panels draw it: when it was on, and how hard it ran. */
 export const timelineOutputLane = named(
   'TimelineOutputLane',
   z.object({
@@ -1657,7 +1657,7 @@ export const timelineOutputLane = named(
       ),
     level: timelineOutputLevel
       .optional()
-      .describe('Only on a charts read, and only for an output the device drives at a level; absent where the output is a switch and nothing more.'),
+      .describe('Only for an output the device drives at a level; absent where the output is a switch and nothing more.'),
   }),
 );
 

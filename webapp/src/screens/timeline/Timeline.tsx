@@ -25,7 +25,8 @@ import { CameraFrame, Slider } from './CameraFrame';
 import { Lanes } from './Lanes';
 import { Panel } from './Panel';
 import { ReadingPanel } from './ReadingPanel';
-import { at, momentOf, pointAt, spans, stampOf } from './window';
+import { loadOf, sliceAt } from './load';
+import { at, momentOf, pointAt, stampOf } from './window';
 import { ClimatePicker } from '../cockpit/ClimatePicker';
 import styles from './Timeline.module.css';
 
@@ -277,7 +278,7 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
         </div>
       )}
 
-      <ScrubHeader timeline={data} cursor={here} resting={cursor === null && lastReading !== null} nameOf={nameOf} />
+      <ScrubHeader timeline={data} from={from} to={to} cursor={here} resting={cursor === null && lastReading !== null} nameOf={nameOf} />
 
       {recordingSince !== null ? (
         <p className={`mono ${styles.recording}`} role="note">
@@ -408,25 +409,24 @@ const useOutputName = (): OutputName => {
  * thumb is over it - so the reading is pinned above the panels instead, and
  * sticks to the top of the screen while the stack is scrolled.
  */
-function ScrubHeader({ timeline, cursor, resting, nameOf }: { timeline: SpaceTimeline; cursor: number; resting: boolean; nameOf: OutputName }) {
+function ScrubHeader({
+  timeline,
+  from,
+  to,
+  cursor,
+  resting,
+  nameOf,
+}: {
+  timeline: SpaceTimeline;
+  /** The stretch the lanes are drawn across, so the header reads the very slice drawn under the cursor. */
+  from: number;
+  to: number;
+  cursor: number;
+  resting: boolean;
+  nameOf: OutputName;
+}) {
   const { t } = useTranslation();
   const zone = useZone();
-  /**
-   * The lanes anything is known about at the cursor. A lane carries how far it
-   * was heard precisely because a run that stops where the device stopped
-   * reporting looks exactly like one that stops because the output was switched
-   * off - and a cursor past that instant is the second case for every lane at
-   * once. Reading the spans alone said "everything off" about a fridge nothing
-   * had heard from for four days, on the same line whose readings it had just
-   * dashed, which is the claim about hardware this header is meant not to make.
-   *
-   * It is `heardUntil` and not the newest span's end: a live device whose
-   * outputs have all been off for an hour has a newest span an hour old and is
-   * still being heard, and saying nothing about it would be the same mistake
-   * the other way round.
-   */
-  const heard = timeline.outputs.filter(lane => at(lane.heardUntil) >= cursor);
-  const running = heard.filter(lane => spans(lane.spans, cursor));
 
   return (
     <p className={`mono ${styles.scrubHead}`} role="status">
@@ -441,14 +441,28 @@ function ScrubHeader({ timeline, cursor, resting, nameOf }: { timeline: SpaceTim
           <span key={panel.metric} className={styles.scrubValue} data-metric={panel.metric}>
             {/* The leaf is the second °C in the line, told from the air's by more than its colour. */}
             {panel.metric === 'leafTemperature' ? <span className={styles.scrubUnit}>{t('timeline.leafShort')} </span> : null}
-            {value === null ? '—' : figure(value, panel.metric)} <span className={styles.scrubUnit}>{UNIT[panel.metric] ?? ''}</span>
+            <span className={styles.scrubFigure}>{value === null ? '—' : figure(value, panel.metric)}</span>{' '}
+            <span className={styles.scrubUnit}>{UNIT[panel.metric] ?? ''}</span>
           </span>
         );
       })}
-      {/* A place with no outputs says nothing here rather than "everything off", which would be a claim about hardware it has not got - and neither does one whose outputs nobody has heard from at the cursor. */}
-      {heard.length === 0 ? null : (
+      {/* Every lane has its place in the line whether it ran or not, at a
+          figure's fixed width, so moving the cursor changes what the line says
+          and never how long it is: an output switching on used to add words,
+          wrap the line, and shift every panel under the header by a row. A
+          lane nobody had heard from at the cursor says so with a dash rather
+          than claiming the output was off - three days of silence are not
+          three days of "off". */}
+      {timeline.outputs.length === 0 ? null : (
         <span className={styles.scrubOutputs}>
-          {running.length === 0 ? t('timeline.allOff') : running.map(lane => t('timeline.outputOn', { output: nameOf(lane) })).join(' · ')}
+          {timeline.outputs.map((lane, index) => {
+            const share = sliceAt(loadOf(lane, from, to, timeline.stepSeconds), from, to, cursor);
+            return (
+              <span key={`${lane.deviceId ?? index}-${lane.output}`} className={styles.scrubOutput} data-off={!share || undefined}>
+                {nameOf(lane)} <span className={styles.scrubShare}>{share === null ? '—' : `${Math.round(share * 100)} %`}</span>
+              </span>
+            );
+          })}
         </span>
       )}
     </p>

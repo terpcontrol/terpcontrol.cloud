@@ -1243,7 +1243,7 @@ exports.timelineOutputLevel = (0, common_js_1.named)('TimelineOutputLevel', zod_
     unit: zod_1.z.enum(['percent', 'count']),
     points: zod_1.z.array(common_js_1.seriesPoint).describe('Stamped like the climate points: each closes the window it stands for.'),
 }));
-/** One output over the window, as the lanes under the panels draw it: when it was on, and on the charts how hard it ran. */
+/** One output over the window, as the lanes under the panels draw it: when it was on, and how hard it ran. */
 exports.timelineOutputLane = (0, common_js_1.named)('TimelineOutputLane', zod_1.z.object({
     output: common_js_1.outputMetric,
     deviceId: (0, common_js_1.id)()
@@ -1257,7 +1257,7 @@ exports.timelineOutputLane = (0, common_js_1.named)('TimelineOutputLane', zod_1.
         .describe('Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.'),
     level: exports.timelineOutputLevel
         .optional()
-        .describe('Only on a charts read, and only for an output the device drives at a level; absent where the output is a switch and nothing more.'),
+        .describe('Only for an output the device drives at a level; absent where the output is a switch and nothing more.'),
 }));
 /**
  * One alarm as a span of the window. `endedAt` is null for an alert that is
