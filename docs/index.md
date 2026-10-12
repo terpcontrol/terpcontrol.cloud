@@ -32,7 +32,7 @@ matters are not kept here - is [ADR 0003](adr/0003-knowledge-base.md).
 - [Garmin widget](knowledge/garmin.md) - the Connect IQ widget, the routes it calls, its build and release
 - [CI and release](knowledge/ci-and-release.md) - CI jobs, images, deploys and firmware releases; when a job or a deploy fails
 - [Testing](knowledge/testing.md) - the suites and their pitfalls, the simulator beyond `CLAUDE.md`, test stacks, browser checks
-- [Testing with real devices and data](knowledge/testing-real-devices-and-data.md) - /firmware-check, the development devices, copies of production data
+- [Testing with real devices and data](knowledge/testing-real-devices-and-data.md) - /firmware-check, connection-loss tests, the development devices, copies of production data
 - [Development workflow](knowledge/development-workflow.md) - branches, pushing, review comments, rounds, commit and PR texts, what needs Chris's word
 - [The app rewrite](app-rewrite-handover.md) - the rewrite is complete: where its knowledge lives and what it left open
 

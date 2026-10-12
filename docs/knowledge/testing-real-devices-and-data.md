@@ -1,7 +1,7 @@
 ---
-summary: When a test needs real hardware or real data - /firmware-check beyond its skill and getting builds onto devices, taking over and driving the development devices, the real Terp Cam, restoring and testing on a copy of production data without anything leaving it, verification passes
-updated: 2026-10-08
-source: Chris (instructions 2026-08-25..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); codebase cleanup and its run on the development devices (2026-10-08); checked against the code 2026-10-08
+summary: When a test needs real hardware or real data - /firmware-check beyond its skill and getting builds onto devices, connection-loss tests, taking over and driving the development devices, the real Terp Cam, restoring and testing on a copy of production data without anything leaving it, verification passes
+updated: 2026-10-12
+source: Chris (instructions 2026-08-25..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); connection-loss tests (2026-10-12); codebase cleanup and its run on the development devices (2026-10-08); checked against the code 2026-10-08
 paths:
   - .claude/skills/firmware-check/**
   - build-fw.sh
@@ -52,6 +52,23 @@ Everyday testing - suites, simulator, own stacks, browser checks - is in [testin
   (`firmware/src/html_compressed/index.html.h`) behind a mock of `/`, `/server`, `/scan` and `/config` and drive it
   in Chromium (SSIDs with `'` or `<script>`, 360 px, light and dark). Gzip is only approximated, so roll it out to a
   device before merging.
+
+## Connection-loss tests
+How a device behaves without the cloud, on the stack the development devices talk to (2026-10-12). Every device
+on it takes part; ask Chris first, as for taking them over.
+- Three outages, each a different failure: `docker pause` on the broker leaves its port open with nobody answering
+  (TCP connects, the TLS handshake never ends); `docker stop` on the server keeps the broker up but fails every
+  login (CONNACK 4, after ~5 s); `docker stop` on the broker refuses the connection (~80 ms). Run one longer than
+  ten minutes: that fills the reading buffer, and what happens after the return is what matters.
+- Judge recovery by the readings, not by the broker: a device can be connected and still send nothing
+  (`state.lastSeenAt` from `GET /v1/admin/devices`, `firmwareId` beside it). The broker log
+  (`docker logs <broker>`) names each attempt by user or client id, so it counts attempts per device without a
+  serial line; reboots arrive afterwards as `message-device-booted` system entries.
+- The fridge's serial log prints `[mqtt] connecting` / `attempt N failed ... next in` / `connected in ... (stack
+  left)` and the `[health]` heap line every minute. Gaps between its once-a-second `[hh:mm:ss] MODE` lines show
+  how long the loop stood still.
+- Poll with the automation session: signing in as the admin account on every poll soon runs into the sign-in limit
+  (429) for a while.
 
 ## The development devices
 Chris's development devices (one of each type, the fridge with a Terp Cam) talk to whichever local stack holds the
