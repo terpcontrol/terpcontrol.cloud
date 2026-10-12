@@ -1,6 +1,6 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, what was left out on purpose; read before changing a screen
-updated: 2026-10-11
+updated: 2026-10-12
 source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08
 paths:
   - webapp/src/**
@@ -192,6 +192,13 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   chart presets (saved views stand in), the timelapse in place of the still, the navigator strip, ctrl-drag.
 - **The CSV holds every chosen line**, also those a layout leaves off the panel - a layout must not decide what a
   grower keeps.
+- **A Timeline lane says how hard an output worked, not only when it ran** (Chris, 2026-10-12): each slice is the
+  share of its time the output ran times the level it ran at, so a compressor cycling all week reads as how often
+  it ran instead of one solid bar. A lane is drawn like the curves above it - a line over a pale area between two
+  grid rules - and its average over the window stands under its name in the gutter, not in a column of its own,
+  so its line starts and ends where every panel's does (Chris chose this from four drafts). The pinned header keeps one place per lane with its share at the cursor, `—`
+  where the device was not heard, and every figure in it at a fixed width: words appearing as an output switched
+  on rewrapped the header and made the whole stack jump under a moving mouse.
 - **Dimming does not shorten the day**: light hours and the Timeline count a window as lit above `out_light` 0.5 %, so
   12 h at 40 % is 12 light hours; the light panel says so where the level is set.
 - **Not every mode has a day and a night** (Chris, 2026-10-03): drying, germination and 24 or 0 h of light are drawn

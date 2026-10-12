@@ -2246,8 +2246,6 @@
     "panelAlt": "{{metric}} über den Zeitraum",
     "band": "Ziel {{low}}–{{high}}",
     "noTarget": "kein Ziel",
-    "allOff": "alles aus",
-    "outputOn": "{{output}} an",
     "output": {
       "heater": "Heizung",
       "dehumidifier": "Entfeuchter",
@@ -2285,7 +2283,8 @@
       "drying": "Trocknungsziel {{low}}–{{high}}",
       "germination": "Keimungsziel {{low}}–{{high}}"
     },
-    "legendNone": "Keine Nacht: ein Ziel rund um die Uhr"
+    "legendNone": "Keine Nacht: ein Ziel rund um die Uhr",
+    "laneAverage": "Ø {{share}} %"
   },
   "camera": {
     "never": "nie",

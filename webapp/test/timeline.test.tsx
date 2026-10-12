@@ -161,6 +161,9 @@ const scrubTo = (hour: number) =>
 
 const header = () => screen.getByRole('status');
 
+/** A lane's name under the panels, which the header names again beside its share. */
+const laneName = (name: string) => screen.getAllByText(name).find(node => !header().contains(node))!;
+
 beforeAll(() => translate());
 
 beforeEach(() => {
@@ -197,14 +200,14 @@ describe('the timeline', () => {
     draw();
 
     // The end of the window: light on, the day's band, the newest picture.
-    expect(header()).toHaveTextContent(`${clock(24)}26.0 °C62 %Light on`);
+    expect(header()).toHaveTextContent(`${clock(24)}26.0 °C62 %Light 100 %Heater 0 %`);
     // Named by its half, as the tile it was opened from names it.
     expect(screen.getByText('day target 25–27')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' })).toHaveAttribute('src', '/media/media-late');
 
     // Back into the night: the other band, the other readings, the other picture.
-    scrubTo(3);
-    expect(header()).toHaveTextContent(`${clock(3)}21.0 °C58 %Heater on`);
+    scrubTo(2.5);
+    expect(header()).toHaveTextContent('21.0 °C58 %Light 0 %Heater 100 %');
     expect(screen.getByText('night target 20–22')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' })).toHaveAttribute('src', '/media/media-early');
     expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' }).parentElement).toHaveTextContent(`Canopy cam · ${stamp(2)} · day 34`);
@@ -265,8 +268,8 @@ describe('the timeline', () => {
 
     expect(screen.getByText(/Nothing measures here/)).toBeInTheDocument();
     expect(screen.getByText('Events')).toBeInTheDocument();
-    // "Everything off" would be a claim about hardware this place has not got.
-    expect(screen.queryByText(/everything off/)).not.toBeInTheDocument();
+    // A share of 0 % would be a claim about hardware this place has not got.
+    expect(header()).not.toHaveTextContent('%');
   });
 
   /**
@@ -298,13 +301,13 @@ describe('the timeline', () => {
 
     // The end of the window, four hours after the last thing the device said.
     expect(header()).toHaveTextContent(clock(24));
-    expect(screen.queryByText(/everything off/)).not.toBeInTheDocument();
+    expect(header()).toHaveTextContent('Light —Heater —');
 
     // Inside the stretch it was still reporting, both answers are honest again.
     scrubTo(1);
-    expect(header()).toHaveTextContent(/Light on/);
+    expect(header()).toHaveTextContent('Light 100 %');
     scrubTo(3);
-    expect(header()).toHaveTextContent(/everything off/);
+    expect(header()).toHaveTextContent('Light 0 %Heater 0 %');
   });
 
   /**
@@ -324,9 +327,9 @@ describe('the timeline', () => {
     };
     draw();
 
-    expect(screen.getByText('Compressor')).toBeInTheDocument();
-    expect(screen.getByText('Dehumidifier')).toBeInTheDocument();
-    expect(header()).toHaveTextContent('Compressor on · Dehumidifier on');
+    expect(laneName('Compressor')).toBeInTheDocument();
+    expect(laneName('Dehumidifier')).toBeInTheDocument();
+    expect(header()).toHaveTextContent('Compressor 100 %Dehumidifier 100 %');
   });
 
   /** A link is told no device, and the lane still says it is a fridge's: the shared page calls the compressor what the owner's screens call it. */
@@ -341,16 +344,16 @@ describe('the timeline', () => {
     state.answer = { ...answer, outputs: [lane] };
     draw();
 
-    expect(screen.getByText('Compressor')).toBeInTheDocument();
+    expect(laneName('Compressor')).toBeInTheDocument();
     expect(screen.queryByText('Dehumidifier')).not.toBeInTheDocument();
   });
 
   /** The other way round: a device still reporting whose outputs have all been off for hours has been heard, and "off" is the truth about it. */
-  it('still says everything is off where the device is being heard and nothing is running', () => {
+  it('says the outputs are off where the device is being heard and nothing is running', () => {
     state.answer = { ...answer, outputs: answer.outputs.map(lane => ({ ...lane, spans: [{ startsAt: at(0), endsAt: at(2) }] })) };
     draw();
 
-    expect(header()).toHaveTextContent(/everything off/);
+    expect(header()).toHaveTextContent('Light 0 %Heater 0 %');
   });
 
   it('offers nothing that writes', () => {
@@ -434,7 +437,7 @@ describe('the timeline', () => {
     expect(screen.queryByText('Events')).not.toBeInTheDocument();
     expect(screen.queryByText(/Nothing written in this window/)).not.toBeInTheDocument();
     // The lanes of the outputs are still there.
-    expect(screen.getByText('Heater')).toBeInTheDocument();
+    expect(laneName('Heater')).toBeInTheDocument();
   });
 
   /**
@@ -559,8 +562,8 @@ describe('a timeline opened on one reading', () => {
     Element.prototype.scrollIntoView = vi.fn();
     drawOn('/timeline?focus=light');
 
-    expect(screen.getByText('Light').closest('div')).toHaveAttribute('data-focus', 'true');
-    expect(screen.getByText('Heater').closest('div')).not.toHaveAttribute('data-focus');
+    expect(laneName('Light').closest('div')).toHaveAttribute('data-focus', 'true');
+    expect(laneName('Heater').closest('div')).not.toHaveAttribute('data-focus');
   });
 });
 

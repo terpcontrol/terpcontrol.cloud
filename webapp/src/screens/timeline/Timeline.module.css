@@ -237,14 +237,41 @@
   font-weight: var(--weight-medium);
 }
 
-/* Written out, five outputs running at once are wider than a phone: the line
-   breaks between them rather than pushing the page sideways. */
+/* A figure keeps the width of the widest it can be, so a dash, "9,8" and
+   "1240" take the same room and the line never rewraps under a moving cursor. */
+.scrubFigure {
+  display: inline-block;
+  min-width: 4ch;
+  text-align: right;
+}
+
+/* One place per lane, kept whether the output ran or not. Five lanes are wider
+   than a phone: the group breaks between lanes, and always at the same lanes. */
 .scrubOutputs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0 var(--space-3);
   margin-left: auto;
   padding-left: var(--space-2);
   font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.scrubOutput {
+  white-space: nowrap;
+}
+
+.scrubShare {
+  display: inline-block;
+  min-width: 5ch;
   text-align: right;
-  text-wrap: balance;
+  font-weight: var(--weight-semibold);
+  color: var(--output);
+}
+
+.scrubOutput[data-off] .scrubShare {
+  font-weight: var(--weight-medium);
   color: var(--muted);
 }
 
@@ -457,6 +484,13 @@
   color: var(--brand);
 }
 
+/* The average under the name, small enough that the name stays what is read. */
+.laneAverage {
+  display: block;
+  font-size: 10px;
+  color: var(--label);
+}
+
 /*
  * The label keeps the mark's own overhang clear of itself. A mark is centred on
  * the moment it stands for, which for one at the very start of the window puts
@@ -480,24 +514,37 @@
 .track {
   position: relative;
   flex: 1;
-  height: 10px;
+  height: 28px;
   min-width: 0;
-  background: var(--card-2);
-  border-radius: var(--radius-pill);
+  /* The foot and the top of the lane ruled as a panel rules its scale, so a lane reads as a small panel of its own. */
+  background:
+    linear-gradient(var(--grid), var(--grid)) 0 0 / 100% 1px no-repeat,
+    linear-gradient(var(--grid), var(--grid)) 0 100% / 100% 1px no-repeat;
   touch-action: pan-y;
 }
 
-/* When an output ran: a bar in the output blue, a little inside the lane's
-   height, so the lanes say when things ran without outweighing the climate
-   lines they explain. Not the amber - running is not a warning. */
-.bar {
+/* How hard an output worked: a line in the output blue over a pale area, drawn
+   as the climate curves above are drawn. Not the amber - running is not a
+   warning. A little room above and below keeps the line clear of the rules. */
+.load {
   position: absolute;
-  top: 2px;
-  bottom: 2px;
-  /* Softened, not rounded away: a run of a few minutes reads as a tick rather than as a dot. */
-  min-width: 3px;
-  background: var(--output);
-  border-radius: 3px;
+  inset: 3px 0 1px;
+  width: 100%;
+  height: calc(100% - 4px);
+  overflow: visible;
+}
+
+.loadArea {
+  fill: var(--output);
+  fill-opacity: 0.18;
+}
+
+.loadLine {
+  fill: none;
+  stroke: var(--output);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .rail {

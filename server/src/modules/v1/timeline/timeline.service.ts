@@ -128,13 +128,18 @@ export class TimelineService {
     const [series, alerts, recorded, cameras, aimed] = await Promise.all([
       Promise.all(
         devices.map(device =>
-          this.data.history(device.id, {
-            ...spanOf(window),
-            metrics: PANEL_METRICS,
-            // Every output in the same read: a lane is whatever the device
-            // reported rather than whatever was asked for.
-            outputs: outputMetric.options,
-          }),
+          this.data.history(
+            device.id,
+            {
+              ...spanOf(window),
+              metrics: PANEL_METRICS,
+              // Every output in the same read: a lane is whatever the device
+              // reported rather than whatever was asked for. The levels come
+              // along, because a lane draws how hard its output ran as well as when.
+              outputs: outputMetric.options,
+            },
+            true,
+          ),
         ),
       ),
       this.alerts
