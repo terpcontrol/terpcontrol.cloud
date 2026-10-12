@@ -508,11 +508,19 @@ namespace fg {
 
     if(!custom_mqtt) {
       if(++current_sample >= SAMPLE_INTERVAL) {
+        // A full buffer is drained here too: the upload below is the only
+        // other place that does it, and returning before it kept the buffer
+        // full for good - a device that had been offline for ten minutes sent
+        // no reading again until it rebooted.
+        if(status_buffer.size() >= MAX_BUFFER_LEN) {
+          uploadStatus();
+        }
         if(status_buffer.size() >= MAX_BUFFER_LEN) {
           if(!overflow) {
             overflow = true;
             log("message-buffer-overflow", 1);
           }
+          current_sample = 0;
           return false;
         }
         else {
