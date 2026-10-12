@@ -598,6 +598,20 @@ describe('devices brought together in one place', () => {
     expect(screen.queryByRole('link', { name: /devices · / })).not.toBeInTheDocument();
   });
 
+  it('puts the place in a room from its menu, for its owner and once there is a second place', async () => {
+    const { unmount } = draw(<PlaceCockpit overview={overviewOf()} headed />);
+    fireEvent.click(await screen.findByRole('button', { name: /^More about/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Put in a room' }));
+    expect(await screen.findByRole('dialog', { name: 'A room for Fridge 1' })).toBeInTheDocument();
+    unmount();
+
+    server.youMay = 'manage';
+    draw(<PlaceCockpit overview={overviewOf()} headed />);
+    fireEvent.click(await screen.findByRole('button', { name: /^More about/ }));
+    expect(await screen.findByRole('button', { name: 'Rename' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Put in a room' })).not.toBeInTheDocument();
+  });
+
   it('does not offer to bring a device in where every device already stands here', async () => {
     draw(<PlaceCockpit overview={overviewOf()} headed />);
 

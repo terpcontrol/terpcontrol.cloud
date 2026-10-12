@@ -22,6 +22,18 @@
   gap: var(--space-3);
 }
 
+/* The places of one room, under the room's name: a heading and the cards, nothing that frames them. */
+.room {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.roomName {
+  margin: 0;
+}
+
 /* A card that is waiting, in a card's shape: a name, three figures, a line. */
 .waiting {
   display: flex;

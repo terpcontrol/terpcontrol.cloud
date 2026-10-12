@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Device, Space } from '@fg2/shared-types/v1';
+import type { Device, Space, SpaceKind } from '@fg2/shared-types/v1';
 import { useDevices, useUpdateDevice } from '@/api/devices';
-import { useSpaces } from '@/api/spaces';
-import { movesAnywhere, placesFor } from './moving';
+import { useCreateSpace, useSpaces } from '@/api/spaces';
+import { placesFor } from './moving';
 import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
@@ -33,7 +33,16 @@ import { deviceTitle, givenName } from '@/ui/naming';
  * account already has and is written on the tap - there is nothing further to
  * say once the place has been pointed at, and a Save under a row of chips would
  * only be a second chance to forget.
+ *
+ * A place that does not exist yet is named here as well, because taking one
+ * device out of a place it shares - a fridge module carried in beside a tent
+ * controller - means standing it somewhere of its own. The new place stands in
+ * the room the device leaves, since being carried out of a tent is not being
+ * carried out of the room.
  */
+/** The kind a new place is made with, as a claim would make it for this device. */
+const KIND: Readonly<Record<string, SpaceKind>> = { fridge: 'fridge', controller: 'tent' };
+
 export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClose: () => void }) {
   const { t } = useTranslation();
   const write = useUpdateDevice(device.id);
@@ -41,6 +50,9 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
   const devices = useDevices();
   const title = deviceTitle(device, t, devices.data?.items);
   const [typed, setTyped] = useState<string | null>(null);
+  const create = useCreateSpace();
+  const [naming, setNaming] = useState(false);
+  const [placeName, setPlaceName] = useState('');
 
   // The stored name until somebody types, and the stored name again once a save
   // has gone through: what is being corrected is the server's answer, and it
@@ -56,11 +68,30 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
   // printed on the hardware again, rather than an empty title.
   const wanted = trimmed === '' ? null : trimmed;
   const changed = wanted !== stored;
-  const elsewhere = placesFor(spaces.data?.items ?? []);
-  // With nowhere else to go, the place is not asked about at all.
-  const movable = movesAnywhere(spaces.data?.items ?? [], device);
+  const listed = spaces.data?.items ?? [];
+  const elsewhere = placesFor(listed);
+  const here = listed.find(space => space.id === device.spaceId) ?? null;
+  // Only a room this account can see is one a new place can be made in.
+  const roomId = here?.roomId && listed.some(space => space.id === here.roomId) ? here.roomId : null;
+  const busy = write.isPending || create.isPending;
 
   const move = (space: Space) => write.mutate({ spaceId: space.id });
+  const moveToNew = () =>
+    create.mutate(
+      { kind: KIND[device.type] ?? 'other', name: placeName.trim(), ...(roomId ? { roomId } : {}) },
+      {
+        onSuccess: space =>
+          write.mutate(
+            { spaceId: space.id },
+            {
+              onSuccess: () => {
+                setNaming(false);
+                setPlaceName('');
+              },
+            },
+          ),
+      },
+    );
 
   return (
     <Sheet title={t('devices.settings.title', { name: title })} onClose={onClose}>
@@ -88,22 +119,36 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
           <p className={ui.note}>{t('devices.settings.nameNote')}</p>
         </Block>
 
-        {movable ? (
-          <Block label={t('devices.settings.place')}>
-            {elsewhere.length > 0 ? (
-              <Choices label={t('devices.settings.place')}>
-                {elsewhere.map(space => (
-                  <Choice key={space.id} chosen={space.id === device.spaceId} disabled={write.isPending} onChoose={() => move(space)}>
-                    {space.name}
-                  </Choice>
-                ))}
-              </Choices>
-            ) : (
-              <p className={ui.note}>{t('devices.settings.noPlaces')}</p>
-            )}
-            <p className={ui.note}>{t('devices.settings.placeNote')}</p>
-          </Block>
-        ) : null}
+        <Block label={t('devices.settings.place')}>
+          <Choices label={t('devices.settings.place')}>
+            {elsewhere.map(space => (
+              <Choice key={space.id} chosen={space.id === device.spaceId} disabled={busy} onChoose={() => move(space)}>
+                {space.name}
+              </Choice>
+            ))}
+            <Choice chosen={naming} disabled={busy} onChoose={() => setNaming(true)}>
+              + {t('devices.settings.newPlace')}
+            </Choice>
+          </Choices>
+          {naming ? (
+            <div className={ui.fieldRow}>
+              <input
+                className={ui.input}
+                value={placeName}
+                aria-label={t('devices.settings.newPlaceName')}
+                placeholder={t('devices.settings.newPlaceName')}
+                autoComplete="off"
+                disabled={busy}
+                onChange={event => setPlaceName(event.target.value)}
+              />
+              <button type="button" className={ui.fieldAction} disabled={busy || placeName.trim() === ''} onClick={moveToNew}>
+                {busy ? t('devices.settings.moving') : t('devices.settings.moveToNew')}
+              </button>
+            </div>
+          ) : null}
+          <p className={ui.note}>{t('devices.settings.placeNote')}</p>
+          <Refused error={create.error} />
+        </Block>
 
         <Refused error={write.error} />
       </div>

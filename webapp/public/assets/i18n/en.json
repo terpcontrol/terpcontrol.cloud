@@ -420,8 +420,10 @@
       "saving": "Saving…",
       "place": "Stands in",
       "placeNote": "From now on this device's readings and camera count for the new place. What it measured so far stays with the old one.",
-      "noPlaces": "There is no other place you steer to move it to.",
-      "openRename": "Rename"
+      "newPlace": "New place",
+      "newPlaceName": "Name of the place",
+      "moveToNew": "Create and move",
+      "moving": "Moving …"
     },
     "unnamed": "{{type}} · {{tag}}",
     "youMayLog": "What the devices here are doing is shown. A socket or the lamp is switched by whoever steers this place.",
@@ -2106,14 +2108,14 @@
         "make": "Make the room",
         "making": "Making the room …",
         "aRoom": "a room",
-        "note": "A room groups places for sharing: whoever is let into the room sees every place in it. A room never stands in a room, and a place stands in one room at most.",
+        "note": "A room groups places: Start lists them under its name, and whoever is let into the room sees every place in it. The devices in it stay what they are - each steers, shows and pauses its own place. A room never stands in a room, and a place stands in one room at most.",
         "submit": "Put {{name}} in {{room}}",
         "moving": "Moving …",
         "takeOut": "Take it out of {{room}}",
         "roomModel": "Share the whole room: whoever is let in here sees every place grouped under it.",
         "tentsIn_one": "{{count}} place in this room",
         "tentsIn_other": "{{count}} places in this room",
-        "noTents": "No place stands in this room yet. A place is put in from ⋯ › Members & sharing on its own page."
+        "noTents": "No place stands in this room yet. A place is put in from ⋯ › Put in a room on its own page."
       },
       "linkStopped": "The link {{code}} was stopped when @{{name}} was taken out."
     }
@@ -4323,7 +4325,9 @@
       "growDay": "{{name}} · day {{day}}",
       "growTurnsOn": "turns the grow diary on",
       "growWrites": "puts the targets on the stage",
-      "shareGrow": "Share the grow"
+      "shareGrow": "Share the grow",
+      "putInRoom": "Put in a room",
+      "room": "Room"
     },
     "devices": {
       "count_one": "{{count}} device",

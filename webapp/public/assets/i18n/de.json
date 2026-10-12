@@ -420,8 +420,10 @@
       "saving": "wird gespeichert…",
       "place": "Steht in",
       "placeNote": "Ab jetzt zählen die Messwerte und die Kamera dieses Geräts zum neuen Ort. Was es bisher gemessen hat, bleibt beim alten.",
-      "noPlaces": "Es gibt keinen anderen Ort, den du steuerst und an den es umziehen könnte.",
-      "openRename": "Umbenennen"
+      "newPlace": "Neuer Ort",
+      "newPlaceName": "Name des Orts",
+      "moveToNew": "Anlegen und umziehen",
+      "moving": "Zieht um …"
     },
     "unnamed": "{{type}} · {{tag}}",
     "youMayLog": "Was die Geräte hier tun, steht hier. Eine Steckdose oder die Lampe schaltet nur, wer diesen Ort steuert.",
@@ -2114,14 +2116,14 @@
         "make": "Raum anlegen",
         "making": "Legt den Raum an …",
         "aRoom": "einen Raum",
-        "note": "Ein Raum fasst Orte zum Teilen zusammen: Wer in den Raum gelassen wird, sieht jeden Ort darin. Ein Raum steht nie in einem Raum, und ein Ort steht in höchstens einem.",
+        "note": "Ein Raum fasst Orte zusammen: Auf Start stehen sie unter seinem Namen, und wer in den Raum gelassen wird, sieht jeden Ort darin. Die Geräte darin bleiben, was sie sind – jedes regelt, zeigt und pausiert seinen Ort. Ein Raum steht nie in einem Raum, und ein Ort steht in höchstens einem.",
         "submit": "{{name}} in {{room}} stellen",
         "moving": "Verschiebt …",
         "takeOut": "Aus {{room}} herausnehmen",
         "roomModel": "Teile den ganzen Raum: Wer hier hereingelassen wird, sieht jeden Ort darin.",
         "tentsIn_one": "{{count}} Ort in diesem Raum",
         "tentsIn_other": "{{count}} Orte in diesem Raum",
-        "noTents": "Noch kein Ort steht in diesem Raum. Ein Ort kommt über ⋯ › Mitglieder & Teilen auf seiner eigenen Seite hinein."
+        "noTents": "Noch kein Ort steht in diesem Raum. Ein Ort kommt über ⋯ › In einen Raum stellen auf seiner eigenen Seite hinein."
       },
       "linkStopped": "Der Link {{code}} wurde zurückgezogen, als @{{name}} vom Ort entfernt wurde."
     }
@@ -4331,7 +4333,9 @@
       "growDay": "{{name}} · Tag {{day}}",
       "growTurnsOn": "schaltet das Tagebuch ein",
       "growWrites": "setzt die Zielwerte der Phase",
-      "shareGrow": "Grow teilen"
+      "shareGrow": "Grow teilen",
+      "putInRoom": "In einen Raum stellen",
+      "room": "Raum"
     },
     "devices": {
       "count_one": "{{count}} Gerät",

@@ -28,7 +28,6 @@ import { ownFactOf } from '@/screens/control/devices/own-summary';
 import { cameraFreshness } from './cameras';
 import { DeviceAdvanced } from './DeviceAdvanced';
 import { DeviceSettingsSheet } from './DeviceSettingsSheet';
-import { movesAnywhere } from './moving';
 import { Expand, Fact, Facts } from './RowParts';
 import { isLightRole, lightOutputOf } from './lights';
 import { LightOutputRow } from './LightOutputRow';
@@ -378,8 +377,6 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
   // only reads the next.
   const may = useMayWith()(device);
   const mayCorrect = enough(may, 'manage');
-  // Moving is offered only where there is somewhere to move to.
-  const movable = movesAnywhere(useSpaces().data?.items ?? [], device);
 
   // What a socket, a fan or a lamp is set to, with the way to Steuerung where it is changed.
   const own = ownFactOf(t, device, offsetOf(now, zone));
@@ -559,7 +556,7 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
           {mayCorrect ? (
             <button type="button" className={`${ui.chip} ${settings.open}`} onClick={() => setNaming(true)}>
               <Pencil size={13} strokeWidth={1.75} aria-hidden />
-              {t(movable ? 'devices.settings.open' : 'devices.settings.openRename')}
+              {t('devices.settings.open')}
             </button>
           ) : null}
 
