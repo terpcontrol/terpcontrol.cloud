@@ -279,10 +279,10 @@ describe('what a row is made of', () => {
     expect(screen.getByRole('switch', { name: 'Force Light' })).toBeInTheDocument();
   });
 
-  it('says a socket is a plug, because the row above it may be the module´s own output', () => {
+  it('says a socket is a smart socket, because the row above it may be the module´s own output', () => {
     draw(socket({ role: 'light', address: '10.0.0.61' }));
 
-    expect(screen.getByText(/smart plug · 10.0.0.61/)).toBeInTheDocument();
+    expect(screen.getByText(/smart socket · 10.0.0.61/)).toBeInTheDocument();
   });
 
   it('offers every hold whatever is being held, because the pulse is a failsafe and not a minimum', () => {
@@ -987,7 +987,7 @@ describe('what the Devices tab calls a device', () => {
    * about roles it does not have.
    */
   it('does not call a plug on its current build old, nor say which socket roles it takes', async () => {
-    await drawOpened(standing({ name: null, type: 'plug' }), () => Promise.resolve({ items: [], nextCursor: null }), 'Details of Plug');
+    await drawOpened(standing({ name: null, type: 'plug' }), () => Promise.resolve({ items: [], nextCursor: null }), 'Details of Plantalytix Socket');
 
     expect(screen.queryByText(/legacy/)).toBeNull();
     expect(screen.queryByText('Takes')).toBeNull();
@@ -1249,7 +1249,7 @@ describe('the device panel', () => {
 
   it('has no control switch and no operating mode for hardware with no work mode', async () => {
     await drawWith([{ ...fridge(), id: 'plug-1', type: 'plug', name: null, control: null } as Device]);
-    fireEvent.click(await screen.findByText('Plug'));
+    fireEvent.click(await screen.findByText('Plantalytix Socket'));
 
     expect(screen.queryByRole('button', { name: /control/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Operating mode')).not.toBeInTheDocument();
@@ -1258,7 +1258,7 @@ describe('the device panel', () => {
   /** A plug parks nothing, so it is offered the restart and no maintenance that would only be a promise. */
   it('offers a plug the restart and no maintenance', async () => {
     await drawWith([{ ...fridge(), id: 'plug-1', type: 'plug', name: null } as Device]);
-    fireEvent.click(await screen.findByText('Plug'));
+    fireEvent.click(await screen.findByText('Plantalytix Socket'));
 
     expect(screen.getByRole('button', { name: /^Restart/ })).toBeEnabled();
     expect(screen.queryByRole('button', { name: /^Maintenance/ })).not.toBeInTheDocument();

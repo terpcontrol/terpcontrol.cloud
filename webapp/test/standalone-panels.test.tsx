@@ -131,7 +131,7 @@ describe('a smart socket under Steuerung', () => {
     draw([device('plug-1', 'plug', PLUG)]);
 
     fireEvent.click(screen.getByRole('button', { name: 'Timer' }));
-    expect(screen.getByText('No time window: the socket stays off.')).toBeInTheDocument();
+    expect(screen.getByText('No time window: the Plantalytix Socket stays off.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '+ Time window' }));
     fireEvent.click(screen.getByRole('button', { name: '+ Time window' }));
     fireEvent.change(screen.getByLabelText('Time window 2: minutes'), { target: { value: '45' } });
@@ -209,7 +209,7 @@ describe('what the cockpit and the device panel say about them', () => {
     ]);
     const timed = device('plug-1', 'plug', { ...PLUG, workmode: 'timer', timer: { timeframes: [{ ontime: 82800, duration: 120 }] } });
     expect(plugSummaryOf(t, timed, 3600)?.at(-1)).toEqual({ label: 'Time windows', parts: ['00:00–02:00'] });
-    expect(ownStatusOf(t, plug, 0)).toBe('Readings arrive · socket: Heating');
+    expect(ownStatusOf(t, plug, 0)).toBe('Readings arrive · Plantalytix Socket: Heating');
     expect(ownFactOf(t, device('fan-1', 'fan', FAN), 0)).toEqual({ label: 'The fan runs', value: 'Fixed' });
     expect(ownFactOf(t, device('light-1', 'light', LIGHT), 7200)).toEqual({ label: 'Light', value: '08:00–00:00' });
   });

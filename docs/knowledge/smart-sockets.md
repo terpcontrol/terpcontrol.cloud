@@ -1,7 +1,7 @@
 ---
-summary: How the controller and the fridge pair, identify, drive and report their Tasmota smart sockets, what the cloud and the app do with them, and the stand-alone smart socket (plug) - read before changing any of it
-updated: 2026-10-09
-source: Chris (light set-up rule, 2026-09-19); agents' PRs #23, #77, #82, #103, #104, #136 (reverted by #154, owner 2026-10-09), #145 and sessions 2026-05..10; checked against the code 2026-10-08
+summary: How the controller and the fridge pair, identify, drive and report their Tasmota smart sockets, what the cloud and the app do with them, and the stand-alone Plantalytix Socket (plug) - read before changing any of it
+updated: 2026-10-12
+source: Chris (light set-up rule, 2026-09-19; the name Plantalytix Socket, 2026-10-12); agents' PRs #23, #77, #82, #103, #104, #136 (reverted by #154, owner 2026-10-09), #145 and sessions 2026-05..10; checked against the code 2026-10-08
 paths:
   - firmware/src/wifi.*
   - firmware/src/lanscan.*
@@ -20,8 +20,9 @@ Three things are called a smart socket here:
   the rest are all sockets; a fridge drives its own outputs and its sockets follow them.
 - The app calls a plug paired on the module itself (button, then Smart Sockets) a **Terp Control socket**; any
   other Tasmota plug (NOUS, Athom, a flashed Shelly) is added by its address from the app.
-- **The stand-alone smart socket** - hardware type `plug`, a device of its own with a relay, a sensor and modes
-  ([last section](#the-stand-alone-smart-socket-plug)).
+- **The Plantalytix Socket** - hardware type `plug`, a device of its own with a relay, a sensor and modes
+  ([last section](#the-plantalytix-socket-plug)). The app never calls it a smart socket or a Steckdose; those words
+  are the Tasmota plugs' alone ([app-wording.md](app-wording.md)).
 
 The wire format - the `hardware-info:` socket report, the `socket_*` commands, every role and its control law,
 the `PulseTime` per role and the timing constants - is in [device-protocol.md](../device-protocol.md) §6.3, §8.4,
@@ -178,7 +179,7 @@ Both found reading the code on 2026-10-08, neither seen on a device:
   with every buffered sample (5 s), but not while the sample buffer is full (no MQTT for about ten minutes), so the
   socket can stay on and be re-sent ON every 60 s.
 
-## The stand-alone smart socket (`plug`)
+## The Plantalytix Socket (`plug`)
 
 - A device of its own (`firmware/src_hwtype/plug/`): a relay, a climate sensor, and the modes `off`, `heater`,
   `cooler`, `humidify`, `dehumidify`, `co2` (`const`, or `periodic` windows) and `timer`, with switch points by day

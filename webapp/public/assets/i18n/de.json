@@ -354,7 +354,7 @@
     "type": {
       "controller": "Controller",
       "fridge": "Kühlschrank­modul",
-      "plug": "Steckdose",
+      "plug": "Plantalytix Socket",
       "fan": "Lüfter",
       "light": "Licht"
     },
@@ -498,10 +498,10 @@
   "message-diary-measurement-text": "Ein Messwert, den jemand genommen und notiert hat.",
   "message-diary-plant-lifecycle-title": "Pflanzen-Phasenwechsel",
   "message-diary-plant-lifecycle-text": "Die Pflanzen wurden in eine andere Phase gebracht.",
-  "message-smart-socket-cmd-failed-title": "Befehl an Smart-Steckdose fehlgeschlagen",
-  "message-smart-socket-cmd-failed-text": "Der Schaltbefehl an die Smart-Steckdose für die Rolle «{{value}}» konnte nicht gesendet werden.",
-  "message-smart-socket-readdressed-title": "Smart-Steckdose wiedergefunden",
-  "message-smart-socket-readdressed-text": "Die Smart-Steckdose für die Rolle «{{value}}» antwortet unter einer neuen Adresse und wird wieder verwendet.",
+  "message-smart-socket-cmd-failed-title": "Befehl an smarte Steckdose fehlgeschlagen",
+  "message-smart-socket-cmd-failed-text": "Der Schaltbefehl an die smarte Steckdose für die Rolle «{{value}}» konnte nicht gesendet werden.",
+  "message-smart-socket-readdressed-title": "Smarte Steckdose wiedergefunden",
+  "message-smart-socket-readdressed-text": "Die smarte Steckdose für die Rolle «{{value}}» antwortet unter einer neuen Adresse und wird wieder verwendet.",
   "message-terp-cam-found-title": "Kamera wiedergefunden",
   "message-terp-cam-not-found-title": "Kamera nicht gefunden",
   "message-terp-cam-found-text": "Die verbundene Kamera hat auf eine Netzwerksuche geantwortet und ist wieder erreichbar.",
@@ -516,14 +516,14 @@
   "message-cam-reset-text": "Das Gerät hat der Kamera einen Neustart geschickt: {{value}}",
   "message-cam-capture-title": "Kamerabild unvollständig",
   "message-cam-capture-text": "Die Kamera hat kein vollständiges Bild geliefert. Was das Gerät gemeldet hat: {{value}}",
-  "message-smart-socket-connected-title": "Smart-Steckdose verbunden",
-  "message-smart-socket-connected-text": "Eine Smart-Steckdose wurde für die Rolle «{{value}}» verbunden.",
-  "message-smart-socket-disconnected-title": "Smart-Steckdose getrennt",
-  "message-smart-socket-disconnected-text": "Die Smart-Steckdosen-Zuordnung für die Rolle «{{value}}» wurde entfernt.",
-  "message-smart-socket-address-lost-title": "Adresse der Smart-Steckdose verloren",
-  "message-smart-socket-address-lost-text": "Die Smart-Steckdose für die Rolle «{{value}}» ist nicht mehr unter ihrer gespeicherten Adresse erreichbar — dort antwortet eine andere Steckdose. Sie wird im Netzwerk gesucht; trage die Adresse neu ein, falls sie nicht wieder auftaucht.",
-  "message-smart-socket-tested-title": "Smart-Steckdose getestet",
-  "message-smart-socket-tested-text": "Die Smart-Steckdose für die Rolle «{{value}}» wurde kurz geschaltet, um zu prüfen, ob sie antwortet.",
+  "message-smart-socket-connected-title": "Smarte Steckdose verbunden",
+  "message-smart-socket-connected-text": "Eine smarte Steckdose wurde für die Rolle «{{value}}» verbunden.",
+  "message-smart-socket-disconnected-title": "Smarte Steckdose getrennt",
+  "message-smart-socket-disconnected-text": "Die Zuordnung der smarten Steckdose für die Rolle «{{value}}» wurde entfernt.",
+  "message-smart-socket-address-lost-title": "Adresse der smarten Steckdose verloren",
+  "message-smart-socket-address-lost-text": "Die smarte Steckdose für die Rolle «{{value}}» ist nicht mehr unter ihrer gespeicherten Adresse erreichbar — dort antwortet eine andere Steckdose. Sie wird im Netzwerk gesucht; trage die Adresse neu ein, falls sie nicht wieder auftaucht.",
+  "message-smart-socket-tested-title": "Smarte Steckdose getestet",
+  "message-smart-socket-tested-text": "Die smarte Steckdose für die Rolle «{{value}}» wurde kurz geschaltet, um zu prüfen, ob sie antwortet.",
   "message-aux-command-failed-title": "Befehl nicht ausgeführt",
   "message-aux-command-failed-text": "Das Gerät konnte einen Befehl, der von hier aus geschickt wurde, nicht ausführen ({{value}}).",
   "message-aux-command-failed:cam_capture-title": "Bild nicht aufgenommen",
@@ -647,7 +647,7 @@
     },
     "addDevice": {
       "title": "Gerät hinzufügen",
-      "text": "Kühlschrankmodul, Controller, Lüfter oder Steckdose, auch mit Terp Cam – oder ein Licht. Der Claim-Code steht auf dem Display oder der Verpackung.",
+      "text": "Kühlschrankmodul, Controller, Lüfter oder Plantalytix Socket, auch mit Terp Cam – oder ein Licht. Der Claim-Code steht auf dem Display oder der Verpackung.",
       "scan": "QR scannen",
       "code": "Claim-Code",
       "orScan": "oder scannen",
@@ -1626,9 +1626,9 @@
       "choose": "Schema wählen",
       "strength": "Stärke",
       "strengthStep": {
+        "1": "wie gedruckt",
         "0_5": "leicht · 50 %",
         "0_75": "reduziert · 75 %",
-        "1": "wie gedruckt",
         "1_25": "kräftig · 125 %"
       },
       "water": "Wasser",
@@ -2473,12 +2473,12 @@
           "fridge": "Am Kühlschrank­modul",
           "controller": "Am Controller",
           "fan": "Am Lüfter",
-          "plug": "An der Steckdose",
+          "plug": "Am Plantalytix Socket",
           "device": "Am Gerät"
         },
         "noDevice": {
           "label": "Noch kein Gerät",
-          "text": "Eine Terp Cam wird am Display eines Terp-Control-Geräts gekoppelt – Kühlschrankmodul, Controller, Lüfter oder Steckdose –, und dieses Konto hat noch keins übernommen. Übernimm zuerst eins, dann führt dich dieser Reiter durch das Koppeln.",
+          "text": "Eine Terp Cam wird am Display eines Terp-Control-Geräts gekoppelt – Kühlschrankmodul, Controller, Lüfter oder Plantalytix Socket –, und dieses Konto hat noch keins übernommen. Übernimm zuerst eins, dann führt dich dieser Reiter durch das Koppeln.",
           "claim": "Gerät übernehmen"
         }
       },
@@ -4156,15 +4156,15 @@
       },
       "co2Dosing": {
         "title": "CO₂-Dosierung",
-        "text": "Durchgehend öffnet das Ventil, sobald der Wert unter den Einschaltpunkt fällt. In Intervallen dosiert die Steckdose nur in einem Fenster jedes Intervalls – zum Beispiel 10 Minuten jede Stunde –, damit ein Lüfter in dieser Zeit gedrosselt werden kann."
+        "text": "Durchgehend öffnet das Ventil, sobald der Wert unter den Einschaltpunkt fällt. In Intervallen dosiert der Plantalytix Socket nur in einem Fenster jedes Intervalls – zum Beispiel 10 Minuten jede Stunde –, damit ein Lüfter in dieser Zeit gedrosselt werden kann."
       },
       "co2Fan": {
         "title": "AIR-Lüfter drosseln",
-        "text": "Während die Steckdose in Intervallen dosiert, läuft ein AIR-Lüfter höchstens mit der eingestellten Drehzahl, damit das CO₂ nicht gleich wieder hinausgeblasen wird. Der Lüfter kennt dafür die Dosierfenster der Steckdose; ändert sich ihr Intervall, bekommt er es mit."
+        "text": "Während der Plantalytix Socket in Intervallen dosiert, läuft ein AIR-Lüfter höchstens mit der eingestellten Drehzahl, damit das CO₂ nicht gleich wieder hinausgeblasen wird. Der Lüfter kennt dafür die Dosierfenster des Plantalytix Socket; ändert sich sein Intervall, bekommt er es mit."
       },
       "plugProtections": {
         "title": "Schutzfunktionen",
-        "text": "Schalten die Steckdose ab, egal was sie gerade regelt: über einer Temperatur, unter einer Temperatur, und sie halten Mindestzeiten an und aus ein, damit ein Gerät nicht im Sekundentakt schaltet. Wieder an geht sie erst, wenn der Wert um den eingestellten Abstand zurück ist."
+        "text": "Schalten den Plantalytix Socket ab, egal was er gerade regelt: über einer Temperatur, unter einer Temperatur, und sie halten Mindestzeiten an und aus ein, damit ein Gerät nicht im Sekundentakt schaltet. Wieder an geht er erst, wenn der Wert um den eingestellten Abstand zurück ist."
       },
       "lightRamp": {
         "title": "Sonnenauf- und -untergang",
@@ -4261,19 +4261,19 @@
     },
     "plugMode": {
       "title": "Schaltet nach",
-      "text": "Was die Steckdose mit ihrem eigenen Sensor regelt: Heizen, Kühlen, Befeuchten, Entfeuchten oder CO₂ – dann schaltet sie an zwei Schaltpunkten des Messwerts. Mit Zeitschaltung schaltet sie zu festen Uhrzeiten, und Aus hält sie aus."
+      "text": "Was der Plantalytix Socket mit seinem eigenen Sensor regelt: Heizen, Kühlen, Befeuchten, Entfeuchten oder CO₂ – dann schaltet er an zwei Schaltpunkten des Messwerts. Mit Zeitschaltung schaltet er zu festen Uhrzeiten, und Aus hält ihn aus."
     },
     "plugDayNight": {
       "title": "Tag und Nacht",
-      "text": "Die Steckdose kennt den Tag nur als Uhrzeit: Er beginnt um „Tag ab“ und endet um „Nacht ab“, auf deiner Uhr. Mit eigenen Schaltpunkten für die Nacht regelt sie nachts auf andere Werte; im CO₂-Modus dosiert sie nachts gar nicht."
+      "text": "Der Plantalytix Socket kennt den Tag nur als Uhrzeit: Er beginnt um „Tag ab“ und endet um „Nacht ab“, auf deiner Uhr. Mit eigenen Schaltpunkten für die Nacht regelt er nachts auf andere Werte; im CO₂-Modus dosiert er nachts gar nicht."
     },
     "switchPoints": {
       "title": "Schaltpunkte",
-      "text": "Zwei Werte statt eines Ziels: Bei einem schaltet die Steckdose ein, beim anderen aus. Der Abstand dazwischen verhindert, dass sie bei jedem Messwert hin- und herschaltet – je größer er ist, desto seltener schaltet sie, und desto weiter schwankt der Wert."
+      "text": "Zwei Werte statt eines Ziels: Bei einem schaltet der Plantalytix Socket ein, beim anderen aus. Der Abstand dazwischen verhindert, dass er bei jedem Messwert hin- und herschaltet – je größer er ist, desto seltener schaltet er, und desto weiter schwankt der Wert."
     },
     "timerWindows": {
       "title": "Zeitfenster",
-      "text": "Zu welchen Uhrzeiten die Steckdose an ist, jeden Tag gleich: ab einer Uhrzeit für so viele Minuten. Ein Fenster darf über Mitternacht laufen. Die Zeiten gelten auf deiner Uhr und wandern bei der Zeitumstellung mit."
+      "text": "Zu welchen Uhrzeiten der Plantalytix Socket an ist, jeden Tag gleich: ab einer Uhrzeit für so viele Minuten. Ein Fenster darf über Mitternacht laufen. Die Zeiten gelten auf deiner Uhr und wandern bei der Zeitumstellung mit."
     },
     "fanMode": {
       "title": "Lüfter läuft",
@@ -4435,7 +4435,7 @@
       "heater": "Heizung",
       "dehumidifier": "Entfeuchter",
       "co2": "CO₂-Ventil",
-      "socket": "Steckdose",
+      "socket": "Plantalytix Socket",
       "humidifier": "Befeuchter"
     },
     "outputs": {
@@ -4937,7 +4937,7 @@
     "title": "Einstellungen",
     "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt, also gibt es hier noch nichts zu ändern. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht.",
     "sentNote": "Das Gerät bestätigt keine Einstellung; was es wirklich tut, zeigen seine Werte.",
-    "status": "Werte kommen an · Steckdose: {{mode}}",
+    "status": "Werte kommen an · Plantalytix Socket: {{mode}}",
     "statusLight": "Werte kommen an · Licht {{on}}–{{off}}",
     "statusFan": "Werte kommen an · Lüfter läuft: {{mode}}",
     "sentAt": "Um {{time}} ans Gerät geschickt"
@@ -4954,13 +4954,13 @@
       "timer": "Zeitschaltung"
     },
     "modeNote": {
-      "off": "Die Steckdose bleibt aus.",
+      "off": "Der Plantalytix Socket bleibt aus.",
       "heater": "Für ein Heizgerät: an, sobald es kälter als der Einschaltpunkt ist, aus über dem Ausschaltpunkt.",
       "cooler": "Für eine Kühlung oder einen Lüfter: an, sobald es wärmer als der Einschaltpunkt ist, aus unter dem Ausschaltpunkt.",
       "humidify": "Für einen Befeuchter: an, sobald die Luft trockener als der Einschaltpunkt ist, aus über dem Ausschaltpunkt.",
       "dehumidify": "Für einen Entfeuchter: an, sobald die Luft feuchter als der Einschaltpunkt ist, aus unter dem Ausschaltpunkt.",
-      "co2": "Für ein CO₂-Ventil: an unter dem Einschaltpunkt, aus über dem Ausschaltpunkt. Braucht den CO₂-Sensor, den es als Zubehör gibt; ohne ihn bleibt die Steckdose aus. Dosieren in Intervallen und das Drosseln eines AIR stehen unter Geräte › diese Steckdose › Erweitert.",
-      "timer": "Die Steckdose schaltet zu festen Uhrzeiten, ohne auf einen Messwert zu schauen."
+      "co2": "Für ein CO₂-Ventil: an unter dem Einschaltpunkt, aus über dem Ausschaltpunkt. Braucht den CO₂-Sensor, den es als Zubehör gibt; ohne ihn bleibt der Plantalytix Socket aus. Dosieren in Intervallen und das Drosseln eines AIR stehen unter Geräte › dieser Plantalytix Socket › Erweitert.",
+      "timer": "Der Plantalytix Socket schaltet zu festen Uhrzeiten, ohne auf einen Messwert zu schauen."
     },
     "dayNight": "Nachts eigene Schaltpunkte",
     "dayNightOn": "Tagsüber und nachts gelten getrennte Schaltpunkte.",
@@ -4986,12 +4986,12 @@
     },
     "pointName": "{{edge}} – {{half}}",
     "crossed": {
-      "rising": "Der Einschaltpunkt muss unter dem Ausschaltpunkt liegen, sonst schaltet die Steckdose dauernd hin und her.",
-      "falling": "Der Einschaltpunkt muss über dem Ausschaltpunkt liegen, sonst schaltet die Steckdose dauernd hin und her."
+      "rising": "Der Einschaltpunkt muss unter dem Ausschaltpunkt liegen, sonst schaltet der Plantalytix Socket dauernd hin und her.",
+      "falling": "Der Einschaltpunkt muss über dem Ausschaltpunkt liegen, sonst schaltet der Plantalytix Socket dauernd hin und her."
     },
     "windows": {
       "label": "Zeitfenster",
-      "none": "Kein Zeitfenster: Die Steckdose bleibt aus.",
+      "none": "Kein Zeitfenster: Der Plantalytix Socket bleibt aus.",
       "add": "+ Zeitfenster",
       "most": "Höchstens {{count}} Zeitfenster.",
       "at": "an um",

@@ -200,7 +200,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    */
   public async coupleCo2Fan(plugId: string, coupling: Co2Fan | null): Promise<void> {
     const plug = await this.typeAndDocument(plugId);
-    if (plug.type !== 'plug') throw unprocessable('not_a_plug', 'Only a stand-alone smart socket slows a fan while it doses CO2.');
+    if (plug.type !== 'plug') throw unprocessable('not_a_plug', 'Only a Plantalytix Socket slows a fan while it doses CO2.');
     if (sentNoSettings(plug.configuration)) {
       throw unprocessable('device_sent_no_settings', 'This device has not sent its settings, so there is nothing to change them in.');
     }
