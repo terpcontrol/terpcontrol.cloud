@@ -17,7 +17,7 @@ matters are not kept here - is [ADR 0003](adr/0003-knowledge-base.md).
 - [Device protocol](device-protocol.md) - before changing anything a device and the cloud say to each other; what is frozen and how to extend it
 
 ## Knowledge (`knowledge/`)
-- [Firmware](knowledge/firmware.md) - building, flashing, OTA and update channels, memory and NVS limits, connection loss, safety stops
+- [Firmware](knowledge/firmware.md) - building, flashing, OTA and update channels, memory and NVS limits, reconnecting after a connection loss, safety stops
 - [Firmware regulation](knowledge/firmware-regulation.md) - how a fridge or tent controller regulates: work modes, ramps, CO2, lamp dimming, dehumidifier, cooling
 - [Smart sockets](knowledge/smart-sockets.md) - pairing, driving and reporting Tasmota sockets, and the stand-alone plug
 - [Terp Cam and other cameras](knowledge/terp-cam.md) - camera pairing, the device relay, RTSP capture, stills, timelapses, limits and failure modes
