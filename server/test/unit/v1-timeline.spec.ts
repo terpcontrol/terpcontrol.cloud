@@ -147,7 +147,11 @@ const build = (): TimelineService => {
 };
 
 /** Exactly what the route does: the guard decides, and the answer is built from what it decided. */
-const readAs = async (ctx: AccessContext, asked: { range: TimelineRange; growId?: string; at?: Date } = { range: '24h' }, spaceId = TENT) => {
+const readAs = async (
+  ctx: AccessContext,
+  asked: { range: TimelineRange; growId?: string; at?: Date; deviceId?: string } = { range: '24h' },
+  spaceId = TENT,
+) => {
   const grant: Grant = await access.require(ctx, subjectRef('space', spaceId), 'view');
   return timeline.read(grant, spaceId, asked, NOW);
 };
@@ -570,6 +574,41 @@ describe('the stacked panels', () => {
       const page = await readAs(session(OWNER));
       expect(page.panels.length).toBeGreaterThan(0);
       expect(page.lastReadingAt).toBeNull();
+    });
+  });
+});
+
+describe('one climate of several', () => {
+  const FRIDGE_MODULE = 'device-fridge-module';
+
+  beforeEach(async () => {
+    await db.devices.create({
+      id: FRIDGE_MODULE,
+      type: 'fridge',
+      ownerId: OWNER,
+      spaceId: TENT,
+      configuration: { day: { temperature: 18, humidity: 60 }, night: { temperature: 16, humidity: 60 } },
+      createdAt: new Date('2026-01-03T00:00:00.000Z'),
+    });
+    reports = { ...reports, [FRIDGE_MODULE]: () => ({ metrics: { temperature: 18 }, outputs: {} }) };
+  });
+
+  const temperatures = async (deviceId?: string) =>
+    (await readAs(session(OWNER), { range: '24h', ...(deviceId ? { deviceId } : {}) })).panels
+      .find(panel => panel.metric === 'temperature')!
+      .points.flatMap(point => (point.value === null ? [] : [point.value]));
+
+  it('draws the panels of the one device asked for, rather than both pooled', async () => {
+    const pooled = await temperatures();
+    const fridge = await temperatures(FRIDGE_MODULE);
+
+    expect(new Set(fridge)).toEqual(new Set([18]));
+    expect(pooled.some(value => value !== 18)).toBe(true);
+  });
+
+  it('answers a device that does not stand here as one that does not exist', async () => {
+    await expect(readAs(session(OWNER), { range: '24h', deviceId: 'device-elsewhere' })).rejects.toMatchObject({
+      problem: { status: 404, code: 'device_not_here' },
     });
   });
 });

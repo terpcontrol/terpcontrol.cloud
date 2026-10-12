@@ -25,7 +25,17 @@ export const usePlace = (spaceId: string) => {
   const fresher = live.data && live.dataUpdatedAt > overview.dataUpdatedAt ? live.data : null;
 
   const current: SpaceOverview | undefined =
-    overview.data && fresher ? { ...overview.data, values: fresher.values, setpoints: fresher.setpoints } : overview.data;
+    overview.data && fresher
+      ? {
+          ...overview.data,
+          values: fresher.values,
+          setpoints: fresher.setpoints,
+          climates: overview.data.climates.map(climate => {
+            const device = fresher.devices.find(one => one.deviceId === climate.deviceId);
+            return device ? { ...climate, values: device.values, setpoints: device.setpoints } : climate;
+          }),
+        }
+      : overview.data;
   const staleAt = Math.min(overview.isError ? overview.dataUpdatedAt : Infinity, live.isError ? live.dataUpdatedAt : Infinity);
 
   return { read: overview, current, failedAt: Number.isFinite(staleAt) ? staleAt : null };

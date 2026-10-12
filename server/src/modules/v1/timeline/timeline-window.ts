@@ -1,6 +1,7 @@
 import type { TimelineRange } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf, spineOf } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
+import { notFound } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
 import { stepFor as storeStepFor } from '@modules/data/flux';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -9,6 +10,7 @@ import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { SETTLE_SECONDS, cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { horizonOf } from '../diary/grow-calendar';
 import { targetsOf } from '../phase/phase-targets';
+import { climatesOf } from '../space/space-live';
 import { TargetStretch } from './timeline-series';
 
 /**
@@ -141,12 +143,23 @@ const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
 };
 
 /**
- * The device a place's band is the targets of: the first standing there whose
- * configuration states any, which is the one the cockpit judges the place's
- * readings against.
+ * One device of a place, where a reader asked for one climate of several:
+ * every reading, band and lane is then that device's alone. A device that does
+ * not stand here is answered as one that does not exist, whoever asks.
+ */
+export const narrowedToDevice = (devices: StoredDevice[], deviceId: string | undefined): StoredDevice[] => {
+  if (!deviceId) return devices;
+  const one = devices.filter(device => device.id === deviceId);
+  if (one.length === 0) throw notFound('device_not_here', 'That device does not stand in this space.');
+  return one;
+};
+
+/**
+ * The device a place's band is the targets of: its first climate, which is the
+ * one the cockpit judges the place's readings against where it draws one.
  */
 export const steeringOf = (devices: readonly StoredDevice[]): StoredDevice | null =>
-  devices.find(device => targetsOf(device.configuration) !== null) ?? null;
+  climatesOf(devices.filter(device => targetsOf(device.configuration) !== null))[0] ?? null;
 
 /**
  * The stretches the bands are drawn over: the grow's own phases, clipped to the

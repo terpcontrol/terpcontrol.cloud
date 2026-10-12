@@ -1,7 +1,7 @@
 ---
 summary: The /v1 data model, the API conventions and routes, the access rule, the frozen device protocol and the migration from the old database - read before changing a collection, a route, a migration step or anything a device touches
-updated: 2026-10-08
-source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08
+updated: 2026-10-11
+source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08
 paths:
   - server/src/database/**
   - server/src/migrations/**
@@ -480,6 +480,18 @@ OpenAPI document the server serves at `/api-docs`.
   first, so the spans tile the grow and add up to its day count; the server publishes `stageWeek` rather than each
   client counting it. `GET /grows/{id}/series` answers `originAt`, so a day-of-grow axis and one grow against
   another are the client's arithmetic over two ordinary reads, not a mode of the route.
+- **Several climates in one place** (*amended 2026-10-11*, Chris: "mehrere Klimas pro Ort", chosen over making a
+  room the group of one-climate places). A place may hold several devices that state targets - a tent controller
+  and a fridge module stood together - and each is a climate of its own: `climatesOf` (`space/space-live.ts`) takes
+  every device that holds targets, an AIR fan only where nothing else does, in the order the place lists its
+  devices. `GET /spaces/{id}/overview` answers `climates[]` (each device's values, setpoints, both halves' targets
+  and 24-hour verdict; the device id is null on a shared read) and `GET /home` a `climates[]` per card (values and
+  setpoints); the flat `values`, `setpoints`, `targets` and `verdict` stay, as the place merged and its first
+  climate. `GET /spaces/{id}/timeline?deviceId=` and `GET /spaces/{id}/series?deviceId=` narrow panels, bands,
+  nights and lanes to one device (404 `device_not_here` for one that does not stand there), which is how the
+  cockpit draws each climate's curves and how Verlauf and Graphen offer "Alle Geräte" or one device. Still pooled
+  or of the first climate: a week's climate and report, the phase snapshot's one `deviceId`, and the shared tent
+  page.
 - **One phase writer.** `GrowService.setPhase` is called by the grow routes, the plan engine and
   `preset-applications`. It appends the phase, writes the `phase` entry and re-reads stage-bound alarm
   thresholds from one table in `shared-types`. Applying a preset to a space with an open grow sets its phase;

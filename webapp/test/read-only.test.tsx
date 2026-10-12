@@ -30,6 +30,7 @@ const NOW = DateTime.fromISO('2026-06-10T12:00:00.000Z');
 const card: HomeSpaceCard = {
   spaceId: 'space-1',
   name: 'Tent 1',
+  climates: [],
   kind: 'tent',
   roomId: null,
   deviceIds: ['device-1'],

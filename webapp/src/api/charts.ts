@@ -96,6 +96,8 @@ interface SpanWindow {
   to: string;
   stepSeconds?: number;
   refetchMs?: number | false;
+  /** One climate of several, where a place holds more than one; every device here where none is named. */
+  deviceId?: string | null;
 }
 
 /**
@@ -114,7 +116,7 @@ export const useSpaceSeries = (spaceId: string | null, window: SpanWindow | null
     queryFn: ({ signal }) =>
       api.get<SpaceSeries>(
         `/spaces/${spaceId}/series`,
-        { from: asked.from, to: asked.to, stepSeconds: asked.stepSeconds || undefined, ...LINES },
+        { from: asked.from, to: asked.to, stepSeconds: asked.stepSeconds || undefined, deviceId: asked.deviceId ?? undefined, ...LINES },
         signal,
       ),
     enabled: spaceId !== null && window !== null && asked.from < asked.to,

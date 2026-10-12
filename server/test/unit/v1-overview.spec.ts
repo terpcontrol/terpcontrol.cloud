@@ -383,6 +383,40 @@ describe('what the tent reads right now', () => {
     });
   });
 
+  it('answers each climate of the place on its own: its readings, what it aims at and its verdict', async () => {
+    await db.devices.create({
+      id: 'device-fridge-module',
+      type: 'fridge',
+      ownerId: OWNER,
+      spaceId: TENT,
+      configuration: { day: { temperature: 21, humidity: 60 }, night: { temperature: 18, humidity: 60 } },
+      createdAt: new Date('2026-01-03T00:00:00.000Z'),
+    });
+    readings['device-fridge-module'] = reading({ temperature: [20.6, 10], humidity: [61, 10] });
+
+    const page = await readAs(session(OWNER));
+
+    expect(page.climates.map(climate => climate.deviceId)).toEqual([CONTROLLER, 'device-fridge-module']);
+    expect(page.climates[0]).toMatchObject({ targets: page.targets, verdict: page.verdict });
+    expect(page.climates[1].values.map(value => [value.metric, value.value])).toEqual([
+      ['temperature', 20.6],
+      ['humidity', 61],
+    ]);
+    expect(page.climates[1].setpoints).toEqual([
+      { metric: 'temperature', value: 21, band: 1 },
+      { metric: 'humidity', value: 60, band: 5 },
+    ]);
+    expect(page.climates[1].targets?.day).toEqual([
+      { metric: 'temperature', value: 21, band: 1 },
+      { metric: 'humidity', value: 60, band: 5 },
+    ]);
+  });
+
+  it('answers no climate where nothing here holds targets', async () => {
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { configuration: null } });
+    expect((await readAs(session(OWNER))).climates).toEqual([]);
+  });
+
   it('has no targets where nothing in the space holds one', async () => {
     await db.devices.updateOne({ id: CONTROLLER }, { $set: { configuration: null } });
 
@@ -622,6 +656,7 @@ describe('who may read it', () => {
     expect(mine).toMatchObject({ roomId: ROOM, deviceIds: [CONTROLLER, PLUG] });
     expect(theirs).toMatchObject({ roomId: null, deviceIds: null });
     expect(theirs.verdict.deviceId).toBeNull();
+    expect(theirs.climates.map(climate => [climate.deviceId, climate.verdict.deviceId])).toEqual([[null, null]]);
     expect(JSON.stringify(theirs)).not.toContain(CONTROLLER);
     expect(JSON.stringify(theirs)).not.toContain(PLUG);
     expect(JSON.stringify(theirs)).not.toContain(ROOM);

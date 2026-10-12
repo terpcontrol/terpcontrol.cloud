@@ -26,7 +26,7 @@ import { completionsOf, dueTasksOf, remindersAbout } from '../diary/due-tasks';
 import { spacesNow } from '../grow/grow-places';
 import { growCardOf, redactionOf, serialisePublicCard } from '../grow/grow-serialiser';
 import { ownerRedactions } from '../grow/redactions';
-import { mergeLive } from '../space/space-live';
+import { climateDevicesOf, mergeLive } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { alertsRaisedIn, openAlertReader } from './open-alerts';
@@ -172,6 +172,12 @@ export class HomeService {
         const eyes = space ? cameras.filter(camera => camera.spaceId === space.id).map(camera => camera.id) : [];
         const [entries, still] = await Promise.all([this.newestEntries(space?.id ?? null, grow?.id ?? null), this.latestStill(eyes)]);
         const inSpace = readings.filter(reading => here.includes(reading.deviceId));
+        const climates = space
+          ? climateDevicesOf(
+              devices.filter(device => device.spaceId === space.id),
+              now,
+            )
+          : [];
 
         return {
           spaceId: space?.id ?? null,
@@ -181,6 +187,7 @@ export class HomeService {
           roomId: space?.roomId ?? null,
           deviceIds: here,
           ...mergeLive(inSpace),
+          climates: climates.flatMap(device => inSpace.filter(reading => reading.deviceId === device.id)),
           trend: trendOf(here, trends, trendWindow),
           grow: grow
             ? growCardOf(

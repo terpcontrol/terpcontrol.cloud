@@ -53,6 +53,7 @@ const place = (minutesOld: number): SpaceOverview =>
     deviceIds: ['device-1'],
     values: [{ metric: 'temperature', value: 25.1, measuredAt: ago(minutesOld), state: minutesOld < 2 ? 'live' : 'offline' }],
     setpoints: [],
+    climates: [],
     targets: null,
     verdict: { metrics: [], actuators: [] },
     grows: [],

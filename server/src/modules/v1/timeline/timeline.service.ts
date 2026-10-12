@@ -26,7 +26,7 @@ import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
 import { lastReadingOf } from './last-reading';
 import { PANEL_METRICS, chartPartsOf, panelsOf } from './timeline-series';
-import { TimelineWindow, steeringOf, stretchesOf, windowOf } from './timeline-window';
+import { TimelineWindow, narrowedToDevice, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
  * The Timeline tab, as one answer.
@@ -105,7 +105,7 @@ export class TimelineService {
 
   public async read(grant: Grant, spaceId: string, asked: TimelineQuery, now: Date = new Date()): Promise<SpaceTimeline> {
     const at = asked.at ?? now;
-    const [space, devices, stood] = await Promise.all([
+    const [space, standing, stood] = await Promise.all([
       this.places.require(spaceId),
       this.live.devicesIn([spaceId]),
       // Every grow that has ever stood here, newest first: the one the bands are
@@ -115,6 +115,8 @@ export class TimelineService {
         .sort({ startedAt: -1, id: -1 })
         .lean<GrowDocument[]>(),
     ]);
+
+    const devices = narrowedToDevice(standing, asked.deviceId);
 
     // A link's window decides which grows it is told about: the ones that stood
     // here inside it, not whatever moved in after the window closed.
@@ -301,6 +303,7 @@ interface TimelineQuery {
   growId?: string;
   /** The instant the window ends at; now, unless somebody scrubbed back. */
   at?: Date;
+  deviceId?: string;
 }
 
 /** The window on its own, for the readers that take a window and nothing else. */

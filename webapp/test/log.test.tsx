@@ -36,6 +36,7 @@ const home: HomeAnswer = {
     {
       spaceId: 'space-1',
       name: 'Tent 1',
+      climates: [],
       kind: 'tent',
       roomId: null,
       deviceIds: ['device-1'],

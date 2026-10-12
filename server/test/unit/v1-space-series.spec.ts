@@ -159,6 +159,34 @@ describe('a place charted without a grow', () => {
   });
 });
 
+describe('one climate of several', () => {
+  beforeEach(async () => {
+    await db.devices.create({
+      id: 'device-fridge-module',
+      type: 'fridge',
+      ownerId: OWNER,
+      spaceId: TENT,
+      configuration: { day: { temperature: 18, humidity: 60 }, night: { temperature: 16, humidity: 60 } },
+      createdAt: new Date('2026-01-02T00:00:00.000Z'),
+    });
+  });
+
+  it('draws the lines and the band of the one device asked for', async () => {
+    const both = await readAs(session(OWNER), { ...window(6), metrics: ['temperature'] });
+    const fridge = await readAs(session(OWNER), { ...window(6), metrics: ['temperature'], deviceId: 'device-fridge-module' });
+
+    expect(both.deviceIds).toEqual([CONTROLLER, 'device-fridge-module']);
+    expect(fridge.deviceIds).toEqual(['device-fridge-module']);
+    expect(fridge.climate[0].targets[0].day).toEqual({ setpoint: 18, band: { low: 17, high: 19 } });
+  });
+
+  it('answers a device that does not stand here as one that does not exist', async () => {
+    await expect(readAs(session(OWNER), { ...window(6), metrics: ['temperature'], deviceId: 'device-elsewhere' })).rejects.toMatchObject({
+      problem: { status: 404, code: 'device_not_here' },
+    });
+  });
+});
+
 describe('who is told', () => {
   it('shows a support administrator the customer’s place in full', async () => {
     const answer = await readAs(admin('user-support'), { ...window(6), metrics: ['temperature'] });

@@ -53,6 +53,27 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   (one status sentence, or the offline box with three things to check), would I be told, what does it read and what
   runs, what is it set to, what grows here, what happened. On a 390×844 phone status, reading tiles and the light fit
   without scrolling. The cockpit summarises and Steuerung changes - never a second set of sliders.
+- **A place holds any number of devices** (Chris, 2026-10-08): a claim and the migration put each device in a place
+  of its own, so the place's ⋯ offers "Gerät hierher holen" (`screens/space/DeviceHereSheet.tsx`), and typing the
+  name of an existing place in the claim's "Wo steht es?" puts the device there instead of making a second place of
+  that name. **A place left empty is never removed by itself**: one with no device, camera or grow is offered to its
+  owner for removal ("Ort entfernen", `screens/space/EmptyPlace.tsx`), and the owner decides: an empty tent between
+  two grows is a place somebody still means to use. The one exception is the place a claim invents and the device
+  leaves within that same step (`screens/claim/PlaceStep.tsx`): it was the claim's guess, never the grower's, holds
+  no history, and left standing it would greet somebody adding a second device to a tent with an empty card on Start
+  and an errand - the very "one device per place" the rule is meant to end. The archive is a tombstone and can be
+  undone (Chris left the call to the agent, 2026-10-08). From the second device on, the place says what stands in it
+  - "3 Geräte · Zeltcontroller · Licht · Lüfter" under its name, linking to Geräte, and the same words on its Start
+  card (`screens/cockpit/DevicesHere.tsx`): the tiles speak for the climate device only, and without the line the
+  others first showed up under Steuerung (Chris, 2026-10-11). **Several climates are drawn as several** (Chris,
+  2026-10-11): where two devices here hold targets, the cockpit gives each a block of its own - its name and pill,
+  status sentence, work mode, tiles with its own curves, and its targets beside them - and an open alarm is said
+  once above the blocks, since an alert names no device; the Start card gives each its figures under its name and
+  lets the worst status speak for the card, prefixed with that device. From the second device on the cockpit also
+  lists every device at its foot ("3 Geräte hier": name, type, live or offline since), and Verlauf and Graphen
+  offer "Alle Geräte" or one climate (`?device=`, `screens/cockpit/ClimatePicker.tsx`) - Chris, 2026-10-11: that a
+  place holds several devices has to stand out. One climate keeps the page as it was
+  ([ADR 0001](../adr/0001-app-rewrite-data-model.md#behaviour-the-model-implies)).
 - **Steuerung opens on Zielwerte** (a running plan is the exception) with Alarme and "Automatisch nach Grow-Plan
   steuern" as rows under them. Leaving with unsaved figures asks "Speichern und weiter / Verwerfen / Weiter
   bearbeiten"; on a phone the save bar takes the tab bar's place.

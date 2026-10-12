@@ -21,6 +21,8 @@ interface ChartSubject {
   spaceId: string | null;
   /** The grow's own measurements worth asking about. */
   keys: string[];
+  /** One climate of the place's several, where one was chosen. */
+  deviceId?: string | null;
 }
 
 export const useChartData = (subject: ChartSubject, window: ChartWindow | null, stepSeconds: number | undefined, refetchMs: number | false) => {
@@ -37,7 +39,7 @@ export const useChartData = (subject: ChartSubject, window: ChartWindow | null, 
     refetchMs,
   };
   const grow = useGrowSeries(window ? subject.growId : null, growWindow);
-  const place = useSpaceSeries(viaPlace ? subject.spaceId : null, viaPlace ? { ...span, stepSeconds, refetchMs } : null);
+  const place = useSpaceSeries(viaPlace ? subject.spaceId : null, viaPlace ? { ...span, stepSeconds, refetchMs, deviceId: subject.deviceId } : null);
 
   const growData = grow.data ?? grow.held?.data;
   const placeData = place.data ?? place.held?.data;

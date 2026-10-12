@@ -1,6 +1,6 @@
 import { queryOptions, useQueries } from '@tanstack/react-query';
 import { LIVE_BEAT_MS, useRead } from './read';
-import type { PresetPrompt, Space, SpaceCreate, SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
+import type { Device, PresetPrompt, Space, SpaceCreate, SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { readEvery } from './pages';
 import { invalidate, useWrite } from './write';
@@ -119,4 +119,30 @@ export const useCreateSpace = () =>
   useWrite(
     (body: SpaceCreate) => api.post<Space>('/spaces', body),
     client => void invalidate(client, ['spaces'], ['home']),
+  );
+
+/**
+ * A device put in this place, asked from the place's side. A place holds as
+ * many devices as stand in it, so the one it comes from keeps everything else
+ * and is left as it is - empty, perhaps, and then it is for its owner to say
+ * whether it goes (`useRemoveSpace`).
+ */
+export const usePutDeviceHere = (spaceId: string) =>
+  useWrite(
+    (deviceId: string) => api.put<Device>(`/spaces/${spaceId}/devices/${deviceId}`),
+    (client, device) => {
+      client.setQueryData(['devices', device.id], device);
+      void invalidate(client, ['devices'], ['spaces'], ['space'], ['home'], ['cameras']);
+    },
+  );
+
+/**
+ * Ending a place, which only its owner does and only once nothing stands in it
+ * and nobody else is in it; the server says what is still in the way. The
+ * history that names it still reads.
+ */
+export const useRemoveSpace = (spaceId: string) =>
+  useWrite(
+    () => api.delete(`/spaces/${spaceId}`),
+    client => void invalidate(client, ['spaces'], ['home'], ['devices']),
   );

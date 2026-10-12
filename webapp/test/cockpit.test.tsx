@@ -17,6 +17,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { LogProvider } from '@/log/LogProvider';
 import { Home } from '@/screens/Home';
+import { ClimatePicker } from '@/screens/cockpit/ClimatePicker';
 import { PlaceCockpit } from '@/screens/cockpit/PlaceCockpit';
 import { holdVerdictOf, judgedPanel, outputsFor, statusOf } from '@/screens/cockpit/place';
 import { drawAt, json } from './harness';
@@ -128,6 +129,7 @@ const reboot = (id: string, minutes: number) =>
 const overviewOf = (over: Partial<SpaceOverview> = {}): SpaceOverview => ({
   spaceId: 'space-1',
   name: 'Fridge 1',
+  climates: [],
   kind: 'fridge',
   roomId: null,
   deviceIds: ['device-1'],
@@ -258,11 +260,22 @@ const server = {
   mine: [] as MyGrowCard[],
   /** The rows of the device's socket table, by role; none paired is what most devices answer. */
   sockets: [] as { role: string; state?: string; stateChangedAt?: string | null }[],
+  /** Every write the page sent, as "METHOD /path". */
+  writes: [] as string[],
 };
 
-const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
   const path = pathname.replace(/^\/v1/, '');
+  const method = init?.method ?? 'GET';
+
+  if (method !== 'GET') server.writes.push(`${method} ${path}`);
+  const placed = /^\/spaces\/([^/]+)\/devices\/([^/]+)$/.exec(path);
+  if (method === 'PUT' && placed) {
+    server.devices = server.devices.map(device => (device.id === placed[2] ? { ...device, spaceId: placed[1] } : device));
+    return json(server.devices.find(device => device.id === placed[2]));
+  }
+  if (method === 'DELETE') return new Response(null, { status: 204 });
 
   if (path === '/me') return json(server.me);
   if (path === '/spaces') return json(spacePage(spaceWhere(server.youMay), spaceWhere(server.youMay, { id: 'space-2', name: 'Tent 2' })));
@@ -316,6 +329,7 @@ beforeEach(() => {
   server.plan = null;
   server.customers = [];
   server.sockets = [];
+  server.writes = [];
 });
 
 afterEach(() => {
@@ -544,6 +558,139 @@ describe('a place whose control is switched off', () => {
 
     expect(await screen.findByRole('button', { name: /^Switch control off/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^MaintenancePause/ })).toBeInTheDocument();
+  });
+});
+
+describe('devices brought together in one place', () => {
+  const emptyTent = () => overviewOf({ spaceId: 'space-2', name: 'Tent 2', kind: 'tent', deviceIds: [], values: [], setpoints: [] });
+
+  it('brings a device standing in another place here, and offers the place it left empty for removal without removing it', async () => {
+    server.devices = [fridge(), fridge({ id: 'device-2', type: 'light', name: 'Lamp', spaceId: 'space-2' })];
+    server.overviews.set('space-2', emptyTent());
+    draw(<PlaceCockpit overview={overviewOf()} headed />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^More about/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Bring a device here' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Lamp · Tent 2' }));
+
+    await waitFor(() => expect(server.writes).toEqual(['PUT /spaces/space-1/devices/device-2']));
+    expect(await screen.findByText('Lamp now stands in Fridge 1.')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing stands in Tent 2 any more: no device, no camera, no grow.')).toBeInTheDocument();
+    expect(server.writes).toEqual(['PUT /spaces/space-1/devices/device-2']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tent 2' }));
+    await waitFor(() => expect(server.writes).toContain('DELETE /spaces/space-2'));
+  });
+
+  it('names every device standing here under the place´s name, and none where only one does', async () => {
+    server.devices = [fridge(), fridge({ id: 'device-2', type: 'light', name: 'Lamp', spaceId: 'space-1' })];
+    const { unmount } = draw(<PlaceCockpit overview={overviewOf({ deviceIds: ['device-1', 'device-2'] })} headed />);
+
+    expect(await screen.findByRole('link', { name: /^2 devices · .+ · Lamp – open the devices$/ })).toHaveAttribute('href', '/devices?space=space-1');
+    const listed = screen.getByRole('region', { name: '2 devices here' });
+    expect(listed).toHaveTextContent('Lamp');
+    expect(listed).toHaveTextContent('Light · live');
+    unmount();
+
+    server.devices = [fridge()];
+    draw(<PlaceCockpit overview={overviewOf()} headed />);
+    await screen.findByRole('button', { name: /^More about/ });
+    expect(screen.queryByRole('link', { name: /devices · / })).not.toBeInTheDocument();
+  });
+
+  it('does not offer to bring a device in where every device already stands here', async () => {
+    draw(<PlaceCockpit overview={overviewOf()} headed />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^More about/ }));
+    expect(await screen.findByRole('button', { name: 'Rename' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bring a device here' })).not.toBeInTheDocument();
+  });
+
+  it('offers an empty place for removal on its own page, and leaves one that still holds a grow alone', async () => {
+    server.overviews.set('space-2', emptyTent());
+    const { unmount } = draw(<PlaceCockpit overview={emptyTent()} headed />);
+    expect(await screen.findByRole('button', { name: 'Remove Tent 2' })).toBeInTheDocument();
+    expect(server.writes).toEqual([]);
+    unmount();
+
+    const growing = { ...emptyTent(), grows: [{ growId: 'grow-1' } as never] };
+    server.overviews.set('space-2', growing);
+    draw(<PlaceCockpit overview={growing} headed />);
+    await screen.findAllByText('Tent 2');
+    expect(screen.queryByRole('button', { name: 'Remove Tent 2' })).not.toBeInTheDocument();
+  });
+});
+
+describe('a place holding several climates', () => {
+  const module = (): Device => fridge({ id: 'device-2', type: 'controller', name: 'Mother controller' });
+  const twoClimates = () =>
+    overviewOf({
+      deviceIds: ['device-1', 'device-2'],
+      climates: [
+        { deviceId: 'device-1', values: values(), setpoints, targets: overviewOf().targets, verdict: overviewOf().verdict },
+        {
+          deviceId: 'device-2',
+          values: [{ metric: 'temperature', value: 20.6, measuredAt: ago(0.3), state: 'live' }],
+          setpoints: [{ metric: 'temperature', value: 25, band: 1 }],
+          targets: { day: [{ metric: 'temperature', value: 25, band: 1 }], night: [] },
+          verdict: { ...overviewOf().verdict, deviceId: 'device-2' },
+        },
+      ],
+    });
+
+  it('draws each climate as its own block, with its own readings, status and targets', async () => {
+    server.devices = [fridge(), module()];
+    draw(<PlaceCockpit overview={twoClimates()} headed />);
+
+    const mother = (await screen.findByRole('heading', { name: /^Mother controller/ })).closest('section')!;
+    const tile = within(mother)
+      .getAllByRole('link', { name: /^Temperature/ })
+      .map(link => link.closest('article'))
+      .find(Boolean);
+    expect(tile).toHaveTextContent('20.6');
+    expect(within(mother).getByRole('status')).toHaveTextContent(/Temperature 4.4 °C too low/);
+
+    const headings = screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent);
+    expect(headings.some(text => text?.startsWith('Mother controller'))).toBe(true);
+    expect(headings).toHaveLength(2);
+    expect(within(mother).getByRole('region', { name: 'Targets' })).toHaveTextContent('25 °C');
+    expect(screen.getAllByRole('region', { name: 'Targets' })).toHaveLength(2);
+  });
+
+  it('draws each block´s curves from its own device rather than the place pooled', async () => {
+    server.devices = [fridge(), module()];
+    draw(<PlaceCockpit overview={twoClimates()} headed />);
+
+    await screen.findByRole('heading', { name: /^Mother controller/ });
+    const asked = fetchStub.mock.calls.map(([input]) => String(input)).filter(url => url.includes('/timeline'));
+    await waitFor(() => expect(asked.some(url => url.includes('deviceId=device-2'))).toBe(true));
+  });
+
+  it('offers to draw one climate of several on its own, and every device together', async () => {
+    server.devices = [fridge(), module()];
+    server.overviews.set('space-1', twoClimates());
+    const chosen = vi.fn();
+    draw(<ClimatePicker spaceId="space-1" chosen={null} onChoose={chosen} />);
+
+    const picker = await screen.findByRole('group', { name: 'Which device' });
+    expect(within(picker).getByRole('button', { name: 'All devices' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(await within(picker).findByRole('button', { name: 'Mother controller' }));
+    expect(chosen).toHaveBeenCalledWith('device-2');
+  });
+
+  it('offers no choice where the place holds one climate', async () => {
+    server.overviews.set('space-1', overviewOf({ climates: [{ ...twoClimates().climates[0] }] }));
+    draw(<ClimatePicker spaceId="space-1" chosen={null} onChoose={() => {}} />);
+
+    await waitFor(() => expect(fetchStub).toHaveBeenCalledWith(expect.stringContaining('/spaces/space-1/overview'), expect.anything()));
+    expect(screen.queryByRole('group', { name: 'Which device' })).not.toBeInTheDocument();
+  });
+
+  it('keeps one set of tiles for a place with one climate', async () => {
+    draw(<PlaceCockpit overview={overviewOf({ climates: [{ ...twoClimates().climates[0] }] })} headed />);
+
+    await screen.findByRole('link', { name: /^Temperature/ });
+    expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0);
   });
 });
 
@@ -1202,6 +1349,7 @@ describe('Start', () => {
   const card = (spaceId: string, name: string): HomeSpaceCard => ({
     spaceId,
     name,
+    climates: [],
     kind: 'fridge',
     roomId: null,
     deviceIds: spaceId === 'space-1' ? ['device-1'] : [],
@@ -1262,6 +1410,29 @@ describe('Start', () => {
     draw(<Home />);
     expect(await screen.findByRole('heading', { name: 'Fridge 1' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^My grows/ })).not.toBeInTheDocument();
+  });
+
+  it('gives each climate of a place its own figures on its card, and lets the worst speak for it', async () => {
+    server.devices = [fridge(), fridge({ id: 'device-2', type: 'controller', name: 'Mother controller' })];
+    const both = {
+      ...card('space-1', 'Fridge 1'),
+      deviceIds: ['device-1', 'device-2'],
+      climates: [
+        { deviceId: 'device-1', values: values(), setpoints },
+        {
+          deviceId: 'device-2',
+          values: [{ metric: 'temperature' as const, value: 20.6, measuredAt: ago(0.3), state: 'live' as const }],
+          setpoints: [{ metric: 'temperature' as const, value: 25, band: 1 }],
+        },
+      ],
+    };
+    server.home = answer(both, card('space-2', 'Tent 2'));
+    draw(<Home />);
+
+    const placeCard = (await screen.findByRole('link', { name: 'Fridge 1' })).closest('article')!;
+    expect(await within(placeCard).findByText('Mother controller')).toBeInTheDocument();
+    expect(placeCard).toHaveTextContent('20.6');
+    expect(placeCard).toHaveTextContent(/Mother controller · Temperature 4.4 °C too low/);
   });
 
   it('leads to every grow from under the cards where there are several places', async () => {

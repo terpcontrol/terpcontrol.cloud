@@ -23,10 +23,16 @@ const TIMELINE_REFRESH_MS = 60_000;
 export const rangeNeedsGrow = (range: TimelineRange): boolean => range === 'phase' || range === 'grow';
 
 /** A link's token, where the Timeline is read through one: the reader's whole proof, and the window it was given. */
-export const useTimeline = (spaceId: string, range: TimelineRange, growId: string | null, share: string | null = null) =>
+export const useTimeline = (
+  spaceId: string,
+  range: TimelineRange,
+  growId: string | null,
+  share: string | null = null,
+  deviceId: string | null = null,
+) =>
   useRead({
-    queryKey: ['space', spaceId, 'timeline', range, growId, share],
-    queryFn: ({ signal }) => api.get<SpaceTimeline>(`/spaces/${spaceId}/timeline`, { range, growId, share }, signal),
+    queryKey: ['space', spaceId, 'timeline', range, growId, share, deviceId],
+    queryFn: ({ signal }) => api.get<SpaceTimeline>(`/spaces/${spaceId}/timeline`, { range, growId, share, deviceId }, signal),
     enabled: spaceId !== '' && (!rangeNeedsGrow(range) || growId !== null),
     refetchInterval: rangeNeedsGrow(range) ? false : TIMELINE_REFRESH_MS,
     placeholderData: keepPreviousData,
