@@ -368,8 +368,14 @@ exports.uploadMediaKind = (0, common_js_1.named)('UploadMediaKind', common_js_1.
  * and who uploaded it are read off the upload and the session rather than asked
  * for. A photo usually reaches its grow through the entry that carries it;
  * `growId` and `spaceId` are for the picture that is uploaded on its own.
+ * `rotate` turns it clockwise on top of the way its EXIF says it was taken, for
+ * the phone that wrote no orientation or the wrong one; it is a multipart field,
+ * so a string.
  */
-exports.mediaUpload = (0, common_js_1.named)('MediaUpload', exports.media.pick({ growId: true, spaceId: true, capturedAt: true }).partial().extend({ kind: exports.uploadMediaKind }));
+exports.mediaUpload = (0, common_js_1.named)('MediaUpload', exports.media
+    .pick({ growId: true, spaceId: true, capturedAt: true })
+    .partial()
+    .extend({ kind: exports.uploadMediaKind, rotate: zod_1.z.enum(['0', '90', '180', '270']).optional() }));
 // ---------------------------------------------------------------------------
 // Cameras
 // ---------------------------------------------------------------------------

@@ -114,10 +114,11 @@ export const startPhase = (growId: string, body: PhaseCreate): Promise<Phase> =>
  * because the bytes take as long as the connection takes and the entry does
  * not: a picture no entry ever names is swept up by the server.
  */
-export const uploadPhoto = (file: File, about: { growId: string | null; spaceId: string | null }): Promise<Media> => {
+export const uploadPhoto = (file: File, about: { growId: string | null; spaceId: string | null }, rotate = 0): Promise<Media> => {
   const form = new FormData();
   form.set('file', file);
   form.set('kind', 'photo');
+  if (rotate % 360) form.set('rotate', String(rotate % 360));
   if (about.growId) form.set('growId', about.growId);
   else if (about.spaceId) form.set('spaceId', about.spaceId);
 

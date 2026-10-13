@@ -2996,6 +2996,7 @@ export interface MediaUpload {
   spaceId?: string | null;
   capturedAt?: string;
   kind: UploadMediaKind;
+  rotate?: '0' | '90' | '180' | '270';
 }
 
 export interface CameraEntitlement {

@@ -57,11 +57,13 @@ export class MediaPresentationService {
    * remember which way up it is.
    *
    * A file that is not a picture at all fails here, which is the boundary it
-   * should fail at.
+   * should fail at. `degrees` turns it further, clockwise, where the grower
+   * said it still stood the wrong way up.
    */
-  public asStoredJpeg(body: Buffer): Promise<Buffer> {
+  public asStoredJpeg(body: Buffer, degrees = 0): Promise<Buffer> {
     return sharp(body)
-      .rotate()
+      .autoOrient()
+      .rotate(degrees)
       .resize({ width: STORED_MAX_DIMENSION, height: STORED_MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
       .jpeg()
       .toBuffer();

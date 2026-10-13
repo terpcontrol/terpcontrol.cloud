@@ -95,7 +95,9 @@ Pitfalls, each met at least once:
   (2026-09). Films are made per day, week and month; the open period's film is replaced as it grows, closed ones are
   kept. Every Mongo backup carries all of it.
 - **Photos** are stored as a rotated JPEG without metadata; those from before the rewrite keep their EXIF, GPS
-  included, in the bucket ([server.md](server.md) has how they are served).
+  included, in the bucket ([server.md](server.md) has how they are served). A turn the grower asks for in the photo
+  entry travels as `rotate` with the upload and is applied by the server on top of the EXIF orientation, rather than
+  re-encoded in the browser: a canvas cannot read HEIC everywhere and iOS caps its size below a 24 MP photo.
 
 ## InfluxDB
 

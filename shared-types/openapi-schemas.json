@@ -9500,6 +9500,15 @@
       },
       "kind": {
         "$ref": "#/components/schemas/UploadMediaKind"
+      },
+      "rotate": {
+        "type": "string",
+        "enum": [
+          "0",
+          "90",
+          "180",
+          "270"
+        ]
       }
     },
     "required": [

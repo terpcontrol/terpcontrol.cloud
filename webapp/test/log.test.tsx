@@ -418,7 +418,7 @@ describe('the log sheet', () => {
    * if the tent were being looked after. A place without a camera is not told
    * about a cam still either.
    */
-  it('offers no maintenance where the place is offline, and no cam still where there is no camera', async () => {
+  it('offers no maintenance where the place is offline', async () => {
     const quiet = { ...home.spaces[0], values: [{ ...home.spaces[0].values[0], measuredAt: daysAgo(1), state: 'offline' as const }] };
     vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/home' ? { ...home, spaces: [quiet] } : answers(path)));
     await openSheet();
@@ -431,30 +431,43 @@ describe('the log sheet', () => {
   });
 
   /**
-   * The photo entry offered a cam still beside the phone's camera everywhere,
-   * greyed out where there is no camera - a placeholder for hardware this grower
-   * does not have. Without a camera the phone is the only way, and is all it says.
+   * The tent's cam fills the timeline on its own, so the photo entry is the
+   * phone's: it opens on the picker, keeps adding rather than replacing, and
+   * every picture can be turned or dropped before it goes up.
    */
-  it('offers the cam still only where a camera has delivered one', async () => {
-    await openSheet();
-    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
-    fireEvent.click(screen.getByRole('button', { name: /^Photo/ }));
-
-    const entry = await screen.findByRole('dialog', { name: 'Photo entry' });
-    expect(within(entry).queryByRole('button', { name: 'Cam still' })).not.toBeInTheDocument();
-    expect(within(entry).getByRole('button', { name: 'Take or choose a picture' })).toBeInTheDocument();
-  });
-
-  it('opens on the cam still where there is one, with the phone beside it', async () => {
+  it('collects several pictures off the phone, turns and drops them, and uploads each before the line', async () => {
     const filmed = { ...home.spaces[0], latestStill: { mediaId: 'media-1', cameraId: 'camera-1', capturedAt: daysAgo(0) } };
     vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/home' ? { ...home, spaces: [filmed] } : answers(path)));
+    URL.createObjectURL = vi.fn((file: Blob) => `blob:${(file as File).name}`);
+    URL.revokeObjectURL = vi.fn();
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
     fireEvent.click(screen.getByRole('button', { name: /^Photo/ }));
 
     const entry = await screen.findByRole('dialog', { name: 'Photo entry' });
-    expect(within(entry).getByRole('button', { name: 'Cam still' })).toHaveAttribute('data-chosen', 'true');
-    expect(within(entry).getByRole('button', { name: 'Take photo' })).toBeInTheDocument();
+    expect(within(entry).queryByText(/cam still/i)).not.toBeInTheDocument();
+    const input = entry.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(input).toHaveAttribute('multiple');
+    const picture = (name: string) => new File(['x'], name, { type: 'image/jpeg' });
+    fireEvent.change(input, { target: { files: [picture('a.jpg'), picture('b.jpg')] } });
+    fireEvent.change(input, { target: { files: [picture('c.jpg')] } });
+    expect(within(entry).getAllByRole('img')).toHaveLength(3);
+
+    fireEvent.click(within(entry).getByRole('button', { name: 'Remove picture 2' }));
+    fireEvent.click(within(entry).getByRole('button', { name: 'Turn picture 2' }));
+    expect(within(entry).getAllByRole('img')).toHaveLength(2);
+
+    vi.mocked(api.post).mockImplementation((path: string, body: unknown) =>
+      Promise.resolve((path === '/media' ? { id: `media-${((body as FormData).get('file') as File).name}` } : written) as never),
+    );
+    fireEvent.click(within(entry).getByRole('button', { name: /^Save/ }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ mediaIds: ['media-a.jpg', 'media-c.jpg'] })));
+    const uploads = vi
+      .mocked(api.post)
+      .mock.calls.filter(([path]) => path === '/media')
+      .map(([, form]) => (form as FormData).get('rotate'));
+    expect(uploads).toEqual([null, '90']);
   });
 
   /**

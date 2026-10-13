@@ -2158,8 +2158,7 @@
       "training": "Training",
       "phase": "Phase",
       "visit": "Maintenance · {{minutes}} min",
-      "photoCaption": "cam still or phone photo",
-      "photoCaptionPhone": "with your phone",
+      "photoCaption": "with your phone",
       "visitCaption": "pause control and alarms",
       "schemeWeek": "scheme wk {{week}}"
     },
@@ -2200,12 +2199,11 @@
     "logAsPlanned": "Log as planned",
     "saveFailed": "Could not save that line",
     "photoTitle": "Photo entry",
-    "camStill": "Cam still",
-    "takePhoto": "Take photo",
-    "pictureAlt": "The picture this line will carry",
-    "noCam": "No camera where this stands",
+    "pictureAlt": "Picture {{n}} for this line",
     "choosePicture": "Take or choose a picture",
-    "camAge": "{{name}} · {{age}} ago",
+    "addPicture": "Add a picture",
+    "rotatePicture": "Turn picture {{n}}",
+    "removePicture": "Remove picture {{n}}",
     "tagWhatYouDid": "Tag what you did",
     "tags": {
       "watered": "Watered",
@@ -2226,7 +2224,6 @@
     "taskClosed": "Task done",
     "rightClick": "right-click or shift-click a tile for details",
     "oneTapVisit": "One tap logs it right away, with 5 seconds to undo. Maintenance asks first, because it pauses the control.",
-    "camLightOff": "{{name}} · light off · picture from {{time}}",
     "startsIn": "from scheme week {{week}}"
   },
   "timeline": {

@@ -1059,6 +1059,9 @@ export declare const uploadMediaKind: z.ZodEnum<{
  * and who uploaded it are read off the upload and the session rather than asked
  * for. A photo usually reaches its grow through the entry that carries it;
  * `growId` and `spaceId` are for the picture that is uploaded on its own.
+ * `rotate` turns it clockwise on top of the way its EXIF says it was taken, for
+ * the phone that wrote no orientation or the wrong one; it is a multipart field,
+ * so a string.
  */
 export declare const mediaUpload: z.ZodObject<{
     spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -1068,6 +1071,12 @@ export declare const mediaUpload: z.ZodObject<{
         photo: "photo";
         avatar: "avatar";
     }>;
+    rotate: z.ZodOptional<z.ZodEnum<{
+        0: "0";
+        90: "90";
+        180: "180";
+        270: "270";
+    }>>;
 }, z.core.$strip>;
 /**
  * How ffmpeg pulls an RTSP stream, as its `-rtsp_transport` names it: `tcp`

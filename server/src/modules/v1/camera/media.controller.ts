@@ -63,6 +63,7 @@ export class MediaController {
         growId: { type: 'string' },
         spaceId: { type: 'string' },
         capturedAt: { type: 'string', format: 'date-time', description: 'When it was taken. Defaults to now.' },
+        rotate: { type: 'string', enum: ['0', '90', '180', '270'], description: 'Degrees to turn it clockwise after its EXIF orientation.' },
       },
     },
   })
@@ -84,7 +85,7 @@ export class MediaController {
       if (upload.spaceId) await this.access.require(ctx, subjectRef('space', upload.spaceId), 'log');
     }
 
-    const stored = await this.presentation.asStoredJpeg(bytes).catch(() => {
+    const stored = await this.presentation.asStoredJpeg(bytes, Number(upload.rotate ?? 0)).catch(() => {
       throw unprocessable('not_a_picture', 'That file could not be read as a picture.');
     });
 
