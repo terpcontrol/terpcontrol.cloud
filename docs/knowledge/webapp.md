@@ -1,6 +1,6 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
-updated: 2026-10-09
+updated: 2026-10-13
 source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08
 paths:
   - webapp/**
@@ -226,6 +226,10 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   settings are `Field*` controls (`src/ui/advanced/Fields.tsx`) named as `CONFIGURATION_FIELDS` names them per type
   (`shared-types/src/v1/configuration-fields.ts`, the AIR fan and the LIGHT included), written on the tap through
   `useConfigure` (`PATCH /v1/devices/{id}/configuration` with `set`); a row then shows what the server stored.
+- On a desktop the shell centres every screen's root with a left margin (`.main > *` in
+  `src/app/shell/AppShell.module.css`). A root that sets `width: 100%` therefore also needs a `max-width`
+  (`--page-width`, `--reading-width`), or the margin pushes it past the window's right edge and the page scrolls
+  sideways from about 1400 px - the place cockpit at `/spaces/:id` did, until it took `--page-width` itself.
 - Copy through `useCopied()` (`src/ui/clipboard.ts`): it falls back to `execCommand` where `navigator.clipboard` is
   missing (plain HTTP) and answers `copied` or `failed` for the button to say.
 - Webhook templates (`src/screens/control/alarms/webhook-templates.ts`: Home Assistant, Discord, Telegram, ntfy)
