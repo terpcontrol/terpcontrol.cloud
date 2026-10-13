@@ -182,6 +182,13 @@
     gap: var(--space-5);
   }
 
+  /* The page's width, as the shell centres it: a place opened from a Start
+     with several is the shell's own child, and at the full width plus the
+     shell's centring margin it ran past the right edge of the window. */
+  .cockpit {
+    max-width: var(--page-width);
+  }
+
   /* A diary kept by hand has one column's worth of page: the grow, its lines
      and the offer under them, at a width a line still reads at - rather than
      an empty left column beside a half-width card. The place's name and its
