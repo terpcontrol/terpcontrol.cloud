@@ -28,7 +28,6 @@ import { ownFactOf } from '@/screens/control/devices/own-summary';
 import { cameraFreshness } from './cameras';
 import { DeviceAdvanced } from './DeviceAdvanced';
 import { DeviceSettingsSheet } from './DeviceSettingsSheet';
-import { movesAnywhere } from './moving';
 import { Expand, Fact, Facts } from './RowParts';
 import { isLightRole, lightOutputOf } from './lights';
 import { LightOutputRow } from './LightOutputRow';
@@ -40,6 +39,7 @@ import { SocketRow } from './SocketRow';
 import { PairSocketRow } from './SocketSheets';
 import socketStyles from './Sockets.module.css';
 import { AutoUpdate } from './Updates';
+import { groupedByPlace } from './grouping';
 import settings from './DeviceSettings.module.css';
 import styles from './Devices.module.css';
 
@@ -103,6 +103,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
   if (devices.isPending || cameras.isPending) return <Waiting lines={3} />;
   if (!devices.data || !cameras.data) return <LoadFailed retry={() => void devices.refetch()} />;
 
+  const groups = groupedByPlace(mine, spaces.data?.items ?? []);
   const placeOf = (id: string | null): string | null => spaces.data?.items.find(space => space.id === id)?.name ?? null;
   const failedAt = devices.isError || cameras.isError ? devices.dataUpdatedAt : null;
 
@@ -126,7 +127,31 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
         {/* Without a device the tab is the door hardware comes in by, not a list
             with nothing in it: what is there - a camera - comes first, and the
             two ways in follow as rows of the same weight. */}
-        {mine.length === 0 && maySetUp ? null : (
+        {mine.length === 0 && maySetUp ? null : groups.length > 1 ? (
+          // Several places: the devices under the place they stand in, and the room around it.
+          groups.map(group => (
+            <Section
+              key={group.spaceId ?? 'nowhere'}
+              label={[group.room, group.place ?? t('devices.controllers', { count: group.devices.length })].filter(Boolean).join(' · ')}
+              empty={null}
+            >
+              {group.devices.map(device => (
+                <DeviceRow
+                  key={device.id}
+                  explain={device.id === mine[0]?.id}
+                  device={device}
+                  among={devices.data!.items}
+                  place={null}
+                  sockets={tables.tables.get(device.id)}
+                  cameras={shown.filter(camera => camera.deviceId === device.id).length}
+                  startOpen={opened !== null && device.spaceId === opened}
+                  spokeAt={spokeAt(device)}
+                  now={now}
+                />
+              ))}
+            </Section>
+          ))
+        ) : (
           <Section
             label={t('devices.controllers', { count: mine.length })}
             empty={mine.length === 0 ? t(maySetUp ? 'devices.noDevices' : 'devices.noDevicesHere') : null}
@@ -378,8 +403,6 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
   // only reads the next.
   const may = useMayWith()(device);
   const mayCorrect = enough(may, 'manage');
-  // Moving is offered only where there is somewhere to move to.
-  const movable = movesAnywhere(useSpaces().data?.items ?? [], device);
 
   // What a socket, a fan or a lamp is set to, with the way to Steuerung where it is changed.
   const own = ownFactOf(t, device, offsetOf(now, zone));
@@ -559,7 +582,7 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
           {mayCorrect ? (
             <button type="button" className={`${ui.chip} ${settings.open}`} onClick={() => setNaming(true)}>
               <Pencil size={13} strokeWidth={1.75} aria-hidden />
-              {t(movable ? 'devices.settings.open' : 'devices.settings.openRename')}
+              {t('devices.settings.open')}
             </button>
           ) : null}
 

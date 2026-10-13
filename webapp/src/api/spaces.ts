@@ -2,6 +2,7 @@ import { queryOptions, useQueries } from '@tanstack/react-query';
 import { LIVE_BEAT_MS, useRead } from './read';
 import type { Device, PresetPrompt, Space, SpaceCreate, SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { serverNow } from './clock';
 import { readEvery } from './pages';
 import { invalidate, useWrite } from './write';
 
@@ -110,6 +111,21 @@ export const useSetRoom = (spaceId: string) =>
   );
 
 /**
+ * A new room with the places it gathers, as Start asks for it in one go: the
+ * room is made first, because a place can only point at a room that exists,
+ * and then each place is moved into it.
+ */
+export const useMakeRoom = () =>
+  useWrite(
+    async ({ name, spaceIds }: { name: string; spaceIds: readonly string[] }) => {
+      const room = await api.post<Space>('/spaces', { kind: 'room', name });
+      await Promise.all(spaceIds.map(spaceId => api.patch<Space>(`/spaces/${spaceId}`, { roomId: room.id })));
+      return room;
+    },
+    client => void invalidate(client, ['spaces'], ['space'], ['home']),
+  );
+
+/**
  * A new place, written the moment it is named: a tent invented while a grow is
  * started, a room on the Members tab, or the place an RTSP camera looks at. What
  * a sheet then offers as somewhere to put something is a real space with a real
@@ -134,6 +150,26 @@ export const usePutDeviceHere = (spaceId: string) =>
       client.setQueryData(['devices', device.id], device);
       void invalidate(client, ['devices'], ['spaces'], ['space'], ['home'], ['cameras']);
     },
+  );
+
+/**
+ * Ending a place that still holds something: what stands in it moves to
+ * another place first - each device with the cameras it answers for, a camera
+ * on its own, each running grow from today - and then the place ends. The
+ * server still refuses where people are let in, and says so.
+ */
+export const useClearAndRemoveSpace = (spaceId: string) =>
+  useWrite(
+    async ({ to, deviceIds, cameraIds, growIds }: { to: string | null; deviceIds: string[]; cameraIds: string[]; growIds: string[] }) => {
+      if (to) {
+        for (const deviceId of deviceIds) await api.put<Device>(`/spaces/${to}/devices/${deviceId}`);
+        for (const cameraId of cameraIds) await api.patch(`/cameras/${cameraId}`, { spaceId: to });
+        const startedAt = serverNow().toUTC().toISO()!;
+        for (const growId of growIds) await api.post(`/grows/${growId}/placements`, { spaceId: to, startedAt });
+      }
+      await api.delete(`/spaces/${spaceId}`);
+    },
+    client => void invalidate(client, ['spaces'], ['space'], ['home'], ['devices'], ['cameras'], ['grows'], ['grow']),
   );
 
 /**

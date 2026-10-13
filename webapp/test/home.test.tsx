@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, HomeSpaceCard } from '@fg2/shared-types/v1';
 import { LooseGrowCard, PlaceCard } from '@/screens/cockpit/PlaceCard';
 import { attentionOf, livenessOf, sortedByAttention } from '@/screens/home/attention';
+import { groupedByRoom } from '@/screens/home/rooms';
 import { DueStrip, FollowingStrip } from '@/screens/home/Strips';
 import { LogProvider } from '@/log/LogProvider';
 import { drawAt } from './harness';
@@ -303,6 +304,32 @@ describe('what needs a person', () => {
     // The day number is the grow's last day and stays; the age is when its
     // diary last moved, which is neither the end nor a sign of one.
     expect(screen.getByText(/Day 218 · Curing · ended 24 Aug 2026 · 3 h ago/)).toBeInTheDocument();
+  });
+});
+
+describe('places in rooms', () => {
+  /**
+   * A room is where places are gathered, not a place that holds them: each
+   * device in it stays the climate of its own place, and Start only draws the
+   * places of one room under its name, where the most urgent of them stood.
+   */
+  it('gathers the places of a room under its name, keeping the order of what needs a person', async () => {
+    const { spaceWhere } = await import('./session');
+    const spaces = [spaceWhere('own', { id: 'room-1', kind: 'room', name: 'Grow room' })];
+    const cards = [
+      card({ spaceId: 'space-1', name: 'Tent', roomId: 'room-1' }),
+      card({ spaceId: 'space-2', name: 'Alone' }),
+      card({ spaceId: 'space-3', name: 'KS Black', kind: 'fridge', roomId: 'room-1' }),
+      card({ spaceId: 'space-4', name: 'Unknown room', roomId: 'room-2' }),
+    ];
+
+    const groups = groupedByRoom(cards, spaces);
+
+    expect(groups.map(group => [group.room?.name ?? null, group.cards.map(one => one.name)])).toEqual([
+      ['Grow room', ['Tent', 'KS Black']],
+      [null, ['Alone']],
+      [null, ['Unknown room']],
+    ]);
   });
 });
 

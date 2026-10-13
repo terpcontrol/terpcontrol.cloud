@@ -420,8 +420,10 @@
       "saving": "wird gespeichert…",
       "place": "Steht in",
       "placeNote": "Ab jetzt zählen die Messwerte und die Kamera dieses Geräts zum neuen Ort. Was es bisher gemessen hat, bleibt beim alten.",
-      "noPlaces": "Es gibt keinen anderen Ort, den du steuerst und an den es umziehen könnte.",
-      "openRename": "Umbenennen"
+      "newPlace": "Neuer Ort",
+      "newPlaceName": "Name des Orts",
+      "moveToNew": "Anlegen und umziehen",
+      "moving": "Zieht um …"
     },
     "unnamed": "{{type}} · {{tag}}",
     "youMayLog": "Was die Geräte hier tun, steht hier. Eine Steckdose oder die Lampe schaltet nur, wer diesen Ort steuert.",
@@ -789,6 +791,18 @@
     },
     "device": {
       "offer": "Mit einem Sensor misst es hier von selbst"
+    },
+    "room": {
+      "row": "Raum anlegen",
+      "title": "Neuer Raum",
+      "name": "Name",
+      "namePlaceholder": "z. B. Anbauraum",
+      "places": "Was steht darin",
+      "inRoom": "{{name}} · in {{room}}",
+      "make_one": "Raum mit {{count}} Ort anlegen",
+      "make_other": "Raum mit {{count}} Orten anlegen",
+      "making": "Legt den Raum an …",
+      "note": "Ein Raum fasst Orte nur zusammen: Auf Start stehen sie unter seinem Namen, und jedes Gerät regelt, zeigt und pausiert weiter seinen eigenen Ort. Geräte, die zusammen ein Klima machen, holst du dagegen in einen Ort."
     }
   },
   "me": {
@@ -2114,16 +2128,23 @@
         "make": "Raum anlegen",
         "making": "Legt den Raum an …",
         "aRoom": "einen Raum",
-        "note": "Ein Raum fasst Orte zum Teilen zusammen: Wer in den Raum gelassen wird, sieht jeden Ort darin. Ein Raum steht nie in einem Raum, und ein Ort steht in höchstens einem.",
+        "note": "Ein Raum fasst Orte zusammen: Auf Start stehen sie unter seinem Namen, und wer in den Raum gelassen wird, sieht jeden Ort darin. Die Geräte darin bleiben, was sie sind – jedes regelt, zeigt und pausiert seinen Ort. Ein Raum steht nie in einem Raum, und ein Ort steht in höchstens einem.",
         "submit": "{{name}} in {{room}} stellen",
         "moving": "Verschiebt …",
         "takeOut": "Aus {{room}} herausnehmen",
         "roomModel": "Teile den ganzen Raum: Wer hier hereingelassen wird, sieht jeden Ort darin.",
         "tentsIn_one": "{{count}} Ort in diesem Raum",
         "tentsIn_other": "{{count}} Orte in diesem Raum",
-        "noTents": "Noch kein Ort steht in diesem Raum. Ein Ort kommt über ⋯ › Mitglieder & Teilen auf seiner eigenen Seite hinein."
+        "noTents": "Noch kein Ort steht in diesem Raum. Ein Ort kommt über ⋯ › In einen Raum stellen auf seiner eigenen Seite hinein."
       },
       "linkStopped": "Der Link {{code}} wurde zurückgezogen, als @{{name}} vom Ort entfernt wurde."
+    },
+    "remove": {
+      "title": "{{name}} entfernen",
+      "holds": "Hier steht noch: {{what}}.",
+      "grow": "Grow {{name}}",
+      "to": "Das alles zieht nach",
+      "nowhere": "Es gibt keinen anderen Ort, in den es ziehen könnte. Leg erst einen an."
     }
   },
   "log": {
@@ -3752,7 +3773,13 @@
       "device_states_no_climate": "Dieses Gerät nennt kein Klima, es gibt also nichts, wohin eines geschrieben werden kann.",
       "task_done_already": "Diese Aufgabe wurde schon abgehakt.",
       "occurred_in_the_future": "Ein Eintrag hält fest, was passiert ist. Er kann zurück-, aber nicht vorausdatiert werden.",
-      "too_many_requests": "Zu viele Versuche in kurzer Zeit. Warte eine Minute und versuche es erneut."
+      "too_many_requests": "Zu viele Versuche in kurzer Zeit. Warte eine Minute und versuche es erneut.",
+      "space_in_use": "Dieser Ort lässt sich noch nicht entfernen.",
+      "device_here": "Hier steht noch ein Gerät.",
+      "camera_here": "Hier schaut noch eine Kamera hinein.",
+      "grow_here": "Hier läuft noch ein Grow.",
+      "space_here": "In diesem Raum stehen noch Orte.",
+      "member_here": "Andere sind noch Mitglied hier – nimm sie unter Mitglieder erst heraus."
     }
   },
   "alarmLine": {
@@ -4331,7 +4358,10 @@
       "growDay": "{{name}} · Tag {{day}}",
       "growTurnsOn": "schaltet das Tagebuch ein",
       "growWrites": "setzt die Zielwerte der Phase",
-      "shareGrow": "Grow teilen"
+      "shareGrow": "Grow teilen",
+      "putInRoom": "In einen Raum stellen",
+      "room": "Raum",
+      "remove": "Ort entfernen"
     },
     "devices": {
       "count_one": "{{count}} Gerät",

@@ -1,6 +1,6 @@
 ---
 summary: How agents and people work here - branches and pushing, PR review comments, long runs and rounds, what needs Chris's word, commit and PR texts, worktrees and parallel agents
-updated: 2026-10-08
+updated: 2026-10-13
 source: Chris's instructions in sessions and PR reviews 2025-10..2026-10 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08)
 paths:
   - .claude/**
@@ -30,8 +30,13 @@ Checks and test stacks in detail: [testing](testing.md); releases and deploys: [
   alone - they hold his untracked files.
 - **Pushed history is not rewritten** - no rebase, squash or force-push - unless Chris allows it for the case. For
   bringing master into a long-running branch he left the method open; a merge of master needs no force-push.
-- **Agents never merge a PR.** Chris merges. Before he does, present the finished state: what was built and checked,
-  what was left out and why.
+- **Agents never merge a PR** - unless Chris calls `/pr-merge` on it ([skill](../../.claude/skills/pr-merge/SKILL.md)),
+  which is his word for that one merge. Otherwise Chris merges; before he does, present the finished state: what was
+  built and checked, what was left out and why.
+- **`/pr-merge` stands in for GitHub's auto-merge** (Chris, 2026-10-13). He is the only developer; `master` asks for
+  one approving review so that nobody else can merge, which also removes the auto-merge button. The skill addresses
+  the review comments, merges master in, watches CI and fixes it, and squash-merges with `--admin` - the bypass is
+  for the review rule only, never for a check that is not green.
 - **A long-running PR gets a final integration round** before it is handed over (Chris, 2026-10-03): everything master
   gained meanwhile comes in. Plan where each master commit lands, resolve conflicts commit by commit (a change to code
   the branch replaced is ported into its replacement), build and test on a stack, then let a fresh agent check commit
@@ -103,7 +108,7 @@ A round is one pass of building or fixing with its checks, ending in a short rep
   a round's report as in a PR's `Checked`.
 
 ## What needs Chris's word
-- Merging a PR; rewriting pushed history.
+- Merging a PR (`/pr-merge` is that word for one PR); rewriting pushed history.
 - A change to a recorded decision (an ADR), to the data model or to the agreed scope: agreed with him before it is
   built, and his answers go into the ADR (Chris, 2026-09-16).
 - **Production.** Releases reach it through the `Deploy` workflow; a hotfix by hand is the exception

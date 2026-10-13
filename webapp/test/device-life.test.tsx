@@ -135,4 +135,35 @@ describe('naming a device and moving it', () => {
     expect(screen.getByRole('button', { name: 'Tent 1' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Fridge 1' })).toHaveAttribute('aria-pressed', 'false');
   });
+
+  /**
+   * Taking one device out of a place it shares - a fridge module stood beside a
+   * tent controller - needs a place of its own, which may not exist yet. It is
+   * made in the room the device leaves, with the kind a claim would give it.
+   */
+  it('moves the device into a new place, made in the room it leaves', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: [{ ...THE_PLUG, type: 'fridge' }], nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces')
+        return Promise.resolve({
+          items: [spaceWhere('own', { roomId: 'room-1' }), spaceWhere('own', { id: 'room-1', kind: 'room', name: 'Grow room' })],
+          nextCursor: null,
+        }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: {} }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    vi.mocked(api.post).mockResolvedValue(spaceWhere('own', { id: 'space-new', name: 'KS Black', kind: 'fridge', roomId: 'room-1' }) as never);
+    drawAt(<DeviceList />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Details of / }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename or move' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ New place' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name of the place' }), { target: { value: ' KS Black ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create and move' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'fridge', name: 'KS Black', roomId: 'room-1' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1', { spaceId: 'space-new' }));
+  });
 });

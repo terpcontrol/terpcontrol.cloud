@@ -22,6 +22,20 @@
   gap: var(--space-3);
 }
 
+/* The places of one room, under the room's name, closed by a rule so the place after it is not read as one of them. */
+.room {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--rule-solid);
+}
+
+.roomName {
+  margin: 0;
+}
+
 /* A card that is waiting, in a card's shape: a name, three figures, a line. */
 .waiting {
   display: flex;

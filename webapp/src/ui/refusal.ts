@@ -18,12 +18,14 @@ import { ApiError } from '@/api/problem';
 export const refusalText = (error: unknown, fallback?: string): string => {
   if (!(error instanceof ApiError)) return fallback ?? i18next.t('shell.unreachable');
 
-  const { status, code, detail, title } = error.problem;
+  const { status, code, detail, title, errors } = error.problem;
   const english = (i18next.language ?? 'en').startsWith('en');
-  if (english && status < 500 && (detail || title)) return detail || title;
+  // A refusal that lists what is in the way - everything a place still holds - says each of them, not only that something is.
+  const reasons = errors.filter(one => i18next.exists(`problem.code.${one.code}`));
+  if (english && status < 500 && (detail || title)) return [detail || title, ...reasons.map(one => one.detail)].join(' ');
 
   const coded = `problem.code.${code}`;
-  if (i18next.exists(coded)) return i18next.t(coded);
+  if (i18next.exists(coded)) return [i18next.t(coded), ...reasons.map(one => i18next.t(`problem.code.${one.code}`))].join(' ');
 
   return i18next.t(`problem.status.${statusKind(status)}`);
 };

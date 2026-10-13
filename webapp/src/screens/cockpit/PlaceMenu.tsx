@@ -2,23 +2,26 @@ import { MoreHorizontal } from 'lucide-react';
 import { useAccountMe } from '@/api/account';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import type { SpaceOverview } from '@fg2/shared-types/v1';
 import { controlPath, membersPath } from '@/app/places';
 import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
+import { useSpaces } from '@/api/spaces';
 import { useMayInSpace, useMayManage } from '@/ui/session-access';
 import { RenameSheet } from '../place/RenameSheet';
 import { DeviceHereSheet } from '../space/DeviceHereSheet';
 import { useDevicesElsewhere } from '../space/devices-elsewhere';
 import { MoveHereSheet } from '../space/MoveHereSheet';
+import { RoomSheet } from '../space/members/RoomSheet';
+import { RemovePlaceSheet } from '../space/RemovePlaceSheet';
 import styles from './Cockpit.module.css';
 
-type Sheet = 'rename' | 'move' | 'device';
+type Sheet = 'rename' | 'move' | 'device' | 'room' | 'remove';
 
 /**
  * What is done to a place now and then rather than every day, behind the ⋯
- * beside its name: its name, who else is let in, the devices standing in it,
+ * beside its name: its name, the room it stands in, who else is let in, the devices standing in it,
  * a climate preset, and its grow. None of it is a reading, so none of it takes room on the cockpit itself.
  *
  * Each item that changes more than its name says so on a line under it - and
@@ -46,6 +49,20 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
   // A place holds any number of devices; bringing one in is offered wherever one stands somewhere else.
   const mayBringDevice = useDevicesElsewhere(overview.spaceId, mayManage).length > 0 && mayManage;
   const grow = diary ? (overview.grows[0] ?? null) : null;
+  // Rooms come with a second place, and are the owner's: a room and the places in it belong to one account.
+  const spaces = useSpaces(mayManage);
+  const listed = spaces.data?.items ?? [];
+  const room = listed.find(one => one.id === overview.roomId) ?? null;
+  const navigate = useNavigate();
+  const owns = user !== null && listed.some(one => one.id === overview.spaceId && one.ownerId === user.id);
+  // Ending a place is its owner's, and never the last one: that one is Start itself.
+  const mayRemove =
+    owns && overview.kind !== 'room' && listed.some(one => one.id !== overview.spaceId && one.kind !== 'room' && one.archivedAt === null);
+  const mayRoom =
+    overview.kind !== 'room' &&
+    user !== null &&
+    listed.some(one => one.id === overview.spaceId && one.ownerId === user.id) &&
+    listed.filter(one => one.kind !== 'room' && one.archivedAt === null).length > 1;
   const mayOwnGrow = mayManage && user !== null && user.isDemo !== true;
   // Somebody who said no to the diary is not offered a grow through the back door; the answer can be changed under Me.
   const mayStartGrow = mayManage && grow === null && (diary || (me.data !== undefined && me.data.preferences.diary !== 'off'));
@@ -89,6 +106,17 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
           {mayManage ? (
             <button type="button" onClick={() => choose('rename')}>
               {t('cockpit.menu.rename')}
+            </button>
+          ) : null}
+          {mayRoom ? (
+            <button type="button" onClick={() => choose('room')}>
+              {room ? t('cockpit.menu.room') : t('cockpit.menu.putInRoom')}
+              {room ? (
+                <>
+                  {' '}
+                  <span className={styles.menuLine}>{t('space.members.room.in', { room: room.name })}</span>
+                </>
+              ) : null}
             </button>
           ) : null}
           {/* Who else is here is a member's question; support reading a customer's place is not one. */}
@@ -137,9 +165,24 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
               {t('cockpit.menu.moveGrow')}
             </button>
           ) : null}
+          {mayRemove ? (
+            <button type="button" onClick={() => choose('remove')}>
+              {t('cockpit.menu.remove')}
+            </button>
+          ) : null}
         </div>
       ) : null}
+      {sheet === 'remove' ? <RemovePlaceSheet overview={overview} onClose={() => setSheet(null)} onRemoved={() => void navigate('/')} /> : null}
       {sheet === 'rename' ? <RenameSheet spaceId={overview.spaceId} name={overview.name} onClose={() => setSheet(null)} /> : null}
+      {sheet === 'room' ? (
+        <RoomSheet
+          spaceId={overview.spaceId}
+          spaceName={overview.name}
+          roomId={overview.roomId}
+          roomName={room?.name ?? null}
+          onClose={() => setSheet(null)}
+        />
+      ) : null}
       {sheet === 'device' ? <DeviceHereSheet spaceId={overview.spaceId} spaceName={overview.name} onClose={() => setSheet(null)} /> : null}
       {sheet === 'move' ? <MoveHereSheet spaceId={overview.spaceId} spaceName={overview.name} onClose={() => setSheet(null)} /> : null}
     </div>

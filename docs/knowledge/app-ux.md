@@ -79,6 +79,22 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   level of a `light` device in the same place, so a tent run by a fan and a separate lamp shows it too. A dark lamp
   reads 0 %; when it switches stays in the device line. On a narrow phone with three hour means the figure wraps
   under the temperature rather than squeezing the others.
+- **A place shares devices, a room only gathers places** (Chris, 2026-10-12, after a grower merged a tent controller
+  and a fridge module into one place and found the camera under the wrong device and maintenance pausing both). Two
+  devices in one place belong together: the camera, maintenance and the alarms are the place's. Devices that merely
+  stand in the same room are two places in one room: Start draws a room's places under its name, where the most
+  urgent of them stood (`screens/home/rooms.ts`), the place's ⋯ offers "In einen Raum stellen" to its owner from the
+  second place on, and a device's "Umbenennen oder umziehen" sheet can make a new place for it ("+ Neuer Ort"), in
+  the room it leaves. Before this a room was reached only from the Members tab and grouped nothing on Start. A room
+  is also made on Start itself ("+ Raum anlegen", with the places it holds chosen in the same sheet,
+  `screens/home/NewRoomSheet.tsx`), and Geräte lists the devices under their place and its room once there are
+  several places (`screens/devices/grouping.ts`) - growers asked for both. Where Verlauf is narrowed to one climate
+  of a shared place, the camera paired to the other device is left out; a camera paired to none stays.
+- **Any place can be removed by its owner** (Chris, 2026-10-13: "irgendwie muss es möglich sein, einen Raum, den ich
+  nicht mehr haben will, zu löschen"). The place's ⋯ offers "Ort entfernen" (`screens/space/RemovePlaceSheet.tsx`):
+  what still stands there - devices with their cameras, a loose camera, a running grow - moves to one place chosen in
+  the sheet, then the place ends. Members still have to be taken out first, and the refusal now names each thing in
+  the way (`ui/refusal.ts`) instead of a bare conflict. An ended grow no longer counts as standing in a place.
 - **Steuerung opens on Zielwerte** (a running plan is the exception) with Alarme and "Automatisch nach Grow-Plan
   steuern" as rows under them. Leaving with unsaved figures asks "Speichern und weiter / Verwerfen / Weiter
   bearbeiten"; on a phone the save bar takes the tab bar's place.

@@ -420,8 +420,10 @@
       "saving": "Saving…",
       "place": "Stands in",
       "placeNote": "From now on this device's readings and camera count for the new place. What it measured so far stays with the old one.",
-      "noPlaces": "There is no other place you steer to move it to.",
-      "openRename": "Rename"
+      "newPlace": "New place",
+      "newPlaceName": "Name of the place",
+      "moveToNew": "Create and move",
+      "moving": "Moving …"
     },
     "unnamed": "{{type}} · {{tag}}",
     "youMayLog": "What the devices here are doing is shown. A socket or the lamp is switched by whoever steers this place.",
@@ -781,6 +783,18 @@
     },
     "device": {
       "offer": "With a sensor, this place measures itself"
+    },
+    "room": {
+      "row": "Create a room",
+      "title": "New room",
+      "name": "Name",
+      "namePlaceholder": "e.g. grow room",
+      "places": "What stands in it",
+      "inRoom": "{{name}} · in {{room}}",
+      "make_one": "Create the room with {{count}} place",
+      "make_other": "Create the room with {{count}} places",
+      "making": "Creating the room …",
+      "note": "A room only gathers places: Start lists them under its name, and each device keeps steering, showing and pausing its own place. Devices that make one climate together are brought into one place instead."
     }
   },
   "me": {
@@ -2106,16 +2120,23 @@
         "make": "Make the room",
         "making": "Making the room …",
         "aRoom": "a room",
-        "note": "A room groups places for sharing: whoever is let into the room sees every place in it. A room never stands in a room, and a place stands in one room at most.",
+        "note": "A room groups places: Start lists them under its name, and whoever is let into the room sees every place in it. The devices in it stay what they are - each steers, shows and pauses its own place. A room never stands in a room, and a place stands in one room at most.",
         "submit": "Put {{name}} in {{room}}",
         "moving": "Moving …",
         "takeOut": "Take it out of {{room}}",
         "roomModel": "Share the whole room: whoever is let in here sees every place grouped under it.",
         "tentsIn_one": "{{count}} place in this room",
         "tentsIn_other": "{{count}} places in this room",
-        "noTents": "No place stands in this room yet. A place is put in from ⋯ › Members & sharing on its own page."
+        "noTents": "No place stands in this room yet. A place is put in from ⋯ › Put in a room on its own page."
       },
       "linkStopped": "The link {{code}} was stopped when @{{name}} was taken out."
+    },
+    "remove": {
+      "title": "Remove {{name}}",
+      "holds": "Still here: {{what}}.",
+      "grow": "grow {{name}}",
+      "to": "All of it moves to",
+      "nowhere": "There is no other place it could move to. Create one first."
     }
   },
   "log": {
@@ -3744,7 +3765,13 @@
       "device_states_no_climate": "This device states no climate, so there is nowhere to write one.",
       "task_done_already": "That task has been ticked off already.",
       "occurred_in_the_future": "A line records something that has happened. It can be dated back but not forward.",
-      "too_many_requests": "Too many attempts in a short time. Wait a minute and try again."
+      "too_many_requests": "Too many attempts in a short time. Wait a minute and try again.",
+      "space_in_use": "This place cannot be removed yet.",
+      "device_here": "A device still stands here.",
+      "camera_here": "A camera still looks in here.",
+      "grow_here": "A grow is still running here.",
+      "space_here": "Places still stand in this room.",
+      "member_here": "Other people are still members here - take them out under Members first."
     }
   },
   "alarmLine": {
@@ -4323,7 +4350,10 @@
       "growDay": "{{name}} · day {{day}}",
       "growTurnsOn": "turns the grow diary on",
       "growWrites": "puts the targets on the stage",
-      "shareGrow": "Share the grow"
+      "shareGrow": "Share the grow",
+      "putInRoom": "Put in a room",
+      "room": "Room",
+      "remove": "Remove place"
     },
     "devices": {
       "count_one": "{{count}} device",

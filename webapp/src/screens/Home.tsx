@@ -6,6 +6,8 @@ import { isPlace, type PlaceCard as Place } from '@/app/places';
 import { useDevices } from '@/api/devices';
 import { useMyGrows } from '@/api/grows';
 import { useHome } from '@/api/home';
+import { useSession } from '@/api/session';
+import { useSpaces } from '@/api/spaces';
 import { useDiaryLayer } from '@/api/layers';
 import { LoadFailed, RefreshFailed } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -18,6 +20,8 @@ import { NewGrowSheet } from './grow/new/NewGrowSheet';
 import { LooseGrowCard, PlaceCard } from './cockpit/PlaceCard';
 import { PlaceCockpitRead } from './cockpit/PlaceCockpit';
 import { sortedByAttention } from './home/attention';
+import { groupedByRoom } from './home/rooms';
+import { NewRoomSheet } from './home/NewRoomSheet';
 import { DiaryOffer } from './home/DiaryOffer';
 import { DueStrip, FollowingStrip } from './home/Strips';
 import styles from './Home.module.css';
@@ -25,7 +29,7 @@ import styles from './Home.module.css';
 /**
  * Start. With one place it is that place's cockpit, the same page the place
  * opens at its own address; with several it is one compact card per place,
- * each opening that cockpit. A grow standing in no place is a card of its own
+ * each opening that cockpit, and the places of one room under its name. A grow standing in no place is a card of its own
  * under either, because there is no place page for it to be part of. For
  * whoever keeps a diary, every grow at once, finished ones included, is a tap
  * away: from the cockpit's grow block with one place, from a line under the
@@ -132,6 +136,12 @@ function Places({
   const me = useAccountMe();
   const devices = useDevices(places.some(place => place.deviceIds.length > 0));
   const cards = sortedByAttention(places);
+  const { user } = useSession();
+  const spaces = useSpaces();
+  const groups = groupedByRoom(cards, spaces.data?.items ?? []);
+  const [makingRoom, setMakingRoom] = useState(false);
+  // Rooms come with a second place, and gather the owner's own places only.
+  const mayMakeRoom = (spaces.data?.items ?? []).filter(one => one.kind !== 'room' && one.archivedAt === null && one.ownerId === user?.id).length > 1;
   const diary = useDiaryLayer();
   // Offered once the account has been read and only where nobody said no; the demo has no account to keep an answer with.
   const offerDiary = !diary && me.data !== undefined && me.data.preferences.diary !== 'off';
@@ -151,18 +161,33 @@ function Places({
       {diary ? <DueStrip cards={cards} now={now} /> : null}
 
       <div className={styles.cards}>
-        {cards.map(card => (
-          <PlaceCard key={card.spaceId} card={card} devices={devices.data?.items} now={now} diary={diary} />
-        ))}
+        {groups.map(group =>
+          group.room ? (
+            <section key={group.room.id} className={styles.room} aria-label={group.room.name}>
+              <h2 className={`label ${styles.roomName}`}>{group.room.name}</h2>
+              {group.cards.map(card => (
+                <PlaceCard key={card.spaceId} card={card} devices={devices.data?.items} now={now} diary={diary} />
+              ))}
+            </section>
+          ) : (
+            <PlaceCard key={group.cards[0].spaceId} card={group.cards[0]} devices={devices.data?.items} now={now} diary={diary} />
+          ),
+        )}
         {loose.map(card => (
           <LooseGrowCard key={card.grow?.growId} card={card} />
         ))}
       </div>
 
       {diary ? <NewGrowRow onOpen={onStartGrow} /> : null}
+      {mayMakeRoom ? (
+        <button type="button" className={ui.addRow} onClick={() => setMakingRoom(true)}>
+          + {t('home.room.row')}
+        </button>
+      ) : null}
       {diary ? <MyGrowsLine /> : null}
       <FollowingStrip grows={answer.followedGrows} now={now} />
       {offerDiary ? <DiaryOffer /> : null}
+      {makingRoom ? <NewRoomSheet onClose={() => setMakingRoom(false)} /> : null}
     </section>
   );
 }

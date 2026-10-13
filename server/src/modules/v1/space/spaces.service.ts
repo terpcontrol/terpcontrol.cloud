@@ -261,7 +261,9 @@ export class SpacesService {
     if (await this.cameras.exists({ spaceId: space.id, removedAt: null })) {
       errors.push({ field: 'id', code: 'camera_here', detail: 'A camera looks into this space. Move it somewhere else first.' });
     }
-    if (await this.grows.exists({ placements: { $elemMatch: { spaceId: space.id, endedAt: null } } })) {
+    // An ended grow may keep the placement it ended in open, as the record of where it stood last; it names
+    // the place in its history the way every entry does, which the kept row still answers.
+    if (await this.grows.exists({ endedAt: null, placements: { $elemMatch: { spaceId: space.id, endedAt: null } } })) {
       errors.push({ field: 'id', code: 'grow_here', detail: 'A grow stands in this space. Move it or end it first.' });
     }
     if (await this.spaces.exists({ roomId: space.id })) {

@@ -606,6 +606,12 @@ describe('one climate of several', () => {
     expect(pooled.some(value => value !== 18)).toBe(true);
   });
 
+  it('shows the camera of the controller it is paired to beside that climate only', async () => {
+    expect((await readAs(session(OWNER), { range: '24h', deviceId: CONTROLLER })).cameras.map(camera => camera.cameraId)).toEqual([CAMERA]);
+    expect((await readAs(session(OWNER), { range: '24h', deviceId: FRIDGE_MODULE })).cameras).toEqual([]);
+    expect((await readAs(session(OWNER), { range: '24h' })).cameras.map(camera => camera.cameraId)).toEqual([CAMERA]);
+  });
+
   it('answers a device that does not stand here as one that does not exist', async () => {
     await expect(readAs(session(OWNER), { range: '24h', deviceId: 'device-elsewhere' })).rejects.toMatchObject({
       problem: { status: 404, code: 'device_not_here' },
