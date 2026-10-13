@@ -283,9 +283,62 @@
   display: none;
 }
 
-.retake {
-  width: 100%;
+.pictures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
   margin-bottom: var(--space-3);
+}
+
+.picked {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--card-2);
+}
+
+.picked img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s;
+}
+
+.pickedAction {
+  position: absolute;
+  top: var(--space-1);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 55%);
+  color: #fff;
+}
+
+.pickedTurn {
+  left: var(--space-1);
+}
+
+.pickedRemove {
+  right: var(--space-1);
+}
+
+.pickedAdd {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  aspect-ratio: 1;
+  background: var(--card-2);
+  border: var(--rule-dashed);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  text-align: center;
 }
 
 .tags {

@@ -2145,8 +2145,7 @@
       "training": "Training",
       "phase": "Phase",
       "visit": "Wartung · {{minutes}} Min",
-      "photoCaption": "Cam-Bild oder Handyfoto",
-      "photoCaptionPhone": "mit dem Handy",
+      "photoCaption": "mit dem Handy",
       "visitCaption": "Regelung und Alarme pausieren",
       "schemeWeek": "Schema-Wo {{week}}"
     },
@@ -2187,12 +2186,11 @@
     "logAsPlanned": "Wie geplant eintragen",
     "saveFailed": "Der Eintrag konnte nicht gespeichert werden",
     "photoTitle": "Fotoeintrag",
-    "camStill": "Cam-Bild",
-    "takePhoto": "Foto machen",
-    "pictureAlt": "Das Bild zu diesem Eintrag",
-    "noCam": "Hier steht keine Kamera",
+    "pictureAlt": "Bild {{n}} zu diesem Eintrag",
     "choosePicture": "Foto machen oder auswählen",
-    "camAge": "{{name}} · vor {{age}}",
+    "addPicture": "Foto hinzufügen",
+    "rotatePicture": "Bild {{n}} drehen",
+    "removePicture": "Bild {{n}} entfernen",
     "tagWhatYouDid": "Was hast du gemacht?",
     "tags": {
       "watered": "Gegossen",
@@ -2213,7 +2211,6 @@
     "taskClosed": "Aufgabe erledigt",
     "rightClick": "Rechtsklick oder Umschalt-Klick: Details",
     "oneTapVisit": "Ein Tipp trägt sofort ein und lässt sich 5 Sekunden lang zurücknehmen. Wartung fragt vorher, weil sie die Regelung pausiert.",
-    "camLightOff": "{{name}} · Licht aus · Bild von {{time}}",
     "startsIn": "ab Schema-Woche {{week}}"
   },
   "timeline": {
