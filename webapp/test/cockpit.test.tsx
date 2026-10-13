@@ -1478,6 +1478,8 @@ describe('Start', () => {
     expect(fridgeCard).toHaveTextContent('25.1');
     // The device line is the cockpit's, in its names.
     await waitFor(() => expect(fridgeCard).toHaveTextContent('Light on until 18:00 · Compressor running · Heater off'));
+    // The lamp's level stands with the readings, as a figure of its own.
+    expect(fridgeCard).toHaveTextContent('100%Light');
     // Start says what it is with its cards, as on a phone; the old "2 places · by urgency" head is gone, and the page keeps its name for a screen reader.
     expect(screen.queryByText(/^2 places/)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument();
