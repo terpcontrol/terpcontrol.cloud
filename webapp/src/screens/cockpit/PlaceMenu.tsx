@@ -2,7 +2,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { useAccountMe } from '@/api/account';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import type { SpaceOverview } from '@fg2/shared-types/v1';
 import { controlPath, membersPath } from '@/app/places';
 import { useDiaryLayer } from '@/api/layers';
@@ -14,9 +14,10 @@ import { DeviceHereSheet } from '../space/DeviceHereSheet';
 import { useDevicesElsewhere } from '../space/devices-elsewhere';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import { RoomSheet } from '../space/members/RoomSheet';
+import { RemovePlaceSheet } from '../space/RemovePlaceSheet';
 import styles from './Cockpit.module.css';
 
-type Sheet = 'rename' | 'move' | 'device' | 'room';
+type Sheet = 'rename' | 'move' | 'device' | 'room' | 'remove';
 
 /**
  * What is done to a place now and then rather than every day, behind the ⋯
@@ -52,6 +53,11 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
   const spaces = useSpaces(mayManage);
   const listed = spaces.data?.items ?? [];
   const room = listed.find(one => one.id === overview.roomId) ?? null;
+  const navigate = useNavigate();
+  const owns = user !== null && listed.some(one => one.id === overview.spaceId && one.ownerId === user.id);
+  // Ending a place is its owner's, and never the last one: that one is Start itself.
+  const mayRemove =
+    owns && overview.kind !== 'room' && listed.some(one => one.id !== overview.spaceId && one.kind !== 'room' && one.archivedAt === null);
   const mayRoom =
     overview.kind !== 'room' &&
     user !== null &&
@@ -159,8 +165,14 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
               {t('cockpit.menu.moveGrow')}
             </button>
           ) : null}
+          {mayRemove ? (
+            <button type="button" onClick={() => choose('remove')}>
+              {t('cockpit.menu.remove')}
+            </button>
+          ) : null}
         </div>
       ) : null}
+      {sheet === 'remove' ? <RemovePlaceSheet overview={overview} onClose={() => setSheet(null)} onRemoved={() => void navigate('/')} /> : null}
       {sheet === 'rename' ? <RenameSheet spaceId={overview.spaceId} name={overview.name} onClose={() => setSheet(null)} /> : null}
       {sheet === 'room' ? (
         <RoomSheet

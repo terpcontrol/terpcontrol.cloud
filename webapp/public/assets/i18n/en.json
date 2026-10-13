@@ -2130,6 +2130,13 @@
         "noTents": "No place stands in this room yet. A place is put in from ⋯ › Put in a room on its own page."
       },
       "linkStopped": "The link {{code}} was stopped when @{{name}} was taken out."
+    },
+    "remove": {
+      "title": "Remove {{name}}",
+      "holds": "Still here: {{what}}.",
+      "grow": "grow {{name}}",
+      "to": "All of it moves to",
+      "nowhere": "There is no other place it could move to. Create one first."
     }
   },
   "log": {
@@ -3758,7 +3765,13 @@
       "device_states_no_climate": "This device states no climate, so there is nowhere to write one.",
       "task_done_already": "That task has been ticked off already.",
       "occurred_in_the_future": "A line records something that has happened. It can be dated back but not forward.",
-      "too_many_requests": "Too many attempts in a short time. Wait a minute and try again."
+      "too_many_requests": "Too many attempts in a short time. Wait a minute and try again.",
+      "space_in_use": "This place cannot be removed yet.",
+      "device_here": "A device still stands here.",
+      "camera_here": "A camera still looks in here.",
+      "grow_here": "A grow is still running here.",
+      "space_here": "Places still stand in this room.",
+      "member_here": "Other people are still members here - take them out under Members first."
     }
   },
   "alarmLine": {
@@ -4339,7 +4352,8 @@
       "growWrites": "puts the targets on the stage",
       "shareGrow": "Share the grow",
       "putInRoom": "Put in a room",
-      "room": "Room"
+      "room": "Room",
+      "remove": "Remove place"
     },
     "devices": {
       "count_one": "{{count}} device",

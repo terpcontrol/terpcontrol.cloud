@@ -460,6 +460,23 @@ describe('ending one', () => {
     expect(codesOf(await refusal(() => spaces.remove(SPACE)))).toEqual(['grow_here']);
   });
 
+  it('allows it once the grow standing in it has ended', async () => {
+    await emptyOfPeople();
+    await db.grows.create({
+      id: GROW,
+      ownerId: OWNER,
+      name: 'The grow',
+      type: 'photoperiod',
+      slug: 'the-grow',
+      placements: [{ id: 'placement-1', spaceId: SPACE, startedAt: new Date('2026-01-05T00:00:00.000Z'), endedAt: null, plantIds: null }],
+      startedAt: new Date('2026-01-05T00:00:00.000Z'),
+      endedAt: new Date('2026-03-01T00:00:00.000Z'),
+    });
+
+    await spaces.remove(SPACE);
+    expect((await db.spaces.findOne({ id: SPACE }).lean())?.archivedAt).not.toBeNull();
+  });
+
   it('allows it once the grow has moved on', async () => {
     await emptyOfPeople();
     await db.grows.create({

@@ -90,6 +90,11 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   `screens/home/NewRoomSheet.tsx`), and Geräte lists the devices under their place and its room once there are
   several places (`screens/devices/grouping.ts`) - growers asked for both. Where Verlauf is narrowed to one climate
   of a shared place, the camera paired to the other device is left out; a camera paired to none stays.
+- **Any place can be removed by its owner** (Chris, 2026-10-13: "irgendwie muss es möglich sein, einen Raum, den ich
+  nicht mehr haben will, zu löschen"). The place's ⋯ offers "Ort entfernen" (`screens/space/RemovePlaceSheet.tsx`):
+  what still stands there - devices with their cameras, a loose camera, a running grow - moves to one place chosen in
+  the sheet, then the place ends. Members still have to be taken out first, and the refusal now names each thing in
+  the way (`ui/refusal.ts`) instead of a bare conflict. An ended grow no longer counts as standing in a place.
 - **Steuerung opens on Zielwerte** (a running plan is the exception) with Alarme and "Automatisch nach Grow-Plan
   steuern" as rows under them. Leaving with unsaved figures asks "Speichern und weiter / Verwerfen / Weiter
   bearbeiten"; on a phone the save bar takes the tab bar's place.
