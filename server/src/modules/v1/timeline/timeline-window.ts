@@ -155,6 +155,14 @@ export const narrowedToDevice = (devices: StoredDevice[], deviceId: string | und
 };
 
 /**
+ * The cameras a reader sees beside one climate of several: a camera paired to
+ * a device belongs to that device's climate, so the other one's pictures are
+ * left out; a camera paired to none watches the whole place and stays.
+ */
+export const camerasOfDevice = <T extends { deviceId?: string | null }>(cameras: T[], deviceId: string | undefined): T[] =>
+  deviceId ? cameras.filter(camera => !camera.deviceId || camera.deviceId === deviceId) : cameras;
+
+/**
  * The device a place's band is the targets of: its first climate, which is the
  * one the cockpit judges the place's readings against where it draws one.
  */

@@ -39,6 +39,7 @@ import { SocketRow } from './SocketRow';
 import { PairSocketRow } from './SocketSheets';
 import socketStyles from './Sockets.module.css';
 import { AutoUpdate } from './Updates';
+import { groupedByPlace } from './grouping';
 import settings from './DeviceSettings.module.css';
 import styles from './Devices.module.css';
 
@@ -102,6 +103,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
   if (devices.isPending || cameras.isPending) return <Waiting lines={3} />;
   if (!devices.data || !cameras.data) return <LoadFailed retry={() => void devices.refetch()} />;
 
+  const groups = groupedByPlace(mine, spaces.data?.items ?? []);
   const placeOf = (id: string | null): string | null => spaces.data?.items.find(space => space.id === id)?.name ?? null;
   const failedAt = devices.isError || cameras.isError ? devices.dataUpdatedAt : null;
 
@@ -125,7 +127,31 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
         {/* Without a device the tab is the door hardware comes in by, not a list
             with nothing in it: what is there - a camera - comes first, and the
             two ways in follow as rows of the same weight. */}
-        {mine.length === 0 && maySetUp ? null : (
+        {mine.length === 0 && maySetUp ? null : groups.length > 1 ? (
+          // Several places: the devices under the place they stand in, and the room around it.
+          groups.map(group => (
+            <Section
+              key={group.spaceId ?? 'nowhere'}
+              label={[group.room, group.place ?? t('devices.controllers', { count: group.devices.length })].filter(Boolean).join(' · ')}
+              empty={null}
+            >
+              {group.devices.map(device => (
+                <DeviceRow
+                  key={device.id}
+                  explain={device.id === mine[0]?.id}
+                  device={device}
+                  among={devices.data!.items}
+                  place={null}
+                  sockets={tables.tables.get(device.id)}
+                  cameras={shown.filter(camera => camera.deviceId === device.id).length}
+                  startOpen={opened !== null && device.spaceId === opened}
+                  spokeAt={spokeAt(device)}
+                  now={now}
+                />
+              ))}
+            </Section>
+          ))
+        ) : (
           <Section
             label={t('devices.controllers', { count: mine.length })}
             empty={mine.length === 0 ? t(maySetUp ? 'devices.noDevices' : 'devices.noDevicesHere') : null}

@@ -6,6 +6,7 @@ import { isPlace, type PlaceCard as Place } from '@/app/places';
 import { useDevices } from '@/api/devices';
 import { useMyGrows } from '@/api/grows';
 import { useHome } from '@/api/home';
+import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { useDiaryLayer } from '@/api/layers';
 import { LoadFailed, RefreshFailed } from '@/ui/PageState';
@@ -20,6 +21,7 @@ import { LooseGrowCard, PlaceCard } from './cockpit/PlaceCard';
 import { PlaceCockpitRead } from './cockpit/PlaceCockpit';
 import { sortedByAttention } from './home/attention';
 import { groupedByRoom } from './home/rooms';
+import { NewRoomSheet } from './home/NewRoomSheet';
 import { DiaryOffer } from './home/DiaryOffer';
 import { DueStrip, FollowingStrip } from './home/Strips';
 import styles from './Home.module.css';
@@ -134,9 +136,12 @@ function Places({
   const me = useAccountMe();
   const devices = useDevices(places.some(place => place.deviceIds.length > 0));
   const cards = sortedByAttention(places);
-  // Room names live in the space list, read only where a card stands in a room.
-  const spaces = useSpaces(places.some(place => place.roomId !== null || place.kind === 'room'));
+  const { user } = useSession();
+  const spaces = useSpaces();
   const groups = groupedByRoom(cards, spaces.data?.items ?? []);
+  const [makingRoom, setMakingRoom] = useState(false);
+  // Rooms come with a second place, and gather the owner's own places only.
+  const mayMakeRoom = (spaces.data?.items ?? []).filter(one => one.kind !== 'room' && one.archivedAt === null && one.ownerId === user?.id).length > 1;
   const diary = useDiaryLayer();
   // Offered once the account has been read and only where nobody said no; the demo has no account to keep an answer with.
   const offerDiary = !diary && me.data !== undefined && me.data.preferences.diary !== 'off';
@@ -174,9 +179,15 @@ function Places({
       </div>
 
       {diary ? <NewGrowRow onOpen={onStartGrow} /> : null}
+      {mayMakeRoom ? (
+        <button type="button" className={ui.addRow} onClick={() => setMakingRoom(true)}>
+          + {t('home.room.row')}
+        </button>
+      ) : null}
       {diary ? <MyGrowsLine /> : null}
       <FollowingStrip grows={answer.followedGrows} now={now} />
       {offerDiary ? <DiaryOffer /> : null}
+      {makingRoom ? <NewRoomSheet onClose={() => setMakingRoom(false)} /> : null}
     </section>
   );
 }

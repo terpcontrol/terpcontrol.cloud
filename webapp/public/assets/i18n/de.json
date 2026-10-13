@@ -791,6 +791,18 @@
     },
     "device": {
       "offer": "Mit einem Sensor misst es hier von selbst"
+    },
+    "room": {
+      "row": "Raum anlegen",
+      "title": "Neuer Raum",
+      "name": "Name",
+      "namePlaceholder": "z. B. Anbauraum",
+      "places": "Was steht darin",
+      "inRoom": "{{name}} · in {{room}}",
+      "make_one": "Raum mit {{count}} Ort anlegen",
+      "make_other": "Raum mit {{count}} Orten anlegen",
+      "making": "Legt den Raum an …",
+      "note": "Ein Raum fasst Orte nur zusammen: Auf Start stehen sie unter seinem Namen, und jedes Gerät regelt, zeigt und pausiert weiter seinen eigenen Ort. Geräte, die zusammen ein Klima machen, holst du dagegen in einen Ort."
     }
   },
   "me": {

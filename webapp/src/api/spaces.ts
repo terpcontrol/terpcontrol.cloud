@@ -110,6 +110,21 @@ export const useSetRoom = (spaceId: string) =>
   );
 
 /**
+ * A new room with the places it gathers, as Start asks for it in one go: the
+ * room is made first, because a place can only point at a room that exists,
+ * and then each place is moved into it.
+ */
+export const useMakeRoom = () =>
+  useWrite(
+    async ({ name, spaceIds }: { name: string; spaceIds: readonly string[] }) => {
+      const room = await api.post<Space>('/spaces', { kind: 'room', name });
+      await Promise.all(spaceIds.map(spaceId => api.patch<Space>(`/spaces/${spaceId}`, { roomId: room.id })));
+      return room;
+    },
+    client => void invalidate(client, ['spaces'], ['space'], ['home']),
+  );
+
+/**
  * A new place, written the moment it is named: a tent invented while a grow is
  * started, a room on the Members tab, or the place an RTSP camera looks at. What
  * a sheet then offers as somewhere to put something is a real space with a real

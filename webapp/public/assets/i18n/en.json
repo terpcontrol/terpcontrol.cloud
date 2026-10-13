@@ -783,6 +783,18 @@
     },
     "device": {
       "offer": "With a sensor, this place measures itself"
+    },
+    "room": {
+      "row": "Create a room",
+      "title": "New room",
+      "name": "Name",
+      "namePlaceholder": "e.g. grow room",
+      "places": "What stands in it",
+      "inRoom": "{{name}} · in {{room}}",
+      "make_one": "Create the room with {{count}} place",
+      "make_other": "Create the room with {{count}} places",
+      "making": "Creating the room …",
+      "note": "A room only gathers places: Start lists them under its name, and each device keeps steering, showing and pausing its own place. Devices that make one climate together are brought into one place instead."
     }
   },
   "me": {

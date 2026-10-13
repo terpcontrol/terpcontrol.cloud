@@ -26,7 +26,7 @@ import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
 import { lastReadingOf } from './last-reading';
 import { PANEL_METRICS, chartPartsOf, panelsOf } from './timeline-series';
-import { TimelineWindow, narrowedToDevice, steeringOf, stretchesOf, windowOf } from './timeline-window';
+import { TimelineWindow, camerasOfDevice, narrowedToDevice, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
  * The Timeline tab, as one answer.
@@ -156,7 +156,7 @@ export class TimelineService {
         .sort({ startedAt: 1 })
         .lean<StoredAlert[]>(),
       this.eventsOf(grant, spaceId, growIds, window),
-      shownCameras(this.cameras, [spaceId], grant.includeCameras),
+      shownCameras(this.cameras, [spaceId], grant.includeCameras).then(all => camerasOfDevice(all, asked.deviceId)),
       recordOf(this.targetRecord, steeringOf(devices)?.id ?? null, window),
     ]);
 
