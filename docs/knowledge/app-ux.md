@@ -1,6 +1,6 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, what was left out on purpose; read before changing a screen
-updated: 2026-10-12
+updated: 2026-10-13
 source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08
 paths:
   - webapp/src/**
@@ -74,6 +74,11 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   offer "Alle Geräte" or one climate (`?device=`, `screens/cockpit/ClimatePicker.tsx`) - Chris, 2026-10-11: that a
   place holds several devices has to stand out. One climate keeps the page as it was
   ([ADR 0001](../adr/0001-app-rewrite-data-model.md#behaviour-the-model-implies)).
+- **The Start card shows the lamp's level** as a fourth figure after the readings - "65 % / Licht" (Chris,
+  2026-10-13). It is the climate device's own light output, or, where that has none (a fan leading the place), the
+  level of a `light` device in the same place, so a tent run by a fan and a separate lamp shows it too. A dark lamp
+  reads 0 %; when it switches stays in the device line. On a narrow phone with three hour means the figure wraps
+  under the temperature rather than squeezing the others.
 - **Steuerung opens on Zielwerte** (a running plan is the exception) with Alarme and "Automatisch nach Grow-Plan
   steuern" as rows under them. Leaving with unsaved figures asks "Speichern und weiter / Verwerfen / Weiter
   bearbeiten"; on a phone the save bar takes the tab bar's place.

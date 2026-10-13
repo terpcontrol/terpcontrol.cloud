@@ -4497,7 +4497,8 @@
       "lightOnUntil": "Licht an bis {{time}}",
       "lightOffUntil": "Licht aus bis {{time}}",
       "lightAlways": "Licht durchgehend an",
-      "lightNever": "Licht durchgehend aus"
+      "lightNever": "Licht durchgehend aus",
+      "lightLevel": "Licht"
     },
     "mode": {
       "drying": "Trocknung läuft: kein Licht und kein CO₂, gehalten werden Temperatur und Luftfeuchte der Trocknung.",

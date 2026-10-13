@@ -4489,7 +4489,8 @@
       "lightOnUntil": "Light on until {{time}}",
       "lightOffUntil": "Light off until {{time}}",
       "lightAlways": "Light on round the clock",
-      "lightNever": "Light off round the clock"
+      "lightNever": "Light off round the clock",
+      "lightLevel": "Light"
     },
     "mode": {
       "drying": "Drying: no light and no CO₂; the drying temperature and humidity are held.",

@@ -4,7 +4,7 @@ import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { placePath } from '@/app/places';
-import type { CardSetpoint, CardValue, Device, HomeClimate, HomeSpaceCard, Metric } from '@fg2/shared-types/v1';
+import type { CardSetpoint, CardValue, Device, DeviceLive, HomeClimate, HomeSpaceCard, Metric } from '@fg2/shared-types/v1';
 import { deviceTitle } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
 import { DevicesHere } from './DevicesHere';
@@ -16,6 +16,7 @@ import { useZone } from '@/ui/zone';
 import { ownStatusOf } from '../control/devices/own-summary';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/LivenessPill';
+import { decimalFigure } from '@/ui/figures';
 import { figure, figureWithUnit, UNIT } from '@/ui/units';
 import {
   climateDeviceOf,
@@ -73,6 +74,10 @@ export function PlaceCard({
   const here = (devices ?? []).filter(device => card.deviceIds.includes(device.id));
   const device = climateDeviceOf(here, card.deviceIds);
   const live = useDeviceLive(device?.id ?? null).data;
+  // The lamp is the climate device's own output, or else a light of its own in the same place.
+  const lamp = here.find(one => one.type === 'light' && one.id !== device?.id) ?? null;
+  const lampLive = useDeviceLive(lamp?.id ?? null).data;
+  const lit = live?.outputs.light?.value != null ? live : lampLive?.outputs.light?.value != null ? lampLive : null;
   const quiet = here.map(one => maintenanceQuiet(one, DateTime.max(now, serverNow()))).find((one): one is Quiet => one !== null) ?? null;
   const humidifierHold = useHumidifierHold(device);
   // A place holding several climates is said climate by climate: the worst of
@@ -119,7 +124,14 @@ export function PlaceCard({
           <CardClimate key={climate.deviceId} climate={climate} device={one} devices={devices} now={now} zone={zone} quiet={own.kind === 'offline'} />
         ))
       ) : (
-        <Figures values={card.values} setpoints={card.setpoints} deviceId={device?.id ?? null} hold={humidifierHold} now={now} />
+        <Figures
+          values={card.values}
+          setpoints={card.setpoints}
+          deviceId={device?.id ?? null}
+          hold={humidifierHold}
+          lamp={status.kind === 'offline' ? null : lit}
+          now={now}
+        />
       )}
       {several ? null : <DeviceLine device={device} live={live} now={now} zone={zone} quiet={status.kind === 'offline'} />}
       <DevicesHere spaceId={card.spaceId} devices={here} lead={climates[0]?.device ?? device} linked={false} />
@@ -160,7 +172,14 @@ function CardClimate({
   return (
     <div className={styles.cardClimate}>
       <p className={styles.cardClimateName}>{device ? deviceTitle(device, t, devices) : null}</p>
-      <Figures values={climate.values} setpoints={climate.setpoints} deviceId={climate.deviceId} hold={null} now={now} />
+      <Figures
+        values={climate.values}
+        setpoints={climate.setpoints}
+        deviceId={climate.deviceId}
+        hold={null}
+        lamp={quiet ? null : (live ?? null)}
+        now={now}
+      />
       <DeviceLine device={device} live={live} now={now} zone={zone} quiet={quiet} />
     </div>
   );
@@ -169,18 +188,25 @@ function CardClimate({
 /** How urgently a tone asks for a person, so the worst climate of several speaks for its card. */
 const TONE_RANK: Record<ReturnType<typeof toneOf>, number> = { alarm: 3, warn: 2, quiet: 1, good: 0 };
 
-/** The readings a card has room for, each with its verdict and its last hour's mean. */
+/**
+ * The readings a card has room for, each with its verdict and its last hour's
+ * mean, and last how bright the lamp is. A dark lamp reads 0 %, which says it
+ * as plainly as "aus"; when it switches stays in the device line below.
+ */
 function Figures({
   values,
   setpoints,
   deviceId,
   hold,
+  lamp,
   now,
 }: {
   values: CardValue[];
   setpoints: CardSetpoint[];
   deviceId: string | null;
   hold: HumidifierHold | null;
+  /** What the device with the place's lamp last reported, if it has reported a level. */
+  lamp: DeviceLive | null;
   now: DateTime;
 }) {
   const { t } = useTranslation();
@@ -189,7 +215,8 @@ function Figures({
     const value = valueOf(values, metric);
     return value ? [{ metric, value }] : [];
   });
-  if (shown.length === 0) return null;
+  const level = lamp?.outputs.light?.value != null ? lamp.outputs.light : null;
+  if (shown.length === 0 && !level) return null;
 
   return (
     <div className={styles.cardValues}>
@@ -207,6 +234,15 @@ function Figures({
           </span>
         );
       })}
+      {level ? (
+        <span className={styles.cardReading}>
+          <span className={styles.cardValue} {...ageAttribute(valueAge(level, now))}>
+            <span className="figure">{decimalFigure(Math.round(level.value!), 0)}</span>
+            <span className="mono">%</span>
+          </span>
+          <span className={`mono ${styles.mean}`}>{t('cockpit.card.lightLevel')}</span>
+        </span>
+      ) : null}
     </div>
   );
 }
