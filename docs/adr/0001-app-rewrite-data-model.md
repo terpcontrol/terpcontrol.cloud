@@ -16,8 +16,8 @@ paths:
   end each carry the assumption the work proceeds on.
 - **Amended** on 2026-09-19 (Chris's sign-off of the backend as built), 2026-09-22 and 09-23 (access and sharing,
   measurement bands, the migration's names and corrections), 2026-10-01 to 10-04 (the work mode, the target
-  record, light hours, the plan routes), 2026-10-07 (a device's settings in its `fetch`) and 2026-10-08 (a still's
-  colour). Each change is marked "Amended <date>" where it stands and says what it replaced. Built and merged with
+  record, light hours, the plan routes), 2026-10-07 (a device's settings in its `fetch`), 2026-10-08 (a still's
+  colour) and 2026-10-14 (deleting an alert). Each change is marked "Amended <date>" where it stands and says what it replaced. Built and merged with
   #104 on 2026-10-04; every question left open at acceptance is answered, and two have been opened since (see the
   end). Decided on their own since: [ADR 0005](0005-device-times-on-the-wall-clock.md) (device times on the wall
   clock), [ADR 0006](0006-day-and-night-by-the-device-clock.md) (day and night by the device's clock),
@@ -467,6 +467,11 @@ the compressor's included - an assembly check, not something to offer beside a g
 is `POST /cameras/{id}/test-captures`. `GET /admin/logs` was never built, though the contract carries its shape
 (`AdminLogPage`). Outside `/v1`, `POST /telegram/{secret}` is the bot's webhook. The full list as it stands is the
 OpenAPI document the server serves at `/api-docs`.
+
+*Amended 2026-10-14 (Chris):* `DELETE /alerts/{id}` takes an alert that is over off the record, for whoever may
+manage what it is about; an open one is refused (409 `alert_open`), since stopping it is the rule's business. Before,
+the inbox could not be cleared at all, and an alert of a device given up stayed in it for good. Its timeline line
+stays. Giving a device up now deletes its alerts, as it already deleted its rules.
 
 ## Behaviour the model implies
 
