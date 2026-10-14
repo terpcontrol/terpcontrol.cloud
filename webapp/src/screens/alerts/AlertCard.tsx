@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { controlPath, devicesPath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
+import { useRemoveAlert } from '@/api/alerts';
 import { useDeviceCommand } from '@/api/commands';
 import type { Translate } from '@/i18n/i18n';
 import { maintenanceQuiet, maintenanceSpans, parkedLabel, parksAnything, VISIT_MINUTES } from '@/ui/maintenance';
@@ -49,9 +50,9 @@ interface AlertCardProps {
  * rule, how bad, when and for how long; a resolved card keeps both, dimmed and
  * dated, because a night the tent ran hot is still worth reading in the morning.
  *
- * What can be done about it sits on the card, and only while it is open:
- * silence the rule, put the device into maintenance, open the timeline it
- * happened in, or edit the rule. Nothing here claims a device heard a command;
+ * What can be done about it sits on the card: while it is open, silence the
+ * rule, put the device into maintenance, open the timeline it happened in, or
+ * edit the rule; once it is over, open the timeline or delete it. Nothing here claims a device heard a command;
  * what the server answered is said underneath.
  */
 export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilence }: AlertCardProps) {
@@ -98,10 +99,8 @@ export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilen
 
       {open && mayManage ? (
         <OpenChips alert={alert} rule={rule} device={device} now={now} explainSilence={explainSilence} />
-      ) : !open && alert.spaceId ? (
-        <div className={styles.chips}>
-          <TimelineChip spaceId={alert.spaceId} alert={alert} rule={rule} />
-        </div>
+      ) : !open ? (
+        <ClosedChips alert={alert} rule={rule} mayManage={mayManage} />
       ) : null}
     </li>
   );
@@ -406,6 +405,46 @@ function TimelineChip({ spaceId, alert, rule }: { spaceId: string; alert: Alert;
     <Link to={timelinePath(spaceId, focus, alert.startedAt)} className={ui.chip}>
       {t('alerts.action.timeline')}
     </Link>
+  );
+}
+
+/**
+ * The chips on a card that is over: the timeline it happened in, and deleting
+ * it for whoever may manage the device. Deleting asks first, because the card
+ * goes for everyone the place is shared with.
+ */
+function ClosedChips({ alert, rule, mayManage }: { alert: Alert; rule: AlarmRule | null; mayManage: boolean }) {
+  const { t } = useTranslation();
+  const remove = useRemoveAlert();
+  const [asking, setAsking] = useState(false);
+  if (!alert.spaceId && !mayManage) return null;
+
+  return (
+    <>
+      <div className={styles.chips}>
+        {alert.spaceId ? <TimelineChip spaceId={alert.spaceId} alert={alert} rule={rule} /> : null}
+        {mayManage ? (
+          <button type="button" className={ui.chip} disabled={remove.isPending} aria-expanded={asking} onClick={() => setAsking(!asking)}>
+            {t('alerts.action.remove')}
+          </button>
+        ) : null}
+      </div>
+      {asking || remove.error ? (
+        <div className={styles.wide}>
+          {asking ? (
+            <Asking
+              note={t('alerts.remove.ask')}
+              yes={t('alerts.action.remove')}
+              danger
+              busy={remove.isPending}
+              onYes={() => remove.mutate(alert.id, { onSuccess: () => setAsking(false) })}
+              onCancel={() => setAsking(false)}
+            />
+          ) : null}
+          <Refused error={remove.error} />
+        </div>
+      ) : null}
+    </>
   );
 }
 

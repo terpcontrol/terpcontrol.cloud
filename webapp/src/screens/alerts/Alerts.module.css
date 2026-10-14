@@ -197,6 +197,11 @@
   color: var(--warning);
 }
 
+/* The question under a finished row, across both of its columns. */
+.wide {
+  grid-column: 1 / -1;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

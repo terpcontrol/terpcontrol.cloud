@@ -8,7 +8,7 @@ import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { AccessContext, SubjectRef } from '@common/v1/access.types';
 import { CursorPage, findPage } from '@common/v1/pages';
 import { withSpacesInside } from '@common/v1/rooms';
-import { notFound } from '@common/v1/problem';
+import { conflict, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 
 /**
@@ -49,6 +49,17 @@ export class AlertInboxService {
     if (alert.spaceId) return { type: 'space', id: alert.spaceId };
 
     return null;
+  }
+
+  /**
+   * Taking an episode that is over off the record. One still open is refused:
+   * it is something happening now, and the way to stop hearing about it is to
+   * silence, disable or delete the rule that watches it.
+   */
+  public async remove(alert: StoredAlert): Promise<void> {
+    if (alert.resolvedAt === null) throw conflict('alert_open', 'An open alert cannot be deleted. Silence, disable or delete its rule instead.');
+
+    await this.alerts.deleteOne({ id: alert.id });
   }
 
   public list(where: FilterQuery<StoredAlert>, query: PageQuery): Promise<CursorPage<StoredAlert>> {

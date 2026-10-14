@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { AlarmRule, AlarmRuleCreate, AlarmRulePage, AlarmRuleUpdate, AlarmSilence, Alert, AlertPage } from '@fg2/shared-types/v1';
 import { alarmRule, alarmRuleCreate, alarmRulePage, alarmRuleUpdate, alarmSilence, alert, alertPage } from '@fg2/shared-types/v1-schemas';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
+import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService } from '@common/v1/access.service';
@@ -140,13 +141,26 @@ export class AlertsController {
   @ApiOperation({ summary: 'One alert, from what raised it to what ended it' })
   @V1Answer(alert)
   public async read(@Param('id') id: string, @Caller() caller: AccessContext): Promise<Alert> {
+    return alertOf(await this.reachable(caller, id, 'view'));
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Take an alert that is over off the record' })
+  @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Gone.' })
+  @ApiResponse({ status: HttpStatus.CONFLICT, description: 'The alert is still open.' })
+  public async remove(@Param('id') id: string, @Caller() caller: AccessContext): Promise<void> {
+    await this.inbox.remove(await this.reachable(caller, id, 'manage'));
+  }
+
+  /** An alert is what may be done to what it is about; one about nothing that still exists is nobody's but an admin's. */
+  private async reachable(caller: AccessContext, id: string, need: 'view' | 'manage'): Promise<StoredAlert> {
     const alert = await this.inbox.byId(id);
     const subject = this.inbox.subjectOf(alert);
-    // An alert about nothing that still exists is nobody's to read but an admin's.
-    if (subject) await this.access.require(caller, subject, 'view');
+    if (subject) await this.access.require(caller, subject, need);
     else if (!caller.isAdmin) throw notFound('alert_not_found', 'There is no alert with that id.');
 
-    return alertOf(alert);
+    return alert;
   }
 }
 

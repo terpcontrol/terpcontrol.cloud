@@ -68,9 +68,18 @@ export class AlarmRuleService {
       throw conflict('always_rule_metric', 'The rule the cloud keeps for this device watches whether it is there. Disable it instead.');
     }
 
+    const switchedOff = body.enabled === false && rule.enabled;
     const changed = await this.change(rule, body);
     if (body.severity !== undefined && body.severity !== rule.severity) {
       await this.alerts.updateMany({ ruleId: rule.id, resolvedAt: null }, { $set: { severity: body.severity } });
+    }
+    // A rule that is off judges no sample, so nothing would ever close what it
+    // has open: that goes quiet as a deleted rule's does, and switching it on
+    // again starts from a clean state rather than from an episode nobody holds.
+    if (switchedOff) {
+      await this.rules.updateOne({ id: rule.id }, { $set: { 'state.triggered': false, 'state.extremeValue': null } });
+      await this.alerts.updateMany({ ruleId: rule.id, resolvedAt: null }, { $set: { resolvedAt: new Date() } });
+      return { ...changed, state: { ...changed.state, triggered: false, extremeValue: null } };
     }
 
     return changed;

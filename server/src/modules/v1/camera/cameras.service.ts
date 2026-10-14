@@ -8,6 +8,7 @@ import { AccessContext, AccessRange, Grantee } from '@common/v1/access.types';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
+import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument, DEFAULT_STILL_INTERVAL_SECONDS } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
@@ -45,6 +46,7 @@ export class CamerasService {
     @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
     private readonly entitlement: EntitlementService,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
+    @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
   ) {}
 
   /**
@@ -219,9 +221,14 @@ export class CamerasService {
    * Taking a camera away is not deleting it: the stills and the films it
    * delivered keep their link, so the row stays as a tombstone and is no longer
    * listed, polled or paired to its controller.
+   *
+   * Its open alert goes quiet with it, as a deleted rule's does: the health loop
+   * judges only cameras still listed, so nothing would ever close it, and an
+   * all-clear would claim a picture came.
    */
   public async remove(id: string): Promise<void> {
     await this.cameras.updateOne({ id, removedAt: null }, { $set: { removedAt: new Date(), deviceId: null } });
+    await this.alerts.updateMany({ cameraId: id, resolvedAt: null }, { $set: { resolvedAt: new Date() } });
   }
 
   /** What the poller reports back after every try, and what the health loop reads. */

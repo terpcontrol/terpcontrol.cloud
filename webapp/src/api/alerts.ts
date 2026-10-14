@@ -2,6 +2,7 @@ import { LIVE_BEAT_MS, useReadPages } from './read';
 import type { AlertPage } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { itemsOf } from './pages';
+import { invalidate, useWriteSettled } from './write';
 
 /**
  * What has gone wrong, for the inbox behind the bell and the count on it.
@@ -54,3 +55,10 @@ export const useOpenAlertCount = (): OpenAlerts | undefined => {
 
   return { open: itemsOf(open.data).length, more: open.hasNextPage };
 };
+
+/** Takes an episode that is over off the record; the server refuses one still open. */
+export const useRemoveAlert = () =>
+  useWriteSettled(
+    (alertId: string) => api.delete(`/alerts/${alertId}`),
+    client => invalidate(client, alertsKey(false)),
+  );

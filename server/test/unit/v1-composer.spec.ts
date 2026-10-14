@@ -67,7 +67,7 @@ const compose = (body: TimelapseCreate, cameraId = CAMERA) => controller.request
 
 const build = (): void => {
   const entitlement = new EntitlementService(PREMIUM);
-  const cameras = new CamerasService(db.cameras, db.devices, db.memberships, entitlement, db.users);
+  const cameras = new CamerasService(db.cameras, db.devices, db.memberships, entitlement, db.users, db.alerts);
   media = new MediaService(db.media, db.grows, null as never);
   const access = accessOn(db);
   const poller = { settingsChanged: () => undefined, forget: () => undefined };

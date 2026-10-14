@@ -35,6 +35,7 @@ import { readingsStore, retiredDryersWith } from '@/migrations/steps/020-retired
 import { lightWindows } from '@/migrations/steps/021-light-windows';
 import { darkGermination } from '@/migrations/steps/022-dark-germination';
 import { fridgeCo2Sensor } from '@/migrations/steps/023-fridge-co2-sensor';
+import { orphanedAlerts } from '@/migrations/steps/024-orphaned-alerts';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -549,6 +550,63 @@ describe('the CO2 sensor of a fridge', () => {
     expect(await hardwareOf('fridge-stale')).toEqual({ sockets: 'none' });
     expect(await hardwareOf('controller-without')).toEqual({ co2: 'off' });
     expect(context.stats).toMatchObject({ 'devices.fridgeCo2ReportCleared': 1 });
+  });
+});
+
+describe('alerts nothing closes', () => {
+  const alert = (id: string, fields: Record<string, unknown>) => ({
+    id,
+    ruleId: null,
+    deviceId: null,
+    cameraId: null,
+    spaceId: 'space',
+    resolvedAt: null,
+    startedAt: new Date('2026-10-01T00:00:00Z'),
+    ...fields,
+  });
+
+  it('deletes what a device given up left and closes what a removed camera or an idle rule holds open', async () => {
+    await collection('devices').insertMany([
+      { id: 'released', ownerId: null, state: {} },
+      { id: 'reclaimed', ownerId: 'new-owner', state: { claimedAt: new Date('2026-10-05T00:00:00Z') } },
+      { id: 'kept', ownerId: 'owner', state: { claimedAt: new Date('2026-09-01T00:00:00Z') } },
+    ]);
+    await collection('cameras').insertMany([
+      { id: 'cam-removed', removedAt: new Date('2026-10-02T00:00:00Z') },
+      { id: 'cam-listed', removedAt: null },
+    ]);
+    await collection('alarmRules').insertMany([
+      { id: 'rule-off', enabled: false, state: { triggered: true, extremeValue: 31 } },
+      { id: 'rule-on', enabled: true, state: { triggered: true, extremeValue: 31 } },
+    ]);
+    await collection('alerts').insertMany([
+      alert('of-released', { deviceId: 'released' }),
+      alert('of-gone', { deviceId: 'gone' }),
+      alert('before-reclaim', { deviceId: 'reclaimed' }),
+      alert('after-reclaim', { deviceId: 'reclaimed', startedAt: new Date('2026-10-06T00:00:00Z') }),
+      alert('of-kept', { deviceId: 'kept', ruleId: 'rule-on' }),
+      alert('cam-removed', { cameraId: 'cam-removed' }),
+      alert('cam-listed', { cameraId: 'cam-listed' }),
+      alert('rule-off', { deviceId: 'kept', ruleId: 'rule-off' }),
+      alert('rule-gone', { deviceId: 'kept', ruleId: 'rule-gone' }),
+    ]);
+
+    await orphanedAlerts.run(new MigrationContext(db(), true, new Date(AT)));
+    expect(await collection('alerts').countDocuments()).toBe(9);
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await orphanedAlerts.run(context);
+
+    const left = await collection('alerts').find({}).toArray();
+    const openIds = left
+      .filter(row => row.resolvedAt === null)
+      .map(row => row.id)
+      .sort();
+    expect(left.map(row => row.id).sort()).toEqual(['after-reclaim', 'cam-listed', 'cam-removed', 'of-kept', 'rule-gone', 'rule-off']);
+    expect(openIds).toEqual(['after-reclaim', 'cam-listed', 'of-kept']);
+    expect((await one<{ state: { triggered: boolean } }>('alarmRules', { id: 'rule-off' }))?.state.triggered).toBe(false);
+    expect((await one<{ state: { triggered: boolean } }>('alarmRules', { id: 'rule-on' }))?.state.triggered).toBe(true);
+    expect(context.stats).toMatchObject({ 'alerts.foreignDeleted': 3, 'alerts.stuckClosed': 3, 'alarmRules.disabledUntriggered': 1 });
   });
 });
 

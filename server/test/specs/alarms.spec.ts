@@ -272,6 +272,37 @@ describe('an episode, from the reading to the inbox', () => {
     await settle(1000);
   });
 
+  it('closes the open episode of a rule that is switched off, quietly, and lets the rule start over', async () => {
+    const rule = await createRule(owner, device, aRule({ name: unique('Switched off') }));
+
+    await simulator.reportStatus({ temperature: 34 });
+    const alert = await waitForAlert(owner, rule.id);
+
+    const off = await owner.client.patch(`/v1/alarm-rules/${rule.id}`).send({ enabled: false }).expect(200);
+    expect(off.body.state.triggered).toBe(false);
+    expect((await owner.client.get(`/v1/alerts/${alert.id}`).expect(200)).body.resolvedAt).toEqual(expect.any(String));
+
+    await simulator.reportStatus({ temperature: 21 });
+    await settle(1000);
+  });
+
+  it('deletes an episode that is over for whoever may manage the device, and refuses one still open', async () => {
+    const rule = await createRule(owner, device, aRule({ name: unique('Deleted') }));
+
+    await simulator.reportStatus({ temperature: 34 });
+    const alert = await waitForAlert(owner, rule.id);
+    const refused = await owner.client.delete(`/v1/alerts/${alert.id}`).expect(409);
+    expect(refused.body.code).toBe('alert_open');
+
+    await simulator.reportStatus({ temperature: 21 });
+    await settle(1500);
+
+    await helper.client.delete(`/v1/alerts/${alert.id}`).expect(403);
+    await stranger.client.delete(`/v1/alerts/${alert.id}`).expect(404);
+    await keeper.client.delete(`/v1/alerts/${alert.id}`).expect(204);
+    await owner.client.get(`/v1/alerts/${alert.id}`).expect(404);
+  });
+
   it('lists what is open and what is over, apart', async () => {
     const open = await owner.client.get(`/v1/alerts?deviceId=${device}&open=true`).expect(200);
     expect(open.body.items.every((one: { resolvedAt: string | null }) => one.resolvedAt === null)).toBe(true);
@@ -315,6 +346,35 @@ describe('an episode, from the reading to the inbox', () => {
     const mine = await admin.client.get('/v1/alerts').expect(200);
 
     expect(mine.body.items.map((one: { deviceId: string | null }) => one.deviceId)).not.toContain(device);
+  });
+});
+
+describe('a device given up', () => {
+  it('takes its alerts with it, the open one included', async () => {
+    const seller = await createAccount('alarms-seller');
+    const sold = await provisionDevice(seller, 'controller');
+    const soldSimulator = await startSimulator(sold);
+    try {
+      await settle();
+      const rule = await createRule(seller, sold.deviceId, aRule({ name: unique('Sold') }));
+      await soldSimulator.reportStatus({ temperature: 34 });
+
+      const deadline = Date.now() + 10_000;
+      let open: { id: string } | undefined;
+      while (!open && Date.now() < deadline) {
+        const page = await seller.client.get(`/v1/alerts?deviceId=${sold.deviceId}&open=true`).expect(200);
+        open = page.body.items.find((one: { ruleId: string }) => one.ruleId === rule.id);
+        if (!open) await settle(250);
+      }
+      expect(open).toBeDefined();
+
+      await seller.client.delete(`/v1/devices/${sold.deviceId}/claim`).expect(204);
+
+      expect((await seller.client.get('/v1/alerts').expect(200)).body.items).toEqual([]);
+      expect((await admin.client.get(`/v1/alerts?deviceId=${sold.deviceId}`).expect(200)).body.items).toEqual([]);
+    } finally {
+      await soldSimulator.close();
+    }
   });
 });
 
