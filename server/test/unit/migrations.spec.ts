@@ -34,6 +34,7 @@ import { workModes } from '@/migrations/steps/019-work-modes';
 import { readingsStore, retiredDryersWith } from '@/migrations/steps/020-retired-dryers';
 import { lightWindows } from '@/migrations/steps/021-light-windows';
 import { darkGermination } from '@/migrations/steps/022-dark-germination';
+import { fridgeCo2Sensor } from '@/migrations/steps/023-fridge-co2-sensor';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -527,6 +528,27 @@ describe('the warnings row of the routing grid', () => {
     await warningsRouting.run(new MigrationContext(db(), true, new Date(AT)));
 
     expect(await routingOf(LEGACY_USER_IDS.ada)).not.toHaveProperty('warnings');
+  });
+});
+
+describe('the CO2 sensor of a fridge', () => {
+  const hardwareOf = async (id: string) => (await one<{ state: { hardware: Record<string, string> } }>('devices', { id }))?.state.hardware;
+
+  it('clears a fridge’s stale report and leaves a controller’s alone', async () => {
+    await collection('devices').insertMany([
+      { id: 'fridge-stale', type: 'fridge', state: { hardware: { co2: 'off', sockets: 'none' } } },
+      { id: 'controller-without', type: 'controller', state: { hardware: { co2: 'off' } } },
+    ]);
+
+    await fridgeCo2Sensor.run(new MigrationContext(db(), true, new Date(AT)));
+    expect(await hardwareOf('fridge-stale')).toEqual({ co2: 'off', sockets: 'none' });
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await fridgeCo2Sensor.run(context);
+
+    expect(await hardwareOf('fridge-stale')).toEqual({ sockets: 'none' });
+    expect(await hardwareOf('controller-without')).toEqual({ co2: 'off' });
+    expect(context.stats).toMatchObject({ 'devices.fridgeCo2ReportCleared': 1 });
   });
 });
 

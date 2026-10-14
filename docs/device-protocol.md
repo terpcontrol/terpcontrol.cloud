@@ -1,6 +1,6 @@
 ---
 summary: The frozen contract between a device's firmware and the cloud - HTTP, every MQTT topic and payload, hardware-info, the configuration document, commands, camera relay, tunnel; read before changing firmware, the device-protocol module or the simulator
-updated: 2026-10-12
+updated: 2026-10-14
 source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
 paths:
   - firmware/src/**
@@ -522,7 +522,8 @@ a word (`hardware-report.service.ts`). The key becomes part of a MongoDB update 
 no `.` or `$`. What passes is stored as `devices.state.hardware.<key>`, flat as the device sends it — except the
 camera's credentials, which never reach that report, because it is handed out with the sockets: `webcam_pwd`
 goes to the camera row's `secret` and to the device row's `cameraSecret`, and `webcam_url`, a legacy RTSP URL
-with credentials in it, is not stored at all. Nothing is ever written to the diary, and there is no reply.
+with credentials in it, is not stored at all - and a fridge's `co2`, which its firmware never sends: a fridge always
+has its SCD, and a stale `off` from a build of another type would never be cleared. Nothing is ever written to the diary, and there is no reply.
 
 Because it rides the log topic, a report inherits the log's limits: the queue may drop it when it is full, and
 the whole message has to fit the 384-byte serialisation buffer. That is why the firmware caps a reported value

@@ -337,6 +337,14 @@ describe('what a device logs', () => {
     expect((await stored())?.state.hardware).toEqual({ co2: 'on' });
   });
 
+  it('keeps no CO2 report from a fridge, which always has its sensor', async () => {
+    await device({ type: 'fridge' });
+
+    await messageOn('log', { severity: 0, message: 'hardware-info:co2=off' });
+
+    expect((await stored())?.state.hardware ?? {}).not.toHaveProperty('co2');
+  });
+
   it('drops a successful capture, and a failed one until the camera says to keep it', async () => {
     await device();
     await messageOn('log', { severity: 0, message: 'message-cam-capture:ok res=1280x720' });

@@ -81,6 +81,11 @@ export class HardwareReportService {
     const value = payload.slice(separator + 1);
     if (!KEY.test(key) || value.length > MAX_VALUE_LENGTH) return null;
 
+    // A fridge always has its CO2 sensor - its firmware stops regulating
+    // without one - and never reports the key, so one that arrives came from
+    // a build of another type and would never be cleared again.
+    if (key === 'co2' && device.type === 'fridge') return null;
+
     if (CAMERA_SECRET_KEYS.includes(key)) {
       await this.rememberCameraSecret(device, key, value);
       if (CAMERA_REPORT_KEYS.includes(key)) this.cameraReports?.cameraReported(device.id);

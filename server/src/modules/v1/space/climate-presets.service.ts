@@ -62,7 +62,8 @@ export class ClimatePresetsService implements ClimatePresets {
    * What the hardware reported is read with the document, because one figure of
    * the preset depends on it: a controller that says it has no CO2 sensor is one
    * whose firmware holds the target at zero, so the preset's CO2 row is left out
-   * for that device rather than stored as a target nothing runs.
+   * for that device rather than stored as a target nothing runs. A fridge never
+   * says, and always has one: its firmware does not regulate without it.
    *
    * What germination does about the humidity goes with the germination stage
    * alone: a choice about the dark is not one any other climate makes.
@@ -73,7 +74,7 @@ export class ClimatePresetsService implements ClimatePresets {
     preset: string | null,
     choices?: Partial<GerminationChoices>,
   ): Promise<AppliedPreset[]> {
-    const here = await this.devices.find({ spaceId }, { id: 1, configuration: 1, 'state.hardware': 1 }).lean<StoredDevice[]>();
+    const here = await this.devices.find({ spaceId }, { id: 1, type: 1, configuration: 1, 'state.hardware': 1 }).lean<StoredDevice[]>();
     const applied: AppliedPreset[] = [];
     const germination = stage === 'germination' ? choices : undefined;
 
@@ -81,7 +82,7 @@ export class ClimatePresetsService implements ClimatePresets {
       const settings =
         targetsOf(device.configuration) === null
           ? null
-          : presetConfiguration(stage, preset, device.configuration, device.state?.hardware?.co2 === 'on');
+          : presetConfiguration(stage, preset, device.configuration, device.type === 'fridge' || device.state?.hardware?.co2 === 'on');
       if (!settings) continue;
 
       try {
