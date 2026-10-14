@@ -1,6 +1,6 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
-updated: 2026-10-08
+updated: 2026-10-14
 source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/modules/alarm/**
@@ -111,8 +111,10 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   the UTC times within a minute of the owner's offset changing (DST, another zone) - once the account chose a zone.
 - `targetChanges` records what a device aimed at, written only when targets or the day/night cycle change; bands over
   the past are drawn from it. For an hour after a change (`SETTLE_SECONDS`) a reading between the old and the new band
-  counts as on target. A preset writes its CO2 target only to a device reporting `co2=on` (the firmware zeroes one
-  without a sensor); a device without the key, old firmware, keeps the target it has. Whoever reads a controller's
+  counts as on target. A preset writes its CO2 target only to a fridge or a device reporting `co2=on` (the firmware zeroes
+  one without a sensor); a device without the key, old firmware, keeps the target it has. A fridge always has its
+  sensor - its firmware stops regulating without one - so its `co2` report is not stored (`023-fridge-co2-sensor`
+  cleared a stale `off` that had hidden a fridge's CO2 target, readings and alarms). Whoever reads a controller's
   targets out of its document - setpoints, target record, timeline, plans, presets, verdicts - does it with
   `targetsOf` (`modules/v1/phase/phase-targets.ts`).
 

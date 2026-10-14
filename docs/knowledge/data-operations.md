@@ -1,6 +1,6 @@
 ---
 summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores; read it before an upgrade, a restore or a repair by hand
-updated: 2026-10-08
+updated: 2026-10-14
 source: Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/migrations/**
@@ -97,7 +97,8 @@ In `legacy_*`, in what the migration carried over, and in InfluxDB; `migrations/
 - **Migrated accounts** have `createdAt` from the ObjectId and `timezone: UTC` with `timezoneChosen: false`.
 - **InfluxDB:** older points carry a `user_id` tag (never read). CO2 sentinels - `co2` −1 (no SCD) or a flat 0
   (plug), `out_co2` −1 or 4294967295 (−1 as uint32) - are no longer written and are dropped on read
-  (`common/v1/sentinels.ts`); `co2=off` in the hardware report hides a removed sensor's old values.
+  (`common/v1/sentinels.ts`); `co2=off` in the hardware report hides a removed sensor's old values - a controller's only: a fridge always has its
+  sensor, and `023-fridge-co2-sensor` removed the stale `co2` a fridge had carried over from a build of another type.
 
 ## Backups and restores
 
