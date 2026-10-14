@@ -34,7 +34,7 @@ const demoDevice = async () => {
 beforeAll(async () => {
   owner = await createAccount('demo-owner');
   demo = await demoSession();
-  device = await provisionDevice(owner);
+  device = await provisionDevice(owner, 'controller');
   simulator = await startSimulator(device);
 
   // What a controller reports about itself: the camera it has paired, the
