@@ -3310,7 +3310,11 @@
       "endMaintenance": "Wartung beenden",
       "timeline": "Verlauf öffnen",
       "editRule": "Regel bearbeiten",
-      "checkCam": "Cam prüfen"
+      "checkCam": "Cam prüfen",
+      "remove": "Löschen"
+    },
+    "remove": {
+      "ask": "Die Meldung wird für alle gelöscht, mit denen du den Ort teilst. Ihre Zeile im Verlauf bleibt."
     },
     "maintenance": {
       "sent": "Angefragt. Sobald es zuhört, stellt das Gerät {{outputs}} ab, und {{quiet}} Min lang wird auf ihm kein Alarm ausgelöst.",

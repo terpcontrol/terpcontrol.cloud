@@ -3302,7 +3302,11 @@
       "endMaintenance": "End maintenance",
       "timeline": "Open timeline",
       "editRule": "Edit rule",
-      "checkCam": "Check cam"
+      "checkCam": "Check cam",
+      "remove": "Delete"
+    },
+    "remove": {
+      "ask": "The alert is deleted for everyone you share the place with. Its line in the timeline stays."
     },
     "maintenance": {
       "sent": "Asked. Once it hears, the device stops {{outputs}}, and no alarm is raised on it for {{quiet}} min.",

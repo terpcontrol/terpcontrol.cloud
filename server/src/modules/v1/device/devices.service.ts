@@ -12,6 +12,7 @@ import { withSpacesInside } from '@common/v1/rooms';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
+import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredClaimCode } from '@database/schemas/v1/claim-codes.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -52,6 +53,7 @@ export class DevicesService {
     @InjectModel(MODEL_V1.camera) private readonly cameras: Model<CameraDocument>,
     @InjectModel(MODEL_V1.plan) private readonly plans: Model<StoredPlan>,
     @InjectModel(MODEL_V1.alarmRule) private readonly alarmRules: Model<StoredAlarmRule>,
+    @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
     private readonly access: AccessService,
     @Optional() @Inject(DEVICE_PLACEMENT) private readonly placement: DevicePlacement | null = null,
     @Optional() private readonly hardwareReport: HardwareReportService | null = null,
@@ -206,6 +208,10 @@ export class DevicesService {
    * what the previous owner decided about it - their plan, their alarm rules,
    * the camera their controller answered for, the clock its light schedule was
    * kept on - because the next person to claim it must not inherit any of it.
+   *
+   * The alerts it and its camera raised go too. Nothing watches the device for
+   * the previous owner any more, so an open one would stay open on their bell
+   * for good, and a closed one would turn up on the next owner's device page.
    */
   public async releaseClaim(id: string): Promise<void> {
     const released = await this.devices
@@ -213,6 +219,7 @@ export class DevicesService {
       .lean<StoredDevice>();
     if (!released) throw notFound('device_not_found', 'There is no device with that id.');
 
+    const cameraIds = await this.cameras.distinct<string>('id', { deviceId: id, removedAt: null });
     // The camera rows stay behind for the pictures taken under them, and stop
     // being a way to the camera itself: the credential and the addresses it is
     // answered at go with the claim, so hardware that is somebody else's now
@@ -225,6 +232,7 @@ export class DevicesService {
     );
     await this.plans.deleteOne({ deviceId: id });
     await this.alarmRules.deleteMany({ deviceId: id });
+    await this.alerts.deleteMany({ $or: [{ deviceId: id }, { cameraId: { $in: cameraIds } }] });
   }
 
   /**

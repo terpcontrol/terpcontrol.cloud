@@ -47,7 +47,12 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   `GerminationAlarmsService` applies a saved choice at once rather than at the next reading. What rests and why:
   ADR 0007.
 - An alert is the record of an episode: it keeps its severity (changing a rule re-grades open alerts only) and a copy
-  of the rule's name and watch (`watched`); deleting a rule closes its open alert and keeps the rest.
+  of the rule's name and watch (`watched`); deleting or disabling a rule, and removing a camera, closes its open alert
+  quietly and keeps the rest - nothing would ever close it otherwise, since the engine skips disabled rules and the
+  health loop listed cameras only. Giving a device up deletes its alerts and its camera's: the previous owner's bell
+  would keep the open one for good, and the next owner would inherit the history. A person deletes an alert that is
+  over (`DELETE /v1/alerts/{id}`, `manage` on its subject); an open one is refused (409 `alert_open`). Migration
+  `024-orphaned-alerts` cleared what the old paths had left.
 - A rule either carries its own e-mail or webhook (`delivery.custom`: `{{placeholder}}` templates in
   `utils/webhookTemplate.ts`, trigger and resolve targets split by `|`, optionally called through the device's tunnel
   to reach a home network; a failure becomes a `message-alarm-webhook-error` line) or is routed by the person's

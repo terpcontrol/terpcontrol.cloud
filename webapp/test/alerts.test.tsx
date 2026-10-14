@@ -176,6 +176,10 @@ const answer = (method: string, path: string, body: unknown): Response => {
   if (method === 'GET' && path.startsWith('/v1/tasks')) return json({ items: server.tasks, nextCursor: null });
   if (method === 'PUT' && path.startsWith('/v1/alarm-rules/')) return json(server.rules[0]);
   if (method === 'DELETE' && path.startsWith('/v1/alarm-rules/')) return json(server.rules[0]);
+  if (method === 'DELETE' && path.startsWith('/v1/alerts/')) {
+    server.alerts = server.alerts.filter(one => `/v1/alerts/${one.id}` !== path);
+    return new Response(null, { status: 204 });
+  }
   if (method === 'PATCH' && path === '/v1/me') return json({ ...server.me, ...(body as Partial<Me>) });
   if (method === 'POST' && path.startsWith('/v1/devices/device-1/commands')) return json({ publishedAt: iso(NOW), deviceOnline: true });
   return json({ status: 404, code: 'not_found', title: 'Not found', detail: `No route for ${method} ${path}`, errors: [] }, 404);
@@ -846,6 +850,24 @@ describe('the inbox', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('This rule is switched off.');
   });
 
+  it('deletes an episode that is over once asked, and offers no delete on one still open', async () => {
+    server.alerts = [alert({ id: 'open-1' }), alert({ id: 'over-1', resolvedAt: iso(NOW.minus({ hours: 1 })) })];
+    server.rules = [rule()];
+    draw();
+
+    const remove = await screen.findByRole('button', { name: 'Delete' });
+    expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(1);
+    fireEvent.click(remove);
+    expect(screen.getByText(/deleted for everyone you share the place with/)).toBeInTheDocument();
+    expect(sentTo('DELETE', '/v1/alerts/')).toHaveLength(0);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[1]);
+
+    await waitFor(() => expect(sentTo('DELETE', '/v1/alerts/')).toHaveLength(1));
+    expect(sentTo('DELETE', '/v1/alerts/')[0].path).toBe('/v1/alerts/over-1');
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument());
+  });
+
   it('mutes everything for an hour by handing the whole notification object back', async () => {
     draw();
 
@@ -969,6 +991,14 @@ describe('a member who may only log', () => {
     expect(await screen.findByText(/Flower room B/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Silence 1 h' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Maintenance · 15 min' })).not.toBeInTheDocument();
+  });
+
+  it('may not delete an episode that is over either', async () => {
+    server.alerts = [alert({ resolvedAt: iso(NOW.minus({ hours: 1 })) })];
+    draw();
+
+    expect(await screen.findByRole('link', { name: 'Open timeline' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 
   it('is what the owner is not: the owner gets both chips', async () => {
