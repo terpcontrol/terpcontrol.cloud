@@ -27,7 +27,7 @@ matters are not kept here - is [ADR 0003](adr/0003-knowledge-base.md).
 - [Data operations](knowledge/data-operations.md) - MongoDB upgrades, migration runs, legacy shapes in real databases, backups
 - [Web app](knowledge/webapp.md) - layout and routes, build and dev server, API client and session, charts, media URLs, PWA, lint and tests
 - [Time and language in the web app](knowledge/webapp-time-and-language.md) - server clock, zones, date and figure formats, i18next mechanics
-- [How the app behaves and looks](knowledge/app-ux.md) - before changing a screen: one design, honest states, value ages, controls, help texts, charts
+- [How the app behaves and looks](knowledge/app-ux.md) - before changing a screen: one design, honest states, value ages, controls, help texts, charts, screen readers
 - [How the app speaks](knowledge/app-wording.md) - before writing a catalogue string: du-form, one word per thing, numbers, dates and units
 - [Garmin widget](knowledge/garmin.md) - the Connect IQ widget, the routes it calls, its build and release
 - [CI and release](knowledge/ci-and-release.md) - CI jobs, images, deploys and firmware releases; when a job or a deploy fails

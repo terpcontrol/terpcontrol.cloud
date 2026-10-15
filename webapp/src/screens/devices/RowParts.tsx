@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Announce } from '@/ui/Announce';
 import { useTranslation } from 'react-i18next';
 import { durationLabel } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
@@ -57,13 +58,16 @@ export function Receipt({
   if (error) return <Refused error={error} fallback={t('devices.socket.askFailed')} className={styles.socketWhy} />;
   if (!result) return null;
 
+  const said = !result.deviceOnline
+    ? t('devices.socket.notListening')
+    : heldFor == null
+      ? t('devices.socket.asked')
+      : t('devices.lightOutput.askedHold', { duration: durationLabel(heldFor) });
+
   return (
-    <p className={`${ui.note} ${styles.socketWhy}`} role="status">
-      {!result.deviceOnline
-        ? t('devices.socket.notListening')
-        : heldFor == null
-          ? t('devices.socket.asked')
-          : t('devices.lightOutput.askedHold', { duration: durationLabel(heldFor) })}
+    <p className={`${ui.note} ${styles.socketWhy}`}>
+      {said}
+      <Announce text={said} />
     </p>
   );
 }

@@ -638,15 +638,16 @@
   border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 }
 
-.stepButton:last-child {
+.stepButton:last-of-type {
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
-.stepButton:hover:not(:disabled) {
+.stepButton:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--tint);
 }
 
-.stepButton:disabled {
+.stepButton:disabled,
+.stepButton[aria-disabled='true'] {
   color: var(--label);
   opacity: 0.35;
   cursor: default;

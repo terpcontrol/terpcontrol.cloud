@@ -1,4 +1,5 @@
 import type { DateTime } from 'luxon';
+import { Announce } from '@/ui/Announce';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
@@ -258,6 +259,17 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           {t(`space.control.status.${plan.state.status}`)}
         </span>
       </header>
+      {/* A pause, a skip or a confirmation is said: the button pressed may be gone, and the page changes silently. */}
+      <p className={ui.visuallyHidden} role="status">
+        {[
+          t(`space.control.status.${plan.state.status}`),
+          plan.state.status !== 'completed' && step
+            ? `${t('space.control.stepOf', { number: plan.state.activeStepIndex + 1, count: plan.steps.length })} ${step.name}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(', ')}
+      </p>
 
       {plan.state.status === 'completed' ? null : step ? (
         <>
@@ -297,7 +309,9 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
       )}
 
       {waiting && step ? (
-        <div className={`${ui.cardDashed} ${styles.waiting}`} role="status">
+        // The age in it ticks, so it is said once, as it starts waiting, rather than as a live region.
+        <div className={`${ui.cardDashed} ${styles.waiting}`}>
+          <Announce text={t('space.control.waiting.title')} />
           <span className="label">{t('space.control.waiting.title')}</span>
           <p className={styles.waitingWhat}>{step.confirmationMessage || t('space.control.waiting.noMessage')}</p>
           <p className={ui.note}>{t('space.control.waiting.since', { age: spanLabel(overdueMs(plan, now) ?? 0) })}</p>

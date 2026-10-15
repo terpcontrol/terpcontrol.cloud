@@ -139,3 +139,22 @@ export const instantOf = (at: DateTime): string => at.toUTC().toISO()!;
 
 /** Whether an instant is still to come: a silence, a mute or a link that has not run out yet. */
 export const isAhead = (instant: string | null, now: DateTime): boolean => instant !== null && DateTime.fromISO(instant) > now;
+
+const UNITS: [limit: number, seconds: number, unit: Intl.RelativeTimeFormatUnit][] = [
+  [60, 1, 'second'],
+  [3600, 60, 'minute'],
+  [86_400, 3600, 'hour'],
+  [Infinity, 86_400, 'day'],
+];
+
+/**
+ * `ageLabel` read aloud: "vor 20 Sekunden", "3 days ago". Floored as the drawn
+ * age is, with the unit written out and in the case the language wants after
+ * "vor", which a figure and a unit symbol cannot give.
+ */
+export const spokenAgo = (measuredAt: string | null, now: DateTime = serverNow()): string => {
+  if (!measuredAt) return '';
+  const whole = Math.max(0, Math.floor((now.toMillis() - DateTime.fromISO(measuredAt).toMillis()) / 1000));
+  const [, size, unit] = UNITS.find(([limit]) => whole < limit)!;
+  return new Intl.RelativeTimeFormat(i18next.language || 'en', { numeric: 'always' }).format(-Math.floor(whole / size), unit);
+};

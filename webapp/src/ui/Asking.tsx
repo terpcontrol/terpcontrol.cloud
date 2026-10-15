@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import ui from './ui.module.css';
 
@@ -25,10 +25,16 @@ export function Asking({
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
+  const question = useRef<HTMLParagraphElement>(null);
+
+  // Asked because something was pressed, often in place of it: the question takes the focus, so it is what is read.
+  useEffect(() => question.current?.focus({ preventScroll: true }), []);
 
   return (
     <div className={ui.asking}>
-      <p className={ui.note}>{note}</p>
+      <p className={ui.note} ref={question} tabIndex={-1}>
+        {note}
+      </p>
       {children}
       <div className={ui.askingActions}>
         <button type="button" className={`${ui.button} ${danger ? ui.dangerFilled : ui.primary}`} disabled={busy} onClick={onYes}>

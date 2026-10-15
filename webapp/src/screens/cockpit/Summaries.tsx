@@ -14,6 +14,7 @@ import { useAlarmRulesOf } from '@/api/alarm-rules';
 import type { Translate } from '@/i18n/i18n';
 import { awaitingClimate, darkReasonOf } from '@/ui/climate-hardware';
 import { Waiting } from '@/ui/PageState';
+import { Dot, Spoken } from '@/ui/Spoken';
 import ui from '@/ui/ui.module.css';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
@@ -22,7 +23,7 @@ import { targetWithUnit } from '@/ui/units';
 import { alarmsReach, channelsLabel, reachedBy } from '../notifications/reach';
 import { fanSummaryOf, plugSummaryOf } from '../control/devices/own-summary';
 import { holdsHumidity, storedShapeOf, type Half } from '../control/targets/day-night';
-import { halfNowOf, lightWindowOf, lightWindowText, setpointOf, type HumidifierHold } from './place';
+import { halfNowOf, lightWindowOf, lightWindowSaid, lightWindowText, setpointOf, type HumidifierHold } from './place';
 import { PlanLine } from './PlanLine';
 import styles from './Cockpit.module.css';
 
@@ -38,10 +39,14 @@ function Summary({ title, change, children }: { title: string; change: string | 
   return (
     <section className={`${ui.card} ${styles.summary}`} aria-label={title}>
       <header className={styles.summaryHead}>
-        <span className="label">{title}</span>
+        {/* Drawn as a label, but the section's title to a screen reader moving by headings. */}
+        <span className="label" role="heading" aria-level={3}>
+          {title}
+        </span>
         {change ? (
           <Link to={change} className={`${ui.button} ${styles.change}`}>
             {t('cockpit.change')}
+            <span className={ui.visuallyHidden}>{`: ${title}`}</span>
           </Link>
         ) : null}
       </header>
@@ -102,6 +107,8 @@ export function TargetsSummary({
   const holding = halfNowOf(device, live, now, offline);
   // A smart socket has no targets but switch points of its own, which are what it is set to.
   const plug = device ? (plugSummaryOf(t, device, offsetOf(now, zone)) ?? fanSummaryOf(t, device)) : null;
+  // What a part is read aloud as, where that differs from how it is drawn.
+  const said: Record<string, string> = {};
   const rows: Row[] = (
     plug
       ? plug
@@ -128,6 +135,7 @@ export function TargetsSummary({
   ).filter((row: Row) => row.parts.length > 0);
   if (light) {
     const parts = [lightWindowText(t, light)];
+    said[parts[0]] = lightWindowSaid(t, light);
     if (light.limit < 100 && !light.never) parts.push(t('cockpit.targets.limit', { percent: light.limit }));
     rows.push({ label: t('cockpit.targets.light'), parts });
   } else if (dark && dark !== 'off') {
@@ -145,7 +153,7 @@ export function TargetsSummary({
           {rows.map(row => (
             <div key={row.label}>
               <dt>
-                {row.label}
+                {row.label}{' '}
                 {row.half && row.half === holding ? (
                   <span className={styles.nowMark} data-by={offline ? 'schedule' : undefined}>
                     {t(offline ? 'cockpit.targets.bySchedule' : 'cockpit.targets.now')}
@@ -155,8 +163,8 @@ export function TargetsSummary({
               <dd className="mono">
                 {row.parts.map((part, index) => (
                   <Fragment key={part}>
-                    {index > 0 ? ' · ' : ''}
-                    <span className={styles.part}>{part}</span>
+                    {index > 0 ? <Dot /> : null}
+                    <span className={styles.part}>{said[part] ? <Spoken said={said[part]}>{part}</Spoken> : part}</span>
                   </Fragment>
                 ))}
               </dd>

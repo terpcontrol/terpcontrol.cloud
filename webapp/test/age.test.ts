@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import { describe, expect, it } from 'vitest';
-import { ageLabel, countdownLabel, deviceLiveness, spanLabel, valueAge } from '@/ui/age';
+import { ageLabel, countdownLabel, deviceLiveness, spanLabel, spokenAgo, valueAge } from '@/ui/age';
 import { catalogue, translate } from './translations';
 
 describe('the age beside a value', () => {
@@ -16,6 +16,19 @@ describe('the age beside a value', () => {
 
   it('says so when a metric was never reported', () => {
     expect(ageLabel(null, now)).toBe('—');
+  });
+});
+
+describe('the age read aloud', () => {
+  const now = DateTime.fromISO('2026-09-18T12:00:00Z');
+  const ago = (seconds: number) => now.minus({ seconds }).toISO();
+
+  // A screen reader spells "3 d" out letter by letter; the words it reads instead are floored as the drawn age is.
+  it('writes the unit out, in the case "vor" wants', () => {
+    expect(spokenAgo(ago(20), now)).toBe('20 seconds ago');
+    expect(spokenAgo(ago(4 * 60 + 59), now)).toBe('4 minutes ago');
+    expect(spokenAgo(ago(3 * 86_400), now)).toBe('3 days ago');
+    expect(spokenAgo(null, now)).toBe('');
   });
 });
 

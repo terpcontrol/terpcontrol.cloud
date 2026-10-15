@@ -5,7 +5,7 @@ import { useSpaces } from '@/api/spaces';
 import { Sheet } from '@/ui/Sheet';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
-import { SheetAnswer } from '@/ui/SheetParts';
+import { Answered, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { deviceTitle } from '@/ui/naming';
 import sheet from '../Maintenance.module.css';
@@ -78,9 +78,9 @@ function ReleaseSheet({ deviceId, onClose }: { deviceId: string; onClose: () => 
       onClose={release.isSuccess ? done : onClose}
       actions={actions}
     >
-      <div className={sheet.body} role={release.isSuccess ? 'status' : undefined}>
+      <div className={sheet.body}>
         {release.isSuccess ? (
-          <p>{t('release.done', { name })}</p>
+          <Answered>{t('release.done', { name })}</Answered>
         ) : sure ? (
           <p>{t('release.sure', { name })}</p>
         ) : (

@@ -381,15 +381,15 @@ describe('the cockpit of a place that is fine', () => {
     draw(<PlaceCockpit overview={overviewOf()} />);
 
     const targets = screen.getByRole('region', { name: 'Targets' });
-    expect(targets).toHaveTextContent('Day25 °C · 60 % · CO₂ 900 ppm');
-    expect(targets).toHaveTextContent('Night21 °C · 55 %');
+    expect(targets).toHaveTextContent('Day 25 °C · , 60 % · , CO₂ 900 ppm');
+    expect(targets).toHaveTextContent('Night 21 °C · , 55 %');
     expect(await within(targets).findByText('06:00–18:00 · 12 h')).toBeInTheDocument();
-    expect(within(targets).getByRole('link', { name: 'Change' })).toHaveAttribute('href', '/control?space=space-1');
+    expect(within(targets).getByRole('link', { name: 'Change: Targets' })).toHaveAttribute('href', '/control?space=space-1');
 
     const alarms = screen.getByRole('region', { name: 'Alarms' });
     // The bound in words: a "›" in a run of prose reads as the chevron of the link under it.
     expect(await within(alarms).findByText('Device offline · Too warm above 30 °C')).toBeInTheDocument();
-    expect(within(alarms).getByRole('link', { name: 'Change' })).toHaveAttribute('href', '/control/alarms?space=space-1');
+    expect(within(alarms).getByRole('link', { name: 'Change: Alarms' })).toHaveAttribute('href', '/control/alarms?space=space-1');
     // Nothing reaches this account, so the summary says so and links to the fix.
     expect(await within(alarms).findByRole('link', { name: /don't reach you/ })).toHaveAttribute('href', '/me/notifications');
   });
@@ -666,7 +666,8 @@ describe('a place holding several climates', () => {
 
     const headings = screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent);
     expect(headings.some(text => text?.startsWith('Mother controller'))).toBe(true);
-    expect(headings).toHaveLength(2);
+    expect(headings).toHaveLength(3);
+    expect(headings).toContain('Latest');
     expect(within(mother).getByRole('region', { name: 'Targets' })).toHaveTextContent('25 °C');
     expect(screen.getAllByRole('region', { name: 'Targets' })).toHaveLength(2);
   });
@@ -704,7 +705,7 @@ describe('a place holding several climates', () => {
     draw(<PlaceCockpit overview={overviewOf({ climates: [{ ...twoClimates().climates[0] }] })} headed />);
 
     await screen.findByRole('link', { name: /^Temperature/ });
-    expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0);
+    expect(screen.queryAllByRole('heading', { level: 2 }).map(one => one.textContent)).toEqual(['Latest']);
   });
 });
 
@@ -738,7 +739,7 @@ describe('a customer´s place read by support', () => {
     await waitFor(() => expect(temperature).toHaveTextContent('Compressor running for 12 min'));
     const alarms = await screen.findByRole('region', { name: 'Alarms' });
     expect(await within(alarms).findByText('Device offline · Too warm above 30 °C')).toBeInTheDocument();
-    expect(within(alarms).queryByRole('link', { name: 'Change' })).not.toBeInTheDocument();
+    expect(within(alarms).queryByRole('link', { name: /^Change/ })).not.toBeInTheDocument();
     // Whose phone an alarm reaches is a fact of the reader's account, and support's is not the customer's.
     expect(within(alarms).queryByRole('link', { name: /don't reach you/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Switch control off/ })).not.toBeInTheDocument();
@@ -756,7 +757,7 @@ describe('a place in another work mode', () => {
     expect(await screen.findByText(/^Germination · dark: no light and no CO₂, one temperature round the clock/)).toBeInTheDocument();
     expect(screen.getAllByText('off · germination').length).toBeGreaterThan(0);
     // Ended by the seedling climate under Steuerung, like drying.
-    expect(screen.getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', expect.stringContaining('/control'));
+    expect(screen.getByRole('link', { name: 'Change' })).toHaveAttribute('href', expect.stringContaining('/control'));
   });
 
   it('says a drying fridge is drying, with the way to end it in Steuerung', async () => {
@@ -766,7 +767,7 @@ describe('a place in another work mode', () => {
     draw(<PlaceCockpit overview={overviewOf()} />);
 
     expect(await screen.findByText(/^Drying: no light and no CO₂/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', expect.stringContaining('/control'));
+    expect(screen.getByRole('link', { name: 'Change' })).toHaveAttribute('href', expect.stringContaining('/control'));
   });
 
   it('says a drying fridge holds no CO₂ because it is drying, not because it is night', async () => {
@@ -828,7 +829,7 @@ describe('day and night on the cockpit', () => {
     const light = await tile('Light');
     await waitFor(() => expect(light).toHaveTextContent('day until 18:00'));
     expect(light).not.toHaveTextContent('on at 06:00');
-    await waitFor(() => expect(within(targetsCard()).getByText('now').closest('dt')).toHaveTextContent(/^Daynow$/));
+    await waitFor(() => expect(within(targetsCard()).getByText('now').closest('dt')).toHaveTextContent(/^Day now$/));
   });
 
   it('names the night where the device says it is in one, the lamp held on through it', async () => {
@@ -837,7 +838,7 @@ describe('day and night on the cockpit', () => {
 
     await waitFor(async () => expect(await tile('Temperature')).toHaveTextContent('Night target 21 °C'));
     await waitFor(async () => expect(await tile('Light')).toHaveTextContent('night until 06:00'));
-    await waitFor(() => expect(within(targetsCard()).getByText('now').closest('dt')).toHaveTextContent(/^Nightnow$/));
+    await waitFor(() => expect(within(targetsCard()).getByText('now').closest('dt')).toHaveTextContent(/^Night now$/));
   });
 
   it('calls a germinating fridge´s target the germination´s, with no night beside it and the light off', async () => {
@@ -858,8 +859,8 @@ describe('day and night on the cockpit', () => {
 
     await waitFor(async () => expect(await tile('Temperature')).toHaveTextContent('Germination target 24 °C'));
     expect(await tile('Humidity')).toHaveTextContent('no target · germination');
-    await waitFor(() => expect(targetsCard()).toHaveTextContent('Germination24 °C'));
-    expect(targetsCard()).toHaveTextContent('Lightoff · germination');
+    await waitFor(() => expect(targetsCard()).toHaveTextContent('Germination 24 °C'));
+    expect(targetsCard()).toHaveTextContent('Light off · germination');
     expect(targetsCard()).not.toHaveTextContent(/Day|Night/);
   });
 
@@ -927,7 +928,7 @@ describe('day and night on the cockpit', () => {
     expect(screen.getByText('Humidity 22 % too low')).toBeInTheDocument();
     expect(screen.queryByText('All on target')).not.toBeInTheDocument();
     expect(screen.getByText(/one temperature round the clock, and the humidifier holds 80 % humidity\./)).toBeInTheDocument();
-    expect(targetsCard()).toHaveTextContent('Germination24 °C · 80 %');
+    expect(targetsCard()).toHaveTextContent('Germination 24 °C · , 80 %');
   });
 
   it('keeps saying germination holds no humidity where the humidifier rests', async () => {
@@ -958,8 +959,8 @@ describe('day and night on the cockpit', () => {
 
     await waitFor(async () => expect(await tile('Temperature')).toHaveTextContent('Germination target 24 °C'));
     expect(await tile('Humidity')).toHaveTextContent('no target · germination');
-    await waitFor(() => expect(targetsCard()).toHaveTextContent('Germination24 °C'));
-    expect(targetsCard()).toHaveTextContent('Lightoff · germination');
+    await waitFor(() => expect(targetsCard()).toHaveTextContent('Germination 24 °C'));
+    expect(targetsCard()).toHaveTextContent('Light off · germination');
     expect(targetsCard()).not.toHaveTextContent(/Day|Night/);
   });
 
@@ -972,8 +973,8 @@ describe('day and night on the cockpit', () => {
     await waitFor(() => expect(light).toHaveTextContent('on round the clock · 24 h'));
     expect(light).not.toHaveTextContent(/off at|05:59/);
     expect(within(light).getByRole('img', { name: 'on round the clock · 24 h' })).toBeInTheDocument();
-    await waitFor(() => expect(targetsCard()).toHaveTextContent('Round the clock25 °C · 60 % · CO₂ 900 ppm'));
-    expect(targetsCard()).toHaveTextContent('Lighton round the clock · 24 h');
+    await waitFor(() => expect(targetsCard()).toHaveTextContent('Round the clock 25 °C · , 60 % · , CO₂ 900 ppm'));
+    expect(targetsCard()).toHaveTextContent('Light on round the clock · 24 h');
     expect(targetsCard()).not.toHaveTextContent('Night');
     // One climate round the clock has no other half to name it against.
     await waitFor(async () => expect(await tile('Temperature')).toHaveTextContent('Target 25 °C'));
@@ -992,8 +993,8 @@ describe('day and night on the cockpit', () => {
 
     await waitFor(async () => expect(await tile('Light')).toHaveTextContent('off round the clock · 0 h'));
     await waitFor(async () => expect(await tile('CO₂')).toHaveTextContent('no target without light'));
-    await waitFor(() => expect(targetsCard()).toHaveTextContent('Round the clock21 °C · 55 %'));
-    expect(targetsCard()).toHaveTextContent('Lightoff round the clock · 0 h');
+    await waitFor(() => expect(targetsCard()).toHaveTextContent('Round the clock 21 °C · , 55 %'));
+    expect(targetsCard()).toHaveTextContent('Light off round the clock · 0 h');
   });
 });
 
@@ -1167,13 +1168,13 @@ describe('what a place reports decides its tiles', () => {
     });
     const { unmount } = draw(<PlaceCockpit overview={withCamera} />);
 
-    const camera = screen.getByRole('link', { name: 'Open the camera' });
+    const camera = screen.getByRole('link', { name: /Open the camera$/ });
     expect(camera).toHaveAttribute('href', '/cameras/cam-1');
     expect(within(camera).getByRole('img')).toHaveAttribute('src', '/media/media-1');
     unmount();
 
     draw(<PlaceCockpit overview={overviewOf()} />);
-    expect(screen.queryByRole('link', { name: 'Open the camera' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Open the camera$/ })).not.toBeInTheDocument();
   });
 });
 
@@ -1233,7 +1234,7 @@ describe('the diary on a place', () => {
     expect(link).toHaveTextContent('Flower · wk 2 · Amnesia');
     expect(link).toHaveTextContent('Defoliated');
     expect(within(grow).getByText('Water')).toBeInTheDocument();
-    expect(within(grow).getByRole('button', { name: 'Done' })).toBeInTheDocument();
+    expect(within(grow).getByRole('button', { name: /^Done: / })).toBeInTheDocument();
   });
 
   /**
@@ -1266,8 +1267,8 @@ describe('the diary on a place', () => {
     draw(<PlaceCockpit overview={{ ...growing, cameras: [camera] }} />);
 
     const grow = await screen.findByRole('region', { name: 'Grow' });
-    expect(within(grow).getByRole('link', { name: 'Open the camera' })).toHaveTextContent('Day 34 · Flower wk 2');
-    expect(screen.getAllByRole('link', { name: 'Open the camera' })).toHaveLength(1);
+    expect(within(grow).getByRole('link', { name: /Open the camera$/ })).toHaveTextContent('Day 34 · Flower wk 2');
+    expect(screen.getAllByRole('link', { name: /Open the camera$/ })).toHaveLength(1);
   });
 
   it('says a camera alone is delivering, or since when it is not, where nothing measures the place', async () => {
@@ -1355,7 +1356,7 @@ describe('the place menu', () => {
     expect(await screen.findByRole('link', { name: 'Invite members' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Choose a climate preset/ })).not.toBeInTheDocument();
-    expect(screen.queryAllByRole('link', { name: 'Change' })).toHaveLength(0);
+    expect(screen.queryAllByRole('link', { name: /^Change/ })).toHaveLength(0);
   });
 });
 
@@ -1491,7 +1492,7 @@ describe('Start', () => {
     expect(fridgeCard).toHaveTextContent('All on target');
     expect(fridgeCard).toHaveTextContent('25.1');
     // The device line is the cockpit's, in its names.
-    await waitFor(() => expect(fridgeCard).toHaveTextContent('Light on until 18:00 · Compressor running · Heater off'));
+    await waitFor(() => expect(fridgeCard).toHaveTextContent('Light on until 18:00 · , Compressor running · , Heater off'));
     // The lamp's level stands with the readings, as a figure of its own.
     expect(fridgeCard).toHaveTextContent('100%Light');
     // Start says what it is with its cards, as on a phone; the old "2 places · by urgency" head is gone, and the page keeps its name for a screen reader.
@@ -1508,7 +1509,7 @@ describe('Start', () => {
     draw(<Home />);
 
     const fridgeCard = (await screen.findByRole('link', { name: 'Fridge 1' })).closest('article')!;
-    await waitFor(() => expect(fridgeCard).toHaveTextContent('Light on round the clock · Compressor running'));
+    await waitFor(() => expect(fridgeCard).toHaveTextContent('Light on round the clock · , Compressor running'));
     expect(fridgeCard).not.toHaveTextContent('until');
   });
 });

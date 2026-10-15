@@ -1,5 +1,7 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
+import { announce } from '@/ui/live-region';
+import { Asking } from '@/ui/Asking';
 import { useTranslation } from 'react-i18next';
 import type { Device, GrowthStage, Plan, PlanNotifyMode, StepDuration } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
@@ -79,10 +81,33 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
   const [draft, setDraft] = useState<PlanDraft>(() => asWritableBy(opened, device));
   /** One step is open at a time: two editors would be two answers to what is being written. */
   const [open, setOpen] = useState<string | null>(opened.steps.length === 1 ? opened.steps[0].key : null);
+  const [first] = useState(() => JSON.stringify(asWritableBy(opened, device)));
+  const [leaving, setLeaving] = useState(false);
+  // Escape, the backdrop and × all close the sheet; with edits in it they ask first, since Escape is pressed out of habit.
+  const close = () => (JSON.stringify(draft) === first ? onClose() : setLeaving(true));
+  const fits = lightHoursFit(draft.steps);
 
   const effect = plan ? editEffect(plan, draft.steps, now) : null;
   const steps = (next: StepDraft[]) => setDraft(current => ({ ...current, steps: next }));
   const change = (key: string, over: Partial<StepDraft>) => steps(draft.steps.map(step => (step.key === key ? { ...step, ...over } : step)));
+
+  /** Moved and said where to, with the focus kept on the button that moved it, which the move takes along. */
+  const move = (index: number, by: -1 | 1) => {
+    const step = draft.steps[index];
+    if (index + by < 0 || index + by >= draft.steps.length) return;
+    steps(moveStep(draft.steps, index, by));
+    announce(t('space.control.step.moved', { name: step.name, number: index + by + 1, count: draft.steps.length }));
+    requestAnimationFrame(() => document.getElementById(`${step.key}-${by < 0 ? 'up' : 'down'}`)?.focus());
+  };
+
+  /** Removed at once, as it always was, and said; the focus goes to the step that took its place, or to adding one. */
+  const remove = (index: number) => {
+    const step = draft.steps[index];
+    const next = draft.steps[index + 1] ?? draft.steps[index - 1];
+    steps(draft.steps.filter(one => one.key !== step.key));
+    announce(t('space.control.step.removed', { name: step.name }));
+    requestAnimationFrame(() => document.getElementById(next ? `${next.key}-open` : 'plan-add-step')?.focus());
+  };
 
   const add = () => {
     const step = newStep(t('space.control.step.defaultName', { number: draft.steps.length + 1 }));
@@ -91,8 +116,18 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
   };
 
   return (
-    <Sheet title={t(plan ? 'space.control.editor.title' : 'space.control.editor.newTitle')} onClose={onClose}>
+    <Sheet title={t(plan ? 'space.control.editor.title' : 'space.control.editor.newTitle')} onClose={close}>
       <div className={ui.sheetBody}>
+        {leaving ? (
+          <Asking
+            note={t('space.control.editor.leave')}
+            yes={t('targets.discard')}
+            danger
+            busy={false}
+            onYes={onClose}
+            onCancel={() => setLeaving(false)}
+          />
+        ) : null}
         <Block label={t('space.control.editor.plan')}>
           <label className="label" htmlFor="plan-name">
             {t('space.control.editor.name')}
@@ -130,31 +165,43 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
                     </span>
                   </span>
                   <span className={styles.editButtons}>
+                    {/* At an end a move says so rather than being disabled, which would drop the focus moved onto it. */}
                     <button
                       type="button"
+                      id={`${step.key}-up`}
                       className={styles.icon}
                       aria-label={t('space.control.step.up', { name: step.name })}
-                      disabled={index === 0}
-                      onClick={() => steps(moveStep(draft.steps, index, -1))}
+                      aria-disabled={index === 0 || undefined}
+                      onClick={() => move(index, -1)}
                     >
                       <ChevronUp size={16} strokeWidth={2} aria-hidden />
                     </button>
                     <button
                       type="button"
+                      id={`${step.key}-down`}
                       className={styles.icon}
                       aria-label={t('space.control.step.down', { name: step.name })}
-                      disabled={index === draft.steps.length - 1}
-                      onClick={() => steps(moveStep(draft.steps, index, 1))}
+                      aria-disabled={index === draft.steps.length - 1 || undefined}
+                      onClick={() => move(index, 1)}
                     >
                       <ChevronDown size={16} strokeWidth={2} aria-hidden />
                     </button>
-                    <button type="button" className={ui.chip} onClick={() => setOpen(open === step.key ? null : step.key)}>
+                    <button
+                      type="button"
+                      id={`${step.key}-open`}
+                      className={ui.chip}
+                      aria-expanded={open === step.key}
+                      aria-controls={`${step.key}-fields`}
+                      aria-label={t('space.control.step.openNamed', { name: step.name })}
+                      onClick={() => setOpen(open === step.key ? null : step.key)}
+                    >
                       {t(open === step.key ? 'space.control.step.close' : 'space.control.step.open')}
                     </button>
                     <button
                       type="button"
                       className={`${ui.chip} ${ui.danger}`}
-                      onClick={() => steps(draft.steps.filter(one => one.key !== step.key))}
+                      aria-label={t('space.control.step.removeNamed', { name: step.name })}
+                      onClick={() => remove(index)}
                     >
                       {t('space.control.step.remove')}
                     </button>
@@ -163,6 +210,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
 
                 {open === step.key ? (
                   <StepFields
+                    id={`${step.key}-fields`}
                     step={step}
                     device={device}
                     afterGermination={followsGermination(draft.steps, index, draft.loop)}
@@ -173,8 +221,8 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
             ))}
           </ol>
 
-          <button type="button" className={ui.button} onClick={add}>
-            + {t('space.control.step.add')}
+          <button type="button" id="plan-add-step" className={ui.button} onClick={add}>
+            <span aria-hidden>+</span> {t('space.control.step.add')}
           </button>
         </Block>
 
@@ -186,11 +234,18 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
         <button
           type="button"
           className={`${ui.button} ${ui.primary} ${styles.submit}`}
-          disabled={save.isPending || !lightHoursFit(draft.steps)}
+          disabled={save.isPending || !fits}
+          aria-describedby={fits ? undefined : 'plan-save-why'}
           onClick={() => save.mutate(replaceBody(draft), { onSuccess: () => onClose() })}
         >
           {save.isPending ? t('grow.lifecycle.saving') : t('space.control.editor.save')}
         </button>
+        {/* The step that says why may be folded away; the reason stands under the button it keeps from saving. */}
+        {fits ? null : (
+          <p className={ui.note} id="plan-save-why">
+            {t('planLight.range', LIGHT_HOURS)}
+          </p>
+        )}
       </div>
     </Sheet>
   );
@@ -207,11 +262,13 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
  * closed one screen up, so this is the plan somebody is taking off.
  */
 function StepFields({
+  id,
   step,
   device,
   afterGermination,
   onChange,
 }: {
+  id: string;
   step: StepDraft;
   device: Device;
   /** Whether the step follows a germination step, which it ends however little else it writes. */
@@ -242,7 +299,7 @@ function StepFields({
   const dark = isDarkStage(step.stage) ? (step.stage as 'drying' | 'germination') : null;
 
   return (
-    <div className={styles.fields}>
+    <div className={styles.fields} id={id}>
       <label className="label" htmlFor={`step-name-${step.key}`}>
         {t('space.control.step.name')}
       </label>
@@ -320,7 +377,7 @@ function StepFields({
         />
       ) : null}
       {step.lightHours !== null && (step.lightHours < LIGHT_HOURS.min || step.lightHours > LIGHT_HOURS.max) ? (
-        <p className={ui.note} role="alert">
+        <p className={ui.note} role="alert" id={`step-light-${step.key}-range`}>
           {t('planLight.range', LIGHT_HOURS)}
         </p>
       ) : null}
@@ -442,6 +499,7 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
   const own = stepLightsOn(step.settings);
   const hours = stepLightHours(step);
   const lightsOn = own ?? (device.configuration ? targetsOf(device.configuration).lightsOn : null);
+  const outside = step.lightHours !== null && (step.lightHours < LIGHT_HOURS.min || step.lightHours > LIGHT_HOURS.max);
 
   return (
     <>
@@ -459,6 +517,8 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
           max={LIGHT_HOURS.max}
           step={1}
           placeholder="—"
+          aria-invalid={outside || undefined}
+          aria-describedby={outside ? `${id}-range` : undefined}
           value={hours ?? ''}
           onChange={event => onChange({ lightHours: event.target.value === '' ? null : Number(event.target.value) })}
         />
