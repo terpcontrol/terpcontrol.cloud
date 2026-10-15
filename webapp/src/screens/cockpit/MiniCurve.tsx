@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TimelinePanel, TimelineSpan } from '@fg2/shared-types/v1';
 import { HOUR_MS } from '@/ui/days';
 import { Term } from '@/ui/Help';
+import { figureWithUnit } from '@/ui/units';
 import { CLOCK, useZone, zonedAt } from '@/ui/zone';
 import { at, stretchesOf } from '../timeline/window';
 import styles from './Cockpit.module.css';
@@ -69,10 +70,20 @@ export function MiniCurve({ panel, nights, transitions = [], from: windowFrom, t
     .join(' ');
   const last = points[points.length - 1];
   const since = t('cockpit.tile.since', { time: zonedAt(first, zone).toFormat(CLOCK) });
+  // What the line shows, said: its lowest and highest, and where it went in the last hour.
+  const hourAgo = points.find(point => at(point.measuredAt) >= at(last.measuredAt) - HOUR_MS) ?? last;
+  const change = (last.value as number) - (hourAgo.value as number);
+  const trend = Math.abs(change) < (high - low) * 0.05 ? 'steady' : change > 0 ? 'rising' : 'falling';
+  const said = t('spoken.curve', {
+    label,
+    low: figureWithUnit(Math.min(...values), panel.metric),
+    high: figureWithUnit(Math.max(...values), panel.metric),
+    trend: t(`spoken.trend.${trend}`),
+  });
 
   return (
     <div className={styles.curve}>
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" role="img" aria-label={label}>
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" role="img" aria-label={said}>
         <clipPath id={clip}>
           <rect width={WIDTH} height={HEIGHT} />
         </clipPath>

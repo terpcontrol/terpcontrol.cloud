@@ -23,3 +23,6 @@ export const json = (body: unknown, status = 200) => new Response(JSON.stringify
 
 /** The API's answer for what is not there. */
 export const NOT_FOUND = { status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] };
+
+/** What the app's one live region (`ui/live-region.ts`) last said. */
+export const announced = () => document.querySelector<HTMLElement>('[data-announcer]');

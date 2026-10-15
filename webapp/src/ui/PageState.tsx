@@ -77,9 +77,8 @@ export function RefreshFailed({ failedAt, now }: { failedAt: number | null; now:
   if (!failedAt) return null;
 
   return (
-    <p className={`mono ${styles.refreshFailed}`} role="status">
-      {t('home.refreshFailed', { age: ageLabel(fetchedAt(failedAt), now) })}
-    </p>
+    // No live region: the age in it changes every ten seconds, and each would be said again.
+    <p className={`mono ${styles.refreshFailed}`}>{t('home.refreshFailed', { age: ageLabel(fetchedAt(failedAt), now) })}</p>
   );
 }
 

@@ -91,9 +91,11 @@ export function DayNightTable(props: TableProps) {
   const named = (half: Half, figureName: 'Temperature' | 'Humidity') =>
     regime === 'drying' || regime === 'germination' ? t(`targets.aria.${regime}${figureName}`) : t(`targets.aria.${half}${figureName}`);
 
-  const stepper = (field: Field, name: string, spec: (typeof SPECS)[keyof typeof SPECS]) => (
+  // The unit stands in the row's head, which a screen reader moving from field to field does not hear.
+  const stepper = (field: Field, name: string, spec: (typeof SPECS)[keyof typeof SPECS], spokenUnit: string) => (
     <Stepper
       name={name}
+      spokenUnit={spokenUnit}
       value={draft[field]}
       {...spec}
       less={t('targets.stepLess', { name })}
@@ -121,7 +123,8 @@ export function DayNightTable(props: TableProps) {
         label: t('targets.table.temperature'),
         unit: UNIT.temperature ?? '°C',
         fields: ['dayTemperature', 'nightTemperature'],
-        cells: half => stepper(half === 'day' ? 'dayTemperature' : 'nightTemperature', named(half, 'Temperature'), SPECS.temperature),
+        cells: half =>
+          stepper(half === 'day' ? 'dayTemperature' : 'nightTemperature', named(half, 'Temperature'), SPECS.temperature, UNIT.temperature ?? '°C'),
       },
     ];
   if (holdsHumidity(shape)) {
@@ -134,7 +137,7 @@ export function DayNightTable(props: TableProps) {
         const now = vpd(half, draft);
         return (
           <>
-            {stepper(half === 'day' ? 'dayHumidity' : 'nightHumidity', named(half, 'Humidity'), SPECS.humidity)}
+            {stepper(half === 'day' ? 'dayHumidity' : 'nightHumidity', named(half, 'Humidity'), SPECS.humidity, UNIT.humidity ?? '%')}
             <span className={styles.derived} data-changed={now !== vpd(half, baseline) || undefined}>
               <Term topic="vpd">{t('targets.table.vpd', { value: now })}</Term>
             </span>
@@ -150,7 +153,11 @@ export function DayNightTable(props: TableProps) {
       unit: UNIT.co2 ?? 'ppm',
       fields: ['co2'],
       cells: half =>
-        half === 'day' ? stepper('co2', t('targets.aria.co2'), SPECS.co2) : <span className={styles.none}>{t('targets.table.co2Night')}</span>,
+        half === 'day' ? (
+          stepper('co2', t('targets.aria.co2'), SPECS.co2, UNIT.co2 ?? 'ppm')
+        ) : (
+          <span className={styles.none}>{t('targets.table.co2Night')}</span>
+        ),
     });
   }
   if (hasDay(regime)) {
@@ -162,7 +169,7 @@ export function DayNightTable(props: TableProps) {
       help: 'lightLimit',
       cells: half =>
         half === 'day' ? (
-          stepper('lightLimit', t('targets.aria.lightLimit'), SPECS.light)
+          stepper('lightLimit', t('targets.aria.lightLimit'), SPECS.light, '%')
         ) : (
           <span className={styles.none}>{t('targets.table.lightNight')}</span>
         ),

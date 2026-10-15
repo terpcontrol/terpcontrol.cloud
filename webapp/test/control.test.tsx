@@ -666,7 +666,7 @@ describe('the plan panel', () => {
     state.plan = plan({}, { status: 'completed', activeStepIndex: 0, stepStartedAt: null });
     draw();
 
-    expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(screen.getAllByText('Completed')[0]).toBeInTheDocument();
     expect(screen.queryByText(/Step 1 of/)).not.toBeInTheDocument();
     expect(screen.getByText('Every step has run. Starting it again begins at step 1.')).toBeInTheDocument();
   });

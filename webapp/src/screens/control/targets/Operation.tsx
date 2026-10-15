@@ -1,4 +1,5 @@
 import { Power, Sprout, Sun, Wind, type LucideIcon } from 'lucide-react';
+import { Announce } from '@/ui/Announce';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -10,7 +11,7 @@ import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { FieldSwitch } from '@/ui/advanced/Fields';
 import { Help } from '@/ui/Help';
-import { SheetAnswer } from '@/ui/SheetParts';
+import { Answered, SheetAnswer } from '@/ui/SheetParts';
 import { useSwitchOn } from '../../devices/switch-on';
 import { targetWithUnit } from '@/ui/units';
 import { Refused } from '@/ui/PageState';
@@ -60,7 +61,7 @@ function ModeLine({ device, mayManage, onEndDrying }: { device: Device; mayManag
   if (!control.running) {
     const kind = device.type === 'fridge' || device.type === 'controller' ? device.type : 'other';
     return (
-      <div className={day.mode} data-mode="off" role="status">
+      <div className={day.mode} data-mode="off">
         <p className={day.modeText}>
           <Power size={16} strokeWidth={2} aria-hidden />
           <span>
@@ -75,13 +76,14 @@ function ModeLine({ device, mayManage, onEndDrying }: { device: Device; mayManag
           </button>
         ) : null}
         <Refused error={on.error} />
+        <Announce text={on.pending && t('climateControl.switching')} />
       </div>
     );
   }
 
   if (control.drying) {
     return (
-      <div className={day.mode} data-mode="drying" role="status">
+      <div className={day.mode} data-mode="drying">
         <p className={day.modeText}>
           <MODE_ICON.drying size={16} strokeWidth={2} aria-hidden />
           <span>
@@ -102,7 +104,7 @@ function ModeLine({ device, mayManage, onEndDrying }: { device: Device; mayManag
   const Icon = MODE_ICON[control.mode];
 
   return (
-    <div className={day.mode} data-mode={control.mode} role="status">
+    <div className={day.mode} data-mode={control.mode}>
       <p className={day.modeText}>
         <Icon size={16} strokeWidth={2} aria-hidden />
         <span>
@@ -112,7 +114,7 @@ function ModeLine({ device, mayManage, onEndDrying }: { device: Device; mayManag
       </p>
       {mayManage ? (
         <Link to={devicesPath(device.spaceId)} className={ui.headLink}>
-          {t('climateControl.modeChange')} ›
+          {t('climateControl.modeChange')} <span aria-hidden>›</span>
         </Link>
       ) : null}
     </div>
@@ -145,9 +147,9 @@ function EndDryingSheet({ device, back, onClose }: { device: Device; back: Dryin
 
   return (
     <Sheet title={t('climateControl.endDryingTitle')} onClose={onClose} actions={actions}>
-      <div className={styles.endDrying} role={done ? 'status' : undefined}>
+      <div className={styles.endDrying}>
         {done ? (
-          <p>{t('climateControl.endDryingDone')}</p>
+          <Answered>{t('climateControl.endDryingDone')}</Answered>
         ) : (
           <>
             <p>{t('climateControl.endDryingDoes')}</p>

@@ -11,7 +11,7 @@ import { DEFAULT_HOLD_SECONDS, HOLD_SECONDS, rowsOf } from '@/screens/devices/so
 import { durationLabel } from '@/ui/age';
 import { cameraFreshness } from '@/screens/devices/cameras';
 import type { OutputLevel, OverrideRequest } from '@/api/devices';
-import { drawAt } from './harness';
+import { announced, drawAt } from './harness';
 import { spaceWhere, THE_HOST } from './session';
 import { translate } from './translations';
 
@@ -186,20 +186,20 @@ describe('the switch on a socket row', () => {
     expect(sent).toEqual([{ deviceId: 'device-1', target: { kind: 'socket', slot: 0 }, state: 'auto', forSeconds: 0 }]);
   });
 
-  it('says a command went out and never that the socket switched', () => {
+  it('says a command went out and never that the socket switched', async () => {
     draw(socket());
 
     fireEvent.click(screen.getByRole('switch', { name: 'Force Heater' }));
 
-    expect(screen.getByRole('status')).toHaveTextContent('Asked. The device reports back within half a minute.');
+    await waitFor(() => expect(announced()).toHaveTextContent('Asked. The device reports back within half a minute.'));
     expect(screen.getByRole('switch', { name: 'Force Heater' })).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('says so when nobody was listening', () => {
+  it('says so when nobody was listening', async () => {
     state.answer = { deviceOnline: false };
     draw(socket());
 
-    expect(screen.getByRole('status')).toHaveTextContent('Nobody was listening');
+    await waitFor(() => expect(announced()).toHaveTextContent('Nobody was listening'));
   });
 
   it('is drawn disabled when the build takes no override', () => {
@@ -256,7 +256,7 @@ describe('the switch on a socket row', () => {
 
     expect(screen.getByText('10.0.0.63')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back to auto' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '15 min' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch Heater off for 15 min' }));
 
     expect(sent).toEqual([{ deviceId: 'device-1', target: { kind: 'socket', slot: 0 }, state: 'off', forSeconds: 900 }]);
   });
@@ -432,7 +432,7 @@ describe("the controller's own light output", () => {
    * silently, where a smart socket a few rows down offers five times and says
    * which one is in force.
    */
-  it('says how long it holds the output for, before the tap and again after it', () => {
+  it('says how long it holds the output for, before the tap and again after it', async () => {
     drawOutput();
 
     expect(screen.getByText('holds 1 h')).toBeInTheDocument();
@@ -440,10 +440,10 @@ describe("the controller's own light output", () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'on' }));
 
-    expect(screen.getByRole('status')).toHaveTextContent('Asked, to hold for 1 h.');
+    await waitFor(() => expect(announced()).toHaveTextContent('Asked, to hold for 1 h.'));
   });
 
-  it('offers the times a socket is held for, and holds the output for whichever was chosen', () => {
+  it('offers the times a socket is held for, and holds the output for whichever was chosen', async () => {
     drawOutput();
     fireEvent.click(screen.getByRole('button', { name: /Details of Light output/ }));
 
@@ -461,7 +461,7 @@ describe("the controller's own light output", () => {
       { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'auto', forSeconds: 0 },
     ]);
     // Handing the output back carries no duration, so the receipt names none.
-    expect(screen.getByRole('status')).toHaveTextContent('Asked. The device reports back within half a minute.');
+    await waitFor(() => expect(announced()).toHaveTextContent('Asked. The device reports back within half a minute.'));
   });
 
   /**

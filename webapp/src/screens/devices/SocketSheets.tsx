@@ -7,7 +7,7 @@ import { SettingRow } from '@/ui/advanced/SettingRow';
 import { durationLabel } from '@/ui/age';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
-import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
+import { Answered, Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { draftFor, isTimed, problemOf, rolesFor, TIMER_UNITS, timerOf, updateOf, type SocketDraft, type Span, type TimerUnit } from './socket-form';
 import type { SocketRowModel } from './sockets';
@@ -96,9 +96,11 @@ function SocketSheet({
       onClose={onClose}
       actions={actions}
     >
-      <div className={styles.form} role={receipt ? 'status' : undefined}>
+      <div className={styles.form}>
         {receipt ? (
-          <p>{receipt.deviceOnline ? t(`socketForm.${word}.sent`, { device: deviceName }) : t('socketForm.unheard', { device: deviceName })}</p>
+          <Answered>
+            {receipt.deviceOnline ? t(`socketForm.${word}.sent`, { device: deviceName }) : t('socketForm.unheard', { device: deviceName })}
+          </Answered>
         ) : (
           <>
             {socket ? null : <p className={ui.note}>{t('socketForm.pair.intro', { device: deviceName })}</p>}
@@ -405,9 +407,9 @@ function RemoveSheet({ deviceId, row, name, onClose }: { deviceId: string; row: 
         </SheetAnswer>
       }
     >
-      <div className={styles.form} role={receipt ? 'status' : undefined}>
+      <div className={styles.form}>
         {receipt ? (
-          <p>{t(receipt.deviceOnline ? 'socketForm.remove.sent' : 'devices.socket.notListening')}</p>
+          <Answered>{t(receipt.deviceOnline ? 'socketForm.remove.sent' : 'devices.socket.notListening')}</Answered>
         ) : (
           <p>{t('socketForm.remove.text', { address: row.address || '—' })}</p>
         )}

@@ -6,7 +6,9 @@ import type { OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { useLatestStills } from '@/api/cameras';
 import { FROM_PLACE } from '@/app/places';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
-import { ageLabel } from '@/ui/age';
+import { ageLabel, spokenAgo } from '@/ui/age';
+import { Spoken } from '@/ui/Spoken';
+import ui from '@/ui/ui.module.css';
 import { useCameraCalled } from '@/ui/camera-name';
 import { clock, useZone } from '@/ui/zone';
 import { shownStill } from './place';
@@ -42,9 +44,12 @@ export function CameraPicture({
       ? t('cockpit.camera.lightOff', { name: called(camera.name), time: clock(takenAt, zone) })
       : t('cockpit.camera.caption', { name: called(camera.name), time: clock(takenAt, zone), age: ageLabel(takenAt, now) })
     : called(camera.name);
+  const said =
+    takenAt && !still?.dark ? t('spoken.camera', { name: called(camera.name), time: clock(takenAt, zone), ago: spokenAgo(takenAt, now) }) : null;
 
   return (
-    <Link to={`/cameras/${camera.cameraId}`} state={FROM_PLACE} className={styles.camera} aria-label={t('cockpit.camera.open')}>
+    // Named by what it shows - the picture, the grow's day, the camera and the picture's age - and where it goes.
+    <Link to={`/cameras/${camera.cameraId}`} state={FROM_PLACE} className={styles.camera}>
       {src ? (
         <img src={src} alt={t('home.card.stillAlt', { name: overview.name })} loading="lazy" />
       ) : (
@@ -53,7 +58,8 @@ export function CameraPicture({
       {label ? <span className={`figure ${styles.cameraLabel}`}>{label}</span> : null}
       <span className={`mono ${styles.cameraCaption}`}>
         <Camera size={14} strokeWidth={1.75} aria-hidden />
-        <span>{caption}</span>
+        {said ? <Spoken said={said}>{caption}</Spoken> : <span>{caption}</span>}
+        <span className={ui.visuallyHidden}>{`, ${t('cockpit.camera.open')}`}</span>
         <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
       </span>
     </Link>

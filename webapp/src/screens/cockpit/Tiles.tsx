@@ -14,6 +14,8 @@ import { Term } from '@/ui/Help';
 import { clock, useZone } from '@/ui/zone';
 import { LastValue } from '../home/OfflineHelp';
 import { figure, figureWithUnit, targetFigure, targetWithUnit, UNIT } from '@/ui/units';
+import { Spoken } from '@/ui/Spoken';
+import ui from '@/ui/ui.module.css';
 import { DayBar } from './DayBar';
 import { MiniCurve } from './MiniCurve';
 import {
@@ -26,6 +28,7 @@ import {
   judgedOf,
   judgedPanel,
   lightWindowOf,
+  lightWindowSaid,
   lightWindowText,
   rangeVerdictOf,
   switchRangeOf,
@@ -163,11 +166,25 @@ function ClimateTile({
     <Frame spaceId={spaceId} tileKey={metric} verdict={verdict}>
       <div className={styles.tileText}>
         <div className={styles.figureLine} {...ageAttribute(age)}>
-          <span className={`figure ${styles.figure}`}>{value?.value == null ? '–' : figure(value.value, metric)}</span>
-          <span className={`mono ${styles.unit}`}>{UNIT[metric]}</span>
+          <span className={`figure ${styles.figure}`} aria-hidden>
+            {value?.value == null ? '–' : figure(value.value, metric)}
+          </span>
+          <span className={`mono ${styles.unit}`} aria-hidden>
+            {UNIT[metric]}
+          </span>
           {mean != null ? (
-            <span className={`mono ${styles.second}`}>{t('cockpit.tile.hourMean', { value: figureWithUnit(mean, metric) })}</span>
+            <span className={`mono ${styles.second}`} aria-hidden>
+              {t('cockpit.tile.hourMean', { value: figureWithUnit(mean, metric) })}
+            </span>
           ) : null}
+          <span className={ui.visuallyHidden}>
+            {[
+              value?.value == null ? t('spoken.noValue') : figureWithUnit(value.value, metric),
+              mean != null ? t('spoken.hourMean', { value: figureWithUnit(mean, metric) }) : null,
+            ]
+              .filter(Boolean)
+              .join(', ')}
+          </span>
           {vpd?.value != null ? (
             <span className={`mono ${styles.second}`}>
               <Term topic="vpd">{t('cockpit.tile.vpd', { value: figure(vpd.value, 'vpd') })}</Term>
@@ -182,7 +199,7 @@ function ClimateTile({
                   high: targetWithUnit(range.high, metric),
                 })
               : targetLabel(t, metric, setpoint, holdingNowOf(device, live, now, offline), device, offline, hold)}
-          </span>
+          </span>{' '}
           <VerdictWords verdict={verdict} metric={metric} now={now} explain={explainBand} />
         </p>
       </div>
@@ -346,11 +363,13 @@ function LightTile({ spaceId, device, live, now, offline }: TilesProps) {
         <p className={`mono ${styles.targetLine}`}>
           {window ? (
             <span>
-              <Term topic="dayNight">{lightWindowText(t, window)}</Term>
+              <Term topic="dayNight">
+                <Spoken said={lightWindowSaid(t, window)}>{lightWindowText(t, window)}</Spoken>
+              </Term>
             </span>
           ) : (
             <span>{t(dark ? `cockpit.light.dark.${dark}` : 'cockpit.light.noWindow')}</span>
-          )}
+          )}{' '}
           {age !== 'live' && level ? (
             <span className={styles.lastValue}>
               <LastValue measuredAt={level.measuredAt} now={now} />

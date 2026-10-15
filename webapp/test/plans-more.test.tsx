@@ -167,7 +167,7 @@ describe('light hours in a step', () => {
       />,
     );
     expect(screen.getByText('No stage · 1 wk · ends germination')).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: /^Edit / })[1]);
     expect(screen.getByText(/This step ends the germination before it/)).toBeInTheDocument();
     expect(screen.queryByText(/This step writes nothing/)).not.toBeInTheDocument();
   });
@@ -199,6 +199,21 @@ describe('light hours in a step', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Light on for: 0 to 24 hours, or leave it empty.');
     expect(screen.getByRole('button', { name: 'Save the plan' })).toBeDisabled();
+    // Tied to the field and to Save, where the step saying it may be folded away.
+    expect(screen.getByRole('spinbutton', { name: 'Light on for' })).toBeInvalid();
+    expect(screen.getByRole('button', { name: 'Save the plan' })).toHaveAccessibleDescription('Light on for: 0 to 24 hours, or leave it empty.');
+  });
+
+  it('ask before an Escape throws away what was changed, and close at once with nothing changed', () => {
+    const onClose = vi.fn();
+    drawAt(<PlanEditor device={device()} plan={null} draft={draft()} onClose={onClose} />);
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Light on for' }), { target: { value: '12' } });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText('Throw away what you changed in this plan?')).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   describe('said as the window they make', () => {

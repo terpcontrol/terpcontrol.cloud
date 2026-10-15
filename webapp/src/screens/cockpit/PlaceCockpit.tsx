@@ -512,16 +512,19 @@ function StatusLine({
     </>
   );
 
-  return to ? (
+  // One live region whatever the status is, so a change from "Alles im Ziel" to a reading off its target is said.
+  return (
     <div role="status">
-      <Link to={to} className={styles.status} data-tone={toneOf(status)}>
-        {body}
-      </Link>
+      {to ? (
+        <Link to={to} className={styles.status} data-tone={toneOf(status)}>
+          {body}
+        </Link>
+      ) : (
+        <p className={styles.status} data-tone={toneOf(status)}>
+          {body}
+        </p>
+      )}
     </div>
-  ) : (
-    <p className={styles.status} data-tone={toneOf(status)} role="status">
-      {body}
-    </p>
   );
 }
 
@@ -551,7 +554,7 @@ function ModeLine({
   if (!kind) return null;
 
   return (
-    <p className={styles.status} data-tone="quiet" role="status">
+    <p className={styles.status} data-tone="quiet">
       <Info size={18} strokeWidth={2} aria-hidden />
       <span className={styles.statusText}>
         {kind === 'germination' && humidifierHold
@@ -561,7 +564,7 @@ function ModeLine({
       </span>
       {mayManage ? (
         <Link to={kind === 'greenhouse' ? devicesPath(spaceId) : controlPath(spaceId)} className={ui.headLink}>
-          {t('cockpit.mode.change')} ›
+          {t('cockpit.mode.change')} <span aria-hidden>›</span>
         </Link>
       ) : null}
     </p>
@@ -584,8 +587,9 @@ function CameraLine({ camera, now, zone }: { camera: OverviewCamera; now: DateTi
     : t('cockpit.camera.delivers', { name: called(camera.name), age: ageLabel(last, now) });
   const Icon = quiet ? TriangleAlert : CircleCheck;
 
+  // Not a live region: the age in it changes every ten seconds, and a screen reader would say each one.
   return (
-    <div role="status">
+    <div>
       <Link to={`/cameras/${camera.cameraId}`} className={styles.status} data-tone={quiet ? 'warn' : 'good'}>
         <Icon size={18} strokeWidth={2} aria-hidden />
         <span className={styles.statusText}>{text}</span>
@@ -627,7 +631,9 @@ function Latest({
   return (
     <section className={styles.latest} aria-label={t('cockpit.latest.title')}>
       <header className={styles.latestHead}>
-        <span className="label">{t('cockpit.latest.title')}</span>
+        <span className="label" role="heading" aria-level={2}>
+          {t('cockpit.latest.title')}
+        </span>
         <Link to={timelinePath(overview.spaceId)} className={`mono ${ui.headLink}`}>
           {t('cockpit.latest.more')}
           <ChevronRight size={12} strokeWidth={2} aria-hidden />

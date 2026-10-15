@@ -30,10 +30,13 @@ export function PlaceHeading({
   const { t } = useTranslation();
   const now = useNow();
 
+  // The picker's options and the pill's age are in the heading too; the page is named by the tab and the place alone.
   return (
-    <h1 className={styles.title}>
+    <h1 className={styles.title} data-title={`${title} · ${here.name}`}>
       {title}
-      <span className={styles.dot}>·</span>
+      <span className={styles.dot} aria-hidden>
+        ·
+      </span>
       <span className={styles.picker} data-switch={places.length > 1 ? '' : undefined}>
         <span className={styles.name}>{here.name}</span>
         {places.length > 1 ? (
