@@ -36,6 +36,7 @@ import { lightWindows } from '@/migrations/steps/021-light-windows';
 import { darkGermination } from '@/migrations/steps/022-dark-germination';
 import { fridgeCo2Sensor } from '@/migrations/steps/023-fridge-co2-sensor';
 import { orphanedAlerts } from '@/migrations/steps/024-orphaned-alerts';
+import { demoPlaces } from '@/migrations/steps/025-demo-places';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -607,6 +608,31 @@ describe('alerts nothing closes', () => {
     expect((await one<{ state: { triggered: boolean } }>('alarmRules', { id: 'rule-off' }))?.state.triggered).toBe(false);
     expect((await one<{ state: { triggered: boolean } }>('alarmRules', { id: 'rule-on' }))?.state.triggered).toBe(true);
     expect(context.stats).toMatchObject({ 'alerts.foreignDeleted': 3, 'alerts.stuckClosed': 3, 'alarmRules.disabledUntriggered': 1 });
+  });
+});
+
+describe('demo places', () => {
+  it('flags the place a demo device was moved into and clears the one it left empty', async () => {
+    await collection('devices').insertMany([
+      { id: 'demo-moved', isDemo: true, spaceId: 'new-tent' },
+      { id: 'plain', isDemo: false, spaceId: 'kept-tent' },
+    ]);
+    await collection('spaces').insertMany([
+      { id: 'old-tent', kind: 'tent', isDemo: true },
+      { id: 'new-tent', kind: 'tent', isDemo: false },
+      { id: 'kept-tent', kind: 'tent', isDemo: true },
+      { id: 'room', kind: 'room', isDemo: true },
+    ]);
+    const flags = async () => Object.fromEntries((await collection('spaces').find({}).toArray()).map(row => [row.id, row.isDemo]));
+
+    await demoPlaces.run(new MigrationContext(db(), true, new Date(AT)));
+    expect(await flags()).toEqual({ 'old-tent': true, 'new-tent': false, 'kept-tent': true, room: true });
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await demoPlaces.run(context);
+
+    expect(await flags()).toEqual({ 'old-tent': false, 'new-tent': true, 'kept-tent': true, room: true });
+    expect(context.stats).toMatchObject({ 'spaces.demoFlagged': 1, 'spaces.demoCleared': 1 });
   });
 });
 

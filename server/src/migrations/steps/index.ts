@@ -23,6 +23,7 @@ import { lightWindows } from './021-light-windows';
 import { darkGermination } from './022-dark-germination';
 import { fridgeCo2Sensor } from './023-fridge-co2-sensor';
 import { orphanedAlerts } from './024-orphaned-alerts';
+import { demoPlaces } from './025-demo-places';
 
 /**
  * In order, and the order matters in eight places:
@@ -76,4 +77,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   darkGermination,
   fridgeCo2Sensor,
   orphanedAlerts,
+  demoPlaces,
 ];

@@ -97,6 +97,16 @@ describe('the devices a caller is shown', () => {
     expect((await devices.list(demo(), {})).items.map(device => device.id)).toEqual([IN_THE_TENT]);
   });
 
+  it('takes the demo along when a demo device moves to another place', async () => {
+    await db.devices.updateOne({ id: IN_THE_TENT }, { isDemo: true });
+    await db.spaces.updateOne({ id: TENT }, { isDemo: true });
+
+    await devices.update(IN_THE_TENT, { spaceId: BALCONY });
+
+    const flags = Object.fromEntries((await db.spaces.find({ id: { $in: [TENT, BALCONY] } }).lean()).map(space => [space.id, space.isDemo]));
+    expect(flags).toEqual({ [TENT]: false, [BALCONY]: true });
+  });
+
   it('narrows to one space when it is asked to, without widening past what the caller may see', async () => {
     expect((await devices.list(session(MANAGER), {}, TENT)).items.map(device => device.id)).toEqual([IN_THE_TENT]);
     expect((await devices.list(session(MANAGER), {}, BALCONY)).items).toHaveLength(0);
