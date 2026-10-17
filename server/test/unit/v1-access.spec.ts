@@ -261,6 +261,15 @@ describe('the demo tour', () => {
   it("does not make a demo object everybody's", async () => {
     await expectMatrix(session(STRANGER), nothingAtAll);
   });
+
+  it('reads a grow that stands in a demo place, and not once it has moved out', async () => {
+    await db.grows.updateOne({ id: GROW }, { isDemo: false });
+    expect((await access.access(demo(), SUBJECTS.grow, 'view'))?.grantee).toBe('demo');
+    expect((await access.access(demo(), SUBJECTS.plant, 'view'))?.grantee).toBe('demo');
+
+    await db.grows.updateOne({ id: GROW }, { 'placements.0.endedAt': new Date('2026-02-01T00:00:00.000Z') });
+    expect(await access.access(demo(), SUBJECTS.grow, 'view')).toBeNull();
+  });
 });
 
 describe('what rides back with a yes', () => {

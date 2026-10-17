@@ -312,7 +312,7 @@ export class AccessService {
     return {
       ...this.blank(ref),
       ownerId: grow.ownerId,
-      isDemo: grow.isDemo,
+      isDemo: grow.isDemo || (await this.standsInTheDemo(grow.placements)),
       isPublic,
       spaceIds: [...new Set(placements.flatMap(placement => rooms.get(placement.spaceId) ?? [placement.spaceId]))],
       growIds: [grow.id],
@@ -324,6 +324,17 @@ export class AccessService {
       publicRange: isPublic ? { startsAt: grow.startedAt, endsAt: grow.endedAt ?? new Date() } : null,
       publicCameras: grow.publicCameras !== false,
     };
+  }
+
+  /**
+   * Whether a grow stands in a demo place now. The tour's Start and a demo
+   * place's cockpit show the grow standing there, and its page and charts have
+   * to open for the tour as well (Chris, 2026-10-17); a grow that has ended or
+   * moved out of the demo is private again. `grows.isDemo` still flags one by hand.
+   */
+  private async standsInTheDemo(placements: readonly { spaceId: string | null; endedAt: Date | null }[]): Promise<boolean> {
+    const open = placements.flatMap(placement => (placement.endedAt === null && placement.spaceId !== null ? [placement.spaceId] : []));
+    return open.length > 0 && (await this.spaces.exists({ id: { $in: open }, isDemo: true })) !== null;
   }
 
   /**

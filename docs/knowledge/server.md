@@ -158,7 +158,9 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   those on `redacted` left the demo place's cockpit on Start without its device while Geräte listed it.
 - There is deliberately no UI or API to put a device into the demo (Chris, 2026-08-19). `./simulate-device.sh demo on
   -d <device-id>` sets `isDemo` in MongoDB on the device, its space and its cameras - any device of that stack, not
-  only simulated ones. It does not flag the grow standing there; set `grows.isDemo` as well if the tour should show it.
+  only simulated ones. A grow standing in a demo place now is read as a demo one (`standsInTheDemo` in
+  `access.service.ts`; Chris, 2026-10-17), so its page and charts open from the cockpit; one that ended or moved out
+  is private again, and `grows.isDemo` still flags one by hand.
 - The tour lists flagged spaces, the device list flagged devices. Moving a demo device (`DevicesService.update`)
   therefore flags the place it moves into and unflags the one it leaves once no demo device stands there; before,
   a demo device moved into a place of its own showed under Geräte and not on Start. `025-demo-places` repaired the
