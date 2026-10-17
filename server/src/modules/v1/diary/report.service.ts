@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { EntryKind, GrowReport, GrowReportPhase, GrowTotals, PhaseTargets } from '@fg2/shared-types/v1';
 import { STAGES_WITH_CLIMATE, type StageSpan, growDayAt, growOriginOf, stageSpansOf } from '@fg2/shared-types/v1-schemas';
-import { AccessRange, Grant } from '@common/v1/access.types';
+import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { peopleNamed } from '@common/v1/people';
 import { clampRange, overlapsRange, seenOf, storyEndsAt, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
@@ -165,7 +165,7 @@ export class GrowReportService {
       // A chapter tells where the plants stood only to somebody who keeps them:
       // a public diary is a story, and the spaces it names are addresses in
       // somebody's flat that tie it to the rest of their account.
-      spaceIds: world.grant.redacted ? null : spaceIds.filter((id): id is string => id !== null),
+      spaceIds: isOutsider(world.grant) ? null : spaceIds.filter((id): id is string => id !== null),
       coverMediaId,
       climate: climate.climate,
       // The photoperiod the chapter was kept on, which the summariser has
