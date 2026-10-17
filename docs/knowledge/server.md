@@ -159,6 +159,10 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
 - There is deliberately no UI or API to put a device into the demo (Chris, 2026-08-19). `./simulate-device.sh demo on
   -d <device-id>` sets `isDemo` in MongoDB on the device, its space and its cameras - any device of that stack, not
   only simulated ones. It does not flag the grow standing there; set `grows.isDemo` as well if the tour should show it.
+- The tour lists flagged spaces, the device list flagged devices. Moving a demo device (`DevicesService.update`)
+  therefore flags the place it moves into and unflags the one it leaves once no demo device stands there; before,
+  a demo device moved into a place of its own showed under Geräte and not on Start. `025-demo-places` repaired the
+  moves made before.
 
 ## Share links and public pages
 - The token comes as `X-Share-Token` or `?share=` and is looked up on every request, so revoking is immediate. A

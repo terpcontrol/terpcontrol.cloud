@@ -95,7 +95,7 @@ export class DevicesService {
 
   /** Only what a client may write. What the device is, who owns it and everything under `state` are not patched. */
   public async update(id: string, body: DeviceUpdate): Promise<StoredDevice> {
-    const before = await this.devices.findOne({ id }, { firmware: 1, state: 1 }).lean<StoredDevice | null>();
+    const before = await this.devices.findOne({ id }, { firmware: 1, state: 1, spaceId: 1 }).lean<StoredDevice | null>();
     const changes = Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined));
     // Pinning a build by hand is telling a device to install one, exactly as
     // the rollout's own pass is, so it starts the same clock. Without this the
@@ -112,8 +112,24 @@ export class DevicesService {
     // A camera the controller answers for stands wherever the controller does.
     if (body.spaceId !== undefined) await this.cameras.updateMany({ deviceId: id, removedAt: null }, { $set: { spaceId: changed.spaceId } });
     if (body.spaceId) await this.stoodIn(id, body.spaceId);
+    if (changed.isDemo && before?.spaceId !== changed.spaceId) await this.demoMoved(before?.spaceId ?? null, changed.spaceId);
 
     return changed;
+  }
+
+  /**
+   * A demo device takes the demo with it. The tour reads the spaces flagged as
+   * demo ones, and `demo on` flags only the space the device stood in then, so
+   * a demo device moved into a place of its own - the "Umbenennen oder
+   * umziehen" sheet makes one - vanished from the tour's Start while the device
+   * list, which reads the device's own flag, still showed it. The place it left
+   * stops being a demo one once no demo device stands there.
+   */
+  private async demoMoved(from: string | null, to: string | null): Promise<void> {
+    if (to) await this.spaces.updateOne({ id: to }, { $set: { isDemo: true } });
+    if (from && !(await this.devices.exists({ spaceId: from, isDemo: true }))) {
+      await this.spaces.updateOne({ id: from }, { $set: { isDemo: false } });
+    }
   }
 
   /**
