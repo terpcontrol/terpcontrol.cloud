@@ -4,7 +4,7 @@ import { FilterQuery, Model } from 'mongoose';
 import type { CameraStill, ClimateVerdict, OverviewCamera, OverviewGrow, OverviewTargets, SpaceOverview, Setpoints } from '@fg2/shared-types/v1';
 import { STEERED, growDayAt, growOriginOf, metric as metricSchema, outputMetric } from '@fg2/shared-types/v1-schemas';
 import { cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { AccessRange, Grant } from '@common/v1/access.types';
+import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { localOf } from '@common/v1/local-time';
 import { peopleNamed } from '@common/v1/people';
 import { clampRange, seenOf, withinRange } from '@common/v1/range';
@@ -191,7 +191,8 @@ export class OverviewService {
      * and neither of these - which is what the contract means by a shared tent
      * page whose tasks and alerts are empty.
      */
-    const forKeepers = !grant.redacted;
+    const outsider = isOutsider(grant);
+    const forKeepers = !outsider;
     const dueTasks = forKeepers
       ? dueTasksOf(reminders, completions, now).map(task => ({ ...task, defaults: reminderOfTask(reminders, task.id)?.defaults ?? null }))
       : [];
@@ -209,19 +210,19 @@ export class OverviewService {
       // How the place is arranged and what hardware stands in it are the
       // grower's, not the reader's: a shared tent page is a tent, and a room id
       // and a device id tie it to the rest of an account.
-      roomId: grant.redacted ? null : space.roomId,
-      deviceIds: grant.redacted ? null : devices.map(device => device.id),
+      roomId: outsider ? null : space.roomId,
+      deviceIds: outsider ? null : devices.map(device => device.id),
       ...mergeLive(lives),
       targets: closed || !steering ? null : targetsOf(steering.targets),
-      verdict: grant.redacted ? { ...verdict, deviceId: null } : verdict,
+      verdict: outsider ? { ...verdict, deviceId: null } : verdict,
       climates: climates.map((climate, index) => {
         const live = lives.find(one => one.deviceId === climate.deviceId);
         return {
-          deviceId: grant.redacted ? null : climate.deviceId,
+          deviceId: outsider ? null : climate.deviceId,
           values: live?.values ?? [],
           setpoints: live?.setpoints ?? [],
           targets: closed ? null : targetsOf(climate.targets),
-          verdict: grant.redacted ? { ...verdicts[index], deviceId: null } : verdicts[index],
+          verdict: outsider ? { ...verdicts[index], deviceId: null } : verdicts[index],
         };
       }),
       grows: grows.map(grow =>

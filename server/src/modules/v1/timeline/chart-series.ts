@@ -1,6 +1,6 @@
 import { Model } from 'mongoose';
 import type { Metric, OutputMetric, SpaceSeries } from '@fg2/shared-types/v1';
-import { Grant } from '@common/v1/access.types';
+import { Grant, isOutsider } from '@common/v1/access.types';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
@@ -67,6 +67,6 @@ export const chartSeriesOf = async (
     // Only a window that drew no curve has a silence to date, and only a caller
     // that asked about the climate at all can have been wondering about one.
     lastReadingAt: climate.length === 0 && metrics.length > 0 ? await lastReadingOf(sources.data, devices) : null,
-    ...chartPartsOf({ histories, devices, window, redacted: grant.redacted, aimed, cameras, frames }),
+    ...chartPartsOf({ histories, devices, window, redacted: isOutsider(grant), aimed, cameras, frames }),
   };
 };
