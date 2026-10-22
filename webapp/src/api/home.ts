@@ -2,6 +2,7 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 import { FOLLOWED, LIVE_BEAT_MS, useRead } from './read';
 import type { HomeAnswer } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { queryClient } from './query-client';
 
 const homeQuery = queryOptions({ queryKey: ['home'], queryFn: ({ signal }) => api.get<HomeAnswer>('/home', undefined, signal) });
 
@@ -14,3 +15,6 @@ export const useHome = () => useRead({ ...homeQuery, refetchInterval: LIVE_BEAT_
 
 /** The home as some screen last read it, for the navigation and the hints over it. */
 export const useHomeShape = (enabled = true) => useQuery({ ...homeQuery, ...FOLLOWED, enabled });
+
+/** Asks for the home before anything has drawn it, so that what the app opens on is on its way while the rest loads. */
+export const prefetchHome = (): Promise<void> => queryClient.prefetchQuery(homeQuery);
