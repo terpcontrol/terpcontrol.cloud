@@ -1,6 +1,6 @@
 import { Pencil } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import type { Translate } from '@/i18n/i18n';
@@ -31,13 +31,37 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
   const frame = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const first = useRef<HTMLInputElement>(null);
+  const popover = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState<CSSProperties>({ visibility: 'hidden' });
   const [day, setDay] = useState('');
   const [time, setTime] = useState('');
 
   // A line nobody dated is "now", and stays now while the sheet is open.
   const shown = at ?? now.toJSDate();
   const label = fixed ? t('log.now') : momentLabel(t, shown, now, zone);
+
+  // Placed against the window rather than inside the sheet, whose edge would
+  // cut it off: under the moment where the sheet has room for it, over it
+  // where it has not - a short sheet's bottom is where the Log button stands.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const placeIt = () => {
+      const button = toggle.current?.getBoundingClientRect();
+      const height = popover.current?.offsetHeight ?? 0;
+      const sheet = frame.current?.closest('[role="dialog"]');
+      if (!button || !sheet) return;
+      const floor = sheet.getBoundingClientRect().bottom - parseFloat(getComputedStyle(sheet).paddingBottom);
+      const below = button.bottom + GAP + height <= floor;
+      setPlace({
+        right: Math.max(GAP, document.documentElement.clientWidth - button.right),
+        top: below ? button.bottom + GAP : Math.max(GAP, button.top - GAP - height),
+      });
+    };
+    placeIt();
+    window.addEventListener('resize', placeIt);
+    return () => window.removeEventListener('resize', placeIt);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -86,6 +110,7 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
           if (open) return close();
           setDay(dayOf(shown, zone));
           setTime(clockOf(shown, zone));
+          setPlace({ visibility: 'hidden' });
           setOpen(true);
         }}
       >
@@ -93,7 +118,7 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
         <Pencil size={13} strokeWidth={2} aria-hidden />
       </button>
       {open ? (
-        <div className={styles.popover} id={id} role="group" aria-label={t('log.moment.title')}>
+        <div ref={popover} className={styles.popover} style={place} id={id} role="group" aria-label={t('log.moment.title')}>
           <label className={styles.field}>
             <span className="label">{t('log.moment.day')}</span>
             <input
@@ -133,6 +158,9 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
     </div>
   );
 }
+
+/** The room between the pop-up, the moment it belongs to and the window's edge. */
+const GAP = 4;
 
 /** "heute · 14:32", "gestern · 21:05", "13. Okt 09:15": the day in words while it is near, the date once it is not. */
 const momentLabel = (t: Translate, at: Date, now: DateTime, zone: string | null): string => {
