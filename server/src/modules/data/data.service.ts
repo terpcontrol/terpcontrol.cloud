@@ -55,7 +55,6 @@ import {
   switchingsByField,
   switchingsQuery,
   TimeWindow,
-  trendQuery,
   valveOpeningsQuery,
 } from './flux';
 
@@ -413,9 +412,17 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
   }
 
   /**
-   * One stored metric over a window for several devices at once, keyed by
-   * device: the points a sparkline draws, in one query for all of them. A device
-   * that wrote nothing in the window has no entry rather than an empty one.
+   * One stored metric over a window for several devices, keyed by device: the
+   * points a sparkline draws. A device that wrote nothing in the window has no
+   * entry rather than an empty one.
+   *
+   * One read per device, side by side, and not one for the set. A set has to
+   * be named with `contains()`, which the store does not push down: it then
+   * reads every point every device on the install wrote in the window and
+   * throws away all but these - on a home of six devices that was 1.8 s of the
+   * 1.85 s the whole answer took. An `or` of equalities would be pushed down,
+   * but fails as too deeply nested once the set is long. A tag equality per
+   * device answers from the index, and the reads run at once.
    */
   public async trends(
     deviceIds: readonly string[],
@@ -426,18 +433,17 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     if (deviceIds.length === 0 || field === null) return new Map();
 
     const stepSeconds = stepFor(window.startsAt, window.endsAt, window.stepSeconds);
-    const rows = await this.read(trendQuery(this.bucket, deviceIds, field, { ...window, stepSeconds }));
-
-    const byDevice = new Map<string, FluxRow[]>();
-    for (const row of rows) {
-      if (row.device_id) byDevice.set(row.device_id, [...(byDevice.get(row.device_id) ?? []), row]);
-    }
+    const reads = await Promise.all(
+      deviceIds.map(async deviceId => [deviceId, await this.read(seriesQuery(this.bucket, deviceId, [field], { ...window, stepSeconds }))] as const),
+    );
 
     return new Map(
-      [...byDevice].map(([deviceId, own]) => {
-        const grid = gridOf(own);
-        return [deviceId, pointsOf(grid.instants, instant => grid.valuesByField.get(field)?.get(instant) ?? null)];
-      }),
+      reads
+        .filter(([, rows]) => rows.length > 0)
+        .map(([deviceId, rows]) => {
+          const grid = gridOf(rows);
+          return [deviceId, pointsOf(grid.instants, instant => grid.valuesByField.get(field)?.get(instant) ?? null)];
+        }),
     );
   }
 

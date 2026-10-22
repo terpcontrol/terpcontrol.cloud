@@ -1,6 +1,6 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
-updated: 2026-10-08
+updated: 2026-10-22
 source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/database/**
@@ -123,8 +123,9 @@ Pitfalls, each met at least once:
 - **One device per query, by tag equality.** `r["device_id"] == "<id>"` is pushed down to the index; `contains(value:
   r["device_id"], set: [...])` is not, so a `last()` behind it scans every series in the range - ranged over months, the
   alarm health loop's read never returned and took InfluxDB down (2026-09-24; [server-engines.md](server-engines.md)).
-  An `or` chain over many ids fails with "Program is nested too deep". The home sparklines (`trendQuery`) still use
-  `contains()`, over 24 hours.
+  An `or` chain over many ids fails with "Program is nested too deep". The home sparklines (`DataService.trends`) used
+  `contains()` over 24 hours and held every home load back by 1.5-2 s on a copy of production; they are one read per
+  device side by side now (2026-10-22).
 - **The client's 10 s timeout is a socket timeout** and never fires on a busy connection: race reads against a budget
   of your own, as `newestSamplesOf` does.
 - **Deletes** go through `POST /api/v2/delete` (the JS client has none) with `rawSamplePredicate` (spares

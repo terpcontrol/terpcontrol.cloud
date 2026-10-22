@@ -426,22 +426,6 @@ export const rawSamplePredicate = (deviceId: string): string =>
 /** Every point one device ever wrote: its raw samples and the daily summaries made of them. */
 export const everySamplePredicate = (deviceId: string): string => `device_id="${safe(deviceId, SAFE_NAME, 'device id')}"`;
 
-/**
- * The same aggregate of one field over several devices, one series per device.
- * A home draws a sparkline on every card, and with this it costs one read
- * however many cards there are.
- */
-export const trendQuery = (bucket: string, deviceIds: readonly string[], field: string, window: FluxWindow): string => {
-  const ids = deviceIds.map(id => `"${safe(id, SAFE_NAME, 'device id')}"`).join(', ');
-
-  return `
-  from(bucket: "${safe(bucket, SAFE_NAME, 'bucket')}")
-    |> range(${rangeOf(window)})
-    |> filter(fn: (r) => r["_measurement"] == "${SAMPLE_MEASUREMENT}")
-    |> filter(fn: (r) => contains(value: r["device_id"], set: [${ids}]))
-    |> filter(fn: (r) => ${anyField([field])})${aggregate(window)}`;
-};
-
 /** A row as the client hands it back. `_value` is empty for a window that holds no reading. */
 export interface FluxRow {
   _time?: string;

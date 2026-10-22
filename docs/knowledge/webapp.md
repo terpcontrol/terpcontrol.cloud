@@ -1,6 +1,6 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
-updated: 2026-10-13
+updated: 2026-10-22
 source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08
 paths:
   - webapp/**
@@ -126,6 +126,12 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   in", else `sessionStorage` (the demo too).
 - The user token is refreshed 30 s before it dies, one refresh in flight for all callers. At boot the stored refresh
   token is always tried; the browser's clock does not judge its expiry.
+- **Opened cold, the refresh and the home do not wait for the first render**: `warmUp()` (`src/app/warm-up.ts`, from
+  `main.tsx`) starts the refresh beside the catalogues and prefetches `['home']`, which every screen in the shell
+  reads, as soon as it succeeds - only where the address matches the route `SESSION_ROUTE`, so public pages keep
+  deciding for themselves, and never without a live session, as a failed first read stays drawn as failed. The API
+  answers preflights with `Access-Control-Max-Age` (a day; Chrome keeps two hours), because every call carries a
+  bearer token and Chrome otherwise keeps a preflight five seconds - a round trip more per request on a cold start.
 - **Only a 401 on the refresh ends a session** (`forget(true)`; sign-in then says the session ended). No answer, a
   5xx or a proxy's 502 set `unreachable` and keep the tokens: `RequireSession` shows "cannot reach the server" with
   Try again and a way to the sign-in form, so an outage signs nobody out (Chris already ruled in the old app,

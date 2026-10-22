@@ -50,6 +50,9 @@ import { SignUp } from '@/screens/SignUp';
 import { Tasks } from '@/screens/Tasks';
 import { Timeline } from '@/screens/Timeline';
 
+/** The route every screen behind the session stands under, by which an address is known to need one before anything renders. */
+export const SESSION_ROUTE = 'session';
+
 /** Every screen behind the session, in the shell: the table a test can lay under the shell on its own. */
 export const screens: RouteObject[] = [
   { index: true, element: <Home /> },
@@ -144,6 +147,7 @@ export const router = createBrowserRouter([
       { path: '/join/:code', element: <JoinRoute /> },
       { path: '/:handle', element: <PublicProfileRoute /> },
       {
+        id: SESSION_ROUTE,
         element: (
           <RequireSession>
             <AppShell />
