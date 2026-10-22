@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, what was left out on purpose; read before changing a screen
-updated: 2026-10-13
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08
+updated: 2026-10-22
+source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -187,8 +187,15 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     switches the diary on and sets the stage's climate.
   - A link in a mail does nothing by being opened: the activation page activates on a tap, because mail programs open
     links to preview them (`screens/Activate.tsx`).
-- The Log sheet writes on one tap and can take it back for 5 s - only water, and a feed with a can to dose by
-  (`tap` in `log/LogSheet.tsx`); every other tile opens its details first.
+- **No long press, anywhere** (Chris, 2026-10-21/22): a function behind a hold, a right-click or a shift-click
+  irritates and stays hidden. A tap on a Log tile opens its view, filled in with the last can; Save writes it (5 s
+  Undo in the toast). A socket's times are behind its chevron, not a hold on its switch. Pressing and holding a
+  stepper's +/- still repeats the step: a tap does the same thing, so nothing is hidden there.
+- **Every diary line shows when it happened, and can be dated** (Chris, 2026-10-21): `log/Moment.tsx` sits in the
+  sheet's top corner ("heute · 14:32", a pencil beside it); a tap opens a pop-up with date and time, nothing after now.
+  Water, feed, note, measurement, training, photo and phase take it; a photo is dated from the first picture's EXIF
+  (`log/taken-at.ts`) until somebody changes it by hand. A new maintenance line says "jetzt" without the pencil: the
+  quiet starts on Save. A backdated phase is dated back in the diary, but its climate is written now.
 - **The same words never sit on two controls with opposite effects**: "Keimung · dunkel" / "Sämling · mit Licht" only
   where choosing the stage sets the device's climate (Steuerung chips, claim, plan editor, a new grow in a place it
   steers); where a stage is only recorded (phase sheet, correction, Eintrag, split) it keeps its plain name. No device

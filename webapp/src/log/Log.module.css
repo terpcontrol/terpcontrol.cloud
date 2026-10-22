@@ -92,28 +92,6 @@
   font-size: var(--text-md);
 }
 
-/* The day the line is about, drawn as the water row is: the question on the
-   left, the figure on the right. */
-.whenRow {
-  composes: waterRow;
-}
-
-.whenInput {
-  border: 0;
-  padding: 0;
-  background: none;
-  color: var(--ink);
-  font-size: var(--text-md);
-  font-family: var(--font-figure);
-}
-
-/* The browser draws the picker glyph itself, in whichever mode `color-scheme`
-   put it in; all it is told here is to look like something to press. */
-.whenInput::-webkit-calendar-picker-indicator {
-  opacity: 0.6;
-  cursor: pointer;
-}
-
 .waterFigure {
   min-width: 64px;
   font-size: var(--text-lg);

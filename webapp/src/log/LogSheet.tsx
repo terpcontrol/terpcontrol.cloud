@@ -3,7 +3,7 @@ import type { DateTime } from 'luxon';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem } from '@fg2/shared-types/v1';
-import { useRecentEntries, writeEntry } from '@/api/entries';
+import { useRecentEntries } from '@/api/entries';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { useHome } from '@/api/home';
 import type { Translate } from '@/i18n/i18n';
@@ -15,7 +15,6 @@ import { Choice } from '@/ui/SheetParts';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
 import { lastCan, newestOf, nextStage, schemeStep } from './defaults';
-import { lineLabel, oneTapBody } from './lines';
 import { TILE_KINDS, useLog, type LogOpening, type LogTarget, type TileKind } from './log-context';
 import { narrowerTargets, openingTarget, targetsOf } from './targets';
 import { Sheet } from '@/ui/Sheet';
@@ -25,14 +24,11 @@ import styles from './Log.module.css';
 /**
  * The Log sheet: what the line is about, and the eight things it can be.
  *
- * One tap writes with what was done last time and the toast offers Undo; a tile
- * nothing can be guessed for - a picture, words, a reading, a phase - opens its
- * own view rather than writing something empty. Every tile opens that view on a
- * long press, which is what the board's caption says.
+ * A tap on a tile opens its view, filled in with what was done last time, and
+ * Save there writes it. Nothing is written straight off a tile and nothing
+ * hides behind a long press (Chris, 2026-10-21): the view is where a line shows
+ * when it happened, and where a line written after the fact is dated.
  */
-
-/** How long a tile is held before it opens its details instead of logging. */
-const HOLD_MS = 450;
 
 const ICONS: Record<TileKind, LucideIcon> = {
   water: Droplet,
@@ -56,7 +52,7 @@ interface LogSheetProps {
 export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps) {
   const { t } = useTranslation();
   const now = useNow();
-  const { log, openDetails } = useLog();
+  const { openDetails } = useLog();
   const { data: home, isPending } = useHome();
   const mayWith = useMayWith();
 
@@ -97,15 +93,13 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
     kind === 'measurement' ? Boolean(target?.growId) : kind === 'phase' ? mayStartAPhase : kind === 'visit' ? reachable : true,
   );
 
-  // A tile says what it is about to write - "2 L · last 3 d" - and one tap
-  // writes exactly that, so until the lines it reads that off are here it
-  // promises nothing and logs nothing.
+  // A tile says what its view opens with - "2 L · last 3 d" - so until the
+  // lines it reads that off are here it promises nothing and opens nothing.
   const ready = Boolean(target) && !loadingDefaults;
 
   const lastWater = newestOf(entries, 'water');
   const lastFeed = newestOf(entries, 'feed');
   const waterLitres = lastCan(entries, 'water');
-  const feedLitres = lastCan(entries, 'feed');
 
   const choose = (one: LogTarget, narrower: boolean) => {
     if (narrower) return setNarrowKey(key => (key === one.key ? null : one.key));
@@ -123,32 +117,8 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
     openDetails(opening.kind, target);
   }, [opening.kind, target, ready, openDetails]);
 
-  const timer = useRef<number | null>(null);
-  const held = useRef(false);
-
-  const stop = () => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-    timer.current = null;
-  };
-
   const details = (kind: TileKind) => {
     if (target && ready) openDetails(kind, target);
-  };
-
-  const tap = (kind: TileKind) => {
-    if (!target || !ready) return;
-    // Only water, and a feed with a can to dose by, are written on a tap. The
-    // other tiles have nothing to guess - a picture, words, a reading, a phase,
-    // what was trained on which plant - and a visit also puts every device in
-    // the place into maintenance, which the toast's Undo does not call off, so
-    // each of them opens its panel instead.
-    if (kind !== 'water' && (kind !== 'feed' || feedLitres === null)) return details(kind);
-
-    log({
-      label: lineLabel(t, kind, target),
-      details: { kind, target },
-      send: () => writeEntry(oneTapBody(kind, target, kind === 'water' ? waterLitres : feedLitres)),
-    });
   };
 
   const caption = (kind: TileKind): string => {
@@ -175,7 +145,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   };
 
   return (
-    <Sheet title={t('log.title')} aside={t(touch() ? 'log.longPress' : 'log.rightClick')} onClose={onClose}>
+    <Sheet title={t('log.title')} onClose={onClose}>
       {places.length === 0 ? (
         <p className={ui.note}>{isPending ? t('home.waiting') : t('log.nowhere')}</p>
       ) : (
@@ -218,28 +188,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
                   className={`${ui.card} ${styles.tile}`}
                   data-wide={kind === 'visit' || undefined}
                   disabled={!ready}
-                  onPointerDown={() => {
-                    held.current = false;
-                    timer.current = window.setTimeout(() => {
-                      held.current = true;
-                      details(kind);
-                    }, HOLD_MS);
-                  }}
-                  onPointerUp={stop}
-                  onPointerLeave={stop}
-                  onPointerCancel={stop}
-                  onContextMenu={event => {
-                    event.preventDefault();
-                    stop();
-                    details(kind);
-                  }}
-                  onClick={event => {
-                    stop();
-                    // The hold has already opened the details; the click that follows it is not a second instruction.
-                    if (held.current) return void (held.current = false);
-                    if (event.shiftKey) return details(kind);
-                    tap(kind);
-                  }}
+                  onClick={() => details(kind)}
                 >
                   <Icon size={18} strokeWidth={1.75} className={styles.tileIcon} aria-hidden />
                   <span className={styles.tileName}>{t(`log.tile.${kind}`, { minutes: VISIT_MINUTES })}</span>
@@ -248,16 +197,11 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
               );
             })}
           </div>
-
-          <p className={ui.note}>{t(tiles.includes('visit') ? 'log.oneTapVisit' : 'log.oneTap')}</p>
         </>
       )}
     </Sheet>
   );
 }
-
-/** Whether this is a screen that is touched rather than pointed at, which decides how a tile's details are reached. */
-const touch = (): boolean => typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches === true;
 
 const lastAgo = (t: Translate, entry: { occurredAt: string } | null, now: DateTime): string =>
   entry ? t('log.lastAgo', { age: ageLabel(entry.occurredAt, now) }) : '';

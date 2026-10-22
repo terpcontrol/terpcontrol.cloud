@@ -1,11 +1,17 @@
 import { Camera, Plus, RotateCw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { serverNow } from '@/api/clock';
 import { uploadPhoto, writeEntry } from '@/api/entries';
+import { useGrow } from '@/api/grows';
 import { Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { about, lineLabel } from './lines';
+import { useZone } from '@/ui/zone';
+import { dayAt } from './defaults';
+import { about, lineLabel, occurredAt } from './lines';
 import { useLog, type LogTarget } from './log-context';
+import { Moment } from './Moment';
+import { takenAt } from './taken-at';
 import { Sheet } from '@/ui/Sheet';
 import styles from './Log.module.css';
 
@@ -18,6 +24,11 @@ import styles from './Log.module.css';
  * through the queue, so the sheet closes on Save and the uploads happen behind
  * the toast. A turn is sent with the upload rather than baked in here, so the
  * server turns the original - HEIC included - and not a re-encoded copy.
+ *
+ * The line is dated to when the first picture was taken, where the file says,
+ * so a picture from last week lands on last week's day without anybody typing
+ * it; the moment in the corner says so and can still be changed, and once it
+ * has been changed by hand no later picture moves it again.
  */
 
 /** What the board offers to tag a picture with. Anything else is typed as "own". */
@@ -28,7 +39,13 @@ type Picked = { file: File; url: string; rotate: number };
 export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: () => void }) {
   const { t } = useTranslation();
   const { log } = useLog();
+  const zone = useZone();
+  const { data: grow } = useGrow(target.growId);
   const [pictures, setPictures] = useState<Picked[]>([]);
+  /** When the line happened, or null for now; `fromPicture` says the first picture's file named it. */
+  const [at, setAt] = useState<Date | null>(null);
+  const [fromPicture, setFromPicture] = useState(false);
+  const byHand = useRef(false);
   const [tags, setTags] = useState<string[]>([]);
   const [own, setOwn] = useState('');
   const [note, setNote] = useState('');
@@ -39,6 +56,14 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
   const add = (files: FileList | null) => {
     const added = Array.from(files ?? []).map(picked => ({ file: picked, url: URL.createObjectURL(picked), rotate: 0 }));
     urls.current.push(...added.map(one => one.url));
+    if (pictures.length === 0 && added.length > 0 && !byHand.current) {
+      void takenAt(added[0].file, zone).then(taken => {
+        // A camera whose clock runs ahead is not believed past now.
+        if (!taken || byHand.current || taken.getTime() > serverNow().toMillis()) return;
+        setAt(taken);
+        setFromPicture(true);
+      });
+    }
     setPictures(current => [...current, ...added]);
   };
   const turn = (url: string) => setPictures(current => current.map(one => (one.url === url ? { ...one, rotate: (one.rotate + 90) % 360 } : one)));
@@ -48,23 +73,39 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
 
   const toggle = (tag: string) => setTags(current => (current.includes(tag) ? current.filter(one => one !== tag) : [...current, tag]));
 
+  // The grow day the line is filed under is the one it is dated to.
+  const filed = at ? { ...target, dayNumber: dayAt(grow, target, at) } : target;
+
   const save = () => {
     if (pictures.length === 0) return;
     const words = [...tags.map(tag => t(`log.tags.${tag}`, { defaultValue: tag })), note.trim()].filter(Boolean).join(' · ');
     const owner = { growId: target.growId, spaceId: target.growId ? null : (target.spaceId ?? target.standsIn) };
 
     log({
-      label: lineLabel(t, 'photo', target),
+      label: lineLabel(t, 'photo', filed),
       send: async () => {
         const mediaIds: string[] = [];
         for (const picture of pictures) mediaIds.push((await uploadPhoto(picture.file, owner, picture.rotate)).id);
-        return writeEntry({ kind: 'photo', ...about(target), mediaIds, text: words || null, values: { kind: 'photo' } });
+        return writeEntry({ kind: 'photo', ...about(target), ...occurredAt(at), mediaIds, text: words || null, values: { kind: 'photo' } });
       },
     });
   };
 
   return (
-    <Sheet title={t('log.photoTitle')} onClose={onClose}>
+    <Sheet
+      title={t('log.photoTitle')}
+      corner={
+        <Moment
+          at={at}
+          onChange={next => {
+            byHand.current = true;
+            setAt(next);
+            setFromPicture(false);
+          }}
+        />
+      }
+      onClose={onClose}
+    >
       {pictures.length === 0 ? (
         <div className={styles.picture}>
           <button type="button" className={styles.pictureEmpty} onClick={() => file.current?.click()}>
@@ -101,6 +142,8 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
           </button>
         </div>
       )}
+
+      {fromPicture ? <p className={`mono ${styles.subject}`}>{t('log.moment.fromPicture')}</p> : null}
 
       {/* No capture attribute: it would open the camera straight away and leave no way to the pictures already taken. */}
       <input
@@ -146,7 +189,7 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
       <input className={ui.input} value={note} placeholder={t('log.noteOptional')} onChange={event => setNote(event.target.value)} />
 
       <button type="button" className={`${ui.button} ${ui.primary} ${styles.save}`} onClick={save} disabled={pictures.length === 0}>
-        {target.dayNumber === null ? t('log.save') : t('log.saveDay', { day: target.dayNumber })}
+        {filed.dayNumber === null ? t('log.save') : t('log.saveDay', { day: filed.dayNumber })}
       </button>
     </Sheet>
   );

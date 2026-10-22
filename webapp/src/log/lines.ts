@@ -1,5 +1,7 @@
+import { DateTime } from 'luxon';
 import type { EntryCreate } from '@fg2/shared-types/v1';
 import type { Translate } from '@/i18n/i18n';
+import { instantOf } from '@/ui/age';
 import type { LogTarget, TileKind } from './log-context';
 
 /** What a written line says it is, and what it is written against. Shared by the tiles, the details and the toast. */
@@ -20,12 +22,6 @@ export const about = (target: LogTarget): Pick<EntryCreate, 'growId' | 'spaceId'
   plantIds: target.plantIds.length > 0 ? target.plantIds : undefined,
 });
 
-/**
- * What one tap writes. A feed names its water and nothing else - "log as
- * planned" - because the doses are the server's to read off the grow's own grid
- * at the week the feed happened in.
- */
-export const oneTapBody = (kind: 'water' | 'feed', target: LogTarget, litres: number | null): EntryCreate =>
-  kind === 'water'
-    ? { kind: 'water', ...about(target), values: { kind: 'water', litres } }
-    : { kind: 'feed', ...about(target), values: { kind: 'feed', litres } };
+/** What a write or a correction says about when: nothing unless somebody dated the line, so a write means "now" and a correction "as it was". */
+export const occurredAt = (dated: Date | null): Pick<EntryCreate, 'occurredAt'> =>
+  dated ? { occurredAt: instantOf(DateTime.fromJSDate(dated)) } : {};
