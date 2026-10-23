@@ -7,8 +7,10 @@ import type { EntryCreate, EntryReading, MeasurementDefinition, Plant } from '@f
 import { diaryChanged, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import type { Translate } from '@/i18n/i18n';
-import { about, lineLabel } from '@/log/lines';
+import { dayAt } from '@/log/defaults';
+import { about, lineLabel, occurredAt } from '@/log/lines';
 import { useLog, type LogTarget } from '@/log/log-context';
+import { Moment } from '@/log/Moment';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { looseFigure, typedFigure } from '@/ui/figures';
@@ -41,7 +43,7 @@ interface MeasureSheetProps {
  * stands in the diary as the one thing it was. "Save and next plant" writes
  * that line and stays open on the next plant, because a round of measuring is
  * one plant after another and closing between them would be the whole cost of
- * the round.
+ * the round. The moment in the corner dates every line of the round alike.
  */
 export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
   const { t } = useTranslation();
@@ -67,6 +69,8 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<unknown>(null);
+  /** When the round was taken, or null for now. */
+  const [at, setAt] = useState<Date | null>(null);
 
   const perPlant = definitions.some(one => one.perPlant);
   const plantId = chosenPlant === undefined ? (perPlant ? (standing[0]?.id ?? null) : null) : chosenPlant;
@@ -115,10 +119,12 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
   }, [press, rub]);
 
   const readings = readingsOf(typed, definitions);
-  const body = (): EntryCreate => ({ kind: 'measurement', ...about(target), values: { kind: 'measurement', readings } });
+  const body = (): EntryCreate => ({ kind: 'measurement', ...about(target), ...occurredAt(at), values: { kind: 'measurement', readings } });
+  // The grow day the line is filed under is the one it is dated to.
+  const filed = at ? { ...target, dayNumber: dayAt(grow, target, at) } : target;
 
   /** The line goes through the queue, so the sheet closes and the toast offers Undo, as every logged line does. */
-  const save = () => log({ label: lineLabel(t, 'measurement', target), details: { kind: 'measurement', target }, send: () => writeEntry(body()) });
+  const save = () => log({ label: lineLabel(t, 'measurement', filed), details: { kind: 'measurement', target }, send: () => writeEntry(body()) });
 
   /**
    * The same line, written while the sheet stays open. It waits for the server
@@ -146,7 +152,7 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
   const roundOfPlants = plantId !== null && standing.length > 1 && definition?.perPlant === true;
 
   return (
-    <Sheet title={t('grow.measurements.measure.title')} onClose={onClose}>
+    <Sheet title={t('grow.measurements.measure.title')} corner={<Moment at={at} onChange={setAt} />} onClose={onClose}>
       {standing.length > 0 && perPlant ? (
         <div className={styles.chips} role="group" aria-label={t('grow.measurements.measure.whichPlant')}>
           {standing.map(plant => (

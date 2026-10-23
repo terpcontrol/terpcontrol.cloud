@@ -76,6 +76,18 @@ export interface Grant {
 }
 
 /**
+ * Whether the reader came in from outside the account - through a link or a
+ * public page - and is told the tent rather than the hardware in it, how the
+ * places are arranged, or the work of keeping it.
+ *
+ * The demo tour is redacted, because it reads a stranger's grow and the
+ * owner's privacy applies, but it is no outsider: it is shown an account as
+ * its keeper sees it, which is the tour's whole purpose. Hiding its devices
+ * left Start's cockpit without the hardware the device list shows.
+ */
+export const isOutsider = (grant: Pick<Grant, 'grantee'>): boolean => grant.grantee === 'public' || grant.grantee === 'share';
+
+/**
  * The facts a subject is decided by, whatever it is. Resolving each type down to
  * this is what lets one function decide every request.
  */

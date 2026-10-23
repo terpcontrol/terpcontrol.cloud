@@ -102,6 +102,17 @@ describe('cross-origin access', () => {
     expect(allowed).toEqual(expect.arrayContaining(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']));
   });
 
+  it('lets the browser keep a preflight, so an app opened cold does not ask twice for everything', async () => {
+    const response = await anonymous()
+      .request('options', '/v1/home')
+      .set('Origin', 'https://app.test.invalid')
+      .set('Access-Control-Request-Method', 'GET')
+      .set('Access-Control-Request-Headers', 'authorization')
+      .expect(204);
+
+    expect(Number(response.headers['access-control-max-age'])).toBeGreaterThanOrEqual(2 * 60 * 60);
+  });
+
   it('lets another origin read what it answers, which is how the app loads a picture in an img tag', async () => {
     const response = await anonymous().get('/healthz').expect(200);
 

@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { z } from 'zod';
 import type { EntryKind, GrowWeekCard, GrowWeekCardPage, GrowWeekDay, GrowWeekFeeding, GrowWeekReading, SchemeAmount } from '@fg2/shared-types/v1';
 import { growOriginOf, schemeWeekOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
-import { AccessRange, Grant } from '@common/v1/access.types';
+import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { decodeCursor, pageOf } from '@common/v1/pages';
 import { peopleNamed } from '@common/v1/people';
 import { Span, clampRange, overlapsRange, picturesWithinRange, seenOf } from '@common/v1/range';
@@ -205,7 +205,7 @@ export class GrowWeeksService {
       // A public diary is a diary and not an inventory: the averages are what a
       // reader is shown, and which controller measured them ties the page to a
       // named piece of somebody's hardware.
-      deviceIds: world.grant.redacted ? null : deviceIds,
+      deviceIds: isOutsider(world.grant) ? null : deviceIds,
       climate: climate.climate,
       lightHours: climate.lightHours,
       days,

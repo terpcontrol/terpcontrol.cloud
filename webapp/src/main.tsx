@@ -9,6 +9,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { catchInstallPrompt } from './app/install';
 import { followReleases } from './app/update';
+import { warmUp } from './app/warm-up';
 import { initI18n } from './i18n/i18n';
 
 // The browser offers the install once, as the page loads; it is kept for the
@@ -17,6 +18,9 @@ catchInstallPrompt();
 
 // A new release reloads the page once its worker has taken over.
 followReleases();
+
+// The session and the home are asked for while the catalogues load, rather than once the first render asks.
+warmUp(window.location);
 
 // The catalogues are fetched before the first render: every label on the shell
 // is a key, and a frame of raw keys is worse than a frame of nothing.

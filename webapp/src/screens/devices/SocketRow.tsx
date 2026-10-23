@@ -1,11 +1,12 @@
 import { Plug } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ActuatorRuns, DeviceCapabilities, SocketOverrideState } from '@fg2/shared-types/v1';
 import { useSetOverride, useTestSocket } from '@/api/devices';
 import type { Translate } from '@/i18n/i18n';
 import { Help } from '@/ui/Help';
+import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { ageLabel, durationLabel, leftLabel } from '@/ui/age';
 import { Expand, Fact, Facts, Receipt } from './RowParts';
@@ -13,9 +14,6 @@ import { isTimed } from './socket-form';
 import { DEFAULT_HOLD_SECONDS, HOLD_SECONDS, TEST_SECONDS, type SocketRowModel } from './sockets';
 import { SocketAdvanced, SocketTimerBlock } from './SocketSheets';
 import styles from './Devices.module.css';
-
-/** How long a press has to be held before it counts as asking for a time rather than for a switch. */
-const HOLD_MS = 450;
 
 interface SocketRowProps {
   row: SocketRowModel;
@@ -53,9 +51,9 @@ interface SocketRowProps {
  * that one carries a dimmer.
  *
  * A tap forces the row the other way for a while; a tap while something is
- * forcing it hands it back to its role. Holding the switch opens the row, where
- * the times are - and so does the chevron, so the same thing is reachable
- * without a long press.
+ * forcing it hands it back to its role. The times are behind the chevron and
+ * the name, which open the row; nothing here waits for a long press (Chris,
+ * 2026-10-22).
  *
  * Nothing here pretends a command arrived: the row goes on showing what the
  * device last reported, and what the command answered is said underneath.
@@ -65,8 +63,6 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
   const [open, setOpen] = useState(false);
   const override = useSetOverride();
   const test = useTestSocket();
-  const held = useRef(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const forced = row.override && row.override.state !== 'auto' ? row.override : null;
   const name = nameOf(t, row);
@@ -79,19 +75,6 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
     send(row.state === 'on' ? 'off' : 'on', DEFAULT_HOLD_SECONDS);
   };
 
-  const startHold = () => {
-    held.current = false;
-    timer.current = setTimeout(() => {
-      held.current = true;
-      setOpen(true);
-    }, HOLD_MS);
-  };
-
-  const endHold = () => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-  };
-
   return (
     <li className={`${ui.card} ${styles.socket}`}>
       <div className={styles.socketHead}>
@@ -102,21 +85,7 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
           <span className={styles.rowNote}>{subtitle(t, row, now)}</span>
         </div>
         <span className={`mono ${styles.socketState}`}>{stateLine(t, row, runs, now, mayManage)}</span>
-        {mayManage ? (
-          <Control
-            row={row}
-            name={name}
-            forced={forced !== null}
-            refusal={refusal}
-            onFlip={() => {
-              if (held.current) return;
-              flip();
-            }}
-            onSet={send}
-            onHoldStart={startHold}
-            onHoldEnd={endHold}
-          />
-        ) : null}
+        {mayManage ? <Control row={row} name={name} forced={forced !== null} refusal={refusal} onFlip={flip} onSet={send} /> : null}
         <Expand open={open} label={t('devices.socket.details', { name })} onToggle={() => setOpen(!open)} />
       </div>
 
@@ -199,8 +168,6 @@ interface ControlProps {
   refusal: string | null;
   onFlip: () => void;
   onSet: (state: SocketOverrideState, forSeconds: number) => void;
-  onHoldStart: () => void;
-  onHoldEnd: () => void;
 }
 
 /**
@@ -209,7 +176,7 @@ interface ControlProps {
  * never commanded or one that stopped answering: a switch would have to be drawn
  * in a position nobody checked, and that is the one thing it must not do.
  */
-function Control({ row, name, forced, refusal, onFlip, onSet, onHoldStart, onHoldEnd }: ControlProps) {
+function Control({ row, name, forced, refusal, onFlip, onSet }: ControlProps) {
   const { t } = useTranslation();
 
   if (row.state === 'unknown') {
@@ -233,24 +200,7 @@ function Control({ row, name, forced, refusal, onFlip, onSet, onHoldStart, onHol
     );
   }
 
-  // Drawn here rather than with ui/Switch: the same switch also listens for the hold that asks for a timed switch.
-  return (
-    <button
-      type="button"
-      className={ui.switch}
-      role="switch"
-      aria-checked={row.state === 'on'}
-      aria-label={t('devices.socket.force', { name })}
-      disabled={refusal !== null}
-      onClick={onFlip}
-      onPointerDown={onHoldStart}
-      onPointerUp={onHoldEnd}
-      onPointerLeave={onHoldEnd}
-      onPointerCancel={onHoldEnd}
-    >
-      <span className={ui.knob} aria-hidden />
-    </button>
-  );
+  return <Switch label={t('devices.socket.force', { name })} on={row.state === 'on'} disabled={refusal !== null} onChange={onFlip} />;
 }
 
 /**

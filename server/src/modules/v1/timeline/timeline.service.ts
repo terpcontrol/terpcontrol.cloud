@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import type { Metric, SpaceTimeline, TimelineAlarm, TimelineGrow, TimelineRange } from '@fg2/shared-types/v1';
 import { outputMetric } from '@fg2/shared-types/v1-schemas';
-import { Grant } from '@common/v1/access.types';
+import { Grant, isOutsider } from '@common/v1/access.types';
 import { badRequest, notFound } from '@common/v1/problem';
 import { peopleNamed } from '@common/v1/people';
 import { storyEndsAt, withinRange } from '@common/v1/range';
@@ -181,7 +181,7 @@ export class TimelineService {
       dayTo: window.dayTo,
       startsAt: window.startsAt.toISOString(),
       endsAt: window.endsAt.toISOString(),
-      ...chartPartsOf({ histories: series, devices, window, redacted: grant.redacted, aimed, cameras, frames }),
+      ...chartPartsOf({ histories: series, devices, window, redacted: isOutsider(grant), aimed, cameras, frames }),
       panels,
       lastReadingAt: panels.length > 0 ? null : await lastReadingOf(this.data, devices),
       alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),

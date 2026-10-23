@@ -9,7 +9,7 @@ import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
 /**
- * The Log sheet: what one tap writes, what it says it wrote, and what happens
+ * The Log sheet: what a tile opens and Save writes, what it says it wrote, and what happens
  * when it does not land.
  *
  * Every request is the app's own client, mocked at that one seam, so what is
@@ -222,6 +222,33 @@ function OpenLog() {
   );
 }
 
+/** The head of a JPEG whose EXIF says when it was taken, which is all the photo sheet reads of it. */
+const jpegTaken = (stamp: string): Uint8Array<ArrayBuffer> => {
+  const tiff = new Uint8Array(64);
+  const view = new DataView(tiff.buffer);
+  tiff.set([0x49, 0x49, 0x2a, 0x00]);
+  view.setUint32(4, 8, true);
+  // IFD0: one entry, the pointer to the Exif directory at 26.
+  view.setUint16(8, 1, true);
+  view.setUint16(10, 0x8769, true);
+  view.setUint16(12, 4, true);
+  view.setUint32(14, 1, true);
+  view.setUint32(18, 26, true);
+  // The Exif directory: DateTimeOriginal, 20 ASCII bytes at 44.
+  view.setUint16(26, 1, true);
+  view.setUint16(28, 0x9003, true);
+  view.setUint16(30, 2, true);
+  view.setUint32(32, 20, true);
+  view.setUint32(36, 44, true);
+  tiff.set(
+    [...stamp].map(char => char.charCodeAt(0)),
+    44,
+  );
+  const exif = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00];
+  const length = 2 + exif.length + tiff.length;
+  return new Uint8Array([0xff, 0xd8, 0xff, 0xe1, length >> 8, length & 0xff, ...exif, ...tiff]);
+};
+
 const draw = () =>
   drawAt(
     <LogProvider>
@@ -291,16 +318,25 @@ describe('the log sheet', () => {
     expect(within(sheet).queryByRole('button', { name: /^Phase/ })).not.toBeInTheDocument();
   });
 
-  it('writes the last can on one tap, says so, and takes it back again', async () => {
+  it('opens a tile on a tap with the last can and the moment in its corner, saves it, says so, and takes it back again', async () => {
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
 
+    // Nothing is written off the tile itself: its view opens, filled in with what was done last time.
+    const details = await screen.findByRole('dialog', { name: 'Water' });
+    expect(api.post).not.toHaveBeenCalled();
+    expect(within(details).getByText('2 L')).toBeInTheDocument();
+    // When it happened stands in the corner from the start, and a line nobody dated is now.
+    expect(within(details).getByRole('button', { name: /^Change when: today · \d\d:\d\d$/ })).toBeInTheDocument();
+
+    fireEvent.click(within(details).getByRole('button', { name: 'Save · Day 34' }));
     expect(api.post).toHaveBeenCalledWith('/entries', {
       kind: 'water',
       growId: 'grow-1',
       spaceId: undefined,
       plantIds: undefined,
-      values: { kind: 'water', litres: 2 },
+      text: undefined,
+      values: { kind: 'water', litres: 2, readings: [] },
     });
 
     // The sheet is out of the way before anything is sent, and what was written is on screen.
@@ -317,6 +353,7 @@ describe('the log sheet', () => {
     vi.mocked(api.post).mockRejectedValueOnce(new Error('offline'));
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Water' })).getByRole('button', { name: /^Save/ }));
 
     expect(await screen.findByText('Could not save that line')).toBeInTheDocument();
 
@@ -325,10 +362,9 @@ describe('the log sheet', () => {
     expect(await screen.findByText('Watered · Spring run · Day 34')).toBeInTheDocument();
   });
 
-  it('holds a tile for the details, where the doses follow the water and the line is logged as planned', async () => {
+  it('opens a feed on a tap, where the doses follow the water and the line is logged as planned', async () => {
     await openSheet();
-    // A long press is a hold on a phone and a shift-click on a keyboard.
-    fireEvent.click(screen.getByRole('button', { name: /^Feed/ }), { shiftKey: true });
+    fireEvent.click(screen.getByRole('button', { name: /^Feed/ }));
 
     const details = await screen.findByRole('dialog', { name: 'Feed · scheme week 5' });
     expect(within(details).getByText('4 L')).toBeInTheDocument();
@@ -353,10 +389,16 @@ describe('the log sheet', () => {
 
   it('dates a line to the day it says, and doses a backdated feed at that day´s week of the scheme', async () => {
     await openSheet();
-    fireEvent.click(screen.getByRole('button', { name: /^Feed/ }), { shiftKey: true });
+    fireEvent.click(screen.getByRole('button', { name: /^Feed/ }));
 
     const details = await screen.findByRole('dialog', { name: 'Feed · scheme week 5' });
-    fireEvent.change(within(details).getByLabelText('When'), { target: { value: '2026-09-11' } });
+    // The moment in the corner opens a pop-up with the day and the time; nothing after now is taken.
+    fireEvent.click(within(details).getByRole('button', { name: /^Change when/ }));
+    const day = within(details).getByLabelText('Date');
+    expect(day).toHaveAttribute('max');
+    fireEvent.change(day, { target: { value: '2026-09-11' } });
+    fireEvent.click(within(details).getByRole('button', { name: 'Apply' }));
+    expect(within(details).getByRole('button', { name: /^Change when: 11 Sep \d\d:\d\d$/ })).toBeInTheDocument();
 
     // A week back is a week earlier in the grid, and the sheet says so before anything is written.
     const lastWeek = await screen.findByRole('dialog', { name: 'Feed · scheme week 4' });
@@ -371,6 +413,42 @@ describe('the log sheet', () => {
     expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
   });
 
+  it('takes no moment after now, and says why rather than quietly moving it', async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Note/ }));
+
+    const details = await screen.findByRole('dialog', { name: 'Note' });
+    fireEvent.click(within(details).getByRole('button', { name: /^Change when/ }));
+    fireEvent.change(within(details).getByLabelText('Time'), { target: { value: '23:59' } });
+
+    expect(within(details).getByRole('alert')).toHaveTextContent('That is in the future');
+    expect(within(details).getByRole('button', { name: 'Apply' })).toBeDisabled();
+
+    // Escape puts the pop-up away and leaves the sheet open.
+    fireEvent.keyDown(within(details).getByLabelText('Time'), { key: 'Escape' });
+    expect(within(details).queryByLabelText('Time')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Note' })).toBeInTheDocument();
+  });
+
+  it('starts a phase at the moment chosen for it', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ schemes: [] }) })),
+    );
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Phase/ }));
+
+    const phase = await screen.findByRole('dialog', { name: 'Phase' });
+    fireEvent.click(within(phase).getByRole('button', { name: /^Change when/ }));
+    fireEvent.change(within(phase).getByLabelText('Date'), { target: { value: '2026-09-10' } });
+    fireEvent.click(within(phase).getByRole('button', { name: 'Apply' }));
+
+    fireEvent.click(within(phase).getByRole('button', { name: /^Save/ }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/grows/grow-1/phases', expect.objectContaining({ stage: 'drying' })));
+    const [, body] = vi.mocked(api.post).mock.calls.find(([path]) => path === '/grows/grow-1/phases')!;
+    expect((body as { startedAt: string }).startedAt).toMatch(/^2026-09-(09|10|11)T/);
+  });
+
   it('keeps offering the last can it knows, past a watering that recorded none', async () => {
     const noCan: Entry = { ...lastWater, id: 'entry-ticked', occurredAt: daysAgo(1), values: { kind: 'water', litres: null, readings: [] } };
     vi.mocked(api.get).mockImplementation((path: string) =>
@@ -379,8 +457,9 @@ describe('the log sheet', () => {
 
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Water' })).getByRole('button', { name: /^Save/ }));
 
-    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ values: { kind: 'water', litres: 2 } }));
+    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ values: { kind: 'water', litres: 2, readings: [] } }));
     expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
   });
 
@@ -470,6 +549,26 @@ describe('the log sheet', () => {
     expect(uploads).toEqual([null, '90']);
   });
 
+  it('dates a photo line to when its first picture was taken, where the file says', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:x');
+    URL.revokeObjectURL = vi.fn();
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Photo/ }));
+
+    const entry = await screen.findByRole('dialog', { name: 'Photo entry' });
+    const input = entry.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File([jpegTaken('2026:09:15 08:30:00')], 'a.jpg', { type: 'image/jpeg' })] } });
+
+    expect(await within(entry).findByText('Taken from the first picture')).toBeInTheDocument();
+    expect(within(entry).getByRole('button', { name: 'Change when: 15 Sep 08:30' })).toBeInTheDocument();
+
+    vi.mocked(api.post).mockImplementation((path: string) => Promise.resolve((path === '/media' ? { id: 'media-a' } : written) as never));
+    fireEvent.click(within(entry).getByRole('button', { name: /^Save/ }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ mediaIds: ['media-a'] })));
+    const [, body] = vi.mocked(api.post).mock.calls.find(([path]) => path === '/entries')!;
+    expect((body as { occurredAt: string }).occurredAt).toMatch(/^2026-09-1[45]T/);
+  });
+
   /**
    * Maintenance is the one tile whose line is the smaller half of what it does:
    * the server puts every device standing in the place into maintenance mode for
@@ -495,8 +594,9 @@ describe('the log sheet', () => {
     // the panel that promised the window alone was ten minutes short.
     expect(within(asked).getByText(/after 15 minutes the devices regulate again/)).toBeInTheDocument();
     expect(within(asked).getByText(/alarms stay quiet for 25 minutes in all/)).toBeInTheDocument();
-    // The day is not asked for: the quiet starts when this is saved, so the line is now.
-    expect(within(asked).queryByLabelText('When')).not.toBeInTheDocument();
+    // The moment is not asked for: the quiet starts when this is saved, so the line is now.
+    expect(within(asked).getByText('now')).toBeInTheDocument();
+    expect(within(asked).queryByRole('button', { name: /^Change when/ })).not.toBeInTheDocument();
 
     fireEvent.click(within(asked).getByRole('button', { name: 'Start maintenance · 2 devices' }));
 
@@ -633,13 +733,15 @@ describe('the log sheet', () => {
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Gelato 1' }));
     fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Water' })).getByRole('button', { name: /^Save/ }));
 
     expect(api.post).toHaveBeenCalledWith('/entries', {
       kind: 'water',
       growId: 'grow-1',
       spaceId: undefined,
       plantIds: ['plant-2'],
-      values: { kind: 'water', litres: 2 },
+      text: undefined,
+      values: { kind: 'water', litres: 2, readings: [] },
     });
     expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
   });

@@ -2158,9 +2158,7 @@
   "log": {
     "title": "Eintrag",
     "close": "Schließen",
-    "longPress": "gedrückt halten: Details",
     "targetLabel": "Worum es in dem Eintrag geht",
-    "oneTap": "Ein Tipp trägt sofort ein und lässt sich 5 Sekunden lang zurücknehmen.",
     "nowhere": "Noch nichts da, wofür sich ein Eintrag lohnt · zuerst einen Grow starten oder ein Gerät hinzufügen",
     "notHere": "Der Grow oder Ort aus diesem Link steht nicht auf deiner Startseite · vielleicht ist er zu Ende, vielleicht darfst du dort nicht schreiben · wähle, wohin der Eintrag gehört",
     "litres": "{{litres}} l",
@@ -2192,7 +2190,6 @@
       "save_other": "Wartung starten · {{count}} Geräte"
     },
     "water": "Wasser",
-    "when": "Wann",
     "less": "Weniger Wasser",
     "more": "Mehr Wasser",
     "feedWeek": "Düngen · Schema-Woche {{week}}",
@@ -2238,9 +2235,20 @@
     "takingBack": "wird widerrufen",
     "undoFailed": "Der Eintrag konnte nicht widerrufen werden",
     "taskClosed": "Aufgabe erledigt",
-    "rightClick": "Rechtsklick oder Umschalt-Klick: Details",
-    "oneTapVisit": "Ein Tipp trägt sofort ein und lässt sich 5 Sekunden lang zurücknehmen. Wartung fragt vorher, weil sie die Regelung pausiert.",
-    "startsIn": "ab Schema-Woche {{week}}"
+    "startsIn": "ab Schema-Woche {{week}}",
+    "moment": {
+      "title": "Wann war das?",
+      "change": "Zeitpunkt ändern: {{when}}",
+      "today": "heute · {{time}}",
+      "yesterday": "gestern · {{time}}",
+      "day": "Datum",
+      "time": "Uhrzeit",
+      "now": "Jetzt",
+      "apply": "Übernehmen",
+      "ahead": "Das liegt in der Zukunft. Ein Eintrag hält fest, was schon passiert ist.",
+      "climateNow": "Im Tagebuch beginnt die Phase zum gewählten Zeitpunkt. Das Klima stellt sich trotzdem erst jetzt um.",
+      "fromPicture": "Zeitpunkt aus dem ersten Foto übernommen"
+    }
   },
   "timeline": {
     "rangeLabel": "Zeitraum",
