@@ -228,8 +228,8 @@ describe('the timeline', () => {
     expect(marks).toHaveLength(2);
 
     fireEvent.click(marks[1]);
-    expect(screen.getByText('Watered')).toBeInTheDocument();
-    expect(screen.getByText('Measured')).toBeInTheDocument();
+    expect(screen.getAllByText('Watered')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Measured')[0]).toBeInTheDocument();
     expect(header()).toHaveTextContent(clock(16));
   });
 

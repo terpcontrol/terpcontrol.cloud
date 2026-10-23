@@ -11,7 +11,7 @@ import { boundLabel, repeatsEvery, scaleNote, watchLabel } from '@/screens/contr
 import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
 import { headersOf } from '@/ui/headers';
-import { drawAt } from './harness';
+import { announced, drawAt } from './harness';
 import { catalogue, translate } from './translations';
 
 /**
@@ -689,7 +689,9 @@ describe('the rule sheet', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Fan' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'its level' }));
 
-    const bounds = within(sheet).getByRole('spinbutton', { name: 'above' }).closest('label')!;
+    const bounds = within(sheet)
+      .getByRole('spinbutton', { name: /^above/ })
+      .closest('label')!;
     expect(bounds).toHaveTextContent('%');
     expect(within(sheet).queryByText(/As a fraction of the time it runs/)).not.toBeInTheDocument();
   });
@@ -797,9 +799,9 @@ describe('the rule sheet', () => {
 
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'Name' }), { target: { value: 'Too humid' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Humidity' }));
-    fireEvent.change(within(sheet).getByLabelText('above'), { target: { value: '60' } });
-    fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'For how long' }), { target: { value: '20' } });
-    fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'every' }), { target: { value: '15' } });
+    fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '60' } });
+    fireEvent.change(within(sheet).getByRole('spinbutton', { name: /^For how long/ }), { target: { value: '20' } });
+    fireEvent.change(within(sheet).getByRole('spinbutton', { name: /^every/ }), { target: { value: '15' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 
     const body: AlarmRuleCreate = {
@@ -819,15 +821,15 @@ describe('the rule sheet', () => {
   it('repeats a critical rule every half hour, and keeps the repeat of a quieter one under Advanced', async () => {
     const sheet = await openNew();
 
-    expect(within(sheet).getByRole('spinbutton', { name: 'every' })).toHaveValue(30);
+    expect(within(sheet).getByRole('spinbutton', { name: /^every/ })).toHaveValue(30);
 
-    fireEvent.change(within(sheet).getByLabelText('above'), { target: { value: '31' } });
+    fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '31' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'warning' }));
-    expect(within(sheet).queryByRole('spinbutton', { name: 'every' })).not.toBeInTheDocument();
+    expect(within(sheet).queryByRole('spinbutton', { name: /^every/ })).not.toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByText('Advanced'));
-    expect(within(sheet).getByRole('spinbutton', { name: 'every' })).toHaveValue(0);
-    fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'every' }), { target: { value: '5' } });
+    expect(within(sheet).getByRole('spinbutton', { name: /^every/ })).toHaveValue(0);
+    fireEvent.change(within(sheet).getByRole('spinbutton', { name: /^every/ }), { target: { value: '5' } });
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 
@@ -839,7 +841,7 @@ describe('the rule sheet', () => {
   it('fills a Home Assistant webhook from its address and id, through the tunnel for an address at home', async () => {
     const sheet = await openNew();
 
-    fireEvent.change(within(sheet).getByLabelText('above'), { target: { value: '31' } });
+    fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '31' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'a webhook' }));
     fireEvent.click(within(sheet).getByText('Advanced'));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Home Assistant' }));
@@ -848,7 +850,7 @@ describe('the rule sheet', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Fill in the fields' }));
 
     expect(within(sheet).getByRole('textbox', { name: 'URL' })).toHaveValue('http://homeassistant.local:8123/api/webhook/grow-alarm');
-    expect(within(sheet).getByRole('status')).toHaveTextContent('goes through the device');
+    await waitFor(() => expect(announced()).toHaveTextContent('goes through the device'));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 
     await waitFor(() =>
@@ -871,8 +873,8 @@ describe('the rule sheet', () => {
   it('leaves a repeat somebody typed alone when the severity is chosen again', async () => {
     const sheet = await openNew();
 
-    fireEvent.change(within(sheet).getByLabelText('above'), { target: { value: '31' } });
-    fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'every' }), { target: { value: '45' } });
+    fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '31' } });
+    fireEvent.change(within(sheet).getByRole('spinbutton', { name: /^every/ }), { target: { value: '45' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'critical' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 
@@ -903,7 +905,7 @@ describe('the rule sheet', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Fridge running non-stop/ }));
     const sheet = screen.getByRole('dialog', { name: 'Edit the alarm' });
     // A quieter rule that already repeats opens Advanced, so the interval is never folded away.
-    expect(within(sheet).getByRole('spinbutton', { name: 'every' })).toHaveValue(10);
+    expect(within(sheet).getByRole('spinbutton', { name: /^every/ })).toHaveValue(10);
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 
@@ -926,7 +928,7 @@ describe('the rule sheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Edit the alarm' });
 
     expect(within(sheet).queryByRole('group', { name: 'Watch' })).not.toBeInTheDocument();
-    expect(within(sheet).queryByLabelText('above')).not.toBeInTheDocument();
+    expect(within(sheet).queryByLabelText(/^above/)).not.toBeInTheDocument();
     // Nor the name: this rule is titled from the hardware it watches, in the
     // reader's language, so a name typed here changed nothing any screen drew.
     expect(within(sheet).queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();
@@ -1053,11 +1055,11 @@ describe('the rule sheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Edit the alarm' });
 
     expect(within(sheet).getByRole('textbox', { name: 'Name' })).toHaveValue('Too hot');
-    expect(within(sheet).getByLabelText('above')).toHaveValue(30);
+    expect(within(sheet).getByLabelText(/^above/)).toHaveValue(30);
     expect(within(sheet).getByText(/The next stage writes its thresholds again/)).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Delete the alarm' })).toBeInTheDocument();
 
-    fireEvent.change(within(sheet).getByLabelText('above'), { target: { value: '31' } });
+    fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '31' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 
     await waitFor(() =>

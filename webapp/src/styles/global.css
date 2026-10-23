@@ -228,6 +228,11 @@ button:disabled {
   outline-offset: 2px;
 }
 
+/* Text takes focus only to bring a screen reader to it - a new page, a question, a receipt; it is not a control. */
+:is(h1, h2, p)[tabindex='-1']:focus {
+  outline: none;
+}
+
 ::selection {
   background: color-mix(in srgb, var(--brand) 22%, transparent);
 }

@@ -1,6 +1,6 @@
 import { Lightbulb } from 'lucide-react';
 import { DateTime } from 'luxon';
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath } from '@/app/places';
@@ -13,6 +13,7 @@ import { ageLabel, durationLabel } from '@/ui/age';
 import { statesTargets } from '@/ui/climate-hardware';
 import { readStoredJson, writeStored } from '@/ui/stored';
 import { clock, useZone } from '@/ui/zone';
+import { Announce } from '@/ui/Announce';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { Expand, Fact, Facts, Receipt } from './RowParts';
@@ -35,6 +36,8 @@ interface LightOutputRowProps {
   explain?: boolean;
 }
 
+/** How long a slider moved by keys or a screen reader rests before its level is sent. */
+const SLIDER_REST_MS = 1500;
 /**
  * The controller's own light output: the one thing on this screen that runs at a
  * level rather than on or off.
@@ -156,6 +159,22 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
       // Said under the row, by whichever of the two refused.
     }
   };
+  // Arrow keys and a screen reader's swipe move the slider a step at a time with no pointer let go: it is sent once
+  // they rest, rather than on every step, the first of which would already pause a running plan.
+  const latest = useRef(commit);
+  useEffect(() => {
+    latest.current = commit;
+  });
+  const resting = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(resting.current), []);
+  const commitAtRest = () => {
+    window.clearTimeout(resting.current);
+    resting.current = window.setTimeout(() => void latest.current(), SLIDER_REST_MS);
+  };
+  const commitNow = () => {
+    window.clearTimeout(resting.current);
+    void commit();
+  };
 
   // How long ON and OFF hold the output for. A hold that says nothing about its
   // own end is the one thing the server refuses outright - `override_without_end`
@@ -234,10 +253,13 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
               step={LEVEL_STEP}
               value={level}
               aria-valuetext={stated}
-              onChange={event => setDraft({ percent: Number(event.target.value), against: stored })}
-              onPointerUp={() => void commit()}
-              onKeyUp={() => void commit()}
-              onBlur={() => void commit()}
+              onChange={event => {
+                setDraft({ percent: Number(event.target.value), against: stored });
+                commitAtRest();
+              }}
+              onPointerUp={commitNow}
+              onKeyDown={event => event.key === 'Enter' && commitNow()}
+              onBlur={commitNow}
             />
           ) : null}
           {limitOnTargets ? null : <span className={`mono ${styles.level}`}>{stated}</span>}
@@ -378,8 +400,9 @@ function Saved({ save, paused }: { save: Mutation & { isSuccess: boolean }; paus
   if (failed) return <Refused error={failed} fallback={t('devices.lightOutput.saveFailed')} className={styles.socketWhy} />;
 
   return save.isSuccess ? (
-    <p className={`${ui.note} ${styles.socketWhy}`} role="status">
+    <p className={`${ui.note} ${styles.socketWhy}`}>
       {t('devices.lightOutput.saved')}
+      <Announce text={t('devices.lightOutput.saved')} />
     </p>
   ) : null;
 }

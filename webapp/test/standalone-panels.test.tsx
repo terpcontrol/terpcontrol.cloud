@@ -123,7 +123,7 @@ describe('a smart socket under Steuerung', () => {
 
     fireEvent.change(screen.getByRole('slider', { name: 'On below – Switch points' }), { target: { value: '26' } });
 
-    expect(screen.getByText(/The switch-on point has to be below the switch-off point/)).toBeInTheDocument();
+    expect(screen.getAllByText(/The switch-on point has to be below the switch-off point/)[0]).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 
@@ -174,7 +174,7 @@ describe('an AIR fan under Steuerung', () => {
     fireEvent.click(screen.getByRole('button', { name: 'By humidity' }));
     expect(screen.getByRole('slider', { name: 'Lowest speed' })).toHaveValue('30');
     fireEvent.change(screen.getByRole('slider', { name: 'Highest speed at night' }), { target: { value: '20' } });
-    expect(screen.getByText('The highest speed cannot be below the lowest.')).toBeInTheDocument();
+    expect(screen.getAllByText('The highest speed cannot be below the lowest.')[0]).toBeInTheDocument();
     fireEvent.change(screen.getByRole('slider', { name: 'Highest speed at night' }), { target: { value: '50' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Save' }).at(-1)!);
 

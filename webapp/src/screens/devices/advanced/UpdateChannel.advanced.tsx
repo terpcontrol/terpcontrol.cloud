@@ -7,7 +7,7 @@ import { Sheet } from '@/ui/Sheet';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { Refused } from '@/ui/PageState';
-import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
+import { Answered, Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { buildLabel, deviceTitle } from '@/ui/naming';
@@ -137,9 +137,9 @@ function PinSheet({ device, build, onClose }: { device: Device; build: DeviceFir
         </SheetAnswer>
       }
     >
-      <div className={sheet.body} role={pin.isSuccess ? 'status' : undefined}>
+      <div className={sheet.body}>
         {pin.isSuccess ? (
-          <p>{t('firmwarePin.sent', { name, build: buildName(build) })}</p>
+          <Answered>{t('firmwarePin.sent', { name, build: buildName(build) })}</Answered>
         ) : (
           <>
             <p>{t('firmwarePin.what', { name, build: buildName(build) })}</p>

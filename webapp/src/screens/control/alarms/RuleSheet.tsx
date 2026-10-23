@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Announce } from '@/ui/Announce';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { AlarmRule, Device, Me, Metric, OutputMetric, Severity } from '@fg2/shared-types/v1';
@@ -71,6 +72,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
   );
   const [askingDelete, setAskingDelete] = useState(false);
   const [refusedBound, setRefusedBound] = useState(false);
+  const noBound = refusedBound && !hasBound(draft);
 
   const change = (over: Partial<RuleDraft>) => setDraft(current => ({ ...current, ...over }));
   const busy = create.isPending || update.isPending || remove.isPending;
@@ -187,8 +189,8 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
         {wantsBound(draft) ? (
           <Block label={t('alarms.sheet.bounds')}>
             <div className={styles.bounds}>
-              <BoundField label={t('alarms.sheet.above')} unit={unit} value={draft.upper} onChange={upper => change({ upper })} />
-              <BoundField label={t('alarms.sheet.below')} unit={unit} value={draft.lower} onChange={lower => change({ lower })} />
+              <BoundField label={t('alarms.sheet.above')} unit={unit} value={draft.upper} missing={noBound} onChange={upper => change({ upper })} />
+              <BoundField label={t('alarms.sheet.below')} unit={unit} value={draft.lower} missing={noBound} onChange={lower => change({ lower })} />
             </div>
             {/* What the figure above means, for the outputs whose series has no
                 unit to say it. A percentage says it with the sign on the field
@@ -196,8 +198,8 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
             {draft.watch.kind === 'output_level' && scaleNote(draft.watch.output) ? (
               <p className={ui.note}>{t(scaleNote(draft.watch.output)!)}</p>
             ) : null}
-            {refusedBound && !hasBound(draft) ? (
-              <p className={ui.problem} role="alert">
+            {noBound ? (
+              <p className={ui.problem} role="alert" id="rule-no-bound">
                 {t('alarms.sheet.noBound')}
               </p>
             ) : null}
@@ -374,8 +376,9 @@ function TemplateFields({ draft, onChange }: { draft: RuleDraft; onChange: (over
             {t('alarms.sheet.templateFill')}
           </button>
           {filled ? (
-            <p className={ui.note} role="status">
+            <p className={ui.note}>
               {t(draft.tunnel ? 'alarms.sheet.templateFilledTunnel' : 'alarms.sheet.templateFilled')}
+              <Announce text={t(draft.tunnel ? 'alarms.sheet.templateFilledTunnel' : 'alarms.sheet.templateFilled')} />
             </p>
           ) : null}
         </div>
@@ -438,7 +441,20 @@ function OutputHow({
 }
 
 /** One edge of the band. Empty is no edge on that side, which is not zero. */
-function BoundField({ label, unit, value, onChange }: { label: string; unit: string; value: string; onChange: (value: string) => void }) {
+function BoundField({
+  label,
+  unit,
+  value,
+  missing,
+  onChange,
+}: {
+  label: string;
+  unit: string;
+  value: string;
+  /** Neither edge is set and a save was refused for it, which the line under the two says. */
+  missing: boolean;
+  onChange: (value: string) => void;
+}) {
   return (
     <label className={styles.figure}>
       <span className={styles.figureLabel}>{label}</span>
@@ -448,7 +464,9 @@ function BoundField({ label, unit, value, onChange }: { label: string; unit: str
         inputMode="decimal"
         step="any"
         placeholder="—"
-        aria-label={label}
+        aria-label={unit ? `${label} ${unit}` : label}
+        aria-invalid={missing || undefined}
+        aria-describedby={missing ? 'rule-no-bound' : undefined}
         value={value}
         onChange={event => onChange(event.target.value)}
       />
@@ -470,7 +488,7 @@ function Minutes({ label, value, onChange }: { label: string; value: number; onC
         min={0}
         step="any"
         value={value}
-        aria-label={label}
+        aria-label={`${label} ${t('spoken.minutes')}`}
         onChange={event => onChange(Math.max(0, Number(event.target.value) || 0))}
       />
       <span className={`mono ${styles.figureUnit}`}>{t('alarms.sheet.minutes')}</span>

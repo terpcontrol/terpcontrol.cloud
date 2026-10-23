@@ -731,6 +731,9 @@ describe('the targets page', () => {
 
     tap('Day temperature: more');
     expect(field('Day temperature').value).toBe('25.5');
+    // Focus stays on the button, so what it set is said, with the unit the row's head carries.
+    expect(field('Day temperature')).toHaveAttribute('aria-valuetext', '25.5 °C');
+    expect(screen.getByText('Day temperature 25.5 °C')).toHaveAttribute('aria-live', 'polite');
     tap('Day temperature: less');
     tap('Day temperature: less');
     expect(field('Day temperature').value).toBe('24.5');
@@ -741,8 +744,11 @@ describe('the targets page', () => {
     // 80 % and four taps is the lamp's whole output, and + goes no further.
     for (let i = 0; i < 4; i += 1) tap('Light limit: more');
     expect(field('Light limit').value).toBe('100');
-    expect(screen.getByRole('button', { name: 'Light limit: more' })).toBeDisabled();
-    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    // Said to be at its end rather than disabled, which would drop the focus of a keyboard on it.
+    expect(screen.getByRole('button', { name: 'Light limit: more' })).toHaveAttribute('aria-disabled', 'true');
+    tap('Light limit: more');
+    expect(field('Light limit').value).toBe('100');
+    expect(screen.getAllByText('Unsaved changes')[0]).toBeInTheDocument();
   });
 
   it('prefills the table from a preset and writes nothing, the light plan drawn as a draft beside what runs', async () => {
@@ -762,7 +768,7 @@ describe('the targets page', () => {
     expect(lightsOn().value).toBe('06:00');
     expect(screen.getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Veg' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    expect(screen.getAllByText('Unsaved changes')[0]).toBeInTheDocument();
     expect(sent('PUT')).toEqual([]);
 
     // The autoflower rows are the same stages under a long day, and say so -
@@ -823,7 +829,7 @@ describe('the targets page', () => {
       },
     });
     expect(sent('POST')).toEqual([]);
-    expect(await screen.findByText(/Sent to the device \d/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Sent to the device \d/))[0]).toBeInTheDocument();
     expect(screen.getByText('The device acknowledges no setting, so what it is running is not reported back.')).toBeInTheDocument();
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
   });
@@ -845,7 +851,7 @@ describe('the targets page', () => {
     expect(lightsOn().value).toBe('22:00');
     expect(screen.getByText('Light on 22:00–10:00 · 12 h')).toBeInTheDocument();
     expect(field('Light on for').value).toBe('12');
-    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    expect(screen.getAllByText('Unsaved changes')[0]).toBeInTheDocument();
     expect(sent('PUT')).toEqual([]);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -925,7 +931,7 @@ describe('the targets page', () => {
 
     for (let i = 0; i < 12; i += 1) tap('Light on for: less');
     expect(field('Light on for').value).toBe('0');
-    expect(screen.getByRole('button', { name: 'Light on for: less' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Light on for: less' })).toHaveAttribute('aria-disabled', 'true');
     expect(within(plan_()).getByText('Light off round the clock · 0 h')).toBeInTheDocument();
     expect(
       within(plan_()).getByText(
@@ -1083,7 +1089,7 @@ describe('the targets page', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('The demo may only look.');
     expect(field('Night temperature').value).toBe('18');
-    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    expect(screen.getAllByText('Unsaved changes')[0]).toBeInTheDocument();
   });
 
   it('lets a session that may only look see everything and move nothing', async () => {
@@ -1208,7 +1214,7 @@ describe('the targets page', () => {
       expect(sent('PATCH')).toEqual([{ method: 'PATCH', path: '/devices/device-1/configuration', body: { set: { energySaving: true } } }]),
     );
     expect(field('Day temperature').value).toBe('27');
-    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    expect(screen.getAllByText('Unsaved changes')[0]).toBeInTheDocument();
   });
 
   it('sets a fridge’s clip fan and inner fans under its targets, saved on their own and not again under Erweitert', async () => {
@@ -1245,7 +1251,7 @@ describe('the targets page', () => {
     expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
     // What the mode leaves of the table is said over it, with the way to the mode itself.
     expect(screen.getByText(/^Operating mode greenhouse: the device holds the temperature only/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Change operating mode ›' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Change operating mode' })).toBeInTheDocument();
     expect(screen.queryByRole('row', { name: /^Humidity/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('spinbutton', { name: 'Day humidity' })).not.toBeInTheDocument();
     // Temperature by day and night, the light plan and CO₂ run as ever.

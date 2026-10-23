@@ -408,7 +408,9 @@
       "runsValue_one": "{{count}}× in the last 24 h",
       "runsValue_other": "{{count}}× in the last 24 h",
       "isPlug": "smart socket",
-      "numbered": "{{name}} {{number}}"
+      "numbered": "{{name}} {{number}}",
+      "holdOnAria": "Switch {{name}} on for {{duration}}",
+      "holdOffAria": "Switch {{name}} off for {{duration}}"
     },
     "noDevicesHere": "No device here.",
     "settings": {
@@ -624,7 +626,8 @@
       "places": "There are {{count}} places now: Home shows each as a card, a tap opens it. Timeline and Control show the one opened last; switch it at the top.",
       "ok": "Got it",
       "diaryOff": "Turn it off under Me › Appearance"
-    }
+    },
+    "skipToContent": "Skip to the page"
   },
   "home": {
     "entryRepeats": "{{count}}× since {{since}}",
@@ -1800,7 +1803,8 @@
         "stepCount_one": "{{count}} step",
         "stepCount_other": "{{count}} steps",
         "noSteps": "No steps yet. A plan without them has nothing to run.",
-        "save": "Save the plan"
+        "save": "Save the plan",
+        "leave": "Throw away what you changed in this plan?"
       },
       "step": {
         "defaultName": "Step {{number}}",
@@ -1835,7 +1839,11 @@
         "remove": "Remove",
         "add": "Add a step",
         "dryingNote": "A step into drying switches the device into its drying mode: the light stays off, no CO₂ is dosed, and it holds these two figures round the clock.",
-        "germinationNote": "A step into germination switches the device dark: no light, no CO₂, and it holds this temperature round the clock; a humidifier holds the humidity where one is paired and may hold it. The next step brings the light back, one without a stage too – unless it is a germination itself."
+        "germinationNote": "A step into germination switches the device dark: no light, no CO₂, and it holds this temperature round the clock; a humidifier holds the humidity where one is paired and may hold it. The next step brings the light back, one without a stage too – unless it is a germination itself.",
+        "moved": "{{name}} is now step {{number}} of {{count}}",
+        "removed": "{{name}} removed",
+        "openNamed": "Edit {{name}}",
+        "removeNamed": "Remove {{name}}"
       },
       "figure": {
         "dayTemperature": "Day · temperature",
@@ -5233,5 +5241,20 @@
     },
     "operator": "Whoever runs this installation is responsible for this data.",
     "back": "Back to sign-up"
+  },
+  "spoken": {
+    "hourMean": "average of the last hour {{value}}",
+    "noValue": "no value",
+    "newest": "newest reading {{ago}}",
+    "lightWindow_one": "{{on}} to {{off}}, {{hours}} hour",
+    "lightWindow_other": "{{on}} to {{off}}, {{hours}} hours",
+    "camera": "{{name}}, picture from {{time}}, {{ago}}",
+    "minutes": "minutes",
+    "curve": "{{label}}: lowest {{low}}, highest {{high}}, {{trend}}",
+    "trend": {
+      "rising": "rising in the last hour",
+      "falling": "falling in the last hour",
+      "steady": "steady in the last hour"
+    }
   }
 }

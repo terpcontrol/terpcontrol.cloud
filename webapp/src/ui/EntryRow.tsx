@@ -10,6 +10,7 @@ import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, nowThere, useZone, zoned } f
 import { Photo } from './Photo';
 import { PictureViewer } from './PictureViewer';
 import { looseFigure } from './figures';
+import ui from './ui.module.css';
 import styles from './EntryRow.module.css';
 
 /**
@@ -226,8 +227,10 @@ export function EntryRow({
       <span className={day === null ? `mono ${styles.stamp}` : `mono ${styles.stamp} ${styles.dayStamp}`}>
         {day === null ? at.toFormat(now ? stampOf(at, nowThere(now, zone)) : CLOCK) : `${t('grow.dayShort', { day })} · ${at.toFormat(DATED_CLOCK)}`}
       </span>
-      <span className={styles.kind} aria-label={t(`home.entryKind.${entry.kind}`)}>
+      {/* What kind of line it is, as words: an aria-label on a plain span is not read by every screen reader. */}
+      <span className={styles.kind}>
         <Icon size={13} strokeWidth={1.75} aria-hidden />
+        <span className={ui.visuallyHidden}>{t(`home.entryKind.${entry.kind}`)}</span>
       </span>
       <span className={styles.text}>
         {/* What the line says is the way into it, and the pictures are not: a
@@ -236,6 +239,8 @@ export function EntryRow({
         {onOpen ? (
           <button type="button" className={styles.open} title={t('grow.correctLine')} onClick={onOpen}>
             {said}
+            {/* The title is a mouse's tooltip, which a screen reader on a phone never reads. */}
+            <span className={ui.visuallyHidden}>{`, ${t('grow.correctLine')}`}</span>
           </button>
         ) : (
           said

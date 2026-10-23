@@ -6,7 +6,7 @@ import { useConfigure } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
-import { SheetAnswer } from '@/ui/SheetParts';
+import { Answered, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { TwoLines } from './Maintenance';
 import { useSwitchOn } from './switch-on';
@@ -92,10 +92,10 @@ function ControlOffSheet({ device, offline, onClose }: { device: Device; offline
 
   return (
     <Sheet title={t('climateControl.title')} onClose={onClose} actions={actions}>
-      <div className={styles.body} role={done ? 'status' : undefined}>
+      <div className={styles.body}>
         {done ? (
           <>
-            <p>{t('climateControl.done')}</p>
+            <Answered>{t('climateControl.done')}</Answered>
             {offline ? <p className={ui.note}>{t('climateControl.unheard')}</p> : null}
           </>
         ) : (

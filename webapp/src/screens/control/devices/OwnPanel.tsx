@@ -8,6 +8,7 @@ import { ageAttribute, deviceLiveness, offlineLabel } from '@/ui/age';
 import { Help } from '@/ui/Help';
 import type { HelpTopic } from '@/ui/explain';
 import { Refused } from '@/ui/PageState';
+import { useFocusLanding } from '@/ui/focus-landing';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, nowThere, useZone } from '@/ui/zone';
@@ -59,10 +60,14 @@ export function OwnPanel({
   const heard = useHeardAt(device);
   const [sentAt, setSentAt] = useState<DateTime | null>(null);
 
+  const { target: sentRef, land } = useFocusLanding<HTMLParagraphElement>();
   const commit = async (): Promise<boolean> => {
     if (invalid) return false;
     const done = await draft.save();
-    if (done) setSentAt(serverNow());
+    if (done) {
+      setSentAt(serverNow());
+      land();
+    }
     return done;
   };
 
@@ -75,8 +80,18 @@ export function OwnPanel({
 
       {mayManage || !saysReadOnly ? null : <p className={ui.note}>{t('targets.readOnly')}</p>}
 
+      {/* Said once each: that there is something to save, that it is being saved, and that it went. */}
+      <p className={ui.visuallyHidden} role="status">
+        {draft.dirty && mayManage && !asking
+          ? draft.isPending
+            ? t('targets.saving')
+            : (invalid ?? t('targets.unsaved'))
+          : sentAt
+            ? t('ownPanel.sentAt', { time: nowThere(sentAt, zone).toFormat(CLOCK) })
+            : ''}
+      </p>
       {sentAt && !draft.dirty ? (
-        <p className={`mono ${targets.sent}`} role="status">
+        <p className={`mono ${targets.sent}`} ref={sentRef}>
           {t('ownPanel.sentAt', { time: nowThere(sentAt, zone).toFormat(CLOCK) })}
           <span className={targets.sentNote}>{t('ownPanel.sentNote')}</span>
         </p>
@@ -90,11 +105,19 @@ export function OwnPanel({
 
       {draft.dirty && mayManage && !asking ? (
         <div className={`${ui.card} ${targets.bar}`}>
-          <span className={targets.barText}>{draft.isPending ? t('targets.saving') : (invalid ?? t('targets.unsaved'))}</span>
+          <span className={targets.barText} id={`${device.id}-unsaved`}>
+            {draft.isPending ? t('targets.saving') : (invalid ?? t('targets.unsaved'))}
+          </span>
           <button type="button" className={ui.button} disabled={draft.isPending} onClick={draft.discard}>
             {t('targets.discard')}
           </button>
-          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={draft.isPending || invalid !== null} onClick={() => void commit()}>
+          <button
+            type="button"
+            className={`${ui.button} ${ui.primary}`}
+            disabled={draft.isPending || invalid !== null}
+            aria-describedby={invalid ? `${device.id}-unsaved` : undefined}
+            onClick={() => void commit()}
+          >
             {t('targets.save')}
           </button>
           <Refused error={draft.error} />

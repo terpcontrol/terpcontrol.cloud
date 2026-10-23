@@ -32,11 +32,14 @@ import {
   statusText,
   toneOf,
   valueOf,
+  verdictSaid,
   type HumidifierHold,
   type Status,
 } from './place';
 import { useHumidifierHold } from './reads';
 import { useHumidifiers } from '../control/germination/germination-choices';
+import { Dot } from '@/ui/Spoken';
+import ui from '@/ui/ui.module.css';
 import styles from './Cockpit.module.css';
 
 const STATUS_ICON: Partial<Record<Status['kind'], LucideIcon>> = {
@@ -210,6 +213,7 @@ function Figures({
   now: DateTime;
 }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const means = useHourMeans(deviceId).data;
   const shown = SHOWN.flatMap(metric => {
     const value = valueOf(values, metric);
@@ -222,25 +226,38 @@ function Figures({
     <div className={styles.cardValues}>
       {shown.map(({ metric, value }) => {
         const verdict = judgedOf(value, setpointOf(setpoints, metric), hold, now);
+        const mean = means?.[metric] != null ? figureWithUnit(means[metric], metric) : null;
+        // Drawn as a figure over its mean, with the verdict in colour; said as one sentence that names the reading.
+        const said = [
+          `${t(`cockpit.metric.${metric}`)} ${figureWithUnit(value.value!, metric)}`,
+          verdictSaid(t, verdict, metric, now, zone),
+          mean ? t('spoken.hourMean', { value: mean }) : null,
+        ].filter(Boolean);
         return (
           <span key={metric} className={styles.cardReading}>
-            <span className={styles.cardValue} data-verdict={verdict?.kind} {...ageAttribute(valueAge(value, now))}>
+            <span className={styles.cardValue} data-verdict={verdict?.kind} {...ageAttribute(valueAge(value, now))} aria-hidden>
               <span className="figure">{figure(value.value!, metric)}</span>
               <span className="mono">{UNIT[metric]}</span>
             </span>
-            {means?.[metric] != null ? (
-              <span className={`mono ${styles.mean}`}>{t('cockpit.tile.hourMean', { value: figureWithUnit(means[metric], metric) })}</span>
+            {mean ? (
+              <span className={`mono ${styles.mean}`} aria-hidden>
+                {t('cockpit.tile.hourMean', { value: mean })}
+              </span>
             ) : null}
+            <span className={ui.visuallyHidden}>{said.join(', ')}</span>
           </span>
         );
       })}
       {level ? (
         <span className={styles.cardReading}>
-          <span className={styles.cardValue} {...ageAttribute(valueAge(level, now))}>
+          <span className={styles.cardValue} {...ageAttribute(valueAge(level, now))} aria-hidden>
             <span className="figure">{decimalFigure(Math.round(level.value!), 0)}</span>
             <span className="mono">%</span>
           </span>
-          <span className={`mono ${styles.mean}`}>{t('cockpit.card.lightLevel')}</span>
+          <span className={`mono ${styles.mean}`} aria-hidden>
+            {t('cockpit.card.lightLevel')}
+          </span>
+          <span className={ui.visuallyHidden}>{`${t('cockpit.card.lightLevel')} ${decimalFigure(Math.round(level.value!), 0)} %`}</span>
         </span>
       ) : null}
     </div>
@@ -301,7 +318,7 @@ function DeviceLine({
     <p className={`mono ${styles.cardLine}`}>
       {parts.map((part, index) => (
         <Fragment key={part}>
-          {index > 0 ? ' · ' : ''}
+          {index > 0 ? <Dot /> : null}
           <span className={styles.part}>{part}</span>
         </Fragment>
       ))}
