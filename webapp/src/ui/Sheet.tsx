@@ -28,13 +28,16 @@ import styles from './Sheet.module.css';
 export function Sheet({
   title,
   aside,
+  corner,
   children,
   actions,
   onClose,
 }: {
   title: string;
-  /** The line the board puts opposite the title, such as "long-press a tile for details". */
+  /** The line the board puts opposite the title, such as the grid a feed is dosed from. */
   aside?: ReactNode;
+  /** A control in the top corner, beside the close: the moment a diary line is dated to. */
+  corner?: ReactNode;
   children: ReactNode;
   /** What the sheet is for, kept on the bottom edge while the questions above it scroll. */
   actions?: ReactNode;
@@ -50,6 +53,7 @@ export function Sheet({
         <header className={styles.header}>
           <h2 className={styles.title}>{title}</h2>
           {aside ? <span className={`mono ${styles.aside}`}>{aside}</span> : null}
+          {corner}
           <button type="button" className={styles.close} onClick={onClose} aria-label={t('log.close')}>
             <X size={18} strokeWidth={1.75} aria-hidden />
           </button>

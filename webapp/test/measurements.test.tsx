@@ -63,6 +63,8 @@ const grow = (measurements: MeasurementDefinition[]): GrowListItem =>
     ownerId: state.youMay === 'own' ? YOU : THE_HOST,
     name: 'Spring run',
     measurements,
+    startedAt: at(35),
+    phases: [],
     placements: [{ id: 'pl-1', spaceId: 'space-1', startedAt: at(35), endedAt: null, plantIds: null }],
     summary: { dayNumber: 35, stage: 'flowering', groups: [], locations: [] },
   }) as unknown as GrowListItem;
@@ -376,6 +378,22 @@ describe('the Measure sheet', () => {
       growId: 'grow-1',
       values: { kind: 'measurement', readings: [{ key: 'height', value: 62, plantId: 'plant-1' }] },
     });
+  });
+
+  it('dates the round to the moment chosen in its corner', async () => {
+    await openMeasure();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Change when/ }));
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-01-10' } });
+    fireEvent.change(screen.getByLabelText('Time'), { target: { value: '07:45' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    fireEvent.click(screen.getByRole('button', { name: '6' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    const body = vi.mocked(api.post).mock.calls[0][1] as { occurredAt: string };
+    expect(body.occurredAt).toMatch(/^2026-01-(09|10|11)T/);
   });
 
   it('offers only what is measured of the grow while the whole grow is chosen', async () => {

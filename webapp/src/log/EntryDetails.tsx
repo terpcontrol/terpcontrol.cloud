@@ -25,17 +25,16 @@ import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { ClimatePick } from '@/screens/grow/ClimatePick';
 import { assetTitle } from '@/screens/grow/scheme';
 import { climateRequest, defaultPick, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
-import { dayOf, momentOn } from '@/ui/days';
 import { looseFigure, typedFigure } from '@/ui/figures';
 import { maintenanceSpans, parksLine, VISIT_MINUTES } from '@/ui/maintenance';
 import { useMayManage } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
-import { useZone } from '@/ui/zone';
 import { dayAt, dosesOf, lastCan, litresOf, nextStage, readingsOf, schemeStep, startsAfter, stoppedAfter } from './defaults';
-import { about, lineLabel } from './lines';
+import { about, lineLabel, occurredAt } from './lines';
 import { useLog, type LogTarget, type TileKind } from './log-context';
+import { Moment } from './Moment';
 import { Sheet } from '@/ui/Sheet';
 import styles from './Log.module.css';
 
@@ -52,11 +51,10 @@ import styles from './Log.module.css';
  * toast up, Undo for five seconds. Correcting a line that already exists does
  * not: it waits for the server, because there is nothing to undo afterwards.
  *
- * The day it happened is asked for here and nowhere else: one tap is always
- * now, and a line written down after the fact - this morning's watering,
- * yesterday's reading - is a detail like the can and the readings are. What the
- * sheet then draws follows that day rather than this one, down to which week of
- * the scheme the doses come from.
+ * When it happened stands in the sheet's corner from the start (`Moment`): a
+ * line written down after the fact - this morning's watering, yesterday's
+ * reading - is dated there, and what the sheet then draws follows that moment
+ * rather than this one, down to which week of the scheme the doses come from.
  */
 
 /** The grow's own name for a can of water, which the water row already is: it is not asked for twice. */
@@ -95,11 +93,12 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   // The same can the tile offers, so opening the details never changes the line a tap would have written.
   const opensOn = kind === 'water' || kind === 'feed' ? lastCan(recent?.items ?? [], kind) : null;
 
-  // When the line says it happened, and whether anybody said so: a new line
-  // left alone is "now", which is the server's own default, and a correction
-  // that did not touch the day keeps the instant it already had.
-  const [at, setAt] = useState<Date>(() => (entry ? new Date(entry.occurredAt) : serverNow().toJSDate()));
-  const [dated, setDated] = useState(false);
+  // When the line says it happened, or null where nobody said: a new line left
+  // alone is "now", which is the server's own default, and a correction that
+  // did not touch its moment keeps the instant it already had.
+  const [dated, setDated] = useState<Date | null>(null);
+  const said = dated ?? (entry ? new Date(entry.occurredAt) : null);
+  const at = said ?? serverNow().toJSDate();
   const [litres, setLitres] = useState<number | null>(entry ? litresOf(entry) : opensOn);
   const [readings, setReadings] = useState<Record<string, string>>(() => typed(readingsOf(entry)));
   const [shown, setShown] = useState<string[]>(() => firstFields(definitions, readingsOf(entry)));
@@ -120,24 +119,18 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   /** The new-grow sheet takes this one's place once it is opened, rather than standing over it. */
   const [startingGrow, setStartingGrow] = useState(false);
 
-  // Today, and the day this line is dated to, are read where the account is:
-  // the grow day a line is filed under begins where the tent stands, so a
-  // reader whose own calendar has already turned over would otherwise pick the
-  // account's today and have it written down as yesterday.
-  const zone = useZone();
-  const today = dayOf(serverNow().toJSDate(), zone);
   const step = schemeStep(grow, at);
   // What the line will say it is: the day it is dated to, not the day it is being written on.
-  const filed = { ...target, dayNumber: dayAt(grow, target, at) };
+  const filed = said ? { ...target, dayNumber: dayAt(grow, target, said) } : target;
   const showsWater = kind === 'water' || kind === 'feed';
   const showsReadings = kind === 'water' || kind === 'feed' || kind === 'measurement';
   const showsText = kind === 'note' || kind === 'training';
-  // A new line about stepping in is not asked which day it was: the quarter of
-  // an hour of quiet it buys starts when it is saved, so a line dated to
-  // yesterday would park the hardware today and say it happened then. An
-  // existing one is a plain diary line by the time it is corrected - the window
-  // it opened has long closed and nothing here reopens it - so its day is free.
-  const showsWhen = kind !== 'phase' && (kind !== 'visit' || entry !== null);
+  // A new line about stepping in is not asked when it was: the quarter of an
+  // hour of quiet it buys starts when it is saved, so a line dated to yesterday
+  // would park the hardware today and say it happened then. An existing one is a
+  // plain diary line by the time it is corrected - the window it opened has long
+  // closed and nothing here reopens it - so its moment is free.
+  const fixedNow = kind === 'visit' && entry === null;
   const doses = dosesOf(grow, litres, at);
 
   const values = (): EntryValuesDraft => {
@@ -164,7 +157,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
     setSaving(true);
     setFailed(null);
     try {
-      await startPhase(target.growId, { stage, ...climateRequest(climate, stage) });
+      await startPhase(target.growId, { stage, ...climateRequest(climate, stage), ...(dated ? { startedAt: occurredAt(dated).occurredAt } : {}) });
       diaryChanged(client);
       // A phase moves the devices there too - their targets, work mode and stage alarms - and the phase sheet reads them.
       void client.invalidateQueries({ queryKey: ['devices'] });
@@ -180,7 +173,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
     setSaving(true);
     setFailed(null);
     try {
-      const body: EntryUpdate = { ...about(target), ...whenSaid(dated, at), text: showsText ? text : entry.text, values: values() };
+      const body: EntryUpdate = { ...about(target), ...occurredAt(dated), text: showsText ? text : entry.text, values: values() };
       await correctEntry(entry.id, body);
       diaryChanged(client);
       onClose();
@@ -214,7 +207,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
     if (kind === 'phase') return void savePhase();
     if (entry) return void correct();
 
-    const body: EntryCreate = { kind, ...about(target), ...whenSaid(dated, at), text: showsText && text ? text : undefined, values: values() };
+    const body: EntryCreate = { kind, ...about(target), ...occurredAt(dated), text: showsText && text ? text : undefined, values: values() };
     // Stepping in is the one line here whose Undo would only be half of one: the
     // row goes and the devices stay parked for the rest of the quarter of an
     // hour, so the toast does not offer it. The panel above said as much before
@@ -230,26 +223,9 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   if (startingGrow) return <NewGrowSheet spaceId={target.spaceId ?? target.standsIn} onClose={onClose} />;
 
   return (
-    <Sheet title={title(t, kind, step?.week ?? null)} aside={kind === 'feed' ? schemeLine(grow) : undefined} onClose={onClose}>
-      <p className={`mono ${styles.subject}`}>{lineLabel(t, kind, filed)}</p>
-
-      {showsWhen ? (
-        <label className={`${ui.card} ${styles.whenRow}`}>
-          <span className={styles.waterLabel}>{t('log.when')}</span>
-          <input
-            className={`mono ${styles.whenInput}`}
-            type="date"
-            /* An entry records something that has happened, so tomorrow is not on offer. */
-            max={today}
-            value={dayOf(at, zone)}
-            onChange={event => {
-              if (!event.target.value) return;
-              setAt(momentOn(event.target.value, at, zone));
-              setDated(true);
-            }}
-          />
-        </label>
-      ) : null}
+    <Sheet title={title(t, kind, step?.week ?? null)} corner={<Moment at={said} onChange={setDated} fixed={fixedNow} />} onClose={onClose}>
+      {/* Which grid the doses come from sits with what the line is about: the corner is the moment's. */}
+      <p className={`mono ${styles.subject}`}>{[lineLabel(t, kind, filed), kind === 'feed' ? schemeLine(grow) : ''].filter(Boolean).join(' · ')}</p>
 
       {showsWater ? (
         <div className={`${ui.card} ${styles.waterRow}`}>
@@ -353,6 +329,8 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
       {kind === 'phase' && grow && stage ? (
         <div className={styles.climate}>
           <ClimatePick stage={stage} spaceId={target.spaceId ?? target.standsIn} value={climate} onChange={setClimate} />
+          {/* A phase dated back starts back then in the diary; the devices can only be told now. */}
+          {dated && climate.climate ? <p className={ui.note}>{t('log.moment.climateNow')}</p> : null}
         </div>
       ) : null}
 
@@ -568,9 +546,6 @@ const saveLabel = (t: Translate, kind: TileKind, entry: Entry | null, target: Lo
   if (kind === 'visit' && quietens) return t('log.visit.save', { count: quietens });
   return target.dayNumber === null ? t('log.save') : t('log.saveDay', { day: target.dayNumber });
 };
-
-/** Nothing at all unless somebody dated the line, so a write means "now" and a correction means "as it was". */
-const whenSaid = (dated: boolean, at: Date): { occurredAt?: string } => (dated ? { occurredAt: at.toISOString() } : {});
 
 /** Never below one step: a watering of zero litres is not a watering, it is an unanswered question. */
 const next = (litres: number | null, by: number): number => Math.max(LITRE_STEP, Math.round(((litres ?? 0) + by) / LITRE_STEP) * LITRE_STEP);
