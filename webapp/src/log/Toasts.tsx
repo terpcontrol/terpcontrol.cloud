@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Entry } from '@fg2/shared-types/v1';
-import type { LogTarget, TileKind } from './log-context';
+import type { LogRequest, LogTarget, TileKind } from './log-context';
 import styles from './Toasts.module.css';
 
 /**
@@ -17,7 +17,7 @@ export interface LoggedLine {
   key: number;
   /** "Watered · Spring run · Day 34". */
   label: string;
-  send: () => Promise<Entry>;
+  send: LogRequest['send'];
   details: { kind: TileKind; target: LogTarget } | null;
   state: 'saving' | 'saved' | 'failed';
   /** Which thing failed, so Try again knows what to try. */
@@ -30,6 +30,8 @@ export interface LoggedLine {
   undoable: boolean;
   /** When the Undo stops being offered and the toast goes away. */
   undoUntil: number | null;
+  /** How far a line that takes a while has got - nine pictures off a phone are minutes, not a moment. */
+  progress: { done: number; total: number } | null;
 }
 
 interface ToastsProps {
@@ -70,7 +72,11 @@ function Toast({ line, onUndo, onRetry, onDismiss, onDetails }: Omit<ToastsProps
     // is for a failure that has nothing to say, such as a connection that died.
     return (
       <div className={styles.toast} data-failed>
-        <span className={styles.label}>{line.reason ?? t(line.failure === 'undo' ? 'log.undoFailed' : 'log.saveFailed')}</span>
+        <span className={styles.label}>
+          {line.reason ?? t(line.failure === 'undo' ? 'log.undoFailed' : 'log.saveFailed')}
+          {/* Try again sends only what is still missing, so the toast says how much that is. */}
+          {line.failure === 'write' && line.progress && line.progress.done > 0 ? ` · ${t('log.uploaded', line.progress)}` : null}
+        </span>
         <button type="button" className={styles.action} onClick={() => onRetry(line)}>
           {t('log.tryAgain')}
         </button>
@@ -87,6 +93,8 @@ function Toast({ line, onUndo, onRetry, onDismiss, onDetails }: Omit<ToastsProps
         {line.label}
         {/* A watering written by hand closes the watering task that was due, and says so. */}
         {line.details && line.entry?.taskId ? ` · ${t('log.taskClosed')}` : null}
+        {/* Without it a long upload looks like a toast that forgot to go. */}
+        {line.state === 'saving' && line.progress && !line.undoing ? ` · ${t('log.uploaded', line.progress)}` : null}
       </span>
       {line.undoing ? (
         <span className={`mono ${styles.quiet}`}>{t('log.takingBack')}</span>

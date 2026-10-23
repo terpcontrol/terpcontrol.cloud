@@ -49,7 +49,8 @@ export interface LogOpening {
 export interface LogRequest {
   /** What the toast says: "Watered · Spring run · Day 34". */
   label: string;
-  send: () => Promise<Entry>;
+  /** `progress` is for a line that takes a while, the photo line's uploads: how many of how many are done. */
+  send: (progress: (done: number, total: number) => void) => Promise<Entry>;
   /** The tile whose details the toast offers afterwards; absent where there are none to offer. */
   details?: { kind: TileKind; target: LogTarget } | null;
   /**

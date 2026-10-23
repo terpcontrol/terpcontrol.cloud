@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Device, Entry, GrowListItem, HomeAnswer, PlantPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
@@ -547,6 +547,57 @@ describe('the log sheet', () => {
       .mock.calls.filter(([path]) => path === '/media')
       .map(([, form]) => (form as FormData).get('rotate'));
     expect(uploads).toEqual([null, '90']);
+  });
+
+  /**
+   * Nine pictures off a phone take minutes. The toast counts them so it does not
+   * look stuck, three go up at once, and Try again sends only what did not arrive.
+   */
+  it('counts the pictures going up, three at a time, and tries again only the ones that did not arrive', async () => {
+    URL.createObjectURL = vi.fn((file: Blob) => `blob:${(file as File).name}`);
+    URL.revokeObjectURL = vi.fn();
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Photo/ }));
+    const entry = await screen.findByRole('dialog', { name: 'Photo entry' });
+    const input = entry.querySelector('input[type="file"]') as HTMLInputElement;
+    const names = ['a', 'b', 'c', 'd', 'e'];
+    fireEvent.change(input, { target: { files: names.map(name => new File(['x'], `${name}.jpg`, { type: 'image/jpeg' })) } });
+
+    const pending: Record<string, (media: { id: string }) => void> = {};
+    let refuse = true;
+    vi.mocked(api.post).mockImplementation((path: string, body: unknown) => {
+      if (path !== '/media') return Promise.resolve(written as never);
+      const name = ((body as FormData).get('file') as File).name;
+      if (name === 'e.jpg' && refuse) return Promise.reject(new Error('offline')) as never;
+      return new Promise(resolve => (pending[name] = resolve)) as never;
+    });
+    fireEvent.click(within(entry).getByRole('button', { name: /^Save/ }));
+
+    await waitFor(() => expect(Object.keys(pending)).toEqual(['a.jpg', 'b.jpg', 'c.jpg']));
+    expect(await screen.findByText(/0 of 5 pictures uploaded/)).toBeInTheDocument();
+    act(() => pending['a.jpg']({ id: 'media-a' }));
+    expect(await screen.findByText(/1 of 5 pictures uploaded/)).toBeInTheDocument();
+    act(() => {
+      pending['b.jpg']({ id: 'media-b' });
+      pending['c.jpg']({ id: 'media-c' });
+    });
+    await waitFor(() => expect(pending['d.jpg']).toBeDefined());
+    act(() => pending['d.jpg']({ id: 'media-d' }));
+
+    expect(await screen.findByText(/Could not save that line · 4 of 5 pictures uploaded/)).toBeInTheDocument();
+    refuse = false;
+    vi.mocked(api.post).mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(pending['e.jpg']).toBeDefined());
+    act(() => pending['e.jpg']({ id: 'media-e' }));
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(
+        '/entries',
+        expect.objectContaining({ mediaIds: ['media-a', 'media-b', 'media-c', 'media-d', 'media-e'] }),
+      ),
+    );
+    expect(vi.mocked(api.post).mock.calls.filter(([path]) => path === '/media')).toHaveLength(1);
   });
 
   it('dates a photo line to when its first picture was taken, where the file says', async () => {
