@@ -1,6 +1,6 @@
 ---
 summary: The Garmin Connect IQ widget in garmin/ - which API routes it calls, the watch platform's limits, releasing it, build pitfalls beyond AGENTS.md and the README, and what is still open
-updated: 2026-10-08
+updated: 2026-10-28
 source: Chris (2026-09-17, the widget moves with the API, publishing is his); agents' PRs #59, #61, #71, #81, #104 and sessions 2026-08..10; CI logs of 2026-08-24 and 2026-10-04; checked against the code 2026-10-08
 paths:
   - garmin/**
@@ -40,6 +40,10 @@ device-protocol routes are never used.
 | `GET /v1/cameras/{id}/frames?limit=1`, then `GET /v1/media/{id}/content?token=<mediaToken>&width=&height=` | the webcam page |
 | `POST /v1/devices/{id}/commands` with `{"kind": "maintenance", "forSeconds": n}` | start a maintenance window, or end it with 0 |
 
+Check the status code each route answers, not only 200: the commands route answers 202. The widget took 200 and 201
+for success there, so starting or ending maintenance showed "202" as an error on the watch although the server had
+sent the command (reported by Chris 2026-10-28).
+
 A server change to any of these routes or shapes changes the widget in the same pull request (ADR 0001, "Clients in
 this repository that move with the API").
 
@@ -69,12 +73,10 @@ handles MFA) and seed the cache from there.
 
 ## Open
 
-- Starting or ending maintenance shows a failure on the watch although it worked: `onReceiveSetMaintenance()`
-  accepts 200 and 201, and `POST /v1/devices/{id}/commands` answers 202. Found reading the code on 2026-10-08,
-  not tried on a watch.
 - The token is never reused across launches: `doObtainToken()` stores `tokenUsername` from `params["username"]`,
   a key the login parameters do not have, so `initialize()` never matches it. Every start of the widget or the
-  glance logs in again, and every login opens a new session on the server. Found the same way.
+  glance logs in again, and every login opens a new session on the server. Found reading the code on
+  2026-10-08, not tried on a watch.
 - Chris asked on 2026-10-04 to remove the warnings from the CI logs; the Garmin ones were only deduplicated. 81
   distinct ones remain: 42 untyped `Dictionary`/`Array` accesses, most in `TerpControlApi.mc` (type them, e.g.
   `as Dictionary<String, Object?>`), 3 unreachable statements, 15 launcher-icon scalings, the glance entry point
