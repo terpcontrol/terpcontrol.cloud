@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
-updated: 2026-10-08
-source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08
+updated: 2026-10-23
+source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -134,6 +134,11 @@ hardware, the development devices and copies of production data are in
   2026-09-16): its own `.env` with its own `DOCKER_COMPOSE_NAME` (plain `docker compose` reads `COMPOSE_PROJECT_NAME`
   instead) and every `*_PORT_EXTERNAL` moved. When the work is done - for one left up for review, after the merge -
   remove it with `./down.sh --volumes` from its own directory: the scripts act on the project their `.env` names.
+- **A stack started under a project name its `.env` does not carry** (a worktree's `.env` copied from the main
+  checkout still says the main stack's `COMPOSE_PROJECT_NAME`) is reached with `docker compose -p <project> ...`, the
+  project being the `com.docker.compose.project` label on its containers. A plain `docker compose up --build -d
+  webapp` there rebuilds the main stack's image and replaces its container: on 2026-10-23 the replacement could not
+  bind its port and the main stack's webapp stayed down until it was rebuilt from the main checkout.
 - **After a server or contract change, rebuild the stack's server** (`docker compose up --build -d server`, about a
   minute) before a live probe, a screenshot or an agent drives the app. The image bakes the source in: a container
   from before the change answers 404 on every new route, and screens read fields it has never heard of.

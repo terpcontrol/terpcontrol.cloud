@@ -22,7 +22,7 @@ import styles from './Log.module.css';
  *
  * The pictures are uploaded first and the entry names them afterwards; both go
  * through the queue, so the sheet closes on Save and the uploads happen behind
- * the toast. A turn is sent with the upload rather than baked in here, so the
+ * the toast, which counts them. A turn is sent with the upload rather than baked in here, so the
  * server turns the original - HEIC included - and not a re-encoded copy.
  *
  * The line is dated to when the first picture was taken, where the file says,
@@ -33,6 +33,13 @@ import styles from './Log.module.css';
 
 /** What the board offers to tag a picture with. Anything else is typed as "own". */
 const TAGS = ['watered', 'fed', 'topped', 'defoliated', 'transplanted', 'pestCheck'];
+
+/**
+ * How many pictures go up at once. One after another, nine phone pictures held
+ * the toast for minutes; all at once, they share one slow uplink and each runs
+ * into the request time-out. Three keeps the line moving without either.
+ */
+const PARALLEL_UPLOADS = 3;
 
 type Picked = { file: File; url: string; rotate: number };
 
@@ -81,12 +88,32 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
     const words = [...tags.map(tag => t(`log.tags.${tag}`, { defaultValue: tag })), note.trim()].filter(Boolean).join(' · ');
     const owner = { growId: target.growId, spaceId: target.growId ? null : (target.spaceId ?? target.standsIn) };
 
+    // Outlives one attempt, so Try again sends only the pictures that did not arrive.
+    const mediaIds: (string | null)[] = pictures.map(() => null);
+
     log({
       label: lineLabel(t, 'photo', filed),
-      send: async () => {
-        const mediaIds: string[] = [];
-        for (const picture of pictures) mediaIds.push((await uploadPhoto(picture.file, owner, picture.rotate)).id);
-        return writeEntry({ kind: 'photo', ...about(target), ...occurredAt(at), mediaIds, text: words || null, values: { kind: 'photo' } });
+      send: async progress => {
+        const done = () => mediaIds.filter(Boolean).length;
+        progress(done(), pictures.length);
+        const waiting = pictures.map((_, index) => index).filter(index => mediaIds[index] === null);
+        const upload = async (): Promise<void> => {
+          const index = waiting.shift();
+          if (index === undefined) return;
+          const picture = pictures[index];
+          mediaIds[index] = (await uploadPhoto(picture.file, owner, picture.rotate)).id;
+          progress(done(), pictures.length);
+          return upload();
+        };
+        await Promise.all(Array.from({ length: Math.min(PARALLEL_UPLOADS, waiting.length) }, upload));
+        return writeEntry({
+          kind: 'photo',
+          ...about(target),
+          ...occurredAt(at),
+          mediaIds: mediaIds.filter((id): id is string => id !== null),
+          text: words || null,
+          values: { kind: 'photo' },
+        });
       },
     });
   };

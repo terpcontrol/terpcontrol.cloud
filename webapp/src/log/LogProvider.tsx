@@ -60,8 +60,8 @@ export function LogProvider({ children }: { children: ReactNode }) {
 
   /** One attempt at one line. Undo pressed meanwhile is remembered here, so the line is taken back as soon as it exists. */
   const attempt = useCallback(
-    (key: number, send: () => Promise<Entry>) => {
-      void send().then(
+    (key: number, send: LogRequest['send']) => {
+      void send((done, total) => change(key, { progress: total > 1 ? { done, total } : null })).then(
         entry => {
           if (takenBack.current.delete(key)) return void remove(key, entry);
           change(key, { state: 'saved', entry, undoUntil: Date.now() + UNDO_MS });
@@ -88,6 +88,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
         entry: null,
         undoable: request.undoable ?? true,
         undoUntil: null,
+        progress: null,
       };
       setLines(current => [...current, line]);
       setOpening(null);
