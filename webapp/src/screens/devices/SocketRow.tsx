@@ -115,6 +115,10 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
                   type="button"
                   className={ui.chip}
                   disabled={refusal !== null}
+                  aria-label={t(row.state === 'on' ? 'devices.socket.holdOffAria' : 'devices.socket.holdOnAria', {
+                    name,
+                    duration: durationLabel(seconds),
+                  })}
                   onClick={() => send(row.state === 'on' ? 'off' : 'on', seconds)}
                 >
                   {durationLabel(seconds)}

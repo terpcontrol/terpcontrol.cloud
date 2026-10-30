@@ -19,6 +19,7 @@ import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/presets';
 import { Choice, Choices } from '@/ui/SheetParts';
+import { useFocusLanding } from '@/ui/focus-landing';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { offsetOf, wallClock } from '@/ui/wall-clock';
@@ -415,6 +416,7 @@ function Panel({
   // A germination step that says what germination does about the humidity puts that back within the hour too.
   const setsByHand = dryingChange !== null || germinationChange !== null || changedFields(draft, baseline).some(field => owned.has(field));
   const pauses = status === 'running' && (setsByHand || (choicesChange && (step?.germinationChoices ?? null) !== null));
+  const { target: sentRef, land } = useFocusLanding<HTMLParagraphElement>();
   const commit = async (): Promise<boolean> => {
     try {
       // The reason the plan card gives says what was done by hand: the targets, or only what germination does about the humidity.
@@ -432,6 +434,7 @@ function Panel({
         germinationChoices,
       });
       setSent({ draft, at: serverNow(), choices });
+      land();
       // Saved, the chip has said what it had to: the drying spell or the germination is the device's now.
       setEdit(current => (current ? { ...current, chip: null } : current));
       return true;
@@ -628,8 +631,16 @@ function Panel({
 
       {readOnly ? <p className={ui.note}>{t('targets.readOnly')}</p> : null}
 
+      {/* Said once each: that there is something to save, that it is being saved, and that it went. */}
+      <p className={ui.visuallyHidden} role="status">
+        {dirty && mayManage && !asking
+          ? t(busy ? 'targets.saving' : 'targets.unsaved')
+          : sent
+            ? t('targets.sentAt', { time: nowThere(sent.at, zone).toFormat(CLOCK) })
+            : ''}
+      </p>
       {sent ? (
-        <p className={`mono ${styles.sent}`} role="status">
+        <p className={`mono ${styles.sent}`} ref={sentRef}>
           {t('targets.sentAt', { time: nowThere(sent.at, zone).toFormat(CLOCK) })}
           <span className={styles.sentNote}>{t('targets.sentNote')}</span>
         </p>

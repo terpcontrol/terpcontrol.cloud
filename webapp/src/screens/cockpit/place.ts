@@ -103,6 +103,15 @@ export type Verdict =
   | { kind: 'settling'; until: string }
   | null;
 
+/** A verdict in the words `VerdictWords` draws, for a reading said as one sentence. */
+export const verdictSaid = (t: Translate, verdict: Verdict, metric: Metric, now: DateTime, zone: string | null): string | null => {
+  if (!verdict) return null;
+  if (verdict.kind === 'in') return t('home.card.inBand');
+  if (verdict.kind === 'settling') return t('cockpit.tile.settling', { time: clock(verdict.until, zone) });
+  if (verdict.kind === 'last') return [t('offline.lastValue'), verdict.at ? sinceLabel(verdict.at, now, zone) : null].filter(Boolean).join(' ');
+  return t(`cockpit.tile.${verdict.kind}`, { delta: figureWithUnit(verdict.delta, metric) });
+};
+
 export const verdictOf = (value: CardValue | null, setpoint: CardSetpoint | null, now: DateTime): Verdict => {
   if (!value || value.value === null) return null;
   if (valueAge(value, now) !== 'live') return { kind: 'last', at: value.measuredAt };
@@ -405,6 +414,12 @@ export const lightWindowText = (t: Translate, window: LightWindow): string =>
     : window.never
       ? t('cockpit.light.never')
       : t('cockpit.light.window', { on: window.on, off: window.off, hours: hoursWritten(window.hours) });
+
+/** `lightWindowText` read aloud: "08:00 bis 20:00 Uhr, 12 Stunden", where a screen reader drops the dash. */
+export const lightWindowSaid = (t: Translate, window: LightWindow): string =>
+  window.always || window.never
+    ? lightWindowText(t, window)
+    : t('spoken.lightWindow', { on: window.on, off: window.off, hours: hoursWritten(window.hours), count: window.hours });
 
 /**
  * Which half of its day a device holds now: what the server says for a device

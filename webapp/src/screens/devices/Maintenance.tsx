@@ -7,7 +7,7 @@ import { serverNow } from '@/api/clock';
 import { useDevicesCommand } from '@/api/commands';
 import { Sheet } from '@/ui/Sheet';
 import { MAINTENANCE_MINUTES, maintenanceSpans, parkedLabel, parkedQuiet, parksAnything, parksLine, VISIT_MINUTES } from '@/ui/maintenance';
-import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
+import { Answered, Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
 import { deviceTitle } from '@/ui/naming';
@@ -137,7 +137,7 @@ function MaintenanceSheet({ devices, now, onClose }: { devices: Device[]; now: D
 
   return (
     <Sheet title={t('maintenance.title')} onClose={onClose} actions={actions}>
-      <div className={styles.body} role={receipts ? 'status' : undefined}>
+      <div className={styles.body}>
         {receipts ? (
           <Receipt receipts={receipts} ended={ended} spans={spans} />
         ) : running ? (
@@ -199,7 +199,7 @@ function Receipt({ receipts, ended, spans }: { receipts: DeviceCommandResult[]; 
 
   return (
     <>
-      <p>{ended ? t('maintenance.ended') : t('maintenance.started', spans)}</p>
+      <Answered>{ended ? t('maintenance.ended') : t('maintenance.started', spans)}</Answered>
       {unheard && !ended ? <p className={ui.note}>{t('maintenance.unheard', spans)}</p> : null}
     </>
   );
@@ -233,9 +233,9 @@ function RebootSheet({ device, name, onClose }: { device: Device; name: string; 
         </SheetAnswer>
       }
     >
-      <div className={styles.body} role={receipt ? 'status' : undefined}>
+      <div className={styles.body}>
         {receipt ? (
-          <p>{t(receipt.deviceOnline ? 'devices.reboot.sent' : 'devices.reboot.unheard')}</p>
+          <Answered>{t(receipt.deviceOnline ? 'devices.reboot.sent' : 'devices.reboot.unheard')}</Answered>
         ) : (
           <>
             <p>{t('devices.reboot.text')}</p>

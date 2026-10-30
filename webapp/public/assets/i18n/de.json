@@ -408,7 +408,9 @@
       "runsValue_one": "{{count}}× in den letzten 24 Std",
       "runsValue_other": "{{count}}× in den letzten 24 Std",
       "isPlug": "smarte Steckdose",
-      "numbered": "{{name}} {{number}}"
+      "numbered": "{{name}} {{number}}",
+      "holdOnAria": "{{name}} für {{duration}} einschalten",
+      "holdOffAria": "{{name}} für {{duration}} ausschalten"
     },
     "noDevicesHere": "Hier steht kein Gerät.",
     "settings": {
@@ -624,7 +626,8 @@
       "places": "Jetzt sind es {{count}} Orte: Start zeigt jeden als Karte, ein Tipp öffnet ihn. Verlauf und Steuerung zeigen den zuletzt geöffneten, oben wechselst du den Ort.",
       "ok": "Verstanden",
       "diaryOff": "Ausschalten unter Ich › Darstellung"
-    }
+    },
+    "skipToContent": "Zum Seiteninhalt springen"
   },
   "home": {
     "entryRepeats": "{{count}}× seit {{since}}",
@@ -1808,7 +1811,8 @@
         "stepCount_one": "{{count}} Schritt",
         "stepCount_other": "{{count}} Schritte",
         "noSteps": "Noch keine Schritte. Ein Plan ohne sie hat nichts zu laufen.",
-        "save": "Plan speichern"
+        "save": "Plan speichern",
+        "leave": "Was du an diesem Plan geändert hast, verwerfen?"
       },
       "step": {
         "defaultName": "Schritt {{number}}",
@@ -1843,7 +1847,11 @@
         "remove": "Entfernen",
         "add": "Schritt hinzufügen",
         "dryingNote": "Ein Schritt in die Trocknung schaltet das Gerät in die Betriebsart Trocknung: Das Licht bleibt aus, CO₂ wird nicht zugegeben, und es hält diese beiden Werte rund um die Uhr.",
-        "germinationNote": "Ein Schritt in die Keimung schaltet das Gerät dunkel: kein Licht, kein CO₂, und rund um die Uhr hält es diese Temperatur; die Luftfeuchte hält ein Befeuchter, wo einer gekoppelt ist und halten darf. Der nächste Schritt bringt das Licht zurück, auch einer ohne Stadium – außer er ist selbst eine Keimung."
+        "germinationNote": "Ein Schritt in die Keimung schaltet das Gerät dunkel: kein Licht, kein CO₂, und rund um die Uhr hält es diese Temperatur; die Luftfeuchte hält ein Befeuchter, wo einer gekoppelt ist und halten darf. Der nächste Schritt bringt das Licht zurück, auch einer ohne Stadium – außer er ist selbst eine Keimung.",
+        "moved": "{{name}} ist jetzt Schritt {{number}} von {{count}}",
+        "removed": "{{name}} entfernt",
+        "openNamed": "{{name}} bearbeiten",
+        "removeNamed": "{{name}} entfernen"
       },
       "figure": {
         "dayTemperature": "Tag · Temperatur",
@@ -5242,5 +5250,20 @@
     },
     "operator": "Verantwortlich für diese Daten ist, wer diese Installation betreibt.",
     "back": "Zurück zur Registrierung"
+  },
+  "spoken": {
+    "hourMean": "Mittel der letzten Stunde {{value}}",
+    "noValue": "kein Wert",
+    "newest": "neuester Wert {{ago}}",
+    "lightWindow_one": "{{on}} bis {{off}} Uhr, {{hours}} Stunde",
+    "lightWindow_other": "{{on}} bis {{off}} Uhr, {{hours}} Stunden",
+    "camera": "{{name}}, Bild von {{time}} Uhr, {{ago}}",
+    "minutes": "Minuten",
+    "curve": "{{label}}: tiefster Wert {{low}}, höchster {{high}}, {{trend}}",
+    "trend": {
+      "rising": "in der letzten Stunde steigend",
+      "falling": "in der letzten Stunde fallend",
+      "steady": "in der letzten Stunde gleichbleibend"
+    }
   }
 }

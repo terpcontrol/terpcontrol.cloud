@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import { dayOf, momentOn } from './days';
@@ -145,6 +145,23 @@ export function HandleField({
         onChange={event => onChange(event.target.value)}
       />
     </label>
+  );
+}
+
+/**
+ * What a sheet says once its question is answered - "Wartung läuft bis 14:20",
+ * "Gesendet" - in place of the question. It takes the focus as it is drawn: the
+ * button that was pressed is gone, and a live region drawn with its text is
+ * mostly not read, so this is the one way the answer is heard every time.
+ */
+export function Answered({ children, className }: { children: ReactNode; className?: string }) {
+  const line = useRef<HTMLParagraphElement>(null);
+  useEffect(() => line.current?.focus({ preventScroll: true }), []);
+
+  return (
+    <p className={className} ref={line} tabIndex={-1}>
+      {children}
+    </p>
   );
 }
 

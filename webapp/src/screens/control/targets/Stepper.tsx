@@ -2,6 +2,8 @@ import { Minus, Plus } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { decimalFigure, typedFigure } from '@/ui/figures';
+import ui from '@/ui/ui.module.css';
+import { wallClock } from '@/ui/wall-clock';
 import { TimeInput } from '../TimeInput';
 import styles from './DayNight.module.css';
 
@@ -62,6 +64,8 @@ interface StepperProps {
   decimals: number;
   /** Written after the figure inside the field, where the row's label does not carry the unit. */
   unit?: string;
+  /** The unit a screen reader says after the figure where it is not written beside it: the row's label carries it. */
+  spokenUnit?: string;
   /** The two buttons, as a screen reader reads them out. */
   less: string;
   more: string;
@@ -82,8 +86,27 @@ interface StepperProps {
  * to "31" is not a temperature to snap to; the arrow keys step like the
  * buttons do.
  */
-export function Stepper({ name, value, min, max, step, decimals, unit, less, more, changed = false, disabled = false, onChange }: StepperProps) {
+export function Stepper({
+  name,
+  value,
+  min,
+  max,
+  step,
+  decimals,
+  unit,
+  spokenUnit = unit,
+  less,
+  more,
+  changed = false,
+  disabled = false,
+  onChange,
+}: StepperProps) {
   const [typing, setTyping] = useState<string | null>(null);
+  const [announced, setAnnounced] = useState('');
+  const textOf = (figure: number) => {
+    const written = decimalFigure(figure, Number.isInteger(figure) ? 0 : decimals);
+    return spokenUnit ? `${written} ${spokenUnit}` : written;
+  };
   const written = decimalFigure(value, Number.isInteger(value) ? 0 : decimals);
 
   const scale = 10 ** decimals;
@@ -93,9 +116,12 @@ export function Stepper({ name, value, min, max, step, decimals, unit, less, mor
     const steps = direction > 0 ? Math.floor(value / step + 1e-9) + 1 : Math.ceil(value / step - 1e-9) - 1;
     const next = clamp(steps * step);
     if (next !== value) onChange(next);
+    return next;
   };
-  const down = useRepeat(by(-1));
-  const up = useRepeat(by(1));
+  // Focus stays on the button, so the figure it set is said through a live region.
+  const press = (direction: 1 | -1) => () => setAnnounced(`${name} ${textOf(by(direction)())}`);
+  const down = useRepeat(press(-1));
+  const up = useRepeat(press(1));
 
   const commit = () => {
     if (typing === null) return;
@@ -115,7 +141,8 @@ export function Stepper({ name, value, min, max, step, decimals, unit, less, mor
 
   return (
     <span className={styles.stepper} data-changed={changed || undefined}>
-      <button type="button" className={styles.stepButton} aria-label={less} disabled={disabled || value <= min} {...down}>
+      {/* At the end of its range a button says so rather than being disabled, which would drop the focus. */}
+      <button type="button" className={styles.stepButton} aria-label={less} disabled={disabled} aria-disabled={value <= min || undefined} {...down}>
         <Minus size={16} strokeWidth={2} aria-hidden />
       </button>
       <span className={styles.stepFigure}>
@@ -128,7 +155,7 @@ export function Stepper({ name, value, min, max, step, decimals, unit, less, mor
           aria-valuenow={value}
           aria-valuemin={min}
           aria-valuemax={max}
-          aria-valuetext={unit ? `${written} ${unit}` : written}
+          aria-valuetext={textOf(value)}
           value={typing ?? written}
           disabled={disabled}
           size={Math.max(2, written.length)}
@@ -139,9 +166,12 @@ export function Stepper({ name, value, min, max, step, decimals, unit, less, mor
         />
         {unit ? <span className={styles.stepUnit}>{unit}</span> : null}
       </span>
-      <button type="button" className={styles.stepButton} aria-label={more} disabled={disabled || value >= max} {...up}>
+      <button type="button" className={styles.stepButton} aria-label={more} disabled={disabled} aria-disabled={value >= max || undefined} {...up}>
         <Plus size={16} strokeWidth={2} aria-hidden />
       </button>
+      <span className={ui.visuallyHidden} aria-live="polite">
+        {announced}
+      </span>
     </span>
   );
 }
@@ -169,10 +199,13 @@ const HALF_HOUR = 30 * 60;
  */
 export function ClockStepper({ name, seconds, offset, less, more, changed = false, disabled = false, onChange }: ClockStepperProps) {
   const local = roundTheClock(seconds + offset);
+  const [announced, setAnnounced] = useState('');
 
   const by = (direction: 1 | -1) => () => {
     const steps = direction > 0 ? Math.floor(local / HALF_HOUR) + 1 : Math.ceil(local / HALF_HOUR) - 1;
-    onChange(roundTheClock(steps * HALF_HOUR - offset));
+    const next = roundTheClock(steps * HALF_HOUR - offset);
+    onChange(next);
+    setAnnounced(`${name} ${wallClock(next, offset)}`);
   };
   const down = useRepeat(by(-1));
   const up = useRepeat(by(1));
@@ -195,6 +228,9 @@ export function ClockStepper({ name, seconds, offset, less, more, changed = fals
       <button type="button" className={styles.stepButton} aria-label={more} disabled={disabled} {...up}>
         <Plus size={16} strokeWidth={2} aria-hidden />
       </button>
+      <span className={ui.visuallyHidden} aria-live="polite">
+        {announced}
+      </span>
     </span>
   );
 }

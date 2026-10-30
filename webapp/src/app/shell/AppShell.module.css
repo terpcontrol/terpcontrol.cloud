@@ -42,3 +42,24 @@
     margin-inline: max(0px, calc((100% - var(--page-width)) / 2)) auto;
   }
 }
+
+/* Out of sight until a keyboard reaches it, then over the top left corner. */
+.skip {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 100;
+  padding: var(--space-2) var(--space-3);
+  background: var(--card);
+  border-radius: var(--radius);
+  color: var(--brand);
+  transform: translateY(-200%);
+}
+
+.skip:focus {
+  transform: none;
+}
+
+.main:focus {
+  outline: none;
+}

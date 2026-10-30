@@ -262,7 +262,8 @@
   color: var(--ink);
 }
 
-.icon:disabled {
+.icon:disabled,
+.icon[aria-disabled='true'] {
   opacity: 0.4;
 }
 

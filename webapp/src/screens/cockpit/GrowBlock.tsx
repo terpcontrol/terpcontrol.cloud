@@ -207,7 +207,12 @@ function DueRow({ task, overview, now }: { task: OverviewTask; overview: SpaceOv
         <span className={`mono ${styles.dueMeta}`}>{dueLabel(t, task.dueAt, now, zone, { since: true })}</span>
       </span>
       {mayLog ? (
-        <button type="button" className={`${ui.button} ${styles.done}`} onClick={() => complete(task.id, `${writes} · ${subject}`)}>
+        <button
+          type="button"
+          className={`${ui.button} ${styles.done}`}
+          aria-label={`${t('home.strip.done')}: ${task.label}`}
+          onClick={() => complete(task.id, `${writes} · ${subject}`)}
+        >
           {t('home.strip.done')}
         </button>
       ) : null}

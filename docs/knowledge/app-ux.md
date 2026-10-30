@@ -1,7 +1,7 @@
 ---
-summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, what was left out on purpose; read before changing a screen
-updated: 2026-10-22
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22
+summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
+updated: 2026-10-23
+source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -299,3 +299,38 @@ Everything else the old expert mode offered is under an Erweitert section (the `
 the maintenance light, the Kompressor-Pause (at least 240 s), light ramps, fan levels (also under a fridge's targets),
 sensor factors and the update
 channel with Manuell (Chris, 2026-10-06); the alarm sheet keeps the webhook templates.
+
+## 12. Screen readers
+The app has to be usable by somebody who cannot see it, above all the place's current state and Steuerung (Chris,
+2026-10-15, asking for a screen-reader check of both). What the check of that day settled:
+- **A page is named and arrived at**: the shell titles the window after the page's `<h1>` ("Blue Dream tent – Terp
+  Control"; `data-title` where the heading also holds a picker) and moves focus to that heading after a navigation,
+  unless the pressed control is still on the page (`app/shell/page-title.ts`).
+- **A reading is said as one sentence that names it**: "Luftfeuchte 65 %, 5 % zu hoch, Mittel der letzten Stunde
+  64 %". The drawn figure, unit and "Ø 1 Std" are `aria-hidden` beside a visually hidden sentence; the verdict is in
+  it, never in the colour alone (`verdictSaid`, `screens/cockpit/place.ts`).
+- **Short forms are drawn, long forms are read** (`ui/Spoken.tsx`): screen readers spell "Ø" as "Durchmesser", drop
+  the dash of "08:00–20:00" and read "3 d" letter by letter. `Spoken` pairs the two, `Dot` reads " · " as a comma's
+  pause, `spokenAgo` writes an age out ("vor 3 Tagen"), `spoken.*` in the catalogues holds the sentences.
+- **Live regions stay mounted and say a change once**: a region inserted together with its text is often missed, and
+  one holding a ticking age ("vor 20 s") is re-read every ten seconds, so ages stay out of them. A stepper's − and +
+  keep the focus and say the figure they set; the save bar's "ungespeichert / wird gesendet / gesendet um" goes
+  through one region per panel, and focus lands on the sent line once the bar is gone (`ui/focus-landing.ts`).
+- **A control at the end of its range is `aria-disabled`, not `disabled`**: disabling the focused button drops focus
+  to the body.
+- A field's name carries its unit where the unit is drawn elsewhere (`spokenUnit` of the targets table's steppers,
+  the alarm limits); a switch's note is its `aria-describedby`; repeated "Ändern" links name their section.
+- **Focus never falls to the body.** A control that is swapped, removed or disabled under the focus - Pause turned
+  into Start, a step removed - hands it to the nearest control left where it stood (`ui/focus-rescue.ts`, on in the
+  shell); a question (`Asking`) and a sheet's answer (`Answered`) take it themselves, so they are what is read.
+- **What happened is said once, through the app's one live region** (`ui/live-region.ts`, `<Announce>`), never by a
+  region drawn together with its text or given `role="status"` only once the answer is in.
+- **A sheet makes the page behind it inert** (`ui/modal-focus.ts`): `aria-modal` alone does not keep VoiceOver on iOS or
+  TalkBack inside it. The live region is left out of that.
+- A slider moved by keys or a screen reader's swipe is sent once it rests (1.5 s), not on every step: the first step
+  would already pause a running plan (`LightOutputRow`). Closing the plan editor with edits asks first, since screen
+  reader users press Escape out of habit. A field a save is refused for is `aria-invalid` and described by why, and
+  so is the Save it disables. A shell skip link leads past the navigation to `<main>`.
+- A diary row says its kind as hidden words before the line (`ui/EntryRow.tsx`), so a line whose text is its kind
+  word is read twice ("Gegossen, Gegossen"). Accepted for now (2026-10-15); the fix is to leave the kind out where the
+  line's text already says it.

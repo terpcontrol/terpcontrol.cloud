@@ -80,10 +80,12 @@ export function Rail() {
         </div>
 
         {log ? (
-          <button type="button" className={styles.log} onClick={() => openSheet(underneath)}>
+          <button type="button" className={styles.log} aria-keyshortcuts={LOG_KEY} onClick={() => openSheet(underneath)}>
             <log.Icon size={20} strokeWidth={2} aria-hidden />
             <span className={styles.logCaption}>{t(log.labelKey)}</span>
-            <kbd className={`mono ${styles.key}`}>{LOG_KEY.toUpperCase()}</kbd>
+            <kbd className={`mono ${styles.key}`} aria-hidden>
+              {LOG_KEY.toUpperCase()}
+            </kbd>
           </button>
         ) : null}
 
