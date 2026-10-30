@@ -2233,6 +2233,7 @@
     "tryAgain": "Nochmal versuchen",
     "dismiss": "Schließen",
     "takingBack": "wird widerrufen",
+    "uploaded": "{{done}} von {{total}} Bildern hochgeladen",
     "undoFailed": "Der Eintrag konnte nicht widerrufen werden",
     "taskClosed": "Aufgabe erledigt",
     "startsIn": "ab Schema-Woche {{week}}",

@@ -345,7 +345,8 @@ class TerpControlApi {
     }
 
     function onReceiveSetMaintenance(responseCode as Number, data as Dictionary or String or Null, context as Array) as Void {
-        if (responseCode == 200 || responseCode == 201) {
+        // A command is answered with 202: the server published it to the device.
+        if (responseCode == 202) {
             var durationMinutes = context[0] as Number;
             var startingView = context[1];
             if (startingView != _view || _device == null || !(_view instanceof TerpControlMaintenanceView)) {

@@ -2225,6 +2225,7 @@
     "tryAgain": "Try again",
     "dismiss": "Dismiss",
     "takingBack": "taking it back",
+    "uploaded": "{{done}} of {{total}} pictures uploaded",
     "undoFailed": "Could not take that line back",
     "taskClosed": "Task done",
     "startsIn": "from scheme week {{week}}",
