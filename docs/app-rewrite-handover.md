@@ -37,8 +37,10 @@ product side exist outside this repository.
 Checked against the code on 2026-10-08; the navigation item on 2026-11-11. Take an item out once it is done.
 
 - **The navigation is to be reordered** (Chris, 2026-11-11: the diary is hard to find, places and rooms are
-  inconsistent, the charts are less precise and less intuitive than the old app's). Nothing is decided yet; a read of
-  the whole web app on that day found, as the things a redesign has to settle:
+  inconsistent, the charts are less precise and less intuitive than the old app's). The direction is chosen (Chris,
+  2026-11-11; internal notes exist) and a click prototype outside the app comes before any change to it. The new
+  routes need no redirects from today's, and a change to the data model comes as a migration step (Chris,
+  2026-11-11). A read of the whole web app on that day found, as the things the redesign has to settle:
   - No bar item, tab or title reads the diary: it is the grow page's tab "Wochen", filed under Start
     (`webapp/src/app/shell/tabs.ts`), and the camera page is filed under Geräte.
   - Steuerung and Geräte show the same devices from two sides and draw the same `DeviceAdvanced`
