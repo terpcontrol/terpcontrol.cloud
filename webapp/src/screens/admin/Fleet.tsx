@@ -5,12 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { User } from '@fg2/shared-types/v1';
 import { useAdminCameras, useAdminDevices, useAdminStats, useAdminUsers, useDeviceClasses, useFirmwares, useFleet } from '@/api/admin';
-import { fetchedAt } from '@/api/clock';
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSession } from '@/api/session';
 import type { Translate } from '@/i18n/i18n';
 import { ageLabel, deviceLiveness } from '@/ui/age';
-import { useReportFreshness } from '@/ui/freshness';
 import { RefreshFailed } from '@/ui/PageState';
 import { Choice } from '@/ui/SheetParts';
 import { AdminHead, AdminNotLoaded, Liveness } from './parts';
@@ -68,7 +66,6 @@ export function Fleet() {
   useFollowCursor(people);
   useFollowCursor(cameras);
   useFollowCursor(firmwares);
-  useReportFreshness(fleet.dataUpdatedAt ? fetchedAt(fleet.dataUpdatedAt) : null);
 
   const header = <AdminHead title={t('admin.fleet.title')} />;
 

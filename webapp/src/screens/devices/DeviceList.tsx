@@ -8,13 +8,12 @@ import type { ActuatorRuns, Camera, ClimateVerdict, Device, OutputMetric, Socket
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { useCameras, useLatestStills } from '@/api/cameras';
-import { fetchedAt, serverNow } from '@/api/clock';
+import { serverNow } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { ageAttribute, ageLabel, deviceLiveness, LIVENESS_RANK, offlineLabel, sinceLabel } from '@/ui/age';
-import { useReportFreshness } from '@/ui/freshness';
 import { Help, Term } from '@/ui/Help';
 import { darkReasonOf } from '@/ui/climate-hardware';
 import { maintenanceQuiet, parksAnything } from '@/ui/maintenance';
@@ -48,9 +47,9 @@ import styles from './Devices.module.css';
  * - through a controller, standalone, or a stream this cloud pulls - and every
  * smart socket with its role and its switch.
  *
- * The Devices tab is this with a header over it. `opened` names a place whose
- * devices are drawn open, which is what a link about that place - the offline
- * box on its cockpit, an old address of its devices tab - asks for: the row
+ * The Devices page is this with a header over it. `opened` names a place whose
+ * devices are drawn open, which is what a link about that place - Steuerung's
+ * row, the offline box on its cockpit - asks for: the row
  * that says since when it has been quiet and what to try.
  */
 export function DeviceList({ opened = null }: { opened?: string | null }) {
@@ -98,8 +97,6 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
   // overview by, so a place already looked at costs nothing more.
   const verdicts = useSpaceVerdicts([...new Set(mine.map(device => device.spaceId).filter((id): id is string => id !== null))]);
 
-  useReportFreshness(devices.dataUpdatedAt ? fetchedAt(devices.dataUpdatedAt) : null);
-
   if (devices.isPending || cameras.isPending) return <Waiting lines={3} />;
   if (!devices.data || !cameras.data) return <LoadFailed retry={() => void devices.refetch()} />;
 
@@ -122,7 +119,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
           also collided with the Smart sockets sections further down, which hold
           something else. */}
       {/* What the account has, and what those things drive: two columns on a
-          wide Devices tab, one run of sections everywhere else. */}
+          wide Devices page, one run of sections everywhere else. */}
       <div className={styles.column}>
         {/* Without a device the tab is the door hardware comes in by, not a list
             with nothing in it: what is there - a camera - comes first, and the
@@ -201,7 +198,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
           </Section>
         ) : null}
 
-        {/* Only on the Devices tab: a tent's own list is the same component,
+        {/* Only on the Devices page: a tent's own list is the same component,
             and the screen behind this asks which place a camera is for rather
             than taking the one it was opened from. */}
         {maySetUp ? (

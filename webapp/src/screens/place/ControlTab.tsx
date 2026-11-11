@@ -5,22 +5,20 @@ import { useSession } from '@/api/session';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { Control } from '../control/Control';
-import { PlaceHeading, VisitingTitle } from './PlaceHeading';
-import heading from './PlaceHeading.module.css';
+import { PlaceTitle, VisitingTitle } from './PlaceTitle';
 import styles from './Place.module.css';
 
 /**
- * Steuerung, the tab: what one place is held at and what watches over it. It
- * opens on the place a link names, else the one last looked at, else the only
- * one; with more than one place its title is the switcher. The pages below it
- * - the alarm rules, the plan - keep the place in the address too, so an alert
- * can link to the rule it came from.
+ * Steuerung, the bar's item: what the chosen place is held at and what watches
+ * over it. A link that names a place chooses it, and the pages below - the
+ * alarm rules, the plan - keep it in the address, so an alert can link to the
+ * rule it came from.
  */
 export function ControlTab() {
   const { t } = useTranslation();
   const { user } = useSession();
   const { page = null } = useParams();
-  const { home, places, here, visiting, choose } = useCurrentPlace();
+  const { home, here, visiting } = useCurrentPlace();
 
   if (home.isPending) return <Waiting lines={4} />;
   if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
@@ -39,7 +37,7 @@ export function ControlTab() {
   if (!here) {
     return (
       <section className={`${styles.page} ${styles.reading}`}>
-        <h1 className={heading.title}>{t('shell.tabs.control')}</h1>
+        <h1>{t('shell.tabs.control')}</h1>
         <p className={`${ui.cardDashed} ${ui.note}`}>
           {user?.isDemo === true ? (
             t('place.control.demoNothing')
@@ -55,7 +53,7 @@ export function ControlTab() {
 
   return (
     <section className={`${styles.page} ${styles.reading}`}>
-      <PlaceHeading title={t('shell.tabs.control')} places={places} here={here} onChoose={choose} />
+      <PlaceTitle title={t('shell.tabs.control')} here={here} />
       <Control key={here.spaceId} spaceId={here.spaceId} sub={page} />
     </section>
   );

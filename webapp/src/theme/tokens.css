@@ -125,23 +125,11 @@
   /* A breath of the brand blue at the top of the page, nothing more. */
   --glow: radial-gradient(1200px 520px at 70% -180px, rgb(72 112 192 / 9%), transparent 70%);
 
-  /* The navy of the site's dark sections, which the desktop rail stands on in
-     both modes: the spotlight's three stops run top to bottom, the colour it
-     ends in, and the inks that read on it - measured on the lightest stop. */
-  --navy: linear-gradient(180deg, #2d4b95 0%, #1f3a6e 48%, #14264a 100%);
-  --navy-end: #14264a;
   /* The site's spotlight, its green light and all, as a whole page's ground:
      the door into the app stands on it in both modes. */
   --spotlight:
     radial-gradient(640px 640px at 88% -6%, rgb(80 160 48 / 42%) 0%, rgb(80 160 48 / 12%) 42%, transparent 68%),
     radial-gradient(125% 120% at 10% 0%, #2d4b95 0%, #1f3a6e 48%, #14264a 100%);
-  --navy-ink: #ffffff;
-  --navy-muted: #cdd7ec;
-  --navy-label: #b9c6e2;
-  --navy-green: #c2eca0;
-  --navy-hover: rgb(255 255 255 / 8%);
-  --navy-active: rgb(255 255 255 / 14%);
-  --navy-rule: rgb(255 255 255 / 10%);
 
   /* The logo: in colour on a light surface, reversed - white with its green
      kept - on a dark one. A component draws both and these say which shows. */
@@ -160,7 +148,7 @@
      the hyphen, the stops, the colon, the brackets and the space as well. */
   --font-figure: 'Inter Tabular Digits', var(--font-text);
 
-  /* The scale. 11.5 is only ever the tracked capitals of a section label. */
+  /* The scale. 11.5 is the tracked capitals of a section label and the caption under a bar's icon. */
   --text-2xs: 11.5px;
   --text-xs: 12px;
   --text-sm: 13.5px;
@@ -231,12 +219,12 @@
   --action-height: 36px;
   --chip-height: 30px;
 
-  --tabbar-height: 62px;
-  --topbar-height: 64px;
-  /* The raised Log button on the tab bar. */
-  --log-button: 56px;
+  --tabbar-height: 72px;
+  --topbar-height: 56px;
+  /* The green circle of the bar's Eintrag button. */
+  --log-button: 40px;
   /* The desktop rail replaces the tab bar from here up. */
-  --rail-width: 248px;
+  --rail-width: 216px;
   /* A phone's column, kept on a wide screen for a form or a sheet. */
   --column-width: 560px;
   /* One column of reading on a wide screen: a settings page, a list. */

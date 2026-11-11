@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
-updated: 2026-10-23
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15
+updated: 2026-11-12
+source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -42,13 +42,23 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   2026-10-02, first said of the charts). What was decided away is in §11.
 
 ## 2. Navigation and the place page
-- Bar and rail: **Start · Verlauf · Steuerung · Gerät** ("Geräte" once there is more than one thing, a camera
-  counting). Steuerung only once there is a device to steer; the green Eintrag button in the middle only where the
-  diary is kept and the session may write; a diary without hardware has Start · Eintrag · Verlauf. Tasks hang off the
-  grow block and the bell (`app/shell/tabs.ts`).
-- **A place is one page**, its cockpit at `/spaces/:id`: with one place Start is that cockpit, with several it is one
-  card per place, ordered by what needs a person. Verlauf and Steuerung are about one place (the one a link names,
-  else the last looked at), with a switcher only where there are several. Old addresses redirect.
+- Bar and rail: **Start · Grow · Eintrag · Verlauf · Steuerung**, always in that order, each there for what the
+  account has and the session may do (Chris, 2026-11-11): Grow with the diary; the green Eintrag button with the diary
+  and the right to write a line; Verlauf with a device; Steuerung with a device the session may manage, so a member
+  who may only log and the demo have none. One device without a diary is Start · Verlauf · Steuerung, a diary without
+  hardware Start · Grow · Eintrag (`app/shell/tabs.ts`, drawn from `app/shell/shape.ts`). Meldungen and Ich are not
+  items: the phone's header carries the bell (a dot while something is open) and the way to Ich, the rail both at its
+  foot with the open count. An item stays marked on its pages - Start on a place's page and the task list, Grow on
+  every grow, Verlauf on Graphen, Steuerung on the devices, the claim and adding a camera - and a camera's page,
+  Meldungen and Ich mark none. The fleet screens of whoever runs the install are doors under Ich.
+- **One choice of place holds for Grow, Verlauf and Steuerung** (`app/places.ts`, `app/shell/PlaceChoice.tsx`). From
+  the second place on a chip names the chosen place: in the phone's header on the pages that show it, at the top of
+  the rail on every page. It opens the sheet "Ort": the places under their rooms, each with its status sentence and
+  what grows there, the chosen one ticked. With one place there is no chip. A link that names a place (`?space=`, as
+  an alert and a place's tile do) and opening a place from Start choose it too; no page has a switcher of its own.
+- **A place is one page**, its Start at `/spaces/:id`: with one place Start is that page, with several it is one card
+  per place, ordered by what needs a person. **Grow** (`/grow`) is the grow running in the chosen place, drawn as
+  that grow's page; where nothing grows there it offers to start a grow and leads to "Meine Grows".
 - **The cockpit answers in the order a grower asks** (`screens/cockpit/PlaceCockpit.tsx`): is everything all right
   (one status sentence, or the offline box with three things to check), would I be told, what does it read and what
   runs, what is it set to, what grows here, what happened. On a 390×844 phone status, reading tiles and the light fit
@@ -95,11 +105,13 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   what still stands there - devices with their cameras, a loose camera, a running grow - moves to one place chosen in
   the sheet, then the place ends. Members still have to be taken out first, and the refusal now names each thing in
   the way (`ui/refusal.ts`) instead of a bare conflict. An ended grow no longer counts as standing in a place.
-- **Steuerung opens on Zielwerte** (a running plan is the exception) with Alarme and "Automatisch nach Grow-Plan
-  steuern" as rows under them. Leaving with unsaved figures asks "Speichern und weiter / Verwerfen / Weiter
-  bearbeiten"; on a phone the save bar takes the tab bar's place.
+- **Steuerung opens on Zielwerte** (a running plan is the exception) with Alarme, "Automatisch nach Grow-Plan
+  steuern" and "Geräte" - the account's device list, which has no item of its own in the bar - as rows under them.
+  Leaving with unsaved figures, a change of the chosen place included, asks "Speichern und weiter / Verwerfen /
+  Weiter bearbeiten"; on a phone the save bar takes the tab bar's place.
 - **Meine Grows** at `/grows` (Chris, 2026-10-02): running grows first (also placeless ones and those in shared
-  places, marked "von @owner"), then finished ones; reached from the grow block, Start and Ich, only with the diary on.
+  places, marked "von @owner"), then finished ones; reached from Grow, the grow block, Start and Ich, only with the
+  diary on.
 
 ## 3. Honest states
 - **A pending or failed read is never drawn as a fact** ("nothing measured", "nothing set yet"): ask a read's state
@@ -142,8 +154,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   the stills it has missed instead ([terp-cam.md](terp-cam.md#health-diary-app)).
 - **A silence is said one way**, "offline seit 10:19" (`offlineLabel`): dated rather than aged, from `heardAt`, the
   same on pill, banner, card and alert. A reading no longer live says "letzter Wert · 10:19" instead of a verdict.
-- **One freshness clock per screen**: on a place its pill ("● live · 20 s"); the shell's "aktualisiert vor …" line only
-  on screens without readings, dated by the fetch restated with `fetchedAt()` (`ui/freshness.ts`).
+- **One freshness clock per screen**: the pill at the head of what it dates ("● live · 20 s" on a place, a device, a
+  camera). The shell draws none.
 - **Countdowns round up and carry the unit** (59 min 30 s left is "1 Std"); elapsed ages floor (`ui/age.ts`).
 - **A reading is judged as written** (`asWritten`, `ui/units.ts`): against 21 ± 1 °C "1,0 zu hoch" is in target and
   "1,1" is not, so the verdict never disagrees with the figure beside it. The band is one tolerance per metric, not

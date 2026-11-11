@@ -3,7 +3,7 @@ import { SOCKET_HOLD_MAX_SECONDS } from '@fg2/shared-types/v1-schemas/socket-rep
 import type { OverrideRequest } from '@/api/devices';
 
 /**
- * What a socket row on the Devices tab is drawn from, and what a tap on its
+ * What a socket row on the Devices page is drawn from, and what a tap on its
  * switch means.
  *
  * The rows are the device's own table and nothing else. The controller's own
@@ -30,7 +30,7 @@ export const HOLD_SECONDS: readonly number[] = [900, DEFAULT_HOLD_SECONDS, 4 * 3
 /** Long enough to find which plug in the tent it is, short enough to be over before anybody worries. */
 export const TEST_SECONDS = 5;
 
-/** One row of the Devices tab's socket list: one plug of the device's own table. */
+/** One row of the Devices page's socket list: one plug of the device's own table. */
 export interface SocketRowModel extends Socket {
   key: string;
   /** The name of the row: what the role is called, or "unassigned" for a socket nobody gave one. */

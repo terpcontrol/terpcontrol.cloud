@@ -9,7 +9,7 @@ import type { Translate } from '@/i18n/i18n';
  * is no name at all: drawn as it stands it reads as lowercase English, in the
  * German app as much as in the English one. Every line that prints a device
  * goes through here, so the same hardware is called the same thing on the
- * Devices tab, under a stream address and beside a camera that has just been
+ * Devices page, under a stream address and beside a camera that has just been
  * paired.
  */
 export const givenName = (device: Device): string | null => (device.name && device.name !== device.type ? device.name : null);

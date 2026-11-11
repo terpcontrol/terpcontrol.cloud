@@ -33,7 +33,7 @@ import styles from './parts.module.css';
 /**
  * The page: its title, the chevron back to Me, and on a width that has room
  * for it the trail as well. The chevron is there at every width because the
- * phone's top bar carries no way back - the wordmark, the bell and the avatar
+ * phone's top bar carries no way back - the logo, the bell and the way to Ich
  * - and a leaf route with no exit but the browser's own gesture is a dead end
  * in an installed app.
  *

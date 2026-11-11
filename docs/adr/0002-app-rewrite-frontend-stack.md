@@ -1,7 +1,7 @@
 ---
 summary: Which libraries the React web app is built from and why, its session and API client, its service worker, and the brand look its design tokens carry - read before adding a dependency, changing the build, the service worker, the fonts or a token
-updated: 2026-10-09
-source: Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
+updated: 2026-11-12
+source: Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
 paths:
   - webapp/package.json
   - webapp/vite.config.ts
@@ -253,10 +253,9 @@ pastel fill. Sliders and an on switch take the surface green, since the primary'
 dark card, under the 3:1 a control needs.
 
 The primary fill is the site's `#3e8024` in both modes, as the site's dark call-to-action panel uses it. The
-desktop rail is navy in both modes - the site's dark sections round a light page, as its hero and footer stand
-round its content: the spotlight's stops `#2d4b95` → `#1f3a6e` → `#14264a` run top to bottom, with white text,
-`#cdd7ec` for quieter lines (5.7:1 on the lightest stop), a white pane at 14 % behind the current item and its
-icon in the pale green. Captions over photographs sit on smoked navy (`--overlay`, `rgb(12 24 48 / 72%)`, text
+desktop rail is a card's surface with a rule down its right edge, its items in ink and the current one in the brand
+blue on the brand's wash - the same marks the phone's bar uses (2026-11-12, with the navigation redesign; until
+then it was the site's navy in both modes). Captions over photographs sit on smoked navy (`--overlay`, `rgb(12 24 48 / 72%)`, text
 `#f5f8ff`) in both modes, because the picture does not change with the theme; a button over a photograph is
 solid (`--overlay-solid`, `#111f3d`). The toast is the dark brand blue in light mode and a raised navy in dark.
 The sign-in and sign-up cards stand on the site's spotlight (`--spotlight`: the radial navy with its green light)
@@ -268,7 +267,7 @@ and sign-up cards, the public pages' bar and the error page, in place of a types
 retouched: per pixel, how much of the logo's blue it holds becomes white, how much of its green keeps its own
 colour, and the logo's white drops out so the dark ground shows through the knockouts - the treatment the site's
 dark sections give the brand (white type, the green kept). A `Logo` component draws both and `--logo-colour` /
-`--logo-reverse` say which one shows, so it follows the theme and the rail sets it for itself. The favicon and
+`--logo-reverse` say which one shows, so it follows the theme. The favicon and
 the installed app's icons are the logo's shield.
 
 **Charts** take every colour from these tokens through `src/charts/tokens.ts`: a line in its signal colour (VPD
@@ -281,7 +280,7 @@ its name, so the chips and the header are the legend (in dark mode the chip is t
 the line's colour). The server's timelapse overlays and share-link cards use
 the dark palette's ink, muted ink, navy plate and signal colours.
 
-**Shape.** The site's three radii: 6 px for a control (a button, a field, a rail item), 12 px for a card, 20 px
+**Shape.** The site's three radii: 6 px for a control (a button, a field), 12 px for a card and a rail item, 20 px
 for a large panel; 4 px for the option inside a segmented track. Every button is 6 px, the small action chips
 (Measurements, Share, Silence 1 h, Save view) and the native menus included; a chip that is a choice - a range, a
 place, a series, anything pressed or not - stays a pill, as do tags, the live pill and badges, as the site keeps
@@ -295,7 +294,7 @@ its words in the brand blue, an edge that turns blue under the pointer.
 **Spacing.** A 4 px unit: 4, 8, 12, 16, 24 and 36 inside a page, 48 and 64 between the sections of a long one;
 a card's padding is 16 on a phone and 20 from 900 px.
 
-**Layout.** Phone first, with a frosted top bar and tab bar; from 900 px the navy rail replaces both and each
+**Layout.** Phone first, with a frosted top bar and tab bar; from 900 px the rail replaces both and each
 screen is centred in the space it leaves. Three widths: 560 px for a form or sheet, 760 px for a reading column
 (settings, lists, Me, Tasks, Alerts), and 1180 px for a page that uses the screen - Home (two columns of cards
 from 1200 px, the two of a row stretched to one height with their actions at the foot), a space's overview, its

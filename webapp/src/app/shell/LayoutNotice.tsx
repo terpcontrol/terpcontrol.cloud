@@ -12,11 +12,11 @@ import styles from './LayoutNotice.module.css';
 
 /**
  * Two things rearrange the app under a grower's thumb: the diary coming in,
- * which puts the green Eintrag button in the middle of the bar and a grow block
- * on the place, and a second place, which turns Start from that place's
- * cockpit into a card per place and puts a switcher on Verlauf and Steuerung.
- * Either is said once, the first time the app is opened after it, in a line
- * that names what moved and where the rest went - never a silent flip.
+ * which puts Grow and the green Eintrag button into the bar, and a second
+ * place, which turns Start from that place's own page into a card per place
+ * and puts the chosen place's name into the header. Either is said once, the
+ * first time the app is opened after it, in a line that names what appeared
+ * and what it is for - never a silent flip.
  *
  * The shape the account was last shown is kept with the account, so the line
  * comes once and not once per phone. An account seen for the first time is

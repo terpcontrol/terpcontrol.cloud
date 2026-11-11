@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
-updated: 2026-10-22
-source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08
+updated: 2026-11-12
+source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses and chosen place (2026-11-12)
 paths:
   - webapp/**
 ---
@@ -20,7 +20,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 | Path | What |
 | --- | --- |
 | `src/main.tsx` | keeps the install prompt, loads the catalogues, renders |
-| `src/app/` | `routes.tsx`, `shell/` (bars, rail, notices), `RequireSession.tsx`, `OldAddresses.tsx` + `old-charts.ts`, `places.ts` (deep links), `install.ts` |
+| `src/app/` | `routes.tsx`, `shell/` (bars, rail, the choice of place, notices), `RequireSession.tsx`, `OldAddresses.tsx` + `old-charts.ts`, `places.ts` (deep links, the chosen place), `install.ts` |
 | `src/api/` | one module per resource with its TanStack Query hooks and query factories; plumbing: `client.ts`, `session.ts`, `clock.ts`, `read.ts`, `write.ts`, `pages.ts`, `problem.ts`, `config.ts`, `query-client.ts` |
 | `src/ui/` | shared primitives (`Sheet`, `Switch`, `Asking`, `BackLink`, `Help.tsx`, `advanced/`) and one-place helpers (`zone.ts`, `days.ts`, `wall-clock.ts`, `age.ts`, `figures.ts`, `units.ts`, `naming.ts`, `stored.ts`, `session-access.ts`, `refusal.ts`) |
 | `src/log/` | the Log sheet, its send queue and undo toasts, `corrections.ts`, the moment a line is dated to (`Moment.tsx`, EXIF in `taken-at.ts`) |
@@ -36,14 +36,37 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `/:handle` restore a stored session themselves, only to offer a signed-in reader Follow; `/shared/:token` restores
   none and draws no Follow. `/@handle` is routed as `/:handle` (React Router reads a parameter only after a
   slash) and ranks below every named route.
-- Deep links come from `src/app/places.ts`: a place is `/spaces/:id`; Verlauf and Steuerung carry the place in the
-  query (`/timeline?space=&focus=&at=`, `/control/<targets|alarms|plan>?space=`); Charts keeps its whole view in the
-  query (`space`/`grow`, `range`, `zoom`, `show`, `layout`, ...), read and written only in
-  `src/screens/charts/address.ts`, through which `app/old-charts.ts` maps old bookmarks too.
-- The old app's addresses still work (`OldAddresses.tsx`, `old-charts.ts`, redirects at the end of `screens`):
-  `/login?recovery=|?code=` from old mails, `/demo` (website buttons; a signed-in user goes straight in), `/list`,
-  `/account`, `/shares`, `/diagnostics`, `/device/<id>/<page>` (the same page of the device's place) and old chart
-  bookmarks. Old share links (`?share=`) and `/link-expired` say the link ended.
+- The pages behind the session, and the item of the bar marked on each (`src/app/shell/tabs.ts`):
+
+  | Address | Page | Bar item |
+  | --- | --- | --- |
+  | `/` | Start: the one place, the places by room, or the empty Start | Start |
+  | `/spaces/:spaceId`, `/spaces/:spaceId/members` | one place; who is let in | Start |
+  | `/tasks` | the task list | Start |
+  | `/grow` | the grow running in the chosen place, else the offer to start one | Grow |
+  | `/grows`, `/grows/new`, `/grows/:growId/:tab?`, `.../plants/:plantId`, `.../measurements` | every grow; one grow | Grow |
+  | `/log` | opens the entry sheet | - |
+  | `/timeline` | Verlauf of the chosen place (`focus`, `at`, `device` in the query) | Verlauf |
+  | `/charts` | Graphen, its whole view in the query | Verlauf |
+  | `/control/:page?` | Steuerung of the chosen place: `targets`, `alarms`, `plan` | Steuerung |
+  | `/devices`, `/claim`, `/cameras/add` | the device list (a row on Steuerung leads to it); adding a device or a camera | Steuerung |
+  | `/cameras/:cameraId` | a camera | none |
+  | `/alerts`, `/me/...`, `/admin/...` | Meldungen, Ich, the fleet screens | none |
+
+- **The chosen place** (`src/app/places.ts`) is what `/grow`, `/timeline`, `/control` and `/charts` show: the place
+  their address names in `?space=`, else the one chosen last (`terp.place` in this browser, a store the header's chip
+  and the page both follow), else the first the home lists. `usePlaceChoice` is the one resolver - the pages read it
+  through `useCurrentPlace`, the chip (`shell/PlaceChoice.tsx`) and the entry sheet's aim (`log/underneath.ts`)
+  directly. On one of those pages a choice goes into the address (`?space=`, dropping the rest of the query) and is
+  kept once the address names it, so the unsaved-targets question can hold it back; on any other page it is kept at
+  once. `timelinePath`, `controlPath` and `devicesPath` build the links that name a place. Charts reads and writes
+  its view (`space`/`grow`, `range`, `zoom`, `show`, `layout`, ...) only in `src/screens/charts/address.ts`, through
+  which `app/old-charts.ts` maps old bookmarks too.
+- The old Angular app's addresses still work (`OldAddresses.tsx`, `old-charts.ts`, redirects at the end of
+  `screens`): `/login?recovery=|?code=` from old mails, `/demo` (website buttons; a signed-in user goes straight in),
+  `/list`, `/account`, `/shares`, `/diagnostics`, `/device/<id>/<page>` (the same page of the device's place) and
+  old chart bookmarks. Old share links (`?share=`) and `/link-expired` say the link ended. The addresses the
+  rewrite gave up since - a place's own tabs, `/grows/archive` - get no redirect (Chris, 2026-11-11).
 - nginx answers every path with `index.html`; the `*` route renders NotFound under the typed address.
 
 ## Build, configuration, dev server

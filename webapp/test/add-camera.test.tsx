@@ -65,7 +65,7 @@ const known = camera({ id: 'camera-old', name: 'Mother tent cam', did: 'TCAM00B0
 const paired = camera({ id: 'camera-new' });
 const madeRtsp = camera({ id: 'camera-rtsp', kind: 'rtsp', did: null, name: 'Balcony cam', url: 'rtsp://192.168.1.40/stream1' });
 
-/** A device as the Devices tab reads one: what type it is, and when it last said anything. */
+/** A device as the Devices page reads one: what type it is, and when it last said anything. */
 const device = (over: Partial<Device> & { seenSecondsAgo?: number }): Device =>
   ({
     id: 'device-1',
@@ -662,7 +662,7 @@ describe('a camera at a stream address', () => {
 
     // The camera exists from here on, so the screen stops drawing the primary
     // button as the tap that would commit it.
-    expect(screen.getByText('Added to Tent 1. It is on your Devices tab now, and testing again updates it.')).toBeInTheDocument();
+    expect(screen.getByText('Added to Tent 1. It is with your devices now, and testing again updates it.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add camera' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open the camera' })).toBeInTheDocument();
   });
@@ -678,7 +678,7 @@ describe('a camera at a stream address', () => {
     });
 
     expect(api.delete).toHaveBeenCalledWith('/cameras/camera-rtsp');
-    expect(screen.queryByText(/It is on your Devices tab now/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/It is with your devices now/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add camera' })).toBeInTheDocument();
     // The next tap makes a camera rather than amending the one just removed.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

@@ -2,7 +2,7 @@ import { CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router';
-import { FROM_MY_GROWS, MY_GROWS, openedFrom, placePath, useBackToPlace } from '@/app/places';
+import { FROM_MY_GROWS, GROW, MY_GROWS, openedFrom, placePath, useBackToPlace } from '@/app/places';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
@@ -46,7 +46,12 @@ export function GrowPage() {
   return <GrowScreen growId={growId} tab={tab} />;
 }
 
-function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
+/**
+ * `current` is the grow drawn at the bar's own address, as the one running in
+ * the chosen place: its way back is the list of every grow, and its first tab
+ * is that address.
+ */
+export function GrowScreen({ growId, tab, current = false }: { growId: string; tab: GrowTab; current?: boolean }) {
   const { t } = useTranslation();
   const now = useNow();
   const grow = useGrow(growId);
@@ -74,7 +79,7 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
   const youMay = mayWith(growStanding(grow.data));
   const mayManage = enough(youMay, 'manage');
   const mayOwn = enough(youMay, 'own');
-  const tabs = TABS.map(key => ({ key, label: t(`grow.tabs.${key}`), to: `/grows/${growId}/${key}` }));
+  const tabs = TABS.map(key => ({ key, label: t(`grow.tabs.${key}`), to: current && key === tab ? GROW : `/grows/${growId}/${key}` }));
 
   return (
     <section className={styles.page} data-tab={tab}>
@@ -83,13 +88,14 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
         plants={plants.data?.items ?? []}
         spaces={spaces.data?.items ?? []}
         now={now}
+        listed={current}
         onShare={mayOwn ? () => setSharing(true) : null}
         actions={mayManage ? <GrowLifecycle grow={grow.data} plants={plants.data?.items ?? []} spaces={spaces.data?.items ?? []} /> : null}
       />
       {!mayManage && enough(youMay, 'log') ? <p className={`mono ${styles.role}`}>{t('grow.youMayLog')}</p> : null}
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
       {/* Switching tabs keeps where the page was opened from, so its way back stays the same. */}
-      <Tabs items={tabs} label={t('grow.tabsLabel')} state={state} />
+      <Tabs items={tabs} label={t('grow.tabsLabel')} state={current ? FROM_MY_GROWS : state} />
       {tab === 'weeks' ? <Weeks grow={grow.data} now={now} /> : null}
       {tab === 'plants' ? <Plants grow={grow.data} plants={plants} spaces={spaces.data?.items ?? []} /> : null}
       {tab === 'feeding' ? <Feeding grow={grow.data} mayManage={mayManage} /> : null}
@@ -113,6 +119,8 @@ interface HeaderProps {
   plants: Plant[];
   spaces: Space[];
   now: ReturnType<typeof useNow>;
+  /** Whether the way back is the list of every grow whatever opened the page: the grow drawn as the bar's own page. */
+  listed?: boolean;
   /** Null for a session that may only look: sharing a diary is the owner's, and a button that would be refused is not offered. */
   onShare: (() => void) | null;
   /**
@@ -134,7 +142,7 @@ interface HeaderProps {
  * the name and the figure is labelled as the last day rather than as the count
  * so far.
  */
-export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null }: HeaderProps) {
+export function GrowHeader({ grow, plants, spaces, now, listed = false, onShare, actions = null }: HeaderProps) {
   const { t } = useTranslation();
   const zone = useZone();
   const { summary } = grow;
@@ -163,7 +171,7 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
   // it last stood in.
   const toPlace = useBackToPlace(places.find(place => place.spaceId !== null)?.spaceId ?? stood?.spaceId ?? null);
   const { state } = useLocation();
-  const back = openedFrom(state, FROM_MY_GROWS) || endedOn ? { to: MY_GROWS, name: t('grow.mine.title') } : toPlace;
+  const back = listed || openedFrom(state, FROM_MY_GROWS) || endedOn ? { to: MY_GROWS, name: t('grow.mine.title') } : toPlace;
   const said: ReactNode[] = [
     ...(plants.length > 0 ? [strainsOf(plants)] : []),
     ...places.map(place => placeLink(place.spaceId, place.name)),

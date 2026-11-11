@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) - where its decisions and knowledge live now, and what it left open; read before picking up one of those open items
-updated: 2026-11-11
-source: rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation)
+updated: 2026-11-12
+source: rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -34,15 +34,16 @@ product side exist outside this repository.
 
 ## Left open
 
-Checked against the code on 2026-10-08; the navigation item on 2026-11-11. Take an item out once it is done.
+Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take an item out once it is done.
 
 - **The navigation is to be reordered** (Chris, 2026-11-11: the diary is hard to find, places and rooms are
   inconsistent, the charts are less precise and less intuitive than the old app's). The direction is chosen (Chris,
   2026-11-11; internal notes exist) and a click prototype outside the app comes before any change to it. The new
   routes need no redirects from today's, and a change to the data model comes as a migration step (Chris,
-  2026-11-11). A read of the whole web app on that day found, as the things the redesign has to settle:
-  - No bar item, tab or title reads the diary: it is the grow page's tab "Wochen", filed under Start
-    (`webapp/src/app/shell/tabs.ts`), and the camera page is filed under Geräte.
+  2026-11-11). It is built in rounds; the bar, the header's choice of place and the addresses are in since
+  2026-11-12 ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)), the pages follow. A read of the
+  whole web app on 2026-11-11 found, as the things the redesign still has to settle:
+  - The diary is the grow page's tab "Wochen": the bar's Grow opens the grow, and no tab or title reads the diary.
   - Steuerung and Geräte show the same devices from two sides and draw the same `DeviceAdvanced`
     (`screens/control/targets/Targets.tsx`, `screens/devices/DeviceList.tsx`).
   - Verlauf and Graphen are two screens over one engine. Verlauf's windows all end now and it cannot zoom; Graphen
@@ -56,8 +57,8 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-11. Take 
     to a day and zoomed on them in the browser.
   - A claim offers "ein neuer Ort" first when places exist (`screens/claim/CodeStep.tsx`), so a second device in the
     same tent makes a second place and Start turns into the several-places layout.
-  - The weight is live duplication, not dead code: 22 ideas (place switcher, place chooser, rename sheet, maintenance,
-    climate preset, light limit, ...) are each built in three to nine places, against one unused export.
+  - The weight is live duplication, not dead code: 21 ideas (place chooser, rename sheet, maintenance, climate
+    preset, light limit, ...) are each built in three to nine places, against one unused export.
 
 - **Unit preferences are saved, not applied.** Me › Appearance stores °C/°F, g/oz and l/gal (`preferences.units`),
   but every figure is still drawn in °C, g and l, as the page's `unitsNote` tells the reader; only the Me screen's

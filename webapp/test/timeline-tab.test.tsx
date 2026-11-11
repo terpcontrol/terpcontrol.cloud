@@ -1,5 +1,5 @@
 import { screen, waitFor } from '@testing-library/react';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Timeline } from '@/screens/Timeline';
 import { drawAt, json } from './harness';
 import { translate } from './translations';
@@ -58,28 +58,21 @@ describe('the timeline tab with nothing to draw', () => {
 });
 
 /**
- * A cockpit's tile names its place in the link it opens, so an account with
- * several places lands on the one the tile was on - not on whichever place the
- * tab last showed.
+ * A place's tile names its place in the link it opens, so an account with
+ * several places lands on the one the tile was on - not on whichever place was
+ * chosen last.
  */
 describe('the timeline tab opened from a place', () => {
+  const asked: string[] = [];
+
   beforeEach(() => {
     who.is = 'you';
     home.spaces = [
       { spaceId: 'space-1', name: 'Tent 1', values: [], deviceIds: ['device-1'] },
       { spaceId: 'space-2', name: 'Fridge 2', values: [], deviceIds: ['device-2'] },
     ];
-  });
-
-  it('opens on the place the link names', () => {
-    drawAt(<Timeline />, { at: '/timeline?space=space-2&focus=humidity' });
-
-    expect(screen.getByRole('combobox', { name: 'Switch place' })).toHaveValue('space-2');
-  });
-
-  it('draws a customer’s place for support rather than swapping it for one of the reader’s own', async () => {
-    who.is = 'admin';
-    const asked: string[] = [];
+    asked.length = 0;
+    localStorage.clear();
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
@@ -87,18 +80,46 @@ describe('the timeline tab opened from a place', () => {
         return json({ code: 'not_found' }, 404);
       }),
     );
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  const timelineOf = (spaceId: string) => asked.some(path => path.startsWith(`/spaces/${spaceId}/timeline`));
+
+  it('opens on the place the link names, and makes it the chosen one', async () => {
+    drawAt(<Timeline />, { at: '/timeline?space=space-2&focus=humidity' });
+
+    await waitFor(() => expect(timelineOf('space-2')).toBe(true));
+    expect(timelineOf('space-1')).toBe(false);
+    expect(localStorage.getItem('terp.place')).toBe('space-2');
+  });
+
+  it('opens on the chosen place where the address names none, and on the first where none was chosen', async () => {
+    localStorage.setItem('terp.place', 'space-2');
+    const { unmount } = drawAt(<Timeline />, { at: '/timeline' });
+    await waitFor(() => expect(timelineOf('space-2')).toBe(true));
+    expect(timelineOf('space-1')).toBe(false);
+    unmount();
+
+    localStorage.clear();
+    drawAt(<Timeline />, { at: '/timeline' });
+    await waitFor(() => expect(timelineOf('space-1')).toBe(true));
+  });
+
+  it('draws a customer’s place for support rather than swapping it for one of the reader’s own', async () => {
+    who.is = 'admin';
     drawAt(<Timeline />, { at: '/timeline?space=customer-9' });
 
     expect(screen.getByText("support view of a customer's place")).toBeInTheDocument();
-    expect(screen.queryByRole('combobox', { name: 'Switch place' })).not.toBeInTheDocument();
-    await waitFor(() => expect(asked.some(path => path.startsWith('/spaces/customer-9/timeline'))).toBe(true));
-    vi.unstubAllGlobals();
+    await waitFor(() => expect(timelineOf('customer-9')).toBe(true));
+    expect(localStorage.getItem('terp.place')).toBeNull();
   });
 
-  it('keeps an ordinary account on its own places whatever the address names', () => {
+  it('keeps an ordinary account on its own places whatever the address names', async () => {
     drawAt(<Timeline />, { at: '/timeline?space=customer-9' });
 
     expect(screen.queryByText("support view of a customer's place")).not.toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Switch place' })).toBeInTheDocument();
+    await waitFor(() => expect(timelineOf('space-1')).toBe(true));
+    expect(timelineOf('customer-9')).toBe(false);
   });
 });

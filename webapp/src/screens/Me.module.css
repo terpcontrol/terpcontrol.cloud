@@ -6,8 +6,8 @@
   padding-top: var(--space-2);
 }
 
-/* Who is signed in: the initials on the brand's wash, as the rail and the top
-   bar draw them, and the handle set as a name - it is one somebody chose. */
+/* Who is signed in: the initials on the brand's wash, and the handle set as a
+   name - it is one somebody chose. */
 .identity {
   display: flex;
   align-items: center;
@@ -140,4 +140,15 @@
   .row {
     padding: var(--space-3) var(--space-5);
   }
+}
+
+/* The install's own screens, under their label: one line each, so a row a step lower than a door with its line. */
+.admin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.adminDoor {
+  min-height: 52px;
 }

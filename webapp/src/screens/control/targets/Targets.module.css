@@ -73,7 +73,7 @@
    Sticky rather than fixed, so it moves with the panel it belongs to.
 
    On a phone it takes the tab bar's place instead of floating over the page:
-   the strip the tab bar and its raised button stand in is the one part of the
+   the strip the tab bar stands in is the one part of the
    screen that never shows a slider, so the row somebody is moving stays in
    view, and the two buttons sit side by side under one short line. Leaving the
    tab with changes unsaved is Save or Discard first. */
@@ -85,7 +85,7 @@
   grid-template-columns: 1fr 1fr;
   align-content: center;
   gap: var(--space-2);
-  min-height: calc(var(--tabbar-height) + var(--log-button) / 2 + env(safe-area-inset-bottom));
+  min-height: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
   margin-inline: calc(var(--space-4) * -1);
   padding: var(--space-2) var(--space-4) calc(var(--space-2) + env(safe-area-inset-bottom));
   border-width: var(--rule-width) 0 0;

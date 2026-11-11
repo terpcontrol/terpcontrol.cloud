@@ -1,6 +1,6 @@
 ---
 summary: The mechanics behind every time, date, figure and translated word in the web app - the server's clock, the account's time zone, the shared date formats, the age helpers, i18next setup, device-message keys, the figure writers, help topics - and the source-reading tests that enforce them
-updated: 2026-10-08
+updated: 2026-11-12
 source: React rewrite sessions 2026-09..10 (clock, zone and figure passes 2026-09-23..10-04); Chris (help texts, 2026-09-24); codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08
 paths:
   - webapp/src/**
@@ -67,8 +67,6 @@ date or a figure reads in each language, which words to use - are in [app-ux.md]
   `shared-types/src/v1/value-age.ts`, as on the server and in the simulator.
 - An offline alert's `value` is the seconds of silence, not a reading; the silence began at `silentSince(alert)`
   (`startedAt` minus `value`).
-- `useReportFreshness(at)` (`src/ui/freshness.ts`) feeds the shell's "updated N ago" line: a server-stamped instant
-  (a camera's `lastStillAt`) or a fetch instant restated with `fetchedAt()`, never a raw `dataUpdatedAt`.
 
 ## The sweep: `test/zone.test.ts`
 

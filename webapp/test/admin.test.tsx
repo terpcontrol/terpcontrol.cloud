@@ -6,6 +6,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { AdminStats, Camera, Device, DeviceClass, Firmware, Fleet as FleetAnswer, User } from '@fg2/shared-types/v1';
 import { Rail } from '@/app/shell/Rail';
 import { LogProvider } from '@/log/LogProvider';
+import { Me } from '@/screens/Me';
 import { AdminOnly } from '@/screens/admin/AdminOnly';
 import { DeviceDiagnosis } from '@/screens/admin/DeviceDiagnosis';
 import { FirmwareScreen } from '@/screens/admin/Firmware';
@@ -263,31 +264,30 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the way in', () => {
-  it('gives an administrator the four fleet screens on the rail, and nobody a tab for them', () => {
+  it('gives an administrator the four fleet screens under Ich, and the rail none of them', () => {
     wrapped(
       <LogProvider>
         <Rail />
+        <main>
+          <Me />
+        </main>
       </LogProvider>,
     );
 
-    const links = screen.getAllByRole('link').map(link => link.getAttribute('href'));
-    expect(links).toContain('/admin/fleet');
-    expect(links).toContain('/admin/firmware');
-    expect(links).toContain('/admin/users');
-    expect(links).toContain('/admin/demo');
-    expect(screen.getByText('Admin')).toBeInTheDocument();
+    const doors = within(screen.getByRole('region', { name: 'Admin' }))
+      .getAllByRole('link')
+      .map(link => link.getAttribute('href'));
+    expect(doors).toEqual(['/admin/fleet', '/admin/firmware', '/admin/users', '/admin/demo']);
+    const rail = within(screen.getByRole('navigation', { name: 'Main navigation' }));
+    expect(rail.getAllByRole('link').map(link => link.getAttribute('href'))).not.toContain('/admin/fleet');
   });
 
   it('shows an ordinary account no admin section at all', () => {
     session.who = 'grower';
-    wrapped(
-      <LogProvider>
-        <Rail />
-      </LogProvider>,
-    );
+    wrapped(<Me />);
 
     expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).not.toContain('/admin/fleet');
-    expect(screen.queryByText('Admin')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Admin' })).not.toBeInTheDocument();
   });
 
   it('answers an account that follows the link anyway with the reason, and asks the server for nothing', () => {

@@ -243,6 +243,7 @@
     "ticks_other": "ticks"
   },
   "devices": {
+    "title": "Devices",
     "controllers_one": "Device",
     "controllers_other": "Devices",
     "cameras": "Cameras",
@@ -586,14 +587,17 @@
     "signInTooMany": "Too many sign-in attempts. Please wait a moment and try again.",
     "tabs": {
       "home": "Home",
-      "timeline": "Timeline",
+      "grow": "Grow",
       "log": "Log",
-      "devices": "Devices",
-      "control": "Control",
-      "device": "Device"
+      "timeline": "Timeline",
+      "control": "Control"
     },
-    "updated": "updated {{age}} ago",
-    "accountNote": "You · profile, settings",
+    "place": {
+      "chip": "Place: {{name}}",
+      "title": "Place",
+      "holds": "holds for Grow, Timeline and Control",
+      "chosen": "chosen"
+    },
     "loadFailed": "Could not load. Try again.",
     "unreachable": "Could not reach the server. Try again.",
     "cannotReach": {
@@ -622,8 +626,8 @@
     "zoneAdoptedDismiss": "Got it",
     "layout": {
       "label": "What changed",
-      "diary": "The grow diary is on. “Log” in the middle of the bar writes watering, feeding, photos and notes; what is due is with the grow and behind the bell.",
-      "places": "There are {{count}} places now: Home shows each as a card, a tap opens it. Timeline and Control show the one opened last; switch it at the top.",
+      "diary": "The grow diary is on. The bar now has “Grow” with the diary and “Log” for watering, feeding, photos and notes; what is due is on Home and behind the bell.",
+      "places": "There are {{count}} places now: Home shows each as a card. The place named at the top holds for Grow, Timeline and Control; tap its name to switch.",
       "ok": "Got it",
       "diaryOff": "Turn it off under Me › Appearance"
     },
@@ -1710,7 +1714,7 @@
       "none": "No plan yet.",
       "noneNote": "A plan is a list of steps: a stage, how long it lasts, and what the place should hold while it does. Saving one does not start it.",
       "noClimate": "Nothing here runs on a plan.",
-      "noClimateNote": "A plan step writes a climate — day and night targets, the CO₂ target, the light's limit — and this device states none of them. Its sockets and its output are on the Devices tab.",
+      "noClimateNote": "A plan step writes a climate — day and night targets, the CO₂ target, the light's limit — and this device states none of them. Its sockets and its output are under Control › Devices.",
       "noClimateHasPlan": "This device states no climate, so what these steps write lands in a document that has nowhere for it. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
       "waitingHasPlan": "This device has not sent its settings yet, so these steps are held back rather than sent. What a step carries would not be added to the device's own tuning but put in place of it: the work mode, the light schedule, the dehumidifier's timings and the dimming ramps would all be back at a factory value, and none of them has ever reached the cloud to be put back. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
       "write": "Write a plan",
@@ -2556,8 +2560,8 @@
         "needPlace": "Say where it looks first.",
         "needName": "Give it a name first.",
         "testAdds": "Test adds the camera and then asks it for one picture. You can take it away again here.",
-        "made": "Added to {{place}}. It is on your Devices tab now, and testing again updates it.",
-        "madeSomewhere": "The camera has been added. It is on your Devices tab now, and testing again updates it.",
+        "made": "Added to {{place}}. It is with your devices now, and testing again updates it.",
+        "madeSomewhere": "The camera has been added. It is with your devices now, and testing again updates it.",
         "remove": "Take it away again",
         "removing": "Taking it away …",
         "open": "Open the camera",
@@ -4099,7 +4103,7 @@
     },
     "diaryLayer": {
       "title": "Grow diary",
-      "text": "The diary is where you keep what you do to your plants – watering, feeding, photos, notes – and run grows with days and phases. While you do not use it, the app shows the climate and the device alone. It switches itself on once you start a grow or log something, and puts “Log” in the middle of the bar; under Me › Appearance you can also switch it on or off by hand."
+      "text": "The diary is where you keep what you do to your plants – watering, feeding, photos, notes – and run grows with days and phases. While you do not use it, the app shows the climate and the device alone. It switches itself on once you start a grow or log something, and puts “Grow” and “Log” in the bar; under Me › Appearance you can also switch it on or off by hand."
     },
     "follow": {
       "title": "Follow",
@@ -4333,7 +4337,6 @@
     }
   },
   "place": {
-    "switch": "Switch place",
     "backTo": "Back to {{name}}",
     "members": {
       "title": "Members & sharing",

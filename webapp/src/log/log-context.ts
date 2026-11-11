@@ -2,7 +2,7 @@ import { createContext, use } from 'react';
 import type { Entry, HumanEntryKind } from '@fg2/shared-types/v1';
 
 /**
- * Logging, reachable from every screen: the raised button opens the sheet over
+ * Logging, reachable from every screen: the Eintrag button opens the sheet over
  * whatever you were looking at, a due card ticks itself off, and what was
  * written stays on screen long enough to be taken back.
  *

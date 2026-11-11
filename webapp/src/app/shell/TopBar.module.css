@@ -4,12 +4,9 @@
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   min-height: calc(var(--topbar-height) + env(safe-area-inset-top));
-  /* The logo is an image with no leading above it, as the typeset name had:
-     a real inset keeps the shield off the top of a screen with no notch. */
-  padding: calc(env(safe-area-inset-top) + var(--space-2)) max(var(--space-3), env(safe-area-inset-right)) var(--space-1)
-    max(var(--space-4), env(safe-area-inset-left));
+  padding: env(safe-area-inset-top) max(var(--space-2), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: saturate(1.4) blur(14px);
   -webkit-backdrop-filter: saturate(1.4) blur(14px);
@@ -23,66 +20,55 @@
   }
 }
 
-.identity {
-  flex: 1;
-  min-width: 0;
+.wordmark {
+  --logo-height: 28px;
+
+  flex: none;
+  line-height: 0;
 }
 
-.wordmark {
-  --logo-height: 30px;
+/* The narrowest phones: the logo gives the chosen place's name the room. */
+@media (max-width: 359px) {
+  .wordmark {
+    --logo-height: 22px;
+  }
+}
 
-  margin-bottom: 2px;
-  line-height: 0;
+.gap {
+  flex: 1;
 }
 
 .action {
   position: relative;
   display: grid;
+  flex: none;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  color: var(--muted);
-}
-
-/* The open count, on the bell's shoulder. */
-.badge {
-  position: absolute;
-  top: 4px;
-  right: 2px;
-  display: inline-grid;
-  place-items: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 var(--space-1);
+  width: var(--control-height);
+  height: var(--control-height);
   border-radius: var(--radius-pill);
-  background: var(--alarm);
-  color: var(--card);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  line-height: 1;
+  color: var(--ink);
 }
 
-.avatar {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--brand-wash);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  color: var(--brand);
+/* Something is open: a dot on the bell's shoulder, ringed in the bar's own ground. */
+.dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-pill);
+  background: var(--warning);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+/* Only work that is due, no alarm: marked all the same, in the brand's blue rather than the warning's amber. */
+.dot[data-kind='tasks'] {
+  background: var(--brand);
 }
 
 @media (min-width: 900px) {
-  /* The rail carries all three on a wide screen. */
+  /* The rail carries all of it on a wide screen. */
   .bar {
     display: none;
   }
-}
-
-/* Only work that is due, no alarm: counted all the same, in the brand's blue rather than the alarm's red. */
-.badge[data-kind='tasks'] {
-  background: var(--brand);
-  color: var(--card);
 }

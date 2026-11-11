@@ -70,7 +70,7 @@ export function GrowBlock({
     <section className={`${ui.card} ${styles.grow}`} aria-label={t('cockpit.grow.title')} data-pictured={camera ? true : undefined}>
       {camera ? <CameraPicture overview={overview} camera={camera} now={now} label={label} /> : null}
       {overview.grows.length === 0 ? (
-        <NothingGrows overview={overview} />
+        <NothingGrows spaceId={overview.spaceId} name={overview.name} />
       ) : (
         overview.grows.map(grow => (
           <GrowRow
@@ -164,9 +164,9 @@ const photoOf = (overview: SpaceOverview, growId: string): string | null =>
   overview.entries.find(entry => entry.growId === growId && entry.cameraId === null && entry.mediaIds.length > 0)?.mediaIds[0] ?? null;
 
 /** Nothing grows here: the two ways to change that, to somebody who may put a grow into this place. */
-function NothingGrows({ overview }: { overview: SpaceOverview }) {
+export function NothingGrows({ spaceId, name }: { spaceId: string; name: string }) {
   const { t } = useTranslation();
-  const mayManage = useMayManage(overview.spaceId);
+  const mayManage = useMayManage(spaceId);
   const [moving, setMoving] = useState(false);
 
   return (
@@ -174,7 +174,7 @@ function NothingGrows({ overview }: { overview: SpaceOverview }) {
       <p className={ui.note}>{t('home.invite.noGrow')}</p>
       {mayManage ? (
         <p className={`${styles.growActions} ${ui.dots}`}>
-          <Link to={`/grows/new?space=${overview.spaceId}`} className={ui.headLink}>
+          <Link to={`/grows/new?space=${spaceId}`} className={ui.headLink}>
             {t('home.invite.startGrow')}
           </Link>
           <span className={ui.dot}>
@@ -185,7 +185,7 @@ function NothingGrows({ overview }: { overview: SpaceOverview }) {
           </span>
         </p>
       ) : null}
-      {moving ? <MoveHereSheet spaceId={overview.spaceId} spaceName={overview.name} onClose={() => setMoving(false)} /> : null}
+      {moving ? <MoveHereSheet spaceId={spaceId} spaceName={name} onClose={() => setMoving(false)} /> : null}
     </div>
   );
 }

@@ -1,0 +1,122 @@
+/* The chip: a pill with the chosen place's name, a finger tall. A long name
+   gives way before the bell and Ich beside it do. */
+.chip {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.chip svg {
+  flex: none;
+}
+
+.chip[data-waiting] {
+  visibility: hidden;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* What the choice holds for, under the sheet's title. */
+.holds {
+  margin-top: calc(var(--space-3) * -1);
+  margin-bottom: var(--space-3);
+}
+
+.places,
+.room {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.room + .room,
+.place + .room {
+  margin-top: var(--space-2);
+}
+
+.roomName {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--label);
+}
+
+.place {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 60px;
+  padding: 10px var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: var(--text-md);
+  text-align: left;
+}
+
+/* The chosen one: the brand's edge and wash, and the tick at its end. The
+   second rule of its edge is drawn inside, so choosing moves nothing. */
+.place[aria-current] {
+  background: var(--brand-wash);
+  border-color: var(--selected-edge);
+  box-shadow: inset 0 0 0 var(--rule-width) var(--selected-edge);
+}
+
+.still {
+  flex: none;
+  width: 64px;
+  height: 48px;
+  border-radius: var(--space-2);
+  object-fit: cover;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+}
+
+.placeName {
+  display: block;
+  font-weight: var(--weight-semibold);
+}
+
+.status,
+.grow {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* A place that asks for somebody says so in the signal's colour, on its own line. */
+.status:is([data-tone='warn'], [data-tone='alarm']) {
+  display: block;
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+}
+
+.status[data-tone='alarm'] {
+  color: var(--alarm);
+}
+
+.grow[data-own-line] {
+  display: block;
+}
+
+.check {
+  flex: none;
+  color: var(--brand);
+}

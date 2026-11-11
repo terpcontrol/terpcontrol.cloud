@@ -5,7 +5,6 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, SpaceOverview } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import { PlacePage } from '@/screens/place/PlacePage';
-import { useFreshness } from '@/ui/freshness';
 import { LogProvider } from '@/log/LogProvider';
 import { drawAt } from './harness';
 import { translate } from './translations';
@@ -268,43 +267,5 @@ describe('the banner over a page that could not refresh', () => {
     drawPage();
 
     expect(screen.queryByText(/Could not refresh/)).not.toBeInTheDocument();
-  });
-});
-
-/**
- * The line under the wordmark, which says how old what is on the screen is.
- *
- * A place's page says that once, in the pill beside its name - "live · 16 s",
- * or "offline seit 10:19" for a tent gone quiet - so it hands the line nothing:
- * "aktualisiert vor 16 s" beside "live · 16 s" was two clocks for one fact,
- * and a tent quiet for four days answering "updated 0 s ago" was a wrong one.
- */
-describe('how old a place´s page says it is', () => {
-  /** Stands where the shell's own freshness line does, and shows the instant it was handed. */
-  function Reported() {
-    return <p data-testid="freshness">{useFreshness() ?? 'nothing'}</p>;
-  }
-
-  const drawPage = () =>
-    drawAt(
-      <LogProvider>
-        <Routes>
-          <Route path="/spaces/:spaceId" element={<PlacePage />} />
-        </Routes>
-        <Reported />
-      </LogProvider>,
-      { at: '/spaces/space-1' },
-    );
-
-  it('leaves the line under the wordmark empty, because the pill already says how old the readings are', () => {
-    read.overview = { data: overview, error: null, isPending: false, isError: false, dataUpdatedAt: Date.now(), refetch: () => {} };
-    read.live = {
-      data: { values: [{ metric: 'temperature', value: 25.4, measuredAt: at(5), state: 'live' }], setpoints: [] },
-      isError: false,
-      dataUpdatedAt: Date.now(),
-    };
-    drawPage();
-
-    expect(screen.getByTestId('freshness')).toHaveTextContent('nothing');
   });
 });

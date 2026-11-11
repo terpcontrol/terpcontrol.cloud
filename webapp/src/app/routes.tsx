@@ -16,6 +16,7 @@ import { DeviceDiagnosis } from '@/screens/admin/DeviceDiagnosis';
 import { Devices } from '@/screens/devices/Devices';
 import { FirmwareScreen } from '@/screens/admin/Firmware';
 import { Fleet } from '@/screens/admin/Fleet';
+import { CurrentGrow } from '@/screens/grow/CurrentGrow';
 import { GrowPage } from '@/screens/grow/GrowPage';
 import { MyGrows } from '@/screens/grow/MyGrows';
 import { Home } from '@/screens/Home';
@@ -36,7 +37,6 @@ import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
 import { NotFound } from '@/screens/NotFound';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
 import { ControlTab } from '@/screens/place/ControlTab';
-import { OldPlaceLink } from '@/screens/place/OldPlaceLink';
 import { PlaceMembers } from '@/screens/place/PlaceMembers';
 import { PlacePage } from '@/screens/place/PlacePage';
 import { Notifications } from '@/screens/notifications/Notifications';
@@ -92,16 +92,14 @@ export const screens: RouteObject[] = [
     ],
   },
   { path: 'alerts', element: <Alerts /> },
+  { path: 'grow', element: <CurrentGrow /> },
   { path: 'grows', element: <MyGrows /> },
   { path: 'grows/new', element: <NewGrowRoute /> },
-  // Where finished grows were listed before "My grows" held them all; bookmarks still point here.
-  { path: 'grows/archive', element: <Navigate to="/grows" replace /> },
   { path: 'grows/:growId/measurements', element: <Measurements /> },
   { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
   { path: 'grows/:growId/:tab?', element: <GrowPage /> },
   { path: 'spaces/:spaceId', element: <PlacePage /> },
   { path: 'spaces/:spaceId/members', element: <PlaceMembers /> },
-  { path: 'spaces/:spaceId/:tab/:sub?', element: <OldPlaceLink /> },
   { path: 'index.html', element: <Navigate to="/" replace /> },
   // The old app's own pages, where bookmarks still point.
   { path: 'list', element: <Navigate to="/" replace /> },

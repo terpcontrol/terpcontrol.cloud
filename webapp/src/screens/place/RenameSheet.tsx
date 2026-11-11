@@ -11,7 +11,7 @@ import styles from './RenameSheet.module.css';
 /**
  * A new name for a place. The claim gives every place a first name - "Kühlschrank
  * 1", "Zelt 2" - and this is where it becomes the grower's own, since it is what
- * Start, the switcher on Verlauf and Steuerung, and every alert call it.
+ * Start, the header's choice of place, and every alert call it.
  *
  * Two places with one name are allowed and sometimes meant, and they are also
  * how somebody loses track of which tent an alert is about, so a clash is said

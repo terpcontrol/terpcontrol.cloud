@@ -10,9 +10,7 @@ import { humidifierHoldOf, type HumidifierHold } from './place';
  * `last()` every half minute, and it is the values that age.
  *
  * How old the page is, is said once, by the pill beside the place's name - the
- * age of its newest reading, or since when it has been offline - and not again
- * under the wordmark: "aktualisiert vor 16 s" beside "live · 16 s" was two
- * clocks for one fact.
+ * age of its newest reading, or since when it has been offline.
  *
  * A refresh that failed is dated by the half that failed, and of two failed
  * halves by the older, because what is on the screen is as old as its older

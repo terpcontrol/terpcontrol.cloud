@@ -1,6 +1,5 @@
-import { ChartLine, Cpu, House, Plus, SlidersHorizontal, type LucideIcon } from 'lucide-react';
+import { ChartLine, House, Plus, SlidersHorizontal, Sprout, type LucideIcon } from 'lucide-react';
 import { useLocation } from 'react-router';
-import { FROM_PLACE, openedFrom } from '@/app/places';
 import { useMayLogIn } from '@/ui/session-access';
 import { useShape, type Shape } from './shape';
 
@@ -8,65 +7,44 @@ interface Tab {
   path: string;
   labelKey: string;
   Icon: LucideIcon;
-  /** The Log button, drawn raised and green wherever the navigation appears. */
-  raised?: boolean;
-  /** The other addresses that are this tab's pages, so it stays marked on them. */
+  /** The Eintrag button, green wherever the navigation appears: it opens the sheet over the page and leads nowhere. */
+  log?: boolean;
+  /** The other addresses that are this item's pages, so it stays marked on them. */
   owns?: string[];
 }
 
-/** A grow, the list of every grow and the task list are reached from Start, so they are Start's pages as a place is. */
-const HOME: Tab = { path: '/', labelKey: 'shell.tabs.home', Icon: House, owns: ['/spaces/', '/grows', '/tasks'] };
+/** A place's own page and who is let into it are Start's, as the task list is, which Start's blocks open. */
+const HOME: Tab = { path: '/', labelKey: 'shell.tabs.home', Icon: House, owns: ['/spaces', '/tasks'] };
+const GROW: Tab = { path: '/grow', labelKey: 'shell.tabs.grow', Icon: Sprout, owns: ['/grows'] };
+const LOG: Tab = { path: '/log', labelKey: 'shell.tabs.log', Icon: Plus, log: true };
 const TIMELINE: Tab = { path: '/timeline', labelKey: 'shell.tabs.timeline', Icon: ChartLine, owns: ['/charts'] };
-const LOG: Tab = { path: '/log', labelKey: 'shell.tabs.log', Icon: Plus, raised: true };
-const CONTROL: Tab = { path: '/control', labelKey: 'shell.tabs.control', Icon: SlidersHorizontal };
-const DEVICES: Tab = { path: '/devices', labelKey: 'shell.tabs.devices', Icon: Cpu, owns: ['/cameras/', '/claim'] };
+/** The devices are steered, added and set up under Steuerung; a camera's own page is a picture and marks nothing. */
+const CONTROL: Tab = { path: '/control', labelKey: 'shell.tabs.control', Icon: SlidersHorizontal, owns: ['/devices', '/claim', '/cameras/add'] };
 
 /**
- * Start · Verlauf · Steuerung · Gerät: what is it doing, what did it do, what
- * should it do, and the hardware. "Gerät" becomes "Geräte" once there is more
- * than one thing to list there.
- *
- * Steuerung is there once there is a device to steer, and Gerät once there is
- * anything to list. Somebody who keeps a diary without hardware was shown two
- * tabs that said only that nothing stood there: the diary is their app, and
- * hardware is offered under the grow and under Ich instead. A camera alone is
- * listed under Gerät and steers nothing.
- *
- * The diary brings the Log button back into the middle, green and raised -
- * and only the diary, so somebody who keeps none is not offered a button for
- * writing one. Its tasks are reached from the grow block and the bell rather
- * than a tab of their own. A session that may not write is never offered it.
+ * Start · Grow · Eintrag · Verlauf · Steuerung, always in that order, each
+ * there for what the account has and the session may do: Grow with the diary,
+ * Eintrag with the diary and the right to write a line, Verlauf with a device,
+ * Steuerung with a device the session may manage - so a guest who may only
+ * log and the demo are offered none. One device and no diary is
+ * Start · Verlauf · Steuerung; a diary without hardware is Start · Grow ·
+ * Eintrag.
  */
-export const tabsOf = (shape: Pick<Shape, 'diary' | 'devices'> & Partial<Pick<Shape, 'steering'>>, mayLog: boolean): Tab[] => {
-  const others = [
-    HOME,
-    TIMELINE,
-    ...(shape.steering === false ? [] : [CONTROL]),
-    ...(shape.steering === false && shape.devices === 0 ? [] : [shape.devices > 1 ? DEVICES : { ...DEVICES, labelKey: 'shell.tabs.device' }]),
-  ];
-  if (!shape.diary || !mayLog) return others;
-
-  // In the middle of however many there are: with only Start and Verlauf beside it, between them.
-  const middle = Math.ceil(others.length / 2);
-  return [...others.slice(0, middle), LOG, ...others.slice(middle)];
-};
+export const tabsOf = (shape: Pick<Shape, 'diary' | 'steering' | 'managed'>, mayLog: boolean): Tab[] => [
+  HOME,
+  ...(shape.diary ? [GROW] : []),
+  ...(shape.diary && mayLog ? [LOG] : []),
+  ...(shape.steering ? [TIMELINE] : []),
+  ...(shape.steering && shape.managed ? [CONTROL] : []),
+];
 
 export const useTabs = (): Tab[] => tabsOf(useShape(), useMayLogIn());
 
-/**
- * Whether a tab is the one the address is on: its own path, or one of the pages
- * it owns. A camera opened from a place's picture is that place's, so Start
- * stays marked on it rather than the bar jumping to Gerät.
- */
-export const useIsOn = (): ((tab: Tab) => boolean) => {
-  const { pathname, state } = useLocation();
-  const fromPlace = pathname.startsWith('/cameras/') && openedFrom(state, FROM_PLACE);
+const under = (pathname: string, path: string): boolean => pathname === path || pathname.startsWith(`${path}/`);
 
-  return tab => {
-    if (fromPlace) return tab.path === '/';
-    return (
-      (tab.path === '/' ? pathname === '/' : pathname === tab.path || pathname.startsWith(`${tab.path}/`)) ||
-      (tab.owns ?? []).some(prefix => pathname.startsWith(prefix))
-    );
-  };
+/** Whether an item is the one the address is on: its own path, or one of the pages it owns. Meldungen, Ich and a camera mark none. */
+export const useIsOn = (): ((tab: Tab) => boolean) => {
+  const { pathname } = useLocation();
+
+  return tab => (tab.path === '/' ? pathname === '/' : under(pathname, tab.path)) || (tab.owns ?? []).some(path => under(pathname, path));
 };

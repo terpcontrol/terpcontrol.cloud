@@ -139,7 +139,7 @@ export const useLiveReads = (deviceIds: string[]) =>
  * When one device was last heard, as the Devices row and the server count it:
  * the later of its last message and its newest reading. The Control panels
  * aged `lastSeenAt` alone, which on a migrated device is half a day older, so
- * one silence read "6 d" there and "5 d" on the Devices tab.
+ * one silence read "6 d" there and "5 d" on the Devices page.
  */
 export const useHeardAt = (device: { id: string; state: { lastSeenAt: string | null } }): string | null => {
   const reads = useLiveReads([device.id]);
@@ -149,7 +149,7 @@ export const useHeardAt = (device: { id: string; state: { lastSeenAt: string | n
 /**
  * One device's newest values, outputs and the half of the cycle it says it is
  * in. The key is the one the device rows read the same answer under, so a
- * cockpit and the Devices tab beside it cost one request between them.
+ * cockpit and the Devices page beside it cost one request between them.
  */
 export const useDeviceLive = (deviceId: string | null) =>
   useRead({ ...deviceLiveQuery(deviceId!), enabled: deviceId !== null, refetchInterval: LIVE_BEAT_MS });
@@ -292,7 +292,7 @@ const deviceMoved = (client: QueryClient): void => void invalidate(client, ['dev
  * the type as one, and hardware that landed in the wrong tent stayed there.
  *
  * A move is the wider of the two writes and is why the reads below are thrown
- * away rather than patched: the device leaves one place's Devices tab and
+ * away rather than patched: the device leaves one place's Devices page and
  * appears on another's, the home cards of both change, and the camera the
  * controller answers for is moved with it by the server, which no answer here
  * mentions. The device itself is written into its own key as well, because the

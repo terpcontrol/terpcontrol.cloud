@@ -1,4 +1,4 @@
-/* The Devices tab: three lists of dense rows. A row is one card with a head
+/* The Devices page: three lists of dense rows. A row is one card with a head
    that never wraps and, where there is more to say, a panel under it. */
 
 .page {
@@ -420,8 +420,8 @@
   }
 }
 
-/* A wide Devices tab puts what the account has beside what it drives, rather
-   than one 760 px column three screens tall. A tent's own Devices tab is the
+/* A wide Devices page puts what the account has beside what it drives, rather
+   than one 760 px column three screens tall. A tent's own Devices page is the
    same list in its own page and keeps one column. */
 @media (min-width: 1200px) {
   .page {

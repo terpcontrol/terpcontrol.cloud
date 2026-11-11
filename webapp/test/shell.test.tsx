@@ -19,18 +19,19 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
   if (path === '/home') return json({ spaces: [], followedGrows: [], people: [], layers: { diary: wire.diary } });
   if (path === '/me') return json({ preferences: { layoutSeen: null }, layers: { diary: wire.diary } });
-  if (path === '/devices') return json({ items: [{ id: 'device-1' }], nextCursor: null });
+  if (path === '/devices') return json({ items: [{ id: 'device-1', ownerId: 'user-1', spaceId: null }], nextCursor: null });
   return json({ items: [], nextCursor: null });
 });
 
 const draw = (node: React.ReactNode) => drawAt(<LogProvider>{node}</LogProvider>);
 
 /**
- * The bar is Start · Verlauf · Steuerung · Gerät for every account, and every
- * caption comes out of the shipped catalogue - a key that is not in there
- * shows up here as its own name. The diary puts the raised Log button in the
- * middle; it opens the sheet over whatever is showing, so it is a button and
- * goes nowhere. Tasks are no tab: they are reached from a grow and the bell.
+ * The bar is Start · Grow · Eintrag · Verlauf · Steuerung, each there for what
+ * the account has, and every caption comes out of the shipped catalogue - a
+ * key that is not in there shows up here as its own name. One device and no
+ * diary is Start · Verlauf · Steuerung; the diary brings Grow and the green
+ * Log button, which opens the sheet over whatever is showing, so it is a
+ * button and goes nowhere. Tasks, Meldungen and Ich are no items of the bar.
  */
 describe('the navigation', () => {
   beforeAll(() => translate());
@@ -45,31 +46,39 @@ describe('the navigation', () => {
     vi.unstubAllGlobals();
   });
 
-  it('has the four decided destinations in order, and no Log button without a diary', async () => {
+  it('is Start, Verlauf and Steuerung for a device without a diary, with no Log button', async () => {
     const { container } = draw(<TabBar />);
 
-    expect([...container.querySelectorAll('nav > *')].map(tab => tab.textContent)).toEqual(['Home', 'Timeline', 'Control', 'Device']);
-    expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/', '/timeline', '/control', '/devices']);
+    expect([...container.querySelectorAll('nav > *')].map(tab => tab.textContent)).toEqual(['Home', 'Timeline', 'Control']);
+    expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/', '/timeline', '/control']);
     expect(screen.queryByRole('button', { name: 'Log' })).not.toBeInTheDocument();
   });
 
-  it('puts Log in the middle as an action rather than a place once the diary is kept', async () => {
+  it('puts Grow and Log between Start and Verlauf once the diary is kept, Log as an action rather than a page', async () => {
     wire.diary = true;
     const { container } = draw(<TabBar />);
 
     await waitFor(() =>
-      expect([...container.querySelectorAll('nav > *')].map(tab => tab.textContent)).toEqual(['Home', 'Timeline', 'Log', 'Control', 'Device']),
+      expect([...container.querySelectorAll('nav > *')].map(tab => tab.textContent)).toEqual(['Home', 'Grow', 'Log', 'Timeline', 'Control']),
     );
     expect(screen.getByRole('button', { name: 'Log' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/', '/timeline', '/control', '/devices']);
+    expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/', '/grow', '/timeline', '/control']);
   });
 
-  it('draws the same tabs down the rail, with the Log key only where the diary is kept', async () => {
+  it('draws the same pages down the rail, with Alerts and Me at its foot and Log only where the diary is kept', async () => {
     draw(<Rail />);
     await waitFor(() => expect(fetchStub).toHaveBeenCalled());
 
-    expect(screen.queryByRole('button', { name: /Log/ })).not.toBeInTheDocument();
-    for (const name of ['Home', 'Timeline', 'Control', 'Device']) expect(screen.getByRole('link', { name })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Log' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link').map(link => link.textContent)).toEqual(['Home', 'Timeline', 'Control', 'Alerts', 'Me']);
     expect(screen.queryByRole('link', { name: 'Tasks' })).not.toBeInTheDocument();
+  });
+
+  it('gives the rail the green Log button under its pages once the diary is kept', async () => {
+    wire.diary = true;
+    draw(<Rail />);
+
+    expect(await screen.findByRole('button', { name: 'Log' })).toHaveAttribute('aria-keyshortcuts', 'l');
+    expect(screen.getAllByRole('link').map(link => link.textContent)).toEqual(['Home', 'Grow', 'Timeline', 'Control', 'Alerts', 'Me']);
   });
 });

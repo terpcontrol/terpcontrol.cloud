@@ -1,4 +1,4 @@
-import type { AccessNeed, Placement } from '@fg2/shared-types/v1';
+import type { AccessNeed, Placement, Space } from '@fg2/shared-types/v1';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 
@@ -82,17 +82,22 @@ export interface Standing {
  * exactly as `access()` decides it. A thing standing nowhere that is not yours
  * is one you could not have been shown at all, so it answers `undefined`.
  */
-export const useMayWith = (): ((thing: Standing) => AccessNeed | undefined) => {
-  const { user } = useSession();
-  const mayIn = useMayInEach();
-
-  return thing => {
+export const mayWithOf =
+  (user: ReturnType<typeof useSession>['user'], spaces: readonly Space[] | undefined) =>
+  (thing: Standing): AccessNeed | undefined => {
     if (user === null) return undefined;
     if (user.isDemo) return 'view';
     if (thing.ownerId !== null && thing.ownerId === user.id) return 'own';
 
-    return mayIn(thing.spaceId);
+    return thing.spaceId === null ? undefined : spaces?.find(space => space.id === thing.spaceId)?.youMay;
   };
+
+/** The same answer for a screen, read from the session and the list of places the shell already holds. */
+export const useMayWith = (): ((thing: Standing) => AccessNeed | undefined) => {
+  const { user } = useSession();
+  const spaces = useSpaces();
+
+  return mayWithOf(user, spaces.data?.items);
 };
 
 /**

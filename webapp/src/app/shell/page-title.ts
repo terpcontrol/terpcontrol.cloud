@@ -10,8 +10,7 @@ const APP = 'Terp Control';
  * Every screen already has one `<h1>`, often drawn only once its data is in, so
  * the title follows the heading rather than a list of routes: the window and
  * the tab say "Blue Dream tent – Terp Control" and a screen reader announces
- * the page it arrived on. A heading that holds controls as well - a place
- * picker - names the page in its `data-title`.
+ * the page it arrived on.
  *
  * After a navigation the link that was pressed is gone and focus falls to the
  * body, where a screen reader user is lost; the heading takes it instead. Where
@@ -30,7 +29,7 @@ export function usePageTitle(main: React.RefObject<HTMLElement | null>) {
     let focused = !arriving || root.contains(document.activeElement);
     const name = () => {
       const heading = root.querySelector('h1');
-      const text = (heading?.dataset.title ?? heading?.textContent)?.trim();
+      const text = heading?.textContent?.trim();
       document.title = text ? `${text} – ${APP}` : APP;
       if (heading && !focused) {
         focused = true;

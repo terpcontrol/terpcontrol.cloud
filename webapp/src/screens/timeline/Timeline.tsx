@@ -43,7 +43,7 @@ interface SharedReader {
 
 interface TimelineProps {
   spaceId: string;
-  /** The title row: the tab's name and the place it shows, with the switcher where there are several. */
+  /** The title row: the page's name, or for support the customer's place it shows. */
   heading?: React.ReactNode;
 }
 

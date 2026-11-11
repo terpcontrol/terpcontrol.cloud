@@ -1,26 +1,21 @@
 import { CircleCheck, Clock, Info, Leaf, Power, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { placePath } from '@/app/places';
 import type { CardSetpoint, CardValue, Device, DeviceLive, HomeClimate, HomeSpaceCard, Metric } from '@fg2/shared-types/v1';
 import { deviceTitle } from '@/ui/naming';
-import { serverNow } from '@/api/clock';
+import { useCardStatus } from './card-status';
 import { DevicesHere } from './DevicesHere';
 import { useDeviceLive, useHourMeans } from '@/api/devices';
 import { ageAttribute, valueAge } from '@/ui/age';
-import { maintenanceQuiet, type Quiet } from '@/ui/maintenance';
-import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
-import { ownStatusOf } from '../control/devices/own-summary';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/LivenessPill';
 import { decimalFigure } from '@/ui/figures';
 import { figure, figureWithUnit, UNIT } from '@/ui/units';
 import {
-  climateDeviceOf,
-  controlOffOf,
   KIND_ICON,
   halfNowOf,
   humidifierOutputs,
@@ -28,15 +23,12 @@ import {
   lightWindowOf,
   outputsFor,
   setpointOf,
-  statusOf,
-  statusText,
   toneOf,
   valueOf,
   verdictSaid,
   type HumidifierHold,
   type Status,
 } from './place';
-import { useHumidifierHold } from './reads';
 import { useHumidifiers } from '../control/germination/germination-choices';
 import { Dot } from '@/ui/Spoken';
 import ui from '@/ui/ui.module.css';
@@ -74,40 +66,16 @@ export function PlaceCard({
 }) {
   const { t } = useTranslation();
   const zone = useZone();
-  const here = (devices ?? []).filter(device => card.deviceIds.includes(device.id));
-  const device = climateDeviceOf(here, card.deviceIds);
+  const { here, device, humidifierHold, climates, status, said } = useCardStatus(card, devices, now);
   const live = useDeviceLive(device?.id ?? null).data;
   // The lamp is the climate device's own output, or else a light of its own in the same place.
   const lamp = here.find(one => one.type === 'light' && one.id !== device?.id) ?? null;
   const lampLive = useDeviceLive(lamp?.id ?? null).data;
   const lit = live?.outputs.light?.value != null ? live : lampLive?.outputs.light?.value != null ? lampLive : null;
-  const quiet = here.map(one => maintenanceQuiet(one, DateTime.max(now, serverNow()))).find((one): one is Quiet => one !== null) ?? null;
-  const humidifierHold = useHumidifierHold(device);
-  // A place holding several climates is said climate by climate: the worst of
-  // them speaks for the card, named by its device, and each has its own figures.
-  const several = card.climates.length > 1;
-  const climates = card.climates.map(climate => {
-    const mine = here.filter(one => one.id === climate.deviceId);
-    const status = statusOf(
-      {
-        ...card,
-        values: climate.values,
-        setpoints: climate.setpoints,
-        deviceIds: [climate.deviceId],
-        quiet,
-        controlOff: controlOffOf(mine),
-        humidifierHold: null,
-      },
-      now,
-    );
-    return { climate, device: mine[0] ?? null, status };
-  });
-  const worst = several ? [...climates].sort((a, b) => TONE_RANK[toneOf(b.status)] - TONE_RANK[toneOf(a.status)])[0] : null;
-  const status = worst?.status ?? statusOf({ ...card, quiet, controlOff: controlOffOf(here), humidifierHold }, now);
+  // A place holding several climates gives each its own figures under the sentence of the worst.
+  const several = climates.length > 1;
   const Icon = card.kind === null ? Leaf : KIND_ICON[card.kind];
   const StatusIcon = STATUS_ICON[status.kind] ?? Info;
-  const said =
-    (status.kind === 'noTargets' ? ownStatusOf(t, worst?.device ?? device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone);
 
   return (
     <article className={styles.placeCard} data-tone={toneOf(status)}>
@@ -120,7 +88,7 @@ export function PlaceCard({
       </header>
       <p className={styles.cardStatus} data-tone={toneOf(status)}>
         <StatusIcon size={15} strokeWidth={2} aria-hidden />
-        <span>{worst?.device && status.kind !== 'alert' ? `${deviceTitle(worst.device, t, devices)} · ${said}` : said}</span>
+        <span>{said}</span>
       </p>
       {several ? (
         climates.map(({ climate, device: one, status: own }) => (
@@ -187,9 +155,6 @@ function CardClimate({
     </div>
   );
 }
-
-/** How urgently a tone asks for a person, so the worst climate of several speaks for its card. */
-const TONE_RANK: Record<ReturnType<typeof toneOf>, number> = { alarm: 3, warn: 2, quiet: 1, good: 0 };
 
 /**
  * The readings a card has room for, each with its verdict and its last hour's

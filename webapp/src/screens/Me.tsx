@@ -70,10 +70,44 @@ export function Me() {
         <Door to="/me/about" title={t('me.about.title')} line={versionLine(t, APP_VERSION, BUILD_MODE)} />
       </div>
 
+      {user?.isAdmin ? <AdminDoors /> : null}
+
       <div className={styles.foot}>
         <button type="button" className={ui.button} onClick={signOut}>
           {t('me.signOut')}
         </button>
+      </div>
+    </section>
+  );
+}
+
+/** The four fleet screens, in the order the board puts them. */
+const ADMIN_LINKS = [
+  { path: '/admin/fleet', labelKey: 'admin.fleet.title' },
+  { path: '/admin/firmware', labelKey: 'admin.firmware.title' },
+  { path: '/admin/users', labelKey: 'admin.users.title' },
+  { path: '/admin/demo', labelKey: 'admin.demo.title' },
+] as const;
+
+/**
+ * The fleet, for whoever runs this install. Its doors are here and nowhere
+ * else: the screens behind them are tables that need a wide window and say so
+ * on a phone, and an account that is not an administrator is shown no section
+ * it cannot open.
+ */
+function AdminDoors() {
+  const { t } = useTranslation();
+
+  return (
+    <section className={styles.admin} aria-label={t('admin.section')}>
+      <span className="label">{t('admin.section')}</span>
+      <div className={ui.group}>
+        {ADMIN_LINKS.map(({ path, labelKey }) => (
+          <Link key={path} to={path} className={`${styles.row} ${styles.link} ${styles.adminDoor}`}>
+            <span className={styles.rowTitle}>{t(labelKey)}</span>
+            <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
+          </Link>
+        ))}
       </div>
     </section>
   );
@@ -90,7 +124,7 @@ function AccountDoors({ handle }: { handle: string }) {
   const follows = useFollows(true);
   const links = useShareLinks();
   const cameras = useCameras();
-  const { devices, ready } = useShape();
+  const { steering, cameras: cameraCount, ready } = useShape();
   const shipped = useSchemes();
   const own = useOwnSchemes();
   const diary = useDiaryLayer();
@@ -161,8 +195,10 @@ function AccountDoors({ handle }: { handle: string }) {
             line={line([grows, shipped, own], () => schemesLine(t, grows.data!.items, shipped.data!, own.data!.items))}
           />
         ) : null}
-        {/* Without any hardware there is no Gerät tab; this is where it comes in. */}
-        {ready && devices === 0 ? <Door to="/devices" title={t('me.door.addDevice.title')} line={t('me.door.addDevice.line')} /> : null}
+        {/* Without any hardware nothing on Start or in the bar leads to adding some; this is where it comes in. */}
+        {ready && !steering && cameraCount === 0 ? (
+          <Door to="/devices" title={t('me.door.addDevice.title')} line={t('me.door.addDevice.line')} />
+        ) : null}
         <Door to="/me/account" title={t('me.account.title')} line={t('me.door.account')} />
       </div>
     </>

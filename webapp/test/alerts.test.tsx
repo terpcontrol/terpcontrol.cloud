@@ -581,8 +581,7 @@ describe('the inbox', () => {
       </>,
     );
 
-    const link = await screen.findByRole('link', { name: 'Alerts · 1 open' });
-    expect(within(link).getByText('1')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Alerts · 1 open' })).toBeInTheDocument();
     await waitFor(() => expect(readsOf('/v1/alerts')).toHaveLength(2));
     // One read of what is open, one of what is over, and the badge on top of
     // neither: the bell counts the list the inbox is drawing.
@@ -1013,7 +1012,7 @@ describe('a member who may only log', () => {
 });
 
 describe('the bell', () => {
-  it('carries the open count on the phone and on the rail, and says it', async () => {
+  it('says the open count on the phone and on the rail: a dot on the phone´s bell, the figure on the rail', async () => {
     server.alerts = [alert({ id: 'a' }), alert({ id: 'b' }), alert({ id: 'c', resolvedAt: iso(NOW.minus({ hours: 1 })) })];
     draw(
       <>
@@ -1023,14 +1022,15 @@ describe('the bell', () => {
     );
 
     await waitFor(() => expect(screen.getAllByRole('link', { name: 'Alerts · 2 open' })).toHaveLength(2));
-    const links = screen.getAllByRole('link', { name: 'Alerts · 2 open' });
-    for (const link of links) expect(within(link).getByText('2')).toBeInTheDocument();
+    const [phone, rail] = screen.getAllByRole('link', { name: 'Alerts · 2 open' });
+    expect(phone.querySelector('[data-kind="alerts"]')).toBeEmptyDOMElement();
+    expect(within(rail).getByText('2')).toHaveAttribute('data-kind', 'alerts');
   });
 
   it('says 99+ rather than a page count when another page stands behind the open one', async () => {
     server.alerts = [alert({ id: 'a' })];
     server.older = [alert({ id: 'b' })];
-    draw(<TopBar />);
+    draw(<Rail />);
 
     const link = await screen.findByRole('link', { name: 'Alerts · more than 99 open' });
     expect(within(link).getByText('99+')).toBeInTheDocument();
@@ -1066,10 +1066,17 @@ describe('the way to the tasks', () => {
   it('counts what is due on the bell, in blue, where no alarm is open', async () => {
     server.me = { ...me, layers: { diary: true } } as Me;
     server.tasks = [task('t1', NOW.minus({ hours: 2 })), task('t2', NOW.plus({ days: 3 }))];
-    draw(<TopBar />);
+    draw(
+      <>
+        <TopBar />
+        <Rail />
+      </>,
+    );
 
-    const link = await screen.findByRole('link', { name: 'Alerts · 1 task due' });
-    expect(within(link).getByText('1')).toHaveAttribute('data-kind', 'tasks');
+    await waitFor(() => expect(screen.getAllByRole('link', { name: 'Alerts · 1 task due' })).toHaveLength(2));
+    const [phone, rail] = screen.getAllByRole('link', { name: 'Alerts · 1 task due' });
+    expect(phone.querySelector('[data-kind="tasks"]')).toBeEmptyDOMElement();
+    expect(within(rail).getByText('1')).toHaveAttribute('data-kind', 'tasks');
   });
 
   it('says nothing is due rather than nothing at all', async () => {

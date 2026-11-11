@@ -14,7 +14,7 @@
   flex: 1;
   padding: 0 var(--space-4) var(--space-4);
   /* Room for the tab bar and whatever the phone puts below it. */
-  padding-bottom: calc(var(--tabbar-height) + var(--log-button) / 2 + var(--space-4) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--tabbar-height) + var(--space-4) + env(safe-area-inset-bottom));
   padding-left: max(var(--space-4), env(safe-area-inset-left));
   padding-right: max(var(--space-4), env(safe-area-inset-right));
 }

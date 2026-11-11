@@ -11,7 +11,7 @@ import styles from './DiaryOffer.module.css';
  * under the diary rather than a box over it. It used to be the first thing
  * under the place's name - "Kein Sensor · Gerät hinzufügen" above the grow -
  * and led straight into the claim, as if the diary were a stand-in for a
- * device. It leads to the Gerät tab, where a controller and a camera are both
+ * device. It leads to the devices, where a controller and a camera are both
  * offered, and "Nein danke" is kept with the account so it is not offered on
  * the next phone either.
  */

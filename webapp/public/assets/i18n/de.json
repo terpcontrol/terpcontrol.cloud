@@ -243,6 +243,7 @@
     "ticks_other": "Takte"
   },
   "devices": {
+    "title": "Geräte",
     "controllers_one": "Gerät",
     "controllers_other": "Geräte",
     "cameras": "Kameras",
@@ -586,14 +587,17 @@
     "signInTooMany": "Zu viele Anmeldeversuche. Bitte einen Moment warten und es erneut versuchen.",
     "tabs": {
       "home": "Start",
-      "timeline": "Verlauf",
+      "grow": "Grow",
       "log": "Eintrag",
-      "devices": "Geräte",
-      "control": "Steuerung",
-      "device": "Gerät"
+      "timeline": "Verlauf",
+      "control": "Steuerung"
     },
-    "updated": "aktualisiert vor {{age}}",
-    "accountNote": "Du · Profil, Einstellungen",
+    "place": {
+      "chip": "Ort: {{name}}",
+      "title": "Ort",
+      "holds": "gilt für Grow, Verlauf und Steuerung",
+      "chosen": "gewählt"
+    },
     "loadFailed": "Konnte nicht laden. Bitte erneut versuchen.",
     "unreachable": "Server nicht erreichbar. Bitte erneut versuchen.",
     "cannotReach": {
@@ -622,8 +626,8 @@
     "zoneAdoptedDismiss": "Verstanden",
     "layout": {
       "label": "Was sich geändert hat",
-      "diary": "Das Grow-Tagebuch ist an. „Eintrag“ in der Mitte der Leiste schreibt Gießen, Düngen, Fotos und Notizen; was fällig ist, steht beim Grow und hinter der Glocke.",
-      "places": "Jetzt sind es {{count}} Orte: Start zeigt jeden als Karte, ein Tipp öffnet ihn. Verlauf und Steuerung zeigen den zuletzt geöffneten, oben wechselst du den Ort.",
+      "diary": "Das Grow-Tagebuch ist an. In der Leiste stehen jetzt „Grow“ mit dem Tagebuch und „Eintrag“ für Gießen, Düngen, Fotos und Notizen; was fällig ist, steht auf Start und hinter der Glocke.",
+      "places": "Jetzt sind es {{count}} Orte: Start zeigt jeden als Karte. Der Ort, dessen Name oben steht, gilt für Grow, Verlauf und Steuerung; ein Tipp auf den Namen wechselt ihn.",
       "ok": "Verstanden",
       "diaryOff": "Ausschalten unter Ich › Darstellung"
     },
@@ -1718,7 +1722,7 @@
       "none": "Noch kein Plan.",
       "noneNote": "Ein Plan ist eine Liste von Schritten: ein Stadium, wie lange es dauert und was der Ort währenddessen halten soll. Ihn zu speichern startet ihn nicht.",
       "noClimate": "Hier läuft nichts auf einem Plan.",
-      "noClimateNote": "Ein Plan-Schritt schreibt ein Klima — Tag- und Nachtwerte, das CO₂-Ziel, das Maximum des Lichts — und dieses Gerät nennt nichts davon. Seine Steckdosen und sein Ausgang stehen im Tab „Geräte“.",
+      "noClimateNote": "Ein Plan-Schritt schreibt ein Klima — Tag- und Nachtwerte, das CO₂-Ziel, das Maximum des Lichts — und dieses Gerät nennt nichts davon. Seine Steckdosen und sein Ausgang stehen unter Steuerung › Geräte.",
       "noClimateHasPlan": "Dieses Gerät nennt kein Klima; was diese Schritte schreiben, landet also in einem Dokument, das keinen Platz dafür hat. Ein Schritt ohne Einstellungen sendet gar nichts, und ein gestoppter Plan sendet nichts, bis er wieder gestartet wird.",
       "waitingHasPlan": "Dieses Gerät hat seine Einstellungen noch nicht geschickt; diese Schritte werden deshalb zurückgehalten und nicht gesendet. Was ein Schritt trägt, käme nicht zur Abstimmung des Geräts hinzu, sondern träte an ihre Stelle: Betriebsart, Lichtzeiten, die Zeiten des Entfeuchters und die Dimmrampen stünden wieder auf einem Werkswert, und keine davon hat die Cloud je erreicht, um sie zurückschreiben zu können. Ein Schritt ohne Einstellungen sendet gar nichts, und ein gestoppter Plan sendet nichts, bis er wieder gestartet wird.",
       "write": "Plan schreiben",
@@ -2564,8 +2568,8 @@
         "needPlace": "Sag zuerst, wohin sie schaut.",
         "needName": "Gib ihr zuerst einen Namen.",
         "testAdds": "Der Test fügt die Kamera hinzu und holt dann ein Bild. Du kannst sie hier wieder entfernen.",
-        "made": "Zu {{place}} hinzugefügt. Sie steht jetzt im Tab Geräte, ein weiterer Test aktualisiert sie.",
-        "madeSomewhere": "Die Kamera wurde hinzugefügt. Sie steht jetzt im Tab Geräte, ein weiterer Test aktualisiert sie.",
+        "made": "Zu {{place}} hinzugefügt. Sie steht jetzt bei den Geräten, ein weiterer Test aktualisiert sie.",
+        "madeSomewhere": "Die Kamera wurde hinzugefügt. Sie steht jetzt bei den Geräten, ein weiterer Test aktualisiert sie.",
         "remove": "Wieder entfernen",
         "removing": "Wird entfernt …",
         "open": "Kamera öffnen",
@@ -3496,7 +3500,7 @@
     }
   },
   "admin": {
-    "section": "Admin",
+    "section": "Verwaltung",
     "count": {
       "devices_one": "{{count}} Gerät",
       "devices_other": "{{count}} Geräte",
@@ -4107,7 +4111,7 @@
     },
     "diaryLayer": {
       "title": "Grow-Tagebuch",
-      "text": "Im Tagebuch hältst du fest, was du an deinen Pflanzen machst – Gießen, Düngen, Fotos, Notizen – und führst Grows mit Tagen und Phasen. Solange du es nicht nutzt, zeigt die App nur Klima und Gerät. Es schaltet sich ein, sobald du einen Grow startest oder etwas einträgst, und bringt „Eintrag“ in die Mitte der Leiste; unter Ich › Darstellung kannst du es auch von Hand ein- oder ausschalten."
+      "text": "Im Tagebuch hältst du fest, was du an deinen Pflanzen machst – Gießen, Düngen, Fotos, Notizen – und führst Grows mit Tagen und Phasen. Solange du es nicht nutzt, zeigt die App nur Klima und Gerät. Es schaltet sich ein, sobald du einen Grow startest oder etwas einträgst, und bringt „Grow“ und „Eintrag“ in die Leiste; unter Ich › Darstellung kannst du es auch von Hand ein- oder ausschalten."
     },
     "follow": {
       "title": "Folgen",
@@ -4341,7 +4345,6 @@
     }
   },
   "place": {
-    "switch": "Ort wechseln",
     "backTo": "Zurück zu {{name}}",
     "members": {
       "title": "Mitglieder & Teilen",

@@ -24,12 +24,12 @@ vi.mock('@/api/session', async importOriginal => {
 vi.mock('@/charts/Chart', () => ({ Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} /> }));
 
 /**
- * The navigation around the cockpit, drawn through the real table of addresses
- * under the real shell and answered over the wire: the same four tabs for
- * everybody, the Log button where a diary is kept, one place page with no tabs
- * of its own, Verlauf and Steuerung about one place with a switcher only where
- * there is something to switch, every address a place used to have sent on to
- * where its things are now, and a change to the shape of the app said once.
+ * The navigation around the pages, drawn through the real table of addresses
+ * under the real shell and answered over the wire: the bar's items by what the
+ * account has and the session may do, which of them is marked on which
+ * address, one place page with no tabs of its own, one choice of place in the
+ * header that Grow, Verlauf and Steuerung all show, and a change to the shape
+ * of the app said once.
  */
 
 const ago = (minutes: number) => DateTime.now().minus({ minutes }).toUTC().toISO()!;
@@ -39,7 +39,7 @@ const device = (id: string, spaceId: string, type: Device['type'] = 'fridge'): D
     id,
     type,
     name: type,
-    ownerId: 'user-1',
+    ownerId: server.youMay === 'own' ? 'user-1' : 'user-2',
     spaceId,
     firmware: { channel: 'manual', targetId: null },
     configuration: {
@@ -57,20 +57,38 @@ const card = (spaceId: string, name: string): HomeSpaceCard => ({
   name,
   climates: [],
   kind: spaceId === 'space-1' ? 'fridge' : 'tent',
-  roomId: null,
+  roomId: server.room && spaceId !== 'space-3' ? 'room-1' : null,
   deviceIds: [`device-${spaceId.slice(-1)}`],
   values: [
     { metric: 'temperature', value: 25.1, measuredAt: ago(0.3), state: 'live' },
     { metric: 'humidity', value: 61, measuredAt: ago(0.3), state: 'live' },
   ],
-  setpoints: [],
+  setpoints: server.targets ? [{ metric: 'temperature', value: 25, band: 1 }] : [],
   trend: null,
-  grow: null,
+  grow: server.growing && spaceId === 'space-1' ? GROWING : null,
   entries: [],
   latestStill: null,
   dueTasks: [],
   openAlerts: [],
 });
+
+/** The grow standing in the first place, as its card names it. */
+const GROWING: HomeSpaceCard['grow'] = {
+  growId: 'grow-1',
+  name: 'Spring run',
+  type: 'photoperiod',
+  dayNumber: 35,
+  phaseDay: null,
+  stageWeek: null,
+  stage: null,
+  stagesReached: [],
+  preset: null,
+  isAuto: false,
+  plantCount: null,
+  strains: [],
+  coverMediaId: null,
+  stageGroups: [],
+};
 
 const overviewOf = (spaceId: string, name: string): SpaceOverview =>
   ({
@@ -163,6 +181,12 @@ const server = {
   places: [['space-1', 'Fridge 1']] as [string, string][],
   diary: false,
   cameras: 0,
+  /** Whether the places hold targets, so that one in its band says so. */
+  targets: false,
+  /** Whether a grow stands in the first place. */
+  growing: false,
+  /** Whether the first two places stand in a room. */
+  room: false,
   youMay: 'own' as AccessNeed,
   me: meOf(false, { diary: false, places: false }),
   sent: [] as { method: string; path: string; body: unknown }[],
@@ -193,7 +217,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (path === '/devices') return json({ items: server.places.map(([id]) => device(`device-${id.slice(-1)}`, id)), nextCursor: null });
   if (path === '/cameras')
     return json({ items: Array.from({ length: server.cameras }, (_, index) => ({ id: `cam-${index}`, spaceId: 'space-1' })), nextCursor: null });
-  if (path === '/spaces') return json(spacePage(...server.places.map(([id, name]) => spaceWhere(server.youMay, { id, name }))));
+  if (path === '/spaces') {
+    const room = server.room ? [spaceWhere(server.youMay, { id: 'room-1', name: 'Cellar', kind: 'room' })] : [];
+    return json(spacePage(...server.places.map(([id, name]) => spaceWhere(server.youMay, { id, name })), ...room));
+  }
   const live = /^\/devices\/([^/]+)\/live$/.exec(path);
   if (live) {
     const output = { value: 0, measuredAt: ago(0.2), state: 'live' };
@@ -242,6 +269,9 @@ beforeEach(() => {
   server.places = [['space-1', 'Fridge 1']];
   server.diary = false;
   server.cameras = 0;
+  server.targets = false;
+  server.growing = false;
+  server.room = false;
   server.youMay = 'own';
   server.me = meOf(false, { diary: false, places: false });
   server.sent = [];
@@ -251,111 +281,111 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const TWO: [string, string][] = [
+  ['space-1', 'Fridge 1'],
+  ['space-2', 'Tent 2'],
+];
+
+const withDiary = () => {
+  server.diary = true;
+  server.me = meOf(true, { diary: true, places: false });
+};
+
+/** Which item of the bar the address is marked on, or none. */
+const marked = () =>
+  within(bar())
+    .queryAllByRole('link', { current: 'page' })
+    .map(link => link.textContent);
+
 describe('the bar', () => {
-  it('is Start, Verlauf, Steuerung and Gerät for one device and no diary, with Log only where a diary is kept and may be written', () => {
-    const one = { diary: false, devices: 1 };
-    expect(tabsOf(one, true).map(tab => tab.labelKey)).toEqual(['shell.tabs.home', 'shell.tabs.timeline', 'shell.tabs.control', 'shell.tabs.device']);
-    expect(tabsOf({ ...one, diary: true }, true).map(tab => tab.labelKey)).toEqual([
-      'shell.tabs.home',
-      'shell.tabs.timeline',
-      'shell.tabs.log',
-      'shell.tabs.control',
-      'shell.tabs.device',
-    ]);
-    expect(tabsOf({ ...one, diary: true }, false).some(tab => tab.raised)).toBe(false);
-    expect(tabsOf({ diary: false, devices: 2 }, true).at(-1)?.labelKey).toBe('shell.tabs.devices');
+  it('has the items the account has something for and the session may use, always in one order', () => {
+    const labels = (shape: Parameters<typeof tabsOf>[0], mayLog: boolean) =>
+      tabsOf(shape, mayLog).map(tab => tab.labelKey.replace('shell.tabs.', ''));
+
+    // One device, no diary: the customer the app is designed for.
+    expect(labels({ diary: false, steering: true, managed: true }, true)).toEqual(['home', 'timeline', 'control']);
+    expect(labels({ diary: true, steering: true, managed: true }, true)).toEqual(['home', 'grow', 'log', 'timeline', 'control']);
+    // A guest who may write lines in somebody's tent steers nothing there.
+    expect(labels({ diary: true, steering: true, managed: false }, true)).toEqual(['home', 'grow', 'log', 'timeline']);
+    // A diary kept without hardware is the whole app.
+    expect(labels({ diary: true, steering: false, managed: false }, true)).toEqual(['home', 'grow', 'log']);
+    // The demo reads everything and writes nothing.
+    expect(labels({ diary: true, steering: true, managed: false }, false)).toEqual(['home', 'grow', 'timeline']);
   });
 
-  it('leaves Steuerung out until there is a device to steer, and Gerät until there is anything to list', () => {
-    // A diary kept without hardware is the whole app: hardware is offered under the grow and under Ich.
-    expect(tabsOf({ diary: true, devices: 0, steering: false }, true).map(tab => tab.labelKey)).toEqual([
-      'shell.tabs.home',
-      'shell.tabs.log',
-      'shell.tabs.timeline',
-    ]);
-    // A camera alone is listed under Gerät and steers nothing.
-    expect(tabsOf({ diary: true, devices: 1, steering: false }, true).map(tab => tab.labelKey)).toEqual([
-      'shell.tabs.home',
-      'shell.tabs.timeline',
-      'shell.tabs.log',
-      'shell.tabs.device',
-    ]);
-  });
-
-  it('draws the four places of an account with one device, and no Tasks', async () => {
+  it('draws Start, Verlauf and Steuerung for an account with one device, and no Tasks', async () => {
     open(QUIET);
 
-    await waitFor(() => expect([...bar().children].map(tab => tab.textContent)).toEqual(['Home', 'Timeline', 'Control', 'Device']));
+    await waitFor(() => expect(server.sent.some(one => one.path === '/spaces')).toBe(true));
+    expect([...bar().children].map(tab => tab.textContent)).toEqual(['Home', 'Timeline', 'Control']);
     expect(
       within(bar())
         .getAllByRole('link')
         .map(link => link.getAttribute('href')),
-    ).toEqual(['/', '/timeline', '/control', '/devices']);
+    ).toEqual(['/', '/timeline', '/control']);
   });
 
-  it('puts the green Log button back in the middle once a diary is kept', async () => {
-    server.diary = true;
-    server.me = meOf(true, { diary: true, places: false });
+  it('brings Grow and the green Log button once a diary is kept', async () => {
+    withDiary();
     open(QUIET);
 
-    await waitFor(() => expect([...bar().children].map(tab => tab.textContent)).toEqual(['Home', 'Timeline', 'Log', 'Control', 'Device']));
+    await waitFor(() => expect([...bar().children].map(tab => tab.textContent)).toEqual(['Home', 'Grow', 'Log', 'Timeline', 'Control']));
     expect(within(bar()).getByRole('button', { name: 'Log' })).toBeInTheDocument();
+    expect(within(bar()).getByRole('link', { name: 'Grow' })).toHaveAttribute('href', '/grow');
   });
 
-  it('says Geräte once there is a second thing to list, a camera included', async () => {
-    server.cameras = 1;
+  it('offers a member who may only write lines no Steuerung', async () => {
+    withDiary();
+    server.youMay = 'log';
     open(QUIET);
 
-    await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Devices' })).toBeInTheDocument());
+    await waitFor(() => expect([...bar().children].map(tab => tab.textContent)).toEqual(['Home', 'Grow', 'Log', 'Timeline']));
   });
 
-  it('keeps Start marked on a place´s own page, and Steuerung on the pages below it', async () => {
-    server.places = [
-      ['space-1', 'Fridge 1'],
-      ['space-2', 'Tent 2'],
-    ];
+  it('keeps Start marked on a place´s own page, and Steuerung on the pages below it and on the devices', async () => {
+    server.places = TWO;
     const router = open('/spaces/space-2');
 
-    await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page'));
-    await act(() => router.navigate('/control/alarms?space=space-2'));
-    await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Control' })).toHaveAttribute('aria-current', 'page'));
+    await waitFor(() => expect(marked()).toEqual(['Home']));
+    for (const address of ['/control/alarms?space=space-2', '/devices/device-2', '/claim', '/cameras/add']) {
+      await act(() => router.navigate(address));
+      await waitFor(() => expect(marked()).toEqual(['Control']));
+    }
   });
 
-  it('keeps Start marked on the task list and on a grow, which a cockpit´s grow block opens', async () => {
-    server.diary = true;
-    server.me = meOf(true, { diary: true, places: false });
+  it('marks nothing on Meldungen, on Ich and on a camera´s page', async () => {
+    const router = open('/alerts');
+
+    await waitFor(() => expect(server.sent.some(one => one.path === '/spaces')).toBe(true));
+    for (const address of ['/alerts', '/me/about', '/cameras/cam-1']) {
+      await act(() => router.navigate(address));
+      expect(marked()).toEqual([]);
+    }
+  });
+
+  it('keeps Start marked on the task list, and Grow on the grows and on one of them', async () => {
+    withDiary();
     const router = open('/tasks');
 
-    await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page'));
+    await waitFor(() => expect(marked()).toEqual(['Home']));
+    await act(() => router.navigate('/grows'));
+    expect(await screen.findByRole('heading', { level: 1, name: 'My grows' })).toBeInTheDocument();
+    expect(marked()).toEqual(['Grow']);
     await act(() => router.navigate('/grows/grow-1'));
     expect(await screen.findByRole('heading', { level: 1, name: /Spring run/ })).toBeInTheDocument();
-    expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
-  });
-
-  it('keeps Start marked on "My grows", and sends the address the finished grows had there', async () => {
-    server.diary = true;
-    server.me = meOf(true, { diary: true, places: false });
-    const router = open('/grows/archive');
-
-    await waitFor(() => expect(where(router)).toBe('/grows'));
-    expect(await screen.findByRole('heading', { level: 1, name: 'My grows' })).toBeInTheDocument();
-    expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+    expect(marked()).toEqual(['Grow']);
   });
 
   it('leads back from the task list to the place it was opened from, which is Start with one place', async () => {
-    server.diary = true;
-    server.me = meOf(true, { diary: true, places: false });
+    withDiary();
     open('/tasks');
 
     const title = await screen.findByRole('heading', { level: 1, name: 'Tasks' });
     expect(within(title.closest('header')!).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
   });
 
-  it('leads back from the task list to the place last looked at, where there are several', async () => {
-    server.places = [
-      ['space-1', 'Fridge 1'],
-      ['space-2', 'Tent 2'],
-    ];
+  it('leads back from the task list to the chosen place, where there are several', async () => {
+    server.places = TWO;
     server.diary = true;
     server.me = meOf(true, { diary: true, places: true });
     localStorage.setItem('terp.place', 'space-2');
@@ -364,60 +394,25 @@ describe('the bar', () => {
     expect(await screen.findByRole('link', { name: 'Back to Tent 2' })).toHaveAttribute('href', '/spaces/space-2');
   });
 
-  it('draws the shape this account had last time before its answers are in, rather than jumping by a tab', async () => {
-    localStorage.setItem('terp.shape.user-1', JSON.stringify({ diary: true, places: 1, devices: 3 }));
-    server.diary = true;
-    server.me = meOf(true, { diary: true, places: false });
+  it('draws the shape this account had last time before its answers are in, rather than jumping by an item', async () => {
+    localStorage.setItem('terp.shape.user-1', JSON.stringify({ diary: true, places: 1, steering: true, managed: false, cameras: 0 }));
+    withDiary();
     open(QUIET);
 
-    expect([...bar().children].map(tab => tab.textContent)).toEqual(['Home', 'Timeline', 'Log', 'Control', 'Devices']);
-  });
-});
-
-describe('the addresses a place had while it had five tabs', () => {
-  beforeEach(() => {
-    server.places = [
-      ['space-1', 'Fridge 1'],
-      ['space-2', 'Tent 2'],
-    ];
-  });
-
-  it.each([
-    ['/spaces/space-1/overview', '/spaces/space-1'],
-    ['/spaces/space-1/timeline', '/timeline?space=space-1'],
-    ['/spaces/space-1/control', '/control?space=space-1'],
-    ['/spaces/space-1/control/targets', '/control/targets?space=space-1'],
-    ['/spaces/space-1/control/alarms?rule=rule-1', '/control/alarms?space=space-1&rule=rule-1'],
-    ['/spaces/space-1/devices', '/devices?space=space-1'],
-    ['/spaces/space-1/members', '/spaces/space-1/members'],
-  ])('sends %s on to %s', async (from, to) => {
-    const router = open(from);
-
-    await waitFor(() => expect(where(router)).toBe(to));
-  });
-
-  it('opens the place a link names on Steuerung, under a title that says which', async () => {
-    open('/spaces/space-2/control/alarms?rule=rule-1');
-
-    expect(await screen.findByRole('combobox', { name: 'Switch place' })).toHaveValue('space-2');
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Control');
-  });
-
-  it('hands an only place´s own address to Start, which is that place', async () => {
-    server.places = [['space-1', 'Fridge 1']];
-    const router = open('/spaces/space-1/overview');
-
-    await waitFor(() => expect(where(router)).toBe('/'));
-    expect(await screen.findByRole('heading', { name: 'Fridge 1' })).toBeInTheDocument();
+    expect([...bar().children].map(tab => tab.textContent)).toEqual(['Home', 'Grow', 'Log', 'Timeline']);
   });
 });
 
 describe('a place´s page', () => {
+  it('hands an only place´s own address to Start, which is that place', async () => {
+    const router = open('/spaces/space-1');
+
+    await waitFor(() => expect(where(router)).toBe('/'));
+    expect(await screen.findByRole('heading', { name: 'Fridge 1' })).toBeInTheDocument();
+  });
+
   it('has no tabs of its own, and the way back to the cards where there are several', async () => {
-    server.places = [
-      ['space-1', 'Fridge 1'],
-      ['space-2', 'Tent 2'],
-    ];
+    server.places = TWO;
     open('/spaces/space-2');
 
     expect(await screen.findByRole('heading', { name: 'Tent 2' })).toBeInTheDocument();
@@ -434,37 +429,151 @@ describe('a place´s page', () => {
   });
 });
 
-describe('Verlauf and Steuerung', () => {
-  it('name the only place without offering to switch it', async () => {
+describe('the choice of place', () => {
+  /** The chip that names the chosen place: the phone´s header draws it over the pages it holds for, the rail always. */
+  const chips = (name: string) => screen.queryAllByRole('button', { name: `Place: ${name}` });
+
+  /** The places whose Timeline was read, each once. */
+  const timelinesAsked = () => [...new Set(server.sent.flatMap(one => /^\/spaces\/([^/]+)\/timeline$/.exec(one.path)?.[1] ?? []))];
+
+  it('is not offered with one place: the page says what it is and nothing is there to choose', async () => {
     open('/control');
 
-    const title = await screen.findByRole('heading', { level: 1, name: /Control/ });
-    await waitFor(() => expect(title).toHaveTextContent('Fridge 1'));
-    expect(screen.queryByRole('combobox', { name: 'Switch place' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Control' })).toBeInTheDocument();
+    await waitFor(() => expect(server.sent.some(one => one.path === '/devices/device-1/live')).toBe(true));
+    expect(screen.queryByRole('button', { name: /^Place:/ })).not.toBeInTheDocument();
   });
 
-  it('switch places in the title, and the other tab follows the place last looked at', async () => {
-    server.places = [
-      ['space-1', 'Fridge 1'],
-      ['space-2', 'Tent 2'],
-    ];
+  it('stands in the phone´s header on the pages it holds for, and on the rail on every page', async () => {
+    server.places = TWO;
+    const router = open('/');
+
+    await waitFor(() => expect(chips('Fridge 1')).toHaveLength(1));
+    expect(chips('Fridge 1')[0].closest('nav')).not.toBeNull();
+    for (const address of ['/timeline', '/control', '/control/alarms', '/grow', '/charts']) {
+      await act(() => router.navigate(address));
+      expect(chips('Fridge 1')).toHaveLength(2);
+    }
+    await act(() => router.navigate('/grows'));
+    expect(chips('Fridge 1')).toHaveLength(1);
+  });
+
+  it('lists the places under their rooms, each saying how it is and what grows there, with the chosen one marked', async () => {
+    server.places = [...TWO, ['space-3', 'Balcony']];
+    server.room = true;
+    server.targets = true;
+    server.growing = true;
+    withDiary();
+    open('/timeline');
+
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Place: Fridge 1' }))[0]);
+    const sheet = await screen.findByRole('dialog', { name: 'Place' });
+    expect(within(sheet).getByText('holds for Grow, Timeline and Control')).toBeInTheDocument();
+
+    const room = await within(sheet).findByRole('region', { name: 'Cellar' });
+    const [fridge, tent] = within(room).getAllByRole('button');
+    expect(fridge).toHaveAttribute('aria-current', 'true');
+    expect(fridge).toHaveTextContent('Fridge 1');
+    await waitFor(() => expect(fridge).toHaveTextContent('All on target'));
+    expect(fridge).toHaveTextContent('Spring run, Day 35');
+    expect(within(fridge).getByRole('img', { name: 'chosen' })).toBeInTheDocument();
+    expect(tent).toHaveTextContent('Tent 2');
+    expect(tent).not.toHaveAttribute('aria-current');
+    // A place standing in no room is listed under none.
+    expect(
+      within(sheet)
+        .getByRole('button', { name: /Balcony/ })
+        .closest('section'),
+    ).toBeNull();
+  });
+
+  it('moves the page to the place chosen, and the other pages follow it', async () => {
+    server.places = TWO;
     const router = open('/control');
 
-    const picker = await screen.findByRole('combobox', { name: 'Switch place' });
-    expect(picker).toHaveValue('space-1');
-    fireEvent.change(picker, { target: { value: 'space-2' } });
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Place: Fridge 1' }))[0]);
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Place' })).getByRole('button', { name: /Tent 2/ }));
+
     await waitFor(() => expect(where(router)).toBe('/control?space=space-2'));
+    expect(screen.queryByRole('dialog', { name: 'Place' })).not.toBeInTheDocument();
+    await waitFor(() => expect(chips('Tent 2')).toHaveLength(2));
+    expect(localStorage.getItem('terp.place')).toBe('space-2');
 
     fireEvent.click(within(bar()).getByRole('link', { name: 'Timeline' }));
     await waitFor(() => expect(where(router)).toBe('/timeline'));
-    expect(await screen.findByRole('combobox', { name: 'Switch place' })).toHaveValue('space-2');
+    await waitFor(() => expect(timelinesAsked()).toEqual(['space-2']));
+    expect(chips('Tent 2')).toHaveLength(2);
   });
 
-  it('open the Log sheet on the place they show', () => {
+  it('is set by a link that names a place, and drops what the address said about the place being left', async () => {
+    server.places = TWO;
+    const router = open('/control/alarms?space=space-2&rule=rule-1');
+
+    await waitFor(() => expect(chips('Tent 2')).toHaveLength(2));
+    expect(localStorage.getItem('terp.place')).toBe('space-2');
+
+    fireEvent.click(chips('Tent 2')[0]);
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Place' })).getByRole('button', { name: /Fridge 1/ }));
+    await waitFor(() => expect(where(router)).toBe('/control/alarms?space=space-1'));
+  });
+
+  it('is set by opening a place from Start', async () => {
+    server.places = TWO;
+    const router = open('/spaces/space-2');
+
+    await waitFor(() => expect(chips('Tent 2')).toHaveLength(1));
+    await act(() => router.navigate('/timeline'));
+    await waitFor(() => expect(timelinesAsked()).toEqual(['space-2']));
+  });
+
+  it('holds from the rail on a page that is about no place, for the page opened next', async () => {
+    server.places = TWO;
+    const router = open(QUIET);
+
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Place: Fridge 1' }))[0]);
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Place' })).getByRole('button', { name: /Tent 2/ }));
+
+    await waitFor(() => expect(chips('Tent 2')).toHaveLength(1));
+    expect(where(router)).toBe(QUIET);
+    await act(() => router.navigate('/timeline'));
+    await waitFor(() => expect(timelinesAsked()).toEqual(['space-2']));
+  });
+
+  it('opens the Log sheet on the place the page shows', () => {
     expect(openingOf('/control/alarms', '?space=space-2', { current: 'space-1' })).toEqual({ spaceId: 'space-2', underneath: true });
     expect(openingOf('/timeline', '', { current: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });
+    expect(openingOf('/grow', '', { current: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });
+    expect(openingOf('/grows', '', { current: 'space-1' })).toEqual({});
     expect(openingOf('/', '', { only: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });
     expect(openingOf('/', '', {})).toEqual({});
+  });
+});
+
+describe('Grow, the bar´s item', () => {
+  beforeEach(() => {
+    withDiary();
+    server.places = TWO;
+  });
+
+  it('is the grow running in the chosen place, with the way to every grow', async () => {
+    server.growing = true;
+    open('/grow');
+
+    expect(await screen.findByRole('heading', { level: 1, name: /Spring run/ })).toBeInTheDocument();
+    expect(within(bar()).getByRole('link', { name: 'Grow' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Back to My grows' })).toHaveAttribute('href', '/grows');
+    // The tab it stands on is this address, so it reads as the one that is open.
+    expect(screen.getByRole('link', { name: 'Weeks' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('offers to start a grow where none runs in the chosen place', async () => {
+    server.growing = true;
+    const router = open('/grow?space=space-2');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Grow' })).toBeInTheDocument();
+    expect(screen.getByText('Nothing growing here yet')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Start a grow' })).toHaveAttribute('href', '/grows/new?space=space-2');
+    expect(where(router)).toBe('/grow?space=space-2');
   });
 });
 
@@ -480,15 +589,13 @@ describe('a change to the shape of the app', () => {
     expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
   });
 
-  it('says once that a second place turned Start into cards and put a switcher on the tabs', async () => {
-    server.places = [
-      ['space-1', 'Fridge 1'],
-      ['space-2', 'Tent 2'],
-    ];
+  it('says once that a second place turned Start into cards and put the chosen place into the header', async () => {
+    server.places = TWO;
     open(QUIET);
 
     const notice = await screen.findByRole('status', { name: 'What changed' });
     expect(notice).toHaveTextContent('There are 2 places now');
+    expect(notice).toHaveTextContent('The place named at the top holds for Grow, Timeline and Control');
     expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: true } } });
 
     fireEvent.click(within(notice).getByRole('button', { name: 'Got it' }));
@@ -496,13 +603,13 @@ describe('a change to the shape of the app', () => {
     expect(patches()).toHaveLength(1);
   });
 
-  it('says once that the diary brought the Log button, and where it is turned off', async () => {
+  it('says once that the diary brought Grow and the Log button, and where it is turned off', async () => {
     server.diary = true;
     server.me = meOf(true, { diary: false, places: false });
     open(QUIET);
 
     const notice = await screen.findByRole('status', { name: 'What changed' });
-    expect(notice).toHaveTextContent('The grow diary is on.');
+    expect(notice).toHaveTextContent('The grow diary is on. The bar now has “Grow” with the diary and “Log”');
     expect(within(notice).getByRole('link', { name: 'Turn it off under Me › Appearance' })).toHaveAttribute('href', '/me/appearance');
   });
 

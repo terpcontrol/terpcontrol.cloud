@@ -136,7 +136,7 @@ export const ownStatusOf = (t: Translate, device: Device | null, offset: number)
 };
 
 /**
- * The one line a stand-alone module's panel on the Devices tab says about what
+ * The one line a stand-alone module's panel on the Devices page says about what
  * it is set to, linked to Steuerung where it is changed: what a socket switches
  * by, what a fan's speed follows, when a lamp is on.
  */

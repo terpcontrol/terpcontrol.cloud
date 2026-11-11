@@ -1,12 +1,14 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { HomeSpaceCard, SpaceOverview } from '@fg2/shared-types/v1';
 import { TabBar } from '@/app/shell/TabBar';
 import { GrowBlock } from '@/screens/cockpit/GrowBlock';
 import { DueStrip } from '@/screens/home/Strips';
 import { LogProvider } from '@/log/LogProvider';
-import { drawAt } from './harness';
+import { deviceWith } from './fixtures';
+import { drawAt, json } from './harness';
+import { spacePage, spaceWhere, THE_HOST } from './session';
 import { translate } from './translations';
 
 vi.mock('@/api/session', async importOriginal => {
@@ -20,7 +22,7 @@ vi.mock('@/api/session', async importOriginal => {
  *
  * The demo is a whole account to walk around in and not a sandbox: every line
  * it tried to write would be refused by the server. So what it is shown is the
- * account without the writing - no raised Log button, no Done on what is due,
+ * account without the writing - no Log button, no Steuerung, no Done on what is due,
  * on Start or on a place's grow. A button that is drawn and then refused is worse than no
  * button, and there is nothing here to explain afterwards.
  */
@@ -74,12 +76,24 @@ const draw = (node: React.ReactNode) => drawAt(<LogProvider>{node}</LogProvider>
 beforeAll(() => translate());
 
 describe('a session that may only look', () => {
-  it('is not offered the Log button, and keeps the four places', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is offered neither the Log button nor Steuerung, and keeps Start, Grow and Verlauf', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
+        if (path === '/home') return json({ spaces: [card], followedGrows: [], people: [], layers: { diary: true } });
+        if (path === '/devices') return json({ items: [deviceWith({ id: 'device-1', spaceId: 'space-1', ownerId: THE_HOST })], nextCursor: null });
+        if (path === '/spaces') return json(spacePage(spaceWhere('view')));
+        return json({ items: [], nextCursor: null });
+      }),
+    );
     const { container } = draw(<TabBar />);
 
-    // The demo is shown the diary, and still may not write a line of it.
+    // The demo is shown the diary and the climate, and may neither write a line nor steer a device.
+    await waitFor(() => expect([...container.querySelectorAll('nav > *')].map(tab => tab.textContent)).toEqual(['Home', 'Grow', 'Timeline']));
     expect(screen.queryByRole('button', { name: 'Log' })).not.toBeInTheDocument();
-    expect([...container.querySelectorAll('nav > *')].map(tab => tab.textContent)).toEqual(['Home', 'Timeline', 'Control', 'Device']);
   });
 
   it('sees the grow and what is due on it, and is offered neither Water nor Done', () => {

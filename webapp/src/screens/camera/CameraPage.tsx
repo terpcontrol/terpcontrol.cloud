@@ -20,7 +20,6 @@ import type { Translate } from '@/i18n/i18n';
 import { rowReaches } from '@/screens/notifications/reach';
 import { useCameraCalled } from '@/ui/camera-name';
 import { ageLabel, deviceLiveness, instantOf } from '@/ui/age';
-import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, Refused, Waiting } from '@/ui/PageState';
 import { enough, useMayWith } from '@/ui/session-access';
 import { Help } from '@/ui/Help';
@@ -52,8 +51,6 @@ export function CameraPage() {
   const { cameraId = '' } = useParams();
   const { t } = useTranslation();
   const camera = useCamera(cameraId);
-
-  useReportFreshness(camera.data?.state.lastStillAt ?? null);
 
   if (camera.isPending) return <Waiting lines={3} />;
   if (!camera.data) return noLongerThere(camera.error) ? <NoLongerHere what="camera" /> : <LoadFailed retry={() => void camera.refetch()} />;
@@ -189,7 +186,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
     <section className={styles.page}>
       <header className={styles.header}>
         {/* The camera belongs to the place it watches: the way back leads there, as the cockpit's picture led here. */}
-        <BackLink to={place ? placePath(place.id) : '/devices'} label={place?.name ?? t('shell.tabs.devices')} />
+        <BackLink to={place ? placePath(place.id) : '/devices'} label={place?.name ?? t('devices.title')} />
         <h1 className={styles.name}>{called(camera.name)}</h1>
         <span className={ui.live} data-liveness={liveness}>
           <span className={ui.liveDot} aria-hidden />

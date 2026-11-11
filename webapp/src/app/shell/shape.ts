@@ -5,13 +5,15 @@ import { useDevicesShape } from '@/api/devices';
 import { useHomeShape } from '@/api/home';
 import { useDiaryAnswer } from '@/api/layers';
 import { useSession } from '@/api/session';
+import { useSpaces } from '@/api/spaces';
 import { isPlace } from '@/app/places';
+import { enough, mayWithOf } from '@/ui/session-access';
 import { readStoredJson, writeStored } from '@/ui/stored';
 
 /**
  * What the navigation is drawn from: whether the diary is laid over the
- * climate, how many places Start lists, how many devices and cameras the
- * account has, and whether any of them is a device something can be steered on.
+ * climate, how many places Start lists, whether the account has a device, a
+ * device the session may steer, and how many cameras.
  *
  * Each of these is somebody else's read, followed rather than polled - the
  * navigation needs the count and not the figures - and none of them is there
@@ -22,15 +24,15 @@ import { readStoredJson, writeStored } from '@/ui/stored';
 export interface Shape {
   diary: boolean;
   places: number;
-  /** Devices and cameras together: everything the Gerät tab lists. */
-  devices: number;
   /** Whether there is a device at all - a controller, a fridge module, a plug - rather than only cameras or nothing. */
   steering: boolean;
+  /** Whether the session may manage one of those devices: a guest who may only log and the demo may not. */
+  managed: boolean;
   cameras: number;
 }
 
 /** What an account nothing is known about yet is drawn as: one device, no diary - the customer the app is designed for. */
-const FIRST: Shape = { diary: false, places: 1, devices: 1, steering: true, cameras: 0 };
+const FIRST: Shape = { diary: false, places: 1, steering: true, managed: true, cameras: 0 };
 
 const keyOf = (userId: string) => `terp.shape.${userId}`;
 
@@ -43,14 +45,17 @@ export const useShape = (): Shape & { ready: boolean } => {
   const diary = useDiaryAnswer();
   const devices = useDevicesShape(signedIn);
   const cameras = useCamerasShape(signedIn);
+  // What a member may do in somebody else's place is the place's answer, so the shape waits for the places too.
+  const spaces = useSpaces(signedIn);
+  const mayWith = mayWithOf(user, spaces.data?.items);
 
   const known: Shape | null =
-    home.data?.spaces && diary !== undefined && devices.data?.items && cameras.data?.items
+    home.data?.spaces && diary !== undefined && devices.data?.items && cameras.data?.items && spaces.data
       ? {
           diary,
           places: home.data.spaces.filter(isPlace).length,
-          devices: devices.data.items.length + cameras.data.items.length,
           steering: devices.data.items.length > 0,
+          managed: devices.data.items.some(device => enough(mayWith(device), 'manage')),
           cameras: cameras.data.items.length,
         }
       : null;

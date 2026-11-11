@@ -35,7 +35,7 @@ export function AddCamera() {
   return (
     <section className={styles.page}>
       <header className={styles.header}>
-        <BackLink to="/devices" label={t('shell.tabs.devices')} />
+        <BackLink to="/devices" label={t('devices.title')} />
         <h1>{t('cameras.add.title')}</h1>
       </header>
 

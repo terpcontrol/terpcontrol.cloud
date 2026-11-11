@@ -16,7 +16,7 @@ export interface Unsaved {
  * The question asked before targets nobody saved are left behind.
  *
  * A draft lives in the page, so walking away from it - another tab, the bell,
- * the alarm row under the targets, the switcher to another place - would drop
+ * the alarm row under the targets, the header's choice of another place - would drop
  * it without a word. The save bar cannot stand in the way of all of those, so
  * leaving asks instead: save and go on, throw the change away and go on, or
  * stay. Only a move to another page or another place is asked about;

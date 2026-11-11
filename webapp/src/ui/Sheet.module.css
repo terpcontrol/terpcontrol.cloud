@@ -1,11 +1,10 @@
 /* The sheet itself: the screen behind it dimmed, the panel on the bottom edge
    of a phone and in the middle of a desktop window. */
 
-/* Everything but the tab bar: the bar stays lit and usable under the sheet, as
-   the board draws it, and a tap beside the sheet puts it away. */
+/* The whole screen, the bar included: a tap beside the sheet puts it away. */
 .scrim {
   position: fixed;
-  inset: 0 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom)) 0;
+  inset: 0;
   z-index: 20;
   display: flex;
   align-items: flex-end;
@@ -29,12 +28,10 @@ div.scrim {
   width: 100%;
   max-height: 88dvh;
   overflow: hidden;
-  /* The raised Log button stands half over the sheet's bottom edge, so the last
-     thing in it keeps that much room and is never half a green circle. */
-  padding: var(--space-2) var(--space-4) calc(var(--space-4) + var(--log-button) / 2);
+  padding: var(--space-2) var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom));
   background: var(--card);
   border: var(--rule-solid);
-  border-radius: calc(var(--radius) * 2) calc(var(--radius) * 2) 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   animation: rise 160ms ease-out;
 }
 
@@ -52,10 +49,10 @@ div.scrim {
 .grabber {
   display: block;
   flex: none;
-  width: 36px;
+  width: 40px;
   height: 4px;
-  margin: var(--space-2) auto var(--space-3);
-  background: var(--rule);
+  margin: var(--space-1) auto var(--space-3);
+  background: var(--rule-strong);
   border-radius: var(--radius-pill);
 }
 
@@ -69,8 +66,7 @@ div.scrim {
 
 .title {
   flex: 1;
-  font-size: var(--text-name);
-  font-weight: var(--weight-heading);
+  font-size: var(--text-xl);
   line-height: var(--line-tight);
 }
 
@@ -128,7 +124,7 @@ div.scrim {
     width: var(--column-width);
     max-height: 86dvh;
     padding: var(--space-5) var(--space-5) var(--space-5);
-    border-radius: calc(var(--radius) * 2);
+    border-radius: var(--radius-lg);
     /* Over the page rather than of it: the one raised shadow the look has. */
     box-shadow: var(--shadow-raised);
   }

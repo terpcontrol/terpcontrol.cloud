@@ -3,7 +3,6 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AccessNeed, GrowOrSpaceRef, Reminder, Task } from '@fg2/shared-types/v1';
 import { useBackToPlace } from '@/app/places';
-import { fetchedAt } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { useGrows } from '@/api/grows';
 import { useReminders } from '@/api/reminders';
@@ -11,7 +10,6 @@ import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { useTasks } from '@/api/tasks';
 import { useLog } from '@/log/log-context';
-import { useReportFreshness } from '@/ui/freshness';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, growStanding, useMayLogIn, useMayManage, useMayWith, type Standing } from '@/ui/session-access';
@@ -57,8 +55,6 @@ const SCOPES: Scope[] = ['mine', 'all'];
 export function Tasks() {
   const now = useNow();
   const waiting = useTasks(false);
-
-  useReportFreshness(waiting.dataUpdatedAt ? fetchedAt(waiting.dataUpdatedAt) : null);
 
   if (waiting.isPending) {
     return (

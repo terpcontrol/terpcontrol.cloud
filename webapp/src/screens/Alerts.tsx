@@ -4,12 +4,10 @@ import type { Alert, Me } from '@fg2/shared-types/v1';
 import { notificationsWith, useAccountMe, useUpdateMe } from '@/api/account';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
-import { fetchedAt } from '@/api/clock';
 import { itemsOf } from '@/api/pages';
 import { useSession } from '@/api/session';
 import type { Translate } from '@/i18n/i18n';
 import { instantOf } from '@/ui/age';
-import { useReportFreshness } from '@/ui/freshness';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { enough, useMayInEach, useMayManage } from '@/ui/session-access';
@@ -77,7 +75,6 @@ export function Alerts() {
   const rules = useAlarmRulesOf(ruleDevices, { refetchIntervalMs: RULES_BEAT_MS });
 
   const readAt = Math.min(open.dataUpdatedAt || Infinity, resolved.dataUpdatedAt || Infinity);
-  useReportFreshness(Number.isFinite(readAt) ? fetchedAt(readAt) : null);
 
   const head = (
     <header className={styles.head}>

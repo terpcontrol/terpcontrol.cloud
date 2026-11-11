@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { useLatestStills } from '@/api/cameras';
-import { FROM_PLACE } from '@/app/places';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { ageLabel, spokenAgo } from '@/ui/age';
 import { Spoken } from '@/ui/Spoken';
@@ -49,7 +48,7 @@ export function CameraPicture({
 
   return (
     // Named by what it shows - the picture, the grow's day, the camera and the picture's age - and where it goes.
-    <Link to={`/cameras/${camera.cameraId}`} state={FROM_PLACE} className={styles.camera}>
+    <Link to={`/cameras/${camera.cameraId}`} className={styles.camera}>
       {src ? (
         <img src={src} alt={t('home.card.stillAlt', { name: overview.name })} loading="lazy" />
       ) : (

@@ -3,7 +3,7 @@ import { useAccountMe } from '@/api/account';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
-import { controlPath, devicesPath, timelinePath, useRememberPlace } from '@/app/places';
+import { controlPath, devicesPath, timelinePath, useChoosePlace } from '@/app/places';
 import type { Device, OverviewCamera, OverviewClimate, SpaceOverview } from '@fg2/shared-types/v1';
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { serverNow } from '@/api/clock';
@@ -132,8 +132,8 @@ export function PlaceCockpit({
   // shared read is shown the tent rather than its hardware, and keeps one.
   const several = overview.climates.length > 1 && overview.climates.every(climate => climate.deviceId !== null);
 
-  // Verlauf and Steuerung land on the place last looked at, and looking at one here is what makes it that place.
-  useRememberPlace(spaceId);
+  // Looking at a place here is what makes it the one Grow, Verlauf and Steuerung open on.
+  useChoosePlace(spaceId);
 
   return (
     <section

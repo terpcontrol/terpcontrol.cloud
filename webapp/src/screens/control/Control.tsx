@@ -1,7 +1,7 @@
-import { Bell, CalendarRange, ChevronRight, SlidersHorizontal, type LucideIcon } from 'lucide-react';
+import { Bell, CalendarRange, ChevronRight, Cpu, SlidersHorizontal, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate } from 'react-router';
-import { CONTROL_PAGES, controlPath, type ControlPage } from '@/app/places';
+import { CONTROL_PAGES, controlPath, devicesPath, type ControlPage } from '@/app/places';
 import type { Device, Plan } from '@fg2/shared-types/v1';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useDevicePlans } from '@/api/plans';
@@ -124,7 +124,8 @@ function PlanPage({ spaceId, here, first = false }: { spaceId: string; here: Dev
  * watching, and whether a plan exists and what it is doing.
  *
  * The plan row is left out where no plan is or could be: a place holding only
- * a plug or a lamp has no climate for a step to write.
+ * a plug or a lamp has no climate for a step to write. The last row is the way
+ * to the account's devices, with this place's opened.
  */
 function Rows({ spaceId, here, plans, targets = false }: { spaceId: string; here: Device[]; plans: Plan[] | null; targets?: boolean }) {
   const { t } = useTranslation();
@@ -158,6 +159,7 @@ function Rows({ spaceId, here, plans, targets = false }: { spaceId: string; here
             line={plan ? t(`space.control.status.${plan.state.status}`) : t('space.control.planRowLine')}
           />
         ) : null}
+        <Row to={devicesPath(spaceId)} icon={Cpu} title={t('devices.title')} line={null} />
       </ul>
     </nav>
   );

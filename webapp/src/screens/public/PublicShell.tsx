@@ -14,7 +14,7 @@ import styles from './Public.module.css';
  * dark switch, and a line at the foot saying what this is.
  *
  * Deliberately not the app shell. The tab bar, the rail and the top bar are
- * about an account - the bell, the avatar, the raised Log button - and every
+ * about an account - the bell, the way to Ich, the Eintrag button - and every
  * one of them would lead a stranger to the sign-in page. What is here instead
  * is what a reader who has never seen the product needs: the diary, who keeps
  * it, and one way in if they want one.
