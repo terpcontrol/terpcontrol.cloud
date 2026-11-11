@@ -43,8 +43,9 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-11. Take 
     (`webapp/src/app/shell/tabs.ts`), and the camera page is filed under Geräte.
   - Steuerung and Geräte show the same devices from two sides and draw the same `DeviceAdvanced`
     (`screens/control/targets/Targets.tsx`, `screens/devices/DeviceList.tsx`).
-  - Verlauf and Graphen are two screens over one engine. Verlauf cannot step back or zoom; Graphen can, behind a chip
-    in Verlauf's range row. On touch a drag only moves the cursor (`webapp/src/charts/scrub.ts`), so zooming is the
+  - Verlauf and Graphen are two screens over one engine. Verlauf's windows all end now and it cannot zoom; Graphen
+    can step back and zoom, is reached by a chip in Verlauf's range row and one on the grow page, and opens on 24 h
+    whatever Verlauf showed. On touch a drag only moves the cursor (`webapp/src/charts/scrub.ts`), so zooming is the
     button "Hineinzoomen", and every zoom is a new read.
   - A curve's automatic step is `max(60 s, range / 480)` and each point a mean without minimum and maximum
     (`server/src/modules/v1/timeline/timeline-window.ts`). The comment on `MIN_STEP_SECONDS` there says no device
