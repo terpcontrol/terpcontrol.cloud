@@ -1,7 +1,7 @@
 ---
 summary: How agents and people work here - branches and pushing, PR review comments, long runs and rounds, what needs Chris's word, commit and PR texts, worktrees and parallel agents
-updated: 2026-10-13
-source: Chris's instructions in sessions and PR reviews 2025-10..2026-10 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08)
+updated: 2026-11-11
+source: Chris's instructions in sessions and PR reviews 2025-10..2026-11 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08)
 paths:
   - .claude/**
   - .worktreeinclude
@@ -76,6 +76,11 @@ A round is one pass of building or fixing with its checks, ending in a short rep
 - **Converge, do not expand** (Chris, 2026-09-24, after one pass had used 132 agents): small rounds with a few fix
   agents and a light check; the fixer verifies its own fix on screen; a separate refuter only for a claim genuinely in
   doubt; a stated finish line. The goal is a consistent, bug-free, nicely designed and self-explanatory app.
+- **Few sub-agents, few variants** (Chris, 2026-11-11): sub-agents are fine, but the app is not that big, and too many
+  of them produce clutter. He puts the weight the rewrite left behind down to heavy orchestration and many design
+  rounds with many variants; the audit of that day found it as one idea built in three to nine places, not as dead
+  code ([what the rewrite left open](../app-rewrite-handover.md#left-open)). One read-only fan-out to understand a
+  question is enough; designing, deciding and writing stay with the session.
 - **Loops of critic agents are for the app's screens**, judged from the running app and its screenshots, not code.
   A backend or data-model design is written up directly, and a step that looks like paperwork is done directly
   rather than orchestrated (Chris, 2026-09-17/18).

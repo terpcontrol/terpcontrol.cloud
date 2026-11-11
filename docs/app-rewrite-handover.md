@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) - where its decisions and knowledge live now, and what it left open; read before picking up one of those open items
-updated: 2026-10-08
-source: rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08
+updated: 2026-11-11
+source: rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -34,7 +34,27 @@ product side exist outside this repository.
 
 ## Left open
 
-Checked against the code on 2026-10-08. Take an item out once it is done.
+Checked against the code on 2026-10-08; the navigation item on 2026-11-11. Take an item out once it is done.
+
+- **The navigation is to be reordered** (Chris, 2026-11-11: the diary is hard to find, places and rooms are
+  inconsistent, the charts are less precise and less intuitive than the old app's). Nothing is decided yet; a read of
+  the whole web app on that day found, as the things a redesign has to settle:
+  - No bar item, tab or title reads the diary: it is the grow page's tab "Wochen", filed under Start
+    (`webapp/src/app/shell/tabs.ts`), and the camera page is filed under Geräte.
+  - Steuerung and Geräte show the same devices from two sides and draw the same `DeviceAdvanced`
+    (`screens/control/targets/Targets.tsx`, `screens/devices/DeviceList.tsx`).
+  - Verlauf and Graphen are two screens over one engine. Verlauf cannot step back or zoom; Graphen can, behind a chip
+    in Verlauf's range row. On touch a drag only moves the cursor (`webapp/src/charts/scrub.ts`), so zooming is the
+    button "Hineinzoomen", and every zoom is a new read.
+  - A curve's automatic step is `max(60 s, range / 480)` and each point a mean without minimum and maximum
+    (`server/src/modules/v1/timeline/timeline-window.ts`). The comment on `MIN_STEP_SECONDS` there says no device
+    reports faster, but devices send a `bulk` sample every 5 s ([device-protocol.md](device-protocol.md)) and the
+    store honours an asked step from 5 s (`server/src/modules/data/flux.ts`). The old page loaded 5 to 20 s points up
+    to a day and zoomed on them in the browser.
+  - A claim offers "ein neuer Ort" first when places exist (`screens/claim/CodeStep.tsx`), so a second device in the
+    same tent makes a second place and Start turns into the several-places layout.
+  - The weight is live duplication, not dead code: 22 ideas (place switcher, place chooser, rename sheet, maintenance,
+    climate preset, light limit, ...) are each built in three to nine places, against one unused export.
 
 - **Unit preferences are saved, not applied.** Me › Appearance stores °C/°F, g/oz and l/gal (`preferences.units`),
   but every figure is still drawn in °C, g and l, as the page's `unitsNote` tells the reader; only the Me screen's
