@@ -1,6 +1,6 @@
 ---
 summary: How agents and people work here - branches and pushing, PR review comments, long runs and rounds, what needs Chris's word, commit and PR texts, worktrees and parallel agents
-updated: 2026-11-11
+updated: 2026-11-12
 source: Chris's instructions in sessions and PR reviews 2025-10..2026-11 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08)
 paths:
   - .claude/**
@@ -81,6 +81,12 @@ A round is one pass of building or fixing with its checks, ending in a short rep
   rounds with many variants; the audit of that day found it as one idea built in three to nine places, not as dead
   code ([what the rewrite left open](../app-rewrite-handover.md#left-open)). One read-only fan-out to understand a
   question is enough; designing, deciding and writing stay with the session.
+- **A redesign is built in rounds, each judged by a harsh critic** (Chris, 2026-11-12, for the navigation redesign):
+  after every round a critic who built nothing walks the running app and says whether it works without faults and
+  does what it should, and how design, styling and UX hold up; the run is over when the critic finds only trifles.
+  The code ends lean - nothing built twice, one concern per module - with the tests changed along with it. Any
+  number of sub-agents is allowed for this, kept in proportion to the size of the app so that they do not cost more
+  than they help.
 - **Loops of critic agents are for the app's screens**, judged from the running app and its screenshots, not code.
   A backend or data-model design is written up directly, and a step that looks like paperwork is done directly
   rather than orchestrated (Chris, 2026-09-17/18).
