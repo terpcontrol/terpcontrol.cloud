@@ -52,6 +52,26 @@
   margin: 0;
 }
 
+.plot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.scale,
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  font-family: var(--font-figure);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+}
+
+.scale {
+  flex-direction: column;
+}
+
 .curve figcaption {
   margin-top: var(--space-1);
   font-size: var(--text-xs);

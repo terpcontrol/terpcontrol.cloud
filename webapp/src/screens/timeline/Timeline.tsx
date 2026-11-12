@@ -916,16 +916,23 @@ const lightWords = (t: Translate, light: Strip, window: { from: number; to: numb
   const level = levels.length > 0 ? levels[Math.floor(levels.length / 2)] : null;
   const clock = (time: number) => zonedAt(time, zone).toFormat('HH:mm');
   const share = shareOf(light, window.from, window.to);
+  // Every lit stretch of the window by the clock, where they are few enough to read: a window that begins in one
+  // evening's light and ends in the next has two, and naming the last alone hid the first.
+  const lit = light.runs.filter(one => one.to > window.from && one.from < window.to);
   const when =
-    !run || window.to - window.from > 36 * 3600_000
+    lit.length === 0 || lit.length > 3 || window.to - window.from > 36 * 3600_000
       ? share === null
         ? null
         : share === 0
           ? t('timeline.off')
           : t('timeline.lightShare', { share: Math.round(share * 100) })
-      : run.to >= window.to && live
-        ? t('timeline.lightSince', { from: clock(run.from) })
-        : t('timeline.lightSpan', { from: clock(run.from), to: clock(run.to) });
+      : lit
+          .map(one =>
+            one.to >= window.to && live
+              ? t('timeline.lightSince', { from: clock(Math.max(one.from, window.from)) })
+              : t('timeline.lightSpan', { from: clock(Math.max(one.from, window.from)), to: clock(Math.min(one.to, window.to)) }),
+          )
+          .join(', ');
 
   return [when, level === null ? null : `${level}\u00a0%`].filter(Boolean).join(' · ');
 };

@@ -1329,7 +1329,8 @@
         "alt": "{{name}} over the grow: {{count}} readings between {{low}} and {{high}} {{unit}}",
         "span": "{{low}} to {{high}} · last {{last}}",
         "one": "One reading so far: {{last}}"
-      }
+      },
+      "noteNoPlace": "A measurement is a Measure tile on the Log sheet, a line in the diary, a curve here and a column in the export. Per plant or per grow is chosen once."
     },
     "plant": {
       "back": "Back to the plants",

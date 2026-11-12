@@ -11,10 +11,11 @@ import type { ChartPalette } from '@/charts/tokens';
 import { measurementCurve } from '@/screens/timeline/model';
 import { HOUR_MS } from '@/ui/days';
 import { LoadFailed, NoLongerHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
-import { enough, growStanding, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, standsIn, useMayWith } from '@/ui/session-access';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { DAY_IN_YEAR, useZone, zonedAt } from '@/ui/zone';
 import { BackLink } from '@/ui/BackLink';
 import { bandOf, fromTemplate, readingCounts, ruleOf, TEMPLATES } from './definitions';
 import { MeasurementSheet } from './MeasurementSheet';
@@ -78,6 +79,7 @@ export function Measurements() {
   const stretch = {
     from: Date.parse(grow.data.startedAt),
     to: grow.data.endedAt ? Date.parse(grow.data.endedAt) : Math.ceil(now.toMillis() / HOUR_MS) * HOUR_MS,
+    ended: grow.data.endedAt !== null,
   };
 
   return (
@@ -154,7 +156,8 @@ export function Measurements() {
         </>
       ) : null}
 
-      <p className={ui.note}>{t('grow.measurements.note')}</p>
+      {/* A curve on Verlauf is promised only to a grow that stands in a place, which is what Verlauf is of. */}
+      <p className={ui.note}>{t(standsIn(grow.data) === null ? 'grow.measurements.noteNoPlace' : 'grow.measurements.note')}</p>
 
       {editing || adding ? (
         <MeasurementSheet
@@ -178,7 +181,7 @@ interface CardProps {
   onFlip: () => void;
   /** What was written under it, where its curve is switched on, and the stretch of the grow it is drawn over. */
   points: readonly GrowSeriesPoint[];
-  stretch: { from: number; to: number };
+  stretch: { from: number; to: number; ended: boolean };
 }
 
 /**
@@ -226,6 +229,7 @@ function Card({ definition, mayManage, onEdit, onFlip, points, stretch }: CardPr
  */
 function Curve({ definition, points, stretch }: Pick<CardProps, 'definition' | 'points' | 'stretch'>) {
   const { t } = useTranslation();
+  const zone = useZone();
   const { curve, bands } = useMemo(
     () => measurementCurve(definition, points, stretch.from, stretch.to),
     [definition, points, stretch.from, stretch.to],
@@ -241,17 +245,28 @@ function Curve({ definition, points, stretch }: Pick<CardProps, 'definition' | '
 
   return (
     <figure className={styles.curve}>
-      <Chart
-        option={option}
-        height={64}
-        ariaLabel={t('grow.measurements.curve.alt', {
-          name: definition.name,
-          count: curve.points.length,
-          low: curve.written(curve.low),
-          high: curve.written(curve.high),
-          unit: curve.unit,
-        })}
-      />
+      <div className={styles.plot}>
+        <Chart
+          option={option}
+          height={64}
+          ariaLabel={t('grow.measurements.curve.alt', {
+            name: definition.name,
+            count: curve.points.length,
+            low: curve.written(curve.low),
+            high: curve.written(curve.high),
+            unit: curve.unit,
+          })}
+        />
+        {/* The two ends of its scale beside it, and under it the days it runs between: a shape with no figure is not a chart. */}
+        <span className={styles.scale} aria-hidden>
+          <span>{curve.corner(curve.line.scale.high)}</span>
+          <span>{curve.corner(curve.line.scale.low)}</span>
+        </span>
+      </div>
+      <p className={styles.axis} aria-hidden>
+        <span>{zonedAt(stretch.from, zone).toFormat(DAY_IN_YEAR)}</span>
+        <span>{stretch.ended ? zonedAt(stretch.to, zone).toFormat(DAY_IN_YEAR) : t('grow.diary.today')}</span>
+      </p>
       <figcaption className="mono">
         {curve.points.length === 1
           ? t('grow.measurements.curve.one', { last: written(last) })

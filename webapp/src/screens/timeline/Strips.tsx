@@ -48,7 +48,8 @@ function StripRow({ strip, from, to, stepMs, cursor, focused }: Omit<StripsProps
       slices.reduce<{ from: number; to: number; ran: number; level: number }[]>((kept, ran, index) => {
         const last = kept.at(-1);
         if (!ran) return kept;
-        const level = levels?.[index] ?? 1;
+        // A slice it ran in with no level of its own - the last, cut where the device was last heard - keeps the one before it.
+        const level = levels ? (levels[index] ?? last?.level ?? 1) : 1;
         if (last && last.to === index && last.ran === ran && last.level === level) last.to = index + 1;
         else kept.push({ from: index, to: index + 1, ran, level });
         return kept;

@@ -781,6 +781,24 @@
   overflow-wrap: anywhere;
 }
 
+/* On the narrowest phones the card's words keep the width: a smaller picture, and the zoom in a row under them. */
+@media (max-width: 359px) {
+  .cursorCard {
+    flex-wrap: wrap;
+  }
+
+  .frame {
+    width: 72px;
+    height: 72px;
+  }
+
+  .zoom {
+    flex: 1 1 100%;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
+
 /* --------------------------------------------------------- beside the rail */
 
 @media (min-width: 900px) {

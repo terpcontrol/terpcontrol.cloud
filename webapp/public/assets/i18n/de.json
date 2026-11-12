@@ -1338,7 +1338,8 @@
         "alt": "{{name}} über den Grow: {{count}} Messwerte zwischen {{low}} und {{high}} {{unit}}",
         "span": "{{low}} bis {{high}} · zuletzt {{last}}",
         "one": "Erst ein Messwert: {{last}}"
-      }
+      },
+      "noteNoPlace": "Ein Messwert ist eine Messen-Kachel im Eintrag, eine Zeile im Tagebuch, eine Kurve hier und eine Spalte im Export. Pro Pflanze oder pro Grow wird einmal entschieden."
     },
     "plant": {
       "back": "Zurück zu den Pflanzen",
