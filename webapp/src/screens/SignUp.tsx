@@ -133,7 +133,7 @@ export function SignUp() {
   }
 
   return (
-    <Door onSubmit={() => void submit()}>
+    <Door page={t('login.createAccount')} onSubmit={() => void submit()}>
       <p className={styles.intro}>
         {invitation
           ? sent.name

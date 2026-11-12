@@ -8,6 +8,7 @@ import { instantOf } from '@/ui/age';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
+import { Facts } from '@/ui/Facts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { rowsInWords, useCallingRows } from './calling';
@@ -149,15 +150,19 @@ export function EmailAlarmsOffer({
         </button>
       </div>
       <p className={styles.address}>
-        <span className={`mono ${styles.to}`}>{t('notify.to', { email: address })}</span>
-        {others ? (
-          <>
-            {' · '}
-            <Link to={SETTINGS} className={ui.headLink}>
-              {t('notify.other')} ›
-            </Link>
-          </>
-        ) : null}
+        {/* The address and the way to the other channels as two facts, so no line ends on the dot between them. */}
+        <Facts
+          facts={[
+            <span key="to" className={`mono ${styles.to}`}>
+              {t('notify.to', { email: address })}
+            </span>,
+            others ? (
+              <Link key="other" to={SETTINGS} className={ui.headLink}>
+                {t('notify.other')} ›
+              </Link>
+            ) : null,
+          ]}
+        />
       </p>
       <Refused error={mail.error} />
     </div>

@@ -1,6 +1,7 @@
 /* Start: one place's page, the cards of several, and what stands there before
-   anything does. A phone's column first; from the rail's width a place is two
-   columns, the picture left and its cards right. */
+   anything does. A phone's column first, and the same one column beside the
+   rail until two fit: from 1100px a place is the picture left and its cards
+   right, and a list of places the cards left and what is due right. */
 
 .page {
   display: flex;
@@ -46,38 +47,43 @@
 
 @media (min-width: 900px) {
   .page {
-    max-width: var(--page-width);
     gap: var(--space-4);
   }
 
-  /* One column of cards - the places, a diary kept by hand - keeps a phone's width. */
-  .page[data-single] {
-    max-width: var(--column-width);
-  }
-
+  /* On a desktop the sentence stands between the pill and the menu - and on a row
+     of its own under the name as soon as the name leaves it no room: the head
+     wraps before anything in it overlaps. */
   .head {
-    flex-wrap: nowrap;
-    gap: var(--space-3);
+    gap: var(--space-2) var(--space-3);
   }
 
   .head h1 {
-    flex: none;
-    max-width: 50%;
+    flex: 0 1 auto;
   }
 
-  /* On a desktop the sentence stands between the pill and the menu. */
   .headEnd {
     display: contents;
   }
 
   .head .statusFrame {
-    flex: 1;
+    flex: 1 1 18rem;
     order: 1;
   }
 
   .head .menu {
     order: 2;
     margin-left: auto;
+  }
+}
+
+@media (min-width: 1100px) {
+  .page {
+    max-width: var(--page-width);
+  }
+
+  /* One column of cards - a diary kept by hand, a failure - keeps a phone's width. */
+  .page[data-single] {
+    max-width: var(--column-width);
   }
 
   .page:not([data-single]) > .columns {
@@ -93,6 +99,11 @@
   .page:not([data-single]) .column:last-child {
     flex: none;
     width: 360px;
+  }
+
+  /* A column with nothing in it - the demo's list has nothing due and nothing to add - gives its room back. */
+  .page:not([data-single]) .column:last-child:empty {
+    display: none;
   }
 }
 
@@ -125,6 +136,13 @@
   font-weight: var(--weight-semibold);
   letter-spacing: 0;
   color: var(--label);
+}
+
+/* Whose place it is, as the way to who else is here: a finger high. */
+.guestLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
 }
 
 /* --- the demo's banner --- */
@@ -167,6 +185,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
+  min-width: 0;
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
   line-height: var(--line-tight);
@@ -266,6 +285,23 @@ a.status {
   color: var(--on-overlay);
 }
 
+/* A picture as bright as the page - a lit tent, a white wall - keeps an edge against it. */
+.picture::after {
+  position: absolute;
+  inset: 0;
+  border: var(--rule-solid);
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+}
+
+/* The picture itself is the way to where it comes from; what lies on it is drawn over the link. */
+.pictureLink {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
 .picture img {
   display: block;
   width: 100%;
@@ -287,7 +323,8 @@ a.status {
   color: var(--on-overlay);
 }
 
-/* What the picture shows, left, and when it was taken, right: the hour is never cut, the name gives way to it. */
+/* What the picture shows, left, and when it was taken, right: the hour is never cut, the name gives way to it.
+   Neither is pressed - a tap on them goes to the picture underneath. */
 .chips {
   position: absolute;
   top: 10px;
@@ -296,18 +333,30 @@ a.status {
   display: flex;
   justify-content: space-between;
   gap: var(--space-2);
+  pointer-events: none;
 }
 
 .chip {
+  display: flex;
   min-width: 0;
-  overflow: hidden;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
   background: var(--overlay);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The name gives way; the day of the grow beside it never does. */
+.chipName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipKept {
+  flex: none;
+  white-space: pre;
 }
 
 .chip[data-side='right'] {
@@ -328,7 +377,7 @@ a.status {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: 10px var(--space-1);
+  padding: 0 var(--space-1);
   background: var(--overlay);
   text-align: center;
 }
@@ -339,10 +388,19 @@ a.status {
   grid-auto-flow: column;
 }
 
+/* Each figure is the way to its curve, and takes the bar's height as what can be pressed. */
 .pictureFigure {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   min-width: 0;
+  min-height: var(--control-height);
+  padding: 10px 0;
+}
+
+/* Figures that have stopped coming step back, and the line under them says as of when they are. */
+.picture:is([data-age='stale'], [data-age='offline']) .pictureFigures {
+  opacity: 0.6;
 }
 
 .pictureValue {
@@ -358,6 +416,7 @@ a.status {
 }
 
 .stand {
+  padding-bottom: var(--space-2);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
 }
@@ -375,7 +434,11 @@ a.status {
   }
 
   .pictureBar {
-    padding: 14px var(--space-2);
+    padding: 0 var(--space-2);
+  }
+
+  .pictureFigure {
+    padding: 14px 0;
   }
 
   .pictureValue {
@@ -405,6 +468,12 @@ a.status {
   background: var(--card);
   border: var(--rule-solid);
   border-radius: var(--radius);
+}
+
+.tileHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 .tileLabel {
@@ -450,13 +519,20 @@ a.tileLabel::after {
 }
 
 .extras {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  min-height: var(--control-height);
   font-family: var(--font-figure);
   font-size: var(--text-sm);
   color: var(--muted);
+}
+
+/* Each further reading is the way to its own curve, a finger high; the dot between two stands at their middle. */
+.extras > * {
+  align-items: center;
+}
+
+.extra {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
 }
 
 /* --- the grow: phase, week, and how far along --- */
@@ -599,11 +675,13 @@ a.tileLabel::after {
   flex-basis: 100%;
 }
 
+/* A finger high, and drawn into the card's own padding so its words do not stand in a gap of their own. */
 .more {
   display: inline-flex;
   align-self: flex-start;
   align-items: center;
   min-height: var(--control-height);
+  margin: calc(-1 * var(--space-2)) 0 -10px;
   color: var(--brand);
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
@@ -633,11 +711,6 @@ a.tileLabel::after {
 .rowText[data-tone='brand'] {
   font-weight: var(--weight-semibold);
   color: var(--brand);
-}
-
-.rowNote > span,
-.parts > span {
-  white-space: nowrap;
 }
 
 .rowNote {
@@ -763,9 +836,9 @@ a.tileLabel::after {
   gap: var(--space-3);
 }
 
-.room + .room,
-.room + .place,
-.place + .room {
+/* A room's heading opens a group of its own: more room above it than between two cards. */
+.places > .room:not(:first-child),
+.places > .room + .place {
   margin-top: var(--space-2);
 }
 
@@ -791,6 +864,9 @@ a.tileLabel::after {
   width: 104px;
   height: 88px;
   border-radius: var(--radius-sm);
+  /* A bright picture keeps an edge against the card. */
+  outline: var(--rule-solid);
+  outline-offset: calc(-1 * var(--rule-width));
   object-fit: cover;
 }
 
@@ -862,14 +938,16 @@ a.tileLabel::after {
   color: var(--muted);
 }
 
-.places {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+/* That something is due there, which "Heute" under the cards lists. */
+.placeDue {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--brand);
 }
 
-.places + .card {
-  margin-top: var(--space-2);
+/* The cards keep a phone's width also where the column beside them is gone. */
+.places {
+  max-width: var(--column-width);
 }
 
 /* --- the last day as two small curves, on a desktop --- */

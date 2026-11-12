@@ -1,6 +1,6 @@
 import type { DateTime } from 'luxon';
 import type { CardValue, HomeSpaceCard, Severity, ValueState } from '@fg2/shared-types/v1';
-import { LIVENESS_RANK, valueAge } from '@/ui/age';
+import { deviceLiveness, LIVENESS_RANK, valueAge } from '@/ui/age';
 
 /**
  * What the home decides about a card before it is drawn: how alive it is, how
@@ -29,6 +29,27 @@ export const livenessOf = (card: { values: CardValue[]; deviceIds: string[] | nu
     const state = valueAge(value, now);
     return LIVENESS_RANK[state] < LIVENESS_RANK[best] ? state : best;
   }, 'offline');
+};
+
+/**
+ * Where a place stands whose devices are known and have no value to show:
+ * `waiting` for the first one - nothing was ever heard, or a device is there
+ * and has not measured yet - or silent since the instant a device was last
+ * heard, long enough ago that its values have left the live read. Null for a
+ * place that has values, and for one whose devices this reader is not told.
+ */
+export const silenceOf = (
+  values: CardValue[],
+  devices: readonly { state: { lastSeenAt: string | null } }[],
+  now: DateTime,
+): { waiting: true } | { waiting: false; since: string } | null => {
+  if (values.length > 0 || devices.length === 0) return null;
+  const heard = devices.reduce<string | null>((newest, device) => {
+    const at = device.state.lastSeenAt;
+    return at && (!newest || at > newest) ? at : newest;
+  }, null);
+
+  return heard && deviceLiveness(heard, now) === 'offline' ? { waiting: false, since: heard } : { waiting: true };
 };
 
 /** The newest instant on the card, which is what its age reads from. */

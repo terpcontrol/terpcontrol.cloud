@@ -45,7 +45,7 @@ export function GrowStart({ card, answer, failedAt }: { card: HomeSpaceCard; ans
           src={mediaUrl(mediaId, THUMBNAIL_WIDTH.frame)}
           alt={t('start.picture.photoAlt', { name: grow.name })}
           opens={t('start.picture.openGrow')}
-          left={grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null}
+          day={grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null}
           right={
             photo
               ? t(photo.authorId === user?.id ? 'start.picture.yours' : 'start.picture.photo', { day: dayStamp(photo.occurredAt, now, zone) })

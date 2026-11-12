@@ -3,7 +3,7 @@ import { useCallback, useRef, useState, type ReactNode } from 'react';
 import type { Entry } from '@fg2/shared-types/v1';
 import { completeTask, diaryChanged, takeEntryBack } from '@/api/entries';
 import { ApiError } from '@/api/problem';
-import { LogContext, type CompleteOptions, type LogOpening, type LogRequest, type LogTarget, type TileKind } from './log-context';
+import { LogContext, type CompleteOptions, type LogOpening, type LogRequest, type LogTarget, type TileKind, type Told } from './log-context';
 import { LogSheet } from './LogSheet';
 import { EntryDetails } from './EntryDetails';
 import { PhotoEntry } from './PhotoEntry';
@@ -21,6 +21,9 @@ import { refusalText } from '@/ui/refusal';
 
 /** How long the toast offers Undo, as the board draws it. The server's own window is far longer. */
 const UNDO_MS = 5000;
+
+/** How long a toast that says what was done stays: it is a sentence to read, not a line to recognise. */
+const TOLD_MS = 8000;
 
 interface Details {
   kind: TileKind;
@@ -62,12 +65,13 @@ export function LogProvider({ children }: { children: ReactNode }) {
 
   /** One attempt at one line. Undo pressed meanwhile is remembered here, so the line is taken back as soon as it exists. */
   const attempt = useCallback(
-    (key: number, send: LogRequest['send']) => {
+    (key: number, send: LogRequest['send'], changed?: LogRequest['changed']) => {
       void send((done, total) => change(key, { progress: total > 1 ? { done, total } : null })).then(
         entry => {
           if (takenBack.current.delete(key)) return void remove(key, entry);
           change(key, { state: 'saved', entry, undoUntil: Date.now() + UNDO_MS });
           diaryChanged(client);
+          changed?.(client);
         },
         error => change(key, { state: 'failed', failure: 'write', reason: reasonOf(error) }),
       );
@@ -82,6 +86,8 @@ export function LogProvider({ children }: { children: ReactNode }) {
         key,
         label: request.label,
         send: request.send,
+        changed: request.changed,
+        revert: null,
         details: request.details ?? null,
         state: 'saving',
         failure: null,
@@ -95,14 +101,27 @@ export function LogProvider({ children }: { children: ReactNode }) {
       setLines(current => [...current, line]);
       setOpening(null);
       setDetails(null);
-      attempt(key, request.send);
+      attempt(key, request.send, request.changed);
     },
     [attempt],
   );
 
+  /** Taking back what a toast only told of: its own way back, with a refusal said where the Undo was. */
+  const revert = useCallback(
+    (line: LoggedLine) => {
+      change(line.key, { undoing: true, undoUntil: null });
+      void line.revert?.().then(
+        () => dismiss(line.key),
+        error => change(line.key, { state: 'failed', failure: 'undo', undoing: false, reason: reasonOf(error) }),
+      );
+    },
+    [change, dismiss],
+  );
+
   const undo = useCallback(
     (line: LoggedLine) => {
-      if (line.state === 'saving') {
+      if (line.revert) revert(line);
+      else if (line.state === 'saving') {
         // It has no id yet. The line is taken back the moment the server answers with one.
         takenBack.current.add(line.key);
         change(line.key, { undoing: true });
@@ -111,16 +130,17 @@ export function LogProvider({ children }: { children: ReactNode }) {
         void remove(line.key, line.entry);
       } else dismiss(line.key);
     },
-    [change, dismiss, remove],
+    [change, dismiss, remove, revert],
   );
 
   const retry = useCallback(
     (line: LoggedLine) => {
+      if (line.revert) return revert({ ...line, state: 'saved' });
       change(line.key, { state: 'saving', failure: null, reason: null });
       if (line.failure === 'undo' && line.entry) void remove(line.key, line.entry);
-      else attempt(line.key, line.send);
+      else attempt(line.key, line.send, line.changed);
     },
-    [attempt, change, remove],
+    [attempt, change, remove, revert],
   );
 
   const state = {
@@ -144,11 +164,33 @@ export function LogProvider({ children }: { children: ReactNode }) {
         log({
           label,
           undoable: options.undoable,
+          changed: options.changed,
           send: () => completeTask(taskId).finally(() => ticking.current.delete(taskId)),
         });
       },
       [log],
     ),
+    tell: useCallback(({ label, undo: back }: Told) => {
+      const key = nextKey.current++;
+      setLines(current => [
+        ...current,
+        {
+          key,
+          label,
+          send: () => Promise.reject(new Error('nothing to send')),
+          revert: back,
+          details: null,
+          state: 'saved',
+          failure: null,
+          reason: null,
+          undoing: false,
+          entry: null,
+          undoable: true,
+          undoUntil: Date.now() + TOLD_MS,
+          progress: null,
+        },
+      ]);
+    }, []),
   };
 
   const close = () => setDetails(null);

@@ -83,6 +83,7 @@ export function Claim() {
   // nothing else, so it is the one that may be archived if the device turns out
   // to belong in a place the account already had.
   const [invented, setInvented] = useState<string | null>(null);
+  const [startingGrow, setStartingGrow] = useState(false);
 
   const device = useClaimedDevice(deviceId);
   const spaces = useSpaces();
@@ -112,9 +113,10 @@ export function Claim() {
   // Sockets and a cam are paired at a fridge module or a controller, a cam alone
   // at a smart socket or an AIR fan; a LIGHT has neither and is not asked.
   const camOnly = claimed !== null && !SOCKET_HOST_TYPES.includes(claimed.type);
-  // What grows here is asked where nothing does yet, and not of somebody who said no to the diary.
+  // What grows here is asked where nothing does yet, and not of somebody who said no to the diary. Once the answer is on
+  // its way the question stays: the grow it makes is read here too, and would take the page away from under its own form.
   const growing = growsHere.data?.items.some(grow => grow.endedAt === null) === true;
-  const asksGrow = !growing && me.data?.preferences.diary !== 'off';
+  const asksGrow = startingGrow || (!growing && me.data?.preferences.diary !== 'off');
   const shown = STEPS.flatMap((name, index) =>
     (name === 'hardware' && claimed && !pairsACam(claimed)) || (name === 'grow' && !asksGrow) ? [] : [index],
   );
@@ -202,6 +204,7 @@ export function Claim() {
         step={position}
         of={shown.length}
         headingRef={growHeading}
+        onStarting={() => setStartingGrow(true)}
         onLeave={leave}
       />
     );
@@ -305,6 +308,12 @@ export function Claim() {
       >
         <NotifyStep me={me.data} />
       </Step>
+
+      {/* The last question is a page of its own (`GrowStep`), and is named here all the same: the count above says six, and a list
+          that ended at five left the sixth to be guessed. */}
+      {hidden(5) ? null : (
+        <Step number={shown.indexOf(5) + 1} state={stateOf(5)} onOpen={() => go(5)} title={t('claim.grow.title')} text={t('claim.grow.text')} />
+      )}
 
       <footer className={styles.foot}>
         <button

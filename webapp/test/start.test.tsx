@@ -40,7 +40,7 @@ vi.mock('@/api/session', async importOriginal => {
 });
 
 /** The entry sheet and the tick, which Start only asks for: what it asks is what these tests are about. */
-const log = vi.hoisted(() => ({ openSheet: vi.fn(), openDetails: vi.fn(), log: vi.fn(), complete: vi.fn() }));
+const log = vi.hoisted(() => ({ openSheet: vi.fn(), openDetails: vi.fn(), log: vi.fn(), complete: vi.fn(), tell: vi.fn() }));
 
 vi.mock('@/log/log-context', async importOriginal => ({ ...(await importOriginal<object>()), useLog: () => log }));
 
@@ -107,18 +107,40 @@ describe('Start of one place with a camera and a grow', () => {
   it('leads with the newest picture, the grow and its day on it and the readings in it, and opens the camera', async () => {
     draw();
 
-    const picture = (await screen.findByRole('img', { name: 'The newest picture of Fridge 1' })).closest('a')!;
-    expect(picture).toHaveAttribute('href', '/cameras/cam-1');
+    const toCamera = (await screen.findByRole('img', { name: 'The newest picture of Fridge 1' })).closest('a')!;
+    expect(toCamera).toHaveAttribute('href', '/cameras/cam-1');
+    expect(toCamera).toHaveTextContent(/Open Terp Cam$/);
+    const picture = toCamera.parentElement!;
     // The grow waits for the account's answer, and so do the hours: they are the account's.
     await waitFor(() => expect(picture).toHaveTextContent('Spring run · Day 29'));
     await waitFor(() => expect(picture).toHaveTextContent(`Picture from ${hhmm(ago(5))}`));
     for (const figure of ['25.1 °C', '61 %', '1.03 kPa']) expect(within(picture).getByText(figure)).toBeInTheDocument();
     expect(await within(picture).findByText('65 %')).toBeInTheDocument();
-    // Said as a sentence that names the reading and carries the verdict the picture does not draw.
-    expect(within(picture).getByText('Temperature 25.1 °C, in band')).toBeInTheDocument();
-    expect(picture).toHaveTextContent(/Open Terp Cam$/);
     // The readings stand in the picture, so no tile repeats them.
     expect(screen.queryByRole('link', { name: 'Temperature' })).not.toBeInTheDocument();
+  });
+
+  it('opens each reading´s curve from the picture: a panel of Verlauf, and Graphen for VPD', async () => {
+    draw();
+
+    const picture = (await screen.findByRole('img', { name: 'The newest picture of Fridge 1' })).closest('a')!.parentElement!;
+    // Said as a sentence that names the reading and carries the verdict the picture does not draw.
+    expect(within(picture).getByRole('link', { name: 'Temperature 25.1 °C, in band, open the timeline' })).toHaveAttribute(
+      'href',
+      '/timeline?space=space-1&focus=temperature',
+    );
+    expect(within(picture).getByRole('link', { name: /^Humidity 61 %/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=humidity');
+    expect(within(picture).getByRole('link', { name: 'VPD 1.03 kPa, open the chart' })).toHaveAttribute('href', '/charts?space=space-1&show=vpd');
+    expect(await within(picture).findByRole('link', { name: /^Light 65 %/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=light');
+  });
+
+  it('keeps the day of the grow on the picture´s label whatever the name leaves room for', async () => {
+    onePlace(overviewOf({ cameras: [camera()], grows: [growOf({ name: 'Amnesia Haze and Gelato 41, second run' })] }), true);
+    draw();
+
+    // The name is the part that gives way; the day stands in a part of its own that does not.
+    const day = await screen.findByText('· Day 29');
+    expect(day.previousElementSibling).toHaveTextContent('Amnesia Haze and Gelato 41, second run');
   });
 
   it('names the place with how fresh its readings are, and says in one sentence that all is well', async () => {
@@ -174,7 +196,8 @@ describe('Start of one place with a camera and a grow', () => {
     expect(log.complete).not.toHaveBeenCalled();
 
     fireEvent.click(within(today).getByRole('button', { name: 'Done: Clean the filter' }));
-    expect(log.complete).toHaveBeenCalledWith('task-2', 'Note · Fridge 1');
+    // The toast names what was ticked, so the Undo beside it says what it takes back.
+    expect(log.complete).toHaveBeenCalledWith('task-2', 'Done · Clean the filter');
   });
 
   it('asks before it confirms a waiting step of the grow plan, which cannot be taken back', async () => {
@@ -192,10 +215,33 @@ describe('Start of one place with a camera and a grow', () => {
     ];
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirm: Late flower' }));
+    // The row is the step by its name, said to be the plan's; the verb is on the button beside it.
+    const button = await screen.findByRole('button', { name: 'Confirm: Late flower' });
+    expect(button).toHaveTextContent(/^Confirm$/);
+    expect(button.closest('li')).toHaveTextContent(`Late flowergrow plan · due since ${hhmm(ago(10))}Confirm`);
+    fireEvent.click(button);
     expect(log.complete).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Confirm the step' }));
-    expect(log.complete).toHaveBeenCalledWith('step-1', 'Step confirmed · Fridge 1', { undoable: false });
+    // What it moves - the plan and the device's targets - is read again once it has landed.
+    expect(log.complete).toHaveBeenCalledWith('step-1', 'Step confirmed · Late flower', { undoable: false, changed: expect.any(Function) });
+  });
+
+  it('lists a waiting step that is about the grow standing here, which is what a plan´s step is about where one grows', async () => {
+    server.tasks = [
+      {
+        id: 'step-1',
+        source: 'plan_step',
+        sourceId: 'plan-1',
+        kind: 'chore',
+        label: 'Late flower',
+        dueAt: ago(10),
+        subject: { type: 'grow', id: 'grow-1' },
+        assigneeId: null,
+      },
+    ];
+    draw();
+
+    expect(await screen.findByRole('button', { name: 'Confirm: Late flower' })).toBeInTheDocument();
   });
 
   it('names the last three things that happened in a line each, a run of the same machine line once, and leads to the diary', async () => {
@@ -221,6 +267,54 @@ describe('Start of one place with a camera and a grow', () => {
     expect(lines[1]).toHaveTextContent(`${hhmm(ago(120))}Watered: You watered`);
     expect(lines[2]).toHaveTextContent('yesterdayNote: Looks good · 2 pictures');
     expect(within(latest).getByRole('link', { name: 'Whole diary ›' })).toHaveAttribute('href', '/grow');
+  });
+
+  it('keeps amber for what needs a person: an alarm raised, not a restart or an alarm that is over', async () => {
+    const alarm = (id: string, minutes: number, severity: 'warning' | 'info') =>
+      entry(id, {
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        text: `alarm ${id}`,
+        values: { kind: 'alarm' } as never,
+        severity,
+        occurredAt: ago(minutes),
+      });
+    onePlace(
+      overviewOf({
+        grows: [growOf()],
+        entries: [alarm('raised', 10, 'warning'), alarm('over', 20, 'info'), { ...reboot('entry-3', 30), severity: 'warning' }],
+      }),
+      true,
+    );
+    draw();
+
+    const lines = within((await screen.findByRole('heading', { name: 'Latest' })).closest('section')!).getAllByRole('listitem');
+    expect(lines.map(line => line.getAttribute('data-severity'))).toEqual(['warning', null, null]);
+  });
+
+  it('says how much a watering poured', async () => {
+    onePlace(
+      overviewOf({
+        grows: [growOf()],
+        entries: [
+          entry('entry-1', { kind: 'water', text: null, growId: 'grow-1', values: { kind: 'water', litres: 1.5 } as never, occurredAt: ago(120) }),
+        ],
+      }),
+      true,
+    );
+    draw();
+
+    const latest = (await screen.findByRole('heading', { name: 'Latest' })).closest('section')!;
+    await waitFor(() => expect(within(latest).getByRole('listitem')).toHaveTextContent('You watered · 1.5 L'));
+  });
+
+  it('draws no card saying that nothing happened yet', async () => {
+    onePlace(overviewOf({ grows: [growOf()], entries: [] }), true);
+    draw();
+
+    expect(await screen.findByRole('link', { name: /^Targets/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Latest' })).not.toBeInTheDocument();
   });
 
   it('opens a line of one´s own in the sheet it was written in, and leaves a device´s line inert', async () => {
@@ -280,17 +374,52 @@ describe('Start of one place with a camera and a grow', () => {
     expect(within(curves).getByRole('img', { name: /^Humidity over the last 24 hours/ })).toBeInTheDocument();
   });
 
-  it('keeps what only some places measure in one line under the picture, and opens its curve', async () => {
+  it('keeps what only some places measure in one line under the picture, each the way to its own curve', async () => {
+    const more = [
+      { metric: 'leafTemperature', value: 24.2, measuredAt: ago(0.3), state: 'live' },
+      { metric: 'lux', value: 34000, measuredAt: ago(0.3), state: 'live' },
+      { metric: 'ppfd', value: 510, measuredAt: ago(0.3), state: 'live' },
+    ] as SpaceOverview['values'];
+    onePlace(overviewOf({ cameras: [camera()], grows: [growOf()], values: [...values(), ...more] }), true);
     draw();
 
-    expect(await screen.findByRole('link', { name: 'CO₂ 880 ppm' })).toHaveAttribute('href', '/timeline?space=space-1&focus=co2');
+    expect(await screen.findByRole('link', { name: /^CO₂ 880\sppm$/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=co2');
+    expect(screen.getByRole('link', { name: /^Leaf 24.2\s°C$/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=leafTemperature');
+    expect(await screen.findByRole('link', { name: /lx$/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=lux');
+    expect(screen.getByRole('link', { name: 'PPFD 510' })).toHaveAttribute('href', '/timeline?space=space-1&focus=lux');
+    // The line stands directly under the picture, before the phase and what is due.
+    const line = screen.getByRole('link', { name: 'PPFD 510' }).parentElement!.parentElement!;
+    expect(line.previousElementSibling).toContainElement(screen.getByRole('img', { name: 'The newest picture of Fridge 1' }));
+  });
+
+  it('leaves the light figures out of that line while the lamp is dark', async () => {
+    const more = [
+      { metric: 'lux', value: 0, measuredAt: ago(0.3), state: 'live' },
+      { metric: 'ppfd', value: 0, measuredAt: ago(0.3), state: 'live' },
+    ] as SpaceOverview['values'];
+    server.live = { ...server.live, outputs: { light: { value: 0, measuredAt: ago(0.3), state: 'live' } } } as never;
+    onePlace(overviewOf({ cameras: [camera()], grows: [growOf()], values: [...values(), ...more] }), true);
+    draw();
+
+    expect(await screen.findByRole('link', { name: /^CO₂ 880\sppm$/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /lx$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^PPFD/ })).not.toBeInTheDocument();
+  });
+
+  it('steps figures that have stopped coming back in the picture, and says as of when they are', async () => {
+    onePlace(overviewOf({ values: values(5).map(value => ({ ...value, state: 'stale' as const })), cameras: [camera(1)], grows: [growOf()] }), true);
+    draw();
+
+    const picture = (await screen.findByRole('img', { name: 'The newest picture of Fridge 1' })).closest('a')!.parentElement!;
+    expect(picture).toHaveAttribute('data-age', 'stale');
+    await waitFor(() => expect(picture).toHaveTextContent(`As of ${hhmm(ago(5))} · 5 min ago`));
   });
 
   it('says the lamp is off and whose picture it shows, where the newest lit one stands in for a dark tent', async () => {
     onePlace(overviewOf({ grows: [growOf()], cameras: [{ ...camera(), litStill: { mediaId: 'lit-1', capturedAt: ago(200) } }] }), true);
     draw();
 
-    const picture = (await screen.findByRole('img', { name: 'The newest picture of Fridge 1' })).closest('a')!;
+    const picture = (await screen.findByRole('img', { name: 'The newest picture of Fridge 1' })).closest('a')!.parentElement!;
     await waitFor(() => expect(picture).toHaveTextContent(`Light off · picture from ${hhmm(ago(200))}`));
     expect(screen.getByRole('img', { name: 'The newest picture of Fridge 1' })).toHaveAttribute('src', '/media/lit-1');
   });
@@ -302,13 +431,17 @@ describe('Start of a place that only regulates', () => {
   it('draws the readings as tiles, each the way to its curve, with the verdict under the figure', async () => {
     draw();
 
-    const temperature = (await screen.findByRole('link', { name: 'Temperature' })).parentElement!;
+    const temperature = (await screen.findByRole('link', { name: 'Temperature' })).closest('div')!;
     expect(screen.getByRole('link', { name: 'Temperature' })).toHaveAttribute('href', '/timeline?space=space-1&focus=temperature');
     expect(temperature).toHaveTextContent('Temperature25.1 °Cin band');
-    expect(screen.getByRole('link', { name: 'Humidity' }).parentElement).toHaveTextContent('Humidity61 %in band');
-    expect(screen.getByText('1.03 kPa')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Humidity' }).closest('div')).toHaveTextContent('Humidity61 %in band');
+    // VPD has no panel in Verlauf, so its tile opens Graphen on that one curve - and explains itself beside its name.
+    const vpd = screen.getByRole('link', { name: 'VPD' });
+    expect(vpd).toHaveAttribute('href', '/charts?space=space-1&show=vpd');
+    expect(vpd.closest('div')).toHaveTextContent('1.03 kPa');
+    expect(within(vpd.closest('div')!).getByRole('button', { name: /VPD/ })).toBeInTheDocument();
     // The lamp says how bright it is and when it switches next, by the account's clock.
-    expect((await screen.findByRole('link', { name: 'Light' })).parentElement).toHaveTextContent('Light65 %on until 18:00');
+    expect((await screen.findByRole('link', { name: 'Light' })).closest('div')).toHaveTextContent('Light65 %on until 18:00');
     // No grow, no diary: nothing about either but the one card that offers it.
     expect(screen.queryByRole('heading', { name: 'Today' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Whole diary ›' })).not.toBeInTheDocument();
@@ -318,9 +451,10 @@ describe('Start of a place that only regulates', () => {
     onePlace(overviewOf({ values: values().map(value => (value.metric === 'temperature' ? { ...value, value: 28 } : value)) }));
     draw();
 
-    const sentence = await screen.findByRole('link', { name: 'Temperature 3.0 °C too high just now' });
+    // The figure is bound to its unit, so the sentence never breaks between the two.
+    const sentence = await screen.findByRole('link', { name: 'Temperature 3.0\u00a0°C too high just now' });
     expect(sentence).toHaveAttribute('href', '/timeline?space=space-1&focus=temperature');
-    expect(screen.getByRole('link', { name: 'Temperature' }).parentElement).toHaveTextContent('3.0 °C too high');
+    expect(screen.getByRole('link', { name: 'Temperature' }).closest('div')).toHaveTextContent('3.0 °C too high');
   });
 
   it('says an open alarm, and leads to Meldungen', async () => {
@@ -352,6 +486,22 @@ describe('Start of a place that only regulates', () => {
     fireEvent.click(within(card).getByRole('button', { name: 'No thanks' }));
 
     await waitFor(() => expect(server.bodies.get('PATCH /me')).toEqual({ preferences: { diary: 'off' } }));
+    // The card is gone with the tap, so a toast answers it: what holds now, where it is changed, and the way back.
+    await waitFor(() => expect(log.tell).toHaveBeenCalledTimes(1));
+    const told = log.tell.mock.calls[0][0] as { label: string; undo: () => Promise<unknown> };
+    expect(told.label).toBe('The diary stays off. You can switch it on under Me › Appearance.');
+    await told.undo();
+    expect(server.bodies.get('PATCH /me')).toEqual({ preferences: { diary: null } });
+  });
+
+  it('opens the short form on the stage the place is on rather than on germination', async () => {
+    // Twelve hours of light, and figures nobody took from a preset: a flowering tent.
+    draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Start a grow' }));
+    const sheet = await screen.findByRole('dialog', { name: 'What grows in Fridge 1?' });
+    await waitFor(() => expect(within(sheet).getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true'));
+    expect(within(sheet).getByRole('button', { name: 'Germination' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('opens the short form from the card, and an answer starts the grow and its phase without touching the climate', async () => {
@@ -394,6 +544,11 @@ describe('Start of a place that only regulates', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'No thanks' }));
     await waitFor(() => expect(server.bodies.get('PATCH /spaces/space-1')).toEqual({ presetPrompt: 'never' }));
     expect(server.bodies.has('PATCH /me')).toBe(false);
+    await waitFor(() => expect(log.tell).toHaveBeenCalledTimes(1));
+    const told = log.tell.mock.calls[0][0] as { label: string; undo: () => Promise<unknown> };
+    expect(told.label).toBe('The app no longer asks for Fridge 1. You start a grow under Grow › All grows.');
+    await told.undo();
+    expect(server.bodies.get('PATCH /spaces/space-1')).toEqual({ presetPrompt: 'ask' });
   });
 
   it('asks nothing of a place whose owner said it never holds a grow', async () => {
@@ -421,7 +576,10 @@ describe('Start of a place that only regulates', () => {
   it('keeps behind the place´s menu what belongs to the place, and nothing of the grow or the targets', async () => {
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit Fridge 1' }));
+    // The button says what it is for and not the place's whole name again, which is in its accessible name alone.
+    const menu = await screen.findByRole('button', { name: 'Edit place: Fridge 1' });
+    expect(menu).toHaveTextContent(/^Edit place$/);
+    fireEvent.click(menu);
     expect(await screen.findByRole('button', { name: 'Rename' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Invite members' })).toHaveAttribute('href', '/spaces/space-1/members');
     expect(screen.queryByText(/preset/i)).not.toBeInTheDocument();
@@ -473,12 +631,29 @@ describe('the states of Start', () => {
     expect(alert).toHaveTextContent('Your devices keep regulating.');
     expect(await screen.findByText(`Last loaded at ${hhmm(ago(180))}.`)).toBeInTheDocument();
 
+    // The answer is held back, so the moment between the tap and it can be looked at: the button says it is trying.
+    let answer = () => {};
+    fetchStub.mockImplementationOnce(() => new Promise<Response>((_resolve, reject) => (answer = () => reject(new TypeError('Failed to fetch')))));
+    fireEvent.click(await within(alert).findByRole('button', { name: 'Try again' }));
+    expect(await within(alert).findByRole('button', { name: 'Trying …' })).toBeDisabled();
+    answer();
+
     onePlace(overviewOf());
     server.reachable = true;
-    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+    fireEvent.click(await within(alert).findByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument();
     // An answer is noted, so the next failure can say how old the picture is.
     await waitFor(() => expect(localStorage.getItem('terp.loaded.user-1')).toBe('2026-11-12T11:00:00.000Z'));
+  });
+
+  it('tells a server that answered with a fault from a connection that is gone', async () => {
+    server.fault = 500;
+    draw();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The server reports an error');
+    expect(alert).toHaveTextContent('It is not your connection');
+    expect(alert).not.toHaveTextContent('No connection');
   });
 
   it('asks an account with nothing what it starts with, and offers the device, the grow, the demo and the invitation', async () => {
@@ -531,7 +706,7 @@ describe('the states of Start', () => {
     expect(screen.getByText('offline')).toBeInTheDocument();
     expect(screen.getByText('· for 42 min')).toBeInTheDocument();
     await waitFor(() =>
-      expect(screen.getByRole('link', { name: 'Temperature' }).parentElement).toHaveTextContent(`25.1 °Clast value ${hhmm(ago(42))}`),
+      expect(screen.getByRole('link', { name: 'Temperature' }).closest('div')).toHaveTextContent(`25.1 °Clast value ${hhmm(ago(42))}`),
     );
     // The box says it; no second sentence does, and nothing claims "in band" about a tent nobody has heard from.
     expect(screen.queryByText('All on target.')).not.toBeInTheDocument();
@@ -559,10 +734,34 @@ describe('the states of Start', () => {
     onePlace(overviewOf({ values: values(42), cameras: [camera(43)], grows: [growOf()] }), true);
     draw();
 
-    const picture = (await screen.findByRole('img', { name: 'The newest picture of Fridge 1' })).closest('a')!;
+    const picture = (await screen.findByRole('img', { name: 'The newest picture of Fridge 1' })).closest('a')!.parentElement!;
     expect(picture).toHaveAttribute('data-age', 'offline');
     await waitFor(() => expect(picture).toHaveTextContent(`last picture ${hhmm(ago(43))}`));
     expect(picture).toHaveTextContent(`As of ${hhmm(ago(42))} · 42 min ago`);
+  });
+
+  it('says a device that has sent no value yet is waiting for its first ones, and not that it is offline', async () => {
+    server.devices = [fridge({ state: { lastSeenAt: null, hardware: {}, maintenanceUntil: null } as never })];
+    onePlace(overviewOf({ values: [] }));
+    draw();
+
+    expect(await screen.findByText('waiting for first values')).toBeInTheDocument();
+    expect(screen.queryByText('offline')).not.toBeInTheDocument();
+    // The pill says it once; no sentence under it repeats it, no box calls the device silent, and nothing offers what it could not hear.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByText(/has not reported since/)).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Targets/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Maintenance/ })).not.toBeInTheDocument();
+  });
+
+  it('says a device heard long ago, whose values have left the live read, is offline since it was last heard', async () => {
+    server.devices = [fridge({ state: { lastSeenAt: ago(40 * 1440), hardware: {}, maintenanceUntil: null } as never })];
+    onePlace(overviewOf({ values: [] }));
+    draw();
+
+    expect(await screen.findByText('offline')).toBeInTheDocument();
+    expect(screen.queryByText('waiting for first values')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^The device has not reported since/ })).toBeInTheDocument();
   });
 
   it('says whose place it is to somebody let into it, what they may do, and who can change the targets', async () => {
@@ -577,8 +776,11 @@ describe('the states of Start', () => {
     );
     draw();
 
-    expect(await screen.findByRole('heading', { name: 'by @host' })).toBeInTheDocument();
+    // Whose place it is leads to who else is here, which is where a member leaves; a reader who may change
+    // nothing about the place has no menu beside its name.
+    expect(await screen.findByRole('link', { name: 'by @host, see the members' })).toHaveAttribute('href', '/spaces/space-1/members');
     expect(screen.getByText('you may log')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Edit place/ })).not.toBeInTheDocument();
     // What a member may do is there: the watering is theirs to enter.
     expect(screen.getByRole('button', { name: 'Enter: Water' })).toBeInTheDocument();
     // What they may not is absent rather than refused: the targets are read, not opened.
@@ -612,7 +814,7 @@ describe('the states of Start', () => {
     expect(screen.getByRole('heading', { name: 'Targets' }).closest('section')).toHaveTextContent(/Light \d\d:00 to \d\d:00/);
     // Nothing that writes: nothing to tick, no menu, no place to add, and nobody to ask for a change.
     expect(screen.queryByRole('heading', { name: 'Today' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit Fridge 1' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Edit place/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ Add a place' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Whoever manages/)).not.toBeInTheDocument();
     // The demo has no account to read.
@@ -623,7 +825,7 @@ describe('the states of Start', () => {
     expect(await screen.findByText('elsewhere')).toBeInTheDocument();
   });
 
-  it('makes the grow the page of a diary kept by hand, with its newest photo, and offers a device under it', async () => {
+  it('heads a diary kept by hand with the place´s name too, the grow on its newest photo, and offers a device under it', async () => {
     onePlace(
       overviewOf({
         name: 'Balcony',
@@ -649,10 +851,12 @@ describe('the states of Start', () => {
     server.devices = [];
     draw();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Balcony autos' })).toBeInTheDocument();
-    const photo = screen.getByRole('img', { name: 'The newest photo of Balcony autos' }).closest('a')!;
-    expect(photo).toHaveAttribute('href', '/grow');
-    expect(photo).toHaveTextContent('Day 29');
+    // One name per place: the head is what the header, the cards and the menu call it.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Balcony' })).toBeInTheDocument();
+    const toGrow = (await screen.findByRole('img', { name: 'The newest photo of Balcony autos' })).closest('a')!;
+    expect(toGrow).toHaveAttribute('href', '/grow');
+    const photo = toGrow.parentElement!;
+    expect(photo).toHaveTextContent('Balcony autos · Day 29');
     expect(photo).toHaveTextContent('your photo from yesterday');
     expect(screen.getByText('Flower · week 3')).toBeInTheDocument();
     // Nothing measures here, so nothing is judged and nothing is steered.
@@ -739,11 +943,41 @@ describe('Start with several places', () => {
     expect(within(room).getByRole('link')).toBe(cards[0]);
 
     // The one that asks says what is wrong in the sentence of its own Start; the one that is fine says only that.
+    // It also says that something is due there, which "Today" lists further down a phone's page.
     await waitFor(() =>
-      expect(cards[0]).toHaveTextContent('Tent 2checkHumidity 12 % too high25.1 °C · 72 % · Light 65 %Autumn cuttings · Day 9 · Veg'),
+      expect(cards[0]).toHaveTextContent('Tent 2checkHumidity 12 % too high25.1 °C · 72 % · Light 65 %Autumn cuttings · Day 9 · Veg1 task due'),
     );
     expect(within(cards[0]).getByRole('img', { name: 'The newest picture of Tent 2' })).toHaveAttribute('src', '/media/still-2');
     expect(cards[1]).toHaveTextContent('Fridge 1on target25.1 °C · 61 % · Light 65 %');
+    expect(cards[1]).not.toHaveTextContent('due');
+    // A place in no room that follows a room´s cards is set off from them by saying so.
+    expect(screen.getByRole('region', { name: 'In no room' })).toContainElement(cards[1]);
+  });
+
+  it('counts a step of the grow plan waiting for its word among what is due at a place', async () => {
+    server.tasks = [
+      {
+        id: 'step-1',
+        source: 'plan_step',
+        sourceId: 'plan-1',
+        kind: 'custom',
+        label: 'Late flower',
+        dueAt: ago(10),
+        subject: { type: 'space', id: 'space-2' },
+        assigneeId: null,
+      },
+    ];
+    draw();
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /^The newest picture of Tent 2/ })).toHaveTextContent('2 tasks due'));
+  });
+
+  it('leads the address of a room, which has no Start of its own, to Start', async () => {
+    draw('/spaces/room-1');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Cellar' })).not.toBeInTheDocument();
+    expect(server.calls).not.toContain('GET /spaces/room-1/overview');
   });
 
   it('gathers what is due today across the places, each saying where', async () => {
@@ -759,8 +993,9 @@ describe('Start with several places', () => {
     server.home = homeOf([cardOf({ values: values(30) }), tent()], true);
     draw();
 
-    const card = (await screen.findAllByRole('link')).find(link => link.getAttribute('href') === '/spaces/space-1')!;
-    await waitFor(() => expect(card).toHaveTextContent(`Fridge 1offlineOffline since ${hhmm(ago(30))}25.1 °C · 61 %`));
+    // Asked for again on every look: the card is drawn anew once the rooms are known.
+    const card = () => screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-1')!;
+    await waitFor(() => expect(card()).toHaveTextContent(`Fridge 1offlineOffline since ${hhmm(ago(30))}25.1 °C · 61 %`));
   });
 
   it('opens a grow that stands in no place at the grow, because there is no place to open', async () => {

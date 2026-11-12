@@ -1,5 +1,6 @@
 import type { DateTime } from 'luxon';
 import type { CardSetpoint, CardValue, Device, DeviceLive, ValueState } from '@fg2/shared-types/v1';
+import { chartsPath, timelinePath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { valueAge } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
@@ -35,6 +36,8 @@ export interface Reading {
   age: ValueState;
   /** The panel of Verlauf the reading is drawn on; null for one that has none of its own. */
   focus: string | null;
+  /** For the lamp: whether it is on. */
+  lit?: boolean;
 }
 
 interface ReadingsInput {
@@ -104,41 +107,59 @@ export const readingsOf = (t: Translate, { values, setpoints, device, lit, hold,
       judged: false,
       age,
       focus: 'light',
+      lit: on,
     });
   }
 
   return readings;
 };
 
-/** The readings in one line, as a place's card states them: "24,3 °C · 66 % · Licht 80 %". */
-export const readingsLine = (t: Translate, readings: Reading[]): string =>
+/** The readings as a place's card states them, fact by fact: "24,3 °C", "66 %", "Licht 80 %". */
+export const readingFacts = (t: Translate, readings: Reading[]): string[] =>
   readings
     .filter(reading => reading.key !== 'vpd')
     .map(reading =>
-      reading.key === 'light'
-        ? reading.figure.endsWith('%')
-          ? t('start.card.light', { level: reading.figure })
-          : t('start.card.lightOff')
-        : reading.figure,
-    )
-    .join(' · ');
+      reading.key === 'light' ? (reading.lit ? t('start.card.light', { level: reading.figure }) : t('start.card.lightOff')) : reading.figure,
+    );
+
+/** Where a reading's curve is drawn: its panel of Verlauf, and Graphen for VPD, which Verlauf has no panel for. */
+export const curvePath = (spaceId: string, reading: Pick<Reading, 'key' | 'focus'>): string =>
+  reading.key === 'vpd' ? chartsPath(spaceId, 'vpd') : timelinePath(spaceId, reading.focus);
+
+/** One of the further readings: its words and the panel of Verlauf it is drawn on. */
+export interface Extra {
+  key: 'co2' | 'leaf' | 'lux' | 'ppfd';
+  text: string;
+  focus: string;
+}
 
 /**
  * What only some places measure - CO₂, the leaf, the light that reaches it -
- * in one line under the readings, and the panel of Verlauf it opens. Null
- * where no such sensor reports.
+ * each with the panel of Verlauf it opens. While the lamp is dark the two
+ * light figures are left out: "0 lx · PPFD 0" says nothing the lamp's own
+ * reading has not said. Empty where no such sensor reports.
  */
-export const extrasOf = (t: Translate, values: CardValue[]): { text: string; focus: string } | null => {
+export const extrasOf = (t: Translate, values: CardValue[], dark: boolean): Extra[] => {
   const co2 = valueOf(values, 'co2');
   const leaf = valueOf(values, 'leafTemperature');
-  const lux = valueOf(values, 'lux');
-  const ppfd = valueOf(values, 'ppfd');
-  const parts = [
-    co2 ? t('start.extra.co2', { value: figureWithUnit(co2.value!, 'co2') }) : null,
-    leaf ? t('start.extra.leaf', { value: figureWithUnit(leaf.value!, 'leafTemperature') }) : null,
-    lux ? t('start.leaf.lux', { value: figure(lux.value!, 'lux') }) : null,
-    ppfd ? t('start.leaf.ppfd', { value: decimalFigure(Math.round(ppfd.value!), 0) }) : null,
-  ].filter((part): part is string => part !== null);
+  const lux = dark ? null : valueOf(values, 'lux');
+  const ppfd = dark ? null : valueOf(values, 'ppfd');
 
-  return parts.length === 0 ? null : { text: parts.join(' · '), focus: co2 ? 'co2' : leaf ? 'leafTemperature' : 'lux' };
+  return [
+    co2 ? { key: 'co2' as const, text: t('start.extra.co2', { value: figureWithUnit(co2.value!, 'co2') }), focus: 'co2' } : null,
+    leaf
+      ? { key: 'leaf' as const, text: t('start.extra.leaf', { value: figureWithUnit(leaf.value!, 'leafTemperature') }), focus: 'leafTemperature' }
+      : null,
+    lux ? { key: 'lux' as const, text: t('start.leaf.lux', { value: figure(lux.value!, 'lux') }), focus: 'lux' } : null,
+    // PPFD is the lux reading times a factor, and is drawn on its panel.
+    ppfd ? { key: 'ppfd' as const, text: t('start.leaf.ppfd', { value: decimalFigure(Math.round(ppfd.value!), 0) }), focus: 'lux' } : null,
+  ].filter((part): part is Extra => part !== null);
+};
+
+/** Whether the lamp is dark: by its own reading where the place has one, else by the light that reaches the leaf. */
+export const darkOf = (readings: Reading[], values: CardValue[]): boolean => {
+  const lamp = readings.find(reading => reading.key === 'light');
+  if (lamp) return !lamp.lit;
+  const lux = valueOf(values, 'lux');
+  return lux !== null && lux.value! <= 0;
 };

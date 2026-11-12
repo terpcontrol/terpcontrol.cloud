@@ -47,6 +47,17 @@ export const dueLabel = (t: Translate, dueAt: string, now: DateTime, zone: strin
   return t('home.strip.inDays', { count: days });
 };
 
+/**
+ * What the toast says once a task is ticked: the task by its own name, so two
+ * ticks in a row can be told apart and the Undo beside it says what it takes
+ * back. A step of the plan is confirmed rather than done. `where` is the place
+ * or grow, on a screen that lists more than one.
+ */
+export const tickedLabel = (t: Translate, task: { label: string; source?: string }, where: string | null = null): string =>
+  [task.source === 'plan_step' ? `${t('tasks.stepConfirmed')} · ${task.label}` : t('tasks.tickedOff', { label: task.label }), where]
+    .filter(Boolean)
+    .join(' · ');
+
 /** The diary line ticking a task off writes: a chore or a task of one's own is a note, the rest are what they say. */
 export const entryKindOf = (kind: ReminderKind): EntryKind => (kind === 'chore' || kind === 'custom' ? 'note' : kind);
 

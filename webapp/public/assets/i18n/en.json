@@ -2743,7 +2743,12 @@
     "actionChoose": "Maintenance",
     "howLong": "How long",
     "minutes": "{{minutes}} min",
-    "actionShort": "Maintenance · {{minutes}} min"
+    "actionShort": "Maintenance · {{minutes}} min",
+    "starting": "Starting maintenance …",
+    "extending": "Extending …",
+    "endShort": "End",
+    "extend": "Extend",
+    "unheardShort": "A device could not be reached just now and may not have got the command."
   },
   "alarms": {
     "title": "Alarms",
@@ -3014,7 +3019,8 @@
     },
     "stepIsManaged": "Confirming a step moves the plan on and sends the next step's targets to the controller. Only whoever steers the place can do that.",
     "every_one": "every day",
-    "every_other": "every {{count}} days"
+    "every_other": "every {{count}} days",
+    "tickedOff": "Done · {{label}}"
   },
   "targets": {
     "title": "Targets",
@@ -3479,7 +3485,9 @@
       "next": "what grows?",
       "skip": "Not now",
       "close": "Close the setup",
-      "move": "Or move a grow here"
+      "move": "Or move a grow here",
+      "title": "What grows here?",
+      "text": "With a grow the app keeps the diary. It can wait."
     }
   },
   "admin": {
@@ -4609,7 +4617,9 @@
     "openEnded": "{{step}}, until you move it on",
     "changing": "{{step}}, moving on to {{next}} shortly",
     "ending": "{{step}}, the plan is about to finish",
-    "paused": "{{step}}, paused – resume under Control"
+    "paused": "{{step}}, paused – resume under Control",
+    "minutes_one": "{{count}} minute",
+    "minutes_other": "{{count}} minutes"
   },
   "co2Report": {
     "title": "CO₂ cylinder",
@@ -5038,13 +5048,14 @@
     "waiting": "Start is loading",
     "addPlace": "Add a place",
     "menu": {
-      "label": "Edit {{name}}",
+      "label": "Edit place: {{name}}",
       "deviceHere": "Bring a device here",
       "members": "Invite members",
       "rename": "Rename",
       "putInRoom": "Put in a room",
       "room": "Room",
-      "remove": "Remove place"
+      "remove": "Remove place",
+      "words": "Edit place"
     },
     "light": {
       "onUntil": "on until {{time}}",
@@ -5062,7 +5073,9 @@
       "light": "Light {{level}}",
       "good": "on target",
       "check": "check",
-      "lightOff": "Light off"
+      "lightOff": "Light off",
+      "due_one": "{{count}} task due",
+      "due_other": "{{count}} tasks due"
     },
     "extra": {
       "co2": "CO₂ {{value}}",
@@ -5088,8 +5101,7 @@
       "diary": "Whole diary",
       "pictures_one": "{{count}} picture",
       "pictures_other": "{{count}} pictures",
-      "title": "Latest",
-      "none": "Nothing has happened yet."
+      "title": "Latest"
     },
     "targets": {
       "window": "{{on}} to {{off}}",
@@ -5116,7 +5128,9 @@
       "since": "Since when?",
       "today": "today",
       "week": "for a week",
-      "date": "Pick a date"
+      "date": "Pick a date",
+      "declined": "The diary stays off. You can switch it on under Me › Appearance.",
+      "declinedHere": "The app no longer asks for {{name}}. You start a grow under Grow › All grows."
     },
     "device": {
       "title": "With a device it measures by itself here"
@@ -5137,7 +5151,10 @@
       "text": "Your devices keep regulating. The app shows readings again once the connection is back.",
       "retry": "Try again",
       "loadedToday": "Last loaded at {{time}}.",
-      "loadedOn": "Last loaded on {{time}}."
+      "loadedOn": "Last loaded on {{time}}.",
+      "serverTitle": "The server reports an error",
+      "serverText": "Your devices keep regulating. It is not your connection – try again in a moment.",
+      "retrying": "Trying …"
     },
     "offline": {
       "title": "The device has not reported since {{time}}.",
@@ -5154,7 +5171,8 @@
       "may": {
         "log": "you may log",
         "manage": "you may steer"
-      }
+      },
+      "members": "see the members"
     },
     "mode": {
       "drying": "Drying",
@@ -5198,11 +5216,17 @@
       "quietSince": "{{name}} not delivering · since {{time}}",
       "nothingYet": "{{name}} has not delivered a picture yet"
     },
-    "visiting": "Support view of a customer's place: read only. Times are in your time zone."
+    "visiting": "Support view of a customer's place: read only. Times are in your time zone.",
+    "reading": {
+      "open": "open the timeline",
+      "chart": "open the chart"
+    },
+    "noRoom": "In no room"
   },
   "liveness": {
     "ago": "{{age}} ago",
-    "since": "for {{age}}"
+    "since": "for {{age}}",
+    "waiting": "waiting for first values"
   },
   "age": {
     "yesterday": "yesterday"

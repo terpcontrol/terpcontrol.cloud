@@ -159,6 +159,16 @@ export const growDayOf = (grow: GrowListItem, occurredAt: string): number | null
 export const weekDayOf = (week: Pick<GrowWeekCard, 'dayFrom' | 'dayTo' | 'startsAt'>, occurredAt: string): number =>
   Math.min(week.dayTo, week.dayFrom - 1 + growDayAt(new Date(week.startsAt), occurredAt));
 
+/**
+ * Whether a line of a summary is drawn as a warning, and how grave: amber is
+ * for what needs a person, which is an alarm that was raised - a connection
+ * lost, a reading past its rule. That an alarm is over, a restart, a step of
+ * the plan and maintenance going on and off are things that happened, and
+ * stand as plain lines whatever severity the device sent them with.
+ */
+export const warningOf = (entry: Pick<Entry, 'kind' | 'severity'>): Entry['severity'] =>
+  entry.kind === 'alarm' && entry.severity !== 'info' ? entry.severity : null;
+
 /** A line and how many identical machine lines just before it were folded into it. */
 interface FoldedEntry {
   entry: Entry;

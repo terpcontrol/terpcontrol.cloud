@@ -769,7 +769,7 @@
       "today": "heute",
       "tomorrow": "morgen",
       "overdue_one": "{{count}} Tag überfällig",
-      "overdue_other": "{{count}} T überfällig",
+      "overdue_other": "{{count}} Tage überfällig",
       "inDays": "in {{count}} T",
       "dueSince": "seit {{time}} fällig"
     },
@@ -2751,7 +2751,12 @@
     "actionChoose": "Wartung",
     "howLong": "Wie lange",
     "minutes": "{{minutes}} Min",
-    "actionShort": "Wartung · {{minutes}} Min"
+    "actionShort": "Wartung · {{minutes}} Min",
+    "starting": "Wartung startet …",
+    "extending": "Wird verlängert …",
+    "endShort": "Beenden",
+    "extend": "Verlängern",
+    "unheardShort": "Ein Gerät war gerade nicht erreichbar und hat den Befehl vielleicht nicht bekommen."
   },
   "alarms": {
     "title": "Alarme",
@@ -3022,7 +3027,8 @@
     },
     "stepIsManaged": "Einen Schritt zu bestätigen, rückt den Plan weiter und schickt die Zielwerte des nächsten Schritts an den Controller. Das kann nur, wer den Ort steuert.",
     "every_one": "jeden Tag",
-    "every_other": "alle {{count}} Tage"
+    "every_other": "alle {{count}} Tage",
+    "tickedOff": "Erledigt · {{label}}"
   },
   "targets": {
     "title": "Zielwerte",
@@ -3487,7 +3493,9 @@
       "next": "was wächst?",
       "skip": "Jetzt nicht",
       "close": "Einrichten schließen",
-      "move": "Oder einen Grow hierher umziehen"
+      "move": "Oder einen Grow hierher umziehen",
+      "title": "Was wächst hier?",
+      "text": "Mit einem Grow schreibt die App das Tagebuch mit. Das hat Zeit."
     }
   },
   "admin": {
@@ -4617,7 +4625,9 @@
     "openEnded": "{{step}}, bis du weiterschaltest",
     "changing": "{{step}}, gleich geht es weiter mit {{next}}",
     "ending": "{{step}}, der Plan ist gleich fertig",
-    "paused": "{{step}}, pausiert – fortsetzen unter Steuerung"
+    "paused": "{{step}}, pausiert – fortsetzen unter Steuerung",
+    "minutes_one": "{{count}} Minute",
+    "minutes_other": "{{count}} Minuten"
   },
   "co2Report": {
     "title": "CO₂-Flasche",
@@ -5046,13 +5056,14 @@
     "waiting": "Start lädt",
     "addPlace": "Ort hinzufügen",
     "menu": {
-      "label": "{{name}} bearbeiten",
+      "label": "Ort bearbeiten: {{name}}",
       "deviceHere": "Gerät hierher holen",
       "members": "Mitglieder einladen",
       "rename": "Umbenennen",
       "putInRoom": "In einen Raum stellen",
       "room": "Raum",
-      "remove": "Ort entfernen"
+      "remove": "Ort entfernen",
+      "words": "Ort bearbeiten"
     },
     "light": {
       "onUntil": "an bis {{time}}",
@@ -5070,7 +5081,9 @@
       "light": "Licht {{level}}",
       "good": "im Ziel",
       "check": "prüfen",
-      "lightOff": "Licht aus"
+      "lightOff": "Licht aus",
+      "due_one": "{{count}} Aufgabe fällig",
+      "due_other": "{{count}} Aufgaben fällig"
     },
     "extra": {
       "co2": "CO₂ {{value}}",
@@ -5096,8 +5109,7 @@
       "diary": "Ganzes Tagebuch",
       "pictures_one": "{{count}} Bild",
       "pictures_other": "{{count}} Bilder",
-      "title": "Zuletzt",
-      "none": "Noch nichts passiert."
+      "title": "Zuletzt"
     },
     "targets": {
       "window": "{{on}} bis {{off}}",
@@ -5124,7 +5136,9 @@
       "since": "Seit wann?",
       "today": "heute",
       "week": "seit einer Woche",
-      "date": "Datum wählen"
+      "date": "Datum wählen",
+      "declined": "Das Tagebuch bleibt aus. Einschalten kannst du es unter Ich › Darstellung.",
+      "declinedHere": "Für {{name}} fragt die App nicht mehr. Einen Grow startest du unter Grow › Alle Grows."
     },
     "device": {
       "title": "Mit einem Gerät misst es hier von selbst"
@@ -5145,7 +5159,10 @@
       "text": "Deine Geräte regeln weiter. Die App zeigt erst wieder Werte, wenn die Verbindung steht.",
       "retry": "Nochmal versuchen",
       "loadedToday": "Zuletzt geladen um {{time}}.",
-      "loadedOn": "Zuletzt geladen am {{time}}."
+      "loadedOn": "Zuletzt geladen am {{time}}.",
+      "serverTitle": "Der Server meldet einen Fehler",
+      "serverText": "Deine Geräte regeln weiter. An deiner Verbindung liegt es nicht – versuch es gleich nochmal.",
+      "retrying": "Versuche es …"
     },
     "offline": {
       "title": "Das Gerät meldet sich seit {{time}} nicht.",
@@ -5162,7 +5179,8 @@
       "may": {
         "log": "du darfst eintragen",
         "manage": "du darfst steuern"
-      }
+      },
+      "members": "Mitglieder ansehen"
     },
     "mode": {
       "drying": "Trocknung läuft",
@@ -5206,11 +5224,17 @@
       "quietSince": "{{name}} liefert nicht · seit {{time}}",
       "nothingYet": "{{name}} hat noch kein Bild geliefert"
     },
-    "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone."
+    "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone.",
+    "reading": {
+      "open": "Verlauf öffnen",
+      "chart": "Graph öffnen"
+    },
+    "noRoom": "Ohne Raum"
   },
   "liveness": {
     "ago": "vor {{age}}",
-    "since": "seit {{age}}"
+    "since": "seit {{age}}",
+    "waiting": "wartet auf erste Werte"
   },
   "age": {
     "yesterday": "gestern"

@@ -481,6 +481,19 @@ describe('Start´s line for a running plan', () => {
     );
   });
 
+  it('counts a step´s last hour in minutes, and a step of a few minutes never as an hour', () => {
+    const short = plan(
+      { steps: [step({ duration: { value: 40, unit: 'minutes' } }), step({ id: 'step-2', name: 'Flower' })] },
+      { stepStartedAt: NOW.minus({ minutes: 10 }).toISO()! },
+    );
+    expect(planLineOf(t, short, NOW)).toBe('Veg, 30 minutes to go, then Flower');
+    const ending = plan(
+      { steps: [step({ duration: { value: 1, unit: 'hours' } }), step({ id: 'step-2', name: 'Flower' })] },
+      { stepStartedAt: NOW.minus({ minutes: 59, seconds: 30 }).toISO()! },
+    );
+    expect(planLineOf(t, ending, NOW)).toBe('Veg, 1 minute to go, then Flower');
+  });
+
   it('says a step that waits is waiting, and one with no length runs until it is moved on', () => {
     const waits = plan({
       steps: [step({ waitForConfirmation: true, duration: { value: 1, unit: 'days' } }), step({ id: 'step-2', name: 'Flower' })],

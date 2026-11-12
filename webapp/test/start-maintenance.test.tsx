@@ -11,10 +11,13 @@ import { translate } from './translations';
 
 /**
  * Maintenance on Start, one of the two places it is started from: one line,
- * "Maintenance · 15 min", that asks before it sends, sends the device command
- * rather than writing a diary line, and is not offered where nothing would
- * hear it or nothing would stop. While a window stands, the button says until
- * when and the place's own sentence says so.
+ * "Maintenance · 15 min", that starts a quarter of an hour with the tap -
+ * no sheet, nothing to read first - sends the device command rather than
+ * writing a diary line, and is not offered where nothing would hear it or
+ * nothing would stop. While a window stands, the same spot says until when
+ * and carries its end and another quarter of an hour, and the place's own
+ * sentence leads there. The sheet with its lengths is the device's card's
+ * (`devices.test.tsx`).
  *
  * Liveness is read against the wall clock, so the place and its devices are
  * dated by it.
@@ -112,35 +115,25 @@ beforeEach(() => {
 });
 
 describe('maintenance on Start', () => {
-  it('asks first, saying what stops, and sends the device command rather than a diary line', async () => {
+  it('starts a quarter of an hour with one tap, as the device command rather than a diary line', async () => {
     draw();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Maintenance · 15 min' }));
-    const asked = await screen.findByRole('dialog', { name: 'Maintenance' });
-    // A quarter of an hour unless somebody picks longer.
-    expect(within(asked).getByRole('button', { name: '15 min' })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(asked).getByText(/For 15 minutes the device stops the heater, the compressor and the CO₂ valve/)).toBeInTheDocument();
-    expect(api.post).not.toHaveBeenCalled();
-
-    fireEvent.click(within(asked).getByRole('button', { name: 'Start maintenance' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 900 }));
+    expect(api.post).toHaveBeenCalledTimes(1);
     expect(api.post).not.toHaveBeenCalledWith('/entries', expect.anything());
+    // Nothing asks first and nothing explains: the hand that tapped is on the zip.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('runs as long as somebody picks - half an hour or an hour - and says so throughout', async () => {
+  it('says so where a device was not there to hear it', async () => {
+    vi.mocked(api.post).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: false } as never);
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: /^Maintenance/ }));
-    const asked = await screen.findByRole('dialog', { name: 'Maintenance' });
-    fireEvent.click(within(asked).getByRole('button', { name: '60 min' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance · 15 min' }));
 
-    expect(within(asked).getByText(/For 60 minutes the device stops/)).toBeInTheDocument();
-    expect(within(asked).getByText(/Alarms stay off for 70 minutes – the 60 minutes and 10 more/)).toBeInTheDocument();
-    fireEvent.click(within(asked).getByRole('button', { name: 'Start maintenance' }));
-
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 3600 }));
-    expect(await within(asked).findByText(/After 60 minutes everything carries on by itself; alarms come back after 70 minutes/)).toBeInTheDocument();
+    expect(await screen.findByText('A device could not be reached just now and may not have got the command.')).toBeInTheDocument();
   });
 
   it('is not offered while the place is offline', async () => {
@@ -161,17 +154,35 @@ describe('maintenance on Start', () => {
     await expect(screen.findByRole('button', { name: /^Maintenance/ }, { timeout: 400 })).rejects.toThrow();
   });
 
-  it('says until when a standing window holds, and offers its end', async () => {
+  it('says until when a standing window holds at the same spot, and ends it there', async () => {
     answer.devices = [fridge({ maintenanceUntil: DateTime.now().plus({ minutes: 9 }).toISO()! })];
     draw();
 
-    const button = await screen.findByRole('button', { name: /^Maintenance until \d\d:\d\d$/ });
-    expect(screen.getByRole('status')).toHaveTextContent(/^Maintenance until \d\d:\d\d · regulation and alarms paused$/);
+    const control = await screen.findByRole('group', { name: 'Maintenance' });
+    expect(control).toHaveTextContent(/^Maintenance until \d\d:\d\dControl and alarms pausedEndExtend$/);
+    expect(screen.queryByRole('button', { name: /^Maintenance · 15/ })).not.toBeInTheDocument();
+    // The sentence near the top says so too, and leads to where the window is ended.
+    const sentence = within(screen.getByRole('status')).getByRole('link');
+    expect(sentence).toHaveTextContent(/^Maintenance until \d\d:\d\d · regulation and alarms paused$/);
+    expect(sentence).toHaveAttribute('href', '#start-maintenance');
+    expect(control.parentElement).toHaveAttribute('id', 'start-maintenance');
 
-    fireEvent.click(button);
-    const asked = await screen.findByRole('dialog', { name: 'Maintenance' });
-    fireEvent.click(within(asked).getByRole('button', { name: 'End now' }));
+    fireEvent.click(within(control).getByRole('button', { name: 'End' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 0 }));
+  });
+
+  it('extends a standing window by another quarter of an hour', async () => {
+    answer.devices = [fridge({ maintenanceUntil: DateTime.now().plus({ minutes: 9 }).toISO()! })];
+    draw();
+
+    fireEvent.click(within(await screen.findByRole('group', { name: 'Maintenance' })).getByRole('button', { name: 'Extend' }));
+
+    // What is left of the window and fifteen minutes more, counted from now as the device counts it.
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    const [, command] = vi.mocked(api.post).mock.calls[0] as [string, { kind: string; forSeconds: number }];
+    expect(command.kind).toBe('maintenance');
+    expect(command.forSeconds).toBeGreaterThan(24 * 60 - 5);
+    expect(command.forSeconds).toBeLessThanOrEqual(24 * 60);
   });
 });

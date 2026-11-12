@@ -17,11 +17,12 @@ type Sheet = 'rename' | 'device' | 'room' | 'remove';
 
 /**
  * What is done to a place now and then rather than every day, behind the
- * menu beside its name: its name,
- * the room it stands in, who else is let in, the devices standing in it, and
- * its end. None of it is a reading, so none of it takes room on Start itself.
- * Everything that changes the place needs the right to manage it; who is let
- * in can be read by every member, who may leave from there.
+ * menu beside its name: its name, the room it stands in, who else is let in,
+ * the devices standing in it, and its end. None of it is a reading, so none of
+ * it takes room on Start itself. Everything here needs the right to manage
+ * the place, so Start draws the menu for nobody else: a member who may only
+ * look or log reaches who is let in - and the way to leave - from the line
+ * that says whose place it is.
  */
 export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
   const { t } = useTranslation();
@@ -48,7 +49,8 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
 
   return (
     <>
-      <Menu label={t('start.menu.label', { name: overview.name })} words={t('start.menu.label', { name: overview.name })}>
+      {/* The button says what it is for; which place is said by the head beside it and, for a screen reader, in its name. */}
+      <Menu label={t('start.menu.label', { name: overview.name })} words={t('start.menu.words')}>
         {mayManage ? (
           <button type="button" onClick={() => setSheet('rename')}>
             {t('start.menu.rename')}

@@ -237,11 +237,14 @@ class SessionStore {
     return result.user;
   }
 
-  /** Ends the session on the server too, so a stolen refresh token buys nothing; forgetting it locally comes first. */
+  /**
+   * Ends the session on the server too, so a stolen refresh token buys nothing; forgetting it locally comes first.
+   * The demo's session is everybody's and may write nothing - not even its own end - so it is only forgotten here.
+   */
   public async logOut(): Promise<void> {
-    const { sessionId, tokens } = this.state;
+    const { sessionId, tokens, user } = this.state;
     this.forget();
-    if (sessionId && tokens) {
+    if (sessionId && tokens && user?.isDemo !== true) {
       await fetch(v1(`/sessions/${sessionId}`), { method: 'DELETE', headers: { Authorization: `Bearer ${tokens.userToken}` } }).catch(
         () => undefined,
       );

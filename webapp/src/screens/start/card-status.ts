@@ -6,6 +6,7 @@ import { maintenanceQuiet, type Quiet } from '@/ui/maintenance';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { ownStatusOf } from '@/screens/control/devices/own-summary';
+import { silenceOf } from './attention';
 import { climateDeviceOf, controlOffOf, statusOf, statusText } from './place';
 import { useHumidifierHold } from './reads';
 
@@ -27,7 +28,9 @@ export const useCardStatus = (card: HomeSpaceCard & { spaceId: string }, devices
   const setpoints = climate?.setpoints ?? card.setpoints;
   const quiet = here.map(one => maintenanceQuiet(one, DateTime.max(now, serverNow()))).find((one): one is Quiet => one !== null) ?? null;
   const humidifierHold = useHumidifierHold(device);
-  const status = statusOf({ ...card, values, setpoints, quiet, controlOff: controlOffOf(here), humidifierHold }, now);
+  const silence = silenceOf(values, here, now);
+  const silentSince = silence && !silence.waiting ? silence.since : null;
+  const status = statusOf({ ...card, values, setpoints, quiet, controlOff: controlOffOf(here), humidifierHold, silentSince }, now);
   const said = (status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone);
 
   return { here, device, values, status, said };

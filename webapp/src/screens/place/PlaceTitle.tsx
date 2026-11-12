@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PlaceCard } from '@/app/places';
+import { useDevices } from '@/api/devices';
 import { noLongerThere } from '@/api/problem';
 import { useSpaceOverview } from '@/api/spaces';
 import { NoLongerHere } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
-import { livenessOf, measuredAtOf } from '@/screens/start/attention';
+import { livenessOf, measuredAtOf, silenceOf } from '@/screens/start/attention';
 import { LivenessPill } from '@/ui/LivenessPill';
 import styles from './PlaceTitle.module.css';
 
@@ -17,11 +18,26 @@ import styles from './PlaceTitle.module.css';
  */
 export function PlaceTitle({ title, here }: { title: string; here: PlaceCard }) {
   const now = useNow();
+  const devices = useDevices(here.deviceIds.length > 0 && here.values.length === 0).data?.items ?? [];
+  // As on the place's Start: no value at all is a device waiting for its first one, unless it was heard and went quiet.
+  const silence = silenceOf(
+    here.values,
+    devices.filter(device => here.deviceIds.includes(device.id)),
+    now,
+  );
+  const silentSince = silence && !silence.waiting ? silence.since : null;
+  const liveness = livenessOf(here, now);
 
   return (
     <header className={styles.head}>
       <h1>{title}</h1>
-      <LivenessPill liveness={livenessOf(here, now)} measuredAt={measuredAtOf(here.values)} now={now} explain />
+      <LivenessPill
+        liveness={liveness}
+        measuredAt={measuredAtOf(here.values) ?? silentSince}
+        now={now}
+        explain
+        waiting={liveness === 'offline' && here.values.length === 0 && silentSince === null}
+      />
     </header>
   );
 }

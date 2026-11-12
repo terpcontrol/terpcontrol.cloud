@@ -84,7 +84,7 @@ export function SignIn() {
   const busy = form.formState.isSubmitting || openingDemo;
 
   return (
-    <Door onSubmit={() => void submit()}>
+    <Door page={t('login.signIn')} onSubmit={() => void submit()}>
       {ended ? (
         <p className={ui.note} role="status">
           {t('login.sessionEnded')}

@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { createContext, use } from 'react';
 import type { Entry, HumanEntryKind } from '@fg2/shared-types/v1';
 
@@ -59,6 +60,8 @@ export interface LogRequest {
   send: (progress: (done: number, total: number) => void) => Promise<Entry>;
   /** The tile whose details the toast offers afterwards; absent where there are none to offer. */
   details?: { kind: TileKind; target: LogTarget } | null;
+  /** What landing the line changed beyond the diary, read again with it. */
+  changed?: (client: QueryClient) => void;
   /**
    * Whether the toast may offer to take the line back, which is true of
    * everything a person writes by hand. It is false where deleting the diary
@@ -71,6 +74,15 @@ export interface LogRequest {
 /** What a tick may still be taken back, for the ticks where taking it back would only be half of one. */
 export interface CompleteOptions {
   undoable?: boolean;
+  /** What the tick changed beyond the diary - a plan it moved on - read again once it has landed. */
+  changed?: (client: QueryClient) => void;
+}
+
+/** Something that was done already, said in the toast with the way to take it back. */
+export interface Told {
+  label: string;
+  /** Takes it back; a refusal is said in the toast, which then offers to try again. */
+  undo: () => Promise<unknown>;
 }
 
 interface LogState {
@@ -81,6 +93,8 @@ interface LogState {
   log: (request: LogRequest) => void;
   /** The Done on a due card, which writes the entry the task implies. */
   complete: (taskId: string, label: string, options?: CompleteOptions) => void;
+  /** Says what a tap just did where the tap took its own button away - an offer declined - and offers to take it back. */
+  tell: (told: Told) => void;
 }
 
 export const LogContext = createContext<LogState | null>(null);

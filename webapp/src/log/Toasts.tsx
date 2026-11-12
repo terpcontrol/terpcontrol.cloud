@@ -18,6 +18,10 @@ export interface LoggedLine {
   /** "Watered · Spring run · Day 34". */
   label: string;
   send: LogRequest['send'];
+  /** What landing the line changed beyond the diary. */
+  changed?: LogRequest['changed'];
+  /** For a toast that tells of something already done: how it is taken back. Null for a line that was written. */
+  revert: (() => Promise<unknown>) | null;
   details: { kind: TileKind; target: LogTarget } | null;
   state: 'saving' | 'saved' | 'failed';
   /** Which thing failed, so Try again knows what to try. */

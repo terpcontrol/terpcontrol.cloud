@@ -343,6 +343,27 @@ describe('the query cache across accounts', () => {
     expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
   });
 
+  it('ends a session on the server when it is signed out of', async () => {
+    const { session } = await signedIn([{}]);
+
+    await session.logOut();
+
+    const sent = vi.mocked(fetch).mock.calls.map(([url, init]) => `${(init as RequestInit | undefined)?.method ?? 'GET'} ${String(url)}`);
+    expect(sent.at(-1)).toMatch(/^DELETE .*\/sessions\/session-1$/);
+  });
+
+  it('only forgets the demo´s session, which may write nothing - not even its own end', async () => {
+    // The demo is everybody's: asking the server to end it is refused, and a refused request is an error on the way to sign-up.
+    const { session } = await signedIn([{ ...triple('demo', 30 * DAY_MS), sessionId: 'session-demo', user: DEMO }]);
+    await session.openDemo();
+    const before = vi.mocked(fetch).mock.calls.length;
+
+    await session.logOut();
+
+    expect(vi.mocked(fetch).mock.calls).toHaveLength(before);
+    expect(session.snapshot().user).toBeNull();
+  });
+
   it('is emptied when the demo replaces the session, which passes no sign-in page', async () => {
     const { session, queryClient } = await signedIn([{ ...triple('demo', 30 * DAY_MS), sessionId: 'session-demo', user: DEMO }]);
 

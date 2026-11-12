@@ -56,6 +56,10 @@ export const controlPath = (
 export const timelinePath = (spaceId: string, focus: string | null = null, at: string | null = null): string =>
   withQuery('/timeline', { space: spaceId, ...(focus ? { focus } : {}), ...(at ? { at } : {}) });
 
+/** Graphen of a place, with the curves named drawn and no others: the way from a reading Verlauf has no panel for. */
+export const chartsPath = (spaceId: string, show: string | null = null): string =>
+  withQuery('/charts', { space: spaceId, ...(show ? { show } : {}) });
+
 /** The account's devices, with the ones standing in a place opened where it is named. */
 export const devicesPath = (spaceId: string | null = null): string => (spaceId ? withQuery('/devices', { space: spaceId }) : '/devices');
 

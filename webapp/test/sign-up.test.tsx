@@ -225,3 +225,24 @@ describe('the sign-in page', () => {
     expect(await screen.findByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/sign-up');
   });
 });
+
+/**
+ * Outside the shell nothing names the window after the page. A tab that came from the demo went on carrying the
+ * demo place's name over the sign-up form, so each of these pages names itself.
+ */
+describe('the window´s title outside the shell', () => {
+  it('names the sign-up page, whatever page stood in the tab before', async () => {
+    document.title = 'Blue Dream tent – Terp Control';
+    draw('/sign-up');
+
+    await screen.findByLabelText('Email');
+    expect(document.title).toBe('Create account – Terp Control');
+  });
+
+  it('names the sign-in page', async () => {
+    draw('/sign-in');
+
+    await screen.findByRole('link', { name: 'Create account' });
+    expect(document.title).toBe('Sign in – Terp Control');
+  });
+});

@@ -5,7 +5,7 @@ import type { Entry, GrowReadingNames, Person } from '@fg2/shared-types/v1';
 import { GROW } from '@/app/places';
 import { useCorrecting } from '@/log/corrections';
 import { dayStamp } from '@/ui/age';
-import { foldRepeats, readingNamesOf } from '@/ui/entries';
+import { foldRepeats, readingNamesOf, warningOf } from '@/ui/entries';
 import { EntryWords } from '@/ui/EntryRow';
 import { Line, Lines } from '@/ui/Lines';
 import ui from '@/ui/ui.module.css';
@@ -18,8 +18,9 @@ const LATEST = 3;
 /**
  * "Zuletzt": the newest things that happened here, each in one plain line -
  * what a person wrote and what the devices did, a run of the same machine line
- * counted rather than stacked. A line somebody may correct opens its sheet.
- * With a diary, the card leads to all of it.
+ * counted rather than stacked. Amber is kept for what needs a person
+ * (`warningOf`). A line somebody may correct opens its sheet. With a diary,
+ * the card leads to all of it.
  */
 export function Latest({
   entries,
@@ -44,34 +45,32 @@ export function Latest({
   const zone = useZone();
   const correcting = useCorrecting();
   const folded = foldRepeats(entries).slice(0, LATEST);
+  // A place where nothing has happened yet has no card saying so: the page under it is short enough.
+  if (folded.length === 0) return null;
 
   return (
     <section className={styles.card} aria-labelledby="start-latest">
       <h2 className={styles.cardTitle} id="start-latest">
         {t('start.latest.title')}
       </h2>
-      {folded.length === 0 ? (
-        <p className={styles.cardText}>{t('start.latest.none')}</p>
-      ) : (
-        <Lines>
-          {folded.map(({ entry, count, since }) => (
-            <Line key={entry.id} stamp={dayStamp(entry.occurredAt, now, zone)} severity={entry.severity} onOpen={correcting(entry, on)}>
-              <span className={ui.visuallyHidden}>{`${t(`home.entryKind.${entry.kind}`)}: `}</span>
-              <EntryWords
-                entry={entry}
-                people={people}
-                measurements={readingNamesOf(readingNames, entry.growId)}
-                now={now}
-                zone={zone}
-                byline={byline}
-                repeats={{ count, since }}
-                brief
-              />
-              {entry.mediaIds.length > 0 ? ` · ${t('start.latest.pictures', { count: entry.mediaIds.length })}` : null}
-            </Line>
-          ))}
-        </Lines>
-      )}
+      <Lines>
+        {folded.map(({ entry, count, since }) => (
+          <Line key={entry.id} stamp={dayStamp(entry.occurredAt, now, zone)} severity={warningOf(entry)} onOpen={correcting(entry, on)}>
+            <span className={ui.visuallyHidden}>{`${t(`home.entryKind.${entry.kind}`)}: `}</span>
+            <EntryWords
+              entry={entry}
+              people={people}
+              measurements={readingNamesOf(readingNames, entry.growId)}
+              now={now}
+              zone={zone}
+              byline={byline}
+              repeats={{ count, since }}
+              brief
+            />
+            {entry.mediaIds.length > 0 ? ` · ${t('start.latest.pictures', { count: entry.mediaIds.length })}` : null}
+          </Line>
+        ))}
+      </Lines>
       {diary ? (
         <Link to={GROW} className={styles.more}>
           {t('start.latest.diary')} ›

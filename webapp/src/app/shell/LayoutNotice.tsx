@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { LayoutSeen } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
-import { useSeeLayout } from '@/api/layers';
+import { takeExpected, useSeeLayout } from '@/api/layers';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { newsOf, useShape } from './shape';
@@ -22,7 +22,8 @@ import styles from './LayoutNotice.module.css';
  * comes once and not once per phone. An account seen for the first time is
  * recorded as it stands and told nothing: nothing changed for it. What goes
  * away - a place given up, the diary switched off by its owner - is recorded
- * without a word, because the person did it.
+ * without a word, because the person did it. So is what setup switched on:
+ * the grow started as the last step of claiming a device (`expectLayout`).
  */
 export function LayoutNotice() {
   const { t } = useTranslation();
@@ -45,7 +46,11 @@ export function LayoutNotice() {
     if ((seen !== null && seen.diary === now.diary && seen.places === now.places) || recorded.current === key) return;
 
     recorded.current = key;
-    const told = newsOf(seen, now);
+    // What setup switched on itself is recorded like any other change and not announced: the person just chose it.
+    const own = takeExpected();
+    const came = newsOf(seen, now);
+    const news = came ? { diary: came.diary && own.diary !== true, places: came.places && own.places !== true } : null;
+    const told = news && (news.diary || news.places) ? news : null;
     // Said whether or not the write lands: a server that did not keep it says it again next time, which is no worse.
     mutate(now, { onSettled: () => told && setNews({ news: told, places }) });
   }, [mayWrite, ready, account, diary, places, mutate]);

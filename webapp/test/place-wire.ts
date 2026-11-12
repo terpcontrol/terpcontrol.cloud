@@ -238,8 +238,10 @@ export const server = {
   devices: [fridge()],
   live: deviceLive(),
   home: null as HomeAnswer | null,
-  /** Whether the home answers at all: false is a server that cannot be reached. */
+  /** Whether the home is answered at all: false is a connection that is gone, and the request fails without an answer. */
   reachable: true,
+  /** A status the home answers with in place of its cards: a server that is there and at fault. */
+  fault: null as number | null,
   overviews: new Map<string, SpaceOverview>(),
   /** The plan the device runs, as its route answers it; none answers that there is none. */
   plan: null as Record<string, unknown> | null,
@@ -263,6 +265,7 @@ export const resetServer = () => {
   server.live = deviceLive();
   server.home = null;
   server.reachable = true;
+  server.fault = null;
   server.overviews = new Map();
   server.plan = null;
   server.tasks = [];
@@ -303,10 +306,11 @@ export const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestIn
   if (path === '/grows') return json({ items: server.grows, nextCursor: null });
   const grow = /^\/grows\/([^/]+)$/.exec(path);
   if (grow && server.grow.has(grow[1])) return json(server.grow.get(grow[1]));
-  if (path === '/home')
-    return server.reachable && server.home
-      ? json(server.home)
-      : json({ status: 503, code: 'unavailable', title: 'Unavailable', detail: '', errors: [] }, 503);
+  if (path === '/home') {
+    if (!server.reachable) return Promise.reject(new TypeError('Failed to fetch'));
+    if (server.fault) return json({ status: server.fault, code: 'unexpected', title: 'Internal Server Error', detail: '', errors: [] }, server.fault);
+    return server.home ? json(server.home) : json({ status: 503, code: 'unavailable', title: 'Unavailable', detail: '', errors: [] }, 503);
+  }
   const overview = /^\/spaces\/([^/]+)\/overview$/.exec(path);
   if (overview) {
     const found = server.overviews.get(overview[1]);

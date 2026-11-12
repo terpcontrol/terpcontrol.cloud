@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import { placePath, usePageOfPlace } from '@/app/places';
+import { useHomeShape } from '@/api/home';
 import { useSpaces } from '@/api/spaces';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { useMayIn } from '@/ui/session-access';
@@ -13,7 +14,8 @@ import styles from './Place.module.css';
  * Who else is let into a place, reached from the ⋯ beside its name, and the way
  * to a link that shows it to somebody without an account. It is a page below
  * the place's Start rather than a tab beside it, because it is opened now and then
- * and not every day; the way back is the place's own name.
+ * and not every day; the way back is the place's own name - or Start, for a
+ * room, which has no page of its own.
  */
 export function PlaceMembers() {
   const { t } = useTranslation();
@@ -21,6 +23,9 @@ export function PlaceMembers() {
   const spaces = useSpaces();
   const space = spaces.data?.items.find(one => one.id === spaceId) ?? null;
   const mayShare = useMayIn(spaceId, 'own');
+  const home = useHomeShape();
+  // A room that only groups places has no Start of its own, so the way back from its members leads to Start.
+  const grouping = space?.kind === 'room' && home.data !== undefined && !home.data.spaces.some(card => card.spaceId === spaceId);
   usePageOfPlace(spaceId || null);
 
   if (spaces.isPending) return <Waiting lines={4} />;
@@ -30,7 +35,11 @@ export function PlaceMembers() {
   return (
     <section className={`${styles.page} ${styles.reading}`}>
       <header className={styles.head}>
-        <BackLink to={placePath(space.id)} label={t('place.backTo', { name: space.name })} />
+        {grouping ? (
+          <BackLink to="/" label={t('shell.tabs.home')} />
+        ) : (
+          <BackLink to={placePath(space.id)} label={t('place.backTo', { name: space.name })} />
+        )}
         <h1 className={styles.title}>
           {t('place.members.title')}
           <span className={styles.titleNote}>{space.name}</span>

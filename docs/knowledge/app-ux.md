@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
 updated: 2026-11-12
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12)
+source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -36,11 +36,28 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   about yet is still drawn as one device without a diary (`app/shell/shape.ts`). Several places are a layer that
   appears with the second one. When a layer arrives the shell says once per account what moved
   (`app/shell/LayoutNotice.tsx`) - never a silent flip.
+  - *Setup names all its steps.* The last question is a page of its own, and the list of steps names it all the
+    same: the count says six, so six are listed. The page stays until its own form has been answered - the grow it
+    makes is read by the claim too, and must not take the question away under a form still sending
+    (`screens/claim/Claim.tsx`).
+  - *What setup switches on is not announced.* A grow started as the claim's last step brings the diary into the
+    bar; the grower chose that a moment ago, on a page that said what it does. The step says so before it writes
+    (`expectLayout`, `api/layers.ts`) and the shell records the new layout as seen without its notice. Leaving the
+    step unanswered takes the word back.
+  - *"Nein danke" is answered.* The card is gone with the tap, so a toast says what holds now and where it is
+    changed - "Das Tagebuch bleibt aus. Einschalten kannst du es unter Ich › Darstellung." - with "Widerrufen",
+    which puts back what the account or the place said before (`tell`, `log/log-context.ts`).
 - **The short form asks four things and leaves the climate alone** (`screens/grow/new/WhatGrows.tsx`): what it is,
   since when, how many plants, the phase. It writes the grow and its phase and no targets - the climate is what the
   step before it set, or what the tent was running - so its stages carry their plain names. A feeding scheme and
   the strains by name are chosen on the grow's page; the full sheet (`NewGrowSheet`, from "Alle Grows") asks them at
-  once and does set the stage's climate, saying so beside its button.
+  once and does set the stage's climate, saying so beside its button. **It opens on the stage the place is on,
+  never on germination by default** - in setup, when the step is picked up again later, and behind "Grow starten"
+  on Start. Nothing stores the stage of a place without a grow (a climate preset leaves the device's settings and
+  nothing else), so it is read off those (`stageOn`, `screens/start/stage.ts`): the work mode for germination and
+  drying, then the stage whose climate the day's and the night's figures are, and for figures moved by hand the
+  length of the day - up to 14 hours is flower. Where nothing says, the form opens on growth: a tent that already
+  regulates rarely holds seeds.
 - **Every device setting is reachable where values are changed**: Start's row "Zielwerte" leads to Steuerung, which
   draws the same device Erweitert as the panel under Geräte - one shared component, `DeviceAdvanced`, so a new
   setting lands in both. The targets page leaves out only what it offers itself (Betriebsart, linked as "Betriebsart
@@ -87,7 +104,11 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     support reading a customer's place keeps the address, sees no chip, and is told "lässt sich nicht öffnen" with the
     way back where nothing is there.
 - **A place is one page**, its Start at `/spaces/:id`: with one place Start is that page, with several it is one card
-  per place, ordered by what needs a person. **Grow** (`/grow/:tab?`) is the grow running in the chosen place, drawn
+  per place, ordered by what needs a person. **A room has no Start of its own**: it groups places and holds
+  nothing, so its address leads to Start, where it is the heading over its places, and the way back from its
+  members page leads there too - drawn as a place it was an empty one that offered its own removal. Only a room
+  with hardware standing in the room itself is one of Start's cards and keeps its page (`StartOfPlace`,
+  `screens/start/Start.tsx`). **Grow** (`/grow/:tab?`) is the grow running in the chosen place, drawn
   as that grow's page with its tabs under the same address; where nothing grows there it offers to start a grow.
   It is a root of the bar: nothing leads back from it, and the pill "Alle Grows" stands beside the grow's name. A
   grow opened by its id (`/grows/:growId/...`) is that grow's page whatever is chosen, and leads back to "Alle
@@ -96,28 +117,53 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   on Escape, its cross (a finger wide), a tap beside it, and on a phone by pulling its handle down; the focus then
   goes back to what opened it. "L" opens the entry sheet on a desktop, with or without Shift, and never over a sheet
   that is already open.
-- **Start leads with the plants** (`screens/start/PlaceStart.tsx`; the prototype Chris accepted on 2026-11-12). In
-  this order: the place's name with "live · vor 20 s" and its menu; the newest picture taken in the light, with the
-  grow's name and day and the picture's hour on it and temperature, humidity, VPD and the lamp in a bar along its
-  foot - a tap opens the camera; one sentence that says how the place is; phase and week over a bar, with what is
-  left where a feeding scheme states how long the grow runs; a line for CO₂ and the leaf sensors where they exist;
-  then the cards "Heute", "Zuletzt", the row "Zielwerte", "Wartung · 15 Min" and "+ Ort hinzufügen". Without a
-  camera the grow is a card of its own over four reading tiles; without a grow there are the tiles alone and the
-  card that offers the diary; a diary kept without hardware is titled by its grow and shown by its newest photo, with
-  a card that offers a device. On a desktop the picture, the phase and two small curves of the last day stand left
-  and the cards right. **Start changes no setting**: the targets are a summary that leads to Steuerung.
+- **Start leads with the plants** (`screens/start/PlaceStart.tsx`; the prototype Chris accepted on 2026-11-12, and
+  what its first walk decided the same day). In this order: the place's name with "live · vor 20 s" and its menu;
+  the newest picture taken in the light, with the grow's name and day and the picture's hour on it and temperature,
+  humidity, VPD and the lamp in a bar along its foot; directly under it one line for CO₂ and the leaf sensors where
+  they exist; one sentence that says how the place is; phase and week over a bar, with what is left where a feeding
+  scheme states how long the grow runs; then the cards "Heute", "Zuletzt" - not drawn while nothing has happened -
+  the row "Zielwerte", "Wartung · 15 Min" and "+ Ort hinzufügen". Without a camera the grow is a card of its own
+  over four reading tiles; without a grow there are the tiles alone and the card that offers the diary; a diary
+  kept without hardware is shown by its newest photo, the grow's name and day on it, with a card that offers a
+  device. **Start changes no setting**: the targets are a summary that leads to Steuerung.
+  - *One name per place.* The head is the place's name, also where the place holds nothing but a grow, and the
+    menu renames what the head shows. A grow that stands in no place has no place to name and is titled by itself
+    (`GrowStart.tsx`).
+  - *Every reading leads to its curve.* A tap on the picture opens the camera; a tap on a figure in it, on a tile
+    or on one of the further readings opens that reading - its panel of Verlauf, and Graphen on the one curve for
+    VPD, which Verlauf does not draw (`curvePath`, `screens/start/readings.ts`). The line of further readings
+    leaves the two light figures out while the lamp is dark.
+  - *Two columns once two fit.* From 1100 px the picture, the phase and two small curves of the last day stand
+    left and the cards right - of a list of places the cards left and "Heute" right. Between the rail's 900 px and
+    that the page stays one column: the right column is fixed, and the left one collapsed until its readings ran
+    into each other. On a desktop the sentence stands in the head between the pill and the menu, and on a row of
+    its own as soon as the name leaves it no room: the head wraps before anything in it overlaps.
 - **"Heute" is what is due today or overdue, each with the one tap that settles it** (`screens/start/Today.tsx`): a
   watering or a feeding opens the entry sheet on that kind ("Eintragen") and the line written there closes the task;
-  a chore has nothing to enter and is ticked ("Erledigt"); a step of the grow plan waiting for its word is confirmed
-  here by whoever may steer the place, after being asked. A session that may write nothing is not shown the card.
+  a chore has nothing to enter and is ticked ("Erledigt"), and the toast names what was ticked ("Erledigt ·
+  Filter reinigen", `tickedLabel`) so the "Widerrufen" beside it says what it takes back. A step of the grow plan
+  waiting for its word is a row titled with the step's name, said to be the grow plan's, with "Bestätigen" beside
+  it; whoever may steer the place confirms it there, after being asked, and the plan and the devices are read
+  again once it has landed, so the targets' row says the new step at once. Such a step is about the grow standing
+  where the plan's device stands, or about the place where nothing grows, and is found by either
+  (`screens/start/due.ts`). The plan line counts what a step has left in days, hours, and in its last hour in
+  minutes. A session that may write nothing is not shown the card.
 - **A state is said where the picture is**: a place gone quiet says since when in a box over the picture ("Das Gerät
   meldet sich seit 13:49 nicht."), keeps the last picture, dimmed, and the last readings with their hour, offers
-  what to try behind "Was du tun kannst", and its targets row says that changing them works all the same. Start
-  that cannot be read at all says "Keine Verbindung zum Server", that the devices regulate on, and when this browser
-  last had an answer (`terp.loaded.<user>`). An account with nothing is asked "Womit fängst du an?" - a device, a
-  grow without one, the demo, an invitation. A member let into somebody's place is told whose it is and what they
-  may do ("von @… · du darfst eintragen") and reads the targets with who can change them; the demo says under a
-  banner that nothing can be changed, with the way to an account.
+  what to try behind "Was du tun kannst", and its targets row says that changing them works all the same.
+  **Figures that have stopped coming look it**: from stale on, the figures in the picture step back and a line
+  under them says as of when they are ("Stand 13:49 · vor 8 Min"). **A device that has sent no value yet is not
+  offline**: the pill says "wartet auf erste Werte", no box calls it silent, no sentence repeats it and no
+  maintenance is offered that it could not hear; only a device heard long ago, whose values have left the live
+  read, is offline since it was last heard (`silenceOf`, `screens/start/attention.ts`). Start that cannot be read
+  at all tells its two causes apart - no answer at all is "Keine Verbindung zum Server", an answer that is a fault
+  "Der Server meldet einen Fehler", which is not the reader's connection - says that the devices regulate on and
+  when this browser last had an answer (`terp.loaded.<user>`), and its "Nochmal versuchen" says "Versuche es …"
+  for as long as it is asking. An account with nothing is asked "Womit fängst du an?" - a device, a grow without
+  one, the demo, an invitation. A member let into somebody's place is told whose it is and what they may do ("von
+  @… · du darfst eintragen") and reads the targets with who can change them; the demo says under a banner that
+  nothing can be changed, with the way to an account.
 - **A place is one climate on Start** (Chris, 2026-11-11): its readings, its sentence and its targets are those of
   the device the server names first as the place's climate; whatever else stands there is listed under Steuerung,
   not drawn as further blocks or named in a line under the title. What becomes of places that hold two climates is
@@ -138,7 +184,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   lamp's level last ("24,3 °C · 66 % · Licht 80 %", "Licht aus" for a dark lamp), what grows there, and the camera's
   newest picture beside them. The lamp is the climate device's own light output, or, where that has none (a fan
   leading the place), the level of a `light` device in the same place (Chris, 2026-10-13). Under the cards stand
-  "Heute" across the places, each row saying where, and "+ Ort hinzufügen".
+  "Heute" across the places, each row saying where, and "+ Ort hinzufügen". **What is due is seen without
+  scrolling**: a card says itself that something is due there ("1 Aufgabe fällig" - the diary's reminders and a
+  plan step waiting, the same as "Heute" lists), because on a phone "Heute" stands under the cards. A place in no
+  room that follows a room's cards stands under "Ohne Raum", or it would read as one more of that room's.
 - **A place shares devices, a room only gathers places** (Chris, 2026-10-12, after a grower merged a tent controller
   and a fridge module into one place and found the camera under the wrong device and maintenance pausing both). Two
   devices in one place belong together: the camera, maintenance and the alarms are the place's. Devices that merely
@@ -149,8 +198,12 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   their place and its room once there are several places (`screens/devices/grouping.ts`). Where Verlauf is narrowed
   to one climate of a shared place, the camera paired to the other device is left out; a camera paired to none
   stays.
-- **The menu beside a place's name holds what is done to the place** (`screens/start/PlaceMenu.tsx`; a button
-  "… bearbeiten" on a desktop): its name, its room, who is let in, a device brought here, its end. A climate preset
+- **The menu beside a place's name holds what is done to the place** (`screens/start/PlaceMenu.tsx`; on a desktop a
+  button that says "Ort bearbeiten" - the place's name is in its accessible name alone, since repeated in the
+  button a long one pushed the status sentence out of the head): its name, its room, who is let in, a device
+  brought here, its end. All of it needs the right to manage the place, so nobody else is drawn the menu - a ⋯
+  that holds only what the reader may not do is no menu. A member who may look or log reaches who else is here,
+  and the way to leave, from the line that says whose place it is. A climate preset
   is under Steuerung, sharing and moving a grow on the grow's page, and a grow is started from Start's card or from
   "Alle Grows". "+ Ort hinzufügen" offers what makes a place: a device, a grow without one, a camera of its own.
 - **Any place can be removed by its owner** (Chris, 2026-10-13: "irgendwie muss es möglich sein, einen Raum, den ich
@@ -233,6 +286,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
 - **A repeat is counted, not stacked**: summaries - Start's last lines and a day of the diary - fold a run of
   identical machine lines into one row, "3× seit 21:10" (`foldRepeats`, `ui/entries.ts`); Verlauf keeps every line,
   and what a person wrote never folds.
+- **Amber is for what needs a person**: in a summary - Start's last lines, a day of the diary - only an alarm that
+  was raised is drawn as a warning (a connection lost, a reading past its rule). That an alarm is over, a restart, a
+  step of the plan and maintenance going on and off are things that happened and stand as plain lines, whatever
+  severity the device sent them with (`warningOf`, `ui/entries.ts`, the one rule both read).
 - **A link aims at what it names**: a deep link survives the sign-in round trip, and a `/log` link naming a grow or
   place the home does not draw says so (`log.notHere`) instead of quietly choosing another.
 - **Only what is true for this install**: "Server in der EU" and the Premium tag only where `premium.enforced`, the
@@ -251,7 +308,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   while somebody reads them. The pill beside a place's name counts it instead, "offline · seit 42 Min", as it counts
   a live place's newest reading. A reading no longer live says "letzter Wert 10:19" instead of a verdict.
 - **One freshness clock per screen**: the pill at the head of what it dates ("live · vor 20 s" on a place,
-  `ui/LivenessPill.tsx`; a device and a camera keep theirs). The shell draws none.
+  `ui/LivenessPill.tsx`; a device and a camera keep theirs). The shell draws none. A place whose devices have
+  sent nothing yet is none of live, stale and offline: its pill says "wartet auf erste Werte".
 - **Countdowns round up and carry the unit** (59 min 30 s left is "1 Std"); elapsed ages floor (`ui/age.ts`).
 - **A reading is judged as written** (`asWritten`, `ui/units.ts`): against 21 ± 1 °C "1,0 zu hoch" is in target and
   "1,1" is not, so the verdict never disagrees with the figure beside it. The band is one tolerance per metric, not
@@ -282,10 +340,16 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   change of the day counter, a harvest as how the total is shared and when the grow ends), and a refusal is turned
   into the action it asks for.
 - **What has side effects asks first and says what it does**:
-  - "Wartung · 15 Min" names what this device stops (heater, dehumidifier or compressor, CO₂ valve) and parks every
-    device of the place, since a window on one device would ring as the door opens. Its toast is not undoable: the
-    diary line can be taken back, the pause cannot. It is started in two places and no third (Chris, 2026-11-11):
-    on Start, and with the device under Steuerung. Neither an alert's card nor the entry sheet starts one.
+  - "Wartung · 15 Min" is the exception that asks nothing (decided 2026-11-12): one tap starts a quarter of an
+    hour - no sheet and nothing to read first, because the hand that taps it is on the zip. While the window
+    stands the same spot says until when and carries "Beenden" and "Verlängern" (another quarter of an hour), and
+    the status sentence that says so leads there (`MaintenanceControl`, `screens/devices/Maintenance.tsx`). It
+    parks every device of the place, since a window on one device would ring as the door opens, and says so
+    where a device was not there to hear it. It is started in two places and no third (Chris, 2026-11-11): on
+    Start, and with the device under Steuerung - the control is built to stand on that card as it is. Until that
+    card exists, the device's panel under Geräte keeps the sheet that asks for a length and names what this
+    device stops (heater, dehumidifier or compressor, CO₂ valve). Neither an alert's card nor the entry sheet
+    starts one.
   - "Regelung aus" stops everything and pauses a running plan, whose next step would switch it on again; on is one tap.
   - Saving a figure a running plan writes (a target, the light limit) pauses the plan first - it would put the step's
     figure back within the hour - with its reason ("Zielwerte von Hand gesetzt", "Lichtgrenze von Hand"), says so in
@@ -388,6 +452,14 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
 - QR codes stay dark on light in dark mode (`--qr-ink`, `--qr-paper`): some scanners cannot read an inverted code.
 - Amber (`--warning`) is for what is wrong and for a state somebody chose that stops regulation (Regelung aus, a plan
   paused for a figure set by hand); a running output is the light brand blue (`--output`), never amber.
+- **Facts side by side break between two facts, never inside one** (`ui/Facts.tsx`, decided 2026-11-12 after
+  320 and 360 px showed lines ending on "·" and "Licht" parted from "aus"): "24,3 °C · 66 % · Licht 80 %" is a row
+  of facts with the dot in front of each, and the dot of whatever fact starts a line is not drawn - so no line ends
+  on the separator and none begins with it, a figure keeps its unit and a label its value. A fact may be a row of
+  its own (the day's targets, the night's), which stays together while it fits a line. In running text a figure is
+  bound to the unit after it (`unbroken`, `ui/fact-text.ts`). Start's lines are set this way; the grow pages'
+  lines still join their parts with a plain " · ".
+- A picture as bright as the page - a lit tent - keeps a hairline edge against it (`screens/start/Start.module.css`).
 
 ## 10. Privacy in the app
 No location, no comments, no feed, no directory (Chris, 2026-09-16). Harvest weights and plant counts can be logged

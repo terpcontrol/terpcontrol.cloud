@@ -1,4 +1,4 @@
-import { queryOptions, useQueries } from '@tanstack/react-query';
+import { queryOptions, useQueries, type QueryClient } from '@tanstack/react-query';
 import { isFirstLoad, LIVE_BEAT_MS, useRead } from './read';
 import type { Plan, PlanReplace, PlanTemplate, PlanTemplateCreate, PlanTemplatePage, PlanTransition } from '@fg2/shared-types/v1';
 import { api } from './client';
@@ -93,6 +93,17 @@ export const usePlanTransition = (deviceId: string) =>
       growChanged(client);
     },
   );
+
+/**
+ * A plan moved by another door than its own page - a step confirmed where it
+ * was due. The plan, and the devices whose targets the new step has written,
+ * are read again with the grow, so no screen goes on saying the step that was
+ * left until its next beat.
+ */
+export const planMoved = (client: QueryClient) => {
+  growChanged(client);
+  return invalidate(client, ['devices']);
+};
 
 /** Every template this account may start from: its own, and the ones anybody published. Newest first. */
 export const usePlanTemplates = () =>

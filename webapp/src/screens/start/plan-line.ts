@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
 import type { Plan } from '@fg2/shared-types/v1';
 import type { Translate } from '@/i18n/i18n';
-import { DAY_MS, HOUR_MS } from '@/ui/days';
+import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/ui/days';
 import { activeStep, isGoing, isOpenEnded, isWaiting, leftMs, nextStepIndex, readingAt } from '@/screens/control/plan-clock';
 
 /**
@@ -9,9 +9,16 @@ import { activeStep, isGoing, isOpenEnded, isWaiting, leftMs, nextStepIndex, rea
  * when it changes the targets next, as the targets' row on Start says it.
  */
 
-/** "12 days", or "5 hours" on the last day: a step is counted in the unit a grower plans by, rounded up so it never reads short. */
-const leftWords = (t: Translate, ms: number): string =>
-  ms >= DAY_MS ? t('planLine.days', { count: Math.ceil(ms / DAY_MS) }) : t('planLine.hours', { count: Math.max(1, Math.ceil(ms / HOUR_MS)) });
+/**
+ * "12 days", "5 hours" on the last day, "40 minutes" in the last hour: a step
+ * is counted in the unit it still has more than one of, rounded up so it never
+ * reads short - and a step of a few minutes is not said to have an hour left.
+ */
+const leftWords = (t: Translate, ms: number): string => {
+  if (ms >= DAY_MS) return t('planLine.days', { count: Math.ceil(ms / DAY_MS) });
+  if (ms >= HOUR_MS) return t('planLine.hours', { count: Math.ceil(ms / HOUR_MS) });
+  return t('planLine.minutes', { count: Math.max(1, Math.ceil(ms / MINUTE_MS)) });
+};
 
 export const planLineOf = (t: Translate, plan: Plan, now: DateTime): string | null => {
   if (!plan.state || !isGoing(plan.state)) return null;

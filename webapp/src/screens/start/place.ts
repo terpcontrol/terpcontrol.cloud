@@ -327,6 +327,8 @@ interface StatusInput {
   controlOff?: boolean;
   /** The humidity a humidifier holds while the device germinates, which the server names no target for. */
   humidifierHold?: HumidifierHold | null;
+  /** Since when a device here has been silent, where it has been for so long that no value of it is left to date it by. */
+  silentSince?: string | null;
 }
 
 export const statusOf = (place: StatusInput, now: DateTime): Status => {
@@ -336,7 +338,11 @@ export const statusOf = (place: StatusInput, now: DateTime): Status => {
     const alert = worstAlertOf({ openAlerts: place.openAlerts.filter(one => !isSilence(one)) });
     return alert ? { kind: 'alert', alert } : { kind: 'none' };
   }
-  if (liveness === 'offline') return place.values.length === 0 ? { kind: 'waiting' } : { kind: 'offline', since: measuredAtOf(place.values) };
+  if (liveness === 'offline') {
+    if (place.values.length > 0) return { kind: 'offline', since: measuredAtOf(place.values) };
+    // No value at all: a device that has yet to send its first one, unless it is known to have been heard and gone quiet.
+    return place.silentSince ? { kind: 'offline', since: place.silentSince } : { kind: 'waiting' };
+  }
   if (place.quiet) return { kind: 'maintenance', quiet: place.quiet };
   if (place.controlOff) return { kind: 'controlOff' };
 

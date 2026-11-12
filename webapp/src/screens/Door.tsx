@@ -1,12 +1,22 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { Logo } from '@/ui/Logo';
 import ui from '@/ui/ui.module.css';
 import styles from './SignIn.module.css';
 
-/** The card every page outside the shell stands in: the logo, a step's title where it has one, and the form. */
-export function Door({ title, onSubmit, children }: { title?: string; onSubmit?: () => void; children: ReactNode }) {
+/**
+ * The card every page outside the shell stands in: the logo, a step's title where it has one, and the form.
+ * `page` names the page in the window's title - outside the shell nothing else does, and a tab that came
+ * from the demo went on carrying the demo place's name over the sign-up form.
+ */
+export function Door({ title, page, onSubmit, children }: { title?: string; page?: string; onSubmit?: () => void; children: ReactNode }) {
+  const named = page ?? title;
+
+  useEffect(() => {
+    document.title = named ? `${named} – Terp Control` : 'Terp Control';
+  }, [named]);
+
   return (
     <main className={styles.page}>
       <form

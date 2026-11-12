@@ -3,6 +3,7 @@ import { Navigate, useParams } from 'react-router';
 import { fetchedAt } from '@/api/clock';
 import { useHome } from '@/api/home';
 import { useSession } from '@/api/session';
+import { useSpaces } from '@/api/spaces';
 import { isPlace } from '@/app/places';
 import { EmptyStart } from './EmptyStart';
 import { GrowStart } from './GrowStart';
@@ -28,7 +29,7 @@ export function Start() {
   }, [userId, answeredAt]);
 
   if (home.isPending) return <StartWaiting />;
-  if (!home.data) return <StartFailed retry={() => void home.refetch()} />;
+  if (!home.data) return <StartFailed retry={() => void home.refetch()} error={home.error} retrying={home.isFetching} />;
 
   const answer = home.data;
   const places = answer.spaces.filter(isPlace);
@@ -47,13 +48,23 @@ export function Start() {
  * only one - the address hands over to Start rather than drawing a second
  * copy of it with a way back to itself; with several, the way back leads to
  * their cards.
+ *
+ * A room has no Start of its own: it groups places and holds nothing, so its
+ * address leads to Start, where it is the heading over its places. Only a
+ * room with hardware standing in the room itself is a place - Start lists it
+ * as a card - and keeps its page.
  */
 export function StartOfPlace() {
   const { spaceId = '' } = useParams();
   const home = useHome();
+  const spaces = useSpaces();
   const cards = home.data?.spaces ?? [];
+  const room = spaces.data?.items.some(space => space.id === spaceId && space.kind === 'room') === true;
 
   if (cards.length === 1 && cards[0].spaceId === spaceId) return <Navigate to="/" replace />;
+  if (room && home.data && !cards.some(card => card.spaceId === spaceId)) return <Navigate to="/" replace />;
+  // Whether the address names a room is known once the places have answered; until then nothing of a place is drawn for it.
+  if (spaces.isPending || home.isPending) return <StartWaiting />;
 
   return <PlaceStart key={spaceId} spaceId={spaceId} back={cards.length > 1} />;
 }

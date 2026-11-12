@@ -195,11 +195,21 @@ const answers = (path: string) => {
   throw new Error(`nothing mocked for ${path}`);
 };
 
+/** What the probe hands the toast: the way an answer is taken back, and what a tick changed beyond the diary. */
+const told = { undo: vi.fn<() => Promise<unknown>>(), changed: vi.fn() };
+
 /** The sheet is opened the way the tab bar opens it, and a task ticked off the way a due card ticks it. */
 function OpenLog() {
-  const { openSheet, complete } = useLog();
+  const { openSheet, complete, tell } = useLog();
   return (
     <>
+      {/* What an offer declined on Start says once its card is gone, and what a plan step confirmed there reads again. */}
+      <button type="button" onClick={() => tell({ label: 'The diary stays off.', undo: told.undo })}>
+        tell
+      </button>
+      <button type="button" onClick={() => complete('step-1', 'Step confirmed · Late flower', { undoable: false, changed: told.changed })}>
+        confirm
+      </button>
       <button type="button" onClick={() => openSheet()}>
         open
       </button>
@@ -281,6 +291,10 @@ beforeEach(() => {
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.post).mockResolvedValue(written as never);
   vi.mocked(api.delete).mockResolvedValue(undefined as never);
+  vi.mocked(api.post).mockClear();
+  vi.mocked(api.delete).mockClear();
+  told.undo.mockReset();
+  told.changed.mockReset();
 });
 
 describe('the log sheet', () => {
@@ -497,6 +511,43 @@ describe('the log sheet', () => {
 
     answered(written);
     await waitFor(() => expect(screen.getByText('Watered · Spring run')).toBeInTheDocument());
+  });
+
+  it('reads again what a tick changed beyond the diary, once it has landed', async () => {
+    draw();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+
+    expect(await screen.findByText('Step confirmed · Late flower')).toBeInTheDocument();
+    await waitFor(() => expect(told.changed).toHaveBeenCalledTimes(1));
+    // A plan moved on is not taken back by deleting its diary line.
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  it('says what a tap did where the tap took its own button away, and takes it back by the way it was given', async () => {
+    told.undo.mockResolvedValue(undefined);
+    draw();
+    fireEvent.click(screen.getByRole('button', { name: 'tell' }));
+
+    // Nothing is sent for it: it is said, not written.
+    expect(await screen.findByText('The diary stays off.')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(told.undo).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByText('The diary stays off.')).not.toBeInTheDocument());
+    // No diary line is deleted for it.
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+
+  it('says so when taking it back was refused, and offers to try again', async () => {
+    told.undo.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(undefined);
+    draw();
+    fireEvent.click(screen.getByRole('button', { name: 'tell' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(told.undo).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument());
   });
 
   it('does not offer to measure a tent with nothing growing in it', async () => {

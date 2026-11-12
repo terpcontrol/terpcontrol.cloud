@@ -466,13 +466,13 @@ describe('mine and all', () => {
 });
 
 describe('ticking one off', () => {
-  it('writes the completion of exactly that task, and says what line it wrote', async () => {
+  it('writes the completion of exactly that task, and names in the toast what was ticked', async () => {
     await drawLoaded();
 
     fireEvent.click(screen.getByRole('button', { name: 'Done: Water' }));
 
     expect(api.post).toHaveBeenCalledWith('/tasks/rem-1%3A2026-09-16/completions', {});
-    expect(await screen.findByText('Watered · Spring run')).toBeInTheDocument();
+    expect(await screen.findByText('Done · Water · Spring run')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
   });
 
@@ -495,7 +495,7 @@ describe('ticking one off', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm the step' }));
 
     expect(api.post).toHaveBeenCalledWith('/tasks/plan%3Adevice-1%3A2/completions', {});
-    expect(await screen.findByText('Step confirmed · Tent 1')).toBeInTheDocument();
+    expect(await screen.findByText('Step confirmed · Late flower on day 36? · Tent 1')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
   });
 
@@ -736,7 +736,7 @@ describe('a member who may only log', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Done: Water' }));
 
     expect(api.post).toHaveBeenCalledWith('/tasks/rem-1%3A2026-09-16/completions', {});
-    expect(await screen.findByText('Watered · Spring run')).toBeInTheDocument();
+    expect(await screen.findByText('Done · Water · Spring run')).toBeInTheDocument();
   });
 
   it('is offered no circle on a plan step, and is told whose the plan is', async () => {

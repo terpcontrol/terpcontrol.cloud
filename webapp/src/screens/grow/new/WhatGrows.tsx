@@ -23,16 +23,25 @@ type Since = 'today' | 'week' | 'date';
  * what its device was set to, here as before, and Steuerung is where it is
  * changed. So the stages are named plainly, and nothing in a running tent
  * moves because somebody said what is growing in it.
+ *
+ * It opens on the stage the place is on (`stage`) and follows it until one is
+ * picked - the caller reads it off the device, which may answer after the
+ * form is drawn. Where nothing says, it opens on growth: a tent that already
+ * regulates rarely holds seeds, and a form that opened on germination wrote
+ * "Keimung" over many a flowering tent whose grower only typed a name.
  */
 export function WhatGrows({
   spaceId,
   stage: given = null,
+  onStarting,
   onStarted,
   submitClass,
 }: {
   spaceId: string;
-  /** The stage the place was just put on, which is the one the plants are most likely in. */
+  /** The stage the place is on, which is the one the plants are most likely in; null or absent where nothing says. */
   stage?: GrowthStage | null;
+  /** The form was sent: from here on the grow may exist, whatever the page around the form reads next. */
+  onStarting?: () => void;
   onStarted: (growId: string) => void;
   submitClass?: string;
 }) {
@@ -44,7 +53,8 @@ export function WhatGrows({
   const [since, setSince] = useState<Since>('today');
   const [date, setDate] = useState(() => serverNow().toJSDate());
   const [count, setCount] = useState(1);
-  const [stage, setStage] = useState<GrowthStage>(given && START_STAGES.includes(given) ? given : 'germination');
+  const [picked, setStage] = useState<GrowthStage | null>(null);
+  const stage: GrowthStage = picked ?? (given && START_STAGES.includes(given) ? given : 'vegetative');
 
   const submit = async () => {
     const now = serverNow().toJSDate();
@@ -56,6 +66,7 @@ export function WhatGrows({
       null,
       t('grow.new.unnamedStrain'),
     );
+    onStarting?.();
     try {
       onStarted(await start({ body, stage, startedAt }));
     } catch {

@@ -1,6 +1,5 @@
 import { ChevronRight } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { CardSetpoint, Device, Metric, OverviewTargets } from '@fg2/shared-types/v1';
@@ -8,6 +7,8 @@ import { useDevicePlans } from '@/api/plans';
 import { controlPath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { awaitingClimate, darkReasonOf } from '@/ui/climate-hardware';
+import { factsOf } from '@/ui/fact-text';
+import { Facts } from '@/ui/Facts';
 import { targetWithUnit } from '@/ui/units';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
@@ -25,12 +26,12 @@ const halfOf = (row: CardSetpoint[], withCo2: boolean, withHumidity: boolean): s
   });
 
 /**
- * What a place is set to, in one line: "Tag 25 °C · 60 % · Nacht 21 °C ·
- * 55 %". CO₂ stands with the day because it is only dosed by day. Where the
- * device has no day and night the line is named by what it holds - a drying
- * room's, a germination's, the one climate held round the clock - and a smart
- * socket or a lamp says its own settings. Each part stays on one line; empty
- * where nothing is set.
+ * What a place is set to: "Tag 25 °C · 60 % · Nacht 21 °C · 55 %", as the
+ * groups it is made of - a half of the day with its figures, the name bound to
+ * the first. CO₂ stands with the day because it is only dosed by day. Where
+ * the device has no day and night the group is named by what it holds - a
+ * drying room's, a germination's, the one climate held round the clock - and a
+ * smart socket or a lamp says its own settings. Empty where nothing is set.
  */
 const targetsLine = (
   t: Translate,
@@ -40,15 +41,15 @@ const targetsLine = (
     humidifierHold,
     offset,
   }: { targets: OverviewTargets | null; device: Device | null; humidifierHold: HumidifierHold | null; offset: number },
-): string[] => {
+): string[][] => {
   const own = device ? (plugSummaryOf(t, device, offset) ?? fanSummaryOf(t, device)) : null;
-  if (own) return own.map(row => [row.label, ...row.parts].join(' '));
+  if (own) return own.map(row => [[row.label, ...row.parts].join(' ')]);
   if (!targets) return [];
 
   const shape = storedShapeOf(device);
   const regime = shape?.regime ?? 'cycle';
   const humidity = shape ? holdsHumidity(shape) : true;
-  const named = (label: string, parts: string[]): string[] => (parts.length > 0 ? [`${label} ${parts.join(' · ')}`] : []);
+  const named = (label: string, parts: string[]): string[][] => (parts.length > 0 ? [[`${label} ${parts[0]}`, ...parts.slice(1)]] : []);
   if (regime === 'drying' || regime === 'germination') {
     const held = regime === 'germination' && humidifierHold ? [targetWithUnit(humidifierHold.target, 'humidity')] : [];
     return named(t(`start.targets.${regime}`), [...halfOf(targets.night, false, humidity), ...held]);
@@ -113,15 +114,11 @@ export function Targets({
   const planLine = plan ? planLineOf(t, plan, now) : null;
   const own = device?.type === 'plug' || device?.type === 'light';
   const title = t(own ? 'ownPanel.title' : 'start.targets.title');
-  const parts = targetsLine(t, { targets, device, humidifierHold, offset: offsetOf(now, zone) });
+  const groups = targetsLine(t, { targets, device, humidifierHold, offset: offsetOf(now, zone) });
+  // A half of the day stays together for as long as it fits a line, and no line ends on the dot between two figures.
   const line =
-    parts.length > 0 ? (
-      parts.map((part, index) => (
-        <Fragment key={part}>
-          {index > 0 ? ' · ' : null}
-          <span>{part}</span>
-        </Fragment>
-      ))
+    groups.length > 0 ? (
+      <Facts facts={groups.map(group => (group.length > 1 ? <Facts key={group[0]} facts={group} /> : group[0]))} />
     ) : (
       <span>
         {t(
@@ -141,8 +138,8 @@ export function Targets({
         <h2 className={styles.cardTitle} id="start-targets">
           {title}
         </h2>
-        <span className={`mono ${styles.parts}`}>{line}</span>
-        {light ? <span className={`mono ${styles.cardText}`}>{light}</span> : null}
+        <span className="mono">{line}</span>
+        {light ? <Facts className={`mono ${styles.cardText}`} facts={factsOf(light)} /> : null}
         {guest ? <span className={styles.cardText}>{t('start.targets.whoChanges', { name })}</span> : null}
       </section>
     );

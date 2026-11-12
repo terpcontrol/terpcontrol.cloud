@@ -15,6 +15,7 @@ import type {
   SpaceOverview,
   SpaceTimeline,
 } from '@fg2/shared-types/v1';
+import { expectLayout, takeExpected } from '@/api/layers';
 import { screens } from '@/app/routes';
 import { AppShell } from '@/app/shell/AppShell';
 import { tabsOf } from '@/app/shell/tabs';
@@ -780,6 +781,32 @@ describe('a change to the shape of the app', () => {
     expect(within(notice).getByRole('link', { name: 'Turn it off under Me › Appearance' })).toHaveAttribute('href', '/me/appearance');
   });
 
+  it('records what setup switched on itself without a word: the grower chose it on the page before', async () => {
+    // Said by the claim´s last step before it starts the grow that brings the diary.
+    expectLayout({ diary: true });
+    server.diary = true;
+    server.me = meOf(true, { diary: false, places: false });
+    open(QUIET);
+
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: true, places: false } } });
+    expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
+    // The word holds for that one change: it is used up with it.
+    expect(takeExpected()).toEqual({});
+  });
+
+  it('still says a second place that came with what setup switched on', async () => {
+    expectLayout({ diary: true });
+    server.diary = true;
+    server.places = TWO;
+    server.me = meOf(true, { diary: false, places: false });
+    open(QUIET);
+
+    const notice = await screen.findByRole('status', { name: 'What changed' });
+    expect(notice).toHaveTextContent('There are 2 places now');
+    expect(notice).not.toHaveTextContent('The grow diary is on');
+  });
+
   it('records what went away without a word, because the grower did it', async () => {
     server.me = meOf(false, { diary: true, places: true });
     open(QUIET);
@@ -805,7 +832,7 @@ describe('the place menu', () => {
   it('renames the place under the name every screen calls it by', async () => {
     open('/');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit Fridge 1' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit place: Fridge 1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
     const field = screen.getByRole('textbox', { name: 'Name' });
     fireEvent.change(field, { target: { value: 'Blue Dream' } });
@@ -816,13 +843,13 @@ describe('the place menu', () => {
     );
   });
 
-  it('offers a member who may only log who else is here, and nothing that would change the place', async () => {
+  it('draws no menu for a member who may only log, and leads them to who else is here from whose place it is', async () => {
     server.youMay = 'log';
     open('/');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit Fridge 1' }));
-    expect(await screen.findByRole('link', { name: 'Invite members' })).toHaveAttribute('href', '/spaces/space-1/members');
-    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+    // Everything behind the menu changes the place, and a menu of things one may not do is no menu.
+    expect(await screen.findByRole('link', { name: /see the members$/ })).toHaveAttribute('href', '/spaces/space-1/members');
+    expect(screen.queryByRole('button', { name: /^Edit place/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Maintenance/ })).not.toBeInTheDocument();
   });
 });

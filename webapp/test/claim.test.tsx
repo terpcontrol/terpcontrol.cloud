@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { Device, DeviceCapabilities, GrowListItem, Me, NotificationSettings, Space } from '@fg2/shared-types/v1';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { api } from '@/api/client';
+import { expectLayout, takeExpected } from '@/api/layers';
 import { ApiError } from '@/api/problem';
 import { Claim } from '@/screens/claim/Claim';
 import { deviceWith } from './fixtures';
@@ -214,7 +215,7 @@ describe('adding a device', () => {
     expect(screen.getByRole('button', { name: /Next/ })).toHaveTextContent('Next · what is it doing?');
   });
 
-  it('draws the five steps the board names, and says the rest can wait', async () => {
+  it('draws every step the count names - the last one, which is a page of its own, too - and says the rest can wait', async () => {
     await drawClaimed();
 
     const steps = screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent);
@@ -224,7 +225,9 @@ describe('adding a device', () => {
       'What is it doing right now?',
       'Sockets and cam',
       'How will you hear about problems?',
+      'What grows here?',
     ]);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/of 6$/);
     expect(
       screen.getByText('The preset can be changed later from Control, the sockets and the cam from Devices, notifications from Me.'),
     ).toBeInTheDocument();
@@ -356,6 +359,82 @@ describe('adding a device', () => {
 
     await screen.findByRole('heading', { level: 1, name: /What grows in/ });
     expect(screen.getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  /**
+   * The stage picked a step earlier lives in this page and is gone with a locked phone. What the device was set to
+   * is not: picked up again, the question opens on the stage whose climate the device holds, never on germination
+   * because nothing was at hand to say otherwise.
+   */
+  it('opens the question, picked up again later, on the stage the device was put on', async () => {
+    const flowering = {
+      ...device,
+      control: { running: true, drying: false, mode: 'standard', energySaving: false },
+      configuration: {
+        daynight: { day: 6 * 3600, night: 18 * 3600 },
+        day: { temperature: 25, humidity: 50 },
+        night: { temperature: 20, humidity: 50 },
+        co2: { target: 1000 },
+        lights: { limit: 100 },
+      },
+    };
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices' ? { items: [flowering], nextCursor: null } : answers(path)) as never,
+    );
+    draw('/claim?device=sim-controller-7f3a&at=5');
+
+    await screen.findByRole('heading', { level: 1, name: /What grows in/ });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.getByRole('button', { name: 'Germination' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('opens it on growth where nothing says which stage the place is on', async () => {
+    draw('/claim?device=sim-controller-7f3a&at=5');
+
+    await screen.findByRole('heading', { level: 1, name: /What grows in/ });
+    expect(screen.getByRole('button', { name: 'Veg' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  /**
+   * The grow the answer makes is read by this page too, and "a grow stands here" is what takes the question away.
+   * It stays until its own form has been answered, so the list of steps does not flash up under a form still
+   * sending, and the shell is told beforehand that the diary about to appear is setup´s own doing.
+   */
+  it('keeps the question on screen while its answer is on the way, and says the diary it brings is its own doing', async () => {
+    let phaseWritten = () => {};
+    vi.mocked(api.post).mockImplementation((path: string) => {
+      if (path === '/grows') {
+        state.grows = [{ ...spring, placements: [{ ...spring.placements[0], spaceId: 'space-new' }] } as GrowListItem];
+        return Promise.resolve({ id: 'grow-new' }) as never;
+      }
+      return new Promise(resolve => (phaseWritten = () => resolve({}))) as never;
+    });
+    draw('/claim?device=sim-controller-7f3a&at=5');
+
+    await screen.findByRole('heading', { level: 1, name: /What grows in/ });
+    expect(takeExpected()).toEqual({ diary: true });
+    expectLayout({ diary: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Start a grow' }));
+
+    // The grow exists and the place's grows have been read again; the phase is still on its way.
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/grows/grow-new/phases', expect.anything()));
+    await waitFor(() => expect(vi.mocked(api.get).mock.calls.filter(([path]) => path === '/grows').length).toBeGreaterThan(2));
+    expect(screen.getByRole('heading', { level: 1, name: /What grows in/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: /Claimed/ })).not.toBeInTheDocument();
+
+    phaseWritten();
+    await waitFor(() => expect(address()).toBe('/spaces/space-new'));
+    // Leaving after a grow was started keeps the word; leaving without one would have taken it back.
+    expect(takeExpected()).toEqual({ diary: true });
+  });
+
+  it('takes its word about the diary back when the question is left unanswered', async () => {
+    draw('/claim?device=sim-controller-7f3a&at=5');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Not now' }));
+
+    expect(address()).toBe('/spaces/space-new');
+    expect(takeExpected()).toEqual({ diary: false });
   });
 
   it('does not ask what grows where a grow already stands, nor of an account that said no to the diary', async () => {

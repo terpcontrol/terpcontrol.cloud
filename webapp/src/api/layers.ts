@@ -67,3 +67,26 @@ export const useSeeLayout = () =>
     (layoutSeen: LayoutSeen) => api.patch<Me>('/me', { preferences: { layoutSeen } }),
     (client, me) => client.setQueryData(meKey, me),
   );
+
+/**
+ * What setup is about to switch on itself. Starting a grow as the last step
+ * of setting a device up brings the diary into the bar, and the shell
+ * announces every change of layout once - but not this one: the grower chose
+ * it a moment ago, on a page that said what it does. Setup says so before it
+ * writes, and the shell, recording the new layout as seen, leaves out the
+ * words for what was expected. It lives as long as the page, which is as long
+ * as the way from the claim's last step to Start.
+ */
+let expected: Partial<LayoutSeen> = {};
+
+/** Said before the write that brings the change; `false` takes the word back where the write was never made. */
+export const expectLayout = (change: Partial<LayoutSeen>): void => {
+  expected = { ...expected, ...change };
+};
+
+/** What of a change the shell is about to announce was expected; asking uses it up. */
+export const takeExpected = (): Partial<LayoutSeen> => {
+  const was = expected;
+  expected = {};
+  return was;
+};

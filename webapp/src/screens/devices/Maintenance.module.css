@@ -61,3 +61,54 @@ button.button {
   font-size: var(--text-sm);
   line-height: 1.5;
 }
+
+/* --- maintenance as one control: the tap that starts it, and the row it turns into --- */
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.controlStart {
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+.controlStart:disabled {
+  opacity: 0.45;
+}
+
+.controlRunning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--warning-wash);
+  border: var(--rule-width) solid var(--warning-edge);
+  border-radius: var(--radius);
+}
+
+/* Until when on a line of its own, the two ways on side by side under it: neither button is left alone on a row. */
+.controlSays {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  gap: 1px;
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+}
+
+.controlRunning > button {
+  flex: 1 1 0;
+}
+
+.controlSays .subline {
+  color: var(--ink);
+}

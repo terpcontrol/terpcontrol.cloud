@@ -190,7 +190,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   refresh, could otherwise leave the public grow loading.
 - The demo is `POST /v1/sessions/demo` and has no account: account routes (`/v1/me` and its kin) answer 403
   `no_account`, so account reads are gated - `useAccountMe()` in `src/api/account.ts` - and
-  `src/ui/session-access.ts` answers `view` for it in every place, so it is offered no write. Public pages fire no
+  `src/ui/session-access.ts` answers `view` for it in every place, so it is offered no write. Leaving the demo
+  only forgets its session: `session.logOut()` sends no `DELETE /v1/sessions/{id}` for it, which the server
+  refuses a session that may write nothing - a refused request on the way from the demo to sign-up. Public pages fire no
   session-bound read for a stranger or the demo; only a signed-in reader's Follow reads its follows.
 - Access in a place is the server's `space.youMay`, read through `src/ui/session-access.ts` (`useMayInSpace`,
   `useMayManage`, `useMayLogIn`, `useMayWith`, ...); never derive it from owner ids. What to draw for which role:
@@ -277,7 +279,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   derived from the colour logo by `scripts/derive-logo.mjs`.
 - An Erweitert item is a file `*.advanced.tsx` exporting `items` built with
   `advancedItem({ scope, id, order, shows, Item })`, found by `import.meta.glob` in `src/ui/advanced/registry.ts`.
-  Scopes: `device`, `place`, `charts`, `camera`. The fast-refresh lint rule is off for these files. Its device
+  Scopes: `device`, `charts`, `camera`. The fast-refresh lint rule is off for these files. Its device
   settings are `Field*` controls (`src/ui/advanced/Fields.tsx`) named as `CONFIGURATION_FIELDS` names them per type
   (`shared-types/src/v1/configuration-fields.ts`, the AIR fan and the LIGHT included), written on the tap through
   `useConfigure` (`PATCH /v1/devices/{id}/configuration` with `set`); a row then shows what the server stored.
@@ -285,6 +287,15 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `src/app/shell/AppShell.module.css`). A root that sets `width: 100%` therefore also needs a `max-width`
   (`--page-width`, `--reading-width`), or the margin pushes it past the window's right edge and the page scrolls
   sideways from about 1400 px - a place's page at `/spaces/:id` did, until it took `--page-width` itself.
+- The window's title follows the page's `<h1>` inside the shell (`app/shell/page-title.ts`). Outside it nothing
+  does, so the card every such page stands in names it: `Door` (`src/screens/Door.tsx`) takes `page` - or the
+  step's `title` - and sets "… – Terp Control". A tab that came from the demo carried the demo place's name over
+  the sign-up form until it did.
+- A toast is the entry sheet's (`src/log/LogProvider.tsx`): a line on its way to the server, with Undo. `tell({
+  label, undo })` says something already done where the tap took its own button away - an offer declined on Start
+  - with the caller's own way back; nothing is sent for it. `complete(taskId, label, { changed })` reads again
+  what a tick changed beyond the diary - `planMoved` (`src/api/plans.ts`) for a plan step, whose plan and device
+  reads would otherwise say the step that was left until their next beat.
 - Copy through `useCopied()` (`src/ui/clipboard.ts`): it falls back to `execCommand` where `navigator.clipboard` is
   missing (plain HTTP) and answers `copied` or `failed` for the button to say.
 - Webhook templates (`src/screens/control/alarms/webhook-templates.ts`: Home Assistant, Discord, Telegram, ntfy)

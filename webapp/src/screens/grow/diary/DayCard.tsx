@@ -6,6 +6,7 @@ import type { GrowDiaryDay, GrowListItem, Person } from '@fg2/shared-types/v1';
 import { timelinePath } from '@/app/places';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { useCorrecting } from '@/log/corrections';
+import { warningOf } from '@/ui/entries';
 import { EntryWords } from '@/ui/EntryRow';
 import { Term } from '@/ui/Help';
 import { Line, Lines } from '@/ui/Lines';
@@ -118,8 +119,7 @@ export function DayCard({
                   key={line.key}
                   stamp={stamp}
                   mark={mark}
-                  // Amber is for what needs a person: an alarm raised, not a restart or a step of the plan.
-                  severity={entry.kind === 'alarm' && entry.severity !== 'info' ? entry.severity : null}
+                  severity={warningOf(entry)}
                   onOpen={correct ?? (pictures[0] ? () => onPicture(pictures[0]) : null)}
                   opens={correct ? undefined : t('grow.diary.openPicture')}
                 >

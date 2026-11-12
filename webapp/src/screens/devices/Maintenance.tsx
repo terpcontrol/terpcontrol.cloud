@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, DeviceCommandResult } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useDevicesCommand } from '@/api/commands';
+import { Refused } from '@/ui/PageState';
 import { Sheet } from '@/ui/Sheet';
 import { MAINTENANCE_MINUTES, maintenanceSpans, parkedLabel, parkedQuiet, parksAnything, parksLine, VISIT_MINUTES } from '@/ui/maintenance';
 import { Answered, Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
@@ -15,10 +16,13 @@ import styles from './Maintenance.module.css';
 
 /**
  * The two things a grower does to the hardware itself: a window of maintenance
- * - a quarter of an hour, half an hour or an hour - and a restart. Both reach
- * real hardware and neither can be taken back, so each is a button that opens
- * a question saying what is about to stop, and the question turns into the
- * receipt once it has been answered.
+ * and a restart. Both reach real hardware. On the device's panel each is a
+ * button that opens a question saying what is about to stop - for maintenance
+ * with its length, a quarter of an hour, half an hour or an hour - and the
+ * question turns into the receipt once it has been answered. On Start
+ * maintenance is `MaintenanceControl` instead: one tap for a quarter of an
+ * hour, ended and extended at the same spot, which is also what the device's
+ * card under Steuerung is to carry.
  *
  * Maintenance is sent as the device command and not written as a diary line:
  * it is the same window on the same hardware, but a grower who keeps no diary
@@ -50,20 +54,18 @@ interface TwoLinesProps {
 /**
  * "Maintenance" and what that means under it, or, while the devices are
  * parked, until when. It opens the question, where the length is chosen; it
- * never sends. `plain` is the one line Start draws it as: "Wartung · 15 Min".
+ * never sends.
  */
 export function MaintenanceButton({
   devices,
   now,
   disabled,
   className,
-  plain = false,
 }: {
   devices: Device[];
   now: DateTime;
   disabled?: boolean;
   className?: string;
-  plain?: boolean;
 }) {
   const { t } = useTranslation();
   const zone = useZone();
@@ -73,22 +75,68 @@ export function MaintenanceButton({
 
   return (
     <>
-      {plain ? (
-        <button type="button" className={className} disabled={disabled} onClick={() => setAsking(true)}>
-          {until ?? t('maintenance.actionShort', { minutes: VISIT_MINUTES })}
-        </button>
-      ) : (
-        <TwoLines
-          Icon={Wrench}
-          name={until ?? t('maintenance.actionChoose')}
-          does={t(running ? 'maintenance.runningNote' : 'maintenance.actionNote')}
-          disabled={disabled}
-          className={className}
-          onClick={() => setAsking(true)}
-        />
-      )}
+      <TwoLines
+        Icon={Wrench}
+        name={until ?? t('maintenance.actionChoose')}
+        does={t(running ? 'maintenance.runningNote' : 'maintenance.actionNote')}
+        disabled={disabled}
+        className={className}
+        onClick={() => setAsking(true)}
+      />
       {asking ? <MaintenanceSheet devices={devices} now={now} onClose={() => setAsking(false)} /> : null}
     </>
+  );
+}
+
+/**
+ * Maintenance as one control, for whoever is about to open the tent: one tap
+ * on "Wartung · 15 Min" starts a quarter of an hour - no sheet and nothing to
+ * read first, because the hand that taps it is already on the zip. While the
+ * window stands the same spot says until when and carries the two things left
+ * to decide, ending it and another quarter of an hour.
+ *
+ * It is sent to every device it is given: the place's on Start, the one a
+ * card is about under Steuerung. What it says after a tap is what came back -
+ * a device that was not there to hear it is named, and a refusal is drawn.
+ */
+export function MaintenanceControl({ devices, now, id }: { devices: Device[]; now: DateTime; id?: string }) {
+  const { t } = useTranslation();
+  const zone = useZone();
+  const send = useDevicesCommand();
+  const at = DateTime.max(now, serverNow());
+  const running = parkedQuiet(devices, at);
+  const ids = devices.map(device => device.id);
+  const asked = send.variables?.command.kind === 'maintenance' ? send.variables.command.forSeconds : null;
+  const unheard = asked !== null && asked > 0 && (send.data ?? []).some(receipt => !receipt.deviceOnline);
+
+  const hold = (forSeconds: number) => send.mutate({ deviceIds: ids, command: { kind: 'maintenance', forSeconds } });
+  const left = running ? Math.max(0, Math.round(DateTime.fromISO(running.until).diff(at).as('seconds'))) : 0;
+
+  return (
+    <div className={styles.control} id={id} tabIndex={id ? -1 : undefined}>
+      {running ? (
+        <div className={styles.controlRunning} role="group" aria-label={t('maintenance.title')}>
+          <span className={styles.controlSays}>
+            {t('maintenance.running', { until: clock(running.until, zone) })}
+            <span className={styles.subline}>
+              {send.isPending ? t(asked === 0 ? 'maintenance.ending' : 'maintenance.extending') : t('maintenance.runningNote')}
+            </span>
+          </span>
+          <button type="button" className={ui.button} disabled={send.isPending} onClick={() => hold(0)}>
+            {t('maintenance.endShort')}
+          </button>
+          <button type="button" className={ui.button} disabled={send.isPending} onClick={() => hold(left + VISIT_MINUTES * 60)}>
+            {t('maintenance.extend')}
+          </button>
+        </div>
+      ) : (
+        <button type="button" className={styles.controlStart} disabled={send.isPending || ids.length === 0} onClick={() => hold(VISIT_MINUTES * 60)}>
+          {send.isPending && asked !== 0 ? t('maintenance.starting') : t('maintenance.actionShort', { minutes: VISIT_MINUTES })}
+        </button>
+      )}
+      {unheard && !send.isPending ? <p className={ui.note}>{t('maintenance.unheardShort')}</p> : null}
+      <Refused error={send.error} />
+    </div>
   );
 }
 

@@ -21,7 +21,6 @@ import { DoneCard, RhythmCard, TaskCard } from './tasks/TaskCard';
 import {
   dateLabel,
   dayLabel,
-  entryKindOf,
   GROUPS,
   groupOf,
   isMine,
@@ -30,6 +29,7 @@ import {
   storedScope,
   storeScope,
   subjectName,
+  tickedLabel,
   type Scope,
 } from './tasks/tasks';
 import styles from './tasks/Tasks.module.css';
@@ -232,17 +232,8 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
     return here.length === 1 ? here[0].id : null;
   };
 
-  /**
-   * What the toast says the tick wrote: the line, not the task - "Watered ·
-   * Spring run". A plan step writes a line too, but what it really did is move
-   * the plan on, and the toast says that rather than naming a diary entry
-   * nobody was writing.
-   */
-  const doneLabel = (task: Task) => {
-    const what = task.source === 'plan_step' ? t('tasks.stepConfirmed') : t(`home.entryKind.${entryKindOf(task.kind)}`);
-    const name = nameOf(task);
-    return name ? `${what} · ${name}` : what;
-  };
+  /** What the toast says: the task that was ticked, by its own name, and where (`tickedLabel`). */
+  const doneLabel = (task: Task) => tickedLabel(t, task, nameOf(task));
 
   /**
    * Ticking a plan step tells the plan to go on: the next step becomes the
