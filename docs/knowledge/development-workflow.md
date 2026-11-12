@@ -93,6 +93,14 @@ A round is one pass of building or fixing with its checks, ending in a short rep
   finding and writes the decisions down; the round's own builder, resumed so that it keeps what it knows, fixes
   them once the next round has landed and before the one after it starts. No two agents edit the checkout at the
   same time, and each critic is told which findings are already known and being fixed.
+- **Rounds that do not build on each other run side by side** (Chris, 2026-11-12, when the rounds one after
+  another took too long: faster, in parallel where it is possible and sensible). Each such round gets a git worktree
+  on a branch of its own, a copy of the test rig with its own dev-server port, and - if it changes the server or
+  the data - a stack of its own, started with `scripts/local-stack.local.sh up <a made-up session id> ...` so that
+  it never rebuilds the session's stack (a stack of an unknown session is not cleaned up by itself: remove it at
+  the end). A round that changes only the web app serves its dev server against the session's stack. The session
+  merges the branches; builders change only their own lines in the files every round touches (the catalogues, the
+  routes, `app-ux.md`), and the critics walk the merged image by area, side by side as well.
 - **A rule is sourced to the person who said it, and to nobody else** (2026-11-12: a builder wrote the session's
   own decisions on a critic's findings into `docs/` as "Chris, 2026-11-12", because its brief said they had been
   told to him). What a session decides for itself is sourced as that session and marked as waiting for Chris's
