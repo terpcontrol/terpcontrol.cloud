@@ -1,5 +1,7 @@
 import type { ChartView } from '@fg2/shared-types/v1';
+import { hashKey } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
+import { timelineKey } from '@/api/timeline';
 import {
   appliedOf,
   askOf,
@@ -131,6 +133,16 @@ describe('what the server is asked', () => {
   it('asks a stretch of a grow with its grow, and reads one that names none as the last day', () => {
     expect(askOf(read('range=grow&grow=grow-1'), null)).toMatchObject({ range: 'grow', growId: 'grow-1', follows: false });
     expect(askOf(read('range=grow'), null)).toMatchObject({ range: '24h', growId: null });
+  });
+});
+
+describe('the answer two screens share', () => {
+  it('is kept under one key by Start, which asks for the last day, and by Verlauf as it opens', () => {
+    const opened = askOf(read(''), windowOf(read(''), NOW));
+
+    expect(hashKey(timelineKey('space-1', opened))).toBe(hashKey(timelineKey('space-1', { range: '24h' })));
+    // Any other window, step or device is an answer of its own.
+    expect(hashKey(timelineKey('space-1', askOf(read('step=60'), windowOf(read('step=60'), NOW))))).not.toBe(hashKey(timelineKey('space-1', opened)));
   });
 });
 

@@ -37,28 +37,38 @@ export interface TimelineAsk {
   follows?: boolean;
 }
 
+/**
+ * The key an answer is kept under: what was asked, with nothing said about what was left out - so Start, which asks
+ * for the last day and no more, and Verlauf as it opens share one answer.
+ */
+export const timelineKey = (spaceId: string | null, ask: TimelineAsk | null) => {
+  const asked = ask ?? { range: '24h' as const };
+
+  return [
+    'space',
+    spaceId,
+    'timeline',
+    {
+      range: asked.range,
+      growId: asked.growId ?? undefined,
+      from: asked.from,
+      to: asked.to,
+      stepSeconds: asked.stepSeconds || undefined,
+      deviceId: asked.deviceId ?? undefined,
+      share: asked.share ?? undefined,
+    },
+  ] as const;
+};
+
 export const useTimeline = (spaceId: string | null, ask: TimelineAsk | null) => {
-  const { follows = true, ...asked } = ask ?? { range: '24h' as const };
+  const queryKey = timelineKey(spaceId, ask);
+  const [, , , asked] = queryKey;
 
   return useRead({
-    queryKey: ['space', spaceId, 'timeline', asked],
-    queryFn: ({ signal }) =>
-      api.get<SpaceTimeline>(
-        `/spaces/${spaceId}/timeline`,
-        {
-          range: asked.range,
-          growId: asked.growId ?? undefined,
-          from: asked.from,
-          to: asked.to,
-          stepSeconds: asked.stepSeconds || undefined,
-          deviceId: asked.deviceId ?? undefined,
-          share: asked.share ?? undefined,
-          metrics: TIMELINE_METRICS,
-        },
-        signal,
-      ),
+    queryKey,
+    queryFn: ({ signal }) => api.get<SpaceTimeline>(`/spaces/${spaceId}/timeline`, { ...asked, metrics: TIMELINE_METRICS }, signal),
     enabled: spaceId !== null && spaceId !== '' && ask !== null && (!rangeNeedsGrow(asked.range) || !!asked.growId || !!asked.from),
-    refetchInterval: follows ? TIMELINE_REFRESH_MS : false,
+    refetchInterval: (ask?.follows ?? true) ? TIMELINE_REFRESH_MS : false,
     placeholderData: keepPreviousData,
   });
 };

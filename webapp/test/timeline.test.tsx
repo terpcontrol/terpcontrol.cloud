@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -318,7 +318,7 @@ describe('the view in the address', () => {
     expect(Date.parse(address().searchParams.get('to')!)).toBeLessThan(NOW - 23 * HOUR);
     // Still a day, so its chip stays lit.
     expect(screen.getByRole('button', { name: '24 h', pressed: true })).toBeInTheDocument();
-    await act(async () => fireEvent.click(await screen.findByRole('button', { name: '24 h later' })));
+    fireEvent.click(await screen.findByRole('button', { name: '24 h later' }));
     await waitFor(() => expect(address().search).toBe(''));
   });
 
