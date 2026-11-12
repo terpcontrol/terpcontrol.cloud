@@ -4,7 +4,7 @@ import { FilterQuery, Model } from 'mongoose';
 import type { Entry, EntryKind, EntryPage } from '@fg2/shared-types/v1';
 import { entryKind } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
-import { AccessContext, SubjectRef, SubjectType } from '@common/v1/access.types';
+import { AccessContext, SubjectRef, SubjectType, isOutsider } from '@common/v1/access.types';
 import { findPage, mapPage } from '@common/v1/pages';
 import { badRequest, notFound } from '@common/v1/problem';
 import { clampRange, outsideRange, withinRange } from '@common/v1/range';
@@ -12,7 +12,7 @@ import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowsService } from '../grow/grows.service';
-import { serialiseDiaryEntry } from './diary-entries';
+import { serialiseDiaryEntry, writtenFor } from './diary-entries';
 
 /**
  * The timeline, read.
@@ -57,7 +57,7 @@ export class EntriesService {
     const hide = await this.grows.redaction(grant);
 
     const range = clampRange(grant, { startsAt: instantOf(query.startsAt), endsAt: instantOf(query.endsAt) });
-    const conditions = [await this.about(scope), withinRange('occurredAt', range), kindsOf(query.kinds)];
+    const conditions = [await this.about(scope), withinRange('occurredAt', range), kindsOf(query.kinds), writtenFor(grant)];
     const page = await findPage(this.entries, conditions, query, { field: 'occurredAt' });
 
     return mapPage(page, row => serialiseDiaryEntry(row, hide, grant));
@@ -77,7 +77,10 @@ export class EntriesService {
   public async read(ctx: AccessContext, id: string): Promise<Entry> {
     const grant = await this.access.require(ctx, subjectRef('entry', id), 'view');
     const entry = await this.entries.findOne({ id }).lean<EntryDocument>();
-    if (!entry || outsideRange(entry.occurredAt, clampRange(grant))) throw notFound('entry_not_found', 'There is no entry with that id.');
+    // Nor is a line no page would have shown this reader: what a device or an alarm wrote is not a stranger's by its id either.
+    if (!entry || outsideRange(entry.occurredAt, clampRange(grant)) || (isOutsider(grant) && entry.source !== 'human')) {
+      throw notFound('entry_not_found', 'There is no entry with that id.');
+    }
 
     return serialiseDiaryEntry(entry, await this.grows.redaction(grant), grant);
   }

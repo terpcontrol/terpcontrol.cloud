@@ -15,7 +15,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { spacesDuring } from '../grow/grow-places';
 import { Redaction, growUpTo, harvestOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
-import { DIARY_KINDS, serialiseDiaryEntry } from './diary-entries';
+import { DIARY_KINDS, serialiseDiaryEntry, writtenFor } from './diary-entries';
 import { horizonOf } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
 
@@ -241,7 +241,7 @@ export class GrowReportService {
 
   private diaryOf(growId: string, grant: Grant): Promise<EntryDocument[]> {
     return this.entries
-      .find({ $and: [{ growId, kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', clampRange(grant))] })
+      .find({ $and: [{ growId, kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', clampRange(grant)), writtenFor(grant)] })
       .sort({ occurredAt: 1, id: 1 })
       .limit(MAX_ENTRIES)
       .lean<EntryDocument[]>();
@@ -268,7 +268,7 @@ export class GrowReportService {
   public async totalsOf(growId: string, grant: Grant): Promise<GrowTotals> {
     const pictures = { $size: { $ifNull: ['$mediaIds', []] } };
     const rows = await this.entries.aggregate<{ _id: EntryKind; count: number; pictures: number }>([
-      { $match: { $and: [{ growId, kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', clampRange(grant))] } },
+      { $match: { $and: [{ growId, kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', clampRange(grant)), writtenFor(grant)] } },
       {
         $group: {
           _id: '$kind',

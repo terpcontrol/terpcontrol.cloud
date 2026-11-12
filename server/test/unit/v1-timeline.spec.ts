@@ -1027,6 +1027,35 @@ describe('who may read it', () => {
     await expect(readAs(session(STRANGER))).rejects.toMatchObject({ problem: { status: 404, code: 'space_not_found' } });
   });
 
+  it('answers a link neither an alarm nor a line a device wrote: the climate, and what people wrote', async () => {
+    await db.entries.create([
+      entry({
+        id: 'entry-alarm',
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        spaceId: TENT,
+        growId: GROW,
+        alertId: 'alert-open',
+        occurredAt: new Date('2026-06-05T10:00:00.000Z'),
+        message: { key: 'message-alarm-triggered', params: ['Too humid (humidity), value=71'] },
+        values: { kind: 'alarm' },
+      }),
+      entry({ id: 'entry-written', growId: GROW, occurredAt: new Date('2026-06-05T11:00:00.000Z') }),
+    ]);
+    const token = await linkFor({});
+
+    const theirs = await readAs(visitor(token), { range: '7d' });
+    const mine = await readAs(session(OWNER), { range: '7d' });
+
+    expect(theirs.events.map(line => line.id)).toContain('entry-written');
+    expect(theirs.events.every(line => line.source === 'human')).toBe(true);
+    expect(theirs.alarms).toEqual([]);
+    expect(JSON.stringify(theirs)).not.toMatch(/alert-open|entry-alarm/);
+    // Whoever keeps the tent reads the alarm, as a line and on its lane.
+    expect(mine.events.map(line => line.id)).toContain('entry-alarm');
+  });
+
   it('clamps every range to the link´s own window, however wide a range was asked for', async () => {
     const token = await linkFor({});
     const page = await readAs(visitor(token), { range: 'grow', growId: GROW });
@@ -1040,7 +1069,8 @@ describe('who may read it', () => {
     // was given out for is one phase and one band.
     expect(page.panels[0].targets.map(target => target.phaseId)).toEqual(['phase-veg']);
     expect(page.events.map(line => line.id)).toEqual(['entry-water']);
-    expect(page.alarms.map(alarm => alarm.alertId)).toEqual(['alert-open']);
+    // An alarm open across the window is the keeper's to know of, not the link's.
+    expect(page.alarms).toEqual([]);
     expect(page.cameras[0].frames).toEqual([]);
   });
 
@@ -1089,7 +1119,8 @@ describe('who may read it', () => {
 
     const page = await readAs(visitor(token));
 
-    expect(page.events.map(line => line.id)).toEqual(['entry-water', 'entry-training', 'entry-space']);
+    // What people wrote; the line the controller wrote about the tent is not among them.
+    expect(page.events.map(line => line.id)).toEqual(['entry-water', 'entry-training']);
     expect(page.events.some(line => line.kind === 'system' || line.kind === 'plan')).toBe(false);
     // Nothing was cut, because none was offered; and a stranger shown one grow's
     // week is not handed a list of everything else that has stood in the room.

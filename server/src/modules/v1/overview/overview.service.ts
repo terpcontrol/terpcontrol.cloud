@@ -24,7 +24,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { setpointsOf } from '../device/setpoints';
 import { climateOf, recordOf, settlingsOf } from '../phase/target-record';
-import { readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
+import { readingNamesOf, serialiseDiaryEntry, writtenFor } from '../diary/diary-entries';
 import { completionsOf, dueTasksOf, reminderOfTask, remindersAbout } from '../diary/due-tasks';
 import { standingIn } from '../grow/grow-places';
 import { Redaction, growCardOf, growUpTo, redactionOf, summaryOf } from '../grow/grow-serialiser';
@@ -166,7 +166,7 @@ export class OverviewService {
         .lean<PlantDocument[]>(),
       this.reminders.find(remindersAbout([spaceId], growIds)).lean<ReminderDocument[]>(),
       this.entries
-        .find({ $and: [{ $or: [{ spaceId }, { growId: { $in: growIds } }] }, withinRange('occurredAt', range)] })
+        .find({ $and: [{ $or: [{ spaceId }, { growId: { $in: growIds } }] }, withinRange('occurredAt', range), writtenFor(grant)] })
         .sort({ occurredAt: -1, _id: -1 })
         .limit(ENTRIES_ON_THE_PAGE)
         .lean<EntryDocument[]>(),

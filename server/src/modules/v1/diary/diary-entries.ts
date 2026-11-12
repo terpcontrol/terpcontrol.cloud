@@ -1,7 +1,7 @@
-import { Model } from 'mongoose';
+import { FilterQuery, Model } from 'mongoose';
 import type { Entry, EntryKind, EntryReading, GrowReadingNames } from '@fg2/shared-types/v1';
 import { entryKind } from '@fg2/shared-types/v1-schemas';
-import { Grant } from '@common/v1/access.types';
+import { Grant, isOutsider } from '@common/v1/access.types';
 import { serialiseEntry } from '@common/v1/entries';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
@@ -103,6 +103,16 @@ export const diaryMovedAt = async (entries: Model<EntryDocument>, growIds: strin
 
   return new Map(rows.map(row => [row._id, row.at]));
 };
+
+/**
+ * What of a diary a reader from outside is answered - on a public page, through
+ * a link onto a grow or onto a place: what people wrote, and nothing a device,
+ * the plan or an alarm did. Not as a line, not as an id, not in a count: an
+ * alarm tells a stranger when a tent stood unattended and which rule watches
+ * it. A condition for the query rather than a filter over its answer, so the
+ * pages, the nets and the counts are of what is served.
+ */
+export const writtenFor = (grant: Pick<Grant, 'grantee'>): FilterQuery<EntryDocument> => (isOutsider(grant) ? { source: 'human' } : {});
 
 /** The kinds that carry readings of the grow's own measurements. */
 export const READING_KINDS = ['water', 'feed', 'measurement'] as const;

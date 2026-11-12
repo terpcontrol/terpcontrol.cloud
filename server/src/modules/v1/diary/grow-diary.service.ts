@@ -19,7 +19,7 @@ import { spacesDuring } from '../grow/grow-places';
 import { Redaction } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { DayDevice, dayClimateOf } from './day-climate';
-import { DIARY_KINDS, serialiseDiaryEntry } from './diary-entries';
+import { DIARY_KINDS, serialiseDiaryEntry, writtenFor } from './diary-entries';
 import { DayStill, WeekFilm, stillsOfDays, weekFilmsOf } from './diary-pictures';
 import { DiaryDay, DiaryWeek, dateStartOf, diaryWeeksOf, headlinePhaseAt, horizonOf, middayOf, weeksAfter } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
@@ -130,9 +130,9 @@ export class GrowDiaryService {
 
     const [hide, { lines, maintenance }, earlier, controllers, films, stills] = await Promise.all([
       this.grows.redaction(grant),
-      this.linesIn(grow, seen, isOutsider(grant) ? [] : named),
+      this.linesIn(grow, grant, seen, isOutsider(grant) ? [] : named),
       // What was dated to before the grow began has no day, and stands after the last of them.
-      page.nextCursor === null ? this.earlierThan(grow, dateStartOf(origin, zone), range) : Promise.resolve([]),
+      page.nextCursor === null ? this.earlierThan(grow, grant, dateStartOf(origin, zone), range) : Promise.resolve([]),
       this.climate.controllersIn(spaceIds),
       weekFilmsOf(this.media, cameraIds, seen, range),
       stillsOfDays(
@@ -250,11 +250,16 @@ export class GrowDiaryService {
    * grow sharing the tent is that grow's. Beside them the lines that say
    * maintenance went on and off, which are told as stretches and not as lines.
    */
-  private async linesIn(grow: GrowDocument, span: Span, spaceIds: string[]): Promise<{ lines: EntryDocument[]; maintenance: EntryDocument[] }> {
+  private async linesIn(
+    grow: GrowDocument,
+    grant: Grant,
+    span: Span,
+    spaceIds: string[],
+  ): Promise<{ lines: EntryDocument[]; maintenance: EntryDocument[] }> {
     const during = { occurredAt: { $gte: span.startsAt, $lt: span.endsAt } };
     const [diary, machines] = await Promise.all([
       this.entries
-        .find({ growId: grow.id, kind: { $in: DIARY_KINDS }, ...during })
+        .find({ growId: grow.id, kind: { $in: DIARY_KINDS }, ...during, ...writtenFor(grant) })
         .sort({ occurredAt: -1, id: -1 })
         .limit(MAX_ENTRIES_PER_PAGE)
         .lean<EntryDocument[]>(),
@@ -289,13 +294,14 @@ export class GrowDiaryService {
   }
 
   /** What was written to the grow for a moment before the date it began on, newest first, inside the reader's window. */
-  private earlierThan(grow: GrowDocument, firstDate: Date, range: AccessRange): Promise<EntryDocument[]> {
+  private earlierThan(grow: GrowDocument, grant: Grant, firstDate: Date, range: AccessRange): Promise<EntryDocument[]> {
     if (range.endsAt && range.endsAt <= (range.startsAt ?? firstDate)) return Promise.resolve([]);
 
     return this.entries
       .find({
         growId: grow.id,
         kind: { $in: DIARY_KINDS },
+        ...writtenFor(grant),
         occurredAt: { $lt: range.endsAt && range.endsAt < firstDate ? range.endsAt : firstDate, ...(range.startsAt ? { $gte: range.startsAt } : {}) },
       })
       .sort({ occurredAt: -1, id: -1 })

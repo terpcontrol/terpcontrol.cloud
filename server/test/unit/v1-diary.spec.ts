@@ -415,7 +415,10 @@ describe('who may read a timeline', () => {
     const reader = visitor('the-token');
     const page = await entries.list(reader, { growId: GROW, startsAt: ORIGIN.toISOString() });
 
-    expect(page.items.map(line => line.id)).toEqual(['entry-note-5', 'entry-fed', 'entry-booted']);
+    // What people wrote in the window. The line the controller wrote when it restarted is whoever keeps the tent's.
+    expect(page.items.map(line => line.id)).toEqual(['entry-note-5', 'entry-fed']);
+    await expect(entries.read(reader, 'entry-booted')).rejects.toMatchObject({ problem: { status: 404, code: 'entry_not_found' } });
+    expect((await entries.read(reader, 'entry-fed')).id).toBe('entry-fed');
   });
 
   it('does not point a link that carries no pictures at the camera a line was about', async () => {

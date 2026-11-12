@@ -18,7 +18,7 @@ import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
-import { DIARY_KINDS, MACHINE_KINDS, readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
+import { DIARY_KINDS, MACHINE_KINDS, readingNamesOf, serialiseDiaryEntry, writtenFor } from '../diary/diary-entries';
 import { grantRedaction } from '../grow/redactions';
 import { alertsRaisedIn } from '../home/open-alerts';
 import { recordOf } from '../phase/target-record';
@@ -185,7 +185,8 @@ export class TimelineService {
       ...chartPartsOf({ histories: series, devices, window, redacted: isOutsider(grant), aimed, cameras, frames }),
       panels,
       lastReadingAt: panels.length > 0 ? null : await lastReadingOf(this.data, devices),
-      alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
+      // An alarm is the keeper's: when a tent stood outside its rules is not a reader's from outside, nor are the ids.
+      alarms: isOutsider(grant) ? [] : alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
       events: told,
       machineEvents: recorded.machine,
       // A reader who is shown one grow's week is not shown what else has stood
@@ -225,7 +226,9 @@ export class TimelineService {
    */
   private async eventsOf(grant: Grant, spaceId: string, growIds: string[], window: TimelineWindow): Promise<SpaceEvents> {
     const recordedHere = { $or: [{ spaceId }, { growId: { $in: growIds } }] };
-    const of = (kinds: readonly string[]) => ({ $and: [recordedHere, { kind: { $in: kinds } }, withinRange('occurredAt', window)] });
+    const of = (kinds: readonly string[]) => ({
+      $and: [recordedHere, { kind: { $in: kinds } }, withinRange('occurredAt', window), writtenFor(grant)],
+    });
     // Newest first so that a net cuts the far end of a long range rather than
     // the days somebody is most likely looking at.
     const newest = (kinds: readonly string[], net: number) =>

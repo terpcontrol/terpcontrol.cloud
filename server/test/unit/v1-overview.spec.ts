@@ -583,6 +583,42 @@ describe('who may read it', () => {
     await expect(readAs(session(STRANGER))).rejects.toMatchObject({ problem: { status: 404, code: 'space_not_found' } });
   });
 
+  it('answers a link onto the place what people wrote there, and nothing a device or an alarm did', async () => {
+    await db.entries.create([
+      entry({
+        id: 'entry-alarm',
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        spaceId: TENT,
+        growId: GROW,
+        alertId: 'alert-1',
+        severity: 'warning',
+        occurredAt: new Date('2026-06-05T10:00:00.000Z'),
+        message: { key: 'message-alarm-triggered', params: ['Too humid (humidity), value=71'] },
+        values: { kind: 'alarm' },
+      }),
+      entry({
+        id: 'entry-rebooted',
+        kind: 'system',
+        source: 'device',
+        authorId: null,
+        spaceId: TENT,
+        deviceId: CONTROLLER,
+        occurredAt: new Date('2026-06-05T11:00:00.000Z'),
+        message: { key: 'message-device-booted', params: [] },
+        values: { kind: 'system' },
+      }),
+    ]);
+
+    const theirs = await readAs(visitor(await linkFor({})));
+
+    expect(theirs.entries.map(line => line.id)).toEqual(['entry-old']);
+    expect(JSON.stringify(theirs.entries)).not.toMatch(/alarm|alert-1|booted/);
+    // Whoever keeps the tent reads them.
+    expect((await readAs(session(OWNER))).entries.map(line => line.id)).toEqual(expect.arrayContaining(['entry-alarm', 'entry-rebooted']));
+  });
+
   it('answers a link only what its window covers', async () => {
     const token = await linkFor({});
     const page = await readAs(visitor(token));

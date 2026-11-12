@@ -7,7 +7,7 @@ import { diaryWeeksOf } from '@modules/v1/diary/grow-calendar';
 import { GrowClimateService } from '@modules/v1/diary/grow-climate.service';
 import { GrowDiaryService } from '@modules/v1/diary/grow-diary.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
-import { session, visitor } from './support/callers';
+import { anonymous, session, visitor } from './support/callers';
 import { accessOn, growsOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
 
@@ -592,6 +592,47 @@ describe('a reader from outside', () => {
 
     expect(page.items.flatMap(week => week.days.map(day => day.dayNumber))).toEqual([10, 9]);
     expect(dayOf(page, 10).endsAt).toBe(berlin(11, '13:00').toISOString());
+  });
+
+  /** What a tent's devices and rules wrote into the grow's own diary inside the link's window, beside a note somebody wrote. */
+  const aBusyDay = () =>
+    db.entries.create([
+      entry({ id: 'note-in-window', growId: GROW, occurredAt: berlin(11, '09:00'), text: 'Topped' }),
+      entry({
+        id: 'alarm-in-window',
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        growId: GROW,
+        spaceId: TENT,
+        alertId: 'alert-1',
+        severity: 'warning',
+        occurredAt: berlin(11, '10:00'),
+        message: { key: 'message-alarm-triggered', params: ['Too humid (humidity), value=71, upper threshold=65, lower threshold=n/a'] },
+        values: { kind: 'alarm' },
+      }),
+    ]);
+
+  it('is answered what people wrote and nothing a device or an alarm did, through a link onto the grow', async () => {
+    await aBusyDay();
+
+    const page = await read(visitor('two-days'));
+
+    expect(page.items.flatMap(week => week.days.flatMap(day => day.entries.map(line => line.id)))).toEqual(['note-in-window']);
+    expect(JSON.stringify(page)).not.toMatch(/alarm|alert-1|Too humid/);
+    // Whoever keeps the place reads both.
+    expect(dayOf(await read(), 10).entries.map(line => line.id)).toEqual(['note-last-night', 'alarm-in-window', 'note-in-window']);
+  });
+
+  it('is answered the same on the grow´s public page', async () => {
+    await aBusyDay();
+    await db.grows.updateOne({ id: GROW }, { $set: { visibility: 'public' } });
+
+    const page = await read(anonymous);
+
+    expect(dayOf(page, 10).entries.map(line => line.id)).toEqual(['note-last-night', 'note-in-window']);
+    expect(page.items.flatMap(week => week.days.flatMap(day => day.events))).toEqual([]);
+    expect(JSON.stringify(page)).not.toMatch(/alarm|alert-1|Too humid|plan-step|maintenance/);
   });
 
   it('is told neither what the machines wrote nor that a camera exists', async () => {
