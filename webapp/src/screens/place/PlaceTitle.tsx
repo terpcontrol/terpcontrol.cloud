@@ -1,6 +1,9 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PlaceCard } from '@/app/places';
+import { noLongerThere } from '@/api/problem';
 import { useSpaceOverview } from '@/api/spaces';
+import { NoLongerHere } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
 import { livenessOf, measuredAtOf } from '@/screens/start/attention';
 import { LivenessPill } from '@/ui/LivenessPill';
@@ -34,4 +37,15 @@ export function VisitingTitle({ title, spaceId }: { title: string; spaceId: stri
       <span className={`mono ${styles.visiting}`}>{t('timeline.visiting')}</span>
     </h1>
   );
+}
+
+/**
+ * A page support reads of a customer's place, which the address names. Where
+ * nothing is there under that name the page says so, with the way back,
+ * rather than failing to load and offering a retry that cannot succeed.
+ */
+export function Visited({ spaceId, children }: { spaceId: string; children: ReactNode }) {
+  const overview = useSpaceOverview(spaceId);
+
+  return !overview.data && noLongerThere(overview.error) ? <NoLongerHere what="space" /> : children;
 }

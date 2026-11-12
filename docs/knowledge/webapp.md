@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-12
-source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12)
+source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12)
 paths:
   - webapp/**
 ---
@@ -42,7 +42,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   | --- | --- | --- |
   | `/` | Start: the one place, the places by room, or the empty Start | Start |
   | `/spaces/:spaceId`, `/spaces/:spaceId/members` | Start of one place; who is let in | Start |
-  | `/grow` | the grow running in the chosen place, else the offer to start one | Grow |
+  | `/grow/:tab?` | the grow running in the chosen place with its tabs, else the offer to start one | Grow |
   | `/grows`, `/grows/new`, `/grows/:growId/:tab?`, `.../plants/:plantId`, `.../measurements` | every grow; one grow | Grow |
   | `/log` | opens the entry sheet | - |
   | `/timeline` | Verlauf of the chosen place (`focus`, `at`, `device` in the query) | Verlauf |
@@ -58,14 +58,19 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   verdict, the lamp's window. `card-status.ts` is the same sentence for a place's card and the header's choice of
   place, so the three never disagree about a tent.
 - **The chosen place** (`src/app/places.ts`) is what `/grow`, `/timeline`, `/control` and `/charts` show: the place
-  their address names in `?space=`, else the one chosen last (`terp.place` in this browser, a store the header's chip
-  and the page both follow), else the first the home lists. `usePlaceChoice` is the one resolver - the pages read it
-  through `useCurrentPlace`, the chip (`shell/PlaceChoice.tsx`) and the entry sheet's aim (`log/underneath.ts`)
-  directly. On one of those pages a choice goes into the address (`?space=`, dropping the rest of the query) and is
-  kept once the address names it, so the unsaved-targets question can hold it back; on any other page it is kept at
-  once. `timelinePath`, `controlPath` and `devicesPath` build the links that name a place. Charts reads and writes
-  its view (`space`/`grow`, `range`, `zoom`, `show`, `layout`, ...) only in `src/screens/charts/address.ts`, through
-  which `app/old-charts.ts` maps old bookmarks too.
+  their address names in `?space=`, else the one chosen (`terp.place` in this browser, a store the header's chip and
+  the page both follow), else the first of Start's order (`sortedByAttention`), which is then kept. `usePlaceChoice`
+  is the one resolver - the pages read it through `useCurrentPlace`, the chip (`shell/PlaceChoice.tsx`) and the entry
+  sheet's aim (`log/underneath.ts`) directly. A page that belongs to one place says so with `usePageOfPlace` (a
+  grow's pages with `usePageOfGrow`): that chooses the place and tells the chip where a choice leads, as
+  [app-ux.md §2](app-ux.md#2-navigation-and-the-place-page) lists it. A choice made on one of the four is a navigation
+  to the item's address with `?space=`, kept once that address is on screen, so the unsaved-targets question can
+  hold it back. The effect that keeps a pick does not write over a choice made since its render: the page mounted
+  with it may have chosen first. `useCurrentPlace` takes a `?space=` the account has not got out of the address, but
+  not while the home is being read again - a link names a place made a moment ago before the home lists it.
+  `timelinePath`, `controlPath` and `devicesPath` build the links that name a place. Charts reads and writes its view
+  (`space`/`grow`, `range`, `zoom`, `show`, `layout`, ...) only in `src/screens/charts/address.ts`, through which
+  `app/old-charts.ts` maps old bookmarks too.
 - The old Angular app's addresses still work (`OldAddresses.tsx`, `old-charts.ts`, redirects at the end of
   `screens`): `/login?recovery=|?code=` from old mails, `/demo` (website buttons; a signed-in user goes straight in),
   `/list`, `/account`, `/shares`, `/diagnostics`, `/device/<id>/<page>` (the same page of the device's place) and
@@ -250,6 +255,16 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - The theme is the `data-theme` attribute on `<html>` (`ThemeProvider`; `terp.theme` in `localStorage`, absent means
   follow the system), so colours switch in CSS alone; only the chart canvas redraws. Tokens and look: ADR 0002 and
   app-ux.md §9.
+- **The built stylesheet drops the unprefixed `backdrop-filter`.** Where a rule writes it beside
+  `-webkit-backdrop-filter`, the build's minifier keeps the prefixed one alone, which Chromium does not read: the
+  dev server blurs and the production bundle does not. The header and the tab bar were translucent over that blur,
+  and in the built app the page's text showed through them (found 2026-11-12), so both are solid now
+  (`app/shell/TopBar.module.css`, `TabBar.module.css`). Do not bring the blur back, and judge anything translucent
+  on a build (`npm run build && npm run preview`), not on the dev server. The photo caption (`ui/ui.module.css`) and
+  the pinned reading over Verlauf and Graphen still write the pair and are equally unblurred when built.
+- While a sheet is open the page behind it does not scroll: `html:has([data-scrim])` in `src/styles/global.css`,
+  the attribute being the sheet's backdrop (`ui/Sheet.tsx`). The place sheet is portalled to `<body>`, because the
+  header it is opened from is a layer of its own under the tab bar.
 - `src/theme/inter-tabular-digits.woff2`, the digits-only face behind `--font-figure`, is cut by
   `scripts/tabular-digits.py`; run it again after upgrading `@fontsource-variable/inter`. `logo-reverse.png` is
   derived from the colour logo by `scripts/derive-logo.mjs`.

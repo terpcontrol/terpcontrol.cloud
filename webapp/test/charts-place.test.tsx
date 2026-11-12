@@ -119,6 +119,9 @@ const entry = (id: string, hours: number, over: Partial<Entry>): Entry =>
     ...over,
   }) as Entry;
 
+/** The place charted, as the home lists it: the account's own, which is why its address is kept. */
+const PLACE = { spaceId: 'space-2', name: 'Fridge 1', values: [], deviceIds: ['device-1'], grow: null, dueTasks: [], openAlerts: [] };
+
 function Address() {
   const location = useLocation();
   return <output data-testid="address">{`${location.pathname}${location.search}`}</output>;
@@ -157,7 +160,7 @@ beforeEach(() => {
   state.posted = [];
   state.series = placeSeries;
   state.entries = [];
-  state.home = { spaces: [] };
+  state.home = { spaces: [PLACE] };
 });
 
 afterEach(() => {
@@ -180,7 +183,6 @@ describe('a place charted without a grow', () => {
   });
 
   it('opens the bare address on the place the tabs show, keeping what else the address asked', async () => {
-    state.home = { spaces: [{ spaceId: 'space-2', name: 'Fridge 1', values: [], deviceIds: ['device-1'] }] };
     draw('/charts?range=7d');
 
     await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent('/charts?range=7d&space=space-2'));

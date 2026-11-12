@@ -3,7 +3,18 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { DateTime } from 'luxon';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Device, GrowListItem, HomeAnswer, HomeSpaceCard, LayoutSeen, Me, SpaceOverview, SpaceTimeline } from '@fg2/shared-types/v1';
+import type {
+  AccessNeed,
+  Camera,
+  Device,
+  GrowListItem,
+  HomeAnswer,
+  HomeSpaceCard,
+  LayoutSeen,
+  Me,
+  SpaceOverview,
+  SpaceTimeline,
+} from '@fg2/shared-types/v1';
 import { screens } from '@/app/routes';
 import { AppShell } from '@/app/shell/AppShell';
 import { tabsOf } from '@/app/shell/tabs';
@@ -69,7 +80,10 @@ const card = (spaceId: string, name: string): HomeSpaceCard => ({
   entries: [],
   latestStill: null,
   dueTasks: [],
-  openAlerts: [],
+  openAlerts:
+    server.alerting === spaceId
+      ? [{ alertId: 'alert-1', kind: 'threshold', severity: 'warning', startedAt: ago(30), value: 38, metric: 'humidity', name: 'Too dry' }]
+      : [],
 });
 
 /** The grow standing in the first place, as its card names it. */
@@ -161,6 +175,53 @@ const grow: GrowListItem = {
   },
 };
 
+/** A grow running in the second place, and one that ended there: opened by their ids. */
+const growInTent: GrowListItem = {
+  ...grow,
+  id: 'grow-2',
+  name: 'Tent run',
+  placements: [{ id: 'placement-2', spaceId: 'space-2', startedAt: ago(10 * 24 * 60), endedAt: null, plantIds: null }],
+  summary: { ...grow.summary, locations: [{ spaceId: 'space-2', plantIds: [] }] },
+};
+const growOver: GrowListItem = {
+  ...grow,
+  id: 'grow-9',
+  name: 'Last year',
+  endedAt: ago(24 * 60),
+  placements: [{ id: 'placement-9', spaceId: 'space-2', startedAt: ago(90 * 24 * 60), endedAt: ago(24 * 60), plantIds: null }],
+  summary: { ...grow.summary, locations: [] },
+};
+const GROWS: Record<string, GrowListItem> = { 'grow-1': grow, 'grow-2': growInTent, 'grow-9': growOver };
+
+/** A camera standing in the second place. */
+const camera = {
+  id: 'cam-2',
+  createdAt: ago(60),
+  ownerId: 'user-1',
+  kind: 'terpcam_controller',
+  staleWarning: true,
+  deviceId: 'device-2',
+  spaceId: 'space-2',
+  name: 'Tent cam',
+  looksAt: 'canopy',
+  plantIds: [],
+  did: 'SIMCAM',
+  uid: null,
+  ip: null,
+  url: null,
+  transport: null,
+  tunnel: false,
+  model: 'terp_cam',
+  stillIntervalSeconds: 30,
+  nightOff: false,
+  maintenanceOff: false,
+  logErrors: true,
+  entitlement: { validUntil: ago(-365 * 24 * 60), grant: 'included', tier: 'premium', renewalVisible: false },
+  isDemo: false,
+  removedAt: null,
+  state: { lastStillAt: ago(1), lastError: null, firmwareVersion: null },
+} as unknown as Camera;
+
 const meOf = (diary: boolean, layoutSeen: LayoutSeen | null): Me =>
   ({
     id: 'user-1',
@@ -174,6 +235,7 @@ const meOf = (diary: boolean, layoutSeen: LayoutSeen | null): Me =>
       mutedUntil: null,
     },
     pushSubscribed: false,
+    premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
     layers: { diary },
   }) as unknown as Me;
 
@@ -187,6 +249,8 @@ const server = {
   growing: false,
   /** Whether the first two places stand in a room. */
   room: false,
+  /** The place an alert is open in, which Start then lists first. */
+  alerting: null as string | null,
   youMay: 'own' as AccessNeed,
   me: meOf(false, { diary: false, places: false }),
   sent: [] as { method: string; path: string; body: unknown }[],
@@ -213,7 +277,11 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   }
   if (path === '/me') return json(server.me);
   if (path === '/home') return json(home());
-  if (path === '/grows/grow-1') return json(grow);
+  const byId = /^\/grows\/([^/]+)$/.exec(path);
+  if (byId && GROWS[byId[1]]) return json(GROWS[byId[1]]);
+  if (path === '/cameras/cam-2') return json(camera);
+  if (/^\/spaces\/[^/]+\/members$/.test(path)) return json({ items: [], people: [], room: null, activity: [], nextCursor: null });
+  if (/^\/devices\/[^/]+\/sockets$/.test(path)) return json({ items: [], nextCursor: null, capabilities: {} });
   if (path === '/devices') return json({ items: server.places.map(([id]) => device(`device-${id.slice(-1)}`, id)), nextCursor: null });
   if (path === '/cameras')
     return json({ items: Array.from({ length: server.cameras }, (_, index) => ({ id: `cam-${index}`, spaceId: 'space-1' })), nextCursor: null });
@@ -272,6 +340,7 @@ beforeEach(() => {
   server.targets = false;
   server.growing = false;
   server.room = false;
+  server.alerting = null;
   server.youMay = 'own';
   server.me = meOf(false, { diary: false, places: false });
   server.sent = [];
@@ -421,13 +490,23 @@ describe('a place´s page', () => {
 });
 
 describe('the choice of place', () => {
-  /** The chip that names the chosen place: the phone´s header draws it over the pages it holds for, the rail always. */
+  /** The chip that names the chosen place: the phone´s header draws it on the pages of Grow, Verlauf and Steuerung, the rail always. */
   const chips = (name: string) => screen.queryAllByRole('button', { name: `Place: ${name}` });
+  const chosen = () => localStorage.getItem('terp.place');
+  const choose = async (from: string, to: RegExp) => {
+    fireEvent.click((await screen.findAllByRole('button', { name: `Place: ${from}` }))[0]);
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Place' })).getByRole('button', { name: to }));
+  };
 
   /** The places whose Timeline was read, each once. */
   const timelinesAsked = () => [...new Set(server.sent.flatMap(one => /^\/spaces\/([^/]+)\/timeline$/.exec(one.path)?.[1] ?? []))];
 
+  beforeEach(() => {
+    server.places = TWO;
+  });
+
   it('is not offered with one place: the page says what it is and nothing is there to choose', async () => {
+    server.places = [['space-1', 'Fridge 1']];
     open('/control');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Control' })).toBeInTheDocument();
@@ -435,18 +514,52 @@ describe('the choice of place', () => {
     expect(screen.queryByRole('button', { name: /^Place:/ })).not.toBeInTheDocument();
   });
 
-  it('stands in the phone´s header on the pages it holds for, and on the rail on every page', async () => {
-    server.places = TWO;
+  it('stands in the phone´s header on every address of Grow, Verlauf and Steuerung, and on the rail on every page', async () => {
+    withDiary();
+    server.growing = true;
     const router = open('/');
 
     await waitFor(() => expect(chips('Fridge 1')).toHaveLength(1));
-    expect(chips('Fridge 1')[0].closest('nav')).not.toBeNull();
-    for (const address of ['/timeline', '/control', '/control/alarms', '/grow', '/charts']) {
+    for (const address of ['/timeline', '/control', '/control/alarms', '/grow', '/grow/plants', '/charts']) {
       await act(() => router.navigate(address));
       expect(chips('Fridge 1')).toHaveLength(2);
     }
-    await act(() => router.navigate('/grows'));
-    expect(chips('Fridge 1')).toHaveLength(1);
+    // A page about one grow, about every grow or about none of them is not about the chosen place.
+    for (const address of ['/grows', '/grows/grow-9/weeks', '/charts?grow=grow-9', QUIET]) {
+      await act(() => router.navigate(address));
+      expect(chips('Fridge 1')).toHaveLength(1);
+    }
+  });
+
+  it('heads the group of Grow, Verlauf and Steuerung on the rail, apart from Start', async () => {
+    withDiary();
+    open(QUIET);
+
+    const [chip] = await screen.findAllByRole('button', { name: 'Place: Fridge 1' });
+    const group = chip.parentElement!;
+    expect(group.firstElementChild).toBe(chip);
+    expect(
+      within(group)
+        .getAllByRole('link')
+        .map(link => link.textContent),
+    ).toEqual(['Grow', 'Timeline', 'Control']);
+  });
+
+  it('opens a browser that has chosen none on the place Start lists first, and lists the places in that order', async () => {
+    server.alerting = 'space-2';
+    server.places = [...TWO, ['space-3', 'Balcony']];
+    server.room = true;
+    open('/timeline');
+
+    // The place that needs a person, not the first the account set up.
+    await waitFor(() => expect(chips('Tent 2')).toHaveLength(2));
+    expect(chosen()).toBe('space-2');
+    await waitFor(() => expect(timelinesAsked()).toEqual(['space-2']));
+
+    fireEvent.click(chips('Tent 2')[0]);
+    const sheet = await screen.findByRole('dialog', { name: 'Place' });
+    const rows = await within(sheet).findAllByRole('button', { name: /Tent 2|Fridge 1|Balcony/ });
+    expect(rows.map(row => /Tent 2|Fridge 1|Balcony/.exec(row.textContent)![0])).toEqual(['Tent 2', 'Fridge 1', 'Balcony']);
   });
 
   it('lists the places under their rooms, each saying how it is and what grows there, with the chosen one marked', async () => {
@@ -470,71 +583,103 @@ describe('the choice of place', () => {
     expect(within(fridge).getByRole('img', { name: 'chosen' })).toBeInTheDocument();
     expect(tent).toHaveTextContent('Tent 2');
     expect(tent).not.toHaveAttribute('aria-current');
-    // A place standing in no room is listed under none.
-    expect(
-      within(sheet)
-        .getByRole('button', { name: /Balcony/ })
-        .closest('section'),
-    ).toBeNull();
+    // A place standing in no room is listed under none, and set off from the room before it.
+    const balcony = within(sheet).getByRole('button', { name: /Balcony/ });
+    expect(balcony.closest('section')).toBeNull();
+    expect(balcony).toHaveAttribute('data-apart');
   });
 
-  it('moves the page to the place chosen, and the other pages follow it', async () => {
-    server.places = TWO;
-    const router = open('/control');
+  it.each([
+    ['its Start', '/spaces/space-2'],
+    ['who is let into it', '/spaces/space-2/members'],
+    ['a grow running there', '/grows/grow-2'],
+    ['its camera', '/cameras/cam-2'],
+    ['its devices', '/devices?space=space-2'],
+  ])('is set by opening a page that belongs to a place: %s', async (_what, address) => {
+    localStorage.setItem('terp.place', 'space-1');
+    open(address);
 
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Place: Fridge 1' }))[0]);
-    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Place' })).getByRole('button', { name: /Tent 2/ }));
+    await waitFor(() => expect(chosen()).toBe('space-2'));
+    // The rail never names a place the page beside it is not about.
+    await waitFor(() => expect(chips('Tent 2')).toHaveLength(1));
+    expect(chips('Fridge 1')).toHaveLength(0);
+  });
 
-    await waitFor(() => expect(where(router)).toBe('/control?space=space-2'));
+  it.each([
+    ['a grow that has ended', '/grows/grow-9'],
+    ['every grow', '/grows'],
+    ['Ich', QUIET],
+  ])('is left alone by a page that belongs to no place: %s', async (_what, address) => {
+    withDiary();
+    localStorage.setItem('terp.place', 'space-1');
+    open(address);
+
+    await waitFor(() => expect(chips('Fridge 1')).toHaveLength(1));
+    await waitFor(() => expect(server.sent.some(one => one.path === '/spaces')).toBe(true));
+    expect(chosen()).toBe('space-1');
+  });
+
+  it.each([
+    ['Steuerung, on a page below it', '/control/alarms?space=space-2&rule=rule-1', '/control?space=space-1'],
+    ['Verlauf', '/timeline?space=space-2&focus=humidity', '/timeline?space=space-1'],
+    ['Grow, on one of its tabs', '/grow/plants?space=space-2', '/grow?space=space-1'],
+  ])('keeps the item and shows it for the place chosen: %s', async (_what, from, to) => {
+    withDiary();
+    server.growing = true;
+    const router = open(from);
+
+    await waitFor(() => expect(chosen()).toBe('space-2'));
+    await choose('Tent 2', /Fridge 1/);
+
+    await waitFor(() => expect(where(router)).toBe(to));
     expect(screen.queryByRole('dialog', { name: 'Place' })).not.toBeInTheDocument();
-    await waitFor(() => expect(chips('Tent 2')).toHaveLength(2));
-    expect(localStorage.getItem('terp.place')).toBe('space-2');
+    await waitFor(() => expect(chips('Fridge 1')).toHaveLength(2));
+    expect(chosen()).toBe('space-1');
+  });
 
+  it.each([
+    ['who is let into it', '/spaces/space-2/members'],
+    ['its camera', '/cameras/cam-2'],
+    ['a grow running there', '/grows/grow-2/weeks'],
+  ])('leads from a page that belongs to a place to the Start of the place chosen: %s', async (_what, from) => {
+    const router = open(from);
+
+    await waitFor(() => expect(chosen()).toBe('space-2'));
+    await choose('Tent 2', /Fridge 1/);
+
+    await waitFor(() => expect(where(router)).toBe('/spaces/space-1'));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument();
+    expect(chosen()).toBe('space-1');
+  });
+
+  it('only changes the choice on a page that belongs to no place, and the page opened next follows it', async () => {
+    const router = open(QUIET);
+
+    await choose('Fridge 1', /Tent 2/);
+
+    await waitFor(() => expect(chips('Tent 2')).toHaveLength(1));
+    expect(where(router)).toBe(QUIET);
     fireEvent.click(within(bar()).getByRole('link', { name: 'Timeline' }));
     await waitFor(() => expect(where(router)).toBe('/timeline'));
     await waitFor(() => expect(timelinesAsked()).toEqual(['space-2']));
     expect(chips('Tent 2')).toHaveLength(2);
   });
 
-  it('is set by a link that names a place, and drops what the address said about the place being left', async () => {
-    server.places = TWO;
-    const router = open('/control/alarms?space=space-2&rule=rule-1');
+  it('takes a place the account has not got out of the address, and shows the chosen one', async () => {
+    localStorage.setItem('terp.place', 'space-2');
+    const router = open('/control/alarms?space=somebody-elses&rule=rule-1');
 
-    await waitFor(() => expect(chips('Tent 2')).toHaveLength(2));
-    expect(localStorage.getItem('terp.place')).toBe('space-2');
-
-    fireEvent.click(chips('Tent 2')[0]);
-    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Place' })).getByRole('button', { name: /Fridge 1/ }));
-    await waitFor(() => expect(where(router)).toBe('/control/alarms?space=space-1'));
-  });
-
-  it('is set by opening a place from Start', async () => {
-    server.places = TWO;
-    const router = open('/spaces/space-2');
-
-    await waitFor(() => expect(chips('Tent 2')).toHaveLength(1));
-    await act(() => router.navigate('/timeline'));
-    await waitFor(() => expect(timelinesAsked()).toEqual(['space-2']));
-  });
-
-  it('holds from the rail on a page that is about no place, for the page opened next', async () => {
-    server.places = TWO;
-    const router = open(QUIET);
-
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Place: Fridge 1' }))[0]);
-    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Place' })).getByRole('button', { name: /Tent 2/ }));
-
-    await waitFor(() => expect(chips('Tent 2')).toHaveLength(1));
-    expect(where(router)).toBe(QUIET);
-    await act(() => router.navigate('/timeline'));
-    await waitFor(() => expect(timelinesAsked()).toEqual(['space-2']));
+    await waitFor(() => expect(where(router)).toBe('/control/alarms'));
+    expect(chips('Tent 2')).toHaveLength(2);
+    expect(chosen()).toBe('space-2');
   });
 
   it('opens the Log sheet on the place the page shows', () => {
     expect(openingOf('/control/alarms', '?space=space-2', { current: 'space-1' })).toEqual({ spaceId: 'space-2', underneath: true });
     expect(openingOf('/timeline', '', { current: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });
-    expect(openingOf('/grow', '', { current: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });
+    expect(openingOf('/grow/plants', '', { current: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });
     expect(openingOf('/grows', '', { current: 'space-1' })).toEqual({});
+    expect(openingOf('/charts', '?grow=grow-9', { current: 'space-1' })).toEqual({});
     expect(openingOf('/', '', { only: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });
     expect(openingOf('/', '', {})).toEqual({});
   });
@@ -553,8 +698,29 @@ describe('Grow, the bar´s item', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /Spring run/ })).toBeInTheDocument();
     expect(within(bar()).getByRole('link', { name: 'Grow' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Back to My grows' })).toHaveAttribute('href', '/grows');
-    // The tab it stands on is this address, so it reads as the one that is open.
-    expect(screen.getByRole('link', { name: 'Weeks' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('keeps the grow´s tabs under its own address, so the page stays the chosen place´s', async () => {
+    server.growing = true;
+    const router = open('/grow');
+
+    const tabs = within(await screen.findByRole('navigation', { name: 'Grow page' }));
+    expect(tabs.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/grow', '/grow/plants', '/grow/feeding', '/grow/report']);
+    expect(tabs.getByRole('link', { name: 'Weeks' })).toHaveAttribute('aria-current', 'page');
+
+    fireEvent.click(tabs.getByRole('link', { name: 'Plants' }));
+    await waitFor(() => expect(where(router)).toBe('/grow/plants'));
+    expect(tabs.getByRole('link', { name: 'Plants' })).toHaveAttribute('aria-current', 'page');
+    expect(tabs.getByRole('link', { name: 'Weeks' })).not.toHaveAttribute('aria-current');
+    expect(within(bar()).getByRole('link', { name: 'Grow' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('button', { name: 'Place: Fridge 1' })).toHaveLength(2);
+  });
+
+  it('sends a tab the grow has not got to the item´s own address', async () => {
+    server.growing = true;
+    const router = open('/grow/nonsense');
+
+    await waitFor(() => expect(where(router)).toBe('/grow'));
   });
 
   it('offers to start a grow where none runs in the chosen place', async () => {

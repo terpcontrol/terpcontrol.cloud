@@ -1,9 +1,10 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { useLocation, useSearchParams } from 'react-router';
-import type { HomeSpaceCard } from '@fg2/shared-types/v1';
-import { useHome } from '@/api/home';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import type { HomeSpaceCard, Placement } from '@fg2/shared-types/v1';
+import { useHome, useHomeShape } from '@/api/home';
 import { useSession } from '@/api/session';
-import { isVisiting } from '@/ui/session-access';
+import { sortedByAttention } from '@/screens/start/attention';
+import { isVisiting, standsIn } from '@/ui/session-access';
 import { readStored, writeStored } from '@/ui/stored';
 
 /**
@@ -12,9 +13,9 @@ import { readStored, writeStored } from '@/ui/stored';
  *
  * A place has one page of its own, its Start, and the pages it is a tap from -
  * who else is let in. Grow, Verlauf and Steuerung are items of the bar and not
- * pages of a place: they show the place chosen in the header, and a link that
- * names another - an alert, a tile of a place - carries it in the query and
- * so chooses it.
+ * pages of a place: they show the place chosen in the header, and whatever
+ * names another - a link from an alert, a page that belongs to that place -
+ * chooses it, so the header never names a place the page is not about.
  */
 
 /** A card of the home that stands for a place, rather than for a grow standing in none. */
@@ -61,25 +62,42 @@ export const timelinePath = (spaceId: string, focus: string | null = null, at: s
 /** The account's devices, with the ones standing in a place opened where it is named. */
 export const devicesPath = (spaceId: string | null = null): string => (spaceId ? withQuery('/devices', { space: spaceId }) : '/devices');
 
-/** The pages that show the chosen place, and whose address may name it. */
-const ABOUT_PLACE = [GROW, '/timeline', '/control', '/charts'];
+/**
+ * The addresses of the bar's items that show the chosen place: each with the
+ * pages under it, and with the place in `?space=` where a link names one.
+ * Graphen stands under Verlauf for as long as it is a page of its own, and is
+ * about a grow instead where its address names one.
+ */
+const ITEMS = [GROW, '/timeline', '/control', '/charts'];
 
-export const isAboutPlace = (pathname: string): boolean => ABOUT_PLACE.some(path => pathname === path || pathname.startsWith(`${path}/`));
+const itemOf = (pathname: string, search: string): string | null => {
+  const item = ITEMS.find(path => pathname === path || pathname.startsWith(`${path}/`)) ?? null;
+  return item === '/charts' && new URLSearchParams(search).has('grow') ? null : item;
+};
+
+/** Whether an address is one of those: a page that shows the chosen place. */
+export const isAboutPlace = (pathname: string, search = ''): boolean => itemOf(pathname, search) !== null;
 
 /**
- * The chosen place: a preference of this browser rather than a fact about the
- * account, which is why it is not on the server. It is a store, so the header
- * and the page under it follow a choice together.
+ * The chosen place, and the place the page on screen belongs to where it is
+ * not one of those items. The choice is a preference of this browser rather
+ * than a fact about the account, which is why it is not on the server. Both
+ * are a store, so the header and the page under it follow together.
  */
 const KEY = 'terp.place';
 
 /** What a browser that keeps nothing was told, for as long as the page lives. */
 let unkept: string | null = null;
+let pageOf: string | null = null;
 const listeners = new Set<() => void>();
 
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => listeners.delete(listener);
+};
+
+const told = () => {
+  for (const listener of listeners) listener();
 };
 
 const chosenPlace = (): string | null => readStored(KEY) ?? unkept;
@@ -88,65 +106,114 @@ const choosePlace = (spaceId: string) => {
   if (chosenPlace() === spaceId) return;
   writeStored(KEY, spaceId);
   unkept = readStored(KEY) === spaceId ? null : spaceId;
-  for (const listener of listeners) listener();
+  told();
 };
 
 const useChosenPlace = (): string | null => useSyncExternalStore(subscribe, chosenPlace, chosenPlace);
 
-/** Looking at a place makes it the one the bar's pages open on. */
-export const useChoosePlace = (spaceId: string) => {
+const pagePlace = (): string | null => pageOf;
+
+/**
+ * A page that belongs to one of the account's places says so: the place's
+ * Start, who is let into it, a grow running there, its camera, its devices.
+ * Opening it makes that place the chosen one, and while it is on screen the
+ * header's choice of another leads to that one's Start - the page has nothing
+ * to say about a place it does not belong to.
+ *
+ * A place that is none of the account's - a customer's, read by support - is
+ * no choice of the reader's and is left out.
+ */
+export const usePageOfPlace = (spaceId: string | null) => {
+  const { user } = useSession();
+  const home = useHomeShape(user !== null);
+  const own = spaceId !== null && (home.data?.spaces ?? []).some(card => card.spaceId === spaceId) ? spaceId : null;
+
   useEffect(() => {
-    if (spaceId) choosePlace(spaceId);
-  }, [spaceId]);
+    if (!own) return;
+    choosePlace(own);
+    pageOf = own;
+    told();
+    return () => {
+      pageOf = null;
+      told();
+    };
+  }, [own]);
 };
 
-/** The place the pages about one place show: the one the address names, else the chosen one, else the first the home lists. */
+/** A page of a grow belongs to the place the grow is running in; a finished grow, and one standing in no place, to none. */
+export const usePageOfGrow = (grow: { endedAt: string | null; placements: Placement[] } | undefined) =>
+  usePageOfPlace(grow && grow.endedAt === null ? standsIn(grow) : null);
+
+/**
+ * The place the pages about one place show: the one the address names, else
+ * the chosen one, else the one Start lists first - the place that needs a
+ * person, not the order the account was set up in.
+ */
 const placeShown = (places: PlaceCard[], asked: string | null, chosen: string | null): PlaceCard | null =>
-  places.find(place => place.spaceId === asked) ?? places.find(place => place.spaceId === chosen) ?? places[0] ?? null;
+  places.find(place => place.spaceId === asked) ?? places.find(place => place.spaceId === chosen) ?? sortedByAttention(places)[0] ?? null;
 
 /**
  * The place shown among `places`, as `placeShown` picks it, and how another
- * is chosen. A place the address names is chosen by that, so a link from an
- * alert carries Steuerung along with Verlauf.
+ * is chosen. Whatever it picks is kept: a place the address names, so a link
+ * from an alert carries Steuerung along with Verlauf, and the first pick of a
+ * browser that had none, so it does not move when another place starts
+ * needing a person.
  *
- * On a page about the place a choice goes into its address and is kept once
- * the address names it: a switch that the page holds back - targets nobody
- * saved - must not move the next page too. It drops whatever else the address
- * said about the place being left.
+ * Choosing depends on the page. On one of the bar's three the item stays, at
+ * its own address for the place chosen, and the choice is kept once that
+ * address is on screen: a switch that the page holds back - targets nobody
+ * saved - must not move the next page too. On a page that belongs to a place
+ * it leads to the chosen place's Start; anywhere else it only changes the
+ * choice.
  *
  * `visiting` is the place the address names where `isVisiting` says it is a
- * customer's, which is drawn as that place rather than swapped for one of ours.
+ * customer's, which is drawn as that place rather than swapped for one of
+ * ours. `stray` is an address naming a place the account has not got, which
+ * the page that reads it takes out again.
  */
 export const usePlaceChoice = (places: PlaceCard[] | undefined) => {
   const { user } = useSession();
-  const { pathname } = useLocation();
-  const [params, setParams] = useSearchParams();
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
   const chosen = useChosenPlace();
-  const about = isAboutPlace(pathname);
-  const asked = about ? params.get('space') : null;
+  const belongs = useSyncExternalStore(subscribe, pagePlace, pagePlace) !== null;
+  const item = itemOf(pathname, search);
+  const asked = item ? params.get('space') : null;
   const here = placeShown(places ?? [], asked, chosen);
-  const named = here !== null && here.spaceId === asked ? asked : null;
   const own = places?.map(place => place.spaceId);
   const visiting = asked && isVisiting(user, asked, own) ? asked : null;
+  const stray = asked !== null && own !== undefined && !own.includes(asked) && !visiting;
+  const kept = here && here.spaceId !== chosen ? here.spaceId : null;
 
   useEffect(() => {
-    if (named) choosePlace(named);
-  }, [named]);
+    // Not over a choice made since this was drawn: the page opened with it may belong to a place and have said so first.
+    if (kept && (kept === asked || chosenPlace() === chosen)) choosePlace(kept);
+  }, [kept, asked, chosen]);
 
   const choose = (spaceId: string) => {
-    if (about) void setParams({ space: spaceId }, { replace: true });
+    if (item) void navigate(`${item}?${new URLSearchParams({ space: spaceId }).toString()}`, { replace: true });
+    else if (belongs) void navigate(placePath(spaceId));
     else choosePlace(spaceId);
   };
 
-  return { here, visiting, choose };
+  return { here, visiting, stray, choose };
 };
 
 /** The chosen place for a page about it, with the home it is read from. */
 export const useCurrentPlace = () => {
   const home = useHome();
+  const [, setParams] = useSearchParams();
   const places = (home.data?.spaces ?? []).filter(isPlace);
+  const choice = usePlaceChoice(home.data && places);
+  // Not while the home is being read again: a place made a moment ago is named by a link before the home lists it.
+  const stray = choice.stray && !home.isFetching;
 
-  return { home, places, ...usePlaceChoice(home.data && places) };
+  useEffect(() => {
+    if (stray) void setParams({}, { replace: true });
+  }, [stray, setParams]);
+
+  return { home, places, ...choice };
 };
 
 /**

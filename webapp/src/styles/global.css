@@ -14,6 +14,13 @@ body,
   height: 100%;
 }
 
+/* While a sheet is open (`data-scrim`, ui/Sheet.tsx) the page behind it stays
+   where it is, rather than scrolling under a wheel or a thumb meant for the
+   sheet. */
+html:has([data-scrim]) {
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   background:

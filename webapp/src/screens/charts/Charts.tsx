@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useSearchParams } from 'react-router';
-import { timelinePath, useCurrentPlace } from '@/app/places';
+import { timelinePath, useCurrentPlace, usePageOfGrow } from '@/app/places';
 import type { ChartView, ChartViewDefinition, ChartViewLayout, GrowListItem, ShareLink } from '@fg2/shared-types/v1';
 import { useChartViews } from '@/api/chart-views';
 import { serverNow } from '@/api/clock';
@@ -118,6 +118,8 @@ export function Charts() {
   const growsHere = useSpaceGrows(named ? null : spaceId);
   const growId = named ?? growsHere.data?.items[0]?.id ?? null;
   const grow = useGrow(growId);
+  // A grow the address names is charted for itself, and the page is then of the place that grow runs in.
+  usePageOfGrow(named ? grow.data : undefined);
 
   if (!named && spaceId === null) {
     if (home.isPending) return <Pending />;

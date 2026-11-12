@@ -15,9 +15,10 @@ const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 
 /**
- * The desktop's navigation, down the left edge: the chosen place under the
- * logo where there is one to choose, the bar's pages, the green Eintrag button
- * where the diary is kept, and Meldungen and Ich at its foot.
+ * The desktop's navigation, down the left edge: Start, then Grow, Verlauf and
+ * Steuerung as one group headed by the place they are about where there is
+ * one to choose, the green Eintrag button where the diary is kept, and
+ * Meldungen and Ich at its foot.
  */
 export function Rail() {
   const { t } = useTranslation();
@@ -29,15 +30,16 @@ export function Rail() {
 
   const log = all.find(tab => tab.log);
   const logs = log !== undefined;
-  const tabs = all.filter(tab => !tab.log);
+  const [start, ...about] = all.filter(tab => !tab.log);
 
-  // A wide screen has a keyboard, and L opens the entry sheet from anywhere; a field keeps its letters.
+  // A wide screen has a keyboard, and L opens the entry sheet from anywhere: a
+  // field keeps its letters, and a sheet that is open is not covered by another.
   useEffect(() => {
     if (!logs) return;
 
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== LOG_KEY || event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
-      if (!window.matchMedia('(min-width: 900px)').matches) return;
+      if (event.key.toLowerCase() !== LOG_KEY || event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
+      if (!window.matchMedia('(min-width: 900px)').matches || document.querySelector('[role="dialog"]')) return;
       event.preventDefault();
       openSheet(underneath);
     };
@@ -46,6 +48,17 @@ export function Rail() {
   }, [logs, openSheet, underneath]);
 
   const footClass = ({ isActive }: { isActive: boolean }) => [styles.item, styles.foot, isActive ? styles.active : ''].filter(Boolean).join(' ');
+  const item = (tab: (typeof all)[number]) => (
+    <Link
+      key={tab.path}
+      to={tab.path}
+      className={[styles.item, isOn(tab) ? styles.active : ''].filter(Boolean).join(' ')}
+      aria-current={isOn(tab) ? 'page' : undefined}
+    >
+      <tab.Icon size={20} strokeWidth={2} aria-hidden />
+      {t(tab.labelKey)}
+    </Link>
+  );
 
   return (
     <nav className={styles.rail} aria-label={t('shell.navigation')} data-print="omit">
@@ -53,24 +66,15 @@ export function Rail() {
         <div className={styles.wordmark}>
           <Logo />
         </div>
-        <div className={styles.place}>
+        {item(start)}
+        <div className={styles.about}>
           <PlaceChoice everywhere />
+          {about.map(item)}
         </div>
-
-        {tabs.map(tab => (
-          <Link
-            key={tab.path}
-            to={tab.path}
-            className={[styles.item, isOn(tab) ? styles.active : ''].filter(Boolean).join(' ')}
-            aria-current={isOn(tab) ? 'page' : undefined}
-          >
-            <tab.Icon size={20} strokeWidth={2} aria-hidden />
-            {t(tab.labelKey)}
-          </Link>
-        ))}
 
         {log ? (
           <button type="button" className={styles.log} aria-keyshortcuts={LOG_KEY} onClick={() => openSheet(underneath)}>
+            <span aria-hidden>+</span>
             {t(log.labelKey)}
           </button>
         ) : null}

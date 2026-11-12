@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import type { Entry, GrowListItem, GrowSeries, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
+import { usePageOfGrow } from '@/app/places';
 import { useGrow, useGrowPlants, useMeasurementSeries, usePlantEntries } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
@@ -43,6 +44,7 @@ export function PlantPage() {
   const { t } = useTranslation();
   const now = useNow();
   const grow = useGrow(growId);
+  usePageOfGrow(grow.data);
   const plants = useGrowPlants(growId);
   const entries = usePlantEntries(plantId);
   const perPlant = (grow.data?.measurements ?? []).filter(definition => definition.perPlant);

@@ -4,7 +4,7 @@ import { useCurrentPlace } from '@/app/places';
 import { useSession } from '@/api/session';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { PlaceTitle, VisitingTitle } from './place/PlaceTitle';
+import { PlaceTitle, Visited, VisitingTitle } from './place/PlaceTitle';
 import { Timeline as TimelineScreen } from './timeline/Timeline';
 import styles from './timeline/Timeline.module.css';
 
@@ -21,7 +21,13 @@ export function Timeline() {
   if (home.isPending) return <Waiting lines={3} />;
   if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
 
-  if (visiting) return <TimelineScreen spaceId={visiting} heading={<VisitingTitle title={t('shell.tabs.timeline')} spaceId={visiting} />} />;
+  if (visiting) {
+    return (
+      <Visited spaceId={visiting}>
+        <TimelineScreen spaceId={visiting} heading={<VisitingTitle title={t('shell.tabs.timeline')} spaceId={visiting} />} />
+      </Visited>
+    );
+  }
 
   // A timeline is a place's measurements over a window, so the cards that stand
   // for a grow and no place have nothing to draw here and are not offered.

@@ -1,12 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
+import { usePageOfPlace } from '@/app/places';
 import { DeviceList } from './DeviceList';
 import styles from './Devices.module.css';
 
 /**
  * Geräte: every controller, every camera and every smart socket this account
  * has, reached from Steuerung. A link about one place opens that place's
- * devices.
+ * devices, and the page is then that place's.
  *
  * Nothing is added from here. A device arrives through the claim flow, which is
  * four steps long and a screen of its own, so the list carries the way in
@@ -16,6 +17,7 @@ import styles from './Devices.module.css';
 export function Devices() {
   const { t } = useTranslation();
   const [params] = useSearchParams();
+  usePageOfPlace(params.get('space'));
 
   return (
     <section className={styles.page}>

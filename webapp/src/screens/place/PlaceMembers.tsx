@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
-import { placePath } from '@/app/places';
+import { placePath, usePageOfPlace } from '@/app/places';
 import { useSpaces } from '@/api/spaces';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { useMayIn } from '@/ui/session-access';
@@ -21,6 +21,7 @@ export function PlaceMembers() {
   const spaces = useSpaces();
   const space = spaces.data?.items.find(one => one.id === spaceId) ?? null;
   const mayShare = useMayIn(spaceId, 'own');
+  usePageOfPlace(spaceId || null);
 
   if (spaces.isPending) return <Waiting lines={4} />;
   if (!spaces.data) return <LoadFailed retry={() => void spaces.refetch()} />;

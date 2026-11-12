@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
 updated: 2026-11-12
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start rebuilt after the prototype Chris accepted on 2026-11-12
+source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12)
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -65,13 +65,35 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   list its door opens (`/tasks`, whose way back leads to Meldungen) and Ich mark none. The fleet screens of whoever
   runs the install are doors under Ich.
 - **One choice of place holds for Grow, Verlauf and Steuerung** (`app/places.ts`, `app/shell/PlaceChoice.tsx`). From
-  the second place on a chip names the chosen place: in the phone's header on the pages that show it, at the top of
-  the rail on every page. It opens the sheet "Ort": the places under their rooms, each with its status sentence and
-  what grows there, the chosen one ticked. With one place there is no chip. A link that names a place (`?space=`, as
-  an alert and a place's tile do) and opening a place from Start choose it too; no page has a switcher of its own.
+  the second place on a chip names the chosen place and opens the sheet "Ort": the places under their rooms in
+  Start's order, each with its status sentence and what grows there, the chosen one ticked. With one place there is
+  no chip, and no page has a switcher of its own. **The chip never names a place the page is not about** (decided
+  after the first walk of the new frame, 2026-11-12), which these rules keep:
+  - *Where it stands.* On a phone in the header, on every address of the three items (`/grow/...`, `/timeline`,
+    `/control/...`, and Graphen while it is a page); the logo gives way to its mark beside it. On a desktop in the
+    rail on every page, as the head of the group Grow · Verlauf · Steuerung, framed apart from Start - so it reads as
+    what those three are about and not as the title of the page beside it.
+  - *What sets the choice.* A link that names a place (`?space=`, as an alert and a place's tile write it), and
+    opening a page that belongs to one of the account's places: its Start, who is let into it, a grow running there
+    (the grow's page, a plant, its measurements, its Graphen), its camera, its devices (`/devices?space=`). A finished
+    grow, a grow in no place, all grows, Meldungen, Ich and the fleet screens belong to none and change nothing.
+  - *What choosing does.* On a page of Grow, Verlauf or Steuerung the item stays and shows the chosen place at its own
+    address (`/control/alarms` of one place leads to `/control` of the other); the choice is kept once that address
+    is on screen, so the question about unsaved targets can still hold it back. On any other page that belongs to a
+    place it leads to the chosen place's Start. On a page that belongs to none it only changes the choice.
+  - *The first choice* of a browser that has none is the place Start lists first - the one that needs a person - and
+    it is kept at once, so the pages do not move to another place when that one starts asking louder.
+  - *A place the account has not got* in `?space=` is taken out of the address and the chosen place is shown;
+    support reading a customer's place keeps the address, sees no chip, and is told "lässt sich nicht öffnen" with the
+    way back where nothing is there.
 - **A place is one page**, its Start at `/spaces/:id`: with one place Start is that page, with several it is one card
-  per place, ordered by what needs a person. **Grow** (`/grow`) is the grow running in the chosen place, drawn as
-  that grow's page; where nothing grows there it offers to start a grow and leads to "Meine Grows".
+  per place, ordered by what needs a person. **Grow** (`/grow/:tab?`) is the grow running in the chosen place, drawn
+  as that grow's page with its tabs under the same address; where nothing grows there it offers to start a grow and
+  leads to "Meine Grows". A grow opened by its id (`/grows/:growId/...`) is that grow's page whatever is chosen.
+- **A sheet** (`ui/Sheet.tsx`) covers the bar, and the page behind it neither scrolls nor takes the focus. It closes
+  on Escape, its cross (a finger wide), a tap beside it, and on a phone by pulling its handle down; the focus then
+  goes back to what opened it. "L" opens the entry sheet on a desktop, with or without Shift, and never over a sheet
+  that is already open.
 - **Start leads with the plants** (`screens/start/PlaceStart.tsx`; the prototype Chris accepted on 2026-11-12). In
   this order: the place's name with "live · vor 20 s" and its menu; the newest picture taken in the light, with the
   grow's name and day and the picture's hour on it and temperature, humidity, VPD and the lamp in a bar along its

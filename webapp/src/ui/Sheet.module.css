@@ -45,13 +45,22 @@ div.scrim {
   }
 }
 
-/* The handle the board draws: it says the sheet can be pushed away. */
-.grabber {
-  display: block;
+/* The handle the board draws, which pulls the sheet away: a strip across the
+   sheet's top that a thumb finds, with the bar drawn in its middle. The page
+   does not take the pull for a scroll. */
+.handle {
+  display: grid;
   flex: none;
+  place-items: center;
+  height: 24px;
+  margin: calc(var(--space-2) * -1) calc(var(--space-4) * -1) var(--space-1);
+  cursor: grab;
+  touch-action: none;
+}
+
+.grabber {
   width: 40px;
   height: 4px;
-  margin: var(--space-1) auto var(--space-3);
   background: var(--rule-strong);
   border-radius: var(--radius-pill);
 }
@@ -68,6 +77,7 @@ div.scrim {
   flex: 1;
   font-size: var(--text-xl);
   line-height: var(--line-tight);
+  color: var(--ink);
 }
 
 .note {
@@ -85,15 +95,18 @@ div.scrim {
   text-align: right;
 }
 
+/* A finger wide, and pulled into the corner so the cross stands where the title's line ends. */
 .close {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: var(--control-height);
+  height: var(--control-height);
   flex: none;
   align-self: flex-start;
+  margin: calc(var(--space-2) * -1) calc(var(--space-2) * -1) calc(var(--space-2) * -1) 0;
   background: none;
   border: 0;
+  border-radius: var(--radius-pill);
   padding: 0;
   color: var(--muted);
 }
@@ -138,7 +151,7 @@ div.scrim {
     box-shadow: var(--shadow-raised);
   }
 
-  .grabber {
+  .handle {
     display: none;
   }
 }

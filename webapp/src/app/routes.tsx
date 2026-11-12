@@ -91,7 +91,7 @@ export const screens: RouteObject[] = [
     ],
   },
   { path: 'alerts', element: <Alerts /> },
-  { path: 'grow', element: <CurrentGrow /> },
+  { path: 'grow/:tab?', element: <CurrentGrow /> },
   { path: 'grows', element: <MyGrows /> },
   { path: 'grows/new', element: <NewGrowRoute /> },
   { path: 'grows/:growId/measurements', element: <Measurements /> },

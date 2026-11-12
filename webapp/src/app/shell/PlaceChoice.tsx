@@ -11,6 +11,7 @@ import { useDiaryLayer } from '@/api/layers';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { isAboutPlace, isPlace, usePlaceChoice, type PlaceCard } from '@/app/places';
+import { sortedByAttention } from '@/screens/start/attention';
 import { useCardStatus } from '@/screens/start/card-status';
 import { toneOf } from '@/screens/start/place';
 import { groupedByRoom } from '@/screens/start/rooms';
@@ -27,24 +28,26 @@ import styles from './PlaceChoice.module.css';
  * under their rooms. It is there from the second place on; with one place
  * there is nothing to choose and nothing is drawn.
  *
- * The phone's header carries it on the pages that show the chosen place, and
- * the rail on every page (`everywhere`), where it stands over the items it
- * holds for. Support reading a customer's place sees none: that place is named
- * by the address and is none of the reader's own.
+ * The phone's header carries it on every address of those three items, where
+ * the page is about the place it names. The rail carries it on every page
+ * (`everywhere`), as the head of the group those three items are, so it reads
+ * as what they are about and not as the title of the page beside it. Support
+ * reading a customer's place sees none: that place is named by the address
+ * and is none of the reader's own.
  */
 export function PlaceChoice({ everywhere = false }: { everywhere?: boolean }) {
   const { t } = useTranslation();
   const { user } = useSession();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const shape = useShape();
   const home = useHomeShape(user !== null);
   const places = home.data?.spaces.filter(isPlace);
   const { here, visiting, choose } = usePlaceChoice(places);
   const [open, setOpen] = useState(false);
 
-  if (!everywhere && !isAboutPlace(pathname)) return null;
+  if (!everywhere && !isAboutPlace(pathname, search)) return null;
   // The rail keeps the chip's room while the places are on their way, so its items do not jump once they are in.
-  if (!places) return everywhere && shape.places > 1 ? <span className={styles.chip} data-waiting aria-hidden /> : null;
+  if (!places) return everywhere && shape.places > 1 ? <span className={styles.chip} data-place-chip data-waiting aria-hidden /> : null;
   if (!here || places.length < 2 || visiting) return null;
 
   return (
@@ -52,6 +55,7 @@ export function PlaceChoice({ everywhere = false }: { everywhere?: boolean }) {
       <button
         type="button"
         className={styles.chip}
+        data-place-chip
         aria-haspopup="dialog"
         aria-label={t('shell.place.chip', { name: here.name })}
         onClick={() => setOpen(true)}
@@ -59,7 +63,7 @@ export function PlaceChoice({ everywhere = false }: { everywhere?: boolean }) {
         <span className={styles.name}>{here.name}</span>
         <ChevronDown size={14} strokeWidth={2.4} aria-hidden />
       </button>
-      {/* Out of the header it is opened from: a frosted bar would otherwise be the frame a fixed sheet is laid out in. */}
+      {/* Out of the bar it is opened from, which is a layer of its own under the sheets. */}
       {open
         ? createPortal(
             <PlaceSheet
@@ -77,7 +81,7 @@ export function PlaceChoice({ everywhere = false }: { everywhere?: boolean }) {
   );
 }
 
-/** The places under their rooms, in the order the account set them up, each saying how it is and what grows there. */
+/** The places under their rooms, in Start's order - the one that needs a person first - each saying how it is and what grows there. */
 function PlaceSheet({ chosen, onChoose, onClose }: { chosen: string; onChoose: (spaceId: string) => void; onClose: () => void }) {
   const { t } = useTranslation();
   const now = useNow();
@@ -86,7 +90,8 @@ function PlaceSheet({ chosen, onChoose, onClose }: { chosen: string; onChoose: (
   const diary = useDiaryLayer();
   const places = (home.data?.spaces ?? []).filter(isPlace);
   const devices = useDevices(places.some(place => place.deviceIds.length > 0));
-  const row = (card: PlaceCard) => (
+  const groups = groupedByRoom(sortedByAttention(places), spaces.data?.items ?? []);
+  const row = (card: PlaceCard, apart = false) => (
     <PlaceRow
       key={card.spaceId}
       card={card}
@@ -94,6 +99,7 @@ function PlaceSheet({ chosen, onChoose, onClose }: { chosen: string; onChoose: (
       now={now}
       diary={diary}
       chosen={card.spaceId === chosen}
+      apart={apart}
       onChoose={() => onChoose(card.spaceId)}
     />
   );
@@ -103,14 +109,15 @@ function PlaceSheet({ chosen, onChoose, onClose }: { chosen: string; onChoose: (
       {home.isPending ? <Waiting lines={3} /> : null}
       {home.isError && !home.data ? <LoadFailed retry={() => void home.refetch()} /> : null}
       <div className={styles.places}>
-        {groupedByRoom(places, spaces.data?.items ?? []).map(group =>
+        {groups.map((group, index) =>
           group.room ? (
             <section key={group.room.id} className={styles.room} aria-label={group.room.name}>
               <h3 className={styles.roomName}>{group.room.name}</h3>
-              {group.cards.map(row)}
+              {group.cards.map(card => row(card))}
             </section>
           ) : (
-            row(group.cards[0])
+            // A place in no room is set off from the room listed before it, so it does not read as that room's last.
+            row(group.cards[0], index > 0 && groups[index - 1].room !== null)
           ),
         )}
       </div>
@@ -124,6 +131,7 @@ function PlaceRow({
   now,
   diary,
   chosen,
+  apart,
   onChoose,
 }: {
   card: PlaceCard;
@@ -131,6 +139,7 @@ function PlaceRow({
   now: DateTime;
   diary: boolean;
   chosen: boolean;
+  apart: boolean;
   onChoose: () => void;
 }) {
   const { t } = useTranslation();
@@ -145,7 +154,7 @@ function PlaceRow({
   const asks = tone === 'warn' || tone === 'alarm';
 
   return (
-    <button type="button" className={styles.place} aria-current={chosen ? 'true' : undefined} onClick={onChoose}>
+    <button type="button" className={styles.place} data-apart={apart || undefined} aria-current={chosen ? 'true' : undefined} onClick={onChoose}>
       {still ? <img className={styles.still} src={still} alt="" loading="lazy" /> : null}
       <span className={styles.text}>
         <span className={styles.placeName}>{card.name}</span>

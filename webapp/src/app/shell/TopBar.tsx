@@ -7,9 +7,10 @@ import { PlaceChoice } from './PlaceChoice';
 import styles from './TopBar.module.css';
 
 /**
- * The phone's header: the logo, the chosen place where there is one to choose,
- * the bell and the way to Ich. The bell carries a dot while something is open
- * and nothing at all while nothing is, so it reads as quiet rather than as a
+ * The phone's header: the logo, the chosen place on the pages that are about
+ * it - where the logo gives way to its mark, so the name has the room - the
+ * bell and the way to Ich. The bell carries a dot while something is open and
+ * nothing at all while nothing is, so it reads as quiet rather than as a
  * zero; the link says the count, for anybody who cannot see the dot.
  */
 export function TopBar() {

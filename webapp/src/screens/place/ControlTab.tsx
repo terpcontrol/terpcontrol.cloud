@@ -5,7 +5,7 @@ import { useSession } from '@/api/session';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { Control } from '../control/Control';
-import { PlaceTitle, VisitingTitle } from './PlaceTitle';
+import { PlaceTitle, Visited, VisitingTitle } from './PlaceTitle';
 import styles from './Place.module.css';
 
 /**
@@ -27,10 +27,12 @@ export function ControlTab() {
   // rather than "nothing to steer here" over a place that steers plenty.
   if (visiting) {
     return (
-      <section className={`${styles.page} ${styles.reading}`}>
-        <VisitingTitle title={t('shell.tabs.control')} spaceId={visiting} />
-        <Control spaceId={visiting} sub={page} />
-      </section>
+      <Visited spaceId={visiting}>
+        <section className={`${styles.page} ${styles.reading}`}>
+          <VisitingTitle title={t('shell.tabs.control')} spaceId={visiting} />
+          <Control spaceId={visiting} sub={page} />
+        </section>
+      </Visited>
     );
   }
 

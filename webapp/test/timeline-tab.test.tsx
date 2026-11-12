@@ -1,7 +1,8 @@
 import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useLocation } from 'react-router';
 import { Timeline } from '@/screens/Timeline';
-import { drawAt, json } from './harness';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 // Which of the two sessions is looking, because the tab's empty state is the
@@ -57,6 +58,12 @@ describe('the timeline tab with nothing to draw', () => {
   });
 });
 
+/** Where the page stands, for the tests that follow an address being put right. */
+function Address() {
+  const { pathname, search } = useLocation();
+  return <output data-testid="address">{`${pathname}${search}`}</output>;
+}
+
 /**
  * A place's tile names its place in the link it opens, so an account with
  * several places lands on the one the tile was on - not on whichever place was
@@ -64,20 +71,26 @@ describe('the timeline tab with nothing to draw', () => {
  */
 describe('the timeline tab opened from a place', () => {
   const asked: string[] = [];
+  /** The places the wire knows by their overview; any other is not there. */
+  const known = new Set<string>();
 
   beforeEach(() => {
     who.is = 'you';
     home.spaces = [
-      { spaceId: 'space-1', name: 'Tent 1', values: [], deviceIds: ['device-1'] },
-      { spaceId: 'space-2', name: 'Fridge 2', values: [], deviceIds: ['device-2'] },
+      { spaceId: 'space-1', name: 'Tent 1', values: [], deviceIds: ['device-1'], dueTasks: [], openAlerts: [] },
+      { spaceId: 'space-2', name: 'Fridge 2', values: [], deviceIds: ['device-2'], dueTasks: [], openAlerts: [] },
     ];
     asked.length = 0;
+    known.clear();
     localStorage.clear();
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
-        asked.push(String(input).replace(/^.*\/v1/, ''));
-        return json({ code: 'not_found' }, 404);
+        const path = String(input).replace(/^.*\/v1/, '');
+        asked.push(path);
+        const overview = /^\/spaces\/([^/]+)\/overview/.exec(path);
+        if (overview && known.has(overview[1])) return json({ spaceId: overview[1], name: 'Their tent', deviceIds: [] });
+        return json(NOT_FOUND, 404);
       }),
     );
   });
@@ -85,41 +98,70 @@ describe('the timeline tab opened from a place', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   const timelineOf = (spaceId: string) => asked.some(path => path.startsWith(`/spaces/${spaceId}/timeline`));
+  const draw = (at: string) =>
+    drawAt(
+      <>
+        <Timeline />
+        <Address />
+      </>,
+      { at },
+    );
 
   it('opens on the place the link names, and makes it the chosen one', async () => {
-    drawAt(<Timeline />, { at: '/timeline?space=space-2&focus=humidity' });
+    draw('/timeline?space=space-2&focus=humidity');
 
     await waitFor(() => expect(timelineOf('space-2')).toBe(true));
     expect(timelineOf('space-1')).toBe(false);
     expect(localStorage.getItem('terp.place')).toBe('space-2');
   });
 
-  it('opens on the chosen place where the address names none, and on the first where none was chosen', async () => {
+  it('opens on the chosen place where the address names none', async () => {
     localStorage.setItem('terp.place', 'space-2');
-    const { unmount } = drawAt(<Timeline />, { at: '/timeline' });
+    draw('/timeline');
+
     await waitFor(() => expect(timelineOf('space-2')).toBe(true));
     expect(timelineOf('space-1')).toBe(false);
-    unmount();
+  });
 
-    localStorage.clear();
-    drawAt(<Timeline />, { at: '/timeline' });
-    await waitFor(() => expect(timelineOf('space-1')).toBe(true));
+  it('opens a browser that has chosen none on the place Start lists first, and keeps to it', async () => {
+    home.spaces = [home.spaces[0], { ...(home.spaces[1] as object), openAlerts: [{ alertId: 'alert-1', severity: 'warning' }] }];
+    draw('/timeline');
+
+    // The place that needs a person, not the first the account set up.
+    await waitFor(() => expect(timelineOf('space-2')).toBe(true));
+    expect(timelineOf('space-1')).toBe(false);
+    // Kept, so the page does not move to another place once that one asks louder.
+    expect(localStorage.getItem('terp.place')).toBe('space-2');
   });
 
   it('draws a customer’s place for support rather than swapping it for one of the reader’s own', async () => {
     who.is = 'admin';
-    drawAt(<Timeline />, { at: '/timeline?space=customer-9' });
+    known.add('customer-9');
+    draw('/timeline?space=customer-9');
 
     expect(screen.getByText("support view of a customer's place")).toBeInTheDocument();
     await waitFor(() => expect(timelineOf('customer-9')).toBe(true));
-    expect(localStorage.getItem('terp.place')).toBeNull();
+    expect(screen.getByTestId('address')).toHaveTextContent('/timeline?space=customer-9');
+    // A customer's place is no choice of the reader's.
+    expect(localStorage.getItem('terp.place')).not.toBe('customer-9');
   });
 
-  it('keeps an ordinary account on its own places whatever the address names', async () => {
-    drawAt(<Timeline />, { at: '/timeline?space=customer-9' });
+  it('tells support that a place is not there, with the way back and no retry', async () => {
+    who.is = 'admin';
+    draw('/timeline?space=nothing-here');
+
+    expect(await screen.findByText('This place cannot be opened.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+  });
+
+  it('keeps an ordinary account on its own places whatever the address names, and takes the wrong place out of it', async () => {
+    localStorage.setItem('terp.place', 'space-2');
+    draw('/timeline?space=customer-9&focus=humidity');
 
     expect(screen.queryByText("support view of a customer's place")).not.toBeInTheDocument();
-    await waitFor(() => expect(timelineOf('space-1')).toBe(true));
+    await waitFor(() => expect(timelineOf('space-2')).toBe(true));
     expect(timelineOf('customer-9')).toBe(false);
+    await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent(/^\/timeline$/));
   });
 });

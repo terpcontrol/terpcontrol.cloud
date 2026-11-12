@@ -24,6 +24,10 @@
   visibility: hidden;
 }
 
+.chip:hover {
+  border-color: var(--brand);
+}
+
 .name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -37,10 +41,23 @@
   gap: var(--space-2);
 }
 
-/* A room stands apart from what is listed before and after it, so a place in no room does not read as its last. */
-.room + *,
+/* A room stands apart from what is listed before it. */
+.room + .room,
 .place + .room {
   margin-top: var(--space-3);
+}
+
+/* A place in no room, after a room: behind a rule, so it does not read as that room's last. */
+.place[data-apart] {
+  position: relative;
+  margin-top: var(--space-5);
+}
+
+.place[data-apart]::before {
+  position: absolute;
+  inset: calc(var(--space-4) * -1) 0 auto;
+  border-top: var(--rule-solid);
+  content: '';
 }
 
 .roomName {

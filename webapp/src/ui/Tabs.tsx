@@ -6,6 +6,8 @@ interface TabItem {
   key: string;
   label: string;
   to: string;
+  /** The tab whose address the other tabs' addresses begin with: it is on at that address alone. */
+  end?: boolean;
 }
 
 /**
@@ -18,7 +20,14 @@ export function Tabs({ items, label, state }: { items: TabItem[]; label: string;
   return (
     <nav className={`${ui.scrollRow} ${styles.tabs}`} aria-label={label} data-print="omit">
       {items.map(item => (
-        <NavLink key={item.key} to={item.to} replace state={state} className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}>
+        <NavLink
+          key={item.key}
+          to={item.to}
+          end={item.end}
+          replace
+          state={state}
+          className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}
+        >
           {item.label}
         </NavLink>
       ))}

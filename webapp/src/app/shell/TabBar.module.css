@@ -6,11 +6,17 @@
   align-items: center;
   height: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
   padding: 6px var(--space-2) calc(var(--space-2) + env(safe-area-inset-bottom));
-  background: color-mix(in srgb, var(--card) 92%, transparent);
-  backdrop-filter: saturate(1.4) blur(14px);
-  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  /* Solid: the page scrolls under it, and nothing of it may show through. */
+  background: var(--card);
   border-top: var(--rule-solid);
   box-shadow: var(--shadow-bar);
+}
+
+/* Wider than a phone, the items keep to the column over them rather than spreading to the edges of the screen. */
+@media (min-width: 600px) {
+  .bar {
+    padding-inline: max(var(--space-2), calc((100% - var(--column-width)) / 2));
+  }
 }
 
 /* As many equal shares as the account has items: three for a device alone, five with the diary. */

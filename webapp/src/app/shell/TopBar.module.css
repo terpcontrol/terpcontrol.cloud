@@ -7,9 +7,8 @@
   gap: var(--space-1);
   min-height: calc(var(--topbar-height) + env(safe-area-inset-top));
   padding: env(safe-area-inset-top) max(var(--space-2), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
-  background: color-mix(in srgb, var(--bg) 86%, transparent);
-  backdrop-filter: saturate(1.4) blur(14px);
-  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  /* Solid: the page scrolls under it, and nothing of it may show through. */
+  background: var(--bg);
 }
 
 /* Wider than a phone, the bar's ends line up with the column under it rather
@@ -20,15 +19,23 @@
   }
 }
 
-/* The logo stands small, so that the name of a chosen place has the room beside it; what follows keeps to the right. */
+/* The logo, a finger tall to tap; what follows keeps to the right. */
 .wordmark {
-  --logo-height: 22px;
+  --logo-height: 26px;
 
   display: flex;
   flex: none;
   align-items: center;
   min-height: var(--control-height);
   margin-right: auto;
+}
+
+/* Beside the name of a chosen place the logo gives way to its mark - the
+   shield, which is the logo's first 204 of 196 px in height - so that the name
+   has the room. */
+.bar:has([data-place-chip]) .wordmark {
+  width: calc(var(--logo-height) * 204 / 196);
+  overflow: hidden;
 }
 
 .action {

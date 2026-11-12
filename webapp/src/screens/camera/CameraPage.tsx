@@ -15,7 +15,7 @@ import { itemsOf } from '@/api/pages';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { placePath, timelinePath } from '@/app/places';
+import { placePath, timelinePath, usePageOfPlace } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { rowReaches } from '@/screens/notifications/reach';
 import { useCameraCalled } from '@/ui/camera-name';
@@ -51,6 +51,7 @@ export function CameraPage() {
   const { cameraId = '' } = useParams();
   const { t } = useTranslation();
   const camera = useCamera(cameraId);
+  usePageOfPlace(camera.data?.spaceId ?? null);
 
   if (camera.isPending) return <Waiting lines={3} />;
   if (!camera.data) return noLongerThere(camera.error) ? <NoLongerHere what="camera" /> : <LoadFailed retry={() => void camera.refetch()} />;

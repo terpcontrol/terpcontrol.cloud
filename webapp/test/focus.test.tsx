@@ -68,4 +68,76 @@ describe('a sheet', () => {
     act(() => void fireEvent.keyDown(document, { key: 'Escape' }));
     expect(screen.getByText('The page')).not.toHaveAttribute('inert');
   });
+
+  /** A page with one button, which opens a sheet with one field in it. */
+  function Asking() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)}>
+          Ask
+        </button>
+        {open ? (
+          <Sheet title="Question" note="for the whole tent" onClose={() => setOpen(false)}>
+            <input aria-label="Answer" />
+          </Sheet>
+        ) : null}
+      </>
+    );
+  }
+
+  const ask = () => {
+    render(<Asking />);
+    const opener = screen.getByRole('button', { name: 'Ask' });
+    opener.focus();
+    fireEvent.click(opener);
+    const sheet = screen.getByRole('dialog', { name: 'Question' });
+    return { opener, sheet, backdrop: sheet.parentElement!, handle: sheet.firstElementChild as HTMLElement };
+  };
+
+  it('closes on a tap beside it, and gives the focus back to what opened it', () => {
+    const { opener, backdrop } = ask();
+
+    fireEvent.pointerDown(backdrop);
+    // What a browser does with a press on something that takes no focus.
+    act(() => (document.activeElement as HTMLElement).blur());
+    fireEvent.click(backdrop);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
+  it('stays open where a press that began inside it is let go beside it', () => {
+    const { backdrop } = ask();
+
+    fireEvent.pointerDown(screen.getByRole('textbox', { name: 'Answer' }));
+    fireEvent.click(backdrop);
+
+    expect(screen.getByRole('dialog', { name: 'Question' })).toBeInTheDocument();
+  });
+
+  it('follows its handle down, springs back from a short pull and is put away by a long one', () => {
+    const { sheet, handle } = ask();
+
+    fireEvent.pointerDown(handle, { clientY: 100 });
+    fireEvent.pointerMove(handle, { clientY: 140 });
+    expect(sheet.style.transform).toBe('translateY(40px)');
+    fireEvent.pointerUp(handle, { clientY: 140 });
+    expect(sheet.style.transform).toBe('');
+    expect(screen.getByRole('dialog', { name: 'Question' })).toBeInTheDocument();
+
+    fireEvent.pointerDown(handle, { clientY: 100 });
+    fireEvent.pointerMove(handle, { clientY: 260 });
+    fireEvent.pointerUp(handle, { clientY: 260 });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('marks the page as held still behind it, and says under its title what its answer is for', () => {
+    const { sheet, backdrop } = ask();
+
+    // global.css stops the page scrolling while an element so marked is on it.
+    expect(backdrop).toHaveAttribute('data-scrim');
+    expect(sheet).toHaveAccessibleName('Question');
+    expect(sheet).toHaveTextContent('for the whole tent');
+  });
 });

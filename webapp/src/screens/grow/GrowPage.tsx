@@ -2,7 +2,7 @@ import { CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router';
-import { FROM_MY_GROWS, GROW, MY_GROWS, openedFrom, placePath, useBackToPlace } from '@/app/places';
+import { FROM_MY_GROWS, GROW, MY_GROWS, openedFrom, placePath, useBackToPlace, usePageOfGrow } from '@/app/places';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
@@ -16,6 +16,7 @@ import { useNow } from '@/ui/useNow';
 import { calendarDay, useZone } from '@/ui/zone';
 import { BackLink } from '@/ui/BackLink';
 import { Feeding } from './Feeding';
+import { GROW_TABS, isGrowTab, type GrowTab } from './grow-tabs';
 import { GrowLifecycle } from './Lifecycle';
 import { PhaseBar } from './PhaseBar';
 import { PhaseTips } from './PhaseTips';
@@ -25,11 +26,6 @@ import { Report } from './Report';
 import { ShareSheet } from './ShareSheet';
 import { Weeks } from './Weeks';
 import styles from './GrowPage.module.css';
-
-const TABS = ['weeks', 'plants', 'feeding', 'report'] as const;
-type GrowTab = (typeof TABS)[number];
-
-const isTab = (value: string | undefined): value is GrowTab => (TABS as readonly string[]).includes(value ?? '');
 
 /**
  * The grow page: its name, its day counter and its phase above a bar of the
@@ -41,20 +37,22 @@ export function GrowPage() {
   const { growId = '', tab } = useParams();
   // Where the grow was opened from goes along to the tab it lands on, so its way back is the same.
   const { state } = useLocation();
-  if (!isTab(tab)) return <Navigate to={`/grows/${growId}/weeks`} replace state={state} />;
+  if (!isGrowTab(tab)) return <Navigate to={`/grows/${growId}/weeks`} replace state={state} />;
 
   return <GrowScreen growId={growId} tab={tab} />;
 }
 
 /**
  * `current` is the grow drawn at the bar's own address, as the one running in
- * the chosen place: its way back is the list of every grow, and its first tab
- * is that address.
+ * the chosen place: its way back is the list of every grow, and its tabs are
+ * addresses under that one. Opened by its id, a running grow's page belongs
+ * to the place it stands in.
  */
 export function GrowScreen({ growId, tab, current = false }: { growId: string; tab: GrowTab; current?: boolean }) {
   const { t } = useTranslation();
   const now = useNow();
   const grow = useGrow(growId);
+  usePageOfGrow(current ? undefined : grow.data);
   const plants = useGrowPlants(growId);
   const spaces = useSpaces();
   const mayWith = useMayWith();
@@ -79,7 +77,12 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
   const youMay = mayWith(growStanding(grow.data));
   const mayManage = enough(youMay, 'manage');
   const mayOwn = enough(youMay, 'own');
-  const tabs = TABS.map(key => ({ key, label: t(`grow.tabs.${key}`), to: current && key === tab ? GROW : `/grows/${growId}/${key}` }));
+  const tabs = GROW_TABS.map(key => ({
+    key,
+    label: t(`grow.tabs.${key}`),
+    to: current ? (key === 'weeks' ? GROW : `${GROW}/${key}`) : `/grows/${growId}/${key}`,
+    end: current && key === 'weeks',
+  }));
 
   return (
     <section className={styles.page} data-tab={tab}>

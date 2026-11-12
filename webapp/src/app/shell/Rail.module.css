@@ -29,14 +29,33 @@
     line-height: 0;
   }
 
-  /* The chosen place, over the pages it holds for; no room is kept where there is none to choose. */
-  .place {
+  /* Grow, Verlauf and Steuerung. With one place they stand in the row of the
+     items; from the second place on the chosen place heads them inside one
+     frame, so the name reads as what these three are about. */
+  .about {
     display: flex;
-    margin-bottom: var(--space-3);
+    flex-direction: column;
+    gap: var(--space-1);
   }
 
-  .place:empty {
+  .about:empty {
     display: none;
+  }
+
+  .about:has(> [data-place-chip]) {
+    margin: var(--space-2) 0;
+    padding: var(--space-2);
+    border: var(--rule-solid);
+    border-radius: var(--radius);
+  }
+
+  .about > [data-place-chip] {
+    justify-content: space-between;
+    margin-bottom: var(--space-1);
+  }
+
+  .about:has(> [data-place-chip]) .item {
+    padding: 0 var(--space-2);
   }
 
   .item {
@@ -75,10 +94,6 @@
     color: var(--on-green);
     font-size: var(--text-md);
     font-weight: var(--weight-semibold);
-  }
-
-  .log::before {
-    content: '+';
   }
 
   .spacer {

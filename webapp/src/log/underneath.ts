@@ -28,7 +28,7 @@ export const openingOf = (
   if (first === 'grows' && id) return { growId: id, underneath: true };
   if (first === 'spaces' && id) return { spaceId: id, underneath: true };
 
-  const place = isAboutPlace(pathname) ? (new URLSearchParams(search).get('space') ?? current) : first === undefined ? only : null;
+  const place = isAboutPlace(pathname, search) ? (new URLSearchParams(search).get('space') ?? current) : first === undefined ? only : null;
   return place ? { spaceId: place, underneath: true } : {};
 };
 

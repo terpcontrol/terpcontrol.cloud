@@ -13,7 +13,7 @@ import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { controlPath, devicesPath, GROW, timelinePath, useChoosePlace } from '@/app/places';
+import { controlPath, devicesPath, GROW, timelinePath, usePageOfPlace } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { ageLabel, dayStamp, sinceLabel } from '@/ui/age';
 import { BackLink } from '@/ui/BackLink';
@@ -159,7 +159,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const sentence = <StatusSentence status={status} overview={overview} camera={camera} mayManage={mayManage} device={device} />;
 
   // Looking at a place here is what makes it the one Grow, Verlauf and Steuerung open on.
-  useChoosePlace(spaceId);
+  usePageOfPlace(spaceId);
 
   return (
     <section className={styles.page} aria-labelledby={`${spaceId}-name`} data-single={byHand || undefined}>

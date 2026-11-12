@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Rail } from '@/app/shell/Rail';
 import { TabBar } from '@/app/shell/TabBar';
@@ -94,5 +94,41 @@ describe('the navigation', () => {
 
     expect(await screen.findByRole('button', { name: 'Log' })).toHaveAttribute('aria-keyshortcuts', 'l');
     expect(screen.getAllByRole('link').map(link => link.textContent)).toEqual(['Home', 'Grow', 'Timeline', 'Control', 'Alerts', 'Me']);
+  });
+
+  it('opens the entry sheet on L, with or without Shift, and never over a sheet that is open', async () => {
+    wire.diary = true;
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    draw(<Rail />);
+    await screen.findByRole('button', { name: 'Log' });
+
+    fireEvent.keyDown(window, { key: 'L', shiftKey: true });
+    expect(await screen.findByRole('dialog', { name: 'Log' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'l' });
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
+
+  it('leaves L alone while another sheet is open', async () => {
+    wire.diary = true;
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    draw(
+      <>
+        <Rail />
+        <div role="dialog" aria-label="Place" />
+      </>,
+    );
+    await screen.findByRole('button', { name: 'Log' });
+
+    fireEvent.keyDown(window, { key: 'l' });
+    await waitFor(() => expect(fetchStub).toHaveBeenCalled());
+    expect(screen.queryByRole('dialog', { name: 'Log' })).not.toBeInTheDocument();
+  });
+
+  it('names the rail´s entry button by its word alone', async () => {
+    wire.diary = true;
+    draw(<Rail />);
+
+    expect(await screen.findByRole('button', { name: 'Log' })).toHaveTextContent('+Log');
   });
 });
