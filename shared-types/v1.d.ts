@@ -4151,6 +4151,10 @@ export interface SpaceTimeline {
    * Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.
    */
   deviceIds: string[] | null;
+  /**
+   * The device the panels are read from: the one asked for, else the place’s own climate - one device, never a mean of several. Null on a shared or public read, and where no device here measured.
+   */
+  deviceId: string | null;
   panels: TimelinePanel[];
   /**
    * When a device standing here last measured one of the panels' metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.

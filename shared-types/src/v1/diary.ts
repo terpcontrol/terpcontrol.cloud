@@ -1804,6 +1804,11 @@ export const spaceTimeline = named(
     endsAt: instant(),
     stepSeconds: z.number().int().describe('The window each point summarises; 0 in a space with no device to read, where there are no points at all.'),
     deviceIds: z.array(id()).nullable().describe('Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.'),
+    deviceId: id()
+      .nullable()
+      .describe(
+        'The device the panels are read from: the one asked for, else the place’s own climate - one device, never a mean of several. Null on a shared or public read, and where no device here measured.',
+      ),
     panels: z.array(timelinePanel),
     lastReadingAt: instant()
       .nullable()

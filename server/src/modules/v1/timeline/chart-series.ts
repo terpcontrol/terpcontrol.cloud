@@ -11,7 +11,7 @@ import { recordOf } from '../phase/target-record';
 import { CHART_FRAME_SLOTS, framesOf } from './frames';
 import { lastReadingOf } from './last-reading';
 import { chartPartsOf, panelsOf } from './timeline-series';
-import { TimelineWindow, steeringOf, stretchesOf } from './timeline-window';
+import { TimelineWindow, ownOf, steeringOf, stretchesOf } from './timeline-window';
 
 /** Where a chart is read from. */
 interface ChartSources {
@@ -54,11 +54,7 @@ export const chartSeriesOf = async (
     recordOf(sources.targetRecord, steeringOf(devices)?.id ?? null, window),
     framesOf(sources.media, cameras, window, CHART_FRAME_SLOTS),
   ]);
-  const climate = panelsOf(
-    histories.map(one => one.series),
-    stretchesOf(grow, devices, window, now, aimed),
-    metrics,
-  );
+  const climate = panelsOf(ownOf(devices, histories)?.series ?? null, stretchesOf(grow, devices, window, now, aimed), metrics);
 
   return {
     startsAt: window.startsAt.toISOString(),

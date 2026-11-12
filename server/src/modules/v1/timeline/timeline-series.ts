@@ -70,17 +70,18 @@ export interface TargetStretch {
  * Which metrics are stacked is the timeline's own unless a caller says
  * otherwise, and there is no second way of turning points into a panel.
  *
- * Several controllers in one tent are several thermometers in the same air, so
- * the windows they share are averaged into one line rather than drawn as two -
- * the panel is what the tent read, not what each device did.
+ * A panel is one device's readings: the place's own climate, or the one a
+ * reader asked for (`ownOf`). Two devices in one place are two thermometers
+ * and often two climates - a tent's controller and a fridge module - and a
+ * mean of them is a figure neither read, which no other screen states.
  */
 export const panelsOf = (
-  series: readonly DeviceSeries[],
+  series: DeviceSeries | null,
   stretches: readonly TargetStretch[],
   metrics: readonly Metric[] = PANEL_METRICS,
 ): TimelinePanel[] =>
   metrics.flatMap(metric => {
-    const points = pooled(series, metric);
+    const points = series ? heardOf(series, metric) : [];
 
     return points.some(point => point.value !== null) ? [{ metric, points, targets: targetsOf(metric, stretches) }] : [];
   });
@@ -408,7 +409,9 @@ const stateStretches = (switchings: readonly OutputSwitching[], on: boolean): St
     if (switching.on !== on) return [];
     const next = switchings[index + 1];
 
-    return [{ from: millis(switching.at), to: next ? millis(next.at) : Number.POSITIVE_INFINITY }];
+    // The first row is the state the window was found in, stamped with the first grain a sample fell into - up
+    // to a grain after the window began. The state held before it too: a night does not begin two seconds in.
+    return [{ from: index === 0 ? Number.NEGATIVE_INFINITY : millis(switching.at), to: next ? millis(next.at) : Number.POSITIVE_INFINITY }];
   });
 
 /**
@@ -459,7 +462,11 @@ const heardStretches = (points: readonly SeriesPoint[], window: SeriesWindow, st
   const closes = stretches[stretches.length - 1];
   if (sampled !== null) closes.to = Math.max(closes.from, Math.min(closes.to, sampled));
   if (opens.from - window.startsAt.getTime() <= silence) opens.from = window.startsAt.getTime();
-  if (window.endsAt.getTime() - closes.to <= silence) closes.to = window.endsAt.getTime();
+  // A device whose newest sample is known is still reporting by the rule the rest of the app goes by, not by
+  // the rhythm of a window as wide as a month's: a lamp is not "on" for the hours after its device went quiet.
+  if (window.endsAt.getTime() - closes.to <= (sampled === null ? silence : Math.min(silence, VALUE_AGE.staleSeconds * 1000))) {
+    closes.to = window.endsAt.getTime();
+  }
 
   return stretches;
 };
@@ -480,42 +487,32 @@ const overlapping = (one: readonly Stretch[], other: readonly Stretch[]): Stretc
 const millis = (instant: string): number => new Date(instant).getTime();
 
 /**
- * One metric across every controller of the space, window by window. The reads
- * share a window and a step, so the instant is what joins them.
+ * One metric of one device, window by window.
  *
  * Only the windows something was read in are answered, with a break written
- * between two of them the space fell silent across, and one after the last of
- * them where the space has been silent since. A window with no reading is not a
+ * between two of them the device fell silent across, and one after the last of
+ * them where it has been silent since. A window with no reading is not a
  * hole in the measurement: a device sampling every hour into windows of three
  * minutes leaves nineteen empty ones between every sample, and a series of
  * holes with a lone reading between them is a line that cannot be drawn at all.
  * What the curve has to break at is the silence, which is the same thing the
  * lanes under it break at.
  */
-const pooled = (series: readonly DeviceSeries[], metric: Metric): SeriesPoint[] => {
-  const readings = new Map<string, SeriesPoint[]>();
+const heardOf = (series: DeviceSeries, metric: Metric): SeriesPoint[] => {
+  const heard = (series.metrics.find(row => row.metric === metric)?.points ?? []).flatMap(point =>
+    point.value === null
+      ? []
+      : [
+          {
+            measuredAt: point.measuredAt,
+            value: rounded(point.value, metric),
+            ...(point.min !== undefined && point.max !== undefined ? { min: rounded(point.min, metric), max: rounded(point.max, metric) } : {}),
+          },
+        ],
+  );
 
-  for (const one of series) {
-    for (const point of one.metrics.find(row => row.metric === metric)?.points ?? []) {
-      if (point.value === null) continue;
-      readings.set(point.measuredAt, [...(readings.get(point.measuredAt) ?? []), point]);
-    }
-  }
-
-  const heard = [...readings.entries()]
-    .sort(([one], [other]) => one.localeCompare(other))
-    .map(([measuredAt, points]) => {
-      const value = rounded(mean(points.map(point => point.value as number)), metric);
-      // The lowest any of them read and the highest: two thermometers in one air do not average a door away.
-      const min = rounded(Math.min(...points.map(point => point.min ?? (point.value as number))), metric);
-      const max = rounded(Math.max(...points.map(point => point.max ?? (point.value as number))), metric);
-      return { measuredAt, value, ...(max > min || min !== value ? { min, max } : {}) };
-    });
-
-  const step = series[0]?.stepSeconds ?? 0;
-  const silence = silenceOf(heard, step);
-  const quietAtTheEnd = Math.max(VALUE_AGE.staleSeconds * 1000, usualGapOf(heard, step));
-  return closed(broken(heard, silence), series[0] ? millis(series[0].endsAt) : null, quietAtTheEnd);
+  const silence = silenceOf(heard, series.stepSeconds);
+  return closed(broken(heard, silence), millis(series.endsAt), Math.max(VALUE_AGE.staleSeconds * 1000, usualGapOf(heard, series.stepSeconds)));
 };
 
 /** The readings with a null between the two the space went quiet between, which is where the line stops and starts again. */
@@ -549,9 +546,9 @@ const broken = (points: readonly SeriesPoint[], silence: number): SeriesPoint[] 
  * already says - nothing was measured here - and says it on the Charts header,
  * the Timeline header and the cursor's dot at once.
  */
-const closed = (points: readonly SeriesPoint[], endsAt: number | null, silence: number): SeriesPoint[] => {
+const closed = (points: readonly SeriesPoint[], endsAt: number, silence: number): SeriesPoint[] => {
   const last = points[points.length - 1];
-  if (!last || last.value === null || endsAt === null || endsAt - millis(last.measuredAt) <= silence) return [...points];
+  if (!last || last.value === null || endsAt - millis(last.measuredAt) <= silence) return [...points];
 
   return [...points, { measuredAt: new Date(millis(last.measuredAt) + 1).toISOString(), value: null }];
 };
@@ -560,8 +557,6 @@ const halfOf = (metric: Metric, setpoint: number | null): TimelineTarget | null 
   const band = bandAround(metric, setpoint ?? undefined);
   return setpoint === null || band === null ? null : { setpoint, band: { low: rounded(band.low, metric), high: rounded(band.high, metric) } };
 };
-
-const mean = (values: readonly number[]): number => values.reduce((sum, value) => sum + value, 0) / values.length;
 
 /** What the sensor can say, and no more: the mean of two readings is otherwise seventeen digits of which one is a measurement. */
 const rounded = (value: number, metric: Metric): number => {

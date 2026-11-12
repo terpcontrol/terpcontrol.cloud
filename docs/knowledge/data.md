@@ -131,7 +131,8 @@ Pitfalls, each met at least once:
   a live reading is), read raw and worked out in the server, and only for a window of three days at the most
   (`MAX_SAMPLED_SECONDS`): on the tent below a day costs 64 ms more, a week 476 ms, a month 2.2 s, and the same
   in Flux - a pivot and the deficit of every row are not pushed down - 305 ms, 2 s, 8.5 s and 34 s for the four
-  months. A wider window answers no extremes of VPD; no envelope is better than a false one. PPFD is one reading
+  months. A wider window answers no extremes of VPD; no envelope is better than a false one. Through the route,
+  the day's read went from 50 to 97 ms (medians of seven) and no other range changed. PPFD is one reading
   times a factor, so its extremes are the reading's.
 - **A window cut short is judged over what it covers.** `aggregateWindow` cuts the first and the last window to
   the range; which half of the day a window was in (`dayOfCycleIn`, a plug's `middleOf`) is asked of that

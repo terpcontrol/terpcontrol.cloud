@@ -1376,6 +1376,9 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
     endsAt: (0, common_js_1.instant)(),
     stepSeconds: zod_1.z.number().int().describe('The window each point summarises; 0 in a space with no device to read, where there are no points at all.'),
     deviceIds: zod_1.z.array((0, common_js_1.id)()).nullable().describe('Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.'),
+    deviceId: (0, common_js_1.id)()
+        .nullable()
+        .describe('The device the panels are read from: the one asked for, else the place’s own climate - one device, never a mean of several. Null on a shared or public read, and where no device here measured.'),
     panels: zod_1.z.array(exports.timelinePanel),
     lastReadingAt: (0, common_js_1.instant)()
         .nullable()

@@ -13259,6 +13259,18 @@
         ],
         "description": "Null on a shared or public read: what a reader is shown is the tent, not the hardware in it."
       },
+      "deviceId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The device the panels are read from: the one asked for, else the place’s own climate - one device, never a mean of several. Null on a shared or public read, and where no device here measured."
+      },
       "panels": {
         "type": "array",
         "items": {
@@ -13354,6 +13366,7 @@
       "endsAt",
       "stepSeconds",
       "deviceIds",
+      "deviceId",
       "panels",
       "lastReadingAt",
       "nights",

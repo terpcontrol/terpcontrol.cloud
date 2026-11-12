@@ -27,7 +27,7 @@ import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
 import { lastReadingOf } from './last-reading';
 import { PANEL_METRICS, chartPartsOf, panelsOf } from './timeline-series';
-import { TimelineWindow, camerasOfDevice, narrowedToDevice, steeringOf, stretchesOf, windowOf } from './timeline-window';
+import { TimelineWindow, camerasOfDevice, narrowedToDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
  * The Timeline tab, as one answer.
@@ -170,11 +170,8 @@ export class TimelineService {
       grantRedaction(this.users, grant),
     ]);
     const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant));
-    const panels = panelsOf(
-      series.map(one => one.series),
-      stretchesOf(grow, devices, window, at, aimed),
-      metrics,
-    );
+    const own = ownOf(devices, series);
+    const panels = panelsOf(own?.series ?? null, stretchesOf(grow, devices, window, at, aimed), metrics);
 
     return {
       spaceId: space.id,
@@ -187,6 +184,8 @@ export class TimelineService {
       startsAt: window.startsAt.toISOString(),
       endsAt: window.endsAt.toISOString(),
       ...chartPartsOf({ histories: series, devices, window, redacted: isOutsider(grant), aimed, cameras, frames }),
+      // Which device the curves are of is the hardware in the tent, and a reader from outside is shown the tent.
+      deviceId: isOutsider(grant) ? null : (own?.series.deviceId ?? null),
       panels,
       lastReadingAt: panels.length > 0 ? null : await lastReadingOf(this.data, devices),
       // An alarm is the keeper's: when a tent stood outside its rules is not a reader's from outside, nor are the ids.

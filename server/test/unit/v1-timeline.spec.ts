@@ -436,6 +436,15 @@ describe('the window a range chip names', () => {
     expect(page.panels[0].points).toHaveLength(240);
   });
 
+  it('ends a window named into the future now, where the measuring ends', async () => {
+    const today = { startsAt: new Date(NOW.getTime() - 6 * 3600_000), endsAt: new Date(NOW.getTime() + 18 * 3600_000) };
+    const page = await readAs(session(OWNER), { range: '24h', window: today });
+
+    expect(page).toMatchObject({ startsAt: today.startsAt.toISOString(), endsAt: NOW.toISOString() });
+    // Six hours, read as six hours and not as a day of which three quarters are empty.
+    expect(page.stepSeconds).toBe(45);
+  });
+
   it('reads at the five seconds a device reports in for as long as that fits, and never between two samples', async () => {
     const wide = (minutes: number) => ({ startsAt: new Date(NOW.getTime() - minutes * 60_000), endsAt: NOW });
     const stepOf = async (minutes: number) => (await readAs(session(OWNER), { range: '24h', window: wide(minutes) })).stepSeconds;
@@ -498,10 +507,10 @@ describe('the stacked panels', () => {
     expect(reads.at(-1)?.metrics).toEqual(['vpd', 'temperature', 'co2']);
   });
 
-  it('says the lowest and the highest any device of the place read in a window, around the mean of them', () => {
+  it('says the lowest and the highest of each window as the device read them, never bent towards the mean', () => {
     const at = '2026-06-10T11:57:00.000Z';
-    const one = (deviceId: string, point: { value: number; min?: number; max?: number }): DeviceSeries => ({
-      deviceId,
+    const one = (point: { value: number; min?: number; max?: number }): DeviceSeries => ({
+      deviceId: 'a',
       startsAt: '2026-06-10T11:00:00.000Z',
       endsAt: NOW.toISOString(),
       stepSeconds: DAY_STEP_SECONDS,
@@ -509,12 +518,16 @@ describe('the stacked panels', () => {
       outputs: [],
     });
 
-    // A door open for forty seconds: one sensor saw 71.5 %, the three-minute means barely moved.
-    const [panel] = panelsOf([one('a', { value: 56.04, min: 54.96, max: 71.52 }), one('b', { value: 57 })], [], ['humidity']);
-    expect(panel.points).toEqual([{ measuredAt: at, value: 56.5, min: 55, max: 71.5 }]);
-
+    // A door open for forty seconds: the sensor saw 71.5 %, the three-minute mean barely moved.
+    expect(panelsOf(one({ value: 56.04, min: 54.96, max: 71.52 }), [], ['humidity'])[0].points).toEqual([
+      { measuredAt: at, value: 56, min: 55, max: 71.5 },
+    ]);
     // A window of one sample has no extremes to tell from its value.
-    expect(panelsOf([one('a', { value: 56 })], [], ['humidity'])[0].points).toEqual([{ measuredAt: at, value: 56 }]);
+    expect(panelsOf(one({ value: 56 }), [], ['humidity'])[0].points).toEqual([{ measuredAt: at, value: 56 }]);
+    // A deficit of 1.04 in every sample beside a mean that came to 1.05 stays the figure that occurred.
+    expect(panelsOf(one({ value: 56.3, min: 56.1, max: 56.1 }), [], ['humidity'])[0].points[0]).toMatchObject({ min: 56.1, max: 56.1 });
+    // Nothing measures: no panel.
+    expect(panelsOf(null, [], ['humidity'])).toEqual([]);
   });
 
   it('stacks the leaf and the light under them where a canopy sensor measures them, with no band to miss', async () => {
@@ -656,12 +669,16 @@ describe('one climate of several', () => {
       .find(panel => panel.metric === 'temperature')!
       .points.flatMap(point => (point.value === null ? [] : [point.value]));
 
-  it('draws the panels of the one device asked for, rather than both pooled', async () => {
-    const pooled = await temperatures();
+  it('draws the place´s own device, the one asked for where one is, and never a mean of the two', async () => {
+    const own = await temperatures();
     const fridge = await temperatures(FRIDGE_MODULE);
 
     expect(new Set(fridge)).toEqual(new Set([18]));
-    expect(pooled.some(value => value !== 18)).toBe(true);
+    // The controller alone, as Start reads it - not one figure between a tent and a fridge.
+    expect(own).toEqual(await temperatures(CONTROLLER));
+    expect(own.every(value => value !== 18)).toBe(true);
+    expect((await readAs(session(OWNER), { range: '24h' })).deviceId).toBe(CONTROLLER);
+    expect((await readAs(session(OWNER), { range: '24h', deviceId: FRIDGE_MODULE })).deviceId).toBe(FRIDGE_MODULE);
   });
 
   it('shows the camera of the controller it is paired to beside that climate only', async () => {
@@ -1556,6 +1573,27 @@ describe('a lane of a tent that has gone quiet', () => {
     // A live tent must keep the edge it has: cutting at the last sample would
     // open a fresh gap at the right-hand end of every chart being watched.
     expect(lanesOf([live], WINDOW)[0].heardUntil).toBe(CLOSES.toISOString());
+  });
+
+  it('does not say the lamp is on for the hours after its device went quiet this morning, however wide the windows', () => {
+    // Quiet for three hours of a month read at an hour and a half to the window: four of those windows are six
+    // hours, and held to them the lane ran to "now" under a pill that said offline.
+    const morning = new Date(CLOSES.getTime() - 3 * 3600 * 1000);
+    const quiet = history(morning.toISOString());
+    quiet.series.outputs[0].points = quiet.series.outputs[0].points.map(point => ({ ...point, value: 60 }));
+
+    expect(lanesOf([quiet], WINDOW)[0].heardUntil).toBe(morning.toISOString());
+    expect(lanesOf([quiet], WINDOW)[0].spans.at(-1)!.endsAt).toBe(morning.toISOString());
+  });
+
+  it('begins the state a window is found in where the window begins, not at the first grain a sample fell into', () => {
+    // A window named from 22:01:13 by night: the store stamps the opening state 22:01:15, the first grain
+    // anything was written in, and a night that began there left two seconds of day in a window of darkness.
+    const found = history(new Date(CLOSES.getTime() - 5000).toISOString());
+    found.series.outputs[0].points = found.series.outputs[0].points.map(point => ({ ...point, value: 0 }));
+    found.outputs[0].switchings = [{ at: new Date(OPENS.getTime() + 2000).toISOString(), on: false }];
+
+    expect(nightsOf([found], WINDOW)).toEqual([{ startsAt: OPENS.toISOString(), endsAt: CLOSES.toISOString() }]);
   });
 });
 

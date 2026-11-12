@@ -139,10 +139,21 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   panels to answer (`metrics`; VPD and PPFD only where asked, since VPD costs the lamp's switchings).
 - **Every point of the Timeline carries the lowest and the highest sample of its window** (`min`, `max` on
   `SeriesPoint`; [data.md](data.md#influxdb) for the read): a mean flattens what was short. They are left out where
-  a window held one sample or both are the same figure, pooled across the devices of a place as the lower low and
-  the higher high. Of VPD they are the lowest and highest deficit of the window's samples, for a window of three
+  a window held one sample or both are the same figure as the mean. Of VPD they are the lowest and highest deficit of the window's samples, for a window of three
   days at the most and left out beyond ([data.md](data.md#influxdb)); they are never bent towards the mean, so a
   panel's low and high are figures that occurred.
+- **A panel is one device's readings, never a mean of two** (the redesign session of 2026-11-12, after its
+  critic's walk): the place's own climate - `steeringOf`, the device Start's readings and Steuerung's top are of
+  - or the one a reader asked for with `deviceId`; where nothing in the place holds targets, the first device
+  that measured in the window (`ownOf`, `timeline-window.ts`). A tent's controller and a fridge module in one
+  place are two climates, and their mean is a figure neither read. The answer names the device (`deviceId`,
+  null to a reader from outside); the lanes stay those of every device standing there.
+- **The state a window is found in holds from the window's start.** The switchings read stamps its opening
+  state with the first grain a sample fell into, up to a grain after the window began; a night that began there
+  left a sliver of day in a window of darkness (`stateStretches`). **A lane runs to the window's end only while
+  its device reports by the offline rule** (`VALUE_AGE.staleSeconds` against the newest sample, `heardStretches`):
+  measured against the rhythm of a month's windows, a lamp stayed "on" for six hours after its device went
+  quiet. **A window named into the future ends now** (`windowOf`), so today's day is read at today's step.
 - **A finely read line breaks after a short silence**: under a minute to the window a curve and a lane are cut
   after three windows without a sample, half a minute at least, where a wider read keeps the ten minutes after
   which a device counts as gone (`silenceOf`, `timeline-series.ts`) - a restart is what a zoom looks for.

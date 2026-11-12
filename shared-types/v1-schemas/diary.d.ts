@@ -4959,6 +4959,7 @@ export declare const spaceTimeline: z.ZodObject<{
     endsAt: z.ZodISODateTime;
     stepSeconds: z.ZodNumber;
     deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
+    deviceId: z.ZodNullable<z.ZodString>;
     panels: z.ZodArray<z.ZodObject<{
         metric: z.ZodEnum<{
             offline: "offline";

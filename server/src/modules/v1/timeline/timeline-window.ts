@@ -3,6 +3,7 @@ import { growDayAt, growDayUpTo, growOriginOf, spineOf } from '@fg2/shared-types
 import { Grant } from '@common/v1/access.types';
 import { notFound } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
+import type { DeviceHistory } from '@modules/data/data.service';
 import { MIN_STEP_SECONDS, stepFor as storeStepFor } from '@modules/data/flux';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
@@ -75,8 +76,11 @@ export const windowOf = (
   const granted = grant.range.endsAt;
   const at = granted && granted < asOf ? granted : asOf;
 
+  // Nothing was measured after now: a window named to the end of today ends now, and so do its step and its days.
+  const upToNow = named && { startsAt: named.startsAt, endsAt: named.endsAt > at ? at : named.endsAt };
+
   return narrowedTo(
-    named ?? (grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at)),
+    upToNow ?? (grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at)),
     grant,
     grow,
     zone,
@@ -194,6 +198,23 @@ export const camerasOfDevice = <T extends { deviceId?: string | null }>(cameras:
  */
 export const steeringOf = (devices: readonly StoredDevice[]): StoredDevice | null =>
   climatesOf(devices.filter(device => targetsOf(device.configuration) !== null))[0] ?? null;
+
+/**
+ * The device a place's curves are read from, out of the reads of the devices
+ * standing there (or of the one a reader asked for): the place's own climate,
+ * which is the device Start's readings and Steuerung's top are of; where
+ * nothing here holds targets, the first that measured anything in the window.
+ * Never two at once - see `panelsOf`.
+ */
+export const ownOf = (devices: readonly StoredDevice[], histories: readonly DeviceHistory[]): DeviceHistory | null => {
+  const steering = steeringOf(devices);
+
+  return (
+    histories.find(one => one.series.deviceId === steering?.id) ??
+    histories.find(one => one.series.metrics.some(row => row.points.some(point => point.value !== null))) ??
+    null
+  );
+};
 
 /**
  * The stretches the bands are drawn over: the grow's own phases, clipped to the
