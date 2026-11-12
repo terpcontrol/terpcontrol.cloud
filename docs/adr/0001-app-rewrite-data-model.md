@@ -1,7 +1,7 @@
 ---
 summary: The /v1 data model, the API conventions and routes, the access rule, the frozen device protocol and the migration from the old database - read before changing a collection, a route, a migration step or anything a device touches
 updated: 2026-11-12
-source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12)
+source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, awaiting his confirmation
 paths:
   - server/src/database/**
   - server/src/migrations/**
@@ -17,7 +17,8 @@ paths:
 - **Amended** on 2026-09-19 (Chris's sign-off of the backend as built), 2026-09-22 and 09-23 (access and sharing,
   measurement bands, the migration's names and corrections), 2026-10-01 to 10-04 (the work mode, the target
   record, light hours, the plan routes), 2026-10-07 (a device's settings in its `fetch`), 2026-10-08 (a still's
-  colour), 2026-10-14 (deleting an alert) and 2026-11-12 (a grow's diary by the day). Each change is marked "Amended <date>" where it stands and says what it replaced. Built and merged with
+  colour), 2026-10-14 (deleting an alert) and 2026-11-12 (a grow's diary by the day; places, rooms and where a device stood -
+  **awaiting Chris's confirmation**, see that section). Each change is marked "Amended <date>" where it stands and says what it replaced. Built and merged with
   #104 on 2026-10-04; every question left open at acceptance is answered, and two have been opened since (see the
   end). Decided on their own since: [ADR 0005](0005-device-times-on-the-wall-clock.md) (device times on the wall
   clock), [ADR 0006](0006-day-and-night-by-the-device-clock.md) (day and night by the device's clock),
@@ -230,7 +231,7 @@ sends only the preference it changes: an object written back whole once raced an
 
 | Collection | Fields |
 | --- | --- |
-| `devices` | `type`, `classId`, `serialNumber`, `ownerId`, `spaceId`, `name`, `mqtt { username, passwordHash }`, `firmware { channel, targetId }`, `configuration` (an object, or `null` before the device reported one; its schema belongs to the firmware of that type), `settings { vpdLeafOffsetDay, vpdLeafOffsetNight, ppfdLuxFactor }`, `isDemo`, `state { lastSeenAt, claimedAt, firmwareId, updateStartedAt, updateEndedAt, updateFailedAt, maintenanceUntil, hardware (the raw `hardware-info` report), socketStateChangedAt (slot → instant), socketsReportedAt }`; server-side only (amended 2026-10-01 to 10-03): `scheduleClock { zone, offset }` (ADR 0005), `baseWorkmode`, `standardWorkmode`, `beforeDrying`, `beforeGermination`, `germinationChoices`, `restedHumidityBand` (the work mode, below, and ADR 0007; the answer's `control` is read from them), `cameraSecret`, `climateSweptAt` |
+| `devices` | `type`, `classId`, `serialNumber`, `ownerId`, `spaceId`, `name`, `mqtt { username, passwordHash }`, `firmware { channel, targetId }`, `configuration` (an object, or `null` before the device reported one; its schema belongs to the firmware of that type), `settings { vpdLeafOffsetDay, vpdLeafOffsetNight, ppfdLuxFactor }`, `isDemo`, `state { lastSeenAt, claimedAt, firmwareId, updateStartedAt, updateEndedAt, updateFailedAt, maintenanceUntil, hardware (the raw `hardware-info` report), socketStateChangedAt (slot → instant), socketsReportedAt }`; server-side only (amended 2026-10-01 to 10-03): `scheduleClock { zone, offset }` (ADR 0005), `baseWorkmode`, `standardWorkmode`, `beforeDrying`, `beforeGermination`, `germinationChoices`, `restedHumidityBand` (the work mode, below, and ADR 0007; the answer's `control` is read from them), `cameraSecret`, `climateSweptAt`, `placements[] { spaceId, startedAt, endedAt }` (amended 2026-11-12, awaiting confirmation: "Places, rooms and where a device stood") |
 | `deviceClasses` | `name`, `description`, `concurrentUpdates`, `maxFailures`, `firmwareIds { stable, beta, alpha }`, `rollout { paused, percent }` |
 | `firmwares`, `firmwareBinaries` | `classId`, `name`, `version`, `wasStable` / `firmwareId`, `name`, `data` |
 | `claimCodes` | `code` (unique), `deviceId` (unique) |
@@ -314,7 +315,9 @@ rule that names an output and a threshold nothing would read cannot be written d
   time; a delete button that did it in passing would tell them by taking the tent away. The members counted are
   the space's own rows - a membership held on the room above reaches in as well, but it is the room's, and a
   room is already refused while any space is grouped under it, so a shared room is emptied and then meets its
-  own members rather than making every tent inside it undeletable.
+  own members rather than making every tent inside it undeletable. *Amended 2026-11-12
+  (awaiting confirmation):* a client no longer deletes a room at all - the server ends it once its last place and
+  its last member have left, see "Places, rooms and where a device stood".
 - **Deleting an account is the other act, and stays possible.** A person cannot be held in an account because
   somebody else is a member of their tent, so `DELETE /me` removes the memberships on the spaces it owns as part
   of deleting them. The two are not the same thing said twice: ending one space is a place closing while its
@@ -327,6 +330,91 @@ rule that names an output and a threshold nothing would read cannot be written d
   in through an invite, that invite is revoked with the membership, so the same code cannot let them straight
   back in; a member who leaves on their own leaves the code alone. Remembering who was removed from where, to
   refuse them later, was rejected.
+
+### Places, rooms and where a device stood
+
+*Amended 2026-11-12 - decided by the redesign session of 2026-11-12 within Chris's brief for the navigation redesign
+("a place is one air space with one climate; a room is a field of the place; the server keeps a placement history of
+devices and unique names"), and **awaiting his confirmation with the redesign's pull request**. Each numbered point
+can be refused by itself; until he has said yes, none of it is his word.* It answers risk 11 and replaces three
+things: a device that knows only where it stands now, names that may repeat, and a room that is made and deleted
+like a place.
+
+1. **A device keeps where it stood.** `devices.placements[] { spaceId, startedAt, endedAt }`, oldest first, at most
+   one open (`endedAt: null`), as a grow keeps its placements - without an id and without plants, because no route
+   addresses one and nothing is corrected in it. It is server-side only: no screen reads it, the reads below do.
+   `devices.spaceId` stays, and is the open placement's place (null where there is none): every read about now -
+   Start, Steuerung, the alarm and plan engines, access - asks "what stands here" by that indexed field, and one
+   writer (`DevicesService.place`) sets both in one update, so they cannot say two things. Storing the place twice
+   is against decision 1 of this record; deriving it instead would turn some twenty indexed reads into a search
+   through arrays, which is why it is kept, and it is the point to refuse if that is wrong.
+   - A claim opens a placement, a move closes it and opens the next, taking a device out of a place or giving it up
+     closes it. Giving a device up keeps the closed placements: the readings stay in the store, and the grows of the
+     account that gave it up keep their curves; the next owner's places begin with their own placement and read
+     nothing from before it. Deleting an account takes the placements in its places with them.
+   - **A stay of less than five minutes is a mistake put right, not a stay**: a move away from a place the device
+     came to less than five minutes ago drops that placement, and where the device goes back to the place it had
+     left, the placement there is opened again as if nothing had happened. The move sheet's "undo" is that case; five
+     minutes is the window in which a diary line may be taken back, for the same reason.
+2. **What a read does with it.** A read about now is unchanged. A read about a stretch of time takes **every device
+   that stood in the place inside that stretch, each over the part of the stretch it stood there** - from its first
+   moment there inside the stretch to its last; a device that left and came back inside one stretch is read across
+   the gap, which the five-minute rule keeps to moves somebody meant.
+   - *A place's Verlauf* (`GET /spaces/{id}/timeline`, `/series`): the curve is the place's own climate device as
+     before. Over the part of a window before that device came, it is the curve of the climate device that stood
+     there then, with its targets, its nights and its outputs; a device that has left draws nothing after it left,
+     and a device that came draws nothing from where it stood before - until now a device moved from one tent to
+     another brought a month of the other tent's air along. `?deviceId=` may name a device that has left.
+   - *A grow's diary and report* (`GET /grows/{id}/diary`, `/report`): a day's climate, its share inside the targets
+     and what the lamp did are of the devices standing where the plants stood on that day, each for the hours it
+     stood there. *A grow's series* (`GET /grows/{id}/series`) and *the exports* (`climate.csv` of a grow) the same:
+     the devices of the grow's places over the grow, each for its days there.
+   - *Lines* are not joined through the history: a line a device writes has carried the place it was written in
+     since the rewrite, so it already stays where it was written.
+   - *Pictures* are a camera's and are untouched: a camera follows the device it is paired at, as before.
+3. **Names are unique per owner** - among the places an account owns that have not ended, and among its rooms that
+   have not ended; a place may be called what a room is called. Compared as a person reads them: surrounding blanks
+   and upper or lower case make no second name. `POST /spaces`, `PATCH /spaces/{id}` and bringing an ended place back
+   (`DELETE /spaces/{id}/archive`) refuse a second one with 409 `name_taken` and a sentence that says which name. A
+   claim is never refused for a name: the place it makes takes the next free number ("Zelt", "Zelt 2"). No unique
+   index states it - the comparison is not a field - so two writes in the same instant can still slip through, and
+   the next rename meets the refusal. A place shared with somebody may be called what one of their own is; that is
+   why Start says whose it is (point 5).
+4. **A room is a field of the place.** It stays a row of `spaces` with `kind: room`, because sharing by room stays as
+   it is - a membership or an invite on a room covers the places in it - and that needs something to hang on. What
+   changes is who makes and removes it:
+   - `SpaceCreate` and `SpaceUpdate` gain `roomName` (write-only, beside `roomId`): the owner's room of that name,
+     made if there is none. `roomId` names an existing one, `roomId: null` takes the place out.
+   - A room is **never made, turned into a place, ended or brought back by itself**: `POST /spaces` with
+     `kind: room`, a `kind` that changes to or from `room`, `DELETE /spaces/{id}` and both archive routes on a room
+     answer 409 `room_by_itself`. Its name can still be changed (`PATCH /spaces/{id}`), within point 3.
+   - **The server removes a room when its last place and its last member have left**: whenever a place leaves a
+     room, ends, or the last membership on a room is taken away, a room with no place in it that has not ended and no
+     membership is ended the way a deleted place is - a tombstone with `archivedAt`, its invites and share links
+     deleted. A room that people are still members of stays, empty, until they have gone.
+   - Renaming a place or putting it into another room writes no line and no move into any grow; a grow moves only
+     when its plants do.
+5. **Start says whose a shared place is.** `home.people` also names the owner of every place on it that is not the
+   reader's own, so a guest reads "von @handle" on the card without a second read. Nothing else of the owner is told.
+6. **Left alone, deliberately.**
+   - **A place that already holds two devices with a climate of their own stays as it is.** "One place, one climate"
+     is what the app asks for when a device is added (a second controller or fridge module is offered a new place
+     first); no migration step and no boot moves a grower's devices by itself, and "several climates in one place"
+     below stays in force for the places that have them.
+   - The kinds of a place stay `tent · fridge · room · balcony · other`; a room that itself holds a device, a camera
+     or a running grow - possible since the rewrite - is not emptied by any step, and counts as not empty.
+   - No route is added for removing a place with what stands in it: the app sends each device, camera and grow to the
+     destination chosen for it by the routes that exist, and ends the place last.
+
+**The migration** is three steps on the new collections, each idempotent, each a no-op on a fresh install, none
+moving anything aside (production never ran a server with the model before this amendment; installs that did - a
+test stack, a self-hosted one on master - are what the second and third are for):
+
+| Step | What it does | To every shape it can meet |
+| --- | --- | --- |
+| `026-device-placements` | gives every device without the field its `placements` | a device standing in a place gets one open placement there, from `state.claimedAt`, or from its `createdAt` where nothing recorded the claim (every device carried over from the old database: step 005 left `claimedAt` null) - which is what every read assumed until now, that a device has always stood where it stands; an unclaimed device, and a claimed one without a place (a repair by hand left such rows), gets an empty list; a device whose place has since ended is given the placement all the same and counted |
+| `027-empty-rooms` | ends the rooms nothing is left in | a room with no place that has not ended, no membership and nothing standing in it directly is ended as point 4 says, and the ended places still naming it are taken out of it; a room with members, with a place, or holding something itself is left |
+| `028-unique-place-names` | renames what collides | per owner, among the places that have not ended and among the rooms that have not: the oldest of a name keeps it, each later one takes the next free number ("Tent", "Tent 2"); ended places are not touched. Step 004 numbered the places it named itself, so on a database from the old cloud only places named after devices that share a name can collide |
 
 ### Diary, tasks, pictures
 
@@ -517,7 +605,9 @@ stays. Giving a device up now deletes its alerts, as it already deleted its rule
   climate. `GET /spaces/{id}/timeline?deviceId=` and `GET /spaces/{id}/series?deviceId=` narrow panels, bands,
   nights and lanes to one device (404 `device_not_here` for one that does not stand there), which is how Verlauf
   and Graphen offer "Alle Geräte" or one device. Still pooled or of the first climate: what Start says of a place,
-  a week's climate and report, the phase snapshot's one `deviceId`, and the shared tent page.
+  a week's climate and report, the phase snapshot's one `deviceId`, and the shared tent page. *Amended 2026-11-12:* the
+  redesign asks for one climate per place when a device is added, and leaves the places that hold several exactly
+  as they are ("Places, rooms and where a device stood", point 6).
 - **One phase writer.** `GrowService.setPhase` is called by the grow routes, the plan engine and
   `preset-applications`. It appends the phase, writes the `phase` entry and re-reads stage-bound alarm
   thresholds from one table in `shared-types`. Applying a preset to a space with an open grow sets its phase;
@@ -846,7 +936,8 @@ and merged as #104; the table of slices that planned it is done and was removed.
 10. **Two new outward-facing surfaces**, Web Push and the Telegram webhook, both off until configured.
 11. **Devices have no placement history** (found 2026-09-22). A device row knows only where it stands now, so
    grow series, the diary and exports miss a device that has since left the tent for the days it stood there.
-   Fixing that needs placement history on devices, as grows have.
+   Fixing that needs placement history on devices, as grows have. *Amended 2026-11-12 (awaiting confirmation):*
+   `devices.placements[]` is that history; see "Places, rooms and where a device stood".
 
 ## Alternatives considered
 
