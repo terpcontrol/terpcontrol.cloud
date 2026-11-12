@@ -196,6 +196,13 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     Germination's two humidity choices went with it too and are back in the form, asked where it writes
     germination's climate ([ADR 0007](adr/0007-germination-in-the-dark.md), G2: they travel with every way
     germination is set).
+    And four things went with the page "Graphen" that Verlauf does not do (round 5):
+    - a free range between two dates ("Zu einem Tag springen" with zoom and step reaches any window);
+    - renaming a saved view (it is deleted and saved again);
+    - the filter of message lines by four kinds (two ticks now: the diary, the devices' messages);
+    - the curves of hand measurements for a grow without a place.
+    Removing the routes Verlauf no longer asks (above, "Settled on 2026-11-12") changes the frozen contract of
+    [ADR 0001](adr/0001-app-rewrite-data-model.md) and is his to say as well.
     Also open: whether a day's camera picture outlives the camera's retention - today only a still that a diary
     line or a grow's cover names is spared.
 
