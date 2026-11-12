@@ -13,9 +13,7 @@ import { Waiting } from '@/ui/PageState';
 import { Row, Rows } from '@/ui/Rows';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { FanPanel } from './devices/FanPanel';
-import { FridgeFansPanel } from './devices/FridgeFansPanel';
-import { Guarded } from './OwnSettings';
+import { OwnOutputs } from './devices/OwnOutputs';
 import { socketName, socketState } from '@/screens/devices/socket-words';
 import { hasOutputs, outputsOf } from './rows';
 import styles from './Control.module.css';
@@ -41,52 +39,43 @@ export function OutputsPage({ spaceId, devices, mayManage }: { spaceId: string; 
 
   return (
     <div className={styles.page}>
-      <Guarded>
-        {own =>
-          all.map(({ device, sockets }) => {
-            const table = tables.tables.get(device.id);
-            const light = table ? lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null) : null;
-            const offline = deviceLiveness(heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null), now) === 'offline';
-            const name = deviceName(device, t);
+      {all.map(({ device, sockets }) => {
+        const table = tables.tables.get(device.id);
+        const light = table ? lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null) : null;
+        const offline = deviceLiveness(heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null), now) === 'offline';
+        const name = deviceName(device, t);
 
-            return (
-              <section key={device.id} className={styles.block} aria-label={name}>
-                {all.length > 1 ? <h2 className={styles.blockTitle}>{name}</h2> : null}
-                {light ? (
-                  <ul className={ui.group}>
-                    <LightOutputRow
-                      output={light}
-                      unheard={offline ? t('control.outputs.unheard') : null}
-                      mayManage={mayManage}
-                      runs={runsOf(verdict, 'light')}
-                      now={now}
-                    />
-                  </ul>
-                ) : null}
-                {device.type === 'fridge' && device.configuration ? (
-                  <FridgeFansPanel device={device} name={name} titled={false} mayManage={mayManage} {...own} />
-                ) : null}
-                {device.type === 'fan' && device.configuration ? (
-                  <FanPanel device={device} name={name} titled={false} mayManage={mayManage} {...own} />
-                ) : null}
-                {sockets.length > 0 ? (
-                  <Rows>
-                    {sockets.map(row => (
-                      <Row
-                        key={row.key}
-                        to={socketPath(device.id, row.key)}
-                        state={leadingBackTo(pathname + search)}
-                        title={socketName(t, row)}
-                        line={socketState(t, row, now)}
-                      />
-                    ))}
-                  </Rows>
-                ) : null}
-              </section>
-            );
-          })
-        }
-      </Guarded>
+        return (
+          <section key={device.id} className={styles.block} aria-label={name}>
+            {all.length > 1 ? <h2 className={styles.blockTitle}>{name}</h2> : null}
+            {light ? (
+              <ul className={ui.group}>
+                <LightOutputRow
+                  output={light}
+                  unheard={offline ? t('control.outputs.unheard') : null}
+                  mayManage={mayManage}
+                  runs={runsOf(verdict, 'light')}
+                  now={now}
+                />
+              </ul>
+            ) : null}
+            <OwnOutputs device={device} mayManage={mayManage} />
+            {sockets.length > 0 ? (
+              <Rows>
+                {sockets.map(row => (
+                  <Row
+                    key={row.key}
+                    to={socketPath(device.id, row.key)}
+                    state={leadingBackTo(pathname + search)}
+                    title={socketName(t, row)}
+                    line={socketState(t, row, now)}
+                  />
+                ))}
+              </Rows>
+            ) : null}
+          </section>
+        );
+      })}
     </div>
   );
 }
