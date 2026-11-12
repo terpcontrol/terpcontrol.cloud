@@ -25,7 +25,24 @@ import { figureWithUnit, targetWithUnit, UNIT } from '@/ui/units';
  * Anything that does not have one of these shapes is left to the caller, which
  * shows it as it came.
  */
-export const alarmLineText = (i18n: I18n, param: string, triggered: boolean): string | null =>
+export const alarmLineText = (i18n: I18n, param: string, triggered: boolean): string | null => {
+  const parts = alarmLineParts(i18n, param, triggered);
+  return parts ? [parts.rule, ...parts.said].join(' · ') : null;
+};
+
+/**
+ * The same line in its parts, for a surface that sets the rule's name as the
+ * line and what tripped it under it. `limit` is the reading and the edge it
+ * crossed without the figure it had ("Luftfeuchte über 60 %"), for a line that
+ * stands for many firings and has no one figure to state.
+ */
+export interface AlarmLine {
+  rule: string;
+  said: string[];
+  limit: string | null;
+}
+
+export const alarmLineParts = (i18n: I18n, param: string, triggered: boolean): AlarmLine | null =>
   thresholdLine(i18n, param, triggered) ?? silenceLine(i18n, param, triggered);
 
 const THRESHOLD = /^(.*) \(([A-Za-z0-9_]+)\), value=([^,]+?)(?:, upper threshold=([^,]+?), lower threshold=([^,]+?))?(?:, extreme value=([^,]+?))?$/;
@@ -43,7 +60,7 @@ const isReading = (watched: string): watched is Metric => watched in UNIT;
 
 const ruleName = (i18n: I18n, name: string): string => (name === OFFLINE_RULE_NAME ? i18n.t('alarmLine.deviceOffline') : name);
 
-const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | null => {
+const thresholdLine = (i18n: I18n, param: string, triggered: boolean): AlarmLine | null => {
   const match = THRESHOLD.exec(param);
   if (!match) return null;
 
@@ -53,20 +70,29 @@ const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | 
 
   if (!isReading(watched)) {
     const output = i18n.t(`alerts.output.${watched}`, { defaultValue: watched });
-    return `${ruleName(i18n, name)} · ${i18n.t(value > 0 ? 'alarmLine.outputOn' : 'alarmLine.outputOff', { output })}`;
+    return { rule: ruleName(i18n, name), said: [i18n.t(value > 0 ? 'alarmLine.outputOn' : 'alarmLine.outputOff', { output })], limit: null };
   }
 
   const metric = i18n.t(`alerts.metric.${watched}`, { defaultValue: i18n.t(`home.metric.${watched}`, { defaultValue: watched }) });
   const upper = numberOf(rawUpper);
   const lower = numberOf(rawLower);
   const extreme = numberOf(rawExtreme);
-  const edge = (sign: string, bound: number) => `${sign} ${targetWithUnit(bound, watched)}`;
-  const crossed = upper !== null && value > upper ? edge('›', upper) : lower !== null && value < lower ? edge('‹', lower) : null;
+  // The edge is said in words: "›" is the app's sign for "opens something".
+  const edge = (side: 'over' | 'under', bound: number) => i18n.t(`alarmLine.${side}`, { bound: targetWithUnit(bound, watched) });
+  const crossed = !triggered
+    ? null
+    : upper !== null && value > upper
+      ? edge('over', upper)
+      : lower !== null && value < lower
+        ? edge('under', lower)
+        : null;
 
-  const parts = [`${ruleName(i18n, name)} · ${metric} ${figureWithUnit(value, watched)}${triggered && crossed ? ` ${crossed}` : ''}`];
-  if (!triggered && extreme !== null) parts.push(i18n.t('alarmLine.worst', { value: figureWithUnit(extreme, watched) }));
+  const said = [`${metric} ${figureWithUnit(value, watched)}`];
+  if (crossed) said.push(crossed);
+  if (!triggered && extreme !== null) said.push(i18n.t('alarmLine.worst', { value: figureWithUnit(extreme, watched) }));
 
-  return parts.join(' · ');
+  // The limit stands as a line of its own, so the reading opens it as a sentence does.
+  return { rule: ruleName(i18n, name), said, limit: crossed ? `${metric.charAt(0).toLocaleUpperCase()}${metric.slice(1)} ${crossed}` : null };
 };
 
 /**
@@ -77,15 +103,17 @@ const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | 
 const spanIn = (i18n: I18n, span: string): string =>
   span.replace(/(\d+) (s|min|h|d)\b/g, (_, figure: string, unit: string) => `${figure} ${i18n.t(`units.${unit}`, { defaultValue: unit })}`);
 
-const silenceLine = (i18n: I18n, param: string, triggered: boolean): string | null => {
+const silenceLine = (i18n: I18n, param: string, triggered: boolean): AlarmLine | null => {
+  const line = (rule: string, said: string): AlarmLine => ({ rule: ruleName(i18n, rule), said: [said], limit: null });
+
   if (triggered) {
     const silent = SILENT.exec(param);
-    return silent ? `${ruleName(i18n, silent[1])} · ${i18n.t('alarmLine.silentFor', { span: spanIn(i18n, silent[2]) })}` : null;
+    return silent ? line(silent[1], i18n.t('alarmLine.silentFor', { span: spanIn(i18n, silent[2]) })) : null;
   }
 
   const after = BACK_AFTER.exec(param);
-  if (after) return `${ruleName(i18n, after[1])} · ${i18n.t('alarmLine.backAfter', { span: spanIn(i18n, after[2]) })}`;
+  if (after) return line(after[1], i18n.t('alarmLine.backAfter', { span: spanIn(i18n, after[2]) }));
 
   const back = BACK.exec(param);
-  return back ? `${ruleName(i18n, back[1])} · ${i18n.t('alarmLine.back')}` : null;
+  return back ? line(back[1], i18n.t('alarmLine.back')) : null;
 };

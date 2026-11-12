@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime, Settings } from 'luxon';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Device, GrowListItem, Plant } from '@fg2/shared-types/v1';
+import { LogProvider } from '@/log/LogProvider';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
 import { GrowMenu } from '@/screens/grow/GrowMenu';
 import { MoveSheet } from '@/screens/grow/MoveSheet';
@@ -79,6 +80,7 @@ const grow: GrowListItem = {
     phaseDay: 11,
     stageWeek: 2,
     weekNumber: 5,
+    zone: 'UTC',
     isAuto: false,
     groups: [],
     locations: [{ spaceId: 'space-1', plantIds: ['plant-1', 'plant-2', 'plant-3'] }],
@@ -239,9 +241,12 @@ describe('what correcting a phase would move', () => {
   });
 });
 
+/** The harvest sheet says through a toast that the grow has ended, so it stands inside the app's log. */
+const drawHarvest = (sheet: React.ReactNode) => drawAt(<LogProvider>{sheet}</LogProvider>);
+
 describe('the harvest sheet', () => {
   it('shares the total out over the plants named, before anything is sent', () => {
-    drawAt(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Amnesia 1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Amnesia 2' }));
@@ -252,7 +257,7 @@ describe('the harvest sheet', () => {
   });
 
   it('says the grow ends before the last plants come down, and on which day', () => {
-    drawAt(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
 
     expect(screen.getByText(/These are the last plants standing/)).toHaveTextContent('its day counter stops there');
     expect(screen.getByRole('button', { name: /end the grow/ })).toBeInTheDocument();
@@ -264,14 +269,14 @@ describe('the harvest sheet', () => {
       plants[1],
       plant('plant-3', 'Gelato 1', { status: 'harvested', harvest: { harvestedAt: at(1), wetWeightG: 90, dryWeightG: null } }),
     ];
-    drawAt(<HarvestSheet grow={grow} plants={down} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={grow} plants={down} onClose={() => {}} />);
 
     expect(screen.getByRole('button', { name: 'Gelato 1' })).toBeDisabled();
     expect(screen.getByText(/wet 90 g/)).toBeInTheDocument();
   });
 
   it('keeps the unit over the weights in the figure face', () => {
-    drawAt(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
 
     expect(screen.getByText('grams, as a total').className).toMatch(/mono/);
   });
@@ -290,7 +295,7 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
   });
 
   it('does not tell a running grow that every plant has already come down', () => {
-    drawAt(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
 
     expect(screen.queryByText('Every plant of this grow has already come down.')).not.toBeInTheDocument();
     expect(screen.getByText(/No plants are recorded in this grow/)).toBeInTheDocument();
@@ -310,7 +315,7 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
       }),
     );
 
-    drawAt(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'End the grow' }));
 
     // The server refuses a harvest with nothing in it, so this goes to the grow
@@ -322,10 +327,12 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
     expect(wrote()[0].method).toBe('PATCH');
     expect(wrote()[0].path).toBe('/v1/grows/grow-1');
     expect(Object.keys(wrote()[0].body as object)).toEqual(['endedAt']);
+    // The grow is over: the toast says so, and that what is on screen now is its report.
+    expect(await screen.findByText('Spring run has ended · this is its report')).toBeInTheDocument();
   });
 
   it('says when a grow that is already over ended, rather than offering to end it a second time', () => {
-    drawAt(<HarvestSheet grow={{ ...grow, endedAt: at(2) }} plants={[]} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={{ ...grow, endedAt: at(2) }} plants={[]} onClose={() => {}} />);
 
     expect(screen.getByText('It ended on 16 Sep 2026.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'End the grow' })).not.toBeInTheDocument();

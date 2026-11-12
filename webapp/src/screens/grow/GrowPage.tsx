@@ -7,12 +7,12 @@ import { useGrow, useGrowPlants } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { ALL_GROWS, GROW, placePath, usePageOfGrow } from '@/app/places';
-import { BackLink } from '@/ui/BackLink';
 import { Term } from '@/ui/Help';
-import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import { stageLabel } from '@/ui/presets';
 import { Tabs } from '@/ui/Tabs';
+import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, useZone } from '@/ui/zone';
 import { Diary } from './diary/Diary';
@@ -43,9 +43,9 @@ export function GrowPage() {
  * a refresh that fails keeps what was known on the screen and says so.
  *
  * `current` is the grow drawn at the bar's own address, as the one running in
- * the chosen place: a root of the bar, so nothing leads back from it and "Alle
- * Grows" stands beside its name. Opened by its id, a grow's page leads back to
- * that list, and a running grow's page belongs to the place it stands in.
+ * the chosen place; opened by its id, a running grow's page belongs to the
+ * place it stands in. The page is the same under both: Grow is a root of the
+ * bar, so nothing leads back from it, and "Alle Grows" stands beside its name.
  */
 export function GrowScreen({ growId, tab, current = false }: { growId: string; tab: GrowTab; current?: boolean }) {
   const { t } = useTranslation();
@@ -67,7 +67,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
       </section>
     );
   }
-  if (!grow.data) return noLongerThere(grow.error) ? <NoLongerHere what="grow" /> : <LoadFailed retry={() => void grow.refetch()} />;
+  if (!grow.data) return noLongerThere(grow.error) ? <NoSuchGrow /> : <LoadFailed retry={() => void grow.refetch()} />;
 
   // A grow is written to through the place it stands in today, which is what
   // `access()` widens a membership over; the lifecycle moves are `manage` there
@@ -80,7 +80,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
 
   return (
     <section className={styles.page} data-tab={tab}>
-      <GrowHead grow={grow.data} spaces={spaces.data?.items ?? []} current={current}>
+      <GrowHead grow={grow.data} spaces={spaces.data?.items ?? []}>
         <GrowMenu
           grow={grow.data}
           plants={plants.data?.items ?? []}
@@ -90,7 +90,6 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
           sharing={params.get('share') === '1'}
         />
       </GrowHead>
-      {!mayManage && enough(youMay, 'log') ? <p className={styles.role}>{t('grow.youMayLog')}</p> : null}
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
       {/* Switching tabs keeps where the page was opened from, so its way back stays the same. */}
       <Tabs items={tabs} label={t('grow.tabsLabel')} state={state} />
@@ -105,6 +104,30 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
   );
 }
 
+/** An address that names no grow this account can open: said under the page's own heading, with the way to the grows it can. */
+function NoSuchGrow() {
+  const { t } = useTranslation();
+
+  return (
+    <section className={styles.page}>
+      <header className={styles.head}>
+        <div className={styles.title}>
+          <h1>{t('shell.tabs.grow')}</h1>
+          <div className={styles.actions}>
+            <Link to={ALL_GROWS} className={styles.pill}>
+              {t('grow.all.pill')}
+            </Link>
+          </div>
+        </div>
+      </header>
+      <p className={ui.problem} role="alert">
+        {t('shell.gone.grow')}
+      </p>
+      <p className={ui.note}>{t('shell.gone.why')}</p>
+    </section>
+  );
+}
+
 /**
  * The head of the page: what the grow is called, the day and the phase it is
  * in over the bar of how far it has come, and where it stands - with the way
@@ -115,17 +138,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
  * stood said in the past tense - its placements are all closed, and "no fixed
  * place" would be wrong of a grow that spent its life in a tent.
  */
-export function GrowHead({
-  grow,
-  spaces,
-  current = false,
-  children = null,
-}: {
-  grow: GrowListItem;
-  spaces: Space[];
-  current?: boolean;
-  children?: ReactNode;
-}) {
+export function GrowHead({ grow, spaces, children = null }: { grow: GrowListItem; spaces: Space[]; children?: ReactNode }) {
   const { t } = useTranslation();
   const zone = useZone();
   const { summary } = grow;
@@ -140,15 +153,12 @@ export function GrowHead({
   return (
     <header className={styles.head}>
       <div className={styles.title}>
-        {current ? null : <BackLink to={ALL_GROWS} label={t('place.backTo', { name: t('grow.all.title') })} />}
         <h1>{grow.name}</h1>
         <div className={styles.actions}>
           {children}
-          {current ? (
-            <Link to={ALL_GROWS} className={styles.pill}>
-              {t('grow.all.pill')}
-            </Link>
-          ) : null}
+          <Link to={ALL_GROWS} className={styles.pill}>
+            {t('grow.all.pill')}
+          </Link>
         </div>
         <p className={styles.facts}>
           <span>

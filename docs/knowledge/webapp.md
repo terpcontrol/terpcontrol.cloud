@@ -44,8 +44,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   | `/spaces/:spaceId`, `/spaces/:spaceId/members` | Start of one place; who is let in | Start |
   | `/grow/:tab?` | the grow running in the chosen place - its diary, and `pictures`, `plants`, `feeding`, `report` - else the offer to start one | Grow |
   | `/grows`, `/grows/new`, `/grows/:growId/:tab?`, `.../plants/:plantId`, `.../measurements` | every grow ("Alle Grows"); one grow with the same tabs | Grow |
+  | `/grows/schemes`, `/grows/share-links`, `/grows/following` | what belongs to growing without being a grow, behind the doors of "Alle Grows" | Grow |
   | `/log` | opens the entry sheet | - |
-  | `/timeline` | Verlauf of the chosen place (`focus`, `at`, `device` in the query) | Verlauf |
+  | `/timeline` | Verlauf of the chosen place (`focus`, `at`, `device` in the query; `grow` with a moment of that grow's diary) | Verlauf |
   | `/charts` | Graphen, its whole view in the query | Verlauf |
   | `/control/:page?` | Steuerung of the chosen place: `targets`, `alarms`, `plan` | Steuerung |
   | `/devices`, `/claim`, `/cameras/add` | the device list (a row on Steuerung leads to it); adding a device or a camera | Steuerung |
@@ -63,7 +64,11 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `GET /v1/grows/{id}/diary` (`useGrowDiary`, a few weeks a page): `diary/days.ts` puts a day's answer into the
   words and the order a card draws - titles, the climate line, the folded lines, the pictures of a day - and
   `diary/Diary.tsx`, `diary/DayCard.tsx` and `pictures/Pictures.tsx` draw them. A line is `ui/Lines.tsx`, the row
-  Start's last lines are too. `Grows.tsx` is the list at `/grows`.
+  Start's last lines are too. `Grows.tsx` is the list at `/grows`. The days are drawn by `Days` for whoever reads
+  (`DiaryReader` in `diary/days.ts` says what the diary gives them the way to): the grow's own page hands it the
+  sheet that corrects a line and the curve of a moment, the public page (`screens/public/Diary.tsx`) neither.
+  A grow's days are counted in the owner's zone, which a grow carries as `summary.zone`; a client that counts a
+  day itself - the day a line is dated to - hands it to `growDayAt`.
 - **The chosen place** (`src/app/places.ts`) is what `/grow`, `/timeline`, `/control` and `/charts` show: the place
   their address names in `?space=`, else the one chosen (`terp.place` in this browser, a store the header's chip and
   the page both follow), else the first of Start's order (`sortedByAttention`), which is then kept. `usePlaceChoice`

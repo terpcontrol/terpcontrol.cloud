@@ -5,6 +5,7 @@ import type { Metric, SpaceTimeline, TimelineAlarm, TimelineGrow, TimelineRange 
 import { outputMetric } from '@fg2/shared-types/v1-schemas';
 import { Grant, isOutsider } from '@common/v1/access.types';
 import { badRequest, notFound } from '@common/v1/problem';
+import { zoneOfOwner } from '@common/v1/owner-zone';
 import { peopleNamed } from '@common/v1/people';
 import { storyEndsAt, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
@@ -122,7 +123,7 @@ export class TimelineService {
     // here inside it, not whatever moved in after the window closed.
     const known = stood.filter(one => stoodDuring(one, spaceId, grant.range));
     const grow = this.growFor(asked, known, spaceId, storyEndsAt(grant.range, now));
-    const window = windowOf(asked.range, grant, grow, at);
+    const window = windowOf(asked.range, grant, grow, grow ? await zoneOfOwner(this.users, grow.ownerId) : null, at);
     const growIds = known.filter(one => stoodDuring(one, spaceId, window)).map(one => one.id);
 
     const [series, alerts, recorded, cameras, aimed] = await Promise.all([

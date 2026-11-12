@@ -349,7 +349,7 @@ rule that names an output and a threshold nothing would read cannot be written d
   and `source`. A device's `message-key:param` line is parsed once into `message { key, params }`. A human
   writes `text`. `values` has one schema per kind; readings of any kind share one shape, `values.readings:
   [{ key, value, plantId }]`, keyed by the grow's measurement definitions. The lines a device and the plan engine
-  write for themselves (`system`, `plan`) are kept like any other but left out of week cards and reports.
+  write for themselves (`system`, `plan`) are kept like any other but left out of reports.
   *Amended 2026-11-12:* a grow's diary (`GET /grows/{id}/diary`) draws them in: what the devices and the plan wrote
   in the places the grow stood, while it stood there, for the people who keep the place - a curated list of keys,
   joined at read time by place and placement, so no line gained a `growId` and nothing stored changed.
@@ -443,7 +443,7 @@ removed together with the Angular app.
 | Sockets | `GET /devices/{id}/sockets`, `PUT/DELETE /devices/{id}/sockets/{slot}` (pair by address, role, timer; remove), `PUT/DELETE /devices/{id}/sockets/{slot}/override`, `POST /devices/{id}/sockets/{slot}/tests` |
 | Plan | `GET/PUT/DELETE /devices/{id}/plan` (`DELETE` stops; `?steps=remove` takes the plan away), `POST /devices/{id}/plan/transitions` (confirm, skip, extend, pause, resume, goto), `GET/POST /plan-templates`, `GET/PATCH/DELETE /plan-templates/{id}` |
 | Alarms | `GET/POST /devices/{id}/alarm-rules`, `PATCH/DELETE /alarm-rules/{id}`, `PUT/DELETE /alarm-rules/{id}/silence`, `GET /alerts`, `GET/DELETE /alerts/{id}` |
-| Grows | `GET/POST /grows`, `GET/PATCH/DELETE /grows/{id}`, `GET/POST /grows/{id}/plants`, `PATCH/DELETE /plants/{id}`, `POST /grows/{id}/phases`, `PATCH/DELETE /grows/{id}/phases/{phaseId}`, `POST /grows/{id}/placements` (a move), `PATCH/DELETE /grows/{id}/placements/{placementId}`, `POST /grows/{id}/harvests`, `POST /grows/{id}/splits`, `GET /grows/{id}/diary`, `GET /grows/{id}/weeks`, `GET /grows/{id}/report`, `GET /grows/{id}/series`, `GET /grows/{id}/export` |
+| Grows | `GET/POST /grows`, `GET/PATCH/DELETE /grows/{id}`, `GET/POST /grows/{id}/plants`, `PATCH/DELETE /plants/{id}`, `POST /grows/{id}/phases`, `PATCH/DELETE /grows/{id}/phases/{phaseId}`, `POST /grows/{id}/placements` (a move), `PATCH/DELETE /grows/{id}/placements/{placementId}`, `POST /grows/{id}/harvests`, `POST /grows/{id}/splits`, `GET /grows/{id}/diary`, `GET /grows/{id}/report`, `GET /grows/{id}/series`, `GET /grows/{id}/export` |
 | Diary | `GET/POST /entries`, `GET/PATCH/DELETE /entries/{id}`, `GET/POST /reminders`, `PATCH/DELETE /reminders/{id}`, `GET /tasks`, `POST /tasks/{id}/completions` |
 | Cameras | `GET/POST /cameras`, `GET/PATCH/DELETE /cameras/{id}`, `POST /cameras/{id}/test-captures` (answered at once), `GET /cameras/{id}/test-captures/{captureId}`, `GET /cameras/{id}/frames`, `GET/POST /cameras/{id}/timelapses` |
 | Media | `POST /media` (a photo), `GET /media/{id}`, `GET /media/{id}/content`, `DELETE /media/{id}` |
@@ -454,13 +454,17 @@ removed together with the Angular app.
 
 `GET /healthz` and `GET /readyz` replace `/` and `/readycheck`; the compose health check moves with them.
 
-*Amended 2026-11-12:* `GET /grows/{id}/diary` is the read the grow page's diary and pictures are made of
-(`GrowDiaryPage`: weeks of `GrowDiaryDay`, with everyone their lines name). It is additive - the week cards stay for
-the public page and the share link - and a read model, nothing of it stored: a day is a date on the owner's
-calendar with the camera's picture of it, the means of its climate, the share of it inside the targets where the
-target record says what was aimed at, what the devices did (`GrowDayEvent`: the lamp, stretches outside the band)
-and its lines. It reaches whatever `view` on the grow reaches, clamped to the grant's window; a reader from outside
-is answered no machines' lines, and no pictures unless the grant carries the cameras. What it costs and how a day
+*Amended 2026-11-12:* `GET /grows/{id}/diary` is the read every diary is made of - the grow page's diary and
+pictures, the public page and the share link (`GrowDiaryPage`: weeks of `GrowDiaryDay`, with everyone their lines
+name, and on the last page the lines dated to before the grow began). **It replaces the week cards**:
+`GET /grows/{id}/weeks`, `GrowWeekCard` and its parts are removed (Chris, 2026-11-12), `PublicGrowPage.weeks` and
+the two public weeks routes answer `GrowDiaryWeek`, and a public page carries `readingNames`, so a reading in a
+line is said by the grow's own name for it. It is a read model, nothing of it stored: a day is a date on the
+owner's calendar with the camera's picture of it, the means of its climate, the share of it inside the targets
+where the target record says what was aimed at, what happened that is nobody's line (`GrowDayEvent`: the lamp,
+stretches outside the band, maintenance somebody switched) and its lines. It reaches whatever `view` on the grow
+reaches, clamped to the grant's window; a reader from outside is answered no events, no plan lines, no share of a
+day, and no pictures unless the grant carries the cameras. What it costs and how a day
 is judged: [server-engines.md](../knowledge/server-engines.md#read-models). The stills a diary line or a grow's
 cover names are spared by thinning and the sweeps ([terp-cam.md](../knowledge/terp-cam.md)), again without a new
 field.
@@ -493,9 +497,13 @@ stays. Giving a device up now deletes its alerts, as it already deleted its rule
   phases[0].startedAt) / 1 d) + 1`; a plant's phase is the latest phase whose scope includes it; the headline is
   the largest plant group, and the groups are listed when they differ; `auto` is `source` in `{preset, plan}`.
   *Amended 2026-09-22 and 09-23:* the arithmetic is shared rather than the serialiser's - `growOriginOf`,
-  `growDayAt` and `growWeekAt` in `shared-types/src/v1/feeding.ts`, `stageSpansOf`, `daysPerStageOf` and
-  `stageWeekOf` in `grow-days.ts`. Day 1 begins at the earlier of the grow's start and its first phase and is
-  counted in elapsed 24-hour periods, so it is zone-free; a stage's last day is the day before the next phase's
+  `growDayAt` and `growWeekAt` in `shared-types/src/v1/feeding.ts`, `stageSpansOf` and `stageWeekOf` in
+  `grow-days.ts`. Day 1 begins at the earlier of the grow's start and its first phase and is
+  counted in elapsed 24-hour periods, so it is zone-free (*amended 2026-11-12:* no longer - a grow's day is a date
+  on its owner's calendar, day 1 the date it began on, counted by `growDayAt(origin, at, zone)` in dates and never
+  stored; `summary.zone` tells a member's client the zone, and `originAt` of a grow series is the start of that
+  first date. Chris, 2026-11-12: one count everywhere, because 24 hours from the hour of the start filed a
+  morning's line under yesterday); a stage's last day is the day before the next phase's
   first, so the spans tile the grow and add up to its day count; the server publishes `stageWeek` rather than each
   client counting it. `GET /grows/{id}/series` answers `originAt`, so a day-of-grow axis and one grow against
   another are the client's arithmetic over two ordinary reads, not a mode of the route.
@@ -823,7 +831,7 @@ and merged as #104; the table of slices that planned it is done and was removed.
 4. **Membership widens what a non-owner can do.** The `need` each route declares is the checklist, and the
    contract test asserts it per route.
 5. **Read models cost queries.** The home of a club is a handful of Mongo queries plus one Flux query per
-   device; week cards and the public page run one aggregate per week and controller on the first uncached hit.
+   device; the diary and the public page run one read per week and controller.
 6. **Cascading deletes are new to this server** and need their own specs.
 7. **Control laws for the new socket roles are decided here, not by a screen.** They ship behind
    `socket_roles`, so a firmware that omits a role never offers it. A wrong law on a real tent is worse than no
@@ -837,7 +845,7 @@ and merged as #104; the table of slices that planned it is done and was removed.
    install turns it on, so the risk is taken deliberately rather than by upgrading.
 10. **Two new outward-facing surfaces**, Web Push and the Telegram webhook, both off until configured.
 11. **Devices have no placement history** (found 2026-09-22). A device row knows only where it stands now, so
-   grow series, week cards and exports miss a device that has since left the tent for the days it stood there.
+   grow series, the diary and exports miss a device that has since left the tent for the days it stood there.
    Fixing that needs placement history on devices, as grows have.
 
 ## Alternatives considered

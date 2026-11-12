@@ -203,7 +203,8 @@ const lineUnder = async (title: string): Promise<string> => {
   const door = await screen.findByRole('link', { name: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) });
   await waitFor(() => expect(door).not.toHaveTextContent('loading'));
 
-  return door.textContent!.slice(title.length);
+  // A figure is bound to what follows it, so no line of a door ends on one: said here as the words it is.
+  return door.textContent!.slice(title.length).replace(/\u00a0/g, ' ');
 };
 
 beforeAll(() => translate());

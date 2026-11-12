@@ -1,11 +1,13 @@
 import type { DateTime } from 'luxon';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { entryDetail } from '@/i18n/device-message';
 import { sinceLabel } from './age';
 import { amountOf, authorOf, doneByOf, headlineOf, KIND_ICON, ownReading } from './entries';
+import { factsOf, unbroken } from './fact-text';
+import { Facts } from './Facts';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, nowThere, useZone, zoned } from './zone';
 import { Photo } from './Photo';
 import { PictureViewer } from './PictureViewer';
@@ -262,13 +264,15 @@ export function EntryWords({
   const doneBy = byline && entry.source === 'human' ? doneByOf(t, i18n, entry, byYou) : null;
   const named = byline && entry.source === 'human' && (doneBy !== null || !byYou);
   const amount = amountOf(t, entry);
-  return (
-    <>
-      {/* A device, the plan or an alarm is named by its mark; a person by
-          name - as the subject of what they did ("Du hast gegossen", "lea hat
-          gegossen"), or ahead of their own words as a speaker is ("lea: Untere
-          Blätter ausgelichtet"). Somebody's own words need no name: "du Untere
-          Blätter ausgelichtet" read as a sentence nobody would write. */}
+  // The line as facts side by side: who did what, how much of it, how often, each reading. No line of it ends on
+  // the dot between two, and no figure leaves its unit or its label.
+  const facts: ReactNode[] = [
+    // A device, the plan or an alarm is named by its mark; a person by name -
+    // as the subject of what they did ("Du hast gegossen", "lea hat
+    // gegossen"), or ahead of their own words as a speaker is ("lea: Untere
+    // Blätter ausgelichtet"). Somebody's own words need no name: "du Untere
+    // Blätter ausgelichtet" read as a sentence nobody would write.
+    <span key="said">
       {named ? (
         <>
           <span className={styles.author}>{byYou ? t('home.author.youLead') : authorOf(t, entry, people, user?.id)}</span>
@@ -277,27 +281,30 @@ export function EntryWords({
       ) : null}
       {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
       <span className={styles.headline}>{doneBy ?? headlineOf(t, i18n, entry)}</span>
-      {amount ? <span className="mono">{` · ${amount}`}</span> : null}
-      {repeats && repeats.count > 1 ? (
-        <span className="mono">
-          {' · '}
-          {t('home.entryRepeats', { count: repeats.count, since: sinceOf(repeats.since, now, zone) })}
+    </span>,
+    ...(amount ? factsOf(amount) : []).map(part => (
+      <span key={part} className="mono">
+        {unbroken(part)}
+      </span>
+    )),
+    repeats && repeats.count > 1 ? (
+      <span key="repeats" className="mono">
+        {t('home.entryRepeats', { count: repeats.count, since: sinceOf(repeats.since, now, zone) })}
+      </span>
+    ) : null,
+    ...readings.map(reading => {
+      const definition = measurements.find(one => one.key === reading.key) ?? ownReading(t, reading.key);
+      return (
+        <span key={`${reading.key}-${reading.plantId ?? ''}`} className={`mono ${styles.readings}`}>
+          {definition?.name ?? reading.key} {unbroken(`${looseFigure(reading.value)}${definition?.unit ? ` ${definition.unit}` : ''}`)}
         </span>
-      ) : null}
-      {readings.length > 0 ? (
-        <span className={`mono ${styles.readings}`}>
-          {readings.map(reading => {
-            const definition = measurements.find(one => one.key === reading.key) ?? ownReading(t, reading.key);
-            return (
-              <span key={`${reading.key}-${reading.plantId ?? ''}`}>
-                {' · '}
-                {definition?.name ?? reading.key} {looseFigure(reading.value)}
-                {definition?.unit ? ` ${definition.unit}` : ''}
-              </span>
-            );
-          })}
-        </span>
-      ) : null}
+      );
+    }),
+  ];
+
+  return (
+    <>
+      <Facts facts={facts} />
       {/* What the machine's line said, under the kind of thing it was: the
           reading an alarm tripped on, the settings a save changed, the reason
           a device rebooted. */}

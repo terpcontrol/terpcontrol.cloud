@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import type { MyGrowCard, MyGrowPage, MyGrowPlace, Person, StrainCount } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, decodeCursor, pageLimit, pageOf, PagePosition } from '@common/v1/pages';
+import { zonesOfOwners } from '@common/v1/owner-zone';
 import { peopleNamed } from '@common/v1/people';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -61,7 +62,7 @@ export class MyGrowsService {
     const grows = await this.grows.find({ id: { $in: ids } }).lean<GrowDocument[]>();
     const spaceIds = [...new Set(grows.flatMap(grow => grow.placements.flatMap(placement => (placement.spaceId ? [placement.spaceId] : []))))];
 
-    const [plants, spaces, cameras, photos, hide, owners] = await Promise.all([
+    const [plants, spaces, cameras, photos, hide, owners, zone] = await Promise.all([
       this.plants
         .find({ growId: { $in: ids } })
         .sort({ createdAt: 1, _id: 1 })
@@ -79,13 +80,17 @@ export class MyGrowsService {
         grows.map(grow => grow.ownerId),
       ),
       this.ownersOf(ctx, grows),
+      zonesOfOwners(
+        this.users,
+        grows.map(grow => grow.ownerId),
+      ),
     ]);
     const stills = new Map(await Promise.all(grows.map(async grow => [grow.id, await this.newestLitStill(grow, cameras, now)] as const)));
 
     const cards = grows.map((grow): MyGrowCard => {
       const own = plants.filter(plant => plant.growId === grow.id);
       const hidden = hide(grow.ownerId);
-      const summary = summaryOf(grow, own, hidden, now);
+      const summary = summaryOf(grow, own, hidden, zone(grow.ownerId), now);
 
       return {
         growId: grow.id,

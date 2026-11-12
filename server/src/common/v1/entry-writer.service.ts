@@ -142,7 +142,7 @@ const undoUntil = (draft: EntryDraft, createdAt: Date): Date | null =>
  * itself. The camera row already refuses to answer its own address with the
  * credentials on it - "the credentials it is opened with are the server's to
  * keep, and the owner is no more entitled to read them back than anybody else"
- * - and a diary that keeps them hands back in the rail, the week card and the
+ * - and a diary that keeps them hands back in the rail, the diary day and the
  * export exactly what that refusal is about.
  *
  * It is done here rather than on the way out because this is the one place a

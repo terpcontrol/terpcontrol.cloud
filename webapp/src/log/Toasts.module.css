@@ -33,6 +33,17 @@
   border: var(--rule-width) solid var(--alarm);
 }
 
+/* What went wrong is a sentence: on a phone it stands over the two things to do about it. */
+@media (max-width: 599px) {
+  .toast[data-failed] {
+    flex-wrap: wrap;
+  }
+
+  .toast[data-failed] .label {
+    flex-basis: 100%;
+  }
+}
+
 .label {
   flex: 1;
   font-size: var(--text-sm);

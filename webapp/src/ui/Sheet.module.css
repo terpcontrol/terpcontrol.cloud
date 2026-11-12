@@ -65,6 +65,7 @@ div.scrim {
   border-radius: var(--radius-pill);
 }
 
+/* The title takes the room there is and breaks inside it; what stands beside it - a moment, the close - keeps its own. */
 .header {
   display: flex;
   flex: none;
@@ -75,6 +76,8 @@ div.scrim {
 
 .title {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
   font-size: var(--text-xl);
   line-height: var(--line-tight);
   color: var(--ink);
@@ -96,6 +99,7 @@ div.scrim {
 }
 
 /* A finger wide, and pulled into the corner so the cross stands where the title's line ends. */
+.back,
 .close {
   display: grid;
   place-items: center;
@@ -109,6 +113,11 @@ div.scrim {
   border-radius: var(--radius-pill);
   padding: 0;
   color: var(--muted);
+}
+
+/* The way back hangs out to the left as the close does to the right, so the title keeps its edge. */
+.back {
+  margin: calc(var(--space-2) * -1) 0 calc(var(--space-2) * -1) calc(var(--space-2) * -1);
 }
 
 /* The questions, and the only part that scrolls: `min-height` is what lets a

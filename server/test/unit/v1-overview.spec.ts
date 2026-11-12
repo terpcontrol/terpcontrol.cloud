@@ -659,8 +659,8 @@ describe('who may read it', () => {
     const theirs = await readAs(visitor(await linkFor({})));
 
     expect(mine.grows.find(grow => grow.growId === GROW)?.dayNumber).toBe(34);
-    // The window closed on 8 June, two days into the diary this reader has not seen.
-    expect(theirs.grows.find(grow => grow.growId === GROW)?.dayNumber).toBe(31);
+    // The window closed two hours into 8 June where the owner lives, two dates before today.
+    expect(theirs.grows.find(grow => grow.growId === GROW)?.dayNumber).toBe(32);
   });
 
   it('names no device and no room to somebody who was sent a link', async () => {

@@ -1,11 +1,13 @@
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import type { GrowListItem, HarvestResult, Plant } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useUpdateGrow } from '@/api/grows';
 import { useHarvest } from '@/api/lifecycle';
 import type { Translate } from '@/i18n/i18n';
+import { useLog } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { looseFigure, typedFigure } from '@/ui/figures';
@@ -73,6 +75,8 @@ export function HarvestSheet({
   const endsTheGrow =
     grow.endedAt === null && cut.length > 0 && plants.every(plant => cut.some(one => one.id === plant.id) || plant.status !== 'active');
 
+  const ended = useGrowEnded(grow, onClose);
+
   const body = {
     plantIds: chosen,
     harvestedAt: instantOf(DateTime.fromJSDate(at)),
@@ -131,6 +135,8 @@ export function HarvestSheet({
             onClick={() =>
               harvest.mutate(body, {
                 onSuccess: result => {
+                  // The last plants down end the grow: its page is its report now, and the toast says why it moved.
+                  if (endsTheGrow) return ended();
                   setDone(result);
                   setChosen(null);
                   setWet('');
@@ -201,6 +207,7 @@ export function HarvestSheet({
  */
 function NothingPlanted({ grow, onClose }: { grow: GrowListItem; onClose: () => void }) {
   const { t } = useTranslation();
+  const ended = useGrowEnded(grow, onClose);
   const zone = useZone();
   const update = useUpdateGrow(grow.id);
   const [at, setAt] = useState(() => serverNow().toJSDate());
@@ -220,7 +227,7 @@ function NothingPlanted({ grow, onClose }: { grow: GrowListItem; onClose: () => 
             type="button"
             className={`${ui.button} ${ui.primary} ${styles.submit}`}
             disabled={update.isPending}
-            onClick={() => update.mutate({ endedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })}
+            onClick={() => update.mutate({ endedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: ended })}
           >
             {update.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.harvest.endTheGrow')}
           </button>
@@ -267,4 +274,21 @@ const weightLine = (t: Translate, plant: Plant): string => {
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(' · ') : t('grow.lifecycle.harvest.noWeight');
+};
+
+/**
+ * What ending a grow leads to: the sheet closes onto the grow's report - Grow
+ * shows what runs, and this one no longer does - and a toast says that it has
+ * ended. Nothing takes an end back, so the toast offers no undo.
+ */
+const useGrowEnded = (grow: GrowListItem, onClose: () => void) => {
+  const { t } = useTranslation();
+  const { tell } = useLog();
+  const navigate = useNavigate();
+
+  return () => {
+    onClose();
+    void navigate(`/grows/${grow.id}/report`);
+    tell({ label: t('grow.lifecycle.harvest.ended', { name: grow.name }), undo: null });
+  };
 };

@@ -74,19 +74,26 @@ string exists in English and German, with no English left in the German catalogu
   "place" (2026-10-04).
 
 ## Grow time
-- A grow's progress is its day, counted in 24 h from its start: "Tag 29", a finished grow "126 T · beendet 14. Aug
-  2026". The entry sheet, the report and a line's stamp there count this way ("T 29 · 13:36").
-- **The diary is told in dates** (Chris, 2026-11-11, with the day cards): a card is a day of the owner's calendar,
-  called "Heute", "Gestern", the weekday while it names one day ("Montag"), then the date, each with its number -
-  "Heute · Tag 29". The number is the day of the grow that begins on that date: the date the grow began on is day 1.
-  So until the hour the grow began at, today's card is one ahead of the counter beside the grow's name; the help on
-  "Tag" says so. A line of a card carries its hour and no day. Weeks of the diary are seven of those dates: "Tag 26
-  bis 22 · Blüte, Woche 2".
+- **One day count: the calendar's** (Chris, 2026-11-12; it replaces the count of 24 hours from the hour the grow
+  began, which filed a morning's watering under yesterday and had the head of the grow page one behind its own
+  diary). A grow's day is a date on its owner's calendar everywhere - the head, Start, Verlauf, the report, the
+  day cards, the entry sheet, the exports: day 1 is the date the grow began on, and every midnight there adds one.
+  Counted, never stored (`growDayAt` in `shared-types/src/v1/feeding.ts`, in dates because a day of the calendar
+  is 23 or 25 hours long twice a year; the server knows the owner's zone, and tells a member's app in
+  `summary.zone`). A stretch ends on the day of its last instant (`growDayUpTo`): a window that closes at midnight
+  has not begun the next date. A grow's progress reads "Tag 29", a finished one "126 Tage · beendet 14. Aug 2026".
+- **The diary is told in those dates** (Chris, 2026-11-11, with the day cards): a card is called "Heute",
+  "Gestern", the weekday while it names one day ("Montag"), then the date, each with its number - "Heute ·
+  Tag 29". A diary that has ended, and one read from outside past its window, has no today: its cards are dates.
+  A line of a card carries its hour and no day. Weeks of the diary are seven of those dates: "Tag 26 bis 22 ·
+  Blüte, Woche 2".
 - The stage is counted in weeks ("Blüte, Woche 3") as the server counts them (`stageWeek`, from `stageWeekOf` in
   `shared-types/src/v1/grow-days.ts`); a phase's own days divided by seven give another week. A week of the diary is
   named by its days and carries the stage most of it lay in; a feeding scheme's own week is always "Schema-Woche".
-- What a device did without anybody asking is marked "von allein" (English "by itself"); a share of a day inside its
-  targets reads "96 % der Zeit im Ziel".
+- What a device or the plan did without a person is marked "von allein" (English "by itself") - not what somebody
+  switched, such as maintenance ("Wartung · 2 Min"); a share of a day inside its targets reads "96 % der Zeit im
+  Ziel". An alarm is named by its rule, and the edge it crossed is said in words - "Luftfeuchte über 60 %",
+  "unter 20 °C" (`i18n/alarm-line.ts`): "›" only ever means that something opens.
 - Films: Tagesfilm, Wochenfilm, Film der Phase, Film des Grows, Eigener Film.
 
 ## Numbers, dates and units

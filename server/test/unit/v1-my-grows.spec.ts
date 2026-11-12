@@ -286,6 +286,20 @@ describe('a card', () => {
     expect(page.items.find(card => card.growId === SPRING)!.coverMediaId).toBe('chosen-cover');
   });
 
+  it('lists the tour the grow standing in a demo place, which is the one it can open', async () => {
+    // The fridge is put on the tour; nobody flagged the grow in it.
+    await db.spaces.updateOne({ id: FRIDGE }, { $set: { isDemo: true } });
+
+    const page = await myGrows.list(demo(null), {}, NOW);
+
+    // What stands there, as `access()` opens it - and nothing standing elsewhere.
+    const listed = page.items.map(card => card.growId);
+    expect(listed).toContain(RUNNING);
+    expect(listed).not.toContain(WINDOWSILL);
+    expect(listed).not.toContain(FRIENDS);
+    expect(page.items[0].owner).toBeNull();
+  });
+
   it('hides the counts and weights from the demo tour the way the owner´s privacy says', async () => {
     await db.grows.updateOne({ id: SPRING }, { $set: { isDemo: true } });
     await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: true, hideCounts: true } } });

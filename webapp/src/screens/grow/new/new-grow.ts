@@ -84,19 +84,11 @@ export const growIn = (grows: GrowListItem[], spaceId: string): GrowListItem | n
 
 /**
  * The day the grow will read as once it exists: 1 today, and one more for
- * every whole day back the start was put.
- *
- * It is the contract's own `growDayAt` and not an arithmetic of its own,
- * because the two disagreed and the button was the one that was wrong. A grow
- * day is twenty-four hours from the moment the first phase began - the sheet
- * keeps the hour the date was typed at, on purpose, so that a correction moves
- * a grow by whole days - while counting calendar days instead counts the
- * midnights in between, and a clock change is a day with twenty-three of those
- * hours in it. So a start backdated across the spring change promised "Day
- * 207" for a grow that would read 206 the moment it existed, and every
- * backdated start on the far side of the change was over by one.
+ * every midnight back the start was put, on the calendar of whoever starts it
+ * - who will be its owner. It is the contract's own `growDayAt` and not an
+ * arithmetic of its own, so the button promises the day the grow then shows.
  */
-export const dayNumber = (startedAt: Date, now: DateTime): number => growDayAt(startedAt, now.toJSDate());
+export const dayNumber = (startedAt: Date, now: DateTime, zone: string | null): number => growDayAt(startedAt, now.toJSDate(), zone);
 
 /**
  * The preset the grow's own kind puts on the stage. Nobody is asked for it: an

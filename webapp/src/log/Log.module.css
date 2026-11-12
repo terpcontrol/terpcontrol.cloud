@@ -9,12 +9,18 @@
   margin-bottom: var(--space-4);
 }
 
+/* A finger high, and a long name cut with an ellipsis rather than pushing the row out of the sheet. */
 .targets > button {
+  display: block;
+  max-width: 100%;
   height: auto;
-  min-height: 40px;
+  min-height: var(--control-height);
   padding: 0 14px;
+  overflow: hidden;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tiles {
@@ -77,17 +83,38 @@
   font-size: var(--text-md);
 }
 
+/* The figure is a field: tapped, it is typed over; the steps beside it move it by half a litre. */
 .waterFigure {
-  min-width: 64px;
+  display: flex;
+  align-items: baseline;
+  gap: 0.25em;
   font-size: var(--text-lg);
+  white-space: nowrap;
+}
+
+.waterFigure input {
+  width: 3.2em;
+  min-height: var(--control-height);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: var(--rule-solid);
+  color: inherit;
+  font: inherit;
   text-align: right;
+}
+
+.lastTime {
+  margin: calc(var(--space-2) * -1) 0 var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--muted);
 }
 
 .step {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: var(--control-height);
+  height: var(--control-height);
   background: var(--card-2);
   border: var(--rule-solid);
   border-radius: var(--radius);
@@ -147,6 +174,7 @@
 .fieldName {
   font-size: var(--text-sm);
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .fieldInput {
@@ -184,11 +212,6 @@
 
 /* Whether the phase moves the climate too, set apart from the stages it follows. */
 .climate {
-  margin-top: var(--space-4);
-}
-
-.save {
-  width: 100%;
   margin-top: var(--space-4);
 }
 
@@ -309,6 +332,11 @@
   flex-wrap: wrap;
   gap: var(--space-2);
   margin: var(--space-2) 0 var(--space-3);
+}
+
+/* A tag is pressed with a finger. */
+.tags > * {
+  min-height: var(--control-height);
 }
 
 .ownTag {

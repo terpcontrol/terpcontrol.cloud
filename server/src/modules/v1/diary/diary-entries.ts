@@ -28,7 +28,7 @@ export const serialiseDiaryEntry = (entry: EntryDocument, hide: Redaction, grant
     // done and leaves the person out, rather than handing over an id that has no
     // handle beside it to make sense of.
     authorId: hide.authors ? null : told.authorId,
-    // And where it happened is the place behind it. A week card that answers no
+    // And where it happened is the place behind it. A day of the diary that answers no
     // `deviceIds` and a report that answers no `spaceIds` would say nothing at
     // all if the lines under them named the tent and the controller anyway -
     // every phase line carries the space it was written in, and every line a
@@ -68,14 +68,14 @@ const valuesOf = (values: Entry['values'], hide: Redaction): Entry['values'] => 
 /**
  * What a device and the plan engine write for themselves. They are entries like
  * any other and are kept like any other, but they are a machine's running
- * commentary rather than a record of the grow, so a week card and a report
+ * commentary rather than a record of the grow, so a day of the diary and a report
  * chapter leave them out and the timeline's rail reads them under a cap of their
  * own.
  */
 export const MACHINE_KINDS: EntryKind[] = entryKind.options.filter(kind => kind === 'system' || kind === 'plan');
 
 /**
- * What a week card or a report chapter is about: everything somebody did to the
+ * What a day of the diary or a report chapter is about: everything somebody did to the
  * grow, and everything that happened to it, with a machine's bookkeeping left
  * out. The rail on the Timeline tab is deliberately not this list - a tent's
  * whole record is what it is scrubbed for.

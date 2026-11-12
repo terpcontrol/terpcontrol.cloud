@@ -672,7 +672,6 @@
       "noReading": "–",
       "inBand": "im Ziel",
       "noTarget": "kein Ziel",
-      "week": "Wo {{week}}",
       "auto": "auto",
       "noPhase": "Noch keine Phase",
       "plants_one": "{{count}} Pflanze",
@@ -748,7 +747,9 @@
       "move": "hat umgestellt",
       "move_you": "hast umgestellt",
       "visit": "hat die Wartung gestartet",
-      "visit_you": "hast die Wartung gestartet"
+      "visit_you": "hast die Wartung gestartet",
+      "still": "hat ein Kamerabild festgehalten",
+      "still_you": "hast ein Kamerabild festgehalten"
     },
     "alert": {
       "threshold": "Alarm",
@@ -987,7 +988,7 @@
       "links_other": "{{count}} Links öffnen ihn",
       "switch": "Öffentliche Seite von {{name}}",
       "none": "Noch keine eigenen Grows",
-      "stranger": "Ein öffentlicher Grow zeigt einem Fremden das Tagebuch vom ersten Tag an: die Phasen, die Wochenkarten mit ihren Fotos und den Bildern der Kamera, die Klimamittelwerte, die Sorten und deinen Handle. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen. Nie zu sehen sind die Live-Werte des Orts, seine Geräte, seine Alarme oder seine Aufgaben, und nie deine E-Mail. Wer folgt, sieht dieselbe Seite, und schreiben kann niemand."
+      "stranger": "Ein öffentlicher Grow zeigt einem Fremden das Tagebuch vom ersten Tag an: die Phasen, die Tage mit ihren Fotos und den Bildern der Kamera, die Klimamittelwerte, die Sorten und deinen Handle. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen. Nie zu sehen sind die Live-Werte des Orts, seine Geräte, seine Alarme oder seine Aufgaben, und nie deine E-Mail. Wer folgt, sieht dieselbe Seite, und schreiben kann niemand."
     },
     "following": {
       "title": "Abonniert",
@@ -1209,30 +1210,14 @@
       "pictures": "Bilder"
     },
     "phaseBarLabel": "Phasenverlauf, jetzt in {{stage}}",
-    "stageShort": {
-      "germination": "Keim",
-      "seedling": "Sämling",
-      "vegetative": "Veg",
-      "flowering": "Blüte",
-      "drying": "Trock.",
-      "curing": "Reife"
-    },
     "lateFlower": "Späte Blüte",
-    "days_one": "{{count}} T",
-    "days_other": "{{count}} T",
+    "days_one": "{{count}} Tag",
+    "days_other": "{{count}} Tage",
     "week": "Woche {{week}}",
     "dayRange": "Tag {{from}}–{{to}}",
     "dayShort": "T {{day}}",
     "correctLine": "Diesen Eintrag berichtigen",
-    "dayStillAlt": "Tag {{day}}",
-    "dayNight": "Tag / Nacht",
-    "average": "Mittel",
-    "humidity": "Feuchte",
-    "light": "Licht",
     "ownScheme": "Eigenes Schema",
-    "feedsDone": "{{done}} / {{planned}} erledigt",
-    "noEntriesThisWeek": "Diese Woche noch nichts eingetragen",
-    "noEntriesThisWeekEnded": "In dieser Woche wurde nichts eingetragen",
     "moreEntries_one": "+ {{count}} weiterer",
     "moreEntries_other": "+ {{count}} weitere",
     "earlierWeeks": "Frühere Wochen",
@@ -1242,7 +1227,7 @@
     "noFixedPlace": "Kein fester Ort",
     "stoodIn": "stand in {{name}}",
     "rename": {
-      "title": "{{name}} umbenennen",
+      "title": "Grow umbenennen",
       "name": "Name",
       "note": "Es ändert sich nur der Name. Tagebuch, Phasen und Wochen bleiben, wie sie sind, und ein öffentliches Tagebuch behält die Adresse, die es beim Anlegen des Grows bekommen hat.",
       "save": "Namen speichern"
@@ -1255,7 +1240,7 @@
     },
     "noScheme": "Kein Düngeschema",
     "noSchemeNote": "Dieser Grow folgt keinem Schema. Wähle eines als Ausgangspunkt oder dünge von Hand und schreibe auf, was du gibst.",
-    "noSchemeNoteEnded": "Dieser Grow wurde nach keinem Schema gedüngt. Nachzutragen, was er wirklich bekommen hat, lohnt sich trotzdem: Seine Wochenkarten lesen dieses Raster, hier und auf einem geteilten Link.",
+    "noSchemeNoteEnded": "Dieser Grow wurde nach keinem Schema gedüngt.",
     "edited": "bearbeitet",
     "strength": "Stärke {{percent}} %",
     "report": {
@@ -1285,7 +1270,6 @@
       },
       "noPhase": "Noch keine Phase · der Bericht beginnt mit der ersten Phase"
     },
-    "nothingMeasured": "Diese Woche nichts gemessen",
     "presetName": {
       "late_flowering": "Späte Blüte",
       "autoflower": "Auto"
@@ -1306,7 +1290,7 @@
       "somePlants_one": "{{count}} Pflanze",
       "somePlants_other": "{{count}} Pflanzen",
       "phase": {
-        "title": "Phase · {{name}}",
+        "title": "Phase",
         "noPhaseYet": "Noch keine Phase · der Tageszähler beginnt mit der ersten",
         "nowLine": "Jetzt {{stage}} · Tag {{phaseDay}} der Phase · Tag {{growDay}}, Woche {{week}} des Grows",
         "endedLine": "Beendet in {{stage}} an Tag {{growDay}} des Grows · {{date}}",
@@ -1345,7 +1329,7 @@
         }
       },
       "move": {
-        "title": "Umzug · {{name}}",
+        "title": "Umzug",
         "standsIn": "Steht in {{places}}",
         "moveTo": "Umziehen nach",
         "note": "Der offene Ort dieser Pflanzen wird beendet und ein neuer eröffnet. Pflanzen, die nicht mitziehen, behalten ihren Ort.",
@@ -1367,7 +1351,7 @@
         "endedNote": "Dieser Grow ist beendet und zieht nicht mehr um. Eine Zeile unten, die falsch erfasst wurde, lässt sich weiterhin korrigieren."
       },
       "harvest": {
-        "title": "Ernte · {{name}}",
+        "title": "Ernte",
         "nothingStanding": "Alle Pflanzen dieses Grows sind bereits geerntet.",
         "noPlantsRecorded": "In diesem Grow sind keine Pflanzen erfasst, hier lässt sich also nichts ernten. Ein aus der alten App übernommener Grow wurde nie Pflanze für Pflanze aufgeschrieben.",
         "alreadyEnded": "Er ist am {{date}} beendet worden.",
@@ -1396,10 +1380,11 @@
         "whatWasWritten": "Was geschrieben wurde",
         "alreadyDown": "Bereits geerntet",
         "correctOnThePlant": "Eine Pflanze, die wirklich anders gewogen hat, wird an der Pflanze selbst korrigiert.",
-        "noWeight": "kein Gewicht"
+        "noWeight": "kein Gewicht",
+        "ended": "{{name}} ist beendet · hier ist sein Bericht"
       },
       "split": {
-        "title": "Aufteilen · {{name}}",
+        "title": "Aufteilen",
         "what": "Einige Pflanzen gehen ihren eigenen Weg, während der Rest des Grows weiterläuft.",
         "noPlantsRecorded": "In diesem Grow sind keine Pflanzen erfasst, hier lässt sich also nichts abtrennen. Ein aus der alten App übernommener Grow wurde nie Pflanze für Pflanze aufgeschrieben.",
         "whichGoTheirOwnWay": "Welche Pflanzen ihren eigenen Weg gehen",
@@ -1417,7 +1402,6 @@
     },
     "new": {
       "title": "Neuer Grow",
-      "row": "+ Neuer Grow",
       "name": "Name",
       "firstName": "Erster Grow",
       "plants": "Pflanzen",
@@ -1498,7 +1482,7 @@
       "tapToAdd": "tippen zum Hinzufügen",
       "ownChip": "eigen · Name · Einheit",
       "alreadyHere": "wird hier schon gemessen",
-      "note": "Ein Messwert ist eine Messen-Kachel im Eintrag, eine Zeile auf der Wochenkarte, eine Kurve in den Graphen und eine Spalte im Export. Pro Pflanze oder pro Grow wird einmal entschieden.",
+      "note": "Ein Messwert ist eine Messen-Kachel im Eintrag, eine Zeile im Tagebuch, eine Kurve in den Graphen und eine Spalte im Export. Pro Pflanze oder pro Grow wird einmal entschieden.",
       "readingsUnread": "Was gemessen wurde, konnte gerade nicht gelesen werden, deshalb sagt diese Liste nichts darüber.",
       "template": {
         "water_temp": "Wassertemperatur",
@@ -1656,7 +1640,6 @@
       "keepMine": "Meines behalten",
       "takeTheirs": "Deren übernehmen"
     },
-    "youMayLog": "Du darfst in das Tagebuch dieses Grows schreiben. Umziehen, teilen und ernten kann nur, wer den Ort steuert, an dem er steht.",
     "menu": {
       "label": "Mehr zu {{name}}",
       "more": "Mehr"
@@ -1699,7 +1682,14 @@
       "filmIn_one": "{{days}} in {{count}} Sekunde",
       "filmIn_other": "{{days}} in {{count}} Sekunden",
       "written_one": "{{count}} Eintrag",
-      "written_other": "{{count}} Einträge"
+      "written_other": "{{count}} Einträge",
+      "maintenance": "Wartung · {{span}}",
+      "maintenanceOn": "Wartung läuft",
+      "light": "Licht {{from}}–{{to}}",
+      "outside": "{{metric}} {{span}} außerhalb",
+      "outsideOften": "{{metric}} {{count}}× außerhalb · zusammen {{span}}",
+      "alarmOver": "behoben",
+      "earlier": "Vor dem Start"
     },
     "pictures": {
       "makeEntry": "Als Eintrag ins Tagebuch",
@@ -1720,7 +1710,8 @@
         "camera": "Noch kein Kamerabild"
       },
       "thisWeek": "Diese Woche · ab Tag {{day}}",
-      "add": "Foto aufnehmen"
+      "add": "Foto aufnehmen",
+      "noneInWeeks": "Keine Bilder in diesen Wochen"
     }
   },
   "space": {
@@ -2248,8 +2239,16 @@
       "ahead": "Das liegt in der Zukunft. Ein Eintrag hält fest, was schon passiert ist.",
       "climateNow": "Im Tagebuch beginnt die Phase zum gewählten Zeitpunkt. Das Klima stellt sich trotzdem erst jetzt um.",
       "fromPicture": "Zeitpunkt aus dem ersten Foto übernommen",
-      "edit": "Ändern"
-    }
+      "edit": "Ändern",
+      "before": "Der Grow hat am {{date}} begonnen. Davor hat er keinen Tag, unter dem ein Eintrag stehen könnte.",
+      "moveStart": "Start auf den {{date}} vorverlegen",
+      "moveRefused": "Der Start ließ sich nicht verlegen."
+    },
+    "back": "Zurück zur Auswahl",
+    "noConnection": "Keine Verbindung · wird gesendet, sobald sie wieder da ist",
+    "targetsSet": "Zielwerte gesetzt",
+    "waterLitres": "Wasser in Litern",
+    "lastTime": "Zuletzt {{ago}} · {{litres}} l"
   },
   "timeline": {
     "rangeLabel": "Zeitraum",
@@ -2615,7 +2614,6 @@
     "toDark": "Auf dunkel umschalten",
     "coverAlt": "Titelbild von {{name}}",
     "film": "Der ganze Grow als Film",
-    "weekFilm": "Wochenfilm",
     "weeks": "Wochen",
     "noCameras": "Kamerabilder gehören nicht dazu",
     "nothingInWindow": "In diesem Abschnitt des Tagebuchs steht nichts",
@@ -2669,7 +2667,7 @@
     "timeline": "Verlauf"
   },
   "sharing": {
-    "title": "Teilen · {{name}}",
+    "title": "Teilen",
     "share": "Teilen",
     "publicChip": "Öffentlich",
     "publicPage": "Öffentliche Seite",
@@ -2715,7 +2713,7 @@
     "publicPageNoteCameras": "Das Tagebuch bekommt eine eigene Adresse, die jeder öffnen kann – mit den Fotos und den Bildern der Kamera. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen.",
     "linksNoteNoCamera": "Ein Schlüssel für eine Person, für einen Zeitraum.",
     "publicCameras": "Kamerabilder auf der öffentlichen Seite",
-    "publicCamerasNote": "Die Bilder der Cam in den Wochenkarten und im Bericht. Ausgeschaltet zeigt die Seite nur die Fotos aus dem Tagebuch."
+    "publicCamerasNote": "Die Bilder der Cam im Tagebuch und im Bericht. Ausgeschaltet zeigt die Seite nur die Fotos aus dem Tagebuch."
   },
   "maintenance": {
     "and": "und",
@@ -3810,7 +3808,9 @@
     "worst": "Extremwert {{value}}",
     "silentFor": "{{span}} ohne Meldung",
     "backAfter": "wieder da nach {{span}}",
-    "back": "wieder da"
+    "back": "wieder da",
+    "over": "über {{bound}}",
+    "under": "unter {{bound}}"
   },
   "deviceLine": {
     "unknownBuild": "ein unbekannter Build"
@@ -3882,7 +3882,7 @@
     },
     "growDay": {
       "title": "Grow-Tag",
-      "text": "Tag 1 ist der Tag, an dem der Grow begann. Der Zähler geht alle 24 Stunden ab diesem Moment weiter und bleibt stehen, wenn der Grow endet. Das Tagebuch zeigt Kalendertage: Tag 1 ist das Datum, an dem der Grow begann, das nächste Datum Tag 2. Bis zu der Uhrzeit, zu der der Grow begann, ist die Karte von heute dem Zähler deshalb einen Tag voraus."
+      "text": "Tag 1 ist der Tag, an dem der Grow begonnen hat. Mit jeder Mitternacht kommt einer dazu – gezählt wird im Kalender dessen, dem der Grow gehört."
     },
     "growWeek": {
       "title": "Woche der Phase",
@@ -4066,7 +4066,7 @@
     },
     "publicPage": {
       "title": "Öffentliche Seite",
-      "text": "Unter dieser Adresse kann jede:r das Tagebuch ohne Konto lesen – die Phasen, die Wochenkarten mit ihren Fotos und die Bilder der Kamera. Die Adresse entsteht aus dem Namen des Grows und ist deshalb kein Geheimnis; ausgeschaltet ist die Seite sofort weg."
+      "text": "Unter dieser Adresse kann jede:r das Tagebuch ohne Konto lesen – die Phasen, die Tage mit ihren Fotos und die Bilder der Kamera. Die Adresse entsteht aus dem Namen des Grows und ist deshalb kein Geheimnis; ausgeschaltet ist die Seite sofort weg."
     },
     "linkActions": {
       "title": "Ändern, zurückziehen, löschen",
@@ -4325,6 +4325,10 @@
     "nightBand": {
       "title": "Grau hinterlegt: die Nacht",
       "text": "Grau hinterlegt sind die Nächte: die Stunden, in denen nach dem Lichtplan Nacht ist – das Licht aus, die Nachtwerte gelten, CO₂ wird nicht zugegeben. Das grüne Band ist der Zielbereich, nachts der der Nachtwerte. In der Stunde nach jedem Wechsel – beim Kühlschrank ab Beginn des Dimmens – und nach jeder Änderung der Zielwerte, des Lichtplans oder der Betriebsart reicht es über die Werte davor und danach: So lange hat das Klima Zeit zu folgen. Wo nichts wechselt – Trocknung, Keimung, 24 oder 0 Std Licht –, ist nichts grau, und das Band ist das eine Ziel, das rund um die Uhr gilt."
+    },
+    "dayShare": {
+      "title": "Im Ziel",
+      "text": "Der Teil des Tages, an dem Temperatur und Feuchte nah genug an ihren Zielwerten waren: bis ±1 °C und ±5 %. Die Stunde nach jedem Wechsel zwischen Tag und Nacht zählt mit."
     }
   },
   "place": {

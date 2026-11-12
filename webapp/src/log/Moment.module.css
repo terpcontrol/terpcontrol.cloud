@@ -13,7 +13,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  height: 28px;
+  min-height: var(--control-height);
   padding: 0 var(--space-2) 0 var(--space-3);
   background: var(--card-2);
   border: var(--rule-solid);
@@ -92,4 +92,12 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+
+/* A sentence of a button, in a pop-up as narrow as a date field: it takes the lines it needs. */
+.move {
+  height: auto;
+  min-height: var(--control-height);
+  padding-block: var(--space-2);
+  white-space: normal;
 }

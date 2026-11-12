@@ -9,10 +9,12 @@ import { useDiaryLayer } from '@/api/layers';
 import { useOwnSchemes, useSchemes } from '@/api/schemes';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { useFollows, useShareLinks } from '@/api/sharing';
-import { FROM_ME, GROW, openedFrom } from '@/app/places';
+import { FOLLOWING, FROM_ME, GROW, SCHEMES, SHARE_LINKS, openedFrom } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { followingLine, schemesLine, shareLinksLine } from '@/screens/me/doors';
 import { BackLink } from '@/ui/BackLink';
+import { factsOf } from '@/ui/fact-text';
+import { Facts } from '@/ui/Facts';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -90,7 +92,7 @@ export function Grows() {
               <Cover mediaId={grow.coverMediaId} />
               <span className={styles.text}>
                 {grow.name}
-                <span className={styles.line}>{[progressOf(t, grow), placeOf(t, grow), sharedBy(t, grow)].filter(Boolean).join(' · ')}</span>
+                <Facts facts={[...progressOf(t, grow), placeOf(t, grow), sharedBy(t, grow)]} className={styles.line} />
               </span>
               <ChevronRight size={20} strokeWidth={2} className={styles.chevron} aria-hidden />
             </Link>
@@ -105,9 +107,7 @@ export function Grows() {
             <Link key={grow.growId} to={`/grows/${grow.growId}/report`} className={styles.row}>
               <span className={styles.text}>
                 {grow.name}
-                <span className={styles.line}>
-                  {[...ranOf(t, grow, zone, now), sharedBy(t, grow), t('grow.tabs.report')].filter(Boolean).join(' · ')}
-                </span>
+                <Facts facts={[...ranOf(t, grow, zone, now), sharedBy(t, grow), t('grow.tabs.report')]} className={styles.line} />
               </span>
               <ChevronRight size={20} strokeWidth={2} className={styles.chevron} aria-hidden />
             </Link>
@@ -151,7 +151,7 @@ function Beside() {
     <Link to={to} className={styles.door}>
       <span className={styles.text}>
         {title}
-        <span className={styles.line}>{says}</span>
+        <Facts facts={factsOf(says)} className={styles.line} />
       </span>
       <ChevronRight size={20} strokeWidth={2} className={styles.chevron} aria-hidden />
     </Link>
@@ -163,18 +163,18 @@ function Beside() {
       <div className={styles.doors}>
         {feeds
           ? door(
-              '/me/schemes',
+              SCHEMES,
               t('me.schemes.title'),
               line([grows, shipped, own], () => schemesLine(t, grows.data!.items, shipped.data!, own.data!.items)),
             )
           : null}
         {door(
-          '/me/share-links',
+          SHARE_LINKS,
           t('me.shareLinks.title'),
           line([links], () => shareLinksLine(t, links.data!.items, now)),
         )}
         {door(
-          '/me/following',
+          FOLLOWING,
           t('me.following.title'),
           line([follows], () => followingLine(t, follows.data!.items.length)),
         )}
@@ -192,15 +192,12 @@ function Cover({ mediaId }: { mediaId: string | null }) {
 }
 
 /** "Tag 29 · Blüte, Woche 3", as the grow's own page states it; a grow with no phase yet says that. */
-const progressOf = (t: Translate, grow: MyGrowCard): string =>
-  [
-    grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,
-    grow.stage
-      ? [t(`home.stage.${grow.stage}`), grow.stageWeek !== null ? t('grow.week', { week: grow.stageWeek }) : null].filter(Boolean).join(', ')
-      : t('home.card.noPhase'),
-  ]
-    .filter(Boolean)
-    .join(' · ');
+const progressOf = (t: Translate, grow: MyGrowCard): (string | null)[] => [
+  grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,
+  grow.stage
+    ? [t(`home.stage.${grow.stage}`), grow.stageWeek !== null ? t('grow.week', { week: grow.stageWeek }) : null].filter(Boolean).join(', ')
+    : t('home.card.noPhase'),
+];
 
 /** Where the grow stands; "Kein fester Ort" for a grow that stands in none, as its own page calls it. */
 const placeOf = (t: Translate, grow: MyGrowCard): string | null =>

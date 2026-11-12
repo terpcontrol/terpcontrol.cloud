@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Entry } from '@fg2/shared-types/v1';
 import { completeTask, diaryChanged, takeEntryBack } from '@/api/entries';
 import { ApiError } from '@/api/problem';
@@ -31,6 +32,8 @@ interface Details {
   entry: Entry | null;
   /** When a new line was said to have happened, on the sheet its kind was chosen on; null is now. */
   at: Date | null;
+  /** The sheet the kind was chosen on, which the view leads back to; null for a view opened on its own. */
+  from: LogOpening | null;
 }
 
 export function LogProvider({ children }: { children: ReactNode }) {
@@ -44,6 +47,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
   const nextKey = useRef(1);
   // Where the sheet was pointed last time. It outlives the sheet, which is why it is not the sheet's.
   const [lastTarget, setLastTarget] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   const dismiss = useCallback((key: number) => setLines(current => current.filter(line => line.key !== key)), []);
 
@@ -73,11 +77,29 @@ export function LogProvider({ children }: { children: ReactNode }) {
           diaryChanged(client);
           changed?.(client);
         },
-        error => change(key, { state: 'failed', failure: 'write', reason: reasonOf(error) }),
+        // Nothing answered - the request never got out, which a browser reports as a TypeError: the line waits, and
+        // says so, until the connection is back.
+        error => {
+          const waiting = error instanceof TypeError || navigator.onLine === false;
+          change(key, { state: 'failed', failure: 'write', reason: waiting ? t('log.noConnection') : reasonOf(error), waiting });
+        },
       );
     },
-    [change, client, remove],
+    [change, client, remove, t],
   );
+
+  // A line written without a connection is sent by itself when the connection returns while the app is open.
+  useEffect(() => {
+    const resend = () => {
+      for (const line of lines) {
+        if (line.state !== 'failed' || !line.waiting) continue;
+        change(line.key, { state: 'saving', failure: null, reason: null, waiting: false });
+        attempt(line.key, line.send, line.changed);
+      }
+    };
+    window.addEventListener('online', resend);
+    return () => window.removeEventListener('online', resend);
+  }, [attempt, change, lines]);
 
   const log = useCallback(
     (request: LogRequest) => {
@@ -136,22 +158,28 @@ export function LogProvider({ children }: { children: ReactNode }) {
   const retry = useCallback(
     (line: LoggedLine) => {
       if (line.revert) return revert({ ...line, state: 'saved' });
-      change(line.key, { state: 'saving', failure: null, reason: null });
+      change(line.key, { state: 'saving', failure: null, reason: null, waiting: false });
       if (line.failure === 'undo' && line.entry) void remove(line.key, line.entry);
       else attempt(line.key, line.send, line.changed);
     },
     [attempt, change, remove, revert],
   );
 
+  const sheetOpen = opening !== null;
   const state = {
     openSheet: useCallback((next: LogOpening = {}) => {
       setDetails(null);
       setOpening(next);
     }, []),
-    openDetails: useCallback((kind: TileKind, target: LogTarget, entry: Entry | null = null, at: Date | null = null) => {
-      setOpening(null);
-      setDetails({ kind, target, entry, at });
-    }, []),
+    openDetails: useCallback(
+      (kind: TileKind, target: LogTarget, entry: Entry | null = null, at: Date | null = null) => {
+        // A new line whose kind was chosen on the sheet leads back to the sheet, pointed where it was.
+        const from = sheetOpen && entry === null ? { growId: target.growId, spaceId: target.standsIn ?? target.spaceId } : null;
+        setOpening(null);
+        setDetails({ kind, target, entry, at, from });
+      },
+      [sheetOpen],
+    ),
     log,
     complete: useCallback(
       (taskId: string, label: string, options: CompleteOptions = {}) => {
@@ -185,7 +213,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
           reason: null,
           undoing: false,
           entry: null,
-          undoable: true,
+          undoable: back !== null,
           undoUntil: Date.now() + TOLD_MS,
           progress: null,
         },
@@ -194,14 +222,20 @@ export function LogProvider({ children }: { children: ReactNode }) {
   };
 
   const close = () => setDetails(null);
+  const back = details?.from
+    ? () => {
+        setOpening(details.from);
+        setDetails(null);
+      }
+    : null;
 
   return (
     <LogContext value={state}>
       {children}
       {opening ? <LogSheet opening={opening} lastKey={lastTarget} onChosen={setLastTarget} onClose={() => setOpening(null)} /> : null}
-      {details?.kind === 'photo' ? <PhotoEntry target={details.target} at={details.at} onClose={close} /> : null}
-      {details && details.kind !== 'photo' ? (
-        <EntryDetails kind={details.kind} target={details.target} entry={details.entry} at={details.at} onClose={close} />
+      {details?.kind === 'photo' && !details.entry ? <PhotoEntry target={details.target} at={details.at} onBack={back} onClose={close} /> : null}
+      {details && (details.kind !== 'photo' || details.entry) ? (
+        <EntryDetails kind={details.kind} target={details.target} entry={details.entry} at={details.at} onBack={back} onClose={close} />
       ) : null}
       <Toasts lines={lines} onUndo={undo} onRetry={retry} onDismiss={dismiss} onDetails={openDetailsOf(setDetails)} />
     </LogContext>
@@ -217,5 +251,5 @@ const reasonOf = (error: unknown): string | null => (error instanceof ApiError ?
 
 /** The toast's Details: the line that was just written, opened in the tile it came from. */
 const openDetailsOf = (setDetails: (details: Details) => void) => (line: LoggedLine) => {
-  if (line.details) setDetails({ ...line.details, entry: line.entry, at: null });
+  if (line.details) setDetails({ ...line.details, entry: line.entry, at: null, from: null });
 };

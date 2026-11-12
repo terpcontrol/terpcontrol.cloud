@@ -4,6 +4,7 @@ import { FilterQuery, Model } from 'mongoose';
 import type { AccountLayers, CardTrend, DueTask, FollowedGrowCard, HomeAnswer, HomeSpaceCard, LatestStill, SeriesPoint } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
 import { serialiseEntry } from '@common/v1/entries';
+import { zonesOfOwners } from '@common/v1/owner-zone';
 import { peopleNamed } from '@common/v1/people';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
@@ -132,7 +133,7 @@ export class HomeService {
     const growIds = cards.flatMap(card => (card.grow ? [card.grow.id] : []));
 
     const trendWindow = { startsAt: new Date(now.getTime() - TREND_HOURS * 3600 * 1000), endsAt: now, stepSeconds: TREND_STEP_SECONDS };
-    const [readings, trends, plants, cameras, alerts, reminders, hide] = await Promise.all([
+    const [readings, trends, plants, cameras, alerts, reminders, hide, zone] = await Promise.all([
       this.live.readingsOf(devices, now),
       this.data.trends(
         devices.map(device => device.id),
@@ -160,6 +161,10 @@ export class HomeService {
       ownerRedactions(
         this.users,
         ctx.isDemo,
+        cards.flatMap(card => (card.grow ? [card.grow.ownerId] : [])),
+      ),
+      zonesOfOwners(
+        this.users,
         cards.flatMap(card => (card.grow ? [card.grow.ownerId] : [])),
       ),
     ]);
@@ -194,6 +199,7 @@ export class HomeService {
                 grow,
                 plants.filter(plant => plant.growId === grow.id),
                 hide(grow.ownerId),
+                zone(grow.ownerId),
                 now,
               )
             : null,
@@ -279,7 +285,9 @@ export class HomeService {
     const grows = await this.grows.find({ id: { $in: follows.map(follow => follow.growId) }, visibility: 'public' }).lean<GrowDocument[]>();
     const [plants, owners, moved] = await Promise.all([
       this.plants.find({ growId: { $in: grows.map(grow => grow.id) } }).lean<PlantDocument[]>(),
-      this.users.find({ id: { $in: grows.map(grow => grow.ownerId) } }, { id: 1, handle: 1, privacy: 1 }).lean<StoredUser[]>(),
+      this.users
+        .find({ id: { $in: grows.map(grow => grow.ownerId) } }, { id: 1, handle: 1, privacy: 1, 'preferences.timezone': 1 })
+        .lean<StoredUser[]>(),
       diaryMovedAt(
         this.entries,
         grows.map(grow => grow.id),
@@ -298,6 +306,7 @@ export class HomeService {
           owner.handle,
           redactionOf(true, owner.privacy),
           moved.get(grow.id) ?? null,
+          owner.preferences?.timezone || null,
           now,
         ),
       ];

@@ -129,7 +129,7 @@ mediaSchema.index({ cameraId: 1, kind: 1, window: 1, capturedAt: 1 }, { unique: 
 // The frames and the timelapses of one camera, newest first, which is both the
 // read of `/frames` and how thinning and retention walk a camera's history.
 mediaSchema.index({ cameraId: 1, kind: 1, capturedAt: -1 });
-// The pictures of a grow and of a space, for the week cards and the public page.
+// The pictures of a grow and of a space, for the diary's days and the public page.
 mediaSchema.index({ growId: 1, capturedAt: -1 });
 mediaSchema.index({ spaceId: 1, capturedAt: -1 });
 // The composer's queue: the hourly builder drains what is queued, oldest first.

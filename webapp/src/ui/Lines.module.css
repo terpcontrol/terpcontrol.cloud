@@ -2,19 +2,28 @@
 
 .lines {
   display: grid;
-  grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: minmax(44px, max-content) minmax(0, 1fr);
+  column-gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* Every line is a finger high, whether or not it leads somewhere, so a list of them stands in even rows. */
 .line {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
-  align-items: baseline;
+  align-items: center;
+  min-height: var(--control-height);
   font-size: var(--text-sm);
+}
+
+.body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .stamp {
@@ -25,8 +34,9 @@
 }
 
 .text {
+  flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   color: var(--ink);
 }
 
@@ -47,7 +57,7 @@ button.text {
   text-align: left;
 }
 
-/* A line that leads somewhere is a finger high, whatever it says. */
+/* The whole height of the row is the way into a line that leads somewhere. */
 button.text,
 a.text {
   display: block;
@@ -55,9 +65,17 @@ a.text {
   align-content: center;
 }
 
+/* What a line says under its words: the reading an alarm tripped on. */
+.text small {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
 /* What a device did by itself, said at the end of its line. */
 .mark {
-  align-self: center;
+  flex: none;
   padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--brand-wash);

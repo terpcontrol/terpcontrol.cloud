@@ -55,6 +55,26 @@ beforeAll(async () => {
   await owner.client.patch(`/v1/grows/${diary.id}`).send({ visibility: 'public' }).expect(200);
 });
 
+/** One week of a diary as these tests read it. */
+interface Week {
+  weekNumber: number;
+  days: { startsAt: string; endsAt: string; still: { mediaId: string } | null; entries: { authorId: string | null }[] }[];
+}
+
+const linesOf = (weeks: Week[]): { authorId: string | null }[] => weeks.flatMap(week => week.days.flatMap(day => day.entries));
+
+/** Every week before a cursor, page after page, as a reader pressing "earlier weeks" to the end reads them. */
+const weeksBefore = async (route: string, cursor: string | null): Promise<Week[]> => {
+  const weeks: Week[] = [];
+  for (let next = cursor; next !== null;) {
+    const page = (await anonymous().get(`${route}?limit=12&cursor=${next}`).expect(200)).body;
+    weeks.push(...page.items);
+    next = page.nextCursor;
+  }
+
+  return weeks;
+};
+
 describe('a public grow at its own address', () => {
   it('answers the diary, and says the window it was read through', async () => {
     const page = await anonymous().get(`/v1/public/grows/${diary.slug}`).expect(200);
@@ -111,12 +131,12 @@ describe('a public grow at its own address', () => {
 
     // The diary's lines are there; who wrote each of them is not, which is why
     // a public page carries no `people` list to look one up in.
-    const lines = page.body.weeks.flatMap((week: { entries: unknown[] }) => week.entries);
+    const lines = linesOf(page.body.weeks);
     expect(lines.length).toBeGreaterThan(0);
-    expect(lines.every((line: { authorId: string | null }) => line.authorId === null)).toBe(true);
+    expect(lines.every(line => line.authorId === null)).toBe(true);
     // The owner still reads their own diary with the author on every line.
-    const mine = await owner.client.get(`/v1/grows/${diary.id}/weeks`).expect(200);
-    expect(mine.body.items[0].entries[0].authorId).toBe(owner.userId);
+    const mine = await owner.client.get(`/v1/grows/${diary.id}/diary`).expect(200);
+    expect(linesOf(mine.body.items)[0].authorId).toBe(owner.userId);
   });
 
   it('names the grow itself, which is what a reader follows, and never a diary that has no public page', async () => {
@@ -231,18 +251,18 @@ describe('a public diary longer than one page of weeks', () => {
   it('says with a cursor that there are earlier weeks, and answers every one of them', async () => {
     const page = await anonymous().get(`/v1/public/grows/${long.slug}`).expect(200);
 
-    expect(page.body.weeks).toHaveLength(26);
+    // The page opens on the weeks the owner's own diary opens on.
+    expect(page.body.weeks).toHaveLength(3);
     expect(page.body.weeksCursor).toEqual(expect.any(String));
 
-    const earlier = await anonymous().get(`/v1/public/grows/${long.slug}/weeks?cursor=${page.body.weeksCursor}`).expect(200);
-    const numbers = [...page.body.weeks, ...earlier.body.items].map((week: { weekNumber: number }) => week.weekNumber);
+    const earlier = await weeksBefore(`/v1/public/grows/${long.slug}/weeks`, page.body.weeksCursor);
+    const numbers = [...page.body.weeks, ...earlier].map((week: Week) => week.weekNumber);
 
     // Every week the grow lived, newest first and each of them once: the first
     // day of a long diary has an address like any other day of it.
     expect(numbers[0]).toBe(32);
     expect(numbers[numbers.length - 1]).toBe(1);
     expect(new Set(numbers).size).toBe(numbers.length);
-    expect(earlier.body.nextCursor).toBeNull();
   });
 
   it('carries no cursor where the diary fits on its page', async () => {
@@ -263,8 +283,7 @@ describe('a public diary longer than one page of weeks', () => {
     expect(weeks.body).not.toHaveProperty('people');
     expect(body).not.toContain(owner.userId);
     expect(body).not.toContain(deviceId);
-    const lines: { authorId: string | null }[] = weeks.body.items.flatMap((week: { entries: { authorId: string | null }[] }) => week.entries);
-    expect(lines.every(line => line.authorId === null)).toBe(true);
+    expect(linesOf(weeks.body.items).every(line => line.authorId === null)).toBe(true);
   });
 
   it('is not there for a diary that is not public, whatever its slug', async () => {
@@ -279,8 +298,8 @@ describe('a public diary longer than one page of weeks', () => {
     const opened = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
 
     expect(opened.body.subject.grow.weeksCursor).toEqual(expect.any(String));
-    const earlier = await anonymous().get(`/v1/shared/${link.token}/weeks?cursor=${opened.body.subject.grow.weeksCursor}`).expect(200);
-    expect(earlier.body.items.map((week: { weekNumber: number }) => week.weekNumber)).toContain(1);
+    const earlier = await weeksBefore(`/v1/shared/${link.token}/weeks`, opened.body.subject.grow.weeksCursor);
+    expect(earlier.map(week => week.weekNumber)).toContain(1);
 
     const ontoTheTent = await linkOnto({ type: 'space', id: tent });
     await anonymous().get(`/v1/shared/${ontoTheTent.token}/weeks`).expect(404);
@@ -291,14 +310,11 @@ describe('a public diary longer than one page of weeks', () => {
     const link = await linkOnto({ type: 'grow', id: long.id }, { range: { startsAt: from.toISOString(), endsAt: null } });
 
     const opened = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
-    // Three weeks of a thirty-two week grow, and nothing earlier to ask for:
-    // the second route is granted exactly what the first one was.
-    expect(opened.body.subject.grow.weeksCursor).toBeNull();
-
-    const weeks = await anonymous().get(`/v1/shared/${link.token}/weeks`).expect(200);
-    expect(weeks.body.items.length).toBeLessThan(6);
-    expect(weeks.body.items.every((week: { startsAt: string }) => Date.parse(week.startsAt) >= from.getTime())).toBe(true);
-    expect(weeks.body.nextCursor).toBeNull();
+    // Three or four weeks of a thirty-two week grow, and nothing earlier to
+    // ask for: the second route is granted exactly what the first one was.
+    const weeks = [...opened.body.subject.grow.weeks, ...(await weeksBefore(`/v1/shared/${link.token}/weeks`, opened.body.subject.grow.weeksCursor))];
+    expect(weeks.length).toBeLessThan(6);
+    expect(weeks.flatMap((week: Week) => week.days).every(day => Date.parse(day.startsAt) >= from.getTime())).toBe(true);
   });
 });
 
@@ -375,7 +391,7 @@ describe('one still of a shared camera', () => {
    * midnight closes halfway through such a day and before its noon, so the
    * look back from noon for a day's picture has to stop at the window too.
    */
-  it('is not named on a week card where it was taken after the window closed', async () => {
+  it('is not a day´s picture where it was taken after the window closed', async () => {
     const start = daysAgo(100);
     start.setUTCHours(14, 0, 0, 0);
     const at = (days: number, hour: number): Date => new Date(start.getTime() + days * 24 * 3600 * 1000 + (hour - 14) * 3600 * 1000);
@@ -389,7 +405,7 @@ describe('one still of a shared camera', () => {
     );
 
     const opened = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
-    const named = opened.body.subject.grow.weeks.flatMap((week: { days: { mediaId: string | null }[] }) => week.days.map(day => day.mediaId));
+    const named = opened.body.subject.grow.weeks.flatMap((week: Week) => week.days.map(day => day.still?.mediaId ?? null));
     expect(named).not.toContain(late);
     await anonymous().get(`/v1/media/${late}?share=${link.token}`).expect(404);
   });
@@ -924,11 +940,14 @@ describe('a diary read through a window that has closed', () => {
 
     const seen = (await anonymous().get(`/v1/shared/${narrow.token}`).expect(200)).body.subject.grow;
 
-    expect(seen.weeks).toHaveLength(1);
-    // The card states the day it was given, not the seven the week is of.
-    const [week] = seen.weeks;
-    expect(new Date(week.startsAt).getTime()).toBeGreaterThanOrEqual(daysAgo(31).getTime() - 1000);
-    expect(new Date(week.endsAt).getTime()).toBeLessThanOrEqual(daysAgo(30).getTime() + 1000);
+    // A window of twenty-four hours touches two dates at most, and each is told only as far as the window reaches.
+    const days = seen.weeks.flatMap((week: Week) => week.days);
+    expect(days.length).toBeGreaterThan(0);
+    expect(days.length).toBeLessThanOrEqual(2);
+    for (const day of days) {
+      expect(new Date(day.startsAt).getTime()).toBeGreaterThanOrEqual(daysAgo(31).getTime() - 1000);
+      expect(new Date(day.endsAt).getTime()).toBeLessThanOrEqual(daysAgo(30).getTime() + 1000);
+    }
   });
 });
 
@@ -939,20 +958,13 @@ describe('a diary read through a window that has closed', () => {
  * a room id say how their flat is arranged.
  */
 describe('what a public page never names', () => {
-  it('names no controller on a week card and no space in the report', async () => {
+  it('names no controller in the diary and no space in the report', async () => {
     const page = await anonymous().get(`/v1/public/grows/${diary.slug}`).expect(200);
 
-    expect(page.body.weeks.every((week: { deviceIds: null }) => week.deviceIds === null)).toBe(true);
     expect(JSON.stringify(page.body)).not.toContain(deviceId);
     expect(JSON.stringify(page.body)).not.toContain(tent);
 
-    // The owner reading their own grow is told both. A null is "you are not
-    // being told", an empty list "nothing measures where this grow stood" -
-    // which is what a simulated controller that has never reported a
-    // configuration answers.
-    const mine = await owner.client.get(`/v1/grows/${diary.id}/weeks`).expect(200);
-    expect(Array.isArray(mine.body.items[0].deviceIds)).toBe(true);
-
+    // The owner reading their own grow is told where it stood.
     const report = await owner.client.get(`/v1/grows/${diary.id}/report`).expect(200);
     expect(report.body.phases[0].spaceIds).toEqual([tent]);
   });

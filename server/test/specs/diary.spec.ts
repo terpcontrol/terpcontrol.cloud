@@ -5,17 +5,17 @@ import { shareLinkOnGrow } from '../support/fixtures';
 import { A_PICTURE } from '../support/pictures';
 
 /**
- * The diary over HTTP: the timeline read and written, the week cards and the
- * report.
+ * The diary over HTTP: the timeline read and written, the diary by the day and
+ * the report.
  *
  * The unit suite has the arithmetic and the access matrix against a database.
  * What it cannot see is the measurement store, the picture store and the guards
  * a request passes on its way in, so what is checked here is the rest of the
- * way: that a week's day and night averages really come back through Flux and
- * are told apart by the light the device wrote rather than by a clock, that a
- * chapter is judged against the targets the phase recorded, that an uploaded
- * picture arrives and is stored as one, and that a stranger is told the grow is
- * not there.
+ * way: that a day's climate and a chapter's day and night averages really come
+ * back through Flux and are told apart by the light the device wrote rather
+ * than by a clock, that a chapter is judged against the targets the phase
+ * recorded, that an uploaded picture arrives and is stored as one, and that a
+ * stranger is told the grow is not there.
  */
 
 const MINUTES = 60_000;
@@ -79,38 +79,6 @@ beforeAll(async () => {
   await seedMeasurements(aWeek(device.deviceId, now));
 });
 
-describe('the week cards', () => {
-  it('counts the grow´s own weeks and days, newest first', async () => {
-    const page = (await owner.client.get(`/v1/grows/${growId}/weeks`).expect(200)).body;
-
-    expect(page.items.map((week: { weekNumber: number }) => week.weekNumber)).toEqual([3, 2, 1]);
-    expect(page.items[0]).toMatchObject({ weekNumber: 3, dayFrom: 15, dayTo: 21, stage: 'flowering', stageWeek: 1 });
-    expect(page.items[0].days).toHaveLength(7);
-  });
-
-  it('tells the day and the night apart by the light the device wrote, through the store', async () => {
-    const page = (await owner.client.get(`/v1/grows/${growId}/weeks?limit=1`).expect(200)).body;
-    const temperature = page.items[0].climate.find((one: { metric: string }) => one.metric === 'temperature');
-
-    expect(temperature).toMatchObject({ dayAverage: DAY_TEMPERATURE, nightAverage: NIGHT_TEMPERATURE });
-    expect(page.items[0].lightHours).toBeCloseTo(12, 0);
-  });
-
-  it('pages, and names everyone its cards name', async () => {
-    const first = (await owner.client.get(`/v1/grows/${growId}/weeks?limit=2`).expect(200)).body;
-    const second = (await owner.client.get(`/v1/grows/${growId}/weeks?limit=2&cursor=${first.nextCursor}`).expect(200)).body;
-
-    expect(first.items.map((week: { weekNumber: number }) => week.weekNumber)).toEqual([3, 2]);
-    expect(second.items.map((week: { weekNumber: number }) => week.weekNumber)).toEqual([1]);
-    expect(second.nextCursor).toBeNull();
-    expect(first.people).toEqual([{ id: owner.userId, handle: expect.any(String) }]);
-  });
-
-  it('is not there for a stranger', async () => {
-    await stranger.client.get(`/v1/grows/${growId}/weeks`).expect(404);
-  });
-});
-
 describe('the diary by the day', () => {
   interface Day {
     dayNumber: number;
@@ -153,15 +121,13 @@ describe('the report', () => {
     expect(report.phases[0].inBandPercent).toBe(100);
   });
 
-  it('states the photoperiod it measured, as the week cards of the same grow do', async () => {
+  it('states the photoperiod it measured', async () => {
     // The chapter's day and night averages are split by the lamp's switchings,
     // so the hours were read for every chapter and then dropped: the report
-    // said nothing about light while a week card of the same grow printed it.
+    // said nothing about light.
     const report = (await owner.client.get(`/v1/grows/${growId}/report`).expect(200)).body;
-    const weeks = (await owner.client.get(`/v1/grows/${growId}/weeks?limit=1`).expect(200)).body;
 
     expect(report.phases[0].lightHours).toBeCloseTo(12, 0);
-    expect(report.phases[0].lightHours).toBeCloseTo(weeks.items[0].lightHours, 0);
   });
 
   it('is not there for a stranger', async () => {

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { EntryKind, GrowReport, GrowReportPhase, GrowTotals, PhaseTargets } from '@fg2/shared-types/v1';
-import { STAGES_WITH_CLIMATE, type StageSpan, growDayAt, growOriginOf, stageSpansOf } from '@fg2/shared-types/v1-schemas';
+import { STAGES_WITH_CLIMATE, type StageSpan, growDayUpTo, growOriginOf, stageSpansOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { peopleNamed } from '@common/v1/people';
 import { clampRange, overlapsRange, seenOf, storyEndsAt, withinRange } from '@common/v1/range';
@@ -25,15 +25,15 @@ import { GrowClimateService } from './grow-climate.service';
  * A chapter is a stretch of the grow at one stage, with the picture that stands
  * for it, how the tent was kept during it, how much of it was on target and
  * what was done to the plants. It is the same story the public page tells, one
- * level above the week cards.
+ * level above the diary's days.
  *
  * **What it costs.** One read of the grow and its plants, one of the diary that
  * the chapters count, one aggregate for the totals, one of the cameras and one
  * of the people it names. Then per chapter: one time-series read per controller
  * and one Mongo read for its cover. A grow with five phases in a tent with one
  * controller is therefore five Mongo reads and ten more - far less than the
- * week cards, because a phase is weeks long and is read as one window. That is
- * also why the report carries no week cards: the Weeks tab reads those, and a
+ * diary days, because a phase is weeks long and is read as one window. That is
+ * also why the report carries no days: the diary reads those, and a
  * report that repeated them would make opening the second tab cost the first
  * one twice over.
  */
@@ -84,6 +84,7 @@ export class GrowReportService {
     const grow = growUpTo(await this.grows.require(growId), until);
     const origin = growOriginOf(grow);
     const horizon = horizonOf(grow, until);
+    const zone = await this.grows.zoneOf(grow);
 
     const [hide, plants, diary, totals] = await Promise.all([
       this.grows.redaction(grant),
@@ -92,7 +93,7 @@ export class GrowReportService {
       this.totalsOf(growId, grant),
     ]);
 
-    const chapters = stageSpansOf(grow, horizon).filter(chapter => overlapsRange(range, chapter.startsAt, chapter.endsAt ?? horizon));
+    const chapters = stageSpansOf(grow, horizon, zone).filter(chapter => overlapsRange(range, chapter.startsAt, chapter.endsAt ?? horizon));
     const told = await Promise.all(chapters.map(chapter => this.chapterOf(chapter, { grow, hide, grant, range, horizon, diary })));
 
     const people = await peopleNamed(
@@ -107,7 +108,7 @@ export class GrowReportService {
       type: grow.type,
       startedAt: grow.startedAt.toISOString(),
       endedAt: grow.endedAt?.toISOString() ?? null,
-      dayCount: growDayAt(origin, horizon),
+      dayCount: growDayUpTo(origin, horizon, zone),
       plantCount: hide.counts ? null : plants.length,
       strains: [...new Set(plants.map(plant => plant.strain))],
       coverMediaId: grow.coverMediaId,
@@ -172,7 +173,7 @@ export class GrowReportService {
       // already worked out: the read above asks for the lamp's switchings
       // because the day and night averages are split by them, so the hours were
       // paid for and then dropped, and the report said nothing about light
-      // while the week cards of the same grow printed it. A phase is the
+      // while the diary's days of the same grow printed it. A phase is the
       // stretch over which a photoperiod is constant, which is the figure this
       // states better than any week does.
       lightHours: climate.lightHours,
@@ -322,7 +323,7 @@ interface ReportWorld {
 
 /**
  * A chapter the cameras did not see lit around its middle is told under the
- * photo written into it nearest that middle, as its week cards already are -
+ * photo written into it nearest that middle, as the days of its diary already are -
  * a picture of a cam taken into a photo line only where the reader may see the
  * cameras.
  */

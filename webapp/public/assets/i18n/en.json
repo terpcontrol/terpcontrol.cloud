@@ -672,7 +672,6 @@
       "noReading": "–",
       "inBand": "in band",
       "noTarget": "no target",
-      "week": "wk {{week}}",
       "auto": "auto",
       "noPhase": "No phase yet",
       "plants_one": "{{count}} plant",
@@ -740,7 +739,8 @@
       "measurement": "measured",
       "training": "trained",
       "move": "moved it",
-      "visit": "started maintenance"
+      "visit": "started maintenance",
+      "still": "kept a camera picture"
     },
     "alert": {
       "threshold": "Alarm",
@@ -979,7 +979,7 @@
       "links_other": "{{count}} links open it",
       "switch": "Public page of {{name}}",
       "none": "No grows of your own yet",
-      "stranger": "A public grow shows a stranger the diary from its first day: the phases, the week cards with their photos and the camera's pictures, the climate averages, the strains, and your handle. Harvest weights and plant counts follow your privacy settings. It never shows the place's live values, its devices, its alarms or its tasks, and never your e-mail. Followers see the same page, and nobody can write."
+      "stranger": "A public grow shows a stranger the diary from its first day: the phases, the days with their photos and the camera's pictures, the climate averages, the strains, and your handle. Harvest weights and plant counts follow your privacy settings. It never shows the place's live values, its devices, its alarms or its tasks, and never your e-mail. Followers see the same page, and nobody can write."
     },
     "following": {
       "title": "Following",
@@ -1201,30 +1201,14 @@
       "pictures": "Pictures"
     },
     "phaseBarLabel": "Phase progress, now in {{stage}}",
-    "stageShort": {
-      "germination": "Germ",
-      "seedling": "Seedling",
-      "vegetative": "Veg",
-      "flowering": "Flower",
-      "drying": "Dry",
-      "curing": "Cure"
-    },
     "lateFlower": "Late flower",
-    "days_one": "{{count}} d",
-    "days_other": "{{count}} d",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
     "week": "week {{week}}",
     "dayRange": "Day {{from}}–{{to}}",
     "dayShort": "D {{day}}",
     "correctLine": "Correct this line",
-    "dayStillAlt": "Day {{day}}",
-    "dayNight": "day / night",
-    "average": "average",
-    "humidity": "humidity",
-    "light": "light",
     "ownScheme": "Own scheme",
-    "feedsDone": "{{done}} / {{planned}} done",
-    "noEntriesThisWeek": "Nothing logged this week yet",
-    "noEntriesThisWeekEnded": "Nothing was logged this week",
     "moreEntries_one": "+ {{count}} more",
     "moreEntries_other": "+ {{count}} more",
     "earlierWeeks": "Earlier weeks",
@@ -1234,7 +1218,7 @@
     "noFixedPlace": "No fixed place",
     "stoodIn": "stood in {{name}}",
     "rename": {
-      "title": "Rename {{name}}",
+      "title": "Rename the grow",
       "name": "Name",
       "note": "Only the name changes. The diary, the phases and the weeks stay as they are, and a public diary keeps the address it was given when the grow was made.",
       "save": "Save the name"
@@ -1247,7 +1231,7 @@
     },
     "noScheme": "No feeding scheme",
     "noSchemeNote": "This grow is fed no scheme. Choose one to start from, or feed it by hand and log what you give.",
-    "noSchemeNoteEnded": "This grow was fed no scheme. Writing in what it really got is still worth doing: its week cards read this grid, here and on a shared link.",
+    "noSchemeNoteEnded": "This grow was fed no scheme.",
     "edited": "edited",
     "strength": "strength {{percent}} %",
     "report": {
@@ -1277,7 +1261,6 @@
       },
       "noPhase": "No phase yet · the report begins with the first phase"
     },
-    "nothingMeasured": "Nothing measured this week",
     "presetName": {
       "late_flowering": "Late flower",
       "autoflower": "Auto"
@@ -1298,7 +1281,7 @@
       "somePlants_one": "{{count}} plant",
       "somePlants_other": "{{count}} plants",
       "phase": {
-        "title": "Phase · {{name}}",
+        "title": "Phase",
         "noPhaseYet": "No phase yet · the day counter starts with the first one",
         "nowLine": "Now {{stage}} · day {{phaseDay}} of the phase · day {{growDay}}, week {{week}} of the grow",
         "endedLine": "Ended in {{stage}} on day {{growDay}} of the grow · {{date}}",
@@ -1337,7 +1320,7 @@
         }
       },
       "move": {
-        "title": "Move · {{name}}",
+        "title": "Move",
         "standsIn": "Standing in {{places}}",
         "moveTo": "Move to",
         "note": "The open placement of these plants is closed and a new one opened. Plants that are not moving keep the place they are in.",
@@ -1359,7 +1342,7 @@
         "endedNote": "This grow has ended, so it does not move any more. A row below that was recorded wrongly can still be corrected."
       },
       "harvest": {
-        "title": "Harvest · {{name}}",
+        "title": "Harvest",
         "nothingStanding": "Every plant of this grow has already come down.",
         "noPlantsRecorded": "No plants are recorded in this grow, so there is nothing here to cut down. A grow brought over from the old app was never written down plant by plant.",
         "alreadyEnded": "It ended on {{date}}.",
@@ -1388,10 +1371,11 @@
         "whatWasWritten": "What was written",
         "alreadyDown": "Already down",
         "correctOnThePlant": "A plant that really weighed something else is corrected on the plant itself.",
-        "noWeight": "no weight"
+        "noWeight": "no weight",
+        "ended": "{{name}} has ended · this is its report"
       },
       "split": {
-        "title": "Split · {{name}}",
+        "title": "Split",
         "what": "Some plants go their own way while the rest of the grow carries on.",
         "noPlantsRecorded": "No plants are recorded in this grow, so there is nothing here to split off. A grow brought over from the old app was never written down plant by plant.",
         "whichGoTheirOwnWay": "Which plants go their own way",
@@ -1409,7 +1393,6 @@
     },
     "new": {
       "title": "New grow",
-      "row": "+ New grow",
       "name": "Name",
       "firstName": "First grow",
       "plants": "Plants",
@@ -1490,7 +1473,7 @@
       "tapToAdd": "tap to add",
       "ownChip": "own · name · unit",
       "alreadyHere": "already measured here",
-      "note": "A measurement is a Measure tile on the Log sheet, a row on the week card, a series on the Charts view and a column in the export. Per plant or per grow is chosen once.",
+      "note": "A measurement is a Measure tile on the Log sheet, a line in the diary, a series on the Charts view and a column in the export. Per plant or per grow is chosen once.",
       "readingsUnread": "What has been measured could not be read just now, so this list says nothing about it.",
       "template": {
         "water_temp": "Water temp",
@@ -1648,7 +1631,6 @@
       "keepMine": "Keep mine",
       "takeTheirs": "Take theirs"
     },
-    "youMayLog": "You may write in this grow's diary. Moving it, splitting it and harvesting it are for whoever steers the place it stands in.",
     "menu": {
       "label": "More about {{name}}",
       "more": "More"
@@ -1691,7 +1673,14 @@
       "filmIn_one": "{{days}} in {{count}} second",
       "filmIn_other": "{{days}} in {{count}} seconds",
       "written_one": "{{count}} entry",
-      "written_other": "{{count}} entries"
+      "written_other": "{{count}} entries",
+      "maintenance": "Maintenance · {{span}}",
+      "maintenanceOn": "Maintenance is on",
+      "light": "Light {{from}}–{{to}}",
+      "outside": "{{metric}} off target for {{span}}",
+      "outsideOften": "{{metric}} off target {{count}}× · {{span}} in all",
+      "alarmOver": "over",
+      "earlier": "Before the start"
     },
     "pictures": {
       "makeEntry": "Add to the diary as an entry",
@@ -1712,7 +1701,8 @@
         "camera": "No camera picture yet"
       },
       "thisWeek": "This week · from day {{day}}",
-      "add": "Take a photo"
+      "add": "Take a photo",
+      "noneInWeeks": "No pictures in these weeks"
     }
   },
   "space": {
@@ -2240,8 +2230,16 @@
       "ahead": "That is in the future. An entry records what has already happened.",
       "climateNow": "In the diary the phase starts at the chosen moment. The climate still changes only now.",
       "fromPicture": "Taken from the first picture",
-      "edit": "Change"
-    }
+      "edit": "Change",
+      "before": "The grow began on {{date}}. Before that it has no day an entry could stand under.",
+      "moveStart": "Move the start to {{date}}",
+      "moveRefused": "The start could not be moved."
+    },
+    "back": "Back to the choices",
+    "noConnection": "No connection · it is sent as soon as there is one",
+    "targetsSet": "targets set",
+    "waterLitres": "Water in litres",
+    "lastTime": "Last time {{ago}} · {{litres}} L"
   },
   "timeline": {
     "rangeLabel": "Range",
@@ -2607,7 +2605,6 @@
     "toDark": "Switch to dark",
     "coverAlt": "{{name}}, cover picture",
     "film": "The whole grow, as a film",
-    "weekFilm": "Week film",
     "weeks": "Weeks",
     "noCameras": "Camera pictures are not part of this",
     "nothingInWindow": "Nothing in this stretch of the diary",
@@ -2661,7 +2658,7 @@
     "timeline": "Timeline"
   },
   "sharing": {
-    "title": "Share · {{name}}",
+    "title": "Share",
     "share": "Share",
     "publicChip": "Public",
     "publicPage": "Public page",
@@ -2707,7 +2704,7 @@
     "publicPageNoteCameras": "The diary gets an address of its own that anybody can open – with its photos and the camera's pictures. Harvest weights and plant counts follow your privacy settings.",
     "linksNoteNoCamera": "A key for one person, for a stretch of days.",
     "publicCameras": "Camera pictures on the public page",
-    "publicCamerasNote": "The camera's pictures on the week cards and in the report. Switched off, the page shows only the diary's photos."
+    "publicCamerasNote": "The camera's pictures in the diary and in the report. Switched off, the page shows only the diary's photos."
   },
   "maintenance": {
     "and": "and",
@@ -3802,7 +3799,9 @@
     "worst": "worst {{value}}",
     "silentFor": "silent for {{span}}",
     "backAfter": "back after {{span}}",
-    "back": "back"
+    "back": "back",
+    "over": "above {{bound}}",
+    "under": "below {{bound}}"
   },
   "deviceLine": {
     "unknownBuild": "an unknown build"
@@ -3874,7 +3873,7 @@
     },
     "growDay": {
       "title": "Grow day",
-      "text": "Day 1 is the day the grow began. The counter moves on every 24 hours from that moment and stops when the grow ends. The diary shows calendar days: day 1 is the date the grow began on, the next date day 2. Until the hour the grow began at, today’s card is therefore one day ahead of the counter."
+      "text": "Day 1 is the day the grow began. Every midnight adds one – counted on the calendar of whoever owns the grow."
     },
     "growWeek": {
       "title": "Week of the stage",
@@ -4058,7 +4057,7 @@
     },
     "publicPage": {
       "title": "Public page",
-      "text": "Anybody can read the diary at this address without an account – the phases, the week cards with their photos and the camera's pictures. The address is made from the grow's name, so it is not a secret; switching the page off takes it down at once."
+      "text": "Anybody can read the diary at this address without an account – the phases, the days with their photos and the camera's pictures. The address is made from the grow's name, so it is not a secret; switching the page off takes it down at once."
     },
     "linkActions": {
       "title": "Change, revoke, forget",
@@ -4317,6 +4316,10 @@
     "nightBand": {
       "title": "Shaded grey: the night",
       "text": "The grey stretches are the nights: the hours the light plan makes night – the light off, the night figures holding, no CO₂ dosed. The green band is the target range, at night the night figures’ one. For the hour after each switch – on a fridge, from the start of its dimming – and after every change of the targets, the light plan or the operating mode it spans the figures from before and after: that is how long the climate is given to follow. Where nothing alternates – drying, germination, 24 or 0 h of light – nothing is grey, and the band is the one target that holds round the clock."
+    },
+    "dayShare": {
+      "title": "On target",
+      "text": "The part of the day temperature and humidity were close enough to their targets: within ±1 °C and ±5 %. The hour after every switch between day and night counts as on target."
     }
   },
   "place": {

@@ -167,7 +167,7 @@ way and what the code has to respect. Internal notes on the camera exist.
 
 ## Stills (`media`, kind `still`; storage in [data.md](data.md))
 - `lit`: the controller's light output at capture time, else `false` for a picture too dark to show anything (mean
-  luma under 24), else null, which counts as lit. Pictures meant to show plants (the diary's days, week cards, Start
+  luma under 24), else null, which counts as lit. Pictures meant to show plants (the diary's days, Start
   and grow cards) query `lit != false`; a day takes the lit still nearest midday (`diary/diary-pictures.ts`).
 - `monochrome` (since 2026-10-08, server-side only): whether the still came out grey - the camera's night (IR) mode,
   or a black tent - measured once when stored (`monochromeOf`, `still-light.ts`: channels under 4 of 255 apart on a

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
-import { placePath, usePageOfPlace } from '@/app/places';
+import { SHARE_LINKS, placePath, usePageOfPlace } from '@/app/places';
 import { useHomeShape } from '@/api/home';
 import { useSpaces } from '@/api/spaces';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
@@ -50,7 +50,7 @@ export function PlaceMembers() {
       {mayShare ? (
         <p className={ui.note}>
           {t('place.members.lookOnly')}{' '}
-          <Link to="/me/share-links" className={ui.headLink}>
+          <Link to={SHARE_LINKS} className={ui.headLink}>
             {t('place.members.shareLink')} ›
           </Link>
         </p>

@@ -111,8 +111,19 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   `screens/start/Start.tsx`). **Grow** (`/grow/:tab?`) is the grow running in the chosen place, drawn
   as that grow's page with its tabs under the same address; where nothing grows there it offers to start a grow.
   It is a root of the bar: nothing leads back from it, and the pill "Alle Grows" stands beside the grow's name. A
-  grow opened by its id (`/grows/:growId/...`) is that grow's page whatever is chosen, and leads back to "Alle
-  Grows".
+  grow opened by its id (`/grows/:growId/...`) is that grow's page whatever is chosen, with the same head - the
+  pill, no arrow - and Grow lit in the bar. Choosing another place there leads to Grow of that place. What stands
+  under a grow - its measurements, one of its plants - leads back to the address it was opened from
+  (`leadingBackTo`, `app/places.ts`). An address that names no grow the account can open says so under the
+  heading "Grow", with the pill; support reading a customer's place (`/grow?space=`) is shown the grow standing
+  there, as Verlauf and Steuerung show that place.
+- **The first choice** of a browser that has chosen no place is one rule for Grow, Verlauf and Steuerung
+  (`firstChoice`, `app/places.ts`): in Start's order the first place a grow runs in, else the first with a device,
+  else the first - so Grow does not open on an empty balcony while a tent is in flower.
+- **A tab replaces the history entry**: a page with tabs is one step of Back, whichever tab it was left on. What a
+  page keeps for the entry it stands on - the weeks of a diary that were opened, the lines unfolded, how far it was
+  scrolled - is found again by whoever comes back to it from what a line opened (`ui/kept.ts`); the pages loaded
+  stay in the read's cache. A reload, or opening the page anew, starts fresh.
 - **A sheet** (`ui/Sheet.tsx`) covers the bar, and the page behind it neither scrolls nor takes the focus. It closes
   on Escape, its cross (a finger wide), a tap beside it, and on a phone by pulling its handle down; the focus then
   goes back to what opened it. "L" opens the entry sheet on a desktop, with or without Shift, and never over a sheet
@@ -221,7 +232,14 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   Start draws, `screens/grow/progress.ts`). A grow that has ended says how long it ran, the date it ended and where
   it stood. The menu holds what happens to a grow rather than in it (`GrowMenu.tsx`): phase, sharing, what it
   measures, moving, splitting, harvesting, its name, and four tips for the stage - each offered only to who may do
-  it. Tabs: **Tagebuch · Bilder · Pflanzen · Düngung · Bericht**; the diary is the page's own address.
+  it, and nothing is said above the tabs about what a guest may not: it is simply not offered. Tabs:
+  **Tagebuch · Bilder · Pflanzen · Düngung · Bericht**; the diary is the page's own address. A long name takes
+  two lines of the head and is cut there, and a sheet opened from the page is titled by what it does, not by the
+  grow's name again. The page is **one column beside the rail until two fit** (Chris, 2026-11-12; a critic found
+  the day card squeezed to a letter's width between 900 and 1200 px): the facts stand on their own line under the
+  name at every width, and the newest pictures stand beside the days only from 1200 px
+  (`screens/grow/diary/Diary.module.css`) - Start falls the same way at the 1100 px its own columns need. Ending a
+  grow - the last plants harvested, or "Grow beenden" - lands on its report with a toast that says so.
 - **The diary writes itself** (Chris, 2026-11-11; `screens/grow/diary/`): a card per day, so it reads alive for
   somebody who never types. The rules a card keeps:
   - *A day is a date* on the owner's calendar - "Heute" is since midnight - and its number is the day of the grow
@@ -234,30 +252,71 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *The climate* is the day's means in one line, and the share of the day inside the targets only where the
     server states one: it judges each window by what the device aimed at then, and says nothing of a day before
     that record began or one heard for less than half of itself. "Im Ziel" is explained once, on the newest card.
-  - *The lines* are what people wrote and, marked "von allein", what the devices did: the lamp coming on and going
-    off, stretches outside the targets (leading to Verlauf at that moment), restarts, maintenance, changed
-    settings, plan steps, alarms. A run is one line: the same machine line repeated, an alarm that fired over and
-    over ("97× seit 03:26"), several stretches of one reading on one side ("Temperatur 3× zu hoch · zusammen
-    1 Std"). A card draws four lines and adds the rest on "+ n weitere". A line somebody may correct opens its
-    sheet; one that carries pictures opens them. Amber is for what needs a person - an alarm raised - and not for
-    a restart, maintenance or a step of the plan. A line that leads somewhere is a finger high (`ui/Lines.tsx`,
-    the row Start's last lines are drawn with too).
+  - *The lines* are what people did and what the devices did by themselves (Chris, 2026-11-12, after a critic
+    walked the first cards). **A grower's own line is never folded behind a device's**: up to six of their own
+    show, then the fold; what the devices did fills what is left of four lines, what is out of the ordinary - a
+    reading outside its targets, an alarm, a step of the plan - before the lamp (`shownLines`, `diary/days.ts`).
+    **"von allein" marks only what a device or the plan did without a person**: maintenance somebody switched is
+    a person's line, on and off as one ("Wartung · 2 Min"), without the mark. **A device's support log is not the
+    diary**: restarts, a sensor deviating, a socket lost stay with Meldungen, the device and Verlauf. From the
+    devices a day carries the lamp as one line ("Licht 00:05–12:05"; "Licht an" while it has not gone off), a
+    reading outside its targets as one line however often and on whichever side ("Temperatur 3× zu hoch ·
+    zusammen 1 Std"; it leads to Verlauf at that moment), an alarm by its rule's name with how often and since
+    when ("Too humid · 97× seit 03:26") and under it the reading and the edge in words ("Luftfeuchte über
+    60 %"), and the plan's steps. Which of these a day holds is decided where the server reads the day
+    ([server-engines.md](server-engines.md#read-models)), not filtered in the page. "›" only ever means "opens
+    something" and is bound to the last word of the line it ends. Every row is a finger high, and the mark takes
+    room only on a line that has one (`ui/Lines.tsx`, the row Start's last lines are drawn with too). A line
+    somebody may correct opens its sheet - a photo's line like any other; its words and its moment are corrected
+    and the line taken back, the pictures stay. Amber is for what needs a person - an alarm raised.
+  - *What was written for a moment before the grow began* has no day: the last page of the diary shows it as a
+    group "Vor dem Start", after the first day.
   - *The newest three days stand open*; the days before fold into a row per week - "Tag 26 bis 22 · Blüte, Woche 2"
     with its pictures, entries and film counted - which opens its days in place. Today's card always stands; a
-    past day with nothing to show is left out. "Frühere Wochen" reads further back. On a desktop the newest
-    pictures and the week's film stand beside the days.
-- **Bilder** (`screens/grow/pictures/`): Alle · Deine Fotos · Kamera; the newest week film on top, played where it
-  stands; then week by week the camera's picture of each day, named by its day, and the photos, marked as one's
-  own; "+ Foto aufnehmen" opens the photo entry. A picture opens large with what can be made of it: the camera's
-  picture of a day becomes a line of the diary, and any picture the grow's cover.
+    past day with nothing to show is left out. "Frühere Wochen" reads eight weeks further back. From 1200 px the
+    newest pictures and the week's film stand beside the days.
+  - *One diary for every reader*: the public page and a share link draw the same cards (`Days`,
+    `screens/grow/diary/Diary.tsx`) from the same read. A reader from outside is handed no way into the account -
+    no line opens, today's picture leads to no camera, nobody is named - and is answered neither what the devices
+    did nor the share of a day; how the day was and what was done to the plants is the diary. A diary that has
+    ended, or one a link stopped short of, has no "Heute": its days are dates.
+- **Bilder** (`screens/grow/pictures/`): Alle · Deine Fotos · Kamera - "Kamera" only where a camera watches the
+  grow or once pictured it, and the choice is part of the address (`?show=`); the newest week film on top, played
+  where it stands, and no film row over a list without pictures; then week by week the camera's picture of each
+  day, named by its day, and the photos, marked as one's own; "+ Foto aufnehmen" opens the photo entry. A picture
+  opens large - on a desktop in a dialog centred over the page, the picture filling it - with what can be made of
+  it: the camera's picture of a day becomes a line of the diary and stays a camera picture, and any picture the
+  grow's cover. Weeks without a picture say that of those weeks, not of the grow, while earlier weeks are still to
+  be asked for. A week's film belongs to the week most of its days lie in and names only those; one shorter than
+  two seconds is not offered.
 - **Alle Grows** at `/grows` (`screens/grow/Grows.tsx`): the running grows as cards with their picture, day, phase
   and place (also placeless ones and those in shared places, "von @owner"), the finished ones as rows that lead to
   their report, a new grow from the button beside the title, and under "Dazu" the doors to what belongs to
-  growing: Düngepläne, Freigabelinks, Abonniert. It leads back to Grow, or to Ich where Ich's door opened it.
+  growing: Düngepläne, Freigabelinks, Abonniert, whose pages stand under `/grows/` and keep Grow lit. It lists
+  every grow the session can open - a guest's shared one with whose it is, and on the tour the grow standing in
+  the demo's place. It leads back to Grow, or to Ich where Ich's door opened it. Starting a grow switches the
+  diary on for an account that had switched it off.
 - **The entry sheet** (`log/LogSheet.tsx`): what the line is about as pills that wrap, seven tiles - Gießen,
   Düngen, Foto, Notiz, Messen, Training, Phase - and at its foot "Wann war das?" with "Ändern". A tile opens its
   view, filled in with what was done last time; the moment said on the sheet stands in that view's corner, where
-  it can still be changed. Maintenance is not a kind of line: it is started on Start and with the device.
+  it can still be changed. Maintenance is not a kind of line: it is started on Start and with the device. What
+  the critic's walk of 2026-11-12 decided:
+  - *What the line is about* is the grow and then its plants. A place is a pill only where there are several to
+    tell apart - one per place, the grow growing there named in it ("Zelt · Blue Dream") - or where nothing grows
+    in it. One tent whose grow has no plants recorded is nothing to choose: no pills (`log/targets.ts`).
+  - *A kind's view leads back to the tiles* (‹), beside the cross that closes it. "Speichern" stands on the
+    sheet's bottom edge and stays in view with the keyboard up. A note that says nothing is not written.
+  - *The litres can be typed* as well as stepped, and under them stands what the field opened on: "Zuletzt vor
+    2 Tagen · 4,5 l". The keypad for a reading carries the decimal mark of the reader's language.
+  - *No moment before the grow began*: for a line about a grow the moment's pop-up says when the grow began and
+    does not take an earlier one; whoever may manage the grow is offered to move its start there ("Start auf den
+    … vorverlegen", which writes the grow's `startedAt`).
+  - *A phase set from its tile* is answered by a toast that names what changed - "Blüte begonnen · Spring run ·
+    Zielwerte gesetzt" - with Undo only where the place's targets were not written with it.
+  - *Written without a connection*, a line keeps the moment it was written at, its toast says that there is no
+    connection, and it is sent by itself when the connection returns while the app is open (`log/LogProvider.tsx`).
+    A refusal still says its own sentence and offers "Nochmal versuchen"; on a phone the sentence stands over its
+    buttons.
 
 ## 3. Honest states
 - **A pending or failed read is never drawn as a fact** ("nothing measured", "nothing set yet"): ask a read's state
@@ -457,8 +516,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   of facts with the dot in front of each, and the dot of whatever fact starts a line is not drawn - so no line ends
   on the separator and none begins with it, a figure keeps its unit and a label its value. A fact may be a row of
   its own (the day's targets, the night's), which stays together while it fits a line. In running text a figure is
-  bound to the unit after it (`unbroken`, `ui/fact-text.ts`). Start's lines are set this way; the grow pages'
-  lines still join their parts with a plain " · ".
+  bound to the unit after it (`unbroken`, `ui/fact-text.ts`). Start's lines, a diary line's words wherever one is
+  drawn (`EntryWords`, `ui/EntryRow.tsx`), the diary's week rows and the lines of "Alle Grows" are set this way.
 - A picture as bright as the page - a lit tent - keeps a hairline edge against it (`screens/start/Start.module.css`).
 
 ## 10. Privacy in the app

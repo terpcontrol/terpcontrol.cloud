@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { ChevronLeft, X } from 'lucide-react';
 import { useRef, type PointerEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useModalFocus } from '@/ui/modal-focus';
@@ -37,6 +37,7 @@ export function Sheet({
   corner,
   children,
   actions,
+  onBack,
   onClose,
 }: {
   title: string;
@@ -49,6 +50,8 @@ export function Sheet({
   children: ReactNode;
   /** What the sheet is for, kept on the bottom edge while the questions above it scroll. */
   actions?: ReactNode;
+  /** The way back to what this sheet was chosen from, where it was: the tiles a diary line's detail was picked on. */
+  onBack?: (() => void) | null;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -95,6 +98,11 @@ export function Sheet({
           <span className={styles.grabber} />
         </span>
         <header className={styles.header}>
+          {onBack ? (
+            <button type="button" className={styles.back} onClick={onBack} aria-label={t('log.back')}>
+              <ChevronLeft size={20} strokeWidth={1.75} aria-hidden />
+            </button>
+          ) : null}
           <h2 className={styles.title}>
             {title}
             {note ? <span className={styles.note}>{note}</span> : null}

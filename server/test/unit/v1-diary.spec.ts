@@ -6,22 +6,19 @@ import { DataService, DeviceHistory } from '@modules/data/data.service';
 import { EntriesService } from '@modules/v1/diary/entries.service';
 import { GrowClimateService } from '@modules/v1/diary/grow-climate.service';
 import { GrowReportService } from '@modules/v1/diary/report.service';
-import { GrowWeeksService } from '@modules/v1/diary/weeks.service';
-import { NOTHING_HIDDEN, summaryOf } from '@modules/v1/grow/grow-serialiser';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { anonymous, session, visitor } from './support/callers';
 import { accessOn, growsOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
 
 /**
- * Reading the diary: the timeline, the week cards the grow page is made of, and
- * the report that tells a grow as chapters.
+ * Reading the diary: the timeline, and the report that tells a grow as
+ * chapters. The diary by the day has a suite of its own (`v1-grow-diary`).
  *
  * Three things can go wrong and each is checked on its own. The arithmetic - a
- * week's day range, which week of the stage it is, the day and night averages,
- * the hours of light, what a reading changed by - is checked against fixed dates
- * and canned points, because nobody can see a day counted wrongly in the data.
+ * chapter's day range, the day and night averages, the hours of light - is
+ * checked against fixed dates and canned points, because nobody can see a day
+ * counted wrongly in the data.
  * Who may read what is checked through `access()` for every kind of caller,
  * because a list that decided per row is how a second page hands out somebody
  * else's tent. And what is hidden is checked through the serialiser, because a
@@ -55,7 +52,6 @@ const onDay = (dayNumber: number, hours = 10): Date => new Date(ORIGIN.getTime()
 
 const db = useV1TestDatabase();
 let entries: EntriesService;
-let weeks: GrowWeeksService;
 let report: GrowReportService;
 let access: AccessService;
 
@@ -144,7 +140,6 @@ const build = (): void => {
   const climate = new GrowClimateService(db.devices, db.targetChanges, fakeData);
 
   entries = new EntriesService(db.entries, db.devices, access, grows);
-  weeks = new GrowWeeksService(db.entries, db.cameras, db.media, db.reminders, db.users, grows, climate);
   report = new GrowReportService(db.entries, db.cameras, db.media, db.users, grows, climate);
 };
 
@@ -516,400 +511,6 @@ describe('who may read a timeline', () => {
 // The week cards
 // ---------------------------------------------------------------------------
 
-describe('a week card', () => {
-  const weekFive = async (ctx: AccessContext = session(OWNER)) => {
-    const page = await weeks.page(GROW, await grantFor(ctx), {}, NOW);
-    return page.items[0];
-  };
-
-  it('counts weeks and days from the day the grow started, newest first', async () => {
-    const page = await weeks.page(GROW, await grantFor(session(OWNER)), {}, NOW);
-
-    expect(page.items.map(week => week.weekNumber)).toEqual([5, 4, 3, 2, 1]);
-    expect(page.items[0]).toMatchObject({ weekNumber: 5, dayFrom: 29, dayTo: 35, startsAt: onDay(29, 0).toISOString() });
-    // The week the grow is in stops now rather than on its seventh day.
-    expect(page.items[0].endsAt).toBe(NOW.toISOString());
-  });
-
-  it('names the week after the phase the grow was in, and says which week of that phase it is', async () => {
-    const page = await weeks.page(GROW, await grantFor(session(OWNER)), {}, NOW);
-
-    expect(page.items.map(week => [week.weekNumber, week.stage, week.stageWeek])).toEqual([
-      [5, 'flowering', 2],
-      [4, 'flowering', 1],
-      [3, 'vegetative', 2],
-      [2, 'vegetative', 1],
-      [1, 'seedling', 1],
-    ]);
-  });
-
-  /** Week 4 rather than week 5: a whole week divides evenly, and the week the grow is in stops part-way through a day. */
-  it('says which week of the stage it is in, and says it the figure the grow´s own header says', async () => {
-    // A stage begun in the middle of a grow week is where the two ways of
-    // counting parted company: dividing the phase's own days by seven called
-    // this week 3 while the card beside it called it 4.
-    await db.grows.updateOne({ id: GROW }, { $set: { 'phases.2.startedAt': onDay(14, 0) } });
-    const grow = (await db.grows.findOne({ id: GROW }).lean<GrowDocument>())!;
-
-    const card = (await weeks.page(GROW, await grantFor(session(OWNER)), { limit: 1 }, NOW)).items[0];
-
-    expect(card.stageWeek).toBe(4);
-    expect(summaryOf(grow, [], NOTHING_HIDDEN, NOW).stageWeek).toBe(card.stageWeek);
-  });
-
-  /**
-   * A week that held two stages is named after the one most of it lay in: five
-   * days of seedling and two of veg were badged "Veg Wo 1", which read as the
-   * week the grow had spent in veg.
-   */
-  it('names a finished week after the stage most of it lay in, and the week still running after the stage it is in', async () => {
-    await db.grows.updateOne({ id: GROW }, { $set: { 'phases.1.startedAt': onDay(13, 0), 'phases.2.startedAt': onDay(34, 0) } });
-
-    const page = await weeks.page(GROW, await grantFor(session(OWNER)), {}, NOW);
-
-    expect(page.items.map(week => [week.weekNumber, week.stage])).toEqual([
-      [5, 'flowering'],
-      [4, 'vegetative'],
-      [3, 'vegetative'],
-      [2, 'seedling'],
-      [1, 'seedling'],
-    ]);
-  });
-
-  /**
-   * A card is named after one stage, which says nothing about a week that held
-   * two or three: seven days of germination, seedling and veg were drawn as one
-   * veg week with the first two nowhere on the screen.
-   */
-  it('marks the day a stage began on the strip, and leaves the week named after the one most of it lay in', async () => {
-    const page = await weeks.page(GROW, await grantFor(session(OWNER)), {}, NOW);
-    const week4 = page.items.find(week => week.weekNumber === 4)!;
-
-    // Flower began on day 23, the second day of the week.
-    expect(week4.days.map(day => day.stage)).toEqual([null, 'flowering', null, null, null, null, null]);
-    expect(week4).toMatchObject({ stage: 'flowering', dayFrom: 22, dayTo: 28 });
-    expect(page.items.find(week => week.weekNumber === 1)!.days[0].stage).toBe('seedling');
-  });
-
-  it('marks no split on the strip, because a split is told in the timeline rather than as the grow´s own stage', async () => {
-    await db.grows.updateOne(
-      { id: GROW },
-      { $push: { phases: { ...phase('phase-split', 'drying', 30, { plantIds: [PLANT] }) } } as Record<string, unknown> },
-    );
-
-    const week5 = (await weeks.page(GROW, await grantFor(session(OWNER)), { limit: 1 }, NOW)).items[0];
-
-    expect(week5.days.every(day => day.stage === null)).toBe(true);
-  });
-
-  it('tells the day and the night apart by the light, and says how long it was on', async () => {
-    const page = await weeks.page(GROW, await grantFor(session(OWNER)), {}, NOW);
-
-    expect(page.items[1].climate).toEqual([
-      { metric: 'temperature', minValue: 20.6, maxValue: 25, averageValue: 22.8, dayAverage: 25, nightAverage: 20.6 },
-      { metric: 'humidity', minValue: 54, maxValue: 54, averageValue: 54, dayAverage: 54, nightAverage: 54 },
-    ]);
-    expect(page.items[1].lightHours).toBe(12);
-  });
-
-  it('reads the climate of the controllers of the tent and of nothing else, one window per week, and says which', async () => {
-    const page = await weeks.page(GROW, await grantFor(session(OWNER)), { limit: 2 }, NOW);
-
-    expect(readWindows.map(read => read.deviceId)).toEqual([CONTROLLER, CONTROLLER]);
-    expect(readWindows.map(read => read.startsAt.toISOString())).toEqual([onDay(29, 0).toISOString(), onDay(22, 0).toISOString()]);
-    expect(page.items.map(week => week.deviceIds)).toEqual([[CONTROLLER], [CONTROLLER]]);
-  });
-
-  /**
-   * A tent lit by a Light and steered by nothing else: Charts drew the lamp and
-   * its sensors for the grow, while the week card said nothing stood there to
-   * average and never counted an hour of light.
-   */
-  it('reads a Light where it stands, for the hours of light and for the air under it', async () => {
-    await db.devices.deleteOne({ id: CONTROLLER });
-    await db.devices.create({
-      id: 'device-lamp',
-      type: 'light',
-      ownerId: OWNER,
-      spaceId: TENT,
-      configuration: { day: 21600, night: 79200, limit: 80 },
-    });
-
-    const week = await weekFive();
-
-    expect(week.deviceIds).toEqual(['device-lamp']);
-    expect(week.lightHours).toBeGreaterThan(0);
-    expect(week.climate.map(one => one.metric)).toContain('temperature');
-  });
-
-  it('names no controller for a grow with no fixed place, so the card can say why it has no averages', async () => {
-    await db.grows.updateOne({ id: GROW }, { $set: { 'placements.$[].spaceId': null } });
-
-    const week = await weekFive();
-
-    expect(week.deviceIds).toEqual([]);
-    expect(week.climate).toEqual([]);
-    expect(readWindows).toEqual([]);
-  });
-
-  it('carries the scheme´s row for the week with the grow´s strength on it, and how many feeds the week wants', async () => {
-    await db.grows.updateOne({ id: GROW }, { $set: { 'scheme.strength': 0.5 } });
-
-    expect((await weekFive()).feeding).toEqual({
-      amounts: [{ productKey: 'bio-bloom', name: 'Bio·Bloom', value: 1, unit: 'ml/l' }],
-      plannedCount: 3,
-    });
-  });
-
-  it('takes how many feeds a week wants from the grow´s own rhythm', async () => {
-    await db.reminders.create({
-      id: 'reminder-feed',
-      subject: { type: 'grow', id: GROW },
-      kind: 'feed',
-      label: 'Feed',
-      everyDays: 2,
-      onceAt: null,
-      assigneeId: null,
-      createdBy: OWNER,
-      createdAt: ORIGIN,
-    });
-
-    expect((await weekFive()).feeding?.plannedCount).toBe(3);
-    expect((await weekFive()).feedCount).toBe(1);
-  });
-
-  it('states where a measurement stood and by how much it moved since the week before', async () => {
-    expect((await weekFive()).readings).toEqual([{ key: 'height', value: 58, change: 6, measuredAt: onDay(32).toISOString() }]);
-  });
-
-  it('counts the waterings and the feeds of the week and carries its diary, the device´s lines left out', async () => {
-    const week = await weekFive();
-
-    expect({ waterCount: week.waterCount, feedCount: week.feedCount, entryCount: week.entryCount }).toEqual({
-      waterCount: 1,
-      feedCount: 1,
-      entryCount: 4,
-    });
-    expect(week.entries.map(line => line.id)).toEqual(['entry-defoliated', 'entry-watered', 'entry-note-5', 'entry-fed']);
-  });
-
-  it('names everyone its cards name, so a line can say who wrote it', async () => {
-    const page = await weeks.page(GROW, await grantFor(session(OWNER)), {}, NOW);
-
-    expect(page.people).toEqual(
-      expect.arrayContaining([
-        { id: MEMBER, handle: 'mia' },
-        { id: OWNER, handle: 'owner' },
-      ]),
-    );
-  });
-
-  it('has seven days, each with the still taken nearest midday', async () => {
-    // The grow's days begin at 08:00, so midday falls four hours into each of them.
-    await db.media.create([
-      // Two on day 30: the nearer one to midday wins.
-      { id: 'still-near', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 4.2) },
-      { id: 'still-far', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 5.4) },
-      // Hours away from midday on day 31: the day was still covered, so it is
-      // not drawn like a day with no picture at all.
-      { id: 'still-off', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(31, 18) },
-      { id: 'still-off-later', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(31, 22) },
-    ]);
-
-    const week = await weekFive();
-
-    expect(week.days.map(day => day.dayNumber)).toEqual([29, 30, 31, 32, 33, 34, 35]);
-    expect(week.days.map(day => day.mediaId)).toEqual([null, 'still-near', 'still-off', null, null, null, null]);
-    expect(week.days[1]).toMatchObject({ cameraId: CAMERA, capturedAt: onDay(30, 4.2).toISOString() });
-  });
-
-  /**
-   * A lamp on a night schedule is off at midday, so the still taken nearest
-   * midday is a dark tent: each day is shown by the one taken in the light
-   * nearest midday instead, and only a day never seen lit by a dark one.
-   */
-  it('shows each day by a still taken in the light, however near midday a dark one was', async () => {
-    await db.media.create([
-      { id: 'still-dark', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 4), lit: false },
-      { id: 'still-lit', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 13), lit: true },
-      { id: 'still-only-dark', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(31, 4), lit: false },
-    ]);
-
-    const week = await weekFive();
-
-    expect(week.days.map(day => day.mediaId)).toEqual([null, 'still-lit', 'still-only-dark', null, null, null, null]);
-  });
-
-  it('pages, and continues after the week the cursor names', async () => {
-    const first = await weeks.page(GROW, await grantFor(session(OWNER)), { limit: 2 }, NOW);
-    const second = await weeks.page(GROW, await grantFor(session(OWNER)), { limit: 2, cursor: first.nextCursor ?? undefined }, NOW);
-
-    expect(first.items.map(week => week.weekNumber)).toEqual([5, 4]);
-    expect(second.items.map(week => week.weekNumber)).toEqual([3, 2]);
-  });
-
-  it('answers only the weeks a share link´s range reaches into', async () => {
-    await db.shareLinks.create({
-      id: 'share-3',
-      token: 'weeks-token',
-      kind: 'view',
-      subject: { type: 'grow', id: GROW },
-      range: { startsAt: onDay(15, 0), endsAt: onDay(23, 0) },
-      includeCameras: true,
-      createdBy: OWNER,
-      expiresAt: null,
-      revokedAt: null,
-    });
-
-    const page = await weeks.page(GROW, await grantFor({ ...anonymous, shareToken: 'weeks-token' }), {}, NOW);
-
-    expect(page.items.map(week => week.weekNumber)).toEqual([4, 3]);
-  });
-
-  /**
-   * A week is seven days whatever a link says, so a link that opens mid-week
-   * used to be handed the whole of every week it touched - up to seven days of
-   * somebody's diary on each side of what was actually shared. The window
-   * belongs to the link, and a card is built over the week intersected with it.
-   */
-  it('hands out only the hours of a week the link´s window covers', async () => {
-    await db.shareLinks.create({
-      id: 'share-narrow',
-      token: 'a-day-of-it',
-      kind: 'view',
-      subject: { type: 'grow', id: GROW },
-      // Lunchtime on day 31 to lunchtime on day 32, inside week 5's days 29 to 35.
-      range: { startsAt: onDay(31, 12), endsAt: onDay(32, 12) },
-      includeCameras: true,
-      createdBy: OWNER,
-      expiresAt: null,
-      revokedAt: null,
-    });
-
-    const page = await weeks.page(GROW, await grantFor({ ...anonymous, shareToken: 'a-day-of-it' }), {}, NOW);
-    const week = page.items[0];
-
-    expect(page.items.map(one => one.weekNumber)).toEqual([5]);
-    // The span the card states is the window's, not the week's.
-    expect(week).toMatchObject({ startsAt: onDay(31, 12).toISOString(), endsAt: onDay(32, 12).toISOString() });
-
-    // Day 31 at ten and day 33 are both inside the week and outside the window.
-    expect(week.entries.map(line => line.id)).toEqual(['entry-watered']);
-    expect({ entryCount: week.entryCount, waterCount: week.waterCount, feedCount: week.feedCount }).toEqual({
-      entryCount: 1,
-      waterCount: 1,
-      feedCount: 0,
-    });
-    expect(JSON.stringify(week)).not.toContain('entry-note-5');
-    expect(JSON.stringify(week)).not.toContain('entry-defoliated');
-
-    // The climate is read over the window rather than over the week.
-    expect(readWindows).toEqual([{ deviceId: CONTROLLER, startsAt: onDay(31, 12), endsAt: onDay(32, 12) }]);
-  });
-
-  /**
-   * A change is a subtraction, and a subtraction from a reading taken before
-   * the window opened states that reading as plainly as printing it would: 58
-   * with "+6" on it is 52 on a day the reader was never shown.
-   */
-  it('says what a measurement changed by only where it has something inside the window to have changed from', async () => {
-    await db.shareLinks.create({
-      id: 'share-since',
-      token: 'since-day-29',
-      kind: 'view',
-      subject: { type: 'grow', id: GROW },
-      // Week 4 held the height of 52; the window opens after it.
-      range: { startsAt: onDay(29, 0), endsAt: null },
-      includeCameras: true,
-      createdBy: OWNER,
-      expiresAt: null,
-      revokedAt: null,
-    });
-
-    const seen = await weeks.page(GROW, await grantFor({ ...anonymous, shareToken: 'since-day-29' }), {}, NOW);
-
-    expect(seen.items[0].readings).toEqual([{ key: 'height', value: 58, change: null, measuredAt: onDay(32).toISOString() }]);
-    // The owner, whose window is open at both ends, still reads the change.
-    expect((await weekFive()).readings[0].change).toBe(6);
-  });
-
-  it('says nothing at all about a camera to a link that was not made to carry pictures', async () => {
-    await db.media.create([
-      { id: 'still-30', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 4) },
-      { id: 'film-week-5', kind: 'timelapse', mime: 'video/mp4', bytes: 1, cameraId: CAMERA, window: 'week', capturedAt: onDay(31, 0) },
-    ]);
-    await db.shareLinks.create({
-      id: 'share-dark',
-      token: 'no-pictures-at-all',
-      kind: 'view',
-      subject: { type: 'grow', id: GROW },
-      range: { startsAt: null, endsAt: null },
-      includeCameras: false,
-      createdBy: OWNER,
-      expiresAt: null,
-      revokedAt: null,
-    });
-
-    const own = await weekFive();
-    const seen = (await weeks.page(GROW, await grantFor({ ...anonymous, shareToken: 'no-pictures-at-all' }), {}, NOW)).items[0];
-
-    expect(own.days.map(day => day.mediaId)).toContain('still-30');
-    expect(own.timelapseMediaId).toBe('film-week-5');
-
-    // Not the picture, not its id, not the camera's, and not the instant it
-    // fired at: that the tent is watched at all is as much of it as the bytes.
-    expect(seen.days.every(day => day.mediaId === null && day.cameraId === null && day.capturedAt === null)).toBe(true);
-    expect(seen.timelapseMediaId).toBeNull();
-    expect(JSON.stringify(seen)).not.toContain(CAMERA);
-    expect(JSON.stringify(seen)).not.toContain('still-30');
-    expect(JSON.stringify(seen)).not.toContain('film-week-5');
-  });
-
-  it('shows no thumbnail from a day the window does not reach, however near midday it was taken', async () => {
-    await db.media.create([
-      { id: 'still-inside', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(32, 4) },
-      { id: 'still-outside', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 4) },
-    ]);
-    await db.shareLinks.create({
-      id: 'share-two-days',
-      token: 'two-days',
-      kind: 'view',
-      subject: { type: 'grow', id: GROW },
-      range: { startsAt: onDay(32, 0), endsAt: onDay(33, 0) },
-      includeCameras: true,
-      createdBy: OWNER,
-      expiresAt: null,
-      revokedAt: null,
-    });
-
-    const week = (await weeks.page(GROW, await grantFor({ ...anonymous, shareToken: 'two-days' }), {}, NOW)).items[0];
-
-    expect(week.days.map(day => day.mediaId)).toEqual([null, null, null, 'still-inside', null, null, null]);
-    expect(JSON.stringify(week)).not.toContain('still-outside');
-  });
-
-  it('names no controller to a reader outside the tent, however public the diary is', async () => {
-    await db.grows.updateOne({ id: GROW }, { $set: { visibility: 'public' } });
-
-    const mine = await weeks.page(GROW, await grantFor(session(OWNER)), { limit: 1 }, NOW);
-    const theirs = await weeks.page(GROW, await grantFor(anonymous), { limit: 1 }, NOW);
-
-    expect(mine.items[0].deviceIds).toEqual([CONTROLLER]);
-    expect(theirs.items[0].deviceIds).toBeNull();
-    expect(JSON.stringify(theirs.items[0])).not.toContain(CONTROLLER);
-    // The averages read from that controller are the diary and stay.
-    expect(theirs.items[0].climate.length).toBeGreaterThan(0);
-  });
-
-  it('is refused to a stranger, like the grow itself', async () => {
-    await expect(access.access(session(STRANGER), { type: 'grow', id: GROW }, 'view')).resolves.toBeNull();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// The report
-// ---------------------------------------------------------------------------
-
 describe('the report', () => {
   it('is one chapter per phase of the whole grow, newest first, with its day range', async () => {
     const answer = await report.read(GROW, await grantFor(session(OWNER)), NOW);
@@ -924,18 +525,17 @@ describe('the report', () => {
   });
 
   it('gives the chapters day ranges that tile the grow, whatever hour of the day a phase began at', async () => {
-    // A phase begins at whatever minute somebody pressed the button, which is
-    // almost never the hour the grow's own day turns over. A chapter that ended
-    // on the day the next one started counted that day twice, and six phases
-    // then added up to five days more than the grow they belonged to.
+    // A phase begins at whatever minute somebody pressed the button. A chapter
+    // that ended on the day the next one started counted that day twice, and
+    // six phases then added up to five days more than the grow they belonged to.
     await db.grows.updateOne({ id: GROW }, { $set: { 'phases.1.startedAt': onDay(8, -1), 'phases.2.startedAt': onDay(23, -1) } });
 
     const answer = await report.read(GROW, await grantFor(session(OWNER)), NOW);
 
     expect(answer.phases.map(chapter => [chapter.dayFrom, chapter.dayTo])).toEqual([
-      [22, null],
-      [7, 21],
-      [1, 6],
+      [23, null],
+      [8, 22],
+      [1, 7],
     ]);
     expect(answer.phases.reduce((sum, chapter) => sum + chapter.dayCount, 0)).toBe(answer.dayCount);
   });

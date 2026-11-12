@@ -25,11 +25,11 @@ import { ClimateSummary, CLIMATE_METRICS, summariseClimate } from './week-climat
  * controller, and nothing is cached. They are two because they are two
  * questions: what the air did is a mean, which is a fair answer at any width,
  * and what the lamp did is not - averaged, an output says what share of a window
- * it ran for, on a scale that differs per output. A week card of a tent with one
+ * it ran for, on a scale that differs per output. A day of the diary of a tent with one
  * controller is two reads; a page of eight weeks is sixteen, and the second read
  * is a scan of one field that comes back with as many rows as the lamp switched.
  * The report reads one window per phase instead - five or six for a whole grow -
- * which is why it carries no week cards of its own. The reads of one page run
+ * which is why it carries no days of its own. The reads of one page run
  * together, so the page is as slow as its slowest week rather than as the sum of
  * them.
  */
@@ -77,7 +77,7 @@ export class GrowClimateService {
    * there - and a Light, which states none but is the lamp itself. It is what
    * switches the tent's day, so its output is what the hours of light are, and
    * its own sensors are the air under it; Charts has always drawn both for the
-   * same grow, while the week card said nothing stood there to average. A plug
+   * same grow, while the diary day said nothing stood there to average. A plug
    * steers neither and is left out.
    *
    * A device knows only where it stands now, so a controller that has since been

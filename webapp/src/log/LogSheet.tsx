@@ -9,7 +9,8 @@ import { Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { TILE_KINDS, useLog, type LogOpening, type LogTarget, type TileKind } from './log-context';
 import { Moment } from './Moment';
-import { narrowerTargets, openingTarget, targetsOf } from './targets';
+import { useGrowBegins } from './defaults';
+import { narrowerTargets, openingTarget, placeChip, targetsOf } from './targets';
 import { Sheet } from '@/ui/Sheet';
 import styles from './Log.module.css';
 
@@ -68,8 +69,12 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   const { data: plants } = useGrowPlants(place?.growId ?? null);
   const { isLoading: loadingDefaults } = useRecentEntries(place?.growId ?? null, place?.spaceId ?? null);
 
-  const narrower = useMemo(() => narrowerTargets(home, place, plants?.items ?? []), [home, place, plants]);
+  const narrower = useMemo(() => narrowerTargets(place, plants?.items ?? []), [place, plants]);
   const target = narrower.find(one => one.key === narrowKey) ?? place;
+  // One tent and no plants to tell apart is one thing a line can be about: nothing to choose, so no chips.
+  const several = places.length > 1;
+  const choosable = several || narrower.length > 0 || (place !== null && place.growId === null);
+  const begins = useGrowBegins(grow, target);
   // Six of the seven tiles write a diary line, which is what a membership to
   // log is for. A phase is the one that is not: it moves the grow to another
   // stage and puts the tent's climate on it, which the decision record keeps at
@@ -114,28 +119,30 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
               {t('log.notHere')}
             </p>
           ) : null}
-          <div className={styles.targets} role="group" aria-label={t('log.targetLabel')}>
-            {/* The place first, then what is inside it, then everywhere else:
-                the chips a thumb can reach are the ones about where you are.
-                Pressed rather than linked, so the sheet stays where it is. */}
-            {place ? (
-              <Choice chosen={place.key === target?.key} onChoose={() => choose(place, false)}>
-                {place.label}
-              </Choice>
-            ) : null}
-            {narrower.map(one => (
-              <Choice key={one.key} chosen={one.key === target?.key} onChoose={() => choose(one, true)}>
-                {one.label}
-              </Choice>
-            ))}
-            {places
-              .filter(one => one.key !== place?.key)
-              .map(one => (
-                <Choice key={one.key} chosen={false} onChoose={() => choose(one, false)}>
+          {choosable || missed ? (
+            <div className={styles.targets} role="group" aria-label={t('log.targetLabel')}>
+              {/* The grow first, then its plants, then the other places: the
+                  chips a thumb can reach are the ones about where you are.
+                  Pressed rather than linked, so the sheet stays where it is. */}
+              {place ? (
+                <Choice chosen={place.key === target?.key} onChoose={() => choose(place, false)}>
+                  {several ? placeChip(home, place) : place.label}
+                </Choice>
+              ) : null}
+              {narrower.map(one => (
+                <Choice key={one.key} chosen={one.key === target?.key} onChoose={() => choose(one, true)}>
                   {one.label}
                 </Choice>
               ))}
-          </div>
+              {places
+                .filter(one => one.key !== place?.key)
+                .map(one => (
+                  <Choice key={one.key} chosen={false} onChoose={() => choose(one, false)}>
+                    {several ? placeChip(home, one) : one.label}
+                  </Choice>
+                ))}
+            </div>
+          ) : null}
 
           <div className={styles.tiles}>
             {tiles.map(kind => {
@@ -149,7 +156,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
             })}
           </div>
 
-          <Moment at={at} onChange={setAt} row />
+          <Moment at={at} onChange={setAt} row begins={begins} />
         </>
       )}
     </Sheet>

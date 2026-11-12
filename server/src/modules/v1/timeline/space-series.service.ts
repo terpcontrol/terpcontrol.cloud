@@ -66,7 +66,7 @@ export class SpaceSeriesService {
       shownCameras(this.cameras, [spaceId], grant.includeCameras).then(all => camerasOfDevice(all, asked.deviceId)),
     ]);
     const devices = narrowedToDevice(standing, asked.deviceId);
-    const window = narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, null, now, asked.stepSeconds);
+    const window = narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, null, null, now, asked.stepSeconds);
     const charts = await chartSeriesOf(
       { data: this.data, targetRecord: this.targetRecord, media: this.media },
       grant,

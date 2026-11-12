@@ -28,6 +28,10 @@ export const decimalFigure = (value: number, decimals: number, language: string 
     useGrouping: false,
   }).format(value);
 
+/** The mark a language writes its decimals with: "," in German, "." in English. */
+export const decimalMark = (language: string | undefined = readerLanguage()): string =>
+  new Intl.NumberFormat(language).formatToParts(1.5).find(part => part.type === 'decimal')?.value ?? '.';
+
 /**
  * A figure the reader typed, read back whichever way their language writes the
  * decimals - "5,8" or "5.8". Nothing typed, or something that is not a number,

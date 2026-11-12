@@ -47,11 +47,15 @@ export const useGrowPlants = (growId: string | null) =>
     enabled: growId !== null,
   });
 
+/** How many weeks "Frühere Wochen" asks for: two months, which is what somebody looking back wants in one step. */
+export const EARLIER_WEEKS = 8;
+
 /** The diary, a card per day, a few weeks at a time. A line written, moved or taken back reads it again with everything under the grow's key. */
 export const useGrowDiary = (growId: string) =>
   useReadPages({
     queryKey: ['grow', growId, 'diary'],
-    queryFn: ({ pageParam, signal }) => api.get<GrowDiaryPage>(`/grows/${growId}/diary`, { cursor: pageParam }, signal),
+    queryFn: ({ pageParam, signal }) =>
+      api.get<GrowDiaryPage>(`/grows/${growId}/diary`, { cursor: pageParam, limit: pageParam ? EARLIER_WEEKS : undefined }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
   });
@@ -159,10 +163,9 @@ export const useGrowsEverIn = (spaceId: string | null) =>
 export const useCreateGrow = () =>
   useWrite(
     (body: GrowCreate) => api.post<GrowListItem>('/grows', body),
-    (client, grow) => {
-      client.setQueryData(['grow', grow.id], grow);
-      growChanged(client);
-    },
+    // The answer is not kept as the grow: it has no phase yet, and a page opened the moment the phase is written
+    // would draw "no phase yet" from it before reading the grow that has one.
+    growChanged,
   );
 
 /**

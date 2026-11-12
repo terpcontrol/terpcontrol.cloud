@@ -9,10 +9,9 @@ import { EntriesController } from './entries.controller';
 import { EntriesService } from './entries.service';
 import { EntryWritesService } from './entry-writes.service';
 import { GrowClimateService } from './grow-climate.service';
+import { GrowDiaryController } from './grow-diary.controller';
 import { GrowDiaryService } from './grow-diary.service';
 import { GrowReportService } from './report.service';
-import { GrowWeeksController } from './weeks.controller';
-import { GrowWeeksService } from './weeks.service';
 import { RemindersController } from './reminders.controller';
 import { RemindersService } from './reminders.service';
 import { TaskCompletionsService } from './task-completions.service';
@@ -22,7 +21,7 @@ import { VisibleSubjectsService } from './visible-subjects.service';
 
 /**
  * The diary: the timeline read and written, the day cards the grow page is made
- * of, the week cards of a public diary, the report that tells a grow as chapters, the rhythms somebody is kept to
+ * of, the weeks of a public diary, the report that tells a grow as chapters, the rhythms somebody is kept to
  * and the tasks derived from them.
  *
  * It is a module of its own rather than routes on grows because the read models
@@ -42,7 +41,7 @@ import { VisibleSubjectsService } from './visible-subjects.service';
  */
 @Module({
   imports: [ModelsModule, V1CommonModule, DataModule, GrowModule, PlanModule, SpaceModule],
-  controllers: [EntriesController, GrowWeeksController, RemindersController, TasksController],
+  controllers: [EntriesController, GrowDiaryController, RemindersController, TasksController],
   providers: [
     EntriesService,
     EntryWritesService,
@@ -50,14 +49,13 @@ import { VisibleSubjectsService } from './visible-subjects.service';
     TaskCompletionsService,
     TasksService,
     VisibleSubjectsService,
-    GrowWeeksService,
     GrowDiaryService,
     GrowReportService,
     GrowClimateService,
   ],
-  // The week cards and the two figures above the chapters are what a public
+  // The diary and the two figures above the chapters are what a public
   // diary is made of as well, so the sharing slice reads them from here rather
   // than assembling a grow's story a second way.
-  exports: [GrowWeeksService, GrowReportService],
+  exports: [GrowDiaryService, GrowReportService],
 })
 export class DiaryModule {}

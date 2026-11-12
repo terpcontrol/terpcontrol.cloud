@@ -1,6 +1,7 @@
 /* A grow's page: its head - the name, what can be done, the day and phase
-   over the bar - then the tabs. A phone's column first; from the rail's width
-   the head is one line and the diary two columns. */
+   over the bar - then the tabs. A phone's column first, and the same head
+   beside the rail: the name with what can be done, the facts on their own
+   line under it, at every width. */
 
 .page {
   display: flex;
@@ -24,10 +25,15 @@
   min-height: var(--control-height);
 }
 
+/* A long name takes two lines and is cut there; its whole text stays what a screen reader says. */
 .title h1 {
+  display: -webkit-box;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .actions {
@@ -103,15 +109,6 @@
   height: 100%;
   border-radius: var(--radius-pill);
   background: var(--green-fill);
-}
-
-/* Where the menu's changes would be, for somebody who writes in this grow's
-   diary but does not move it, harvest it or split it. */
-.role {
-  margin: 0;
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  color: var(--muted);
 }
 
 .muted {
@@ -190,22 +187,13 @@
   }
 
   .title {
-    flex-wrap: nowrap;
-    gap: var(--space-3);
+    gap: 0 var(--space-3);
   }
 
-  .title h1 {
-    flex: none;
-    max-width: 50%;
-  }
-
-  /* One line: the day and the phase, a dot, the place - between the name and what can be done. */
+  /* One line: the day and the phase, a dot, the place. */
   .facts {
-    flex: 1;
     justify-content: flex-start;
     gap: 0;
-    order: 1;
-    min-width: 0;
   }
 
   .where {
@@ -215,10 +203,6 @@
 
   .where::before {
     content: '\00a0· ';
-  }
-
-  .actions {
-    order: 2;
   }
 
   .actions > a.pill {
@@ -242,6 +226,8 @@
 }
 
 .growActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   margin: 0;
-  font-size: var(--text-sm);
 }

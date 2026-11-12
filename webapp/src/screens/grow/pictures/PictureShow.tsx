@@ -77,11 +77,13 @@ export function PictureShow({
               </button>
             ) : null}
             {mayManage ? (
+              // Never disabled: a button that takes itself away under the finger drops the focus with it.
               <button
                 type="button"
                 className={ui.button}
-                disabled={isCover || update.isPending}
-                onClick={() => update.mutate({ coverMediaId: picture.mediaId })}
+                aria-pressed={isCover}
+                aria-busy={update.isPending || undefined}
+                onClick={() => (isCover || update.isPending ? undefined : update.mutate({ coverMediaId: picture.mediaId }))}
               >
                 {t(isCover ? 'grow.pictures.isCover' : 'grow.pictures.makeCover')}
               </button>

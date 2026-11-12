@@ -1,5 +1,5 @@
 import type { TimelineRange } from '@fg2/shared-types/v1';
-import { growDayAt, growOriginOf, spineOf } from '@fg2/shared-types/v1-schemas';
+import { growDayAt, growDayUpTo, growOriginOf, spineOf } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
 import { notFound } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
@@ -62,11 +62,25 @@ export interface TimelineWindow {
  * a link that closed last week is the last day of that week and not the last day
  * of this one, which would be a window the clamp leaves nothing of at all.
  */
-export const windowOf = (range: TimelineRange, grant: Grant, grow: GrowDocument | null, asOf: Date, askedStep?: number): TimelineWindow => {
+export const windowOf = (
+  range: TimelineRange,
+  grant: Grant,
+  grow: GrowDocument | null,
+  zone: string | null,
+  asOf: Date,
+  askedStep?: number,
+): TimelineWindow => {
   const granted = grant.range.endsAt;
   const at = granted && granted < asOf ? granted : asOf;
 
-  return narrowedTo(grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at), grant, grow, at, askedStep);
+  return narrowedTo(
+    grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at),
+    grant,
+    grow,
+    zone,
+    at,
+    askedStep,
+  );
 };
 
 /**
@@ -78,6 +92,8 @@ export const narrowedTo = (
   asked: { startsAt: Date; endsAt: Date },
   grant: Grant,
   grow: GrowDocument | null,
+  /** The zone the grow's days are dates of: its owner's. */
+  zone: string | null,
   asOf: Date,
   askedStep?: number,
 ): TimelineWindow => {
@@ -85,7 +101,7 @@ export const narrowedTo = (
   const startsAt = clamped.startsAt ?? asked.startsAt;
   const endsAt = new Date(Math.max(startsAt.getTime(), (clamped.endsAt ?? asked.endsAt).getTime()));
 
-  return { startsAt, endsAt, stepSeconds: stepFor(startsAt, endsAt, askedStep), ...daysOf(grow, asOf, startsAt, endsAt) };
+  return { startsAt, endsAt, stepSeconds: stepFor(startsAt, endsAt, askedStep), ...daysOf(grow, zone, asOf, startsAt, endsAt) };
 };
 
 /**
@@ -100,19 +116,23 @@ export const narrowedTo = (
  * all there is no day to name, and both ends are nothing rather than the first
  * or the last.
  */
-const daysOf = (grow: GrowDocument | null, asOf: Date, startsAt: Date, endsAt: Date): Pick<TimelineWindow, 'dayFrom' | 'dayTo'> => {
+const daysOf = (
+  grow: GrowDocument | null,
+  zone: string | null,
+  asOf: Date,
+  startsAt: Date,
+  endsAt: Date,
+): Pick<TimelineWindow, 'dayFrom' | 'dayTo'> => {
   if (!grow) return { dayFrom: null, dayTo: null };
 
   const origin = growOriginOf(grow);
   const horizon = horizonOf(grow, asOf);
   if (endsAt <= origin || startsAt > horizon) return { dayFrom: null, dayTo: null };
 
-  const last = growDayAt(origin, horizon);
+  const last = growDayUpTo(origin, horizon, zone);
   // The last instant inside the window rather than the first outside it: a
   // window ending where day 35 begins is still day 34.
-  const inside = new Date(Math.max(startsAt.getTime(), endsAt.getTime() - 1));
-
-  return { dayFrom: Math.min(growDayAt(origin, startsAt), last), dayTo: Math.min(growDayAt(origin, inside), last) };
+  return { dayFrom: Math.min(growDayAt(origin, startsAt, zone), last), dayTo: Math.min(growDayUpTo(origin, endsAt, zone), last) };
 };
 
 const rollingOf = (range: TimelineRange, at: Date): { startsAt: Date; endsAt: Date } => ({

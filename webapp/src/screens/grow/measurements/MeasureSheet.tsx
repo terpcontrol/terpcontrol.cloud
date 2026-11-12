@@ -13,7 +13,8 @@ import { useLog, type LogTarget } from '@/log/log-context';
 import { Moment } from '@/log/Moment';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
-import { looseFigure, typedFigure } from '@/ui/figures';
+import { serverNow } from '@/api/clock';
+import { decimalMark, looseFigure, typedFigure } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
 import { Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -28,6 +29,8 @@ interface MeasureSheetProps {
   target: LogTarget;
   /** When the round was said to have happened before the sheet was opened; null is now. */
   at?: Date | null;
+  /** Back to the tiles the sheet was chosen on, where it was. */
+  onBack?: (() => void) | null;
   onClose: () => void;
 }
 
@@ -47,8 +50,8 @@ interface MeasureSheetProps {
  * one plant after another and closing between them would be the whole cost of
  * the round. The moment in the corner dates every line of the round alike.
  */
-export function MeasureSheet({ target, at: given = null, onClose }: MeasureSheetProps) {
-  const { t } = useTranslation();
+export function MeasureSheet({ target, at: given = null, onBack, onClose }: MeasureSheetProps) {
+  const { t, i18n } = useTranslation();
   const now = useNow();
   const client = useQueryClient();
   const { log } = useLog();
@@ -121,12 +124,21 @@ export function MeasureSheet({ target, at: given = null, onClose }: MeasureSheet
   }, [press, rub]);
 
   const readings = readingsOf(typed, definitions);
-  const body = (): EntryCreate => ({ kind: 'measurement', ...about(target), ...occurredAt(at), values: { kind: 'measurement', readings } });
+  // Dated when it was written, so a line that only gets through later is still of this moment.
+  const body = (): EntryCreate => ({
+    kind: 'measurement',
+    ...about(target),
+    ...occurredAt(at ?? serverNow().toJSDate()),
+    values: { kind: 'measurement', readings },
+  });
   // The grow day the line is filed under is the one it is dated to.
   const filed = at ? { ...target, dayNumber: dayAt(grow, target, at) } : target;
 
   /** The line goes through the queue, so the sheet closes and the toast offers Undo, as every logged line does. */
-  const save = () => log({ label: lineLabel(t, 'measurement', filed), details: { kind: 'measurement', target }, send: () => writeEntry(body()) });
+  const save = () => {
+    const written = body();
+    log({ label: lineLabel(t, 'measurement', filed), details: { kind: 'measurement', target }, send: () => writeEntry(written) });
+  };
 
   /**
    * The same line, written while the sheet stays open. It waits for the server
@@ -154,7 +166,7 @@ export function MeasureSheet({ target, at: given = null, onClose }: MeasureSheet
   const roundOfPlants = plantId !== null && standing.length > 1 && definition?.perPlant === true;
 
   return (
-    <Sheet title={t('grow.measurements.measure.title')} corner={<Moment at={at} onChange={setAt} />} onClose={onClose}>
+    <Sheet title={t('grow.measurements.measure.title')} corner={<Moment at={at} onChange={setAt} />} onBack={onBack} onClose={onClose}>
       {standing.length > 0 && perPlant ? (
         <div className={styles.chips} role="group" aria-label={t('grow.measurements.measure.whichPlant')}>
           {standing.map(plant => (
@@ -204,7 +216,8 @@ export function MeasureSheet({ target, at: given = null, onClose }: MeasureSheet
           <div className={styles.keypad} role="group" aria-label={t('grow.measurements.measure.keypad')}>
             {KEYS.map(digit => (
               <button key={digit} type="button" className={`${ui.button} ${styles.digit}`} onClick={() => press(digit)}>
-                {digit}
+                {/* The mark the reader's language writes: a German keypad carries a comma. */}
+                {digit === '.' ? decimalMark(i18n.language) : digit}
               </button>
             ))}
             <button type="button" className={`${ui.button} ${styles.digit}`} aria-label={t('grow.measurements.measure.backspace')} onClick={rub}>

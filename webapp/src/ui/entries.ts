@@ -15,7 +15,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
-import type { Entry, EntryKind, GrowListItem, GrowReadingNames, GrowWeekCard, Person, ReadingName } from '@fg2/shared-types/v1';
+import type { Entry, EntryKind, GrowListItem, GrowReadingNames, Person, ReadingName } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
 import type { Translate } from '@/i18n/i18n';
 import { looseFigure } from '@/ui/figures';
@@ -118,7 +118,9 @@ export const headlineOf = (t: Translate, i18n: I18n, entry: Entry): string => {
 export const doneByOf = (t: Translate, i18n: I18n, entry: Entry, byYou: boolean): string | null => {
   if (entry.source !== 'human' || entry.values.kind === 'phase' || entry.values.kind === 'harvest' || entryHeadline(i18n, entry)) return null;
 
-  return t(`home.entryDone.${entry.kind}`, { context: byYou ? 'you' : undefined, defaultValue: '' }) || null;
+  // A camera's still somebody made a line of was kept, not taken: nobody held a phone up.
+  const done = entry.kind === 'photo' && entry.cameraId !== null ? 'still' : entry.kind;
+  return t(`home.entryDone.${done}`, { context: byYou ? 'you' : undefined, defaultValue: '' }) || null;
 };
 
 /**
@@ -148,16 +150,7 @@ export const amountOf = (t: Translate, entry: Entry): string | null => {
  * from, and a line written against it is dated and nothing more.
  */
 export const growDayOf = (grow: GrowListItem, occurredAt: string): number | null =>
-  grow.summary.dayNumber === null ? null : growDayAt(growOriginOf(grow), occurredAt);
-
-/**
- * The same figure where only a week card is at hand, which is all a public
- * diary is answered: a card begins on a day boundary of the grow and its seven
- * days are the grow's own, so the day is a subtraction. Clamped to the card,
- * because a line is only ever drawn on the card whose week it falls in.
- */
-export const weekDayOf = (week: Pick<GrowWeekCard, 'dayFrom' | 'dayTo' | 'startsAt'>, occurredAt: string): number =>
-  Math.min(week.dayTo, week.dayFrom - 1 + growDayAt(new Date(week.startsAt), occurredAt));
+  grow.summary.dayNumber === null ? null : growDayAt(growOriginOf(grow), occurredAt, grow.summary.zone);
 
 /**
  * Whether a line of a summary is drawn as a warning, and how grave: amber is

@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { z } from 'zod';
-import type { GrowDiaryDay, GrowDiaryPage, GrowDiaryWeek } from '@fg2/shared-types/v1';
-import { growOriginOf, growWeekOfDay } from '@fg2/shared-types/v1-schemas';
+import type { GrowDayEvent, GrowDiaryDay, GrowDiaryPage, GrowDiaryWeek } from '@fg2/shared-types/v1';
+import { growDayAt, growOriginOf, growWeekOfDay } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { pageOf } from '@common/v1/pages';
 import { peopleNamed } from '@common/v1/people';
@@ -19,10 +19,9 @@ import { spacesDuring } from '../grow/grow-places';
 import { Redaction } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { DayDevice, dayClimateOf } from './day-climate';
-import { DiaryDay, DiaryWeek, diaryDayAt, diaryWeeksOf } from './diary-calendar';
 import { DIARY_KINDS, serialiseDiaryEntry } from './diary-entries';
 import { DayStill, WeekFilm, stillsOfDays, weekFilmsOf } from './diary-pictures';
-import { headlinePhaseAt, horizonOf, pictureHourIn, weeksAfter } from './grow-calendar';
+import { DiaryDay, DiaryWeek, dateStartOf, diaryWeeksOf, headlinePhaseAt, horizonOf, middayOf, weeksAfter } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
 
 /**
@@ -34,7 +33,7 @@ import { GrowClimateService } from './grow-climate.service';
  * typed anything, and a correction of the record corrects the diary.
  *
  * **What a page costs.** Once: the grow and its owner, the grow's lines and
- * the machines' over the page, the cameras and the controllers where it stood,
+ * the plan's over the page, the cameras and the controllers where it stood,
  * the week films, each controller's target record and the people named. Per
  * week and controller one history read of the store, and per page one read of
  * the stills around every day's midday plus two per day that had none there.
@@ -60,23 +59,19 @@ export const diaryQuery = pageQuery.extend({
 const MAX_ENTRIES_PER_PAGE = 2000;
 
 /**
- * What a device says about itself that is also something that happened to the
- * grow: it lost power, its CO2 ran low, a sensor failed, somebody opened the
- * tent or changed what it aims at, a socket it switches could not be reached.
- * Everything else a device logs - firmware, its connection, the camera's own
- * plumbing - is the place's record and stays in Verlauf.
+ * The two lines a device writes when somebody puts it into maintenance, at the
+ * device or from the app. They are a person's doing and are told as one
+ * stretch (`maintenanceRuns`). Whatever else a device logs about itself - a
+ * restart, a sensor drifting, a socket it lost - is its own record and stays
+ * with the device and in Verlauf.
  */
-const DEVICE_LINES_OF_A_GROW = [
-  'message-device-booted',
-  'message-co2-low',
-  'message-ext-sensor-fail',
-  'message-ext-sensor-deviate',
-  'message-maintenance-mode-activated',
-  'message-maintenance-mode-activated-remote',
-  'message-device-configuration-updated',
-  'message-smart-socket-address-lost',
-  'message-smart-socket-cmd-failed',
-];
+const MAINTENANCE_LINES = ['message-maintenance-mode-activated', 'message-maintenance-mode-activated-remote'];
+
+/** How many lines from before the grow began the last page carries. They are a slip of the date, not a diary of their own. */
+const MAX_EARLIER = 200;
+
+/** A film this short is the first frames of a week that has only begun: nothing to watch yet. */
+const SHORTEST_FILM_SECONDS = 2;
 
 /** What a controller recorded over a week, and the place it stands in. */
 type PlacedDevice = DayDevice & { spaceId: string | null };
@@ -91,6 +86,8 @@ interface PageWorld {
   horizon: Date;
   zone: string | null;
   lines: EntryDocument[];
+  /** When the devices of the place were in maintenance; none for a reader from outside. */
+  maintenance: Span[];
   stills: Map<number, DayStill>;
   films: WeekFilm[];
 }
@@ -108,8 +105,7 @@ export class GrowDiaryService {
 
   public async page(growId: string, grant: Grant, query: z.infer<typeof diaryQuery>, now: Date = new Date()): Promise<GrowDiaryPage> {
     const grow = await this.grows.require(growId);
-    const owner = await this.users.findOne({ id: grow.ownerId }, { preferences: 1 }).lean<Pick<StoredUser, 'preferences'> | null>();
-    const zone = owner?.preferences?.timezone ?? null;
+    const zone = await this.grows.zoneOf(grow);
     const origin = growOriginOf(grow);
     const horizon = horizonOf(grow, now);
     const range = clampRange(grant);
@@ -120,7 +116,7 @@ export class GrowDiaryService {
       at: week.startsAt,
       id: String(week.weekNumber),
     }));
-    if (page.items.length === 0) return { items: [], nextCursor: null, people: [] };
+    if (page.items.length === 0) return { items: [], nextCursor: null, people: [], earlier: [] };
 
     // What the reader may see of the page, and of that what the grow lived
     // through: the first date begins at midnight and the grow some hours later.
@@ -132,9 +128,11 @@ export class GrowDiaryService {
     const cameraIds = grant.includeCameras && named.length > 0 ? await this.camerasIn(named) : [];
     const days = page.items.flatMap(week => week.days.map(day => ({ day, life: lifeOf(day, life) })).filter(one => one.life !== null));
 
-    const [hide, lines, controllers, films, stills] = await Promise.all([
+    const [hide, { lines, maintenance }, earlier, controllers, films, stills] = await Promise.all([
       this.grows.redaction(grant),
       this.linesIn(grow, seen, isOutsider(grant) ? [] : named),
+      // What was dated to before the grow began has no day, and stands after the last of them.
+      page.nextCursor === null ? this.earlierThan(grow, dateStartOf(origin, zone), range) : Promise.resolve([]),
       this.climate.controllersIn(spaceIds),
       weekFilmsOf(this.media, cameraIds, seen, range),
       stillsOfDays(
@@ -154,7 +152,7 @@ export class GrowDiaryService {
       page.items.filter((_week, index) => stretches[index] !== null).map((week, index) => [week.weekNumber, recorded[index]] as const),
     );
 
-    const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, stills, films };
+    const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, maintenance: maintenanceRuns(maintenance), stills, films };
     const weeks = page.items.map(week =>
       this.weekOf(
         week,
@@ -163,12 +161,13 @@ export class GrowDiaryService {
       ),
     );
 
-    const people = await peopleNamed(
-      this.users,
-      weeks.flatMap(week => week.days.flatMap(day => day.entries.map(entry => entry.authorId))),
-    );
+    const before = earlier.map(entry => serialiseDiaryEntry(entry, hide, grant));
+    const people = await peopleNamed(this.users, [
+      ...weeks.flatMap(week => week.days.flatMap(day => day.entries.map(entry => entry.authorId))),
+      ...before.map(entry => entry.authorId),
+    ]);
 
-    return { items: weeks, nextCursor: page.nextCursor, people };
+    return { items: weeks, nextCursor: page.nextCursor, people, earlier: before };
   }
 
   private weekOf(week: DiaryWeek, world: PageWorld, devices: PlacedDevice[]): GrowDiaryWeek {
@@ -177,7 +176,11 @@ export class GrowDiaryService {
     // the week still running after the stage the grow is in now.
     const over = week.endsAt <= horizon;
     const phase = headlinePhaseAt(grow, over ? new Date((week.startsAt.getTime() + week.endsAt.getTime()) / 2) : new Date(horizon.getTime() - 1));
-    const film = world.films.find(one => one.capturedAt >= week.startsAt && one.capturedAt < week.endsAt) ?? null;
+    // A film is cut on the calendar's weeks, which are not the grow's: it is this week's where most of it lies here,
+    // which is where its middle does.
+    const film =
+      world.films.find(one => (one.lengthSeconds ?? SHORTEST_FILM_SECONDS) >= SHORTEST_FILM_SECONDS && within(week, middleOf(one, horizon))) ?? null;
+    const last = week.days[week.days.length - 1]?.dayNumber ?? week.dayFrom;
 
     return {
       weekNumber: week.weekNumber,
@@ -185,13 +188,14 @@ export class GrowDiaryService {
       dayTo: week.dayTo,
       stage: phase?.stage ?? null,
       preset: phase?.preset ?? null,
-      stageWeek: phase ? Math.max(1, week.weekNumber - growWeekOfDay(diaryDayAt(origin, phase.startedAt, zone)) + 1) : null,
+      stageWeek: phase ? Math.max(1, week.weekNumber - growWeekOfDay(growDayAt(origin, phase.startedAt, zone)) + 1) : null,
       film: film
         ? {
             mediaId: film.id,
-            dayFrom: diaryDayAt(origin, film.capturedAt, zone),
+            // Named by those of its days that are this week's.
+            dayFrom: Math.max(week.dayFrom, growDayAt(origin, film.capturedAt, zone)),
             // A film's end is the first instant after its span, and no later than the grow has lived.
-            dayTo: diaryDayAt(origin, new Date(Math.min((film.endsAt ?? film.capturedAt).getTime(), horizon.getTime()) - 1), zone),
+            dayTo: Math.min(last, growDayAt(origin, new Date(endOf(film, horizon).getTime() - 1), zone)),
             lengthSeconds: film.lengthSeconds ?? null,
           }
         : null,
@@ -214,6 +218,15 @@ export class GrowDiaryService {
           life,
         )
       : { climate: null, events: [] };
+    // What the devices did, and how well they kept to their targets, is for the people who keep the place: a page
+    // anybody may open says how the day was and what was done to the plants.
+    const outsider = isOutsider(world.grant);
+    const switched: GrowDayEvent[] = world.maintenance.flatMap(run => {
+      const part = lifeOf(run, seen);
+      return part
+        ? [{ kind: 'maintenance' as const, at: part.startsAt.toISOString(), endedAt: run.endsAt > part.endsAt ? null : part.endsAt.toISOString() }]
+        : [];
+    });
 
     return {
       date: day.date,
@@ -221,8 +234,8 @@ export class GrowDiaryService {
       startsAt: seen.startsAt.toISOString(),
       endsAt: seen.endsAt.toISOString(),
       still: still?.cameraId ? { mediaId: still.id, cameraId: still.cameraId, capturedAt: still.capturedAt.toISOString() } : null,
-      climate,
-      events,
+      climate: climate && outsider ? { ...climate, inBandFraction: null } : climate,
+      events: outsider ? [] : [...events, ...switched].sort((one, other) => one.at.localeCompare(other.at)),
       entries: world.lines
         .filter(entry => entry.occurredAt >= seen.startsAt && entry.occurredAt < seen.endsAt)
         .map(entry => serialiseDiaryEntry(entry, world.hide, world.grant)),
@@ -230,13 +243,14 @@ export class GrowDiaryService {
   }
 
   /**
-   * The lines of the page, newest first: the grow's own diary, and what the
-   * devices and the plan wrote in the places it stood while it stood there. A
-   * machine's line names its place and no grow, so it is found by the place
-   * and kept by the placement; the plan's lines about another grow sharing
-   * the tent are that grow's.
+   * The lines of the page, newest first: the grow's own diary - what people
+   * wrote and the alarms raised where it stood, which name the grow - and the
+   * plan's steps there. A plan's line names its place and not always a grow,
+   * so it is found by the place and kept by the placement; one about another
+   * grow sharing the tent is that grow's. Beside them the lines that say
+   * maintenance went on and off, which are told as stretches and not as lines.
    */
-  private async linesIn(grow: GrowDocument, span: Span, spaceIds: string[]): Promise<EntryDocument[]> {
+  private async linesIn(grow: GrowDocument, span: Span, spaceIds: string[]): Promise<{ lines: EntryDocument[]; maintenance: EntryDocument[] }> {
     const during = { occurredAt: { $gte: span.startsAt, $lt: span.endsAt } };
     const [diary, machines] = await Promise.all([
       this.entries
@@ -250,24 +264,43 @@ export class GrowDiaryService {
             .find({
               $and: [
                 { spaceId: { $in: spaceIds }, growId: { $in: [null, grow.id] }, ...during },
-                { $or: [{ kind: 'plan' }, { kind: 'system', 'message.key': { $in: DEVICE_LINES_OF_A_GROW } }] },
+                { $or: [{ kind: 'plan' }, { kind: 'system', 'message.key': { $in: MAINTENANCE_LINES } }] },
               ],
             })
             .sort({ occurredAt: -1, id: -1 })
             .limit(MAX_ENTRIES_PER_PAGE)
             .lean<EntryDocument[]>(),
     ]);
-    const stoodThere = (entry: EntryDocument): boolean =>
+    const there = machines.filter(entry =>
       grow.placements.some(
         placement =>
           placement.spaceId === entry.spaceId &&
           placement.startedAt <= entry.occurredAt &&
           (placement.endedAt === null || placement.endedAt > entry.occurredAt),
-      );
-
-    return [...diary, ...machines.filter(stoodThere)].sort(
-      (one, other) => other.occurredAt.getTime() - one.occurredAt.getTime() || other.id.localeCompare(one.id),
+      ),
     );
+
+    return {
+      lines: [...diary, ...there.filter(entry => entry.kind === 'plan')].sort(
+        (one, other) => other.occurredAt.getTime() - one.occurredAt.getTime() || other.id.localeCompare(one.id),
+      ),
+      maintenance: there.filter(entry => entry.kind !== 'plan'),
+    };
+  }
+
+  /** What was written to the grow for a moment before the date it began on, newest first, inside the reader's window. */
+  private earlierThan(grow: GrowDocument, firstDate: Date, range: AccessRange): Promise<EntryDocument[]> {
+    if (range.endsAt && range.endsAt <= (range.startsAt ?? firstDate)) return Promise.resolve([]);
+
+    return this.entries
+      .find({
+        growId: grow.id,
+        kind: { $in: DIARY_KINDS },
+        occurredAt: { $lt: range.endsAt && range.endsAt < firstDate ? range.endsAt : firstDate, ...(range.startsAt ? { $gte: range.startsAt } : {}) },
+      })
+      .sort({ occurredAt: -1, id: -1 })
+      .limit(MAX_EARLIER)
+      .lean<EntryDocument[]>();
   }
 
   /** A removed camera is included: it is a tombstone and its pictures keep their link. */
@@ -294,8 +327,43 @@ const lifeOf = (stretch: Span, within: Span): Span | null => {
  */
 const pictureOf = (day: DiaryDay, lived: Span, horizon: Date, grow: GrowDocument): { nearest: Date; darkToo: boolean } => {
   const running = grow.endedAt === null && day.endsAt > horizon;
-  const midday = pictureHourIn(day.startsAt);
+  const midday = middayOf(day);
   return { nearest: running || midday > lived.endsAt ? lived.endsAt : midday, darkToo: !running };
+};
+
+/** Where a film ends: the first instant after its span, and no later than the grow has lived. */
+const endOf = (film: WeekFilm, horizon: Date): Date => laterOf(film.endsAt ?? film.capturedAt, horizon, false);
+
+const middleOf = (film: WeekFilm, horizon: Date): Date => new Date((film.capturedAt.getTime() + endOf(film, horizon).getTime()) / 2);
+
+const within = (span: Span, at: Date): boolean => at >= span.startsAt && at < span.endsAt;
+
+/**
+ * When the devices of a place were in maintenance, from the lines that say it
+ * went on - for so many minutes - and off again. Every device of the place
+ * writes its own, so runs that touch are one; a run nobody ended is over when
+ * its minutes are.
+ */
+export const maintenanceRuns = (lines: readonly EntryDocument[]): Span[] => {
+  const runs: Span[] = [];
+  let open = null as Span | null;
+
+  for (const line of [...lines].sort((one, other) => one.occurredAt.getTime() - other.occurredAt.getTime())) {
+    const minutes = Number(line.message?.params[0] ?? 0);
+    if (open && line.occurredAt > open.endsAt) {
+      runs.push(open);
+      open = null;
+    }
+    if (minutes > 0) {
+      const until = new Date(line.occurredAt.getTime() + minutes * 60_000);
+      open = { startsAt: open?.startsAt ?? line.occurredAt, endsAt: open ? laterOf(open.endsAt, until, true) : until };
+    } else if (open) {
+      runs.push({ startsAt: open.startsAt, endsAt: line.occurredAt });
+      open = null;
+    }
+  }
+
+  return open ? [...runs, open] : runs;
 };
 
 const limitOf = (limit?: number): number => (!limit || limit < 1 ? DEFAULT_WEEKS : Math.min(Math.trunc(limit), MAX_WEEKS));

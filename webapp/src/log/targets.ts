@@ -2,12 +2,10 @@ import type { HomeAnswer, HomeSpaceCard, Plant } from '@fg2/shared-types/v1';
 import type { LogOpening, LogTarget } from './log-context';
 
 /**
- * The chips of the target row: every place a line can go, and then the narrower
- * places inside the one that is chosen.
- *
- * A grow and the space it stands in are both first-class - a tent is logged
- * against when nothing grows in it, and a grow is logged against wherever it
- * stands - so the row is not a hierarchy to walk down but a list to pick from.
+ * The chips of the target row: what a line can be about. A grow, and then its
+ * plants. A place is a chip only where there are several to tell apart - one
+ * per place, with the grow growing there named in it - or where nothing grows
+ * in it, so that the line is the place's.
  */
 
 const growTarget = (card: HomeSpaceCard): LogTarget | null =>
@@ -33,33 +31,34 @@ const spaceTarget = (card: HomeSpaceCard): LogTarget => ({
   standsIn: card.spaceId,
 });
 
-/** One chip per place, in the order the home lists them: its grow where one grows, the space itself where none does. */
+/** One target per place, in the order the home lists them: its grow where one grows, the space itself where none does. */
 export const targetsOf = (home: HomeAnswer | undefined): LogTarget[] => (home?.spaces ?? []).map(card => growTarget(card) ?? spaceTarget(card));
 
-/** The card the chosen target belongs to, which is where its tent and its own name are. A grow that stands nowhere has none. */
-const cardOf = (home: HomeAnswer | undefined, target: LogTarget | null): HomeSpaceCard | null =>
-  target?.standsIn ? ((home?.spaces ?? []).find(card => card.spaceId === target.standsIn) ?? null) : null;
-
-/** The tent the chosen grow stands in and its plants: the rest of the board's row, and only while a grow is chosen. */
-export const narrowerTargets = (home: HomeAnswer | undefined, target: LogTarget | null, plants: Plant[]): LogTarget[] => {
-  if (!target?.growId) return [];
-
-  const card = cardOf(home, target);
-  const growing = plants.filter(plant => plant.status === 'active');
-
-  return [
-    ...(card ? [spaceTarget(card)] : []),
-    ...growing.map(plant => ({
-      key: `plant:${plant.id}`,
-      label: plant.label,
-      growId: target.growId,
-      spaceId: null,
-      plantIds: [plant.id],
-      dayNumber: target.dayNumber,
-      standsIn: target.standsIn,
-    })),
-  ];
+/**
+ * What a place's chip says where several places are chosen between: the place,
+ * and the grow growing there - "Zelt · Blue Dream". A grow standing in no
+ * place, and a place nothing grows in, is its own name.
+ */
+export const placeChip = (home: HomeAnswer | undefined, target: LogTarget): string => {
+  const card = target.growId && target.standsIn ? (home?.spaces ?? []).find(one => one.spaceId === target.standsIn) : null;
+  return card ? `${card.name} · ${target.label}` : target.label;
 };
+
+/** The plants of the chosen grow, each a narrower thing the line can be about. */
+export const narrowerTargets = (target: LogTarget | null, plants: Plant[]): LogTarget[] =>
+  target?.growId
+    ? plants
+        .filter(plant => plant.status === 'active')
+        .map(plant => ({
+          key: `plant:${plant.id}`,
+          label: plant.label,
+          growId: target.growId,
+          spaceId: null,
+          plantIds: [plant.id],
+          dayNumber: target.dayNumber,
+          standsIn: target.standsIn,
+        }))
+    : [];
 
 /** Where a sheet opens, and whether the address it was opened with could be honoured. */
 interface Aim {

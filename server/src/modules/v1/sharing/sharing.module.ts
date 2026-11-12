@@ -19,7 +19,7 @@ import { ShareLinksService } from './share-links.service';
  * they follow, and the pages a stranger lands on.
  *
  * It is the one slice that assembles other slices rather than owning much of a
- * model. A public page is the week cards the grow page is made of, the totals
+ * model. A public page is the diary the grow page is made of, the totals
  * the report counts and the card the home screen draws, served through a grant
  * that was decided for somebody with no account - so it reads the diary slice,
  * the grow slice and the tent page rather than building any of them again. What

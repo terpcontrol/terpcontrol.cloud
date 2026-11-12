@@ -132,7 +132,7 @@ const nearestInDay = async (
 export type WeekFilm = Pick<MediaDocument, 'id' | 'capturedAt' | 'endsAt' | 'lengthSeconds'>;
 
 /**
- * The week films the timelapse builder has already made that begin inside a
+ * The week films the timelapse builder has already made that reach into a
  * span, so a week points at one rather than asking for it to be built. Only a
  * film that ends inside the reader's window is one: the media route refuses
  * the rest, and a week naming it would be pointing at days nobody sent.
@@ -147,8 +147,8 @@ export const weekFilmsOf = (media: Model<MediaDocument>, cameraIds: readonly str
         cameraId: { $in: cameraIds },
         kind: 'timelapse',
         window: 'week',
-        capturedAt: { $gte: span.startsAt, $lt: span.endsAt },
-        ...(held.length > 0 ? { $and: held } : {}),
+        capturedAt: { $lt: span.endsAt },
+        $and: [{ $or: [{ endsAt: { $gt: span.startsAt } }, { endsAt: null, capturedAt: { $gte: span.startsAt } }] }, ...held],
       },
       { id: 1, capturedAt: 1, endsAt: 1, lengthSeconds: 1 },
     )

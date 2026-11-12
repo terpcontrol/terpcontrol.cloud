@@ -19,7 +19,7 @@ import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { DAY_IN_YEAR } from '@/ui/zone';
+import { DAY_IN_YEAR, useZone } from '@/ui/zone';
 import { GerminationChoices } from '../../control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '../../control/germination/germination-choices';
 import { usePlaceController } from '../phase-climate';
@@ -43,6 +43,8 @@ interface NewGrowSheetProps {
   stage?: GrowthStage | null;
   /** True where the sheet is the address itself, so that the grow's page takes its place rather than stacking on it. */
   replace?: boolean;
+  /** The page the sheet stands over where that page draws the grow of a place itself: starting one there leads back to it. */
+  landOn?: string | null;
   onClose: () => void;
 }
 
@@ -65,7 +67,7 @@ interface NewGrowSheetProps {
  * is retried rather than repeated - a second tap after a refused phase does not
  * make a second grow.
  */
-export function NewGrowSheet({ spaceId = null, stage = null, replace = false, onClose }: NewGrowSheetProps) {
+export function NewGrowSheet({ spaceId = null, stage = null, replace = false, landOn = null, onClose }: NewGrowSheetProps) {
   const { t } = useTranslation();
   const spaces = useSpaces();
   const grows = useGrows();
@@ -110,6 +112,7 @@ export function NewGrowSheet({ spaceId = null, stage = null, replace = false, on
       spaceId={spaceId}
       stage={stage}
       replace={replace}
+      landOn={landOn}
       onClose={onClose}
     />
   );
@@ -148,9 +151,11 @@ function Form({
   spaceId = null,
   stage = null,
   replace = false,
+  landOn = null,
   onClose,
 }: FormProps) {
   const { t } = useTranslation();
+  const zone = useZone();
   const now = useNow();
   const navigate = useNavigate();
   const mayManage = useMayManage();
@@ -183,7 +188,7 @@ function Form({
   const already = place === null ? null : growIn(grows, place.id);
   const suggestion = suggestedName(grows, draft.spaceId, t('grow.new.firstName'));
   const preset = presetFor(draft.type, draft.stage);
-  const day = dayNumber(draft.startedAt, now);
+  const day = dayNumber(draft.startedAt, now, zone);
   // The phase writes the tent's climate only where it carries a preset, so the
   // stage that carries none is applied to the place on its own - unless the
   // sheet that opened this one has just written that very stage there, or the
@@ -240,7 +245,11 @@ function Form({
         startedAt: draft.startedAt,
         climate: alsoClimate ? { stage: draft.stage, preset: null, ...said } : null,
       });
-      await navigate(`/grows/${growId}`, { replace });
+      // Where the sheet was opened over a page that draws the new grow itself - Grow - it closes onto that page.
+      if (landOn !== null && draft.spaceId !== null) {
+        onClose();
+        await navigate(`${landOn}?${new URLSearchParams({ space: draft.spaceId }).toString()}`, { replace: true });
+      } else await navigate(`/grows/${growId}`, { replace });
     } catch {
       // Each of the three keeps its own refusal, and what already stands is said
       // under them; the sheet is the place to try the rest again.

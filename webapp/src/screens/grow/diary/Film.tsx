@@ -1,7 +1,6 @@
 import { Play } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { mediaUrl } from '@/api/session';
 import { stageOfWeek, type FilmedWeek } from './days';
 import styles from './Diary.module.css';
 
@@ -10,10 +9,10 @@ import styles from './Diary.module.css';
  * played where it stands once somebody asks for it - silent, so it starts on
  * that tap.
  */
-export function FilmCard({ week }: { week: FilmedWeek }) {
+export function FilmCard({ week, picture }: { week: FilmedWeek; picture: (mediaId: string) => string | null }) {
   const { t } = useTranslation();
   const [playing, setPlaying] = useState(false);
-  const src = mediaUrl(week.film.mediaId);
+  const src = picture(week.film.mediaId);
   const stage = stageOfWeek(t, week);
   const days = t('grow.diary.days', { from: week.film.dayFrom, to: week.film.dayTo });
 

@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus } from 'lucide-react';
+import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -14,6 +15,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { correctEntry, diaryChanged, startPhase, takeEntryBack, useRecentEntries, writeEntry } from '@/api/entries';
+import { api } from '@/api/client';
 import { useGrow } from '@/api/grows';
 import { useHome } from '@/api/home';
 import type { Translate } from '@/i18n/i18n';
@@ -27,7 +29,7 @@ import { useMayManage } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
-import { dayAt, dosesOf, lastCan, litresOf, nextStage, readingsOf, schemeStep, startsAfter, stoppedAfter } from './defaults';
+import { dayAt, dosesOf, lastCan, litresOf, nextStage, readingsOf, schemeStep, startsAfter, stoppedAfter, useGrowBegins } from './defaults';
 import { about, lineLabel, occurredAt } from './lines';
 import { useLog, type LogTarget, type TileKind } from './log-context';
 import { Moment } from './Moment';
@@ -67,31 +69,34 @@ interface DetailsProps {
   entry: Entry | null;
   /** When the line was said to have happened before its kind was chosen; null is now. */
   at: Date | null;
+  /** Back to the tiles the kind was chosen on, where it was chosen there. */
+  onBack?: (() => void) | null;
   onClose: () => void;
 }
 
-export function EntryDetails({ kind, target, entry, at, onClose }: DetailsProps) {
+export function EntryDetails({ kind, target, entry, at, onBack, onClose }: DetailsProps) {
   // Measuring has a sheet of its own: it is the one tile whose fields are the
   // grow's own definitions, and it is used with one hand in front of a plant.
   // Correcting a line that already exists stays here, where every kind is
   // corrected the same way - a keypad that rewrote a round of readings taken
   // across several plants would be a second way to say what the line already
   // says.
-  if (kind === 'measurement' && !entry) return <MeasureSheet target={target} at={at} onClose={onClose} />;
+  if (kind === 'measurement' && !entry) return <MeasureSheet target={target} at={at} onBack={onBack} onClose={onClose} />;
 
-  return <Details kind={kind} target={target} entry={entry} at={at} onClose={onClose} />;
+  return <Details kind={kind} target={target} entry={entry} at={at} onBack={onBack} onClose={onClose} />;
 }
 
-function Details({ kind, target, entry, at: given, onClose }: DetailsProps) {
-  const { t } = useTranslation();
-  const { log } = useLog();
+function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsProps) {
+  const { t, i18n } = useTranslation();
+  const { log, tell } = useLog();
   const client = useQueryClient();
   const { data: grow } = useGrow(target.growId);
   const { data: recent } = useRecentEntries(target.growId, target.spaceId);
 
   const definitions = (grow?.measurements ?? []).filter(measurement => measurement.key !== WATER_KEY);
   // The same can the tile offers, so opening the details never changes the line a tap would have written.
-  const opensOn = kind === 'water' || kind === 'feed' ? lastCan(recent?.items ?? [], kind) : null;
+  const last = kind === 'water' || kind === 'feed' ? lastCan(recent?.items ?? [], kind) : null;
+  const opensOn = last?.litres ?? null;
 
   // When the line says it happened, or null where nobody said: a new line left
   // alone is "now", which is the server's own default, and a correction that
@@ -100,6 +105,9 @@ function Details({ kind, target, entry, at: given, onClose }: DetailsProps) {
   const said = dated ?? (entry ? new Date(entry.occurredAt) : null);
   const at = said ?? serverNow().toJSDate();
   const [litres, setLitres] = useState<number | null>(entry ? litresOf(entry) : opensOn);
+  // What stands in the field while it is typed in: "4," is not a figure yet and must not be put right under the finger.
+  const [typedLitres, setTypedLitres] = useState<string | null>(null);
+  const begins = useGrowBegins(grow, target);
   const [readings, setReadings] = useState<Record<string, string>>(() => typed(readingsOf(entry)));
   const [shown, setShown] = useState<string[]>(() => firstFields(definitions, readingsOf(entry)));
   const [text, setText] = useState(entry?.text ?? '');
@@ -124,7 +132,9 @@ function Details({ kind, target, entry, at: given, onClose }: DetailsProps) {
   const filed = said ? { ...target, dayNumber: dayAt(grow, target, said) } : target;
   const showsWater = kind === 'water' || kind === 'feed';
   const showsReadings = kind === 'water' || kind === 'feed' || kind === 'measurement';
-  const showsText = kind === 'note' || kind === 'training';
+  const showsText = kind === 'note' || kind === 'training' || kind === 'photo';
+  // A note is its words: one without any says nothing and is not written.
+  const nothingSaid = kind === 'note' && text.trim() === '';
   const doses = dosesOf(grow, litres, at);
 
   const values = (): EntryValuesDraft => {
@@ -140,6 +150,8 @@ function Details({ kind, target, entry, at: given, onClose }: DetailsProps) {
         return { kind: 'training' };
       case 'visit':
         return { kind: 'visit' };
+      case 'photo':
+        return { kind: 'photo' };
       default:
         return { kind: 'note' };
     }
@@ -151,11 +163,23 @@ function Details({ kind, target, entry, at: given, onClose }: DetailsProps) {
     setSaving(true);
     setFailed(null);
     try {
-      await startPhase(target.growId, { stage, ...climateRequest(climate, stage), ...(dated ? { startedAt: occurredAt(dated).occurredAt } : {}) });
+      const growId = target.growId;
+      const phase = await startPhase(growId, {
+        stage,
+        ...climateRequest(climate, stage),
+        ...(dated ? { startedAt: occurredAt(dated).occurredAt } : {}),
+      });
       diaryChanged(client);
-      // A phase moves the devices there too - their targets, work mode and stage alarms - and the phase sheet reads them.
       void client.invalidateQueries({ queryKey: ['devices'] });
       onClose();
+      // The sheet is gone and nothing on the page need have moved: the toast says what was set. A phase that
+      // also wrote the place's targets is not taken back from here - the targets would stay.
+      tell({
+        label: [t('home.card.enteredPhase', { stage: t(`home.stage.${stage}`) }), target.label, climate.climate ? t('log.targetsSet') : null]
+          .filter(Boolean)
+          .join(' · '),
+        undo: climate.climate ? null : () => api.delete(`/grows/${growId}/phases/${phase.id}`).then(() => diaryChanged(client)),
+      });
     } catch {
       setSaving(false);
       setFailed('save');
@@ -201,11 +225,23 @@ function Details({ kind, target, entry, at: given, onClose }: DetailsProps) {
     if (kind === 'phase') return void savePhase();
     if (entry) return void correct();
 
-    const body: EntryCreate = { kind, ...about(target), ...occurredAt(dated), text: showsText && text ? text : undefined, values: values() };
+    // Dated when it was written, whether or not somebody said when: a line sent later, once the connection is
+    // back, is still of this moment.
+    const body: EntryCreate = {
+      kind,
+      ...about(target),
+      ...occurredAt(dated ?? serverNow().toJSDate()),
+      text: showsText && text ? text : undefined,
+      values: values(),
+    };
     log({ label: lineLabel(t, kind, filed), details: { kind, target }, send: () => writeEntry(body) });
   };
 
   const add = (key: string) => setShown(current => [...current, key]);
+  const stepBy = (by: number) => {
+    setTypedLitres(null);
+    setLitres(next(litres, by));
+  };
 
   // Starting a grow answers the question this sheet could not: one sheet at a
   // time, in place, the way a preset that finds nothing growing opens the same
@@ -213,21 +249,61 @@ function Details({ kind, target, entry, at: given, onClose }: DetailsProps) {
   if (startingGrow) return <NewGrowSheet spaceId={target.spaceId ?? target.standsIn} onClose={onClose} />;
 
   return (
-    <Sheet title={title(t, kind, step?.week ?? null)} corner={<Moment at={said} onChange={setDated} />} onClose={onClose}>
+    <Sheet
+      title={title(t, kind, step?.week ?? null)}
+      corner={<Moment at={said} onChange={setDated} begins={begins} />}
+      onBack={onBack}
+      onClose={onClose}
+      // Kept on the sheet's bottom edge, so it is in view with the keyboard up.
+      actions={
+        <button
+          type="button"
+          className={`${ui.button} ${ui.primary}`}
+          onClick={save}
+          disabled={saving || nothingSaid || (kind === 'phase' && !stage)}
+        >
+          {saveLabel(t, kind, entry, filed, step !== null)}
+        </button>
+      }
+    >
       {/* Which grid the doses come from sits with what the line is about: the corner is the moment's. */}
       <p className={`mono ${styles.subject}`}>{[lineLabel(t, kind, filed), kind === 'feed' ? schemeLine(grow) : ''].filter(Boolean).join(' · ')}</p>
 
       {showsWater ? (
         <div className={`${ui.card} ${styles.waterRow}`}>
           <span className={styles.waterLabel}>{t('log.water')}</span>
-          <button type="button" className={styles.step} onClick={() => setLitres(next(litres, -LITRE_STEP))} aria-label={t('log.less')}>
+          <button type="button" className={styles.step} onClick={() => stepBy(-LITRE_STEP)} aria-label={t('log.less')}>
             <Minus size={16} strokeWidth={2} aria-hidden />
           </button>
-          <span className={`figure ${styles.waterFigure}`}>{litres === null ? '—' : t('log.litres', { litres: looseFigure(litres) })}</span>
-          <button type="button" className={styles.step} onClick={() => setLitres(next(litres, LITRE_STEP))} aria-label={t('log.more')}>
+          <label className={`figure ${styles.waterFigure}`}>
+            <input
+              inputMode="decimal"
+              aria-label={t('log.waterLitres')}
+              value={typedLitres ?? (litres === null ? '' : looseFigure(litres))}
+              placeholder="—"
+              onChange={event => {
+                setTypedLitres(event.target.value);
+                const value = typedFigure(event.target.value);
+                setLitres(value !== null && value > 0 ? value : null);
+              }}
+              onBlur={() => setTypedLitres(null)}
+            />
+            {t('log.litres', { litres: '' }).trim()}
+          </label>
+          <button type="button" className={styles.step} onClick={() => stepBy(LITRE_STEP)} aria-label={t('log.more')}>
             <Plus size={16} strokeWidth={2} aria-hidden />
           </button>
         </div>
+      ) : null}
+
+      {/* What the field opened on is the last can, and when that was says how far to trust it. */}
+      {showsWater && !entry && last ? (
+        <p className={`mono ${styles.lastTime}`}>
+          {t('log.lastTime', {
+            ago: DateTime.fromISO(last.at).toRelative({ base: serverNow(), locale: i18n.language }) ?? '',
+            litres: looseFigure(last.litres),
+          })}
+        </p>
       ) : null}
 
       {kind === 'feed' ? (
@@ -256,7 +332,7 @@ function Details({ kind, target, entry, at: given, onClose }: DetailsProps) {
           ) : (
             <p className={ui.note}>{t('log.noScheme')}</p>
           )}
-          <p className={`${ui.note} ${styles.mixNote}`}>{t('log.mixOrder')}</p>
+          {step ? <p className={`${ui.note} ${styles.mixNote}`}>{t('log.mixOrder')}</p> : null}
         </div>
       ) : null}
 
@@ -299,7 +375,7 @@ function Details({ kind, target, entry, at: given, onClose }: DetailsProps) {
           className={`${ui.input} ${styles.text}`}
           rows={3}
           value={text}
-          placeholder={t(kind === 'note' ? 'log.notePlaceholder' : 'log.trainingPlaceholder')}
+          placeholder={t(kind === 'note' ? 'log.notePlaceholder' : kind === 'photo' ? 'log.noteOptional' : 'log.trainingPlaceholder')}
           onChange={event => setText(event.target.value)}
         />
       ) : null}
@@ -329,10 +405,6 @@ function Details({ kind, target, entry, at: given, onClose }: DetailsProps) {
           {t(failed === 'back' ? 'log.undoFailed' : 'log.saveFailed')}
         </p>
       ) : null}
-
-      <button type="button" className={`${ui.button} ${ui.primary} ${styles.save}`} onClick={save} disabled={saving || (kind === 'phase' && !stage)}>
-        {saveLabel(t, kind, entry, filed, step !== null)}
-      </button>
 
       {/* Only a line somebody wrote: what a device or the server recorded is
           not theirs to take back, and the server refuses it. */}

@@ -383,7 +383,7 @@ describe('the window a range chip names', () => {
   it('reads a phase as the stretch of the grow the instant falls in', async () => {
     const page = await readAs(session(OWNER), { range: 'phase', growId: GROW });
 
-    expect(page).toMatchObject({ startsAt: FLOWERING_FROM.toISOString(), endsAt: NOW.toISOString(), dayFrom: 33, dayTo: 34 });
+    expect(page).toMatchObject({ startsAt: FLOWERING_FROM.toISOString(), endsAt: NOW.toISOString(), dayFrom: 34, dayTo: 34 });
   });
 
   it('reads a whole grow for the same number of queries as a day, at a coarser step', async () => {

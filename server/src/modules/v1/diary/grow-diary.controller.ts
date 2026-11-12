@@ -1,8 +1,8 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import type { GrowDiaryPage, GrowReport, GrowWeekCardPage } from '@fg2/shared-types/v1';
-import { growDiaryPage, growReport, growWeekCardPage } from '@fg2/shared-types/v1-schemas';
+import type { GrowDiaryPage, GrowReport } from '@fg2/shared-types/v1';
+import { growDiaryPage, growReport } from '@fg2/shared-types/v1-schemas';
 import { AccessGuard, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { Grant } from '@common/v1/access.types';
 import { V1Query } from '@common/v1/validation';
@@ -10,7 +10,6 @@ import { OptionalSessionGuard } from '@common/auth/auth.guard';
 import { V1Answer } from '../answer-shape';
 import { GrowDiaryService, diaryQuery } from './grow-diary.service';
 import { GrowReportService } from './report.service';
-import { GrowWeeksService, weeksQuery } from './weeks.service';
 import { SHARED_READ_OPERATION } from '../../../openapi';
 
 /**
@@ -24,9 +23,8 @@ import { SHARED_READ_OPERATION } from '../../../openapi';
  */
 @ApiTags('grows')
 @Controller('v1/grows')
-export class GrowWeeksController {
+export class GrowDiaryController {
   constructor(
-    private readonly weeks: GrowWeeksService,
     private readonly report: GrowReportService,
     private readonly diary: GrowDiaryService,
   ) {}
@@ -38,19 +36,6 @@ export class GrowWeeksController {
   @V1Answer(growDiaryPage)
   public days(@CurrentGrant() grant: Grant, @Param('id') id: string, @V1Query(diaryQuery) query: z.infer<typeof diaryQuery>): Promise<GrowDiaryPage> {
     return this.diary.page(id, grant, query);
-  }
-
-  @Get(':id/weeks')
-  @UseGuards(OptionalSessionGuard, AccessGuard)
-  @Requires('view', 'grow')
-  @ApiOperation({ summary: 'The week cards the grow page is made of, newest first', ...SHARED_READ_OPERATION })
-  @V1Answer(growWeekCardPage)
-  public page(
-    @CurrentGrant() grant: Grant,
-    @Param('id') id: string,
-    @V1Query(weeksQuery) query: z.infer<typeof weeksQuery>,
-  ): Promise<GrowWeekCardPage> {
-    return this.weeks.page(id, grant, query);
   }
 
   @Get(':id/report')

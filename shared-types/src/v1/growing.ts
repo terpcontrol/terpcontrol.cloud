@@ -405,16 +405,19 @@ export const growSummary = named(
       .number()
       .int()
       .nullable()
-      .describe('1 on the day the grow began - its `startedAt` or its earliest phase, whichever came first, the origin its weeks, diary days and report count from too - and counted to `endedAt` once the grow has ended; null before the first phase.'),
+      .describe('1 on the date the grow began - its `startedAt` or its earliest phase, whichever came first - and one more with every midnight on its owner’s calendar (`zone`), as its weeks, diary days and report count too; counted to `endedAt` once the grow has ended; null before the first phase.'),
     stage: growthStage.nullable().describe('The stage of the largest group of plants.'),
     preset: z.string().nullable(),
     phaseDay: z.number().int().nullable(),
     weekNumber: z.number().int().nullable().describe("Counted like `dayNumber`, so it lines up with the feeding scheme's grid."),
+    zone: z
+      .string()
+      .describe('The zone whose calendar the days above are dates of: the owner’s. What a client counts for itself - the day a line is dated to - it counts in this zone (`growDayAt`).'),
     stageWeek: z
       .number()
       .int()
       .nullable()
-      .describe('Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a week card’s own `stageWeek` is, so the header and the card beneath it state one figure. Null before the first phase.'),
+      .describe('Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a diary week’s own `stageWeek` is, so the header and the diary beneath it state one figure. Null before the first phase.'),
     isAuto: z.boolean().describe('The phase was set by a preset or by the plan rather than by hand.'),
     groups: z.array(phaseGroup).describe('Empty while every plant shares the headline phase; otherwise every group, that one included.'),
     locations: z.array(growLocation),

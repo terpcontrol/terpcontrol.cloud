@@ -117,6 +117,8 @@ describe('an age in German', () => {
     expect(ageLabel(ago(2 * 3600), now)).toBe('2 Std');
     expect(ageLabel(ago(5 * 86_400), now)).toBe('5 T');
     expect(countdownLabel(7 * 86_400)).toBe('7 T');
-    expect(await catalogue('de')).toHaveProperty(['grow', 'days_other'], '{{count}} T');
+    // How long a grow ran is a sentence's worth of room and is said in words.
+    expect(await catalogue('de')).toHaveProperty(['grow', 'days_other'], '{{count}} Tage');
+    expect(await catalogue('de')).toHaveProperty(['grow', 'days_one'], '{{count}} Tag');
   });
 });

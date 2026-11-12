@@ -2,20 +2,13 @@
  * How long a grow spent in each of its stages, and which week of a stage a week
  * of the grow is.
  *
- * Both are read in more than one place and were counted in more than one way.
- * The phase bar above the tabs measured the milliseconds between two phase
- * starts and rounded them; the report's chapters counted the grow's own day
- * numbers; and because a phase rarely begins on a grow-day boundary the two
- * answered differently for the same phase - a bar reading "Flower 79 d" over
- * chapters reading "81 d", and chapters that summed to five days more than the
- * grow they belonged to. The stage week had the same shape of fault: the header
- * divided the phase's own day count by seven while the week card beside it
- * counted the grow weeks the stage had touched.
- *
- * So both are stated once, here, beside `growDayAt`, which is the arithmetic
- * they are both built on: a stage's span is a stretch of the grow's days, and a
- * stage's week is a difference of the grow's weeks. A screen and the server that
- * answers it read the same function, and there is no second copy left to drift.
+ * Both are stated once, here, beside `growDayAt`, the arithmetic they are built
+ * on: a stage's span is a stretch of the grow's days, and a stage's week is a
+ * difference of the grow's weeks. Counted any other way - the milliseconds
+ * between two phase starts, a phase's own days divided by seven - two screens
+ * answer differently for the same phase, and chapters sum to more days than
+ * the grow they belong to. A screen and the server that answers it read the
+ * same function.
  */
 import type { z } from 'zod';
 import type { growthStage } from './common.js';
@@ -69,20 +62,14 @@ export declare const spineOf: <P extends StagePhase>(phases: readonly P[], horiz
  */
 export declare const stageSpansOf: <P extends StagePhase>(grow: GrowSpine & {
     phases: readonly P[];
-}, horizon: Date) => StageSpan<P>[];
-/**
- * How many days the grow spent in each stage. A stage entered twice - flowering
- * before a late-flower preset and after it - is the sum of both stretches,
- * because the bar draws one segment per stage and not one per phase.
- */
-export declare const daysPerStageOf: <P extends StagePhase>(spans: readonly StageSpan<P>[]) => Partial<Record<GrowthStage, number>>;
+}, horizon: Date, zone: string | null) => StageSpan<P>[];
 /**
  * Which week of its stage a week of the grow is: 1 in the week the stage began.
  *
  * It counts the grow's weeks the stage has touched rather than seven-day blocks
- * of the stage itself, which is what makes a week card's pill and the header
+ * of the stage itself, which is what makes a diary week's title and the header
  * above it the same figure - a stage begun on a Wednesday is in its second week
  * on the following Monday, the same Monday that begins the grow's next week.
  */
-export declare const stageWeekOf: (origin: Date, phaseStartedAt: string | Date, weekNumber: number) => number;
+export declare const stageWeekOf: (origin: Date, phaseStartedAt: string | Date, weekNumber: number, zone: string | null) => number;
 export {};

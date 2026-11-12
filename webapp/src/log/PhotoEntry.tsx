@@ -43,7 +43,17 @@ const PARALLEL_UPLOADS = 3;
 
 type Picked = { file: File; url: string; rotate: number };
 
-export function PhotoEntry({ target, at: given, onClose }: { target: LogTarget; at: Date | null; onClose: () => void }) {
+export function PhotoEntry({
+  target,
+  at: given,
+  onBack,
+  onClose,
+}: {
+  target: LogTarget;
+  at: Date | null;
+  onBack?: (() => void) | null;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const { log } = useLog();
   const zone = useZone();
@@ -92,6 +102,10 @@ export function PhotoEntry({ target, at: given, onClose }: { target: LogTarget; 
     // Outlives one attempt, so Try again sends only the pictures that did not arrive.
     const mediaIds: (string | null)[] = pictures.map(() => null);
 
+    // Dated when it was written: an upload that only gets through later is still of this moment.
+
+    const written = at ?? serverNow().toJSDate();
+
     log({
       label: lineLabel(t, 'photo', filed),
       send: async progress => {
@@ -110,7 +124,7 @@ export function PhotoEntry({ target, at: given, onClose }: { target: LogTarget; 
         return writeEntry({
           kind: 'photo',
           ...about(target),
-          ...occurredAt(at),
+          ...occurredAt(written),
           mediaIds: mediaIds.filter((id): id is string => id !== null),
           text: words || null,
           values: { kind: 'photo' },
@@ -122,6 +136,7 @@ export function PhotoEntry({ target, at: given, onClose }: { target: LogTarget; 
   return (
     <Sheet
       title={t('log.photoTitle')}
+      onBack={onBack}
       corner={
         <Moment
           at={at}

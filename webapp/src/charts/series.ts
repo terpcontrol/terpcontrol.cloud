@@ -1,5 +1,4 @@
 import type { Metric } from '@fg2/shared-types/v1';
-import { growDayAt } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { DAY_MS } from '@/ui/days';
 import { zonedAt } from '@/ui/zone';
 import type { ChartOption } from './Chart';
@@ -433,7 +432,8 @@ export const csvOf = (
   const rows = times.map((time, row) =>
     [
       zonedAt(time, zone).toISO() ?? '',
-      ...(originAt === null ? [] : [String(growDayAt(new Date(originAt), new Date(time)))]),
+      // The day the chart's own axis puts the instant on: days since day one began.
+      ...(originAt === null ? [] : [String(Math.max(1, Math.floor(dayOfGrow(time, originAt))))]),
       ...cells.map(column => column[row]),
     ].join(','),
   );

@@ -6,6 +6,7 @@ import { MAINTENANCE_VISIT_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Need } from '@common/v1/access.types';
 import { serialiseEntry } from '@common/v1/entries';
+import { zoneOfOwner } from '@common/v1/owner-zone';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { badRequest, forbidden, notFound, unauthenticated } from '@common/v1/problem';
 import { isDuplicateKey } from '@database/duplicate-key';
@@ -15,6 +16,7 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
+import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
 import { spacesNow } from '../grow/grow-places';
 import { completionsOf, dueTasksOf, remindersAbout } from './due-tasks';
@@ -59,10 +61,16 @@ export class EntryWritesService {
     @InjectModel(MODEL_V1.plant) private readonly plants: Model<PlantDocument>,
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
+    @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
     private readonly access: AccessService,
     private readonly writer: EntryWriterService,
     @Inject(MAINTENANCE_STARTER) private readonly maintenance: MaintenancePort,
   ) {}
+
+  /** The zone the week of a feed is counted in: the calendar of the grow's owner. */
+  private zoneOf(grow: GrowDocument | null): Promise<string | null> {
+    return grow ? zoneOfOwner(this.users, grow.ownerId) : Promise.resolve(null);
+  }
 
   public async create(ctx: AccessContext, body: EntryCreate): Promise<Entry> {
     requireMatchingKind(body.kind, body.values);
@@ -83,7 +91,7 @@ export class EntryWritesService {
       plantIds: body.plantIds ?? [],
       text: body.text ?? null,
       mediaIds: body.mediaIds ?? [],
-      values: resolveEntryValues(body.values, grow, occurredAt),
+      values: resolveEntryValues(body.values, grow, occurredAt, await this.zoneOf(grow)),
     };
     const closes = body.taskId === undefined ? await this.dueTaskOf(body.kind, grow, occurredAt) : null;
 
@@ -130,7 +138,7 @@ export class EntryWritesService {
       ...(body.text !== undefined ? { text: body.text } : {}),
       ...(body.mediaIds !== undefined ? { mediaIds: body.mediaIds ?? [] } : {}),
       ...(body.occurredAt !== undefined ? { occurredAt } : {}),
-      ...(body.values ? { values: resolveEntryValues(body.values, grow, occurredAt) } : {}),
+      ...(body.values ? { values: resolveEntryValues(body.values, grow, occurredAt, await this.zoneOf(grow)) } : {}),
     };
 
     await this.entries.updateOne({ id }, { $set: changed });

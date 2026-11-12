@@ -376,6 +376,8 @@ describe('the Measure sheet', () => {
     expect(vi.mocked(api.post).mock.calls[0][1]).toEqual({
       kind: 'measurement',
       growId: 'grow-1',
+      // Dated when it was written, so a line that only gets through later is still of that moment.
+      occurredAt: expect.any(String),
       values: { kind: 'measurement', readings: [{ key: 'height', value: 62, plantId: 'plant-1' }] },
     });
   });

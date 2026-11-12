@@ -2,8 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.growReadingNames = exports.readingName = exports.entryReading = void 0;
 exports.overviewClimate = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.homeClimate = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardTransition = exports.cardValue = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCapture = exports.captureFailure = exports.testCaptureState = exports.cameraStill = exports.cameraUpdate = void 0;
-exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growDiaryPage = exports.growDiaryWeek = exports.growDiaryDay = exports.growDayClimate = exports.growDayEvent = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = void 0;
-exports.linkCard = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growDiaryPage = exports.growDiaryWeek = exports.growDiaryDay = exports.growDayClimate = exports.growDayEvent = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = void 0;
 const zod_1 = require("zod");
 const capture_js_1 = require("./capture.js");
 const common_js_1 = require("./common.js");
@@ -55,7 +54,7 @@ exports.readingName = (0, common_js_1.named)('ReadingName', zod_1.z.object({
  * grow - so a tent's latest lines and a tent's rail, which both carry the diary
  * of every grow that has stood there, would need a read per grow to put a name
  * and a unit on a figure. They ride on the same answer instead, keyed by the
- * grow each line belongs to, so one reading reads the same on the week card it
+ * grow each line belongs to, so one reading reads the same on the day card it
  * was written on and on the rail it shows up on.
  */
 exports.growReadingNames = (0, common_js_1.named)('GrowReadingNames', zod_1.z.object({
@@ -898,7 +897,7 @@ exports.growCard = (0, common_js_1.named)('GrowCard', zod_1.z.object({
         .number()
         .int()
         .nullable()
-        .describe('Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.'),
+        .describe('Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and the weeks of its diary state.'),
     stage: common_js_1.growthStage.nullable(),
     stagesReached: zod_1.z
         .array(common_js_1.growthStage)
@@ -1321,7 +1320,7 @@ exports.timelineCamera = (0, common_js_1.named)('TimelineCamera', zod_1.z.object
  * assembled them would draw parts of six different ones.
  *
  * A space with no controller answers the frames and the rail and nothing else:
- * `panels` is then empty, the way a week card of a grow with no controller
+ * `panels` is then empty, the way a diary day of a grow with no controller
  * carries no climate. Nothing here is written to - the rail carries lines to
  * open and never a task to tick off - so a read-only link is served the same
  * answer as its owner, clamped to its window.
@@ -1380,95 +1379,13 @@ exports.weekClimate = (0, common_js_1.named)('WeekClimate', zod_1.z.object({
     nightAverage: zod_1.z.number().nullable(),
 }));
 /**
- * One of the seven thumbnails a week card is drawn with: the still taken
- * nearest a fixed hour of that day, so the strip reads as one picture a day
- * rather than as whatever the camera last sent. Null where no camera was
- * watching, which is what leaves a slot empty.
- */
-exports.growWeekDay = (0, common_js_1.named)('GrowWeekDay', zod_1.z.object({
-    dayNumber: zod_1.z.number().int(),
-    startsAt: (0, common_js_1.instant)(),
-    stage: common_js_1.growthStage
-        .nullable()
-        .describe('The stage the grow entered on this day, where it entered one; null on a day it carried on in the stage before. A week is named after the stage it ended in, so this is the only place a card records a stage that began and was over inside it.'),
-    mediaId: (0, common_js_1.id)().nullable(),
-    cameraId: (0, common_js_1.id)().nullable(),
-    capturedAt: (0, common_js_1.instant)().nullable(),
-}));
-/**
- * What the scheme says to feed this week, and how many feeds the week is
- * supposed to have. `amounts` is the grid's row for this week with the grow's
- * own strength already applied, so nobody multiplies it twice; how many of them
- * were done is the card's `feedCount`.
- *
- * No screen has a control for the rhythm, so `plannedCount` is read from the
- * grow's feed reminder, else its water reminder, else three.
- */
-exports.growWeekFeeding = (0, common_js_1.named)('GrowWeekFeeding', zod_1.z.object({
-    amounts: zod_1.z.array(common_js_1.schemeAmount),
-    plannedCount: zod_1.z.number().int(),
-}));
-/**
- * Where one of the grow's own measurements stood at the end of the week, and by
- * how much it moved - "Height · 58 cm · +6". `change` is against the newest
- * reading before this week began and is null when there was none.
- *
- * `key` names a definition in the grow's `measurements[]`, which is where its
- * name, its unit and its target are; nothing about the measurement is copied
- * onto the reading.
- */
-exports.growWeekReading = (0, common_js_1.named)('GrowWeekReading', zod_1.z.object({
-    key: zod_1.z.string(),
-    value: zod_1.z.number(),
-    change: zod_1.z.number().nullable(),
-    measuredAt: (0, common_js_1.instant)(),
-}));
-/**
- * A week of a grow, which is what the grow page is made of. `weekNumber` counts
- * from the grow's origin, like the day counter, so it lines up with the feeding
- * scheme's grid, and `dayFrom`/`dayTo` are the same count in days - always
- * seven of them, because "day 29-35" is what the week is of; `endsAt` is where
- * the week stops, which for the week a grow is in is now.
- *
- * `stageWeek` is which week of the current stage this is, so "Flower wk 2" can
- * be drawn from the card alone: the public page carries these cards without the
- * grow's phases beside them.
- */
-exports.growWeekCard = (0, common_js_1.named)('GrowWeekCard', zod_1.z.object({
-    weekNumber: zod_1.z.number().int(),
-    dayFrom: zod_1.z.number().int(),
-    dayTo: zod_1.z.number().int(),
-    startsAt: (0, common_js_1.instant)(),
-    endsAt: (0, common_js_1.instant)(),
-    stage: common_js_1.growthStage.nullable(),
-    preset: zod_1.z.string().nullable(),
-    stageWeek: zod_1.z.number().int().nullable().describe('1 in the week the stage began; null before the first phase.'),
-    deviceIds: zod_1.z
-        .array((0, common_js_1.id)())
-        .nullable()
-        .describe('The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes; null on a shared or public read, where the averages are the diary and the hardware behind them is not.'),
-    climate: zod_1.z.array(exports.weekClimate),
-    lightHours: zod_1.z.number().nullable().describe('Hours of light per day over the week, from the controller’s light output.'),
-    days: zod_1.z.array(exports.growWeekDay).describe('Seven; a day that has not happened yet carries no picture.'),
-    feeding: exports.growWeekFeeding.nullable().describe('Null for a grow that is fed no scheme.'),
-    readings: zod_1.z.array(exports.growWeekReading),
-    waterCount: zod_1.z.number().int(),
-    feedCount: zod_1.z.number().int(),
-    entries: zod_1.z.array(exports.entry).describe('The week’s diary lines, newest first, capped; `entryCount` is how many there are.'),
-    entryCount: zod_1.z.number().int(),
-    timelapseMediaId: (0, common_js_1.id)().nullable(),
-}));
-/**
- * The week cards, page by page, with everyone they name. A page carries
- * `people` for the same reason the home answer does - a card says who watered -
- * and one Mongo read answers it for the whole page.
- */
-exports.growWeekCardPage = (0, common_js_1.named)('GrowWeekCardPage', (0, common_js_1.page)(exports.growWeekCard).extend({ people: zod_1.z.array(common_js_1.person) }));
-/**
- * Something a device did on one day that nobody wrote down: its lamp switching,
- * or a stretch its climate spent outside what it was aiming at. They are read
- * from the measurements on every read and stored nowhere, so a day that has
- * left the store's raw samples has none.
+ * Something that happened on one day and is nobody's diary line: the lamp
+ * switching and a stretch the climate spent outside what the devices were
+ * aiming at, which a device did by itself, and maintenance, which a person
+ * switched - on and off are one event. Lamp and stretches are read from the
+ * measurements on every read and stored nowhere, so a day that has left the
+ * store's raw samples has none. A reader from outside is answered none of
+ * them.
  */
 exports.growDayEvent = (0, common_js_1.named)('GrowDayEvent', zod_1.z.discriminatedUnion('kind', [
     zod_1.z.object({
@@ -1483,6 +1400,11 @@ exports.growDayEvent = (0, common_js_1.named)('GrowDayEvent', zod_1.z.discrimina
         metric: common_js_1.metric,
         above: zod_1.z.boolean().describe('Which edge it left over: true is above the band.'),
         extremeValue: zod_1.z.number().nullable(),
+    }),
+    zod_1.z.object({
+        kind: zod_1.z.literal('maintenance'),
+        at: (0, common_js_1.instant)().describe('When somebody put the devices of the place into maintenance, or the start of the day where they already were.'),
+        endedAt: (0, common_js_1.instant)().nullable().describe('Null while it is still on, or where the day ended first.'),
     }),
 ]));
 /**
@@ -1520,12 +1442,13 @@ exports.growDiaryDay = (0, common_js_1.named)('GrowDiaryDay', zod_1.z.object({
     events: zod_1.z.array(exports.growDayEvent).describe('In the order they happened.'),
     entries: zod_1.z
         .array(exports.entry)
-        .describe('The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, what its devices and the plan wrote where the grow stood.'),
+        .describe('The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, the alarms raised and the plan’s steps where the grow stood. What else a device logs - a restart, a sensor drifting - is not diary and stays with the device.'),
 }));
 /**
  * A week of the diary: seven days of the grow, newest first, under the stage
- * the week lay in. `film` is the week film whose first frame falls inside it,
- * named by the days it really covers - a film is cut on the calendar's weeks.
+ * the week lay in. `film` is the week film most of whose days lie in this
+ * week, named by those of its days that do - a film is cut on the calendar's
+ * weeks, which are not the grow's. One too short to watch is not offered.
  */
 exports.growDiaryWeek = (0, common_js_1.named)('GrowDiaryWeek', zod_1.z.object({
     weekNumber: zod_1.z.number().int(),
@@ -1544,8 +1467,16 @@ exports.growDiaryWeek = (0, common_js_1.named)('GrowDiaryWeek', zod_1.z.object({
         .nullable(),
     days: zod_1.z.array(exports.growDiaryDay).describe('The days of the week that have happened and that the reader may see, newest first.'),
 }));
-/** The diary, a few weeks at a time, with everyone its lines name. */
-exports.growDiaryPage = (0, common_js_1.named)('GrowDiaryPage', (0, common_js_1.page)(exports.growDiaryWeek).extend({ people: zod_1.z.array(common_js_1.person) }));
+/**
+ * The diary, a few weeks at a time, with everyone its lines name. `earlier` is
+ * what was written to the grow for a moment before the date it began on: such
+ * lines have no day of the grow, and the last page carries them so they are
+ * not lost from sight.
+ */
+exports.growDiaryPage = (0, common_js_1.named)('GrowDiaryPage', (0, common_js_1.page)(exports.growDiaryWeek).extend({
+    people: zod_1.z.array(common_js_1.person),
+    earlier: zod_1.z.array(exports.entry).describe('Newest first; empty on every page but the last.'),
+}));
 /**
  * One stretch of the grow at one stage, as the report tells its story: a
  * chapter with its cover, its day range, how it was kept and what was done to
@@ -1569,7 +1500,7 @@ exports.growReportPhase = (0, common_js_1.named)('GrowReportPhase', zod_1.z.obje
     lightHours: zod_1.z
         .number()
         .nullable()
-        .describe('Hours of light per day over the phase, from the controller’s light output, as a week card states it for its own seven days; null over a stretch too short or too quiet to say.'),
+        .describe('Hours of light per day over the phase, from the controller’s light output; null over a stretch too short or too quiet to say.'),
     inBandPercent: zod_1.z
         .number()
         .nullable()
@@ -1594,8 +1525,8 @@ exports.growTotals = (0, common_js_1.named)('GrowTotals', zod_1.z.object({
  * `GET /grows/{id}/report`, the Report tab: the grow told as chapters, one per
  * phase.
  *
- * It carries no week cards. The Report tab sits beside the Weeks tab, which
- * reads `GET /grows/{id}/weeks`, and a week costs a time-series query per
+ * It carries no days. The Report tab sits beside the diary, which reads
+ * `GET /grows/{id}/diary`, and a week of that costs a time-series query per
  * controller - a report that repeated them would make opening the second tab
  * cost the first one twice over. The public page, which shows both, is a read
  * model of its own and assembles them once.
@@ -1708,7 +1639,7 @@ exports.growSeries = (0, common_js_1.named)('GrowSeries', zod_1.z.object({
     startsAt: (0, common_js_1.instant)(),
     endsAt: (0, common_js_1.instant)(),
     stepSeconds: zod_1.z.number().int().describe('The window each climate and output point summarises; 0 where no device was read at all.'),
-    originAt: (0, common_js_1.instant)().describe('The instant day 1 of this grow began, which is what day-of-grow counts from.'),
+    originAt: (0, common_js_1.instant)().describe('The start of the date the grow began on, on its owner’s calendar: where day 1 begins, and what a day-of-grow axis counts from.'),
     dayFrom: zod_1.z.number().int().nullable(),
     dayTo: zod_1.z.number().int().nullable(),
     deviceIds: zod_1.z
@@ -1797,14 +1728,15 @@ exports.publicGrowPage = (0, common_js_1.named)('PublicGrowPage', zod_1.z.object
         .number()
         .int()
         .nullable()
-        .describe('Which week of the stage above the diary is in, counted against the grow’s own weeks exactly as the week cards below count them - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`: that gives the week of the whole grow, which is the week cards’ own heading and a different number entirely once a grow has changed stage. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.'),
+        .describe('Which week of the stage above the diary is in, counted against the grow’s own weeks exactly as the weeks below count them - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`: that gives the week of the whole grow, a different number entirely once a grow has changed stage. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.'),
     plantCount: zod_1.z.number().int().nullable(),
     strains: zod_1.z.array(zod_1.z.string()),
     coverMediaId: (0, common_js_1.id)().nullable(),
     filmMediaId: (0, common_js_1.id)().nullable(),
     range: exports.timeRange,
     includeCameras: zod_1.z.boolean(),
-    weeks: zod_1.z.array(exports.growWeekCard),
+    readingNames: zod_1.z.array(exports.readingName).describe('What the grow calls its measurements, so a reading in a line of the diary is named rather than keyed.'),
+    weeks: zod_1.z.array(exports.growDiaryWeek),
     weeksCursor: zod_1.z
         .string()
         .nullable()
@@ -1821,7 +1753,7 @@ exports.publicGrowPage = (0, common_js_1.named)('PublicGrowPage', zod_1.z.object
  * page nobody waits for. It carries no `people`, unlike the owner's own weeks:
  * a stranger reads a diary by one author and is told nobody's name.
  */
-exports.publicWeekPage = (0, common_js_1.named)('PublicWeekPage', (0, common_js_1.page)(exports.growWeekCard));
+exports.publicWeekPage = (0, common_js_1.named)('PublicWeekPage', (0, common_js_1.page)(exports.growDiaryWeek));
 /**
  * `GET /public/users/{handle}`: the public diaries of one person. A public grow
  * is drawn the same way wherever it is listed, so these are the cards the home

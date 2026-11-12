@@ -274,6 +274,17 @@ export type GrowDayEvent =
        */
       above: boolean;
       extremeValue: number | null;
+    }
+  | {
+      kind: 'maintenance';
+      /**
+       * When somebody put the devices of the place into maintenance, or the start of the day where they already were.
+       */
+      at: string;
+      /**
+       * Null while it is still on, or where the day ended first.
+       */
+      endedAt: string | null;
     };
 
 export type GrowSeriesRange = '24h' | '7d' | 'phase' | 'grow' | 'custom';
@@ -2256,7 +2267,7 @@ export interface GrowLocation {
 
 export interface GrowSummary {
   /**
-   * 1 on the day the grow began - its `startedAt` or its earliest phase, whichever came first, the origin its weeks, diary days and report count from too - and counted to `endedAt` once the grow has ended; null before the first phase.
+   * 1 on the date the grow began - its `startedAt` or its earliest phase, whichever came first - and one more with every midnight on its owner’s calendar (`zone`), as its weeks, diary days and report count too; counted to `endedAt` once the grow has ended; null before the first phase.
    */
   dayNumber: number | null;
   /**
@@ -2270,7 +2281,11 @@ export interface GrowSummary {
    */
   weekNumber: number | null;
   /**
-   * Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a week card’s own `stageWeek` is, so the header and the card beneath it state one figure. Null before the first phase.
+   * The zone whose calendar the days above are dates of: the owner’s. What a client counts for itself - the day a line is dated to - it counts in this zone (`growDayAt`).
+   */
+  zone: string;
+  /**
+   * Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a diary week’s own `stageWeek` is, so the header and the diary beneath it state one figure. Null before the first phase.
    */
   stageWeek: number | null;
   /**
@@ -3549,7 +3564,7 @@ export interface GrowCard {
    */
   phaseDay: number | null;
   /**
-   * Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.
+   * Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and the weeks of its diary state.
    */
   stageWeek: number | null;
   stage: GrowthStage | null;
@@ -3744,7 +3759,7 @@ export interface OverviewGrow {
    */
   phaseDay: number | null;
   /**
-   * Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.
+   * Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and the weeks of its diary state.
    */
   stageWeek: number | null;
   stage: GrowthStage | null;
@@ -4136,79 +4151,6 @@ export interface WeekClimate {
   nightAverage: number | null;
 }
 
-export interface GrowWeekDay {
-  dayNumber: number;
-  startsAt: string;
-  /**
-   * The stage the grow entered on this day, where it entered one; null on a day it carried on in the stage before. A week is named after the stage it ended in, so this is the only place a card records a stage that began and was over inside it.
-   */
-  stage: GrowthStage | null;
-  mediaId: string | null;
-  cameraId: string | null;
-  capturedAt: string | null;
-}
-
-export interface GrowWeekFeeding {
-  amounts: SchemeAmount[];
-  plannedCount: number;
-}
-
-export interface GrowWeekReading {
-  key: string;
-  value: number;
-  change: number | null;
-  measuredAt: string;
-}
-
-export interface GrowWeekCard {
-  weekNumber: number;
-  dayFrom: number;
-  dayTo: number;
-  startsAt: string;
-  endsAt: string;
-  stage: GrowthStage | null;
-  preset: string | null;
-  /**
-   * 1 in the week the stage began; null before the first phase.
-   */
-  stageWeek: number | null;
-  /**
-   * The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes; null on a shared or public read, where the averages are the diary and the hardware behind them is not.
-   */
-  deviceIds: string[] | null;
-  climate: WeekClimate[];
-  /**
-   * Hours of light per day over the week, from the controller’s light output.
-   */
-  lightHours: number | null;
-  /**
-   * Seven; a day that has not happened yet carries no picture.
-   */
-  days: GrowWeekDay[];
-  /**
-   * Null for a grow that is fed no scheme.
-   */
-  feeding: GrowWeekFeeding | null;
-  readings: GrowWeekReading[];
-  waterCount: number;
-  feedCount: number;
-  /**
-   * The week’s diary lines, newest first, capped; `entryCount` is how many there are.
-   */
-  entries: Entry[];
-  entryCount: number;
-  timelapseMediaId: string | null;
-}
-
-export interface GrowWeekCardPage {
-  items: GrowWeekCard[];
-  /**
-   * Pass back as `cursor` for the next page; null on the last one.
-   */
-  nextCursor: string | null;
-  people: Person[];
-}
-
 export interface GrowDayClimate {
   temperature: number | null;
   humidity: number | null;
@@ -4243,7 +4185,7 @@ export interface GrowDiaryDay {
    */
   events: GrowDayEvent[];
   /**
-   * The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, what its devices and the plan wrote where the grow stood.
+   * The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, the alarms raised and the plan’s steps where the grow stood. What else a device logs - a restart, a sensor drifting - is not diary and stays with the device.
    */
   entries: Entry[];
 }
@@ -4277,6 +4219,10 @@ export interface GrowDiaryPage {
    */
   nextCursor: string | null;
   people: Person[];
+  /**
+   * Newest first; empty on every page but the last.
+   */
+  earlier: Entry[];
 }
 
 export interface GrowReportPhase {
@@ -4301,7 +4247,7 @@ export interface GrowReportPhase {
   coverMediaId: string | null;
   climate: WeekClimate[];
   /**
-   * Hours of light per day over the phase, from the controller’s light output, as a week card states it for its own seven days; null over a stretch too short or too quiet to say.
+   * Hours of light per day over the phase, from the controller’s light output; null over a stretch too short or too quiet to say.
    */
   lightHours: number | null;
   /**
@@ -4452,7 +4398,7 @@ export interface GrowSeries {
    */
   stepSeconds: number;
   /**
-   * The instant day 1 of this grow began, which is what day-of-grow counts from.
+   * The start of the date the grow began on, on its owner’s calendar: where day 1 begins, and what a day-of-grow axis counts from.
    */
   originAt: string;
   dayFrom: number | null;
@@ -4536,7 +4482,7 @@ export interface PublicGrowPage {
   stage: GrowthStage | null;
   preset: string | null;
   /**
-   * Which week of the stage above the diary is in, counted against the grow’s own weeks exactly as the week cards below count them - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`: that gives the week of the whole grow, which is the week cards’ own heading and a different number entirely once a grow has changed stage. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.
+   * Which week of the stage above the diary is in, counted against the grow’s own weeks exactly as the weeks below count them - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`: that gives the week of the whole grow, a different number entirely once a grow has changed stage. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.
    */
   stageWeek: number | null;
   plantCount: number | null;
@@ -4545,7 +4491,11 @@ export interface PublicGrowPage {
   filmMediaId: string | null;
   range: TimeRange;
   includeCameras: boolean;
-  weeks: GrowWeekCard[];
+  /**
+   * What the grow calls its measurements, so a reading in a line of the diary is named rather than keyed.
+   */
+  readingNames: ReadingName[];
+  weeks: GrowDiaryWeek[];
   /**
    * Pass as `cursor` to the weeks route of the same address for the weeks before these; null where the page holds them all.
    */
@@ -4555,7 +4505,7 @@ export interface PublicGrowPage {
 }
 
 export interface PublicWeekPage {
-  items: GrowWeekCard[];
+  items: GrowDiaryWeek[];
   /**
    * Pass back as `cursor` for the next page; null on the last one.
    */

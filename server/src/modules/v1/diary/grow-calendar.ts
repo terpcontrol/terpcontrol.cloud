@@ -1,75 +1,77 @@
-import { growWeekAt } from '@fg2/shared-types/v1-schemas';
+import { growDayUpTo } from '@fg2/shared-types/v1-schemas';
+import { localOf } from '@common/v1/local-time';
 import { decodeCursor } from '@common/v1/pages';
+import { Span } from '@common/v1/range';
 import { GrowDocument, PhaseDocument } from '@database/schemas/v1/grows.schema';
 import { latestPhase } from '../grow/grow-serialiser';
 
 /**
- * What a grow's weeks are, as the grow page draws them.
+ * The days and weeks a grow is told in: dates on its owner's calendar.
  *
- * A grow's day does not begin at midnight. Day 1 begins at the grow's origin -
- * its start or its earliest phase, whichever came first - so that a grow begun
- * at 23:00 is not two days old within the hour. Weeks are seven of those days,
- * so week 1 is days 1 to 7 and lines up with the feeding scheme's first row.
- *
- * The counting itself is the contract's (`growOriginOf`, `growDayAt`,
- * `growWeekAt`), because the log sheet counts a grow's weeks too - it draws the
- * doses for the day a feed is dated to before the line is written. Everything
- * the grow page draws about a week - its day range, the hour each thumbnail is
- * taken at - follows from that one origin.
+ * A grow's day is a date - "today" is since midnight where the owner is - and
+ * its number is counted from the date the grow began on, which is day 1
+ * (`growDayAt`, the contract's own count, because the log sheet counts a grow's
+ * days and weeks too). Weeks are seven of those dates, so week 1 is days 1 to 7
+ * and lines up with the feeding scheme's first row.
  */
 
-export const DAY_MS = 24 * 60 * 60 * 1000;
-const WEEK_MS = 7 * DAY_MS;
+export interface DiaryDay extends Span {
+  /** `YYYY-MM-DD` on the owner's calendar. */
+  date: string;
+  dayNumber: number;
+}
 
-export interface GrowWeekSpan {
+export interface DiaryWeek extends Span {
   weekNumber: number;
-  /** The seven days the week is of, whether or not they have all happened; `endsAt` says how much of it has. */
+  /** The seven days the week is of, whether or not they have all happened. */
   dayFrom: number;
   dayTo: number;
-  startsAt: Date;
-  /** The end of the week, or the moment the grow ended or now, whichever comes first. */
-  endsAt: Date;
+  /** The days that have begun, oldest first, each a whole date. */
+  days: DiaryDay[];
 }
+
+const DAYS_A_WEEK = 7;
 
 /** The last instant the grow has anything to say about: the day it ended, or now. */
 export const horizonOf = (grow: GrowDocument, now: Date): Date => grow.endedAt ?? now;
 
-/** Every week the grow has lived through, oldest first. The last one is as short as the grow is young. */
-export const weeksOf = (origin: Date, horizon: Date): GrowWeekSpan[] =>
-  Array.from({ length: growWeekAt(origin, horizon) }, (_, index) => {
-    const weekNumber = index + 1;
-    const startsAt = new Date(origin.getTime() + index * WEEK_MS);
+/** Where the date an instant falls on begins, on the owner's calendar. */
+export const dateStartOf = (at: Date, zone: string | null): Date => localOf(at, zone).startOf('day').toJSDate();
 
+/** Every week the grow has days in, oldest first, up to the date the horizon falls on. */
+export const diaryWeeksOf = (origin: Date, horizon: Date, zone: string | null): DiaryWeek[] => {
+  const first = localOf(origin, zone).startOf('day');
+  // The last instant lived decides the last date, so a grow that ended at midnight has no day after it.
+  const count = growDayUpTo(origin, horizon, zone);
+  const days: DiaryDay[] = Array.from({ length: count }, (_, index) => {
+    const startsAt = first.plus({ days: index });
     return {
-      weekNumber,
-      dayFrom: index * 7 + 1,
-      dayTo: weekNumber * 7,
-      startsAt,
-      endsAt: new Date(Math.min(startsAt.getTime() + WEEK_MS, horizon.getTime())),
+      date: startsAt.toFormat('yyyy-MM-dd'),
+      dayNumber: index + 1,
+      startsAt: startsAt.toJSDate(),
+      endsAt: startsAt.plus({ days: 1 }).toJSDate(),
     };
   });
 
-/**
- * Midday, which is the hour each day's thumbnail is taken nearest.
- *
- * A fixed hour is what makes seven pictures read as one a day rather than as
- * whatever the camera last sent. It is an hour of the clock rather than the
- * middle of the grow's own day, because the picture has to be taken in the
- * light: a grow begun at eight in the evening has the middle of its day at
- * eight in the morning, and one begun at eight in the morning has it at eight in
- * the evening, when half the tents in Europe are dark.
- *
- * Each of the grow's days is twenty-four hours long wherever it begins, so
- * exactly one midday falls inside it.
- */
-const PICTURE_HOUR_UTC = 12;
-
-export const pictureHourIn = (dayStartsAt: Date): Date => {
-  const midday = new Date(dayStartsAt);
-  midday.setUTCHours(PICTURE_HOUR_UTC, 0, 0, 0);
-
-  return midday >= dayStartsAt ? midday : new Date(midday.getTime() + DAY_MS);
+  return Array.from({ length: Math.ceil(count / DAYS_A_WEEK) }, (_, index) => {
+    const lived = days.slice(index * DAYS_A_WEEK, (index + 1) * DAYS_A_WEEK);
+    return {
+      weekNumber: index + 1,
+      dayFrom: index * DAYS_A_WEEK + 1,
+      dayTo: (index + 1) * DAYS_A_WEEK,
+      startsAt: lived[0].startsAt,
+      endsAt: first.plus({ days: (index + 1) * DAYS_A_WEEK }).toJSDate(),
+      days: lived,
+    };
+  });
 };
+
+/**
+ * Midday of a date, which is the hour its picture is taken nearest. A fixed
+ * hour is what makes a row of days read as one picture a day rather than as
+ * whatever the camera last sent.
+ */
+export const middayOf = (day: Span): Date => new Date((day.startsAt.getTime() + day.endsAt.getTime()) / 2);
 
 /**
  * The phase the grow as a whole was in at an instant, which is what a week is

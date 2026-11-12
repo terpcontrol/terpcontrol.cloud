@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { GrowMeasurementSeries, GrowSeries, GrowSeriesPoint, GrowSeriesRange, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { growOriginOf } from '@fg2/shared-types/v1-schemas';
+import { localOf } from '@common/v1/local-time';
 import { Grant } from '@common/v1/access.types';
 import { badRequest } from '@common/v1/problem';
 import { withinRange } from '@common/v1/range';
@@ -84,7 +85,8 @@ export class GrowSeriesService {
 
   public async read(grant: Grant, growId: string, asked: GrowSeriesQuery, hide: Redaction, now: Date = new Date()): Promise<GrowSeries> {
     const grow = await this.grows.require(growId);
-    const window = this.windowFor(grow, grant, asked, now);
+    const zone = await this.grows.zoneOf(grow);
+    const window = this.windowFor(grow, zone, grant, asked, now);
     const keys = this.keysOf(grow, asked.measurements ?? []);
 
     const metrics = asked.metrics ?? [];
@@ -93,7 +95,7 @@ export class GrowSeriesService {
     // is read from the devices and cameras of both, because the chart draws what
     // its plants lived through and not what one tent did. A device knows only
     // where it stands now, so one that has since been moved out is not read for
-    // the days it kept - the same limit the week cards have.
+    // the days it kept - the same limit the diary's days have.
     const spaceIds = spacesDuring(grow, window.startsAt, window.endsAt).filter((id): id is string => id !== null);
 
     const [devices, cameras] = await Promise.all([
@@ -117,7 +119,7 @@ export class GrowSeriesService {
     return {
       growId: grow.id,
       range: asked.range,
-      originAt: growOriginOf(grow).toISOString(),
+      originAt: localOf(growOriginOf(grow), zone).startOf('day').toJSDate().toISOString(),
       dayFrom: window.dayFrom,
       dayTo: window.dayTo,
       measurements: measurementsOf(keys, readings, hide),
@@ -140,9 +142,16 @@ export class GrowSeriesService {
    * shares: a tent whose grow has ended is still a live tent, and its "last
    * 24 h" has to end now.
    */
-  private windowFor(grow: GrowDocument, grant: Grant, asked: GrowSeriesQuery, now: Date): TimelineWindow {
+  private windowFor(grow: GrowDocument, zone: string | null, grant: Grant, asked: GrowSeriesQuery, now: Date): TimelineWindow {
     if (asked.range !== 'custom') {
-      return windowOf(asked.range, grant, grow, asked.to ?? new Date(Math.min(horizonOf(grow, now).getTime(), now.getTime())), asked.stepSeconds);
+      return windowOf(
+        asked.range,
+        grant,
+        grow,
+        zone,
+        asked.to ?? new Date(Math.min(horizonOf(grow, now).getTime(), now.getTime())),
+        asked.stepSeconds,
+      );
     }
 
     // A range whose end comes before its start never gets here: the query is
@@ -162,7 +171,7 @@ export class GrowSeriesService {
       ]);
     }
 
-    return narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, grow, now, asked.stepSeconds);
+    return narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, grow, zone, now, asked.stepSeconds);
   }
 
   /**
@@ -196,7 +205,7 @@ export class GrowSeriesService {
   /**
    * The entries that carry readings, over the window. A reading taken while
    * watering is a reading, so all three kinds that can hold one are read - the
-   * week card counts them the same way, and a chart that only counted the
+   * diary day counts them the same way, and a chart that only counted the
    * Measure tile would draw a different history of the same grow.
    */
   private async readingEntriesIn(growId: string, window: TimelineWindow): Promise<EntryDocument[]> {

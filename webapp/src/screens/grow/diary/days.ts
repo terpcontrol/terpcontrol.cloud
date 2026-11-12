@@ -1,11 +1,13 @@
 import { DateTime } from 'luxon';
-import type { Entry, GrowDayEvent, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Metric } from '@fg2/shared-types/v1';
+import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Metric, ReadingName } from '@fg2/shared-types/v1';
+import type { i18n as I18n } from 'i18next';
+import { alarmLineParts } from '@/i18n/alarm-line';
 import type { Translate } from '@/i18n/i18n';
 import { spanLabel } from '@/ui/age';
 import { foldRepeats } from '@/ui/entries';
 import { decimalFigure } from '@/ui/figures';
 import { stageLabel } from '@/ui/presets';
-import { DAY_IN_YEAR, WEEKDAY_DAY } from '@/ui/zone';
+import { DAY_IN_YEAR, WEEKDAY_DAY, clock } from '@/ui/zone';
 
 /**
  * What a day of the diary says, worked out from what the server answered
@@ -14,25 +16,45 @@ import { DAY_IN_YEAR, WEEKDAY_DAY } from '@/ui/zone';
  * draws.
  */
 
+/**
+ * Who reads a diary, and what the diary gives them the way to. The grow's own
+ * page hands a member the sheet that corrects a line and the curve of a
+ * moment; a page anybody may open hands out neither.
+ */
+export interface DiaryReader {
+  /** The zone the hours of the day are said in. */
+  zone: string | null;
+  /** What the grow calls its measurements. */
+  readingNames: ReadingName[];
+  /** Where a picture is fetched from; null where this reader has no way to it. */
+  picture: (mediaId: string, width?: number) => string | null;
+  /** Whether the day still running leads to its camera. */
+  cameras: boolean;
+  /** Whether a line says who wrote it: not where the reader is answered no authors - a page anybody may open, the demo. */
+  byline: boolean;
+  /** The sheet that corrects a line, where this reader may correct it. */
+  correct: (entry: Entry, dayNumber: number | null) => (() => void) | undefined;
+  /** The curve of a reading at a moment of the diary, where the reader has one to open. */
+  curveOf: (metric: Metric, at: string) => string | null;
+}
+
 /** How many of the newest days stand open as cards; the days before them fold into their weeks. */
 export const OPEN_DAYS = 3;
-
-/** How many lines a card draws before the rest is asked for. */
-export const LINES_SHOWN = 4;
 
 /** How long a weekday names one day: six dates back it is still its own, a week back it is today's again. */
 const WEEKDAY_DAYS = 6;
 
 /** "Heute · Tag 29", "Gestern · Tag 28", "Montag · Tag 27", and the date once a weekday would name two days. */
-export const dayTitle = (t: Translate, day: Pick<GrowDiaryDay, 'date' | 'dayNumber'>, today: string): string => {
+export const dayTitle = (t: Translate, day: Pick<GrowDiaryDay, 'date' | 'dayNumber'>, today: string | null): string => {
   const date = DateTime.fromISO(day.date);
-  const back = Math.round(DateTime.fromISO(today).diff(date, 'days').days);
+  // A diary read from outside, or one that has ended, has no today to count back from: its days are dates.
+  const back = today === null ? null : Math.round(DateTime.fromISO(today).diff(date, 'days').days);
   const named =
     back === 0
       ? t('grow.diary.today')
       : back === 1
         ? t('grow.diary.yesterday')
-        : date.toFormat(back > 0 && back <= WEEKDAY_DAYS ? 'cccc' : WEEKDAY_DAY);
+        : date.toFormat(back !== null && back > 0 && back <= WEEKDAY_DAYS ? 'cccc' : WEEKDAY_DAY);
 
   return `${named} · ${t('home.card.dayN', { day: day.dayNumber })}`;
 };
@@ -60,82 +82,146 @@ export const stageOfWeek = (t: Translate, week: Pick<GrowDiaryWeek, 'stage' | 'p
     ? [stageLabel(t, week.stage, week.preset), week.stageWeek !== null ? t('grow.week', { week: week.stageWeek }) : null].filter(Boolean).join(', ')
     : null;
 
-/** One thing a day's card says happened: a line somebody or something wrote, or what a device did unasked. */
-export type DayLine =
-  | { key: string; at: string; byItself: boolean; entry: Entry; count: number; since: string }
-  | { key: string; at: string; byItself: true; event: GrowDayEvent; words: string; metric: Metric | null };
+/** One thing a day's card says happened. */
+export interface DayLine {
+  key: string;
+  at: string;
+  /** Somebody did it - wrote it, or switched maintenance: it is never folded behind what a device did by itself. */
+  own: boolean;
+  /** What a device does every day, its lamp, which gives its room to what is out of the ordinary. */
+  routine: boolean;
+  what:
+    | { kind: 'entry'; entry: Entry; count: number; since: string }
+    /** An alarm, named by its rule: how often it fired that day, and the reading and the edge it crossed. */
+    | { kind: 'alarm'; entry: Entry; rule: string; count: number; since: string; limit: string | null; over: boolean }
+    /** Something worked out from the record: the lamp, a stretch outside the targets (`metric`), maintenance. */
+    | { kind: 'said'; words: string; metric: Metric | null };
+}
 
 /**
- * The lines of a day, newest first: the entries - a run of the same machine
- * line and an alarm that fired over and over counted rather than stacked -
- * the lamp's switchings, and the stretches outside the targets, several of
- * one reading on one side said as one line. So a climate that swung all night
- * is a sentence and not a column, and what a person wrote stays in sight.
+ * The lines of a day, newest first.
+ *
+ * What people did stands as they wrote it, and maintenance somebody switched
+ * as one line for on and off together. What the devices did by themselves is
+ * said once each: the lamp as the hours it burned, a reading outside its
+ * targets as one line however often it left them, an alarm as its rule with
+ * how often it fired - a reading hovering at its threshold fires and clears a
+ * hundred times a night. So a climate that swung all night is a sentence and
+ * not a column.
  */
-export const dayLines = (t: Translate, day: GrowDiaryDay): DayLine[] => {
-  const written: DayLine[] = [...oftenFired(day.entries), ...foldRepeats(day.entries.filter(entry => !firedOften(day.entries, entry)))].map(
-    ({ entry, count, since }) => ({ key: entry.id, at: entry.occurredAt, byItself: entry.source !== 'human', entry, count, since }),
-  );
-  const lamp: DayLine[] = day.events.flatMap(event =>
-    event.kind === 'light'
+export const dayLines = (t: Translate, i18n: I18n, day: GrowDiaryDay, zone: string | null): DayLine[] => {
+  const alarms = alarmLines(i18n, day.entries);
+  const written: DayLine[] = foldRepeats(day.entries.filter(entry => !alarms.told.has(entry.id))).map(({ entry, count, since }) => ({
+    key: entry.id,
+    at: entry.occurredAt,
+    own: byAPerson(entry),
+    routine: false,
+    what: { kind: 'entry', entry, count, since },
+  }));
+  const said = (key: string, at: string, words: string, over: Partial<DayLine> = {}, metric: Metric | null = null): DayLine => ({
+    key,
+    at,
+    own: false,
+    routine: false,
+    ...over,
+    what: { kind: 'said', words, metric },
+  });
+
+  const maintenance = day.events.flatMap(event =>
+    event.kind === 'maintenance'
       ? [
-          {
-            key: `light-${event.at}`,
-            at: event.at,
-            byItself: true as const,
-            event,
-            words: t(event.on ? 'grow.diary.lightOn' : 'grow.diary.lightOff'),
-            metric: null,
-          },
+          said(
+            `maintenance-${event.at}`,
+            event.at,
+            event.endedAt
+              ? t('grow.diary.maintenance', { span: spanLabel((Date.parse(event.endedAt) - Date.parse(event.at)) / 1000) })
+              : t('grow.diary.maintenanceOn'),
+            { own: true },
+          ),
         ]
       : [],
   );
-  const excursions = day.events.filter(event => event.kind === 'excursion');
-  const outside: DayLine[] = [...new Set(excursions.map(event => `${event.metric}-${event.above}`))].map(side => {
-    const runs = excursions.filter(event => `${event.metric}-${event.above}` === side);
-    const [first] = runs;
-    const seconds = runs.reduce((sum, run) => sum + (Date.parse(run.endedAt ?? day.endsAt) - Date.parse(run.at)) / 1000, 0);
-    const said = { metric: t(`home.metric.${first.metric}`), span: spanLabel(seconds), count: runs.length };
 
-    return {
-      key: `outside-${side}`,
-      at: first.at,
-      byItself: true as const,
-      event: first,
-      words: t(`grow.diary.${first.above ? 'above' : 'below'}${runs.length > 1 ? 'Often' : ''}`, said),
-      metric: first.metric,
-    };
+  // The lamp's day as one line: the hours it burned, or that it is on where it has not gone off yet.
+  const on = day.events.find(event => event.kind === 'light' && event.on);
+  const off = [...day.events].reverse().find(event => event.kind === 'light' && !event.on);
+  const lamp =
+    on && off
+      ? [said('light', on.at, t('grow.diary.light', { from: clock(on.at, zone), to: clock(off.at, zone) }), { routine: true })]
+      : on || off
+        ? [said('light', (on ?? off)!.at, t(on ? 'grow.diary.lightOn' : 'grow.diary.lightOff'), { routine: true })]
+        : [];
+
+  const excursions = day.events.filter(event => event.kind === 'excursion');
+  const outside = [...new Set(excursions.map(event => event.metric))].map(metric => {
+    const runs = excursions.filter(event => event.metric === metric);
+    const seconds = runs.reduce((sum, run) => sum + (Date.parse(run.endedAt ?? day.endsAt) - Date.parse(run.at)) / 1000, 0);
+    const side = runs.every(run => run.above) ? 'above' : runs.every(run => !run.above) ? 'below' : 'outside';
+    const words = t(`grow.diary.${side}${runs.length > 1 ? 'Often' : ''}`, {
+      metric: t(`home.metric.${metric}`),
+      span: spanLabel(seconds),
+      count: runs.length,
+    });
+
+    return said(`outside-${metric}`, runs[0].at, words, {}, metric);
   });
 
-  return [...written, ...lamp, ...outside].sort((one, other) => other.at.localeCompare(one.at));
+  return [...written, ...alarms.lines, ...maintenance, ...lamp, ...outside].sort((one, other) => other.at.localeCompare(one.at));
 };
 
-/** The rule an alarm's line is of, as the line names it; null for any other line. */
-const ruleOf = (entry: Entry): string | null =>
-  entry.kind === 'alarm' && entry.message ? (entry.message.params[0]?.split(', value=')[0] ?? null) : null;
-
-const FIRED = 'message-alarm-triggered';
-
-/** The lines of the day that say one rule fired, newest first. */
-const firingsOf = (entries: Entry[], rule: string): Entry[] => entries.filter(entry => entry.message?.key === FIRED && ruleOf(entry) === rule);
-
-/** Whether a line belongs to a rule that fired more than once that day, which is then said in one line. */
-const firedOften = (entries: Entry[], entry: Entry): boolean => {
-  const rule = ruleOf(entry);
-  return rule !== null && firingsOf(entries, rule).length > 1;
-};
+/** How many lines of their own a card shows before it folds, and how many lines it shows at least. */
+const OWN_SHOWN = 6;
+export const LINES_SHOWN = 4;
 
 /**
- * An alarm that fired again and again in one day - a reading hovering at its
- * threshold fires and clears a hundred times a night - as one line per rule:
- * its newest firing, how often it fired and since when. One firing keeps its
- * two lines, fired and cleared, which say when it began and when it was over.
+ * The lines a card draws before the rest is asked for. The grower's own lines
+ * come first and are never folded behind a device's; what the devices did
+ * fills what is left of four lines, what is out of the ordinary - a reading
+ * outside its targets, an alarm, a step of the plan - before the lamp.
  */
-const oftenFired = (entries: Entry[]): { entry: Entry; count: number; since: string }[] =>
-  [...new Set(entries.flatMap(entry => ruleOf(entry) ?? []))].flatMap(rule => {
-    const firings = firingsOf(entries, rule);
-    return firings.length > 1 ? [{ entry: firings[0], count: firings.length, since: firings[firings.length - 1].occurredAt }] : [];
+export const shownLines = (lines: DayLine[]): DayLine[] => {
+  const own = lines.filter(line => line.own).slice(0, OWN_SHOWN);
+  const devices = lines.filter(line => !line.own);
+  const filled = [...devices.filter(line => !line.routine), ...devices.filter(line => line.routine)].slice(0, Math.max(0, LINES_SHOWN - own.length));
+
+  return lines.filter(line => own.includes(line) || filled.includes(line));
+};
+
+/** Whether somebody did what a line says: a person wrote it, or confirmed the plan's step it records. */
+const byAPerson = (entry: Entry): boolean => entry.source === 'human' || entry.authorId !== null;
+
+const FIRED = 'message-alarm-triggered';
+const CLEARED = 'message-alarm-resolved';
+
+/**
+ * A day's alarms as one line per rule: its newest firing, how often it fired
+ * and since when. A rule that fired once keeps the line that says it is over;
+ * one that fired again and again says how often, which says that as well.
+ * `told` is every entry these lines stand for.
+ */
+const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set<string> } => {
+  const read = entries.flatMap(entry => {
+    const key = entry.kind === 'alarm' ? entry.message?.key : null;
+    const parts = key === FIRED || key === CLEARED ? alarmLineParts(i18n, entry.message!.params[0] ?? '', key === FIRED) : null;
+    return parts ? [{ entry, parts, fired: key === FIRED }] : [];
   });
+  const lines = [...new Set(read.map(one => one.parts.rule))].flatMap(rule => {
+    const ofRule = read.filter(one => one.parts.rule === rule);
+    const firings = ofRule.filter(one => one.fired);
+    const line = ({ entry, parts }: (typeof read)[number], count: number, since: string, over: boolean): DayLine => ({
+      key: entry.id,
+      at: entry.occurredAt,
+      own: false,
+      routine: false,
+      what: { kind: 'alarm', entry, rule, count, since, limit: over ? null : parts.limit, over },
+    });
+
+    if (firings.length > 1) return [line(firings[0], firings.length, firings[firings.length - 1].entry.occurredAt, false)];
+    return ofRule.map(one => line(one, 1, one.entry.occurredAt, !one.fired));
+  });
+
+  return { lines, told: new Set(read.map(one => one.entry.id)) };
+};
 
 /** Whether a day has anything to show: a picture, a climate, or a line. */
 export const hasSomething = (day: GrowDiaryDay): boolean =>
@@ -213,6 +299,6 @@ export const pictureCaption = (t: Translate, picture: GrowPicture, userId: strin
 
 /** Whose picture it is: the camera's, the reader's own, or one somebody else wrote into the diary. */
 export const sourceOf = (t: Translate, picture: GrowPicture, userId: string | null): string =>
-  picture.entry === null
+  picture.entry === null || picture.cameraId !== null
     ? t('grow.pictures.camera')
     : t(picture.entry.authorId !== null && picture.entry.authorId === userId ? 'grow.pictures.yours' : 'grow.pictures.photo');

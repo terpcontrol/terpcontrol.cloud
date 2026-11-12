@@ -139,15 +139,25 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
 - A week's light hours are lit time over heard time, refused below a day heard; a report judges each phase against
   the band snapshotted for it, never today's targets; photo totals count the pictures of matched entries, because
   migrated pictures hang on notes.
+- **A grow's day is a date on its owner's calendar** (Chris, 2026-11-12): `growDayAt(origin, at, zone)` counts
+  dates, day 1 the date the grow began on. Whoever counts reads the owner's zone first (`zoneOfOwner`,
+  `zonesOfOwners` in `common/v1/owner-zone.ts`; `GrowsService.zoneOf`) and hands it down - the serialiser, the
+  overview, the home, the report, Verlauf's day range, the exports, the scheme week a feed is dosed at. A stretch
+  ends on the day of its last instant (`growDayUpTo`), so a window closing at midnight has not begun the next date.
 - **A grow's diary** (`GET /v1/grows/{id}/diary`, `modules/v1/diary/grow-diary.service.ts`) is computed per read and
-  stored nowhere: a few weeks a page, each day a date on the **owner's** calendar (`diary-calendar.ts`), numbered
-  from the date the grow began on - not the 24-hour count of `growDayAt`, which would file this morning's watering
-  under yesterday for a grow begun in the afternoon. Per day: the lit still nearest midday (`diary-pictures.ts`,
-  shared with the week cards; the day still running takes the newest lit one and no dark one), the means of
-  temperature and humidity, the share inside the targets, the lamp's first on and last off, the stretches outside
-  the band, and the lines - the grow's own, and for the people who keep the place the machines' lines written
-  where the grow stood while it stood there (found by place and kept by placement; only the keys listed in
-  `DEVICE_LINES_OF_A_GROW` and the plan's lines about this grow or none).
+  stored nowhere, and is the one read every diary is drawn from - the grow page, the public page, a share link:
+  a few weeks a page, each day a date of that calendar (`grow-calendar.ts`). Per day: the lit still nearest midday
+  (`diary-pictures.ts`; the day still running takes the newest lit one and no dark one), the means of temperature
+  and humidity, the share inside the targets, and what happened that is nobody's line: the lamp's first on and
+  last off, the stretches outside the band, and maintenance somebody switched - the lines a device writes when it
+  goes on and off, of every device of the place, told as one stretch (`maintenanceRuns`). Then the lines: the
+  grow's own - what people wrote and the alarms raised where it stood, which name the grow - and for the people
+  who keep the place the plan's steps there (found by place and kept by placement). **What else a device logs
+  about itself is not diary**: restarts, a sensor deviating, a changed setting stay in the device's record and in
+  Verlauf. A reader from outside is answered no events, no plan lines and no share - how the day was and what was
+  done to the plants. The last page carries what was written to the grow for a moment before the date it began on
+  (`earlier`), which has no day. A week's film is the one whose middle falls into the week, named by its days
+  there, and none shorter than two seconds.
 - **A day's share is the 24-hour verdict asked of one date** (`day-climate.ts` calls `verdictOf`) over 5-minute
   means, judged by the target record alone: a day before the record's first row has no share (the verdict's own
   fallback, the first row standing for everything before it, is not used here), a day whose record begins inside it

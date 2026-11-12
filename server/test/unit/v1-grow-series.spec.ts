@@ -368,11 +368,11 @@ describe('what a chart is drawn from', () => {
   it('counts the days of the grow and says where day one was, which is what day-of-grow is plotted from', async () => {
     const answer = await readAs(session(OWNER), { range: 'grow', metrics: ['temperature'] });
 
-    expect(answer.originAt).toBe(ORIGIN.toISOString());
+    // Day one is the date the grow began on, from its midnight on the owner's calendar.
+    expect(answer.originAt).toBe('2026-05-13T00:00:00.000Z');
     expect(answer.dayFrom).toBe(1);
-    // The last instant inside the window, not the first outside it: the grow is
-    // exactly twenty-eight days old, and day 29 begins where the window ends.
-    expect(answer.dayTo).toBe(28);
+    // Twenty-eight dates after the thirteenth of May.
+    expect(answer.dayTo).toBe(29);
   });
 
   it('counts a rolling chip back from the day a finished grow ended rather than from today', async () => {
@@ -385,9 +385,9 @@ describe('what a chart is drawn from', () => {
     // last day. Counting back from now would print a day number past the one
     // every other screen of the same grow gives it, over an empty panel.
     expect(answer.endsAt).toBe(ended.toISOString());
-    // Day 21 of 21, because the grow's own day turns at noon and the window is
-    // exactly one of them; without the clamp it read day 27-28 of a 21-day grow.
-    expect([answer.dayFrom, answer.dayTo]).toEqual([21, 21]);
+    // Noon to noon is two dates, the last two of the grow; without the clamp it
+    // read day 28-29 of a 22-day grow.
+    expect([answer.dayFrom, answer.dayTo]).toEqual([21, 22]);
     // And the panel has something in it, which is the other half of the fault:
     // a window wholly after the harvest could only ever be empty.
     expect(answer.deviceIds).toEqual([CONTROLLER]);
@@ -438,7 +438,7 @@ describe('what a chart is drawn from', () => {
       to: new Date('2026-06-20T00:00:00.000Z'),
       metrics: ['temperature'],
     });
-    expect([after.dayFrom, after.dayTo]).toEqual([19, 22]);
+    expect([after.dayFrom, after.dayTo]).toEqual([20, 22]);
   });
 
   it('names no day at all for a window the grow´s calendar does not reach', async () => {
@@ -471,7 +471,7 @@ describe('what a chart is drawn from', () => {
       metrics: ['temperature'],
     });
 
-    expect([ahead.dayFrom, ahead.dayTo]).toEqual([27, 29]);
+    expect([ahead.dayFrom, ahead.dayTo]).toEqual([28, 29]);
   });
 });
 

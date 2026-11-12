@@ -271,7 +271,7 @@ export class AccessService {
       // it is a picture of is whatever stood in front of that camera when
       // the shutter closed - which is what a link onto that grow was made
       // to show, and without it a link that includes cameras reaches none
-      // of the pictures its own week cards point at. It makes no picture
+      // of the pictures its own diary point at. It makes no picture
       // public: a grow read through its own address is granted `view` by
       // being public, and a camera never is, so a still is still refused to
       // anybody who does not hold a link that carries cameras.

@@ -1,36 +1,35 @@
 import type { DateTime } from 'luxon';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { GrowDiaryDay, GrowListItem, Person } from '@fg2/shared-types/v1';
-import { timelinePath } from '@/app/places';
-import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
-import { useCorrecting } from '@/log/corrections';
+import type { Entry, GrowDiaryDay, Person } from '@fg2/shared-types/v1';
+import { THUMBNAIL_WIDTH } from '@/api/session';
 import { warningOf } from '@/ui/entries';
 import { EntryWords } from '@/ui/EntryRow';
+import { Facts } from '@/ui/Facts';
 import { Term } from '@/ui/Help';
+import { sinceLabel } from '@/ui/age';
 import { Line, Lines } from '@/ui/Lines';
-import { growStanding } from '@/ui/session-access';
+import { useKept } from '@/ui/kept';
 import ui from '@/ui/ui.module.css';
-import { clock, useZone } from '@/ui/zone';
-import { LINES_SHOWN, climateLine, dayLines, dayTitle, headPicture, picturesOfLine, placeAt, shareOf, type GrowPicture } from './days';
+import { clock } from '@/ui/zone';
+import { climateLine, dayLines, dayTitle, headPicture, picturesOfLine, shareOf, shownLines, type DiaryReader, type GrowPicture } from './days';
 import styles from './Diary.module.css';
 
 /**
  * One day of the diary, which writes itself: the camera's picture of the day,
  * how the climate was and how much of the day it stood inside its targets,
- * then what happened - what somebody wrote, and what the devices did by
+ * then what happened - what somebody did, and what the devices did by
  * themselves, marked as that.
  *
  * A day nobody photographed has no picture and no frame for one: its words
  * take the card's width. A share is drawn only where the server states one.
  * A line somebody may correct opens its sheet, one that carries pictures
  * opens them, and a stretch outside the targets leads to the curve of that
- * moment.
+ * moment - for a reader the diary gives those ways to (`reader`).
  */
 export function DayCard({
   day,
-  grow,
+  reader,
   people,
   today,
   now,
@@ -39,10 +38,10 @@ export function DayCard({
   onPicture,
 }: {
   day: GrowDiaryDay;
-  grow: GrowListItem;
+  reader: DiaryReader;
   people: Person[];
-  /** Today's date on the reader's calendar, which decides what "Heute" is. */
-  today: string;
+  /** Today's date on the grow's calendar, which decides what "Heute" is; null where the diary has no today. */
+  today: string | null;
   now: DateTime;
   /** Whether this is the day still running: its picture is the place's newest, and leads to the camera. */
   live: boolean;
@@ -50,24 +49,23 @@ export function DayCard({
   explain?: boolean;
   onPicture: (picture: GrowPicture) => void;
 }) {
-  const { t } = useTranslation();
-  const zone = useZone();
-  const { user } = useSession();
-  const correcting = useCorrecting();
-  const [all, setAll] = useState(false);
+  const { t, i18n } = useTranslation();
+  const { zone } = reader;
+  const [all, setAll] = useKept(`day-${day.date}`, false);
   const title = dayTitle(t, day, today);
   const picture = headPicture(day);
-  const src = picture ? mediaUrl(picture.mediaId, THUMBNAIL_WIDTH.still) : null;
+  const src = picture ? reader.picture(picture.mediaId, THUMBNAIL_WIDTH.still) : null;
   const climate = climateLine(day);
   const share = shareOf(day);
-  const lines = dayLines(t, day);
-  const shown = all ? lines : lines.slice(0, LINES_SHOWN);
+  const lines = dayLines(t, i18n, day, zone);
+  const shown = all ? lines : shownLines(lines);
   const alt = picture ? t(picture.entry ? 'grow.diary.photoAlt' : 'grow.diary.stillAlt', { day: day.dayNumber }) : '';
+  const byItself = t('grow.diary.byItself');
 
   return (
     <article className={styles.day} aria-label={title}>
       {picture && src ? (
-        live && picture.cameraId && picture.entry === null ? (
+        live && picture.cameraId && picture.entry === null && reader.cameras ? (
           <Link to={`/cameras/${picture.cameraId}`} className={styles.dayPicture}>
             <img src={src} alt={alt} loading="lazy" />
             <span className={ui.visuallyHidden}>{`, ${t('grow.diary.openCamera')}`}</span>
@@ -86,7 +84,7 @@ export function DayCard({
           <span className={styles.dayShare} data-good={share.good || undefined}>
             <span className={styles.shareLong}>
               {explain ? (
-                <Term topic="band">{t('grow.diary.inTarget', { percent: share.percent })}</Term>
+                <Term topic="dayShare">{t('grow.diary.inTarget', { percent: share.percent })}</Term>
               ) : (
                 t('grow.diary.inTarget', { percent: share.percent })
               )}
@@ -100,20 +98,35 @@ export function DayCard({
         <div className={styles.dayLines}>
           <Lines>
             {shown.map(line => {
-              const mark = line.byItself ? t('grow.diary.byItself') : null;
+              const mark = line.own ? null : byItself;
               const stamp = clock(line.at, zone);
-              if ('event' in line) {
-                const spaceId = line.metric ? placeAt(grow, line.at) : null;
+              const { what } = line;
+              if (what.kind === 'said') {
                 return (
-                  <Line key={line.key} stamp={stamp} mark={mark} to={spaceId && line.metric ? timelinePath(spaceId, line.metric, line.at) : null}>
-                    {line.words}
+                  <Line key={line.key} stamp={stamp} mark={mark} to={what.metric ? reader.curveOf(what.metric, line.at) : null}>
+                    {what.words}
+                  </Line>
+                );
+              }
+              if (what.kind === 'alarm') {
+                return (
+                  <Line key={line.key} stamp={stamp} mark={mark} severity={what.over ? null : warningOf(what.entry)}>
+                    <span className={ui.visuallyHidden}>{`${t('home.entryKind.alarm')}: `}</span>
+                    <Facts
+                      facts={[
+                        what.rule,
+                        what.count > 1 ? t('home.entryRepeats', { count: what.count, since: sinceLabel(what.since, now, zone) }) : null,
+                        what.over ? t('grow.diary.alarmOver') : null,
+                      ]}
+                    />
+                    {what.limit ? <small>{what.limit}</small> : null}
                   </Line>
                 );
               }
 
-              const { entry } = line;
+              const { entry } = what;
               const pictures = picturesOfLine(day, entry);
-              const correct = correcting(entry, { label: grow.name, dayNumber: day.dayNumber, ...growStanding(grow) });
+              const correct = reader.correct(entry, day.dayNumber);
               return (
                 <Line
                   key={line.key}
@@ -127,15 +140,14 @@ export function DayCard({
                   <EntryWords
                     entry={entry}
                     people={people}
-                    measurements={grow.measurements}
+                    measurements={reader.readingNames}
                     now={now}
                     zone={zone}
-                    // The demo is answered no authors, so its lines say what was done and name nobody.
-                    byline={user?.isDemo !== true}
-                    repeats={line}
+                    byline={reader.byline}
+                    repeats={what}
                     brief
                   />
-                  {entry.mediaIds.length > 0 ? ` · ${t('start.latest.pictures', { count: entry.mediaIds.length })}` : null}
+                  {pictureCount(entry, t)}
                 </Line>
               );
             })}
@@ -152,3 +164,7 @@ export function DayCard({
     </article>
   );
 }
+
+/** "· 2 Bilder" behind a line that carries pictures. */
+const pictureCount = (entry: Entry, t: ReturnType<typeof useTranslation>['t']): string | null =>
+  entry.mediaIds.length > 0 ? ` · ${t('start.latest.pictures', { count: entry.mediaIds.length })}` : null;

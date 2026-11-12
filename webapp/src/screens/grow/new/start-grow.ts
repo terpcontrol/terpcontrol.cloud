@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import type { GrowCreate, GrowthStage, PresetApplicationCreate } from '@fg2/shared-types/v1';
 import { useCreateGrow } from '@/api/grows';
+import { useChooseDiary, useDiaryDeclined } from '@/api/layers';
 import { useAddPhase, useApplyPreset } from '@/api/lifecycle';
 import { instantOf } from '@/ui/age';
 
@@ -17,6 +18,8 @@ export const useStartGrow = (spaceId: string | null) => {
   const createGrow = useCreateGrow();
   const startingPhase = useAddPhase();
   const applyPreset = useApplyPreset(spaceId ?? '');
+  const declined = useDiaryDeclined();
+  const chooseDiary = useChooseDiary();
   const [made, setMade] = useState<{ growId: string | null; phaseDone: boolean; climateDone: boolean }>({
     growId: null,
     phaseDone: false,
@@ -41,6 +44,9 @@ export const useStartGrow = (spaceId: string | null) => {
     if (growId === null) {
       growId = (await createGrow.mutateAsync(body)).id;
       setMade(state => ({ ...state, growId }));
+      // A grow lives in the diary: starting one switches it back on for an account that had switched it off. Where
+      // that is refused the grow stands all the same, and Ich › Darstellung switches the diary.
+      if (declined) await chooseDiary.mutateAsync('on').catch(() => undefined);
     }
     if (!made.phaseDone) {
       await startingPhase.mutateAsync({ growId, body: { stage, preset, startedAt: instantOf(DateTime.fromJSDate(startedAt)) } });

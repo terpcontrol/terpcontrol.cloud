@@ -496,23 +496,21 @@ describe('a read that failed', () => {
 describe('the day the button promises', () => {
   const now = DateTime.fromISO('2026-09-23T16:15:16.686Z');
 
-  it('counts whole days from the moment the grow starts, and not the midnights in between', () => {
-    // 1 March typed at 18:15 in a browser on central European time, which was
-    // still an hour behind its summer self: 205 d 23 h ago, so day 206. By
-    // midnights it is 207, which is what the button used to say.
-    expect(dayNumber(new Date('2026-03-01T17:15:16.686Z'), now)).toBe(206);
-
-    // The same start after the change, where the hour and the midnight agree.
-    expect(dayNumber(new Date('2026-03-29T16:15:16.686Z'), now)).toBe(179);
+  it('counts the dates since the grow started, on the calendar of whoever starts it', () => {
+    // 1 March to 23 September in Berlin: day 207, whatever the hour it was typed at and across the change of the clocks.
+    expect(dayNumber(new Date('2026-03-01T17:15:16.686Z'), now, 'Europe/Berlin')).toBe(207);
+    expect(dayNumber(new Date('2026-03-29T16:15:16.686Z'), now, 'Europe/Berlin')).toBe(179);
+    // Started at eleven at night, it is day 2 an hour later.
+    expect(dayNumber(new Date('2026-09-22T21:00:00.000Z'), DateTime.fromISO('2026-09-22T22:05:00.000Z'), 'Europe/Berlin')).toBe(2);
   });
 
   it('says the same day as the contract every other screen counts with', () => {
     for (const startedAt of ['2026-03-01T17:15:16.686Z', '2026-03-28T17:15:16.686Z', '2026-05-01T16:15:16.686Z', '2026-09-23T16:15:16.686Z']) {
-      expect(dayNumber(new Date(startedAt), now)).toBe(growDayAt(new Date(startedAt), now.toJSDate()));
+      expect(dayNumber(new Date(startedAt), now, 'Europe/Berlin')).toBe(growDayAt(new Date(startedAt), now.toJSDate(), 'Europe/Berlin'));
     }
   });
 
   it('never promises a day before the first, whatever a date field is handed', () => {
-    expect(dayNumber(now.plus({ days: 3 }).toJSDate(), now)).toBe(1);
+    expect(dayNumber(now.plus({ days: 3 }).toJSDate(), now, null)).toBe(1);
   });
 });

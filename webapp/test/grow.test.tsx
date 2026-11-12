@@ -5,9 +5,13 @@ import { LogProvider } from '@/log/LogProvider';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Media, MediaRenderStatus } from '@fg2/shared-types/v1';
 import { exportFilename } from '@/api/exports';
+import { mediaUrl } from '@/api/session';
+import { useCorrecting } from '@/log/corrections';
 import { DayCard } from '@/screens/grow/diary/DayCard';
-import { dayLines, dayTitle } from '@/screens/grow/diary/days';
+import { dayLines, dayTitle, shownLines, type DiaryReader } from '@/screens/grow/diary/days';
 import { Diary } from '@/screens/grow/diary/Diary';
+import { forgetKept } from '@/ui/kept';
+import { growStanding } from '@/ui/session-access';
 import { GrowHead } from '@/screens/grow/GrowPage';
 import { Pictures } from '@/screens/grow/pictures/Pictures';
 import { Report } from '@/screens/grow/Report';
@@ -95,6 +99,7 @@ const grow: GrowListItem = {
     phaseDay: 11,
     stageWeek: 2,
     weekNumber: 5,
+    zone: 'UTC',
     isAuto: true,
     groups: [],
     locations: [{ spaceId: 'space-1', plantIds: ['plant-1'] }],
@@ -183,13 +188,15 @@ const REPORT = { dayCount: 35, totals: { entryCount: 4, waterCount: 1, feedCount
 
 const wire = {
   calls: [] as string[],
+  /** The same requests with what each asked for. */
+  asked: [] as string[],
   writes: [] as { method: string; path: string; body: unknown }[],
   job: EXPORT_ROW('queued'),
   grows: [] as GrowListItem[],
   entries: [] as Entry[],
   report: REPORT as unknown,
   /** The diary's pages by cursor; the first under ''. */
-  diary: {} as Record<string, { items: GrowDiaryWeek[]; nextCursor: string | null; people: { id: string; handle: string }[] }>,
+  diary: {} as Record<string, { items: GrowDiaryWeek[]; nextCursor: string | null; people: { id: string; handle: string }[]; earlier?: Entry[] }>,
 };
 
 vi.stubGlobal(
@@ -198,12 +205,14 @@ vi.stubGlobal(
     const url = new URL(String(input), 'http://localhost');
     const path = url.pathname.replace(/^\/v1/, '');
     wire.calls.push(path);
+    wire.asked.push(`${path}${url.search}`);
     if (init?.method && init.method !== 'GET') {
       wire.writes.push({ method: init.method, path, body: JSON.parse(String(init.body)) });
       return json(path === '/entries' ? entry({ id: 'written' }) : { ...grow, ...(JSON.parse(String(init.body)) as object) });
     }
 
-    if (path === '/grows/grow-1/diary') return json(wire.diary[url.searchParams.get('cursor') ?? ''] ?? { items: [], nextCursor: null, people: [] });
+    if (path === '/grows/grow-1/diary')
+      return json({ earlier: [], ...(wire.diary[url.searchParams.get('cursor') ?? ''] ?? { items: [], nextCursor: null, people: [] }) });
 
     if (path === '/grows/grow-1/report') return json(wire.report);
     if (path === '/grows') return json({ items: wire.grows, nextCursor: null });
@@ -221,6 +230,8 @@ beforeEach(() => {
   wire.calls = [];
   wire.writes = [];
   wire.diary = {};
+  wire.asked = [];
+  forgetKept();
   wire.job = EXPORT_ROW('queued');
   wire.report = REPORT;
   wire.grows = [];
@@ -366,7 +377,7 @@ describe('the head of a grow´s page', () => {
   const tent = [{ id: 'space-1', name: 'Tent 1' } as never];
 
   it('says the day, the phase with its week and where the grow stands, over the bar of how far it has come', () => {
-    draw(<GrowHead grow={grow} spaces={tent} current />);
+    draw(<GrowHead grow={grow} spaces={tent} />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Spring run' })).toBeInTheDocument();
     expect(screen.getByText('Day 35')).toBeInTheDocument();
@@ -376,18 +387,11 @@ describe('the head of a grow´s page', () => {
     expect(screen.getByRole('img')).toHaveAccessibleName('Phase progress, now in Flower');
   });
 
-  it('is a root of the bar as the chosen place´s grow: no way back, and the way to every grow beside its name', () => {
-    draw(<GrowHead grow={grow} spaces={tent} current />);
+  it('is one head under both of the grow´s addresses: the way to every grow beside its name, and nothing leading back', () => {
+    draw(<GrowHead grow={grow} spaces={tent} />);
 
     expect(screen.getByRole('link', { name: 'All grows' })).toHaveAttribute('href', '/grows');
     expect(screen.queryByRole('link', { name: /^Back to/ })).not.toBeInTheDocument();
-  });
-
-  it('leads back to every grow where it was opened by its id', () => {
-    draw(<GrowHead grow={grow} spaces={tent} />);
-
-    expect(screen.getByRole('link', { name: 'Back to Grows' })).toHaveAttribute('href', '/grows');
-    expect(screen.queryByRole('link', { name: 'All grows' })).not.toBeInTheDocument();
   });
 
   describe('of a grow that has ended', () => {
@@ -396,7 +400,7 @@ describe('the head of a grow´s page', () => {
     it('says how long it ran and the day it ended, rather than a day it is on', () => {
       draw(<GrowHead grow={finished} spaces={tent} />);
 
-      expect(screen.getByText('35 d · ended 18 Sep 2026')).toBeInTheDocument();
+      expect(screen.getByText('35 days · ended 18 Sep 2026')).toBeInTheDocument();
       expect(screen.queryByText('Day 35')).not.toBeInTheDocument();
       expect(screen.getByRole('img')).toHaveAccessibleName('Phase progress, ended in Flower');
     });
@@ -424,11 +428,42 @@ describe('what a day of the diary is called', () => {
   });
 });
 
+/** A name as it reads: a figure is bound to the word after it so that no line ends on one, and the dot between two facts stands between them. */
+const reads = (pattern: RegExp) => (name: string) => pattern.test(name.replace(/\u00a0/g, ' ').replace(/\s*·\s*/g, ' · '));
+
 describe('a day of the diary', () => {
   const today = NOW.toISODate()!;
   const seen: string[] = [];
-  const drawDay = (one: GrowDiaryDay, live = false) =>
-    draw(<DayCard day={one} grow={grow} people={people} today={today} now={NOW} live={live} onPicture={picture => seen.push(picture.mediaId)} />);
+
+  /** The card as the grow's own page hands it its reader: the sheet that corrects a line, the curve of a moment. */
+  function Card({ one, live, cameras = true }: { one: GrowDiaryDay; live: boolean; cameras?: boolean }) {
+    const correcting = useCorrecting();
+    const reader: DiaryReader = {
+      zone: null,
+      readingNames: grow.measurements,
+      picture: mediaUrl,
+      cameras,
+      byline: session.user.user?.isDemo !== true,
+      correct: (line, dayNumber) => correcting(line, { label: grow.name, dayNumber, ...growStanding(grow) }),
+      curveOf: (metric, moment) => `/timeline?space=space-1&focus=${metric}&at=${moment}`,
+    };
+
+    return (
+      <DayCard day={one} reader={reader} people={people} today={today} now={NOW} live={live} onPicture={picture => seen.push(picture.mediaId)} />
+    );
+  }
+  const drawDay = (one: GrowDiaryDay, live = false) => draw(<Card one={one} live={live} />);
+  const linesOf = () => screen.getAllByRole('listitem').map(line => line.textContent?.replace(/\u00a0/g, ' ') ?? '');
+  const note = (id: string, hour: number) =>
+    entry({ id, kind: 'note', text: `Note ${id}`, authorId: 'user-1', occurredAt: at(1, hour), values: { kind: 'note' } });
+  const out = (hour: number, minutes: number, above = true) => ({
+    kind: 'excursion' as const,
+    at: at(1, hour),
+    endedAt: DateTime.fromISO(at(1, hour)).plus({ minutes }).toISO()!,
+    metric: 'humidity' as const,
+    above,
+    extremeValue: 70,
+  });
 
   beforeEach(() => {
     seen.length = 0;
@@ -455,46 +490,46 @@ describe('a day of the diary', () => {
     expect(container.querySelector('img')).toBeNull();
   });
 
-  it('marks what the devices did by themselves, and names who wrote the rest', () => {
+  it('marks only what a device did without a person: the lamp, not what somebody wrote nor the maintenance somebody switched', () => {
     drawDay(
       day(1, {
-        events: [{ kind: 'light', at: at(1, 6), on: true }],
-        entries: [
-          entry({ id: 'own', authorId: 'user-1', occurredAt: at(1, 8) }),
-          entry({
-            id: 'boot',
-            kind: 'system',
-            source: 'device',
-            authorId: null,
-            occurredAt: at(1, 7),
-            message: { key: 'message-device-booted', params: [] },
-            values: { kind: 'system' },
-          }),
+        events: [
+          { kind: 'light', at: at(1, 6), on: true },
+          { kind: 'maintenance', at: at(1, 7), endedAt: DateTime.fromISO(at(1, 7)).plus({ minutes: 2 }).toISO()! },
+          { kind: 'light', at: at(1, 18), on: false },
         ],
+        entries: [entry({ id: 'own', authorId: 'user-1', occurredAt: at(1, 8) })],
       }),
     );
 
-    const lines = screen.getAllByRole('listitem').map(line => line.textContent);
+    const lines = linesOf();
     expect(lines[0]).toMatch(/You watered/);
     expect(lines[0]).not.toMatch(/by itself/);
-    expect(lines[1]).toMatch(/Device rebooted.*by itself/);
-    expect(lines[2]).toMatch(/Light on.*by itself/);
+    // On and off are one line, and a person's.
+    expect(lines[1]).toBe('07:00Maintenance · 2 min');
+    // A day that is over says the hours the lamp burned in one line.
+    expect(lines[2]).toMatch(/^06:00Light 06:00–18:00by itself$/);
+    expect(lines).toHaveLength(3);
   });
 
-  it('says several stretches of one reading on one side as one line, and leads to the curve of that moment', () => {
-    const out = (hour: number, minutes: number) => ({
-      kind: 'excursion' as const,
-      at: at(1, hour),
-      endedAt: DateTime.fromISO(at(1, hour)).plus({ minutes }).toISO()!,
-      metric: 'humidity' as const,
-      above: true,
-      extremeValue: 70,
-    });
-    drawDay(day(1, { events: [out(20, 22), out(22, 18)] }));
+  it('says the lamp is on while it has not gone off yet', () => {
+    drawDay(day(0, { events: [{ kind: 'light', at: at(0, 6), on: true }] }), true);
 
-    const line = screen.getByRole('link', { name: /Humidity too high 2× · 40 min in all/ });
+    expect(linesOf()).toEqual(['06:00Light onby itself']);
+  });
+
+  it('says a reading that left its targets as one line however often and on whichever side, and leads to the curve of that moment', () => {
+    const { unmount } = drawDay(day(1, { events: [out(20, 22), out(22, 18)] }));
+
+    const line = screen.getByRole('link', { name: reads(/Humidity too high 2× · 40 min in all/) });
     expect(line.getAttribute('href')).toMatch(/^\/timeline\?space=space-1&focus=humidity&at=/);
+    // The sign that it leads somewhere is bound to its last word, and is not said.
+    expect(line.textContent).toMatch(/all\u00a0›$/);
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    unmount();
+
+    drawDay(day(1, { events: [out(20, 22), out(22, 18, false)] }));
+    expect(linesOf()).toEqual([expect.stringMatching(/Humidity off target 2× · 40 min in all/)]);
   });
 
   it('opens a line somebody wrote in the sheet it was written in', async () => {
@@ -505,18 +540,45 @@ describe('a day of the diary', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
-  it('leaves what a machine recorded inert, because that is not ours to rewrite', () => {
+  it('opens a photo´s line to be corrected like any other', async () => {
+    drawDay(
+      day(1, {
+        entries: [entry({ id: 'photo', kind: 'photo', authorId: 'user-1', text: 'First flowers', mediaIds: ['photo-1'], values: { kind: 'photo' } })],
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /First flowers/ }));
+
+    const sheet = await screen.findByRole('dialog', { name: 'Photo' });
+    expect(within(sheet).getByRole('textbox')).toHaveValue('First flowers');
+    expect(within(sheet).getByRole('button', { name: 'Take this line back' })).toBeInTheDocument();
+  });
+
+  it('says of a camera´s picture somebody made a line of that it was kept, not taken', () => {
+    drawDay(
+      day(1, {
+        entries: [entry({ id: 'kept', kind: 'photo', authorId: 'user-1', cameraId: 'camera-1', mediaIds: ['still-1'], values: { kind: 'photo' } })],
+      }),
+    );
+
+    expect(linesOf()[0]).toMatch(/You kept a camera picture/);
+  });
+
+  it('names an alarm by its rule, with the reading and the edge it crossed in words under it, and leaves it inert', () => {
     const alarm = entry({
       id: 'e3',
       kind: 'alarm',
-      source: 'device',
+      source: 'alarm',
       authorId: null,
-      message: { key: 'message-alarm-triggered', params: ['Temperatur (temperature), value=31.2'] },
+      severity: 'warning',
+      message: { key: 'message-alarm-triggered', params: ['Too warm (temperature), value=31.2, upper threshold=28, lower threshold=n/a'] },
+      values: { kind: 'alarm' },
     });
     drawDay(day(1, { entries: [alarm] }));
 
-    expect(screen.getByText('Alarm triggered')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Alarm triggered/ })).not.toBeInTheDocument();
+    expect(linesOf()).toEqual([expect.stringMatching(/Alarm: Too warmTemperature above 28 °Cby itself$/)]);
+    expect(screen.queryByRole('button', { name: /Too warm/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Too warm/ })).not.toBeInTheDocument();
   });
 
   it('offers no way into a line on the demo, which reads the whole account and writes nothing to it', () => {
@@ -527,15 +589,36 @@ describe('a day of the diary', () => {
     expect(screen.queryByRole('button', { name: /Defoliated/ })).not.toBeInTheDocument();
   });
 
-  it('draws the first lines and says how many more there are, which a tap adds', () => {
-    const many = [1, 2, 3, 4, 5, 6].map(n =>
-      entry({ id: `n${n}`, kind: 'note', text: `Note ${n}`, occurredAt: at(1, 6 + n), values: { kind: 'note' } }),
-    );
-    drawDay(day(1, { entries: many.reverse() }));
+  it('never folds the grower´s own lines behind a device´s: six of their own, then the fold', () => {
+    const own = [1, 2, 3, 4, 5, 6, 7, 8].map(n => note(`n${n}`, 6 + n));
+    drawDay(day(1, { entries: own.reverse(), events: [{ kind: 'light', at: at(1, 6), on: true }, out(20, 22)] }));
 
-    expect(screen.getAllByRole('listitem')).toHaveLength(4);
-    fireEvent.click(screen.getByRole('button', { name: '+ 2 more' }));
+    expect(linesOf().every(line => /Note n/.test(line))).toBe(true);
     expect(screen.getAllByRole('listitem')).toHaveLength(6);
+    // Two notes, the lamp and the humidity.
+    fireEvent.click(screen.getByRole('button', { name: '+ 4 more' }));
+    expect(screen.getAllByRole('listitem')).toHaveLength(10);
+  });
+
+  it('fills what is left of four lines with what the devices did, what is out of the ordinary before the lamp', () => {
+    const lines = dayLines(
+      i18next.t.bind(i18next) as never,
+      i18next,
+      day(1, {
+        entries: [note('a', 9), note('b', 8)],
+        events: [
+          { kind: 'light', at: at(1, 6), on: true },
+          { kind: 'light', at: at(1, 18), on: false },
+          out(20, 22),
+          { ...out(21, 5), metric: 'temperature' as const },
+        ],
+      }),
+      null,
+    );
+
+    expect(lines).toHaveLength(5);
+    // Two of their own, and two of the three device lines: the readings outside their targets, not the lamp.
+    expect(shownLines(lines).map(line => line.key)).toEqual(['outside-temperature', 'outside-humidity', 'a', 'b']);
   });
 
   it('leads from today´s picture to the camera, and opens the picture of a day that is over', () => {
@@ -546,6 +629,14 @@ describe('a day of the diary', () => {
 
     drawDay(day(1, { still: { ...still, capturedAt: at(1, 13) } }));
     fireEvent.click(screen.getByRole('button', { name: /Camera picture of day 34/ }));
+    expect(seen).toEqual(['still-1']);
+  });
+
+  it('opens today´s picture too for a reader who has no way to the camera', () => {
+    draw(<Card one={day(0, { still: { mediaId: 'still-1', cameraId: 'camera-1', capturedAt: at(0, 9) } })} live cameras={false} />);
+
+    expect(screen.queryByRole('link', { name: /Camera picture/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Camera picture of day 35/ }));
     expect(seen).toEqual(['still-1']);
   });
 
@@ -566,7 +657,7 @@ describe('a day of the diary', () => {
         occurredAt: DateTime.fromISO(at(1, 2)).plus({ minutes: minute }).toISO()!,
         message: {
           key: fired ? 'message-alarm-triggered' : 'message-alarm-resolved',
-          params: [`Too humid (humidity), value=${fired ? 60.4 : 59.7}, upper threshold=60`],
+          params: [`Too humid (humidity), value=${fired ? 60.4 : 59.7}, upper threshold=60, lower threshold=n/a`],
         },
         values: { kind: 'alarm' },
       });
@@ -577,27 +668,32 @@ describe('a day of the diary', () => {
     }));
     drawDay(day(1, { entries: [...once, ...storm, entry({ id: 'own', authorId: 'user-1', occurredAt: at(1, 1) })] }));
 
-    const lines = screen.getAllByRole('listitem').map(line => line.textContent);
-    // The rule that fired three times is one line; the one that fired once keeps both of its lines; the watering stays in sight.
+    const lines = linesOf();
+    // The rule that fired three times is one line; the one that fired once keeps the line that says it is over; the watering stays in sight.
     expect(lines).toHaveLength(4);
-    expect(lines.filter(line => /Too humid/.test(line ?? ''))).toEqual([expect.stringMatching(/Alarm triggered · 3× since 17 Sep 02:00.*Too humid/)]);
-    expect(lines.filter(line => /Too dry/.test(line ?? ''))).toHaveLength(2);
+    expect(lines.filter(line => /Too humid/.test(line))).toEqual([expect.stringMatching(/Too humid · 3× since 17 Sep 02:00Humidity above 60 %/)]);
+    expect(lines.filter(line => /Too dry/.test(line))).toEqual([
+      expect.stringMatching(/Too dry · over/),
+      expect.stringMatching(/Too dryHumidity above 60 %/),
+    ]);
     expect(lines[3]).toMatch(/You watered/);
   });
 
   it('folds a run of the same machine line into one, as every summary does', () => {
-    const boot = (id: string, hour: number) =>
+    const step = (id: string, hour: number) =>
       entry({
         id,
-        kind: 'system',
-        source: 'device',
+        kind: 'plan',
+        source: 'plan',
         authorId: null,
         occurredAt: at(1, hour),
-        message: { key: 'message-device-booted', params: [] },
-        values: { kind: 'system' },
+        message: { key: 'message-recipe-advanced', params: ['2'] },
+        values: { kind: 'plan', planId: 'plan-1', stepIndex: 1, transition: null },
       });
 
-    expect(dayLines(i18next.t.bind(i18next) as never, day(1, { entries: [boot('c', 9), boot('b', 8), boot('a', 7)] }))).toHaveLength(1);
+    expect(dayLines(i18next.t.bind(i18next) as never, i18next, day(1, { entries: [step('c', 9), step('b', 8), step('a', 7)] }), null)).toHaveLength(
+      1,
+    );
   });
 });
 
@@ -638,14 +734,14 @@ describe('the diary', () => {
       'Wednesday · Day 33',
     ]);
     // The rest of the week the cards began in, then the week before with what it holds.
-    expect(screen.getByRole('button', { name: /^Day 32 to 29 · Flower, week 2/ })).toHaveTextContent('1 entry');
-    expect(screen.getByRole('button', { name: /^Day 28 to 26 · Flower, week 1/ })).toHaveTextContent('3 pictures · Week film');
+    expect(screen.getByRole('button', { name: reads(/^Day 32 to 29 · Flower, week 2/) })).toHaveTextContent('1 entry');
+    expect(screen.getByRole('button', { name: reads(/^Day 28 to 26 · Flower, week 1/) })).toHaveTextContent('3 pictures · Week film');
   });
 
   it('opens a week´s days where they stand, with its film', async () => {
     drawDiary();
 
-    const row = await screen.findByRole('button', { name: /^Day 28 to 26/ });
+    const row = await screen.findByRole('button', { name: reads(/^Day 28 to 26/) });
     expect(row).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(row);
 
@@ -654,13 +750,26 @@ describe('the diary', () => {
     expect(screen.getAllByRole('button', { name: /^Week film · Flower, week 1/ })[0]).toHaveTextContent('Day 22 to 28 in 20 seconds');
   });
 
-  it('reads the weeks before only when asked for them', async () => {
+  it('is found as it was left by whoever comes back to it: the week opened stays open', async () => {
+    const first = drawDiary();
+    fireEvent.click(await screen.findByRole('button', { name: reads(/^Day 28 to 26/) }));
+    first.unmount();
+
+    // The same entry of the history, come back to.
+    drawDiary();
+
+    expect(await screen.findByRole('button', { name: reads(/^Day 28 to 26/) })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('heading', { name: 'Fri 11 Sep · Day 28' })).toBeInTheDocument();
+  });
+
+  it('reads the weeks before only when asked for them, eight at a time', async () => {
     drawDiary();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Earlier weeks' }));
 
-    expect(await screen.findByRole('button', { name: /^Day 21/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: reads(/^Day 21/) })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Earlier weeks' })).not.toBeInTheDocument();
+    expect(wire.asked.filter(call => call.includes('/diary'))).toEqual(['/grows/grow-1/diary', '/grows/grow-1/diary?cursor=earlier&limit=8']);
   });
 
   it('keeps today´s card where nothing happened yet, and leaves an empty day of the past out', async () => {
@@ -671,12 +780,26 @@ describe('the diary', () => {
     expect(screen.getAllByRole('article').map(card => card.getAttribute('aria-label'))).toEqual(['Today · Day 35', 'Wednesday · Day 33']);
   });
 
-  it('has no today for a grow that has ended', async () => {
+  it('has no today for a grow that has ended: its days are dates', async () => {
     wire.diary[''] = { items: [diaryWeek(5, [day(0), day(1, { entries: [written('c', 1)] })])], nextCursor: null, people };
     drawDiary({ ...grow, endedAt: at(0, 9) });
 
-    expect(await screen.findByRole('heading', { name: 'Yesterday · Day 34' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Thu 17 Sep · Day 34' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /^Today/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps what was written for a moment before the grow began in sight, after the last day and without a day of its own', async () => {
+    wire.diary[''] = {
+      items: [diaryWeek(5, [day(0, { entries: [written('d', 0)] })])],
+      nextCursor: null,
+      people,
+      earlier: [entry({ id: 'early', kind: 'note', authorId: 'user-1', text: 'Seeds arrived', occurredAt: at(40, 9), values: { kind: 'note' } })],
+    };
+    drawDiary();
+
+    const before = await screen.findByRole('article', { name: 'Before the start' });
+    expect(within(before).getByRole('button', { name: /Seeds arrived/ })).toBeInTheDocument();
+    expect(within(before).getByRole('listitem')).toHaveTextContent(/^9 Aug 09:00/);
   });
 });
 
@@ -722,6 +845,50 @@ describe('the pictures of a grow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Camera' }));
     expect(screen.getAllByRole('listitem').map(tile => tile.textContent)).toEqual(['Day 35', 'Day 34', 'Day 28']);
+  });
+
+  it('keeps which pictures are shown in the address, so a reload and a link keep it', async () => {
+    drawAt(
+      <LogProvider>
+        <Pictures grow={grow} now={NOW} />
+      </LogProvider>,
+      { at: '/grow/pictures?show=photos' },
+    );
+
+    expect(await screen.findByRole('button', { name: 'Your photos' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', { name: 'Day 35' })).not.toBeInTheDocument();
+  });
+
+  it('offers the camera´s pictures as a choice only where a camera watched, and keeps a still somebody made a line of among them', async () => {
+    const kept = entry({
+      id: 'kept',
+      kind: 'photo',
+      authorId: 'user-1',
+      cameraId: 'camera-1',
+      occurredAt: at(2, 13),
+      mediaIds: ['still-2'],
+      values: { kind: 'photo' },
+    });
+    wire.diary[''] = { items: [diaryWeek(5, [day(1, { entries: [photo] }), day(2, { entries: [kept] })])], nextCursor: null, people };
+    const { unmount } = drawPictures();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Camera' }));
+    expect(screen.getAllByRole('img').map(image => image.getAttribute('src'))).toEqual(['/media/still-2']);
+    unmount();
+
+    // Nothing but photos off a phone, and no camera where the grow stands: nothing to choose.
+    wire.diary[''] = { items: [diaryWeek(5, [day(1, { entries: [photo] })])], nextCursor: null, people };
+    drawPictures();
+    expect(await screen.findByRole('button', { name: 'Your photos' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Camera' })).not.toBeInTheDocument();
+  });
+
+  it('does not say of weeks without a picture that the grow has none, while earlier weeks are still to be asked for', async () => {
+    wire.diary[''] = { items: [diaryWeek(5, [day(0)])], nextCursor: 'earlier', people };
+    drawPictures();
+
+    expect(await screen.findByText('No pictures in these weeks')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Earlier weeks' })).toBeInTheDocument();
   });
 
   it('makes a line of the diary out of the camera´s picture of a day', async () => {

@@ -11,6 +11,7 @@ import type { DeviceSeries, ExportAccepted, ExportScope, Metric, OutputMetric } 
 import { metric as metricShape, outputMetric } from '@fg2/shared-types/v1-schemas';
 import { BackgroundWork } from '@common/background-work';
 import { AccessService, subjectRef } from '@common/v1/access.service';
+import { zoneOfOwner } from '@common/v1/owner-zone';
 import { AccessContext, SubjectType } from '@common/v1/access.types';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
@@ -304,11 +305,12 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
       names?.people ?? this.handles(),
     ]);
     const labels: Names = new Map(plants.map(plant => [plant.id, plant.label]));
+    const zone = await zoneOfOwner(this.users, grow.ownerId);
 
-    await zip.add(`${prefix}grow.csv`, grow.startedAt, growCsv(grow, spaces), true);
+    await zip.add(`${prefix}grow.csv`, grow.startedAt, growCsv(grow, spaces, zone), true);
     await zip.add(`${prefix}plants.csv`, grow.startedAt, plantsCsv(plants), true);
-    await zip.add(`${prefix}diary.csv`, grow.startedAt, Readable.from(this.diaryOf({ growId }, grow, people, labels)), true);
-    await zip.add(`${prefix}measurements.csv`, grow.startedAt, await this.measurementsOf(grow, labels), true);
+    await zip.add(`${prefix}diary.csv`, grow.startedAt, Readable.from(this.diaryOf({ growId }, grow, people, labels, zone)), true);
+    await zip.add(`${prefix}measurements.csv`, grow.startedAt, await this.measurementsOf(grow, labels, zone), true);
     await zip.add(`${prefix}climate.csv`, grow.startedAt, Readable.from(this.climateOf(grow)), true);
     await this.writePictures(zip, prefix, grow, directory);
   }
@@ -394,7 +396,7 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
       growId: null,
       $or: [{ spaceId: { $in: spaceIds } }, { deviceId: { $in: deviceIds } }],
     };
-    await zip.add('diary.csv', user.createdAt, Readable.from(this.diaryOf(elsewhere, null, people, new Map())), true);
+    await zip.add('diary.csv', user.createdAt, Readable.from(this.diaryOf(elsewhere, null, people, new Map(), null)), true);
 
     await this.writeOwnPictures(zip, user, elsewhere, directory);
     await this.writeFilms(zip, cameras, directory, user.createdAt);
@@ -506,7 +508,13 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
    * tent is hundreds of thousands of lines - a device writes one whenever it has
    * something to say - so it is never held whole in memory on either side.
    */
-  private async *diaryOf(filter: Record<string, unknown>, grow: GrowDocument | null, people: Names, plants: Names): AsyncGenerator<Buffer> {
+  private async *diaryOf(
+    filter: Record<string, unknown>,
+    grow: GrowDocument | null,
+    people: Names,
+    plants: Names,
+    zone: string | null,
+  ): AsyncGenerator<Buffer> {
     yield csvHeader(DIARY_COLUMNS);
 
     let block: EntryDocument[] = [];
@@ -514,21 +522,21 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     for (let entry = await cursor.next(); entry != null; entry = await cursor.next()) {
       block.push(entry);
       if (block.length >= 500) {
-        yield csvRows(diaryRows(block, grow, people, plants));
+        yield csvRows(diaryRows(block, grow, people, plants, zone));
         block = [];
       }
     }
 
-    if (block.length > 0) yield csvRows(diaryRows(block, grow, people, plants));
+    if (block.length > 0) yield csvRows(diaryRows(block, grow, people, plants, zone));
   }
 
-  private async measurementsOf(grow: GrowDocument, plants: Names): Promise<Buffer> {
+  private async measurementsOf(grow: GrowDocument, plants: Names, zone: string | null): Promise<Buffer> {
     const entries = await this.entries
       .find({ growId: grow.id, kind: { $in: READING_KINDS } })
       .sort({ occurredAt: 1, id: 1 })
       .lean<EntryDocument[]>();
 
-    return measurementsCsv(entries, grow.measurements, grow, plants);
+    return measurementsCsv(entries, grow.measurements, grow, plants, zone);
   }
 
   /**

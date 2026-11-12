@@ -1,6 +1,11 @@
 import type { Entry, EntryDose, EntryReading, GrowListItem, GrowthStage, HumanEntryKind, SchemeWeek } from '@fg2/shared-types/v1';
+import { DateTime } from 'luxon';
 import type { LogTarget } from './log-context';
+import type { MomentBegins } from './Moment';
 import { dosesFor, growDayAt, growOriginOf, growWeekAt, schemeWeekOf } from '@fg2/shared-types/v1-schemas/feeding.js';
+import { useUpdateGrow } from '@/api/grows';
+import { instantOf } from '@/ui/age';
+import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import { STAGES } from '@/ui/stages';
 
 /**
@@ -21,16 +26,18 @@ export const litresOf = (entry: Entry | null): number | null =>
  * and one of those in between must not make the tile forget the can that has
  * been used every time before it.
  */
-const lastVolume = (entries: Entry[], kind: HumanEntryKind): number | null =>
-  litresOf(entries.find(entry => entry.kind === kind && litresOf(entry) !== null) ?? null);
+const lastPour = (entries: Entry[], kind: HumanEntryKind): { litres: number; at: string } | null => {
+  const entry = entries.find(one => one.kind === kind && litresOf(one) !== null);
+  return entry ? { litres: litresOf(entry)!, at: entry.occurredAt } : null;
+};
 
 /**
- * The can a tile opens on: what that kind last used. A grow that has been
- * watered but never fed still knows how big the can is, so a feed falls back to
- * it rather than asking from nothing.
+ * The can a tile opens on, and when it was poured: what that kind last used.
+ * A grow that has been watered but never fed still knows how big the can is,
+ * so a feed falls back to it rather than asking from nothing.
  */
-export const lastCan = (entries: Entry[], kind: HumanEntryKind): number | null =>
-  kind === 'feed' ? (lastVolume(entries, 'feed') ?? lastVolume(entries, 'water')) : lastVolume(entries, kind);
+export const lastCan = (entries: Entry[], kind: HumanEntryKind): { litres: number; at: string } | null =>
+  kind === 'feed' ? (lastPour(entries, 'feed') ?? lastPour(entries, 'water')) : lastPour(entries, kind);
 
 export const readingsOf = (entry: Entry | null): EntryReading[] => (entry && 'readings' in entry.values ? entry.values.readings : []);
 
@@ -41,7 +48,7 @@ export const readingsOf = (entry: Entry | null): EntryReading[] => (entry && 're
  * the grow's first phase, and null past the end of a grid.
  */
 export const schemeStep = (grow: GrowListItem | undefined, at: Date): SchemeWeek | null =>
-  grow?.scheme && grow.summary.weekNumber !== null ? schemeWeekOf(grow.scheme.grid, growWeekAt(growOriginOf(grow), at)) : null;
+  grow?.scheme && grow.summary.weekNumber !== null ? schemeWeekOf(grow.scheme.grid, growWeekAt(growOriginOf(grow), at, grow.summary.zone)) : null;
 
 /**
  * The doses one can of water takes, worked out with the very function the
@@ -57,7 +64,26 @@ export const dosesOf = (grow: GrowListItem | undefined, litres: number | null, a
  * entry lands on. A place that is not a grow has no day at all.
  */
 export const dayAt = (grow: GrowListItem | undefined, target: LogTarget, at: Date): number | null =>
-  grow && target.dayNumber !== null ? growDayAt(growOriginOf(grow), at) : target.dayNumber;
+  grow && target.dayNumber !== null ? growDayAt(growOriginOf(grow), at, grow.summary.zone) : target.dayNumber;
+
+/**
+ * Where the date the grow began on begins, on its owner's calendar: the start
+ * of day 1. A line dated to before it has no day of the grow to stand under.
+ */
+export const growBegan = (grow: GrowListItem): Date => DateTime.fromJSDate(growOriginOf(grow), { zone: grow.summary.zone }).startOf('day').toJSDate();
+
+/**
+ * What the moment of a line about a grow is held to: where the grow began,
+ * and how its start is moved there by somebody who may manage it. Null for a
+ * line about a place, which has no first day.
+ */
+export const useGrowBegins = (grow: GrowListItem | undefined, target: LogTarget | null): MomentBegins | null => {
+  const move = useUpdateGrow(grow?.id ?? '');
+  const mayManage = enough(useMayWith()(growStanding(grow ?? { ownerId: null, placements: [] })), 'manage');
+  if (!grow || !target?.growId) return null;
+
+  return { at: growBegan(grow), move: mayManage ? to => move.mutateAsync({ startedAt: instantOf(DateTime.fromJSDate(to)) }) : null };
+};
 
 /** The phase after the one the grow is in. Nothing follows curing, and a grow with no phase yet is started elsewhere. */
 export const nextStage = (grow: GrowListItem | undefined): GrowthStage | null => {

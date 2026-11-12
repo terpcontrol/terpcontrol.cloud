@@ -119,6 +119,7 @@ const grow: GrowListItem = {
     phaseDay: 11,
     stageWeek: 2,
     weekNumber: 5,
+    zone: 'UTC',
     isAuto: false,
     groups: [],
     locations: [{ spaceId: 'space-1', plantIds: ['plant-1', 'plant-2'] }],
@@ -298,12 +299,13 @@ beforeEach(() => {
 });
 
 describe('the log sheet', () => {
-  it('offers the seven tiles against the grow, its tent and its plants, and asks when it was', async () => {
+  it('offers the seven tiles against the grow and its plants, and asks when it was', async () => {
     await openSheet();
     const sheet = screen.getByRole('dialog', { name: 'Log' });
 
-    expect(within(sheet).getByRole('button', { name: /^Spring run/ })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(sheet).getByRole('button', { name: 'Tent 1' })).toBeInTheDocument();
+    // The grow, then its plants. One place is nothing to choose between, so it is no chip.
+    expect(within(sheet).getByRole('button', { name: 'Spring run' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).queryByRole('button', { name: 'Tent 1' })).not.toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Amnesia 1' })).toBeInTheDocument();
 
     for (const tile of ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'Phase']) {
@@ -358,7 +360,9 @@ describe('the log sheet', () => {
     // Nothing is written off the tile itself: its view opens, filled in with what was done last time.
     const details = await screen.findByRole('dialog', { name: 'Water' });
     expect(api.post).not.toHaveBeenCalled();
-    expect(within(details).getByText('2 L')).toBeInTheDocument();
+    // The last can stands in a field that can be typed over, and says when it was poured.
+    expect(within(details).getByRole('textbox', { name: 'Water in litres' })).toHaveValue('2');
+    expect(within(details).getByText(/^Last time .* · 2 L$/)).toBeInTheDocument();
     // When it happened stands in the corner from the start, and a line nobody dated is now.
     expect(within(details).getByRole('button', { name: /^Change when: today · \d\d:\d\d$/ })).toBeInTheDocument();
 
@@ -368,6 +372,8 @@ describe('the log sheet', () => {
       growId: 'grow-1',
       spaceId: undefined,
       plantIds: undefined,
+      // Dated when it was written, so a line that only gets through later is still of that moment.
+      occurredAt: expect.any(String),
       text: undefined,
       values: { kind: 'water', litres: 2, readings: [] },
     });
@@ -400,7 +406,7 @@ describe('the log sheet', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Feed/ }));
 
     const details = await screen.findByRole('dialog', { name: 'Feed · scheme week 5' });
-    expect(within(details).getByText('4 L')).toBeInTheDocument();
+    expect(within(details).getByRole('textbox', { name: 'Water in litres' })).toHaveValue('4');
     expect(within(details).getByText('8 ml')).toBeInTheDocument();
     expect(within(details).getByText('4 ml')).toBeInTheDocument();
     // A product this week prints no figure for is finished, not dosed at zero.
@@ -412,6 +418,8 @@ describe('the log sheet', () => {
       growId: 'grow-1',
       spaceId: undefined,
       plantIds: undefined,
+      // Dated when it was written, so a line that only gets through later is still of that moment.
+      occurredAt: expect.any(String),
       text: undefined,
       // The doses are the server's to read off the grid: what goes on the wire is the can.
       values: { kind: 'feed', litres: 4, readings: [] },
@@ -551,12 +559,14 @@ describe('the log sheet', () => {
   });
 
   it('does not offer to measure a tent with nothing growing in it', async () => {
+    const empty = { ...home.spaces[0], grow: null };
+    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/home' ? { ...home, spaces: [empty] } : answers(path)));
     await openSheet();
     const sheet = screen.getByRole('dialog', { name: 'Log' });
-    expect(within(sheet).getByRole('button', { name: /^Measure/ })).toBeInTheDocument();
 
-    // A reading is written against the grow's own measurements, and a tent by itself has none.
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Tent 1' }));
+    // A place nothing grows in is what the line is about, and says so. A reading is written against a grow's own
+    // measurements, and a tent by itself has none.
+    expect(within(sheet).getByRole('button', { name: 'Tent 1' })).toHaveAttribute('aria-pressed', 'true');
     expect(within(sheet).queryByRole('button', { name: /^Measure/ })).not.toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: /^Water/ })).toBeInTheDocument();
   });
@@ -572,7 +582,6 @@ describe('the log sheet', () => {
     URL.createObjectURL = vi.fn((file: Blob) => `blob:${(file as File).name}`);
     URL.revokeObjectURL = vi.fn();
     await openSheet();
-    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
     fireEvent.click(screen.getByRole('button', { name: /^Photo/ }));
 
     const entry = await screen.findByRole('dialog', { name: 'Photo entry' });
@@ -740,6 +749,107 @@ describe('the log sheet', () => {
     expect(within(sheet).getByRole('button', { name: /^Water/ })).toBeDisabled();
   });
 
+  it('names the place and what grows there on a chip only where there are several places to tell apart', async () => {
+    const balcony = { ...home.spaces[0], spaceId: 'space-2', name: 'Balcony', deviceIds: [], grow: null };
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      Promise.resolve(path === '/home' ? { ...home, spaces: [...home.spaces, balcony] } : answers(path)),
+    );
+    await openSheet();
+    const sheet = screen.getByRole('dialog', { name: 'Log' });
+
+    expect(within(sheet).getByRole('button', { name: 'Tent 1 · Spring run' })).toHaveAttribute('aria-pressed', 'true');
+    // A place nothing grows in is itself what a line can be about.
+    expect(within(sheet).getByRole('button', { name: 'Balcony' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('leads from a kind´s view back to the tiles it was chosen on', async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Note/ }));
+
+    const note = await screen.findByRole('dialog', { name: 'Note' });
+    fireEvent.click(within(note).getByRole('button', { name: 'Back to the choices' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Log' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Note' })).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('writes no note that says nothing', async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Note/ }));
+
+    const note = await screen.findByRole('dialog', { name: 'Note' });
+    expect(within(note).getByRole('button', { name: /^Save/ })).toBeDisabled();
+    fireEvent.change(within(note).getByRole('textbox'), { target: { value: 'Smells stronger' } });
+    expect(within(note).getByRole('button', { name: /^Save/ })).toBeEnabled();
+  });
+
+  it('takes the litres as typed, with the comma a German keyboard writes', async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
+
+    const details = await screen.findByRole('dialog', { name: 'Water' });
+    fireEvent.change(within(details).getByRole('textbox', { name: 'Water in litres' }), { target: { value: '4,5' } });
+    fireEvent.click(within(details).getByRole('button', { name: /^Save/ }));
+
+    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ values: { kind: 'water', litres: 4.5, readings: [] } }));
+    // The line lands, and its toast offers what a written line offers.
+    expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
+  });
+
+  it('offers no moment from before the grow began, says when it began, and moves the start for whoever may', async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Note/ }));
+
+    const note = await screen.findByRole('dialog', { name: 'Note' });
+    fireEvent.click(within(note).getByRole('button', { name: /^Change when/ }));
+    // The grow began 34 days ago, on 15 August.
+    fireEvent.change(within(note).getByLabelText('Date'), { target: { value: '2026-08-10' } });
+
+    expect(within(note).getByRole('status')).toHaveTextContent('The grow began on 15 Aug 2026.');
+    expect(within(note).getByRole('button', { name: 'Apply' })).toBeDisabled();
+
+    vi.mocked(api.patch).mockResolvedValue(grow as never);
+    fireEvent.click(within(note).getByRole('button', { name: 'Move the start to 10 Aug 2026' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/grows/grow-1', { startedAt: expect.stringMatching(/^2026-08-(09|10)T/) }));
+    // The moment is taken once the grow reaches back to it.
+    expect(await within(note).findByRole('button', { name: /^Change when: 10 Aug \d\d:\d\d$/ })).toBeInTheDocument();
+  });
+
+  it('says there is no connection, keeps the moment the line was written at, and sends it by itself once the connection is back', async () => {
+    // What a browser answers a request that never got out with.
+    vi.mocked(api.post).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Water' })).getByRole('button', { name: /^Save/ }));
+
+    expect(await screen.findByText('No connection · it is sent as soon as there is one')).toBeInTheDocument();
+    const [, first] = vi.mocked(api.post).mock.calls[0];
+
+    vi.setSystemTime(new Date(NOW.getTime() + 3_600_000));
+    act(() => void window.dispatchEvent(new Event('online')));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    // The same line, dated when it was written and not an hour later.
+    expect(vi.mocked(api.post).mock.calls[1][1]).toEqual(first);
+    expect((first as { occurredAt: string }).occurredAt).toBe(NOW.toISOString());
+    await waitFor(() => expect(screen.queryByText(/No connection/)).not.toBeInTheDocument());
+  });
+
+  it('answers a phase set from its tile with a toast that says what changed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ schemes: [] }) })),
+    );
+    vi.mocked(api.post).mockResolvedValue({ id: 'phase-new' } as never);
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Phase/ }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Phase' })).getByRole('button', { name: /^Save/ }));
+
+    expect(await screen.findByText(/^Entered Drying · Spring run/)).toBeInTheDocument();
+  });
+
   it('writes a line about one plant when a plant is the target', async () => {
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Gelato 1' }));
@@ -751,6 +861,8 @@ describe('the log sheet', () => {
       growId: 'grow-1',
       spaceId: undefined,
       plantIds: ['plant-2'],
+      // Dated when it was written, so a line that only gets through later is still of that moment.
+      occurredAt: expect.any(String),
       text: undefined,
       values: { kind: 'water', litres: 2, readings: [] },
     });

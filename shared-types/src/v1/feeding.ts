@@ -36,19 +36,58 @@ export interface GrowDays {
 }
 
 /**
- * Where a grow's day 1 begins: the day it started or its earliest phase,
- * whichever came first. The day counter, the week cards, the diary's day stamps
- * and the report all count from this one instant - diary lines written before
- * the first phase belong to the grow as much as the ones after it.
+ * The instant a grow began: when it started or its earliest phase, whichever
+ * came first. The date it falls on is day 1 (`growDayAt`), and the day counter,
+ * the diary's days and the report all count from it - diary lines written
+ * before the first phase belong to the grow as much as the ones after it.
  */
 export const growOriginOf = (grow: GrowDays): Date => new Date(Math.min(moment(grow.startedAt), ...grow.phases.map(phase => moment(phase.startedAt))));
 
+/** One formatter per zone: building one costs far more than asking it for a date. */
+const calendars = new Map<string, Intl.DateTimeFormat>();
+
+const calendarOf = (zone: string | null): Intl.DateTimeFormat => {
+  const key = zone || 'UTC';
+  let calendar = calendars.get(key);
+  if (!calendar) {
+    try {
+      calendar = new Intl.DateTimeFormat('en-CA', { timeZone: key, year: 'numeric', month: 'numeric', day: 'numeric' });
+    } catch {
+      // A zone nobody knows counts as UTC, which is what an account starts on.
+      calendar = calendarOf(null);
+    }
+    calendars.set(key, calendar);
+  }
+
+  return calendar;
+};
+
+/** The date an instant falls on in a zone, as a count of days - so two of them subtract to the dates between. */
+const dateIn = (at: number, zone: string | null): number => {
+  const said = (type: 'year' | 'month' | 'day', parts: Intl.DateTimeFormatPart[]): number => Number(parts.find(part => part.type === type)?.value);
+  const parts = calendarOf(zone).formatToParts(at);
+
+  return Date.UTC(said('year', parts), said('month', parts) - 1, said('day', parts)) / DAY_MS;
+};
+
 /**
- * A grow's day does not begin at midnight. Day 1 begins at the grow's origin
- * (`growOriginOf`), because a grow begun at 23:00 would otherwise be two days
- * old within the hour.
+ * A grow's day is a date on its owner's calendar: day 1 is the date the grow
+ * began on (`growOriginOf`), whatever the hour, and the day changes at
+ * midnight there - so this morning's watering stands under today on every
+ * screen. `zone` is the owner's (`summary.zone` on the wire); it is counted in
+ * dates and not in hours because a day of the calendar is 23 or 25 hours long
+ * twice a year.
  */
-export const growDayAt = (origin: Date, at: string | Date): number => Math.max(1, Math.floor((moment(at) - origin.getTime()) / DAY_MS) + 1);
+export const growDayAt = (origin: Date, at: string | Date, zone: string | null): number =>
+  Math.max(1, dateIn(moment(at), zone) - dateIn(origin.getTime(), zone) + 1);
+
+/**
+ * The day a stretch of the grow ends on: that of the last instant inside it. A
+ * window that closes at midnight, or a grow that ended then, has not begun the
+ * date after.
+ */
+export const growDayUpTo = (origin: Date, endsAt: string | Date, zone: string | null): number =>
+  growDayAt(origin, new Date(Math.max(origin.getTime(), moment(endsAt) - 1)), zone);
 
 /**
  * Which week of the grow a day of it falls in: weeks are seven of those days,
@@ -69,7 +108,7 @@ export const growWeekOfDay = (day: number): number => Math.floor((day - 1) / 7) 
  * reads it again as the line arrives, and a line somebody backdated is exactly
  * where two copies of this would disagree.
  */
-export const growWeekAt = (origin: Date, at: string | Date): number => growWeekOfDay(growDayAt(origin, at));
+export const growWeekAt = (origin: Date, at: string | Date, zone: string | null): number => growWeekOfDay(growDayAt(origin, at, zone));
 
 /**
  * The doses one can of water takes, at this week and this strength.

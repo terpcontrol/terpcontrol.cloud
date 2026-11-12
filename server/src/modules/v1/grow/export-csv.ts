@@ -79,10 +79,16 @@ export const DIARY_COLUMNS = [
   'entryId',
 ];
 
-export const diaryRows = (entries: readonly EntryDocument[], grow: GrowDocument | null, people: Names, plants: Names): unknown[][] =>
+export const diaryRows = (
+  entries: readonly EntryDocument[],
+  grow: GrowDocument | null,
+  people: Names,
+  plants: Names,
+  zone: string | null,
+): unknown[][] =>
   entries.map(entry => [
     entry.occurredAt,
-    grow ? growDayAt(growOriginOf(grow), entry.occurredAt) : null,
+    grow ? growDayAt(growOriginOf(grow), entry.occurredAt, zone) : null,
     entry.kind,
     entry.source,
     entry.authorId ? (people.get(entry.authorId) ?? entry.authorId) : null,
@@ -109,6 +115,7 @@ export const measurementsCsv = (
   definitions: readonly MeasurementDefinition[],
   grow: GrowDocument,
   plants: Names,
+  zone: string | null,
 ): Buffer => {
   const known = new Map(definitions.map(definition => [definition.key, definition]));
   const origin = growOriginOf(grow);
@@ -118,7 +125,7 @@ export const measurementsCsv = (
     entries.flatMap(entry =>
       readingsIn(entry).map(reading => [
         entry.occurredAt,
-        growDayAt(origin, entry.occurredAt),
+        growDayAt(origin, entry.occurredAt, zone),
         reading.key,
         known.get(reading.key)?.name ?? null,
         known.get(reading.key)?.unit ?? null,
@@ -175,7 +182,7 @@ export const plantsCsv = (plants: readonly PlantDocument[]): Buffer =>
   );
 
 /** What a grow was: its phases, where it stood, what it was fed. One file, three blocks, because three files of four rows is worse. */
-export const growCsv = (grow: GrowDocument, spaces: Names): Buffer => {
+export const growCsv = (grow: GrowDocument, spaces: Names, zone: string | null): Buffer => {
   const origin = growOriginOf(grow);
 
   return csvOf(
@@ -185,7 +192,7 @@ export const growCsv = (grow: GrowDocument, spaces: Names): Buffer => {
       ...grow.phases.map(phase => [
         phase.plantIds === null ? 'phase' : 'phase (some plants)',
         phase.startedAt,
-        growDayAt(origin, phase.startedAt),
+        growDayAt(origin, phase.startedAt, zone),
         null,
         [phase.stage, phase.preset, `by ${phase.source}`].filter(Boolean).join(' · '),
         phase.id,
@@ -193,7 +200,7 @@ export const growCsv = (grow: GrowDocument, spaces: Names): Buffer => {
       ...grow.placements.map(placement => [
         'placement',
         placement.startedAt,
-        growDayAt(origin, placement.startedAt),
+        growDayAt(origin, placement.startedAt, zone),
         placement.endedAt,
         placement.spaceId ? (spaces.get(placement.spaceId) ?? placement.spaceId) : 'nowhere in particular',
         placement.id,

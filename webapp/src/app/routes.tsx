@@ -27,6 +27,7 @@ import { Account } from '@/screens/me/account/Account';
 import { Appearance } from '@/screens/me/appearance/Appearance';
 import { Privacy } from '@/screens/me/privacy/Privacy';
 import { Premium } from '@/screens/me/premium/Premium';
+import { SHARE_LINKS } from '@/app/places';
 import { Schemes } from '@/screens/me/schemes/Schemes';
 import { Following } from '@/screens/me/sharing/Following';
 import { PublicGrows } from '@/screens/me/sharing/PublicGrows';
@@ -68,10 +69,7 @@ export const screens: RouteObject[] = [
   { path: 'me/notifications', element: <Notifications /> },
   { path: 'me/privacy', element: <Privacy /> },
   { path: 'me/public', element: <PublicGrows /> },
-  { path: 'me/following', element: <Following /> },
-  { path: 'me/share-links', element: <ShareLinks /> },
   { path: 'me/premium', element: <Premium /> },
-  { path: 'me/schemes', element: <Schemes /> },
   { path: 'me/appearance', element: <Appearance /> },
   { path: 'me/account', element: <Account /> },
   { path: 'me/about', element: <About /> },
@@ -94,6 +92,10 @@ export const screens: RouteObject[] = [
   { path: 'grow/:tab?', element: <CurrentGrow /> },
   { path: 'grows', element: <Grows /> },
   { path: 'grows/new', element: <NewGrowRoute /> },
+  // What belongs to growing without being a grow, behind the doors of "Alle Grows".
+  { path: 'grows/schemes', element: <Schemes /> },
+  { path: 'grows/share-links', element: <ShareLinks /> },
+  { path: 'grows/following', element: <Following /> },
   { path: 'grows/:growId/measurements', element: <Measurements /> },
   { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
   { path: 'grows/:growId/:tab?', element: <GrowPage /> },
@@ -103,7 +105,7 @@ export const screens: RouteObject[] = [
   // The old app's own pages, where bookmarks still point.
   { path: 'list', element: <Navigate to="/" replace /> },
   { path: 'account', element: <Navigate to="/me/account" replace /> },
-  { path: 'shares', element: <Navigate to="/me/share-links" replace /> },
+  { path: 'shares', element: <Navigate to={SHARE_LINKS} replace /> },
   { path: 'diagnostics', element: <Navigate to="/admin/fleet" replace /> },
   { path: '*', element: <NotFound /> },
 ];

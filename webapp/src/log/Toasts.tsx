@@ -22,6 +22,8 @@ export interface LoggedLine {
   changed?: LogRequest['changed'];
   /** For a toast that tells of something already done: how it is taken back. Null for a line that was written. */
   revert: (() => Promise<unknown>) | null;
+  /** The line could not be sent because nothing answered: it is sent again by itself once the connection is back. */
+  waiting?: boolean;
   details: { kind: TileKind; target: LogTarget } | null;
   state: 'saving' | 'saved' | 'failed';
   /** Which thing failed, so Try again knows what to try. */

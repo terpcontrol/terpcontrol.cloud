@@ -153,6 +153,7 @@ beforeEach(async () => {
     db.plants,
     db.devices,
     db.reminders,
+    db.users,
     access,
     new EntryWriterService(db.entries),
     maintenance,

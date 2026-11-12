@@ -129,7 +129,7 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
    * A phase that was entered with the wrong stage or on the wrong day.
    *
    * The phase and the diary line that announced it are one fact told twice, so
-   * both move: a week card takes its stage from the phases and its lines from
+   * both move: a day of the diary takes its stage from the phases and its lines from
    * the diary, and a diary still saying "entered flowering" on a day the grow
    * did not would read as the correction never having happened.
    *

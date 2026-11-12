@@ -89,9 +89,15 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
   // A link that names a moment - an alert's "Verlauf öffnen" - opens on the
   // shortest window that holds it, with the cursor standing on it.
   const [moment] = useState(() => momentOf(params.get('at')));
-  const [range, setRange] = useState<TimelineRange>(() => (moment === null ? '24h' : rangeHolding(moment, now.toMillis())));
-  /** Set only when a stretch chip is tapped: the two rolling ranges let the server pick the grow standing here. */
-  const [pinned, setPinned] = useState<string | null>(null);
+  const [range, setRange] = useState<TimelineRange>(() =>
+    moment === null ? '24h' : rangeHolding(moment, now.toMillis(), params.get('grow') !== null),
+  );
+  /**
+   * Set when a stretch chip is tapped, and by a link that names a moment of
+   * one grow's diary further back than a month: the rolling ranges let the
+   * server pick the grow standing here.
+   */
+  const [pinned, setPinned] = useState<string | null>(() => (range === 'grow' ? params.get('grow') : null));
   /** Null is "the end of the window", so a refresh carries the cursor along with it rather than pinning it to an instant that has scrolled out. */
   const [cursor, setCursor] = useState<number | null>(moment);
   const [opened, setOpened] = useState<string | null>(null);
@@ -507,10 +513,14 @@ const dayLabel = (t: Translate, timeline: SpaceTimeline): string => {
     : t('timeline.dayRange', { from: timeline.dayFrom, to: timeline.dayTo });
 };
 
-/** The shortest rolling window that still holds an instant, a month at most. */
-const rangeHolding = (at: number, now: number): TimelineRange => {
+/**
+ * The shortest window that still holds an instant: a rolling one up to a
+ * month, and for a moment of a grow further back the whole grow, which is the
+ * only stretch that reaches it.
+ */
+const rangeHolding = (at: number, now: number, ofAGrow: boolean): TimelineRange => {
   const age = now - at;
   if (age < 23 * HOUR_MS) return '24h';
   if (age < 6.5 * DAY_MS) return '7d';
-  return '30d';
+  return ofAGrow && age > 29.5 * DAY_MS ? 'grow' : '30d';
 };

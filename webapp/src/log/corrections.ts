@@ -21,9 +21,11 @@ import { useLog, type LogTarget, type TileKind } from './log-context';
  * The kinds the details sheet holds. Stepping in is among them although its
  * toast has no Undo: the quiet it started cannot be called off, but the line is
  * an ordinary diary line afterwards, and the sheet that asked for it promised
- * that the line can be taken back.
+ * that the line can be taken back. A photo's line is among them as well: its
+ * words and its moment are corrected, and the line taken back, like any other
+ * - the pictures themselves are what was taken and stay as they are.
  */
-const CORRECTABLE: TileKind[] = ['water', 'feed', 'note', 'measurement', 'training', 'visit'];
+const CORRECTABLE: TileKind[] = ['water', 'feed', 'photo', 'note', 'measurement', 'training', 'visit'];
 
 /**
  * Which sheet this line would be corrected in, or null where it is not a

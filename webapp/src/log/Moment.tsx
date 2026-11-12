@@ -7,7 +7,7 @@ import type { Translate } from '@/i18n/i18n';
 import { clockOf, dayOf, momentAt } from '@/ui/days';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, nowThere, useZone, zonedAt } from '@/ui/zone';
+import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY, nowThere, useZone, zonedAt } from '@/ui/zone';
 import styles from './Moment.module.css';
 
 /**
@@ -23,7 +23,28 @@ import styles from './Moment.module.css';
  * line: a row across the sheet, the question and its answer left and "Ändern"
  * right.
  */
-export function Moment({ at, onChange, row = false }: { at: Date | null; onChange: (at: Date) => void; row?: boolean }) {
+/** Where the grow a line is about began, and how its start is moved there by somebody who may. */
+export interface MomentBegins {
+  at: Date;
+  move: ((to: Date) => Promise<unknown>) | null;
+}
+
+export function Moment({
+  at,
+  onChange,
+  row = false,
+  begins = null,
+}: {
+  at: Date | null;
+  onChange: (at: Date) => void;
+  row?: boolean;
+  /**
+   * For a line about a grow: where the date the grow began on begins, before
+   * which a line has no day to stand under - and how the grow's start is moved
+   * there, for somebody who may.
+   */
+  begins?: MomentBegins | null;
+}) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
@@ -85,6 +106,19 @@ export function Moment({ at, onChange, row = false }: { at: Date | null; onChang
   const today = dayOf(serverNow().toJSDate(), zone);
   const chosen = momentAt(day, time, zone);
   const ahead = chosen !== null && chosen.getTime() > serverNow().toMillis();
+  const before = chosen !== null && begins !== null && chosen < begins.at;
+  const [moving, setMoving] = useState<'busy' | 'refused' | null>(null);
+  const moveStart = () => {
+    if (!chosen || !begins?.move) return;
+    setMoving('busy');
+    begins.move(chosen).then(
+      () => {
+        setMoving(null);
+        take(chosen);
+      },
+      () => setMoving('refused'),
+    );
+  };
 
   return (
     <div
@@ -155,11 +189,34 @@ export function Moment({ at, onChange, row = false }: { at: Date | null; onChang
               {t('log.moment.ahead')}
             </p>
           ) : null}
+          {before && begins ? (
+            <>
+              {/* A line about a grow stands under one of its days, and there is none before the first. */}
+              <p className={ui.note} role="status">
+                {t('log.moment.before', { date: zonedAt(begins.at.getTime(), zone).toFormat(DAY) })}
+              </p>
+              {begins.move ? (
+                <button type="button" className={`${ui.button} ${styles.move}`} disabled={moving === 'busy'} onClick={moveStart}>
+                  {t('log.moment.moveStart', { date: zonedAt(chosen.getTime(), zone).toFormat(DAY) })}
+                </button>
+              ) : null}
+              {moving === 'refused' ? (
+                <p className={ui.problem} role="alert">
+                  {t('log.moment.moveRefused')}
+                </p>
+              ) : null}
+            </>
+          ) : null}
           <div className={styles.actions}>
             <button type="button" className={ui.button} onClick={() => take(serverNow().toJSDate())}>
               {t('log.moment.now')}
             </button>
-            <button type="button" className={`${ui.button} ${ui.primary}`} disabled={chosen === null || ahead} onClick={() => chosen && take(chosen)}>
+            <button
+              type="button"
+              className={`${ui.button} ${ui.primary}`}
+              disabled={chosen === null || ahead || before}
+              onClick={() => chosen && take(chosen)}
+            >
               {t('log.moment.apply')}
             </button>
           </div>

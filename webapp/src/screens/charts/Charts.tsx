@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useSearchParams } from 'react-router';
-import { timelinePath, useCurrentPlace, usePageOfGrow } from '@/app/places';
+import { SHARE_LINKS, timelinePath, useCurrentPlace, usePageOfGrow } from '@/app/places';
 import type { ChartView, ChartViewDefinition, ChartViewLayout, GrowListItem, ShareLink } from '@fg2/shared-types/v1';
 import { useChartViews } from '@/api/chart-views';
 import { serverNow } from '@/api/clock';
@@ -878,7 +878,7 @@ function SharedSheet({ link, onClose }: { link: ShareLink; onClose: () => void }
         <p className={ui.note}>{t(link.subject.type === 'space' ? 'charts.sharedSpace' : 'charts.sharedGrow')}</p>
         <code className={`mono ${styles.address}`}>{address}</code>
         <CopyButton value={address} label={t('charts.copyLink')} />
-        <Link to="/me/share-links" className={`mono ${ui.headLink}`}>
+        <Link to={SHARE_LINKS} className={`mono ${ui.headLink}`}>
           {t('charts.allLinks')} ›
         </Link>
       </div>

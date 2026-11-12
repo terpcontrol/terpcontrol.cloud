@@ -1,7 +1,8 @@
 import { useRead, useReadPages } from './read';
-import type { GrowWeekCard, PublicGrowPage, PublicUserPage, PublicWeekPage, SharedResolution } from '@fg2/shared-types/v1';
+import type { GrowDiaryWeek, PublicGrowPage, PublicUserPage, PublicWeekPage, SharedResolution } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { v1 } from './config';
+import { EARLIER_WEEKS } from './grows';
 import { itemsOf } from './pages';
 
 /**
@@ -14,7 +15,7 @@ import { itemsOf } from './pages';
  * word of the answer, because what may be seen is decided from the address.
  *
  * Nothing here refetches on a beat. A public page is read from top to bottom
- * once; the week cards behind it cost the server a time-series read each, and
+ * once; the weeks of the diary behind it cost the server a time-series read each, and
  * a reader who wants it again reloads it.
  */
 
@@ -39,7 +40,7 @@ export const usePublicUser = (handle: string) =>
 
 /** What a diary draws under its own weeks: the earlier ones, the way to ask for more, and whether more are on their way. */
 export interface EarlierWeeks {
-  weeks: GrowWeekCard[];
+  weeks: GrowDiaryWeek[];
   /** Null once there is nothing earlier to ask for, which is what takes the control off the page. */
   more: (() => void) | null;
   pending: boolean;
@@ -62,7 +63,7 @@ export interface EarlierWeeks {
 const useEarlierWeeks = (queryKey: unknown[], path: string, from: string | null): EarlierWeeks => {
   const query = useReadPages({
     queryKey: [...queryKey, 'weeks', from],
-    queryFn: ({ pageParam, signal }) => api.get<PublicWeekPage>(path, { cursor: pageParam }, signal),
+    queryFn: ({ pageParam, signal }) => api.get<PublicWeekPage>(path, { cursor: pageParam, limit: EARLIER_WEEKS }, signal),
     initialPageParam: from,
     getNextPageParam: last => last.nextCursor,
     enabled: false,

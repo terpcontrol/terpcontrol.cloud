@@ -44,20 +44,24 @@ export function Line({
   return (
     <li className={styles.line} data-severity={severity ?? undefined}>
       <span className={styles.stamp}>{stamp}</span>
-      {to ? (
-        <Link to={to} className={styles.text}>
-          {children}
-          <span aria-hidden> ›</span>
-        </Link>
-      ) : onOpen ? (
-        <button type="button" className={styles.text} title={does} onClick={onOpen}>
-          {children}
-          <span className={ui.visuallyHidden}>{`, ${does}`}</span>
-        </button>
-      ) : (
-        <span className={styles.text}>{children}</span>
-      )}
-      {mark ? <span className={styles.mark}>{mark}</span> : null}
+      {/* The mark stands in the line's own row, so it takes room only where there is one. */}
+      <span className={styles.body}>
+        {to ? (
+          <Link to={to} className={styles.text}>
+            {children}
+            {/* Bound to the last word: the sign that the line leads somewhere never stands alone on a line. */}
+            <span aria-hidden>{'\u00a0›'}</span>
+          </Link>
+        ) : onOpen ? (
+          <button type="button" className={styles.text} title={does} onClick={onOpen}>
+            {children}
+            <span className={ui.visuallyHidden}>{`, ${does}`}</span>
+          </button>
+        ) : (
+          <span className={styles.text}>{children}</span>
+        )}
+        {mark ? <span className={styles.mark}>{mark}</span> : null}
+      </span>
     </li>
   );
 }

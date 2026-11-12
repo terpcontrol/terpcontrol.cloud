@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { FollowedGrowCard, GrowWeekCard, LinkCard, PublicAuthor, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
+import type { FollowedGrowCard, GrowDiaryWeek, LinkCard, PublicAuthor, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { CursorPage } from '@common/v1/pages';
@@ -19,9 +19,9 @@ import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { MediaService } from '../camera/media.service';
-import { diaryMovedAt } from '../diary/diary-entries';
+import { diaryMovedAt, readingNamesOf } from '../diary/diary-entries';
 import { GrowReportService } from '../diary/report.service';
-import { GrowWeeksService } from '../diary/weeks.service';
+import { GrowDiaryService } from '../diary/grow-diary.service';
 import { spacesDuring } from '../grow/grow-places';
 import { growUpTo, harvestOf, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
@@ -40,21 +40,13 @@ import { ShareLinksService } from './share-links.service';
  * never from the caller, so a route cannot forget to clamp.
  *
  * **What a page costs.** The grow and its plants, its owner, the totals as one
- * aggregate, and then the week cards - which is where the real cost is: one
- * time-series read per week per controller. The page carries as many of them as
- * a reader opening on the newest week will get through, and says with a cursor
- * that there are more; the weeks before those are a page of their own, so a
- * diary that ran a year costs a reader who stops after a screenful no more than
- * a diary that ran a month.
+ * aggregate, and then the newest weeks of the diary - which is where the real
+ * cost is: one time-series read per week per controller. The page carries the
+ * weeks the owner's own first page does, and says with a cursor that there are
+ * more; the weeks before those are a page of their own, so a diary that ran a
+ * year costs a reader who stops after a screenful no more than one that ran a
+ * month.
  */
-
-/**
- * How many weeks a page of a public diary carries. Half a year, which is longer
- * than most grows run and far more than anybody scrolls in one go; the weeks
- * before it are read a page at a time through the weeks route, which is what
- * keeps a two-year perpetual from being a page nobody waits for.
- */
-const WEEKS_ON_A_PUBLIC_PAGE = 26;
 
 @Injectable()
 export class PublicPagesService {
@@ -67,7 +59,7 @@ export class PublicPagesService {
     @InjectModel(MODEL_V1.media) private readonly media: Model<MediaDocument>,
     private readonly grows: GrowsService,
     private readonly files: MediaService,
-    private readonly weeks: GrowWeeksService,
+    private readonly diary: GrowDiaryService,
     private readonly report: GrowReportService,
     private readonly overview: OverviewService,
     private readonly links: ShareLinksService,
@@ -106,15 +98,16 @@ export class PublicPagesService {
     const until = storyEndsAt(range, now);
     const seen = growUpTo(grow, until);
 
-    const [hide, plants, owner, page, totals] = await Promise.all([
+    const [hide, plants, owner, page, totals, zone] = await Promise.all([
       this.grows.redaction(grant),
       this.grows.plantsOf(grow.id),
       this.ownerOf(grow.ownerId),
-      this.weeks.page(grow.id, grant, { limit: WEEKS_ON_A_PUBLIC_PAGE }, now),
+      this.diary.page(grow.id, grant, {}, now),
       this.report.totalsOf(grow.id, grant),
+      this.grows.zoneOf(grow),
     ]);
 
-    const summary = summaryOf(seen, plants, hide, until);
+    const summary = summaryOf(seen, plants, hide, zone, until);
 
     return {
       slug: grow.slug,
@@ -134,9 +127,8 @@ export class PublicPagesService {
       // The week of the stage rather than of the grow, because the line the
       // page draws it on names the stage: a reader told "Curing · week 32"
       // takes that for thirty-two weeks of curing. It is the same figure the
-      // owner's own header states and the same one the first week card's pill
-      // carries, worked out against the reader's window like everything else
-      // here.
+      // owner's own header states and the newest week of the diary carries,
+      // worked out against the reader's window like everything else here.
       stageWeek: summary.stageWeek,
       plantCount: hide.counts ? null : plants.length,
       strains: [...new Set(plants.map(plant => plant.strain))],
@@ -144,6 +136,7 @@ export class PublicPagesService {
       filmMediaId: grow.filmMediaId,
       range: isoRange(range),
       includeCameras: grant.includeCameras,
+      readingNames: readingNamesOf([grow])[0].readings,
       weeks: page.items,
       weeksCursor: page.nextCursor,
       harvest: harvestOf(plants, hide, range),
@@ -157,12 +150,12 @@ export class PublicPagesService {
    * It is the same read the page itself makes, by the same grant, so a week
    * reached through it is clamped exactly as a week on the page was and a long
    * diary cannot be walked into a window its reader was never given. What the
-   * owner's own weeks route answers beside the cards - the people its lines
-   * name - is dropped here, because a public diary is by one author and names
-   * nobody else.
+   * owner's own diary answers beside the weeks - the people its lines name,
+   * the lines dated to before the grow began - is dropped here, because a
+   * public diary is by one author and names nobody else.
    */
-  public async weeksPage(grow: GrowDocument, grant: Grant, query: PageQuery, now: Date = new Date()): Promise<CursorPage<GrowWeekCard>> {
-    const page = await this.weeks.page(grow.id, grant, { cursor: query.cursor, limit: query.limit ?? WEEKS_ON_A_PUBLIC_PAGE }, now);
+  public async weeksPage(grow: GrowDocument, grant: Grant, query: PageQuery, now: Date = new Date()): Promise<CursorPage<GrowDiaryWeek>> {
+    const page = await this.diary.page(grow.id, grant, query, now);
 
     return { items: page.items, nextCursor: page.nextCursor };
   }
@@ -219,6 +212,7 @@ export class PublicPagesService {
           author.handle,
           hide,
           moved.get(grow.id) ?? null,
+          author.preferences?.timezone || null,
           now,
         ),
       )
@@ -283,7 +277,7 @@ export class PublicPagesService {
    * weeks, and says so rather than answering an empty page, which would read as
    * a diary with nothing in it.
    */
-  public async sharedWeeks(token: string, query: PageQuery, now: Date = new Date()): Promise<CursorPage<GrowWeekCard>> {
+  public async sharedWeeks(token: string, query: PageQuery, now: Date = new Date()): Promise<CursorPage<GrowDiaryWeek>> {
     const { link, grant } = await this.keyOf(token, now);
     if (link.subject.type !== 'grow') throw notFound('grow_not_found', 'That link does not lead to a grow diary.');
 
@@ -330,7 +324,7 @@ export class PublicPagesService {
   public async growCard(grow: GrowDocument): Promise<LinkCard> {
     const [plants, owner] = await Promise.all([this.grows.plantsOf(grow.id), this.ownerOf(grow.ownerId)]);
     const hide = redactionOf(true, owner?.privacy);
-    const summary = summaryOf(grow, plants, hide, new Date());
+    const summary = summaryOf(grow, plants, hide, await this.grows.zoneOf(grow), new Date());
     const handle = owner?.handle ?? null;
     const baseUrl = baseUrlOf(this.app.apiUrlExternal);
 

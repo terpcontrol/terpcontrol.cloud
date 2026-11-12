@@ -1,5 +1,6 @@
-/* The diary: a card per day, the days before folded into their weeks, and on
-   a desktop the newest pictures beside them. */
+/* The diary: a card per day, the days before folded into their weeks. One
+   column beside the rail until two fit: from 1200px the newest pictures stand
+   beside the days. */
 
 .diary {
   display: flex;
@@ -68,6 +69,7 @@
   font-family: var(--font-figure);
   font-size: var(--text-sm);
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .dayShare {
@@ -89,7 +91,6 @@
   display: flex;
   flex-direction: column;
   grid-column: 1 / -1;
-  gap: 10px;
 }
 
 .nothing {
@@ -131,13 +132,14 @@
 }
 
 .rowText {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
   font-weight: var(--weight-medium);
 }
 
 .rowLine {
-  display: block;
   font-size: var(--text-sm);
   font-weight: var(--weight-regular);
   color: var(--muted);
@@ -247,24 +249,6 @@
 }
 
 @media (min-width: 900px) {
-  .diary {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: var(--space-5);
-  }
-
-  .days {
-    flex: 1 1 0;
-  }
-
-  .aside {
-    display: flex;
-    flex: none;
-    flex-direction: column;
-    gap: var(--space-3);
-    width: 340px;
-  }
-
   /* The picture down the card's side, the title with the climate and the share on one line, the lines under it. */
   .day {
     grid-template-rows: auto 1fr;
@@ -278,14 +262,15 @@
     height: 124px;
   }
 
+  /* The climate and the share move under the title as wholes where the card is too narrow for one line. */
   .dayHead {
-    flex-direction: row;
+    flex-flow: row wrap;
     align-items: baseline;
-    gap: var(--space-3);
+    gap: 0 var(--space-3);
   }
 
   .dayTitle {
-    flex: 1;
+    flex: 1 0 auto;
   }
 
   .dayLines,
@@ -304,5 +289,26 @@
 
   .shareShort {
     display: inline;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 1200px) {
+  .diary {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--space-5);
+  }
+
+  .days {
+    flex: 1 1 0;
+  }
+
+  .aside {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: 340px;
   }
 }

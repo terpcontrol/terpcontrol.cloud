@@ -134,6 +134,7 @@ const grow: GrowListItem = {
     phaseDay: 11,
     stageWeek: 2,
     weekNumber: 5,
+    zone: 'UTC',
     isAuto: false,
     groups: [],
     locations: [],

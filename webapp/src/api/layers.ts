@@ -57,6 +57,18 @@ export const useChooseDiary = () => {
 };
 
 /**
+ * Whether the account has switched the diary off - said outright, not merely
+ * not used it yet. Starting a grow takes that answer back: a grow is kept in
+ * the diary, and one nobody could open would be a grow that vanished.
+ */
+export const useDiaryDeclined = (): boolean => {
+  const { user } = useSession();
+  const me = useMe(false, user !== null && user.isDemo !== true);
+
+  return me.data?.preferences.diary === 'off';
+};
+
+/**
  * Records the shape of the app this person has now been shown, so the change
  * it explains is explained once - on this phone and on every other. Like the
  * diary answer it names its one preference and nothing else, so a zone adopted

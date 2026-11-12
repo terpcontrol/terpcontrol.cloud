@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
+import { useSpaceOverview } from '@/api/spaces';
 import { GROW, ALL_GROWS, useCurrentPlace } from '@/app/places';
+import { Visited, VisitingTitle } from '@/screens/place/PlaceTitle';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import { GrowScreen } from './GrowPage';
-import { growTabOf } from './grow-tabs';
-import { NewGrowRow } from './new/NewGrowRow';
+import { growTabOf, type GrowTab } from './grow-tabs';
 import { NewGrowSheet } from './new/NewGrowSheet';
 import styles from './GrowPage.module.css';
 
@@ -22,13 +23,20 @@ import styles from './GrowPage.module.css';
 export function CurrentGrow() {
   const { t } = useTranslation();
   const { tab: segment } = useParams();
-  const { home, places, here } = useCurrentPlace();
-  const [starting, setStarting] = useState(false);
+  const { home, places, here, visiting } = useCurrentPlace();
   const tab = growTabOf(segment);
 
   if (tab === null) return <Navigate to={GROW} replace />;
   if (home.isPending) return <Waiting lines={4} />;
   if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
+  // A customer's place, which support reads by the address: the grow standing there, or that there is no such place.
+  if (visiting) {
+    return (
+      <Visited spaceId={visiting}>
+        <VisitedGrow spaceId={visiting} tab={tab} />
+      </Visited>
+    );
+  }
 
   const growId = (places.length > 0 ? here : home.data.spaces[0])?.grow?.growId ?? null;
   if (growId) return <GrowScreen key={growId} growId={growId} tab={tab} current />;
@@ -45,41 +53,58 @@ export function CurrentGrow() {
           </div>
         </div>
       </header>
-      {here ? (
-        <div className={ui.card}>
-          <NothingGrows spaceId={here.spaceId} name={here.name} />
-        </div>
-      ) : (
-        <NewGrowRow onOpen={() => setStarting(true)} />
-      )}
-      {starting ? <NewGrowSheet onClose={() => setStarting(false)} /> : null}
+      <div className={ui.card}>
+        <NothingGrows place={here} />
+      </div>
     </section>
   );
 }
 
-/** Nothing grows here: the two ways to change that, to somebody who may put a grow into this place. */
-function NothingGrows({ spaceId, name }: { spaceId: string; name: string }) {
+/** The grow standing in a place support is reading, drawn as that grow's own page. */
+function VisitedGrow({ spaceId, tab }: { spaceId: string; tab: GrowTab }) {
   const { t } = useTranslation();
-  const mayManage = useMayManage(spaceId);
+  const overview = useSpaceOverview(spaceId);
+  const growId = overview.data?.grows[0]?.growId ?? null;
+
+  if (overview.isPending) return <Waiting lines={4} />;
+  if (growId) return <GrowScreen key={growId} growId={growId} tab={tab} />;
+
+  return (
+    <section className={styles.page}>
+      <VisitingTitle title={t('shell.tabs.grow')} spaceId={spaceId} />
+      <p className={`${ui.cardDashed} ${ui.note}`}>{t('home.invite.noGrow')}</p>
+    </section>
+  );
+}
+
+/**
+ * Nothing grows here: the ways to change that, to somebody who may - a grow started, or one moved into the chosen
+ * place. An account whose grows stand in no place has no place to move one into, and is offered the start alone.
+ */
+function NothingGrows({ place }: { place: { spaceId: string; name: string } | null }) {
+  const { t } = useTranslation();
+  const mayManage = useMayManage(place?.spaceId);
   const [moving, setMoving] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   return (
     <div className={styles.nothingGrows}>
       <p className={ui.note}>{t('home.invite.noGrow')}</p>
       {mayManage ? (
-        <p className={`${styles.growActions} ${ui.dots}`}>
-          <Link to={`/grows/new?space=${spaceId}`} className={ui.headLink}>
+        <p className={styles.growActions}>
+          <button type="button" className={ui.button} onClick={() => setStarting(true)}>
             {t('home.invite.startGrow')}
-          </Link>
-          <span className={ui.dot}>
-            {' · '}
-            <button type="button" className={ui.headLink} onClick={() => setMoving(true)}>
+          </button>
+          {place ? (
+            <button type="button" className={ui.button} onClick={() => setMoving(true)}>
               {t('home.invite.moveGrow')}
             </button>
-          </span>
+          ) : null}
         </p>
       ) : null}
-      {moving ? <MoveHereSheet spaceId={spaceId} spaceName={name} onClose={() => setMoving(false)} /> : null}
+      {moving && place ? <MoveHereSheet spaceId={place.spaceId} spaceName={place.name} onClose={() => setMoving(false)} /> : null}
+      {/* Started here, the grow is drawn here: the sheet opens over Grow and Grow is what it comes back to. */}
+      {starting ? <NewGrowSheet spaceId={place?.spaceId ?? null} landOn={GROW} onClose={() => setStarting(false)} /> : null}
     </div>
   );
 }

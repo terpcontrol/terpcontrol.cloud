@@ -19,6 +19,21 @@
   color: var(--ink);
 }
 
+/* Five tabs fit the narrowest phone, so none of them waits past the edge - without the veil, which is room they need. */
+@media (max-width: 359px) {
+  .tabs {
+    gap: 10px;
+  }
+
+  .tabs::after {
+    content: none;
+  }
+
+  .tab {
+    font-size: var(--text-xs);
+  }
+}
+
 @media (min-width: 900px) {
   .tabs {
     gap: var(--space-5);

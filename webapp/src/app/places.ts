@@ -33,11 +33,28 @@ export const GROW = '/grow';
 /** "Alle Grows", every grow the account sees, which Grow and Ich lead to. */
 export const ALL_GROWS = '/grows';
 
+/** The pages behind the doors of "Alle Grows": what belongs to growing without being a grow. */
+export const SCHEMES = `${ALL_GROWS}/schemes`;
+export const SHARE_LINKS = `${ALL_GROWS}/share-links`;
+export const FOLLOWING = `${ALL_GROWS}/following`;
+
 /** What the list of every grow is told when Ich's door opened it, so its way back leads to Ich rather than to Grow. */
 export const FROM_ME = { from: 'me' } as const;
 
 /** Whether a page was opened from where `from` says, by the state the link that opened it carried. */
 export const openedFrom = (state: unknown, from: { from: string }): boolean => (state as { from?: unknown } | null)?.from === from.from;
+
+/**
+ * What a page under a grow - its measurements, one of its plants - is told by
+ * the link that opened it: the address it leads back to. A grow is on screen
+ * under two, the bar's own and its id, and the way back is the one taken.
+ */
+export const leadingBackTo = (pathname: string) => ({ back: pathname });
+
+export const backOf = (state: unknown, otherwise: string): string => {
+  const back = (state as { back?: unknown } | null)?.back;
+  return typeof back === 'string' ? back : otherwise;
+};
 
 export const membersPath = (spaceId: string): string => `/spaces/${spaceId}/members`;
 
@@ -52,9 +69,14 @@ export const controlPath = (
   hash: string | null = null,
 ): string => withQuery(page ? `/control/${page}` : '/control', { space: spaceId, ...query }) + (hash ? `#${hash}` : '');
 
-/** The Timeline of a place, opened on one reading where `focus` names it, and on one moment where `at` does. */
-export const timelinePath = (spaceId: string, focus: string | null = null, at: string | null = null): string =>
-  withQuery('/timeline', { space: spaceId, ...(focus ? { focus } : {}), ...(at ? { at } : {}) });
+/**
+ * The Timeline of a place, opened on one reading where `focus` names it, and
+ * on one moment where `at` does. A moment of a grow's diary names the grow as
+ * well: further back than the rolling windows reach, it is the grow's own
+ * stretch that holds it.
+ */
+export const timelinePath = (spaceId: string, focus: string | null = null, at: string | null = null, growId: string | null = null): string =>
+  withQuery('/timeline', { space: spaceId, ...(focus ? { focus } : {}), ...(at ? { at } : {}), ...(growId ? { grow: growId } : {}) });
 
 /** Graphen of a place, with the curves named drawn and no others: the way from a reading Verlauf has no panel for. */
 export const chartsPath = (spaceId: string, show: string | null = null): string =>
@@ -146,12 +168,19 @@ export const usePageOfGrow = (grow: { endedAt: string | null; placements: Placem
   usePageOfPlace(grow && grow.endedAt === null ? standsIn(grow) : null);
 
 /**
- * The place the pages about one place show: the one the address names, else
- * the chosen one, else the one Start lists first - the place that needs a
- * person, not the order the account was set up in.
+ * The place a browser that has chosen none is shown, the same for Grow,
+ * Verlauf and Steuerung: in Start's order - the place that needs a person
+ * first - the first where a grow runs, else the first with a device, else the
+ * first. So Grow does not open on an empty balcony while a tent is in flower.
  */
+const firstChoice = (places: PlaceCard[]): PlaceCard | null => {
+  const ordered = sortedByAttention(places);
+  return ordered.find(place => place.grow !== null) ?? ordered.find(place => (place.deviceIds ?? []).length > 0) ?? ordered[0] ?? null;
+};
+
+/** The place the pages about one place show: the one the address names, else the chosen one, else the first choice. */
 const placeShown = (places: PlaceCard[], asked: string | null, chosen: string | null): PlaceCard | null =>
-  places.find(place => place.spaceId === asked) ?? places.find(place => place.spaceId === chosen) ?? sortedByAttention(places)[0] ?? null;
+  places.find(place => place.spaceId === asked) ?? places.find(place => place.spaceId === chosen) ?? firstChoice(places);
 
 /**
  * The place shown among `places`, as `placeShown` picks it, and how another
@@ -163,9 +192,9 @@ const placeShown = (places: PlaceCard[], asked: string | null, chosen: string | 
  * Choosing depends on the page. On one of the bar's three the item stays, at
  * its own address for the place chosen, and the choice is kept once that
  * address is on screen: a switch that the page holds back - targets nobody
- * saved - must not move the next page too. On a page that belongs to a place
- * it leads to the chosen place's Start; anywhere else it only changes the
- * choice.
+ * saved - must not move the next page too. On a grow opened by its id it
+ * leads to Grow of the chosen place, on any other page that belongs to a
+ * place to that place's Start; anywhere else it only changes the choice.
  *
  * `visiting` is the place the address names where `isVisiting` says it is a
  * customer's, which is drawn as that place rather than swapped for one of
@@ -193,8 +222,9 @@ export const usePlaceChoice = (places: PlaceCard[] | undefined) => {
   }, [kept, asked, chosen]);
 
   const choose = (spaceId: string) => {
-    if (item) void navigate(`${item}?${new URLSearchParams({ space: spaceId }).toString()}`, { replace: true });
-    else if (belongs) void navigate(placePath(spaceId));
+    const of = (path: string) => `${path}?${new URLSearchParams({ space: spaceId }).toString()}`;
+    if (item) void navigate(of(item), { replace: true });
+    else if (belongs) void navigate(pathname.startsWith(`${ALL_GROWS}/`) ? of(GROW) : placePath(spaceId));
     else choosePlace(spaceId);
   };
 

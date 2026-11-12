@@ -82,14 +82,15 @@
 }
 
 .text {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
   overflow-wrap: anywhere;
   font-weight: var(--weight-semibold);
 }
 
 .line {
-  display: block;
   font-size: var(--text-sm);
   font-weight: var(--weight-regular);
   color: var(--muted);

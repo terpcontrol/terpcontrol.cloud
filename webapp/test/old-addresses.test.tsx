@@ -99,7 +99,7 @@ describe('the old app’s own pages inside the session', () => {
   it.each([
     ['list', '/'],
     ['account', '/me/account'],
-    ['shares', '/me/share-links'],
+    ['shares', '/grows/share-links'],
   ])('/%s is sent on to %s', (path, to) => {
     const route = screens.find(one => one.path === path);
     expect(route?.element).toMatchObject({ props: { to, replace: true } });

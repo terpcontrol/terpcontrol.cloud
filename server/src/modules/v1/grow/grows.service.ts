@@ -42,6 +42,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { targetsOf } from '../phase/phase-targets';
 import { PhaseWriterService } from '../phase/phase-writer.service';
 import { CLIMATE_PRESETS, ClimatePresets } from './climate-presets.port';
+import { zoneOfOwner, zonesOfOwners } from '@common/v1/owner-zone';
 import { NOTHING_HIDDEN, Redaction, serialiseGrow, serialisePhase, serialisePlacement, serialisePlant } from './grow-serialiser';
 import { grantRedaction, ownerRedactions } from './redactions';
 import { growsVisibleTo } from './visible-grows';
@@ -114,7 +115,12 @@ export class GrowsService {
   /** The grow with its plants, which the summary is worked out from. */
   public async read(id: string, hide: Redaction): Promise<GrowListItem> {
     const grow = await this.require(id);
-    return serialiseGrow(grow, await this.plantsOf(id), hide);
+    return serialiseGrow(grow, await this.plantsOf(id), hide, await this.zoneOf(grow));
+  }
+
+  /** The zone a grow's days are dates of: its owner's. */
+  public zoneOf(grow: Pick<GrowDocument, 'ownerId'>): Promise<string | null> {
+    return zoneOfOwner(this.users, grow.ownerId);
   }
 
   /**
@@ -140,11 +146,17 @@ export class GrowsService {
       page.items.map(grow => grow.ownerId),
     );
 
+    const zone = await zonesOfOwners(
+      this.users,
+      page.items.map(grow => grow.ownerId),
+    );
+
     return mapPage(page, grow =>
       serialiseGrow(
         grow,
         plants.filter(plant => plant.growId === grow.id),
         hide(grow.ownerId),
+        zone(grow.ownerId),
       ),
     );
   }
@@ -152,7 +164,9 @@ export class GrowsService {
   /**
    * The grows a caller may see at all, as one filter rather than a decision per
    * row: their own, and those standing in a space they are a member of. A demo
-   * session sees the demo ones.
+   * session sees the demo ones: a grow flagged for the tour, and one standing
+   * in a demo place now - which is what `access()` opens to it, so the list
+   * names every grow the tour can open and no other.
    *
    * An administrator is not widened here: every screen this filter feeds - the
    * grow list, the diary's subjects - is the person's own, and an install-wide
@@ -160,7 +174,10 @@ export class GrowsService {
    * grow through `access()`.
    */
   public async visibleTo(ctx: AccessContext): Promise<FilterQuery<GrowDocument>> {
-    if (ctx.isDemo || ctx.userId === null) return { isDemo: true };
+    if (ctx.isDemo || ctx.userId === null) {
+      const places = await this.spaces.find({ isDemo: true }, { id: 1 }).lean<Pick<SpaceDocument, 'id'>[]>();
+      return { $or: [{ isDemo: true }, { placements: { $elemMatch: { spaceId: { $in: places.map(place => place.id) }, endedAt: null } } }] };
+    }
 
     return growsVisibleTo(ctx.userId, this.memberships, this.spaces);
   }
@@ -223,7 +240,7 @@ export class GrowsService {
     });
 
     const plants = await this.sow(id, body.plants);
-    return serialiseGrow(grow.toObject<GrowDocument>(), plants, NOTHING_HIDDEN);
+    return serialiseGrow(grow.toObject<GrowDocument>(), plants, NOTHING_HIDDEN, await this.zoneOf(grow));
   }
 
   /** "Amnesia × 8" is eight plants labelled "Amnesia 1" to "Amnesia 8". */
@@ -264,7 +281,7 @@ export class GrowsService {
     const changed = await this.grows.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<GrowDocument>();
     if (!changed) throw notFound('grow_not_found', 'There is no grow with that id.');
 
-    return serialiseGrow(changed, await this.plantsOf(id), hide);
+    return serialiseGrow(changed, await this.plantsOf(id), hide, await this.zoneOf(changed));
   }
 
   /**
@@ -648,7 +665,7 @@ export class GrowsService {
    * A move that never happened. The line that announced it goes with it, because
    * a diary entry naming a placement that is gone points at nothing.
    *
-   * A grow always answers where it is - the overview, the week cards and
+   * A grow always answers where it is - the overview, the diary's days and
    * `access()` all read the open placements to say which spaces a grow is in -
    * so the last open one is not removed. Saying "nowhere" is a move to a
    * `spaceId` of null, which is a place a grow can be in rather than the absence
@@ -860,7 +877,7 @@ const notInTheFuture = (at: Date, field: 'startedAt' | 'endedAt'): Date => {
 };
 
 /**
- * The span a correction leaves the grow with. The day counter, the week cards
+ * The span a correction leaves the grow with. The day counter, the diary's days
  * and the report all count from the start to the end, and an end before the
  * start is a grow of minus ten days - the placements and the share links
  * already refuse a span that runs backwards, and so does the grow they belong to.

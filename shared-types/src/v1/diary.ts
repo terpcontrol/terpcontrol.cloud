@@ -89,7 +89,7 @@ export const readingName = named(
  * grow - so a tent's latest lines and a tent's rail, which both carry the diary
  * of every grow that has stood there, would need a read per grow to put a name
  * and a unit on a figure. They ride on the same answer instead, keyed by the
- * grow each line belongs to, so one reading reads the same on the week card it
+ * grow each line belongs to, so one reading reads the same on the day card it
  * was written on and on the rail it shows up on.
  */
 export const growReadingNames = named(
@@ -1182,7 +1182,7 @@ export const growCard = named(
       .number()
       .int()
       .nullable()
-      .describe('Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.'),
+      .describe('Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and the weeks of its diary state.'),
     stage: growthStage.nullable(),
     stagesReached: z
       .array(growthStage)
@@ -1738,7 +1738,7 @@ export const timelineCamera = named(
  * assembled them would draw parts of six different ones.
  *
  * A space with no controller answers the frames and the rail and nothing else:
- * `panels` is then empty, the way a week card of a grow with no controller
+ * `panels` is then empty, the way a diary day of a grow with no controller
  * carries no climate. Nothing here is written to - the rail carries lines to
  * open and never a task to tick off - so a read-only link is served the same
  * answer as its owner, clamped to its window.
@@ -1815,116 +1815,13 @@ export const weekClimate = named(
 );
 
 /**
- * One of the seven thumbnails a week card is drawn with: the still taken
- * nearest a fixed hour of that day, so the strip reads as one picture a day
- * rather than as whatever the camera last sent. Null where no camera was
- * watching, which is what leaves a slot empty.
- */
-export const growWeekDay = named(
-  'GrowWeekDay',
-  z.object({
-    dayNumber: z.number().int(),
-    startsAt: instant(),
-    stage: growthStage
-      .nullable()
-      .describe(
-        'The stage the grow entered on this day, where it entered one; null on a day it carried on in the stage before. A week is named after the stage it ended in, so this is the only place a card records a stage that began and was over inside it.',
-      ),
-    mediaId: id().nullable(),
-    cameraId: id().nullable(),
-    capturedAt: instant().nullable(),
-  }),
-);
-
-/**
- * What the scheme says to feed this week, and how many feeds the week is
- * supposed to have. `amounts` is the grid's row for this week with the grow's
- * own strength already applied, so nobody multiplies it twice; how many of them
- * were done is the card's `feedCount`.
- *
- * No screen has a control for the rhythm, so `plannedCount` is read from the
- * grow's feed reminder, else its water reminder, else three.
- */
-export const growWeekFeeding = named(
-  'GrowWeekFeeding',
-  z.object({
-    amounts: z.array(schemeAmount),
-    plannedCount: z.number().int(),
-  }),
-);
-
-/**
- * Where one of the grow's own measurements stood at the end of the week, and by
- * how much it moved - "Height · 58 cm · +6". `change` is against the newest
- * reading before this week began and is null when there was none.
- *
- * `key` names a definition in the grow's `measurements[]`, which is where its
- * name, its unit and its target are; nothing about the measurement is copied
- * onto the reading.
- */
-export const growWeekReading = named(
-  'GrowWeekReading',
-  z.object({
-    key: z.string(),
-    value: z.number(),
-    change: z.number().nullable(),
-    measuredAt: instant(),
-  }),
-);
-
-/**
- * A week of a grow, which is what the grow page is made of. `weekNumber` counts
- * from the grow's origin, like the day counter, so it lines up with the feeding
- * scheme's grid, and `dayFrom`/`dayTo` are the same count in days - always
- * seven of them, because "day 29-35" is what the week is of; `endsAt` is where
- * the week stops, which for the week a grow is in is now.
- *
- * `stageWeek` is which week of the current stage this is, so "Flower wk 2" can
- * be drawn from the card alone: the public page carries these cards without the
- * grow's phases beside them.
- */
-export const growWeekCard = named(
-  'GrowWeekCard',
-  z.object({
-    weekNumber: z.number().int(),
-    dayFrom: z.number().int(),
-    dayTo: z.number().int(),
-    startsAt: instant(),
-    endsAt: instant(),
-    stage: growthStage.nullable(),
-    preset: z.string().nullable(),
-    stageWeek: z.number().int().nullable().describe('1 in the week the stage began; null before the first phase.'),
-    deviceIds: z
-      .array(id())
-      .nullable()
-      .describe(
-        'The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes; null on a shared or public read, where the averages are the diary and the hardware behind them is not.',
-      ),
-    climate: z.array(weekClimate),
-    lightHours: z.number().nullable().describe('Hours of light per day over the week, from the controller’s light output.'),
-    days: z.array(growWeekDay).describe('Seven; a day that has not happened yet carries no picture.'),
-    feeding: growWeekFeeding.nullable().describe('Null for a grow that is fed no scheme.'),
-    readings: z.array(growWeekReading),
-    waterCount: z.number().int(),
-    feedCount: z.number().int(),
-    entries: z.array(entry).describe('The week’s diary lines, newest first, capped; `entryCount` is how many there are.'),
-    entryCount: z.number().int(),
-    timelapseMediaId: id().nullable(),
-  }),
-);
-
-/**
- * The week cards, page by page, with everyone they name. A page carries
- * `people` for the same reason the home answer does - a card says who watered -
- * and one Mongo read answers it for the whole page.
- */
-export const growWeekCardPage = named('GrowWeekCardPage', page(growWeekCard).extend({ people: z.array(person) }));
-
-/**
- * Something a device did on one day that nobody wrote down: its lamp switching,
- * or a stretch its climate spent outside what it was aiming at. They are read
- * from the measurements on every read and stored nowhere, so a day that has
- * left the store's raw samples has none.
+ * Something that happened on one day and is nobody's diary line: the lamp
+ * switching and a stretch the climate spent outside what the devices were
+ * aiming at, which a device did by itself, and maintenance, which a person
+ * switched - on and off are one event. Lamp and stretches are read from the
+ * measurements on every read and stored nowhere, so a day that has left the
+ * store's raw samples has none. A reader from outside is answered none of
+ * them.
  */
 export const growDayEvent = named(
   'GrowDayEvent',
@@ -1941,6 +1838,11 @@ export const growDayEvent = named(
       metric: metric,
       above: z.boolean().describe('Which edge it left over: true is above the band.'),
       extremeValue: z.number().nullable(),
+    }),
+    z.object({
+      kind: z.literal('maintenance'),
+      at: instant().describe('When somebody put the devices of the place into maintenance, or the start of the day where they already were.'),
+      endedAt: instant().nullable().describe('Null while it is still on, or where the day ended first.'),
     }),
   ]),
 );
@@ -1989,15 +1891,16 @@ export const growDiaryDay = named(
     entries: z
       .array(entry)
       .describe(
-        'The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, what its devices and the plan wrote where the grow stood.',
+        'The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, the alarms raised and the plan’s steps where the grow stood. What else a device logs - a restart, a sensor drifting - is not diary and stays with the device.',
       ),
   }),
 );
 
 /**
  * A week of the diary: seven days of the grow, newest first, under the stage
- * the week lay in. `film` is the week film whose first frame falls inside it,
- * named by the days it really covers - a film is cut on the calendar's weeks.
+ * the week lay in. `film` is the week film most of whose days lie in this
+ * week, named by those of its days that do - a film is cut on the calendar's
+ * weeks, which are not the grow's. One too short to watch is not offered.
  */
 export const growDiaryWeek = named(
   'GrowDiaryWeek',
@@ -2020,8 +1923,19 @@ export const growDiaryWeek = named(
   }),
 );
 
-/** The diary, a few weeks at a time, with everyone its lines name. */
-export const growDiaryPage = named('GrowDiaryPage', page(growDiaryWeek).extend({ people: z.array(person) }));
+/**
+ * The diary, a few weeks at a time, with everyone its lines name. `earlier` is
+ * what was written to the grow for a moment before the date it began on: such
+ * lines have no day of the grow, and the last page carries them so they are
+ * not lost from sight.
+ */
+export const growDiaryPage = named(
+  'GrowDiaryPage',
+  page(growDiaryWeek).extend({
+    people: z.array(person),
+    earlier: z.array(entry).describe('Newest first; empty on every page but the last.'),
+  }),
+);
 
 /**
  * One stretch of the grow at one stage, as the report tells its story: a
@@ -2049,7 +1963,7 @@ export const growReportPhase = named(
       .number()
       .nullable()
       .describe(
-        'Hours of light per day over the phase, from the controller’s light output, as a week card states it for its own seven days; null over a stretch too short or too quiet to say.',
+        'Hours of light per day over the phase, from the controller’s light output; null over a stretch too short or too quiet to say.',
       ),
     inBandPercent: z
       .number()
@@ -2085,8 +1999,8 @@ export const growTotals = named(
  * `GET /grows/{id}/report`, the Report tab: the grow told as chapters, one per
  * phase.
  *
- * It carries no week cards. The Report tab sits beside the Weeks tab, which
- * reads `GET /grows/{id}/weeks`, and a week costs a time-series query per
+ * It carries no days. The Report tab sits beside the diary, which reads
+ * `GET /grows/{id}/diary`, and a week of that costs a time-series query per
  * controller - a report that repeated them would make opening the second tab
  * cost the first one twice over. The public page, which shows both, is a read
  * model of its own and assembles them once.
@@ -2227,7 +2141,7 @@ export const growSeries = named(
     startsAt: instant(),
     endsAt: instant(),
     stepSeconds: z.number().int().describe('The window each climate and output point summarises; 0 where no device was read at all.'),
-    originAt: instant().describe('The instant day 1 of this grow began, which is what day-of-grow counts from.'),
+    originAt: instant().describe('The start of the date the grow began on, on its owner’s calendar: where day 1 begins, and what a day-of-grow axis counts from.'),
     dayFrom: z.number().int().nullable(),
     dayTo: z.number().int().nullable(),
     deviceIds: z
@@ -2345,7 +2259,7 @@ export const publicGrowPage = named(
       .int()
       .nullable()
       .describe(
-        'Which week of the stage above the diary is in, counted against the grow’s own weeks exactly as the week cards below count them - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`: that gives the week of the whole grow, which is the week cards’ own heading and a different number entirely once a grow has changed stage. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.',
+        'Which week of the stage above the diary is in, counted against the grow’s own weeks exactly as the weeks below count them - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`: that gives the week of the whole grow, a different number entirely once a grow has changed stage. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.',
       ),
     plantCount: z.number().int().nullable(),
     strains: z.array(z.string()),
@@ -2353,7 +2267,8 @@ export const publicGrowPage = named(
     filmMediaId: id().nullable(),
     range: timeRange,
     includeCameras: z.boolean(),
-    weeks: z.array(growWeekCard),
+    readingNames: z.array(readingName).describe('What the grow calls its measurements, so a reading in a line of the diary is named rather than keyed.'),
+    weeks: z.array(growDiaryWeek),
     weeksCursor: z
       .string()
       .nullable()
@@ -2372,7 +2287,7 @@ export const publicGrowPage = named(
  * page nobody waits for. It carries no `people`, unlike the owner's own weeks:
  * a stranger reads a diary by one author and is told nobody's name.
  */
-export const publicWeekPage = named('PublicWeekPage', page(growWeekCard));
+export const publicWeekPage = named('PublicWeekPage', page(growDiaryWeek));
 
 /**
  * `GET /public/users/{handle}`: the public diaries of one person. A public grow

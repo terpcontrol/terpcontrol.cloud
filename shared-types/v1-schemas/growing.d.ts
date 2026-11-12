@@ -519,6 +519,7 @@ export declare const growSummary: z.ZodObject<{
     preset: z.ZodNullable<z.ZodString>;
     phaseDay: z.ZodNullable<z.ZodNumber>;
     weekNumber: z.ZodNullable<z.ZodNumber>;
+    zone: z.ZodString;
     stageWeek: z.ZodNullable<z.ZodNumber>;
     isAuto: z.ZodBoolean;
     groups: z.ZodArray<z.ZodObject<{
@@ -661,6 +662,7 @@ export declare const growListItem: z.ZodObject<{
         preset: z.ZodNullable<z.ZodString>;
         phaseDay: z.ZodNullable<z.ZodNumber>;
         weekNumber: z.ZodNullable<z.ZodNumber>;
+        zone: z.ZodString;
         stageWeek: z.ZodNullable<z.ZodNumber>;
         isAuto: z.ZodBoolean;
         groups: z.ZodArray<z.ZodObject<{
@@ -1520,6 +1522,7 @@ export declare const growPage: z.ZodObject<{
             preset: z.ZodNullable<z.ZodString>;
             phaseDay: z.ZodNullable<z.ZodNumber>;
             weekNumber: z.ZodNullable<z.ZodNumber>;
+            zone: z.ZodString;
             stageWeek: z.ZodNullable<z.ZodNumber>;
             isAuto: z.ZodBoolean;
             groups: z.ZodArray<z.ZodObject<{

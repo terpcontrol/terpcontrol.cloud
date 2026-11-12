@@ -143,7 +143,7 @@ const planted = (...ids: string[]): PlantDocument[] => ids.map(id => ({ id }) as
 
 describe('what a grow´s phases and placements mean', () => {
   it('counts day 1 on the day the first phase started', () => {
-    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, STARTED_AT);
+    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, null, STARTED_AT);
 
     expect(summary.dayNumber).toBe(1);
     expect(summary.weekNumber).toBe(1);
@@ -164,7 +164,7 @@ describe('what a grow´s phases and placements mean', () => {
   });
 
   it('counts the days that have passed, and the week with them', () => {
-    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.dayNumber).toBe(11);
     expect(summary.weekNumber).toBe(2);
@@ -177,48 +177,53 @@ describe('what a grow´s phases and placements mean', () => {
    */
   it('counts from the day the grow began, as the week cards beneath it do, even when its first phase came later', () => {
     const later = new Date('2026-05-06T08:00:00.000Z');
-    const summary = summaryOf(grown({ startedAt: STARTED_AT, phases: [phase({ startedAt: later })] }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(
+      grown({ startedAt: STARTED_AT, phases: [phase({ startedAt: later })] }),
+      planted('a'),
+      NOTHING_HIDDEN,
+      null,
+      TEN_DAYS_LATER,
+    );
 
     expect(summary.dayNumber).toBe(11);
     expect(summary.weekNumber).toBe(2);
     expect(summary.phaseDay).toBe(6);
   });
 
-  it('counts the day of the phase in the grow´s own days, the same days the phase bar counts', () => {
-    // The flip was pressed at two in the morning, and the grow's day turns over
-    // at eight. Counted in 24-hour blocks from the phase's own instant the
-    // header read a day less than the bar directly above it said the stage had
-    // lasted, which is the drift the shared arithmetic exists to stop.
+  it('counts the day of the phase in the grow´s own days, the same days the report´s chapters count', () => {
+    // The flip was pressed at two in the morning of the ninth, and it is the
+    // eleventh: three dates. Counted in 24-hour blocks from the phase's own
+    // instant the header and the chapter beneath it state two lengths.
     const flip = new Date('2026-05-09T02:00:00.000Z');
     const grow = grown({ phases: [phase({ id: 'phase-veg' }), phase({ id: 'phase-flower', stage: 'flowering', startedAt: flip })] });
 
-    const summary = summaryOf(grow, planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
-    const span = stageSpansOf(grow, TEN_DAYS_LATER).find(one => one.stage === 'flowering');
+    const summary = summaryOf(grow, planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
+    const span = stageSpansOf(grow, TEN_DAYS_LATER, null).find(one => one.stage === 'flowering');
 
-    expect(summary.phaseDay).toBe(4);
-    expect(span?.dayCount).toBe(4);
+    expect(summary.phaseDay).toBe(3);
+    expect(span?.dayCount).toBe(3);
   });
 
   it('counts the day of a split group´s phase the same way, which the home and tent cards draw', () => {
     const flip = new Date('2026-05-09T02:00:00.000Z');
     const split = phase({ id: 'phase-drying', stage: 'drying', startedAt: flip, plantIds: ['c'] });
-    const summary = summaryOf(grown({ phases: [phase({ id: 'phase-veg' }), split] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ phases: [phase({ id: 'phase-veg' }), split] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.groups.map(group => ({ stage: group.stage, phaseDay: group.phaseDay }))).toEqual([
       { stage: 'vegetative', phaseDay: 11 },
-      { stage: 'drying', phaseDay: 4 },
+      { stage: 'drying', phaseDay: 3 },
     ]);
   });
 
   it('counts nothing before the grow has entered a phase', () => {
-    const summary = summaryOf(grown({ placements: [placement({})] }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ placements: [placement({})] }), planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary).toMatchObject({ dayNumber: null, weekNumber: null, stage: null, phaseDay: null, isAuto: false, groups: [] });
   });
 
   it('stops counting on the day the grow ended', () => {
     const endedAt = new Date('2026-05-06T08:00:00.000Z');
-    const summary = summaryOf(grown({ phases: [phase({})], endedAt }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ phases: [phase({})], endedAt }), planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.dayNumber).toBe(6);
   });
@@ -238,8 +243,8 @@ describe('what a grow´s phases and placements mean', () => {
     });
 
     it('stops the day counter and the headline where the window did', () => {
-      const whole = summaryOf(running, planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
-      const seen = summaryOf(growUpTo(running, FIVE_DAYS_IN), planted('a'), NOTHING_HIDDEN, FIVE_DAYS_IN);
+      const whole = summaryOf(running, planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
+      const seen = summaryOf(growUpTo(running, FIVE_DAYS_IN), planted('a'), NOTHING_HIDDEN, null, FIVE_DAYS_IN);
 
       expect(whole).toMatchObject({ dayNumber: 10, stage: 'flowering' });
       expect(seen).toMatchObject({ dayNumber: 6, stage: 'vegetative' });
@@ -251,22 +256,22 @@ describe('what a grow´s phases and placements mean', () => {
     });
 
     it('leaves the plants where they stood, not where they were moved to afterwards', () => {
-      const seen = summaryOf(growUpTo(running, FIVE_DAYS_IN), planted('a'), NOTHING_HIDDEN, FIVE_DAYS_IN);
+      const seen = summaryOf(growUpTo(running, FIVE_DAYS_IN), planted('a'), NOTHING_HIDDEN, null, FIVE_DAYS_IN);
 
       expect(seen.locations.map(where => where.spaceId)).toEqual([TENT]);
     });
   });
 
   it('is auto when a preset or the plan put the grow there, and not when a person did', () => {
-    const byPreset = summaryOf(grown({ phases: [phase({ source: 'preset' })] }), planted('a'), NOTHING_HIDDEN, STARTED_AT);
-    const byHand = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, STARTED_AT);
+    const byPreset = summaryOf(grown({ phases: [phase({ source: 'preset' })] }), planted('a'), NOTHING_HIDDEN, null, STARTED_AT);
+    const byHand = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, null, STARTED_AT);
 
     expect(byPreset.isAuto).toBe(true);
     expect(byHand.isAuto).toBe(false);
   });
 
   it('lists no groups while every plant is in the same phase', () => {
-    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, STARTED_AT);
+    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, null, STARTED_AT);
 
     expect(summary.groups).toEqual([]);
     expect(summary.stage).toBe('vegetative');
@@ -274,7 +279,7 @@ describe('what a grow´s phases and placements mean', () => {
 
   it('lists every group once a split has scoped one, and takes the headline from the largest', () => {
     const drying = phase({ id: 'phase-drying', stage: 'drying', startedAt: TEN_DAYS_LATER, plantIds: ['c'] });
-    const summary = summaryOf(grown({ phases: [phase({ id: 'phase-veg' }), drying] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ phases: [phase({ id: 'phase-veg' }), drying] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.stage).toBe('vegetative');
     expect(summary.groups).toEqual([
@@ -285,7 +290,7 @@ describe('what a grow´s phases and placements mean', () => {
 
   it('says where each plant stands, from the open placements', () => {
     const moved = placement({ id: 'placement-fridge', spaceId: FRIDGE, startedAt: TEN_DAYS_LATER, plantIds: ['c'] });
-    const summary = summaryOf(grown({ placements: [placement({}), moved] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ placements: [placement({}), moved] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.locations).toEqual([
       { spaceId: TENT, plantIds: ['a', 'b'] },
@@ -294,14 +299,14 @@ describe('what a grow´s phases and placements mean', () => {
   });
 
   it('still says where a grow with no plants of its own stands', () => {
-    const summary = summaryOf(grown({ placements: [placement({})] }), [], NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ placements: [placement({})] }), [], NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.locations).toEqual([{ spaceId: TENT, plantIds: [] }]);
   });
 
   it('forgets a placement that has been closed', () => {
     const left = placement({ endedAt: TEN_DAYS_LATER });
-    const summary = summaryOf(grown({ placements: [left] }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ placements: [left] }), planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.locations).toEqual([]);
   });
@@ -567,7 +572,7 @@ describe('correcting a phase', () => {
 
     await grows.updatePhase(grow.id, entered.id, { startedAt: STARTED_AT.toISOString() }, NOTHING_HIDDEN);
 
-    const read = serialiseGrow(await grows.require(grow.id), await plantsOfGrow(grow.id), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const read = serialiseGrow(await grows.require(grow.id), await plantsOfGrow(grow.id), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
     expect(read.summary.dayNumber).toBe(11);
     expect((await phaseLineOf(grow.id, entered.id))?.occurredAt).toEqual(STARTED_AT);
   });
@@ -581,7 +586,7 @@ describe('correcting a phase', () => {
 
     const stored = await grows.require(grow.id);
     expect(stored.startedAt).toEqual(twoDaysLater);
-    expect(serialiseGrow(stored, await plantsOfGrow(grow.id), NOTHING_HIDDEN, TEN_DAYS_LATER).summary.dayNumber).toBe(9);
+    expect(serialiseGrow(stored, await plantsOfGrow(grow.id), NOTHING_HIDDEN, null, TEN_DAYS_LATER).summary.dayNumber).toBe(9);
   });
 
   it('leaves a start of its own alone, one that came before every phase', async () => {
@@ -636,7 +641,7 @@ describe('taking a phase back', () => {
 
     await grows.removePhase(grow.id, tooEarly.id);
 
-    const read = serialiseGrow(await grows.require(grow.id), await plantsOfGrow(grow.id), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const read = serialiseGrow(await grows.require(grow.id), await plantsOfGrow(grow.id), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
     expect(read.summary.dayNumber).toBe(6);
   });
 

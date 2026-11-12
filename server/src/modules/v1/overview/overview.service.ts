@@ -6,6 +6,7 @@ import { STEERED, growDayAt, growOriginOf, metric as metricSchema, outputMetric 
 import { cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { localOf } from '@common/v1/local-time';
+import { zonesOfOwners } from '@common/v1/owner-zone';
 import { peopleNamed } from '@common/v1/people';
 import { clampRange, seenOf, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
@@ -158,7 +159,7 @@ export class OverviewService {
     const steering = climates[0] ?? null;
     const window = seenOf({ startsAt: new Date(until.getTime() - VERDICT_HOURS * 3600 * 1000), endsAt: until }, range);
 
-    const [plants, reminders, entries, stills, lit, hide, settling, verdicts] = await Promise.all([
+    const [plants, reminders, entries, stills, lit, hide, zone, settling, verdicts] = await Promise.all([
       this.plants
         .find({ growId: { $in: growIds } })
         .sort({ createdAt: 1, _id: 1 })
@@ -174,6 +175,10 @@ export class OverviewService {
       ownerRedactions(
         this.users,
         grant.redacted,
+        grows.map(grow => grow.ownerId),
+      ),
+      zonesOfOwners(
+        this.users,
         grows.map(grow => grow.ownerId),
       ),
       !closed ? settlingsOf(this.targetRecord, devices, until) : Promise.resolve(new Map()),
@@ -231,6 +236,7 @@ export class OverviewService {
           spaceId,
           plants.filter(plant => plant.growId === grow.id),
           hide(grow.ownerId),
+          zone(grow.ownerId),
           until,
         ),
       ),
@@ -362,10 +368,11 @@ const targetsOf = (both: Setpoints): OverviewTargets => {
  * the same card are days of the same calendar. Null before the first phase, as
  * the day counter is.
  */
-const dayNumberOn = (grow: GrowDocument, at: Date): number | null => (grow.phases.length > 0 ? growDayAt(growOriginOf(grow), at) : null);
+const dayNumberOn = (grow: GrowDocument, at: Date, zone: string | null): number | null =>
+  grow.phases.length > 0 ? growDayAt(growOriginOf(grow), at, zone) : null;
 
-const growHere = (grow: GrowDocument, spaceId: string, plants: PlantDocument[], hide: Redaction, now: Date): OverviewGrow => {
-  const summary = summaryOf(grow, plants, hide, now);
+const growHere = (grow: GrowDocument, spaceId: string, plants: PlantDocument[], hide: Redaction, zone: string | null, now: Date): OverviewGrow => {
+  const summary = summaryOf(grow, plants, hide, zone, now);
   // The placement that put these plants here, which is not where the grow began:
   // a grow moves between tents and its day counter carries on across the move.
   const placement = grow.placements
@@ -374,10 +381,10 @@ const growHere = (grow: GrowDocument, spaceId: string, plants: PlantDocument[], 
   const placedAt = placement?.startedAt ?? grow.startedAt;
 
   return {
-    ...growCardOf(grow, plants, hide, now, summary),
+    ...growCardOf(grow, plants, hide, zone, now, summary),
     weekNumber: summary.weekNumber,
     placedAt: placedAt.toISOString(),
-    placedOnDay: dayNumberOn(grow, placedAt),
+    placedOnDay: dayNumberOn(grow, placedAt, zone),
   };
 };
 

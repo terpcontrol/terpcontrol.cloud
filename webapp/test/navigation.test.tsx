@@ -169,6 +169,7 @@ const grow: GrowListItem = {
     preset: null,
     phaseDay: null,
     weekNumber: 5,
+    zone: 'UTC',
     stageWeek: null,
     isAuto: false,
     groups: [],
@@ -565,6 +566,16 @@ describe('the choice of place', () => {
     expect(rows.map(row => /Tent 2|Fridge 1|Balcony/.exec(row.textContent)![0])).toEqual(['Tent 2', 'Fridge 1', 'Balcony']);
   });
 
+  it('opens a browser that has chosen none on the place a grow runs in, before one that only needs a person', async () => {
+    // Tent 2 has an alert open and is what Start lists first; the grow runs in Fridge 1.
+    server.alerting = 'space-2';
+    server.growing = true;
+    open('/timeline');
+
+    await waitFor(() => expect(chips('Fridge 1')).toHaveLength(2));
+    expect(chosen()).toBe('space-1');
+  });
+
   it('lists the places under their rooms, each saying how it is and what grows there, with the chosen one marked', async () => {
     server.places = [...TWO, ['space-3', 'Balcony']];
     server.room = true;
@@ -643,7 +654,6 @@ describe('the choice of place', () => {
   it.each([
     ['who is let into it', '/spaces/space-2/members'],
     ['its camera', '/cameras/cam-2'],
-    ['a grow running there', '/grows/grow-2/weeks'],
   ])('leads from a page that belongs to a place to the Start of the place chosen: %s', async (_what, from) => {
     const router = open(from);
 
@@ -652,6 +662,16 @@ describe('the choice of place', () => {
 
     await waitFor(() => expect(where(router)).toBe('/spaces/space-1'));
     expect(await screen.findByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument();
+    expect(chosen()).toBe('space-1');
+  });
+
+  it('leads from a grow opened by its id to Grow of the place chosen', async () => {
+    const router = open('/grows/grow-2');
+
+    await waitFor(() => expect(chosen()).toBe('space-2'));
+    await choose('Tent 2', /Fridge 1/);
+
+    await waitFor(() => expect(where(router)).toBe('/grow?space=space-1'));
     expect(chosen()).toBe('space-1');
   });
 
@@ -734,13 +754,16 @@ describe('Grow, the bar´s item', () => {
     await waitFor(() => expect(where(router)).toBe('/grow'));
   });
 
-  it('offers to start a grow where none runs in the chosen place', async () => {
+  it('offers to start a grow where none runs in the chosen place, in a sheet over Grow', async () => {
     server.growing = true;
     const router = open('/grow?space=space-2');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Grow' })).toBeInTheDocument();
     expect(screen.getByText('Nothing growing here yet')).toBeInTheDocument();
-    expect(await screen.findByRole('link', { name: 'Start a grow' })).toHaveAttribute('href', '/grows/new?space=space-2');
+    fireEvent.click(await screen.findByRole('button', { name: 'Start a grow' }));
+
+    // Started here, the grow is drawn here: the address stays Grow's.
+    expect(await screen.findByRole('dialog', { name: 'New grow' })).toBeInTheDocument();
     expect(where(router)).toBe('/grow?space=space-2');
   });
 });

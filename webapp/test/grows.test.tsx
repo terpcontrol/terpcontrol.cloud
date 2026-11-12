@@ -150,9 +150,9 @@ describe('the page', () => {
     wire.grows = [SPRING, { ...LAST_YEAR, endedAt: '2025-12-10T10:00:00.000Z', harvest: null }];
     draw(<Grows />);
 
-    expect(await screen.findByRole('link', { name: /Spring run/ })).toHaveTextContent('121 d · harvested in June · Report');
+    expect(await screen.findByRole('link', { name: /Spring run/ })).toHaveTextContent('121 days · harvested in June · Report');
     // Another year than this one is named.
-    expect(screen.getByRole('link', { name: /Windowsill/ })).toHaveTextContent('52 d · ended in December 2025 · Report');
+    expect(screen.getByRole('link', { name: /Windowsill/ })).toHaveTextContent('52 days · ended in December 2025 · Report');
     vi.useRealTimers();
   });
 
@@ -193,7 +193,7 @@ describe('the page', () => {
       within(beside)
         .getAllByRole('link')
         .map(link => link.getAttribute('href')),
-    ).toEqual(['/me/schemes', '/me/share-links', '/me/following']);
+    ).toEqual(['/grows/schemes', '/grows/share-links', '/grows/following']);
   });
 
   it('offers the demo, which may look and not write, neither a new grow nor doors to an account it has not got', async () => {

@@ -1,17 +1,20 @@
 import { ChevronRight, Leaf } from 'lucide-react';
 import { DateTime } from 'luxon';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowHarvest, PublicAuthor, PublicGrowPage } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type EarlierWeeks, type Picture } from '@/api/public';
 import { initials } from '@/ui/handle';
 import ui from '@/ui/ui.module.css';
-import { DiaryWeek } from './DiaryWeek';
+import { Days } from '@/screens/grow/diary/Diary';
+import { picturesOfDay, type DiaryReader } from '@/screens/grow/diary/days';
 import { Photo } from '@/ui/Photo';
+import { PictureViewer } from '@/ui/PictureViewer';
 import { calendarDay, DAY } from '@/ui/zone';
 import { stageLabel } from '@/ui/presets';
 import styles from './Public.module.css';
+import { windowIsCurrent } from './window';
 
 interface DiaryProps {
   page: PublicGrowPage;
@@ -31,8 +34,8 @@ interface DiaryProps {
 
 /**
  * A grow diary as somebody who is not in it reads it: the cover, who it is by,
- * what is growing, how far along it is, and then every week from the newest
- * back.
+ * what is growing, how far along it is, and then the diary day by day from
+ * the newest back, drawn by the cards the grower's own page is made of.
  *
  * It draws the answer and nothing else. Everything a reader may see has already
  * been clamped to their window and stripped by the owner's privacy before it
@@ -44,6 +47,18 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
   const { t } = useTranslation();
   const cover = page.coverMediaId ? picture(page.coverMediaId, PUBLIC_WIDTH.cover) : null;
   const weeks = [...page.weeks, ...(earlier?.weeks ?? [])];
+  const pictures = weeks.flatMap(week => week.days).flatMap(picturesOfDay);
+  const [viewing, setViewing] = useState<number | null>(null);
+  // A reader from outside is handed the days and their pictures, and no way into the account behind them.
+  const reader: DiaryReader = {
+    zone: null,
+    readingNames: page.readingNames,
+    picture,
+    cameras: false,
+    byline: false,
+    correct: () => undefined,
+    curveOf: () => null,
+  };
 
   return (
     <article className={styles.diary}>
@@ -70,8 +85,8 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
                   as a count still running on a diary the line underneath
                   already dates to last August. The end is the reader's own:
                   a link whose window closed before the grow did is inside a
-                  diary that had not ended, exactly as the week cards on this
-                  page are. */}
+                  diary that had not ended, exactly as the days on this page
+                  are. */}
               <span className="label">{t(page.endedAt ? 'grow.finalDay' : 'home.card.day')}</span>
             </div>
           ) : null}
@@ -93,27 +108,19 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
 
       <section className={styles.weeks} aria-label={t('publicPage.weeks')}>
         {weeks.length === 0 ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('publicPage.nothingInWindow')}</p> : null}
-        {weeks.map((week, index) => {
-          // The server answers newest first, so the first card of a diary that
-          // is still running is the week it is in; no clock of ours decides it.
-          const current = index === 0 && page.endedAt === null;
-          return (
-            <DiaryWeek
-              key={week.weekNumber}
-              week={week}
-              picture={picture}
-              now={now}
-              current={current}
-              ended={page.endedAt !== null}
-              asOf={current ? page.range.endsAt : null}
-              explain={index === 0}
-            />
-          );
-        })}
-        {earlier?.more ? (
-          <button type="button" className={ui.button} disabled={earlier.pending} onClick={earlier.more}>
-            {earlier.pending ? t('home.waiting') : t('grow.earlierWeeks')}
-          </button>
+        {weeks.length > 0 ? (
+          <Days
+            weeks={weeks}
+            reader={reader}
+            now={now}
+            // The newest day is today where the grow runs and the reader's window has not closed.
+            running={page.endedAt === null && windowIsCurrent(page.range.endsAt, now)}
+            more={earlier?.more ? { load: earlier.more, pending: earlier.pending } : null}
+            onPicture={shown => setViewing(pictures.findIndex(one => one.mediaId === shown.mediaId))}
+          />
+        ) : null}
+        {viewing !== null && viewing >= 0 ? (
+          <PictureViewer pictures={pictures.map(one => picture(one.mediaId, PUBLIC_WIDTH.cover))} from={viewing} onClose={() => setViewing(null)} />
         ) : null}
       </section>
     </article>
@@ -164,8 +171,7 @@ function Facts({ page }: { page: PublicGrowPage }) {
   const parts = [
     page.stage ? stageLabel(t, page.stage, page.preset) : t('home.card.noPhase'),
     // The week of the stage the word before it names, which is what the owner's
-    // own header says and what the first card's pill repeats. The week of the
-    // whole grow belongs to the cards' own headings: glued to a stage name it
+    // own header says. Glued to a stage name, the week of the whole grow
     // told a reader that a grow had been curing for thirty-two weeks when it
     // had been curing for twelve.
     page.stageWeek !== null ? t('grow.week', { week: page.stageWeek }) : null,

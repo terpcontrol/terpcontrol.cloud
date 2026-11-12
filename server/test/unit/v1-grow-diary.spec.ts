@@ -3,7 +3,7 @@ import { growDayAt } from '@fg2/shared-types/v1-schemas';
 import { AccessService } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { DataService, DeviceHistory } from '@modules/data/data.service';
-import { diaryWeeksOf } from '@modules/v1/diary/diary-calendar';
+import { diaryWeeksOf } from '@modules/v1/diary/grow-calendar';
 import { GrowClimateService } from '@modules/v1/diary/grow-climate.service';
 import { GrowDiaryService } from '@modules/v1/diary/grow-diary.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -221,13 +221,28 @@ const world = async (): Promise<void> => {
       values: { kind: 'water', litres: 1.5, readings: [] },
     }),
     entry({ id: 'note-last-night', growId: GROW, occurredAt: berlin(11, '21:40'), text: 'Smells good' }),
+    // What a device logs about itself is its own record, not the grow's diary.
     machine('booted', 'message-device-booted', berlin(11, '06:00')),
-    // The device's own housekeeping is the place's record, not the grow's.
     machine('firmware', 'message-device-firmware-update', berlin(11, '07:00')),
-    // A line of the same tent from before the grow stood in it.
-    machine('booted-before', 'message-device-booted', berlin(2, '11:00')),
-    // And one of a tent the grow never stood in.
-    machine('booted-elsewhere', 'message-device-booted', berlin(11, '08:00'), { spaceId: SPARE_TENT, deviceId: SPARE_CONTROLLER }),
+    // Somebody put the tent into maintenance for fifteen minutes and ended it after four.
+    machine('maintenance-on', 'message-maintenance-mode-activated-remote', berlin(11, '10:00'), {
+      message: { key: 'message-maintenance-mode-activated-remote', params: ['15'] },
+    }),
+    machine('maintenance-off', 'message-maintenance-mode-activated-remote', berlin(11, '10:04'), {
+      message: { key: 'message-maintenance-mode-activated-remote', params: ['0'] },
+    }),
+    // And once at the device, where nobody ended it: it was over when its minutes were.
+    machine('maintenance-left', 'message-maintenance-mode-activated', berlin(10, '17:00'), {
+      message: { key: 'message-maintenance-mode-activated', params: ['30'] },
+    }),
+    // Maintenance of a tent the grow never stood in.
+    machine('maintenance-elsewhere', 'message-maintenance-mode-activated', berlin(11, '08:00'), {
+      spaceId: SPARE_TENT,
+      deviceId: SPARE_CONTROLLER,
+      message: { key: 'message-maintenance-mode-activated', params: ['15'] },
+    }),
+    // Written to the grow for a moment before the date it began on.
+    entry({ id: 'note-too-early', growId: GROW, occurredAt: berlin(1, '18:00'), text: 'Seeds arrived' }),
     entry({
       id: 'plan-step',
       kind: 'plan',
@@ -327,14 +342,25 @@ describe('the days of a diary', () => {
     expect(dayOf(page, 11)).toMatchObject({ startsAt: '2026-11-11T23:00:00.000Z', endsAt: NOW.toISOString() });
   });
 
-  it('file this morning´s line under today, whatever hour the grow´s own day turns over at', async () => {
-    // The grow began at three in the afternoon, so by its own count it is still on yesterday´s day.
-    expect(growDayAt(ORIGIN, NOW)).toBe(10);
+  it('file this morning´s line under today, whatever hour the grow began at', async () => {
+    // The grow began at three in the afternoon ten days ago; counted in dates this morning is its eleventh day.
+    expect(growDayAt(ORIGIN, NOW, 'Europe/Berlin')).toBe(11);
+    // In the first hour after midnight too, on every date after the clocks changed.
+    expect(growDayAt(new Date('2026-03-20T15:00:00.000Z'), new Date('2026-03-31T22:30:00.000Z'), 'Europe/Berlin')).toBe(13);
 
     const page = await read();
 
     expect(dayOf(page, 11).entries.map(line => line.id)).toEqual(['watered-this-morning']);
-    expect(dayOf(page, 10).entries.map(line => line.id)).toEqual(['note-last-night', 'booted']);
+    expect(dayOf(page, 10).entries.map(line => line.id)).toEqual(['note-last-night']);
+  });
+
+  it('keep what was dated to before the grow began for the end of the last page, without a day', async () => {
+    const first = await read(session(OWNER), { limit: 1 });
+    expect(first.earlier).toEqual([]);
+
+    const last = await read(session(OWNER), { limit: 1, cursor: first.nextCursor! });
+    expect(last.earlier.map(line => line.id)).toEqual(['note-too-early']);
+    expect(last.items.flatMap(week => week.days.flatMap(day => day.entries.map(line => line.id)))).not.toContain('note-too-early');
   });
 
   it('name a week after the stage it lay in, counted in the diary´s own weeks', async () => {
@@ -447,7 +473,7 @@ describe('what the devices did', () => {
   it('is the lamp coming on and going off', async () => {
     const page = await read();
 
-    expect(dayOf(page, 10).events).toEqual([
+    expect(dayOf(page, 10).events.filter(event => event.kind === 'light')).toEqual([
       { kind: 'light', at: berlin(11, '06:00').toISOString(), on: true },
       { kind: 'light', at: berlin(11, '18:00').toISOString(), on: false },
     ]);
@@ -465,11 +491,41 @@ describe('what the devices did', () => {
     ]);
   });
 
-  it('is what they wrote where the grow stood while it stood there, and only what happened to the grow', async () => {
+  it('is the plan´s steps for this grow, and nothing of what a device logs about itself', async () => {
     const page = await read();
     const machines = page.items.flatMap(week => week.days.flatMap(day => day.entries.filter(line => line.source !== 'human').map(line => line.id)));
 
-    expect(machines).toEqual(['booted', 'plan-step']);
+    expect(machines).toEqual(['plan-step']);
+  });
+});
+
+describe('maintenance', () => {
+  const maintenanceOf = (day: GrowDiaryDay) => day.events.filter(event => event.kind === 'maintenance');
+
+  it('is one stretch from when somebody switched it on to when it was switched off', async () => {
+    expect(maintenanceOf(dayOf(await read(), 10))).toEqual([
+      { kind: 'maintenance', at: berlin(11, '10:00').toISOString(), endedAt: berlin(11, '10:04').toISOString() },
+    ]);
+  });
+
+  it('is over when its minutes are, where nobody ended it', async () => {
+    expect(maintenanceOf(dayOf(await read(), 9))).toEqual([
+      { kind: 'maintenance', at: berlin(10, '17:00').toISOString(), endedAt: berlin(10, '17:30').toISOString() },
+    ]);
+  });
+
+  it('is one stretch for every device of the place that wrote it, and still going while its minutes are', async () => {
+    await db.entries.create([
+      machine('on-controller', 'message-maintenance-mode-activated-remote', berlin(12, '09:50'), {
+        message: { key: 'message-maintenance-mode-activated-remote', params: ['15'] },
+      }),
+      machine('on-plug', 'message-maintenance-mode-activated-remote', new Date(berlin(12, '09:50').getTime() + 2000), {
+        deviceId: 'device-plug',
+        message: { key: 'message-maintenance-mode-activated-remote', params: ['15'] },
+      }),
+    ]);
+
+    expect(maintenanceOf(dayOf(await read(), 11))).toEqual([{ kind: 'maintenance', at: berlin(12, '09:50').toISOString(), endedAt: null }]);
   });
 });
 
@@ -498,6 +554,21 @@ describe('the pictures of a diary', () => {
 
     expect(page.items[0].film).toEqual({ mediaId: 'film-week', dayFrom: 8, dayTo: 11, lengthSeconds: 20 });
     expect(page.items[1].film).toBeNull();
+  });
+
+  it('give a film cut across two weeks to the one most of it lies in, named by its days there', async () => {
+    // Thursday to Thursday: three dates of the first week and four of the second.
+    await db.media.updateOne({ id: 'film-week' }, { $set: { capturedAt: berlin(6, '00:00'), endsAt: berlin(13, '00:00') } });
+    const page = await read();
+
+    expect(page.items[0].film).toEqual({ mediaId: 'film-week', dayFrom: 8, dayTo: 11, lengthSeconds: 20 });
+    expect(page.items[1].film).toBeNull();
+  });
+
+  it('offer no film that is over before it has begun', async () => {
+    await db.media.updateOne({ id: 'film-week' }, { $set: { lengthSeconds: 1 } });
+
+    expect((await read()).items.map(week => week.film)).toEqual([null, null]);
   });
 });
 
@@ -528,6 +599,11 @@ describe('a reader from outside', () => {
     const days = page.items.flatMap(week => week.days);
 
     expect(days.flatMap(day => day.entries.map(line => line.id))).toEqual([]);
+    // Nor what the devices did, nor how well they kept to their targets: only how the day was.
+    expect(days.map(day => day.events)).toEqual([[], []]);
+    expect(days.map(day => day.climate?.inBandFraction)).toEqual([null, null]);
+    expect(days[1].climate?.temperature).not.toBeNull();
+    expect(page.earlier).toEqual([]);
     expect(days.map(day => day.still)).toEqual([null, null]);
     expect(page.items.map(week => week.film)).toEqual([null]);
     expect(page.people).toEqual([]);

@@ -78,11 +78,11 @@ export interface CompleteOptions {
   changed?: (client: QueryClient) => void;
 }
 
-/** Something that was done already, said in the toast with the way to take it back. */
+/** Something that was done already, said in the toast with the way to take it back - where it can be taken back whole. */
 export interface Told {
   label: string;
-  /** Takes it back; a refusal is said in the toast, which then offers to try again. */
-  undo: () => Promise<unknown>;
+  /** Takes it back; a refusal is said in the toast, which then offers to try again. Null where there is no taking it back. */
+  undo: (() => Promise<unknown>) | null;
 }
 
 interface LogState {
@@ -93,7 +93,7 @@ interface LogState {
   log: (request: LogRequest) => void;
   /** The Done on a due card, which writes the entry the task implies. */
   complete: (taskId: string, label: string, options?: CompleteOptions) => void;
-  /** Says what a tap just did where the tap took its own button away - an offer declined - and offers to take it back. */
+  /** Says what a tap just did where nothing else on the screen will - an offer declined, a phase set - and offers to take it back. */
   tell: (told: Told) => void;
 }
 
