@@ -414,7 +414,8 @@ function Screen({
   const growId = view.growId ?? data?.growId ?? null;
   const chip = chipOf(view, asked);
   const ranges = RANGES.filter(range => isRolling(range) || (own !== null && growId !== null));
-  const stepDrawn = data && data.stepSeconds > 0 && !failed ? data.stepSeconds : null;
+  // Said only where points are drawn: a window nothing was measured in has no step to speak of.
+  const stepDrawn = data && data.stepSeconds > 0 && data.panels.length > 0 && !failed ? data.stepSeconds : null;
   const zoomButtons = (
     <>
       <button
