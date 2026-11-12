@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { useFocusRescue } from '@/ui/focus-rescue';
 import { Sheet } from '@/ui/Sheet';
+import { translate } from './translations';
 
 function Swapping() {
   useFocusRescue();
@@ -40,6 +41,9 @@ describe('the focus of a control that goes away', () => {
 });
 
 describe('a sheet', () => {
+  // The sheet names its close button from the catalogue.
+  beforeAll(() => translate());
+
   it('makes the page behind it unreachable while it is open, and gives it back as it closes', () => {
     function Page() {
       const [open, setOpen] = useState(true);

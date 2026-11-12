@@ -19,7 +19,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('@/api/account', () => ({
-  useMe: () => ({ data: { preferences: state.preferences } }),
+  useAccountMe: () => ({ data: { preferences: state.preferences } }),
   useUpdateMe: () => ({
     mutate: (body: unknown, options?: { onSuccess?: () => void }) => {
       state.sent.push(body);

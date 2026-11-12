@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { useMe, useUpdateMe } from '@/api/account';
+import { useAccountMe, useUpdateMe } from '@/api/account';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { browserZone } from '@/ui/zone';
@@ -15,7 +15,7 @@ import { browserZone } from '@/ui/zone';
  */
 export function ZoneAdoption() {
   const { t, i18n } = useTranslation();
-  const me = useMe();
+  const me = useAccountMe();
   const mayManage = useMayManage();
   const update = useUpdateMe();
   const asked = useRef(false);
