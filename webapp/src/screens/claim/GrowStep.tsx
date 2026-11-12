@@ -1,4 +1,3 @@
-import { X } from 'lucide-react';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, GrowthStage, Space } from '@fg2/shared-types/v1';
@@ -11,6 +10,7 @@ import { WhatGrows } from '@/screens/grow/new/WhatGrows';
 import { MoveHereSheet } from '@/screens/space/MoveHereSheet';
 import { useMovableGrows } from '@/screens/space/movable-grows';
 import { shownStill } from '@/screens/start/place';
+import { FlowHead } from './FlowHead';
 import styles from './Claim.module.css';
 
 /**
@@ -74,15 +74,7 @@ export function GrowStep({
 
   return (
     <section className={styles.screen}>
-      <header className={styles.growHead}>
-        <button type="button" className={styles.close} aria-label={t('claim.grow.close')} onClick={skip}>
-          <X size={22} strokeWidth={2} aria-hidden />
-        </button>
-        <span className={styles.growProgress}>
-          <span>{t('claim.grow.step', { device: typeName(device.type, t), step, of })}</span>
-          <span className={styles.growBar} aria-hidden />
-        </span>
-      </header>
+      <FlowHead device={typeName(device.type, t)} step={step} of={of} onClose={skip} />
       {still ? (
         <img
           className={styles.growPicture}

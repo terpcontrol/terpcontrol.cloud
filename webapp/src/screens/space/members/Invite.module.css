@@ -164,3 +164,9 @@
   flex-direction: column;
   gap: var(--space-2);
 }
+
+/* A chip a finger taps is a finger high: the block's own, and the one that copies an address. */
+.finger,
+.addressRow button {
+  height: var(--control-height);
+}

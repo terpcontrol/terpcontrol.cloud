@@ -436,7 +436,7 @@ describe('the bar', () => {
     const router = open('/spaces/space-2');
 
     await waitFor(() => expect(marked()).toEqual(['Home']));
-    for (const address of ['/control/alarms?space=space-2', '/devices/device-2', '/claim', '/cameras/add']) {
+    for (const address of ['/control/alarms?space=space-2', '/devices/device-2', '/cameras/add']) {
       await act(() => router.navigate(address));
       await waitFor(() => expect(marked()).toEqual(['Control']));
     }
@@ -501,11 +501,19 @@ describe('a place´s page', () => {
     expect(screen.queryByRole('link', { name: 'Members' })).not.toBeInTheDocument();
   });
 
-  it('opens who else is let in under the place´s own name, with the way back to it', async () => {
+  it('opens who else is let in for a member, under the place´s own name with the way back to it', async () => {
+    server.youMay = 'log';
     open('/spaces/space-1/members');
 
-    expect(await screen.findByRole('heading', { name: /Members & sharing/ })).toHaveTextContent('Fridge 1');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Who sees Fridge 1' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to Fridge 1' })).toHaveAttribute('href', '/spaces/space-1');
+  });
+
+  it('answers the address of who is let in with the page that edits the place, for whoever manages it', async () => {
+    const router = open('/spaces/space-1/members');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Edit Fridge 1' })).toBeInTheDocument();
+    expect(where(router)).toBe('/spaces/space-1/edit');
   });
 });
 
@@ -889,14 +897,15 @@ describe('a change to the shape of the app', () => {
 });
 
 describe('the place menu', () => {
-  it('renames the place under the name every screen calls it by', async () => {
+  it('leads from the ⋯ beside the name to the page that edits the place, which renames it under the name every screen calls it by', async () => {
     open('/');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit place: Fridge 1' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
-    const field = screen.getByRole('textbox', { name: 'Name' });
-    fireEvent.change(field, { target: { value: 'Blue Dream' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save the name' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Edit place: Fridge 1' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Edit Fridge 1' })).toBeInTheDocument();
+    // Start stays marked: the page is the place's.
+    expect(marked()).toEqual(['Home']);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'Blue Dream' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
       expect(server.sent.find(one => one.method === 'PATCH' && one.path === '/spaces/space-1')?.body).toEqual({ name: 'Blue Dream' }),
@@ -909,7 +918,7 @@ describe('the place menu', () => {
 
     // Everything behind the menu changes the place, and a menu of things one may not do is no menu.
     expect(await screen.findByRole('link', { name: /see the members$/ })).toHaveAttribute('href', '/spaces/space-1/members');
-    expect(screen.queryByRole('button', { name: /^Edit place/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Edit place/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Maintenance/ })).not.toBeInTheDocument();
   });
 });

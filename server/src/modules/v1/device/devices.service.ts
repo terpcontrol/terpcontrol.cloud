@@ -97,6 +97,7 @@ export class DevicesService {
 
   /** Only what a client may write. What the device is, who owns it and everything under `state` are not patched. */
   public async update(id: string, body: DeviceUpdate): Promise<StoredDevice> {
+    if (body.spaceId) await this.refuseARoom(body.spaceId);
     const before = await this.devices.findOne({ id }, { firmware: 1, state: 1, spaceId: 1 }).lean<StoredDevice | null>();
     // Where it stands is the placement writer's, below.
     const changes = Object.fromEntries(Object.entries(body).filter(([key, value]) => value !== undefined && key !== 'spaceId'));
@@ -134,6 +135,15 @@ export class DevicesService {
     if (!placed) throw notFound('device_not_found', 'There is no device with that id.');
 
     return placed;
+  }
+
+  /** A device stands in a place, and the place in a room: a room is a field of its places and holds nothing itself. */
+  private async refuseARoom(spaceId: string): Promise<void> {
+    if (await this.spaces.exists({ id: spaceId, kind: 'room' })) {
+      throw conflict('room_by_itself', 'A room is a field of the places standing in it.', [
+        { field: 'spaceId', code: 'not_allowed', detail: 'A device stands in a place, and the place in a room.' },
+      ]);
+    }
   }
 
   /**
@@ -188,6 +198,7 @@ export class DevicesService {
     const name = given ?? device.type;
     // Putting a device into a space that exists is managing that space.
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    if (body.spaceId) await this.refuseARoom(body.spaceId);
 
     // The device is taken first, and taken atomically: two people reading one
     // display cannot both end up owning it, and nothing is created for a claim

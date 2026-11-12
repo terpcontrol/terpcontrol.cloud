@@ -1,5 +1,6 @@
 import { MoreHorizontal } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import styles from './Menu.module.css';
 
 /**
@@ -56,7 +57,19 @@ export function Menu({ label, words, children }: { label: string; words?: string
   );
 }
 
-/** A second line under a menu item: what it would change, or where it stands now. */
-export function MenuLine({ children }: { children: ReactNode }) {
-  return <span className={styles.line}>{children}</span>;
+/**
+ * The same ⋯ where what it is for is one page rather than a list: it leads
+ * there at once, and is named by where it leads.
+ */
+export function MenuLink({ to, label, words }: { to: string; label: string; words?: string }) {
+  return (
+    <Link to={to} className={styles.button} data-words={words ? true : undefined} aria-label={label}>
+      <MoreHorizontal size={22} strokeWidth={2} aria-hidden />
+      {words ? (
+        <span className={styles.words} aria-hidden>
+          {words}
+        </span>
+      ) : null}
+    </Link>
+  );
 }

@@ -67,7 +67,7 @@ export const newPlaceName = (type: string, spaces: readonly Space[], t: Translat
 
 /** The place, and what kind of place it is. */
 export const placeSummary = (space: Space | null, t: Translate): string =>
-  space ? `${space.name} · ${t(`claim.place.kind.${space.kind}`, { defaultValue: space.kind })}` : t('claim.place.unknown');
+  space ? `${space.name} · ${t(`place.edit.kind.${space.kind}`, { defaultValue: space.kind })}` : t('claim.place.unknown');
 
 /**
  * The stage the place was put on, or that it is only being watched.

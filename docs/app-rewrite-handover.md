@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) - where its decisions and knowledge live now, and what it left open; read before picking up one of those open items
 updated: 2026-11-12
-source: rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -42,7 +42,8 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
   routes need no redirects from today's, and a change to the data model comes as a migration step (Chris,
   2026-11-11). It is built in rounds; the bar, the header's choice of place, the addresses, Start, the grow page
   with its diary by the day, the public page on the same day cards, Steuerung with a page per device and the
-  camera page, and Verlauf as the one page of curves are in since 2026-11-12
+  camera page, Verlauf as the one page of curves, and the pages of a place - editing it, ending it, adding a device
+  to it - are in since 2026-11-12
   ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page),
   [§7](knowledge/app-ux.md#7-verlauf-day-and-night)), the other pages follow. A read of the whole web app on 2026-11-11 found, as the things the redesign still has to
   settle:
@@ -87,8 +88,28 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
          in a panel's head.
       4. A live reading works out VPD from the newest of every field within 30 days, so a leaf sensor that was
          taken out keeps bending "jetzt" for a month (`DataService.live`); seen on test data, not fixed.
-  - A claim offers "ein neuer Ort" first when places exist (`screens/claim/CodeStep.tsx`), so a second device in the
-    same tent makes a second place and Start turns into the several-places layout.
+  - Settled on 2026-11-12 (round 6): a claim no longer offers "ein neuer Ort" first to every device. A device asks
+    once where it hangs, the place that exists first for a fan, a socket or a lamp
+    ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)).
+  - Round 6 (place and room), state of 2026-11-12 (the redesign session; the data-model part is the amendment to
+    [ADR 0001](adr/0001-app-rewrite-data-model.md#places-rooms-and-where-a-device-stood), **awaiting Chris's
+    confirmation with the pull request**). Built: devices keep where they stood and the reads about the past use
+    it, names are unique, a room is a field the server makes and ends, three migration steps (run on a restored
+    copy, [data-operations.md](knowledge/data-operations.md#migrations-in-operation)); "Ort bearbeiten" and "Ort
+    entfernen" as pages, the question where a device hangs, the claim outside the bar, "von @…" for a guest.
+    Not walked by a critic yet. Left for Chris, each with what is built meanwhile:
+      1. The amendment itself, point by point - in particular that `devices.spaceId` stays beside the placements,
+         that a stay under five minutes leaves no trace, and that a device's first placement is read back past its
+         beginning.
+      2. The kinds of a place. The prototype's select reads Zelt, Kühlschrank, Trockenbox, Gewächshaus, Raum; the
+         model has tent, fridge, balcony and other, and "room" is the grouping. The page offers the model's four.
+      3. A room cannot be renamed in the app (the server allows it): it is a name typed on a place. Typing the name
+         of a room that exists chooses that room.
+      4. A place cannot be renamed or given a kind while a device is added; it is called "Zelt 2" and edited
+         afterwards. The old step asked for both.
+      5. Removing a place is not one write: a refusal half-way leaves what was done before it done.
+      6. A member who may manage a host's place may still claim a device into it through the API; the app offers
+         only places of one's own.
   - The weight is live duplication, not dead code: 21 ideas (place chooser, rename sheet, maintenance, climate
     preset, light limit, ...) are each built in three to nine places, against one unused export.
   - Round 4 (Steuerung, devices, camera), state of 2026-11-12 (the redesign session; rules in

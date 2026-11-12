@@ -49,6 +49,10 @@ export const backOf = (state: unknown, otherwise: string): string => {
 
 export const membersPath = (spaceId: string): string => `/spaces/${spaceId}/members`;
 
+/** "Ort bearbeiten", which the ⋯ beside a place's name opens, and the page under it that ends the place. */
+export const editPath = (spaceId: string): string => `${placePath(spaceId)}/edit`;
+export const removePath = (spaceId: string): string => `${placePath(spaceId)}/remove`;
+
 /** The pages below Steuerung, each behind a row under the climate: the alarm rules, the grow plan, the outputs, the work mode. */
 export const CONTROL_PAGES = ['alarms', 'plan', 'outputs', 'mode'] as const;
 export type ControlPage = (typeof CONTROL_PAGES)[number];

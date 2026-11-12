@@ -76,9 +76,3 @@
 .list > *:hover {
   background: var(--tint);
 }
-
-.line {
-  display: block;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}

@@ -47,3 +47,23 @@ export function AppShell() {
     </LogProvider>
   );
 }
+
+/**
+ * The frame of setting a device up, which leaves the bar: the page alone, in a
+ * phone's column, with the app's toasts and its window title. A string of
+ * questions has one way on and one way out, and a bar of five other places to
+ * go beside it is five ways to lose the device half set up.
+ */
+export function SetupShell() {
+  const main = useRef<HTMLElement>(null);
+  usePageTitle(main);
+  useFocusRescue();
+
+  return (
+    <LogProvider>
+      <main className={styles.setup} ref={main} id="main" tabIndex={-1}>
+        <Outlet />
+      </main>
+    </LogProvider>
+  );
+}

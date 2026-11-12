@@ -41,7 +41,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   | Address | Page | Bar item |
   | --- | --- | --- |
   | `/` | Start: the one place, the places by room, or the empty Start | Start |
-  | `/spaces/:spaceId`, `/spaces/:spaceId/members` | Start of one place; who is let in | Start |
+  | `/spaces/:spaceId` | Start of one place | Start |
+  | `/spaces/:spaceId/edit`, `.../remove`, `.../members` | "Ort bearbeiten", which the ⋯ on Start opens; "Ort entfernen" under it; who is let in, for a member who may not manage the place (whoever may is sent to `edit`) | Start |
   | `/grow/:tab?` | the grow running in the chosen place - its diary, and `pictures`, `plants`, `feeding`, `report` - else the offer to start one | Grow |
   | `/grows`, `/grows/new`, `/grows/:growId/:tab?`, `.../plants/:plantId`, `.../measurements` | every grow ("Alle Grows"); one grow with the same tabs | Grow |
   | `/grows/schemes`, `/grows/share-links`, `/grows/following` | what belongs to growing without being a grow, behind the doors of "Alle Grows" | Grow |
@@ -50,7 +51,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   | `/control/:page?` | Steuerung of the chosen place, and the pages behind its rows: `alarms`, `plan`, `outputs`, `mode` | Steuerung |
   | `/devices/:deviceId/:page?`, `/devices/:deviceId/sockets/:socket` | a device's own page with `advanced`, `details` under it; one smart socket | Steuerung |
   | `/devices` | names nothing: the not-found page inside the shell | Steuerung |
-  | `/claim`, `/cameras/add` | adding a device or a camera (`?kind=rtsp` opens the camera page on its address form) | Steuerung |
+  | `/cameras/add` | adding a camera (`?kind=rtsp` opens the page on its address form) | Steuerung |
+  | `/claim` | adding a device: **outside the bar**, in `SetupShell` (`app/shell/AppShell.tsx`), which keeps the toasts and the window's title and nothing else; `?space=` claims into a place, `?device=&at=&made=` picks a flow up | - |
   | `/cameras/:cameraId` | a camera | none |
   | `/alerts`, `/tasks`, `/me/...`, `/admin/...` | Meldungen and the task list its door opens, Ich, the fleet screens | none |
 

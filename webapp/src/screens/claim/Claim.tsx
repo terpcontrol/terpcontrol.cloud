@@ -5,13 +5,15 @@ import { placePath } from '@/app/places';
 import type { Device } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useMe } from '@/api/account';
-import { useClaimedDevice, useNameNewPlace } from '@/api/claims';
+import { useClaimedDevice, useNameNewPlace, usePlaceDevice } from '@/api/claims';
 import { useSocketTables } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
 import { useApplyPreset } from '@/api/lifecycle';
 import { ApiError } from '@/api/problem';
-import { useSpaces } from '@/api/spaces';
+import { useSession } from '@/api/session';
+import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { placeKindOf, typeName } from '@/ui/naming';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -21,7 +23,8 @@ import { GrowStep } from './GrowStep';
 import { HardwareStep } from './HardwareStep';
 import { pairsACam } from '@/screens/camera/add/pairers';
 import { NotifyStep } from '@/screens/notifications/NotifyNotice';
-import { PlaceStep } from './PlaceStep';
+import { AirStep } from './AirStep';
+import { FlowHead } from './FlowHead';
 import { Step } from './Step';
 import { doingSummary, hardwareSummary, MEASURE, newPlaceName, NOTHING_DOING, notifySummary, placeSummary, presetBodyOf, type Doing } from './steps';
 import styles from './Claim.module.css';
@@ -52,9 +55,10 @@ const stepIn = (params: URLSearchParams): number => {
  * of the app where somebody is standing in a room with hardware in their hands,
  * and because every one of its answers is written the moment it is given -
  * there is no Save at the end and nothing is lost by leaving. That is what the
- * skip in the corner and the note under the button both say: the claim is the
- * only step that has to happen here, and the others are the ordinary
- * screens, reached from Devices, from the tent's Control tab and from Me.
+ * cross in the corner and the note under the button both say: the claim is the
+ * only step that has to happen here, and the others are the ordinary screens,
+ * reached from Steuerung, from a device's page and from Ich. It stands outside
+ * the app's bar (`SetupShell`): a string of questions has one way on and one out.
  *
  * Which device was claimed, and which question was open, live in the address
  * rather than in this component, because the phone in that room locks, drops
@@ -72,6 +76,7 @@ export function Claim() {
   const now = useNow();
   const mayManage = useMayManage();
   const [params, setParams] = useSearchParams();
+  const { user } = useSession();
 
   const [deviceId, setDeviceId] = useState<string | null>(() => params.get('device'));
   const [step, setStep] = useState(() => stepIn(params));
@@ -79,10 +84,10 @@ export function Claim() {
   // does not turn the two steps after it back into questions nobody answered.
   const [furthest, setFurthest] = useState(() => stepIn(params));
   const [doing, setDoing] = useState<Doing>(NOTHING_DOING);
-  // The space this claim invented, if it invented one: it holds this device and
-  // nothing else, so it is the one that may be archived if the device turns out
-  // to belong in a place the account already had.
-  const [invented, setInvented] = useState<string | null>(null);
+  // The place this claim made, if it made one: it holds this device and nothing else, so it is the one that ends
+  // if the device turns out to hang in a place the account already had. In the address, like the device: the
+  // question it decides is asked again when the flow is picked up.
+  const [invented, setInvented] = useState<string | null>(() => params.get('made'));
   const [startingGrow, setStartingGrow] = useState(false);
 
   const device = useClaimedDevice(deviceId);
@@ -90,6 +95,8 @@ export function Claim() {
   const tables = useSocketTables(deviceId ? [deviceId] : []);
   const sockets = deviceId ? tables.tables.get(deviceId) : undefined;
   const namePlace = useNameNewPlace();
+  const makePlace = useCreateSpace();
+  const moveDevice = usePlaceDevice(deviceId);
   const me = useMe(false, mayManage);
 
   const claimed = device.data ?? null;
@@ -103,6 +110,16 @@ export function Claim() {
   const growsHere = useSpaceGrows(spaceId);
   const onServer =
     spaceId === null || !growsHere.isPending ? (growsHere.data?.items.find(grow => grow.endedAt === null)?.summary.stage ?? null) : undefined;
+
+  // The places of the account's own a device may hang in instead of the one its claim made. Somebody let into
+  // another's place is offered nothing of that owner's: what they add is theirs, and stands in a place of theirs.
+  const ownPlaces = places.filter(one => one.kind !== 'room' && one.archivedAt === null && one.ownerId === user?.id);
+  // The place the flow was opened from ("Gerät hierher holen"): the claim puts the device there and asks nothing.
+  const opened = ownPlaces.find(one => one.id === params.get('space')) ?? null;
+  // Where it hangs is asked of a device its claim made a place for, once the account has another place it could
+  // hang in: the first device of an account asks nothing, and neither does one claimed into the place it was added from.
+  const others = ownPlaces.filter(one => one.id !== invented);
+  const asksPlace = claimed !== null && invented !== null && others.length > 0;
 
   // A device id in the address that this account cannot read - stale, or
   // somebody else's - would leave the screen failing to load with no field to
@@ -118,7 +135,7 @@ export function Claim() {
   const growing = growsHere.data?.items.some(grow => grow.endedAt === null) === true;
   const asksGrow = startingGrow || (!growing && me.data?.preferences.diary !== 'off');
   const shown = STEPS.flatMap((name, index) =>
-    (name === 'hardware' && claimed && !pairsACam(claimed)) || (name === 'grow' && !asksGrow) ? [] : [index],
+    (name === 'place' && !asksPlace) || (name === 'hardware' && claimed && !pairsACam(claimed)) || (name === 'grow' && !asksGrow) ? [] : [index],
   );
   // What a step is called, which for the fourth depends on what the device pairs.
   const keyOf = (index: number): string => (STEPS[index] === 'hardware' && camOnly ? 'camOnly' : STEPS[index]);
@@ -146,10 +163,10 @@ export function Claim() {
   if (!mayManage) return <OnlyLooking />;
 
   const leave = () => void navigate(spaceId ? placePath(spaceId) : '/', { replace: true });
-  const go = (index: number, claimedId = deviceId) => {
+  const go = (index: number, claimedId = deviceId, madeId = invented) => {
     setStep(index);
     setFurthest(was => Math.max(was, index));
-    if (claimedId) setParams({ device: claimedId, at: String(index) }, { replace: true });
+    if (claimedId) setParams({ device: claimedId, at: String(index), ...(madeId ? { made: madeId } : {}) }, { replace: true });
   };
   const stateOf = (index: number) => (index === at ? 'open' : index <= seen ? 'done' : 'ahead');
   const said = (index: number, summary: string, question: string) => (stateOf(index) === 'done' ? summary : question);
@@ -186,6 +203,34 @@ export function Claim() {
     });
   };
 
+  // "An einem neuen Ort", chosen after the device was sent to a place that exists: the place its claim made went
+  // with that, so another is made and the device stood in it.
+  const makeNew = async () => {
+    if (!claimed || (invented !== null && claimed.spaceId === invented)) return;
+    const made = await makePlace.mutateAsync({ kind: placeKindOf(claimed.type), name: newPlaceName(claimed.type, places, t) });
+    await moveDevice.mutateAsync(made.id);
+    setInvented(made.id);
+    setParams({ device: claimed.id, at: String(step), made: made.id }, { replace: true });
+  };
+
+  if (STEPS[at] === 'place' && claimed) {
+    return (
+      <AirStep
+        device={claimed}
+        space={space}
+        places={others}
+        invented={invented}
+        step={position}
+        of={shown.length}
+        headingRef={placeHeading}
+        onAnswered={() => go(after ?? at)}
+        makeNew={makeNew}
+        onBack={() => go(0)}
+        onLeave={leave}
+      />
+    );
+  }
+
   if (STEPS[at] === 'grow') {
     // The question is about a place by name, so it waits for the device and its place rather than asking about nothing.
     if (!claimed || !space) {
@@ -212,12 +257,7 @@ export function Claim() {
 
   return (
     <section className={styles.screen}>
-      <header className={styles.head}>
-        <h1>{stepped(t('claim.title', { step: position, of: shown.length }))}</h1>
-        <button type="button" className={styles.skip} onClick={leave}>
-          {t('claim.skip')}
-        </button>
-      </header>
+      <FlowHead device={claimed ? typeName(claimed.type, t) : null} step={position} of={shown.length} titled onClose={leave} />
 
       {/* Nothing announces a step change on its own: the heading's text swaps and
           `aria-current` moves, neither of which is read out. This says what has
@@ -225,12 +265,6 @@ export function Claim() {
       <p className={ui.visuallyHidden} role="status">
         {at > 0 ? t('claim.opened', { title: t(`claim.${keyOf(at)}.title`), step: position, of: shown.length }) : ''}
       </p>
-
-      <div className={styles.progress} aria-hidden>
-        {shown.map(index => (
-          <span key={STEPS[index]} className={styles.segment} data-filled={index <= at} />
-        ))}
-      </div>
 
       {deviceId && device.isPending ? <Waiting lines={2} /> : null}
       {deviceId && !device.data && device.isError && !lost ? <LoadFailed retry={() => void device.refetch()} /> : null}
@@ -247,32 +281,25 @@ export function Claim() {
         {claimed ? null : (
           <CodeStep
             initialCode={params.get('code') ?? ''}
-            places={places}
+            into={opened}
             onClaimed={result => {
+              const made = result.spaceCreated ? result.device.spaceId : null;
               setDeviceId(result.device.id);
-              go(1, result.device.id);
-              if (result.spaceCreated) {
-                setInvented(result.device.spaceId);
-                void namePlaceOf(result.device);
-              }
+              setInvented(made);
+              go(1, result.device.id, made);
+              if (made) void namePlaceOf(result.device);
             }}
           />
         )}
       </Step>
 
-      <Step
-        number={2}
-        state={stateOf(1)}
-        onOpen={() => go(1)}
-        headingRef={placeHeading}
-        title={t('claim.place.title')}
-        text={said(1, placeSummary(space, t), t('claim.place.text'))}
-      >
-        <PlaceStep space={space} places={places} deviceId={deviceId} invented={invented} />
-      </Step>
+      {/* Where it hangs is a page of its own (`AirStep`), and is named here all the same, with what it settled. */}
+      {hidden(1) ? null : (
+        <Step number={shown.indexOf(1) + 1} state={stateOf(1)} onOpen={() => go(1)} title={t('claim.place.title')} text={placeSummary(space, t)} />
+      )}
 
       <Step
-        number={3}
+        number={shown.indexOf(2) + 1}
         state={stateOf(2)}
         onOpen={() => go(2)}
         headingRef={doingHeading}
@@ -284,7 +311,7 @@ export function Claim() {
 
       {hidden(3) ? null : (
         <Step
-          number={4}
+          number={shown.indexOf(3) + 1}
           state={stateOf(3)}
           onOpen={() => go(3)}
           headingRef={hardwareHeading}
@@ -340,29 +367,11 @@ function OnlyLooking() {
 
   return (
     <section className={styles.screen}>
-      <h1>{stepped(t('claim.title', { step: 1, of: STEPS.length }))}</h1>
+      <h1>{t('claim.title')}</h1>
       <p className={`${ui.cardDashed} ${styles.demoNote}`}>{t('claim.demo')}</p>
-      <Link className={ui.button} to="/control">
-        {t('claim.backToControl')}
+      <Link className={ui.button} to="/">
+        {t('claim.backToStart')}
       </Link>
     </section>
-  );
-}
-
-/**
- * The title and its step count, the count set as a smaller part of its own:
- * wrapped as one string, a phone started the second line on the separator
- * ("· 1 of 4"). On a phone the count takes the line under the title and the
- * separator goes.
- */
-function stepped(title: string) {
-  const at = title.lastIndexOf(' · ');
-  if (at < 0) return title;
-  return (
-    <>
-      {title.slice(0, at)}
-      <span className={styles.stepSeparator}> · </span>
-      <span className={styles.stepCount}>{title.slice(at + 3)}</span>
-    </>
   );
 }

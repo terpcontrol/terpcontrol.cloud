@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
 updated: 2026-11-12
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
+source: round 6 of the navigation redesign - the pages of a place, where a device hangs (the redesign session of 2026-11-12, after Chris's decision 5 of 2026-11-11); Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -108,11 +108,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     support reading a customer's place keeps the address, sees no chip, and is told "lässt sich nicht öffnen" with the
     way back where nothing is there.
 - **A place is one page**, its Start at `/spaces/:id`: with one place Start is that page, with several it is one card
-  per place, ordered by what needs a person. **A room has no Start of its own**: it groups places and holds
-  nothing, so its address leads to Start, where it is the heading over its places, and the way back from its
-  members page leads there too - drawn as a place it was an empty one that offered its own removal. Only a room
-  with hardware standing in the room itself is one of Start's cards and keeps its page (`StartOfPlace`,
-  `screens/start/Start.tsx`). **Grow** (`/grow/:tab?`) is the grow running in the chosen place, drawn
+  per place, ordered by what needs a person. **A room has no page at all** (the redesign session of 2026-11-12,
+  decision 5 of the navigation redesign): it is a field of the places in it - the heading over them on Start, a
+  choice on "Ort bearbeiten" - and its address answers "lässt sich nicht öffnen", for the edit and the members page
+  too (`screens/place/EditPlace.tsx`, `PlaceMembers.tsx`). **Grow** (`/grow/:tab?`) is the grow running in the chosen place, drawn
   as that grow's page with its tabs under the same address; where nothing grows there it offers to start a grow.
   It is a root of the bar: nothing leads back from it, and the pill "Alle Grows" stands beside the grow's name. A
   grow opened by its id (`/grows/:growId/...`) is that grow's page whatever is chosen, with the same head - the
@@ -174,8 +173,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     lamp and a reading outside its targets are a day's and are not in it. A line stands there the moment it is
     written and is gone the moment it is taken back.
   - *A row of tiles has no hole*: an odd reading tile at the end takes the row.
-  - *One name per place.* The head is the place's name, also where the place holds nothing but a grow, and the
-    menu renames what the head shows. A grow that stands in no place has no place to name and is titled by itself
+  - *One name per place.* The head is the place's name, also where the place holds nothing but a grow, and
+    "Ort bearbeiten" renames what the head shows. A grow that stands in no place has no place to name and is titled by itself
     (`GrowStart.tsx`).
   - *Every reading leads to its curve.* A tap on the picture opens the camera; a tap on a figure in it, on a tile
     or on one of the further readings opens that reading's panel of Verlauf, marked and scrolled to, VPD's
@@ -214,19 +213,32 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   nothing can be changed, with the way to an account.
 - **A place is one climate on Start** (Chris, 2026-11-11): its readings, its sentence and its targets are those of
   the device the server names first as the place's climate; whatever else stands there is listed under Steuerung,
-  not drawn as further blocks or named in a line under the title. What becomes of places that hold two climates is
-  the data model's question and still open; until then Verlauf goes on offering "Alle Geräte" or one climate
-  (`?device=`, the row "Gerät" of its sheet "Anpassen").
-- **A place holds any number of devices** (Chris, 2026-10-08): a claim and the migration put each device in a place
-  of its own, so the place's menu offers "Gerät hierher holen" (`screens/space/DeviceHereSheet.tsx`), and typing the
-  name of an existing place in the claim's "Wo steht es?" puts the device there instead of making a second place of
-  that name. **A place left empty is never removed by itself**: one with no device, camera or grow is offered to its
-  owner for removal ("Ort entfernen", `screens/space/EmptyPlace.tsx`), and the owner decides: an empty tent between
-  two grows is a place somebody still means to use. The one exception is the place a claim invents and the device
-  leaves within that same step (`screens/claim/PlaceStep.tsx`): it was the claim's guess, never the grower's, holds
-  no history, and left standing it would greet somebody adding a second device to a tent with an empty card on Start
-  and an errand - the very "one device per place" the rule is meant to end. The archive is a tombstone and can be
-  undone (Chris left the call to the agent, 2026-10-08).
+  not drawn as further blocks or named in a line under the title. **A place that already holds two climates stays
+  as it is** (the redesign session of 2026-11-12, told to Chris): no migration and no screen splits it, Verlauf goes
+  on naming the one drawn and leading to the other (`?device=`), and the app asks for one climate per place where a
+  device is added (below).
+- **A device that measures by itself asks once where it hangs** (Chris, 2026-11-11, decision 5; built by the
+  redesign session of 2026-11-12, `screens/claim/AirStep.tsx`). Adding one - a controller, a fridge module, an AIR
+  fan, a Plantalytix Socket, a LIGHT - makes a place for it, and where the account owns another place the next page
+  asks "Wo hängt …?": in the air of a place that exists ("ein Klima, eine Kamera, eine Wartung" with what stands
+  there) or at a new place. A fan, a socket and a lamp are offered the place that exists first, a second controller
+  or fridge module the new one, because that is a second climate. The first device of an account is asked nothing;
+  a flow opened from a place ("Gerät hierher holen") claims into that place and asks nothing; what hangs on a
+  controller's smart socket is never claimed and never asked.
+  - The answer "in a place that exists" moves the device and ends the place its claim made, which held nothing; "a
+    new place" writes nothing. A name and a kind are not asked in the flow: the place is called "Zelt 2" and renamed
+    on "Ort bearbeiten".
+  - *A guest is offered nothing of the host's.* Only places the account owns are offered, also to a member who may
+    manage the host's place; and a `?space=` naming somebody else's place is ignored.
+  - *Adding a device leaves the bar* (`SetupShell`, `app/shell/AppShell.tsx`): a cross ("Hinzufügen abbrechen"),
+    "Lüfter hinzufügen · Schritt 2 von 5" over a bar, and nothing else beside the questions. The claimed device, the
+    open step and the place the claim made are in the address (`?device=&at=&made=`), so a locked phone picks the
+    flow up where it was, the question of where it hangs included. It ends by asking "Was wächst hier?".
+- **A place left empty is never removed by itself** (Chris, 2026-10-08): one with no device, camera or grow says so
+  to its owner on its Start, with the way to "Ort entfernen" (`screens/space/EmptyPlace.tsx`), and the owner
+  decides: an empty tent between two grows is a place somebody still means to use. The one exception is the place a
+  claim makes and the device leaves on the next page: it was the claim's guess, never the grower's, and holds no
+  history.
 - **A place's card says what its Start says, shorter** (`screens/start/Places.tsx`): the name, a pill - "im Ziel",
   "prüfen" or "offline" - the status sentence where the place asks for somebody, the readings in one line with the
   lamp's level last ("24,3 °C · 66 % · Licht 80 %", "Licht aus" for a dark lamp), what grows there, and the camera's
@@ -240,24 +252,52 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   and a fridge module into one place and found the camera under the wrong device and maintenance pausing both). Two
   devices in one place belong together: the camera, maintenance and the alarms are the place's. Devices that merely
   stand in the same room are two places in one room: Start draws a room's places under its name, where the most
-  urgent of them stood (`screens/start/rooms.ts`), the place's menu offers "In einen Raum stellen" to its owner from
-  the second place on - which is also where a room is made ("+ Neuer Raum") - and a device's "Umbenennen oder
-  umziehen" sheet can make a new place for it ("+ Neuer Ort"), in the room it leaves. Where Verlauf is narrowed
-  to one climate of a shared place, the camera paired to the other device is left out; a camera paired to none
-  stays.
-- **The menu beside a place's name holds what is done to the place** (`screens/start/PlaceMenu.tsx`; on a desktop a
-  button that says "Ort bearbeiten" - the place's name is in its accessible name alone, since repeated in the
-  button a long one pushed the status sentence out of the head): its name, its room, who is let in, a device
-  brought here, its end. All of it needs the right to manage the place, so nobody else is drawn the menu - a ⋯
-  that holds only what the reader may not do is no menu. A member who may look or log reaches who else is here,
-  and the way to leave, from the line that says whose place it is. A climate preset
-  is under Steuerung, sharing and moving a grow on the grow's page, and a grow is started from Start's card or from
-  "Alle Grows". "+ Ort hinzufügen" offers what makes a place: a device, a grow without one, a camera of its own.
-- **Any place can be removed by its owner** (Chris, 2026-10-13: "irgendwie muss es möglich sein, einen Raum, den ich
-  nicht mehr haben will, zu löschen"). The place's ⋯ offers "Ort entfernen" (`screens/space/RemovePlaceSheet.tsx`):
-  what still stands there - devices with their cameras, a loose camera, a running grow - moves to one place chosen in
-  the sheet, then the place ends. Members still have to be taken out first, and the refusal now names each thing in
-  the way (`ui/refusal.ts`) instead of a bare conflict. An ended grow no longer counts as standing in a place.
+  urgent of them stood (`screens/start/rooms.ts`), and a device's "Umbenennen oder umziehen" sheet can make a new
+  place for it ("+ Neuer Ort"), in the room it leaves. Where Verlauf is narrowed to one climate of a shared place,
+  the camera paired to the other device is left out; a camera paired to none stays.
+- **"Ort bearbeiten" is the one page of what is done to a place** (Chris, 2026-11-11, decision 5; built by the
+  redesign session of 2026-11-12 after the prototype, `screens/place/EditPlace.tsx` at `/spaces/:id/edit`). The ⋯
+  beside a place's name on Start leads straight to it - on a desktop it says "Ort bearbeiten", the place's name in
+  its accessible name alone - and no list opens in between. In this order: the name, the kind and the room with the
+  page's one button "Sichern" in its head; "Geräte hier"; "Wer … sieht"; "… entfernen …". It replaced the place's
+  menu with its sheets for renaming, the room, a device brought here and the removal, and the page "Mitglieder &
+  Teilen".
+  - *Name, kind and room are one save*, answered by a toast that names each change and takes all of it back
+    ("Zelt 1 heißt jetzt Blütezelt · Blütezelt steht jetzt in Dachboden"). Renaming or regrouping writes nothing
+    into a grow.
+  - *A name is unique among one's places.* The page says "Ein anderer Ort heißt schon „…“" under the field while it
+    is typed and keeps "Sichern" off; the server refuses the same (`name_taken`), and its sentence is shown where
+    the page could not know. Upper and lower case and blanks make no second name (`nameKey`, shared with the server).
+  - *A room is a field*: one of the owner's rooms, "Neuer Raum …" with its name, or "Kein Raum". It is asked from
+    the second place on, and of the owner only. Nobody makes, renames or deletes a room by itself: the server makes
+    the one a place names and ends the one its last place and its last member have left.
+  - *"Geräte hier"* lists the devices and cameras standing there, each leading to its page, and "+ Gerät hierher
+    holen": a device standing elsewhere moves by the device's own sheet, opened with this place chosen - it says
+    what goes along, and the toast takes the move back -, a new one by its code (`/claim?space=`).
+  - *"Wer … sieht"* is one card (`screens/space/members/Members.tsx`): the owner, each guest with what they may do
+    and the way out, "+ Jemanden einladen", and "Einladung gilt für" - this place or its room, which switches whose
+    list and links the card is. The links with their terms, the QR code, adding by @name, the table of what each
+    role may do and the way to a share link open under the card from "+ Jemanden einladen"; closed, the page shows
+    none of it. A member who may not manage the place is shown the same card as a page of its own
+    (`/spaces/:id/members`, from "von @…" on Start), with the one control that lets them leave; whoever manages the
+    place is sent from that address to the edit page.
+  - What needs the owner - the room, the people, the end - is drawn for the owner only; a member who may manage
+    edits the name and the kind and sees who is here.
+- **"Ort entfernen" gives everything standing there its own destination** (Chris, 2026-10-13: "irgendwie muss es
+  möglich sein, einen Raum, den ich nicht mehr haben will, zu löschen"; 2026-11-11, decision 5; built by the
+  redesign session of 2026-11-12, `screens/place/RemovePlace.tsx` with `remove-plan.ts`, at `/spaces/:id/remove`).
+  A select per device ("bekommt einen eigenen neuen Ort", "zieht in …", "abgeben"), per camera ("bleibt bei …" or
+  "entkoppeln" for one a device answers for; "zieht in …" or "entfernen" for one on its own) and per running grow
+  ("Wo stehen die Pflanzen jetzt?", then: at the new place of a device, in another place, in no fixed place, "Grow
+  beenden"). A device goes to a place of its own unless told otherwise; **where the plants stand is never guessed**,
+  so the button waits until every grow is answered, and asks again when the device a grow was to go with is sent
+  elsewhere. It replaced the sheet that moved everything to one place.
+  - The writes are made one after another - places, devices, cameras, grows, then the end of the place - and one
+    that is refused stops there: what was done stays done, the page says the server's sentence and reads again what
+    still stands here. Nothing is taken back, and the toast "… entfernt" offers no undo.
+  - A place people are still let into is not ended: the page says how many and leads to them. Only the owner ends a
+    place, and never the last one - that one is Start.
+  - A place made for a device is named as a claim names one ("Zelt 2") and stands in the room the place stood in.
 - **Steuerung is the chosen place's climate, then its devices** (Chris, 2026-11-11, decision 7;
   `screens/control/Control.tsx`, built after the prototype by the redesign session of 2026-11-12, whose rules the
   rest of this entry is, those after its critic's walk included). It always opens on the light and the targets of

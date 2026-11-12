@@ -1,6 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -12,7 +12,6 @@ import { ageLabel, deviceLiveness } from '@/ui/age';
 import { useQrScan } from '@/ui/barcode';
 import { Refused } from '@/ui/PageState';
 import { QrScanner } from '@/ui/QrScanner';
-import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { LegacyMove } from './LegacyMove';
 import { pairsACam } from '@/screens/camera/add/pairers';
@@ -29,30 +28,24 @@ import styles from './Claim.module.css';
  * the code already typed - and a second way of reading a code would be a second
  * answer to what a code looks like.
  *
- * Where the device goes is asked here rather than afterwards, because a claim
- * has to end in some place and the one it invents is a guess. An account whose
- * tents already exist says which of them the controller is standing in, and the
- * claim puts it there: nothing is created to be renamed, and the grow, the
- * cameras and the history that place already holds stay with the hardware that
- * reports into it.
+ * Where the device hangs is not asked here: what kind of device it is is only
+ * known once its code has been read, and the question depends on it (`AirStep`).
+ * Only a flow opened from a place - "Gerät hierher holen" - already knows, and
+ * claims straight into that place.
  */
 export function CodeStep({
   initialCode,
-  places,
+  into,
   onClaimed,
 }: {
   initialCode: string;
-  /** The places this account already has, which a claim may put the device into instead of making another. */
-  places: readonly Space[];
+  /** The place the flow was opened from, which the device is claimed into. */
+  into: Space | null;
   onClaimed: (result: DeviceClaimResult) => void;
 }) {
   const { t } = useTranslation();
   const claim = useClaimDevice();
-  const [spaceId, setSpaceId] = useState<string | null>(null);
   const form = useForm<DeviceClaimCreate>({ defaultValues: { code: initialCode } });
-  // A room groups other places rather than holding anything, so a controller
-  // never stands in one.
-  const offered = places.filter(one => one.kind !== 'room');
 
   // The refusal is the mutation's own and is drawn under the field, so a code
   // the server would not take leaves the form exactly as it was typed.
@@ -60,7 +53,7 @@ export function CodeStep({
     const code = claimCodeOf(body.code).trim();
     if (!code) return;
     try {
-      onClaimed(await claim.mutateAsync(spaceId === null ? { code } : { code, spaceId }));
+      onClaimed(await claim.mutateAsync(into === null ? { code } : { code, spaceId: into.id }));
     } catch {
       form.setFocus('code');
     }
@@ -109,22 +102,7 @@ export function CodeStep({
         </p>
       ) : null}
 
-      {offered.length > 0 ? (
-        <Block label={t('claim.code.whichPlace')}>
-          <div className={styles.places}>
-            <Choices label={t('claim.code.whichPlace')}>
-              <Choice chosen={spaceId === null} disabled={claim.isPending} onChoose={() => setSpaceId(null)}>
-                {t('claim.code.newPlace')}
-              </Choice>
-              {offered.map(place => (
-                <Choice key={place.id} chosen={spaceId === place.id} disabled={claim.isPending} onChoose={() => setSpaceId(place.id)}>
-                  {place.name}
-                </Choice>
-              ))}
-            </Choices>
-          </div>
-        </Block>
-      ) : null}
+      {into ? <p className={ui.note}>{t('claim.code.into', { name: into.name })}</p> : null}
 
       <Refused error={claim.error} />
 

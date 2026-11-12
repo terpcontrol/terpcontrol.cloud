@@ -359,8 +359,6 @@ export class SpacesService {
     const space = await this.require(spaceId);
     if (space.archivedAt !== null) throw conflict('space_archived', 'That space has ended. Bring it back before putting anything in it.');
 
-    if (space.kind === 'room') throw roomByItself('A device stands in a place, and the place in a room.');
-
     return this.devices.serialise(await this.devices.update(deviceId, { spaceId }), redacted);
   }
 

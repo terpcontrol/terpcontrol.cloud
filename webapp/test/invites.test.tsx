@@ -116,6 +116,12 @@ const wrapped = (node: React.ReactNode) => drawAt(<ThemeProvider>{node}</ThemePr
 const drawTab = (roomId: string | null = null, kind: SpaceKind = 'tent', spaceId = 'space-1', name = 'Blue Dream tent') =>
   wrapped(<Members spaceId={spaceId} name={name} kind={kind} roomId={roomId} />);
 
+/** The links, the name field and the roles stand behind the row that invites: opened, as the owner opens them. */
+const inviting = async () => {
+  drawTab();
+  fireEvent.click(await screen.findByRole('button', { name: '+ Invite somebody' }));
+};
+
 /** The rows of live links, each known by its code. */
 const linkRows = () => screen.getAllByRole('listitem').filter(row => /^[A-Z0-9]{8}$/.test(row.getAttribute('aria-label') ?? ''));
 
@@ -161,7 +167,7 @@ describe('the links a tent has out', () => {
   });
 
   it('lists every link still live with what it grants, read off the row, and none of the ones that have stopped', async () => {
-    drawTab();
+    await inviting();
     await screen.findByRole('button', { name: 'Revoke the link AAAAAAAA' });
 
     const rows = linkRows();
@@ -174,7 +180,7 @@ describe('the links a tent has out', () => {
   });
 
   it('revokes one link on its own and leaves the other out', async () => {
-    drawTab();
+    await inviting();
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke the link BBBBBBBB' }));
 
     await waitFor(() => expect(server.wrote).toHaveLength(1));
@@ -184,7 +190,7 @@ describe('the links a tent has out', () => {
   });
 
   it('opens a link that is already out as a code and a QR without cutting another', async () => {
-    drawTab();
+    await inviting();
     fireEvent.click(await screen.findByRole('button', { name: 'Show AAAAAAAA as a code and a QR' }));
 
     const sheet = screen.getByRole('dialog', { name: 'Invite to Blue Dream tent' });
@@ -200,7 +206,7 @@ describe('the links a tent has out', () => {
 
 describe('the invitation sheet', () => {
   it('sends exactly the role and the validity chosen, then describes the link from the answer', async () => {
-    drawTab();
+    await inviting();
     fireEvent.click(await screen.findByRole('button', { name: 'Make a link' }));
 
     const sheet = screen.getByRole('dialog', { name: 'Invite to Blue Dream tent' });
@@ -220,7 +226,7 @@ describe('the invitation sheet', () => {
   });
 
   it('makes a link that never expires when told to, and says so in those words', async () => {
-    drawTab();
+    await inviting();
     fireEvent.click(await screen.findByRole('button', { name: 'Make a link' }));
 
     const sheet = screen.getByRole('dialog', { name: 'Invite to Blue Dream tent' });
@@ -235,75 +241,5 @@ describe('the invitation sheet', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(linkRows()).toHaveLength(1));
     expect(within(linkRows()[0]).getByText(/never expires/)).toBeInTheDocument();
-  });
-});
-
-describe('the room a tent stands in', () => {
-  /** A room groups places: an account with one has nothing to group, and is not offered a room above the people it came to let in. */
-  it('offers a room only once there is a second place to share with it', async () => {
-    drawTab();
-    expect(await screen.findByRole('button', { name: 'Make a link' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Put it in a room' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Room members see every place/)).not.toBeInTheDocument();
-  });
-
-  it('makes a room and puts the tent in it', async () => {
-    server.spaces = [space({}), space({ id: 'space-2', name: 'Mother tent' })];
-    drawTab();
-    fireEvent.click(await screen.findByRole('button', { name: 'Put it in a room' }));
-
-    const sheet = screen.getByRole('dialog', { name: 'A room for Blue Dream tent' });
-    expect(within(sheet).getByText('You have no room yet.')).toBeInTheDocument();
-    fireEvent.click(within(sheet).getByRole('button', { name: '+ New room' }));
-    fireEvent.change(within(sheet).getByLabelText('Name of the room'), { target: { value: ' Grow room ' } });
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Make the room' }));
-
-    await waitFor(() => expect(server.wrote).toHaveLength(1));
-    expect(server.wrote[0]).toMatchObject({ method: 'POST', path: '/spaces', body: { kind: 'room', name: 'Grow room' } });
-
-    const put = await within(sheet).findByRole('button', { name: 'Put Blue Dream tent in Grow room' });
-    await waitFor(() => expect(put).toBeEnabled());
-    fireEvent.click(put);
-
-    await waitFor(() => expect(server.wrote).toHaveLength(2));
-    expect(server.wrote[1]).toMatchObject({ method: 'PATCH', path: '/spaces/space-1', body: { roomId: 'room-9' } });
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-  });
-
-  it('offers the rooms the account already has, and takes the tent out of the one it is in', async () => {
-    server.spaces = [
-      space({ roomId: 'room-1' }),
-      space({ id: 'room-1', kind: 'room', name: 'Grow room' }),
-      space({ id: 'room-2', kind: 'room', name: 'Drying room' }),
-      space({ id: 'room-3', kind: 'room', name: "Mia's room", ownerId: 'user-mia', youMay: 'manage' }),
-    ];
-    drawTab('room-1');
-
-    expect(await screen.findByText('In Grow room')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
-
-    const sheet = screen.getByRole('dialog', { name: 'A room for Blue Dream tent' });
-    expect(within(sheet).getByRole('button', { name: 'Drying room' })).toBeInTheDocument();
-    expect(within(sheet).queryByRole('button', { name: "Mia's room" })).not.toBeInTheDocument();
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Take it out of Grow room' }));
-
-    await waitFor(() => expect(server.wrote).toHaveLength(1));
-    expect(server.wrote[0]).toMatchObject({ method: 'PATCH', path: '/spaces/space-1', body: { roomId: null } });
-  });
-
-  it('describes itself as a room on the room’s own page and names the tents grouped under it', async () => {
-    server.spaces = [
-      space({ roomId: 'room-1' }),
-      space({ id: 'room-1', kind: 'room', name: 'Grow room' }),
-      space({ id: 'space-2', roomId: 'room-1', name: 'Mother tent' }),
-    ];
-    drawTab(null, 'room', 'room-1', 'Grow room');
-
-    expect(await screen.findByText(/Share the whole room/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Blue Dream tent' })).toHaveAttribute('href', '/spaces/space-1/members');
-    expect(screen.getByRole('link', { name: 'Mother tent' })).toBeInTheDocument();
-    // Every place under the room; its grows, because nothing here says the diary is off, and no cams, because there are none.
-    expect(screen.getByText('See every place in the room, its readings and grows')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Put it in a room' })).not.toBeInTheDocument();
   });
 });

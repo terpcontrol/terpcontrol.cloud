@@ -1740,19 +1740,9 @@
     },
     "noReadingsYet": "Noch nichts gemeldet",
     "growingHere": "Wächst hier",
-    "deviceHere": {
-      "title": "Gerät nach {{name}} holen",
-      "which": "Welches Gerät",
-      "none": "Alle Geräte, die du steuerst, stehen schon hier.",
-      "moved": "{{device}} steht jetzt in {{place}}.",
-      "note": "Ab jetzt zählen die Messwerte und die Kamera des Geräts zu diesem Ort. Was es bisher gemessen hat, bleibt beim alten.",
-      "done": "Fertig"
-    },
     "empty": {
       "says": "In {{name}} steht nichts mehr: kein Gerät, keine Kamera, kein Grow.",
-      "remove": "{{name}} entfernen",
-      "removing": "wird entfernt…",
-      "note": "Was dort gemessen und geschrieben wurde, bleibt lesbar."
+      "remove": "{{name}} entfernen"
     },
     "lastStill": "letztes vor {{age}}",
     "stillAlt": "{{name}} um {{time}}",
@@ -1768,10 +1758,6 @@
       "startGrowHere": "Hier einen Grow starten"
     },
     "members": {
-      "scopeLabel": "Was geteilt wird",
-      "roomWithTents_one": "{{room}} · {{count}} Ort",
-      "roomWithTents_other": "{{room}} · {{count}} Orte",
-      "oneModel": "Teile einen einzelnen Ort oder den Raum, zu dem er gehört. Wer im Raum ist, sieht jeden Ort darin; wer nur zu diesem Ort gehört, sieht nur ihn.",
       "demo": "Die Demo schaut auf einen fremden Ort und besitzt nichts — es gibt also niemanden hereinzulassen und niemanden hinauszuschicken.",
       "invite": "Einladen",
       "noLink": "Noch kein Einladungslink",
@@ -1781,7 +1767,6 @@
       "handleLabel": "Ein Name, mit dem du schon gemeinsam growst",
       "handlePlaceholder": "oder @Name eines Kontos",
       "add": "Hinzufügen",
-      "peopleIn": "Leute in {{name}}",
       "viaTheRoom_one": "{{count}} über den Raum",
       "viaTheRoom_other": "{{count}} über den Raum",
       "you": "Du",
@@ -1921,35 +1906,8 @@
         "copyFailed": "Kopieren ging nicht · von Hand kopieren",
         "done": "Fertig"
       },
-      "room": {
-        "put": "In einen Raum stellen",
-        "in": "In {{room}}",
-        "change": "Ändern",
-        "sheetTitle": "Ein Raum für {{name}}",
-        "which": "Welcher Raum",
-        "none": "Du hast noch keinen Raum.",
-        "new": "Neuer Raum",
-        "newName": "Name des Raums",
-        "make": "Raum anlegen",
-        "making": "Legt den Raum an …",
-        "aRoom": "einen Raum",
-        "note": "Ein Raum fasst Orte zusammen: Auf Start stehen sie unter seinem Namen, und wer in den Raum gelassen wird, sieht jeden Ort darin. Die Geräte darin bleiben, was sie sind – jedes regelt, zeigt und pausiert seinen Ort. Ein Raum steht nie in einem Raum, und ein Ort steht in höchstens einem.",
-        "submit": "{{name}} in {{room}} stellen",
-        "moving": "Verschiebt …",
-        "takeOut": "Aus {{room}} herausnehmen",
-        "roomModel": "Teile den ganzen Raum: Wer hier hereingelassen wird, sieht jeden Ort darin.",
-        "tentsIn_one": "{{count}} Ort in diesem Raum",
-        "tentsIn_other": "{{count}} Orte in diesem Raum",
-        "noTents": "Noch kein Ort steht in diesem Raum. Ein Ort kommt über ⋯ › In einen Raum stellen auf seiner eigenen Seite hinein."
-      },
-      "linkStopped": "Der Link {{code}} wurde zurückgezogen, als @{{name}} vom Ort entfernt wurde."
-    },
-    "remove": {
-      "title": "{{name}} entfernen",
-      "holds": "Hier steht noch: {{what}}.",
-      "grow": "Grow {{name}}",
-      "to": "Das alles zieht nach",
-      "nowhere": "Es gibt keinen anderen Ort, in den es ziehen könnte. Leg erst einen an."
+      "linkStopped": "Der Link {{code}} wurde zurückgezogen, als @{{name}} vom Ort entfernt wurde.",
+      "inviteSomebody": "Jemanden einladen"
     }
   },
   "log": {
@@ -3203,9 +3161,8 @@
     "bellTasks_other": "Meldungen · {{count}} Aufgaben fällig"
   },
   "claim": {
-    "title": "Gerät hinzufügen · {{step}} von {{of}}",
+    "title": "Gerät hinzufügen",
     "opened": "{{title}} · Schritt {{step}} von {{of}}",
-    "skip": "überspringen",
     "next": "Weiter · {{what}}",
     "finish": "Fertig · Ort öffnen",
     "later": "Die Vorgabe lässt sich später unter Steuerung ändern, Steckdosen und Cam dort bei den Geräten, Benachrichtigungen unter Ich.",
@@ -3214,8 +3171,6 @@
       "title": "Den Code vom Display ablesen",
       "text": "Der Controller zeigt einen kurzen Code; auf der Verpackung steht derselbe als QR-Code.",
       "field": "Claim-Code",
-      "whichPlace": "Wo es steht",
-      "newPlace": "ein neuer Ort",
       "claim": "Übernehmen",
       "claiming": "Wird übernommen…",
       "claimed": "Übernommen",
@@ -3228,31 +3183,16 @@
       "sockets_other": "{{count}} Steckdosen",
       "camera": "Cam: {{name}}",
       "noCamera": "keine",
-      "rtsp": "Eine Kamera ohne Controller (RTSP) hinzufügen"
+      "rtsp": "Eine Kamera ohne Controller (RTSP) hinzufügen",
+      "into": "Kommt nach {{name}}."
     },
     "place": {
-      "next": "wo steht es?",
-      "title": "Wo steht es?",
-      "text": "Der Name des Orts; Geräte und Grows hängen daran.",
-      "field": "Name des Orts",
+      "next": "wo hängt es?",
+      "title": "Wo es hängt",
       "newName": {
         "controller": "Zelt {{n}}",
         "fridge": "Kühlschrank {{n}}",
         "other": "Ort {{n}}"
-      },
-      "nameTaken": "Ein Ort heißt schon so.",
-      "joins": "{{name}} gibt es schon: Das Gerät kommt dorthin, zu dem, was dort schon steht.",
-      "renamesThePlace": "Das Feld benennt den Ort selbst um, nicht den Namen dieses Geräts.",
-      "alreadyHave": "Oder es steht an einem Ort, den du schon hast",
-      "rename": "umbenennen",
-      "renaming": "wird umbenannt…",
-      "join": "dorthin stellen",
-      "joining": "wird verschoben…",
-      "kindLabel": "Was für ein Ort das ist",
-      "kind": {
-        "tent": "Zelt",
-        "fridge": "Kühlschrank",
-        "other": "Anderer Ort"
       },
       "unknown": "noch kein Ort"
     },
@@ -3303,15 +3243,32 @@
       "none": "noch kein Weg eingerichtet"
     },
     "grow": {
-      "step": "{{device}} einrichten · Schritt {{step}} von {{of}}",
       "next": "was wächst?",
       "skip": "Jetzt nicht",
-      "close": "Einrichten schließen",
       "move": "Oder einen Grow hierher umziehen",
       "title": "Was wächst hier?",
       "text": "Mit einem Grow schreibt die App das Tagebuch mit. Das hat Zeit."
     },
-    "backToControl": "Zurück zur Steuerung"
+    "step": "{{device}} hinzufügen · Schritt {{step}} von {{of}}",
+    "stepUnknown": "Gerät hinzufügen · Schritt {{step}} von {{of}}",
+    "close": "Hinzufügen abbrechen",
+    "backToStart": "Zurück zu Start",
+    "air": {
+      "title": {
+        "fan": "Wo hängt der Lüfter?",
+        "controller": "Wo hängt der Controller?",
+        "fridge": "Wo arbeitet das Kühlschrank­modul?",
+        "plug": "Wo steckt der Plantalytix Socket?",
+        "light": "Wo hängt das Licht?",
+        "other": "Wo hängt das Gerät?"
+      },
+      "here": "In {{name}}",
+      "hereNote": "Bei {{devices}}: ein Klima, eine Kamera, eine Wartung.",
+      "hereEmpty": "Dort steht noch kein Gerät.",
+      "new": "An einem neuen Ort",
+      "newNote": "Zum Beispiel ein zweites Zelt, mit eigenem Klima.",
+      "back": "Zurück"
+    }
   },
   "admin": {
     "section": "Verwaltung",
@@ -4124,7 +4081,6 @@
   "place": {
     "backTo": "Zurück zu {{name}}",
     "members": {
-      "title": "Mitglieder & Teilen",
       "lookOnly": "Nur zum Ansehen, ohne Konto:",
       "shareLink": "Freigabelink erstellen"
     },
@@ -4132,13 +4088,71 @@
       "nothing": "Hier gibt es noch nichts zu steuern: Zielwerte und Alarme kommen mit dem ersten Gerät.",
       "demoNothing": "Die Demo steuert nichts; öffne einen Ort auf Start, um seine Zielwerte zu sehen."
     },
-    "rename": {
-      "title": "{{name}} umbenennen",
-      "label": "Name",
-      "save": "Namen speichern",
-      "saving": "wird gespeichert…",
-      "taken": "Ein anderer Ort heißt schon so.",
-      "note": "So heißt der Ort auf Start, in Verlauf und Steuerung und in jeder Meldung."
+    "edit": {
+      "title": "{{name}} bearbeiten",
+      "save": "Sichern",
+      "saving": "Sichert …",
+      "name": "Name",
+      "taken": "Ein anderer Ort heißt schon „{{name}}“.",
+      "kindLabel": "Art",
+      "kind": {
+        "tent": "Zelt",
+        "fridge": "Kühlschrank",
+        "balcony": "Balkon",
+        "other": "Anderer Ort"
+      },
+      "room": "Raum",
+      "newRoom": "Neuer Raum …",
+      "noRoom": "Kein Raum",
+      "newRoomName": "Name des Raums",
+      "told": {
+        "named": "{{was}} heißt jetzt {{name}}",
+        "kind": "Art von {{name}}: {{kind}}",
+        "room": "{{name}} steht jetzt in {{room}}",
+        "noRoom": "{{name}} steht in keinem Raum mehr"
+      },
+      "devices": "Geräte hier",
+      "bring": "Gerät hierher holen",
+      "bringTitle": "Gerät nach {{name}} holen",
+      "standsIn": "steht in {{place}}",
+      "nowhere": "keinem Ort",
+      "claim": "Neues Gerät hinzufügen",
+      "people": "Wer {{name}} sieht",
+      "scope": "Einladung gilt für",
+      "scopeNote": "nur {{name}} oder den ganzen Raum {{room}}",
+      "remove": "{{name}} entfernen",
+      "camera": "Kamera"
+    },
+    "remove": {
+      "title": "{{name}} entfernen",
+      "back": "Zurück zu „{{name}} bearbeiten“",
+      "holds": "Hier steht noch",
+      "device": {
+        "new": "bekommt einen eigenen neuen Ort",
+        "move": "zieht in {{place}}",
+        "release": "abgeben"
+      },
+      "camera": {
+        "stay": "bleibt bei {{device}}",
+        "uncouple": "entkoppeln",
+        "move": "zieht in {{place}}",
+        "remove": "entfernen"
+      },
+      "grow": {
+        "ask": "Wo stehen die Pflanzen jetzt?",
+        "with": "am neuen Ort von {{device}}",
+        "move": "in {{place}}",
+        "nowhere": "an keinem festen Ort",
+        "end": "Grow beenden"
+      },
+      "kept": "Kurven und Bilder bis heute bleiben beim Grow {{names}}.",
+      "guests_one": "Noch ist {{count}} Person eingeladen. Lass sie erst gehen.",
+      "guests_other": "Noch sind {{count}} Personen eingeladen. Lass sie erst gehen.",
+      "toGuests": "Zu den Eingeladenen",
+      "remove": "{{name}} entfernen",
+      "removing": "Wird entfernt …",
+      "cancel": "Abbrechen",
+      "told": "{{name}} entfernt"
     }
   },
   "climatePick": {
@@ -4689,14 +4703,8 @@
     "waiting": "Start lädt",
     "addPlace": "Ort hinzufügen",
     "menu": {
-      "label": "Ort bearbeiten: {{name}}",
-      "deviceHere": "Gerät hierher holen",
-      "members": "Mitglieder einladen",
-      "rename": "Umbenennen",
-      "putInRoom": "In einen Raum stellen",
-      "room": "Raum",
-      "remove": "Ort entfernen",
-      "words": "Ort bearbeiten"
+      "words": "Ort bearbeiten",
+      "label": "Ort bearbeiten: {{name}}"
     },
     "light": {
       "onUntil": "an bis {{time}}",

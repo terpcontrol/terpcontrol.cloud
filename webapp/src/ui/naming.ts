@@ -1,4 +1,4 @@
-import type { Camera, Device, Firmware } from '@fg2/shared-types/v1';
+import type { Camera, Device, Firmware, SpaceKind } from '@fg2/shared-types/v1';
 import type { Translate } from '@/i18n/i18n';
 
 /**
@@ -18,6 +18,13 @@ export const givenName = (device: Device): string | null => (device.name && devi
 const deviceTag = (device: Device): string => device.id.slice(-6).toUpperCase();
 
 /** A device type in words: the type is the firmware's key for itself, and a key is not a word. */
+/**
+ * The kind of place a device of this type stands in when a place is made for
+ * it, as a claim makes it: a fridge module in a fridge, a tent controller in a
+ * tent, anything else in a place nothing is said about.
+ */
+export const placeKindOf = (type: string): SpaceKind => (type === 'fridge' ? 'fridge' : type === 'controller' ? 'tent' : 'other');
+
 export const typeName = (type: string, t: Translate): string => t(`devices.type.${type}`, { defaultValue: type });
 
 /** What to call a device inside a sentence, where the sentence already says which one is meant. */

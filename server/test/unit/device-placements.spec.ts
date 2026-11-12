@@ -1,5 +1,5 @@
 import { BRIEF_STAY_MS, movedTo, stayOf } from '@common/v1/device-placements';
-import { numbered, nameKey } from '@common/v1/space-names';
+import { numbered, nameKey } from '@fg2/shared-types/v1-schemas';
 
 /**
  * Where a device stood: the placements a move leaves behind, and the part of a

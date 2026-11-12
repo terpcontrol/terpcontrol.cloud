@@ -1,6 +1,7 @@
-/* The pages that are about one place without being its Start: Steuerung and
-   who else is let in. One reading column, set against the left edge under the
-   title the way the rest of the app's settings are. */
+/* The pages that are about one place without being its Start: Steuerung,
+   "Ort bearbeiten" with the page that ends the place, and who else is let in.
+   One reading column, set against the left edge under the title the way the
+   rest of the app's settings are. */
 
 .page {
   display: flex;
@@ -35,23 +36,175 @@
   }
 }
 
-.head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+
+
+/* "Ort bearbeiten" and "Ort entfernen": a head with the page's one action, the
+   fields, then what stands here and who is let in, each under its small title. */
+.editing {
+  gap: var(--space-4);
 }
 
-.title {
+.fields {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 var(--space-2);
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   min-width: 0;
-}
-
-.titleNote {
-  font-size: var(--text-md);
-  font-weight: var(--weight-medium);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--muted);
 }
 
+.field :is(input, select) {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-regular);
+}
+
+/* Kind and room side by side; a place without a room to choose has the kind alone, as wide as the name. */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: var(--space-3);
+}
+
+/* The page's one action stands in its head, a pill, and never wraps its word. */
+.save {
+  flex: none;
+  height: var(--control-height);
+  margin-left: auto;
+  border-radius: var(--radius-pill);
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.blockTitle {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* The last row of a list that adds to it. */
+.add {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 var(--space-4);
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+}
+
+/* What an invitation is for: the words, and the choice beside them - under them where the two do not fit. */
+.scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--card-padding);
+}
+
+.scopeText {
+  display: flex;
+  flex: 1 1 11rem;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.scopeNote {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.scopeSelect {
+  flex: 1 1 8rem;
+  width: auto;
+  max-width: 100%;
+}
+
+/* Ending the place is said in amber and stands apart at the foot: it leads to a page that asks first. */
+.remove {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  background: var(--warning-wash);
+  border: var(--rule-width) solid var(--warning-edge);
+  border-radius: var(--radius);
+  color: var(--warning);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* One thing standing here and where it goes. */
+.sent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3) var(--space-4);
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+/* The longest answer fits a narrow phone's select whole. */
+.sent select {
+  padding-inline: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-regular);
+}
+
+.foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.end {
+  width: 100%;
+  height: auto;
+  min-height: 52px;
+  padding-block: var(--space-2);
+  border-radius: var(--radius);
+  font-size: var(--text-lg);
+  white-space: normal;
+}
+
+.cancel {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+}
+
+/* What still keeps the place from ending, and the way to it. */
+.guests {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.guests p {
+  margin: 0;
+}

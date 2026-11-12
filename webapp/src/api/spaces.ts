@@ -1,10 +1,10 @@
 import { queryOptions, useQueries } from '@tanstack/react-query';
 import { LIVE_BEAT_MS, useRead } from './read';
-import type { Device, PresetPrompt, Space, SpaceCreate, SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
+import type { Device, PresetPrompt, Space, SpaceCreate, SpaceLive, SpaceOverview, SpacePage, SpaceUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { serverNow } from './clock';
 import { readEvery } from './pages';
-import { invalidate, useWrite } from './write';
+import { invalidate, useWrite, useWriteSettled } from './write';
 
 /**
  * The tent page reads its overview once a minute and its live values on the
@@ -92,22 +92,18 @@ export const useSetPresetPrompt = (spaceId: string) =>
   );
 
 /**
- * Which room a place stands in, or none.
- *
- * A room is a space of kind `room` and the grouping is one level deep in both
- * directions, so this is the whole of what grouping means to the client: one
- * field on the tent, pointing at a room or at nothing. The server refuses the
- * rest - a room in a room, a room of another account, a room that is not one -
- * and its sentence is shown rather than guessed at here.
+ * What "Ort bearbeiten" saves in one write: the name, the kind and the room -
+ * by its id, by the name of one still to be made (`roomName`), or none. The
+ * server makes a room a place names and ends one its last place has left, and
+ * refuses a name another place carries, in a sentence the page shows.
  *
  * The home and the space list are read again because both draw the grouping,
- * and a membership held on the room reaches into every tent grouped under it,
- * so the tent's own member list is stale the moment it moves.
+ * and a membership held on the room reaches into every place grouped under it.
  */
-export const useSetRoom = (spaceId: string) =>
+export const useSavePlace = (spaceId: string) =>
   useWrite(
-    (roomId: string | null) => api.patch<Space>(`/spaces/${spaceId}`, { roomId }),
-    client => invalidate(client, ['spaces'], ['space', spaceId], ['home']),
+    (body: SpaceUpdate) => api.patch<Space>(`/spaces/${spaceId}`, body),
+    client => invalidate(client, ['spaces'], ['space'], ['home']),
   );
 
 /**
@@ -123,47 +119,43 @@ export const useCreateSpace = () =>
   );
 
 /**
- * A device put in this place, asked from the place's side. A place holds as
- * many devices as stand in it, so the one it comes from keeps everything else
- * and is left as it is - empty, perhaps, and then it is for its owner to say
- * whether it goes (`useRemoveSpace`).
+ * Ending a place: each device, camera and running grow goes where it was sent
+ * first (`remove-plan.ts`), then the place ends. Every step is a write of its
+ * own, so one that is refused leaves what was done before it done; the page
+ * reads what still stands here and offers the rest again. The server still
+ * refuses where people are let in, and says so.
  */
-export const usePutDeviceHere = (spaceId: string) =>
-  useWrite(
-    (deviceId: string) => api.put<Device>(`/spaces/${spaceId}/devices/${deviceId}`),
-    (client, device) => {
-      client.setQueryData(['devices', device.id], device);
-      void invalidate(client, ['devices'], ['spaces'], ['space'], ['home'], ['cameras']);
-    },
-  );
+export const useEndPlace = (spaceId: string) =>
+  useWriteSettled(
+    async (steps: readonly EndStep[]) => {
+      const made = new Map<string, string>();
+      const placeOf = (to: EndTo): string | null => (to === null ? null : 'made' in to ? (made.get(to.made) ?? null) : to.spaceId);
 
-/**
- * Ending a place that still holds something: what stands in it moves to
- * another place first - each device with the cameras it answers for, a camera
- * on its own, each running grow from today - and then the place ends. The
- * server still refuses where people are let in, and says so.
- */
-export const useClearAndRemoveSpace = (spaceId: string) =>
-  useWrite(
-    async ({ to, deviceIds, cameraIds, growIds }: { to: string | null; deviceIds: string[]; cameraIds: string[]; growIds: string[] }) => {
-      if (to) {
-        for (const deviceId of deviceIds) await api.put<Device>(`/spaces/${to}/devices/${deviceId}`);
-        for (const cameraId of cameraIds) await api.patch(`/cameras/${cameraId}`, { spaceId: to });
-        const startedAt = serverNow().toUTC().toISO()!;
-        for (const growId of growIds) await api.post(`/grows/${growId}/placements`, { spaceId: to, startedAt });
+      for (const step of steps) {
+        if (step.do === 'make') made.set(step.key, (await api.post<Space>('/spaces', step.body)).id);
+        else if (step.do === 'device') await api.put<Device>(`/spaces/${placeOf(step.to)}/devices/${step.deviceId}`);
+        else if (step.do === 'release') await api.delete(`/devices/${step.deviceId}/claim`);
+        else if (step.do === 'camera') await api.patch(`/cameras/${step.cameraId}`, { spaceId: step.spaceId });
+        else if (step.do === 'uncouple') await api.delete(`/cameras/${step.cameraId}`);
+        else if (step.do === 'grow')
+          await api.post(`/grows/${step.growId}/placements`, { spaceId: placeOf(step.to), startedAt: serverNow().toUTC().toISO()! });
+        else await api.patch(`/grows/${step.growId}`, { endedAt: serverNow().toUTC().toISO()! });
       }
       await api.delete(`/spaces/${spaceId}`);
     },
+    // Read again whether it went through or stopped half-way: the page then shows what still stands here.
     client => void invalidate(client, ['spaces'], ['space'], ['home'], ['devices'], ['cameras'], ['grows'], ['grow']),
   );
 
-/**
- * Ending a place, which only its owner does and only once nothing stands in it
- * and nobody else is in it; the server says what is still in the way. The
- * history that names it still reads.
- */
-export const useRemoveSpace = (spaceId: string) =>
-  useWrite(
-    () => api.delete(`/spaces/${spaceId}`),
-    client => void invalidate(client, ['spaces'], ['home'], ['devices']),
-  );
+/** Where something goes when its place ends: a place that exists, one a step before makes, or no place at all. */
+export type EndTo = { spaceId: string } | { made: string } | null;
+
+/** One write of ending a place, in the order they are made. */
+export type EndStep =
+  | { do: 'make'; key: string; body: SpaceCreate }
+  | { do: 'device'; deviceId: string; to: Exclude<EndTo, null> }
+  | { do: 'release'; deviceId: string }
+  | { do: 'camera'; cameraId: string; spaceId: string }
+  | { do: 'uncouple'; cameraId: string }
+  | { do: 'grow'; growId: string; to: EndTo }
+  | { do: 'end'; growId: string };

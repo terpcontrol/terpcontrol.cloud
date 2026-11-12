@@ -1,22 +1,19 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Device, DeviceUpdate, Space, SpaceKind } from '@fg2/shared-types/v1';
+import type { Device, DeviceUpdate, Space } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useCameras } from '@/api/cameras';
 import { useDevices, useSocketTables, useUpdateDevice } from '@/api/devices';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { useLog } from '@/log/log-context';
 import { Facts } from '@/ui/Facts';
-import { cameraTitle, deviceTitle, givenName } from '@/ui/naming';
+import { cameraTitle, deviceTitle, givenName, placeKindOf } from '@/ui/naming';
 import { Refused } from '@/ui/PageState';
 import { Sheet } from '@/ui/Sheet';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { placesFor } from './moving';
 import styles from './Devices.module.css';
-
-/** The kind a new place is made with, as a claim would make it for this device. */
-const KIND: Readonly<Record<string, SpaceKind>> = { fridge: 'fridge', controller: 'tent' };
 
 /** The chip that stands for a place still to be made. */
 const NEW = 'new';
@@ -37,7 +34,7 @@ const NEW = 'new';
  * in the room the device leaves, and a move into it is not offered to be
  * taken back - the place would stay behind empty.
  */
-export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClose: () => void }) {
+export function DeviceSettingsSheet({ device, to = null, onClose }: { device: Device; to?: string | null; onClose: () => void }) {
   const { t } = useTranslation();
   const { tell } = useLog();
   const write = useUpdateDevice(device.id);
@@ -47,7 +44,8 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
   const cameras = useCameras(device.spaceId ?? undefined);
   const tables = useSocketTables(SOCKET_HOST_TYPES.includes(device.type) ? [device.id] : []);
   const [typed, setTyped] = useState<string | null>(null);
-  const [chosen, setChosen] = useState<string | null>(null);
+  // Opened from a place that wants the device: that place is chosen, and nothing is written before the button.
+  const [chosen, setChosen] = useState<string | null>(to);
   const [placeName, setPlaceName] = useState('');
   /** The place a first try made before the move was refused, so a second try makes no second one. */
   const [made, setMade] = useState<Space | null>(null);
@@ -77,7 +75,7 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
       const to = !moving
         ? null
         : fresh
-          ? (made ?? (await create.mutateAsync({ kind: KIND[device.type] ?? 'other', name: placeName.trim(), ...(roomId ? { roomId } : {}) })))
+          ? (made ?? (await create.mutateAsync({ kind: placeKindOf(device.type), name: placeName.trim(), ...(roomId ? { roomId } : {}) })))
           : (listed.find(space => space.id === chosen) ?? null);
       if (fresh && to) setMade(to);
       const body: DeviceUpdate = { ...(renamed ? { name: wanted } : {}), ...(to ? { spaceId: to.id } : {}) };

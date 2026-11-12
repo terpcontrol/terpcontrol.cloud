@@ -1,9 +1,8 @@
-import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { membersPath } from '@/app/places';
-import type { Space, SpaceKind } from '@fg2/shared-types/v1';
+import { SHARE_LINKS } from '@/app/places';
+import type { SpaceKind } from '@fg2/shared-types/v1';
 import { useCameras } from '@/api/cameras';
 import { useDiaryLayer } from '@/api/layers';
 import { useMembers } from '@/api/members';
@@ -18,28 +17,21 @@ import { useNow } from '@/ui/useNow';
 import { ownsCamera } from '@/screens/devices/cameras';
 import { useDevices } from '@/api/devices';
 import { InviteBlock } from './InviteBlock';
-import { guestsOf, lastLoggedOf, peopleCount, personOf, viaRoomCount } from './people';
+import { guestsOf, lastLoggedOf, personOf, viaRoomCount } from './people';
 import { Permissions } from './Permissions';
 import { PersonRow } from './PersonRow';
 import { type Leaving, RemoveSheet } from './RemoveSheet';
-import { RoomSheet } from './RoomSheet';
 import styles from './Members.module.css';
-import roomStyles from './Room.module.css';
 
 /**
- * The Members tab: who is in this tent, and the two ways to put somebody else
- * in it.
+ * Who is in a place - or in a room, with every place in it - and the two ways
+ * to put somebody else in it: the section "Wer … sieht" of "Ort bearbeiten",
+ * and the page a member without the right to manage is shown instead.
  *
- * There is one model on this screen and the switch at the top is it. A tent can
- * be shared on its own, or the room it stands in can be shared and then every
- * tent grouped under it comes with it - which is why a row that arrived through
- * the room is drawn here and changed there, and why the switch is an address
- * rather than a mode: the room's member list is the room's page. A tent that
- * stands in no room yet has the switch's second segment as the way to put it
- * in one, because this is the screen on which a grower first wants a room -
- * once there is a second place to share with it. A room groups places, and
- * somebody with one fridge was offered to put it in a room of its own, under a
- * paragraph about rooms, at the top of the page they opened to let one person in.
+ * A place can be shared on its own, or the room it stands in can be shared and
+ * then every place grouped under it comes with it - which is why a row that
+ * arrived through the room is drawn here and changed there. Which of the two
+ * the list is about is chosen above it ("Einladung gilt für").
  *
  * Handing out the way in is the owner's alone. A member sees the same list,
  * because somebody who cannot tell who else is here cannot tell whose entry
@@ -47,7 +39,20 @@ import roomStyles from './Room.module.css';
  * leave. The demo owns nothing and is told so rather than shown a list the
  * server will not answer.
  */
-export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name: string; kind: SpaceKind; roomId: string | null }) {
+export function Members({
+  spaceId,
+  name,
+  kind,
+  roomId,
+  scope = null,
+}: {
+  spaceId: string;
+  name: string;
+  kind: SpaceKind;
+  roomId: string | null;
+  /** The choice of what an invitation is for - this place or its room - which stands as the card's last row. */
+  scope?: ReactNode;
+}) {
   const { t } = useTranslation();
   const now = useNow();
   const { user } = useSession();
@@ -57,11 +62,11 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
   // Everything this screen writes - a key, a role, showing somebody the door -
   // is `own` on the space, which is the one need a manager does not have.
   const mayWrite = useMayIn(spaceId, 'own');
-  const [roomSheet, setRoomSheet] = useState(false);
   // Both of these belong to the screen rather than to a row: the row is the
   // first thing a removal takes away, and it would carry the question and what
   // is to be said about the answer off the page with it.
   const [leaving, setLeaving] = useState<Leaving | null>(null);
+  const [inviting, setInviting] = useState(false);
   const [stoppedLink, setStoppedLink] = useState<{ code: string; name: string } | null>(null);
   // What there is to see and write here, so the table promises neither grows
   // nor entries to somebody who keeps no diary, nor cameras to somebody who
@@ -79,12 +84,8 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
   const page = members.data;
   const listed = spaces.data?.items ?? [];
   // The room is in the space list only for somebody who is in the room as well;
-  // a member of this tent alone knows it by the name the answer carries, and
-  // has nothing there to switch to.
-  const room = listed.find(one => one.id === roomId) ?? null;
-  const roomName = room?.name ?? page.room?.name ?? null;
-  const tents = listed.filter(one => one.roomId === roomId && one.archivedAt === null).length;
-  const several = listed.filter(one => one.kind !== 'room' && one.archivedAt === null).length > 1;
+  // a member of this place alone knows it by the name the answer carries.
+  const roomName = listed.find(one => one.id === roomId)?.name ?? page.room?.name ?? null;
   const ownerId = listed.find(one => one.id === spaceId)?.ownerId ?? null;
   // Two different questions that used to be one. What may be written here is
   // the server's answer, which an administrator has as well; whether the row at
@@ -100,65 +101,6 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
   return (
     <section className={styles.tab}>
       <RefreshFailed failedAt={members.isError ? members.dataUpdatedAt : null} now={now} />
-
-      {kind === 'room' ? (
-        <>
-          <p className={ui.note}>{t('space.members.room.roomModel')}</p>
-          <TentsInRoom tents={listed.filter(one => one.roomId === spaceId && one.archivedAt === null)} pending={spaces.isPending} />
-        </>
-      ) : (
-        <>
-          {room ? (
-            <nav className={`${ui.segments} ${ui.segmentsFill}`} aria-label={t('space.members.scopeLabel')}>
-              <span className={`${ui.segment} ${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
-                {name}
-              </span>
-              <Link to={membersPath(room.id)} className={`${ui.segment} ${styles.scopeOption}`}>
-                {t('space.members.roomWithTents', { room: room.name, count: tents })}
-              </Link>
-            </nav>
-          ) : mayWrite && several ? (
-            <nav className={`${ui.segments} ${ui.segmentsFill}`} aria-label={t('space.members.scopeLabel')}>
-              <span className={`${ui.segment} ${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
-                {name}
-              </span>
-              <button type="button" className={`${ui.segment} ${styles.scopeOption} ${roomStyles.scopeAction}`} onClick={() => setRoomSheet(true)}>
-                <Plus size={14} strokeWidth={2} aria-hidden />
-                {t('space.members.room.put')}
-              </button>
-            </nav>
-          ) : null}
-          {room || several ? <p className={ui.note}>{t('space.members.oneModel')}</p> : null}
-          {room && mayWrite ? (
-            <p className={`mono ${roomStyles.roomLine}`}>
-              <span>{t('space.members.room.in', { room: room.name })}</span>
-              <button type="button" className={ui.chip} onClick={() => setRoomSheet(true)}>
-                {t('space.members.room.change')}
-              </button>
-            </p>
-          ) : null}
-        </>
-      )}
-
-      {mayWrite ? <InviteBlock spaceId={spaceId} spaceName={name} kind={kind} /> : null}
-      {/*
-        The removal that revoked it has already happened, so this is a report
-        and not a warning: without it the live link simply vanishes from the
-        block above and a host is left to work out which of the two taps did it.
-      */}
-      {stoppedLink ? (
-        <p className={`mono ${styles.linkStopped}`} role="status">
-          {t('space.members.linkStopped', stoppedLink)}
-        </p>
-      ) : null}
-
-      <header className={styles.peopleHead}>
-        <span className="label">{t('space.members.peopleIn', { name })}</span>
-        <span className={`mono ${styles.count}`}>
-          {peopleCount(page)}
-          {viaRoom > 0 ? ` · ${t('space.members.viaTheRoom', { count: viaRoom })}` : ''}
-        </span>
-      </header>
 
       <ul className={ui.group}>
         <OwnerRow isYou={isYou} handle={ownerHandle} name={name} lastLogged={ownerId ? lastLoggedOf(page, ownerId) : null} diary={diary} />
@@ -177,9 +119,49 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
             onAskToRemove={setLeaving}
           />
         ))}
+        {mayWrite ? (
+          <li>
+            <button
+              type="button"
+              className={styles.invite}
+              aria-expanded={inviting}
+              aria-controls={`${spaceId}-invite`}
+              onClick={() => setInviting(!inviting)}
+            >
+              + {t('space.members.inviteSomebody')}
+            </button>
+          </li>
+        ) : null}
+        {scope ? <li>{scope}</li> : null}
       </ul>
+      {viaRoom > 0 ? <p className={ui.note}>{t('space.members.viaTheRoom', { count: viaRoom })}</p> : null}
 
-      <Permissions kind={kind} diary={diary} cameras={hasCamera} steering={steering} />
+      {/* The links, the name field and what each role may do: opened by the row above, by whoever hands out the way in. */}
+      {mayWrite && inviting ? (
+        <div id={`${spaceId}-invite`} className={styles.inviting}>
+          <InviteBlock spaceId={spaceId} spaceName={name} kind={kind} />
+          <Permissions kind={kind} diary={diary} cameras={hasCamera} steering={steering} />
+          {/* Sharing is two things: letting somebody in, above, and letting somebody look without an account, which is a link. */}
+          <p className={ui.note}>
+            {t('place.members.lookOnly')}{' '}
+            <Link to={SHARE_LINKS} className={styles.shareLink}>
+              {t('place.members.shareLink')} ›
+            </Link>
+          </p>
+        </div>
+      ) : null}
+      {/*
+        The removal that revoked it has already happened, so this is a report
+        and not a warning: without it the live link simply vanishes from the
+        block above and a host is left to work out which of the two taps did it.
+      */}
+      {stoppedLink ? (
+        <p className={`mono ${styles.linkStopped}`} role="status">
+          {t('space.members.linkStopped', stoppedLink)}
+        </p>
+      ) : null}
+      {/* A member has no links to hand out and is still owed what their role lets them do. */}
+      {mayWrite ? null : <Permissions kind={kind} diary={diary} cameras={hasCamera} steering={steering} />}
 
       {leaving ? (
         <RemoveSheet
@@ -190,32 +172,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
           onLinkStopped={code => setStoppedLink({ code, name: leaving.name })}
         />
       ) : null}
-      {roomSheet ? <RoomSheet spaceId={spaceId} spaceName={name} roomId={roomId} roomName={roomName} onClose={() => setRoomSheet(false)} /> : null}
     </section>
-  );
-}
-
-/**
- * The tents grouped under a room, on the room's own page: the list a room's
- * member list is about. Each is a link to its own Members tab, which is where
- * a tent is put into a room or taken out of one - a room has no control for
- * that, because the pointer lives on the tent.
- */
-function TentsInRoom({ tents, pending }: { tents: Space[]; pending: boolean }) {
-  const { t } = useTranslation();
-
-  if (pending) return null;
-  if (tents.length === 0) return <p className={`mono ${roomStyles.roomLine}`}>{t('space.members.room.noTents')}</p>;
-
-  return (
-    <ul className={`mono ${roomStyles.tents}`} aria-label={t('space.members.room.tentsIn', { count: tents.length })}>
-      <li>{t('space.members.room.tentsIn', { count: tents.length })}:</li>
-      {tents.map(tent => (
-        <li key={tent.id}>
-          <Link to={membersPath(tent.id)}>{tent.name}</Link>
-        </li>
-      ))}
-    </ul>
   );
 }
 

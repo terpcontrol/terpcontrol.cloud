@@ -1,5 +1,5 @@
 import { createBrowserRouter, Navigate, Outlet, type RouteObject } from 'react-router';
-import { AppShell } from './shell/AppShell';
+import { AppShell, SetupShell } from './shell/AppShell';
 import { LinkEnded, OldDevice, OldLogin, OpenDemo } from './OldAddresses';
 import { RequireSession } from './RequireSession';
 import { RouteError } from './RouteError';
@@ -36,7 +36,9 @@ import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
 import { NotFound } from '@/screens/NotFound';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
 import { ControlTab } from '@/screens/place/ControlTab';
+import { EditPlace } from '@/screens/place/EditPlace';
 import { PlaceMembers } from '@/screens/place/PlaceMembers';
+import { RemovePlace } from '@/screens/place/RemovePlace';
 import { Notifications } from '@/screens/notifications/Notifications';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
 import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
@@ -52,6 +54,9 @@ import { Timeline } from '@/screens/Timeline';
 /** The route every screen behind the session stands under, by which an address is known to need one before anything renders. */
 export const SESSION_ROUTE = 'session';
 
+/** The screens behind the session that stand outside the shell: setting a device up. */
+export const setup: RouteObject[] = [{ path: 'claim', element: <Claim /> }];
+
 /** Every screen behind the session, in the shell: the table a test can lay under the shell on its own. */
 export const screens: RouteObject[] = [
   { index: true, element: <Start /> },
@@ -64,7 +69,6 @@ export const screens: RouteObject[] = [
   { path: 'charts', element: <NotFound /> },
   { path: 'devices/:deviceId/sockets/:socket', element: <SocketPage /> },
   { path: 'devices/:deviceId/:page?', element: <DevicePage /> },
-  { path: 'claim', element: <Claim /> },
   { path: 'cameras/add', element: <AddCamera /> },
   { path: 'cameras/:cameraId', element: <CameraPage /> },
   { path: 'tasks', element: <Tasks /> },
@@ -103,6 +107,8 @@ export const screens: RouteObject[] = [
   { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
   { path: 'grows/:growId/:tab?', element: <GrowPage /> },
   { path: 'spaces/:spaceId', element: <StartOfPlace /> },
+  { path: 'spaces/:spaceId/edit', element: <EditPlace /> },
+  { path: 'spaces/:spaceId/remove', element: <RemovePlace /> },
   { path: 'spaces/:spaceId/members', element: <PlaceMembers /> },
   { path: 'index.html', element: <Navigate to="/" replace /> },
   // The old app's own pages, where bookmarks still point.
@@ -152,10 +158,14 @@ export const router = createBrowserRouter([
         id: SESSION_ROUTE,
         element: (
           <RequireSession>
-            <AppShell />
+            <Outlet />
           </RequireSession>
         ),
-        children: [{ errorElement: <RouteError />, children: screens }],
+        children: [
+          // Adding a device leaves the bar: it is a string of questions with one way on and one way out.
+          { element: <SetupShell />, children: [{ errorElement: <RouteError />, children: setup }] },
+          { element: <AppShell />, children: [{ errorElement: <RouteError />, children: screens }] },
+        ],
       },
     ],
   },

@@ -604,17 +604,15 @@ describe('Start of a place that only regulates', () => {
     ).toEqual(['/claim', '/grows/new', '/cameras/add']);
   });
 
-  it('keeps behind the place´s menu what belongs to the place, and nothing of the grow or the targets', async () => {
+  it('leads from the ⋯ beside the name to the one page that edits the place', async () => {
     draw();
 
-    // The button says what it is for and not the place's whole name again, which is in its accessible name alone.
-    const menu = await screen.findByRole('button', { name: 'Edit place: Fridge 1' });
+    // It says what it is for and not the place's whole name again, which is in its accessible name alone.
+    const menu = await screen.findByRole('link', { name: 'Edit place: Fridge 1' });
     expect(menu).toHaveTextContent(/^Edit place$/);
-    fireEvent.click(menu);
-    expect(await screen.findByRole('button', { name: 'Rename' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Invite members' })).toHaveAttribute('href', '/spaces/space-1/members');
-    expect(screen.queryByText(/preset/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /grow/i })).not.toBeInTheDocument();
+    expect(menu).toHaveAttribute('href', '/spaces/space-1/edit');
+    // No list opens from it: name, kind, room, devices, people and the end are that page's.
+    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
   });
 
   it('lets the device the server names as the place´s climate speak, where several stand there', async () => {

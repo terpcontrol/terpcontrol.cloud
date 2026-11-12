@@ -6,7 +6,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { Invite, InvitePreview, Membership, MembershipPage, Problem, Space } from '@fg2/shared-types/v1';
 import { JoinRoute } from '@/screens/join/JoinRoute';
 import { Members } from '@/screens/space/members/Members';
-import { decidesHere, guestsOf, peopleCount, viaRoomCount } from '@/screens/space/members/people';
+import { decidesHere, guestsOf, viaRoomCount } from '@/screens/space/members/people';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
@@ -167,6 +167,12 @@ const drawnPeople = async () => {
   return screen.getAllByRole('listitem');
 };
 
+/** The links, the name field and the role table stand behind the row that invites: opened, as the owner opens them. */
+const inviting = async () => {
+  drawTab();
+  fireEvent.click(await screen.findByRole('button', { name: '+ Invite somebody' }));
+};
+
 beforeAll(() => translate());
 
 beforeEach(() => {
@@ -196,16 +202,12 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the arithmetic of a member list', () => {
-  it('counts the owner, who is never a row', () => {
-    expect(peopleCount(MEMBERS)).toBe(3);
-  });
-
   it('tells one sort of row from the other by the space each one names', () => {
     expect(viaRoomCount(MEMBERS, 'space-1')).toBe(1);
     expect(guestsOf(MEMBERS, 'space-1').map(guest => guest.userId)).toEqual(['user-2', 'user-3']);
   });
 
-  it('folds two rows of one person into one guest with the stronger role, and counts them once', () => {
+  it('folds two rows of one person into one guest with the stronger role', () => {
     const page = BOTH_WAYS('can_log', 'can_manage');
     const guests = guestsOf(page, 'space-1');
 
@@ -213,7 +215,6 @@ describe('the arithmetic of a member list', () => {
     expect(guests[0].role).toBe('can_manage');
     expect(guests[0].here?.spaceId).toBe('space-1');
     expect(guests[0].viaRoom?.spaceId).toBe('room-1');
-    expect(peopleCount(page)).toBe(2);
     expect(viaRoomCount(page, 'space-1')).toBe(1);
   });
 
@@ -226,11 +227,10 @@ describe('the arithmetic of a member list', () => {
 });
 
 describe('the Members tab as its owner', () => {
-  it('names everybody in the tent, says how they got here, and counts the room in', async () => {
+  it('names everybody in the tent, says how they got here, and how many reach in through the room', async () => {
     const rows = await drawnPeople();
 
-    expect(screen.getByText('People in Blue Dream tent')).toBeInTheDocument();
-    expect(screen.getByText('3 · 1 via the room')).toBeInTheDocument();
+    expect(screen.getByText('1 via the room')).toBeInTheDocument();
     expect(within(rows[0]).getByText('You')).toBeInTheDocument();
     expect(within(rows[1]).getByText(/joined via link/)).toBeInTheDocument();
     expect(within(rows[2]).getByText(/via Grow room/)).toBeInTheDocument();
@@ -258,7 +258,7 @@ describe('the Members tab as its owner', () => {
     const rows = screen.getAllByRole('listitem');
 
     expect(screen.getAllByText('@lea')).toHaveLength(1);
-    expect(screen.getByText('2 · 1 via the room')).toBeInTheDocument();
+    expect(screen.getByText('1 via the room')).toBeInTheDocument();
     expect(within(rows[1]).getByText('joined via link · also via Grow room')).toBeInTheDocument();
     expect(within(rows[1]).getByRole('combobox', { name: 'What lea may do here' })).toHaveValue('can_manage');
   });
@@ -305,10 +305,16 @@ describe('the Members tab as its owner', () => {
     expect(within(rows[0]).getByText('owner')).toBeInTheDocument();
   });
 
-  it('offers the room beside the tent, as an address of its own', async () => {
-    await drawnPeople();
+  it('ends the card with the row that invites and, under it, what an invitation is for where that is given', async () => {
+    wrapped(<Members spaceId="space-1" name="Blue Dream tent" kind="tent" roomId="room-1" scope={<span>this tent or the room</span>} />);
+    await screen.findByText('@jonas');
+    const rows = screen.getAllByRole('listitem');
 
-    expect(screen.getByRole('link', { name: 'Grow room · 2 places' })).toHaveAttribute('href', '/spaces/room-1/members');
+    expect(within(rows[rows.length - 2]).getByRole('button', { name: '+ Invite somebody' })).toHaveAttribute('aria-expanded', 'false');
+    expect(rows[rows.length - 1]).toHaveTextContent('this tent or the room');
+    // Nothing of the links or the roles is on the page until the row is opened.
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('A username you already grow with')).not.toBeInTheDocument();
   });
 
   it('leaves a row held on the room alone, because ending it there would empty every tent in it', async () => {
@@ -321,7 +327,7 @@ describe('the Members tab as its owner', () => {
   });
 
   it('makes a link that lives seven days and lets somebody in to log unless told otherwise, and shows the address afterwards', async () => {
-    drawTab();
+    await inviting();
     fireEvent.click(await screen.findByRole('button', { name: 'Make a link' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Make the link' }));
 
@@ -336,7 +342,7 @@ describe('the Members tab as its owner', () => {
   });
 
   it('adds by handle without the sigil people type out of habit, and empties the field', async () => {
-    drawTab();
+    await inviting();
     const field = await screen.findByLabelText('A username you already grow with');
 
     fireEvent.change(field, { target: { value: ' @mara ' } });
@@ -349,7 +355,7 @@ describe('the Members tab as its owner', () => {
 
   it('says what the server said when a handle is nobody it grows with', async () => {
     server.refuse = refusal('handle_not_found', 'Nobody you grow with goes by that name.', 404);
-    drawTab();
+    await inviting();
 
     fireEvent.change(await screen.findByLabelText('A username you already grow with'), { target: { value: 'stranger' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
@@ -392,7 +398,8 @@ describe('the Members tab as its owner', () => {
 
     fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this place' }));
     const sheet = screen.getByRole('dialog');
-    expect(within(sheet).getByText(/came in on the link K7QZ4M2P/)).toBeInTheDocument();
+    // The sheet reads the links for itself: the block that lists them is folded away.
+    expect(await within(sheet).findByText(/came in on the link K7QZ4M2P/)).toBeInTheDocument();
     expect(within(sheet).getByText(/Whoever is already in stays in/)).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Take them out' }));
@@ -423,7 +430,7 @@ describe('the Members tab as its owner', () => {
   });
 
   it('closes with the note that says why there is no fourth role', async () => {
-    await drawnPeople();
+    await inviting();
 
     expect(screen.getByText(/Read-only viewing is what share links do; there is no viewer role/)).toBeInTheDocument();
   });
@@ -437,8 +444,7 @@ describe('the Members tab as its owner', () => {
  */
 describe('what the role table promises', () => {
   const table = async () => {
-    drawTab();
-    await screen.findByText('@jonas');
+    await inviting();
     return screen.getByRole('table');
   };
 

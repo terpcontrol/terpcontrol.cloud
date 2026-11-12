@@ -36,9 +36,6 @@ const isViaRoom = (row: Membership, spaceId: string): boolean => row.spaceId !==
 export const viaRoomCount = (page: MembershipPage, spaceId: string): number =>
   new Set(page.items.filter(row => isViaRoom(row, spaceId)).map(row => row.userId)).size;
 
-/** People, not rows: somebody in the room and in the tent is one. The owner is never a row and is always exactly one person. */
-export const peopleCount = (page: MembershipPage): number => new Set(page.items.map(row => row.userId)).size + 1;
-
 export const personOf = (page: MembershipPage, userId: string): Person | null => page.people.find(one => one.id === userId) ?? null;
 
 /**

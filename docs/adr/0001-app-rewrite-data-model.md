@@ -397,7 +397,8 @@ like a place.
      made if there is none. `roomId` names an existing one, `roomId: null` takes the place out.
    - A room is **never made, turned into a place, ended or brought back by itself**: `POST /spaces` with
      `kind: room`, a `kind` that changes to or from `room`, `DELETE /spaces/{id}` and both archive routes on a room
-     answer 409 `room_by_itself`. Its name can still be changed (`PATCH /spaces/{id}`), within point 3.
+     answer 409 `room_by_itself`, and so does putting a device into a room - by a claim, a move or
+     `PUT /spaces/{id}/devices/{deviceId}`. Its name can still be changed (`PATCH /spaces/{id}`), within point 3.
    - **The server removes a room when its last place and its last member have left**: whenever a place leaves a
      room, ends, or the last membership on a room is taken away, a room with no place in it that has not ended and no
      membership is ended the way a deleted place is - a tombstone with `archivedAt`, its invites and share links

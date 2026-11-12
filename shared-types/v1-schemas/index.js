@@ -43,6 +43,7 @@ __exportStar(require("./configuration-fields.js"), exports); // the settings bey
 __exportStar(require("./day-night.js"), exports); // day and night as the firmware keeps them
 __exportStar(require("./capture.js"), exports); // how long one read of a camera may take, and how a failed one is named
 __exportStar(require("./plan-clock.js"), exports); // the clock on a plan's step
+__exportStar(require("./place-names.js"), exports); // one name per place, and the number a second one takes
 __exportStar(require("./value-age.js"), exports); // how old a value is
 __exportStar(require("./steering.js"), exports); // which readings a controller steers, and how far off still counts as on target
 __exportStar(require("./pages.js"), exports); // the largest page any list answers

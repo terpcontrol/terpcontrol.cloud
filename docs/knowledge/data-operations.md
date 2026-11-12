@@ -50,7 +50,7 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
   be reachable when a database with dryers is migrated.
 - **Some steps run live code:** `011-entries` the device-message parser (`common/v1/device-messages.ts`), `017` the
   credential filter of `common/log-path.ts`, `018` and `021` `targetsOf`, `019` and `021` the class rules, work modes
-  and plan steps of the server, `020` the Influx delete predicate, `002` and `021` modules of `shared-types`.
+  and plan steps of the server, `020` the Influx delete predicate, `002`, `021` and `028` modules of `shared-types` (`028`: `nameKey` and `numbered` of `place-names.ts`).
   Changing one changes what that step writes on every install not yet migrated, while migrated ones keep the old
   result: a refactor there leaves each step's output as it was (the step specs and a dry run on a copy show it), and
   a new meaning for migrated data is a new step.

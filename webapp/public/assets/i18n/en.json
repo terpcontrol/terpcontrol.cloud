@@ -1731,19 +1731,9 @@
     },
     "noReadingsYet": "Nothing reported yet",
     "growingHere": "Growing here",
-    "deviceHere": {
-      "title": "Bring a device to {{name}}",
-      "which": "Which device",
-      "none": "Every device you control already stands here.",
-      "moved": "{{device}} now stands in {{place}}.",
-      "note": "From now on the device’s readings and camera count for this place. What it measured before stays with the old one.",
-      "done": "Done"
-    },
     "empty": {
       "says": "Nothing stands in {{name}} any more: no device, no camera, no grow.",
-      "remove": "Remove {{name}}",
-      "removing": "removing…",
-      "note": "What was measured and written there stays readable."
+      "remove": "Remove {{name}}"
     },
     "lastStill": "last one {{age}} ago",
     "stillAlt": "{{name}} at {{time}}",
@@ -1759,10 +1749,6 @@
       "startGrowHere": "Start a grow here"
     },
     "members": {
-      "scopeLabel": "What is shared",
-      "roomWithTents_one": "{{room}} · {{count}} place",
-      "roomWithTents_other": "{{room}} · {{count}} places",
-      "oneModel": "Share one place, or the room it belongs to. Room members see every place in the room; members of this place see just this one.",
       "demo": "The demo looks at somebody else's place and owns nothing, so there is nobody to let in and nobody to let go.",
       "invite": "Invite",
       "noLink": "No invitation link yet",
@@ -1772,7 +1758,6 @@
       "handleLabel": "A username you already grow with",
       "handlePlaceholder": "or the @name of an account",
       "add": "Add",
-      "peopleIn": "People in {{name}}",
       "viaTheRoom_one": "{{count}} via the room",
       "viaTheRoom_other": "{{count}} via the room",
       "you": "You",
@@ -1912,35 +1897,8 @@
         "copyFailed": "Could not copy · copy it by hand",
         "done": "Done"
       },
-      "room": {
-        "put": "Put it in a room",
-        "in": "In {{room}}",
-        "change": "Change",
-        "sheetTitle": "A room for {{name}}",
-        "which": "Which room",
-        "none": "You have no room yet.",
-        "new": "New room",
-        "newName": "Name of the room",
-        "make": "Make the room",
-        "making": "Making the room …",
-        "aRoom": "a room",
-        "note": "A room groups places: Start lists them under its name, and whoever is let into the room sees every place in it. The devices in it stay what they are - each steers, shows and pauses its own place. A room never stands in a room, and a place stands in one room at most.",
-        "submit": "Put {{name}} in {{room}}",
-        "moving": "Moving …",
-        "takeOut": "Take it out of {{room}}",
-        "roomModel": "Share the whole room: whoever is let in here sees every place grouped under it.",
-        "tentsIn_one": "{{count}} place in this room",
-        "tentsIn_other": "{{count}} places in this room",
-        "noTents": "No place stands in this room yet. A place is put in from ⋯ › Put in a room on its own page."
-      },
-      "linkStopped": "The link {{code}} was stopped when @{{name}} was taken out."
-    },
-    "remove": {
-      "title": "Remove {{name}}",
-      "holds": "Still here: {{what}}.",
-      "grow": "grow {{name}}",
-      "to": "All of it moves to",
-      "nowhere": "There is no other place it could move to. Create one first."
+      "linkStopped": "The link {{code}} was stopped when @{{name}} was taken out.",
+      "inviteSomebody": "Invite somebody"
     }
   },
   "log": {
@@ -3194,9 +3152,8 @@
     "bellTasks_other": "Alerts · {{count}} tasks due"
   },
   "claim": {
-    "title": "Add a device · {{step}} of {{of}}",
+    "title": "Add a device",
     "opened": "{{title}} · step {{step}} of {{of}}",
-    "skip": "skip",
     "next": "Next · {{what}}",
     "finish": "Done · open the place",
     "later": "The preset can be changed later from Control, the sockets and the cam with the devices there, notifications from Me.",
@@ -3205,8 +3162,6 @@
       "title": "Read the code off the display",
       "text": "The controller shows a short code, and the box carries the same one as a QR.",
       "field": "Claim code",
-      "whichPlace": "Where it stands",
-      "newPlace": "a new place",
       "claim": "Claim it",
       "claiming": "Claiming…",
       "claimed": "Claimed",
@@ -3219,31 +3174,16 @@
       "sockets_other": "{{count}} sockets",
       "camera": "Cam: {{name}}",
       "noCamera": "none",
-      "rtsp": "Add a camera without a controller (RTSP)"
+      "rtsp": "Add a camera without a controller (RTSP)",
+      "into": "Goes into {{name}}."
     },
     "place": {
-      "next": "where is it?",
-      "title": "Where is it?",
-      "text": "The name of the place; devices and grows attach to it.",
-      "field": "Name of the place",
+      "next": "where does it hang?",
+      "title": "Where it hangs",
       "newName": {
         "controller": "Tent {{n}}",
         "fridge": "Fridge {{n}}",
         "other": "Place {{n}}"
-      },
-      "nameTaken": "A place is already called that.",
-      "joins": "You already have {{name}}: the device joins it, beside whatever stands there.",
-      "renamesThePlace": "The field renames the place itself, not this device’s own name.",
-      "alreadyHave": "Or it stands in a place you already have",
-      "rename": "rename",
-      "renaming": "renaming…",
-      "join": "put it there",
-      "joining": "moving…",
-      "kindLabel": "What kind of place it is",
-      "kind": {
-        "tent": "Tent",
-        "fridge": "Fridge",
-        "other": "Other place"
       },
       "unknown": "no place yet"
     },
@@ -3294,15 +3234,32 @@
       "none": "no way set up yet"
     },
     "grow": {
-      "step": "Set up {{device}} · step {{step}} of {{of}}",
       "next": "what grows?",
       "skip": "Not now",
-      "close": "Close the setup",
       "move": "Or move a grow here",
       "title": "What grows here?",
       "text": "With a grow the app keeps the diary. It can wait."
     },
-    "backToControl": "Back to Control"
+    "step": "Add {{device}} · step {{step}} of {{of}}",
+    "stepUnknown": "Add a device · step {{step}} of {{of}}",
+    "close": "Stop adding",
+    "backToStart": "Back to Start",
+    "air": {
+      "title": {
+        "fan": "Where does the fan hang?",
+        "controller": "Where does the controller hang?",
+        "fridge": "Where does the fridge module work?",
+        "plug": "Where is the Plantalytix Socket plugged in?",
+        "light": "Where does the light hang?",
+        "other": "Where does the device hang?"
+      },
+      "here": "In {{name}}",
+      "hereNote": "With {{devices}}: one climate, one camera, one maintenance.",
+      "hereEmpty": "No device stands there yet.",
+      "new": "At a new place",
+      "newNote": "A second tent, say, with a climate of its own.",
+      "back": "Back"
+    }
   },
   "admin": {
     "section": "Admin",
@@ -4115,7 +4072,6 @@
   "place": {
     "backTo": "Back to {{name}}",
     "members": {
-      "title": "Members & sharing",
       "lookOnly": "Just to look, without an account:",
       "shareLink": "Create a share link"
     },
@@ -4123,13 +4079,71 @@
       "nothing": "Nothing to control yet: targets and alarms come with the first device.",
       "demoNothing": "The demo controls nothing; open a place on Home to see its targets."
     },
-    "rename": {
-      "title": "Rename {{name}}",
-      "label": "Name",
-      "save": "Save the name",
-      "saving": "saving…",
-      "taken": "Another place already has this name.",
-      "note": "This is what Home, the Timeline, Control and every alert call the place."
+    "edit": {
+      "title": "Edit {{name}}",
+      "save": "Save",
+      "saving": "Saving …",
+      "name": "Name",
+      "taken": "Another place is already called “{{name}}”.",
+      "kindLabel": "Kind",
+      "kind": {
+        "tent": "Tent",
+        "fridge": "Fridge",
+        "balcony": "Balcony",
+        "other": "Other place"
+      },
+      "room": "Room",
+      "newRoom": "New room …",
+      "noRoom": "No room",
+      "newRoomName": "Name of the room",
+      "told": {
+        "named": "{{was}} is now called {{name}}",
+        "kind": "Kind of {{name}}: {{kind}}",
+        "room": "{{name}} now stands in {{room}}",
+        "noRoom": "{{name}} no longer stands in a room"
+      },
+      "devices": "Devices here",
+      "bring": "Bring a device here",
+      "bringTitle": "Bring a device to {{name}}",
+      "standsIn": "stands in {{place}}",
+      "nowhere": "no place",
+      "claim": "Add a new device",
+      "people": "Who sees {{name}}",
+      "scope": "An invitation is for",
+      "scopeNote": "only {{name}}, or the whole room {{room}}",
+      "remove": "Remove {{name}}",
+      "camera": "Camera"
+    },
+    "remove": {
+      "title": "Remove {{name}}",
+      "back": "Back to “Edit {{name}}”",
+      "holds": "Still standing here",
+      "device": {
+        "new": "gets a new place of its own",
+        "move": "moves to {{place}}",
+        "release": "give up"
+      },
+      "camera": {
+        "stay": "stays with {{device}}",
+        "uncouple": "unpair",
+        "move": "moves to {{place}}",
+        "remove": "remove"
+      },
+      "grow": {
+        "ask": "Where do the plants stand now?",
+        "with": "at the new place of {{device}}",
+        "move": "in {{place}}",
+        "nowhere": "in no fixed place",
+        "end": "End the grow"
+      },
+      "kept": "Curves and pictures up to today stay with the grow {{names}}.",
+      "guests_one": "{{count}} person is still let in. Let them go first.",
+      "guests_other": "{{count}} people are still let in. Let them go first.",
+      "toGuests": "To who is let in",
+      "remove": "Remove {{name}}",
+      "removing": "Removing …",
+      "cancel": "Cancel",
+      "told": "{{name}} removed"
     }
   },
   "climatePick": {
@@ -4680,14 +4694,8 @@
     "waiting": "Start is loading",
     "addPlace": "Add a place",
     "menu": {
-      "label": "Edit place: {{name}}",
-      "deviceHere": "Bring a device here",
-      "members": "Invite members",
-      "rename": "Rename",
-      "putInRoom": "Put in a room",
-      "room": "Room",
-      "remove": "Remove place",
-      "words": "Edit place"
+      "words": "Edit place",
+      "label": "Edit place: {{name}}"
     },
     "light": {
       "onUntil": "on until {{time}}",

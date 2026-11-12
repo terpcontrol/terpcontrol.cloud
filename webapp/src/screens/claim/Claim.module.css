@@ -1,5 +1,5 @@
-/* Adding a device: a header with the count and the way out, a bar of four
-   segments, the four steps down the page, and the action on the bottom edge.
+/* Adding a device: the flow's head with the way out and how far along, the
+   steps down the page, and the action on the bottom edge.
    Every shape below is the app's own card, chip, field and button; this file
    is the column they stand in and the numbered marker beside them. */
 
@@ -9,62 +9,6 @@
   gap: var(--space-4);
   max-width: var(--column-width);
   padding-top: var(--space-2);
-}
-
-.head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.stepSeparator,
-.stepCount {
-  font-family: var(--font-text);
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-@media (max-width: 599px) {
-  .stepSeparator {
-    display: none;
-  }
-
-  .stepCount {
-    display: block;
-    margin-top: 2px;
-    font-size: var(--text-sm);
-  }
-}
-
-/* Leaving is a way out rather than an action, so it is drawn as the lesser of
-   the two things on this screen that can be tapped. */
-.skip {
-  flex: none;
-  background: none;
-  border: 0;
-  padding: 0;
-  color: var(--muted);
-  font-size: var(--text-sm);
-}
-
-.progress {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.segment {
-  flex: 1;
-  height: 3px;
-  background: var(--rule);
-  border-radius: var(--radius-pill);
-}
-
-.segment[data-filled='true'] {
-  background: var(--brand);
 }
 
 /* One step: the marker in its own column, everything the step says in the
@@ -168,6 +112,7 @@
 /* A settled step's header is how it is corrected, and it is not a control to
    look at: it is the title, tappable. */
 .reopen {
+  min-height: var(--control-height);
   background: none;
   border: 0;
   padding: 0;
@@ -221,8 +166,13 @@
 
 /* A link out of a step is a link and not a bar across it: the column stretches
    what it holds, and only the step's own action wants that width. */
+/* A way aside, a finger high where it is tapped, on as many lines as a narrow phone needs. */
 .aside {
+  display: inline-flex;
+  align-items: center;
   align-self: flex-start;
+  min-height: var(--control-height);
+  white-space: normal;
 }
 
 .claimForm {
@@ -253,16 +203,6 @@
     max-width: var(--reading-width);
     padding-top: 0;
   }
-}
-
-/* An account with twenty places would otherwise push the button that claims
-   the device off the screen, so the list of them scrolls rather than grows. */
-.places {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  max-height: 11rem;
-  overflow-y: auto;
 }
 
 /* The way across from the old cloud: folded under the field that asks for a
@@ -304,8 +244,8 @@
   color: var(--ink);
 }
 
-/* The last step, a page of its own: the way out, how far along, then the question. */
-.growHead {
+/* The head of every page of the flow: the way out, what is being added and how far along. */
+.flowHead {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -325,20 +265,83 @@
   color: var(--ink);
 }
 
-.growProgress {
+.flowProgress {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+}
+
+/* The line is the page's heading where its questions are a list, and looks the same either way. */
+.flowLine {
+  margin: 0;
+  font-family: var(--font-text);
   font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  letter-spacing: 0;
+  line-height: var(--line-body);
   color: var(--muted);
 }
 
-.growBar {
+.flowBar {
   display: block;
   height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--rule);
+}
+
+.flowBar span {
+  display: block;
+  height: 100%;
   border-radius: var(--radius-pill);
   background: var(--brand);
+}
+
+/* Where it hangs: one card per answer, the one offered first outlined in green. */
+.air {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-4);
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius);
+  color: var(--ink);
+  text-align: left;
+}
+
+.air[data-first] {
+  border: 2px solid var(--green);
+  /* The thicker edge takes the room the thinner one had. */
+  padding: calc(var(--space-4) - 1px);
+}
+
+.air[aria-current] {
+  background: var(--green-wash);
+}
+
+.air:disabled {
+  opacity: 0.45;
+}
+
+.airTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  overflow-wrap: anywhere;
+}
+
+.air[data-first] .airTitle {
+  color: var(--green-ink);
+}
+
+.airNote {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .growPicture {

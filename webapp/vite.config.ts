@@ -109,6 +109,7 @@ export default defineConfig(({ mode }) => ({
       '@fg2/shared-types/v1-schemas/plan-clock.js',
       '@fg2/shared-types/v1-schemas/steering.js',
       '@fg2/shared-types/v1-schemas/pages.js',
+      '@fg2/shared-types/v1-schemas/place-names.js',
       '@fg2/shared-types/v1-schemas/entitlement.js',
       '@fg2/shared-types/v1-schemas/firmware-channels.js',
     ],

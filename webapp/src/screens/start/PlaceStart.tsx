@@ -1,7 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import type { Device, Entry, OverviewCamera, OverviewGrow, SpaceOverview } from '@fg2/shared-types/v1';
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useAccountMe } from '@/api/account';
@@ -9,9 +9,10 @@ import { useLatestStills } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
+import { useHomeShape } from '@/api/home';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { controlPath, devicePath, GROW, membersPath, timelinePath, usePageOfPlace } from '@/app/places';
+import { controlPath, devicePath, editPath, GROW, membersPath, timelinePath, usePageOfPlace } from '@/app/places';
 import { ageLabel, dayStamp, sinceLabel } from '@/ui/age';
 import { BackLink } from '@/ui/BackLink';
 import { useCameraCalled } from '@/ui/camera-name';
@@ -42,7 +43,7 @@ import { DeviceOffer, GrowOffer } from './Offers';
 import { GrowHead, PhaseLine } from './Phase';
 import { Picture } from './Picture';
 import { climateDeviceOf, controlOffOf, shownStill, statusOf, statusText, toneOf, type HumidifierHold, type Status } from './place';
-import { PlaceMenu } from './PlaceMenu';
+import { MenuLink } from '@/ui/Menu';
 import { curvePath, darkOf, extrasOf, readingsOf, type Extra, type Reading } from './readings';
 import { ReadingTiles } from './ReadingTiles';
 import { usePlace, useHumidifierHold, useLamp } from './reads';
@@ -96,7 +97,6 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const now = useNow();
   const zone = useZone();
   const { user } = useSession();
-  const navigate = useNavigate();
   const wide = useWideWindow();
   const called = useCameraCalled();
   const spaceId = overview.spaceId;
@@ -115,6 +115,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const me = useAccountMe();
   const space = useSpaces().data?.items.find(one => one.id === spaceId);
   const guest = !demo && !visiting && space !== undefined && user !== null && space.ownerId !== user.id;
+  // Whose a shared place is, is told by Start's own read (`home.people`); the place's answer names who wrote in it.
+  const hosts = useHomeShape(guest).data?.people ?? [];
   // The grow waits for the account's answer rather than flashing up for somebody who keeps no diary; the demo is shown it whole.
   // Support reading a customer's place is shown the customer's grow where one stands there, whatever its own account keeps.
   const layer = useDiaryLayer() && (me.data !== undefined || demo);
@@ -185,16 +187,16 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           {hasDevice ? <LivenessPill liveness={liveness} measuredAt={measuredAt} now={now} explain waiting={waiting} /> : null}
           {menu ? (
             <span className={styles.menu}>
-              <PlaceMenu overview={overview} />
+              <MenuLink to={editPath(spaceId)} label={t('start.menu.label', { name: overview.name })} words={t('start.menu.words')} />
             </span>
           ) : null}
         </div>
       </header>
-      {guest && space ? <GuestLine space={space} people={overview.people} to={membersPath(spaceId)} /> : null}
+      {guest && space ? <GuestLine space={space} people={[...overview.people, ...hosts]} to={membersPath(spaceId)} /> : null}
       <RefreshFailed failedAt={failedAt} now={now} />
       {visiting ? <p className={styles.cardText}>{t('start.visiting')}</p> : null}
       {/* Devices moved together leave their old places empty; whether one goes is for its owner to say. */}
-      {visiting ? null : <EmptyPlace spaceId={spaceId} onRemoved={() => void navigate('/')} />}
+      {visiting ? null : <EmptyPlace spaceId={spaceId} />}
       {offline ? (
         <OfflineBox
           title={t('start.offline.title', { time: measuredAt ? sinceLabel(measuredAt, now, zone) : '' })}

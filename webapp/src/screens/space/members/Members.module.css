@@ -7,36 +7,42 @@
   gap: var(--space-3);
 }
 
-.scopeOption {
-  display: block;
-  line-height: var(--chip-height);
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* The card's row that opens the ways in, and what it opens under the card. */
+.invite {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 var(--card-padding);
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+  text-align: left;
 }
 
-/* Where you are is the pressed half, marked by `aria-current`. */
-.scopeHere {
-  cursor: default;
+.inviting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* The way to a share link, a finger high where it is tapped. */
+.shareLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
 }
 
 /* The invite block and its sheet keep their own module, `Invite.module.css`. */
 
-.peopleHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-}
-
-.count {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
 /* A person, a row of the one card the people are, not a card of their own. */
+/* On a narrow phone what can be done about somebody goes under who they are rather than over it. */
 .person {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }
@@ -56,7 +62,7 @@
 
 .who {
   display: flex;
-  flex: 1;
+  flex: 1 1 7.5rem;
   flex-direction: column;
   min-width: 0;
   gap: 2px;
@@ -94,6 +100,7 @@
    caret is drawn 8 to 16 px in from the edge, so the padding has to reach past
    it or the widest option's last letter sits against the triangle. */
 .roleSelect {
+  height: var(--control-height);
   appearance: none;
   padding-right: var(--space-5);
   background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%);
@@ -110,8 +117,11 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: var(--control-height);
+  height: var(--control-height);
+  /* Against the right edge also where it stands on a line of its own. */
+  margin-left: auto;
+  margin-right: calc(var(--space-2) * -1);
   background: none;
   border: 0;
   color: var(--muted);

@@ -1,62 +1,39 @@
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
-import { SHARE_LINKS, placePath, usePageOfPlace } from '@/app/places';
-import { useHomeShape } from '@/api/home';
+import { Navigate, useParams } from 'react-router';
+import { editPath, placePath, usePageOfPlace } from '@/app/places';
 import { useSpaces } from '@/api/spaces';
+import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
-import { useMayIn } from '@/ui/session-access';
-import ui from '@/ui/ui.module.css';
-import { BackLink } from '@/ui/BackLink';
+import { useMayManage } from '@/ui/session-access';
 import { Members } from '../space/members/Members';
 import styles from './Place.module.css';
 
 /**
- * Who else is let into a place, reached from the ⋯ beside its name, and the way
- * to a link that shows it to somebody without an account. It is a page below
- * the place's Start rather than a tab beside it, because it is opened now and then
- * and not every day; the way back is the place's own name - or Start, for a
- * room, which has no page of its own.
+ * Who else is let into a place, for a member who may not manage it: reached
+ * from the line on its Start that says whose place it is, and where they
+ * leave. Whoever manages the place has the same list on "Ort bearbeiten".
  */
 export function PlaceMembers() {
   const { t } = useTranslation();
   const { spaceId = '' } = useParams();
   const spaces = useSpaces();
   const space = spaces.data?.items.find(one => one.id === spaceId) ?? null;
-  const mayShare = useMayIn(spaceId, 'own');
-  const home = useHomeShape();
-  // A room that only groups places has no Start of its own, so the way back from its members leads to Start.
-  const grouping = space?.kind === 'room' && home.data !== undefined && !home.data.spaces.some(card => card.spaceId === spaceId);
+  const mayManage = useMayManage(spaceId);
   usePageOfPlace(spaceId || null);
 
   if (spaces.isPending) return <Waiting lines={4} />;
   if (!spaces.data) return <LoadFailed retry={() => void spaces.refetch()} />;
-  if (!space) return <NoLongerHere what="space" />;
+  // A room has no page: who is in it is chosen on a place standing in it.
+  if (!space || space.kind === 'room') return <NoLongerHere what="space" />;
+  if (mayManage) return <Navigate to={editPath(space.id)} replace />;
 
   return (
     <section className={`${styles.page} ${styles.reading}`}>
-      <header className={styles.head}>
-        {grouping ? (
-          <BackLink to="/" label={t('shell.tabs.home')} />
-        ) : (
-          <BackLink to={placePath(space.id)} label={t('place.backTo', { name: space.name })} />
-        )}
-        <h1 className={styles.title}>
-          {t('place.members.title')}
-          {/* The window is named after this heading: its two parts are two words there too. */}
-          <span className={ui.visuallyHidden}> · </span>
-          <span className={styles.titleNote}>{space.name}</span>
-        </h1>
-      </header>
+      <PageHead
+        back={{ to: placePath(space.id), label: t('place.backTo', { name: space.name }) }}
+        title={t('place.edit.people', { name: space.name })}
+      />
       <Members spaceId={space.id} name={space.name} kind={space.kind} roomId={space.roomId} />
-      {/* Sharing is two things: letting somebody in, above, and letting somebody look without an account, which is a link. */}
-      {mayShare ? (
-        <p className={ui.note}>
-          {t('place.members.lookOnly')}{' '}
-          <Link to={SHARE_LINKS} className={ui.headLink}>
-            {t('place.members.shareLink')} ›
-          </Link>
-        </p>
-      ) : null}
     </section>
   );
 }

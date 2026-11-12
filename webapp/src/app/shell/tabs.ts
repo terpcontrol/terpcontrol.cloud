@@ -19,7 +19,7 @@ const GROW: Tab = { path: '/grow', labelKey: 'shell.tabs.grow', Icon: Sprout, ow
 const LOG: Tab = { path: '/log', labelKey: 'shell.tabs.log', Icon: Plus, log: true };
 const TIMELINE: Tab = { path: '/timeline', labelKey: 'shell.tabs.timeline', Icon: ChartLine };
 /** The devices are steered, added and set up under Steuerung; a camera's own page is a picture and marks nothing. */
-const CONTROL: Tab = { path: '/control', labelKey: 'shell.tabs.control', Icon: SlidersHorizontal, owns: ['/devices', '/claim', '/cameras/add'] };
+const CONTROL: Tab = { path: '/control', labelKey: 'shell.tabs.control', Icon: SlidersHorizontal, owns: ['/devices', '/cameras/add'] };
 
 /**
  * Start · Grow · Eintrag · Verlauf · Steuerung, always in that order, each

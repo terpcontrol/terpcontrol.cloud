@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
-import type { Device, DeviceClaimCreate, DeviceClaimResult, Space, SpaceUpdate } from '@fg2/shared-types/v1';
+import type { Device, DeviceClaimCreate, DeviceClaimResult, Space } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { deviceQuery } from './devices';
 import { invalidate, useWrite } from './write';
@@ -57,31 +57,14 @@ export const useClaimedDevice = (deviceId: string | null) =>
 /**
  * Naming the place a claim has just made.
  *
- * It is the same write the second step's rename makes, with the space named in
- * the call rather than in the hook, because at the instant a claim answers
- * there is no space on the screen to bind one to. The word is the app's to
+ * The space is named in the call rather than in the hook, because at the
+ * instant a claim answers there is no space on the screen to bind one to. The
+ * word is the app's to
  * choose and not the server's: a name has to be in the language the grower
  * reads, and the server has no language.
  */
 export const useNameNewPlace = () =>
   useWrite(({ spaceId, name }: { spaceId: string; name: string }) => api.patch<Space>(`/spaces/${spaceId}`, { name }), claimChanged);
-
-/**
- * The name and the kind of the place the device stands in.
- *
- * A claim already made a space and gave it a name to be corrected, so
- * onboarding corrects that one rather than making a second: a grower who types
- * "Flower tent" here wants the tent renamed, not two tents with one controller
- * between them.
- */
-export const useRenameSpace = (spaceId: string | null) =>
-  useWrite(
-    (body: SpaceUpdate) => api.patch<Space>(`/spaces/${spaceId}`, body),
-    client => {
-      claimChanged(client);
-      void invalidate(client, ['space', spaceId]);
-    },
-  );
 
 /**
  * Moving the device into a place the account already has.
@@ -96,12 +79,12 @@ export const usePlaceDevice = (deviceId: string | null) =>
   useWrite((spaceId: string) => api.put<Device>(`/spaces/${spaceId}/devices/${deviceId}`), deviceClaimed);
 
 /**
- * Archiving the place a claim invented, once the device has been moved out of
- * it. It is a tombstone rather than a deletion, so nothing that ever named the
- * space loses its name; what it buys is a list that does not grow an empty
- * "Tent 1" every time somebody corrects where a controller stands.
+ * Ending the place a claim made, once the device has been sent on to a place
+ * the account already had. It held nothing else, so it goes the way a removed
+ * place goes; what it buys is a Start that does not grow an empty "Zelt 2"
+ * every time a fan is hung in the tent that is already there.
  */
-export const useArchiveSpace = () => useWrite((spaceId: string) => api.put<Space>(`/spaces/${spaceId}/archive`), claimChanged);
+export const useEndInvented = () => useWrite((spaceId: string) => api.delete(`/spaces/${spaceId}`), claimChanged);
 
 /**
  * What a QR code on the box says. It may carry the code alone or a link that

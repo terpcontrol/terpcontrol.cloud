@@ -1,4 +1,4 @@
-import { nameKey, numbered } from '@common/v1/space-names';
+import { nameKey, numbered } from '@fg2/shared-types/v1-schemas';
 import { MigrationContext, MigrationStep } from '../migration';
 
 interface NamedSpace {

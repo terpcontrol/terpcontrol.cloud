@@ -51,7 +51,7 @@ export function InviteBlock({ spaceId, spaceName, kind }: { spaceId: string; spa
           <Help topic="invite" />
         </span>
         {live.length > 0 ? (
-          <button type="button" className={ui.chip} onClick={open(null)}>
+          <button type="button" className={`${ui.chip} ${styles.finger}`} onClick={open(null)}>
             <Plus size={13} strokeWidth={2} aria-hidden />
             {t('space.members.newLink')}
           </button>
@@ -80,7 +80,7 @@ export function InviteBlock({ spaceId, spaceName, kind }: { spaceId: string; spa
                 <span className={styles.termsActions}>
                   <button
                     type="button"
-                    className={ui.chip}
+                    className={`${ui.chip} ${styles.finger}`}
                     aria-label={t('space.members.links.showOf', { code: invite.code })}
                     onClick={open(invite)}
                   >
@@ -88,7 +88,7 @@ export function InviteBlock({ spaceId, spaceName, kind }: { spaceId: string; spa
                   </button>
                   <button
                     type="button"
-                    className={ui.chip}
+                    className={`${ui.chip} ${styles.finger}`}
                     aria-label={t('space.members.links.revokeOf', { code: invite.code })}
                     disabled={revoke.isPending}
                     onClick={() => revoke.mutate(invite.code)}

@@ -60,6 +60,16 @@ describe('claiming a device', () => {
     expect((await owner.client.get(`/v1/spaces/${claimed.body.device.spaceId}`).expect(200)).body.name).toBe('Tent 2');
   });
 
+  it('refuses a claim into a room, and leaves the device to be claimed', async () => {
+    const tent = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent in a room', roomName: 'A room' }).expect(201)).body;
+    const device = await registerDevice('fan');
+    const code = await claimCodeOf(device.deviceId);
+
+    const refused = await owner.client.post('/v1/devices/claims').send({ code, spaceId: tent.roomId }).expect(409);
+    expect(refused.body.code).toBe('room_by_itself');
+    await owner.client.post('/v1/devices/claims').send({ code, spaceId: tent.id }).expect(201);
+  });
+
   it('tells the owner of a device that they already added it', async () => {
     const device = await provisionDevice(owner);
 
