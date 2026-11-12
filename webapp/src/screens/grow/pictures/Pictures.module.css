@@ -1,0 +1,119 @@
+/* A grow's pictures: which of them, the week's film, then week by week. */
+
+.pictures,
+.week {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.week {
+  gap: var(--space-2);
+}
+
+.week h2 {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
+  color: var(--label);
+}
+
+/* Three choices as one control: the one in force stands out of the track. */
+.which {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--card-2);
+  border-radius: var(--radius);
+}
+
+.which button {
+  min-height: 40px;
+  padding: 0 var(--space-1);
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.which button[aria-pressed='true'] {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grid button {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 86px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--card-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+.grid img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Which day a picture is of, or whose it is, on the picture itself. */
+.badge {
+  position: absolute;
+  left: var(--space-1);
+  bottom: var(--space-1);
+  max-width: calc(100% - var(--space-2));
+  padding: 1px 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--overlay);
+  color: var(--on-overlay);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add {
+  align-self: flex-start;
+  min-height: var(--control-height);
+  padding: 0 14px;
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .grid button {
+    height: 112px;
+  }
+
+  .which {
+    max-width: var(--column-width);
+  }
+}

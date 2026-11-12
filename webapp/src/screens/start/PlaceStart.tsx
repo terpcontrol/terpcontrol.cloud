@@ -170,7 +170,11 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
         {wide && !offline ? sentence : null}
         <div className={styles.headEnd}>
           {hasDevice ? <LivenessPill liveness={liveness} measuredAt={measuredAt} now={now} explain /> : null}
-          {demo || visiting ? null : <PlaceMenu overview={overview} />}
+          {demo || visiting ? null : (
+            <span className={styles.menu}>
+              <PlaceMenu overview={overview} />
+            </span>
+          )}
         </div>
       </header>
       {guest && space ? <GuestLine space={space} people={overview.people} /> : null}

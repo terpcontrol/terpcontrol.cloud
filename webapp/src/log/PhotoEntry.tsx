@@ -43,16 +43,17 @@ const PARALLEL_UPLOADS = 3;
 
 type Picked = { file: File; url: string; rotate: number };
 
-export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: () => void }) {
+export function PhotoEntry({ target, at: given, onClose }: { target: LogTarget; at: Date | null; onClose: () => void }) {
   const { t } = useTranslation();
   const { log } = useLog();
   const zone = useZone();
   const { data: grow } = useGrow(target.growId);
   const [pictures, setPictures] = useState<Picked[]>([]);
   /** When the line happened, or null for now; `fromPicture` says the first picture's file named it. */
-  const [at, setAt] = useState<Date | null>(null);
+  const [at, setAt] = useState<Date | null>(given);
   const [fromPicture, setFromPicture] = useState(false);
-  const byHand = useRef(false);
+  // A moment said before the sheet opened is said by hand: the first picture's own date does not overrule it.
+  const byHand = useRef(given !== null);
   const [tags, setTags] = useState<string[]>([]);
   const [own, setOwn] = useState('');
   const [note, setNote] = useState('');

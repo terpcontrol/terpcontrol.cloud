@@ -4,15 +4,10 @@ import { dosesFor, growDayAt, growOriginOf, growWeekAt, schemeWeekOf } from '@fg
 import { STAGES } from '@/ui/stages';
 
 /**
- * What a tile offers before anybody types anything.
- *
- * The captions on the board - "2 L · last 3 d", "Bio·Bloom · wk 5" - are what
- * makes one tap enough: the sheet repeats what was done last time rather than
- * asking again. So it reads the newest line of each kind, and the scheme at the
- * week the grow is in.
+ * What a kind's view opens on before anybody types anything: the sheet
+ * repeats what was done last time rather than asking again - the last can,
+ * the scheme at the week the line is dated to, the stage after this one.
  */
-
-export const newestOf = (entries: Entry[], kind: HumanEntryKind): Entry | null => entries.find(entry => entry.kind === kind) ?? null;
 
 /** How much water went in, where the line says. Null is a line that did not record a volume at all. */
 export const litresOf = (entry: Entry | null): number | null =>

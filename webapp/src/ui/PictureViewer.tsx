@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useModalFocus } from './modal-focus';
 import { Photo } from './Photo';
@@ -17,6 +17,8 @@ interface PictureViewerProps {
   captions?: string[];
   /** Which of them was opened. */
   from: number;
+  /** What can be done with the picture on screen, by its place in `pictures`; drawn under it. */
+  actions?: (shown: number) => ReactNode;
   onClose: () => void;
 }
 
@@ -34,7 +36,7 @@ interface PictureViewerProps {
  * over a refused picture is the same decision the strip makes by leaving its
  * frame out, rather than a blank frame and a number that skips.
  */
-export function PictureViewer({ pictures, captions, from, onClose }: PictureViewerProps) {
+export function PictureViewer({ pictures, captions, from, actions, onClose }: PictureViewerProps) {
   const { t } = useTranslation();
   const panel = useModalFocus<HTMLDivElement>(onClose);
   const [shown, setShown] = useState(() => Math.min(Math.max(0, from), Math.max(0, pictures.length - 1)));
@@ -66,6 +68,7 @@ export function PictureViewer({ pictures, captions, from, onClose }: PictureView
           </button>
         </header>
         <Photo className={styles.frame} src={pictures[shown] ?? null} alt={caption} />
+        {actions ? <div className={styles.actions}>{actions(shown)}</div> : null}
         {pictures.length > 1 ? (
           <footer className={styles.steps}>
             <button

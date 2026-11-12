@@ -1,7 +1,7 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
-updated: 2026-10-12
-source: Chris (naming decisions 2025-11 to 2026-10-12); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08
+updated: 2026-11-12
+source: Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08
 paths:
   - webapp/public/assets/i18n/**
   - webapp/src/ui/figures.ts
@@ -20,7 +20,9 @@ string exists in English and German, with no English left in the German catalogu
   Tipp schreibt den Eintrag mit sinnvollen Vorgaben"; "auf diesem Server nicht verfügbar", not "diese Installation hat
   keinen Push-Schlüssel".
 - No machine key reaches the screen: slugs, type keys (`fridge`), model codes (`terp_cam`), firmware setting keys.
-- Diary lines read "Du hast gegossen" / "<Name> hat gegossen"; one's own words stand without a name.
+- Diary lines read "Du hast gegossen" / "<Name> hat gegossen"; one's own words stand without a name. A watering says
+  how much, a feed also the week of the scheme it was dosed by: "Du hast gegossen · 1,5 l", "Du hast gedüngt · 5 l ·
+  Schema-Woche 5" (`amountOf`, `ui/entries.ts`).
 - A machine line says only what is known: the firmware's update line is "Update angefordert" - the device was told;
   whether it took is a line of its own ("Firmware-Update abgeschlossen", "Update kam nicht an").
 - Thresholds are written in words ("über 28 °C"), not with arrows or "›", since every link ends in one; metric names
@@ -72,12 +74,19 @@ string exists in English and German, with no English left in the German catalogu
   "place" (2026-10-04).
 
 ## Grow time
-- A grow's progress is its day, counted in 24 h from its start: "Tag 29", a finished grow "bis Tag 126". Day tiles
-  and diary stamps name grow days ("T 29 · 13:36"), never weekdays, because a grow day straddles two dates.
-- The stage is counted in weeks ("Veg · Woche 2 · seit 9 Tagen") as the server counts them (`stageWeek`, from
-  `stageWeekOf` in `shared-types/src/v1/grow-days.ts`); a phase's own days divided by seven give another week. A week
-  card is named by its days ("Tag 15–21"), badged with the stage most of it lay in; a feeding scheme's own week is
-  always "Schema-Woche".
+- A grow's progress is its day, counted in 24 h from its start: "Tag 29", a finished grow "126 T · beendet 14. Aug
+  2026". The entry sheet, the report and a line's stamp there count this way ("T 29 · 13:36").
+- **The diary is told in dates** (Chris, 2026-11-11, with the day cards): a card is a day of the owner's calendar,
+  called "Heute", "Gestern", the weekday while it names one day ("Montag"), then the date, each with its number -
+  "Heute · Tag 29". The number is the day of the grow that begins on that date: the date the grow began on is day 1.
+  So until the hour the grow began at, today's card is one ahead of the counter beside the grow's name; the help on
+  "Tag" says so. A line of a card carries its hour and no day. Weeks of the diary are seven of those dates: "Tag 26
+  bis 22 · Blüte, Woche 2".
+- The stage is counted in weeks ("Blüte, Woche 3") as the server counts them (`stageWeek`, from `stageWeekOf` in
+  `shared-types/src/v1/grow-days.ts`); a phase's own days divided by seven give another week. A week of the diary is
+  named by its days and carries the stage most of it lay in; a feeding scheme's own week is always "Schema-Woche".
+- What a device did without anybody asking is marked "von allein" (English "by itself"); a share of a day inside its
+  targets reads "96 % der Zeit im Ziel".
 - Films: Tagesfilm, Wochenfilm, Film der Phase, Film des Grows, Eigener Film.
 
 ## Numbers, dates and units

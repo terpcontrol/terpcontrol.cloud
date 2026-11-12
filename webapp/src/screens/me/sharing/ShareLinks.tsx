@@ -42,7 +42,7 @@ export function ShareLinks() {
   const { user } = useSession();
 
   return (
-    <MePage title={t('me.shareLinks.title')} demo={t('me.shareLinks.demo')}>
+    <MePage title={t('me.shareLinks.title')} demo={t('me.shareLinks.demo')} grows>
       <Links userId={user?.id ?? null} />
     </MePage>
   );

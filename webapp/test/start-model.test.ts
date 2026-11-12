@@ -47,10 +47,12 @@ describe('the sentence a place says', () => {
   });
 
   it('says since when a reading is off, once the day´s verdict holds an open run outside the band', () => {
+    // One instant, asked for once: the clock moves between two calls.
+    const since = ago(40);
     const verdict = {
-      metrics: [{ metric: 'temperature', excursions: [{ startedAt: ago(40), endedAt: null, above: true, extremeValue: 28 }] }],
+      metrics: [{ metric: 'temperature', excursions: [{ startedAt: since, endedAt: null, above: true, extremeValue: 28 }] }],
     } as never;
-    expect(statusOf({ ...place, values: hot, verdict }, now)).toMatchObject({ kind: 'off', metric: 'temperature', since: ago(40) });
+    expect(statusOf({ ...place, values: hot, verdict }, now)).toMatchObject({ kind: 'off', metric: 'temperature', since });
   });
 
   it('says control is switched off before any alarm or reading it explains, and after a silence or a maintenance window', () => {

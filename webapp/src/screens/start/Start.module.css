@@ -32,6 +32,10 @@
   margin-left: auto;
 }
 
+.menu {
+  flex: none;
+}
+
 .columns,
 .column {
   display: flex;
@@ -90,90 +94,6 @@
     flex: none;
     width: 360px;
   }
-}
-
-/* --- the menu behind a place's name --- */
-
-.menu {
-  position: relative;
-  flex: none;
-}
-
-.menuButton {
-  display: grid;
-  place-items: center;
-  width: var(--control-height);
-  height: var(--control-height);
-  padding: 0;
-  background: none;
-  border: 0;
-  border-radius: var(--radius-pill);
-  color: var(--ink);
-}
-
-.menuButton:hover {
-  background: var(--tint);
-}
-
-.menuWords {
-  display: none;
-}
-
-@media (min-width: 900px) {
-  .menuButton {
-    width: auto;
-    padding: 0 14px;
-    background: var(--card);
-    border: var(--rule-width) solid var(--rule-strong);
-    color: var(--brand);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-semibold);
-  }
-
-  .menuButton svg {
-    display: none;
-  }
-
-  .menuWords {
-    display: inline;
-  }
-}
-
-.menuList {
-  position: absolute;
-  top: calc(100% + var(--space-1));
-  right: 0;
-  z-index: 6;
-  display: flex;
-  flex-direction: column;
-  min-width: 220px;
-  padding: var(--space-1);
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-raised);
-}
-
-.menuList > * {
-  display: block;
-  min-height: var(--control-height);
-  padding: var(--space-3);
-  background: none;
-  border: 0;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-md);
-  text-align: left;
-  color: var(--ink);
-}
-
-.menuList > *:hover {
-  background: var(--tint);
-}
-
-.menuLine {
-  display: block;
-  font-size: var(--text-xs);
-  color: var(--muted);
 }
 
 /* --- whose place it is, for somebody let into it --- */
@@ -677,53 +597,6 @@ a.tileLabel::after {
 
 .dueAsk {
   flex-basis: 100%;
-}
-
-/* The last lines: when in one column as wide as its longest word, what beside it. */
-.lines {
-  display: grid;
-  grid-template-columns: minmax(56px, max-content) minmax(0, 1fr);
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.line {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: baseline;
-  font-size: var(--text-sm);
-}
-
-.stamp {
-  font-family: var(--font-figure);
-  font-size: var(--text-sm);
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.lineText {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.line[data-severity] .lineText {
-  font-weight: var(--weight-semibold);
-  color: var(--warning);
-}
-
-/* A line's words stand plain here: the row is a summary, and what is wrong is said by its colour. */
-.lineText span {
-  font-weight: inherit;
-}
-
-button.lineText {
-  padding: 0;
-  background: none;
-  border: 0;
-  text-align: left;
 }
 
 .more {

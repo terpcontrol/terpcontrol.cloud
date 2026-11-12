@@ -1,29 +1,9 @@
-import { growWeekOfDay } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowCard } from '@fg2/shared-types/v1';
-import { useGrow } from '@/api/grows';
-import { STAGES } from '@/ui/stages';
+import { useProgress } from '@/screens/grow/progress';
 import styles from './Start.module.css';
-
-/** The stages a grow is harvested after: once it dries, nothing is left to wait for. */
-const GROWING = STAGES.indexOf('drying');
-
-/**
- * How far along a grow is. Where it is fed by a scheme, the scheme's weeks are
- * the length it was planned at: the bar fills by the days gone, and what is
- * left to the scheme's last week is said. Without one nothing states a length,
- * so the bar fills by the stages reached and no harvest is promised.
- */
-const useProgress = (grow: GrowCard): { fill: number; weeksLeft: number | null } => {
-  const weeks = useGrow(grow.growId).data?.scheme?.grid.length ?? null;
-  const at = grow.stage ? STAGES.indexOf(grow.stage) : -1;
-  if (weeks && grow.dayNumber !== null && at < GROWING) {
-    return { fill: Math.min(1, grow.dayNumber / (weeks * 7)), weeksLeft: Math.max(0, weeks - growWeekOfDay(grow.dayNumber)) };
-  }
-  return { fill: (at + 1) / STAGES.length, weeksLeft: null };
-};
 
 /** "Blüte · Woche 3 … Ernte in etwa 6 Wochen" over the bar. */
 function PhaseWords({ grow }: { grow: GrowCard }) {

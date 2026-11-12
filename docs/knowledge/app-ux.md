@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
 updated: 2026-11-12
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12)
+source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12)
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -88,8 +88,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     way back where nothing is there.
 - **A place is one page**, its Start at `/spaces/:id`: with one place Start is that page, with several it is one card
   per place, ordered by what needs a person. **Grow** (`/grow/:tab?`) is the grow running in the chosen place, drawn
-  as that grow's page with its tabs under the same address; where nothing grows there it offers to start a grow and
-  leads to "Meine Grows". A grow opened by its id (`/grows/:growId/...`) is that grow's page whatever is chosen.
+  as that grow's page with its tabs under the same address; where nothing grows there it offers to start a grow.
+  It is a root of the bar: nothing leads back from it, and the pill "Alle Grows" stands beside the grow's name. A
+  grow opened by its id (`/grows/:growId/...`) is that grow's page whatever is chosen, and leads back to "Alle
+  Grows".
 - **A sheet** (`ui/Sheet.tsx`) covers the bar, and the page behind it neither scrolls nor takes the focus. It closes
   on Escape, its cross (a finger wide), a tap beside it, and on a phone by pulling its handle down; the focus then
   goes back to what opened it. "L" opens the entry sheet on a desktop, with or without Shift, and never over a sheet
@@ -160,9 +162,49 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   steuern" and "Geräte" - the account's device list, which has no item of its own in the bar - as rows under them.
   Leaving with unsaved figures, a change of the chosen place included, asks "Speichern und weiter / Verwerfen /
   Weiter bearbeiten"; on a phone the save bar takes the tab bar's place.
-- **Meine Grows** at `/grows` (Chris, 2026-10-02): running grows first (also placeless ones and those in shared
-  places, marked "von @owner"), then finished ones; reached from Grow and Ich, only with the diary on. The grows
-  somebody follows are under Ich › Folge ich.
+- **The grow page** (`screens/grow/GrowPage.tsx`; the prototype of 2026-11-12). Its head: the name, "Alle Grows"
+  and the menu ⋯ - on a desktop "Phase" and "Teilen" as buttons of their own and the rest under "Mehr" - then
+  "Tag 29 · Blüte, Woche 3" with the place opposite, over the bar of how far the grow has come (the same progress
+  Start draws, `screens/grow/progress.ts`). A grow that has ended says how long it ran, the date it ended and where
+  it stood. The menu holds what happens to a grow rather than in it (`GrowMenu.tsx`): phase, sharing, what it
+  measures, moving, splitting, harvesting, its name, and four tips for the stage - each offered only to who may do
+  it. Tabs: **Tagebuch · Bilder · Pflanzen · Düngung · Bericht**; the diary is the page's own address.
+- **The diary writes itself** (Chris, 2026-11-11; `screens/grow/diary/`): a card per day, so it reads alive for
+  somebody who never types. The rules a card keeps:
+  - *A day is a date* on the owner's calendar - "Heute" is since midnight - and its number is the day of the grow
+    that begins on it ([app-wording.md](app-wording.md#grow-time)). The server cuts and numbers the days
+    (`GET /v1/grows/{id}/diary`); the app names them: Heute, Gestern, the weekday while it names one day, then the
+    date.
+  - *The picture* is the camera's of that day, taken in the light nearest midday; today's is the newest lit one
+    and leads to the camera, a past day's opens large. Without a camera the first photo written that day stands
+    there. A day without any has no picture and no frame for one, and today has none until its lamp has come on.
+  - *The climate* is the day's means in one line, and the share of the day inside the targets only where the
+    server states one: it judges each window by what the device aimed at then, and says nothing of a day before
+    that record began or one heard for less than half of itself. "Im Ziel" is explained once, on the newest card.
+  - *The lines* are what people wrote and, marked "von allein", what the devices did: the lamp coming on and going
+    off, stretches outside the targets (leading to Verlauf at that moment), restarts, maintenance, changed
+    settings, plan steps, alarms. A run is one line: the same machine line repeated, an alarm that fired over and
+    over ("97× seit 03:26"), several stretches of one reading on one side ("Temperatur 3× zu hoch · zusammen
+    1 Std"). A card draws four lines and adds the rest on "+ n weitere". A line somebody may correct opens its
+    sheet; one that carries pictures opens them. Amber is for what needs a person - an alarm raised - and not for
+    a restart, maintenance or a step of the plan. A line that leads somewhere is a finger high (`ui/Lines.tsx`,
+    the row Start's last lines are drawn with too).
+  - *The newest three days stand open*; the days before fold into a row per week - "Tag 26 bis 22 · Blüte, Woche 2"
+    with its pictures, entries and film counted - which opens its days in place. Today's card always stands; a
+    past day with nothing to show is left out. "Frühere Wochen" reads further back. On a desktop the newest
+    pictures and the week's film stand beside the days.
+- **Bilder** (`screens/grow/pictures/`): Alle · Deine Fotos · Kamera; the newest week film on top, played where it
+  stands; then week by week the camera's picture of each day, named by its day, and the photos, marked as one's
+  own; "+ Foto aufnehmen" opens the photo entry. A picture opens large with what can be made of it: the camera's
+  picture of a day becomes a line of the diary, and any picture the grow's cover.
+- **Alle Grows** at `/grows` (`screens/grow/Grows.tsx`): the running grows as cards with their picture, day, phase
+  and place (also placeless ones and those in shared places, "von @owner"), the finished ones as rows that lead to
+  their report, a new grow from the button beside the title, and under "Dazu" the doors to what belongs to
+  growing: Düngepläne, Freigabelinks, Abonniert. It leads back to Grow, or to Ich where Ich's door opened it.
+- **The entry sheet** (`log/LogSheet.tsx`): what the line is about as pills that wrap, seven tiles - Gießen,
+  Düngen, Foto, Notiz, Messen, Training, Phase - and at its foot "Wann war das?" with "Ändern". A tile opens its
+  view, filled in with what was done last time; the moment said on the sheet stands in that view's corner, where
+  it can still be changed. Maintenance is not a kind of line: it is started on Start and with the device.
 
 ## 3. Honest states
 - **A pending or failed read is never drawn as a fact** ("nothing measured", "nothing set yet"): ask a read's state
@@ -188,8 +230,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   "nothing here holds a climate"; a missing target says why ("kein Ziel · Trocknung"; CO₂ "um diese Zeit kein Ziel").
 - **Machine output is never the explanation**: a failed camera capture is named as one of the causes in
   `shared-types/src/v1/capture.ts`, translated; the raw ffmpeg text is for the owner only.
-- **A repeat is counted, not stacked**: summaries fold a run of identical machine lines into one row, "3× seit 21:10"
-  (`foldRepeats`, `ui/entries.ts`); the diary keeps every line, and what a person wrote never folds.
+- **A repeat is counted, not stacked**: summaries - Start's last lines and a day of the diary - fold a run of
+  identical machine lines into one row, "3× seit 21:10" (`foldRepeats`, `ui/entries.ts`); Verlauf keeps every line,
+  and what a person wrote never folds.
 - **A link aims at what it names**: a deep link survives the sign-in round trip, and a `/log` link naming a grow or
   place the home does not draw says so (`log.notHere`) instead of quietly choosing another.
 - **Only what is true for this install**: "Server in der EU" and the Premium tag only where `premium.enforced`, the
@@ -242,8 +285,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - "Wartung · 15 Min" names what this device stops (heater, dehumidifier or compressor, CO₂ valve) and parks every
     device of the place, since a window on one device would ring as the door opens. Its toast is not undoable: the
     diary line can be taken back, the pause cannot. It is started in two places and no third (Chris, 2026-11-11):
-    on Start, and with the device under Steuerung. An alert's card no longer starts or ends one; the entry sheet's
-    tile stays until the Eintrag pages are rebuilt.
+    on Start, and with the device under Steuerung. Neither an alert's card nor the entry sheet starts one.
   - "Regelung aus" stops everything and pauses a running plan, whose next step would switch it on again; on is one tap.
   - Saving a figure a running plan writes (a target, the light limit) pauses the plan first - it would put the step's
     figure back within the hour - with its reason ("Zielwerte von Hand gesetzt", "Lichtgrenze von Hand"), says so in
@@ -256,14 +298,15 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - A link in a mail does nothing by being opened: the activation page activates on a tap, because mail programs open
     links to preview them (`screens/Activate.tsx`).
 - **No long press, anywhere** (Chris, 2026-10-21/22): a function behind a hold, a right-click or a shift-click
-  irritates and stays hidden. A tap on a Log tile opens its view, filled in with the last can; Save writes it (5 s
-  Undo in the toast). A socket's times are behind its chevron, not a hold on its switch. Pressing and holding a
+  irritates and stays hidden. A tap on a tile of the entry sheet opens its view, filled in with the last can; Save
+  writes it (5 s Undo in the toast). A socket's times are behind its chevron, not a hold on its switch. Pressing and holding a
   stepper's +/- still repeats the step: a tap does the same thing, so nothing is hidden there.
-- **Every diary line shows when it happened, and can be dated** (Chris, 2026-10-21): `log/Moment.tsx` sits in the
-  sheet's top corner ("heute · 14:32", a pencil beside it); a tap opens a pop-up with date and time, nothing after now.
-  Water, feed, note, measurement, training, photo and phase take it; a photo is dated from the first picture's EXIF
-  (`log/taken-at.ts`) until somebody changes it by hand. A new maintenance line says "jetzt" without the pencil: the
-  quiet starts on Save. A backdated phase is dated back in the diary, but its climate is written now.
+- **Every diary line shows when it happened, and can be dated** (Chris, 2026-10-21): `log/Moment.tsx` asks it at
+  the entry sheet's foot ("Wann war das? · heute · 14:32", "Ändern") and sits in the top corner of each kind's view
+  ("heute · 14:32", a pencil beside it); a tap opens a pop-up with date and time, nothing after now. Water, feed,
+  note, measurement, training, photo and phase take it; a photo is dated from the first picture's EXIF
+  (`log/taken-at.ts`) unless a moment was said by hand. A backdated phase is dated back in the diary, but its
+  climate is written now.
 - **The same words never sit on two controls with opposite effects**: "Keimung · dunkel" / "Sämling · mit Licht" only
   where choosing the stage sets the device's climate (Steuerung chips, claim, plan editor, a new grow in a place it
   steers); where a stage is only recorded (phase sheet, correction, Eintrag, split) it keeps its plain name. No device
@@ -302,7 +345,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   gliding between halves says "Ziel gerade 23,3 °C · gleitet zur Nacht". Screens follow the server's held/settling
   answer instead of assuming day and night.
 - **A picture meant to show the plants is a lit still**, picked by the server: the newest lit one ("Licht aus · Bild
-  von 14:20" while the lamp is off), for a week card's day the one nearest midday, for a grow's card its cover first.
+  von 14:20" while the lamp is off), for a day of the diary the one nearest midday, for a grow's card its cover first.
 
 ## 8. Steuerung and work modes
 - **Day and night side by side, no switching** ("direction B", Chris, 2026-10-03), and only where the mode has them:

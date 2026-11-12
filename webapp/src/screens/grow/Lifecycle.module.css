@@ -1,16 +1,6 @@
-/* The row of actions on the grow page and the insides of the four sheets they
-   open. The sheet itself, the chips, the cards and the buttons are the app's
-   own, so nothing here restates a surface, a radius or a colour. */
-
-/* Its chips join the row of the grow page's header they are drawn into, and
-   wrap with the rest of it rather than as a block of their own. */
-.actions {
-  display: contents;
-}
-
-.action {
-  color: var(--ink);
-}
+/* The insides of the sheets behind a grow's menu. The sheet itself, the chips,
+   the cards and the buttons are the app's own, so nothing here restates a
+   surface, a radius or a colour. */
 
 /* What the server last said the grow reads as, over the questions about it. */
 .now {

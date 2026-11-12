@@ -764,7 +764,8 @@
       "overdue_other": "{{count}} days overdue",
       "inDays": "in {{count}} d",
       "dueSince": "due since {{time}}"
-    }
+    },
+    "entrySchemeWeek": "scheme week {{week}}"
   },
   "me": {
     "title": "Me",
@@ -892,6 +893,13 @@
       "addDevice": {
         "title": "Add a device or a camera",
         "line": "A controller measures and steers the climate, a camera takes pictures for the diary"
+      },
+      "grows": {
+        "running_one": "{{count}} running",
+        "running_other": "{{count}} running",
+        "finished_one": "{{count}} finished",
+        "finished_other": "{{count}} finished",
+        "none": "no grows yet"
       }
     },
     "privacy": {
@@ -1186,10 +1194,11 @@
   "grow": {
     "tabsLabel": "Grow page",
     "tabs": {
-      "weeks": "Weeks",
       "plants": "Plants",
       "feeding": "Feeding",
-      "report": "Report"
+      "report": "Report",
+      "diary": "Diary",
+      "pictures": "Pictures"
     },
     "phaseBarLabel": "Phase progress, now in {{stage}}",
     "stageShort": {
@@ -1207,14 +1216,12 @@
     "dayRange": "Day {{from}}–{{to}}",
     "dayShort": "D {{day}}",
     "correctLine": "Correct this line",
-    "thisWeek": "this week",
     "dayStillAlt": "Day {{day}}",
     "dayNight": "day / night",
     "average": "average",
     "humidity": "humidity",
     "light": "light",
     "ownScheme": "Own scheme",
-    "nothingThisWeek": "nothing this week",
     "feedsDone": "{{done}} / {{planned}} done",
     "noEntriesThisWeek": "Nothing logged this week yet",
     "noEntriesThisWeekEnded": "Nothing was logged this week",
@@ -1223,28 +1230,7 @@
     "earlierWeeks": "Earlier weeks",
     "ended": "ended {{date}}",
     "finalDay": "final day",
-    "mine": {
-      "title": "My grows",
-      "running": "Running",
-      "finished": "Finished",
-      "runningCount_one": "{{count}} running",
-      "runningCount_other": "{{count}} running",
-      "finishedCount_one": "{{count}} finished",
-      "finishedCount_other": "{{count}} finished",
-      "none": "no grows yet",
-      "new": "New grow",
-      "sharedBy": "by @{{handle}}",
-      "ran": "{{from}} – {{to}}",
-      "toDay": "to day {{day}}",
-      "harvest": "Harvest",
-      "noneRunning": "No grow is running right now.",
-      "noneFinished": "Nothing finished yet · a grow appears here once you harvest or end it.",
-      "emptyTitle": "No grow yet",
-      "emptyText": "All your grows live here – the running ones and the finished ones, each with its picture, place and harvest. Start a grow and it appears here.",
-      "partial": "There are more than could be read in one go; open the page again to read on."
-    },
     "phaseBarEndedLabel": "Phase progress, ended in {{stage}}",
-    "noWeeks": "No phase yet · the weeks start with the first phase",
     "noFixedPlace": "No fixed place",
     "stoodIn": "stood in {{name}}",
     "rename": {
@@ -1288,7 +1274,8 @@
         "download": "Download · {{size}}",
         "failedPlain": "The file could not be built.",
         "noteNoClimate": "Everything about this grow in one zip: the diary and the readings as CSV, and every photo of it."
-      }
+      },
+      "noPhase": "No phase yet · the report begins with the first phase"
     },
     "nothingMeasured": "Nothing measured this week",
     "presetName": {
@@ -1296,7 +1283,6 @@
       "autoflower": "Auto"
     },
     "lifecycle": {
-      "actionsLabel": "What this grow is doing",
       "actions": {
         "phase": "Phase",
         "move": "Move",
@@ -1663,10 +1649,71 @@
       "takeTheirs": "Take theirs"
     },
     "youMayLog": "You may write in this grow's diary. Moving it, splitting it and harvesting it are for whoever steers the place it stands in.",
-    "schemeWeek": "scheme week {{week}}",
-    "phaseFor_one": "for {{count}} day",
-    "phaseFor_other": "for {{count}} days",
-    "openDayPicture": "See the pictures from day {{day}}"
+    "menu": {
+      "label": "More about {{name}}",
+      "more": "More"
+    },
+    "all": {
+      "title": "Grows",
+      "pill": "All grows",
+      "new": "New grow",
+      "none": "No grow yet",
+      "running": "Running",
+      "finished": "Finished",
+      "beside": "With them",
+      "sharedBy": "by @{{handle}}",
+      "harvested": "harvested in {{month}}",
+      "ended": "ended in {{month}}",
+      "partial": "There are more than could be read in one go; open the page again to read on."
+    },
+    "diary": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "lightOn": "Light on",
+      "lightOff": "Light off",
+      "above": "{{metric}} too high for {{span}}",
+      "below": "{{metric}} too low for {{span}}",
+      "aboveOften": "{{metric}} too high {{count}}× · {{span}} in all",
+      "belowOften": "{{metric}} too low {{count}}× · {{span}} in all",
+      "byItself": "by itself",
+      "inTarget": "{{percent}} % of the time on target",
+      "inTargetShort": "{{percent}} % on target",
+      "nothingYet": "Nothing written today yet",
+      "empty": "Nothing in the diary yet",
+      "openCamera": "open the camera",
+      "openPicture": "open the picture",
+      "photoAlt": "Photo of day {{day}}",
+      "stillAlt": "Camera picture of day {{day}}",
+      "recentPictures": "Pictures of the last days",
+      "allPictures": "All",
+      "weekFilm": "Week film",
+      "days": "Day {{from}} to {{to}}",
+      "filmIn_one": "{{days}} in {{count}} second",
+      "filmIn_other": "{{days}} in {{count}} seconds",
+      "written_one": "{{count}} entry",
+      "written_other": "{{count}} entries"
+    },
+    "pictures": {
+      "makeEntry": "Add to the diary as an entry",
+      "makeCover": "Use as cover",
+      "isCover": "Is the cover",
+      "camera": "Camera",
+      "yours": "Your photo",
+      "photo": "Photo",
+      "whichLabel": "Which pictures",
+      "which": {
+        "all": "All",
+        "photos": "Your photos",
+        "camera": "Camera"
+      },
+      "none": {
+        "all": "No pictures yet",
+        "photos": "No photos in the diary yet",
+        "camera": "No camera picture yet"
+      },
+      "thisWeek": "This week · from day {{day}}",
+      "add": "Take a photo"
+    }
   },
   "space": {
     "control": {
@@ -2120,7 +2167,6 @@
     "nowhere": "Nothing to log against yet · start a grow or add a device first",
     "notHere": "The grow or place this link names is not on your home · it may have finished, or it may not be yours to write in · pick where the line should go",
     "litres": "{{litres}} L",
-    "lastAgo": "last {{age}}",
     "tile": {
       "water": "Water",
       "feed": "Feed",
@@ -2128,24 +2174,11 @@
       "note": "Note",
       "measurement": "Measure",
       "training": "Training",
-      "phase": "Phase",
-      "visit": "Maintenance · {{minutes}} min",
-      "photoCaption": "with your phone",
-      "visitCaption": "pause control and alarms",
-      "schemeWeek": "scheme wk {{week}}"
+      "phase": "Phase"
     },
     "visit": {
-      "hereFallback": "this place",
-      "reading": "Reading what stands in {{name}} …",
-      "parks_one": "“Start maintenance” pauses the control of the device in {{name}} for {{minutes}} minutes. What goes off meanwhile is beside its name.",
       "parksOutputs": "stops {{outputs}}",
-      "parksNothing": "stops nothing: this hardware takes no maintenance command",
-      "parks_other": "“Start maintenance” pauses the control of all {{count}} devices in {{name}} for {{minutes}} minutes. What goes off meanwhile is beside each name.",
-      "nothingThere": "Nothing stands in {{name}}, so this is a line in the diary and nothing else.",
-      "unreadable": "What stands in {{name}} could not be read, so nothing can be named here. Every device there is put into maintenance mode for {{minutes}} minutes all the same.",
-      "notUndone": "The diary line can be taken back, the maintenance cannot: after {{minutes}} minutes the devices regulate again, and alarms stay quiet for {{quiet}} minutes in all – the last {{settle}} while the climate recovers.",
-      "save_one": "Start maintenance · {{count}} device",
-      "save_other": "Start maintenance · {{count}} devices"
+      "parksNothing": "stops nothing: this hardware takes no maintenance command"
     },
     "water": "Water",
     "less": "Less water",
@@ -2206,7 +2239,8 @@
       "apply": "Apply",
       "ahead": "That is in the future. An entry records what has already happened.",
       "climateNow": "In the diary the phase starts at the chosen moment. The climate still changes only now.",
-      "fromPicture": "Taken from the first picture"
+      "fromPicture": "Taken from the first picture",
+      "edit": "Change"
     }
   },
   "timeline": {
@@ -3832,11 +3866,11 @@
     },
     "growDay": {
       "title": "Grow day",
-      "text": "Day 1 is the day the grow began, and each further day is another 24 hours from that moment. The counter starts with the first phase and stops when the grow ends."
+      "text": "Day 1 is the day the grow began. The counter moves on every 24 hours from that moment and stops when the grow ends. The diary shows calendar days: day 1 is the date the grow began on, the next date day 2. Until the hour the grow began at, today’s card is therefore one day ahead of the counter."
     },
     "growWeek": {
       "title": "Week of the stage",
-      "text": "“Veg week 2” is the second week the grow has stood in veg. How far the grow is overall is said by the day: day 1 is the day it began. The week cards are named by their days and carry the week of the stage most of that week lay in."
+      "text": "“Veg week 2” is the second week the grow has stood in veg. How far the grow is overall is said by the day: day 1 is the day it began. In the diary a week is named by its days and carries the stage most of that week lay in."
     },
     "autoTag": {
       "title": "auto",
@@ -3857,10 +3891,6 @@
     "growEnds": {
       "title": "Ending the grow",
       "text": "Once the last plants are harvested the grow ends on this day: nothing can be dated after it, and it cannot be reopened in the app. Enter drying and curing first if they belong in the diary."
-    },
-    "myGrows": {
-      "title": "My grows",
-      "text": "Every grow you can see is here: your own, and those in places somebody invited you into – those carry the name of whoever they belong to (“by @…”). Running grows come first, finished ones below, newest first. A grow is finished once its last plants are harvested or you end it; its card then says from when to when it ran and up to which grow day. Grow days count 24 hours each from the start, as on the grow page, so they can differ by one from the calendar days. Its picture is the newest camera picture taken with the light on while the grow stood in front of the camera – otherwise the newest photo from its diary."
     },
     "dayNightAverages": {
       "title": "Day / night",
@@ -4081,10 +4111,6 @@
     "lux": {
       "title": "Light intensity",
       "text": "How bright it is at the light sensor, in lux. The curve shows when and how strongly the lamp shines. How much of it the plant can use is the PPFD, which is estimated from the lux."
-    },
-    "schemeWeek": {
-      "title": "Scheme week",
-      "text": "A feeding scheme counts weeks from the grow's first day, not from the start of a stage: scheme week 3 is days 15–21. That is why it can differ from “veg week 2”. The doses on the Feed tile and on the week card are that week's."
     },
     "climateControl": {
       "title": "Control",

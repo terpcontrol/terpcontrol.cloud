@@ -26,6 +26,8 @@ interface Details {
   kind: TileKind;
   target: LogTarget;
   entry: Entry | null;
+  /** When a new line was said to have happened, on the sheet its kind was chosen on; null is now. */
+  at: Date | null;
 }
 
 export function LogProvider({ children }: { children: ReactNode }) {
@@ -126,9 +128,9 @@ export function LogProvider({ children }: { children: ReactNode }) {
       setDetails(null);
       setOpening(next);
     }, []),
-    openDetails: useCallback((kind: TileKind, target: LogTarget, entry: Entry | null = null) => {
+    openDetails: useCallback((kind: TileKind, target: LogTarget, entry: Entry | null = null, at: Date | null = null) => {
       setOpening(null);
-      setDetails({ kind, target, entry });
+      setDetails({ kind, target, entry, at });
     }, []),
     log,
     complete: useCallback(
@@ -155,9 +157,9 @@ export function LogProvider({ children }: { children: ReactNode }) {
     <LogContext value={state}>
       {children}
       {opening ? <LogSheet opening={opening} lastKey={lastTarget} onChosen={setLastTarget} onClose={() => setOpening(null)} /> : null}
-      {details?.kind === 'photo' ? <PhotoEntry target={details.target} onClose={close} /> : null}
+      {details?.kind === 'photo' ? <PhotoEntry target={details.target} at={details.at} onClose={close} /> : null}
       {details && details.kind !== 'photo' ? (
-        <EntryDetails kind={details.kind} target={details.target} entry={details.entry} onClose={close} />
+        <EntryDetails kind={details.kind} target={details.target} entry={details.entry} at={details.at} onClose={close} />
       ) : null}
       <Toasts lines={lines} onUndo={undo} onRetry={retry} onDismiss={dismiss} onDetails={openDetailsOf(setDetails)} />
     </LogContext>
@@ -173,5 +175,5 @@ const reasonOf = (error: unknown): string | null => (error instanceof ApiError ?
 
 /** The toast's Details: the line that was just written, opened in the tile it came from. */
 const openDetailsOf = (setDetails: (details: Details) => void) => (line: LoggedLine) => {
-  if (line.details) setDetails({ ...line.details, entry: line.entry });
+  if (line.details) setDetails({ ...line.details, entry: line.entry, at: null });
 };

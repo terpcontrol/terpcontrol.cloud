@@ -17,24 +17,13 @@ import { invalidate } from './write';
 
 /**
  * The writing half of the diary, and the reads of its lines: what the Log
- * sheet reads back, the window under a chart, a grow's photos and a device's
- * own lines.
+ * sheet reads back, the window under a chart and a device's own lines.
  *
  * Writing is a plain function rather than a mutation hook: the sheet
  * acknowledges before the request is answered and keeps the line itself until
  * it is, so the queue in `@/log` owns the attempt and React Query only hears
  * about what came of it.
  */
-
-/** As many photo lines as a viewer of one grow is worth reading at once. */
-const PHOTO_LIMIT = 200;
-
-/** The photo lines of a grow, which is where its pictures are written. */
-export const useGrowPhotoLines = (growId: string) =>
-  useRead({
-    queryKey: ['entries', 'photos', growId],
-    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { growId, kinds: 'photo', limit: PHOTO_LIMIT }, signal),
-  });
 
 /** How many of a device's own lines support reads, newest first: enough for "since yesterday", few enough to read. */
 const DEVICE_LINES = 60;

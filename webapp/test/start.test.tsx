@@ -422,7 +422,7 @@ describe('Start of a place that only regulates', () => {
     draw();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Fridge 1' }));
-    expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Rename' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Invite members' })).toHaveAttribute('href', '/spaces/space-1/members');
     expect(screen.queryByText(/preset/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /grow/i })).not.toBeInTheDocument();

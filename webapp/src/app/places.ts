@@ -30,13 +30,10 @@ export const placePath = (spaceId: string): string => `/spaces/${spaceId}`;
 /** Grow, the bar's item: the grow running in the chosen place. */
 export const GROW = '/grow';
 
-/** "My grows", every grow of the account, which Grow, Start and Me lead to. */
-export const MY_GROWS = '/grows';
+/** "Alle Grows", every grow the account sees, which Grow and Ich lead to. */
+export const ALL_GROWS = '/grows';
 
-/** What a grow page is told when it is opened from "My grows", so its way back leads there. */
-export const FROM_MY_GROWS = { from: 'grows' } as const;
-
-/** What "My grows" is told when Ich's door opens it, so its way back leads to Ich rather than to Start. */
+/** What the list of every grow is told when Ich's door opened it, so its way back leads to Ich rather than to Grow. */
 export const FROM_ME = { from: 'me' } as const;
 
 /** Whether a page was opened from where `from` says, by the state the link that opened it carried. */
@@ -214,21 +211,4 @@ export const useCurrentPlace = () => {
   }, [stray, setParams]);
 
   return { home, places, ...choice };
-};
-
-/**
- * Where the way back from a page below a place leads: that place's Start,
- * which for an account with one place is Start itself. A grow and the task
- * list are opened from a place's blocks, so that is where back returns to;
- * with several places it is the named one - or, where none is named, the
- * chosen one - and Start only where neither is one of the account's.
- */
-export const useBackToPlace = (spaceId: string | null = null): { to: string; name: string | null } => {
-  const home = useHome();
-  const chosen = useChosenPlace();
-  const places = (home.data?.spaces ?? []).filter(isPlace);
-  const wanted = spaceId ?? chosen;
-  const place = places.length > 1 ? (places.find(one => one.spaceId === wanted) ?? null) : null;
-
-  return place ? { to: placePath(place.spaceId), name: place.name } : { to: '/', name: null };
 };

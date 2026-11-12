@@ -63,6 +63,8 @@
 .text {
   flex: 1;
   min-width: 0;
+  /* A long word breaks rather than widening a narrow card past the phone. */
+  overflow-wrap: anywhere;
 }
 
 /*

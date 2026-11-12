@@ -1,0 +1,136 @@
+/* Every grow of the account: the running ones as cards, the finished ones as
+   rows, and the doors to what belongs to growing. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: var(--column-width);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-height);
+}
+
+.head h1 {
+  flex: 1;
+  min-width: 0;
+}
+
+.new {
+  flex: none;
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  background: var(--green-fill);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--on-green);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.shelf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.shelf h2 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
+  color: var(--label);
+}
+
+.card,
+.row,
+.door {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+}
+
+.card,
+.row {
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.card {
+  gap: var(--space-3);
+  padding: 10px;
+}
+
+.row {
+  min-height: 60px;
+  padding: var(--space-2) var(--space-4);
+}
+
+.cover {
+  flex: none;
+  width: 88px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: var(--weight-semibold);
+}
+
+.line {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+.chevron {
+  flex: none;
+  color: var(--muted);
+}
+
+.doors {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.door {
+  min-height: 58px;
+  padding: var(--space-2) var(--space-4);
+}
+
+.door + .door {
+  border-top: var(--rule-solid);
+}
+
+.door .text {
+  font-weight: var(--weight-medium);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+  text-align: center;
+}
+
+.empty p {
+  margin: 0;
+}

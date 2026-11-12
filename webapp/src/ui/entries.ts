@@ -122,6 +122,24 @@ export const doneByOf = (t: Translate, i18n: I18n, entry: Entry, byYou: boolean)
 };
 
 /**
+ * How much, for a line that poured something: the water, and for a feed the
+ * week of the scheme its doses came from - "1,5 l", "5 l · Schema-Woche 5".
+ * Null for a line that recorded neither.
+ */
+export const amountOf = (t: Translate, entry: Entry): string | null => {
+  if (entry.values.kind !== 'water' && entry.values.kind !== 'feed') return null;
+  // A line carried over from the old app may hold neither field at all.
+  const litres = entry.values.litres ?? null;
+  const week = entry.values.kind === 'feed' ? (entry.values.schemeWeek ?? null) : null;
+  const said = [
+    litres !== null ? t('log.litres', { litres: looseFigure(litres) }) : null,
+    week !== null ? t('home.entrySchemeWeek', { week }) : null,
+  ].filter(Boolean);
+
+  return said.length > 0 ? said.join(' · ') : null;
+};
+
+/**
  * Which of the grow's own days a line falls on, counted from the grow's origin
  * with the contract's own arithmetic - the same the server's week calendar
  * counts by, so a row and the card around it cannot drift apart.

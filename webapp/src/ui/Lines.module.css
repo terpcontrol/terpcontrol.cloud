@@ -1,0 +1,68 @@
+/* A diary's lines in summary: when in one column as wide as its longest stamp, what beside it. */
+
+.lines {
+  display: grid;
+  grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) auto;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.line {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  font-size: var(--text-sm);
+}
+
+.stamp {
+  font-family: var(--font-figure);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+.line[data-severity] .text {
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+}
+
+/* A line's words stand plain here: the row is a summary, and what is wrong is said by its colour. */
+.text span {
+  font-weight: inherit;
+}
+
+button.text {
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+}
+
+/* A line that leads somewhere is a finger high, whatever it says. */
+button.text,
+a.text {
+  display: block;
+  min-height: var(--control-height);
+  align-content: center;
+}
+
+/* What a device did by itself, said at the end of its line. */
+.mark {
+  align-self: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--brand-wash);
+  color: var(--brand);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}

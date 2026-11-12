@@ -5,7 +5,7 @@ import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { entryDetail } from '@/i18n/device-message';
 import { sinceLabel } from './age';
-import { authorOf, doneByOf, headlineOf, KIND_ICON, ownReading } from './entries';
+import { amountOf, authorOf, doneByOf, headlineOf, KIND_ICON, ownReading } from './entries';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, nowThere, useZone, zoned } from './zone';
 import { Photo } from './Photo';
 import { PictureViewer } from './PictureViewer';
@@ -238,8 +238,9 @@ export function EntryRow({
 }
 
 /**
- * What a line says, without the row around it: who did what, how often a
- * machine repeated it, the readings and what the machine went on to explain.
+ * What a line says, without the row around it: who did what and how much of
+ * it, how often a machine repeated it, the readings and what the machine went
+ * on to explain.
  * A surface that lays its row out itself - Start's last lines - draws these
  * words, so a line reads the same wherever it is met.
  */
@@ -260,6 +261,7 @@ export function EntryWords({
   const byYou = entry.authorId === user?.id;
   const doneBy = byline && entry.source === 'human' ? doneByOf(t, i18n, entry, byYou) : null;
   const named = byline && entry.source === 'human' && (doneBy !== null || !byYou);
+  const amount = amountOf(t, entry);
   return (
     <>
       {/* A device, the plan or an alarm is named by its mark; a person by
@@ -275,6 +277,7 @@ export function EntryWords({
       ) : null}
       {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
       <span className={styles.headline}>{doneBy ?? headlineOf(t, i18n, entry)}</span>
+      {amount ? <span className="mono">{` · ${amount}`}</span> : null}
       {repeats && repeats.count > 1 ? (
         <span className="mono">
           {' · '}

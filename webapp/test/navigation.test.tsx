@@ -277,6 +277,8 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   }
   if (path === '/me') return json(server.me);
   if (path === '/home') return json(home());
+  // The shelf of schemes the app ships, which the page of every grow says a line about.
+  if (pathname === '/assets/schemes/index.json') return json({ schemes: [] });
   const byId = /^\/grows\/([^/]+)$/.exec(path);
   if (byId && GROWS[byId[1]]) return json(GROWS[byId[1]]);
   if (path === '/cameras/cam-2') return json(camera);
@@ -439,7 +441,7 @@ describe('the bar', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Tasks' })).toBeInTheDocument();
     expect(marked()).toEqual([]);
     await act(() => router.navigate('/grows'));
-    expect(await screen.findByRole('heading', { level: 1, name: 'My grows' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Grows' })).toBeInTheDocument();
     expect(marked()).toEqual(['Grow']);
     await act(() => router.navigate('/grows/grow-1'));
     expect(await screen.findByRole('heading', { level: 1, name: /Spring run/ })).toBeInTheDocument();
@@ -697,7 +699,9 @@ describe('Grow, the bar´s item', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: /Spring run/ })).toBeInTheDocument();
     expect(within(bar()).getByRole('link', { name: 'Grow' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Back to My grows' })).toHaveAttribute('href', '/grows');
+    // A root of the bar: nothing leads back from it, and every grow is a tap beside its name.
+    expect(screen.getByRole('link', { name: 'All grows' })).toHaveAttribute('href', '/grows');
+    expect(screen.queryByRole('link', { name: /^Back to/ })).not.toBeInTheDocument();
   });
 
   it('keeps the grow´s tabs under its own address, so the page stays the chosen place´s', async () => {
@@ -705,13 +709,19 @@ describe('Grow, the bar´s item', () => {
     const router = open('/grow');
 
     const tabs = within(await screen.findByRole('navigation', { name: 'Grow page' }));
-    expect(tabs.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/grow', '/grow/plants', '/grow/feeding', '/grow/report']);
-    expect(tabs.getByRole('link', { name: 'Weeks' })).toHaveAttribute('aria-current', 'page');
+    expect(tabs.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual([
+      '/grow',
+      '/grow/pictures',
+      '/grow/plants',
+      '/grow/feeding',
+      '/grow/report',
+    ]);
+    expect(tabs.getByRole('link', { name: 'Diary' })).toHaveAttribute('aria-current', 'page');
 
     fireEvent.click(tabs.getByRole('link', { name: 'Plants' }));
     await waitFor(() => expect(where(router)).toBe('/grow/plants'));
     expect(tabs.getByRole('link', { name: 'Plants' })).toHaveAttribute('aria-current', 'page');
-    expect(tabs.getByRole('link', { name: 'Weeks' })).not.toHaveAttribute('aria-current');
+    expect(tabs.getByRole('link', { name: 'Diary' })).not.toHaveAttribute('aria-current');
     expect(within(bar()).getByRole('link', { name: 'Grow' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getAllByRole('button', { name: 'Place: Fridge 1' })).toHaveLength(2);
   });

@@ -18,7 +18,7 @@ import { FirmwareScreen } from '@/screens/admin/Firmware';
 import { Fleet } from '@/screens/admin/Fleet';
 import { CurrentGrow } from '@/screens/grow/CurrentGrow';
 import { GrowPage } from '@/screens/grow/GrowPage';
-import { MyGrows } from '@/screens/grow/MyGrows';
+import { Grows } from '@/screens/grow/Grows';
 import { JoinRoute } from '@/screens/join/JoinRoute';
 import { LogRoute } from '@/log/LogRoute';
 import { Me } from '@/screens/Me';
@@ -92,7 +92,7 @@ export const screens: RouteObject[] = [
   },
   { path: 'alerts', element: <Alerts /> },
   { path: 'grow/:tab?', element: <CurrentGrow /> },
-  { path: 'grows', element: <MyGrows /> },
+  { path: 'grows', element: <Grows /> },
   { path: 'grows/new', element: <NewGrowRoute /> },
   { path: 'grows/:growId/measurements', element: <Measurements /> },
   { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },

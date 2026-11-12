@@ -43,7 +43,7 @@ export function Schemes() {
   const opened = open?.kind === 'own' ? (own.data?.items.find(scheme => scheme.id === open.id) ?? null) : null;
 
   return (
-    <MePage title={t('me.schemes.title')}>
+    <MePage title={t('me.schemes.title')} grows>
       <span className="label">{t('me.schemes.shipped')}</span>
       {shipped.isPending ? (
         <Waiting lines={3} />

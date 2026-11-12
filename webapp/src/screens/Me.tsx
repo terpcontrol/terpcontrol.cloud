@@ -8,33 +8,22 @@ import { useCameras } from '@/api/cameras';
 import { APP_VERSION, BUILD_MODE } from '@/api/config';
 import { useGrows, useMyGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
-import { useOwnSchemes, useSchemes } from '@/api/schemes';
 import { session, useSession } from '@/api/session';
-import { useFollows, useShareLinks } from '@/api/sharing';
-import { FROM_ME, MY_GROWS } from '@/app/places';
+import { FROM_ME, ALL_GROWS } from '@/app/places';
 import { initials } from '@/ui/handle';
 import { ownsCamera } from '@/screens/devices/cameras';
-import { countsOf } from '@/screens/grow/my-grows';
 import { useTheme } from '@/theme/theme-context';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
-import {
-  appearanceLine,
-  followingLine,
-  notificationsLine,
-  premiumLine,
-  privacyLine,
-  publicLine,
-  schemesLine,
-  shareLinksLine,
-  versionLine,
-} from './me/doors';
+import { appearanceLine, growsLine, notificationsLine, premiumLine, privacyLine, publicLine, versionLine } from './me/doors';
 import styles from './Me.module.css';
 
 /**
  * Where the avatar leads: who is signed in, the way to every grow for whoever
- * keeps a diary, and a door to each of the ten things an account is made of.
+ * keeps a diary, and a door to each of the things an account is made of. What
+ * belongs to growing - the feeding schemes, the share links, the grows of
+ * others the account follows - stands with the grows, under "Alle Grows".
  *
  * Every door says under its title what the page behind it currently holds,
  * read from the server and never guessed - how many grows are public, which
@@ -113,7 +102,7 @@ function AdminDoors() {
   );
 }
 
-/** The header and the eight doors an account has, each read from what the server answers about it. */
+/** The header and the doors an account has, each read from what the server answers about it. */
 function AccountDoors({ handle }: { handle: string }) {
   const { t } = useTranslation();
   const now = useNow();
@@ -121,21 +110,15 @@ function AccountDoors({ handle }: { handle: string }) {
   const me = useMe();
   const grows = useGrows();
   const mine = useMyGrows();
-  const follows = useFollows(true);
-  const links = useShareLinks();
   const cameras = useCameras();
   const { steering, cameras: cameraCount, ready } = useShape();
-  const shipped = useSchemes();
-  const own = useOwnSchemes();
   const diary = useDiaryLayer();
-  // Feeding schemes are what a grow's feed lines are dosed from, so they are a door of the diary's - kept for whoever wrote one of their own.
-  const feeds = diary || (own.data?.items.length ?? 0) > 0;
-  // Every grow is a door of the diary's as well, and stays one for whoever has a grow and has since turned the diary off.
+  // Every grow is a door of the diary's, and stays one for whoever has a grow and has since turned the diary off.
   const hasGrows = diary || (mine.data?.items.length ?? 0) > 0;
 
   /**
    * One door's line, drawn only once every read it is worked out from has
-   * answered. Eight reads fan out from this page and they land in whatever
+   * answered. Several reads fan out from this page and they land in whatever
    * order the connection gives them, so a line must name every query it reads
    * rather than the first of them: a gate that lists one of two is a promise
    * that the other has arrived, and a line that believes it takes the hub - and
@@ -160,12 +143,7 @@ function AccountDoors({ handle }: { handle: string }) {
       {/* What the account has grown is its own content rather than a setting, so it stands apart from the doors below. */}
       {hasGrows ? (
         <div className={ui.group}>
-          <Door
-            to={MY_GROWS}
-            state={FROM_ME}
-            title={t('grow.mine.title')}
-            line={line([mine], () => (mine.data!.items.length > 0 ? countsOf(t, mine.data!.items) : t('grow.mine.none')))}
-          />
+          <Door to={ALL_GROWS} state={FROM_ME} title={t('grow.all.pill')} line={line([mine], () => growsLine(t, mine.data!.items))} />
         </div>
       ) : null}
 
@@ -186,15 +164,6 @@ function AccountDoors({ handle }: { handle: string }) {
           title={t('me.public.title')}
           line={line([grows, me], () => publicLine(t, grows.data!.items, me.data!, window.location.host))}
         />
-        <Door to="/me/following" title={t('me.following.title')} line={line([follows], () => followingLine(t, follows.data!.items.length))} />
-        <Door to="/me/share-links" title={t('me.shareLinks.title')} line={line([links], () => shareLinksLine(t, links.data!.items, now))} />
-        {feeds ? (
-          <Door
-            to="/me/schemes"
-            title={t('me.schemes.title')}
-            line={line([grows, shipped, own], () => schemesLine(t, grows.data!.items, shipped.data!, own.data!.items))}
-          />
-        ) : null}
         {/* Without any hardware nothing on Start or in the bar leads to adding some; this is where it comes in. */}
         {ready && !steering && cameraCount === 0 ? (
           <Door to="/devices" title={t('me.door.addDevice.title')} line={t('me.door.addDevice.line')} />
@@ -215,12 +184,9 @@ function DemoDoors({ handle }: { handle: string }) {
 
       <div className={ui.group}>
         <Closed title={t('me.public.title')} note={t('me.demo')} />
-        <Closed title={t('me.following.title')} note={t('me.demo')} />
-        <Closed title={t('me.shareLinks.title')} note={t('me.demo')} />
         <Closed title={t('me.premium.title')} note={t('me.demo')} />
         <Closed title={t('notifications.title')} note={t('notifications.demo')} />
         <Closed title={t('me.privacy.title')} note={t('me.privacy.demo')} />
-        <Closed title={t('me.schemes.title')} note={t('me.demo')} />
         <Closed title={t('me.account.title')} note={t('me.demo')} />
       </div>
     </>

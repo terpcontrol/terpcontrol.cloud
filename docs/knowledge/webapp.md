@@ -22,8 +22,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 | `src/main.tsx` | keeps the install prompt, loads the catalogues, renders |
 | `src/app/` | `routes.tsx`, `shell/` (bars, rail, the choice of place, notices), `RequireSession.tsx`, `OldAddresses.tsx` + `old-charts.ts`, `places.ts` (deep links, the chosen place), `install.ts` |
 | `src/api/` | one module per resource with its TanStack Query hooks and query factories; plumbing: `client.ts`, `session.ts`, `clock.ts`, `read.ts`, `write.ts`, `pages.ts`, `problem.ts`, `config.ts`, `query-client.ts` |
-| `src/ui/` | shared primitives (`Sheet`, `Switch`, `Asking`, `BackLink`, `Help.tsx`, `advanced/`) and one-place helpers (`zone.ts`, `days.ts`, `wall-clock.ts`, `age.ts`, `figures.ts`, `units.ts`, `naming.ts`, `stored.ts`, `session-access.ts`, `refusal.ts`) |
-| `src/log/` | the Log sheet, its send queue and undo toasts, `corrections.ts`, the moment a line is dated to (`Moment.tsx`, EXIF in `taken-at.ts`) |
+| `src/ui/` | shared primitives (`Sheet`, `Menu`, `Lines`, `Switch`, `Asking`, `BackLink`, `Help.tsx`, `advanced/`) and one-place helpers (`zone.ts`, `days.ts`, `wall-clock.ts`, `age.ts`, `figures.ts`, `units.ts`, `naming.ts`, `stored.ts`, `session-access.ts`, `refusal.ts`) |
+| `src/log/` | the entry sheet, its send queue and undo toasts, `corrections.ts`, the moment a line is dated to (`Moment.tsx`, EXIF in `taken-at.ts`) |
 | `src/charts/`, `src/i18n/` | ECharts binding and chart arithmetic; i18next setup and device-message resolver |
 | `src/theme/`, `src/styles/`, `src/sw.ts` | `tokens.css`, `ThemeProvider`, `global.css`; the service worker |
 | `public/` | manifest, icons, catalogues `assets/i18n/`, feeding schemes `assets/schemes/` |
@@ -42,8 +42,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   | --- | --- | --- |
   | `/` | Start: the one place, the places by room, or the empty Start | Start |
   | `/spaces/:spaceId`, `/spaces/:spaceId/members` | Start of one place; who is let in | Start |
-  | `/grow/:tab?` | the grow running in the chosen place with its tabs, else the offer to start one | Grow |
-  | `/grows`, `/grows/new`, `/grows/:growId/:tab?`, `.../plants/:plantId`, `.../measurements` | every grow; one grow | Grow |
+  | `/grow/:tab?` | the grow running in the chosen place - its diary, and `pictures`, `plants`, `feeding`, `report` - else the offer to start one | Grow |
+  | `/grows`, `/grows/new`, `/grows/:growId/:tab?`, `.../plants/:plantId`, `.../measurements` | every grow ("Alle Grows"); one grow with the same tabs | Grow |
   | `/log` | opens the entry sheet | - |
   | `/timeline` | Verlauf of the chosen place (`focus`, `at`, `device` in the query) | Verlauf |
   | `/charts` | Graphen, its whole view in the query | Verlauf |
@@ -57,6 +57,13 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   empty Start - and `place.ts` holds what all of them decide before drawing: the status sentence, a reading's
   verdict, the lamp's window. `card-status.ts` is the same sentence for a place's card and the header's choice of
   place, so the three never disagree about a tent.
+- **Grow** is `src/screens/grow/`: `CurrentGrow.tsx` (the bar's item) and `GrowPage.tsx` (a grow by its id) draw
+  the same `GrowScreen` - `GrowHead`, `GrowMenu` and the tab the address names (`grow-tabs.ts`: the diary is the
+  address itself, an unknown segment leads there). The diary and the pictures are one read,
+  `GET /v1/grows/{id}/diary` (`useGrowDiary`, a few weeks a page): `diary/days.ts` puts a day's answer into the
+  words and the order a card draws - titles, the climate line, the folded lines, the pictures of a day - and
+  `diary/Diary.tsx`, `diary/DayCard.tsx` and `pictures/Pictures.tsx` draw them. A line is `ui/Lines.tsx`, the row
+  Start's last lines are too. `Grows.tsx` is the list at `/grows`.
 - **The chosen place** (`src/app/places.ts`) is what `/grow`, `/timeline`, `/control` and `/charts` show: the place
   their address names in `?space=`, else the one chosen (`terp.place` in this browser, a store the header's chip and
   the page both follow), else the first of Start's order (`sortedByAttention`), which is then kept. `usePlaceChoice`
@@ -146,7 +153,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - Export zips are served to a session only: `apiBlob()` into a blob and an `<a download>` (`useDownloadExport` in
   `src/api/exports.ts`), since a link cannot carry the bearer header.
 - Lifecycle mutations (`src/api/lifecycle.ts`) re-read the grow after the server answers instead of patching the
-  cache, because the server works out day counter, stage and placements; the Log sheet's queue
+  cache, because the server works out day counter, stage and placements; the entry sheet's queue
   (`src/log/LogProvider.tsx`) confirms first and sends after.
 
 ## Session
@@ -176,7 +183,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   or an unreachable server. Before this, a second account signing in in the same tab saw the first one's places,
   bell and address until each query went stale. `RequireSession` keys the shell by `user.id`, because opening the
   demo from the home replaces the session without passing `/sign-in`: an observer mounted over a cleared cache
-  keeps drawing what it held, and the Log sheet's lines would be retried with the demo's token.
+  keeps drawing what it held, and the entry sheet's lines would be retried with the demo's token.
 - `queryClient.clear()` under a mounted observer whose fetch is in flight cancels that fetch silently and leaves the
   observer pending until its component re-renders (checked against TanStack Query 5.103). So a cache that held no
   session's answers is not cleared: a stored session refused at boot on `/g/:slug`, whose read waits on that very

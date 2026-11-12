@@ -1,0 +1,84 @@
+/* The menu behind a thing's name: the ⋯, and the list it opens. */
+
+.menu {
+  position: relative;
+  flex: none;
+}
+
+.button {
+  display: grid;
+  place-items: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+}
+
+.button:hover {
+  background: var(--tint);
+}
+
+.words {
+  display: none;
+}
+
+/* From the rail's width a menu that has words for itself is a pill saying them. */
+@media (min-width: 900px) {
+  .button[data-words] {
+    width: auto;
+    padding: 0 14px;
+    background: var(--card);
+    border: var(--rule-width) solid var(--rule-strong);
+    color: var(--brand);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+
+  .button[data-words] svg {
+    display: none;
+  }
+
+  .words {
+    display: inline;
+  }
+}
+
+.list {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: var(--space-1);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-raised);
+}
+
+.list > * {
+  display: block;
+  min-height: var(--control-height);
+  padding: var(--space-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-md);
+  text-align: left;
+  color: var(--ink);
+}
+
+.list > *:hover {
+  background: var(--tint);
+}
+
+.line {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}

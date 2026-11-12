@@ -1,21 +1,19 @@
 import { useRead, useReadPages } from './read';
 import type {
-  Entry,
   EntryPage,
   GrowCreate,
+  GrowDiaryPage,
   GrowListItem,
   GrowPage,
   GrowReport,
   GrowSeries,
   GrowSeriesRange,
   GrowUpdate,
-  GrowWeekCardPage,
   MyGrowCard,
   Plant,
   PlantPage,
   PlantUpdate,
 } from '@fg2/shared-types/v1';
-import { DIARY_KINDS } from '@/ui/entries';
 import { api } from './client';
 import { growChanged } from './lifecycle';
 import { readEvery } from './pages';
@@ -25,11 +23,11 @@ import { invalidate, useWrite } from './write';
 const PLANT_ENTRIES = 50;
 
 /**
- * The grow page's four reads. The grow itself carries its summary - the day
+ * The grow page's reads. The grow itself carries its summary - the day
  * counter, the phase, the "auto" tag - worked out by the server, so nothing
- * here counts days. The weeks are paged, newest first, because every card costs
- * the server a time-series read; the page asks for the next screenful only when
- * somebody scrolls to it.
+ * here counts days. The diary is paged, newest first, because every week of it
+ * costs the server a read of its time series; the page asks for the weeks
+ * before only when somebody asks to see them.
  *
  * The first two are the Log sheet's as well, where there may be no grow at all:
  * a sheet pointed at a tent asks for nothing rather than for a grow called null.
@@ -49,34 +47,13 @@ export const useGrowPlants = (growId: string | null) =>
     enabled: growId !== null,
   });
 
-export const useGrowWeeks = (growId: string) =>
+/** The diary, a card per day, a few weeks at a time. A line written, moved or taken back reads it again with everything under the grow's key. */
+export const useGrowDiary = (growId: string) =>
   useReadPages({
-    queryKey: ['grow', growId, 'weeks'],
-    queryFn: ({ pageParam, signal }) => api.get<GrowWeekCardPage>(`/grows/${growId}/weeks`, { cursor: pageParam }, signal),
+    queryKey: ['grow', growId, 'diary'],
+    queryFn: ({ pageParam, signal }) => api.get<GrowDiaryPage>(`/grows/${growId}/diary`, { cursor: pageParam }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
-  });
-
-/**
- * The rest of a week's diary, asked for only when somebody asks to see it.
- *
- * A week card carries the first ten of its lines and says how many more there
- * are; on a busy week - an alarm that resolved itself nine times in a minute -
- * that leaves the grower's own note off the card. The line that said so named
- * the timeline, which cannot be pointed at a grow that has ended or moved out,
- * so 135 lines of one finished grow were drawn on no screen at all.
- *
- * It is the same route and the same kinds the card's own count is over, bounded
- * by the week's own window, so what arrives is exactly what the card said was
- * missing. The cursor is followed to its end because a week is a handful of
- * rows and half of them would otherwise be a second "there is more".
- */
-export const useWeekEntries = (growId: string, week: { startsAt: string; endsAt: string } | null) =>
-  useRead({
-    queryKey: ['entries', 'week', growId, week?.startsAt ?? null],
-    queryFn: ({ signal }) =>
-      readEvery<Entry>('/entries', signal, { growId, startsAt: week!.startsAt, endsAt: week!.endsAt, kinds: DIARY_KINDS.join(',') }),
-    enabled: week !== null,
   });
 
 export const useGrowReport = (growId: string) =>
@@ -88,9 +65,9 @@ export const useGrowReport = (growId: string) =>
 /**
  * Changing the grow itself: its name, its end, what it shares and how it is
  * fed. The answer is the grow, so it is put in place rather than read again; a
- * new scheme also changes the doses every week card states, and a new
- * visibility the list of grows that says which are public, so those are read
- * again with it.
+ * new visibility also changes the list of grows that says which are public, and
+ * a new cover the cards every grow is listed by, so those are read again with
+ * it.
  */
 export const useUpdateGrow = (growId: string) =>
   useWrite(
@@ -98,7 +75,6 @@ export const useUpdateGrow = (growId: string) =>
     (client, grow, body) => {
       client.setQueryData(['grow', growId], grow);
       void invalidate(client, ['home']);
-      if (body.scheme !== undefined) void invalidate(client, ['grow', growId, 'weeks']);
       if (body.visibility !== undefined) void invalidate(client, ['grows']);
     },
   );

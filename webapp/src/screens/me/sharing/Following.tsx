@@ -16,7 +16,7 @@ export function Following() {
   const { t } = useTranslation();
 
   return (
-    <MePage title={t('me.following.title')} demo={t('me.following.demo')}>
+    <MePage title={t('me.following.title')} demo={t('me.following.demo')} grows>
       <Followed />
     </MePage>
   );

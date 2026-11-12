@@ -3,7 +3,7 @@ import { DateTime, Settings } from 'luxon';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Device, GrowListItem, Plant } from '@fg2/shared-types/v1';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
-import { GrowLifecycle } from '@/screens/grow/Lifecycle';
+import { GrowMenu } from '@/screens/grow/GrowMenu';
 import { MoveSheet } from '@/screens/grow/MoveSheet';
 import { RenameSheet } from '@/screens/grow/RenameSheet';
 import { SplitSheet } from '@/screens/grow/SplitSheet';
@@ -101,6 +101,43 @@ const plants = [plant('plant-1', 'Amnesia 1'), plant('plant-2', 'Amnesia 2'), pl
 beforeAll(() => translate());
 
 /**
+ * What can be done to a grow stands behind the menu beside its name; a
+ * desktop has the phase and sharing as buttons of their own beside it.
+ */
+describe('the grow´s menu', () => {
+  const open = () => fireEvent.click(screen.getByRole('button', { name: `More about ${grow.name}` }));
+  const offered = () => {
+    const list = document.getElementById(screen.getByRole('button', { name: `More about ${grow.name}` }).getAttribute('aria-controls')!)!;
+    return [...list.children].map(item => item.textContent);
+  };
+
+  it('offers every change to whoever owns the grow, and what it measures and the stage´s tips to everybody', () => {
+    drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn />);
+    open();
+
+    expect(offered()).toEqual(['Phase', 'Share', 'Measurements', 'Move', 'Split', 'Harvest', 'Rename', 'Tips for this stage']);
+    expect(screen.getByRole('link', { name: 'Measurements' })).toHaveAttribute('href', `/grows/${grow.id}/measurements`);
+  });
+
+  it('offers a session that may only look nothing that changes the grow', () => {
+    drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage={false} mayOwn={false} />);
+    open();
+
+    expect(offered()).toEqual(['Measurements', 'Tips for this stage']);
+  });
+
+  it('opens four tips for the stage the grow is in', () => {
+    drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage={false} mayOwn={false} />);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Tips for this stage' }));
+
+    const tips = screen.getByRole('dialog', { name: 'Tips for this stage' });
+    expect(within(tips).getAllByRole('listitem')).toHaveLength(4);
+    expect(tips).toHaveTextContent(/Keep humidity at or below 50 %/);
+  });
+});
+
+/**
  * The name, which is the one thing about a grow the app could not change.
  *
  * It is invented by the sheet that makes the grow - "Mimosa Sunrise XXL Auto
@@ -111,7 +148,8 @@ beforeAll(() => translate());
  */
 describe('renaming a grow', () => {
   it('is offered beside the other moves, for a session that may make them', () => {
-    drawAt(<GrowLifecycle grow={grow} plants={plants} spaces={[]} />);
+    drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn={false} />);
+    fireEvent.click(screen.getByRole('button', { name: `More about ${grow.name}` }));
 
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
   });
@@ -354,10 +392,14 @@ describe('the move sheet of a grow that has ended', () => {
     expect(screen.getByText(/This grow has ended, so it does not move any more/)).toBeInTheDocument();
   });
 
-  it('is offered a phase, a move and a new name, but no split and no harvest', () => {
-    drawAt(<GrowLifecycle grow={finished} plants={plants} spaces={[tent]} />);
+  it('is offered a phase, a move and a new name, but no split, no harvest and no tips for a stage it is no longer in', () => {
+    drawAt(<GrowMenu grow={finished} plants={plants} spaces={[tent]} mayManage mayOwn={false} />);
+    const menu = screen.getByRole('button', { name: `More about ${finished.name}` });
+    fireEvent.click(menu);
 
-    const offered = screen.getAllByRole('button').map(button => button.textContent);
+    const offered = within(document.getElementById(menu.getAttribute('aria-controls')!)!)
+      .getAllByRole('button')
+      .map(button => button.textContent);
     expect(offered).toEqual(['Phase', 'Move', 'Rename']);
   });
 

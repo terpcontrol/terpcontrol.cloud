@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
-import { GROW, useCurrentPlace } from '@/app/places';
+import { GROW, ALL_GROWS, useCurrentPlace } from '@/app/places';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import { GrowScreen } from './GrowPage';
-import { isGrowTab } from './grow-tabs';
-import { MyGrowsLine } from './MyGrows';
+import { growTabOf } from './grow-tabs';
 import { NewGrowRow } from './new/NewGrowRow';
 import { NewGrowSheet } from './new/NewGrowSheet';
 import styles from './GrowPage.module.css';
@@ -22,20 +21,30 @@ import styles from './GrowPage.module.css';
  */
 export function CurrentGrow() {
   const { t } = useTranslation();
-  const { tab } = useParams();
+  const { tab: segment } = useParams();
   const { home, places, here } = useCurrentPlace();
   const [starting, setStarting] = useState(false);
+  const tab = growTabOf(segment);
 
-  if (tab !== undefined && !isGrowTab(tab)) return <Navigate to={GROW} replace />;
+  if (tab === null) return <Navigate to={GROW} replace />;
   if (home.isPending) return <Waiting lines={4} />;
   if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
 
   const growId = (places.length > 0 ? here : home.data.spaces[0])?.grow?.growId ?? null;
-  if (growId) return <GrowScreen key={growId} growId={growId} tab={tab ?? 'weeks'} current />;
+  if (growId) return <GrowScreen key={growId} growId={growId} tab={tab} current />;
 
   return (
     <section className={styles.page}>
-      <h1>{t('shell.tabs.grow')}</h1>
+      <header className={styles.head}>
+        <div className={styles.title}>
+          <h1>{t('shell.tabs.grow')}</h1>
+          <div className={styles.actions}>
+            <Link to={ALL_GROWS} className={styles.pill}>
+              {t('grow.all.pill')}
+            </Link>
+          </div>
+        </div>
+      </header>
       {here ? (
         <div className={ui.card}>
           <NothingGrows spaceId={here.spaceId} name={here.name} />
@@ -43,7 +52,6 @@ export function CurrentGrow() {
       ) : (
         <NewGrowRow onOpen={() => setStarting(true)} />
       )}
-      <MyGrowsLine />
       {starting ? <NewGrowSheet onClose={() => setStarting(false)} /> : null}
     </section>
   );

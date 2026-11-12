@@ -27,10 +27,16 @@ export interface LogTarget {
   standsIn: string | null;
 }
 
-/** The eight tiles. `phase` is the one that is not an entry of its own: it is written as a phase and shows up as one. */
+/**
+ * What a line can be. `phase` is the one that is not an entry of its own: it
+ * is written as a phase and shows up as one. A `visit` is no tile - stepping
+ * in is started as maintenance, from Start and from a device - but a line of
+ * it written before is still corrected like the others.
+ */
 export type TileKind = HumanEntryKind | 'phase';
 
-export const TILE_KINDS: TileKind[] = ['water', 'feed', 'photo', 'note', 'measurement', 'training', 'phase', 'visit'];
+/** The seven tiles of the sheet, in the order they are drawn. */
+export const TILE_KINDS: TileKind[] = ['water', 'feed', 'photo', 'note', 'measurement', 'training', 'phase'];
 
 /** Where the sheet opens: the screen it was opened from, or a link that names the place and the tile. */
 export interface LogOpening {
@@ -69,7 +75,8 @@ export interface CompleteOptions {
 
 interface LogState {
   openSheet: (opening?: LogOpening) => void;
-  openDetails: (kind: TileKind, target: LogTarget, entry?: Entry | null) => void;
+  /** Opens one kind's view: on a line to correct, or on a new one dated to `at` where the sheet was told when. */
+  openDetails: (kind: TileKind, target: LogTarget, entry?: Entry | null, at?: Date | null) => void;
   /** Write a line now: the sheet closes, the toast appears, and the request is somebody else's problem. */
   log: (request: LogRequest) => void;
   /** The Done on a due card, which writes the entry the task implies. */

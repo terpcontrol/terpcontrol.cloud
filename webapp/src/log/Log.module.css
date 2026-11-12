@@ -1,40 +1,48 @@
-/* The sheet's own parts: the target row, the eight tiles, and the fields the
-   details ask for. Dense, because a phone in a tent has one thumb. */
+/* The sheet's own parts: what the line is about, the seven tiles, and the
+   fields the details ask for. Dense, because a phone in a tent has one thumb. */
 
-/* The places to log to, as the shared row that scrolls, veiled into the
-   sheet's own surface. */
+/* What a line can be about: pills a thumb finds, wrapping rather than running off the sheet. */
 .targets {
-  --veil-colour: var(--card);
-
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
-  padding-bottom: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.targets > button {
+  height: auto;
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }
 
 .tiles {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 .tile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-height: 92px;
-  padding: var(--space-3) var(--space-1);
+  justify-content: center;
+  gap: 6px;
+  min-height: 78px;
+  padding: var(--space-1);
+  background: var(--bg);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   text-align: center;
+  overflow-wrap: anywhere;
 }
 
-/* Maintenance says what it is and what it stops, which two narrow lines of a
-   tile cannot hold; it takes two columns rather than a cut-off sentence. */
-.tile[data-wide] {
-  grid-column: span 2;
-}
-
-/* The instant before the tiles know what they would write. */
+/* The instant before the tiles know what their view opens on. */
 .tile:disabled {
   opacity: 0.5;
 }
@@ -45,31 +53,8 @@
 }
 
 .tileIcon {
-  margin-bottom: 2px;
-  color: var(--ink);
-}
-
-.tileName {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-tight);
-}
-
-.tileCaption {
-  font-size: var(--text-xs);
-  line-height: var(--line-tight);
-  color: var(--muted);
-  /* Two lines at most, broken between words and cut with an ellipsis after
-     that: hyphenated, a tile's list of measurement names ran to five broken
-     lines and made every tile in its row as tall. A word too long for the
-     tile on its own still breaks rather than running out of it. */
-  display: -webkit-box;
-  overflow: hidden;
-  overflow-wrap: break-word;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  text-wrap: balance;
+  flex: none;
+  color: var(--brand);
 }
 
 /* What the details are about: the same line the toast will say. */
@@ -344,31 +329,4 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
-}
-
-/* What stepping in is about to quieten: the sentence, the devices it names, and
-   what Undo will and will not take back. The list is indented under the
-   sentence so that it reads as that sentence's own enumeration. */
-.quietens {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.quietensList {
-  margin: 0;
-  padding-left: var(--space-5);
-  font-size: var(--text-xs);
-  line-height: 1.7;
-  list-style: disc;
-}
-
-/* What that one device will stop, beside the name of that one device. The list
-   is set in the face the app keeps for figures, because a device is known by an
-   id; this half is a sentence about it and reads in the text face, dimmed, so
-   that the eye still finds the name first. */
-.quietensParks {
-  font-family: var(--font-text);
-  color: var(--muted);
 }

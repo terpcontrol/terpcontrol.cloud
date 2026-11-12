@@ -6,6 +6,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { Camera, GrowListItem, Me, MyGrowCard, Scheme, ShareLink } from '@fg2/shared-types/v1';
 import { About } from '@/screens/me/about/About';
 import { premiumLine, shareLinksLine } from '@/screens/me/doors';
+import { Grows } from '@/screens/grow/Grows';
 import { Me as MeScreen } from '@/screens/Me';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { drawAt, json, NOT_FOUND } from './harness';
@@ -13,8 +14,10 @@ import { meWith } from './session';
 import { translate } from './translations';
 
 /**
- * Me: the identity line and the ten doors, each with a line under it that
- * says what the page behind it currently holds.
+ * Me: the identity line and the doors, each with a line under it that says
+ * what the page behind it currently holds - and the three doors that stand
+ * with the grows instead, under "All grows": the feeding schemes, the share
+ * links and the grows somebody follows.
  *
  * Every one of those lines is a figure read off a resource the server
  * answered, so the thing to check is that each is read off the right one and
@@ -189,6 +192,12 @@ const draw = () =>
     { at: '/me' },
   );
 
+/** The page of every grow, whose foot holds the doors that belong to growing; the grows themselves are not what is looked at here. */
+const drawGrows = () => {
+  server.mine = [];
+  return drawAt(<Grows />, { at: '/grows' });
+};
+
 /** The line under a door, once it says something other than that it is loading. */
 const lineUnder = async (title: string): Promise<string> => {
   const door = await screen.findByRole('link', { name: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) });
@@ -249,14 +258,14 @@ describe('what each door says', () => {
     expect(await screen.findByText('christian@example.org · public profile off')).toBeInTheDocument();
   });
 
-  it('counts the grows followed', async () => {
-    draw();
+  it('counts the grows followed, beside the grows', async () => {
+    drawGrows();
 
     expect(await lineUnder('Following')).toBe('2 grows');
   });
 
-  it('counts the links that still open, the ones that ran out and the ones pulled', async () => {
-    draw();
+  it('counts the links that still open, the ones that ran out and the ones pulled, beside the grows', async () => {
+    drawGrows();
 
     expect(await lineUnder('Share links')).toBe('1 active · 1 expired · 1 revoked');
   });
@@ -285,8 +294,8 @@ describe('what each door says', () => {
     expect(await lineUnder('Appearance')).toBe('theme: System · units: °C, g, l · language: English');
   });
 
-  it('names the one scheme the running grows are on, marks it edited, and counts the shelf', async () => {
-    draw();
+  it('names the one scheme the running grows are on, marks it edited, and counts the shelf, beside the grows', async () => {
+    drawGrows();
 
     expect(await lineUnder('Feeding schemes')).toBe('Biobizz · Light·Mix (edited) · 1 own');
   });
@@ -300,9 +309,9 @@ describe('what each door says', () => {
 });
 
 /**
- * Eight reads fan out from this page and they answer in whatever order the
+ * Several reads fan out from this page and they answer in whatever order the
  * connection gives them, so each is failed in turn here and the page is asked
- * for all ten of its doors. Me is the only way to privacy, to the export and
+ * for all of its doors. Me is the only way to privacy, to the export and
  * to signing out, and a read that never answers has to cost its own line and
  * nothing else; the mixed state - one read in and another not - is the one
  * that took the whole screen down, so the door built from two of them is
@@ -311,25 +320,13 @@ describe('what each door says', () => {
 describe('one read that fails', () => {
   // Premium is a door only once the cameras have said there is one, so it is
   // not among the doors that stand from the first paint.
-  const DOORS = [
-    'Public grows and profile',
-    'Following',
-    'Share links',
-    'Notifications',
-    'Privacy',
-    'Feeding schemes',
-    'Account',
-    'Appearance',
-    'About',
-  ];
+  const DOORS = ['Public grows and profile', 'Notifications', 'Privacy', 'Account', 'Appearance', 'About'];
 
   it.each([
     ['/v1/me', ['Public grows and profile', 'Premium', 'Notifications', 'Privacy', 'Appearance']],
-    ['/v1/grows', ['Public grows and profile', 'Feeding schemes']],
-    ['/v1/follows', ['Following']],
-    ['/v1/share-links', ['Share links']],
+    ['/v1/grows', ['Public grows and profile']],
+    ['/v1/home/grows', ['All grows']],
     ['/v1/cameras', []],
-    ['/v1/schemes', ['Feeding schemes']],
   ])('keeps every door when %s fails, and says so under the ones that needed it', async (path, affected) => {
     server.failing = [path];
     draw();
@@ -347,7 +344,7 @@ describe('one read that fails', () => {
     server.held = { '/v1/me': held };
     draw();
 
-    expect(await lineUnder('Share links')).toBe('1 active · 1 expired · 1 revoked');
+    expect(await lineUnder('All grows')).toBe('2 running · 1 finished');
     expect(screen.getByRole('link', { name: /^Premium/ })).toHaveTextContent('loading');
 
     answerMe(json(server.me));
@@ -370,10 +367,19 @@ describe('what is empty', () => {
     draw();
 
     expect(await lineUnder('Public grows and profile')).toBe('no grows yet · localhost:3000/@chrisgrows');
-    expect(await lineUnder('Following')).toBe('nobody yet');
-    expect(await lineUnder('Share links')).toBe('no links yet');
     expect(await lineUnder('Notifications')).toBe('no channel on');
     expect(await lineUnder('Privacy')).toBe('nothing hidden in shared views · retention keep everything');
+  });
+
+  it('says it under the doors beside the grows too', async () => {
+    server.grows = [];
+    server.links = [];
+    server.own = [];
+    server.follows = 0;
+    drawGrows();
+
+    expect(await lineUnder('Following')).toBe('nobody yet');
+    expect(await lineUnder('Share links')).toBe('no links yet');
     expect(await lineUnder('Feeding schemes')).toBe('none in use · no own yet');
   });
 
@@ -385,13 +391,13 @@ describe('what is empty', () => {
   it('has a door to the feeding schemes only for a diary, or for whoever wrote one of their own', async () => {
     server.me = me({ layers: { diary: false } });
     server.own = [];
-    const none = draw();
-    expect(await lineUnder('Notifications')).toBeTruthy();
+    const none = drawGrows();
+    expect(await lineUnder('Share links')).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole('link', { name: /^Feeding schemes/ })).not.toBeInTheDocument());
     none.unmount();
 
     server.own = [OWN];
-    draw();
+    drawGrows();
     expect(await lineUnder('Feeding schemes')).toContain('1 own');
   });
 
@@ -403,20 +409,20 @@ describe('what is empty', () => {
    */
   it('has a door to every grow for a diary, or for whoever has grows', async () => {
     const shown = draw();
-    expect(await lineUnder('My grows')).toBe('2 running · 1 finished');
-    expect(screen.getByRole('link', { name: /^My grows/ })).toHaveAttribute('href', '/grows');
+    expect(await lineUnder('All grows')).toBe('2 running · 1 finished');
+    expect(screen.getByRole('link', { name: /^All grows/ })).toHaveAttribute('href', '/grows');
     shown.unmount();
 
     server.mine = [];
     const empty = draw();
-    expect(await lineUnder('My grows')).toBe('no grows yet');
+    expect(await lineUnder('All grows')).toBe('no grows yet');
     empty.unmount();
 
     server.me = me({ layers: { diary: false } });
     draw();
     expect(await lineUnder('Notifications')).toBeTruthy();
     await waitFor(() => expect(server.asked).toContain('/v1/home/grows'));
-    expect(screen.queryByRole('link', { name: /^My grows/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^All grows/ })).not.toBeInTheDocument();
   });
 
   /**
@@ -479,17 +485,9 @@ describe('the demo', () => {
 
     expect(screen.getByText('The demo has no account settings.')).toBeInTheDocument();
     expect(screen.getByText('The demo has no account of its own, so there is nothing here to settle.')).toBeInTheDocument();
-    expect(screen.getAllByText('The demo has no account of its own, so there is nothing of it to change.').length).toBeGreaterThan(5);
-    for (const name of [
-      'Public grows and profile',
-      'Following',
-      'Share links',
-      'Premium',
-      'Notifications',
-      'Privacy',
-      'Feeding schemes',
-      'Account',
-    ]) {
+    // Under the handle, and under each of the three doors that say nothing more particular.
+    expect(screen.getAllByText('The demo has no account of its own, so there is nothing of it to change.')).toHaveLength(4);
+    for (const name of ['Public grows and profile', 'Premium', 'Notifications', 'Privacy', 'Account']) {
       expect(screen.queryByRole('link', { name: new RegExp(`^${name}`) })).not.toBeInTheDocument();
     }
     expect(screen.getByRole('link', { name: /^Appearance/ })).toHaveAttribute('href', '/me/appearance');

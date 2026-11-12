@@ -1,0 +1,308 @@
+/* The diary: a card per day, the days before folded into their weeks, and on
+   a desktop the newest pictures beside them. */
+
+.diary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.days,
+.week {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* --- one day --- */
+
+.day {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px var(--space-3);
+  padding: 14px var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.dayPicture {
+  display: block;
+  width: 112px;
+  height: 84px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--card-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+.dayPicture img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The title, the climate and the share, beside the picture - or across the card where the day has none. */
+.dayHead {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.day > .dayHead:first-child {
+  grid-column: 1 / -1;
+}
+
+.dayTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.dayClimate {
+  font-family: var(--font-figure);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.dayShare {
+  font-family: var(--font-figure);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+}
+
+.dayShare[data-good] {
+  color: var(--green-ink);
+}
+
+.shareShort {
+  display: none;
+}
+
+.dayLines {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1 / -1;
+  gap: 10px;
+}
+
+.nothing {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.more {
+  align-self: flex-start;
+  min-height: var(--control-height);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+/* --- a row that opens or plays: the days of a week, a week's film --- */
+
+.row,
+.film {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  text-align: left;
+  color: var(--ink);
+}
+
+.film {
+  gap: var(--space-3);
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--weight-medium);
+}
+
+.rowLine {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+.chevron {
+  flex: none;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.chevron[data-open] {
+  transform: rotate(90deg);
+}
+
+.filmPlay {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-wash);
+  color: var(--brand);
+}
+
+.filmPlayer {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+/* --- beside the days, from the rail's width --- */
+
+.aside {
+  display: none;
+}
+
+.recent {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.recentHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.recentHead h2 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
+  color: var(--label);
+}
+
+.recentHead a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.recentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.recentGrid button {
+  height: 72px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--card-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+.recentGrid img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+/* On the narrowest phones the picture gives the words their room. */
+@media (max-width: 359px) {
+  .dayPicture {
+    width: 88px;
+    height: 66px;
+  }
+}
+
+@media (min-width: 900px) {
+  .diary {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--space-5);
+  }
+
+  .days {
+    flex: 1 1 0;
+  }
+
+  .aside {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: 340px;
+  }
+
+  /* The picture down the card's side, the title with the climate and the share on one line, the lines under it. */
+  .day {
+    grid-template-rows: auto 1fr;
+    gap: 6px var(--space-4);
+    padding: 14px;
+  }
+
+  .dayPicture {
+    grid-row: 1 / span 2;
+    width: 176px;
+    height: 124px;
+  }
+
+  .dayHead {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+
+  .dayTitle {
+    flex: 1;
+  }
+
+  .dayLines,
+  .nothing {
+    grid-column: auto;
+  }
+
+  .day > .dayHead:first-child ~ .dayLines,
+  .day > .dayHead:first-child ~ .nothing {
+    grid-column: 1 / -1;
+  }
+
+  .shareLong {
+    display: none;
+  }
+
+  .shareShort {
+    display: inline;
+  }
+}

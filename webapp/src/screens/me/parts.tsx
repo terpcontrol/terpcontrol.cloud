@@ -15,6 +15,7 @@ import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { ALL_GROWS } from '@/app/places';
 import { BackLink } from '@/ui/BackLink';
 import styles from './parts.module.css';
 
@@ -38,19 +39,23 @@ import styles from './parts.module.css';
  * in an installed app.
  *
  * A page with something to keep that the demo has none of says so in `demo`,
- * and the demo is shown that line in place of the page.
+ * and the demo is shown that line in place of the page. `grows` is a page
+ * that belongs to growing rather than to the account - the feeding schemes,
+ * the share links, the grows somebody follows - and is reached from "Alle
+ * Grows", so that is where it leads back.
  */
-export function MePage({ title, demo, children }: { title: string; demo?: string; children: ReactNode }) {
+export function MePage({ title, demo, grows = false, children }: { title: string; demo?: string; grows?: boolean; children: ReactNode }) {
   const { t } = useTranslation();
   const { user } = useSession();
+  const back = grows ? { to: ALL_GROWS, label: t('grow.all.title') } : { to: '/me', label: t('me.title') };
 
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <BackLink to="/me" label={t('me.title')} className={styles.back} />
+        <BackLink to={back.to} label={back.label} className={styles.back} />
         <h1 className={styles.title}>{title}</h1>
         <span className={`mono ${styles.crumb}`}>
-          <Link to="/me">{t('me.title')}</Link> › {title}
+          <Link to={back.to}>{back.label}</Link> › {title}
         </span>
       </header>
       {demo !== undefined && user?.isDemo === true ? <p className={`${ui.cardDashed} ${ui.note}`}>{demo}</p> : children}

@@ -2,9 +2,9 @@ import { Download, Leaf } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { GrowListItem, GrowReportPhase, Space } from '@fg2/shared-types/v1';
 import { exportFilename, useAskExport, useDownloadExport } from '@/api/exports';
-import { useGrowPhotoLines } from '@/api/entries';
 import { useGrowReport } from '@/api/grows';
 import { isBuilding, useMedia } from '@/api/media';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
@@ -15,9 +15,6 @@ import { dayNightFigure, decimalFigure, fileSize } from '@/ui/figures';
 import { growDayOf } from '@/ui/entries';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
-import { PictureViewer } from '@/ui/PictureViewer';
-import { useZone } from '@/ui/zone';
-import { pictureCaption, picturesOf } from './photos';
 import { useShape } from '@/app/shell/shape';
 import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -34,13 +31,22 @@ import styles from './Report.module.css';
  * wants it as the record rather than as a screen, and the record of a grow is
  * what this tab already is, so the zip is offered at the end of it.
  */
-export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spaces: Space[]; mayOwn: boolean; now: DateTime }) {
+export function Report({
+  grow,
+  spaces,
+  mayOwn,
+  now,
+  picturesTo,
+}: {
+  grow: GrowListItem;
+  spaces: Space[];
+  mayOwn: boolean;
+  now: DateTime;
+  /** The grow's pictures, which the count of them leads to. */
+  picturesTo: string;
+}) {
   const { t } = useTranslation();
-  const zone = useZone();
   const report = useGrowReport(grow.id);
-  const lines = useGrowPhotoLines(grow.id);
-  const [viewing, setViewing] = useState(false);
-  const pictures = picturesOf(grow, lines.data);
 
   if (report.isPending) return <Waiting lines={4} />;
   if (!report.data) return <LoadFailed retry={() => void report.refetch()} />;
@@ -59,16 +65,8 @@ export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spac
         <Total value={totals.entryCount} label={t('grow.report.entries')} />
         <Total value={totals.waterCount} label={t('grow.report.waters')} />
         <Total value={totals.feedCount} label={t('grow.report.feeds')} />
-        <Total value={totals.photoCount} label={t('grow.report.photos')} onOpen={pictures.length > 0 ? () => setViewing(true) : undefined} />
+        <Total value={totals.photoCount} label={t('grow.report.photos')} to={totals.photoCount > 0 ? picturesTo : undefined} />
       </dl>
-      {viewing ? (
-        <PictureViewer
-          pictures={pictures.map(picture => mediaUrl(picture.mediaId, THUMBNAIL_WIDTH.frame) ?? '')}
-          captions={pictures.map(picture => pictureCaption(t, picture, zone))}
-          from={pictures.length - 1}
-          onClose={() => setViewing(false)}
-        />
-      ) : null}
 
       {harvest ? (
         <p className={`mono ${styles.harvest}`}>
@@ -78,7 +76,7 @@ export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spac
         </p>
       ) : null}
 
-      {report.data.phases.length === 0 ? <p className={styles.empty}>{t('grow.noWeeks')}</p> : null}
+      {report.data.phases.length === 0 ? <p className={styles.empty}>{t('grow.report.noPhase')}</p> : null}
 
       {report.data.phases.map(chapter => (
         <Chapter
@@ -169,14 +167,14 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
 }
 
 /** One figure of the grow; the photos open the pictures they count. */
-function Total({ value, label, onOpen }: { value: number; label: string; onOpen?: () => void }) {
+function Total({ value, label, to }: { value: number; label: string; to?: string }) {
   return (
     <div>
       <dd className={`figure ${ui.stripValue} ${styles.totalValue}`}>
-        {onOpen ? (
-          <button type="button" className={styles.totalOpen} onClick={onOpen}>
+        {to ? (
+          <Link to={to} replace className={styles.totalOpen}>
             {value}
-          </button>
+          </Link>
         ) : (
           value
         )}

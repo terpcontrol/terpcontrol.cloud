@@ -5,7 +5,6 @@ import type { Co2Report, Device, Entry, SocketPage } from '@fg2/shared-types/v1'
 import { api } from '@/api/client';
 import { daysLeftOf, items as co2Items } from '@/screens/devices/advanced/Co2Report.advanced';
 import { items as sensorItems } from '@/screens/devices/advanced/SensorFactors.advanced';
-import { PhaseTips } from '@/screens/grow/PhaseTips';
 import { itemsFor } from '@/ui/advanced/registry';
 import { EntryRow } from '@/ui/EntryRow';
 import { drawAt } from './harness';
@@ -16,7 +15,7 @@ import { translate } from './translations';
  * them in its expert screens: the lamp's ramps, a fridge's fans, its
  * maintenance light and its compressor's rest, the leaf offsets and the lux
  * factor the cloud works VPD and PPFD out with, and the CO2 cylinder at the
- * place. And the phase tips, folded on the grow page.
+ * place.
  */
 
 vi.mock('@/api/client', () => ({
@@ -379,25 +378,5 @@ describe('the CO2 cylinder, under the device that doses from it', () => {
     );
 
     expect(screen.getByText(/New CO₂ cylinder 425 g/)).toBeInTheDocument();
-  });
-});
-
-describe('the phase tips', () => {
-  it('fold four tips for the phase the grow is in under one line', () => {
-    drawAt(<PhaseTips stage="flowering" />);
-
-    const section = screen.getByText('Tips for this stage').closest('details')!;
-    expect(section).not.toHaveAttribute('open');
-    expect(section.querySelectorAll('li')).toHaveLength(4);
-    expect(section).toHaveTextContent(/Keep humidity at or below 50 %/);
-  });
-
-  it('give germination its own tips in the dark and curing the end of drying´s, and nothing without a phase', () => {
-    drawAt(<PhaseTips stage="germination" />);
-    expect(screen.getByText(/^Seeds germinate dark and moist/)).toBeInTheDocument();
-    expect(screen.getByText(/it needs light: switch to “Seedling · with light”/)).toBeInTheDocument();
-
-    const { container } = drawAt(<PhaseTips stage={null} />);
-    expect(container).toBeEmptyDOMElement();
   });
 });

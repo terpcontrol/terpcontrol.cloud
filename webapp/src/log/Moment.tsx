@@ -19,11 +19,11 @@ import styles from './Moment.module.css';
  * and the time. The line is about something that has happened, so nothing after
  * now is accepted; changing only the day keeps the time that was there.
  *
- * `fixed` shows the moment without offering to change it, for the one line
- * whose effect starts when it is saved: maintenance parks the hardware now,
- * whatever day it would be dated to.
+ * `row` is the same control where the moment is asked before the kind of
+ * line: a row across the sheet, the question and its answer left and "Ändern"
+ * right.
  */
-export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at: Date) => void; fixed?: boolean }) {
+export function Moment({ at, onChange, row = false }: { at: Date | null; onChange: (at: Date) => void; row?: boolean }) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
@@ -39,7 +39,7 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
 
   // A line nobody dated is "now", and stays now while the sheet is open.
   const shown = at ?? now.toJSDate();
-  const label = fixed ? t('log.now') : momentLabel(t, shown, now, zone);
+  const label = momentLabel(t, shown, now, zone);
 
   // Placed against the window rather than inside the sheet, whose edge would
   // cut it off: under the moment where the sheet has room for it, over it
@@ -73,8 +73,6 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
     return () => document.removeEventListener('pointerdown', away);
   }, [open]);
 
-  if (fixed) return <span className={`mono ${styles.fixed}`}>{label}</span>;
-
   const close = () => {
     setOpen(false);
     toggle.current?.focus();
@@ -90,7 +88,7 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
 
   return (
     <div
-      className={styles.moment}
+      className={row ? styles.row : styles.moment}
       ref={frame}
       onKeyDown={event => {
         // Escape puts the pop-up away and leaves the sheet under it open.
@@ -99,10 +97,16 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
         close();
       }}
     >
+      {row ? (
+        <span className={styles.asked}>
+          {t('log.moment.title')}
+          <span className={styles.answer}>{label}</span>
+        </span>
+      ) : null}
       <button
         ref={toggle}
         type="button"
-        className={`mono ${styles.button}`}
+        className={row ? styles.change : `mono ${styles.button}`}
         aria-expanded={open}
         aria-controls={id}
         aria-label={t('log.moment.change', { when: label })}
@@ -114,8 +118,14 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
           setOpen(true);
         }}
       >
-        {label}
-        <Pencil size={13} strokeWidth={2} aria-hidden />
+        {row ? (
+          t('log.moment.edit')
+        ) : (
+          <>
+            {label}
+            <Pencil size={13} strokeWidth={2} aria-hidden />
+          </>
+        )}
       </button>
       {open ? (
         <div ref={popover} className={styles.popover} style={place} id={id} role="group" aria-label={t('log.moment.title')}>

@@ -34,11 +34,36 @@
   border-color: var(--brand);
 }
 
-.fixed {
-  flex: none;
-  align-self: center;
+/* The same moment asked across a sheet: the question and its answer, and the button that changes it. */
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.asked {
+  flex: 1;
+  min-width: 0;
   font-size: var(--text-sm);
+}
+
+.answer {
+  display: block;
+  font-family: var(--font-figure);
   color: var(--muted);
+}
+
+.change {
+  flex: none;
+  min-height: var(--control-height);
+  padding: 0 14px;
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }
 
 /* Fixed, and placed by the component: inside the sheet it would be cut off at

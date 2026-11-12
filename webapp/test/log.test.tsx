@@ -260,8 +260,8 @@ const openSheet = async () => {
   draw();
   fireEvent.click(screen.getByRole('button', { name: 'open' }));
   await screen.findByRole('dialog', { name: 'Log' });
-  // The captions arrive with the grow and its newest lines, a moment after the tiles.
-  await waitFor(() => expect(screen.getByText(/^2 L · last /)).toBeInTheDocument());
+  // A tile opens once the grow and its newest lines are here, a moment after it is drawn.
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Water' })).toBeEnabled());
 };
 
 beforeAll(async () => {
@@ -284,7 +284,7 @@ beforeEach(() => {
 });
 
 describe('the log sheet', () => {
-  it('offers the eight tiles with what was logged last time on them, against the grow, its tent and its plants', async () => {
+  it('offers the seven tiles against the grow, its tent and its plants, and asks when it was', async () => {
     await openSheet();
     const sheet = screen.getByRole('dialog', { name: 'Log' });
 
@@ -292,30 +292,49 @@ describe('the log sheet', () => {
     expect(within(sheet).getByRole('button', { name: 'Tent 1' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Amnesia 1' })).toBeInTheDocument();
 
-    const tiles = ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'Phase', 'Maintenance · 15 min'];
-    for (const tile of tiles) expect(within(sheet).getByRole('button', { name: new RegExp(`^${tile}`) })).toBeInTheDocument();
+    for (const tile of ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'Phase']) {
+      expect(within(sheet).getByRole('button', { name: tile })).toBeInTheDocument();
+    }
+    // Maintenance is started from Start and from a device, and is no kind of line.
+    expect(within(sheet).queryByRole('button', { name: /Maintenance/ })).not.toBeInTheDocument();
+    // When it happened is asked at the sheet's foot; a line nobody dated is now.
+    expect(within(sheet).getByText('When was this?')).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: /^Change when: today · \d\d:\d\d$/ })).toHaveTextContent('Change');
+  });
 
-    // The captions: the last can, the scheme's week, the grow's own measurements, the phase after this one.
-    expect(within(sheet).getByText('2 L · last 3 d')).toBeInTheDocument();
-    expect(within(sheet).getByText('scheme wk 5 · Bio·Bloom')).toBeInTheDocument();
-    expect(within(sheet).getByText('Height · pH')).toBeInTheDocument();
-    expect(within(sheet).getByText('→ Drying')).toBeInTheDocument();
+  it('dates a line to the moment said on the sheet, before its kind is chosen', async () => {
+    await openSheet();
+    const sheet = screen.getByRole('dialog', { name: 'Log' });
+    fireEvent.click(within(sheet).getByRole('button', { name: /^Change when/ }));
+    fireEvent.change(within(sheet).getByLabelText('Date'), { target: { value: '2026-09-11' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Apply' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Water' }));
+
+    // The view opens dated to that moment, where it can still be changed, and writes the line to it.
+    const details = await screen.findByRole('dialog', { name: 'Water' });
+    expect(within(details).getByRole('button', { name: /^Change when: 11 Sep \d\d:\d\d$/ })).toBeInTheDocument();
+    fireEvent.click(within(details).getByRole('button', { name: /^Save/ }));
+    const [[, body]] = vi.mocked(api.post).mock.calls;
+    const dated = new Date((body as { occurredAt: string }).occurredAt);
+    expect([dated.getFullYear(), dated.getMonth() + 1, dated.getDate()]).toEqual([2026, 9, 11]);
+    expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
   });
 
   /**
-   * Seven of the eight tiles write a diary line, which is what somebody is let
+   * Six of the seven tiles write a diary line, which is what somebody is let
    * into a tent to do. A phase is not one: it moves the grow to another stage
-   * and puts the tent's climate on it, which the Control tab already refuses a
+   * and puts the tent's climate on it, which Steuerung already refuses a
    * member - so the tile is gone rather than there and refused on save.
    */
-  it('keeps the seven that write a line for a member, and drops the phase', async () => {
+  it('keeps the six that write a line for a member, and drops the phase', async () => {
     may.youMay = 'log';
     await openSheet();
     const sheet = screen.getByRole('dialog', { name: 'Log' });
 
-    for (const tile of ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'Maintenance · 15 min'])
-      expect(within(sheet).getByRole('button', { name: new RegExp(`^${tile}`) })).toBeInTheDocument();
-    expect(within(sheet).queryByRole('button', { name: /^Phase/ })).not.toBeInTheDocument();
+    for (const tile of ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training']) {
+      expect(within(sheet).getByRole('button', { name: tile })).toBeInTheDocument();
+    }
+    expect(within(sheet).queryByRole('button', { name: 'Phase' })).not.toBeInTheDocument();
   });
 
   it('opens a tile on a tap with the last can and the moment in its corner, saves it, says so, and takes it back again', async () => {
@@ -492,24 +511,6 @@ describe('the log sheet', () => {
   });
 
   /**
-   * Maintenance reaches the hardware, so a tent whose device has gone quiet is
-   * not offered it: the command would be heard by nobody, and the tile read as
-   * if the tent were being looked after. A place without a camera is not told
-   * about a cam still either.
-   */
-  it('offers no maintenance where the place is offline', async () => {
-    const quiet = { ...home.spaces[0], values: [{ ...home.spaces[0].values[0], measuredAt: daysAgo(1), state: 'offline' as const }] };
-    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/home' ? { ...home, spaces: [quiet] } : answers(path)));
-    await openSheet();
-    const sheet = screen.getByRole('dialog', { name: 'Log' });
-
-    expect(within(sheet).getByRole('button', { name: /^Water/ })).toBeInTheDocument();
-    expect(within(sheet).queryByRole('button', { name: /^Maintenance/ })).not.toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: /^Photo/ })).toHaveTextContent('with your phone');
-    expect(within(sheet).queryByText(/cam still/)).not.toBeInTheDocument();
-  });
-
-  /**
    * The tent's cam fills the timeline on its own, so the photo entry is the
    * phone's: it opens on the picker, keeps adding rather than replacing, and
    * every picture can be turned or dropped before it goes up.
@@ -618,98 +619,6 @@ describe('the log sheet', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ mediaIds: ['media-a'] })));
     const [, body] = vi.mocked(api.post).mock.calls.find(([path]) => path === '/entries')!;
     expect((body as { occurredAt: string }).occurredAt).toMatch(/^2026-09-1[45]T/);
-  });
-
-  /**
-   * Maintenance is the one tile whose line is the smaller half of what it does:
-   * the server puts every device standing in the place into maintenance mode for
-   * a quarter of an hour, and deleting the line afterwards leaves them parked. So
-   * it asks first, names what it reaches by the names those rows carry, and the
-   * toast does not offer an Undo that would only be half of one.
-   */
-  it('asks before it starts maintenance, names every device it will quieten, and offers no Undo for the quiet', async () => {
-    await openSheet();
-    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
-    fireEvent.click(screen.getByRole('button', { name: /^Maintenance · 15 min/ }));
-
-    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 min' });
-    expect(api.post).not.toHaveBeenCalled();
-    expect(await within(asked).findByText(/pauses the control of all 2 devices in Tent 1 for 15 minutes/)).toBeInTheDocument();
-    // By the name each device's own row carries, and only the ones standing here:
-    // the one plug of the account is called a plug, with no tail of its id.
-    expect(within(asked).getByText('Big tent controller')).toBeInTheDocument();
-    expect(within(asked).getByText('Plantalytix Socket')).toBeInTheDocument();
-    expect(within(asked).queryByText('Somewhere else')).not.toBeInTheDocument();
-    // The window is fifteen minutes and the quiet is twenty-five: the engine
-    // holds a worked-on device's alarms for ten minutes after it is let go, and
-    // the panel that promised the window alone was ten minutes short.
-    expect(within(asked).getByText(/after 15 minutes the devices regulate again/)).toBeInTheDocument();
-    expect(within(asked).getByText(/alarms stay quiet for 25 minutes in all/)).toBeInTheDocument();
-    // The moment is not asked for: the quiet starts when this is saved, so the line is now.
-    expect(within(asked).getByText('now')).toBeInTheDocument();
-    expect(within(asked).queryByRole('button', { name: /^Change when/ })).not.toBeInTheDocument();
-
-    fireEvent.click(within(asked).getByRole('button', { name: 'Start maintenance · 2 devices' }));
-
-    expect(api.post).toHaveBeenCalledWith('/entries', {
-      kind: 'visit',
-      growId: undefined,
-      spaceId: 'space-1',
-      plantIds: undefined,
-      text: undefined,
-      values: { kind: 'visit' },
-    });
-
-    expect(await screen.findByText('Maintenance · Tent 1')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
-  });
-
-  /**
-   * The sentence over the list used to promise a heater, a dehumidifier and a
-   * CO2 valve for every place, above a list that may hold a plug, a fan or a
-   * lamp - hardware with none of the three, whose firmware drops the order
-   * without a word. Two devices stand in Tent 1 and only one of them parks
-   * anything, so the panel has to say which.
-   */
-  it('names what each device will stop, and says so where the hardware stops nothing', async () => {
-    await openSheet();
-    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
-    fireEvent.click(screen.getByRole('button', { name: /^Maintenance · 15 min/ }));
-
-    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 min' });
-    const controller = (await within(asked).findByText('Big tent controller')).closest('li')!;
-    expect(controller).toHaveTextContent('stops the heater, the dehumidifier and the CO₂ valve');
-
-    const plug = within(asked).getByText('Plantalytix Socket').closest('li')!;
-    expect(plug).toHaveTextContent('stops nothing: this hardware takes no maintenance command');
-    expect(plug).not.toHaveTextContent('heater');
-  });
-
-  /** A controller with no CO₂ sensor holds its CO₂ target at zero, so it has no valve running to stop. */
-  it('leaves the CO₂ valve out for a controller that reports no CO₂ sensor', async () => {
-    vi.mocked(api.get).mockImplementation((path: string) =>
-      Promise.resolve(path === '/devices' ? { items: [{ ...standing[0], state: { hardware: { co2: 'off' } } }], nextCursor: null } : answers(path)),
-    );
-    await openSheet();
-    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
-    fireEvent.click(screen.getByRole('button', { name: /^Maintenance · 15 min/ }));
-
-    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 min' });
-    const controller = (await within(asked).findByText('Big tent controller')).closest('li')!;
-    expect(controller).toHaveTextContent('stops the heater and the dehumidifier');
-    expect(controller).not.toHaveTextContent('CO₂');
-  });
-
-  it('says so where nothing stands to be quietened, rather than promising an effect it will not have', async () => {
-    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/devices' ? { items: [], nextCursor: null } : answers(path)));
-
-    await openSheet();
-    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
-    fireEvent.click(screen.getByRole('button', { name: /^Maintenance · 15 min/ }));
-
-    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 min' });
-    expect(await within(asked).findByText('Nothing stands in Tent 1, so this is a line in the diary and nothing else.')).toBeInTheDocument();
-    expect(within(asked).getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 
   /**

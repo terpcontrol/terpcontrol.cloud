@@ -248,15 +248,10 @@
    edge while there is more to scroll; at the end of the row it stands in a
    space of its own after the last item, and a row that fits pushes it into
    the empty space at its end, so it never covers what nobody can scroll to.
-   It fades into `--veil-colour`, the page unless the row stands on a card.
-   `.scrollRowNarrow` scrolls only on a phone and a tablet and wraps from the
-   rail's width up. */
-.scrollRow,
-.scrollRowNarrow {
-  --veil-colour: var(--bg);
-}
-
+   It fades into `--veil-colour`, the page unless the row stands on a card. */
 .scrollRow {
+  --veil-colour: var(--bg);
+
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -280,38 +275,6 @@
   margin-left: auto;
   background: linear-gradient(to right, transparent, var(--veil-colour));
   pointer-events: none;
-}
-
-.scrollRowNarrow {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-@media (max-width: 899px) {
-  .scrollRowNarrow {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .scrollRowNarrow::-webkit-scrollbar {
-    display: none;
-  }
-
-  .scrollRowNarrow > * {
-    flex-shrink: 0;
-  }
-
-  .scrollRowNarrow::after {
-    content: '';
-    position: sticky;
-    right: 0;
-    flex: none;
-    width: 40px;
-    margin-left: auto;
-    background: linear-gradient(to right, transparent, var(--veil-colour));
-    pointer-events: none;
-  }
 }
 
 /* A few figures read as one strip, a hairline between each, the way a tent's

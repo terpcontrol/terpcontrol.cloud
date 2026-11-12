@@ -1,6 +1,6 @@
 import type { Translate } from '@/i18n/i18n';
 import { type DateTime } from 'luxon';
-import type { Camera, GrowListItem, Me, Scheme, ShareLink, UnitPreference } from '@fg2/shared-types/v1';
+import type { Camera, GrowListItem, Me, MyGrowCard, Scheme, ShareLink, UnitPreference } from '@fg2/shared-types/v1';
 import { growSchemeLabel, type SchemeSummary } from '@/api/schemes';
 import { isAhead } from '@/ui/age';
 import { calendarDay } from '@/ui/zone';
@@ -41,6 +41,19 @@ export const publicLine = (t: Translate, grows: GrowListItem[], me: Me, host: st
 
 /** Where the profile is, or that it is off: the address is only worth reading when something answers at it. */
 const profilePart = (t: Translate, me: Me, host: string): string => (me.publicProfile ? `${host}/@${me.handle}` : t('me.door.public.profileOff'));
+
+/** "2 laufend · 3 beendet", leaving out a half that holds nothing; or that there are none yet. */
+export const growsLine = (t: Translate, grows: MyGrowCard[]): string => {
+  const running = grows.filter(grow => grow.endedAt === null).length;
+  const finished = grows.length - running;
+
+  return (
+    joined([
+      running > 0 ? t('me.door.grows.running', { count: running }) : null,
+      finished > 0 ? t('me.door.grows.finished', { count: finished }) : null,
+    ]) || t('me.door.grows.none')
+  );
+};
 
 export const followingLine = (t: Translate, count: number): string =>
   count === 0 ? t('me.door.following.none') : t('me.door.following.grows', { count });

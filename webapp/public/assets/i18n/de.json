@@ -772,7 +772,8 @@
       "overdue_other": "{{count}} T überfällig",
       "inDays": "in {{count}} T",
       "dueSince": "seit {{time}} fällig"
-    }
+    },
+    "entrySchemeWeek": "Schema-Woche {{week}}"
   },
   "me": {
     "title": "Ich",
@@ -900,6 +901,13 @@
       "addDevice": {
         "title": "Gerät oder Kamera hinzufügen",
         "line": "Ein Controller misst und regelt das Klima, eine Kamera macht Bilder fürs Tagebuch"
+      },
+      "grows": {
+        "running_one": "{{count}} laufend",
+        "running_other": "{{count}} laufend",
+        "finished_one": "{{count}} beendet",
+        "finished_other": "{{count}} beendet",
+        "none": "noch keine Grows"
       }
     },
     "privacy": {
@@ -1194,10 +1202,11 @@
   "grow": {
     "tabsLabel": "Grow-Seite",
     "tabs": {
-      "weeks": "Wochen",
       "plants": "Pflanzen",
       "feeding": "Düngung",
-      "report": "Bericht"
+      "report": "Bericht",
+      "diary": "Tagebuch",
+      "pictures": "Bilder"
     },
     "phaseBarLabel": "Phasenverlauf, jetzt in {{stage}}",
     "stageShort": {
@@ -1215,14 +1224,12 @@
     "dayRange": "Tag {{from}}–{{to}}",
     "dayShort": "T {{day}}",
     "correctLine": "Diesen Eintrag berichtigen",
-    "thisWeek": "diese Woche",
     "dayStillAlt": "Tag {{day}}",
     "dayNight": "Tag / Nacht",
     "average": "Mittel",
     "humidity": "Feuchte",
     "light": "Licht",
     "ownScheme": "Eigenes Schema",
-    "nothingThisWeek": "diese Woche nichts",
     "feedsDone": "{{done}} / {{planned}} erledigt",
     "noEntriesThisWeek": "Diese Woche noch nichts eingetragen",
     "noEntriesThisWeekEnded": "In dieser Woche wurde nichts eingetragen",
@@ -1231,28 +1238,7 @@
     "earlierWeeks": "Frühere Wochen",
     "ended": "beendet {{date}}",
     "finalDay": "letzter Tag",
-    "mine": {
-      "title": "Meine Grows",
-      "running": "Laufend",
-      "finished": "Abgeschlossen",
-      "runningCount_one": "{{count}} laufend",
-      "runningCount_other": "{{count}} laufend",
-      "finishedCount_one": "{{count}} abgeschlossen",
-      "finishedCount_other": "{{count}} abgeschlossen",
-      "none": "noch keine Grows",
-      "new": "Neuer Grow",
-      "sharedBy": "von @{{handle}}",
-      "ran": "{{from}} – {{to}}",
-      "toDay": "bis Tag {{day}}",
-      "harvest": "Ernte",
-      "noneRunning": "Gerade läuft kein Grow.",
-      "noneFinished": "Noch nichts abgeschlossen · ein Grow erscheint hier, sobald du ihn erntest oder beendest.",
-      "emptyTitle": "Noch kein Grow",
-      "emptyText": "Hier stehen alle deine Grows – die laufenden und die abgeschlossenen, jeder mit Bild, Ort und Ernte. Starte einen Grow, und er erscheint hier.",
-      "partial": "Es sind mehr, als auf einmal gelesen werden konnten; öffne die Seite erneut, um weiterzulesen."
-    },
     "phaseBarEndedLabel": "Phasenverlauf, beendet in {{stage}}",
-    "noWeeks": "Noch keine Phase · die Wochen beginnen mit der ersten Phase",
     "noFixedPlace": "Kein fester Ort",
     "stoodIn": "stand in {{name}}",
     "rename": {
@@ -1296,7 +1282,8 @@
         "download": "Herunterladen · {{size}}",
         "failedPlain": "Die Datei konnte nicht erstellt werden.",
         "noteNoClimate": "Alles über diesen Grow in einem Zip: das Tagebuch und die Messwerte als CSV, und jedes Foto davon."
-      }
+      },
+      "noPhase": "Noch keine Phase · der Bericht beginnt mit der ersten Phase"
     },
     "nothingMeasured": "Diese Woche nichts gemessen",
     "presetName": {
@@ -1304,7 +1291,6 @@
       "autoflower": "Auto"
     },
     "lifecycle": {
-      "actionsLabel": "Was mit diesem Grow passiert",
       "actions": {
         "phase": "Phase",
         "move": "Umziehen",
@@ -1671,10 +1657,71 @@
       "takeTheirs": "Deren übernehmen"
     },
     "youMayLog": "Du darfst in das Tagebuch dieses Grows schreiben. Umziehen, teilen und ernten kann nur, wer den Ort steuert, an dem er steht.",
-    "schemeWeek": "Schema-Woche {{week}}",
-    "phaseFor_one": "seit {{count}} Tag",
-    "phaseFor_other": "seit {{count}} Tagen",
-    "openDayPicture": "Bilder ab Tag {{day}} ansehen"
+    "menu": {
+      "label": "Mehr zu {{name}}",
+      "more": "Mehr"
+    },
+    "all": {
+      "title": "Grows",
+      "pill": "Alle Grows",
+      "new": "Neuer Grow",
+      "none": "Noch kein Grow",
+      "running": "Laufend",
+      "finished": "Beendet",
+      "beside": "Dazu",
+      "sharedBy": "von @{{handle}}",
+      "harvested": "geerntet im {{month}}",
+      "ended": "beendet im {{month}}",
+      "partial": "Es sind mehr, als auf einmal gelesen werden konnten; öffne die Seite erneut, um weiterzulesen."
+    },
+    "diary": {
+      "today": "Heute",
+      "yesterday": "Gestern",
+      "lightOn": "Licht an",
+      "lightOff": "Licht aus",
+      "above": "{{metric}} {{span}} zu hoch",
+      "below": "{{metric}} {{span}} zu niedrig",
+      "aboveOften": "{{metric}} {{count}}× zu hoch · zusammen {{span}}",
+      "belowOften": "{{metric}} {{count}}× zu niedrig · zusammen {{span}}",
+      "byItself": "von allein",
+      "inTarget": "{{percent}} % der Zeit im Ziel",
+      "inTargetShort": "{{percent}} % im Ziel",
+      "nothingYet": "Heute noch kein Eintrag",
+      "empty": "Noch nichts im Tagebuch",
+      "openCamera": "Kamera öffnen",
+      "openPicture": "Bild öffnen",
+      "photoAlt": "Foto von Tag {{day}}",
+      "stillAlt": "Kamerabild von Tag {{day}}",
+      "recentPictures": "Bilder der letzten Tage",
+      "allPictures": "Alle",
+      "weekFilm": "Wochenfilm",
+      "days": "Tag {{from}} bis {{to}}",
+      "filmIn_one": "{{days}} in {{count}} Sekunde",
+      "filmIn_other": "{{days}} in {{count}} Sekunden",
+      "written_one": "{{count}} Eintrag",
+      "written_other": "{{count}} Einträge"
+    },
+    "pictures": {
+      "makeEntry": "Als Eintrag ins Tagebuch",
+      "makeCover": "Als Titelbild",
+      "isCover": "Ist das Titelbild",
+      "camera": "Kamera",
+      "yours": "Dein Foto",
+      "photo": "Foto",
+      "whichLabel": "Welche Bilder",
+      "which": {
+        "all": "Alle",
+        "photos": "Deine Fotos",
+        "camera": "Kamera"
+      },
+      "none": {
+        "all": "Noch keine Bilder",
+        "photos": "Noch keine Fotos im Tagebuch",
+        "camera": "Noch kein Kamerabild"
+      },
+      "thisWeek": "Diese Woche · ab Tag {{day}}",
+      "add": "Foto aufnehmen"
+    }
   },
   "space": {
     "control": {
@@ -2128,7 +2175,6 @@
     "nowhere": "Noch nichts da, wofür sich ein Eintrag lohnt · zuerst einen Grow starten oder ein Gerät hinzufügen",
     "notHere": "Der Grow oder Ort aus diesem Link steht nicht auf deiner Startseite · vielleicht ist er zu Ende, vielleicht darfst du dort nicht schreiben · wähle, wohin der Eintrag gehört",
     "litres": "{{litres}} l",
-    "lastAgo": "zuletzt vor {{age}}",
     "tile": {
       "water": "Gießen",
       "feed": "Düngen",
@@ -2136,24 +2182,11 @@
       "note": "Notiz",
       "measurement": "Messen",
       "training": "Training",
-      "phase": "Phase",
-      "visit": "Wartung · {{minutes}} Min",
-      "photoCaption": "mit dem Handy",
-      "visitCaption": "Regelung und Alarme pausieren",
-      "schemeWeek": "Schema-Wo {{week}}"
+      "phase": "Phase"
     },
     "visit": {
-      "hereFallback": "diesem Ort",
-      "reading": "Lese, was in {{name}} steht …",
-      "parks_one": "„Wartung starten“ pausiert die Regelung des Geräts in {{name}} für {{minutes}} Minuten. Was dabei aus geht, steht neben seinem Namen.",
       "parksOutputs": "stellt {{outputs}} ab",
-      "parksNothing": "stellt nichts ab: Diese Hardware kennt den Wartungsbefehl nicht",
-      "parks_other": "„Wartung starten“ pausiert die Regelung aller {{count}} Geräte in {{name}} für {{minutes}} Minuten. Was dabei aus geht, steht neben dem Namen.",
-      "nothingThere": "In {{name}} steht nichts, das ist also eine Zeile im Tagebuch und sonst nichts.",
-      "unreadable": "Was in {{name}} steht, ließ sich nicht lesen, hier lässt sich also nichts benennen. In den Wartungsmodus für {{minutes}} Minuten geht trotzdem jedes Gerät dort.",
-      "notUndone": "Den Tagebucheintrag kannst du zurücknehmen, die Wartung nicht: Nach {{minutes}} Minuten regeln die Geräte wieder, und Alarme bleiben insgesamt {{quiet}} Minuten still – die letzten {{settle}}, während sich das Klima erholt.",
-      "save_one": "Wartung starten · {{count}} Gerät",
-      "save_other": "Wartung starten · {{count}} Geräte"
+      "parksNothing": "stellt nichts ab: Diese Hardware kennt den Wartungsbefehl nicht"
     },
     "water": "Wasser",
     "less": "Weniger Wasser",
@@ -2214,7 +2247,8 @@
       "apply": "Übernehmen",
       "ahead": "Das liegt in der Zukunft. Ein Eintrag hält fest, was schon passiert ist.",
       "climateNow": "Im Tagebuch beginnt die Phase zum gewählten Zeitpunkt. Das Klima stellt sich trotzdem erst jetzt um.",
-      "fromPicture": "Zeitpunkt aus dem ersten Foto übernommen"
+      "fromPicture": "Zeitpunkt aus dem ersten Foto übernommen",
+      "edit": "Ändern"
     }
   },
   "timeline": {
@@ -3840,11 +3874,11 @@
     },
     "growDay": {
       "title": "Grow-Tag",
-      "text": "Tag 1 ist der Tag, an dem der Grow begann; jeder weitere Tag sind 24 Stunden mehr ab diesem Moment. Der Zähler beginnt mit der ersten Phase und bleibt stehen, wenn der Grow endet."
+      "text": "Tag 1 ist der Tag, an dem der Grow begann. Der Zähler geht alle 24 Stunden ab diesem Moment weiter und bleibt stehen, wenn der Grow endet. Das Tagebuch zeigt Kalendertage: Tag 1 ist das Datum, an dem der Grow begann, das nächste Datum Tag 2. Bis zu der Uhrzeit, zu der der Grow begann, ist die Karte von heute dem Zähler deshalb einen Tag voraus."
     },
     "growWeek": {
       "title": "Woche der Phase",
-      "text": "„Veg Woche 2“ ist die zweite Woche, die der Grow in Veg steht. Wie weit der Grow insgesamt ist, sagt der Tag: Tag 1 ist der Tag, an dem er begann. Die Wochenkarten heißen nach ihren Tagen und tragen die Woche der Phase, in der der größte Teil der Woche lag."
+      "text": "„Veg Woche 2“ ist die zweite Woche, die der Grow in Veg steht. Wie weit der Grow insgesamt ist, sagt der Tag: Tag 1 ist der Tag, an dem er begann. Im Tagebuch heißt eine Woche nach ihren Tagen und trägt die Phase, in der der größte Teil der Woche lag."
     },
     "autoTag": {
       "title": "auto",
@@ -3865,10 +3899,6 @@
     "growEnds": {
       "title": "Den Grow beenden",
       "text": "Sind die letzten Pflanzen geerntet, endet der Grow an diesem Tag: Danach lässt sich nichts mehr datieren, und in der App kann er nicht wieder geöffnet werden. Trag Trocknung und Reifung vorher ein, wenn sie ins Tagebuch gehören."
-    },
-    "myGrows": {
-      "title": "Meine Grows",
-      "text": "Hier stehen alle Grows, die du siehst: deine eigenen und die an Orten, zu denen dich jemand eingeladen hat – diese tragen den Namen dessen, dem sie gehören („von @…“). Laufende stehen oben, abgeschlossene darunter, die neuesten zuerst. Abgeschlossen ist ein Grow, sobald die letzten Pflanzen geerntet sind oder du ihn beendest; dann steht dort, von wann bis wann er lief und bis zu welchem Grow-Tag. Grow-Tage zählen wie auf der Grow-Seite je 24 Stunden ab dem Start und können deshalb um einen von den Kalendertagen abweichen. Das Bild ist das neueste Kamerabild bei Licht aus der Zeit, in der der Grow vor der Kamera stand – sonst das neueste Foto aus seinem Tagebuch."
     },
     "dayNightAverages": {
       "title": "Tag / Nacht",
@@ -4089,10 +4119,6 @@
     "lux": {
       "title": "Lichtstärke",
       "text": "Wie hell es am Lichtsensor ist, in Lux. Die Kurve zeigt, wann und wie stark die Lampe leuchtet. Wie viel davon die Pflanze nutzen kann, sagt der PPFD-Wert, der aus den Lux geschätzt wird."
-    },
-    "schemeWeek": {
-      "title": "Schema-Woche",
-      "text": "Ein Düngeschema zählt die Wochen ab dem ersten Tag des Grows, nicht ab dem Beginn der Phase: Schema-Woche 3 sind die Tage 15–21. Darum kann sie von „Veg Woche 2“ abweichen. Die Mengen auf der Düngen-Kachel und auf der Wochenkarte sind die dieser Woche."
     },
     "climateControl": {
       "title": "Regelung",

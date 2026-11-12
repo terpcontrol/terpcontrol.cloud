@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry } from '@fg2/shared-types/v1';
@@ -477,5 +477,13 @@ describe('who a line is by', () => {
 
     expect(line).toHaveTextContent('anna watered');
     expect(line.textContent).not.toMatch(/anna:/);
+  });
+
+  it('says how much was poured, and for a feed the week of the scheme it was dosed by', () => {
+    expect(row({ kind: 'water', values: { kind: 'water', litres: 1.5, readings: [] } })).toHaveTextContent('You watered · 1.5 L');
+    cleanup();
+    expect(row({ kind: 'feed', values: { kind: 'feed', litres: 5, schemeWeek: 5, doses: [], readings: [] } })).toHaveTextContent(
+      'You fed · 5 L · scheme week 5',
+    );
   });
 });

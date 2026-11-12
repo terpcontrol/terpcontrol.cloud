@@ -40,14 +40,14 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
   inconsistent, the charts are less precise and less intuitive than the old app's). The direction is chosen (Chris,
   2026-11-11; internal notes exist) and a click prototype outside the app comes before any change to it. The new
   routes need no redirects from today's, and a change to the data model comes as a migration step (Chris,
-  2026-11-11). It is built in rounds; the bar, the header's choice of place and the addresses are in since
-  2026-11-12 ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)), the pages follow. A read of the
+  2026-11-11). It is built in rounds; the bar, the header's choice of place, the addresses, Start and the grow page
+  with its diary by the day are in since 2026-11-12
+  ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)), the other pages follow. A read of the
   whole web app on 2026-11-11 found, as the things the redesign still has to settle:
-  - The diary is the grow page's tab "Wochen": the bar's Grow opens the grow, and no tab or title reads the diary.
   - Steuerung and Geräte show the same devices from two sides and draw the same `DeviceAdvanced`
     (`screens/control/targets/Targets.tsx`, `screens/devices/DeviceList.tsx`).
   - Verlauf and Graphen are two screens over one engine. Verlauf's windows all end now and it cannot zoom; Graphen
-    can step back and zoom, is reached by a chip in Verlauf's range row and one on the grow page, and opens on 24 h
+    can step back and zoom, is reached by a chip in Verlauf's range row, and opens on 24 h
     whatever Verlauf showed. On touch a drag only moves the cursor (`webapp/src/charts/scrub.ts`), so zooming is the
     button "Hineinzoomen", and every zoom is a new read.
   - A curve's automatic step is `max(60 s, range / 480)` and each point a mean without minimum and maximum
@@ -68,6 +68,11 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     rest of the picture the camera; declining the diary is answered with an undo; the head of a place's Start is
     the place's name, also where it only holds a grow; from 900 px the desktop Start stays one column until two
     fit, and with several places each card says when something is due there.
+  - The grow page's diary left two things open (2026-11-12). Its days are dates on the owner's calendar while the
+    counter beside the grow's name (`growDayAt`) counts 24 hours from the hour the grow began, so until that hour
+    today's card is one ahead of the head ([app-wording.md](knowledge/app-wording.md), Grow time); which of the two
+    counts is not decided. And the public page and the share link still draw week cards
+    (`GET /v1/grows/{id}/weeks`, `ui/WeekCardParts`), which go once they draw the day cards too.
 
 - **Unit preferences are saved, not applied.** Me › Appearance stores °C/°F, g/oz and l/gal (`preferences.units`),
   but every figure is still drawn in °C, g and l, as the page's `unitsNote` tells the reader; only the Me screen's

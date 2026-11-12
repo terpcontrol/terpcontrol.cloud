@@ -1,44 +1,37 @@
-import { Camera, ChartNoAxesColumn, Droplet, FlaskConical, Leaf, Pencil, Scissors, Wrench, type LucideIcon } from 'lucide-react';
-import type { DateTime } from 'luxon';
+import { Camera, Droplet, Flag, FlaskConical, Gauge, Pencil, TrendingUp, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { GrowListItem } from '@fg2/shared-types/v1';
 import { useRecentEntries } from '@/api/entries';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { useHome } from '@/api/home';
-import type { Translate } from '@/i18n/i18n';
-import { livenessOf } from '@/screens/start/attention';
-import { ageLabel } from '@/ui/age';
-import { VISIT_MINUTES } from '@/ui/maintenance';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import { Choice } from '@/ui/SheetParts';
-import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
-import { lastCan, newestOf, nextStage, schemeStep } from './defaults';
 import { TILE_KINDS, useLog, type LogOpening, type LogTarget, type TileKind } from './log-context';
+import { Moment } from './Moment';
 import { narrowerTargets, openingTarget, targetsOf } from './targets';
 import { Sheet } from '@/ui/Sheet';
-import { looseFigure } from '@/ui/figures';
 import styles from './Log.module.css';
 
 /**
- * The Log sheet: what the line is about, and the eight things it can be.
+ * The entry sheet: what the line is about, the seven things it can be, and
+ * when it happened.
  *
  * A tap on a tile opens its view, filled in with what was done last time, and
  * Save there writes it. Nothing is written straight off a tile and nothing
- * hides behind a long press (Chris, 2026-10-21): the view is where a line shows
- * when it happened, and where a line written after the fact is dated.
+ * hides behind a long press (Chris, 2026-10-21). When it happened is asked
+ * here, at the sheet's foot, for a line written after the fact; the view it
+ * opens shows that moment in its corner, where it can still be changed.
  */
 
-const ICONS: Record<TileKind, LucideIcon> = {
+const ICONS: Partial<Record<TileKind, LucideIcon>> = {
   water: Droplet,
   feed: FlaskConical,
   photo: Camera,
   note: Pencil,
-  measurement: ChartNoAxesColumn,
-  training: Scissors,
-  phase: Leaf,
-  visit: Wrench,
+  measurement: Gauge,
+  training: TrendingUp,
+  phase: Flag,
 };
 
 interface LogSheetProps {
@@ -51,7 +44,6 @@ interface LogSheetProps {
 
 export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps) {
   const { t } = useTranslation();
-  const now = useNow();
   const { openDetails } = useLog();
   const { data: home, isPending } = useHome();
   const mayWith = useMayWith();
@@ -62,6 +54,8 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   const places = useMemo(() => targetsOf(home), [home]);
   const [placeKey, setPlaceKey] = useState<string | null>(null);
   const [narrowKey, setNarrowKey] = useState<string | null>(null);
+  // When the line happened, or null for now: asked once here, for whichever kind is then chosen.
+  const [at, setAt] = useState<Date | null>(null);
   const aim = useMemo(() => openingTarget(places, opening, lastKey), [places, opening, lastKey]);
   const place = useMemo(() => places.find(one => one.key === placeKey) ?? aim.target, [places, placeKey, aim]);
   // A link that named a subject nothing here is leaves the sheet unaimed rather
@@ -72,34 +66,22 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
 
   const { data: grow } = useGrow(place?.growId ?? null);
   const { data: plants } = useGrowPlants(place?.growId ?? null);
-  const { data: recent, isLoading: loadingDefaults } = useRecentEntries(place?.growId ?? null, place?.spaceId ?? null);
+  const { isLoading: loadingDefaults } = useRecentEntries(place?.growId ?? null, place?.spaceId ?? null);
 
   const narrower = useMemo(() => narrowerTargets(home, place, plants?.items ?? []), [home, place, plants]);
   const target = narrower.find(one => one.key === narrowKey) ?? place;
-  const entries = recent?.items ?? [];
-  // Seven of the eight tiles write a diary line, which is what a membership to
+  // Six of the seven tiles write a diary line, which is what a membership to
   // log is for. A phase is the one that is not: it moves the grow to another
   // stage and puts the tent's climate on it, which the decision record keeps at
   // `manage` where the grow stands - so in a tent somebody only writes in, that
-  // tile is not there rather than there and refused.
+  // tile is not there rather than there and refused. A reading is written
+  // against a grow's own measurements, so a tent with nothing growing in it
+  // has nothing to measure and is not offered that tile.
   const mayStartAPhase = grow ? enough(mayWith(growStanding(grow)), 'manage') : false;
-  // A reading is written against a grow's own measurements, so a tent with
-  // nothing growing in it has nothing to measure and is not offered the tile.
-  // Maintenance is offered where something would hear it: a place whose
-  // hardware is reporting, and not one that is offline or has none at all.
-  const card = home?.spaces.find(one => one.spaceId !== null && one.spaceId === (target?.standsIn ?? target?.spaceId)) ?? null;
-  const reachable = card !== null && livenessOf(card, now) !== 'offline' && livenessOf(card, now) !== 'none';
-  const tiles = TILE_KINDS.filter(kind =>
-    kind === 'measurement' ? Boolean(target?.growId) : kind === 'phase' ? mayStartAPhase : kind === 'visit' ? reachable : true,
-  );
+  const tiles = TILE_KINDS.filter(kind => (kind === 'measurement' ? Boolean(target?.growId) : kind === 'phase' ? mayStartAPhase : true));
 
-  // A tile says what its view opens with - "2 L · last 3 d" - so until the
-  // lines it reads that off are here it promises nothing and opens nothing.
+  // A view opens on what was done last time, so until those lines are here a tile opens nothing.
   const ready = Boolean(target) && !loadingDefaults;
-
-  const lastWater = newestOf(entries, 'water');
-  const lastFeed = newestOf(entries, 'feed');
-  const waterLitres = lastCan(entries, 'water');
 
   const choose = (one: LogTarget, narrower: boolean) => {
     if (narrower) return setNarrowKey(key => (key === one.key ? null : one.key));
@@ -118,30 +100,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   }, [opening.kind, target, ready, openDetails]);
 
   const details = (kind: TileKind) => {
-    if (target && ready) openDetails(kind, target);
-  };
-
-  const caption = (kind: TileKind): string => {
-    switch (kind) {
-      case 'water':
-        return [waterLitres === null ? '' : t('log.litres', { litres: looseFigure(waterLitres) }), lastAgo(t, lastWater, now)]
-          .filter(Boolean)
-          .join(' · ');
-      case 'feed':
-        return feedCaption(t, grow, now) || lastAgo(t, lastFeed, now);
-      case 'photo':
-        return t('log.tile.photoCaption');
-      case 'measurement':
-        return measureCaption(grow);
-      case 'phase': {
-        const next = nextStage(grow);
-        return next ? `→ ${t(`home.stage.${next}`)}` : '';
-      }
-      case 'visit':
-        return t('log.tile.visitCaption');
-      default:
-        return '';
-    }
+    if (target && ready) openDetails(kind, target, null, at);
   };
 
   return (
@@ -155,7 +114,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
               {t('log.notHere')}
             </p>
           ) : null}
-          <div className={`${ui.scrollRow} ${styles.targets}`} role="group" aria-label={t('log.targetLabel')}>
+          <div className={styles.targets} role="group" aria-label={t('log.targetLabel')}>
             {/* The place first, then what is inside it, then everywhere else:
                 the chips a thumb can reach are the ones about where you are.
                 Pressed rather than linked, so the sheet stays where it is. */}
@@ -182,41 +141,17 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
             {tiles.map(kind => {
               const Icon = ICONS[kind];
               return (
-                <button
-                  key={kind}
-                  type="button"
-                  className={`${ui.card} ${styles.tile}`}
-                  data-wide={kind === 'visit' || undefined}
-                  disabled={!ready}
-                  onClick={() => details(kind)}
-                >
-                  <Icon size={18} strokeWidth={1.75} className={styles.tileIcon} aria-hidden />
-                  <span className={styles.tileName}>{t(`log.tile.${kind}`, { minutes: VISIT_MINUTES })}</span>
-                  <span className={`mono ${styles.tileCaption}`}>{caption(kind)}</span>
+                <button key={kind} type="button" className={styles.tile} disabled={!ready} onClick={() => details(kind)}>
+                  {Icon ? <Icon size={22} strokeWidth={2} className={styles.tileIcon} aria-hidden /> : null}
+                  {t(`log.tile.${kind}`)}
                 </button>
               );
             })}
           </div>
+
+          <Moment at={at} onChange={setAt} row />
         </>
       )}
     </Sheet>
   );
 }
-
-const lastAgo = (t: Translate, entry: { occurredAt: string } | null, now: DateTime): string =>
-  entry ? t('log.lastAgo', { age: ageLabel(entry.occurredAt, now) }) : '';
-
-/** "Schema-Wo 5 · Bio·Bloom": what the grid says for the week the grow is in, the week first so a narrow tile keeps it. */
-const feedCaption = (t: Translate, grow: GrowListItem | undefined, now: DateTime): string => {
-  const step = schemeStep(grow, now.toJSDate());
-  const first = step?.amounts.find(amount => amount.value !== null);
-
-  return step && first ? `${t('log.tile.schemeWeek', { week: step.week })} · ${first.name}` : '';
-};
-
-/** The measurements this grow takes, which is what the Measure tile would ask for. */
-const measureCaption = (grow: GrowListItem | undefined): string =>
-  (grow?.measurements ?? [])
-    .slice(0, 2)
-    .map(measurement => measurement.name)
-    .join(' · ');

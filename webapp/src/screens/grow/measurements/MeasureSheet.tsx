@@ -26,6 +26,8 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0'];
 
 interface MeasureSheetProps {
   target: LogTarget;
+  /** When the round was said to have happened before the sheet was opened; null is now. */
+  at?: Date | null;
   onClose: () => void;
 }
 
@@ -45,7 +47,7 @@ interface MeasureSheetProps {
  * one plant after another and closing between them would be the whole cost of
  * the round. The moment in the corner dates every line of the round alike.
  */
-export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
+export function MeasureSheet({ target, at: given = null, onClose }: MeasureSheetProps) {
   const { t } = useTranslation();
   const now = useNow();
   const client = useQueryClient();
@@ -70,7 +72,7 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<unknown>(null);
   /** When the round was taken, or null for now. */
-  const [at, setAt] = useState<Date | null>(null);
+  const [at, setAt] = useState<Date | null>(given);
 
   const perPlant = definitions.some(one => one.perPlant);
   const plantId = chosenPlant === undefined ? (perPlant ? (standing[0]?.id ?? null) : null) : chosenPlant;
