@@ -97,7 +97,23 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     it, names are unique, a room is a field the server makes and ends, three migration steps (run on a restored
     copy, [data-operations.md](knowledge/data-operations.md#migrations-in-operation)); "Ort bearbeiten" and "Ort
     entfernen" as pages, the question where a device hangs, the claim outside the bar, "von @…" for a guest.
-    Not walked by a critic yet. Left for Chris, each with what is built meanwhile:
+    The critic's walk (2026-11-12) found one blocker and seven majors; decided by the redesign session, not built
+    yet, and not Chris's word:
+      - A device stands only in a place of its owner: the server refuses a move or a claim into anybody else's
+        place, and the app offers a move only to the device's owner. (A guest who may manage could take the owner's
+        fan into a place of his own, where neither of them reached it.) This answers point 6 below.
+      - A room exists only while a place stands in it. Taking the last place out of a room with members asks
+        first and ends their access with the room; the amendment's "and its last member have left" goes. A room
+        option and the save toast say who sees the place through it.
+      - A fan, socket or light that joins a place which already regulates is done after "Wo hängt …?", and a claim
+        never writes targets to a device other than the one being claimed.
+      - The claim puts the device where the place question's first answer says, so a flow left there leaves no
+        stray place; a place the app names by itself is "Zelt", "Zelt 2", ….
+      - "Ort entfernen" keeps a tent together by default, asks once with every line it will write, makes a new
+        place only in the step that fills it, and says after a refusal what is done and what is still here.
+      - A change of the measuring device is a line in Verlauf and in the diary; a device's events, strips and
+        samples count for a place only inside its stay; `climate.csv` is in time order.
+    Left for Chris, each with what is built meanwhile:
       1. The amendment itself, point by point - in particular that `devices.spaceId` stays beside the placements,
          that a stay under five minutes leaves no trace, and that a device's first placement is read back past its
          beginning.
