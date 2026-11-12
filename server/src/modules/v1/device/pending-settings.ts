@@ -42,6 +42,13 @@ const RECORDED: Readonly<Record<string, (said: Said) => number | string | null |
   'lights.sunset': said => said.cycle?.sunset,
 };
 
+/**
+ * A figure as the firmware reads it where it is a switch: a document holds
+ * `true` and `false` until a write stores `1` and `0` in their place, and the
+ * device takes either for the same thing.
+ */
+const asRead = (said: string): string => (said === 'true' ? '1' : said === 'false' ? '0' : said);
+
 /** The lines of one save's diary entry, and when it was written (epoch milliseconds). */
 export interface SavedChange {
   at: number;
@@ -81,12 +88,12 @@ export const pendingSettingsOf = (
     for (const change of save.lines.flatMap(line => changeOf(line) ?? [])) {
       // A light window is named whole when one of its times moved: the other is
       // written as itself on both sides and is no change.
-      if (change.before === change.after || recorded.has(change.path) || change.path.startsWith(`${GERMINATION_CHOICES}.`)) continue;
+      if (asRead(change.before) === asRead(change.after) || recorded.has(change.path) || change.path.startsWith(`${GERMINATION_CHOICES}.`)) continue;
       said.set(change.path, { held: said.get(change.path)?.held ?? change.before, savedAt: save.at });
     }
   }
   for (const [field, { held, savedAt }] of said) {
-    if (figureOf(valueAt(device.configuration, field)) !== held) {
+    if (asRead(figureOf(valueAt(device.configuration, field))) !== asRead(held)) {
       pending.push({ field, held: figureSaid(held), savedAt: new Date(savedAt).toISOString() });
     }
   }

@@ -193,6 +193,20 @@ describe('what a silent device has not been handed', () => {
     ]);
   });
 
+  it('reads a switch as the firmware does: the true and false a document held are the 1 and 0 a write stores', () => {
+    const plug = (usedaynight: unknown) => ({ type: 'plug', configuration: { workmode: 'heater', usedaynight } });
+    const flipped = save('09:00', changeLine('usedaynight', false, 1));
+    const back = save('09:05', changeLine('usedaynight', 1, 0));
+
+    expect(pendingSettingsOf(HEARD, plug(1), [], [flipped])).toEqual([{ field: 'usedaynight', held: 'false', savedAt: iso('09:00') }]);
+    // Flipped back, the document says 0 where it said false: the device holds that already.
+    expect(pendingSettingsOf(HEARD, plug(0), [], [flipped, back])).toEqual([]);
+    expect(pendingSettingsOf(HEARD, plug(false), [], [flipped, back])).toEqual([]);
+    // A write that only spells the switch the other way moved nothing.
+    expect(pendingSettingsOf(HEARD, plug(0), [], [save('09:00', changeLine('usedaynight', false, 0))])).toEqual([]);
+    expect(pendingSettingsOf(HEARD, plug(true), [], [save('09:00', changeLine('usedaynight', 1, true))])).toEqual([]);
+  });
+
   it('gives what was held as the line says it where it is no figure', () => {
     const plug = { type: 'plug', configuration: { workmode: 'co2', usedaynight: 0, timer: { timeframes: [] } } };
     const saves = [
