@@ -48,6 +48,7 @@ const answer = (over: Partial<SpaceTimeline> = {}): SpaceTimeline => ({
   ...window,
   stepSeconds: 3600,
   deviceIds: ['device-1'],
+  deviceId: 'device-1',
   lastReadingAt: null,
   panels: [
     {

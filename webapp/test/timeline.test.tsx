@@ -71,6 +71,7 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
     endsAt: iso(to),
     stepSeconds: Math.round(step / 1000),
     deviceIds: ['device-1'],
+    deviceId: 'device-1',
     lastReadingAt: null,
     panels: [
       { metric: 'temperature', points: points(25.2, { min: 19.4, max: 25.3 }), targets: [] },
