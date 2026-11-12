@@ -2708,7 +2708,10 @@
       "tooHot": "Too hot",
       "tooCold": "Too cold",
       "tooHumid": "Too humid",
-      "co2High": "CO₂ too high"
+      "co2High": "CO₂ too high",
+      "tooDry": "Too dry",
+      "co2Empty": "CO₂ cylinder empty",
+      "running": "Fridge runs without a break"
     },
     "template": {
       "label": "Set up in one tap",
@@ -2716,24 +2719,6 @@
       "lower": "below {{value}} · {{length}}",
       "make": "Set up {{name}}: {{line}}",
       "making": "setting up…",
-      "warm": {
-        "name": "Too warm"
-      },
-      "cold": {
-        "name": "Too cold"
-      },
-      "humid": {
-        "name": "Too humid"
-      },
-      "dry": {
-        "name": "Too dry"
-      },
-      "co2Empty": {
-        "name": "CO₂ cylinder empty"
-      },
-      "running": {
-        "name": "Fridge runs without a break"
-      },
       "runs": "runs {{length}} without a break"
     },
     "channelOff": "{{channel}} (off)",

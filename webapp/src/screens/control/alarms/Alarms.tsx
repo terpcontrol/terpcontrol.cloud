@@ -30,7 +30,7 @@ import { alarmsLine } from '../rows';
 import { RuleSheet } from './RuleSheet';
 import { SilenceChip } from './Silence';
 import { useSilence } from './use-silence';
-import { ruleFor, templateBody, templatesFor, type AlarmTemplate, type TemplateKey } from './templates';
+import { ruleFor, templateBody, templateName, templatesFor, type AlarmTemplate, type TemplateKey } from './templates';
 import { boundLabel, groupRules, heldBackBy, missingSensor, repeatsEvery, ruleTitle, watchable, watchLabel } from './rules';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import styles from './Alarms.module.css';
@@ -207,6 +207,7 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, now 
                 highlighted={rule.id === highlighted || rule.id === made}
                 busy={update.isPending}
                 now={now}
+                twin={group.rules.some(other => other.id !== rule.id && ruleTitle(t, other) === ruleTitle(t, rule))}
                 onOpen={() => setOpen(rule)}
                 onToggle={enabled => toggle(rule, enabled)}
               />
@@ -257,7 +258,7 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
 
   const make = (template: AlarmTemplate) => {
     setMaking(template.key);
-    create.mutate(templateBody(t, template), {
+    create.mutate(templateBody(template), {
       onSuccess: rule => {
         onMade(rule.id);
         tell({ label: t('alarms.told.made', { name: ruleTitle(t, rule) }), undo: () => remove.mutateAsync(rule.id) });
@@ -284,7 +285,7 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
                   length,
                 })
               : t('alarms.template.runs', { length });
-          const name = t(`alarms.template.${template.key}.name`);
+          const name = templateName(t, template);
 
           return (
             <li key={template.key}>
@@ -360,6 +361,8 @@ interface RuleCardProps {
   highlighted: boolean;
   busy: boolean;
   now: DateTime;
+  /** Whether another rule of the list carries the same name. */
+  twin: boolean;
   onOpen: () => void;
   onToggle: (enabled: boolean) => void;
 }
@@ -375,7 +378,7 @@ interface RuleCardProps {
  * the rule watches - a CO2 rule the stage wrote for a controller with no
  * sensor - and the reason stands under it.
  */
-function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, now, onOpen, onToggle }: RuleCardProps) {
+function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, now, twin, onOpen, onToggle }: RuleCardProps) {
   const { t } = useTranslation();
   const card = useRef<HTMLLIElement>(null);
   const silence = useSilence(rule, device.id, now);
@@ -436,7 +439,13 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
             the tent; the switch that changes it belongs to whoever manages the
             device, so the other reader is given the fact and not the control. */}
         {mayManage ? (
-          <Switch label={t('alarms.enable', { name: title })} on={rule.enabled} disabled={missing !== null || busy} onChange={onToggle} />
+          // Two rules of one name are told apart by their threshold, as the cards are by sight.
+          <Switch
+            label={t('alarms.enable', { name: twin && bound ? `${title} · ${bound}` : title })}
+            on={rule.enabled}
+            disabled={missing !== null || busy}
+            onChange={onToggle}
+          />
         ) : (
           <span className={`mono ${styles.state}`}>{t(rule.enabled ? 'misc.on' : 'misc.off')}</span>
         )}

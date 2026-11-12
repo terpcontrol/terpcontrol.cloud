@@ -12,8 +12,20 @@ const PRESET_TITLE: Record<string, string> = {
   'co2-upper': 'co2High',
 };
 
-/** The names the server stores those four under, which is all an open alert or a line of the diary says of its rule. */
-const STORED_TITLE: Record<string, string> = { 'Too hot': 'tooHot', 'Too cold': 'tooCold', 'Too humid': 'tooHumid', 'CO₂ too high': 'co2High' };
+/**
+ * The names those rules are stored under, which is all an open alert or a line of the diary says of its rule: the
+ * four a stage writes, and the ones a single tap under Steuerung writes (`alarms/templates.ts`), which are stored
+ * under the same kind of name so that they read in the reader's language too.
+ */
+const STORED_TITLE: Record<string, string> = {
+  'Too hot': 'tooHot',
+  'Too cold': 'tooCold',
+  'Too humid': 'tooHumid',
+  'CO₂ too high': 'co2High',
+  'Too dry': 'tooDry',
+  'CO₂ cylinder empty': 'co2Empty',
+  'Fridge runs without a break': 'running',
+};
 
 const presetTitle = (watch: AlarmWatch): string | null => {
   if (watch.kind !== 'reading') return null;
@@ -26,11 +38,12 @@ const presetTitle = (watch: AlarmWatch): string | null => {
  * What a rule is called, wherever it is named. The server names its own rules
  * in English - the one it keeps for every device and the four a stage applies
  * - so those are titled in the reader's language: from what the rule watches,
- * else from the name it is stored under. A rule somebody wrote keeps its name.
+ * else from the name it is stored under, which is how a rule made by one tap
+ * is named as well. A rule somebody named keeps its name.
  */
 export const ruleTitle = (t: Translate, { name, origin, watch }: Pick<AlarmRule, 'name'> & Partial<Pick<AlarmRule, 'origin' | 'watch'>>): string => {
   if (origin === 'always' || (!origin && name === OFFLINE_RULE_NAME)) return t('alarms.offlineRule');
-  const title = origin === 'preset' && watch ? presetTitle(watch) : origin ? null : STORED_TITLE[name];
+  const title = (origin === 'preset' && watch ? presetTitle(watch) : null) ?? STORED_TITLE[name];
 
   return title ? t(`alarms.presetRule.${title}`) : name;
 };

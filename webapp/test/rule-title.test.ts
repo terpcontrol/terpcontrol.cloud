@@ -36,8 +36,14 @@ describe('what an alarm rule is called', () => {
 
   it('keeps the name somebody gave a rule', () => {
     expect(ruleTitle(t, { name: 'Box soaking' })).toBe('Box soaking');
-    expect(ruleTitle(t, { name: 'Too hot', origin: 'human', watch: above('temperature', 31) })).toBe('Too hot');
-    expect(ruleTitle(t, { name: 'Too hot', origin: 'device', watch: above('temperature', 31) })).toBe('Too hot');
+    expect(ruleTitle(t, { name: 'Zu warm im Zelt', origin: 'human', watch: above('temperature', 31) })).toBe('Zu warm im Zelt');
+  });
+
+  it('titles a rule made by one tap like a stage`s: it is stored under a name the catalogue knows, whoever made it', () => {
+    // The same name a line of the diary is titled by, so the card, the alert and the line say one thing.
+    expect(ruleTitle(t, { name: 'Too hot', origin: 'human', watch: above('temperature', 31) })).toBe('Zu warm');
+    expect(ruleTitle(t, { name: 'Too dry', origin: 'human' })).toBe('Zu trocken');
+    expect(ruleTitle(t, { name: 'Fridge runs without a break', origin: 'human' })).toBe('Kühlschrank läuft ununterbrochen');
   });
 
   it('is what a line of the diary and "Zuletzt" call it', () => {

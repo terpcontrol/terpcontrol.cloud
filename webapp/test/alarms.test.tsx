@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
+import { ruleTitle } from '@/i18n/alarm-line';
 import { DateTime } from 'luxon';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AlarmRule, AlarmRuleCreate, Device, Me, SpaceOverview } from '@fg2/shared-types/v1';
@@ -1207,7 +1208,7 @@ describe('the alarm templates', () => {
 
     // The stage's "Too hot" already watches the temperature from above, so that one is not offered again.
     expect(await screen.findByRole('button', { name: 'Set up Too cold: below 15 °C · 15 min' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Set up Too warm/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Set up Too hot/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Set up Too dry: below 35 % · 20 min' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Set up Too humid: above 75 % · 20 min' }));
@@ -1230,6 +1231,27 @@ describe('the alarm templates', () => {
     vi.mocked(api.delete).mockResolvedValue(undefined as never);
     await told[0].undo!();
     expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hot');
+  });
+
+  it('stores a rule made by one tap under a name every reader`s language knows, and tells two of one name apart by their threshold', async () => {
+    // Stored as "Too dry" whoever made it, it is titled from the catalogue - "Zu trocken" to a German reader - like a stage's own rules.
+    const dry = rule({ id: 'rule-dry', name: 'Too dry', origin: 'human', watch: { kind: 'reading', metric: 'humidity', upper: null, lower: 35 } });
+    const drier = rule({
+      id: 'rule-drier',
+      name: 'Too dry',
+      origin: 'human',
+      watch: { kind: 'reading', metric: 'humidity', upper: null, lower: 25 },
+    });
+    expect(ruleTitle(i18next.t.bind(i18next), dry)).toBe('Too dry');
+
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [...RULES, dry, drier], nextCursor: null } : answers(path)) as never,
+    );
+    draw();
+
+    expect(await screen.findByRole('switch', { name: /Too dry · .*35/ })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /Too dry · .*25/ })).toBeInTheDocument();
   });
 
   it('marks the rule a template wrote, which opens like any other', async () => {
@@ -1314,8 +1336,8 @@ describe('the alarm templates', () => {
   it('writes the compressor rule as a rule on the output running, named for the fridge', () => {
     const running = templatesFor(device({ type: 'fridge' })).find(template => template.key === 'running')!;
 
-    expect(templateBody((key: string) => key, running)).toMatchObject({
-      name: 'alarms.template.running.name',
+    expect(templateBody(running)).toMatchObject({
+      name: 'Fridge runs without a break',
       watch: { kind: 'output_running', output: 'dehumidifier' },
       forSeconds: 1800,
       severity: 'critical',

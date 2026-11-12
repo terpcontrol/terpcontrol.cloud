@@ -2717,7 +2717,10 @@
       "tooHot": "Zu warm",
       "tooCold": "Zu kalt",
       "tooHumid": "Zu feucht",
-      "co2High": "CO₂ zu hoch"
+      "co2High": "CO₂ zu hoch",
+      "tooDry": "Zu trocken",
+      "co2Empty": "CO₂-Flasche leer",
+      "running": "Kühlschrank läuft ununterbrochen"
     },
     "template": {
       "label": "Mit einem Tipp einrichten",
@@ -2725,24 +2728,6 @@
       "lower": "unter {{value}} · {{length}}",
       "make": "{{name}} einrichten: {{line}}",
       "making": "wird eingerichtet…",
-      "warm": {
-        "name": "Zu warm"
-      },
-      "cold": {
-        "name": "Zu kalt"
-      },
-      "humid": {
-        "name": "Zu feucht"
-      },
-      "dry": {
-        "name": "Zu trocken"
-      },
-      "co2Empty": {
-        "name": "CO₂-Flasche leer"
-      },
-      "running": {
-        "name": "Kühlschrank läuft ununterbrochen"
-      },
       "runs": "läuft {{length}} am Stück"
     },
     "channelOff": "{{channel}} (aus)",
