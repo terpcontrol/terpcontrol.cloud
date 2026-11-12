@@ -16,6 +16,7 @@ import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { deviceName, deviceTitle } from '@/ui/naming';
+import { ContinuePlan } from './ContinuePlan';
 import { DurationField, PlanEditor } from './PlanEditor';
 import { KeepAsTemplateSheet, StartFromTemplateSheet } from './PlanTemplates';
 import { PlanRefusal } from './Refusal';
@@ -190,6 +191,8 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
       </div>
 
       <Steps plan={plan.data} now={now} />
+      {/* Going on at a step of one's own choosing stands under the steps it chooses among. */}
+      {mayManage && landing === 'document' ? <ContinuePlan device={device} /> : null}
 
       {mayManage ? (
         <div className={styles.actions}>

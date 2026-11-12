@@ -6,12 +6,12 @@ import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-preset
 import type { Device, Plan, PlanReplace, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import { planLineOf } from '@/screens/start/plan-line';
+import { ContinuePlan } from '@/screens/control/ContinuePlan';
 import { PlanEditor } from '@/screens/control/PlanEditor';
 import { PlanPanel } from '@/screens/control/PlanPanel';
 import { emptyDraft, newStep, type PlanDraft } from '@/screens/control/plan-edit';
 import { followsGermination, stepMeta } from '@/screens/control/plan-labels';
 import { READY_PLANS, readyDraft } from '@/screens/control/ready-plans';
-import { items as continueItems } from '@/screens/devices/advanced/ContinuePlan.advanced';
 import { climateLanding } from '@/ui/climate-hardware';
 import { deviceWith } from './fixtures';
 import { drawAt } from './harness';
@@ -440,16 +440,18 @@ describe('the two ready-made plans', () => {
 });
 
 describe('going on with a plan at a step', () => {
-  const ContinuePlan = continueItems[0].Item;
+  /** It stands under the steps it chooses among, for whoever may move the plan - and not where a climate could not land. */
+  it('is offered under the plan to whoever may change it, and to nobody else', () => {
+    const { unmount } = drawAt(<PlanPanel device={device()} mayManage landing="document" />);
+    expect(screen.getByRole('combobox', { name: 'Step' })).toBeInTheDocument();
+    unmount();
 
-  it('is offered to whoever may change a fridge or a controller', () => {
-    expect(continueItems[0].shows({ device: device(), mayManage: true, offline: false })).toBe(true);
-    expect(continueItems[0].shows({ device: device(), mayManage: false, offline: false })).toBe(false);
-    expect(continueItems[0].shows({ device: device('light'), mayManage: true, offline: false })).toBe(false);
+    drawAt(<PlanPanel device={device()} mayManage={false} landing="document" />);
+    expect(screen.queryByRole('combobox', { name: 'Step' })).not.toBeInTheDocument();
   });
 
   it('asks before it sends, says the step starts over, and sends the step by its id', () => {
-    drawAt(<ContinuePlan device={device()} mayManage offline={false} />);
+    drawAt(<ContinuePlan device={device()} />);
 
     const which = screen.getByRole('combobox', { name: 'Step' });
     // The step after the one the plan stands on is the one offered first.
@@ -467,7 +469,7 @@ describe('going on with a plan at a step', () => {
   it('draws nothing for a device that runs no plan', () => {
     state.plan = null;
     state.planError = noPlan;
-    const { container } = drawAt(<ContinuePlan device={device()} mayManage offline={false} />);
+    const { container } = drawAt(<ContinuePlan device={device()} />);
 
     expect(container).toBeEmptyDOMElement();
   });

@@ -1,12 +1,11 @@
-import { QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
-import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import type { Device, DeviceConfiguration, DeviceLive, Me, Plan, PlanStep, Setpoints } from '@fg2/shared-types/v1';
-import { Targets } from '@/screens/control/targets/Targets';
+import type { Device, DeviceConfiguration, DeviceLive, Me, PendingSettings, Plan, PlanStep, Setpoints } from '@fg2/shared-types/v1';
+import type { Told } from '@/log/log-context';
+import { Climate } from '@/screens/control/climate/Climate';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { nowHoldingOf, ownedBy, phaseOf, shapeOf } from '@/screens/control/targets/day-night';
 import { draftOf, vpdOf, withDraft } from '@/screens/control/targets/targets-draft';
@@ -14,15 +13,19 @@ import { secondsOf, wallClock } from '@/ui/wall-clock';
 import { STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { CLIMATE_CHOICES, presetsOf } from '@/ui/presets';
 import { deviceWith } from './fixtures';
-import { drawAt, json, testClient } from './harness';
+import { drawAt, json } from './harness';
 import { meWith } from './session';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
- * What the targets page promises: that a chip only moves the figures,
- * that one Save sends the device's whole document with nothing but the targets
- * changed, that a plan which would write them back is paused first, and that a
- * session which may only look is offered nothing that writes.
+ * What the climate cards under Steuerung promise: that nothing on the page is
+ * a draft - each figure is saved from its own sheet as the device's whole
+ * document with that one figure changed - that a write is answered by the
+ * toast and can be taken back, that a plan which would write the figure back
+ * is paused first and said so before the tap, that what a silent device has
+ * not been handed is marked with what it still holds, and that a session
+ * which may only look is offered nothing that writes.
  *
  * The API is stubbed at the wire rather than at the hook, because what matters
  * here is the exact document that leaves - a section written as `{ target }`
@@ -62,6 +65,15 @@ const device = (over: Partial<Device> = {}, hardware: Record<string, string> = {
     },
     ...over,
   });
+
+/** A device with a control of its own, on its standard day and night. */
+const CONTROL: NonNullable<Device['control']> = {
+  running: true,
+  drying: false,
+  mode: 'standard',
+  energySaving: false,
+  germinationChoices: GERMINATION_CHOICES,
+};
 
 /** The step a running plan stands on: its own figures and twelve hours of light, the hour it comes on left to the device. */
 const STEP: PlanStep = {
@@ -115,6 +127,8 @@ const wire = {
   plan: null as Plan | null,
   /** What the server says of the device right now; none answers 404, which leaves the page to the schedule. */
   live: null as Partial<Setpoints> | null,
+  /** What the cloud stored that a silent device has not been handed. */
+  pending: null as PendingSettings | null,
   /** The account's zone; none leaves the page on the browser's, which the test keeps on UTC. */
   zone: null as string | null,
   /** What PUT /configuration answers with instead of the document, when a refusal is wanted. */
@@ -139,7 +153,13 @@ vi.stubGlobal(
     }
     if (method === 'GET' && path === '/devices/device-1/live') {
       return wire.live
-        ? json({ deviceId: 'device-1', metrics: {}, outputs: {}, setpoints: { day: {}, night: {}, active: 'day', ...wire.live } })
+        ? json({
+            deviceId: 'device-1',
+            metrics: {},
+            outputs: {},
+            setpoints: { day: {}, night: {}, active: 'day', ...wire.live },
+            pending: wire.pending,
+          })
         : problem(404, 'not_found', 'Nothing heard.');
     }
     if (method === 'GET' && path === '/devices/device-1/sockets') {
@@ -185,36 +205,37 @@ vi.stubGlobal(
 
 const sent = (method: string) => wire.calls.filter(call => call.method === method);
 
-const draw = (devices: Device[] = [device()], mayManage = true, crumb = false) =>
-  drawAt(<Targets spaceId="space-1" devices={devices} mayManage={mayManage} crumb={crumb} />);
+/** What the toast was told: the line, and the way it is taken back. */
+const told: Told[] = [];
+/** A line of the toast as it reads: a figure is bound to its unit by a space that does not break. */
+const said = () => told[0]?.label.replace(/\u00a0/g, ' ');
 
-/** The page once the plan has been read, which is when the table is drawn. */
-const drawn = async (devices?: Device[], mayManage?: boolean) => {
-  draw(devices, mayManage);
-  return screen.findByRole('spinbutton', { name: 'Day temperature' });
+const draw = (one: Device = device(), mayManage = true) =>
+  drawAt(
+    <Toast told={told}>
+      <Climate device={one} stored={one.configuration!} mayManage={mayManage} />
+    </Toast>,
+  );
+
+/** The cards once the plan has been read, which is when they are drawn. */
+const drawn = async (one?: Device, mayManage?: boolean) => {
+  draw(one, mayManage);
+  return screen.findByRole('table', { name: 'Targets' });
 };
 
-/** A figure's field in the table, by the name a screen reader gives it. */
-const field = (name: string) => screen.getByRole('spinbutton', { name }) as HTMLInputElement;
+/** A figure's button, by the figure it changes. */
+const figure = (name: string) => screen.getByRole('button', { name: new RegExp(`^Change ${name}, `) });
 
-/** Types a figure into its field and leaves it, which is when a typed figure counts. */
+const tap = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }));
+
+/** Types a figure into the stepper of the sheet that is open, and leaves the field. */
 const type = (name: string, to: number) => {
-  fireEvent.change(field(name), { target: { value: String(to) } });
-  fireEvent.blur(field(name));
+  const field = within(screen.getByRole('dialog')).getByRole('spinbutton', { name });
+  fireEvent.change(field, { target: { value: String(to) } });
+  fireEvent.blur(field);
 };
 
-const tap = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
-
-const lightsOn = () => screen.getByLabelText('Light on at', { selector: 'input' }) as HTMLInputElement;
-
-/** The column heads that say they hold now: the one shaded. */
-const holding = () => screen.getAllByRole('columnheader').filter(head => within(head).queryByText(/^(holds now|by the schedule)$/));
-
-/** The light plan over the table. */
-const plan_ = () => screen.getByRole('group', { name: 'Light plan' });
-
-/** The save bar, by the button it carries. */
-const bar = () => screen.getByRole('button', { name: 'Save' }).parentElement!;
+const save = () => fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save' }));
 
 beforeAll(async () => {
   // The light window is said in the reader's own time; the document holds UTC, so the test reads in UTC.
@@ -225,6 +246,7 @@ beforeAll(async () => {
 afterEach(async () => {
   await i18next.changeLanguage('en');
   Settings.now = () => Date.now();
+  vi.useRealTimers();
 });
 
 afterAll(() => {
@@ -234,1253 +256,378 @@ afterAll(() => {
 beforeEach(() => {
   wire.plan = null;
   wire.live = null;
+  wire.pending = null;
   wire.zone = null;
   wire.refuseSave = null;
   wire.sockets = null;
   wire.calls = [];
+  told.length = 0;
 });
 
-/** The clock the page reads "now" off, set to a time of day in UTC. */
-const at = (time: string) => {
-  const instant = DateTime.fromISO(`2026-09-19T${time}:00.000Z`).toMillis();
-  Settings.now = () => instant;
-};
+describe('the climate under Steuerung', () => {
+  /**
+   * Two cards and no draft: when the light burns with the one button that
+   * changes it, its limit stepped in place, and each target a button that
+   * says what it changes - the day's beside the night's.
+   */
+  it('draws the light, its limit and each target as a button, the day beside the night', async () => {
+    await drawn();
 
-describe('the targets page', () => {
-  it('says so when nothing standing here states a climate or has settings of its own, and offers the one thing that helps', () => {
-    draw([device({ id: 'cam-hub', type: 'cam', configuration: { anything: 1 } })]);
-
-    expect(screen.getByText(/Nothing standing here states a climate/)).toBeInTheDocument();
+    expect(screen.getByText('On at 06:00 · 12 h')).toBeInTheDocument();
+    expect(screen.getAllByText('off at 18:00')[0]).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Change times' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Light limit' })).toHaveTextContent('80 %');
+    expect(screen.getAllByRole('columnheader').map(head => head.textContent)).toEqual(['', 'Dayby the schedule', 'Night']);
+    expect(figure('Day temperature')).toHaveTextContent('25 °C');
+    expect(figure('Night temperature')).toHaveTextContent('20 °C');
+    expect(figure('Day humidity')).toHaveTextContent('60 %');
+    expect(figure('Night humidity')).toHaveTextContent('55 %');
+    expect(figure('CO₂ target')).toHaveTextContent('800 ppm');
+    expect(screen.getByText('no CO₂')).toBeInTheDocument();
+    // Nothing on the page is a draft: no save bar, no field to type into until a sheet is open.
     expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/claim');
-    expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
-  });
-
-  /** A smart socket on its own is its owner's whole tent: what it switches by is set here, not asked for a device it has no use for. */
-  it('draws what a smart socket standing here alone switches by, instead of asking for another device', () => {
-    draw([device({ id: 'plug-1', type: 'plug', configuration: { workmode: 'heater', heater: { day: { on: 24, off: 27 } } } })]);
-
-    expect(screen.getByRole('button', { name: 'Heating' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('slider', { name: 'On below – Switch points' })).toHaveValue('24');
-    expect(screen.queryByText(/Nothing standing here states a climate/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
-  });
-
-  /**
-   * A controller reporting live values a tab away, whose document has simply
-   * not arrived, was told that nothing standing here states a climate and
-   * offered a second device it has no use for. Both halves were false, and the
-   * Devices tab of the same tent has always said the true one.
-   *
-   * What brings the document is the other half of being honest here: the
-   * firmware publishes it when a setting is changed on its own menu and at no
-   * other time, so a page that names the next connection is naming the one
-   * thing that will never help.
-   */
-  it('says a controller’s settings are still on their way rather than asking for another device', () => {
-    draw([device({ id: 'controller-1', name: null, configuration: null })]);
-
-    expect(screen.getByText(/Controller · LLER-1 has not sent its settings yet/)).toBeInTheDocument();
-    expect(screen.getByText(/Changing any setting on the device itself sends them; connecting alone does not/)).toBeInTheDocument();
-    expect(screen.queryByText(/Nothing standing here states a climate/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
-  });
-
-  it('says a smart socket that has sent nothing has nothing to change yet, rather than asking for another device', () => {
-    draw([device({ id: 'plug-1', type: 'plug', configuration: null })]);
-
-    expect(screen.getByText(/has not sent its settings yet, so there is nothing to change here/)).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
-  });
-
-  /**
-   * One card: the light plan on top - what it is, the day it makes, what holds
-   * now and the two figures it is set by - and under it the table, the day's
-   * column beside the night's, each headed by when it runs. The night is what
-   * the day leaves: its times are read, never set.
-   */
-  it('keeps under the targets the same Erweitert the device has under Geräte, so Start leads to every setting', async () => {
-    await drawn([
-      device({
-        type: 'fridge',
-        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-      }),
-    ]);
-    fireEvent.click(screen.getByText('Advanced', { selector: 'summary' }));
-
-    // A fridge's own tuning and the update channel, exactly as its panel offers them.
-    expect(screen.getByRole('textbox', { name: 'Compressor rest' })).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Sunrise' })).toBeInTheDocument();
-    expect(screen.getByText('Update channel')).toBeInTheDocument();
-    // But not the mode a second time beside the chips that set it: the section says where the rest of it is.
-    expect(screen.getAllByRole('button', { name: 'Germination · dark' })).toHaveLength(1);
-    expect(screen.getByRole('link', { name: 'Operating mode under Devices ›' })).toHaveAttribute('href', '/devices?space=space-1');
-  });
-
-  it('names the device each Erweitert belongs to where two devices stand here', async () => {
-    await drawn([device(), device({ id: 'device-2', name: 'Cellar fridge', type: 'fridge' })]);
-
-    expect(screen.getByText('Advanced · Blue Dream tent', { selector: 'summary' })).toBeInTheDocument();
-    expect(screen.getByText('Advanced · Cellar fridge', { selector: 'summary' })).toBeInTheDocument();
-  });
-
-  it('draws the light plan over the table, the day beside the night, each headed by when it runs', async () => {
-    await drawn();
-
-    expect(within(plan_()).getByText('Light on 06:00–18:00 · 12 h')).toBeInTheDocument();
-    expect(lightsOn().value).toBe('06:00');
-    expect(field('Light on for').value).toBe('12');
-    expect(within(plan_()).getByText('The night follows from it: 18:00–06:00 · 12 h.')).toBeInTheDocument();
-
-    const table = screen.getByRole('table', { name: 'Targets' });
-    const [, day, night] = within(table).getAllByRole('columnheader');
-    expect(day).toHaveTextContent(/^Light on \(day\)06:00–18:00· 12 h/);
-    expect(night).toHaveTextContent(/^Light off \(night\)18:00–06:00· 12 h/);
-    // Read off the light plan, never set in the table.
-    expect(within(night).queryByRole('spinbutton')).not.toBeInTheDocument();
-
-    expect(field('Day temperature').value).toBe('25');
-    expect(field('Day humidity').value).toBe('60');
-    expect(field('Night temperature').value).toBe('20');
-    expect(field('Night humidity').value).toBe('55');
-    expect(field('Light limit').value).toBe('80');
-    expect(field('CO₂ target').value).toBe('800');
-    // What the night does not have, said where it would stand.
-    expect(within(screen.getByRole('row', { name: /^CO₂ target/ })).getByText('no CO₂')).toBeInTheDocument();
-    expect(within(screen.getByRole('row', { name: /^Light limit/ })).getByText('lamp off')).toBeInTheDocument();
-    // 25 °C at 60 % with the leaf two degrees cooler, worked out as the server
-    // works a reading's, to the two decimals a deficit is written to.
-    expect(within(screen.getByRole('row', { name: /^Humidity/ })).getByText('VPD 0.91')).toBeInTheDocument();
-    expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
-    // The page is what the tab opens on, so there is no way back to anywhere.
-    expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
-  });
-
-  /**
-   * Which half holds is the device's word, as the server answers it for a
-   * device that is heard - by its clock and its mode, never by the lamp. The
-   * page used to work it out itself and said "day" where Start beside it
-   * said "night".
-   */
-  it('shades the column the device says holds now, and says until when', async () => {
-    at('12:00');
-    wire.live = { active: 'day' };
-    await drawn();
-
-    await waitFor(() => expect(holding()).toHaveLength(1));
-    expect(holding()[0]).toHaveTextContent(/^Light on \(day\)/);
-    expect(holding()[0]).toHaveTextContent('holds now');
-    expect(within(plan_()).getByText('Day now · light off at 18:00')).toBeInTheDocument();
-  });
-
-  it('takes the server’s word over the schedule’s, and its period over its active half where it says one', async () => {
-    at('12:00');
-    wire.live = { active: 'day', period: 'night' };
-    await drawn();
-
-    await waitFor(() => expect(holding()[0]).toHaveTextContent(/^Light off \(night\)/));
-    expect(within(plan_()).getByText('Night now · light on at 06:00')).toBeInTheDocument();
-  });
-
-  it('works the half out from the schedule while the device’s word has not come, and says it is the schedule’s', async () => {
-    at('02:00');
-    await drawn();
-
-    // Answered with nothing, the schedule's half stands, called the schedule's.
-    await waitFor(() => expect(holding()[0]).toHaveTextContent('by the schedule'));
-    expect(holding()[0]).toHaveTextContent(/^Light off \(night\)/);
-    expect(within(plan_()).getByText('Night now · light on at 06:00')).toBeInTheDocument();
-  });
-
-  it('says a fridge is in its sunset while the lamp dims, and that its targets glide towards the night', async () => {
-    at('17:50');
-    // The server's transition runs on for the hour after the switch; the glide is the ramp before it.
-    wire.live = {
-      active: 'day',
-      transition: { until: '2026-09-19T19:00:00.000Z', from: 'day', to: 'night', gliding: true, targets: { temperature: 21.2 } },
-    };
-    await drawn([device({ type: 'fridge' })]);
-
-    await waitFor(() =>
-      expect(within(plan_()).getByText('Sunset · light off at 18:00, the targets gliding towards the night until then')).toBeInTheDocument(),
-    );
-    expect(holding()[0]).toHaveTextContent(/^Light on \(day\)/);
-  });
-
-  it('works a fridge’s glide out from its ramps where the server names none, and a tent controller’s targets do not glide', async () => {
-    at('06:05');
-    wire.live = { active: 'day' };
-    await drawn([device({ type: 'fridge' })]);
-    await waitFor(() => expect(within(plan_()).getByText('Sunrise · the targets glide towards the day until 06:15')).toBeInTheDocument());
-  });
-
-  it('says nothing of gliding for a tent controller, which switches its targets at once', async () => {
-    at('06:05');
-    wire.live = { active: 'day' };
-    await drawn();
-    await waitFor(() => expect(within(plan_()).getByText('Day now · light off at 18:00')).toBeInTheDocument());
-  });
-
-  it('says a device gone quiet is offline since when, and which half the schedule says rather than which it holds', async () => {
-    at('12:00');
-    wire.live = { active: 'night' };
-    const quiet = DateTime.now().minus({ hours: 8 });
-    await drawn([device({ state: { ...device().state, lastSeenAt: quiet.toISO()! } })]);
-
-    expect(within(plan_()).getByText(`Offline since ${quiet.toFormat('HH:mm')} · by the schedule it would be day now`)).toBeInTheDocument();
-    expect(holding()[0]).toHaveTextContent(/^Light on \(day\).*by the schedule$/);
-    expect(screen.queryByText('holds now')).not.toBeInTheDocument();
-    // The table stays to be read and set.
-    expect(field('Night temperature')).toBeEnabled();
-    expect(
-      screen.getByText(new RegExp(`^Offline since .*${quiet.toFormat('HH:mm')} · what the device is really running may be older than this$`)),
-    ).toBeInTheDocument();
-  });
-
-  /** A drying room has no schedule, so offline its column is the one it was last left in, not the schedule's. */
-  it('says a quiet drying room holds what it was last left at, not what a schedule says', async () => {
-    at('12:00');
-    const quiet = DateTime.now().minus({ hours: 8 });
-    draw([
-      device({
-        type: 'fridge',
-        control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-        state: { ...device().state, lastSeenAt: quiet.toISO()! },
-      }),
-    ]);
-    await screen.findByRole('spinbutton', { name: 'Temperature while drying' });
-
-    expect(screen.getAllByRole('columnheader').at(-1)).toHaveTextContent(/as last left$/);
-    expect(screen.queryByText('by the schedule')).not.toBeInTheDocument();
-  });
-
-  it('says what germination gives back to the night when it ends', async () => {
-    draw([
-      device({
-        type: 'fridge',
-        configuration: { ...CONFIGURATION, night: { temperature: 24, humidity: 55 } },
-        control: {
-          running: true,
-          drying: false,
-          mode: 'germination',
-          energySaving: false,
-          germinationChoices: GERMINATION_CHOICES,
-          afterGermination: { dayTemperature: null, dayHumidity: null, nightTemperature: 20, nightHumidity: null, co2: null, lightLimit: null },
-        },
-      }),
-    ]);
-    await screen.findByRole('spinbutton', { name: 'Temperature while germinating' });
-
-    expect(
-      screen.getByText('Where germination ends without a new climate, the night temperature from before holds again: 20 °C.'),
-    ).toBeInTheDocument();
-  });
-
-  /** Germination's 75 % is stored whether or not a humidifier holds it, and the night's own comes back when it ends. */
-  it('names the humidity germination gives back to the night where the humidifier rests too', async () => {
-    draw([
-      device({
-        type: 'fridge',
-        configuration: { ...CONFIGURATION, workmode: 'breed', night: { temperature: 21, humidity: 75 } },
-        control: {
-          running: true,
-          drying: false,
-          mode: 'germination',
-          energySaving: false,
-          germinationChoices: { warnTooHumid: false, humidifierHolds: false },
-          afterGermination: { dayTemperature: null, dayHumidity: null, nightTemperature: 21, nightHumidity: 55, co2: null, lightLimit: null },
-        },
-      }),
-    ]);
-    await screen.findByRole('spinbutton', { name: 'Temperature while germinating' });
-
-    expect(screen.getByText('Where germination ends without a new climate, the night from before holds again: 21 °C · 55 %.')).toBeInTheDocument();
-  });
-
-  /**
-   * Germination is a climate among the chips and a mode of the device at once:
-   * its chip moves the one figure germination holds and says the device goes
-   * dark, and the save sends it as germination. Any other chip ends it.
-   */
-  it('puts a lit fridge into germination in the dark from its chip, and saves it as germination', async () => {
-    const lit = { running: true, drying: false, mode: 'standard' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
-    await drawn([device({ type: 'fridge', configuration: { ...CONFIGURATION, workmode: 'small' }, control: lit })]);
-
-    const chips = screen.getAllByRole('button', { name: / · (dark|with light)$/ }).map(chip => chip.textContent);
-    expect(chips).toEqual(['Germination · dark', 'Seedling · with light']);
-    expect(screen.getByRole('switch', { name: 'Energy saving' })).toBeInTheDocument();
-
-    tap('Germination · dark');
-    expect(screen.getByRole('button', { name: 'Germination · dark' })).toHaveAttribute('aria-pressed', 'true');
-    expect(field('Temperature while germinating').value).toBe('24');
-    expect(screen.queryByRole('spinbutton', { name: 'Day temperature' })).not.toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /^Saving switches to Germination · dark: light off, no CO₂, one temperature and 75 % humidity for a humidifier round the clock\./,
-      ),
-    ).toBeInTheDocument();
-    // Without a humidifier nothing holds the humidity, so the table does not show it.
-    expect(screen.queryByRole('spinbutton', { name: 'Humidity while germinating' })).not.toBeInTheDocument();
-    // What germination does about the humidity is asked under the table: the alarm alone, where no humidifier is paired.
-    const choices = screen.getByRole('group', { name: 'During germination' });
-    expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toHaveAttribute('aria-checked', 'false');
-    expect(within(choices).getByText('“Too humid” rests until germination ends. Alarms you set up yourself stay awake.')).toBeInTheDocument();
-    expect(within(choices).queryByRole('switch', { name: 'Hold the humidity with the humidifier' })).not.toBeInTheDocument();
-    // Energy saving belongs to a day and a night, which germination does not have.
-    expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
-
-    tap('Save');
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    const body = sent('PUT')[0].body as { configuration: DeviceConfiguration; germination?: boolean; drying?: boolean };
-    expect(body).toMatchObject({ germination: true, drying: false, germinationChoices: { warnTooHumid: false } });
-    expect(body).not.toHaveProperty('germinationChoices.humidifierHolds');
-    // Germination brings its 75 % all the same, for a humidifier paired later; the rest stays for the seedling after it.
-    expect(body.configuration.night).toEqual({ temperature: 24, humidity: 75 });
-    expect(body.configuration.day).toEqual({ temperature: 25, humidity: 60, heating: 'hard' });
-  });
-
-  it('prefills germination´s 75 % for a paired humidifier, and draws its chip chosen by what the table shows', async () => {
-    wire.sockets = ['humidifier'];
-    const lit = { running: true, drying: false, mode: 'standard' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
-    const { unmount } = draw([device({ type: 'fridge', configuration: { ...CONFIGURATION, workmode: 'small' }, control: lit })]);
-
-    await screen.findByRole('spinbutton', { name: 'Day temperature' });
-    await screen.findByRole('switch', { name: 'Energy saving' });
-    tap('Germination · dark');
-    expect(field('Temperature while germinating').value).toBe('24');
-    expect(((await screen.findByRole('spinbutton', { name: 'Humidity while germinating' })) as HTMLInputElement).value).toBe('75');
-    expect(screen.getByText('The humidifier holds 75 % – it never makes it wetter than that.')).toBeInTheDocument();
-    unmount();
-
-    // A device that went into germination before it brought a humidity, with nothing to hold one: the chip is still its own.
-    wire.sockets = [];
-    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
-    draw([
-      device({ type: 'fridge', configuration: { ...CONFIGURATION, workmode: 'breed', night: { temperature: 24, humidity: 55 } }, control: dark }),
-    ]);
-    expect(await screen.findByRole('button', { name: 'Germination · dark' })).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  /**
-   * Owner's decision G2: in germination the grower chooses whether "Zu feucht"
-   * warns and whether a humidifier socket goes on holding the humidity. Where
-   * it holds, the humidity it holds is a target of germination like its
-   * temperature, and is set in the same table.
-   */
-  it('holds the night humidity with a paired humidifier, and rests it or warns when the grower says so', async () => {
-    wire.sockets = ['heater', 'humidifier'];
-    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
-    draw([device({ type: 'fridge', configuration: { ...CONFIGURATION, night: { temperature: 24, humidity: 55 } }, control: dark })]);
-
-    const humidifier = await screen.findByRole('switch', { name: 'Hold the humidity with the humidifier' });
-    expect(humidifier).toHaveAttribute('aria-checked', 'true');
-    expect(field('Humidity while germinating').value).toBe('55');
-    expect(screen.getByText('The humidifier holds 55 % – it never makes it wetter than that.')).toBeInTheDocument();
-    // Nothing moved yet: nothing to save.
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
-
-    type('Humidity while germinating', 80);
-    tap('Save');
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    const held = sent('PUT')[0].body as { configuration: DeviceConfiguration; germination?: boolean; germinationChoices?: unknown };
-    expect(held.configuration.night).toEqual({ temperature: 24, humidity: 80 });
-    expect(held.germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: true });
-    // Saved from inside germination, it stays there.
-    expect(held.germination).toBeUndefined();
   });
 
-  it('saves the humidifier resting and the alarm warning as a change of their own, and hides the humidity nothing holds', async () => {
-    wire.sockets = ['humidifier'];
-    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
-    draw([device({ type: 'fridge', configuration: { ...CONFIGURATION, night: { temperature: 24, humidity: 55 } }, control: dark })]);
+  it('marks the half that holds now on the device’s word', async () => {
+    wire.live = { active: 'night', period: 'night' };
+    await drawn();
 
-    fireEvent.click(await screen.findByRole('switch', { name: 'Hold the humidity with the humidifier' }));
-    expect(screen.getByText('The humidifier rests until germination ends.')).toBeInTheDocument();
-    expect(screen.queryByRole('spinbutton', { name: 'Humidity while germinating' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('switch', { name: 'Warn when it gets too humid' }));
-    expect(screen.getByText('“Too humid” warns during germination above 90 %.')).toBeInTheDocument();
-
-    tap('Save');
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    expect((sent('PUT')[0].body as { germinationChoices?: unknown }).germinationChoices).toEqual({ warnTooHumid: true, humidifierHolds: false });
+    await waitFor(() => expect(screen.getAllByRole('columnheader').map(head => head.textContent)).toEqual(['', 'Day', 'Nightholds now']));
   });
 
-  it('says where the humidity the humidifier holds is more than "Too humid" lets pass once it warns', async () => {
-    wire.sockets = ['humidifier'];
-    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
-    draw([device({ type: 'fridge', configuration: { ...CONFIGURATION, night: { temperature: 24, humidity: 92 } }, control: dark })]);
+  /**
+   * A section written as `{ target }` would take the rest of that section
+   * with it, and only the body says whether it did: a figure's sheet sends
+   * the device's whole document with that one figure changed.
+   */
+  it('saves one figure from its sheet as the whole document with nothing else moved, and says so in the toast', async () => {
+    await drawn();
 
-    await screen.findByRole('switch', { name: 'Hold the humidity with the humidifier' });
-    const clash = 'The humidifier holds more than “Too humid” allows during germination (90 %): the alarm will go off often.';
-    expect(screen.queryByText(clash)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('switch', { name: 'Warn when it gets too humid' }));
-    expect(screen.getByText(clash)).toBeInTheDocument();
-    type('Humidity while germinating', 85);
-    expect(screen.queryByText(clash)).not.toBeInTheDocument();
-  });
-
-  it('pauses a plan whose germination step chose otherwise with a reason that says what was changed', async () => {
-    wire.sockets = ['humidifier'];
-    wire.plan = {
-      ...plan('running'),
-      steps: [
-        {
-          ...STEP,
-          stage: 'germination',
-          settings: { night: { temperature: 24 } },
-          lightHours: null,
-          germinationChoices: { warnTooHumid: false, humidifierHolds: true },
-        },
-      ],
-    };
-    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
-    draw([
-      device({ type: 'fridge', configuration: { ...CONFIGURATION, workmode: 'breed', night: { temperature: 24, humidity: 55 } }, control: dark }),
-    ]);
-
-    fireEvent.click(await screen.findByRole('switch', { name: 'Warn when it gets too humid' }));
-    tap('Save');
+    fireEvent.click(figure('Day temperature'));
+    expect(screen.getByRole('dialog', { name: 'Day temperature' })).toBeInTheDocument();
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save' })).toBeDisabled();
+    type('Day temperature', 24);
+    save();
 
     await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    expect(wire.calls.filter(call => call.method === 'POST').map(call => call.body)).toEqual([
-      { kind: 'pause', reason: 'Germination choice changed by hand' },
-    ]);
-  });
-
-  it('brings a germinating fridge back into the light with the seedling´s climate', async () => {
-    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
-    draw([device({ type: 'fridge', configuration: { ...CONFIGURATION, night: { temperature: 24, humidity: 55 } }, control: dark })]);
-    await screen.findByRole('spinbutton', { name: 'Temperature while germinating' });
-    expect(screen.getByRole('button', { name: 'Germination · dark' })).toHaveAttribute('aria-pressed', 'true');
-
-    tap('Seedling · with light');
-    expect(screen.getByText('Saving ends germination: the device holds day and night again, with light and CO₂.')).toBeInTheDocument();
-    expect(field('Day temperature').value).toBe('24');
-    expect(field('Night temperature').value).toBe('21');
-
-    tap('Save');
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    const body = sent('PUT')[0].body as { configuration: DeviceConfiguration; germination?: boolean };
-    expect(body.germination).toBe(false);
-    expect(body.configuration.day).toMatchObject({ temperature: 24, humidity: 70 });
-    expect(body.configuration.night).toMatchObject({ temperature: 21, humidity: 65 });
-  });
-
-  /** A lamp at 0 % keeps its day: the plan and the column call it the day, not "light on", where they are read first. */
-  it('calls a day with the lamp at 0 % the day, and says so over the table', async () => {
-    at('12:00');
-    await drawn([device({ configuration: { ...CONFIGURATION, 'lights.limit': 0 } })]);
-
-    expect(within(plan_()).getByText('Day 06:00–18:00 · 12 h · lamp at 0 %')).toBeInTheDocument();
-    // Nothing switches the lamp at 18:00; the night begins.
-    expect(within(plan_()).getByText('Day now · night from 18:00')).toBeInTheDocument();
-    expect(
-      within(plan_()).getByText('Light limit 0 %: the lamp stays dark, but the day still holds – with the day figures and with CO₂.'),
-    ).toBeInTheDocument();
-    const heads = within(screen.getByRole('table')).getAllByRole('columnheader');
-    expect(heads[1]).toHaveTextContent(/^Day \(lamp at 0 %\)/);
-    expect(heads[2]).toHaveTextContent(/^Night/);
-    expect(screen.queryByText('Light on')).not.toBeInTheDocument();
-  });
-
-  /** The tent controller's firmware loses its morning ramp for a window past midnight UTC; the bar drew a hard start nothing explained. */
-  it('says a tent controller switches on without ramping for a window past midnight UTC', async () => {
-    await drawn([device({ configuration: { ...CONFIGURATION, daynight: { day: 22 * 3600, night: 16 * 3600 } } })]);
-
-    expect(within(plan_()).getByText(/^With this window the controller switches the light on at 22:00 without ramping up/)).toBeInTheDocument();
-  });
-
-  /** The server keeps the stored night when 24 hours are saved, so the night that is kept is the stored one, not one typed first. */
-  it('shows the night that is kept at 24 hours as stored, not as typed before', async () => {
-    await drawn();
-
-    type('Night temperature', 18);
-    for (let i = 0; i < 12; i += 1) tap('Light on for: more');
-    expect(screen.getByText('20 °C · 55 %')).toBeInTheDocument();
-    expect(screen.queryByText('18 °C · 55 %')).not.toBeInTheDocument();
-  });
-
-  it('draws the table first and the presets under it', async () => {
-    await drawn();
-
-    const night = field('Night humidity');
-    const chip = screen.getByRole('button', { name: 'Flower' });
-    expect(night.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it('offers the way back to a plan only where the tab opens on one', async () => {
-    draw([device()], true, true);
-
-    expect(await screen.findByRole('link', { name: '‹ back to the plan' })).toHaveAttribute('href', '/control?space=space-1');
-  });
-
-  it('writes the figures in the reader´s own language', async () => {
-    await i18next.changeLanguage('de');
-    draw();
-    await screen.findByRole('spinbutton', { name: 'Temperatur am Tag' });
-
-    expect(within(screen.getByRole('row', { name: /^Luftfeuchte/ })).getByText('VPD 0,91')).toBeInTheDocument();
-    expect(screen.getByText('Licht an 06:00–18:00 · 12 Std')).toBeInTheDocument();
-    tap('Temperatur am Tag: mehr');
-    expect(field('Temperatur am Tag').value).toBe('25,5');
-  });
-
-  it('steps a figure with − and +, on the grid its step makes, and no further than its range', async () => {
-    await drawn();
-
-    tap('Day temperature: more');
-    expect(field('Day temperature').value).toBe('25.5');
-    // Focus stays on the button, so what it set is said, with the unit the row's head carries.
-    expect(field('Day temperature')).toHaveAttribute('aria-valuetext', '25.5 °C');
-    expect(screen.getByText('Day temperature 25.5 °C')).toHaveAttribute('aria-live', 'polite');
-    tap('Day temperature: less');
-    tap('Day temperature: less');
-    expect(field('Day temperature').value).toBe('24.5');
-    // A figure typed off the grid lands back on it with the next step.
-    type('Day humidity', 61.4);
-    tap('Day humidity: more');
-    expect(field('Day humidity').value).toBe('62');
-    // 80 % and four taps is the lamp's whole output, and + goes no further.
-    for (let i = 0; i < 4; i += 1) tap('Light limit: more');
-    expect(field('Light limit').value).toBe('100');
-    // Said to be at its end rather than disabled, which would drop the focus of a keyboard on it.
-    expect(screen.getByRole('button', { name: 'Light limit: more' })).toHaveAttribute('aria-disabled', 'true');
-    tap('Light limit: more');
-    expect(field('Light limit').value).toBe('100');
-    expect(screen.getAllByText('Unsaved changes')[0]).toBeInTheDocument();
-  });
-
-  it('prefills the table from a preset and writes nothing, the light plan drawn as a draft beside what runs', async () => {
-    at('12:00');
-    await drawn();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
-
-    expect(field('Day temperature').value).toBe('25');
-    expect(field('Day humidity').value).toBe('50');
-    expect(field('Night temperature').value).toBe('20');
-    expect(field('Night humidity').value).toBe('50');
-    expect(field('Light limit').value).toBe('100');
-    expect(field('Light on for').value).toBe('12');
-    expect(field('CO₂ target').value).toBe('1000');
-    // A preset says how long the light is on, never when it comes on: that is the grower's.
-    expect(lightsOn().value).toBe('06:00');
-    expect(screen.getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Veg' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getAllByText('Unsaved changes')[0]).toBeInTheDocument();
-    expect(sent('PUT')).toEqual([]);
-
-    // The autoflower rows are the same stages under a long day, and say so -
-    // as a draft, with what runs beside it and now still the device's.
-    fireEvent.click(screen.getByRole('button', { name: 'Auto · Veg' }));
-    expect(field('Light on for').value).toBe('20');
-    expect(within(plan_()).getByText('Light on 06:00–02:00 · 20 h')).toBeInTheDocument();
-    expect(within(plan_()).getByText('Draft')).toBeInTheDocument();
-    expect(within(plan_()).getByText('so far: Light on 06:00–18:00 · 12 h')).toBeInTheDocument();
-    expect(within(plan_()).getByText('Day now · light off at 18:00')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Auto · Veg' })).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  /** A light-on time moved past now turns the day into night the moment it is saved, which is said before the save. */
-  it('says when saving the schedule would turn the half over at once', async () => {
-    at('12:00');
-    await drawn();
-
-    // On at 13:00 for twelve hours: at noon that is night.
-    for (let i = 0; i < 14; i += 1) tap('Light on at: later');
-    expect(lightsOn().value).toBe('13:00');
-    expect(within(plan_()).getByText('Once saved it is night at once: the light goes off and the night figures hold.')).toBeInTheDocument();
-    // The heads show the edited times, so the mark stands on the column those times put now in, and says it is the draft's.
-    expect(holding()).toEqual([]);
-    const marked = screen.getAllByRole('columnheader').filter(head => within(head).queryByText('holds once saved'));
-    expect(marked).toHaveLength(1);
-    expect(marked[0]).toHaveTextContent(/^Light off \(night\)/);
-    expect(within(plan_()).getByText('Day now · light off at 18:00')).toBeInTheDocument();
-
-    // Back to a window that holds noon: nothing turns over.
-    for (let i = 0; i < 14; i += 1) tap('Light on at: earlier');
-    expect(screen.queryByText(/^Once saved it is/)).not.toBeInTheDocument();
-  });
-
-  it('sends the whole document with the targets written into their sections', async () => {
-    await drawn();
-
-    type('Day temperature', 26.5);
-    for (let i = 0; i < 6; i += 1) tap('Light on for: more');
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    expect(sent('PUT')[0]).toEqual({
-      method: 'PUT',
-      path: '/devices/device-1/configuration',
-      body: {
-        configuration: {
-          workmode: 'breed',
-          day: { temperature: 26.5, humidity: 60, heating: 'hard' },
-          night: { temperature: 20, humidity: 55 },
-          co2: { target: 800, sunsetOff: 1 },
-          lights: { sunrise: 15, sunset: 15, limit: 80 },
-          // Eighteen hours from six in the morning is midnight, which goes a
-          // second early: the firmware works the evening ramp out without
-          // wrapping round midnight, and an off at zero cut the lamp hard.
-          daynight: { day: 21600, night: 86399, maxDehumidifySeconds: 120 },
-        },
+    expect(sent('PUT')[0].body).toEqual({
+      configuration: {
+        workmode: 'breed',
+        day: { temperature: 24, humidity: 60, heating: 'hard' },
+        night: { temperature: 20, humidity: 55 },
+        co2: { target: 800, sunsetOff: 1 },
+        lights: { sunrise: 15, sunset: 15, limit: 80 },
+        daynight: { day: 21600, night: 64800, maxDehumidifySeconds: 120 },
       },
     });
-    expect(sent('POST')).toEqual([]);
-    expect((await screen.findAllByText(/Sent to the device \d/))[0]).toBeInTheDocument();
-    expect(screen.getByText('The device acknowledges no setting, so what it is running is not reported back.')).toBeInTheDocument();
-    expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(said()).toBe('Day temperature 24 °C · saved');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(sent('POST')).toHaveLength(0);
   });
 
-  /**
-   * The document holds seconds past midnight UTC, the grower thinks in the
-   * clock on their wall. Kolkata is half an hour off the hour and keeps no
-   * summer time, so the test reads the same every day of the year.
-   */
-  it('sets when the light comes on, on the account´s clock, and keeps how long it stays on', async () => {
-    wire.zone = 'Asia/Kolkata';
+  it('takes a figure back from the toast by writing the one figure back', async () => {
     await drawn();
+    fireEvent.click(figure('Night humidity'));
+    type('Night humidity', 50);
+    save();
+    await waitFor(() => expect(told).toHaveLength(1));
 
-    await waitFor(() => expect(lightsOn().value).toBe('11:30'));
-    expect(screen.getByText('Light on 11:30–23:30 · 12 h')).toBeInTheDocument();
+    await act(async () => {
+      await told[0].undo!();
+    });
 
-    fireEvent.change(lightsOn(), { target: { value: '22:00' } });
+    expect(sent('PUT')).toHaveLength(2);
+    expect((sent('PUT')[1].body as { configuration: DeviceConfiguration }).configuration.night).toEqual({ temperature: 20, humidity: 55 });
+  });
 
-    expect(lightsOn().value).toBe('22:00');
-    expect(screen.getByText('Light on 22:00–10:00 · 12 h')).toBeInTheDocument();
-    expect(field('Light on for').value).toBe('12');
-    expect(screen.getAllByText('Unsaved changes')[0]).toBeInTheDocument();
-    expect(sent('PUT')).toEqual([]);
+  it('says why a save was refused in the sheet that asked, and keeps the sheet', async () => {
+    wire.refuseSave = { status: 422, code: 'validation_failed', detail: 'The settings do not fit what the device reads.' };
+    await drawn();
+    fireEvent.click(figure('Day temperature'));
+    type('Day temperature', 24);
+    save();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await within(screen.getByRole('dialog')).findByText(/The settings do not fit what the device reads/)).toBeInTheDocument();
+    expect(told).toHaveLength(0);
+  });
+
+  /** The first step of a series would already pause a running plan, so the steps of one are one write. */
+  it('sends the light limit once it rests, as one write for the steps of a series', async () => {
+    await drawn();
+    vi.useFakeTimers();
+
+    tap('Lower the light limit');
+    tap('Lower the light limit');
+    expect(screen.getByRole('group', { name: 'Light limit' })).toHaveTextContent('70 %');
+    expect(sent('PUT')).toHaveLength(0);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    vi.useRealTimers();
 
     await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    // 22:00 in Kolkata is 16:30 UTC, and twelve hours on is 04:30.
+    expect((sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration.lights).toEqual({ sunrise: 15, sunset: 15, limit: 70 });
+    await waitFor(() => expect(said()).toBe('Light limit 70 % · saved'));
+  });
+
+  it('opens the light’s times on a sheet and saves them with the light plan’s own editor', async () => {
+    await drawn();
+
+    tap('Change times');
+    const sheet = screen.getByRole('dialog', { name: 'Light times' });
+    expect(within(sheet).getByRole('group', { name: 'Light plan' })).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Light on for: more' }));
+    expect(within(sheet).getByText(/draft/i)).toBeInTheDocument();
+    save();
+
+    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
     expect((sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration.daynight).toEqual({
-      day: 16.5 * 3600,
-      night: 4.5 * 3600,
+      day: 21600,
+      night: 68400,
       maxDehumidifySeconds: 120,
     });
+    await waitFor(() => expect(said()).toBe('Light on 06:00–19:00 · 13 h · saved'));
   });
 
-  it('moves the light on by half an hour along the wall clock, landing on the half hour', async () => {
-    wire.zone = 'Asia/Kolkata';
-    await drawn();
-    await waitFor(() => expect(lightsOn().value).toBe('11:30'));
-
-    tap('Light on at: later');
-    expect(lightsOn().value).toBe('12:00');
-    tap('Light on at: earlier');
-    tap('Light on at: earlier');
-    expect(lightsOn().value).toBe('11:00');
-  });
-
-  it('keeps a half-typed time out of the draft', async () => {
-    await drawn();
-
-    fireEvent.change(lightsOn(), { target: { value: '' } });
-
-    expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
-    fireEvent.blur(lightsOn());
-    expect(lightsOn().value).toBe('06:00');
-  });
-
-  /**
-   * 24 hours has no night: one column, held round the clock, without the
-   * daily dimming dip a window a second short of a day made - it is written as
-   * a day that never ends. The night's figures are kept, not overwritten -
-   * they are back as soon as there is a night again - and said behind a line
-   * that says so.
-   */
-  it('has one column at 24 hours, writes a day that never ends, and keeps the night’s figures for later', async () => {
-    await drawn([device({ type: 'fridge' })]);
-
-    for (let i = 0; i < 12; i += 1) tap('Light on for: more');
-    expect(field('Light on for').value).toBe('24');
-    expect(within(plan_()).getByText('Light on round the clock · 24 h')).toBeInTheDocument();
-    const heads = within(screen.getByRole('table')).getAllByRole('columnheader');
-    expect(heads.at(-1)).toHaveTextContent(/^Light round the clock24 h · day figures/);
-    expect(screen.queryByRole('spinbutton', { name: 'Night temperature' })).not.toBeInTheDocument();
-    expect(
-      within(plan_()).getByText(
-        'The lamp stays at its light limit round the clock – no dimming down and up once a day. The day figures hold throughout. Set a length between 0 and 24 h and the day starts at 06:00 again.',
-      ),
-    ).toBeInTheDocument();
-    // A light that never goes off has no time it comes on to set.
-    expect(screen.queryByRole('textbox', { name: 'Light on at' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Light on at: later' })).not.toBeInTheDocument();
-    expect(screen.getByText('Night figures – hold again as soon as there is a night')).toBeInTheDocument();
-    expect(screen.getByText('20 °C · 55 %')).toBeInTheDocument();
-
-    tap('Day temperature: more');
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    const written = (sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration;
-    // Both times past any second of the clock, the night one before the day: day on every second, and the hour kept.
-    expect(written.daynight).toMatchObject({ day: 2 * 86400 + 21600 + 1, night: 2 * 86400 + 21600 });
-    expect(written.day).toMatchObject({ temperature: 25.5, humidity: 60 });
-    expect(written.night).toEqual({ temperature: 20, humidity: 55 });
-  });
-
-  /** None at all is the firmware's "always night": the night's figures round the clock, no CO₂, no lamp. */
-  it('has one dark column at no hours of light, and keeps the day’s figures for later', async () => {
-    at('12:00');
-    await drawn();
-
-    for (let i = 0; i < 12; i += 1) tap('Light on for: less');
-    expect(field('Light on for').value).toBe('0');
-    expect(screen.getByRole('button', { name: 'Light on for: less' })).toHaveAttribute('aria-disabled', 'true');
-    expect(within(plan_()).getByText('Light off round the clock · 0 h')).toBeInTheDocument();
-    expect(
-      within(plan_()).getByText(
-        'With no light it is night round the clock: the night figures hold and no CO₂ is dosed. Set a length between 0 and 24 h and the day starts at 06:00 again.',
-      ),
-    ).toBeInTheDocument();
-    expect(within(plan_()).getByText('Once saved it is night at once: the light goes off and the night figures hold.')).toBeInTheDocument();
-    expect(within(screen.getByRole('table')).getAllByRole('columnheader').at(-1)).toHaveTextContent(/^Dark round the clock/);
-    expect(field('Night temperature').value).toBe('20');
-    expect(screen.queryByRole('spinbutton', { name: 'Day temperature' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('spinbutton', { name: 'CO₂ target' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('spinbutton', { name: 'Light limit' })).not.toBeInTheDocument();
-    expect(screen.getByText('Day figures – hold again as soon as there is a day')).toBeInTheDocument();
-    expect(screen.getByText('25 °C · 60 % · CO₂ 800 ppm · light limit 80 %')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    const written = (sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration;
-    // On and off at the same second: the firmware never turns it day.
-    expect(written.daynight).toMatchObject({ day: 21600, night: 21600 });
-    expect(written.day).toMatchObject({ temperature: 25, humidity: 60 });
-  });
-
-  it('reads a document whose light goes off the second it comes on as dark, and saves it dark', async () => {
-    draw([device({ configuration: { ...CONFIGURATION, daynight: { day: 21600, night: 21600 } } })]);
-    await screen.findByRole('spinbutton', { name: 'Night temperature' });
-
-    expect(within(plan_()).getByText('Light off round the clock · 0 h')).toBeInTheDocument();
-    type('Night temperature', 19);
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    expect((sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration.daynight).toMatchObject({ day: 21600, night: 21600 });
-  });
-
-  it('says what 0 % does: the lamp dark, the day and its CO₂ still held', async () => {
-    await drawn();
-
-    for (let i = 0; i < 16; i += 1) tap('Light limit: less');
-    expect(field('Light limit').value).toBe('0');
-    expect(
-      screen.getByText('Light limit 0 %: the lamp stays dark, but the day still holds – with the day figures and with CO₂.'),
-    ).toBeInTheDocument();
-  });
-
-  /**
-   * Saving over a running plan used to pause it whatever had changed, and said
-   * so under the table, below the fold of a phone. A plan puts back what its
-   * step writes and nothing else, so the marks say which figures those are,
-   * the line over the table says what the mark means, and what a save does to
-   * the plan stands in the bar beside the button.
-   */
-  it('marks what a running plan writes, and says beside the save that saving one of those pauses it', async () => {
-    wire.plan = plan('running');
-    await drawn();
-
-    expect(screen.getByText('set by the running plan “Autoflower, 12 weeks” – again every hour.')).toBeInTheDocument();
-    // Its twelve hours from the device's six are what runs already: nothing to put back.
-    expect(screen.queryByText(/sets it back within the hour/)).not.toBeInTheDocument();
-    expect(within(screen.getByRole('row', { name: /^Temperature/ })).getByRole('img', { name: 'set by the running plan' })).toBeInTheDocument();
-    expect(within(plan_()).getAllByRole('img', { name: 'set by the running plan' })).toHaveLength(1);
-    expect(within(lightsOn().closest('div')!).queryByRole('img', { name: 'set by the running plan' })).not.toBeInTheDocument();
-
-    type('Day humidity', 65);
-    expect(bar()).toHaveTextContent('Saving pauses the plan “Autoflower, 12 weeks” – it sets one of the figures you changed.');
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    expect(wire.calls.filter(call => call.method !== 'GET').map(call => [call.method, call.path, call.body])).toEqual([
-      ['POST', '/devices/device-1/plan/transitions', { kind: 'pause', reason: 'Targets set by hand' }],
-      [
-        'PUT',
-        '/devices/device-1/configuration',
-        expect.objectContaining({ configuration: expect.objectContaining({ day: { temperature: 25, humidity: 65, heating: 'hard' } }) }),
-      ],
-    ]);
-    expect(await screen.findByText('The plan is paused while these targets hold.')).toBeInTheDocument();
-  });
-
-  it('leaves a running plan running when only the hour the light comes on moves, and says so beside the save', async () => {
-    wire.plan = plan('running');
-    await drawn();
-
-    tap('Light on at: later');
-    expect(bar()).toHaveTextContent('The plan “Autoflower, 12 weeks” keeps running – it sets none of them.');
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    expect(sent('POST')).toEqual([]);
-    expect((sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration.daynight).toMatchObject({ day: 23400, night: 66600 });
-  });
-
-  /** A recipe migrated from the old app carries its two fixed times in its settings, and puts them back: then the hour is the plan's too. */
-  it('counts the hour the light comes on as the plan´s where its step carries one', async () => {
-    wire.plan = { ...plan('running'), steps: [{ ...STEP, lightHours: null, settings: { daynight: { day: 3600, night: 50400 } } }] };
-    await drawn();
-
-    expect(within(plan_()).getAllByRole('img', { name: 'set by the running plan' })).toHaveLength(2);
-    // What the plan will put back, said before the hour is up rather than found out after it.
-    expect(
-      within(plan_()).getByText('The running plan “Autoflower, 12 weeks” sets it back within the hour: Light on 01:00–14:00 · 13 h.'),
-    ).toBeInTheDocument();
-    tap('Light on at: later');
-    expect(bar()).toHaveTextContent(/^Saving pauses the plan/);
-  });
-
-  it('offers to resume a paused plan', async () => {
-    wire.plan = plan('paused');
-    await drawn();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Resume plan' }));
-
-    await waitFor(() => expect(sent('POST')).toEqual([{ method: 'POST', path: '/devices/device-1/plan/transitions', body: { kind: 'resume' } }]));
-  });
-
-  it('offers to stop a paused plan, asking first', async () => {
-    wire.plan = plan('paused');
-    await drawn();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
-    expect(sent('DELETE')).toEqual([]);
-    fireEvent.click(screen.getByRole('button', { name: 'Stop the plan' }));
-
-    await waitFor(() => expect(sent('DELETE')).toEqual([{ method: 'DELETE', path: '/devices/device-1/plan', body: undefined }]));
-    await waitFor(() => expect(screen.queryByText('The plan is paused while these targets hold.')).not.toBeInTheDocument());
-  });
-
-  it('has no CO2 row without a CO2 sensor', async () => {
-    await drawn([device({}, { co2: 'off' })]);
-
-    expect(screen.queryByRole('spinbutton', { name: 'CO₂ target' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('row', { name: /^CO₂/ })).not.toBeInTheDocument();
-    // The chip is judged on what the page can set, so a preset still reads as chosen without its CO2 figure.
-    fireEvent.click(screen.getByRole('button', { name: 'Seedling · with light' }));
-    expect(screen.getByRole('button', { name: 'Seedling · with light' })).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  /**
-   * A report that does not mention the sensor is a firmware too old to have
-   * been asked, which is how the server reads the same absence - not a device
-   * without one.
-   */
-  it('draws the CO2 target of a device whose report says nothing about the sensor', async () => {
-    await drawn([device({}, {})]);
-
-    expect(screen.getByRole('spinbutton', { name: 'CO₂ target' })).toBeInTheDocument();
-    expect(screen.queryByText('needs a CO₂ sensor')).not.toBeInTheDocument();
-  });
-
-  it('shows what the server refused with, and keeps the draft', async () => {
-    wire.refuseSave = { status: 403, code: 'forbidden', detail: 'The demo may only look.' };
-    await drawn();
-
-    type('Night temperature', 18);
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('The demo may only look.');
-    expect(field('Night temperature').value).toBe('18');
-    expect(screen.getAllByText('Unsaved changes')[0]).toBeInTheDocument();
-  });
-
-  it('lets a session that may only look see everything and move nothing', async () => {
-    wire.plan = plan('paused');
-    await drawn(undefined, false);
-
-    for (const one of screen.getAllByRole('spinbutton')) expect(one).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Day temperature: more' })).toBeDisabled();
-    expect(lightsOn()).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Flower' })).toBeDisabled();
-    expect(screen.getByText('The plan is paused while these targets hold.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Resume plan' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
-  });
-
-  it('puts the draft back with Discard', async () => {
-    await drawn();
-
-    type('Day temperature', 30);
-    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
-
-    expect(field('Day temperature').value).toBe('25');
-    expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
-  });
-
-  it('asks before a change nobody saved is left behind, and goes on only once it is saved or thrown away', async () => {
-    const router = createMemoryRouter(
-      [
-        {
-          path: '/control',
-          element: (
-            <>
-              <Link to="/control/alarms?space=space-1">Alarms</Link>
-              <Link to="/control?space=space-2">Other place</Link>
-              <Targets spaceId="space-1" devices={[device()]} mayManage />
-            </>
-          ),
-        },
-        { path: '/control/alarms', element: <p>The alarm rules</p> },
-      ],
-      { initialEntries: ['/control?space=space-1'] },
-    );
-    render(
-      <QueryClientProvider client={testClient()}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    );
-    await screen.findByRole('spinbutton', { name: 'Day temperature' });
-
-    // Nothing changed: leaving is not asked about.
-    fireEvent.click(screen.getByRole('link', { name: 'Alarms' }));
-    expect(await screen.findByText('The alarm rules')).toBeInTheDocument();
-    await act(() => router.navigate('/control?space=space-1'));
-    await screen.findByRole('spinbutton', { name: 'Day temperature' });
-
-    type('Day temperature', 30);
-    fireEvent.click(screen.getByRole('link', { name: 'Other place' }));
-    const question = await screen.findByRole('dialog', { name: 'Targets not saved' });
-    expect(question).toHaveTextContent('Without saving, the device keeps running on the old ones.');
-
-    // Staying keeps the draft and the address.
-    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(field('Day temperature').value).toBe('30');
-    expect(router.state.location.search).toBe('?space=space-1');
-
-    // Saving sends the draft and then goes where the tap was going.
-    fireEvent.click(screen.getByRole('link', { name: 'Alarms' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Save and go on' }));
-    expect(await screen.findByText('The alarm rules')).toBeInTheDocument();
-    const [save] = sent('PUT');
-    expect((save?.body as { configuration: DeviceConfiguration }).configuration.day).toEqual({ temperature: 30, humidity: 60, heating: 'hard' });
-  });
-
-  it('throws an unsaved change away when asked to, and leaves', async () => {
-    const router = createMemoryRouter(
-      [
-        {
-          path: '/control',
-          element: (
-            <>
-              <Link to="/">Start</Link>
-              <Targets spaceId="space-1" devices={[device()]} mayManage />
-            </>
-          ),
-        },
-        { path: '/', element: <p>Start page</p> },
-      ],
-      { initialEntries: ['/control?space=space-1'] },
-    );
-    render(
-      <QueryClientProvider client={testClient()}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    );
-    await screen.findByRole('spinbutton', { name: 'Day temperature' });
-
-    type('Day temperature', 30);
-    fireEvent.click(screen.getByRole('link', { name: 'Start' }));
-    const question = await screen.findByRole('dialog', { name: 'Targets not saved' });
-    fireEvent.click(within(question).getByRole('button', { name: 'Discard' }));
-
-    expect(await screen.findByText('Start page')).toBeInTheDocument();
-    expect(sent('PUT')).toHaveLength(0);
-  });
-
-  it('switches energy saving on a fridge on the tap, and leaves the table where it was put', async () => {
-    await drawn([
-      device({
-        type: 'fridge',
-        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-      }),
-    ]);
-    type('Day temperature', 27);
-
-    const toggle = screen.getByRole('switch', { name: 'Energy saving' });
-    expect(screen.getByText('The back-wall fan runs even while the compressor is off.')).toBeInTheDocument();
-    fireEvent.click(toggle);
-
-    await waitFor(() =>
-      expect(sent('PATCH')).toEqual([{ method: 'PATCH', path: '/devices/device-1/configuration', body: { set: { energySaving: true } } }]),
-    );
-    expect(field('Day temperature').value).toBe('27');
-    expect(screen.getAllByText('Unsaved changes')[0]).toBeInTheDocument();
-  });
-
-  it('sets a fridge’s clip fan and inner fans under its targets, saved on their own and not again under Erweitert', async () => {
-    await drawn([
-      device({
-        type: 'fridge',
-        configuration: { ...CONFIGURATION, fans: { external: 40, internal: 30 } },
-        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-      }),
-    ]);
-    expect(screen.getByText('Fans')).toBeInTheDocument();
-    expect(screen.getByRole('slider', { name: 'Clip fan' })).toHaveValue('40');
-    expect(screen.getByRole('slider', { name: 'Inner fans, at least' })).toHaveValue('30');
-
-    fireEvent.click(screen.getByText('Advanced', { selector: 'summary' }));
-    expect(screen.getByRole('textbox', { name: 'Compressor rest' })).toBeInTheDocument();
-    expect(screen.queryByRole('textbox', { name: 'Clip fan' })).not.toBeInTheDocument();
-
-    type('Clip fan, typed', 0);
-    tap('Save');
-
-    await waitFor(() => expect(sent('PATCH')).toEqual([{ method: 'PATCH', path: '/devices/device-1/configuration', body: { set: { clipFan: 0 } } }]));
-    expect(sent('PUT')).toEqual([]);
-  });
-
-  it('holds no humidity in greenhouse mode, says so over the table rather than in a dead row, and offers no energy saving there', async () => {
-    await drawn([
-      device({
-        type: 'fridge',
-        control: { running: true, drying: false, mode: 'greenhouse', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-      }),
-    ]);
-
-    expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
-    // What the mode leaves of the table is said over it, with the way to the mode itself.
-    expect(screen.getByText(/^Operating mode greenhouse: the device holds the temperature only/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Change operating mode' })).toBeInTheDocument();
-    expect(screen.queryByRole('row', { name: /^Humidity/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('spinbutton', { name: 'Day humidity' })).not.toBeInTheDocument();
-    // Temperature by day and night, the light plan and CO₂ run as ever.
-    expect(field('Night temperature').value).toBe('20');
-    expect(field('CO₂ target').value).toBe('800');
-    expect(lightsOn().value).toBe('06:00');
-  });
-
-  it('germinates in one column: the temperature, round the clock, in the dark - and keeps the day it does not hold', async () => {
-    wire.live = { active: 'night' };
-    draw([
-      device({
-        type: 'fridge',
-        control: { running: true, drying: false, mode: 'germination', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-      }),
-    ]);
-    await screen.findByRole('spinbutton', { name: 'Temperature while germinating' });
-
-    expect(within(screen.getByRole('table')).getAllByRole('columnheader').at(-1)).toHaveTextContent(/^Germination · darkround the clock/);
-    expect(within(plan_()).getByText('Light off · germination')).toBeInTheDocument();
-    expect(
-      within(plan_()).getByText(/^Germination keeps the light off round the clock\. The light plan – Light on 06:00–18:00 · 12 h – holds again/),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('spinbutton', { name: 'Day temperature' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('row', { name: /^Humidity/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('spinbutton', { name: 'CO₂ target' })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Light on at', { selector: 'input' })).not.toBeInTheDocument();
-    await waitFor(() => expect(holding()).toHaveLength(1));
-
-    type('Temperature while germinating', 24);
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    const written = (sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration;
-    expect(written.night).toEqual({ temperature: 24, humidity: 55 });
-    // The day is the standard mode's, for when germination ends: nothing keeps it but the document.
-    expect(written.day).toEqual({ temperature: 25, humidity: 60, heating: 'hard' });
-  });
-
-  it('offers a controller no energy saving, because it has no back-wall fan', async () => {
-    await drawn([
-      device({ control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES } }),
-    ]);
-
-    expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
-  });
-
-  it('says control is off in one line with no table under it, and switches it on from there', async () => {
-    draw([
-      device({
-        type: 'fridge',
-        control: { running: false, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-      }),
-    ]);
-
-    expect(await screen.findByText('Control off.')).toBeInTheDocument();
-    expect(
-      screen.getByText(/The device only measures: heater, compressor, light and CO₂ stand still, and it holds no targets\./),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Light plan' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Flower' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Switch control on' }));
-
-    await waitFor(() =>
-      expect(sent('PATCH')).toEqual([{ method: 'PATCH', path: '/devices/device-1/configuration', body: { set: { control: true } } }]),
-    );
-  });
-
-  /**
-   * "End drying" wrote at once and left the drying room's 18 °C and the lamp at
-   * 0 % standing. It asks first now, and says which targets come back.
-   */
-  it('says a drying phase has the device drying, and ends it from there once asked, naming the targets that come back', async () => {
-    const afterDrying = { dayTemperature: 26, dayHumidity: 62, nightTemperature: 22, nightHumidity: 58, co2: 900, lightLimit: 80 };
-    draw([
-      device({
-        type: 'fridge',
-        control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES, afterDrying },
-      }),
-    ]);
-    await screen.findByRole('spinbutton', { name: 'Temperature while drying' });
-
-    expect(screen.getByText(/^Drying: no day and night, no light, no CO₂/)).toBeInTheDocument();
-    expect(screen.queryByText('Control off.')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'End drying …' }));
-
-    const asked = await screen.findByRole('dialog', { name: 'End drying?' });
-    expect(
-      within(asked).getByText('The targets from before drying apply again: day 26 °C · 62 %, night 22 °C · 58 %, light 80 %, CO₂ 900 ppm.'),
-    ).toBeInTheDocument();
-    expect(sent('PATCH')).toEqual([]);
-    fireEvent.click(within(asked).getByRole('button', { name: 'End drying' }));
-
-    await waitFor(() =>
-      expect(sent('PATCH')).toEqual([{ method: 'PATCH', path: '/devices/device-1/configuration', body: { set: { drying: false } } }]),
-    );
-    // The card it was asked from goes with the spell; the answer stays to be read.
-    expect(await within(asked).findByText(/^Drying has ended/)).toBeInTheDocument();
-  });
-
-  /**
-   * In the drying work mode the firmware has no day at all and holds the
-   * night's figures. The page used to offer the whole day - light, schedule
-   * and CO₂ included - under the card saying there was none, and saved a day
-   * temperature that changed nothing. One column is offered now, and what it
-   * sets is written to the night it holds; the stored day is sent as it is,
-   * since the server keeps it through the spell and brings back the one from
-   * before it when the spell ends.
-   */
-  it('dries in one column, offers nothing the drying does not hold, and writes it to the night it holds', async () => {
-    draw([
-      device({
-        type: 'fridge',
-        control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-      }),
-    ]);
-    await screen.findByRole('spinbutton', { name: 'Temperature while drying' });
-
-    expect(within(screen.getByRole('table')).getAllByRole('columnheader').at(-1)).toHaveTextContent(/^Dryinground the clock/);
-    expect(within(plan_()).getByText('Light off · drying')).toBeInTheDocument();
-    expect(
-      within(plan_()).getByText('The light stays off while drying runs. Afterwards the light plan holds again: Light on 06:00–18:00 · 12 h.'),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('spinbutton', { name: 'Day temperature' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('spinbutton', { name: 'CO₂ target' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('spinbutton', { name: 'Light limit' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
-
-    type('Temperature while drying', 17);
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    const written = (sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration;
-    expect(written.day).toEqual({ temperature: 25, humidity: 60, heating: 'hard' });
-    expect(written.night).toEqual({ temperature: 17, humidity: 55 });
-    // The schedule and the lamp stay as they were, for when the spell ends.
-    expect(written.daynight).toEqual(CONFIGURATION.daynight);
-  });
-
-  it('says where the targets come from when the ones from before drying were never kept', async () => {
-    draw([
-      device({
-        type: 'fridge',
-        control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-      }),
-    ]);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'End drying …' }));
-    const asked = await screen.findByRole('dialog', { name: 'End drying?' });
-    expect(within(asked).getByText(/^The targets last saved before drying apply again/)).toBeInTheDocument();
-  });
-
-  it('starts drying with the drying preset, says so before it is saved, and shows the one column it will hold', async () => {
-    await drawn([
-      device({
-        type: 'fridge',
-        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-      }),
-    ]);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
-    expect(screen.getByText(/^Saving starts drying/)).toBeInTheDocument();
-    // Tuned after the chip, the targets are still a drying room's.
-    type('Temperature while drying', 17);
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    expect(sent('PUT')[0].body).toMatchObject({ drying: true, configuration: { day: { temperature: 17 }, night: { temperature: 17 } } });
-  });
-
-  it('ends a drying spell with any other preset, and leaves it running where only a figure moved', async () => {
-    draw([
-      device({
-        type: 'fridge',
-        control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
-      }),
-    ]);
-    await screen.findByRole('spinbutton', { name: 'Temperature while drying' });
-
-    type('Temperature while drying', 17);
-    expect(screen.queryByText(/^Saving ends drying/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Veg' }));
-    expect(screen.getByText(/^Saving ends drying/)).toBeInTheDocument();
-    // What it ends in is the day and the night again, drawn before it is saved.
-    expect(field('Day temperature')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-    expect(sent('PUT')[0].body).toMatchObject({ drying: false });
-  });
-
-  /**
-   * The bar stands over the foot of a phone's screen from the first change on,
-   * which is where a row tapped near the bottom was: its own − and + went under
-   * the bar its first tap brought up. The row is scrolled out from under it.
-   */
-  it('scrolls the row being changed out from under the save bar', async () => {
-    await drawn();
-    const scrolled = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
-    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      const top = this.textContent?.startsWith('Unsaved changes') ? 700 : 0;
-      return {
-        top,
-        bottom: this.getAttribute('role') === 'row' ? 740 : top + 40,
-        left: 0,
-        right: 0,
-        width: 0,
-        height: 40,
-        x: 0,
-        y: top,
-        toJSON: () => ({}),
-      };
+  describe('with a plan running', () => {
+    /**
+     * The engine re-applies the step it stands on within the hour, so saving
+     * a figure the step writes pauses the plan first - said before the tap -
+     * and taking the save back sets the plan going again.
+     */
+    it('says before the tap that saving a figure the plan writes pauses it, pauses first, and resumes on undo', async () => {
+      wire.plan = plan('running');
+      await drawn();
+      expect(screen.getByText(/set by the running plan “Autoflower, 12 weeks”/)).toBeInTheDocument();
+
+      fireEvent.click(figure('Day temperature'));
+      type('Day temperature', 24);
+      expect(within(screen.getByRole('dialog')).getByText(/This pauses the plan “Autoflower, 12 weeks”/)).toBeInTheDocument();
+      save();
+
+      await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+      const order = wire.calls.filter(call => call.method !== 'GET').map(call => `${call.method} ${call.path}`);
+      expect(order).toEqual(['POST /devices/device-1/plan/transitions', 'PUT /devices/device-1/configuration']);
+      expect(sent('POST')[0].body).toEqual({ kind: 'pause', reason: 'Targets set by hand' });
+
+      await waitFor(() => expect(told).toHaveLength(1));
+      await act(async () => {
+        await told[0].undo!();
+      });
+      expect(sent('POST')[1].body).toEqual({ kind: 'resume' });
     });
 
-    const more = screen.getByRole('button', { name: 'Night humidity: more' });
-    fireEvent.pointerDown(more);
-    fireEvent.click(more);
+    it('leaves the plan running where the figure is none of the step’s', async () => {
+      wire.plan = { ...plan('running'), steps: [{ ...STEP, settings: { day: { humidity: 50 } }, lightHours: null }] };
+      await drawn();
 
-    await waitFor(() => expect(scrolled).toHaveBeenCalledWith({ top: 740 - 700 + 16 }));
-    rect.mockRestore();
-    scrolled.mockRestore();
+      fireEvent.click(figure('Day temperature'));
+      type('Day temperature', 24);
+      expect(within(screen.getByRole('dialog')).queryByText(/pauses the plan/)).not.toBeInTheDocument();
+      save();
+
+      await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+      expect(sent('POST')).toHaveLength(0);
+    });
+
+    it('offers to resume and to stop a plan that a figure set by hand has paused', async () => {
+      wire.plan = { ...plan('paused'), state: { ...plan('paused').state, pauseReason: 'Targets set by hand' } };
+      await drawn();
+
+      expect(screen.getByText('The plan is paused: Targets set by hand')).toBeInTheDocument();
+      tap('Resume plan');
+      await waitFor(() => expect(sent('POST')[0]?.body).toEqual({ kind: 'resume' }));
+    });
   });
 
-  it('heads each panel with the device name when more than one states a climate', async () => {
-    draw([device(), device({ id: 'device-2', name: 'Second tent' })]);
+  describe('a preset', () => {
+    it('is named on its button where the figures are its own', async () => {
+      await drawn(
+        device({
+          configuration: {
+            ...CONFIGURATION,
+            day: { temperature: 25, humidity: 50 },
+            night: { temperature: 20, humidity: 50 },
+            co2: { target: 1000 },
+            'lights.limit': 100,
+          },
+        }),
+      );
 
-    expect(await screen.findByRole('heading', { name: 'Blue Dream tent' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Second tent' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Preset: Flower' })).toBeInTheDocument();
+    });
+
+    /** A chip only shows what it would set; nothing is written before "Apply". */
+    it('says what it would change before it is taken, and writes on Apply', async () => {
+      await drawn();
+
+      tap('Preset');
+      const sheet = screen.getByRole('dialog', { name: 'Apply a preset' });
+      expect(within(sheet).getByRole('button', { name: 'Apply' })).toBeDisabled();
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Flower' }));
+      const sets = within(sheet).getByRole('list', { name: 'What the preset changes' });
+      expect(within(sets).getByText('Day humidity').parentElement).toHaveTextContent('60 % → 50 %');
+      expect(within(sets).getByText('CO₂ target').parentElement).toHaveTextContent('800 ppm → 1000 ppm');
+      expect(sent('PUT')).toHaveLength(0);
+
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Apply' }));
+      await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+      const body = sent('PUT')[0].body as { configuration: DeviceConfiguration; drying?: boolean; germination?: boolean };
+      expect(body.configuration.day).toEqual({ temperature: 25, humidity: 50, heating: 'hard' });
+      expect(body.configuration.co2).toEqual({ target: 1000, sunsetOff: 1 });
+      await waitFor(() => expect(said()).toBe('Preset Flower · saved'));
+      expect(told[0].undo).not.toBeNull();
+    });
+
+    /** Drying is a mode of the device as well as figures: the chip starts the spell, which is more than one write to take back. */
+    it('starts a drying spell with the drying chip, says so first and offers no undo', async () => {
+      await drawn(device({ type: 'fridge', control: CONTROL }));
+
+      tap('Preset');
+      const sheet = screen.getByRole('dialog');
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Drying' }));
+      expect(within(sheet).getByText(/Applying starts drying/)).toBeInTheDocument();
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Apply' }));
+
+      await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+      expect(sent('PUT')[0].body).toMatchObject({ drying: true, germination: false });
+      await waitFor(() => expect(told).toHaveLength(1));
+      expect(told[0].undo).toBeNull();
+    });
+
+    it('offers what germination does about the humidity with the germination chip, and sends what was chosen', async () => {
+      wire.sockets = ['humidifier'];
+      await drawn(device({ type: 'fridge', control: CONTROL }));
+
+      tap('Preset');
+      const sheet = screen.getByRole('dialog');
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Germination · dark' }));
+      fireEvent.click(await within(sheet).findByRole('switch', { name: 'Warn when it gets too humid' }));
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Apply' }));
+
+      await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+      expect(sent('PUT')[0].body).toMatchObject({ germination: true, germinationChoices: { warnTooHumid: true, humidifierHolds: true } });
+    });
+  });
+
+  describe('a device that is not heard', () => {
+    /** Three in the afternoon, UTC, with a device last heard at one. */
+    const THREE = Date.parse('2026-09-19T15:00:00.000Z');
+    const HEARD = '2026-09-19T13:00:00.000Z';
+    const silent = (): Device => ({ ...device(), state: { ...device().state, lastSeenAt: HEARD } });
+    beforeEach(() => {
+      Settings.now = () => THREE;
+    });
+
+    /**
+     * Offline does not lock. What the cloud stored since the device was last
+     * heard is marked and said with what the device still holds - by the
+     * server's reckoning, which is all anybody knows of it.
+     */
+    it('marks a figure the device has not been handed and says what it still holds', async () => {
+      wire.live = {};
+      wire.pending = {
+        since: HEARD,
+        settings: [
+          { field: 'day.temperature', held: 26, savedAt: '2026-09-19T14:31:00.000Z' },
+          { field: 'lights.limit', held: null, savedAt: '2026-09-19T14:32:00.000Z' },
+        ],
+      };
+      await drawn(silent());
+
+      expect(
+        await screen.findByText('Day temperature: 25 °C saved at 14:31. The device still holds 26 °C until it is back online.'),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Change Day temperature, 25 °C, not with the device yet' })).toHaveAttribute('data-pending');
+      expect(figure('Night temperature')).not.toHaveAttribute('data-pending');
+      // What it held is said only where the cloud knows it.
+      expect(screen.getByText('Light limit: 80 % saved at 14:32. The device takes it over once it is back online.')).toBeInTheDocument();
+    });
+
+    it('says the light window the device still runs where a new one was stored', async () => {
+      wire.live = {};
+      wire.pending = { since: HEARD, settings: [{ field: 'daynight.night', held: 61200, savedAt: '2026-09-19T14:31:00.000Z' }] };
+      await drawn(silent());
+
+      expect(
+        await screen.findByText('Light times: On at 06:00 · 12 h saved at 14:31. The device still runs On at 06:00 · 11 h until it is back online.'),
+      ).toBeInTheDocument();
+    });
+
+    /** A stored mode changes what the card draws, so the card says that the device has not taken it. */
+    it('says under the targets that a work mode stored since has not reached the device', async () => {
+      wire.live = {};
+      wire.pending = { since: HEARD, settings: [{ field: 'workmode', held: 'small', savedAt: '2026-09-19T14:31:00.000Z' }] };
+      await drawn({ ...silent(), type: 'fridge', control: { ...CONTROL, drying: true } });
+
+      expect(await screen.findByText('Operating mode: Drying saved at 14:31. The device takes it over once it is back online.')).toBeInTheDocument();
+    });
+
+    it('still saves, and the toast says when the device takes it over', async () => {
+      await drawn(silent());
+
+      fireEvent.click(figure('Day temperature'));
+      type('Day temperature', 24);
+      save();
+
+      await waitFor(() => expect(told).toHaveLength(1));
+      expect(said()).toBe('Day temperature 24 °C · saved, Blue Dream tent takes it over when it next connects');
+    });
+  });
+
+  /** A control the reader may not use is absent, not disabled. */
+  it('shows a session that may only look the figures as text and offers nothing that writes', async () => {
+    await drawn(device(), false);
+
+    expect(screen.getByRole('table', { name: 'Targets' })).toHaveTextContent('25 °C');
+    expect(screen.queryByRole('button', { name: /^Change|^Preset|light limit$/ })).not.toBeInTheDocument();
+    expect(screen.getByText('80 %')).toBeInTheDocument();
+  });
+
+  describe('the shape of the grid', () => {
+    it('leaves CO₂ out for a device without the sensor', async () => {
+      await drawn(device({}, { co2: 'off' }));
+
+      expect(screen.queryByRole('button', { name: /CO₂ target/ })).not.toBeInTheDocument();
+    });
+
+    it('is one column round the clock while drying, with no light to plan', async () => {
+      await drawn(device({ type: 'fridge', control: { ...CONTROL, drying: true } }));
+
+      expect(screen.getAllByRole('columnheader').map(head => head.textContent)).toEqual(['', 'Drying']);
+      expect(screen.getByText('Light off · drying')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Change times' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Change Temperature while drying, 20 °C/ })).toBeInTheDocument();
+      expect(screen.queryByRole('group', { name: 'Light limit' })).not.toBeInTheDocument();
+    });
+
+    it('holds no humidity in greenhouse mode', async () => {
+      await drawn(device({ type: 'fridge', control: { ...CONTROL, mode: 'greenhouse' } }));
+
+      expect(screen.queryByRole('button', { name: /humidity/ })).not.toBeInTheDocument();
+      expect(figure('Day temperature')).toBeInTheDocument();
+    });
+
+    it('keeps the night it cannot show at 24 hours of light, and says so', async () => {
+      await drawn(device({ configuration: { ...CONFIGURATION, daynight: { day: 21600, night: 21599 } } }));
+
+      expect(screen.getAllByRole('columnheader').map(head => head.textContent)).toEqual(['', 'round the clock']);
+      expect(screen.getByText('Light on round the clock · 24 h')).toBeInTheDocument();
+      expect(screen.getByText(/Night figures – hold again as soon as there is a night/)).toHaveTextContent('20 °C · 55 %');
+    });
+
+    /** Switched off there is no table, because the device holds none of it - and the one way out stands beside the sentence. */
+    it('is the sentence and the way to switch on alone while control is off', async () => {
+      draw(device({ type: 'fridge', control: { ...CONTROL, running: false } }));
+
+      expect(await screen.findByText('Control off.')).toBeInTheDocument();
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      tap('Switch control on');
+      await waitFor(() => expect(sent('PATCH')[0]?.body).toEqual({ set: { control: true } }));
+    });
   });
 });
 

@@ -1,7 +1,7 @@
 ---
 summary: The mechanics behind every time, date, figure and translated word in the web app - the server's clock, the account's time zone, the shared date formats, the age helpers, i18next setup, device-message keys, the figure writers, help topics - and the source-reading tests that enforce them
 updated: 2026-11-12
-source: React rewrite sessions 2026-09..10 (clock, zone and figure passes 2026-09-23..10-04); Chris (help texts, 2026-09-24); codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08
+source: React rewrite sessions 2026-09..10 (clock, zone and figure passes 2026-09-23..10-04); Chris (help texts, 2026-09-24); codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; the light limit's own pause reason gone with its slider (the redesign session of 2026-11-12)
 paths:
   - webapp/src/**
   - webapp/public/assets/i18n/**
@@ -105,9 +105,9 @@ its line.
 - Never rename a `message-*` key: devices, the plan and the server store keys, not words. Change the words in both
   catalogues and every stored line reads the new way (as when "Recipe" became "Plan").
 - A plan's pause reason is the exception: it is stored as words, in the language of whoever paused the plan
-  (`plan.state.pauseReason`). The app recognises its own pauses by comparing them with `climateControl.pauseReason`
-  (`screens/devices/switch-on.ts`) and `devices.lightOutput.pauseReason` (`LightOutputRow.tsx`) in the loaded
-  catalogues - English and the active language - so rewording either string orphans the plans paused before it.
+  (`plan.state.pauseReason`). The app recognises its own pause for control switched off by comparing the reason
+  with `climateControl.pauseReason` (`screens/devices/switch-on.ts`) in the loaded catalogues - English and the
+  active language - so rewording that string orphans the plans paused before it.
 - `src/i18n/device-message.ts` resolves a stored `{ key, params }`: `<key>:<params>-title|text` first, then
   `<key>-title|text` with `{{value}}`, else the key as it came, so a key a newer firmware invents is readable.
   Alarm lines (`alarm-line.ts`) and settings changes (`configuration-change.ts`, which names a place by the device

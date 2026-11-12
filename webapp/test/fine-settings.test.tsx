@@ -11,11 +11,10 @@ import { drawAt } from './harness';
 import { translate } from './translations';
 
 /**
- * The settings few growers need, back under Erweitert where the old app had
- * them in its expert screens: the lamp's ramps, a fridge's fans, its
- * maintenance light and its compressor's rest, the leaf offsets and the lux
- * factor the cloud works VPD and PPFD out with, and the CO2 cylinder at the
- * place.
+ * The settings few growers need, under Erweitert on the device's own page:
+ * the lamp's ramps, a fridge's maintenance light and its compressor's rest, the
+ * leaf offsets and the lux factor the cloud works VPD and PPFD out with, and
+ * the CO2 cylinder at the place.
  */
 
 vi.mock('@/api/client', () => ({
@@ -51,23 +50,13 @@ beforeEach(() => {
 });
 
 describe('what Erweitert offers a device', () => {
-  it('offers a fridge its ramps, its maintenance light, CO2 at night, its fans, its compressor rest and its leaf offsets', () => {
-    expect(ids(device())).toEqual([
-      'operating-mode',
-      'light-ramps',
-      'maintenance-light',
-      'co2-night',
-      'fans',
-      'compressor-rest',
-      'continue-plan',
-      'leaf-offsets',
-      'co2-report',
-      'update-channel',
-    ]);
+  /** The work mode, the fans and continuing a plan are Steuerung's; the update channel is the device page's firmware card. */
+  it('offers a fridge its ramps, its maintenance light, CO2 at night, its compressor rest, its leaf offsets and the cylinder', () => {
+    expect(ids(device())).toEqual(['light-ramps', 'maintenance-light', 'co2-night', 'compressor-rest', 'leaf-offsets', 'co2-report']);
   });
 
   it('offers a tent controller the ramps its lamp runs on, and the lux factor only where it measures light', () => {
-    expect(ids(device('controller'))).toEqual(['operating-mode', 'light-ramps', 'continue-plan', 'leaf-offsets', 'co2-report', 'update-channel']);
+    expect(ids(device('controller'))).toEqual(['light-ramps', 'leaf-offsets', 'co2-report']);
     expect(ids(device('controller', { ppfd: 'on' }))).toContain('lux-factor');
   });
 
@@ -91,16 +80,15 @@ describe('what Erweitert offers a device', () => {
     expect(ids(device('fridge', {}, { configuration: null }))).not.toContain('light-ramps');
     // A LIGHT and a smart socket have fine settings of their own, which stand
     // under Erweitert in their own panels; a fridge's are not among them.
-    expect(ids(device('light'))).toEqual(['light-ramp', 'light-overheat', 'update-channel']);
-    expect(ids(device('plug'))).toEqual(['plug-protections', 'update-channel']);
+    expect(ids(device('light'))).toEqual(['light-ramp', 'light-overheat']);
+    expect(ids(device('plug'))).toEqual(['plug-protections']);
   });
 });
 
 describe('the fine settings themselves', () => {
   it('write a figure by its name, once it is typed whole and within its range', async () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
-    const [, ramps] = itemsFor('device', { device: device(), mayManage: true, offline: false });
-    const Ramps = ramps.Item;
+    const Ramps = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'light-ramps')!.Item;
     drawAt(<Ramps device={device()} mayManage offline={false} />);
 
     const sunrise = screen.getByRole('textbox', { name: 'Sunrise' });
@@ -122,100 +110,6 @@ describe('the fine settings themselves', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'CO₂ at night too' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { co2Night: true } }));
-  });
-
-  it('ask before a fridge goes dark for germination, and go back to the standard at once', async () => {
-    vi.mocked(api.patch).mockResolvedValue(device() as never);
-    const mode = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'operating-mode')!;
-    const Mode = mode.Item;
-    const view = drawAt(<Mode device={device()} mayManage offline={false} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
-    expect(api.patch).not.toHaveBeenCalled();
-    expect(screen.getByText(/^Switch to Germination · dark\? For seeds germinating in the dark: no light, no CO₂/)).toBeInTheDocument();
-    // What going back does to the night is said before it is chosen, the humidity germination brings, and what it does about it.
-    expect(
-      screen.getByText(/the night temperature at first, to be changed under Targets – and 75 % humidity for a humidifier\./),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Back on standard, the night from before holds again/)).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /“Too humid” rests until germination ends\. Alarms you set up yourself stay awake\. This can be changed here once it is switched\.$/,
-      ),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByText(/^Switch to Germination · dark\?/)).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Switch to Germination · dark' }));
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { mode: 'germination' } }));
-
-    view.unmount();
-    vi.mocked(api.patch).mockClear();
-    const germinating = device('fridge', {}, {
-      control: { running: true, drying: false, mode: 'germination', energySaving: false },
-    } as Partial<Device>);
-    drawAt(<Mode device={germinating} mayManage offline={false} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Standard' }));
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { mode: 'standard' } }));
-  });
-
-  /**
-   * While the device germinates, what germination does about the humidity is
-   * chosen under the mode, each switch on the tap like the mode itself; the
-   * humidifier's only where a socket is paired as one.
-   */
-  it('offer what germination does about the humidity while the device germinates, and write each choice on the tap', async () => {
-    vi.mocked(api.patch).mockResolvedValue(device() as never);
-    const Mode = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'operating-mode')!.Item;
-    const view = drawAt(<Mode device={device()} mayManage offline={false} />);
-    // Standard says nothing of germination.
-    expect(screen.queryByRole('group', { name: 'During germination' })).not.toBeInTheDocument();
-    view.unmount();
-
-    const germinating = device('fridge', {}, {
-      configuration: { workmode: 'breed', night: { temperature: 24, humidity: 62 } },
-      control: {
-        running: true,
-        drying: false,
-        mode: 'germination',
-        energySaving: false,
-        germinationChoices: { warnTooHumid: false, humidifierHolds: true },
-      },
-    } as Partial<Device>);
-    const humidifier = {
-      items: [
-        {
-          slot: 0,
-          role: 'humidifier' as const,
-          hardwareId: '',
-          address: '10.0.0.2',
-          state: 'off' as const,
-          override: null,
-          timer: null,
-          stateChangedAt: null,
-        },
-      ],
-      nextCursor: null,
-      capabilities: { socketOverride: true, socketTimer: true, lightOverride: true, roles: ['humidifier' as const], pulseSeconds: {} },
-    };
-    drawAt(<Mode device={germinating} mayManage offline={false} sockets={humidifier} />);
-
-    expect(screen.getByText('The humidifier holds 62 % – it never makes it wetter than that.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('switch', { name: 'Warn when it gets too humid' }));
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { germinationWarnTooHumid: true } }));
-    fireEvent.click(screen.getByRole('switch', { name: 'Hold the humidity with the humidifier' }));
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { germinationHumidifier: false } }));
-  });
-
-  it('offer a tent controller the standard and germination in the dark, and not the greenhouse mode a fridge has', () => {
-    const tent = device('controller');
-    const Mode = itemsFor('device', { device: tent, mayManage: true, offline: false }).find(one => one.id === 'operating-mode')!.Item;
-    drawAt(<Mode device={tent} mayManage offline={false} />);
-
-    expect(screen.getByRole('button', { name: 'Standard' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Germination · dark' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Greenhouse' })).not.toBeInTheDocument();
   });
 
   it('show the compressor rest the firmware runs with where the document does not state it', () => {

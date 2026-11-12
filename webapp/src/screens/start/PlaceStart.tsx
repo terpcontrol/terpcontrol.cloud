@@ -1,6 +1,5 @@
 import { ChevronRight } from 'lucide-react';
 import { DateTime } from 'luxon';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import type { Device, Entry, OverviewCamera, OverviewGrow, SpaceOverview } from '@fg2/shared-types/v1';
@@ -13,7 +12,7 @@ import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { controlPath, devicesPath, GROW, membersPath, timelinePath, usePageOfPlace } from '@/app/places';
+import { controlPath, devicePath, GROW, membersPath, timelinePath, usePageOfPlace } from '@/app/places';
 import { ageLabel, dayStamp, sinceLabel } from '@/ui/age';
 import { BackLink } from '@/ui/BackLink';
 import { useCameraCalled } from '@/ui/camera-name';
@@ -22,7 +21,7 @@ import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { LivenessPill } from '@/ui/LivenessPill';
 import { maintenanceQuiet, parksAnything, type Quiet } from '@/ui/maintenance';
-import { OfflineSteps } from '@/ui/OfflineHelp';
+import { OfflineBox } from '@/ui/OfflineHelp';
 import { NoLongerHere, RefreshFailed } from '@/ui/PageState';
 import { usePlaceDevices } from '@/ui/place-devices';
 import { useMayManage, useVisiting } from '@/ui/session-access';
@@ -201,7 +200,14 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
       {visiting ? <p className={styles.cardText}>{t('start.visiting')}</p> : null}
       {/* Devices moved together leave their old places empty; whether one goes is for its owner to say. */}
       {visiting ? null : <EmptyPlace spaceId={spaceId} onRemoved={() => void navigate('/')} />}
-      {offline ? <OfflineBox overview={overview} since={measuredAt} /> : null}
+      {offline ? (
+        <OfflineBox
+          title={t('start.offline.title', { time: measuredAt ? sinceLabel(measuredAt, now, zone) : '' })}
+          deviceLink={overview.deviceIds !== null && device ? devicePath(device.id) : null}
+        >
+          {t('start.offline.text')}
+        </OfflineBox>
+      ) : null}
 
       <div className={styles.columns}>
         <div className={styles.column}>
@@ -511,34 +517,10 @@ function ModeLine({
         <Help topic={kind === 'greenhouse' ? 'advanced.operatingMode' : kind} />
       </span>
       {mayManage ? (
-        <Link to={kind === 'greenhouse' ? devicesPath(spaceId) : controlPath(spaceId)} className={styles.modeChange}>
+        <Link to={controlPath(spaceId, kind === 'greenhouse' ? 'mode' : null)} className={styles.modeChange}>
           {t('start.change')} ›
         </Link>
       ) : null}
     </p>
-  );
-}
-
-/**
- * A place gone quiet: since when, that the device goes on regulating, and
- * that what is drawn below is the last there is. What to try is a tap away
- * and opens where it stands - nothing here can ask a silent device for
- * anything, so the steps are the grower's own.
- */
-function OfflineBox({ overview, since }: { overview: SpaceOverview; since: string | null }) {
-  const { t } = useTranslation();
-  const now = useNow();
-  const zone = useZone();
-  const [open, setOpen] = useState(false);
-
-  return (
-    <section className={styles.box} role="status">
-      <h2>{t('start.offline.title', { time: since ? sinceLabel(since, now, zone) : '' })}</h2>
-      <p>{t('start.offline.text')}</p>
-      <button type="button" className={styles.boxLink} aria-expanded={open} onClick={() => setOpen(!open)}>
-        {t('start.offline.help')} ›
-      </button>
-      {open ? <OfflineSteps devicesLink={overview.deviceIds === null ? null : devicesPath(overview.spaceId)} /> : null}
-    </section>
   );
 }

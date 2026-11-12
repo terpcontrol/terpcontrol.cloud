@@ -602,7 +602,7 @@ describe('the inbox', () => {
     expect(screen.getByText(/^Power: is the adapter plugged in/)).toBeInTheDocument();
     expect(screen.getByText(/^Unplug the device, wait 10 seconds/)).toBeInTheDocument();
     // Start's offline box leads on to the device the same way.
-    expect(screen.getByRole('link', { name: 'See the device ›' })).toHaveAttribute('href', '/devices?space=space-1');
+    expect(screen.getByRole('link', { name: 'See the device ›' })).toHaveAttribute('href', '/devices/device-1');
   });
 
   /**

@@ -229,7 +229,7 @@ describe('adding a device', () => {
     ]);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/of 6$/);
     expect(
-      screen.getByText('The preset can be changed later from Control, the sockets and the cam from Devices, notifications from Me.'),
+      screen.getByText('The preset can be changed later from Control, the sockets and the cam with the devices there, notifications from Me.'),
     ).toBeInTheDocument();
   });
 
@@ -244,7 +244,7 @@ describe('adding a device', () => {
 
     expect(await screen.findByRole('link', { name: 'Pair a Terp Cam' })).toHaveAttribute('href', '/cameras/add');
     expect(screen.getByText(/A Terp Control socket is paired on the device itself – press the button, then Smart Sockets/)).toBeInTheDocument();
-    expect(screen.getByText(/A Tasmota socket you pair later under Devices › your device › Advanced/)).toBeInTheDocument();
+    expect(screen.getByText(/A Tasmota socket you pair later under Control › your device › Smart sockets/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Devices tab/ })).not.toBeInTheDocument();
   });
 
@@ -522,14 +522,14 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Veg' }));
-    const line = 'Light on 06:00–00:00 · 18 h – when it comes on is changed under Control › Targets.';
+    const line = 'Light on 06:00–00:00 · 18 h – when it comes on is changed under Control.';
     expect(await screen.findByText(line)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
-    expect(await screen.findByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control › Targets.')).toBeInTheDocument();
+    expect(await screen.findByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
 
     expect(await screen.findByText('The targets went to 1 controller.')).toBeInTheDocument();
-    expect(screen.getByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control › Targets.').tagName).toBe('LI');
+    expect(screen.getByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control.').tagName).toBe('LI');
   });
 
   it('offers monitoring without writing anything to the controller', async () => {
@@ -855,6 +855,6 @@ describe('adding a device', () => {
 
     expect(screen.queryByRole('textbox', { name: 'Claim code' })).not.toBeInTheDocument();
     expect(screen.getByText(/cannot claim hardware/)).toBeInTheDocument();
-    expect(within(screen.getByRole('link', { name: 'Back to Devices' })).queryByRole('textbox')).toBeNull();
+    expect(within(screen.getByRole('link', { name: 'Back to Control' })).queryByRole('textbox')).toBeNull();
   });
 });

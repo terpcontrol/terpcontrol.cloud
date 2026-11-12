@@ -41,11 +41,10 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
   2026-11-11; internal notes exist) and a click prototype outside the app comes before any change to it. The new
   routes need no redirects from today's, and a change to the data model comes as a migration step (Chris,
   2026-11-11). It is built in rounds; the bar, the header's choice of place, the addresses, Start, the grow page
-  with its diary by the day, and the public page on the same day cards are in since 2026-11-12
-  ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)), the other pages follow. A read of the
-  whole web app on 2026-11-11 found, as the things the redesign still has to settle:
-  - Steuerung and Geräte show the same devices from two sides and draw the same `DeviceAdvanced`
-    (`screens/control/targets/Targets.tsx`, `screens/devices/DeviceList.tsx`).
+  with its diary by the day, the public page on the same day cards, and Steuerung with a page per device and the
+  camera page are in since 2026-11-12 ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)), the
+  other pages follow. A read of the whole web app on 2026-11-11 found, as the things the redesign still has to
+  settle:
   - Verlauf and Graphen are two screens over one engine. Verlauf's windows all end now and it cannot zoom; Graphen
     can step back and zoom, is reached by a chip in Verlauf's range row, and opens on 24 h
     whatever Verlauf showed. On touch a drag only moves the cursor (`webapp/src/charts/scrub.ts`), so zooming is the

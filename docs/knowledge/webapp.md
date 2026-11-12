@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-12
-source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12)
+source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12)
 paths:
   - webapp/**
 ---
@@ -22,7 +22,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 | `src/main.tsx` | keeps the install prompt, loads the catalogues, renders |
 | `src/app/` | `routes.tsx`, `shell/` (bars, rail, the choice of place, notices), `RequireSession.tsx`, `OldAddresses.tsx` + `old-charts.ts`, `places.ts` (deep links, the chosen place), `install.ts` |
 | `src/api/` | one module per resource with its TanStack Query hooks and query factories; plumbing: `client.ts`, `session.ts`, `clock.ts`, `read.ts`, `write.ts`, `pages.ts`, `problem.ts`, `config.ts`, `query-client.ts` |
-| `src/ui/` | shared primitives (`Sheet`, `Menu`, `Lines`, `Switch`, `Asking`, `BackLink`, `Help.tsx`, `advanced/`) and one-place helpers (`zone.ts`, `days.ts`, `wall-clock.ts`, `age.ts`, `figures.ts`, `units.ts`, `naming.ts`, `stored.ts`, `session-access.ts`, `refusal.ts`) |
+| `src/ui/` | shared primitives (`Sheet`, `Menu`, `Lines`, `Rows`, `PageHead`, `OfflineHelp`, `Switch`, `Asking`, `BackLink`, `Help.tsx`, `advanced/`) and one-place helpers (`zone.ts`, `days.ts`, `wall-clock.ts`, `age.ts`, `figures.ts`, `units.ts`, `naming.ts`, `stored.ts`, `session-access.ts`, `refusal.ts`) |
 | `src/log/` | the entry sheet, its send queue and undo toasts, `corrections.ts`, the moment a line is dated to (`Moment.tsx`, EXIF in `taken-at.ts`) |
 | `src/charts/`, `src/i18n/` | ECharts binding and chart arithmetic; i18next setup and device-message resolver |
 | `src/theme/`, `src/styles/`, `src/sw.ts` | `tokens.css`, `ThemeProvider`, `global.css`; the service worker |
@@ -48,8 +48,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   | `/log` | opens the entry sheet | - |
   | `/timeline` | Verlauf of the chosen place (`focus`, `at`, `device` in the query; `grow` with a moment of that grow's diary) | Verlauf |
   | `/charts` | Graphen, its whole view in the query | Verlauf |
-  | `/control/:page?` | Steuerung of the chosen place: `targets`, `alarms`, `plan` | Steuerung |
-  | `/devices`, `/claim`, `/cameras/add` | the device list (a row on Steuerung leads to it); adding a device or a camera | Steuerung |
+  | `/control/:page?` | Steuerung of the chosen place, and the pages behind its rows: `alarms`, `plan`, `outputs`, `mode` | Steuerung |
+  | `/devices/:deviceId/:page?`, `/devices/:deviceId/sockets/:socket` | a device's own page with `sockets`, `advanced`, `details` under it; one smart socket | Steuerung |
+  | `/claim`, `/cameras/add` | adding a device or a camera | Steuerung |
   | `/cameras/:cameraId` | a camera | none |
   | `/alerts`, `/tasks`, `/me/...`, `/admin/...` | Meldungen and the task list its door opens, Ich, the fleet screens | none |
 
@@ -69,6 +70,17 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   sheet that corrects a line and the curve of a moment, the public page (`screens/public/Diary.tsx`) neither.
   A grow's days are counted in the owner's zone, which a grow carries as `summary.zone`; a client that counts a
   day itself - the day a line is dated to - hands it to `growDayAt`.
+- **Steuerung** is `src/screens/control/`: `Control.tsx` draws the page and the pages behind its rows, `climate/`
+  the light and the targets of one device (`Climate.tsx`, a sheet per figure, per light window and per preset, each
+  write through one `write()` that pauses a plan where it has to and answers with the toast), `rows.ts` the rows'
+  lines, `Mode.tsx` and `Outputs.tsx` their pages, `DevicesHere.tsx` the cards and rows of what stands in the
+  place. `lead.ts` says which device is the place's climate; `OwnSettings.tsx` draws what one device is set to,
+  for the lead on Steuerung and for every other device on its own page. **A device's pages** are
+  `src/screens/devices/`: `DevicePage.tsx` (the page and `sockets`, `advanced`, `details` under it), `Firmware.tsx`
+  with `firmware-builds.ts`, `DeviceActions.tsx` (maintenance, restart, update - shared with Steuerung's card),
+  `SocketPage.tsx`. **The camera page** is `src/screens/camera/CameraPage.tsx` with `days.ts` (the slider's days,
+  from the grow's diary read) and `Films.tsx`. What a silent device has not been handed is `pending` of
+  `useDeviceLive` ([server-engines.md](server-engines.md#read-models)), read through `climate/figures.ts`.
 - **The chosen place** (`src/app/places.ts`) is what `/grow`, `/timeline`, `/control` and `/charts` show: the place
   their address names in `?space=`, else the one chosen (`terp.place` in this browser, a store the header's chip and
   the page both follow), else the first of Start's order (`sortedByAttention`), which is then kept. `usePlaceChoice`
@@ -80,7 +92,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   hold it back. The effect that keeps a pick does not write over a choice made since its render: the page mounted
   with it may have chosen first. `useCurrentPlace` takes a `?space=` the account has not got out of the address, but
   not while the home is being read again - a link names a place made a moment ago before the home lists it.
-  `timelinePath`, `controlPath` and `devicesPath` build the links that name a place. Charts reads and writes its view
+  `timelinePath` and `controlPath` build the links that name a place, `devicePath`, `socketPath` and `cameraPath`
+  those to a device, one of its sockets and a camera. Charts reads and writes its view
   (`space`/`grow`, `range`, `zoom`, `show`, `layout`, ...) only in `src/screens/charts/address.ts`, through which
   `app/old-charts.ts` maps old bookmarks too.
 - The old Angular app's addresses still work (`OldAddresses.tsx`, `old-charts.ts`, redirects at the end of
@@ -284,7 +297,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   derived from the colour logo by `scripts/derive-logo.mjs`.
 - An Erweitert item is a file `*.advanced.tsx` exporting `items` built with
   `advancedItem({ scope, id, order, shows, Item })`, found by `import.meta.glob` in `src/ui/advanced/registry.ts`.
-  Scopes: `device`, `charts`, `camera`. The fast-refresh lint rule is off for these files. Its device
+  Scopes: `device`, `charts`, `camera`; a device's are drawn open on its page `/devices/:id/advanced`
+  (`screens/devices/DevicePage.tsx`). The fast-refresh lint rule is off for these files. Its device
   settings are `Field*` controls (`src/ui/advanced/Fields.tsx`) named as `CONFIGURATION_FIELDS` names them per type
   (`shared-types/src/v1/configuration-fields.ts`, the AIR fan and the LIGHT included), written on the tap through
   `useConfigure` (`PATCH /v1/devices/{id}/configuration` with `set`); a row then shows what the server stored.

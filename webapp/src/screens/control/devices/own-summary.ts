@@ -136,9 +136,9 @@ export const ownStatusOf = (t: Translate, device: Device | null, offset: number)
 };
 
 /**
- * The one line a stand-alone module's panel on the Devices page says about what
- * it is set to, linked to Steuerung where it is changed: what a socket switches
- * by, what a fan's speed follows, when a lamp is on.
+ * The one line a stand-alone module's card under Steuerung says about what it
+ * is set to, where it is not the place's climate: what a socket switches by,
+ * what a fan's speed follows, when a lamp is on. Its own page changes it.
  */
 export const ownFactOf = (t: Translate, device: Device, offset: number): { label: string; value: string } | null => {
   if (!device.configuration) return null;

@@ -1,5 +1,5 @@
 /* Pairing a socket by its address and changing one: a short form in a sheet,
-   and the timer of a pump in its row. The fields, chips and notes are the
+   and the timer of a pump on the socket's page. The fields, chips and notes are the
    app's own; only how they stand together is said here. */
 
 .form {
@@ -58,14 +58,11 @@
   width: auto;
 }
 
-/* The timer of a pump in its row, and the folded Erweitert under the holds. */
+/* The timer of a pump, in a card of the socket's page. */
 .block {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: var(--rule-solid);
 }
 
 .blockHead {
@@ -81,30 +78,8 @@
   gap: var(--space-2);
 }
 
-.advanced {
-  margin-top: var(--space-3);
-}
-
-.advanced > summary {
-  cursor: pointer;
-  width: fit-content;
-}
-
-.advanced[open] > summary {
-  margin-bottom: var(--space-2);
-}
-
-/* The socket list's own Erweitert, under the last section of a device's sockets. */
-.listAdvanced {
-  margin-top: var(--space-2);
-}
-
-.listAdvanced > summary {
-  cursor: pointer;
-  width: fit-content;
-}
-
-/* The socket's name opens its row. */
-[data-opens] {
-  cursor: pointer;
+/* The buttons of the timer, a finger high like every other on the socket's page. */
+.blockHead > button,
+.actions button {
+  min-height: 44px;
 }

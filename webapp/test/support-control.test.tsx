@@ -6,13 +6,14 @@ import { Control } from '@/screens/control/Control';
 import { ControlTab } from '@/screens/place/ControlTab';
 import { drawAt, json } from './harness';
 import { SIGNED_IN, spacePage, spaceWhere } from './session';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
  * Steuerung of a customer's place, read by support. The administrator's own
  * device list holds none of the customer's devices, and the tab used to say
  * there was nothing here to steer and offer to add a device; it shows the
- * customer's targets now, read only.
+ * customer's targets now, read only: figures, and nothing that writes.
  */
 
 vi.mock('@/api/session', async importOriginal => ({
@@ -49,6 +50,13 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   if (path === '/home') return json({ spaces: [], grows: [], tasks: [], layers: { diary: false } });
   if (path === '/devices/device-9') return json(CUSTOMER);
   if (path === '/devices/device-9/plan') return json({ status: 404, code: 'plan_not_found', title: 'Not found', detail: '', errors: [] }, 404);
+  if (path === '/devices/device-9/sockets') {
+    return json({
+      items: [],
+      nextCursor: null,
+      capabilities: { socketOverride: true, socketTimer: true, lightOverride: true, roles: [], pulseSeconds: {} },
+    });
+  }
   return json({ items: [], nextCursor: null });
 });
 
@@ -59,29 +67,32 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('Steuerung of a customer´s place, read by support', () => {
   it('shows the customer´s targets read only rather than offering to add a device', async () => {
-    drawAt(<Control spaceId="space-customer" sub={null} />);
+    drawAt(
+      <Toast>
+        <Control spaceId="space-customer" sub={null} />
+      </Toast>,
+    );
 
-    expect(await screen.findByText('Targets')).toBeInTheDocument();
-    const day = await screen.findByRole('spinbutton', { name: 'Day temperature' });
-    expect(day).toHaveValue('25');
-    expect(day).toBeDisabled();
+    expect(await screen.findByRole('table', { name: 'Targets' })).toHaveTextContent('25 °C');
     expect(screen.getByText('This session may look and not set.')).toBeInTheDocument();
     expect(screen.queryByText(/Nothing stands here yet/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Change|^Preset|the light limit$|Add a device/ })).not.toBeInTheDocument();
   });
 
   /** The tab picked the place from the administrator's own home, found none, and said there was nothing to steer. */
   it('opens the tab on the customer´s place the address names, said to be somebody else´s', async () => {
     drawAt(
-      <Routes>
-        <Route path="/control/:page?" element={<ControlTab />} />
-      </Routes>,
+      <Toast>
+        <Routes>
+          <Route path="/control/:page?" element={<ControlTab />} />
+        </Routes>
+      </Toast>,
       { at: '/control?space=space-customer' },
     );
 
     expect(await screen.findByRole('heading', { name: /Control · Kundenzelt/ })).toHaveTextContent("support view of a customer's place");
-    expect(await screen.findByRole('spinbutton', { name: 'Day temperature' })).toHaveValue('25');
+    expect(await screen.findByRole('table', { name: 'Targets' })).toHaveTextContent('25 °C');
     expect(screen.queryByText(/Nothing to control yet/)).not.toBeInTheDocument();
   });
 });

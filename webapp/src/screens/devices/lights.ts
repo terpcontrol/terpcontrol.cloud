@@ -37,9 +37,6 @@ export const isLightRole = (role: SocketRole): boolean => LIGHT_ROLES.includes(r
 const SECTION = 'lights';
 const FIELD = 'limit';
 
-/** What the controller's own display offers, so a level set here is one a person could have dialled in on the device. */
-export const LEVEL_STEP = 5;
-
 /** Whether this document is a Light's, which states its brightness at the top rather than in a section. */
 const statesFlat = (configuration: DeviceConfiguration, type: Device['type']): boolean =>
   type === 'light' || (typeof configuration[FIELD] === 'number' && sectionOf(configuration, SECTION) === null);
@@ -47,25 +44,6 @@ const statesFlat = (configuration: DeviceConfiguration, type: Device['type']): b
 const lightLimitOf = (configuration: DeviceConfiguration | null, type: Device['type']): number | null => {
   if (!configuration) return null;
   return statesFlat(configuration, type) ? finiteOrNull(configuration[FIELD]) : figureAt(configuration, `${SECTION}.${FIELD}`);
-};
-
-/**
- * The document to send for a new brightness.
- *
- * Everything else the device is running is kept, because the route replaces
- * the document whole: the ramps, the day window and the dehumidifier's timing
- * are the tent's own tuning, and a save that dropped them would be a change
- * nobody asked for. The dotted spelling is removed where it was used, so one
- * document never states the same figure twice.
- */
-export const withLightLimit = (configuration: DeviceConfiguration, type: Device['type'], percent: number): DeviceConfiguration => {
-  if (statesFlat(configuration, type)) return { ...configuration, [FIELD]: percent };
-
-  const next: DeviceConfiguration = { ...configuration };
-  delete next[`${SECTION}.${FIELD}`];
-  next[SECTION] = { ...sectionOf(configuration, SECTION), [FIELD]: percent };
-
-  return next;
 };
 
 /**

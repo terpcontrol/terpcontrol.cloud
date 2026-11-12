@@ -14,3 +14,35 @@
   font-weight: var(--weight-regular);
   color: var(--muted);
 }
+
+/* The title, and beside it on a desktop the place the page is about. A phone names the place in its header. */
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-3);
+  min-width: 0;
+}
+
+.title h1 {
+  overflow-wrap: anywhere;
+}
+
+.place {
+  display: none;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 900px) {
+  .place {
+    display: inline;
+  }
+
+  /* Beside the rail the pill stands with the title it is about, not at the far edge of a wide page. */
+  .head {
+    justify-content: flex-start;
+  }
+}

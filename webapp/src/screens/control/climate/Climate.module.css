@@ -1,0 +1,368 @@
+/* The climate of one device: the light, and the targets by day and by night.
+   Two cards, each a heading over what is set, a button a finger high beside
+   whatever opens a sheet, and under the card what the device has not taken. */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 14px var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
+  color: var(--label);
+}
+
+/* What stands, and at the row's end what changes it. */
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  min-height: var(--control-height);
+}
+
+.says {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.says[data-pending] {
+  color: var(--warning);
+  font-weight: var(--weight-semibold);
+}
+
+.sub {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+.pillButton {
+  flex: none;
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.pillButton:hover {
+  background: var(--card-2);
+}
+
+/* A phone says "Ändern" and "Lichtgrenze"; beside the rail there is room for what is changed. */
+.long {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .short {
+    display: none;
+  }
+
+  .long {
+    display: inline;
+  }
+}
+
+.limitLabel {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-md);
+}
+
+/* The light limit, stepped where it stands: − and + a finger wide either side of the figure. */
+.nudge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.nudgeButton {
+  display: grid;
+  place-items: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+
+.nudgeButton:hover:not([aria-disabled='true']) {
+  background: var(--card-2);
+}
+
+.nudgeButton[aria-disabled='true'] {
+  opacity: 0.4;
+}
+
+.nudgeFigure {
+  min-width: 4ch;
+  font-family: var(--font-figure);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.nudgeFigure[data-resting] {
+  color: var(--brand);
+}
+
+.nudgeFigure[data-pending] {
+  color: var(--warning);
+}
+
+/* On a wide desktop the light is one row: when it burns, the button that changes it, and its limit. */
+@media (min-width: 1280px) {
+  .light {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: var(--space-1) var(--space-4);
+  }
+
+  .light > .line {
+    display: contents;
+  }
+
+  .light > .title {
+    grid-column: 1;
+  }
+
+  .light .says {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .light .pillButton {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .light .limitLabel {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+
+  .light .nudge,
+  .light > .line > .nudgeFigure {
+    grid-column: 4;
+    grid-row: 1 / span 2;
+  }
+
+  .light > p {
+    grid-column: 1 / -1;
+  }
+}
+
+/* The figures: a label, and a button per half of the day. One column where the device holds one climate round the clock. */
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.gridRow {
+  display: grid;
+  /* The label keeps its longest word whole; the figures share what is left. */
+  grid-template-columns: minmax(min-content, 1fr) repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.grid[data-single] .gridRow {
+  grid-template-columns: minmax(min-content, 1fr) minmax(0, 1fr);
+}
+
+.half {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0 var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Which half holds right now, by what the device runs. */
+.now {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  color: var(--green-ink);
+  white-space: nowrap;
+}
+
+.now[data-by='schedule'] {
+  color: var(--muted);
+}
+
+.rowLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-md);
+}
+
+.figure {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-family: var(--font-figure);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  white-space: nowrap;
+}
+
+/* On the narrowest phone three columns leave a figure less room than its usual size takes. */
+@media (max-width: 359px) {
+  .figure {
+    padding: 0 var(--space-1);
+    font-size: var(--text-md);
+  }
+}
+
+button.figure:hover {
+  background: var(--card-2);
+}
+
+/* A figure nobody here may change is a figure and not a button. */
+.figure[data-read] {
+  border-color: transparent;
+  background: var(--card-2);
+}
+
+/* Stored, and not yet with the device. */
+.figure[data-pending] {
+  background: var(--warning-wash);
+  border-color: var(--warning-edge);
+  border-width: 2px;
+}
+
+.none {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-align: center;
+}
+
+.vpd {
+  font-family: var(--font-figure);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.planMark {
+  flex: none;
+  vertical-align: -2px;
+  color: var(--brand);
+}
+
+/* What saving does that somebody would want to know first: a plan paused, a lamp that stays dark. */
+.warn {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1.5;
+  color: var(--warning);
+}
+
+/* What the device has not been handed, and what it still holds. */
+.pending {
+  margin: 0;
+  padding: 10px var(--space-3);
+  background: var(--warning-wash);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1.5;
+  color: var(--warning);
+}
+
+/* A plan paused for a figure set by hand, with the way on and the way out. */
+.paused {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 14px var(--space-4);
+  background: var(--warning-wash);
+  border: var(--rule-width) solid var(--warning-edge);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
+.paused p {
+  margin: 0;
+}
+
+.pausedMoves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* --- the sheets --- */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.derived {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* What a preset moves: the figure, and from what to what. */
+.sets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.sets li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--space-3);
+}

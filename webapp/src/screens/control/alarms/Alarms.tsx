@@ -63,18 +63,7 @@ import { serverNow } from '@/api/clock';
  * an answer for an account that has not spoken - the browser's zone, and no
  * verdict at all.
  */
-export function Alarms({
-  spaceId,
-  devices,
-  mayManage,
-  back = 'targets',
-}: {
-  spaceId: string;
-  devices: Device[];
-  mayManage: boolean;
-  /** What the Control tab opens on, which is where the way back leads: the targets, or a plan that is running. */
-  back?: 'targets' | 'plan';
-}) {
+export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
   const { t } = useTranslation();
   const now = useNow();
   const overview = useSpaceOverview(spaceId);
@@ -93,16 +82,6 @@ export function Alarms({
 
   return (
     <div className={styles.page}>
-      <header className={ui.subhead}>
-        {/* Which place it is, the title above already says. */}
-        <span className="label">{t('alarms.title')}</span>
-        {watched.length > 0 ? (
-          <Link to={controlPath(spaceId)} className={`mono ${ui.headLink}`}>
-            {t(back === 'plan' ? 'alarms.backToPlan' : 'alarms.backToTargets')}
-          </Link>
-        ) : null}
-      </header>
-
       {reachesNoOne && watched.length > 0 ? <NotifyNotice /> : null}
 
       {watched.length === 0 && held.isPending ? (

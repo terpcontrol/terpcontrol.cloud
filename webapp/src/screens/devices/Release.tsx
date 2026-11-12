@@ -3,12 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useDevices, useReleaseDevice } from '@/api/devices';
 import { useSpaces } from '@/api/spaces';
 import { Sheet } from '@/ui/Sheet';
-import { SettingRow } from '@/ui/advanced/SettingRow';
-import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { Answered, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { deviceTitle } from '@/ui/naming';
-import sheet from '../Maintenance.module.css';
+import sheet from './Maintenance.module.css';
 
 /**
  * Giving a device up: after a sale, a move to another account or a swap, the
@@ -16,27 +14,11 @@ import sheet from '../Maintenance.module.css';
  * code its display shows. Without it a used device stays locked to its first
  * owner for good.
  *
- * It is the owner's alone and the last line of the section, and it is asked
- * twice, with two different buttons: what goes with the device and what stays,
- * then whether it is meant - because it cannot be taken back from here.
+ * It is the owner's alone and the last row of the device's page, and it is
+ * asked twice, with two different buttons: what goes with the device and what
+ * stays, then whether it is meant - because it cannot be taken back from here.
  */
-function Release({ device }: DeviceContext) {
-  const { t } = useTranslation();
-  const [asking, setAsking] = useState(false);
-
-  return (
-    <>
-      <SettingRow label={t('release.label')} help="advanced.release" note={t('release.note')}>
-        <button type="button" className={`${ui.chip} ${ui.danger}`} onClick={() => setAsking(true)}>
-          {t('release.open')}
-        </button>
-      </SettingRow>
-      {asking ? <ReleaseSheet deviceId={device.id} onClose={() => setAsking(false)} /> : null}
-    </>
-  );
-}
-
-function ReleaseSheet({ deviceId, onClose }: { deviceId: string; onClose: () => void }) {
+export function ReleaseSheet({ deviceId, onClose, onReleased }: { deviceId: string; onClose: () => void; onReleased: () => void }) {
   const { t } = useTranslation();
   const devices = useDevices();
   const spaces = useSpaces();
@@ -48,10 +30,11 @@ function ReleaseSheet({ deviceId, onClose }: { deviceId: string; onClose: () => 
   const name = deviceTitle(device, t, devices.data?.items);
   const place = spaces.data?.items.find(space => space.id === device.spaceId)?.name ?? null;
   // The device is still in the list while the answer is read; it is let go of
-  // with the sheet, so the panel the question stood in goes with it.
+  // with the sheet, and its page with it.
   const done = () => {
     onClose();
     forget();
+    onReleased();
   };
 
   const actions =
@@ -95,14 +78,3 @@ function ReleaseSheet({ deviceId, onClose }: { deviceId: string; onClose: () => 
     </Sheet>
   );
 }
-
-export const items = [
-  advancedItem({
-    scope: 'device',
-    id: 'release',
-    // Always the last line: the one thing in the section that cannot be undone.
-    order: 1000,
-    shows: ({ device, mayOwn }) => mayOwn === true && !device.isDemo,
-    Item: Release,
-  }),
-];

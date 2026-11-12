@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDevicePlan, usePlanTransition } from '@/api/plans';
+import type { Device } from '@fg2/shared-types/v1';
 import { SettingRow } from '@/ui/advanced/SettingRow';
-import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import ui from '@/ui/ui.module.css';
-import { isGoing } from '../../control/plan-clock';
-import { PlanRefusal } from '../../control/Refusal';
+import { isGoing } from './plan-clock';
+import { PlanRefusal } from './Refusal';
 import styles from './ContinuePlan.module.css';
 
 /**
@@ -16,9 +16,10 @@ import styles from './ContinuePlan.module.css';
  *
  * The step chosen starts from nought, the way the engine starts any step, so
  * the question says so before it is sent; a plan that was paused or put away
- * runs again, because going on with a step is not pausing at it.
+ * runs again, because going on with a step is not pausing at it. It stands
+ * under the plan it moves, and draws nothing for a device without steps.
  */
-function ContinuePlan({ device, mayManage }: DeviceContext) {
+export function ContinuePlan({ device }: { device: Device }) {
   const { t } = useTranslation();
   const plan = useDevicePlan(device.id);
   const move = usePlanTransition(device.id);
@@ -37,13 +38,13 @@ function ContinuePlan({ device, mayManage }: DeviceContext) {
 
   return (
     <>
-      <SettingRow label={t('continuePlan.label')} help="advanced.continuePlan" wide>
+      <SettingRow label={t('continuePlan.label')} help="advanced.continuePlan" wide alone>
         <div className={styles.row}>
           <select
             className={`${ui.input} ${styles.select}`}
             value={pick}
             aria-label={t('continuePlan.which')}
-            disabled={!mayManage || move.isPending}
+            disabled={move.isPending}
             onChange={event => {
               setChosen(event.target.value);
               setAsking(false);
@@ -56,7 +57,7 @@ function ContinuePlan({ device, mayManage }: DeviceContext) {
               </option>
             ))}
           </select>
-          <button type="button" className={ui.chip} disabled={!mayManage || move.isPending} onClick={() => setAsking(true)}>
+          <button type="button" className={ui.chip} disabled={move.isPending} onClick={() => setAsking(true)}>
             {t('continuePlan.go')}
           </button>
         </div>
@@ -103,15 +104,3 @@ function ContinuePlan({ device, mayManage }: DeviceContext) {
     </>
   );
 }
-
-export const items = [
-  advancedItem({
-    scope: 'device',
-    id: 'continue-plan',
-    order: 60,
-    // The plan is read by the item: a device without one, or a person who may
-    // only look, is offered nothing, and the row draws nothing until it knows.
-    shows: ({ device, mayManage }) => mayManage && (device.type === 'fridge' || device.type === 'controller'),
-    Item: ContinuePlan,
-  }),
-];

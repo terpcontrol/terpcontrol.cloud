@@ -2,7 +2,7 @@ import { type DateTime } from 'luxon';
 import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { controlPath, devicesPath, timelinePath } from '@/app/places';
+import { controlPath, devicePath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useRemoveAlert } from '@/api/alerts';
@@ -86,7 +86,7 @@ export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilen
             been quiet. */}
         {open && alert.kind === 'offline' ? (
           <div className={styles.steps}>
-            <OfflineSteps devicesLink={alert.spaceId ? devicesPath(alert.spaceId) : null} />
+            <OfflineSteps devicesLink={alert.deviceId ? devicePath(alert.deviceId) : null} />
           </div>
         ) : null}
       </div>

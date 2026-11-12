@@ -52,7 +52,7 @@ describe('an old device page', () => {
     ['charts', '/charts?space=space-9'],
     ['diary', '/timeline?space=space-9'],
     ['settings', '/control?space=space-9'],
-    ['testmode', '/devices?space=space-9'],
+    ['testmode', '/control?space=space-9'],
     ['', '/spaces/space-9'],
   ])('/%s lands on %s', async (page, landing) => {
     draw(`/device/sim-fridge-1/${page}`);
@@ -89,9 +89,9 @@ describe('an old device page', () => {
     expect(await screen.findByText('Landed on /charts?space=space-9&range=24h&at=2026-09-21T10%3A00%3A00.000Z')).toBeInTheDocument();
   });
 
-  it('lands on the device list for a device the account cannot see', async () => {
+  it('lands on Steuerung for a device the account cannot see', async () => {
     draw('/device/somebody-elses/charts');
-    expect(await screen.findByText('Landed on /devices')).toBeInTheDocument();
+    expect(await screen.findByText('Landed on /control')).toBeInTheDocument();
   });
 });
 

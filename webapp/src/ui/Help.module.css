@@ -27,7 +27,7 @@
 .info::after {
   content: '';
   position: absolute;
-  inset: -10px;
+  inset: -12px;
 }
 
 .info:hover,

@@ -1,7 +1,7 @@
 ---
 summary: How the controller and the fridge pair, identify, drive and report their Tasmota smart sockets, what the cloud and the app do with them, and the stand-alone Plantalytix Socket (plug) - read before changing any of it
-updated: 2026-10-12
-source: Chris (light set-up rule, 2026-09-19; the name Plantalytix Socket, 2026-10-12); agents' PRs #23, #77, #82, #103, #104, #136 (reverted by #154, owner 2026-10-09), #145 and sessions 2026-05..10; checked against the code 2026-10-08
+updated: 2026-11-12
+source: Chris (light set-up rule, 2026-09-19; the name Plantalytix Socket, 2026-10-12); agents' PRs #23, #77, #82, #103, #104, #136 (reverted by #154, owner 2026-10-09), #145 and sessions 2026-05..10; checked against the code 2026-10-08; a socket's own page (the redesign session of 2026-11-12)
 paths:
   - firmware/src/wifi.*
   - firmware/src/lanscan.*
@@ -38,7 +38,7 @@ the `PulseTime` per role and the timing constants - is in [device-protocol.md](.
 | Limits shared by firmware, server and simulator | `shared-types/src/v1/socket-report.ts` |
 | Decoding the report and capabilities; checks before publishing | `server/src/modules/device-protocol/sockets.ts`, `device-publisher.service.ts` |
 | Routes | `server/src/modules/v1/device/devices.controller.ts` |
-| App | `webapp/src/screens/devices/` (`DeviceList.tsx`, `SocketRow.tsx`, `LightOutputRow.tsx`, `sockets.ts`, `socket-form.ts`, `lights.ts`) |
+| App | `webapp/src/screens/devices/` (`SocketPage.tsx`, `SocketSheets.tsx`, `socket-words.ts`, `LightOutputRow.tsx`, `sockets.ts`, `socket-form.ts`, `lights.ts`) |
 
 ## Pairing on the module
 
@@ -147,14 +147,20 @@ A socket outside the module's /24 is never found.
 ## In the app
 
 - **Lights** (Chris, 2026-09-19): a lamp on the controller's own PWM output and light sockets switched
-  independently must both be possible and obvious. The Lights section of a device shows its own output first
-  (brightness ceiling, hold on/off/auto), then each `light`/`secondary_light` socket as a switch numbered within its
-  role ("Light 1", "Light 2"); every other socket is under Smart sockets.
+  independently must both be possible and obvious. Steuerung › Ausgänge shows the device's own output first (what
+  it runs at, hold on/off/auto; its limit is set on Steuerung's light card), then every socket as a row, a
+  `light`/`secondary_light` socket numbered within its role ("Light 1", "Light 2").
+- **A socket has a page** (`/devices/:id/sockets/:socket`, `SocketPage.tsx`; the redesign session of 2026-11-12),
+  reached from its row under Steuerung, under Ausgänge and in the device's list of sockets, and found by its slot
+  when its role changes: the switch, the hold, "Finden", the cycle of a timed role, its facts, and changing or
+  removing it. The device's sockets and pairing by address are at `/devices/:id/sockets`. A socket's line reads
+  "an · Auto" or "an gehalten · 42 Min" (`socket-words.ts`), with "Stand hh:mm" in front once the device is
+  offline.
 - Roles offered for pairing and editing (`OFFERED_ROLES` in `socket-form.ts`): heater, dehumidifier, humidifier,
   exhaust, co2, light, secondary_light, pump, custom_timer - each only where the build announced it.
   `circulation`, `fan` and `manual` are in the firmware and the contract but not offered until they have been
   tried in a real tent. A socket being edited keeps its own role on offer.
-- Holds: 15 min, 1 h (a plain tap), 4 h, 8 h, 24 h. Why a switch is unavailable is said once per list, offline
+- Holds: 15 min, 1 h (a plain tap), 4 h, 8 h, 24 h. Why a switch is unavailable is said once on the page, offline
   first, then that the build takes no override.
 - A timed socket's state column cannot show short pulses: the table is re-reported at most every 30 s, so a 30 s
   on-pulse may never be seen as on. The timer column says what it repeats.

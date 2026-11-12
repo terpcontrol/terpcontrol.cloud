@@ -4,16 +4,19 @@ import { DateTime, Settings } from 'luxon';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
 import { fanSummaryOf, ownFactOf, ownStatusOf, plugSummaryOf } from '@/screens/control/devices/own-summary';
-import { Targets } from '@/screens/control/targets/Targets';
+import { OutputsPage } from '@/screens/control/Outputs';
+import { OwnSettings } from '@/screens/control/OwnSettings';
 import { climateDeviceOf, lightWindowOf, rangeVerdictOf, switchRangeOf } from '@/screens/start/place';
 import { drawAt, json } from './harness';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
- * What a smart socket, an AIR fan and a LIGHT are set to under Steuerung: each
- * a panel of its own, saved with one Save that sends only what changed, by the
- * names the contract gives the settings - and what Start and the device
- * panel say about them.
+ * What a smart socket, an AIR fan and a LIGHT are set to: each a panel of its
+ * own, saved with one Save that sends only what changed, by the names the
+ * contract gives the settings - a socket's switching and a lamp's window
+ * where the device's own settings stand, a fan's speed among the outputs -
+ * and what Start and a device's card say about them.
  *
  * The page reads in UTC, so a time on the screen is the time in the document.
  */
@@ -84,7 +87,13 @@ vi.stubGlobal(
 
 const patches = () => calls.filter(call => call.method === 'PATCH');
 
-const draw = (devices: Device[]) => drawAt(<Targets spaceId="space-1" devices={devices} mayManage />);
+/** What a device is set to that is its own: Steuerung's top where it leads the place, its own page otherwise. */
+const draw = ([one]: Device[]) =>
+  drawAt(
+    <Toast>
+      <OwnSettings device={one} />
+    </Toast>,
+  );
 
 const t = (key: string, options?: Record<string, unknown>) => i18next.t(key, options);
 
@@ -158,19 +167,30 @@ describe('an AIR fan under Steuerung', () => {
   it('sets only the temperature and humidity it reads, once it follows them', async () => {
     draw([device('fan-1', 'fan', { ...FAN, mode: 3 })]);
 
-    expect(await screen.findByRole('spinbutton', { name: 'Day temperature' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Change Day temperature, 25 °C/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Change Night humidity, 55 %/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('columnheader').map(head => head.textContent?.replace(/holds now|by the schedule/, ''))).toEqual([
+      '',
+      'Bright',
+      'Dark',
+    ]);
     // A fan has no lamp and no CO2 of its own.
-    expect(screen.queryByLabelText('Light on at')).not.toBeInTheDocument();
-    expect(screen.queryByRole('spinbutton', { name: /CO₂/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Change times' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Light limit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /CO₂/ })).not.toBeInTheDocument();
   });
 
-  it('starts with what its speed follows, offers no targets at a fixed speed, and sets its speeds by what they follow', async () => {
+  it('offers no targets at a fixed speed, and says where the speed is set', () => {
     draw([device('fan-1', 'fan', FAN)]);
 
-    expect(await screen.findByRole('slider', { name: 'Speed by day' })).toHaveValue('70');
-    expect(screen.queryByRole('spinbutton', { name: 'Day temperature' })).not.toBeInTheDocument();
-    expect(screen.getByText(/^In “Fixed” mode the fan runs at the speeds above and follows no target/)).toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'Targets' })).not.toBeInTheDocument();
+    expect(screen.getByText(/^In “Fixed” mode the fan runs at fixed speeds and follows no target/)).toHaveTextContent('Control › Outputs');
+  });
 
+  it('sets what its speed follows and how fast it may run among the outputs', async () => {
+    drawAt(<OutputsPage spaceId="space-1" devices={[device('fan-1', 'fan', FAN)]} mayManage />);
+
+    expect(await screen.findByRole('slider', { name: 'Speed by day' })).toHaveValue('70');
     fireEvent.click(screen.getByRole('button', { name: 'By humidity' }));
     expect(screen.getByRole('slider', { name: 'Lowest speed' })).toHaveValue('30');
     fireEvent.change(screen.getByRole('slider', { name: 'Highest speed at night' }), { target: { value: '20' } });

@@ -10,7 +10,7 @@ export const useChannel = (device: Device) => {
   const update = useUpdateDevice(device.id);
 
   return {
-    set: (channel: FirmwareChannel) => update.mutate({ firmware: { channel, targetId: device.firmware.targetId } }),
+    set: (channel: FirmwareChannel) => update.mutateAsync({ firmware: { channel, targetId: device.firmware.targetId } }),
     asked: update.isPending ? (update.variables?.firmware?.channel ?? null) : null,
     isPending: update.isPending,
     error: update.error,

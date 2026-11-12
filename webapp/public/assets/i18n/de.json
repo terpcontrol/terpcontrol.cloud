@@ -243,16 +243,10 @@
     "ticks_other": "Takte"
   },
   "devices": {
-    "title": "Geräte",
-    "controllers_one": "Gerät",
-    "controllers_other": "Geräte",
-    "cameras": "Kameras",
     "sockets": "Smarte Steckdosen",
-    "lights": "Licht",
     "lightOutput": {
       "title": "Lichtausgang",
       "is": "eigener Ausgang des Geräts · dimmbar",
-      "brightness": "Lichtgrenze",
       "forceFor": "Lichtausgang {{duration}} lang halten",
       "holds": "hält {{duration}}",
       "askedHold": "Gesendet: {{duration}} lang halten. Das Gerät meldet sich innerhalb einer halben Minute zurück.",
@@ -260,40 +254,19 @@
       "noLimit": "nicht angegeben",
       "setTo": "Eingestellt auf",
       "running": "Läuft mit",
-      "saving": "Lichtgrenze wird gespeichert…",
-      "saved": "Gespeichert und gesendet. Das Gerät bestätigt keine Einstellung; was es wirklich fährt, steht oben als Wert.",
-      "planRunning": "Speichern pausiert den laufenden Plan, der sonst innerhalb einer Stunde seine eigene Lichtgrenze zurücksetzen würde.",
-      "planPaused": "Der Plan ist pausiert, solange diese Lichtgrenze von Hand gesetzt ist.",
-      "pauseReason": "Lichtgrenze von Hand",
-      "resume": "Plan fortsetzen",
-      "saveFailed": "Diese Lichtgrenze wurde nicht gespeichert.",
-      "noSettings": "Dieses Gerät hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin eine Helligkeit stehen könnte. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht.",
-      "needsFirmware": "Diesem Build lässt sich der Lichtausgang nicht von Hand halten. Die Helligkeit erreicht ihn trotzdem — sie ist eine Einstellung und kein Befehl.",
-      "needsFirmwareAlone": "Diesem Build lässt sich der Lichtausgang nicht von Hand halten.",
-      "neverHolds": "Bei diesem Gerätetyp lässt sich der Lichtausgang nicht von Hand halten. Die Helligkeit erreicht ihn trotzdem — sie ist eine Einstellung und kein Befehl.",
-      "neverHoldsAlone": "Bei diesem Gerätetyp lässt sich der Lichtausgang nicht von Hand halten.",
-      "keptForLater": "Niemand hört zu, die Tasten erreichen also nichts — eine Helligkeit wird trotzdem gespeichert, und das Gerät bekommt sie, sobald es sich wieder verbindet.",
+      "needsFirmware": "Diesem Build lässt sich der Lichtausgang nicht von Hand halten.",
+      "neverHolds": "Bei diesem Gerätetyp lässt sich der Lichtausgang nicht von Hand halten.",
       "explained": "Das Gerät dimmt diesen Ausgang selbst und fährt ihn über Sonnenauf- und -untergang hoch und runter; die Helligkeit ist das Maximum, das es gibt. Eine smarte Steckdose mit Licht-Rolle hat keine eigene Stufe — sie folgt diesem Ausgang an oder aus, solange sie nicht von Hand gehalten wird. Lichtstunden zählen jede Stunde, in der die Lampe über null liegt: Dimmen ändert, wie hell der Tag ist, nicht wie lang.",
       "now": "jetzt {{percent}} · vor {{age}}",
-      "changeOnTargets": "unter Steuerung ändern ›",
       "holding": {
         "on": "an bis {{until}}",
         "off": "aus bis {{until}}"
       },
-      "holdWaits": "Offline: Licht an oder aus halten geht erst wieder, wenn das Gerät verbunden ist.",
-      "planPausedFor": "Der Plan ist pausiert: {{reason}}. Fortsetzen lässt er sich unter Steuerung.",
-      "planPausedElsewhere": "Der Plan ist pausiert. Fortsetzen lässt er sich unter Steuerung."
+      "holdWaits": "Offline: Licht an oder aus halten geht erst wieder, wenn das Gerät verbunden ist."
     },
-    "noDevices": "Hier steht noch kein Gerät. Ein Controller kommt mit dem Code auf seinem Display dazu.",
     "readingSockets": "Steckdosen werden gelesen…",
     "socketsFailed": "Eine Steckdosentabelle ließ sich nicht lesen; hier stehen nur die, die geantwortet haben.",
-    "socketCount_one": "{{count}} Steckdose",
-    "socketCount_other": "{{count}} Steckdosen",
-    "camCount_one": "{{count}} Kamera",
-    "camCount_other": "{{count}} Kameras",
-    "details": "Details zu {{name}}",
     "via": "über {{name}}",
-    "premium": "Premium",
     "noStill": "noch kein Bild",
     "ago": "vor {{age}}",
     "buildUnread": "ließ sich nicht lesen",
@@ -304,11 +277,9 @@
       "id": "Geräte-ID",
       "type": "Typ",
       "build": "Build",
-      "channel": "Updates",
-      "update": "Update",
       "can": "Versteht",
-      "place": "Steht in",
-      "owed": "Soll installiert werden"
+      "owed": "Soll installiert werden",
+      "serial": "Seriennummer"
     },
     "channel": {
       "stable": "stabil",
@@ -323,7 +294,6 @@
       "nothing": "nichts über die Rollen hinaus, mit denen es gebaut wurde"
     },
     "panel": {
-      "connection": "Verbindung",
       "connected": "verbunden",
       "connectedLate": "verbunden · letzte Meldung vor {{age}}",
       "offlineSince": "offline seit {{time}}",
@@ -339,12 +309,10 @@
         "alpha": "automatisch – frühe Testversionen (Alpha)",
         "manual": "keine automatischen Updates"
       },
-      "offlineNote": "Neu starten und Wartung gehen erst wieder, wenn das Gerät verbunden ist. Was du sonst hier änderst – Regelung, Energiespar, Erweitert –, speichert die Cloud und schickt es dem Gerät, sobald es sich wieder meldet.",
       "technical": "Technische Details"
     },
     "reboot": {
       "action": "Neu starten",
-      "does": "kurz offline, Einstellungen bleiben",
       "title": "{{name}} neu starten?",
       "text": "Das Gerät startet neu und ist dabei kurz nicht erreichbar, meist weniger als eine Minute. In der Zeit regelt es nicht.",
       "kept": "Zielwerte und Einstellungen bleiben erhalten. Was du von Hand geschaltet hast – Licht oder Steckdosen –, endet mit dem Neustart.",
@@ -411,9 +379,9 @@
       "isPlug": "smarte Steckdose",
       "numbered": "{{name}} {{number}}",
       "holdOnAria": "{{name}} für {{duration}} einschalten",
-      "holdOffAria": "{{name}} für {{duration}} ausschalten"
+      "holdOffAria": "{{name}} für {{duration}} ausschalten",
+      "byItself": "Auto"
     },
-    "noDevicesHere": "Hier steht kein Gerät.",
     "settings": {
       "open": "Umbenennen oder umziehen",
       "title": "{{name}}",
@@ -428,10 +396,7 @@
       "moveToNew": "Anlegen und umziehen",
       "moving": "Zieht um …"
     },
-    "unnamed": "{{type}} · {{tag}}",
-    "youMayLog": "Was die Geräte hier tun, steht hier. Eine Steckdose oder die Lampe schaltet nur, wer diesen Ort steuert.",
-    "noneYet": "Hier steht noch kein Gerät. Ein Controller oder Kühlschrankmodul misst und regelt das Klima und kommt mit dem Code auf seinem Display dazu; eine Kamera macht Bilder für Tagebuch und Zeitraffer.",
-    "addController": "Controller oder Kühlschrankmodul hinzufügen"
+    "unnamed": "{{type}} · {{tag}}"
   },
   "message-lost-connection-title": "Verbindungsproblem",
   "message-lost-connection-text": "Die Verbindung zwischen deinem Gerät und unserem Server ist abgebrochen und wurde wiederhergestellt. Wenn dieser Fehler oft auftritt überprüfe bitte dein WLAN und deine Internetverbindung.",
@@ -1716,13 +1681,12 @@
   },
   "space": {
     "control": {
-      "title": "Grow-Plan",
       "noController": "Hier steht noch kein Gerät. Zielwerte, Alarme und ein Plan kommen mit dem ersten Gerät an diesem Ort.",
       "noControllerAdd": "Gerät hinzufügen",
       "none": "Noch kein Plan.",
       "noneNote": "Ein Plan ist eine Liste von Schritten: ein Stadium, wie lange es dauert und was der Ort währenddessen halten soll. Ihn zu speichern startet ihn nicht.",
       "noClimate": "Hier läuft nichts auf einem Plan.",
-      "noClimateNote": "Ein Plan-Schritt schreibt ein Klima — Tag- und Nachtwerte, das CO₂-Ziel, das Maximum des Lichts — und dieses Gerät nennt nichts davon. Seine Steckdosen und sein Ausgang stehen unter Steuerung › Geräte.",
+      "noClimateNote": "Ein Plan-Schritt schreibt ein Klima — Tag- und Nachtwerte, das CO₂-Ziel, das Maximum des Lichts — und dieses Gerät nennt nichts davon. Seine Steckdosen und sein Ausgang stehen unter Steuerung › Ausgänge.",
       "noClimateHasPlan": "Dieses Gerät nennt kein Klima; was diese Schritte schreiben, landet also in einem Dokument, das keinen Platz dafür hat. Ein Schritt ohne Einstellungen sendet gar nichts, und ein gestoppter Plan sendet nichts, bis er wieder gestartet wird.",
       "waitingHasPlan": "Dieses Gerät hat seine Einstellungen noch nicht geschickt; diese Schritte werden deshalb zurückgehalten und nicht gesendet. Was ein Schritt trägt, käme nicht zur Abstimmung des Geräts hinzu, sondern träte an ihre Stelle: Betriebsart, Lichtzeiten, die Zeiten des Entfeuchters und die Dimmrampen stünden wieder auf einem Werkswert, und keine davon hat die Cloud je erreicht, um sie zurückschreiben zu können. Ein Schritt ohne Einstellungen sendet gar nichts, und ein gestoppter Plan sendet nichts, bis er wieder gestartet wird.",
       "write": "Plan schreiben",
@@ -1740,7 +1704,7 @@
       "over": "die Zeit ist um",
       "openEnded": "läuft, bis er von Hand weitergesetzt wird",
       "pausedFor": "Pausiert: {{reason}}",
-      "startsStage": "Starten setzt einen Grow, der hier steht, auf {{stage}} – mit Tageszähler und Tagebuchzeile. Später einsteigen geht unter Erweitert: Plan bei Schritt fortsetzen.",
+      "startsStage": "Starten setzt einen Grow, der hier steht, auf {{stage}} – mit Tageszähler und Tagebuchzeile. Später einsteigen geht unter dem Plan: Plan bei Schritt fortsetzen.",
       "status": {
         "running": "Läuft",
         "paused": "Pausiert",
@@ -1932,17 +1896,6 @@
         "yours": "deine",
         "published": "von jemand anderem veröffentlicht"
       },
-      "belowLabel": "Unter dem Plan",
-      "targets": "Zielwerte",
-      "targetsLine": "Ändern, was der Plan setzt, pausiert ihn",
-      "alarms": "Alarme",
-      "alarmsOn_zero": "keiner an",
-      "alarmsOn_one": "{{count}} Alarm an",
-      "alarmsOn_other": "{{count}} Alarme an",
-      "planRow": "Automatisch nach Grow-Plan steuern",
-      "planRowLine": "Stellt die Zielwerte Schritt für Schritt um, etwa von Veg auf Blüte",
-      "planNamed": "Grow-Plan „{{name}}“",
-      "backToTargets": "‹ Zielwerte",
       "youMayLog": "Du darfst an diesem Ort loggen, ihn aber nicht steuern. Plan, Zielwerte und Alarmregeln stehen hier so, wie sie eingestellt sind; ändern kann sie nur, wer den Ort steuert."
     },
     "noReadingsYet": "Noch nichts gemeldet",
@@ -2175,10 +2128,6 @@
       "training": "Training",
       "phase": "Phase"
     },
-    "visit": {
-      "parksOutputs": "stellt {{outputs}} ab",
-      "parksNothing": "stellt nichts ab: Diese Hardware kennt den Wartungsbefehl nicht"
-    },
     "water": "Wasser",
     "less": "Weniger Wasser",
     "more": "Mehr Wasser",
@@ -2326,7 +2275,6 @@
     }
   },
   "camera": {
-    "never": "nie",
     "lastError": "Letzter Versuch fehlgeschlagen: {{reason}}",
     "whatItSaid": "Was die Kamera gemeldet hat",
     "failure": {
@@ -2345,14 +2293,6 @@
       "noDevice": "das Gerät, über das diese Kamera antwortet, war nicht erreichbar"
     },
     "frameAlt": "{{name}} um {{time}}",
-    "noFramesToday": "Heute noch kein Bild",
-    "framesUnread": "Die Bilder von heute konnten gerade nicht gelesen werden, deshalb sagt diese Seite nichts über sie.",
-    "live": "live",
-    "now": "jetzt",
-    "framesToday_one": "{{count}} Bild heute",
-    "framesToday_other": "{{count}} Bilder heute",
-    "framesTodayAtLeast_one": "mindestens {{count}} Bild heute",
-    "framesTodayAtLeast_other": "mindestens {{count}} Bilder heute",
     "timelapses": "Zeitraffer",
     "window": {
       "day": "Heute",
@@ -2361,24 +2301,20 @@
       "grow": "Ganzer Grow",
       "custom": "Eigener"
     },
-    "hd": "HD",
     "noGrowHere": "Hier wächst nichts, also gibt es weder Phase noch Grow zum Filmen.",
     "noPictureToFilm": "Heute gibt es kein Bild, also noch nichts zu filmen.",
     "noPictureThatWeek": "In der Woche, die dieser Film abdecken würde, hat die Kamera kein Bild gemacht.",
     "needsPremium": "HD und der Film eines ganzen Grows gehören zu Premium.",
     "seePremium": "Was Premium umfasst",
-    "reduced": "{{width}} px breit ausgeliefert",
     "makeOne": "Eigenen Zeitraffer zusammenstellen",
     "askFailed": "Dieser Film wurde nicht angefordert.",
     "testImage": "Jetzt ein Bild",
     "testing": "Wird gelesen…",
-    "testWorked": "Aufgenommen. Es ist das neueste Bild des Tages.",
     "testNoPicture": "Kein Bild: {{reason}}",
     "testFailed": "Das hat die Kamera nicht erreicht.",
     "testNoAnswer": "Auch nach über {{minutes}} Minuten keine Antwort. Bitte erneut versuchen.",
     "testOffline": "Geht wieder, sobald das Gerät online ist.",
     "carrierOffline": "Diese Kamera läuft über das Gerät ({{device}}). Bis es wieder online ist, kommen keine Bilder.",
-    "thisCamera": "Diese Kamera",
     "connectedVia": "Verbunden über",
     "reachedAt": "Kamera-ID",
     "addressNote": "Das Passwort, mit dem der Stream geöffnet wird, bleibt auf dem Server und wird nie zurückgeschickt.",
@@ -2399,7 +2335,6 @@
     "unpair": "Entkoppeln",
     "unpairSure": "Die Bilder dieser Kamera bleiben, wo sie sind.",
     "unpairYes": "Entkoppeln",
-    "keep": "Behalten",
     "unpairNote": "Nach dem Entkoppeln wird diese Kamera nicht mehr gelesen. Jedes Bild und jeder Film, den sie geliefert hat, behält seine Verbindung zu ihr.",
     "entitlement": {
       "none": "nicht freigeschaltet",
@@ -2436,23 +2371,16 @@
       },
       "overlaid": "mit Einblendungen",
       "play": "Abspielen",
-      "close": "Schließen"
+      "close": "Schließen",
+      "which": "Film",
+      "playIt": "Film abspielen",
+      "make": "Film erstellen",
+      "asking": "Wird angefordert …"
     },
     "noFilms": "Von dieser Kamera gibt es noch keinen Film.",
-    "moreFilms": "Weitere Filme",
-    "youMayLog": "Du siehst, was diese Kamera sieht. Einstellungen, Testbild und Zeitraffer sind Sache derer, die den Ort steuern, an dem sie steht.",
-    "liveAge": "live · {{age}}",
-    "quick": {
-      "day": "Film von heute",
-      "week": "Wochenfilm",
-      "phase": "Film der Phase",
-      "grow": "Film des Grows"
-    },
-    "quickNote": "Ein Tipp erstellt den Zeitraffer; nach ein paar Minuten steht er unten in der Liste.",
     "firstWeekEnds": "Der Wochenfilm zeigt die letzte volle Woche. Die erste volle Woche dieser Cam endet am {{date}}.",
     "picturesSince": "Diese Cam macht erst seit {{date}} Bilder: Film der Phase und Film des Grows beginnen dort.",
     "weekFilmByMail": "Wochenfilm jeden Montag per E-Mail",
-    "inTimeline": "Im Verlauf ansehen",
     "address": "Adresse",
     "changeAddress": "Adresse ändern",
     "addressChangeNote": "Leer gelassen bleiben Benutzer und Passwort, wie sie sind. Bilder, Filme und Premium bleiben bei dieser Kamera. Nach dem Speichern prüft „Jetzt ein Bild“, ob sie erreichbar ist.",
@@ -2481,7 +2409,52 @@
         "udp": "Nur für eine Kamera, die die Cloud direkt erreicht."
       }
     },
-    "rtspTunnelled": "RTSP über das Gerät"
+    "rtspTunnelled": "RTSP über das Gerät",
+    "pill": {
+      "never": "noch kein Bild",
+      "live": "online · vor {{age}}",
+      "late": "letztes Bild vor {{age}}",
+      "waits": "wartet auf {{device}}",
+      "since": "kein Bild seit {{time}}"
+    },
+    "picture": {
+      "today": "heute, {{time}}",
+      "lightOff": "Licht aus · Bild von {{time}}",
+      "last": "letztes Bild {{time}}"
+    },
+    "noPicture": "Diese Kamera hat noch kein Bild geliefert.",
+    "days": {
+      "at": "Tag {{day}} von {{days}}",
+      "note": "ein Bild je Tag, vom Mittag",
+      "label": "Tag des Grows"
+    },
+    "span": {
+      "day": "Tagesfilm",
+      "week": "Woche",
+      "phase": "Phase",
+      "grow": "Ganzer Grow"
+    },
+    "testTaken": "Bild von {{time}} aufgenommen.",
+    "row": {
+      "curves": "Kurven zu diesem Tag",
+      "diary": "Im Tagebuch zeigen",
+      "settingsOwn": "Name, Bildabstand, Premium, entkoppeln",
+      "settingsLine": "Name, Bildabstand, Premium",
+      "aboutLine": "Verbindung, Bildabstand, Premium"
+    },
+    "allFilms": "Alle Filme",
+    "earlierFilms": "Frühere Filme",
+    "settings": "Kamera einstellen",
+    "about": "Über diese Kamera",
+    "saved": "Kamera gespeichert · {{what}}",
+    "unpaired": "{{name}} entkoppelt",
+    "leaveUnsaved": "Was du geändert hast, ist noch nicht gespeichert.",
+    "discard": "Verwerfen",
+    "kind": {
+      "terpcam_controller": "Terp Cam",
+      "terpcam_standalone": "eigenständig · WLAN",
+      "rtsp": "RTSP"
+    }
   },
   "cameras": {
     "add": {
@@ -2716,39 +2689,15 @@
     "publicCamerasNote": "Die Bilder der Cam im Tagebuch und im Bericht. Ausgeschaltet zeigt die Seite nur die Fotos aus dem Tagebuch."
   },
   "maintenance": {
-    "and": "und",
     "parked": "Im Wartungsmodus bis {{until}} — bis {{alarms}} kein Alarm auf diesem Gerät",
     "settling": "Wartungsmodus seit {{until}} beendet — bis {{alarms}} noch kein Alarm auf diesem Gerät, solange das Klima zurückkommt",
     "end": "Jetzt beenden",
     "ending": "Wird beendet …",
-    "ended": "Beenden angefragt. Die Alarme kommen zurück, sobald sich das Klima beruhigt hat.",
-    "actionNote": "Regelung und Alarme pausieren",
     "running": "Wartung bis {{until}}",
     "runningNote": "Regelung und Alarme pausiert",
     "title": "Wartung",
-    "pauses": "Für {{minutes}} Minuten stellt das Gerät {{outputs}} ab, damit du in Ruhe arbeiten kannst.",
-    "dims": "Das Licht dimmt es auf 15 %.",
-    "pausesNothing": "Dieses Gerät kennt die Wartung nicht und stellt nichts ab. Nur seine Alarme bleiben aus.",
-    "pausesEach_one": "Für {{minutes}} Minuten pausiert das Gerät hier:",
-    "pausesEach_other": "Für {{minutes}} Minuten pausieren alle {{count}} Geräte hier:",
-    "alarms": "Alarme bleiben {{quiet}} Minuten aus – die {{minutes}} Minuten und {{settle}} weitere, bis das Klima wieder stimmt.",
-    "after_one": "Danach regelt das Gerät von selbst weiter. Du kannst die Wartung auch vorher beenden.",
-    "after_other": "Danach regeln die Geräte von selbst weiter. Du kannst die Wartung auch vorher beenden.",
-    "runningText": "Die Regelung ist bis {{until}} pausiert, Alarme sind bis {{alarms}} aus. Beendest du die Wartung jetzt, regelt das Gerät sofort weiter; die Alarme kommen zurück, sobald sich das Klima beruhigt hat.",
-    "start": "Wartung starten",
     "cancel": "Abbrechen",
     "done": "Fertig",
-    "started": "Die Wartung läuft. Nach {{minutes}} Minuten regelt alles von selbst weiter, Alarme kommen nach {{quiet}} Minuten zurück.",
-    "unheard": "Ein Gerät war gerade nicht erreichbar und hat den Befehl vielleicht nicht bekommen. Seine Alarme bleiben trotzdem {{quiet}} Minuten aus.",
-    "output": {
-      "heater": "die Heizung",
-      "dehumidifier": "den Entfeuchter",
-      "compressor": "den Kompressor",
-      "co2": "das CO₂-Ventil"
-    },
-    "actionChoose": "Wartung",
-    "howLong": "Wie lange",
-    "minutes": "{{minutes}} Min",
     "actionShort": "Wartung · {{minutes}} Min",
     "starting": "Wartung startet …",
     "extending": "Wird verlängert …",
@@ -2758,8 +2707,6 @@
   },
   "alarms": {
     "title": "Alarme",
-    "backToPlan": "‹ zurück zum Plan",
-    "backToTargets": "‹ Zielwerte",
     "noController": "Hier steht nichts, das Alarmregeln hat. Erst muss ein Gerät an diesen Ort geholt werden.",
     "quietLine": "Stummschalten und Wartung",
     "add": "+ Eigener Alarm",
@@ -3030,10 +2977,7 @@
   },
   "targets": {
     "title": "Zielwerte",
-    "backToPlan": "‹ zurück zum Plan",
-    "nothing": "Nichts, was hier steht, nennt ein Klima — es gibt also nichts einzustellen.",
     "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin ein Klima stehen könnte. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht, und was hier stünde, kann sie nicht ersetzen.",
-    "prefill": "Oder ein Klima-Preset übernehmen und anpassen – es gilt erst, was gespeichert ist:",
     "presets": "Vorlagen",
     "light": "Lichtgrenze",
     "needsCo2": "braucht einen CO₂-Sensor",
@@ -3068,8 +3012,6 @@
     "save": "Speichern",
     "saving": "Wird gespeichert…",
     "discard": "Verwerfen",
-    "sentAt": "Um {{time}} ans Gerät geschickt",
-    "sentNote": "Das Gerät bestätigt keine Einstellung; was es wirklich fährt, meldet es nicht zurück.",
     "readOnly": "Diese Sitzung darf schauen, aber nichts einstellen.",
     "leave": {
       "title": "Zielwerte nicht gespeichert",
@@ -3080,53 +3022,33 @@
     },
     "growStays": "Das ändert nur die Zielwerte: {{name}} bleibt in der Phase {{stage}}. Phase und Klima zusammen stellst du im Grow unter Phase um.",
     "drying": {
-      "starts": "Speichern schaltet die Trocknung ein: kein Licht und kein CO₂, das Gerät entfeuchtet und heizt nur.",
-      "ends": "Speichern beendet die Trocknung: Das Gerät hält wieder Tag und Nacht, Licht und CO₂."
+      "starts": "Übernehmen schaltet die Trocknung ein: kein Licht und kein CO₂, das Gerät entfeuchtet und heizt nur.",
+      "ends": "Übernehmen beendet die Trocknung: Das Gerät hält wieder Tag und Nacht, Licht und CO₂."
     },
     "germination": {
-      "starts": "Speichern schaltet auf Keimung · dunkel: Licht aus, kein CO₂, rund um die Uhr eine Temperatur und {{humidity}} % Luftfeuchte für einen Befeuchter. Die übrigen Zielwerte bleiben für danach.",
-      "ends": "Speichern beendet die Keimung: Das Gerät hält wieder Tag und Nacht, mit Licht und CO₂."
+      "starts": "Übernehmen schaltet auf Keimung · dunkel: Licht aus, kein CO₂, rund um die Uhr eine Temperatur und {{humidity}} % Luftfeuchte für einen Befeuchter. Die übrigen Zielwerte bleiben für danach.",
+      "ends": "Übernehmen beendet die Keimung: Das Gerät hält wieder Tag und Nacht, mit Licht und CO₂."
     },
     "table": {
       "label": "Zielwerte",
       "figure": "Wert",
-      "dayTitle": "Licht an",
-      "dayWhat": "(Tag)",
-      "nightTitle": "Licht aus",
-      "nightWhat": "(Nacht)",
-      "hours": "{{hours}} Std",
-      "alwaysTitle": "Durchgehend Licht",
-      "alwaysSub": "24 Std · Tageswerte",
-      "neverTitle": "Durchgehend dunkel",
-      "neverSub": "0 Std · Nachtwerte",
       "dryingTitle": "Trocknung",
       "germinationTitle": "Keimung · dunkel",
       "roundTheClock": "rund um die Uhr",
       "brightTitle": "Hell",
-      "brightSub": "Tag, laut Lichtsensor",
       "darkTitle": "Dunkel",
-      "darkSub": "Nacht",
       "now": "gilt jetzt",
       "bySchedule": "laut Zeitplan",
       "temperature": "Temperatur",
       "humidity": "Luftfeuchte",
       "co2": "CO₂-Ziel",
-      "light": "Lichtgrenze",
       "vpd": "VPD {{value}}",
       "co2Night": "kein CO₂",
-      "lightNight": "Lampe aus",
       "planMark": "setzt der laufende Plan",
       "zeroLimit": "Lichtgrenze 0 %: Die Lampe bleibt dunkel, der Tag gilt aber weiter – mit den Tageswerten und mit CO₂.",
       "keptNight": "Nachtwerte – gelten wieder, sobald es eine Nacht gibt",
-      "keptNightHow": "Mit weniger als 24 Std Licht stehen sie wieder in der Tabelle.",
       "keptDay": "Tageswerte – gelten wieder, sobald es einen Tag gibt",
-      "keptDayHow": "Mit mehr als 0 Std Licht stehen sie wieder in der Tabelle.",
       "keptLight": "Lichtgrenze {{percent}} %",
-      "afterSave": "gilt nach dem Speichern",
-      "byLastState": "laut letztem Stand",
-      "dayPlain": "Tag",
-      "dayDark": "(Lampe auf 0 %)",
-      "nightPlain": "Nacht",
       "germinationBack": "Endet die Keimung ohne neues Klima, gilt wieder die Nachttemperatur von vorher: {{temperature}}.",
       "germinationBackHumidity": "Endet die Keimung ohne neues Klima, gilt wieder die Nacht von vorher: {{temperature}} · {{humidity}}."
     },
@@ -3135,9 +3057,7 @@
     "stepMore": "{{name}}: mehr",
     "planTable": {
       "legend": "setzt der laufende Plan „{{name}}“ – jede Stunde neu.",
-      "ownsNothing": "Der laufende Plan „{{name}}“ setzt keinen dieser Werte.",
-      "pauses": "Speichern pausiert den Plan „{{name}}“ – er setzt einen der geänderten Werte.",
-      "keeps": "Der Plan „{{name}}“ läuft weiter – er setzt nichts davon."
+      "pauses": "Das pausiert den Plan „{{name}}“ – er setzt einen der geänderten Werte."
     },
     "plan": {
       "label": "Lichtplan",
@@ -3163,10 +3083,6 @@
           "night": "Sonnenuntergang · Licht aus um {{time}}, bis dahin gleiten die Zielwerte zur Nacht"
         },
         "offline": "{{offline}} · laut Zeitplan wäre jetzt {{half}}",
-        "sensor": {
-          "day": "Jetzt hell · es gelten die Tageswerte",
-          "night": "Jetzt dunkel · es gelten die Nachtwerte"
-        },
         "dayDark": "Jetzt ist Tag · Nacht ab {{time}}",
         "nightDark": "Jetzt ist Nacht · Tag ab {{time}}"
       },
@@ -3390,10 +3306,9 @@
     "skip": "überspringen",
     "next": "Weiter · {{what}}",
     "finish": "Fertig · Ort öffnen",
-    "later": "Die Vorgabe lässt sich später unter Steuerung ändern, Steckdosen und Cam unter Geräte, Benachrichtigungen unter Ich.",
+    "later": "Die Vorgabe lässt sich später unter Steuerung ändern, Steckdosen und Cam dort bei den Geräten, Benachrichtigungen unter Ich.",
     "addDevice": "Gerät hinzufügen",
     "demo": "Die Demo darf alles ansehen und nichts ändern, also kann sie keine Hardware übernehmen. Melde dich mit deinem eigenen Konto an, um ein Gerät hinzuzufügen.",
-    "backToDevices": "Zurück zu Geräte",
     "code": {
       "title": "Den Code vom Display ablesen",
       "text": "Der Controller zeigt einen kurzen Code; auf der Verpackung steht derselbe als QR-Code.",
@@ -3458,7 +3373,7 @@
       "onStage": "auf {{stage}}",
       "measuring": "nur messen",
       "nothingYet": "noch nichts gesetzt",
-      "window": "{{light}} – wann es angeht, änderst du unter Steuerung › Zielwerte.",
+      "window": "{{light}} – wann es angeht, änderst du unter Steuerung.",
       "germination": "Keimung · dunkel: Das Licht geht aus, CO₂ gibt es keins, und das Gerät hält rund um die Uhr {{temperature}} °C; ein Befeuchter an einer Steckdose hält dazu {{humidity}} % Luftfeuchte. Sind die Keimlinge da, stellst du auf „Sämling · mit Licht“."
     },
     "hardware": {
@@ -3469,7 +3384,7 @@
       "noSockets": "noch keine",
       "notReported": "noch nicht gemeldet",
       "cam": "Cam",
-      "socketsAtTheDevice": "Eine Steckdose von Terp Control koppelst du am Gerät selbst – Knopf drücken, dann Smart Sockets –, und sie taucht in dieser Liste auf, sobald das Gerät sie meldet. Eine Tasmota-Steckdose koppelst du später unter Geräte › dein Gerät › Erweitert per IP-Adresse.",
+      "socketsAtTheDevice": "Eine Steckdose von Terp Control koppelst du am Gerät selbst – Knopf drücken, dann Smart Sockets –, und sie taucht in dieser Liste auf, sobald das Gerät sie meldet. Eine Tasmota-Steckdose koppelst du später unter Steuerung › dein Gerät › Smarte Steckdosen per IP-Adresse.",
       "pairTheCam": "Terp Cam koppeln",
       "bothCanWait": "Beides hat Zeit: Das Gerät misst den Ort, an dem es steht, auch wenn nichts eingesteckt ist."
     },
@@ -3494,7 +3409,8 @@
       "move": "Oder einen Grow hierher umziehen",
       "title": "Was wächst hier?",
       "text": "Mit einem Grow schreibt die App das Tagebuch mit. Das hat Zeit."
-    }
+    },
+    "backToControl": "Zurück zur Steuerung"
   },
   "admin": {
     "section": "Verwaltung",
@@ -3784,7 +3700,7 @@
       "task_not_found": "Diese Aufgabe gibt es nicht mehr.",
       "insufficient_access": "Du darfst das lesen, aber nicht ändern.",
       "claim_code_unknown": "Kein Gerät zeigt gerade diesen Code. Lies ihn noch einmal vom Display ab.",
-      "device_already_yours": "Dieses Gerät hast du schon hinzugefügt. Es steht in deiner Geräteliste.",
+      "device_already_yours": "Dieses Gerät hast du schon hinzugefügt. Du findest es unter Steuerung.",
       "device_claimed": "Dieses Gerät gehört schon jemand anderem. Es muss dort erst entfernt werden.",
       "space_archived": "Dieser Ort wurde beendet. Hole ihn zurück, bevor du etwas hineinstellst.",
       "capability_not_announced": "Dieses Gerät hat nicht gemeldet, dass es das versteht. Es braucht eine neuere Firmware.",
@@ -3824,7 +3740,9 @@
     "wifi": "WLAN und Router: Läuft der Router, reicht das Signal bis zum Gerät?",
     "replug": "Gerät ausstecken, 10 Sekunden warten, wieder einstecken.",
     "keeps": "Die letzten Werte bleiben stehen, bis wieder etwas ankommt.",
-    "device": "Gerät ansehen"
+    "device": "Gerät ansehen",
+    "title": "{{device}} ist seit {{time}} offline.",
+    "help": "Was du tun kannst"
   },
   "help": {
     "about": "Hilfe zu {{title}}",
@@ -3942,11 +3860,7 @@
     },
     "maintenance": {
       "title": "Wartung",
-      "text": "Für die Arbeit im Zelt oder Schrank: 15, 30 oder 60 Minuten lang stellt das Gerät Heizung, Entfeuchter oder Kompressor und CO₂-Ventil ab und dimmt das Licht. Alarme bleiben 10 Minuten länger aus, bis das Klima wieder stimmt. Danach regelt alles von selbst weiter; du kannst die Wartung auch vorher beenden."
-    },
-    "reboot": {
-      "title": "Neu starten",
-      "text": "Startet das Gerät neu – hilfreich, wenn es hängt oder sich seltsam verhält. Es ist dabei meist weniger als eine Minute offline und regelt in der Zeit nicht. Zielwerte und Einstellungen bleiben erhalten; was von Hand geschaltet ist, endet."
+      "text": "Für die Arbeit im Zelt oder Schrank: Eine Viertelstunde lang stellt das Gerät Heizung, Entfeuchter oder Kompressor und CO₂-Ventil ab und dimmt das Licht; „Verlängern“ hängt eine weitere an. Alarme bleiben 10 Minuten länger aus, bis das Klima wieder stimmt. Danach regelt alles von selbst weiter; du kannst die Wartung auch vorher beenden."
     },
     "endMaintenance": {
       "title": "Jetzt beenden",
@@ -4018,7 +3932,7 @@
     },
     "firmwareChannel": {
       "title": "Updates",
-      "text": "Ob das Gerät neue Firmware selbst installiert. Bei einem neu hinzugefügten Gerät ist es eingeschaltet. An: Neue stabile Versionen kommen von selbst, mit Fehlerbehebungen; unter Erweitert lassen sich auch Testversionen (Beta, Alpha) wählen. Aus: Es bleibt bei der Version, die es hat. Während eines Updates schalten Controller und Kühlschrankmodul alle Ausgänge und Steckdosen kurz aus und starten neu."
+      "text": "Ob das Gerät neue Firmware selbst installiert. Bei einem neu hinzugefügten Gerät ist es eingeschaltet. An: Neue stabile Versionen kommen von selbst, mit Fehlerbehebungen; der Update-Kanal darunter lässt auch Testversionen (Beta, Alpha) zu. Aus: Es bleibt bei der Version, die es hat, bis du darunter eine andere installierst. Während eines Updates schalten Controller und Kühlschrankmodul alle Ausgänge und Steckdosen kurz aus und starten neu."
     },
     "stillCadence": {
       "title": "Bild alle",
@@ -4038,7 +3952,7 @@
     },
     "timelapses": {
       "title": "Zeitraffer",
-      "text": "Filme aus den gespeicherten Bildern dieser Kamera, 25 pro Sekunde. Die Tages-, Wochen- und Monatsfilme bauen sich selbst neu; die Chips filmen heute, die letzte vollständige Woche, die aktuelle Phase oder den ganzen Grow."
+      "text": "Filme aus den gespeicherten Bildern dieser Kamera, 25 pro Sekunde. Die Tages-, Wochen- und Monatsfilme bauen sich selbst neu. Auf der Kameraseite spielst du den neuesten Film jeder Art ab; gibt es noch keinen, erstellst du ihn: vom gewählten Tag, von der letzten vollständigen Woche, der aktuellen Phase oder dem ganzen Grow."
     },
     "overlays": {
       "title": "Overlays",
@@ -4161,29 +4075,13 @@
         "title": "Transport",
         "text": "Wie der Stream gelesen wird. TCP passt für fast jede Kamera. HTTP oder HTTPS nur, wenn die Kamera RTSP allein durch HTTP getunnelt anbietet. UDP nur für eine Kamera, die die Cloud direkt erreicht; durch das Gerät geht es nicht. Kommt kein Bild, lohnt ein Versuch mit einer anderen Einstellung und dann „Jetzt ein Bild“."
       },
-      "release": {
-        "title": "Gerät abgeben",
-        "text": "Nimmt das Gerät aus deinem Konto, damit jemand anderes es hinzufügen kann – nach einem Verkauf, einem Kontowechsel oder einem Gerätetausch. Sein Grow-Plan, seine Alarme und die Kamera, die über das Gerät verbunden ist, gehen mit. Der Ort und das Tagebuch bleiben, und am Gerät selbst ändert sich nichts."
-      },
       "updateChannel": {
         "title": "Update-Kanal",
-        "text": "Von welchem Kanal das Gerät neue Firmware selbst installiert. Stabil bekommt nur freigegebene Versionen. Beta bekommt Testversionen, bevor sie alle bekommen, Alpha noch frühere. Testversionen können Fehler haben, die eine stabile nicht hat. Manuell schaltet die automatischen Updates aus: Das Gerät bleibt auf seiner Version, und du wählst darunter selbst, welche es installiert."
+        "text": "Von welchem Kanal das Gerät neue Firmware selbst installiert. Stabil bekommt nur freigegebene Versionen. Beta bekommt Testversionen, bevor sie alle bekommen, Alpha noch frühere. Testversionen können Fehler haben, die eine stabile nicht hat."
       },
       "firmwarePin": {
         "title": "Firmware-Version",
-        "text": "Auf dem Kanal Manuell wählst du die Version selbst: jede, die je stabil war, oder eine neuere, etwa um eine Testversion auszuprobieren oder zu einer früheren stabilen zurückzugehen. Beim Installieren schaltet das Gerät seine Ausgänge kurz aus und startet neu. Es bleibt auf der Version, bis du eine andere installierst oder einen Kanal wählst."
-      },
-      "pairSocket": {
-        "title": "Steckdose per IP koppeln",
-        "text": "Koppelt eine Tasmota-Steckdose über ihre Adresse im lokalen Netz an dieses Gerät. Die Rolle sagt, womit sie schaltet: mit der Heizung, dem Entfeuchter, dem CO₂, dem Licht – oder nach eigenem Takt als Pumpe oder eigener Timer. Eine Steckdose von Terp Control koppelst du am Gerät selbst."
-      },
-      "editSocket": {
-        "title": "Steckdose ändern",
-        "text": "Braucht es selten: Das Gerät findet seine Steckdosen an ihrer Hardware-ID wieder, auch wenn der Router ihnen neue Adressen gibt. Ändern lassen sich Adresse, Rolle und Zugangsdaten; leere Zugangsdaten behalten, was die Steckdose hat."
-      },
-      "removeSocket": {
-        "title": "Steckdose entfernen",
-        "text": "Das Gerät vergisst die Steckdose und setzt sie zurück. Sie schaltet dann nicht mehr mit und verschwindet aus der Liste. Geht nur, solange das Gerät verbunden ist."
+        "text": "Sind die automatischen Updates aus, wählst du die Version selbst: jede, die je stabil war, oder eine neuere, etwa um eine Testversion auszuprobieren oder zu einer früheren stabilen zurückzugehen. Beim Installieren schaltet das Gerät seine Ausgänge kurz aus und startet neu. Es bleibt auf der Version, bis du eine andere installierst oder die automatischen Updates wieder einschaltest."
       },
       "co2Dosing": {
         "title": "CO₂-Dosierung",
@@ -4386,8 +4284,6 @@
   },
   "advanced": {
     "title": "Erweitert",
-    "titleOf": "Erweitert · {{device}}",
-    "operatingModeAtDevice": "Betriebsart unter Geräte",
     "lead": {
       "device": "Was die meisten nie brauchen. Eine Änderung gilt sofort und wird ans Gerät geschickt.",
       "charts": "Feineinstellungen der Graphen.",
@@ -4406,10 +4302,6 @@
       "germination": "an · Keimung · dunkel"
     },
     "offAction": "Regelung ausschalten",
-    "offDoes": {
-      "fridge": "Heizung, Kompressor, Licht und CO₂ stoppen",
-      "controller": "Heizung, Entfeuchter, Licht und CO₂ stoppen"
-    },
     "onAction": "Regelung einschalten",
     "onDoes": "Hält wieder die Zielwerte",
     "onDoesPlan": "Hält wieder die Zielwerte, der Plan läuft weiter",
@@ -4429,11 +4321,6 @@
     "pauseReason": "Die Regelung wurde ausgeschaltet.",
     "dryingNote": "Trocknung läuft: kein Tag und keine Nacht, kein Licht, kein CO₂. Das Gerät entfeuchtet und heizt nur.",
     "endDrying": "Trocknung beenden",
-    "modeNote": {
-      "greenhouse": "Betriebsart Gewächshaus: Das Gerät regelt nur die Temperatur, die Luftfeuchte hält es nicht. Licht und CO₂ laufen nach dem Lichtplan.",
-      "germination": "Keimung · dunkel: kein Licht, kein CO₂, rund um die Uhr die Temperatur unten; die Luftfeuchte hält höchstens ein Befeuchter. Sind die Keimlinge da, unten „Sämling · mit Licht“ wählen und speichern."
-    },
-    "modeChange": "Betriebsart ändern",
     "offTitle": "Regelung aus.",
     "endDryingAsk": "Trocknung beenden …",
     "endDryingTitle": "Trocknung beenden?",
@@ -4662,8 +4549,6 @@
   },
   "release": {
     "label": "Gerät abgeben",
-    "open": "Aus dem Konto entfernen …",
-    "note": "Nach einem Verkauf, einem Kontowechsel oder einem Tausch: Danach kann jemand anderes es mit dem Code vom Display hinzufügen.",
     "title": "{{name}} abgeben",
     "sureTitle": "Wirklich abgeben?",
     "what": "„{{name}}“ verschwindet aus deinem Konto. Wer das Gerät danach in der Hand hat, fügt es mit dem Code auf seinem Display zum eigenen Konto hinzu.",
@@ -4680,9 +4565,6 @@
   "autoUpdate": {
     "label": "Automatisch aktualisieren",
     "note": {
-      "stable": "Neue stabile Firmware wird von selbst installiert.",
-      "beta": "Neue Firmware wird von selbst installiert, auch Testversionen (Beta, unter Erweitert).",
-      "alpha": "Neue Firmware wird von selbst installiert, auch frühe Testversionen (Alpha, unter Erweitert).",
       "manual": "Aus: Das Gerät bleibt auf seiner Version, auch Fehlerbehebungen kommen nicht von selbst."
     }
   },
@@ -4694,14 +4576,12 @@
     "note": {
       "stable": "Nur Versionen, die freigegeben sind.",
       "beta": "Auch Testversionen, bevor sie für alle freigegeben werden.",
-      "alpha": "Auch frühe Testversionen – für alle, die Neues zuerst ausprobieren.",
-      "manual": "Keine automatischen Updates: Das Gerät bleibt auf seiner Version, bis du darunter eine andere installierst."
-    },
-    "manual": "Manuell"
+      "alpha": "Auch frühe Testversionen – für alle, die Neues zuerst ausprobieren."
+    }
   },
   "firmwarePin": {
     "label": "Firmware-Version",
-    "note": "Jede Version, die je stabil war, und alles Neuere. Das Gerät bleibt darauf, bis du eine andere installierst oder einen Kanal wählst.",
+    "note": "Jede Version, die je stabil war, und alles Neuere. Das Gerät bleibt darauf, bis du eine andere installierst oder die automatischen Updates einschaltest.",
     "pick": "Build wählen …",
     "none": "Keine Builds für diese Geräteklasse",
     "running": "läuft",
@@ -4718,9 +4598,7 @@
   "socketForm": {
     "pair": {
       "label": "Steckdose per IP koppeln",
-      "open": "Koppeln …",
       "another": "Weitere Steckdose koppeln",
-      "note": "Für eine Tasmota-Steckdose im selben WLAN.",
       "title": "Steckdose per IP koppeln",
       "intro": "Für eine Tasmota-Steckdose – etwa von NOUS, Athom oder eine selbst geflashte Shelly – im selben WLAN wie {{device}}. Eine Steckdose von Terp Control koppelst du am Gerät selbst: Knopf drücken, dann Smart Sockets.",
       "yes": "Koppeln",
@@ -4753,7 +4631,6 @@
     "noRoles": "Diese Firmware meldet nicht, welche Rollen sie kennt, also lässt sich hier nichts koppeln. Ein Firmware-Update bringt es; bis dahin koppelst du am Gerät selbst.",
     "edit": {
       "label": "Adresse, Rolle, Zugangsdaten",
-      "open": "Ändern …",
       "title": "{{name}} ändern",
       "yes": "Senden",
       "sent": "Gesendet. Die Liste zeigt die Änderung, sobald {{device}} seine Steckdosen meldet.",
@@ -4761,7 +4638,6 @@
     },
     "remove": {
       "label": "Steckdose entfernen",
-      "open": "Entfernen …",
       "title": "{{name}} entfernen?",
       "text": "Das Gerät vergisst die Steckdose ({{address}}) und setzt sie zurück; sie schaltet dann nicht mehr mit. Eine Steckdose von Terp Control koppelst du danach am Gerät neu, eine Tasmota-Steckdose hier per IP.",
       "yes": "Entfernen",
@@ -4802,7 +4678,7 @@
       "cooler": "Für eine Kühlung oder einen Lüfter: an, sobald es wärmer als der Einschaltpunkt ist, aus unter dem Ausschaltpunkt.",
       "humidify": "Für einen Befeuchter: an, sobald die Luft trockener als der Einschaltpunkt ist, aus über dem Ausschaltpunkt.",
       "dehumidify": "Für einen Entfeuchter: an, sobald die Luft feuchter als der Einschaltpunkt ist, aus unter dem Ausschaltpunkt.",
-      "co2": "Für ein CO₂-Ventil: an unter dem Einschaltpunkt, aus über dem Ausschaltpunkt. Braucht den CO₂-Sensor, den es als Zubehör gibt; ohne ihn bleibt der Plantalytix Socket aus. Dosieren in Intervallen und das Drosseln eines AIR stehen unter Geräte › dieser Plantalytix Socket › Erweitert.",
+      "co2": "Für ein CO₂-Ventil: an unter dem Einschaltpunkt, aus über dem Ausschaltpunkt. Braucht den CO₂-Sensor, den es als Zubehör gibt; ohne ihn bleibt der Plantalytix Socket aus. Dosieren in Intervallen und das Drosseln eines AIR stehen auf der Seite dieses Plantalytix Socket unter Erweitert.",
       "timer": "Der Plantalytix Socket schaltet zu festen Uhrzeiten, ohne auf einen Messwert zu schauen."
     },
     "dayNight": "Nachts eigene Schaltpunkte",
@@ -4883,7 +4759,7 @@
     "mostBelowLeast": "Die Höchstdrehzahl darf nicht unter der Mindestdrehzahl liegen.",
     "slowed": "Während {{plug}} CO₂ dosiert, läuft der Lüfter höchstens mit {{speed}} %.",
     "uncouple": "Nicht mehr drosseln",
-    "fixedTargets": "Im Modus „Fest“ läuft der Lüfter mit den Drehzahlen oben und folgt keinem Zielwert. Temperatur und Luftfeuchte stellst du ein, sobald er nach Temperatur oder Luftfeuchte läuft."
+    "fixedTargets": "Im Modus „Fest“ läuft der Lüfter mit festen Drehzahlen und folgt keinem Zielwert. Modus und Drehzahlen stehen unter Steuerung › Ausgänge."
   },
   "lightSettings": {
     "title": "Licht",
@@ -5170,8 +5046,7 @@
     },
     "offline": {
       "title": "Das Gerät meldet sich seit {{time}} nicht.",
-      "text": "Es regelt mit den letzten Zielwerten weiter. Was unten steht, ist der letzte Stand.",
-      "help": "Was du tun kannst"
+      "text": "Es regelt mit den letzten Zielwerten weiter. Was unten steht, ist der letzte Stand."
     },
     "demo": {
       "says": "Demo · du siehst zu, ändern geht nicht",
@@ -5242,5 +5117,165 @@
   },
   "age": {
     "yesterday": "gestern"
+  },
+  "device": {
+    "back": "Zurück",
+    "backToControl": "Zurück zur Steuerung",
+    "backTo": "Zurück zu {{name}}",
+    "in": "in {{place}}",
+    "standsIn": "steht in {{place}}",
+    "offlineKeeps": "Was du hier einstellst, übernimmt das Gerät, sobald es sich wieder meldet.",
+    "waitsForDevice": "Wartung, Neustart und Update gehen erst, wenn das Gerät wieder online ist.",
+    "curves": "Kurven dieses Geräts",
+    "asOf": "Stand {{time}}",
+    "control": {
+      "switchedOn": "Regelung eingeschaltet"
+    },
+    "firmware": {
+      "updateTo": "Update vom {{day}}",
+      "updateNow": "Jetzt aktualisieren",
+      "there": "Neuere Firmware vom {{day}} ist da",
+      "coming": "Neuere Firmware vom {{day}} kommt von selbst",
+      "told": {
+        "stable": "Automatische Updates an · stabile Versionen",
+        "beta": "Automatische Updates an · auch Beta",
+        "alpha": "Automatische Updates an · auch Alpha",
+        "manual": "Automatische Updates aus"
+      }
+    },
+    "advanced": {
+      "tuning": "Feinabstimmung",
+      "ramps": "Rampen",
+      "factors": "Sensorfaktoren",
+      "dosing": "CO₂-Dosierung",
+      "cylinder": "CO₂-Flasche"
+    },
+    "sockets": {
+      "none": "keine gekoppelt",
+      "paired_one": "{{count}} gekoppelt",
+      "paired_other": "{{count}} gekoppelt",
+      "pair": "per IP koppeln",
+      "pairMore": "weitere koppeln",
+      "empty": "Noch keine Steckdose gekoppelt."
+    },
+    "details": {
+      "line": "Geräte-ID, Typ, Build",
+      "copyId": "Geräte-ID kopieren"
+    },
+    "socket": {
+      "title": "Steckdose {{name}}",
+      "gone": "{{device}} meldet diese Steckdose nicht mehr.",
+      "removeWaits": "geht erst, wenn das Gerät wieder online ist"
+    },
+    "waitsForRestart": "Neustart und Update gehen erst, wenn das Gerät wieder online ist."
+  },
+  "control": {
+    "back": "Zurück zur Steuerung",
+    "page": {
+      "alarms": "Alarme",
+      "plan": "Grow-Plan",
+      "outputs": "Ausgänge",
+      "mode": "Betriebsart"
+    },
+    "climateIn": "Klima in {{place}}",
+    "devicesIn": "Geräte in {{place}}",
+    "change": "Ändern",
+    "stand": "Stand {{time}}",
+    "light": {
+      "title": "Licht",
+      "on": "An um {{time}} · {{hours}} Std",
+      "off": "aus um {{time}}",
+      "change": "Zeiten ändern",
+      "limit": "Grenze",
+      "lower": "Lichtgrenze senken",
+      "raise": "Lichtgrenze erhöhen",
+      "times": "Lichtzeiten"
+    },
+    "preset": {
+      "named": "Vorlage: {{name}}",
+      "open": "Vorlage",
+      "title": "Vorlage übernehmen",
+      "take": "Übernehmen",
+      "taken": "Vorlage {{name}}",
+      "same": "Das sind schon die Werte dieser Vorlage.",
+      "sets": "Was die Vorlage ändert"
+    },
+    "figure": {
+      "change": "{{name}} ändern, {{value}}",
+      "changePending": "{{name}} ändern, {{value}}, noch nicht am Gerät"
+    },
+    "vpd": {
+      "day": "VPD Tag {{value}}",
+      "night": "VPD Nacht {{value}}"
+    },
+    "saved": {
+      "now": "{{what}} · gespeichert",
+      "later": "{{what}} · gespeichert, {{device}} übernimmt es beim nächsten Verbinden"
+    },
+    "pending": {
+      "atClock": "um {{time}}",
+      "atDay": "am {{time}}",
+      "figure": "{{name}}: {{value}} gespeichert {{saved}}. Am Gerät gelten noch {{held}}, bis es wieder online ist.",
+      "window": "{{name}}: {{value}} gespeichert {{saved}}. Am Gerät gilt noch {{held}}, bis es wieder online ist.",
+      "unknown": "{{name}}: {{value}} gespeichert {{saved}}. Das Gerät übernimmt es, sobald es wieder online ist.",
+      "behind": "gespeichert {{saved}}, noch nicht am Gerät",
+      "more_one": "{{count}} weitere Einstellung gespeichert, noch nicht am Gerät",
+      "more_other": "{{count}} weitere Einstellungen gespeichert, noch nicht am Gerät"
+    },
+    "offline": {
+      "text": "Du kannst trotzdem alles einstellen. Das Gerät übernimmt es, sobald es sich wieder meldet, und regelt bis dahin mit dem Stand von {{time}}."
+    },
+    "state": {
+      "on": "Regelung ein",
+      "off": "Regelung aus",
+      "drying": "Trocknung",
+      "germination": "Keimung",
+      "maintenance": "Wartung bis {{until}}"
+    },
+    "rows": {
+      "label": "Mehr zu diesem Ort",
+      "alarmsNone": "keine Regel an",
+      "alarmsOn_one": "{{count}} Regel",
+      "alarmsOn_other": "{{count}} Regeln",
+      "alarmsCalm": "alle ruhig",
+      "alarmRaised": "„{{name}}“ hat ausgelöst",
+      "alarmsRaised_one": "{{count}} hat ausgelöst",
+      "alarmsRaised_other": "{{count}} haben ausgelöst",
+      "planOff": "aus · Zielwerte stellst du von Hand",
+      "planAtRest": "„{{name}}“ · {{status}}",
+      "light": "Licht",
+      "fans": "Lüfter",
+      "allAuto": "alle Auto",
+      "modeAlso": "{{mode}} · auch {{others}}",
+      "mode": {
+        "standard": "Standard",
+        "greenhouse": "Gewächshaus",
+        "germination": "Keimung",
+        "drying": "Trocknung",
+        "energySaving": "Energiesparen"
+      }
+    },
+    "outputs": {
+      "none": "Was hier steht, hat keine eigenen Ausgänge.",
+      "unheard": "Offline · niemand hört zu, also wird nichts gesendet."
+    },
+    "device": {
+      "online": "online",
+      "late": "online · zuletzt vor {{age}}",
+      "firmware": "Firmware vom {{day}}",
+      "all": "Alles zum {{name}}"
+    },
+    "camera": {
+      "last": "letztes Bild {{time}}",
+      "none": "noch kein Bild",
+      "waits": "wartet auf {{device}}"
+    },
+    "add": {
+      "title": "Gerät oder Kamera hinzufügen"
+    },
+    "half": {
+      "day": "Tag",
+      "night": "Nacht"
+    }
   }
 }

@@ -58,8 +58,8 @@ export const backOf = (state: unknown, otherwise: string): string => {
 
 export const membersPath = (spaceId: string): string => `/spaces/${spaceId}/members`;
 
-/** The pages below Steuerung: the targets it opens on where a plan runs, the alarm rules, and the plan where none does. */
-export const CONTROL_PAGES = ['targets', 'alarms', 'plan'] as const;
+/** The pages below Steuerung, each behind a row under the climate: the alarm rules, the grow plan, the outputs, the work mode. */
+export const CONTROL_PAGES = ['alarms', 'plan', 'outputs', 'mode'] as const;
 export type ControlPage = (typeof CONTROL_PAGES)[number];
 
 export const controlPath = (
@@ -81,9 +81,6 @@ export const timelinePath = (spaceId: string, focus: string | null = null, at: s
 /** Graphen of a place, with the curves named drawn and no others: the way from a reading Verlauf has no panel for. */
 export const chartsPath = (spaceId: string, show: string | null = null): string =>
   withQuery('/charts', { space: spaceId, ...(show ? { show } : {}) });
-
-/** The account's devices, with the ones standing in a place opened where it is named. */
-export const devicesPath = (spaceId: string | null = null): string => (spaceId ? withQuery('/devices', { space: spaceId }) : '/devices');
 
 /** The pages below a device's own: its smart sockets, what few growers set, and what support asks for. */
 export const DEVICE_PAGES = ['sockets', 'advanced', 'details'] as const;
@@ -183,12 +180,21 @@ export const usePageOfGrow = (grow: { endedAt: string | null; placements: Placem
 /**
  * The place a browser that has chosen none is shown, the same for Grow,
  * Verlauf and Steuerung: in Start's order - the place that needs a person
- * first - the first where a grow runs, else the first with a device, else the
- * first. So Grow does not open on an empty balcony while a tent is in flower.
+ * first - the first where a grow runs beside a device, else the first where a
+ * grow runs, else the first with a device, else the first. So Grow does not
+ * open on an empty balcony while a tent is in flower, and Steuerung not on a
+ * balcony with nothing to steer.
  */
 const firstChoice = (places: PlaceCard[]): PlaceCard | null => {
   const ordered = sortedByAttention(places);
-  return ordered.find(place => place.grow !== null) ?? ordered.find(place => (place.deviceIds ?? []).length > 0) ?? ordered[0] ?? null;
+  const steered = (place: PlaceCard) => (place.deviceIds ?? []).length > 0;
+  return (
+    ordered.find(place => place.grow !== null && steered(place)) ??
+    ordered.find(place => place.grow !== null) ??
+    ordered.find(steered) ??
+    ordered[0] ??
+    null
+  );
 };
 
 /** The place the pages about one place show: the one the address names, else the chosen one, else the first choice. */

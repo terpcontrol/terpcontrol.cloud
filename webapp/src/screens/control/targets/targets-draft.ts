@@ -161,8 +161,6 @@ export const equalsPreset = (draft: TargetsDraft, preset: ClimatePreset, hasCo2:
   (climateOnly ||
     (fits(draft.lightLimit, preset.lightLimit) && fits(draft.lightHours, preset.lightHours) && (!hasCo2 || fits(draft.co2, preset.co2))));
 
-export const sameDraft = (a: TargetsDraft, b: TargetsDraft): boolean => (Object.keys(a) as (keyof TargetsDraft)[]).every(key => a[key] === b[key]);
-
 /* ------------------------------------------------------------- the figures */
 
 /**

@@ -1,40 +1,29 @@
-import { CircleAlert } from 'lucide-react';
-import type { DateTime } from 'luxon';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { offlineLabel } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
-import { useZone } from '@/ui/zone';
 import styles from '@/ui/OfflineHelp.module.css';
 
 /**
- * What a place gone quiet says instead of a verdict: since when nothing has
- * arrived, and what to try. The figures above it stay, dimmed, because they are
- * the last thing it measured. `about` is what else went quiet with it, where
- * that is not obvious - a camera read through the device, on the camera's page.
+ * A device gone quiet, said where its page would show it at work: since when
+ * in the title, one sentence on what that means here, and what to try a tap
+ * away. It is the one box for it - on Start, Steuerung, the device's page and
+ * the page of a camera read through it - in the amber of something that needs
+ * a person, not the red of an alarm: the device goes on regulating.
  */
-export function OfflineHelp({
-  since,
-  now,
-  devicesLink = '/devices',
-  about = null,
-}: {
-  since: string | null;
-  now: DateTime;
-  devicesLink?: string | null;
-  about?: string | null;
-}) {
-  const zone = useZone();
+export function OfflineBox({ title, children, deviceLink = null }: { title: string; children?: ReactNode; deviceLink?: string | null }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className={styles.box} role="status">
-      <p className={styles.head}>
-        <CircleAlert size={16} strokeWidth={2} aria-hidden />
-        {offlineLabel(since, now, zone, true)}
-      </p>
-      {about ? <p className={styles.lead}>{about}</p> : null}
-      <OfflineSteps devicesLink={devicesLink} />
-    </div>
+    <section className={styles.box} role="status">
+      <h2>{title}</h2>
+      {children ? <p>{children}</p> : null}
+      <button type="button" className={styles.more} aria-expanded={open} onClick={() => setOpen(!open)}>
+        {t('offline.help')} ›
+      </button>
+      {open ? <OfflineSteps devicesLink={deviceLink} /> : null}
+    </section>
   );
 }
 
@@ -44,7 +33,7 @@ export function OfflineHelp({
  * anything: a device that is not heard cannot be told to restart, so the steps
  * are the grower's own, and the link goes where the device itself is described.
  */
-export function OfflineSteps({ devicesLink = '/devices' }: { devicesLink?: string | null }) {
+export function OfflineSteps({ devicesLink = null }: { devicesLink?: string | null }) {
   const { t } = useTranslation();
 
   return (

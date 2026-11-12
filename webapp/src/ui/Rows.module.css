@@ -1,0 +1,100 @@
+/* Rows that open something: one card for the list, a rule between two rows. */
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.rows > li:empty {
+  display: none;
+}
+
+.rows > li + li {
+  border-top: var(--rule-solid);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 58px;
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+  text-decoration: none;
+}
+
+.row:hover:not([aria-disabled='true']) {
+  background: var(--tint);
+}
+
+.row[aria-disabled='true'] {
+  color: var(--muted);
+  cursor: default;
+}
+
+/* On its own - a camera, a socket under the devices - a row is a card. */
+.alone {
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.line {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+.line[data-tone='warn'] {
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+}
+
+.chevron {
+  flex: none;
+  color: var(--muted);
+}
+
+/* Beside the rail a grid of rows stands two by two, each a card of its own. */
+@media (min-width: 900px) {
+  .rows[data-grid] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    background: none;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .rows[data-grid] > li + li {
+    border-top: 0;
+  }
+
+  .rows[data-grid] .row {
+    height: 100%;
+    background: var(--card);
+    border: var(--rule-solid);
+    border-radius: var(--radius);
+  }
+}

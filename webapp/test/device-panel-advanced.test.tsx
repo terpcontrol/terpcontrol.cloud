@@ -3,19 +3,16 @@ import { DateTime } from 'luxon';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceCapabilities, Socket, SocketPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
-import { DeviceList } from '@/screens/devices/DeviceList';
 import { draftFor, problemOf, rolesFor, secondsOfSpan, spanOf, updateOf } from '@/screens/devices/socket-form';
-import { SocketRow } from '@/screens/devices/SocketRow';
 import { rowsOf } from '@/screens/devices/sockets';
-import { drawAt } from './harness';
+import { drawDevicePages } from './device-pages';
 import { SIGNED_IN, spaceWhere } from './session';
 import { translate } from './translations';
 
 /**
- * What a device's panel lets its owner do beyond the everyday: whether it
- * updates itself and from which channel, which build an administrator puts it
- * on, giving it up, and pairing, timing and removing the smart sockets it
- * drives.
+ * What a device's own page lets its owner do beyond the everyday: which build
+ * it is put on by hand, giving it up, and pairing, timing, changing and
+ * removing the smart sockets it drives.
  */
 
 vi.mock('@/api/client', () => ({
@@ -33,7 +30,10 @@ vi.mock('@/api/session', async importOriginal => {
   };
 });
 
-// No light output, so the panel draws no lamp row that reads a plan.
+vi.mock('@/log/log-context', async importOriginal => ({ ...(await importOriginal<object>()), useLog: () => ({ tell: () => undefined }) }));
+vi.mock('@/screens/control/lead', () => ({ useLeads: () => true }));
+vi.mock('@/screens/control/OwnSettings', () => ({ OwnSettings: () => null }));
+
 const CAPABILITIES: DeviceCapabilities = {
   socketOverride: true,
   socketTimer: true,
@@ -80,25 +80,49 @@ const BUILDS = [
   },
 ];
 
-/** The place's CO₂ report where no cylinder was ever noted, which the device's Erweitert reads once it is unfolded. */
-const NO_CYLINDER = { cylinders: [], openingsPerGram: null, restGrams: null };
+const socket = (over: Partial<Socket> = {}): Socket => ({
+  slot: 0,
+  role: 'heater',
+  hardwareId: '5BAD22AB0B99',
+  address: '10.0.0.63',
+  state: 'off',
+  override: null,
+  timer: null,
+  stateChangedAt: null,
+  ...over,
+});
 
-const drawWith = async (device: Device, sockets: Socket[] = []) => {
+/** What the API answers: the one device, the place it stands in, its sockets and the builds it is offered. */
+const answer = (device: Device, sockets: Socket[] = [], capabilities = CAPABILITIES, youMay: 'own' | 'manage' = 'own') =>
   vi.mocked(api.get).mockImplementation((path: string) => {
     if (path === '/devices') return Promise.resolve({ items: [device], nextCursor: null }) as never;
-    if (path === '/spaces') return Promise.resolve({ items: [spaceWhere('own')], nextCursor: null }) as never;
-    if (path.endsWith('/sockets'))
-      return Promise.resolve({ items: sockets, nextCursor: null, capabilities: CAPABILITIES } satisfies SocketPage) as never;
+    if (path === '/spaces') return Promise.resolve({ items: [spaceWhere(youMay)], nextCursor: null }) as never;
+    if (path.endsWith('/sockets')) return Promise.resolve({ items: sockets, nextCursor: null, capabilities } satisfies SocketPage) as never;
     if (path.endsWith('/firmwares')) return Promise.resolve({ items: BUILDS, nextCursor: null }) as never;
-    if (path.endsWith('/co2-report')) return Promise.resolve(NO_CYLINDER) as never;
+    if (path.endsWith('/live')) return Promise.resolve({ deviceId: device.id, metrics: {}, outputs: {}, setpoints: null, pending: null }) as never;
     return Promise.resolve({ items: [], nextCursor: null }) as never;
   });
-  drawAt(<DeviceList />);
-  fireEvent.click(await screen.findByText('Controller'));
+
+/** The device's own page, read through to the place it stands in. */
+const drawWith = async (device: Device) => {
+  answer(device);
+  drawDevicePages(`/devices/${device.id}`);
+  await screen.findByRole('heading', { name: 'Controller' });
+  await screen.findAllByRole('link', { name: /Tent 1$/ });
 };
 
-const advanced = async () => {
-  fireEvent.click(await screen.findByText('Advanced', { selector: 'summary' }));
+/** The page of the device's sockets. */
+const drawSockets = async (sockets: Socket[] = []) => {
+  answer(controller(), sockets);
+  drawDevicePages('/devices/sim-controller-1/sockets');
+  await screen.findByRole('heading', { name: 'Smart sockets' });
+};
+
+/** The page of one socket, once it offers what its manager may do. */
+const drawSocket = async (one: Socket, capabilities = CAPABILITIES) => {
+  answer(controller(), [one], capabilities);
+  drawDevicePages(`/devices/sim-controller-1/sockets/${rowsOf([one])[0].key}`);
+  await screen.findByText('Hold for');
 };
 
 beforeAll(() => translate());
@@ -111,31 +135,8 @@ beforeEach(() => {
   vi.mocked(api.delete).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
 });
 
-describe('updates', () => {
-  it('switches automatic updates on the stable channel, re-sending the build it is pinned to', async () => {
-    await drawWith(controller({ firmware: { channel: 'manual', targetId: 'fw-old' } }));
-
-    const toggle = screen.getByRole('switch', { name: 'Update automatically' });
-    expect(toggle).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByText(/Off: the device stays on its version/)).toBeInTheDocument();
-    fireEvent.click(toggle);
-
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-controller-1', { firmware: { channel: 'stable', targetId: 'fw-old' } }));
-  });
-
-  it('offers every channel under Advanced, the manual one included, as the old app did', async () => {
-    await drawWith(controller({ firmware: { channel: 'stable', targetId: 'fw-old' } }));
-    await advanced();
-
-    expect(screen.getByText('Only released versions.')).toBeInTheDocument();
-    // On a release channel there is no version to pick: the channel decides it.
-    expect(screen.queryByRole('combobox', { name: 'Firmware version' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Beta' }));
-
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-controller-1', { firmware: { channel: 'beta', targetId: 'fw-old' } }));
-  });
-
-  it('switches to the manual channel without moving the device, and only then offers the versions', async () => {
+describe('the build a device is put on by hand', () => {
+  it('switches automatic updates off without moving the device, and only then offers the versions', async () => {
     let now = controller({ firmware: { channel: 'stable', targetId: 'fw-old' } });
     await drawWith(now);
     // The list answers with what was saved, as the server does.
@@ -147,18 +148,17 @@ describe('updates', () => {
       now = { ...now, ...(body as Partial<Device>) } as Device;
       return Promise.resolve(now) as never;
     });
-    await advanced();
-    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+    expect(screen.queryByRole('combobox', { name: 'Firmware version' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('switch', { name: 'Update automatically' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-controller-1', { firmware: { channel: 'manual', targetId: 'fw-old' } }));
     expect(await screen.findByRole('combobox', { name: 'Firmware version' })).toBeInTheDocument();
   });
 
-  it('lets a grower on the manual channel pick a version, newest first, say which one runs and where each stands, and asks first', async () => {
+  it('lets a grower pick a version, newest first, says which one runs and where each stands, and asks first', async () => {
     await drawWith(controller());
-    await advanced();
 
-    expect(screen.getByText('No automatic updates: the device stays on its version until you install another one below.')).toBeInTheDocument();
+    expect(screen.getByText(/Off: the device stays on its version/)).toBeInTheDocument();
     expect(screen.getByText(/Every version that was ever stable, and anything newer/)).toBeInTheDocument();
     const builds = await screen.findByRole('combobox', { name: 'Firmware version' });
     await waitFor(() => expect(within(builds).getAllByRole('option')).toHaveLength(3));
@@ -182,20 +182,26 @@ describe('updates', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-controller-1', { firmware: { channel: 'manual', targetId: 'fw-new' } }));
   });
 
+  /** The newest build here is a beta: the stable channel points at none, so nothing is called an update. */
+  it('offers no update where no stable build is newer than the one that runs', async () => {
+    await drawWith(controller());
+
+    await screen.findByRole('combobox', { name: 'Firmware version' });
+    expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument();
+  });
+
   it('tells an administrator that the list holds every build of the class', async () => {
     who.admin = true;
     await drawWith(controller());
-    await advanced();
 
     expect(await screen.findByText(/As an admin you see every build of this device class/)).toBeInTheDocument();
   });
 });
 
 describe('giving a device up', () => {
-  it('asks twice, with two different buttons, before it leaves the account', async () => {
+  it('asks twice, with two different buttons, before it leaves the account - and its page with it', async () => {
     await drawWith(controller());
-    await advanced();
-    fireEvent.click(screen.getByRole('button', { name: 'Remove from account …' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Give the device up' }));
 
     const first = await screen.findByRole('dialog', { name: 'Give Controller up' });
     expect(within(first).getByText(/Its grow plan, its alarms and the camera connected through it go with the device/)).toBeInTheDocument();
@@ -208,30 +214,26 @@ describe('giving a device up', () => {
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/devices/sim-controller-1/claim'));
     expect(await screen.findByText(/has left your account and can now be added by someone else/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    // The page of a device that is gone is no page to be left on.
+    expect(await screen.findByText('elsewhere')).toBeInTheDocument();
   });
 
   it('is not offered to somebody who manages a device they do not own', async () => {
-    vi.mocked(api.get).mockImplementation((path: string) => {
-      if (path === '/devices') return Promise.resolve({ items: [controller({ ownerId: 'user-2' })], nextCursor: null }) as never;
-      if (path === '/spaces') return Promise.resolve({ items: [spaceWhere('manage')], nextCursor: null }) as never;
-      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], nextCursor: null, capabilities: CAPABILITIES }) as never;
-      if (path.endsWith('/co2-report')) return Promise.resolve(NO_CYLINDER) as never;
-      return Promise.resolve({ items: [], nextCursor: null }) as never;
-    });
-    drawAt(<DeviceList />);
-    fireEvent.click(await screen.findByText('Controller'));
-    await advanced();
+    const theirs = controller({ ownerId: 'user-2' });
+    answer(theirs, [], CAPABILITIES, 'manage');
+    drawDevicePages('/devices/sim-controller-1');
 
-    expect(screen.getByText('Update channel')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Remove from account …' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('switch', { name: 'Update automatically' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Give the device up' })).not.toBeInTheDocument();
   });
 });
 
 describe('pairing a socket by its address', () => {
-  it('offers the first one in the device panel, and sends the role, the address and a pump’s timer', async () => {
-    await drawWith(controller());
-    await advanced();
-    fireEvent.click(screen.getByRole('button', { name: 'Pair …' }));
+  it('is offered on the page of the device´s sockets, and sends the role, the address and a pump’s timer', async () => {
+    await drawSockets();
+    fireEvent.click(await screen.findByRole('button', { name: '+ Pair a socket by IP' }));
 
     const sheet = await screen.findByRole('dialog', { name: 'Pair a socket by IP' });
     // The roles the controller always had, the humidifier this build announces and the two timed ones; the others wait for a test in a real tent.
@@ -256,9 +258,8 @@ describe('pairing a socket by its address', () => {
   });
 
   it('says what is wrong with an address and sends nothing', async () => {
-    await drawWith(controller());
-    await advanced();
-    fireEvent.click(screen.getByRole('button', { name: 'Pair …' }));
+    await drawSockets();
+    fireEvent.click(await screen.findByRole('button', { name: '+ Pair a socket by IP' }));
 
     const sheet = await screen.findByRole('dialog', { name: 'Pair a socket by IP' });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Heater' }));
@@ -269,51 +270,17 @@ describe('pairing a socket by its address', () => {
     expect(api.put).not.toHaveBeenCalled();
   });
 
-  it('moves under the socket list once the device has a socket', async () => {
-    await drawWith(controller(), [socket()]);
-    await waitFor(() => expect(screen.getByText(/^Smart sockets · Tent 1/)).toBeInTheDocument());
+  it('stands under the list once the device has a socket, as the way to another', async () => {
+    await drawSockets([socket()]);
 
-    // Advanced in the panel, without the pairing, and under the list a section named for it, with it.
-    const panel = screen.getByText('Advanced', { selector: 'summary' });
-    expect(within(panel.closest('details')!).queryByText('Pair a socket by IP')).not.toBeInTheDocument();
-    const list = screen.getByText('Pair another socket', { selector: 'summary' });
-    expect(within(list.closest('details')!).getByText('Pair a socket by IP')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Heater/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ Pair another socket' })).toBeInTheDocument();
   });
 });
 
-const socket = (over: Partial<Socket> = {}): Socket => ({
-  slot: 0,
-  role: 'heater',
-  hardwareId: '5BAD22AB0B99',
-  address: '10.0.0.63',
-  state: 'off',
-  override: null,
-  timer: null,
-  stateChangedAt: null,
-  ...over,
-});
-
-describe('a socket’s timer and its Advanced', () => {
-  const drawRow = (one: Socket, capabilities = CAPABILITIES) => {
-    const [row] = rowsOf([one]);
-    drawAt(
-      <SocketRow
-        row={row}
-        deviceId="device-1"
-        refusal={null}
-        unheard={null}
-        mayManage
-        runs={null}
-        now={DateTime.now()}
-        capabilities={capabilities}
-        deviceName="Tent controller"
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /^Details of .*, and how long/ }));
-  };
-
+describe('a socket’s timer, its address and its removal', () => {
   it('says a pump without a timer stays off, and sends the cycle it is given with its address and role', async () => {
-    drawRow(socket({ role: 'pump' }));
+    await drawSocket(socket({ role: 'pump' }));
 
     expect(screen.getByText('No timer set – without one the socket stays off.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Set' }));
@@ -323,7 +290,7 @@ describe('a socket’s timer and its Advanced', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 
     await waitFor(() =>
-      expect(api.put).toHaveBeenCalledWith('/devices/device-1/sockets/0', {
+      expect(api.put).toHaveBeenCalledWith('/devices/sim-controller-1/sockets/0', {
         role: 'pump',
         address: '10.0.0.63',
         credentials: null,
@@ -332,8 +299,8 @@ describe('a socket’s timer and its Advanced', () => {
     );
   });
 
-  it('refuses a cycle that is on for as long as it repeats, and says so', () => {
-    drawRow(socket({ role: 'custom_timer', timer: { onSeconds: 60, everySeconds: 3600 } }));
+  it('refuses a cycle that is on for as long as it repeats, and says so', async () => {
+    await drawSocket(socket({ role: 'custom_timer', timer: { onSeconds: 60, everySeconds: 3600 } }));
 
     expect(screen.getByText('on for 1 min, every 1 h')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));
@@ -343,29 +310,27 @@ describe('a socket’s timer and its Advanced', () => {
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
   });
 
-  it('says a build without timers cannot take one', () => {
-    drawRow(socket({ role: 'pump' }), { ...CAPABILITIES, socketTimer: false });
+  it('says a build without timers cannot take one', async () => {
+    await drawSocket(socket({ role: 'pump' }), { ...CAPABILITIES, socketTimer: false });
 
     expect(screen.getByRole('button', { name: 'Set' })).toBeDisabled();
     expect(screen.getByText('This firmware has no timer. It comes with a firmware update.')).toBeInTheDocument();
   });
 
   it('asks before it removes a socket, and sends the removal by its slot', async () => {
-    drawRow(socket({ slot: 3 }));
-    fireEvent.click(screen.getByText('Advanced', { selector: 'summary' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Remove …' }));
+    await drawSocket(socket({ slot: 3 }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the socket' }));
 
     const asked = await screen.findByRole('dialog', { name: 'Remove Heater?' });
     expect(within(asked).getByText(/forgets the socket \(10.0.0.63\) and resets it/)).toBeInTheDocument();
     fireEvent.click(within(asked).getByRole('button', { name: 'Remove' }));
 
-    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/devices/device-1/sockets/3'));
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/devices/sim-controller-1/sockets/3'));
   });
 
   it('changes a socket’s address and keeps its credentials unless new ones are typed', async () => {
-    drawRow(socket({ slot: 2, role: 'heater', address: '10.0.0.63' }));
-    fireEvent.click(screen.getByText('Advanced', { selector: 'summary' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Change …' }));
+    await drawSocket(socket({ slot: 2, role: 'heater', address: '10.0.0.63' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Address, role, credentials' }));
 
     const sheet = await screen.findByRole('dialog', { name: 'Change Heater' });
     expect(within(sheet).getByRole('textbox', { name: 'Address' })).toHaveValue('10.0.0.63');
@@ -373,7 +338,12 @@ describe('a socket’s timer and its Advanced', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Send' }));
 
     await waitFor(() =>
-      expect(api.put).toHaveBeenCalledWith('/devices/device-1/sockets/2', { role: 'heater', address: '10.0.0.64', credentials: null, timer: null }),
+      expect(api.put).toHaveBeenCalledWith('/devices/sim-controller-1/sockets/2', {
+        role: 'heater',
+        address: '10.0.0.64',
+        credentials: null,
+        timer: null,
+      }),
     );
   });
 
@@ -383,9 +353,8 @@ describe('a socket’s timer and its Advanced', () => {
    * address had to make the exhaust a heater first.
    */
   it('changes an exhaust socket as an exhaust, where the build announces one', async () => {
-    drawRow(socket({ slot: 1, role: 'exhaust', address: '10.0.0.70' }), { ...CAPABILITIES, roles: [...CAPABILITIES.roles, 'exhaust'] });
-    fireEvent.click(screen.getByText('Advanced', { selector: 'summary' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Change …' }));
+    await drawSocket(socket({ slot: 1, role: 'exhaust', address: '10.0.0.70' }), { ...CAPABILITIES, roles: [...CAPABILITIES.roles, 'exhaust'] });
+    fireEvent.click(screen.getByRole('button', { name: 'Address, role, credentials' }));
 
     const sheet = await screen.findByRole('dialog', { name: 'Change Exhaust' });
     expect(within(sheet).getByRole('button', { name: 'Exhaust' })).toHaveAttribute('aria-pressed', 'true');
@@ -394,7 +363,12 @@ describe('a socket’s timer and its Advanced', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Send' }));
 
     await waitFor(() =>
-      expect(api.put).toHaveBeenCalledWith('/devices/device-1/sockets/1', { role: 'exhaust', address: '10.0.0.71', credentials: null, timer: null }),
+      expect(api.put).toHaveBeenCalledWith('/devices/sim-controller-1/sockets/1', {
+        role: 'exhaust',
+        address: '10.0.0.71',
+        credentials: null,
+        timer: null,
+      }),
     );
   });
 });

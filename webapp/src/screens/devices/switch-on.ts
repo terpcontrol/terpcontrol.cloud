@@ -18,12 +18,15 @@ export const useSwitchOn = (device: Device) => {
   const state = plan.data?.state;
   const resumes = state?.status === 'paused' && saidInAnyLanguage(i18n, 'climateControl.pauseReason', state.pauseReason);
 
-  const switchOn = async () => {
+  /** Answers whether it went through, for a caller that says so. */
+  const switchOn = async (): Promise<boolean> => {
     try {
       await configure.mutateAsync({ control: true });
       if (resumes) await move.mutateAsync({ kind: 'resume' });
+      return true;
     } catch {
       // Shown beside the button, from the mutation that refused.
+      return false;
     }
   };
 

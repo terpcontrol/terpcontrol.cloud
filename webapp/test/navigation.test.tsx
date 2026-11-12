@@ -608,7 +608,7 @@ describe('the choice of place', () => {
     ['who is let into it', '/spaces/space-2/members'],
     ['a grow running there', '/grows/grow-2'],
     ['its camera', '/cameras/cam-2'],
-    ['its devices', '/devices?space=space-2'],
+    ['one of its devices', '/devices/device-2'],
   ])('is set by opening a page that belongs to a place: %s', async (_what, address) => {
     localStorage.setItem('terp.place', 'space-1');
     open(address);

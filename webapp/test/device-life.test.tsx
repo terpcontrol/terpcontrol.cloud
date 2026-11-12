@@ -1,10 +1,9 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Device } from '@fg2/shared-types/v1';
+import type { AccessNeed, Device, Space } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
-import { DeviceList } from '@/screens/devices/DeviceList';
-import { drawAt } from './harness';
+import { drawDevicePages } from './device-pages';
 import { spaceWhere, THE_HOST } from './session';
 import { translate } from './translations';
 
@@ -12,13 +11,9 @@ import { translate } from './translations';
  * What a grower may do to a device once it is theirs: call it something, and
  * put it where it really stands.
  *
- * Both are `PATCH /devices/{id}`, which the app never called: the row's title
- * fell back to the type and the tail of the id for want of a name nothing could
- * give, and a device that landed in the wrong place could only be moved from
- * inside the claim flow, by an address nothing links to. The two are tested
- * together because they are one absence seen from two sides, and because the
- * sheet writes them differently on purpose - a name is typed and saved, a place
- * is written on the tap.
+ * Both are `PATCH /devices/{id}`, behind the first row of the device's own
+ * page. The two are tested together because the sheet writes them differently
+ * on purpose - a name is typed and saved, a place is written on the tap.
  */
 
 vi.mock('@/api/client', () => ({
@@ -30,6 +25,10 @@ vi.mock('@/api/session', async importOriginal => {
 
   return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
 });
+
+vi.mock('@/log/log-context', async importOriginal => ({ ...(await importOriginal<object>()), useLog: () => ({ tell: () => undefined }) }));
+vi.mock('@/screens/control/lead', () => ({ useLeads: () => true }));
+vi.mock('@/screens/control/OwnSettings', () => ({ OwnSettings: () => null }));
 
 const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
 
@@ -46,23 +45,34 @@ const THE_PLUG = {
 
 const ELSEWHERE = spaceWhere('own', { id: 'space-2', name: 'Fridge 1', kind: 'fridge' });
 
-/** The account-wide Devices tab, with the plug standing in a place the reader may do `youMay` in. */
-const drawTab = async (youMay: AccessNeed = 'own') => {
+/** What the API answers: the devices and the places a test names, and nothing else worth reading. */
+const answer = (devices: Device[], spaces: Space[]) =>
   vi.mocked(api.get).mockImplementation((path: string) => {
-    if (path === '/devices') return Promise.resolve({ items: [THE_PLUG], nextCursor: null }) as never;
-    if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
-    if (path === '/spaces') return Promise.resolve({ items: [spaceWhere(youMay), ELSEWHERE], nextCursor: null }) as never;
+    if (path === '/devices') return Promise.resolve({ items: devices, nextCursor: null }) as never;
+    if (path === '/spaces') return Promise.resolve({ items: spaces, nextCursor: null }) as never;
     if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
-    if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: {} }) as never;
+    if (path.endsWith('/live')) return Promise.resolve({ deviceId: 'device-1', metrics: {}, outputs: {}, setpoints: null, pending: null }) as never;
 
     return Promise.resolve({ items: [], nextCursor: null }) as never;
   });
+
+/** The device's own page, read through to the place it stands in. */
+const drawPage = async (title: string | RegExp) => {
+  drawDevicePages('/devices/device-1');
+  await screen.findByRole('heading', { name: title });
+  await screen.findAllByRole('link', { name: /Tent 1$/ });
+};
+
+/** The plug's page, standing in a place the reader may do `youMay` in. */
+const drawTab = async (youMay: AccessNeed = 'own') => {
+  answer([THE_PLUG], [spaceWhere(youMay), ELSEWHERE]);
   vi.mocked(api.patch).mockImplementation((_path: string, body: unknown) => Promise.resolve({ ...THE_PLUG, ...(body as object) }) as never);
 
-  drawAt(<DeviceList />);
   // The account's one plug is called a plug: the tail of its id is for telling two apart.
-  fireEvent.click(await screen.findByRole('button', { name: 'Details of Plantalytix Socket' }));
+  await drawPage('Plantalytix Socket');
 };
+
+const RENAME = { name: /^Rename or move/ };
 
 beforeAll(() => translate());
 
@@ -71,22 +81,22 @@ beforeEach(() => {
 });
 
 describe('naming a device and moving it', () => {
-  it('offers the correction in the panel that prints the facts it corrects', async () => {
+  it('offers the correction as the first row of the page, saying where the device stands', async () => {
     await drawTab();
 
-    expect(await screen.findByRole('button', { name: 'Rename or move' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', RENAME)).toHaveTextContent('stands in Tent 1');
   });
 
-  /** The row is drawn from every place at once, so what may be done is the device's answer and not the screen's. */
+  /** What may be done is the device's answer and not the screen's: the same reader owns one tent and only writes lines in the next. */
   it('offers it to nobody who may only write lines where the device stands', async () => {
     await drawTab('log');
 
-    expect(screen.queryByRole('button', { name: 'Rename or move' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', RENAME)).not.toBeInTheDocument();
   });
 
   it('writes the typed name to the device, and nothing until it is saved', async () => {
     await drawTab();
-    fireEvent.click(await screen.findByRole('button', { name: 'Rename or move' }));
+    fireEvent.click(await screen.findByRole('button', RENAME));
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '  East lamp  ' } });
 
     expect(api.patch).not.toHaveBeenCalled();
@@ -102,18 +112,9 @@ describe('naming a device and moving it', () => {
    * the hardware, which is the state every unnamed device is already in.
    */
   it('gives a named device its fallback back when the field is emptied', async () => {
-    vi.mocked(api.get).mockImplementation((path: string) => {
-      if (path === '/devices') return Promise.resolve({ items: [{ ...THE_PLUG, name: 'East lamp' }], nextCursor: null }) as never;
-      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
-      if (path === '/spaces') return Promise.resolve({ items: [spaceWhere('own'), ELSEWHERE], nextCursor: null }) as never;
-      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
-      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: {} }) as never;
-
-      return Promise.resolve({ items: [], nextCursor: null }) as never;
-    });
-    drawAt(<DeviceList />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Details of East lamp' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Rename or move' }));
+    answer([{ ...THE_PLUG, name: 'East lamp' }], [spaceWhere('own'), ELSEWHERE]);
+    await drawPage('East lamp');
+    fireEvent.click(await screen.findByRole('button', RENAME));
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save the name' }));
 
@@ -122,7 +123,7 @@ describe('naming a device and moving it', () => {
 
   it('moves the device into another place it is not standing in, on the tap', async () => {
     await drawTab();
-    fireEvent.click(await screen.findByRole('button', { name: 'Rename or move' }));
+    fireEvent.click(await screen.findByRole('button', RENAME));
     fireEvent.click(screen.getByRole('button', { name: 'Fridge 1' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1', { spaceId: 'space-2' }));
@@ -130,7 +131,7 @@ describe('naming a device and moving it', () => {
 
   it('says which place it is standing in now, so a move is a correction and not a guess', async () => {
     await drawTab();
-    fireEvent.click(await screen.findByRole('button', { name: 'Rename or move' }));
+    fireEvent.click(await screen.findByRole('button', RENAME));
 
     expect(screen.getByRole('button', { name: 'Tent 1' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Fridge 1' })).toHaveAttribute('aria-pressed', 'false');
@@ -142,23 +143,13 @@ describe('naming a device and moving it', () => {
    * made in the room the device leaves, with the kind a claim would give it.
    */
   it('moves the device into a new place, made in the room it leaves', async () => {
-    vi.mocked(api.get).mockImplementation((path: string) => {
-      if (path === '/devices') return Promise.resolve({ items: [{ ...THE_PLUG, type: 'fridge' }], nextCursor: null }) as never;
-      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
-      if (path === '/spaces')
-        return Promise.resolve({
-          items: [spaceWhere('own', { roomId: 'room-1' }), spaceWhere('own', { id: 'room-1', kind: 'room', name: 'Grow room' })],
-          nextCursor: null,
-        }) as never;
-      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
-      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: {} }) as never;
-
-      return Promise.resolve({ items: [], nextCursor: null }) as never;
-    });
+    answer(
+      [{ ...THE_PLUG, type: 'fridge' }],
+      [spaceWhere('own', { roomId: 'room-1' }), spaceWhere('own', { id: 'room-1', kind: 'room', name: 'Grow room' })],
+    );
     vi.mocked(api.post).mockResolvedValue(spaceWhere('own', { id: 'space-new', name: 'KS Black', kind: 'fridge', roomId: 'room-1' }) as never);
-    drawAt(<DeviceList />);
-    fireEvent.click(await screen.findByRole('button', { name: /^Details of / }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Rename or move' }));
+    await drawPage('Fridge module');
+    fireEvent.click(await screen.findByRole('button', RENAME));
     fireEvent.click(screen.getByRole('button', { name: '+ New place' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Name of the place' }), { target: { value: ' KS Black ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create and move' }));

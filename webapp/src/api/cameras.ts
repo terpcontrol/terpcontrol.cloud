@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { queryOptions, useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQueries, useQuery, type QueryClient } from '@tanstack/react-query';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
 import { FOLLOWED, useRead, useReadPages } from './read';
 import type {
@@ -7,14 +7,12 @@ import type {
   CameraCreate,
   CameraPage,
   CameraUpdate,
-  Media,
   MediaPage,
   TestCapture,
   TimelapseAccepted,
   TimelapseCreate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
-import { readEvery } from './pages';
 import { ApiError } from './problem';
 import { invalidate, useWrite } from './write';
 
@@ -88,81 +86,6 @@ export const useCamera = (cameraId: string) =>
     queryFn: ({ signal }) => api.get<Camera>(`/cameras/${cameraId}`, undefined, signal),
     refetchInterval: CAMERAS_REFRESH_MS,
   });
-
-/**
- * How many pages one day is walked over before the walk gives up. A camera
- * asked for a picture every thirty seconds delivers 2,880 a day, so this
- * reaches the end of any ordinary day in a handful of reads; the cap is there
- * only so that a day nobody expected - two cameras writing into one, a shorter
- * interval than the pipeline promises - cannot turn one screen into an
- * unbounded run of requests.
- */
-const MAX_FRAME_PAGES = 15;
-
-/** A day of stills, and whether the walk reached the end of it. */
-interface CameraDay {
-  items: Media[];
-  /** The cap stopped the walk with rows still to come, so the count is a floor and not the day's total. */
-  partial: boolean;
-}
-
-/**
- * The stills of one camera inside a span, newest first as the route answers
- * them. The scrubber walks this list rather than asking per position, so it has
- * to be the whole day and not the first page of it: the route caps a page at two
- * hundred rows and says with a cursor that there are more, and a day of a camera
- * on the pipeline's own interval is ten times that. Asking once and drawing what
- * came back left the morning unreachable and printed the page size as the day's
- * count.
- *
- * It is read again on the same cadence as the camera's own row, because this is
- * a screen somebody leaves open in front of a tent. Read once at load, the
- * frame, its stamp and the count under the scrubber stood still for as long as
- * the page was up while the header pill - which does refresh - went on counting
- * seconds since the last picture, so the page said in one line that the camera
- * had delivered ten seconds ago and in the next that a picture from twenty
- * minutes back was the live one.
- *
- * A refetch asks only for what has been taken since the newest picture already
- * in hand, and puts it in front of the ones held. Walking the whole day again
- * every half minute would be up to `MAX_FRAME_PAGES` requests each time on a
- * camera delivering at its own interval, which is the cost that made reading it
- * once look reasonable; the tail is one request for a day that is not moving.
- * The bound is that a still deleted behind the app's back - retention pruning
- * an older day - is not noticed until the span is asked for afresh, which is
- * every time this page is opened.
- */
-export const useCameraFrames = (cameraId: string, span: { startsAt: string; endsAt: string }) => {
-  const queryClient = useQueryClient();
-  const queryKey = ['camera', cameraId, 'frames', span.startsAt, span.endsAt];
-
-  return useRead({
-    queryKey,
-    queryFn: async ({ signal }): Promise<CameraDay> => {
-      const held = queryClient.getQueryData<CameraDay>(queryKey) ?? null;
-      // The route answers newest first and takes its ends inclusively, so the
-      // newest picture held is the tail's own start and comes back with it;
-      // ids are what tell the two apart rather than the instant, because two
-      // stills of one second are two rows.
-      const from = held?.items[0]?.capturedAt ?? span.startsAt;
-      const { items: fresh, complete } = await readEvery<Media>(
-        `/cameras/${cameraId}/frames`,
-        signal,
-        { startsAt: from, endsAt: span.endsAt },
-        MAX_FRAME_PAGES,
-      );
-
-      if (!held) return { items: fresh, partial: !complete };
-
-      const known = new Set(held.items.map(one => one.id));
-
-      // A day the first walk never reached the end of stays a floor, because
-      // the tail says nothing about the morning it stopped short of.
-      return { items: [...fresh.filter(one => !known.has(one.id)), ...held.items], partial: held.partial || !complete };
-    },
-    refetchInterval: CAMERAS_REFRESH_MS,
-  });
-};
 
 /** A screenful of films, which is also the largest page the composer's own list needs. */
 const TIMELAPSES_PER_PAGE = 20;
@@ -267,13 +190,12 @@ const useWaitSignal = () => {
  * see.
  *
  * Either answer leaves the camera in a state this app is behind on: a press
- * that worked stored a still that belongs on the frame and in the day's count,
- * and one that failed is the reason the page prints above the picture. So the
- * camera's row, the day being walked and the newest still are all asked again -
- * a press that stored a picture and changed nothing on the screen was
- * indistinguishable from a press that did nothing at all. The films are left
- * alone: no capture makes one, and that read is a walk of every page somebody
- * has opened.
+ * that worked stored a still that belongs on the frame, and one that failed is
+ * the reason the page prints above the picture. So the camera's row and its
+ * newest still are asked again - a press that stored a picture and changed
+ * nothing on the screen was indistinguishable from a press that did nothing
+ * at all. The films are left alone: no capture makes one, and that read is a
+ * walk of every page somebody has opened.
  */
 export const useTestCapture = (cameraId: string) => {
   const signal = useWaitSignal();

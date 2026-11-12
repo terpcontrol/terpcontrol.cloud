@@ -1,0 +1,255 @@
+/* A device's own page, the pages under it and the page of one smart socket:
+   one column of cards and rows, every row a finger high. Cards, groups,
+   buttons, chips, fields and notes are the app's own; what is said here is how
+   they stand together. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.facts {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.facts a {
+  position: relative;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* A finger high without making the line taller. */
+.facts a::after {
+  content: '';
+  position: absolute;
+  inset: -12px 0;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+}
+
+.cardTitle {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+}
+
+/* What runs, and beside it the one thing to do about it. */
+.firmwareRuns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.firmwareText {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+/* The line under a name: what is behind a row, what a state means. */
+.rowLine {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* A name and its control on one line, a finger high. */
+.setting {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+}
+
+.setting[data-wraps] {
+  flex-wrap: wrap;
+  padding: var(--space-1) 0;
+}
+
+.settingName {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* The switch is smaller than a finger; where it stands lends it the rest. */
+:is(.setting, .socketNow, .items) button[role='switch']::after {
+  content: '';
+  position: absolute;
+  inset: -10px -4px;
+}
+
+.select {
+  flex: none;
+  width: auto;
+  min-width: 7rem;
+  max-width: 100%;
+  height: 44px;
+}
+
+.pick {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.pick .select {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.pick > button {
+  min-height: 44px;
+}
+
+/* "Update vom 3. Nov." - the one filled button of a card. */
+.update {
+  flex: none;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  background: var(--brand);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--on-brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.update[aria-disabled='true'] {
+  background: var(--card-2);
+  color: var(--muted);
+  cursor: default;
+}
+
+/* Maintenance and restart side by side while both names fit a line each; a
+   window that is standing takes the row for itself, with the restart under it. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.actionPair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: var(--space-2);
+  align-items: start;
+}
+
+.actionPair:is([data-parked], [data-single]) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.actionPair button {
+  width: 100%;
+  white-space: nowrap;
+}
+
+/* What a row answered, under it. */
+.rowSays {
+  padding: var(--space-2) var(--space-4);
+}
+
+/* A page under the device's: its items in one card, each control a finger
+   high and wide; the (i) and the switch keep their own size. */
+.items {
+  padding-block: 0;
+}
+
+.items > div > :first-child {
+  border-top: 0;
+}
+
+.items :is(button:not([aria-expanded], [role='switch']), select, input:not([type='checkbox'], [type='range'])) {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Facts as the first thing of a card need no rule over them. */
+.details > dl {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.copy {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.copy button {
+  min-height: 44px;
+}
+
+/* --- one smart socket --- */
+
+/* What it is doing, and the switch that forces it the other way. */
+.socketNow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+}
+
+.socketState {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.threeWay button {
+  min-width: 3.25rem;
+  min-height: 44px;
+  text-transform: capitalize;
+}
+
+/* How long a hold lasts, and the other things a tap sends: chips a finger high. */
+.holds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.holds > :global(.label),
+.holds > p {
+  flex: 1 1 100%;
+}
+
+.holds button:not([aria-expanded]) {
+  min-height: 44px;
+  padding-inline: var(--space-4);
+}
+
+/* The (i) stays beside the chip it explains, also where the chips wrap. */
+.withHelp {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* The way to this device's curves, a finger high like the rows under it. */
+.curves {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}

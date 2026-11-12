@@ -166,7 +166,7 @@ function AccountDoors({ handle }: { handle: string }) {
         />
         {/* Without any hardware nothing on Start or in the bar leads to adding some; this is where it comes in. */}
         {ready && !steering && cameraCount === 0 ? (
-          <Door to="/devices" title={t('me.door.addDevice.title')} line={t('me.door.addDevice.line')} />
+          <Door to="/control" title={t('me.door.addDevice.title')} line={t('me.door.addDevice.line')} />
         ) : null}
         <Door to="/me/account" title={t('me.account.title')} line={t('me.door.account')} />
       </div>

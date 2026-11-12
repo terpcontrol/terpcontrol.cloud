@@ -17,6 +17,24 @@
   }
 }
 
+/* Steuerung: a phone's column, then the reading width, and from where its two columns fit the page's. */
+.steering {
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .steering {
+    max-width: var(--reading-width);
+    padding-top: 0;
+  }
+}
+
+@media (min-width: 1200px) {
+  .steering {
+    max-width: var(--page-width);
+  }
+}
+
 .head {
   display: flex;
   align-items: center;

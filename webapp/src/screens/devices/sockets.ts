@@ -1,14 +1,14 @@
-import type { Socket, SocketRole } from '@fg2/shared-types/v1';
+import type { ActuatorRuns, ClimateVerdict, OutputMetric, Socket, SocketRole } from '@fg2/shared-types/v1';
 import { SOCKET_HOLD_MAX_SECONDS } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import type { OverrideRequest } from '@/api/devices';
 
 /**
- * What a socket row on the Devices page is drawn from, and what a tap on its
- * switch means.
+ * What a smart socket is drawn from - on its own page and in the rows that
+ * lead there - and what a tap on its switch means.
  *
  * The rows are the device's own table and nothing else. The controller's own
  * outputs are not sockets - one of them dims and none of them is reported in a
- * table - so they are drawn from their own model, above these.
+ * table - so they are drawn from their own model.
  */
 
 /** How long a plain tap holds a socket. A modest hold rather than the longest one the firmware allows. */
@@ -30,7 +30,7 @@ export const HOLD_SECONDS: readonly number[] = [900, DEFAULT_HOLD_SECONDS, 4 * 3
 /** Long enough to find which plug in the tent it is, short enough to be over before anybody worries. */
 export const TEST_SECONDS = 5;
 
-/** One row of the Devices page's socket list: one plug of the device's own table. */
+/** One plug of the device's own table. */
 export interface SocketRowModel extends Socket {
   key: string;
   /** The name of the row: what the role is called, or "unassigned" for a socket nobody gave one. */
@@ -70,4 +70,20 @@ export const rowsOf = (sockets: Socket[]): SocketRowModel[] => {
 
     return socketRow(socket, (perRole.get(socket.role) ?? 0) > 1 ? nth : null);
   });
+};
+
+/** The outputs a socket role drives, where the place's day has already been read. */
+const ROLE_OUTPUT: Partial<Record<SocketRole, OutputMetric>> = {
+  heater: 'heater',
+  dehumidifier: 'dehumidifier',
+  co2: 'co2',
+  light: 'light',
+  fan: 'fan',
+};
+
+/** How often what a role drives came on in the last day, from the place's verdict; null where the verdict does not count it. */
+export const runsOf = (verdict: ClimateVerdict | undefined, role: SocketRole): ActuatorRuns | null => {
+  const output = ROLE_OUTPUT[role];
+
+  return (output && verdict?.actuators.find(one => one.output === output)) || null;
 };

@@ -1,17 +1,15 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Device, SpaceOverview } from '@fg2/shared-types/v1';
+import type { SpaceOverview } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
-import { groupedByPlace } from '@/screens/devices/grouping';
 import { RemovePlaceSheet } from '@/screens/space/RemovePlaceSheet';
 import { drawAt } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
 /**
- * A room gathers places and nothing more: the device list shows each device
- * under the place it stands in and the room around that place, and a place
- * that still holds something is emptied into another before it ends.
+ * A room gathers places and nothing more, and a place that still holds
+ * something is emptied into another before it ends.
  */
 
 vi.mock('@/api/client', () => ({
@@ -29,25 +27,6 @@ beforeAll(() => translate());
 const TENT = spaceWhere('own', { id: 'tent', name: 'Tent', roomId: 'room' });
 const FRIDGE = spaceWhere('own', { id: 'fridge', name: 'KS Black', kind: 'fridge' });
 const ROOM = spaceWhere('own', { id: 'room', name: 'Grow room', kind: 'room' });
-const BALCONY = spaceWhere('own', { id: 'balcony', name: 'Balcony', kind: 'balcony' });
-
-describe('devices by where they stand', () => {
-  const device = (id: string, spaceId: string | null) => ({ id, spaceId }) as Device;
-
-  it('keeps a room´s places together, in the order the places were set up', () => {
-    const groups = groupedByPlace(
-      [device('a', 'balcony'), device('b', 'fridge'), device('c', 'tent'), device('d', 'tent'), device('e', null)],
-      [ROOM, BALCONY, TENT, FRIDGE],
-    );
-
-    expect(groups.map(group => [group.room, group.place, group.devices.map(one => one.id)])).toEqual([
-      ['Grow room', 'Tent', ['c', 'd']],
-      [null, 'Balcony', ['a']],
-      [null, 'KS Black', ['b']],
-      [null, null, ['e']],
-    ]);
-  });
-});
 
 describe('removing a place that still holds something', () => {
   /** Emptying it by hand was three screens of errands; the sheet moves everything to one place and then ends it. */

@@ -34,55 +34,18 @@ interface LightPlanProps {
 }
 
 /**
- * The light plan, over the table it decides between: what it is in one line,
- * the day it makes drawn from midnight to midnight with the ramps and now
- * marked, one line on what holds at this moment and until when, and the two
- * figures it is set by - when the light comes on, and for how long. The night
- * is not set anywhere: it is what the day leaves, and is said as such.
+ * The light plan as its sheet edits it: what it is in one line, the day it
+ * makes drawn from midnight to midnight with the ramps and now marked, one
+ * line on what holds at this moment and until when, and the two figures it is
+ * set by - when the light comes on, and for how long. The night is not set
+ * anywhere: it is what the day leaves, and is said as such.
  *
- * Everything that says "now" is about what the device runs. A schedule being
+ * Everything that says "now" is about what the device runs. The schedule being
  * edited is drawn beside it as a draft, and where saving it would turn the day
  * into night on the spot - or light the lamp in the middle of one - that is
  * said before the save rather than found out after it.
- *
- * Drying and germination have no light to plan: the lamp stays off round the
- * clock, which is what the block says, with the plan that comes back after.
  */
 export function LightPlan(props: LightPlanProps) {
-  const { device, shape, baseline, offset } = props;
-  const { t } = useTranslation();
-  const regime = shape.regime;
-
-  if (regime === 'off') return null;
-
-  if (regime === 'drying' || regime === 'germination') {
-    return (
-      <div className={styles.section} aria-label={t('targets.plan.label')} role="group">
-        <p className={styles.planTitle} data-dark>
-          <Moon size={16} strokeWidth={2} aria-hidden />
-          <span>{t(`targets.plan.${regime}`)}</span>
-        </p>
-        <p className={styles.note}>{t(`targets.plan.${regime}Line`, { window: scheduleTitle(t, baseline, offset) })}</p>
-      </div>
-    );
-  }
-
-  if (regime === 'sensor') {
-    return (
-      <div className={styles.section} aria-label={t('targets.plan.label')} role="group">
-        <p className={styles.planTitle}>
-          <Sun size={16} strokeWidth={2} aria-hidden />
-          <span>{t('targets.plan.sensor')}</span>
-        </p>
-        <NowLine {...props} />
-      </div>
-    );
-  }
-
-  return <Schedule {...props} key={device.id} />;
-}
-
-function Schedule(props: LightPlanProps) {
   const { device, draft, baseline, set, readOnly, now, offset, owned, planSets = null } = props;
   const { t } = useTranslation();
   const changed = draft.lightsOn !== baseline.lightsOn || draft.lightHours !== baseline.lightHours;
@@ -202,21 +165,19 @@ function NowLine({ storedShape, baseline, offset, holding, offline }: LightPlanP
   const by = holding.by;
   const words = windowWords(baseline, offset);
   const regime = storedShape.regime;
-  if (regime !== 'cycle' && regime !== 'always' && regime !== 'never' && regime !== 'sensor') return null;
+  if (regime !== 'cycle' && regime !== 'always' && regime !== 'never') return null;
 
   const line =
     offline !== null
       ? t('targets.plan.now.offline', { offline, half: t(`targets.plan.half.${half}`) })
-      : regime === 'sensor'
-        ? t(`targets.plan.now.sensor.${half}`)
-        : regime === 'always'
-          ? t('targets.plan.now.always')
-          : regime === 'never'
-            ? t('targets.plan.now.never')
-            : holding.glide
-              ? t(`targets.plan.now.glide.${holding.glide.to}`, { time: holding.glide.until })
-              : // A lamp at 0 % switches nothing: what changes at those times is the half.
-                t(`targets.plan.now.${half}${baseline.lightLimit <= 0 ? 'Dark' : ''}`, { time: half === 'day' ? words.off : words.on });
+      : regime === 'always'
+        ? t('targets.plan.now.always')
+        : regime === 'never'
+          ? t('targets.plan.now.never')
+          : holding.glide
+            ? t(`targets.plan.now.glide.${holding.glide.to}`, { time: holding.glide.until })
+            : // A lamp at 0 % switches nothing: what changes at those times is the half.
+              t(`targets.plan.now.${half}${baseline.lightLimit <= 0 ? 'Dark' : ''}`, { time: half === 'day' ? words.off : words.on });
 
   return (
     <p className={styles.nowLine} data-by={offline !== null ? 'schedule' : by} role="status">

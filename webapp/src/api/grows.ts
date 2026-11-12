@@ -50,10 +50,15 @@ export const useGrowPlants = (growId: string | null) =>
 /** How many weeks "Frühere Wochen" asks for: two months, which is what somebody looking back wants in one step. */
 export const EARLIER_WEEKS = 8;
 
-/** The diary, a card per day, a few weeks at a time. A line written, moved or taken back reads it again with everything under the grow's key. */
-export const useGrowDiary = (growId: string) =>
+/**
+ * The diary, a card per day, a few weeks at a time. A line written, moved or taken back reads it again with
+ * everything under the grow's key. Not read while no grow is named: a page that learns of the grow a moment
+ * later stays the page it was.
+ */
+export const useGrowDiary = (growId: string | null) =>
   useReadPages({
     queryKey: ['grow', growId, 'diary'],
+    enabled: growId !== null,
     queryFn: ({ pageParam, signal }) =>
       api.get<GrowDiaryPage>(`/grows/${growId}/diary`, { cursor: pageParam, limit: pageParam ? EARLIER_WEEKS : undefined }, signal),
     initialPageParam: null as string | null,

@@ -81,7 +81,8 @@ const answers = (path: string) => {
   throw new Error(`nothing mocked for ${path}`);
 };
 
-const draw = (camera: Camera, mayManage = true) => drawAt(<CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayManage} />);
+const draw = (camera: Camera, mayManage = true) =>
+  drawAt(<CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayManage} tell={() => {}} onClose={() => {}} />);
 
 /** Every read the card starts, answered and drawn. */
 const settle = async () => {

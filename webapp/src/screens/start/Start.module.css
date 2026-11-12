@@ -244,19 +244,6 @@ a.status {
   color: var(--warning);
 }
 
-.boxLink {
-  display: inline-flex;
-  align-self: flex-start;
-  align-items: center;
-  min-height: var(--control-height);
-  padding: 0;
-  background: none;
-  border: 0;
-  color: var(--brand);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-}
-
 .boxAction {
   align-self: flex-start;
   min-height: 48px;

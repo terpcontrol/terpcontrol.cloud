@@ -39,10 +39,10 @@ describe('the registry', () => {
   it('finds an item by its file alone, and offers it only where it applies', () => {
     const context = (device: Device) => ({ device, mayManage: true, offline: false });
 
-    expect(itemsFor('device', context(fridge())).map(item => item.id)).toContain('operating-mode');
-    // A tent controller germinates in the dark as a fridge does; only a light, a socket and a fan have no operating mode.
-    expect(itemsFor('device', context(fridge({ type: 'controller' }))).map(item => item.id)).toContain('operating-mode');
-    expect(itemsFor('device', context(fridge({ type: 'light', control: null }))).map(item => item.id)).not.toContain('operating-mode');
+    expect(itemsFor('device', context(fridge())).map(item => item.id)).toContain('compressor-rest');
+    // A compressor is a fridge's: a tent controller and a lamp have none to rest.
+    expect(itemsFor('device', context(fridge({ type: 'controller' }))).map(item => item.id)).not.toContain('compressor-rest');
+    expect(itemsFor('device', context(fridge({ type: 'light', control: null }))).map(item => item.id)).not.toContain('compressor-rest');
   });
 });
 

@@ -1,8 +1,7 @@
 import { DateTime } from 'luxon';
 import type { Device, OutputMetric } from '@fg2/shared-types/v1';
-import type { Translate } from '@/i18n/i18n';
 import { MAINTENANCE_SETTLE_SECONDS, MAINTENANCE_VISIT_SECONDS } from '@fg2/shared-types/v1-schemas/maintenance.js';
-import { hasCo2Sensor, outputWord } from './climate-hardware';
+import { hasCo2Sensor } from './climate-hardware';
 
 /**
  * What a maintenance window does on the hardware it is sent to. The cloud holds
@@ -28,53 +27,14 @@ const PARKED_BY: Record<string, OutputMetric[]> = {
 export const parkedOutputs = (device: Device): OutputMetric[] =>
   (PARKED_BY[device.type] ?? []).filter(output => output !== 'co2' || hasCo2Sensor(device));
 
-/** How long a step-in parks the hardware, in minutes: Start, the entry sheet's tile and the device's panel all name it. */
+/** How long one tap parks the hardware, in minutes: Start and the device's card and page all name it. */
 export const VISIT_MINUTES = MAINTENANCE_VISIT_SECONDS / 60;
-
-/**
- * The windows a grower picks from: a look and a watering, repotting or
- * defoliating, a harvest. The device takes any length; three are all anybody
- * needs to choose between, and the first is the step-in the diary tile writes.
- */
-export const MAINTENANCE_MINUTES = [VISIT_MINUTES, 30, 60] as const;
 
 /** The minutes the cloud goes on holding a device's alarms after its window has run out. */
 const SETTLE_MINUTES = MAINTENANCE_SETTLE_SECONDS / 60;
 
 /** Whether the hardware itself changes anything, or whether the quiet is the cloud's alone. */
 export const parksAnything = (device: Device): boolean => parkedOutputs(device).length > 0;
-
-/**
- * "the heater, the dehumidifier and the CO₂ valve": what this device will stop,
- * written to stand inside a sentence. The joining word and the in-sentence names
- * are the catalogue's - `Intl.ListFormat` adds a serial comma, and German needs
- * the case the verb governs - falling back to the alarm screen's names.
- */
-export const parkedLabel = (t: Translate, device: Device): string => {
-  const names = parkedOutputs(device).map(output =>
-    t(`maintenance.output.${outputWord(output, device.type === 'fridge')}`, { defaultValue: t(`alarms.output.${output}`, { defaultValue: output }) }),
-  );
-  if (names.length < 2) return names[0] ?? '';
-
-  return `${names.slice(0, -1).join(', ')} ${t('maintenance.and')} ${names[names.length - 1]}`;
-};
-
-/** What a window stops on this device, as the line beside its name in a list of devices. */
-export const parksLine = (t: Translate, device: Device): string =>
-  parksAnything(device) ? t('log.visit.parksOutputs', { outputs: parkedLabel(t, device) }) : t('log.visit.parksNothing');
-
-/**
- * How long the alarms really stay held for a window of this many seconds: the
- * window plus `MAINTENANCE_SETTLE_SECONDS`, which is the span every screen names.
- */
-const quietMinutes = (windowSeconds: number): number => Math.round(windowSeconds / 60) + SETTLE_MINUTES;
-
-/**
- * The three spans a sentence about a window of so many minutes is written
- * around: the window the device is given, the settling the cloud adds to it,
- * and the quiet a grower actually gets, which is their sum.
- */
-export const maintenanceSpans = (minutes: number) => ({ minutes, settle: SETTLE_MINUTES, quiet: quietMinutes(minutes * 60) });
 
 /** The two ends of a quiet: when the hardware is let go, and when an alarm can be raised on it again. */
 export interface Quiet {

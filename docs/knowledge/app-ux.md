@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
 updated: 2026-11-12
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side
+source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12)
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -19,8 +19,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
 
 ## 1. One design, layers that appear when used
 - **No persona or mode selection anywhere; one design for all growers** (Chris, 2026-09-16). The old app's
-  Einfach/Experte tabs are gone: what few growers need sits in a collapsed **Erweitert** section beside the thing it is
-  about (device panel, targets, charts, camera, alarm rule), drawn only where one of its items applies
+  Einfach/Experte tabs are gone: what few growers need sits under **Erweitert** beside the thing it is about - a page of the device, a fold of
+  the charts, the camera's settings and the alarm rule -, drawn only where one of its items applies
   ([how an item is made](webapp.md#styling-erweitert-small-helpers)).
 - **A setting is offered only where it can take effect** (Chris, 2026-10-07): "CO₂ auch nachts" needs a CO2 sensor,
   and on a tent controller a socket paired as `co2` too - a fridge has its own valve (`Tuning.advanced.tsx`).
@@ -58,14 +58,14 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   drying, then the stage whose climate the day's and the night's figures are, and for figures moved by hand the
   length of the day - up to 14 hours is flower. Where nothing says, the form opens on growth: a tent that already
   regulates rarely holds seeds.
-- **Every device setting is reachable where values are changed**: Start's row "Zielwerte" leads to Steuerung, which
-  draws the same device Erweitert as the panel under Geräte - one shared component, `DeviceAdvanced`, so a new
-  setting lands in both. The targets page leaves out only what it offers itself (Betriebsart, linked as "Betriebsart
-  unter Geräte"; a fridge's fans) (Chris, 2026-10-06, PR #139).
-- **A fridge's fan speeds stand under its targets** (Chris, 2026-10-11): Klemmlüfter (`fans.external`) and
-  Innenlüfter (`fans.internal`) are changed as often as the climate, so the targets page draws them in a block of
-  their own under the day and night figures, with its own Save (`screens/control/devices/FridgeFansPanel.tsx`);
-  under Geräte they stay in Erweitert.
+- **Every setting has one place** (Chris, 2026-11-11, decision 7 of the navigation redesign; it replaces the rule
+  of 2026-10-06 that Steuerung and the device list draw the same Erweitert): what a place is held at is
+  Steuerung's - the light, the targets, the work mode, the outputs -, what is the hardware's is on the device's
+  own page - firmware, name and place, sockets, Erweitert -, and neither offers what the other holds (§2). Start's
+  row "Zielwerte" leads to Steuerung.
+- **A fridge's fan speeds are changed as often as the climate** (Chris, 2026-10-11): Klemmlüfter (`fans.external`)
+  and Innenlüfter (`fans.internal`) stand under Steuerung › Ausgänge, in a block with its own Save
+  (`screens/control/devices/FridgeFansPanel.tsx`), and no longer in Erweitert.
 - **No old capability disappears silently**: replace it with an equivalent or decide it away with Chris (Chris,
   2026-10-02, first said of the charts). What was decided away is in §11.
 
@@ -78,7 +78,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   choice (`app/shell/tabs.ts`, drawn from `app/shell/shape.ts`). Meldungen and Ich are not
   items: the phone's header carries the bell (a dot while something is open) and the way to Ich, the rail both at its
   foot with the open count. An item stays marked on its pages - Start on a place's page, Grow on every grow, Verlauf
-  on Graphen, Steuerung on the devices, the claim and adding a camera - and a camera's page, Meldungen, the task
+  on Graphen, Steuerung on a device's pages, the claim and adding a camera - and a camera's page, Meldungen, the task
   list its door opens (`/tasks`, whose way back leads to Meldungen) and Ich mark none. The fleet screens of whoever
   runs the install are doors under Ich.
 - **One choice of place holds for Grow, Verlauf and Steuerung** (`app/places.ts`, `app/shell/PlaceChoice.tsx`). From
@@ -92,7 +92,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     what those three are about and not as the title of the page beside it.
   - *What sets the choice.* A link that names a place (`?space=`, as an alert and a place's tile write it), and
     opening a page that belongs to one of the account's places: its Start, who is let into it, a grow running there
-    (the grow's page, a plant, its measurements, its Graphen), its camera, its devices (`/devices?space=`). A finished
+    (the grow's page, a plant, its measurements, its Graphen), its camera, one of its devices (`/devices/:deviceId`). A finished
     grow, a grow in no place, all grows, Meldungen, Ich and the fleet screens belong to none and change nothing.
   - *What choosing does.* On a page of Grow, Verlauf or Steuerung the item stays and shows the chosen place at its own
     address (`/control/alarms` of one place leads to `/control` of the other); the choice is kept once that address
@@ -118,8 +118,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   heading "Grow", with the pill; support reading a customer's place (`/grow?space=`) is shown the grow standing
   there, as Verlauf and Steuerung show that place.
 - **The first choice** of a browser that has chosen no place is one rule for Grow, Verlauf and Steuerung
-  (`firstChoice`, `app/places.ts`): in Start's order the first place a grow runs in, else the first with a device,
-  else the first - so Grow does not open on an empty balcony while a tent is in flower.
+  (`firstChoice`, `app/places.ts`): in Start's order the first place a grow runs in beside a device, else the first
+  a grow runs in, else the first with a device, else the first - so Grow does not open on an empty balcony while a
+  tent is in flower, and Steuerung not on a balcony with nothing to steer (the first half of the order: the
+  redesign session of 2026-11-12, after Steuerung opened there).
 - **A tab replaces the history entry**: a page with tabs is one step of Back, whichever tab it was left on. What a
   page keeps for the entry it stands on - the weeks of a diary that were opened, the lines unfolded, how far it was
   scrolled - is found again by whoever comes back to it from what a line opened (`ui/kept.ts`); the pages loaded
@@ -205,8 +207,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   stand in the same room are two places in one room: Start draws a room's places under its name, where the most
   urgent of them stood (`screens/start/rooms.ts`), the place's menu offers "In einen Raum stellen" to its owner from
   the second place on - which is also where a room is made ("+ Neuer Raum") - and a device's "Umbenennen oder
-  umziehen" sheet can make a new place for it ("+ Neuer Ort"), in the room it leaves. Geräte lists the devices under
-  their place and its room once there are several places (`screens/devices/grouping.ts`). Where Verlauf is narrowed
+  umziehen" sheet can make a new place for it ("+ Neuer Ort"), in the room it leaves. Where Verlauf is narrowed
   to one climate of a shared place, the camera paired to the other device is left out; a camera paired to none
   stays.
 - **The menu beside a place's name holds what is done to the place** (`screens/start/PlaceMenu.tsx`; on a desktop a
@@ -222,10 +223,49 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   what still stands there - devices with their cameras, a loose camera, a running grow - moves to one place chosen in
   the sheet, then the place ends. Members still have to be taken out first, and the refusal now names each thing in
   the way (`ui/refusal.ts`) instead of a bare conflict. An ended grow no longer counts as standing in a place.
-- **Steuerung opens on Zielwerte** (a running plan is the exception) with Alarme, "Automatisch nach Grow-Plan
-  steuern" and "Geräte" - the account's device list, which has no item of its own in the bar - as rows under them.
-  Leaving with unsaved figures, a change of the chosen place included, asks "Speichern und weiter / Verwerfen /
-  Weiter bearbeiten"; on a phone the save bar takes the tab bar's place.
+- **Steuerung is the chosen place's climate, then its devices** (Chris, 2026-11-11, decision 7;
+  `screens/control/Control.tsx`, built after the prototype by the redesign session of 2026-11-12, whose rules the
+  rest of this entry is). It always opens on the light and the targets of the device the server names as the
+  place's climate (`leadOf`, `screens/control/lead.ts`); a running plan no longer takes the page. Under them a row
+  each for Alarme, Grow-Plan, Ausgänge and Betriebsart, every one a page in the address
+  (`/control/alarms|plan|outputs|mode`) with a line that says its state (`screens/control/rows.ts`), amber only
+  where a person is needed; a row whose page would hold nothing is not drawn. Then "Geräte in …"
+  (`DevicesHere.tsx`): a card per device - how it is heard, its firmware, an update where one is offered, "Wartung ·
+  15 Min", "Neu starten" and "Alles zum … ›" -, a row per camera and per smart socket, and one button that adds a
+  device or a camera, offered only where the place is the reader's to steer. **This is where a device is found**:
+  the bar has no item for them. The head's pill says what the regulation is doing while the place is heard
+  ("Regelung ein", "Regelung aus", "Trocknung", "Wartung bis …") and for how long it has been silent otherwise; on
+  a desktop the place stands beside the title once the account has several. One column until 1200 px, then the
+  climate left and the devices right, and the four rows two by two beside the rail. A place with nothing to steer
+  says so over the one button. A guest and the demo, who have no Steuerung in the bar, read the figures as text at
+  its address and are offered nothing.
+- **A device has one page** (`/devices/:deviceId`, `screens/devices/DevicePage.tsx`; the redesign session of
+  2026-11-12, after the prototype), reached from its card: the pill that dates it, where it stands, the firmware
+  card, maintenance and restart, then rows - Umbenennen oder umziehen, Smarte Steckdosen, Erweitert, Technische
+  Details, Regelung aus- or einschalten, Gerät abgeben - each a page under the device's (`/sockets`, `/advanced`,
+  `/details`) or a sheet. Erweitert is a page drawn open; the work mode, the fans, continuing a plan, the update
+  channel, pairing a socket and giving the device up left it for places of their own. **What Steuerung offers, the
+  device's page does not offer again**: only a device that is not the place's climate draws its own settings there
+  (`OwnSettings`, `screens/control/OwnSettings.tsx`), with the way to its curves (`/timeline?device=`).
+  Maintenance, a restart and an update are the exception, on the card and the page alike: they are done to the
+  hardware, and the card is where a hand reaches first. A reader who may not manage reads the facts and is offered
+  no row he cannot use. A smart socket has a page of its own ([smart-sockets.md](smart-sockets.md#in-the-app)).
+- **The camera page** (`/cameras/:cameraId`, `screens/camera/CameraPage.tsx`; the redesign session of 2026-11-12,
+  after the prototype): the picture with the grow's name, its day and the picture's moment on it; under it one
+  picture per day of the grow running there, as the diary heads that day (`screens/camera/days.ts`) - the slider
+  rests only on days this camera pictured and is not drawn where there is no second one; the films as four chips
+  and one button that plays the newest of that kind or, for whoever may manage, makes it (`Films.tsx`,
+  `film-spans.ts`), with "Jetzt ein Bild" beside it; then rows to the curves of the day shown, the diary, a film of
+  one's own, all films and the camera's settings, each only where its target exists. Today's picture is Start's; a
+  picture just taken is shown whatever the light. The settings are a sheet behind their row, with Premium,
+  unpairing and the stream's Erweitert. Two columns from 1280 px. A day's stills are no longer scrubbed here: the
+  day's film and Verlauf's cursor show them.
+- **Rows that open something are one component** (`ui/Rows.tsx`): the title, a line that says what is behind it,
+  "›" only where the row leads somewhere, a finger high; one card for a list, a card of its own for a row standing
+  alone. Steuerung, a device's pages and the camera page are built from it, and their heads from `ui/PageHead.tsx`:
+  the way back, a finger wide, the name, and beside it the pill that dates the page. A device gone quiet is said
+  by one box on all of them and on Start (`OfflineBox`, `ui/OfflineHelp.tsx`): since when in its title, one
+  sentence on what that means on this page, and what to try a tap away.
 - **The grow page** (`screens/grow/GrowPage.tsx`; the prototype of 2026-11-12). Its head: the name, "Alle Grows"
   and the menu ⋯ - on a desktop "Phase" and "Teilen" as buttons of their own and the rest under "Mehr" - then
   "Tag 29 · Blüte, Woche 3" with the place opposite, over the bar of how far the grow has come (the same progress
@@ -328,9 +368,17 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
 - **Every refused write says why, under the control that asked** (`Refused`, `ui/refusal.ts`): the server's sentence
   for an English reader, else the catalogue's words by problem code or status - never a bare "saving failed".
   Refusals are told apart: a rate-limited sign-in (429) is not a wrong password.
-- **Claim only what happened.** A device acknowledges no setting, so a save says "stored and sent" and points at what
-  the device reports. An offline device still takes changes - the cloud hands them over on the next connect, and the
-  screen says so; restart and maintenance need it online.
+- **Claim only what happened.** A device acknowledges no setting, so a save says "gespeichert" and never that the
+  device took it. **An offline device locks nothing** (Chris, 2026-11-11, decision 7; how it is said: the redesign
+  session of 2026-11-12): the cloud hands it the stored settings when it next connects, and until then the page
+  says what it has not been handed - the figure marked in amber and, under its card, "Temperatur am Tag: 24,0 °C
+  gespeichert um 14:31. Am Gerät gelten noch 25,0 °C, bis es wieder online ist."; a setting behind a row in that
+  row's line; anything else as a count on the device's card. All of it is `pending` of the device's live read
+  ([server-engines.md](server-engines.md#read-models)) and nothing else: where the cloud does not know what the
+  device holds, the page says only that it takes it over, and in the first ten minutes of silence - before a
+  device counts as offline - nothing is said. Only what needs the device listening waits, `aria-disabled` with
+  one sentence: maintenance, a restart, an update, a socket's switch, "Finden", removing a socket
+  (`screens/control/climate/Climate.tsx`, `screens/devices/DeviceActions.tsx`, `SocketPage.tsx`).
 - **A sentence about a device names only what that device does**: only a fridge and a tent controller park outputs in
   maintenance (`ui/maintenance.ts`); a controller without a CO₂ sensor has no valve to stop. A firmware quirk left as
   it is ([firmware-regulation.md](firmware-regulation.md#quirks)) is said where it shows: the light plan warns when a
@@ -403,23 +451,30 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     hour - no sheet and nothing to read first, because the hand that taps it is on the zip. While the window
     stands the same spot says until when and carries "Beenden" and "Verlängern" (another quarter of an hour), and
     the status sentence that says so leads there (`MaintenanceControl`, `screens/devices/Maintenance.tsx`). It
-    parks every device of the place, since a window on one device would ring as the door opens, and says so
-    where a device was not there to hear it. It is started in two places and no third (Chris, 2026-11-11): on
-    Start, and with the device under Steuerung - the control is built to stand on that card as it is. Until that
-    card exists, the device's panel under Geräte keeps the sheet that asks for a length and names what this
-    device stops (heater, dehumidifier or compressor, CO₂ valve). Neither an alert's card nor the entry sheet
-    starts one.
+    is started on Start and with the device and nowhere else (Chris, 2026-11-11): on Start it parks every
+    device of the place, since a window on one device would ring as the door opens, and says so where a device
+    was not there to hear it; on a device's card under Steuerung and on its page - the same control
+    (`DeviceActions`, `screens/devices/DeviceActions.tsx`) - it parks that device. What a window stops is
+    behind the (i) beside a running one. Neither an alert's card nor the entry sheet starts one.
   - "Regelung aus" stops everything and pauses a running plan, whose next step would switch it on again; on is one tap.
   - Saving a figure a running plan writes (a target, the light limit) pauses the plan first - it would put the step's
-    figure back within the hour - with its reason ("Zielwerte von Hand gesetzt", "Lichtgrenze von Hand"), says so in
-    amber before the save and offers to resume - and to stop: Steuerung opens on Zielwerte for a paused plan, and a
-    way out of it that is only one row further down was not found.
+    figure back within the hour - with its reason ("Zielwerte von Hand gesetzt"), says so in the sheet before the
+    save, and the targets card of a paused plan offers to resume it - and to stop it: a way out that is only one
+    row further down was not found.
   - A Betriebsart other than Standard asks first: Keimung and Trocknung darken the device, Gewächshaus stops holding
     the humidity, and a tap in bloom would cost a night of light. Back to Standard is one tap.
   - Opening the demo replaces the grower's session, so it asks first. Starting a grow from the full sheet says
     beside the button that it sets the stage's climate; the short form of §1 sets none and has nothing to say.
   - A link in a mail does nothing by being opened: the activation page activates on a tap, because mail programs open
     links to preview them (`screens/Activate.tsx`).
+- **Nothing on Steuerung is a draft, and every write is answered** (the redesign session of 2026-11-12). A
+  figure, the light's times and a preset each have a sheet with one button; the light limit is stepped in place
+  and sent once it rests. The answer is the toast that names what changed ("Temperatur am Tag 24,0 °C ·
+  gespeichert", and for an offline device that it takes it over when it next connects) with "Widerrufen" where
+  taking it back is one write - it also resumes a plan the save paused; a preset that starts or ends a drying or
+  a germination has none. A switch on the device's firmware card and the camera's settings answer the same way.
+  Only the panels that are forms - a socket's switching, a LIGHT's window, a fan's speeds - keep a Save and ask
+  before unsaved figures are left (`Guarded`, `screens/control/OwnSettings.tsx`).
 - **No long press, anywhere** (Chris, 2026-10-21/22): a function behind a hold, a right-click or a shift-click
   irritates and stays hidden. A tap on a tile of the entry sheet opens its view, filled in with the last can; Save
   writes it (5 s Undo in the toast). A socket's times are behind its chevron, not a hold on its switch. Pressing and holding a
@@ -475,22 +530,33 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   Standard and Energiespar two columns; Gewächshaus temperature only (humidity is not regulated); Keimung one dark
   column (temperature, plus humidity where a humidifier holds it); Trocknung one column without light or CO₂;
   Regelung aus no table, a sentence and the way to switch on; 24 h or 0 h one column. An absent half stays as stored.
-- **The light plan heads the card**: "Licht an um" (account wall clock, any minute, kept across DST) and "Dauer"; the
-  night is what the day leaves. Presets change the duration, never the on-time. Late flower still enriches CO₂, to
+- **The light has a card of its own over the targets** (the redesign session of 2026-11-12, after the prototype):
+  when it comes on, for how long and when it goes off, "Ändern" opening the day's plan - "Licht an um" (account
+  wall clock, any minute, kept across DST) and "Dauer"; the night is what the day leaves - and the light limit as
+  a stepper. Presets change the duration, never the on-time. Late flower still enriches CO₂, to
   600 ppm against flowering's 1000 (Chris, 2026-10-08; `shared-types/src/v1/climate-presets.ts`).
-- **Chips and presets only prefill a draft**; nothing applies before Speichern. Every screen reads the one preset
-  table, `shared-types/src/v1/climate-presets.ts`, whose figures are deliberately conservative.
-- **"Regelung ein/aus"** stands in the targets card and the device panel (Chris, 2026-10-02): a device on off - the
-  factory default - must be switchable on, and screens must say that it is off. Every state away from the standard
-  day and night (off, drying, another mode, a paused or waiting plan, maintenance, offline) is said where it is seen,
-  with the one way out beside it (`screens/control/targets/Operation.tsx`, the plan line, the offline box).
+- **A preset is taken in its sheet** ("Vorlage", which names the preset the figures equal): the chips, what the
+  chosen one moves - each figure from and to, the spell it starts or ends - and "Übernehmen", before which nothing
+  applies (`screens/control/climate/PresetSheet.tsx`). Every screen reads the one preset table,
+  `shared-types/src/v1/climate-presets.ts`, whose figures are deliberately conservative.
+- **"Regelung ein/aus"**: a device on off - the factory default - must be switchable on, and screens must say that
+  it is off (Chris, 2026-10-02). Steuerung's pill says the state, and where the climate would stand a device
+  switched off is a sentence with the one tap that switches it on; switching it off is a row of the device's page,
+  which switches it on again too (the redesign session of 2026-11-12). Every state away from the standard day and
+  night (off, drying, another mode, a paused or waiting plan, maintenance, offline) is said where it is seen, with
+  the one way out beside it (`screens/control/climate/Climate.tsx`, `Mode.tsx`, the plan's row, the offline box).
+- **Betriebsart and Ausgänge are pages behind their rows** (the redesign session of 2026-11-12). Betriebsart
+  (`screens/control/Mode.tsx`): the modes, each other than Standard asked first, Energiespar, germination's two
+  choices and "Trocknung beenden". Ausgänge (`Outputs.tsx`): what the devices drive beside the climate - the
+  controller's own lamp with its hold, a fridge's fans, an AIR fan's mode and speed - and the smart sockets as
+  rows to their pages; its row says "alle Auto" only of sockets, since a lamp reports no hold.
 - **Work modes come from one list** (`WORK_MODES_BY_TYPE`, `shared-types/src/v1/configuration-fields.ts`; Chris,
   2026-10-06: a value both sides use is defined once): fridge Standard, Gewächshaus, Keimung, Trocknung; tent
   controller Standard, Keimung, Trocknung (greenhouse needs wiring no tent has); plug, fan, light none. Picking
   Trocknung starts drying; any other mode ends it and the targets from before drying apply again.
 - **Fridges have no "Kleine/Große Pflanzen"** (Chris, 2026-10-01): small-plant behaviour by default and an
-  "Energiespar-Modus" switch (the firmware's `full`: the back-wall fan rests with the compressor) under the targets,
-  in the standard mode only; its help says to try it with big plants and switch it off when the fridge runs too long
+  "Energiespar-Modus" switch (the firmware's `full`: the back-wall fan rests with the compressor) on the page
+  Betriebsart, in the standard mode only; its help says to try it with big plants and switch it off when the fridge runs too long
   or the lamp dims. Its dehumidifier tuning, day/night glide and "no CO₂ at sunset" are no settings (§11).
 - **Keimung (dark) and Sämling (with light) are two stages on every device** (Chris, 2026-10-03). Wherever Keimung is
   set the grower chooses "Warnen, wenn es zu feucht wird" (default off) and "Luftfeuchte mit dem Befeuchter halten"
@@ -531,16 +597,17 @@ to a privacy statement (the install's `PRIVACY_URL`, else the app's own `/privac
 
 ## 11. Left out on purpose
 Old-app settings that stay out (Chris, 2026-10-02; still absent on 2026-10-08) - ask Chris before bringing one back:
-- Testmodus: switching outputs by hand can damage the compressor (its old address leads to Geräte).
+- Testmodus: switching outputs by hand can damage the compressor (its old address leads to Steuerung).
 - Beta-Funktionen and the free ("floating") day length, which never worked; the global expert switch.
 - The linear day/night transition, "no CO₂ at sunset" and the fridge's dehumidifier tuning as settings: the server
   writes them for a fridge (`server/src/modules/device-protocol/class-rules.ts`); a tent controller keeps its own.
 - Alarm cooldown seconds and the extra log message per alarm; the chart presets (§7).
 
-Everything else the old expert mode offered is under an Erweitert section (the `*.advanced.tsx` files), among them
-the maintenance light, the Kompressor-Pause (at least 240 s), light ramps, fan levels (also under a fridge's targets),
-sensor factors and the update
-channel with Manuell (Chris, 2026-10-06); the alarm sheet keeps the webhook templates.
+Everything else the old expert mode offered is kept (Chris, 2026-10-06): under a device's Erweitert (the
+`*.advanced.tsx` files) the maintenance light, the Kompressor-Pause (at least 240 s), light ramps and sensor
+factors; a fridge's fan levels under Steuerung › Ausgänge; the update channel and a pinned version on the device's
+firmware card, where one switch says whether the device updates itself, the channel is chosen only while it does
+and a version only while it does not (`screens/devices/Firmware.tsx`); the alarm sheet keeps the webhook templates.
 
 ## 12. Screen readers
 The app has to be usable by somebody who cannot see it, above all the place's current state and Steuerung (Chris,
@@ -557,8 +624,9 @@ The app has to be usable by somebody who cannot see it, above all the place's cu
   pause, `spokenAgo` writes an age out ("vor 3 Tagen"), `spoken.*` in the catalogues holds the sentences.
 - **Live regions stay mounted and say a change once**: a region inserted together with its text is often missed, and
   one holding a ticking age ("vor 20 s") is re-read every ten seconds, so ages stay out of them. A stepper's − and +
-  keep the focus and say the figure they set; the save bar's "ungespeichert / wird gesendet / gesendet um" goes
-  through one region per panel, and focus lands on the sent line once the bar is gone (`ui/focus-landing.ts`).
+  keep the focus and say the figure they set; a form panel's save bar ("ungespeichert / wird gesendet / gesendet
+  um") goes through one region per panel, and focus lands on the sent line once the bar is gone
+  (`ui/focus-landing.ts`).
 - **A control at the end of its range is `aria-disabled`, not `disabled`**: disabling the focused button drops focus
   to the body.
 - A field's name carries its unit where the unit is drawn elsewhere (`spokenUnit` of the targets table's steppers,
@@ -570,8 +638,8 @@ The app has to be usable by somebody who cannot see it, above all the place's cu
   region drawn together with its text or given `role="status"` only once the answer is in.
 - **A sheet makes the page behind it inert** (`ui/modal-focus.ts`): `aria-modal` alone does not keep VoiceOver on iOS or
   TalkBack inside it. The live region is left out of that.
-- A slider moved by keys or a screen reader's swipe is sent once it rests (1.5 s), not on every step: the first step
-  would already pause a running plan (`LightOutputRow`). Closing the plan editor with edits asks first, since screen
+- A stepper or a slider moved step by step is sent once it rests (1.5 s), not on every step: the first step would
+  already pause a running plan (the light limit, `screens/control/climate/Climate.tsx`; the camera's day). Closing the plan editor with edits asks first, since screen
   reader users press Escape out of habit. A field a save is refused for is `aria-invalid` and described by why, and
   so is the Save it disables. A shell skip link leads past the navigation to `<main>`.
 - A diary row says its kind as hidden words before the line (`ui/EntryRow.tsx`), so a line whose text is its kind

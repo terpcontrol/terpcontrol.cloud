@@ -40,7 +40,6 @@ export const HELP_TOPICS = [
   'silence',
   'maintenance',
   'endMaintenance',
-  'reboot',
   'presetRules',
   'offlineRule',
   'alarmTemplates',

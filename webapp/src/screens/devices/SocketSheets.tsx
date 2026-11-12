@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import type { DeviceCapabilities, SocketRole } from '@fg2/shared-types/v1';
 import { useRemoveSocket, useSetSocket } from '@/api/devices';
 import { Sheet } from '@/ui/Sheet';
-import { SettingRow } from '@/ui/advanced/SettingRow';
 import { durationLabel } from '@/ui/age';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
@@ -17,38 +16,19 @@ import styles from './Sockets.module.css';
  * Pairing a socket by its address, and changing or removing one: what a Tasmota
  * socket can only be given from here, and what a paired one rarely needs again,
  * because the device finds its sockets by their hardware id when the network
- * moves them. So all of it stands under Erweitert - in the device's panel while
- * it has no socket yet, under its list of sockets once it has.
+ * moves them. Pairing stands on the page of a device's sockets, changing and
+ * removing on the socket's own.
  *
  * Every one of them is a command and answers a receipt: what was sent and
- * whether anybody was listening. The row itself changes when the device next
+ * whether anybody was listening. The socket itself changes when the device next
  * sends its table, which it does within half a minute.
  */
-
-/** The line under Erweitert that opens the pairing. */
-export function PairSocketRow({ deviceId, deviceName, capabilities }: { deviceId: string; deviceName: string; capabilities: DeviceCapabilities }) {
-  const { t } = useTranslation();
-  const [asking, setAsking] = useState(false);
-
-  return (
-    <>
-      <SettingRow label={t('socketForm.pair.label')} help="advanced.pairSocket" note={t('socketForm.pair.note')}>
-        <button type="button" className={ui.chip} onClick={() => setAsking(true)}>
-          {t('socketForm.pair.open')}
-        </button>
-      </SettingRow>
-      {asking ? (
-        <SocketSheet deviceId={deviceId} deviceName={deviceName} capabilities={capabilities} socket={null} onClose={() => setAsking(false)} />
-      ) : null}
-    </>
-  );
-}
 
 /**
  * Pairing a new socket (`socket` null) or changing one the table holds. A
  * changed socket keeps its slot, and its credentials unless new ones are typed.
  */
-function SocketSheet({
+export function SocketFormSheet({
   deviceId,
   deviceName,
   capabilities,
@@ -261,9 +241,10 @@ function SpanField({ label, span, disabled, onChange }: { label: string; span: S
 }
 
 /**
- * The timer of a pump or a timer of one's own, in its row: what it repeats, and
- * a short form to change it. Without one such a socket stays off, which the row
- * says rather than leaving somebody to wonder why the pump never ran.
+ * The timer of a pump or a timer of one's own, on the socket's page: what it
+ * repeats, and a short form to change it. Without one such a socket stays off,
+ * which the page says rather than leaving somebody to wonder why the pump never
+ * ran.
  */
 export function SocketTimerBlock({
   deviceId,
@@ -340,57 +321,8 @@ export function SocketTimerBlock({
   );
 }
 
-/** Under a socket's holds, folded: changing where it is reached, and removing it. */
-export function SocketAdvanced({
-  deviceId,
-  deviceName,
-  name,
-  row,
-  capabilities,
-  unheard,
-}: {
-  deviceId: string;
-  deviceName: string;
-  /** What the row is called, numbered where its role holds several. */
-  name: string;
-  row: SocketRowModel;
-  capabilities: DeviceCapabilities;
-  unheard: string | null;
-}) {
-  const { t } = useTranslation();
-  const [editing, setEditing] = useState(false);
-  const [removing, setRemoving] = useState(false);
-
-  return (
-    <details className={styles.advanced}>
-      <summary className="label">{t('advanced.title')}</summary>
-      <SettingRow label={t('socketForm.edit.label')} help="advanced.editSocket">
-        <button type="button" className={ui.chip} onClick={() => setEditing(true)}>
-          {t('socketForm.edit.open')}
-        </button>
-      </SettingRow>
-      {/* Offline, the holds above already say why it is grey. */}
-      <SettingRow label={t('socketForm.remove.label')} help="advanced.removeSocket">
-        <button type="button" className={`${ui.chip} ${ui.danger}`} disabled={unheard !== null || row.slot < 0} onClick={() => setRemoving(true)}>
-          {t('socketForm.remove.open')}
-        </button>
-      </SettingRow>
-      {editing ? (
-        <SocketSheet
-          deviceId={deviceId}
-          deviceName={deviceName}
-          capabilities={capabilities}
-          socket={row}
-          name={name}
-          onClose={() => setEditing(false)}
-        />
-      ) : null}
-      {removing ? <RemoveSheet deviceId={deviceId} row={row} name={name} onClose={() => setRemoving(false)} /> : null}
-    </details>
-  );
-}
-
-function RemoveSheet({ deviceId, row, name, onClose }: { deviceId: string; row: SocketRowModel; name: string; onClose: () => void }) {
+/** Whether the device should forget a socket, asked first. */
+export function RemoveSocketSheet({ deviceId, row, name, onClose }: { deviceId: string; row: SocketRowModel; name: string; onClose: () => void }) {
   const { t } = useTranslation();
   const remove = useRemoveSocket();
   const receipt = remove.data ?? null;

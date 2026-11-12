@@ -1,0 +1,34 @@
+/* The way back, the name, and what dates the page beside it. */
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-height: var(--control-height);
+}
+
+.head h1 {
+  flex: 1 1 8rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Whose page this is, under the title. */
+.of {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* The word in a pill that explains itself, lent a finger's room around it. */
+.head span > button {
+  position: relative;
+}
+
+.head span > button::after {
+  content: '';
+  position: absolute;
+  inset: -13px -12px;
+}

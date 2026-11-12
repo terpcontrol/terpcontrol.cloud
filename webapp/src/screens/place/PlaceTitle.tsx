@@ -14,9 +14,24 @@ import styles from './PlaceTitle.module.css';
  * The title of a page about the chosen place - Verlauf, Steuerung - and how
  * alive that place is, read off the home's own card rather than asked for
  * again; a place nothing measures has no pill. Which place it is stands in
- * the header, where it is chosen.
+ * the header, where it is chosen - and, on a desktop, beside the title where
+ * the page hands it `place`, which it does once the account has several.
+ *
+ * `state` is what a page says in the pill's place while the place is heard:
+ * Steuerung's "Regelung ein". A place gone quiet, or waiting for its first
+ * values, says that instead - no state is claimed for a device nobody hears.
  */
-export function PlaceTitle({ title, here }: { title: string; here: PlaceCard }) {
+export function PlaceTitle({
+  title,
+  here,
+  place = null,
+  state = null,
+}: {
+  title: string;
+  here: PlaceCard;
+  place?: string | null;
+  state?: ReactNode;
+}) {
   const now = useNow();
   const devices = useDevices(here.deviceIds.length > 0 && here.values.length === 0).data?.items ?? [];
   // As on the place's Start: no value at all is a device waiting for its first one, unless it was heard and went quiet.
@@ -27,17 +42,19 @@ export function PlaceTitle({ title, here }: { title: string; here: PlaceCard }) 
   );
   const silentSince = silence && !silence.waiting ? silence.since : null;
   const liveness = livenessOf(here, now);
+  const waiting = liveness === 'offline' && here.values.length === 0 && silentSince === null;
 
   return (
     <header className={styles.head}>
-      <h1>{title}</h1>
-      <LivenessPill
-        liveness={liveness}
-        measuredAt={measuredAtOf(here.values) ?? silentSince}
-        now={now}
-        explain
-        waiting={liveness === 'offline' && here.values.length === 0 && silentSince === null}
-      />
+      <div className={styles.title}>
+        <h1>{title}</h1>
+        {place ? <span className={styles.place}>{place}</span> : null}
+      </div>
+      {state && !waiting && (liveness === 'live' || liveness === 'stale') ? (
+        state
+      ) : (
+        <LivenessPill liveness={liveness} measuredAt={measuredAtOf(here.values) ?? silentSince} now={now} explain waiting={waiting} />
+      )}
     </header>
   );
 }

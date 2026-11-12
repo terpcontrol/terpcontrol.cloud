@@ -1,20 +1,34 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Camera, Device, GrowListItem, TestCapture, TimelapseCreate } from '@fg2/shared-types/v1';
+import type {
+  AccessNeed,
+  Camera,
+  CameraUpdate,
+  Device,
+  GrowDiaryPage,
+  GrowListItem,
+  OverviewCamera,
+  TestCapture,
+  TimelapseCreate,
+} from '@fg2/shared-types/v1';
 import { NoAnswerInTime } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
+import type { Told } from '@/log/log-context';
 import { CameraScreen } from '@/screens/camera/CameraPage';
 import { causeOf, filmCauseOf } from '@/screens/camera/capture-failure';
 import { Composer } from '@/screens/camera/Composer';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
+import { firstDayOf, landsOn, nearestTo, picturedDays, reachesBackTo } from '@/screens/camera/days';
 import { Film } from '@/screens/camera/Film';
+import { forgetKept } from '@/ui/kept';
 import { drawAt } from './harness';
 import { THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
 /**
- * The composer, and the job it starts.
+ * The camera page: its picture and the days behind it, the films by name, one
+ * picture now, the composer, the job it starts, and what the camera is set to.
  *
  * Every range but the two rolling ones names both of its own ends, because
  * where a phase or a grow began is the grow's record and not something the
@@ -23,27 +37,17 @@ import { translate } from './translations';
  */
 
 const state = vi.hoisted(() => ({
-  /** Every film asked for, by the composer's own callback and by the page's one-tap buttons alike. */
+  /** Every film asked for, by the composer's own callback and by the page's button alike. */
   asked: [] as TimelapseCreate[],
   film: null as unknown,
   youMay: 'own' as AccessNeed,
   lastError: null as string | null,
-  /** The films the list is served, which carry a span and a verdict of their own where a test needs them drawn. */
-  films: [] as { id: string; capturedAt?: string; endsAt?: string; render?: { status: string; error?: string | null } }[],
+  /** The films the camera has, which carry a span and a verdict of their own where a test needs them drawn. */
+  films: [] as { id: string; window?: string; capturedAt?: string; endsAt?: string; render?: { status: string; error?: string | null } }[],
   moreFilms: false,
   askedForMore: 0,
-  frames: { items: [] as { id: string; capturedAt: string }[], partial: false },
-  /** The day's read failing, which is not the same as a day the camera took nothing in. */
-  framesFailed: false,
-  /** The day's read still out, which is not the same as either of those two. */
-  framesPending: false,
-  readAgain: 0,
   zone: 'UTC' as string | null,
-  /** The width this install serves a free camera's stills at; null serves them whole. */
-  stillWidth: null as number | null,
   lastStill: null as string | null,
-  /** The day the page asked the camera for, which is the account's and not this machine's. */
-  askedForDay: null as { startsAt: string; endsAt: string } | null,
   /** What the test button's press answered, which is a picture or a reason and never an error. */
   capture: null as TestCapture | null,
   /** A press that got no answer at all. */
@@ -52,6 +56,18 @@ const state = vi.hoisted(() => ({
   diary: true,
   /** The account's devices, which a camera read through one goes dark with; null is a read still out. */
   devices: null as Device[] | null,
+  /** The grows of the camera's place, and the pages of the running one's diary read so far. */
+  grows: [] as GrowListItem[],
+  pages: null as GrowDiaryPage[] | null,
+  earlierWeeks: false,
+  askedForEarlier: 0,
+  /** The camera as the place's overview shows it, which is where today's picture and its lit stand-in come from. */
+  seen: null as OverviewCamera | null,
+  /** Whether a device measures where the camera looks. */
+  measured: true,
+  told: [] as Told[],
+  saved: [] as { cameraId: string; body: CameraUpdate }[],
+  removed: [] as string[],
 }));
 
 /** A test picture as the server answers it once it is over. */
@@ -78,6 +94,29 @@ vi.mock('@/api/devices', async importOriginal => ({
 
 vi.mock('@/api/layers', async importOriginal => ({ ...(await importOriginal<object>()), useDiaryLayer: () => state.diary }));
 
+vi.mock('@/api/home', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useHomeShape: () => ({ data: { spaces: [{ spaceId: 'space-1', deviceIds: state.measured ? ['device-1'] : [] }] } }),
+}));
+
+vi.mock('@/api/grows', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useSpaceGrows: () => ({ data: { items: state.grows, nextCursor: null } }),
+  useGrowDiary: () => ({
+    data: state.pages ? { pages: state.pages } : undefined,
+    hasNextPage: state.earlierWeeks,
+    isFetchingNextPage: false,
+    fetchNextPage: () => {
+      state.askedForEarlier += 1;
+    },
+  }),
+}));
+
+vi.mock('@/log/log-context', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useLog: () => ({ tell: (told: Told) => state.told.push(told) }),
+}));
+
 /**
  * The account's own zone, which is what every clock time on these screens is
  * drawn in. The tests read a UTC account from a machine that is not on UTC, so
@@ -87,7 +126,7 @@ vi.mock('@/api/account', async importOriginal => {
   const me = () => ({
     data: {
       preferences: { timezone: state.zone },
-      premium: { enforced: true, free: { stillWidth: state.stillWidth, stillDays: null, timelapseDays: null } },
+      premium: { enforced: true, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
     },
   });
   return { ...(await importOriginal<object>()), useMe: me, useAccountMe: me };
@@ -105,13 +144,6 @@ vi.mock('@/api/cameras', async importOriginal => ({
   ...(await importOriginal<object>()),
   useCameras: () => ({ data: { items: [], nextCursor: null } }),
   useLatestStills: () => new Map<string, string | null>(state.lastStill ? [['camera-1', state.lastStill]] : []),
-  useCameraFrames: (_id: string, day: { startsAt: string; endsAt: string }) => {
-    state.askedForDay = day;
-    if (state.framesPending) return { data: undefined, isPending: true, isError: false, refetch: () => (state.readAgain += 1) };
-    if (state.framesFailed) return { data: undefined, isPending: false, isError: true, refetch: () => (state.readAgain += 1) };
-
-    return { data: state.frames, isPending: false, isError: false, refetch: () => (state.readAgain += 1) };
-  },
   useTestCapture: () => ({ mutate: () => {}, data: state.capture ?? undefined, error: state.captureError, isPending: false }),
   useRequestTimelapse: () => ({ mutate: (body: TimelapseCreate) => state.asked.push(body), error: null, isPending: false }),
   useTimelapses: () => ({
@@ -121,6 +153,23 @@ vi.mock('@/api/cameras', async importOriginal => ({
     fetchNextPage: () => {
       state.askedForMore += 1;
     },
+  }),
+  useUpdateCamera: () => ({
+    mutate: (asked: { cameraId: string; body: CameraUpdate }, options?: { onSuccess?: () => void }) => {
+      state.saved.push(asked);
+      options?.onSuccess?.();
+    },
+    mutateAsync: (asked: { cameraId: string; body: CameraUpdate }) => Promise.resolve(state.saved.push(asked)),
+    isPending: false,
+    error: null,
+  }),
+  useRemoveCamera: () => ({
+    mutate: (cameraId: string, options?: { onSuccess?: () => void }) => {
+      state.removed.push(cameraId);
+      options?.onSuccess?.();
+    },
+    isPending: false,
+    error: null,
   }),
 }));
 
@@ -132,12 +181,17 @@ vi.mock('@/api/session', async importOriginal => {
 
 /**
  * What this account may do with the camera is worked out from the place it
- * stands in and from who owns it, so both halves are answered here.
+ * stands in and from who owns it, so both halves are answered here - and the
+ * place's overview, where the camera's picture of today is read from.
  */
 vi.mock('@/api/spaces', async importOriginal => {
   const { spaceWhere, spacesAnswering } = await import('./session');
 
-  return { ...(await importOriginal<object>()), useSpaces: () => spacesAnswering(spaceWhere(state.youMay)) };
+  return {
+    ...(await importOriginal<object>()),
+    useSpaces: () => spacesAnswering(spaceWhere(state.youMay)),
+    useSpaceOverview: () => ({ data: state.seen ? { cameras: [state.seen] } : undefined }),
+  };
 });
 
 const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
@@ -194,9 +248,14 @@ const draw = (one: GrowListItem | null, over: Partial<Camera> = {}) =>
     />,
   );
 
+/** The grow running where the camera looks: on its 35th day, counted on a UTC calendar. */
+const running = { ...grow, summary: { stage: 'flowering', dayNumber: 35, zone: 'UTC' } } as unknown as GrowListItem;
+
 beforeAll(() => translate());
 
 beforeEach(() => {
+  // What a page keeps for its history entry outlives a test, whose pages all stand on the one entry a test router has.
+  forgetKept();
   state.asked.length = 0;
   state.film = null;
   state.youMay = 'own';
@@ -204,18 +263,21 @@ beforeEach(() => {
   state.films = [];
   state.moreFilms = false;
   state.askedForMore = 0;
-  state.frames = { items: [], partial: false };
-  state.framesFailed = false;
-  state.framesPending = false;
-  state.readAgain = 0;
   state.zone = 'UTC';
-  state.stillWidth = null;
-  state.askedForDay = null;
   state.lastStill = null;
   state.capture = null;
   state.captureError = null;
   state.diary = true;
   state.devices = null;
+  state.grows = [];
+  state.pages = null;
+  state.earlierWeeks = false;
+  state.askedForEarlier = 0;
+  state.seen = null;
+  state.measured = true;
+  state.told.length = 0;
+  state.saved.length = 0;
+  state.removed.length = 0;
 });
 
 describe('the composer', () => {
@@ -342,51 +404,80 @@ describe('the camera page, by who is reading', () => {
       />,
     );
 
-  it('gives the owner the test image, the films, the form and the way to unpair it', () => {
+  it('gives the owner one picture now, a film of his own, the settings with the way to unpair, and the camera´s own words', () => {
     state.lastError = 'rtsp://192.168.1.40/stream1 refused';
     drawPage();
 
     expect(screen.getByRole('button', { name: 'Take a picture now' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Put together your own timelapse/ })).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Unpair' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Camera settings/ })).toHaveTextContent('Name, interval, Premium, unpair');
     expect(screen.getByText(/192\.168\.1\.40/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Camera settings/ }));
+    const sheet = within(screen.getByRole('dialog', { name: 'Camera settings' }));
+    expect(sheet.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
+    expect(sheet.getByRole('button', { name: 'Unpair' })).toBeInTheDocument();
   });
 
   /**
    * A phase and a whole grow are the diary's films. Somebody who keeps none
-   * and has no grow here is not shown two refused buttons and a sentence about
+   * and has no grow here is not shown two refused chips and a sentence about
    * a grow they never meant to start; a diary with nothing growing here is,
    * because the grow it could start is what is missing.
    */
-  it('offers the films of a phase and a grow only to a diary, refused while nothing grows here', () => {
+  it('offers the films of a phase and a grow only to a diary, refused with the reason while nothing grows here', () => {
     state.diary = false;
     const { unmount } = drawPage();
 
-    expect(screen.getByRole('button', { name: /^Film of today/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Week film/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Film of the phase/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Film of the grow/ })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Nothing grows here/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Day film' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Week' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Phase' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Whole grow/ })).not.toBeInTheDocument();
     unmount();
 
     state.diary = true;
     drawPage();
-    expect(screen.getByRole('button', { name: /^Film of the phase/ })).toBeDisabled();
+    expect(screen.queryByText(/Nothing grows here/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Phase' }));
     expect(screen.getByText(/Nothing grows here/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Make the film' })).not.toBeInTheDocument();
   });
 
-  it('gives a member the pictures, none of the controls, and not the address the cloud reaches it at', () => {
+  /** A control the reader may not use is absent: nothing is drawn disabled, and nothing is said about what a member may not do. */
+  it('gives a member the picture and the films there are, and nothing to make, set or take', () => {
     state.youMay = 'log';
     state.lastError = 'rtsp://192.168.1.40/stream1 refused';
+    state.films = [{ id: 'film-week', window: 'week', capturedAt: '2026-09-07T00:00:00.000Z', endsAt: '2026-09-14T00:00:00.000Z' }];
     drawPage();
 
     expect(screen.queryByRole('button', { name: 'Take a picture now' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Put together your own timelapse/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Camera settings/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/192\.168\.1\.40/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Its settings, its test image and its timelapses are for whoever steers the place/)).toBeInTheDocument();
+    // Of the four films only the one there is, and it plays.
+    expect(screen.queryByRole('button', { name: 'Day film' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Week' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Play the film' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Make the film' })).not.toBeInTheDocument();
+    for (const button of screen.getAllByRole('button')) {
+      expect(button).toBeEnabled();
+      expect(button).not.toHaveAttribute('aria-disabled');
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: /^About this camera/ }));
+    const sheet = within(screen.getByRole('dialog', { name: 'About this camera' }));
+    expect(sheet.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(sheet.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(sheet.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
+  });
+
+  it('says there is no film yet to a reader who could not make one', () => {
+    state.youMay = 'view';
+    drawPage();
+
+    expect(screen.getByText('No film of this camera yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Film' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'All films' })).not.toBeInTheDocument();
   });
 
   /**
@@ -415,29 +506,32 @@ describe('the camera page, by who is reading', () => {
   });
 
   /**
-   * A press that worked used to change nothing at all on this page: the answer
-   * carries the id of the still it stored, and the only line the button could
-   * draw was a failure.
+   * A press that worked used to change nothing at all on this page. Its answer
+   * carries the still it stored: the line under the button names it by its
+   * hour, and the frame shows it - also while the lamp is off and an older,
+   * lit picture would otherwise stand there.
    */
-  it('says what a press that worked left behind, rather than going quiet', () => {
-    state.capture = captured({ state: 'done', still: { mediaId: 'still-new', capturedAt: '2026-09-19T12:00:02.000Z' } });
+  it('shows the picture a press took and says when, rather than going quiet', () => {
+    const lit = serverNow().minus({ hours: 3 }).toISO()!;
+    state.seen = { cameraId: 'camera-1', name: 'Terp Cam 1', lastStillAt: lit, stills: [], litStill: { mediaId: 'still-lit', capturedAt: lit } };
+    state.capture = captured({ state: 'done', still: { mediaId: 'still-new', capturedAt: serverNow().toISO()! } });
     drawPage();
 
-    expect(screen.getByRole('status')).toHaveTextContent('Taken. It is the newest picture of the day.');
+    expect(screen.getByRole('status')).toHaveTextContent(/^Picture of \d\d:\d\d taken\.$/);
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-new');
   });
 
   /**
-   * The same failure the banner above the frame already translates. The button
-   * printed what the server stored, which is English on every screen: a German
-   * page said "device aborted the capture" under a button called "Testbild".
-   * The kind is half a sentence, so alone on the frame it is given the first
-   * half the add screen gives it.
+   * The same failure the box above the frame already translates. The button
+   * printed what the server stored, which is English on every screen. The kind
+   * is half a sentence, so alone it is given the first half the add screen
+   * gives it.
    */
   it('names the kind of failure a press met, and keeps the camera´s own words under it for the owner', () => {
     state.capture = captured({ state: 'failed', reason: 'aborted', error: 'device aborted the capture' });
     drawPage();
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/^No picture: the camera stopped the capture$/);
+    expect(screen.getByRole('alert')).toHaveTextContent(/^No picture: the camera stopped the capture/);
     expect(screen.getByText('What the camera said')).toBeInTheDocument();
     expect(screen.getByText('device aborted the capture')).toBeInTheDocument();
   });
@@ -465,7 +559,7 @@ describe('the camera page, by who is reading', () => {
    * failed - "the device did not open the way to the camera in time" - and left
    * the test button to spend over two minutes finding the same thing out.
    */
-  it('says the device the camera is read through is offline, with what to try, and holds the test button until it is back', () => {
+  it('says the device the camera is read through is offline, with what to try and the way to it, and holds the picture until it is back', () => {
     const carrier = (secondsAgo: number) =>
       ({
         id: 'device-1',
@@ -478,19 +572,23 @@ describe('the camera page, by who is reading', () => {
     state.devices = [carrier(60 * 60)];
     const drawn = drawPage();
 
-    expect(screen.getByText(/^Offline since /)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^Controller has been offline since / })).toBeInTheDocument();
     expect(screen.getByText('This camera is read through the device (Controller). No pictures arrive until it is back online.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'What you can do ›' }));
     expect(screen.getByText(/Power: is the adapter plugged in/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /See the device/ })).toHaveAttribute('href', '/devices/device-1');
     expect(screen.queryByText(/did not open the way to the camera/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Take a picture now' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Take a picture now' })).toHaveAttribute('title', 'Possible again once the device is back online.');
+    // The camera's last picture is as old as the fixture: the pill says what it waits for rather than an age.
+    expect(screen.getByText('waiting for Controller')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Take a picture now' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText('Possible again once the device is back online.')).toBeInTheDocument();
     drawn.unmount();
 
     state.devices = [carrier(5)];
     drawPage();
     expect(screen.queryByText(/is read through the device/)).not.toBeInTheDocument();
     expect(screen.getByText(/did not open the way to the camera/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Take a picture now' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Take a picture now' })).not.toHaveAttribute('aria-disabled');
   });
 
   it('names a press the server turned down because the device was offline as that', () => {
@@ -512,9 +610,289 @@ describe('the camera page, by who is reading', () => {
     state.youMay = 'manage';
     drawPage();
 
-    expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Take a picture now' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Camera settings/ })).toHaveTextContent('Name, interval, Premium');
+    expect(screen.getByRole('button', { name: /^Camera settings/ })).not.toHaveTextContent('unpair');
+
+    fireEvent.click(screen.getByRole('button', { name: /^Camera settings/ }));
+    const sheet = within(screen.getByRole('dialog', { name: 'Camera settings' }));
+    expect(sheet.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
+    expect(sheet.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
+  });
+
+  /** The page's ways on, each only where what it leads to is there. */
+  it('leads to the curves of the place and the diary of the grow, and to neither where there is none', () => {
+    const none = drawPage();
+    expect(screen.getByRole('link', { name: 'Curves of this day' })).toHaveAttribute('href', '/timeline?space=space-1');
+    expect(screen.queryByRole('link', { name: 'Show in the diary' })).not.toBeInTheDocument();
+    none.unmount();
+
+    state.grows = [running];
+    state.measured = false;
+    drawPage();
+    expect(screen.queryByRole('link', { name: 'Curves of this day' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Show in the diary' })).toHaveAttribute('href', '/grows/grow-1');
+  });
+});
+
+/**
+ * The picture at the head of the page. Today's is the one Start shows: the
+ * newest taken in the light, said to be that while the lamp is off. An old
+ * picture is dated and stepped back, never called today's.
+ */
+describe('the picture', () => {
+  const drawPage = (over: Partial<Camera> = {}) => drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...over }} />);
+  const delivering = (minutesAgo = 0) => ({ state: { ...camera.state, lastStillAt: serverNow().minus({ minutes: minutesAgo }).toISO()! } });
+  const pill = () => document.querySelector('[data-liveness]');
+
+  it('shows the newest picture with its hour, and says online with its age', () => {
+    state.lastStill = 'still-newest';
+    drawPage(delivering());
+
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-newest');
+    expect(screen.getByText(/^today, \d\d:\d\d$/)).toBeInTheDocument();
+    expect(pill()).toHaveAttribute('data-liveness', 'live');
+    expect(pill()).toHaveTextContent(/^online · \d+ s ago$/);
+  });
+
+  it('shows the newest lit picture while the lamp is off, and says so', () => {
+    const lit = serverNow().minus({ hours: 2 }).toISO()!;
+    state.seen = {
+      cameraId: 'camera-1',
+      name: 'Terp Cam 1',
+      lastStillAt: serverNow().toISO()!,
+      stills: [],
+      litStill: { mediaId: 'still-lit', capturedAt: lit },
+    };
+    drawPage(delivering());
+
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-lit');
+    expect(screen.getByText(/^Light off · picture from /)).toBeInTheDocument();
+  });
+
+  it('names the grow and its day on the picture', () => {
+    state.grows = [running];
+    state.lastStill = 'still-newest';
+    drawPage(delivering());
+
+    expect(screen.getByText('Spring run')).toBeInTheDocument();
+    expect(screen.getByText('· Day 35', { exact: false })).toBeInTheDocument();
+  });
+
+  /** A camera that has stopped keeps its last picture, dated by its day and dimmed, and the pill says since when. */
+  it('steps the last picture of a camera that has stopped back, with its day, and says since when nothing came', () => {
+    state.lastStill = 'still-old';
+    drawPage();
+
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-old');
+    expect(screen.getByRole('img').parentElement).toHaveAttribute('data-age', 'offline');
+    expect(screen.getByText('last picture 19 Sep 12:00')).toBeInTheDocument();
+    expect(pill()).toHaveTextContent('no picture since 19 Sep 12:00');
+    // Its alt text names the instant too: read aloud, an old picture is not "just now".
+    expect(screen.getByRole('img')).toHaveAccessibleName('Terp Cam 1 at 19 Sep 12:00');
+  });
+
+  it('says a camera has never delivered a picture rather than drawing an empty frame for today', () => {
+    drawPage({ state: { ...camera.state, lastStillAt: null } });
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByText('This camera has not delivered a picture yet.')).toBeInTheDocument();
+    expect(pill()).toHaveTextContent('no picture yet');
+  });
+
+  it('says a camera running late is late, with the age of its last picture', () => {
+    state.lastStill = 'still-newest';
+    drawPage(delivering(3));
+
+    expect(pill()).toHaveAttribute('data-liveness', 'stale');
+    expect(pill()).toHaveTextContent('last picture 3 min ago');
+  });
+
+  it('stamps the picture in the account´s zone rather than the browser´s', () => {
+    state.zone = 'Asia/Tokyo';
+    state.lastStill = 'still-old';
+    drawPage();
+
+    expect(screen.getByText('last picture 19 Sep 21:00')).toBeInTheDocument();
+  });
+});
+
+/**
+ * The slider under the picture: one picture per day of the grow the camera
+ * watches, as the diary heads that day's card. Its handle rests only on days
+ * that have a picture, and the weeks before those read so far are read once
+ * it is moved there.
+ */
+describe('the days under the picture', () => {
+  const still = (dayNumber: number, cameraId = 'camera-1') => ({
+    mediaId: `still-${dayNumber}`,
+    cameraId,
+    capturedAt: NOW.minus({ days: 35 - dayNumber }).toISO()!,
+  });
+  const day = (dayNumber: number, pictured: ReturnType<typeof still> | null) =>
+    ({
+      date: NOW.minus({ days: 35 - dayNumber }).toISODate()!,
+      dayNumber,
+      still: pictured,
+    }) as unknown as GrowDiaryPage['items'][number]['days'][number];
+  const week = (dayFrom: number, dayTo: number, days: ReturnType<typeof day>[]) =>
+    ({ dayFrom, dayTo, days }) as unknown as GrowDiaryPage['items'][number];
+  /** Days 29 to 35 read: 34, 32 and 30 pictured by this camera, 33 by another, 31 by none. */
+  const firstPage = {
+    items: [week(29, 35, [day(35, null), day(34, still(34)), day(33, still(33, 'camera-2')), day(32, still(32)), day(31, null), day(30, still(30))])],
+  };
+  const older = { createdAt: NOW.minus({ days: 10 }).toISO()! };
+  const drawPage = (over: Partial<Camera> = {}) => {
+    state.grows = [running];
+    state.pages = [firstPage as unknown as GrowDiaryPage];
+    state.lastStill = 'still-newest';
+    return drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...older, ...over }} />);
+  };
+  const slider = () => screen.getByRole('slider', { name: 'Day of the grow' });
+  const moveTo = (to: number) => fireEvent.change(slider(), { target: { value: String(to) } });
+
+  it('runs from the day the camera was added to today, and opens on today', () => {
+    drawPage();
+
+    expect(slider()).toHaveAttribute('min', '25');
+    expect(slider()).toHaveAttribute('max', '35');
+    expect(slider()).toHaveValue('35');
+    expect(screen.getByText('Day 35 of 35')).toBeInTheDocument();
+    expect(screen.getByText('one picture a day, from midday')).toBeInTheDocument();
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-newest');
+  });
+
+  it('shows the picture of the day it is moved to, named by its day and dated', () => {
+    drawPage();
+    moveTo(34);
+
+    expect(slider()).toHaveValue('34');
+    expect(slider()).toHaveAttribute('aria-valuetext', 'Day 34, 18 Sep 12:00');
+    expect(screen.getByText('Day 34 of 35')).toBeInTheDocument();
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-34');
+    expect(screen.getByText('18 Sep 12:00')).toBeInTheDocument();
+    expect(screen.getByText('· Day 34', { exact: false })).toBeInTheDocument();
+  });
+
+  /** A day another camera pictured, or none, is no stop: a step lands on the next day this camera has a picture of. */
+  it('steps over a day this camera has no picture of, in the direction it was moved', () => {
+    drawPage();
+    moveTo(34);
+    moveTo(33);
+    expect(slider()).toHaveValue('32');
+
+    moveTo(31);
+    expect(slider()).toHaveValue('30');
+
+    moveTo(31);
+    expect(slider()).toHaveValue('32');
+    // Back at the right end it is today again, the camera's newest picture.
+    moveTo(35);
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-newest');
+  });
+
+  it('lands a drag on the pictured day nearest to where it was let go', () => {
+    drawPage();
+    moveTo(31);
+
+    expect(slider()).toHaveValue('32');
+  });
+
+  it('leads to the curves of the day shown, at the moment of its picture', () => {
+    drawPage();
+    moveTo(32);
+
+    expect(screen.getByRole('link', { name: 'Curves of this day' })).toHaveAttribute(
+      'href',
+      `/timeline?${new URLSearchParams({ space: 'space-1', at: still(32).capturedAt, grow: 'grow-1' }).toString()}`,
+    );
+  });
+
+  /** The diary is read a few weeks at a time: a move to a day before those asks for the weeks before, and says it is reading. */
+  it('reads the weeks before once it is moved to a day they hold', () => {
+    state.earlierWeeks = true;
+    drawPage();
+    moveTo(26);
+
+    expect(state.askedForEarlier).toBeGreaterThan(0);
+    expect(screen.getByText('Day 26 of 35')).toBeInTheDocument();
+    expect(slider()).toHaveValue('26');
+  });
+
+  it('settles on the pictured day nearest to where it was left, once there is nothing further back to read', () => {
+    drawPage();
+    moveTo(26);
+
+    expect(slider()).toHaveValue('30');
+  });
+
+  /** A control that cannot change what it points at is no control: no slider where there is no second day to go to. */
+  it('draws no slider for a camera added today, where nothing grows, or where no earlier day has a picture', () => {
+    const today = drawPage({ createdAt: NOW.toISO()! });
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    today.unmount();
+
+    const empty = drawPage();
+    expect(screen.getByRole('slider')).toBeInTheDocument();
+    empty.unmount();
+
+    state.grows = [];
+    const nothing = drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...older }} />);
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    nothing.unmount();
+
+    state.grows = [running];
+    state.pages = [{ items: [week(29, 35, [day(35, null), day(34, still(34, 'camera-2'))])] } as unknown as GrowDiaryPage];
+    drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...older }} />);
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+  });
+
+  /** The day's film is that of the day the slider stands on: played where there is one, made where there is none. */
+  it('plays or makes the film of the day shown', () => {
+    state.films = [
+      {
+        id: 'film-34',
+        window: 'day',
+        capturedAt: NOW.minus({ days: 1, hours: 12 }).toISO()!,
+        endsAt: NOW.minus({ days: 1 }).plus({ hours: 11 }).toISO()!,
+      },
+    ];
+    drawPage({ state: { ...camera.state, lastStillAt: serverNow().toISO()! } });
+    moveTo(34);
+    expect(screen.getByRole('button', { name: 'Play the film' })).toBeInTheDocument();
+
+    moveTo(32);
+    fireEvent.click(screen.getByRole('button', { name: 'Make the film' }));
+    expect(state.asked).toEqual([{ window: 'day', startsAt: still(32).capturedAt }]);
+  });
+
+  it('finds the days of one camera in the pages of a diary', () => {
+    const pages = [firstPage as unknown as GrowDiaryPage];
+
+    expect(picturedDays(pages, 'camera-1').map(one => one.dayNumber)).toEqual([30, 32, 34]);
+    expect(picturedDays(pages, 'camera-2').map(one => one.dayNumber)).toEqual([33]);
+    expect(picturedDays(undefined, 'camera-1')).toEqual([]);
+    expect(reachesBackTo(pages)).toBe(29);
+    expect(reachesBackTo(undefined)).toBeNull();
+  });
+
+  it('counts the day a camera was added on as a date of the grow´s owner', () => {
+    const grow = { startedAt: '2026-08-16T12:00:00.000Z', phases: [], summary: { zone: 'UTC' } } as unknown as GrowListItem;
+
+    expect(firstDayOf({ createdAt: '2026-08-16T23:00:00.000Z' }, grow)).toBe(1);
+    expect(firstDayOf({ createdAt: '2026-08-17T00:30:00.000Z' }, grow)).toBe(2);
+    // Added before the grow began: its first day is the grow's.
+    expect(firstDayOf({ createdAt: '2026-07-01T00:00:00.000Z' }, grow)).toBe(1);
+  });
+
+  it('lands a move on a pictured day on the side it went to, and stays where that side has none', () => {
+    expect(landsOn([30, 32, 34, 35], 35, 34)).toBe(34);
+    expect(landsOn([30, 32, 34, 35], 34, 33)).toBe(32);
+    expect(landsOn([30, 32, 34, 35], 34, 27)).toBe(30);
+    expect(landsOn([30, 32, 34, 35], 30, 29)).toBe(30);
+    expect(landsOn([30, 32, 34, 35], 30, 31)).toBe(32);
+    expect(nearestTo([30, 32, 34], 26)).toBe(30);
+    expect(nearestTo([], 26)).toBeNull();
   });
 });
 
@@ -587,8 +965,19 @@ describe('what a failed capture is called', () => {
  * turns it on, so a card that draws neither leaves both where they are for good.
  */
 describe('what the camera is set to', () => {
+  const closed = vi.fn();
   const drawSettings = (over: Partial<Camera> = {}, mayManage = true) =>
-    drawAt(<CameraSettings camera={{ ...camera, ...over }} mayManage={mayManage} mayOwn={mayManage} />);
+    drawAt(
+      <CameraSettings
+        camera={{ ...camera, ...over }}
+        mayManage={mayManage}
+        mayOwn={mayManage}
+        tell={told => state.told.push(told)}
+        onClose={closed}
+      />,
+    );
+
+  beforeEach(() => closed.mockClear());
 
   it('draws every switch the camera carries, in the state the server gave', () => {
     drawSettings({ maintenanceOff: true, staleWarning: true, logErrors: false, nightOff: false });
@@ -627,15 +1016,17 @@ describe('what the camera is set to', () => {
     // row is absent rather than a row of dashes.
     drawSettings({ did: null, uid: null, ip: null, url: null, model: null });
 
-    expect(screen.queryByText('Reached at')).not.toBeInTheDocument();
+    expect(screen.queryByText('Camera ID')).not.toBeInTheDocument();
   });
 
-  it('offers a reader who may not manage the same facts as words and no switch at all', () => {
+  it('offers a reader who may not manage the same facts as words, and no switch, no Save and no way to unpair', () => {
     drawSettings({ maintenanceOff: true, staleWarning: true, logErrors: false }, false);
 
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
     expect(screen.getByText(/off during maintenance/)).toBeInTheDocument();
     expect(screen.getByText(/warn when it stops delivering/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
   });
 
   /** Nothing is saved until Save, and with nothing changed there is nothing to offer. */
@@ -649,148 +1040,222 @@ describe('what the camera is set to', () => {
     expect(screen.getByRole('checkbox', { name: 'off during maintenance' })).not.toBeChecked();
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
+
+  /** Every write answers: the sheet goes and the toast names what was changed, with the way to put it back. */
+  it('saves what was changed, says which settings those were, and takes them back on undo', async () => {
+    drawSettings({ maintenanceOff: true });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'off during maintenance' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'Canopy' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(state.saved).toEqual([{ cameraId: 'camera-1', body: { maintenanceOff: false, name: 'Canopy' } }]);
+    expect(closed).toHaveBeenCalledTimes(1);
+    expect(state.told).toHaveLength(1);
+    expect(state.told[0].label).toBe('Camera saved · off during maintenance, Name');
+
+    await state.told[0].undo?.();
+    expect(state.saved[1]).toEqual({ cameraId: 'camera-1', body: { maintenanceOff: true, name: 'Terp Cam 1' } });
+  });
+
+  /** The login of a stream is never served, so the one before a change is not known here: no undo that would put back half. */
+  it('offers no undo for an address it could not put back', () => {
+    drawSettings({ kind: 'rtsp', did: null, model: null, url: 'rtsp://192.168.1.40/stream1', transport: 'tcp' });
+    fireEvent.click(screen.getByRole('button', { name: /^Change the address/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Address' }), { target: { value: 'rtsp://192.168.1.41/stream1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(state.told[0]).toEqual({ label: 'Camera saved · Address', undo: null });
+  });
+
+  it('asks before it closes over something unsaved, and closes at once over nothing', () => {
+    const untouched = drawSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(closed).toHaveBeenCalledTimes(1);
+    untouched.unmount();
+    closed.mockClear();
+
+    drawSettings();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'off in the dark' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(closed).not.toHaveBeenCalled();
+    expect(screen.getByText('What you changed is not saved yet.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(closed).toHaveBeenCalledTimes(1);
+    expect(state.saved).toHaveLength(0);
+  });
+
+  /** Taking a camera off the account cannot be taken back: asked where it stands, then said, and the page it leaves is the place's Steuerung. */
+  it('unpairs only after asking, and says that it did', () => {
+    drawSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Unpair' }));
+
+    expect(state.removed).toHaveLength(0);
+    expect(screen.getByText(/Unpairing stops this camera being read/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unpair it' }));
+    expect(state.removed).toEqual(['camera-1']);
+    expect(state.told).toEqual([{ label: 'Terp Cam 1 unpaired', undo: null }]);
+  });
 });
 
 /**
- * A season of films and a full day of pictures, neither of which fits in the
- * page the route answers with. What the section rests at is a height, not the
- * whole of what there is, and a count the walk stopped short of is said as a
- * floor rather than drawn as the day's total.
+ * The films by name. A chip chooses one of the four; the button under them
+ * plays the newest film of that kind, or makes it where there is none - and a
+ * film that cannot be made is refused here, with the reason, rather than
+ * rendered and failed.
  */
-describe('the films and the pictures behind the first page', () => {
+describe('the films', () => {
   const drawPage = (over: Partial<Camera> = {}) => drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...over }} />);
-
+  const delivering = { state: { ...camera.state, lastStillAt: serverNow().toISO()! } };
   const filmsNumbering = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `film-${index}` }));
-  const drawn = () => within(screen.getByRole('list', { name: 'Timelapses' })).getAllByRole('listitem');
+  const listed = () => within(screen.getByRole('list', { name: 'All films' })).getAllByRole('listitem');
 
-  it('rests at three films and opens the rest of the page rather than dropping them', () => {
-    state.films = filmsNumbering(20);
-    drawPage();
+  it('plays the newest film of the kind chosen where it stands', () => {
+    state.films = [
+      { id: 'film-today', window: 'day', capturedAt: '2026-09-19T00:00:00.000Z', endsAt: '2026-09-19T11:00:00.000Z' },
+      { id: 'film-yesterday', window: 'day', capturedAt: '2026-09-18T00:00:00.000Z', endsAt: '2026-09-18T23:59:00.000Z' },
+    ];
+    const { container } = drawPage(delivering);
 
-    expect(drawn()).toHaveLength(3);
+    expect(container.querySelector('video')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Play the film' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'More films' }));
-
-    expect(drawn()).toHaveLength(20);
-  });
-
-  it('follows the cursor for the films after those, and says nothing more once it is exhausted', () => {
-    state.films = filmsNumbering(20);
-    state.moreFilms = true;
-    drawPage();
-
-    fireEvent.click(screen.getByRole('button', { name: 'More films' }));
-    fireEvent.click(screen.getByRole('button', { name: 'More films' }));
-
-    expect(state.askedForMore).toBe(1);
-  });
-
-  it('offers nothing more where the films on the page are all there are', () => {
-    state.films = filmsNumbering(2);
-    drawPage();
-
-    expect(drawn()).toHaveLength(2);
-    expect(screen.queryByRole('button', { name: 'More films' })).not.toBeInTheDocument();
-  });
-
-  /**
-   * The Phase and Whole grow chips beside it are already drawn refused with
-   * their reason, so the pattern for a film that cannot be made exists on this
-   * very row. The day chip was the one that did not use it: a tap on a camera
-   * that had taken nothing was answered, queued and left a permanent failed row
-   * in the list that no screen can remove.
-   */
-  it('refuses a day film on a camera that has taken no picture in the last day', () => {
-    state.frames = { items: [], partial: false };
-    const dark = drawAt(
-      <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ days: 4 }).toISO()! } }} />,
-    );
-
-    expect(screen.getByRole('button', { name: /Film of today/ })).toBeDisabled();
-    expect(dark.container.textContent).toContain('No picture today, so there is nothing to film yet.');
-    dark.unmount();
-
-    // Still delivering: the bucket the server works out cannot start earlier
-    // than a day ago, so a picture inside that day is proof it holds frames.
-    drawAt(
-      <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ minutes: 5 }).toISO()! } }} />,
-    );
-
-    expect(screen.getByRole('button', { name: /Film of today/ })).toBeEnabled();
+    expect(container.querySelector('video')).toHaveAttribute('src', '/media/film-today');
+    expect(container.textContent).toContain('19 Sep 00:00 → 19 Sep 10:59');
+    fireEvent.click(screen.getByRole('button', { name: 'Close', expanded: true }));
+    expect(container.querySelector('video')).toBeNull();
   });
 
   /**
    * The span of a "Week" is the server's to work out, and it works one out
-   * around whatever instant it is handed. Seven days floor against the epoch,
-   * so an instant of now names the week that opened this morning - six days of
-   * it in the future - and the button failed every Thursday on a camera holding
-   * a full week of pictures. Naming no instant is what the route documents as
-   * the most recent complete window, and is what the button now asks for.
+   * around whatever instant it is handed - an instant of now names the week
+   * that opened this morning, six days of it in the future. Naming no instant
+   * is what the route documents as the most recent complete window.
    */
-  it('asks for a week the server has already finished rather than the one that opened today', () => {
-    // A camera that is delivering, dated by the clock the page reads rather than
-    // by the fixture's own hour, which falls further behind it every day: a
-    // camera dark for a fortnight is refused the week, below.
-    drawPage({ state: { ...camera.state, lastStillAt: serverNow().toISO()! } });
+  it('makes a week the server has already finished rather than the one that opened today', () => {
+    drawPage(delivering);
 
-    fireEvent.click(screen.getByRole('button', { name: /Week film/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Make the film' }));
+
+    expect(state.asked).toEqual([{ window: 'week' }]);
+  });
+
+  it('makes the day´s film around the instant of now, and nothing else', () => {
+    drawPage(delivering);
+    fireEvent.click(screen.getByRole('button', { name: 'Make the film' }));
 
     expect(state.asked).toHaveLength(1);
-    expect(state.asked[0].window).toBe('week');
-    expect(state.asked[0].startsAt).toBeUndefined();
+    expect(state.asked[0].window).toBe('day');
+    expect(Math.abs(DateTime.fromISO(state.asked[0].startsAt!).diff(serverNow()).as('seconds'))).toBeLessThan(60);
     expect(state.asked[0].endsAt).toBeUndefined();
   });
 
-  /**
-   * And it is refused where that week can be proved empty, the way the day
-   * chip beside it already is. The week the server picks for itself is the one
-   * before the week holding now, so it cannot begin earlier than a fortnight
-   * ago: a camera with nothing newer than that has nothing in it. A camera
-   * dark for five days still has that week full, which is exactly the film it
-   * was being denied before.
-   */
-  it('refuses a week film only where the camera took nothing in any week the server could pick', () => {
-    const drawDarkFor = (days: number) =>
-      drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ days }).toISO()! } }} />);
+  /** A tap on a camera that had taken nothing was answered, queued and left a failed row no screen can remove. */
+  it('refuses a day film on a camera that has taken no picture in the last day, with the reason', () => {
+    const dark = drawPage({ state: { ...camera.state, lastStillAt: serverNow().minus({ days: 4 }).toISO()! } });
 
-    const recent = drawDarkFor(5);
-    expect(screen.getByRole('button', { name: /Film of today/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Week film/ })).toBeEnabled();
-    recent.unmount();
+    expect(screen.queryByRole('button', { name: 'Make the film' })).not.toBeInTheDocument();
+    expect(dark.container.textContent).toContain('No picture today, so there is nothing to film yet.');
+    dark.unmount();
 
-    const gone = drawDarkFor(20);
-    expect(screen.getByRole('button', { name: /Week film/ })).toBeDisabled();
-    expect(gone.container.textContent).toContain('The camera took no picture in the week this would film.');
+    drawPage({ state: { ...camera.state, lastStillAt: serverNow().minus({ minutes: 5 }).toISO()! } });
+    expect(screen.getByRole('button', { name: 'Make the film' })).toBeEnabled();
   });
 
   /**
-   * The week filmed is the last complete one, and a camera paired this week
-   * has no picture in it: Paul tapped it an hour after pairing and was told
-   * only that the server would not take it.
+   * The week the server picks for itself is the one before the week holding
+   * now, so it cannot begin earlier than a fortnight ago: a camera with
+   * nothing newer than that has nothing in it. A camera dark for five days
+   * still has that week full.
    */
-  it('refuses the week film of a camera paired since the last complete week began, and says when its first one ends', () => {
-    drawAt(
-      <CameraScreen
-        camera={{
-          ...camera,
-          ownerId: YOU,
-          createdAt: serverNow().minus({ hours: 1 }).toISO()!,
-          state: { ...camera.state, lastStillAt: serverNow().toISO()! },
-        }}
-      />,
-    );
+  it('refuses a week film only where the camera took nothing in any week the server could pick', () => {
+    const darkFor = (days: number) => drawPage({ state: { ...camera.state, lastStillAt: serverNow().minus({ days }).toISO()! } });
 
-    expect(screen.getByRole('button', { name: /Week film/ })).toBeDisabled();
+    const recent = darkFor(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
+    expect(screen.getByRole('button', { name: 'Make the film' })).toBeInTheDocument();
+    recent.unmount();
+
+    const gone = darkFor(20);
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
+    expect(screen.queryByRole('button', { name: 'Make the film' })).not.toBeInTheDocument();
+    expect(gone.container.textContent).toContain('The camera took no picture in the week this would film.');
+  });
+
+  /** The week filmed is the last complete one, and a camera paired this week has no picture in it. */
+  it('refuses the week film of a camera paired since the last complete week began, and says when its first one ends', () => {
+    drawPage({ ...delivering, createdAt: serverNow().minus({ hours: 1 }).toISO()! });
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
+
+    expect(screen.queryByRole('button', { name: 'Make the film' })).not.toBeInTheDocument();
     expect(screen.getByText(/This camera's first complete week ends on/)).toBeInTheDocument();
+  });
+
+  it('refuses the film of a whole grow to a camera without Premium, and leads to what Premium covers', () => {
+    state.grows = [running];
+    drawPage({ ...delivering, entitlement: { ...camera.entitlement, tier: 'free' } });
+
+    const chip = screen.getByRole('button', { name: /^Whole grow/ });
+    expect(chip).toHaveTextContent('Premium');
+    fireEvent.click(chip);
+
+    expect(screen.queryByRole('button', { name: 'Make the film' })).not.toBeInTheDocument();
+    expect(screen.getByText('HD and a film of a whole grow are part of Premium.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /What Premium covers/ })).toHaveAttribute('href', '/me/premium');
+  });
+
+  it('names both ends of a phase and of a grow from the grow´s own record', () => {
+    state.grows = [running];
+    drawPage(delivering);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Phase' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Make the film' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Whole grow/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Make the film' }));
+
+    expect(state.asked[0]).toMatchObject({ window: 'phase', startsAt: running.phases[1].startedAt });
+    expect(state.asked[1]).toMatchObject({ window: 'grow', startsAt: running.startedAt, quality: 'hd' });
+    // The camera here is as old as the grow's last day: both films begin where its pictures do, and the page says so.
+    expect(screen.getByText(/This camera has only taken pictures since/)).toBeInTheDocument();
+  });
+
+  it('lists every film behind its own row, and follows the cursor for those before', () => {
+    state.films = filmsNumbering(20).map(film => ({
+      ...film,
+      window: 'day',
+      capturedAt: '2026-09-19T00:00:00.000Z',
+      endsAt: `2026-09-19T00:${film.id.slice(5).padStart(2, '0')}:00.000Z`,
+    }));
+    state.moreFilms = true;
+    drawPage(delivering);
+
+    expect(screen.queryByRole('list', { name: 'All films' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'All films' }));
+    expect(listed()).toHaveLength(20);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Earlier films' }));
+    expect(state.askedForMore).toBe(1);
+  });
+
+  it('offers no row of films where there is none, and nothing earlier where the page is all there is', () => {
+    const none = drawPage(delivering);
+    expect(screen.queryByRole('button', { name: 'All films' })).not.toBeInTheDocument();
+    none.unmount();
+
+    state.films = [{ id: 'film-1', window: 'day', capturedAt: '2026-09-19T00:00:00.000Z', endsAt: '2026-09-19T11:00:00.000Z' }];
+    drawPage(delivering);
+    fireEvent.click(screen.getByRole('button', { name: 'All films' }));
+    expect(listed()).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Earlier films' })).not.toBeInTheDocument();
   });
 
   /**
    * Two rows of one span with opposite verdicts, which is what a day rendered
-   * twice leaves behind: the quick button stores a `day`, the composer stores
-   * the same midnight-to-midnight span as a `custom`, and they are ordered by
-   * their span and then by a random uuid. The failure won that draw and stood
-   * as the third of the three rows the section rests at, while the film that
-   * plays sat behind "More films" - the page denying a film it was holding.
+   * twice leaves behind. A grower reading a span's row wants to know whether
+   * they can watch that day, and where the answer is yes, a failed attempt at
+   * it is not an answer at all.
    */
   it('reports a span that has a film that plays as that film, not as the attempt that failed', () => {
     const span = { capturedAt: '2026-09-19T00:00:00.000Z', endsAt: '2026-09-20T00:00:00.000Z' };
@@ -799,216 +1264,22 @@ describe('the films and the pictures behind the first page', () => {
       { id: 'film-ready', ...span, render: { status: 'ready' } },
       { id: 'film-other-day', capturedAt: '2026-09-18T00:00:00.000Z', endsAt: '2026-09-19T00:00:00.000Z', render: { status: 'failed', error: 'x' } },
     ];
-    const { container } = drawPage();
+    drawPage(delivering);
+    fireEvent.click(screen.getByRole('button', { name: 'All films' }));
+    const sheet = screen.getByRole('dialog', { name: 'All films' });
 
-    expect(drawn()).toHaveLength(2);
-    expect(container.textContent).toContain('19 Sep 00:00 → 19 Sep 23:59');
-    expect(container.textContent).not.toContain('there are not enough pictures in that span to make a film');
+    expect(listed()).toHaveLength(2);
+    expect(sheet.textContent).toContain('19 Sep 00:00 → 19 Sep 23:59');
+    expect(sheet.textContent).not.toContain('there are not enough pictures in that span to make a film');
     // The other day failed and has nothing standing in for it, so it keeps its row.
-    expect(container.textContent).toContain('18 Sep 00:00 → 18 Sep 23:59');
+    expect(sheet.textContent).toContain('18 Sep 00:00 → 18 Sep 23:59');
   });
 
-  it('shows the last picture the camera took on a day it has taken none, dimmed and dated', () => {
-    // The tent's card and the camera's own row both draw this picture; the page
-    // with the most room for it drew a grey box. A value that is old is dimmed
-    // and dated, never hidden.
-    state.frames = { items: [], partial: false };
-    state.lastStill = 'still-old';
-    const { container } = drawAt(
-      <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-19T02:28:17.000Z' } }} />,
-    );
+  it('opens the composer from its row and follows the film it asked for', () => {
+    drawPage(delivering);
+    fireEvent.click(screen.getByRole('button', { name: /^Put together your own timelapse/ }));
 
-    const still = container.querySelector('img[src="/media/still-old"]')!;
-    expect(still).toBeInTheDocument();
-    expect(still).toHaveAttribute('data-age', 'offline');
-    expect(container.textContent).toContain('19 Sep 02:28');
-    expect(container.textContent).not.toContain('No picture today yet');
-    // The count is the day's and stays true.
-    expect(container.textContent).toContain('0 pictures today');
-  });
-
-  /**
-   * A free camera's stills are served narrower only where the install names a
-   * width. On one that names none they are served whole, and a line calling
-   * them reduced was a claim about a picture that is not.
-   */
-  it('names the width a free camera is served at, and says nothing where the install serves it whole', () => {
-    const drawFree = () =>
-      drawAt(
-        <CameraScreen camera={{ ...camera, ownerId: YOU, entitlement: { validUntil: null, grant: null, tier: 'free', renewalVisible: true } }} />,
-      );
-
-    const count = (container: HTMLElement) => [...container.querySelectorAll('p')].find(line => line.textContent?.includes('pictures today'))!;
-
-    const whole = drawFree();
-    expect(count(whole.container)).toHaveTextContent(/^0 pictures today$/);
-    whole.unmount();
-
-    state.stillWidth = 640;
-    expect(count(drawFree().container)).toHaveTextContent(/^0 pictures today · served 640 px wide$/);
-  });
-
-  it('calls the newest frame live only while the header pill calls the camera live', () => {
-    // This camera fails most of its captures, so the gap is routinely minutes:
-    // the pill read "4 min · stale" while the label four lines below the same
-    // picture read "live". Whichever of the two is true, the page may only say
-    // it once. The ages are measured against the clock the page itself reads,
-    // so they are taken from there rather than from the fixture's own hour.
-    const drawTaken = (minutesAgo: number) => {
-      const taken = serverNow().minus({ minutes: minutesAgo }).toISO()!;
-      state.frames = { items: [{ id: 'still-1', capturedAt: taken }], partial: false };
-
-      return drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: taken } }} />);
-    };
-
-    // Inside two of its 30 s intervals, which is what the pill calls live.
-    const live = drawTaken(0);
-    expect(live.container.querySelector('[data-liveness="live"]')).toBeInTheDocument();
-    expect(live.container.textContent).toContain('· live');
-    live.unmount();
-
-    // Four intervals missed: the pill says stale, so the label says how old the
-    // picture is instead, in the words this page uses for an old picture.
-    const stale = drawTaken(2);
-    expect(stale.container.querySelector('[data-liveness="stale"]')).toBeInTheDocument();
-    expect(stale.container.textContent).not.toContain('· live');
-    expect(stale.container.textContent).toContain('2 min ago');
-  });
-
-  it('names a picture in its alt text by the instant it was taken, not "just now"', () => {
-    // A reader who only gets the alt text was told a four-day-old picture was
-    // taken just now, under a label that said 19 Sep and a frame drawn dimmed.
-    state.frames = { items: [], partial: false };
-    state.lastStill = 'still-old';
-    const stale = drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-19T02:28:17.000Z' } }} />);
-
-    expect(stale.container.querySelector('img[src="/media/still-old"]')).toHaveAttribute('alt', 'Terp Cam 1 at 19 Sep 02:28');
-    stale.unmount();
-
-    // Today's frame is named by its own hour, in the same stamp the label
-    // beside it carries - which widens with the window, so the hour is what is
-    // asserted rather than the width.
-    state.lastStill = null;
-    state.frames = { items: [{ id: 'still-1', capturedAt: '2026-09-19T08:03:00.000Z' }], partial: false };
-    const alt = drawPage().container.querySelector('img[src="/media/still-1"]')!.getAttribute('alt')!;
-
-    expect(alt).toContain('Terp Cam 1 at ');
-    expect(alt).toContain('08:03');
-  });
-
-  it('stamps a frame in the account´s zone rather than the browser´s', () => {
-    // The camera burns the instant into the picture, so a label read in the
-    // browser's zone is one the picture beside it contradicts. The account here
-    // is on UTC and the frame was taken at 08:03 UTC.
-    state.frames = { items: [{ id: 'still-1', capturedAt: '2026-09-19T08:03:00.000Z' }], partial: false };
-    const utc = drawPage();
-    expect(utc.container.textContent).toContain('08:03');
-    utc.unmount();
-
-    // The same instant for an account kept in Berlin, which is two hours on.
-    state.zone = 'Europe/Berlin';
-    expect(drawPage().container.textContent).toContain('10:03');
-  });
-
-  it('walks the account´s day, so "today" is the day the account is having', () => {
-    // A browser east or west of the account is in a different day for part of
-    // every one of them, and the day asked for has to be the account's or the
-    // page walks a day the camera took no picture in.
-    state.zone = 'Pacific/Auckland';
-    state.frames = { items: [], partial: false };
-    drawPage();
-
-    const asked = state.askedForDay!;
-    expect(DateTime.fromISO(asked.startsAt).setZone('Pacific/Auckland').toFormat('HH:mm')).toBe('00:00');
-    expect(DateTime.fromISO(asked.endsAt).setZone('Pacific/Auckland').toFormat('HH:mm')).toBe('23:59');
-  });
-
-  /**
-   * A read that did not arrive is not a day with nothing in it. The page said
-   * "No picture today yet" and "0 pictures today" as facts, on a camera that
-   * had taken thirty-three pictures that morning, with nothing to press.
-   */
-  it('says the pictures could not be read rather than that the day holds none', () => {
-    state.framesFailed = true;
-    const { container } = drawPage();
-
-    // Once: the frame has the room for it, so the line that lost its count
-    // carries the way out rather than the sentence a second time.
-    expect(container.textContent?.match(/could not be read just now/g)).toHaveLength(1);
-    expect(container.textContent).not.toContain('No picture today yet');
-    expect(container.textContent).not.toContain('0 pictures today');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(state.readAgain).toBe(1);
-  });
-
-  /**
-   * A read that has not answered yet is not an answer of zero. The page drew
-   * the frame as loading and, two lines under it, stated "0 pictures today" of
-   * a camera that had been filling the day since dawn - one screen holding
-   * both answers at once, until the read landed and it changed its mind.
-   */
-  it('says nothing about the day´s count while the read is still out', () => {
-    state.framesPending = true;
-    const waiting = drawPage();
-
-    expect(waiting.container.textContent).toContain('loading');
-    expect(waiting.container.textContent).not.toContain('0 pictures today');
-    expect(waiting.container.textContent).not.toContain('No picture today yet');
-    // The read is named once, by the frame that has the room for it.
-    expect(waiting.container.textContent?.match(/loading/g)).toHaveLength(1);
-    waiting.unmount();
-
-    // The same page once the read lands: now the count is an answer and is said.
-    state.framesPending = false;
-    state.frames = { items: [{ id: 'still-1', capturedAt: NOW.minus({ minutes: 4 }).toISO()! }], partial: false };
-    expect(drawPage().container.textContent).toContain('1 picture today');
-  });
-
-  /**
-   * A control that cannot change anything is worse than no control. On a
-   * camera dark for days the scrubber was drawn live across midnight to now
-   * over a day holding no picture: the handle moved and announced an hour this
-   * morning while the still under it, four days old, never changed.
-   */
-  it('draws the scrubber only where there are pictures for it to walk between', () => {
-    state.frames = { items: [], partial: false };
-    state.lastStill = 'still-old';
-    const dark = drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-15T02:28:17.000Z' } }} />);
-
-    expect(dark.container.querySelector('input[type=range]')).toBeNull();
-    // The day's own count and the picture standing in for it are still said.
-    expect(dark.container.textContent).toContain('0 pictures today');
-    expect(dark.container.querySelector('img[src="/media/still-old"]')).toBeInTheDocument();
-    dark.unmount();
-
-    // A read still out has no window to draw either: its ends would be the
-    // whole day and would jump to the first picture as soon as it answered.
-    state.framesPending = true;
-    const waiting = drawPage();
-    expect(waiting.container.querySelector('input[type=range]')).toBeNull();
-    waiting.unmount();
-
-    // A day the camera filled gets the control, spanning its own pictures.
-    state.framesPending = false;
-    state.lastStill = null;
-    state.frames = { items: [{ id: 'still-1', capturedAt: NOW.minus({ hours: 2 }).toISO()! }], partial: false };
-    const walked = drawPage().container.querySelector('input[type=range]')!;
-
-    expect(walked).toBeInTheDocument();
-    expect(walked.getAttribute('min')).toBe(String(DateTime.fromISO(NOW.minus({ hours: 2 }).toISO()!).toMillis()));
-  });
-
-  it('counts the day it walked, and calls a count it stopped short of a floor', () => {
-    const shot = (index: number) => ({ id: `still-${index}`, capturedAt: NOW.minus({ minutes: index }).toISO()! });
-
-    state.frames = { items: [shot(1), shot(2), shot(3)], partial: false };
-    const whole = drawPage();
-    expect(whole.container.textContent).toContain('3 pictures today');
-    whole.unmount();
-
-    state.frames = { items: [shot(1), shot(2), shot(3)], partial: true };
-    expect(drawPage().container.textContent).toContain('at least 3 pictures today');
+    expect(screen.getByRole('dialog', { name: 'Timelapse' })).toBeInTheDocument();
   });
 });
 

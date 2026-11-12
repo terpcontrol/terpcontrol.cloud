@@ -159,7 +159,6 @@ describe('the alarm rules page', () => {
     expect(await screen.findByText(/Nothing stands here that has alarm rules/)).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/claim');
-    expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
   });
 
   it('lists the rules of a plug, which measures no climate and is given one all the same', async () => {
@@ -231,10 +230,6 @@ describe('the alarm rules page', () => {
 
     expect(await screen.findByText('From the Flower preset')).toBeInTheDocument();
     expect(screen.getByText('thresholds move with the stage')).toBeInTheDocument();
-    // The place is named by the title of Steuerung above the page, not a second time here.
-    expect(screen.getByText('Alarms')).toBeInTheDocument();
-    // The tab opens on the targets unless a plan runs, so that is where the way back leads.
-    expect(screen.getByRole('link', { name: '‹ targets' })).toHaveAttribute('href', '/control?space=space-1');
 
     const labels = screen.getAllByText(/^(From the Flower preset|Always on|From the device|Written here)$/).map(label => label.textContent);
     expect(labels).toEqual(['From the Flower preset', 'Always on', 'From the device', 'Written here']);

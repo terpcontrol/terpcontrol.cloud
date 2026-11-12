@@ -10,7 +10,7 @@ import { Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import styles from '@/screens/SignIn.module.css';
 import { chartsAddressOf } from './old-charts';
-import { controlPath, devicesPath, placePath, timelinePath } from './places';
+import { controlPath, placePath, timelinePath } from './places';
 import { RequireSession } from './RequireSession';
 
 /**
@@ -83,7 +83,7 @@ const OLD_DEVICE_PAGES: Record<string, (spaceId: string, params: URLSearchParams
   charts: chartsAddressOf,
   diary: spaceId => timelinePath(spaceId),
   settings: spaceId => controlPath(spaceId),
-  testmode: spaceId => devicesPath(spaceId),
+  testmode: spaceId => controlPath(spaceId),
 };
 
 /** `/device/{id}/{page}`, and the same with `?share=`, which has ended. */
@@ -108,8 +108,8 @@ function OldDeviceLink() {
 
   const spaceId = devices.data?.items.find(one => one.id === deviceId)?.spaceId ?? null;
   // A device the account cannot see, or one standing nowhere, has no page of a
-  // place to land on; the list of devices is where it would be.
-  if (!spaceId) return <Navigate to={devicesPath()} replace />;
+  // place to land on; Steuerung is where the devices are.
+  if (!spaceId) return <Navigate to="/control" replace />;
 
   return <Navigate to={(OLD_DEVICE_PAGES[page] ?? placePath)(spaceId, params)} replace />;
 }

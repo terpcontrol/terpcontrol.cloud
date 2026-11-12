@@ -6,10 +6,12 @@ import { useConfigure } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
+import { Row } from '@/ui/Rows';
 import { Answered, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { TwoLines } from './Maintenance';
+import { useLog } from '@/log/log-context';
 import { useSwitchOn } from './switch-on';
+import rows from './DevicePage.module.css';
 import styles from './Maintenance.module.css';
 
 /**
@@ -26,35 +28,36 @@ import styles from './Maintenance.module.css';
  * A device that is not answering is still switched: the server keeps the
  * document and the device is handed it when it next connects, and the receipt
  * says so.
+ *
+ * It is a row of the device's own page - the one place the control is switched
+ * off; Steuerung says that it is off and switches it back on where the targets
+ * would stand.
  */
-export function ControlButton({ device, offline, className }: { device: Device; offline: boolean; className?: string }) {
+export function ControlRow({ device, offline }: { device: Device; offline: boolean }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const on = useSwitchOn(device);
   const [asking, setAsking] = useState(false);
   const control = device.control;
   if (!control) return null;
 
+  const switchOn = async () => {
+    if (await on.switchOn()) tell({ label: t('device.control.switchedOn'), undo: null });
+  };
+
   return (
     <>
       {control.running ? (
-        <TwoLines
-          Icon={Power}
-          name={t('climateControl.offAction')}
-          does={t(`climateControl.offDoes.${device.type === 'fridge' ? 'fridge' : 'controller'}`)}
-          className={className}
-          onClick={() => setAsking(true)}
-        />
+        <Row title={t('climateControl.offAction')} onOpen={() => setAsking(true)} />
       ) : (
-        <TwoLines
-          Icon={Power}
-          name={t(on.pending ? 'climateControl.switching' : 'climateControl.onAction')}
-          does={t(offline ? 'climateControl.onDoesLater' : on.resumes ? 'climateControl.onDoesPlan' : 'climateControl.onDoes')}
-          disabled={on.pending}
-          className={`${ui.primary} ${styles.filled} ${className ?? ''}`}
-          onClick={() => void on.switchOn()}
+        <Row
+          acts
+          title={t(on.pending ? 'climateControl.switching' : 'climateControl.onAction')}
+          line={t(offline ? 'climateControl.onDoesLater' : on.resumes ? 'climateControl.onDoesPlan' : 'climateControl.onDoes')}
+          onOpen={() => (on.pending ? undefined : void switchOn())}
         />
       )}
-      {!control.running ? <Refused error={on.error} /> : null}
+      {!control.running && on.error ? <Refused error={on.error} className={rows.rowSays} /> : null}
       {asking ? <ControlOffSheet device={device} offline={offline} onClose={() => setAsking(false)} /> : null}
     </>
   );

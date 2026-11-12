@@ -9,9 +9,10 @@ import { hasCo2Sensor } from '@/ui/climate-hardware';
  * What a few growers tune about the hardware itself, and the app had hidden
  * since the rewrite while the documents went on carrying it: how slowly the lamp
  * comes up and goes down, whether it stays on through a maintenance window at
- * night, how hard a fridge's fans blow, and how long its compressor rests. The
- * fields are the device's own document's, by the names `CONFIGURATION_FIELDS`
- * gives them, so the range a field offers is the range the server holds it to.
+ * night, and how long a fridge's compressor rests - its fans are outputs and
+ * are set under Steuerung. The fields are the device's own document's, by the
+ * names `CONFIGURATION_FIELDS` gives them, so the range a field offers is the
+ * range the server holds it to.
  *
  * Each is drawn only where the firmware reads it, and only once the device has
  * sent its document: there is nothing to change a figure in before that.
@@ -66,18 +67,6 @@ function Co2Night({ device, mayManage }: DeviceContext) {
   );
 }
 
-/** The clip fan that moves the leaves, and the inner fans that move the air, at the least they run at. */
-function Fans({ device, mayManage }: DeviceContext) {
-  const { t } = useTranslation();
-
-  return (
-    <>
-      <FieldNumber device={device} name="clipFan" label={t('tuning.clipFan')} help="advanced.fans" unit="%" disabled={!mayManage} />
-      <FieldNumber device={device} name="innerFans" label={t('tuning.innerFans')} unit="%" disabled={!mayManage} />
-    </>
-  );
-}
-
 function CompressorRest({ device, mayManage }: DeviceContext) {
   const { t } = useTranslation();
 
@@ -115,6 +104,5 @@ export const items = [
     shows: ({ device, sockets }) => hasDocument(device) && hasCo2Sensor(device) && dosesCo2(device, sockets),
     Item: Co2Night,
   }),
-  advancedItem({ scope: 'device', id: 'fans', order: 40, shows: ({ device }) => fridge(device), Item: Fans }),
   advancedItem({ scope: 'device', id: 'compressor-rest', order: 50, shows: ({ device }) => fridge(device), Item: CompressorRest }),
 ];

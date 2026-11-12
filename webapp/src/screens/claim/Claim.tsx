@@ -342,8 +342,8 @@ function OnlyLooking() {
     <section className={styles.screen}>
       <h1>{stepped(t('claim.title', { step: 1, of: STEPS.length }))}</h1>
       <p className={`${ui.cardDashed} ${styles.demoNote}`}>{t('claim.demo')}</p>
-      <Link className={ui.button} to="/devices">
-        {t('claim.backToDevices')}
+      <Link className={ui.button} to="/control">
+        {t('claim.backToControl')}
       </Link>
     </section>
   );

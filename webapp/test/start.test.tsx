@@ -715,7 +715,7 @@ describe('the states of Start', () => {
     expect(within(box).queryByText('What you can check:')).not.toBeInTheDocument();
     fireEvent.click(within(box).getByRole('button', { name: 'What you can do ›' }));
     expect(within(box).getByText('Unplug the device, wait 10 seconds, plug it back in.')).toBeInTheDocument();
-    expect(within(box).getByRole('link', { name: 'See the device ›' })).toHaveAttribute('href', '/devices?space=space-1');
+    expect(within(box).getByRole('link', { name: 'See the device ›' })).toHaveAttribute('href', '/devices/device-1');
   });
 
   it('says a silent device still takes new targets, and offers no maintenance it could not hear', async () => {

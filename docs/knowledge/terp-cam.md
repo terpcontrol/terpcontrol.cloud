@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
 updated: 2026-11-12
-source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08)
+source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -220,8 +220,9 @@ way and what the code has to respect. Internal notes on the camera exist.
 - The app names a stored error with the contract's `captureFailureOf`, as the server names a failed test; the raw text
   is owner-only, it can name the tunnel's address. A failed film stores one of the `RENDER_FAILURE_TEXT` sentences
   (`capture.ts`) and the app names it by the whole sentence (`renderFailureOf`): reworded, films that failed before
-  show `unknown`. The day view reads frames in pages of 200 up to 15 pages and refetches every 30 s from its newest
-  picture only (`webapp/src/api/cameras.ts`).
+  show `unknown`. The camera page reads no day of stills: its days come from the grow's diary
+  (`GET /v1/grows/{id}/diary`, the lit still nearest midday per day), today's picture from the place's overview,
+  else the camera's newest still (`webapp/src/screens/camera/days.ts`, `webapp/src/api/cameras.ts`).
 
 ## Configuration
 - `TERPCAM_RELAY_URL`: `docker-compose.yaml` defaults it to `${API_URL_EXTERNAL}/terpcam/relay` - defaults belong

@@ -243,16 +243,10 @@
     "ticks_other": "ticks"
   },
   "devices": {
-    "title": "Devices",
-    "controllers_one": "Device",
-    "controllers_other": "Devices",
-    "cameras": "Cameras",
     "sockets": "Smart sockets",
-    "lights": "Light",
     "lightOutput": {
       "title": "Light output",
       "is": "the device's own output · dimmable",
-      "brightness": "Light limit",
       "forceFor": "Hold the light output for {{duration}}",
       "holds": "holds {{duration}}",
       "askedHold": "Asked, to hold for {{duration}}. The device reports back within half a minute.",
@@ -260,40 +254,19 @@
       "noLimit": "not stated",
       "setTo": "Set to",
       "running": "Running at",
-      "saving": "Saving the light limit…",
-      "saved": "Stored and sent. The device acknowledges no setting, so what it is running is the level above.",
-      "planRunning": "Saving pauses the running plan, which would otherwise put its own light limit back within the hour.",
-      "planPaused": "The plan is paused while this light limit is set by hand.",
-      "pauseReason": "Light limit by hand",
-      "resume": "Resume plan",
-      "saveFailed": "This light limit was not saved.",
-      "noSettings": "This device has not sent its settings yet, so there is nothing to write a brightness into. Changing any setting on the device itself sends them; connecting alone does not.",
-      "needsFirmware": "This build cannot be told to hold its light output. The brightness still reaches it — that is a setting and not a command.",
-      "needsFirmwareAlone": "This build cannot be told to hold its light output.",
-      "neverHolds": "This kind of device cannot be told to hold its light output. The brightness still reaches it — that is a setting and not a command.",
-      "neverHoldsAlone": "This kind of device cannot be told to hold its light output.",
-      "keptForLater": "Nothing is listening, so the buttons reach nobody — a brightness is stored all the same, and the device is handed it when it connects again.",
+      "needsFirmware": "This build cannot be told to hold its light output.",
+      "neverHolds": "This kind of device cannot be told to hold its light output.",
       "explained": "The device dims this output itself and ramps it through sunrise and sunset; the brightness is the most it gives. A smart socket with a light role has no level of its own — it follows this output on or off, unless it is being held. Hours of light count every hour the lamp is above zero, so dimming changes how bright the day is and not how long it is.",
       "now": "now {{percent}} · {{age}} ago",
-      "changeOnTargets": "change under Control ›",
       "holding": {
         "on": "on until {{until}}",
         "off": "off until {{until}}"
       },
-      "holdWaits": "Offline: holding the light on or off works again once the device is connected.",
-      "planPausedFor": "The plan is paused: {{reason}}. It is resumed under Control.",
-      "planPausedElsewhere": "The plan is paused. It is resumed under Control."
+      "holdWaits": "Offline: holding the light on or off works again once the device is connected."
     },
-    "noDevices": "No device here yet. A controller joins with the claim code on its display.",
     "readingSockets": "Reading the socket tables…",
     "socketsFailed": "One socket table could not be read; the rows that are here are the ones that answered.",
-    "socketCount_one": "{{count}} socket",
-    "socketCount_other": "{{count}} sockets",
-    "camCount_one": "{{count}} cam",
-    "camCount_other": "{{count}} cams",
-    "details": "Details of {{name}}",
     "via": "via {{name}}",
-    "premium": "Premium",
     "noStill": "no picture yet",
     "ago": "{{age}} ago",
     "buildUnread": "could not be read",
@@ -304,11 +277,9 @@
       "id": "Device id",
       "type": "Type",
       "build": "Build",
-      "channel": "Updates",
-      "update": "Update",
       "can": "Takes",
-      "place": "Stands in",
-      "owed": "To be installed"
+      "owed": "To be installed",
+      "serial": "Serial number"
     },
     "channel": {
       "stable": "stable",
@@ -323,7 +294,6 @@
       "nothing": "nothing beyond the roles it was built with"
     },
     "panel": {
-      "connection": "Connection",
       "connected": "connected",
       "connectedLate": "connected · last heard {{age}} ago",
       "offlineSince": "offline since {{time}}",
@@ -339,12 +309,10 @@
         "alpha": "automatic – early test releases (alpha)",
         "manual": "no automatic updates"
       },
-      "offlineNote": "Restart and maintenance work again once the device is connected. Anything else you change here – control, energy saving, Advanced – is kept by the cloud and sent to the device as soon as it is back.",
       "technical": "Technical details"
     },
     "reboot": {
       "action": "Restart",
-      "does": "offline for a moment, settings kept",
       "title": "Restart {{name}}?",
       "text": "The device restarts and cannot be reached for a moment, usually less than a minute. It regulates nothing meanwhile.",
       "kept": "Targets and settings are kept. Anything you switched by hand – the light or a socket – ends with the restart.",
@@ -411,9 +379,9 @@
       "isPlug": "smart socket",
       "numbered": "{{name}} {{number}}",
       "holdOnAria": "Switch {{name}} on for {{duration}}",
-      "holdOffAria": "Switch {{name}} off for {{duration}}"
+      "holdOffAria": "Switch {{name}} off for {{duration}}",
+      "byItself": "Auto"
     },
-    "noDevicesHere": "No device here.",
     "settings": {
       "open": "Rename or move",
       "title": "{{name}}",
@@ -428,10 +396,7 @@
       "moveToNew": "Create and move",
       "moving": "Moving …"
     },
-    "unnamed": "{{type}} · {{tag}}",
-    "youMayLog": "What the devices here are doing is shown. A socket or the lamp is switched by whoever steers this place.",
-    "noneYet": "No device here yet. A controller or a fridge module measures and steers the climate and comes in with the code on its display; a camera takes pictures for the diary and for timelapses.",
-    "addController": "Add a controller or a fridge module"
+    "unnamed": "{{type}} · {{tag}}"
   },
   "message-lost-connection-title": "Connection problem",
   "message-lost-connection-text": "The connection between your device and our sever was lost and has been reestablished. If this messages appeares regulary please check your wifi and internet connection",
@@ -1707,13 +1672,12 @@
   },
   "space": {
     "control": {
-      "title": "Grow plan",
       "noController": "Nothing stands here yet. Targets, alarms and a plan come with the first device in this place.",
       "noControllerAdd": "Add a device",
       "none": "No plan yet.",
       "noneNote": "A plan is a list of steps: a stage, how long it lasts, and what the place should hold while it does. Saving one does not start it.",
       "noClimate": "Nothing here runs on a plan.",
-      "noClimateNote": "A plan step writes a climate — day and night targets, the CO₂ target, the light's limit — and this device states none of them. Its sockets and its output are under Control › Devices.",
+      "noClimateNote": "A plan step writes a climate — day and night targets, the CO₂ target, the light's limit — and this device states none of them. Its sockets and its output are under Control › Outputs.",
       "noClimateHasPlan": "This device states no climate, so what these steps write lands in a document that has nowhere for it. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
       "waitingHasPlan": "This device has not sent its settings yet, so these steps are held back rather than sent. What a step carries would not be added to the device's own tuning but put in place of it: the work mode, the light schedule, the dehumidifier's timings and the dimming ramps would all be back at a factory value, and none of them has ever reached the cloud to be put back. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
       "write": "Write a plan",
@@ -1731,7 +1695,7 @@
       "over": "its time is up",
       "openEnded": "runs until it is moved on",
       "pausedFor": "Paused: {{reason}}",
-      "startsStage": "Starting puts a grow standing here into {{stage}}, with its day counter and a diary line. To come in later, use Advanced: continue the plan at a step.",
+      "startsStage": "Starting puts a grow standing here into {{stage}}, with its day counter and a diary line. To come in later, use what stands under the plan: continue the plan at a step.",
       "status": {
         "running": "Running",
         "paused": "Paused",
@@ -1923,17 +1887,6 @@
         "yours": "yours",
         "published": "published by somebody else"
       },
-      "belowLabel": "Below the plan",
-      "targets": "Targets",
-      "targetsLine": "Changing what the plan sets pauses it",
-      "alarms": "Alarms",
-      "alarmsOn_zero": "none on",
-      "alarmsOn_one": "{{count}} alarm on",
-      "alarmsOn_other": "{{count}} alarms on",
-      "planRow": "Run on a grow plan automatically",
-      "planRowLine": "Moves the targets on step by step, from veg to flower for instance",
-      "planNamed": "Grow plan “{{name}}”",
-      "backToTargets": "‹ targets",
       "youMayLog": "You may log in this place, not steer it. The plan, the targets and the alarm rules stand here as they are set; changing them is for whoever steers the place."
     },
     "noReadingsYet": "Nothing reported yet",
@@ -2166,10 +2119,6 @@
       "training": "Training",
       "phase": "Phase"
     },
-    "visit": {
-      "parksOutputs": "stops {{outputs}}",
-      "parksNothing": "stops nothing: this hardware takes no maintenance command"
-    },
     "water": "Water",
     "less": "Less water",
     "more": "More water",
@@ -2317,7 +2266,6 @@
     }
   },
   "camera": {
-    "never": "never",
     "lastError": "Last try failed: {{reason}}",
     "whatItSaid": "What the camera said",
     "failure": {
@@ -2336,14 +2284,6 @@
       "noDevice": "the device this camera answers through was not reachable"
     },
     "frameAlt": "{{name}} at {{time}}",
-    "noFramesToday": "No picture today yet",
-    "framesUnread": "Today's pictures could not be read just now, so this page says nothing about them.",
-    "live": "live",
-    "now": "now",
-    "framesToday_one": "{{count}} picture today",
-    "framesToday_other": "{{count}} pictures today",
-    "framesTodayAtLeast_one": "at least {{count}} picture today",
-    "framesTodayAtLeast_other": "at least {{count}} pictures today",
     "timelapses": "Timelapses",
     "window": {
       "day": "Today",
@@ -2352,24 +2292,20 @@
       "grow": "Whole grow",
       "custom": "Custom"
     },
-    "hd": "HD",
     "noGrowHere": "Nothing grows here, so there is no phase and no grow to film.",
     "noPictureToFilm": "No picture today, so there is nothing to film yet.",
     "noPictureThatWeek": "The camera took no picture in the week this would film.",
     "needsPremium": "HD and a film of a whole grow are part of Premium.",
     "seePremium": "What Premium covers",
-    "reduced": "served {{width}} px wide",
     "makeOne": "Put together your own timelapse",
     "askFailed": "That film was not asked for.",
     "testImage": "Take a picture now",
     "testing": "Reading…",
-    "testWorked": "Taken. It is the newest picture of the day.",
     "testNoPicture": "No picture: {{reason}}",
     "testFailed": "That did not reach the camera.",
     "testNoAnswer": "Still no answer after more than {{minutes}} minutes. Please try again.",
     "testOffline": "Possible again once the device is back online.",
     "carrierOffline": "This camera is read through the device ({{device}}). No pictures arrive until it is back online.",
-    "thisCamera": "This camera",
     "connectedVia": "Connected via",
     "reachedAt": "Camera ID",
     "addressNote": "The password the stream is opened with stays with the server and is never sent back here.",
@@ -2390,7 +2326,6 @@
     "unpair": "Unpair",
     "unpairSure": "This camera's pictures stay where they are.",
     "unpairYes": "Unpair it",
-    "keep": "Keep it",
     "unpairNote": "Unpairing stops this camera being read. Every picture and film it has delivered keeps its link to it.",
     "entitlement": {
       "none": "not entitled",
@@ -2427,23 +2362,16 @@
       },
       "overlaid": "with overlays",
       "play": "Play",
-      "close": "Close"
+      "close": "Close",
+      "which": "Film",
+      "playIt": "Play the film",
+      "make": "Make the film",
+      "asking": "Asking …"
     },
     "noFilms": "No film of this camera yet.",
-    "moreFilms": "More films",
-    "youMayLog": "You can see what this camera sees. Its settings, its test image and its timelapses are for whoever steers the place it stands in.",
-    "liveAge": "live · {{age}}",
-    "quick": {
-      "day": "Film of today",
-      "week": "Week film",
-      "phase": "Film of the phase",
-      "grow": "Film of the grow"
-    },
-    "quickNote": "A tap makes the timelapse; it appears in the list below after a few minutes.",
     "firstWeekEnds": "The week film shows the last complete week. This camera's first complete week ends on {{date}}.",
     "picturesSince": "This camera has only taken pictures since {{date}}: the phase film and the grow film start there.",
     "weekFilmByMail": "The week film every Monday by e-mail",
-    "inTimeline": "See it in the Timeline",
     "address": "Address",
     "changeAddress": "Change the address",
     "addressChangeNote": "Left empty, user and password stay as they are. Pictures, films and Premium stay with this camera. After saving, “Take a picture now” checks that it is reachable.",
@@ -2472,7 +2400,52 @@
         "udp": "Only for a camera the cloud reaches directly."
       }
     },
-    "rtspTunnelled": "RTSP via the device"
+    "rtspTunnelled": "RTSP via the device",
+    "pill": {
+      "never": "no picture yet",
+      "live": "online · {{age}} ago",
+      "late": "last picture {{age}} ago",
+      "waits": "waiting for {{device}}",
+      "since": "no picture since {{time}}"
+    },
+    "picture": {
+      "today": "today, {{time}}",
+      "lightOff": "Light off · picture from {{time}}",
+      "last": "last picture {{time}}"
+    },
+    "noPicture": "This camera has not delivered a picture yet.",
+    "days": {
+      "at": "Day {{day}} of {{days}}",
+      "note": "one picture a day, from midday",
+      "label": "Day of the grow"
+    },
+    "span": {
+      "day": "Day film",
+      "week": "Week",
+      "phase": "Phase",
+      "grow": "Whole grow"
+    },
+    "testTaken": "Picture of {{time}} taken.",
+    "row": {
+      "curves": "Curves of this day",
+      "diary": "Show in the diary",
+      "settingsOwn": "Name, interval, Premium, unpair",
+      "settingsLine": "Name, interval, Premium",
+      "aboutLine": "Connection, interval, Premium"
+    },
+    "allFilms": "All films",
+    "earlierFilms": "Earlier films",
+    "settings": "Camera settings",
+    "about": "About this camera",
+    "saved": "Camera saved · {{what}}",
+    "unpaired": "{{name}} unpaired",
+    "leaveUnsaved": "What you changed is not saved yet.",
+    "discard": "Discard",
+    "kind": {
+      "terpcam_controller": "Terp Cam",
+      "terpcam_standalone": "standalone · Wi-Fi",
+      "rtsp": "RTSP"
+    }
   },
   "cameras": {
     "add": {
@@ -2707,39 +2680,15 @@
     "publicCamerasNote": "The camera's pictures in the diary and in the report. Switched off, the page shows only the diary's photos."
   },
   "maintenance": {
-    "and": "and",
     "parked": "In maintenance until {{until}} — no alarm on this device until {{alarms}}",
     "settling": "Out of maintenance since {{until}} — no alarm on this device until {{alarms}}, while the climate comes back",
     "end": "End now",
     "ending": "Ending …",
-    "ended": "Asked to end it. The alarms come back once the climate has settled.",
-    "actionNote": "Pause control and alarms",
     "running": "Maintenance until {{until}}",
     "runningNote": "Control and alarms paused",
     "title": "Maintenance",
-    "pauses": "For {{minutes}} minutes the device stops {{outputs}}, so you can work in peace.",
-    "dims": "The light is dimmed to 15 %.",
-    "pausesNothing": "This device takes no maintenance command and stops nothing. Only its alarms stay off.",
-    "pausesEach_one": "For {{minutes}} minutes this pauses the device here:",
-    "pausesEach_other": "For {{minutes}} minutes this pauses all {{count}} devices here:",
-    "alarms": "Alarms stay off for {{quiet}} minutes – the {{minutes}} minutes and {{settle}} more, until the climate is back.",
-    "after_one": "Afterwards the device carries on by itself. You can also end maintenance sooner.",
-    "after_other": "Afterwards the devices carry on by themselves. You can also end maintenance sooner.",
-    "runningText": "Control is paused until {{until}} and alarms are off until {{alarms}}. Ending maintenance now lets the device regulate again at once; the alarms come back once the climate has settled.",
-    "start": "Start maintenance",
     "cancel": "Cancel",
     "done": "Done",
-    "started": "Maintenance is on. After {{minutes}} minutes everything carries on by itself; alarms come back after {{quiet}} minutes.",
-    "unheard": "A device could not be reached just now and may not have got the command. Its alarms stay off for {{quiet}} minutes all the same.",
-    "output": {
-      "heater": "the heater",
-      "dehumidifier": "the dehumidifier",
-      "compressor": "the compressor",
-      "co2": "the CO₂ valve"
-    },
-    "actionChoose": "Maintenance",
-    "howLong": "How long",
-    "minutes": "{{minutes}} min",
     "actionShort": "Maintenance · {{minutes}} min",
     "starting": "Starting maintenance …",
     "extending": "Extending …",
@@ -2749,8 +2698,6 @@
   },
   "alarms": {
     "title": "Alarms",
-    "backToPlan": "‹ back to the plan",
-    "backToTargets": "‹ targets",
     "noController": "Nothing stands here that has alarm rules. A device has to be claimed into this place first.",
     "quietLine": "Muting and maintenance",
     "add": "+ Custom alarm",
@@ -3021,10 +2968,7 @@
   },
   "targets": {
     "title": "Targets",
-    "backToPlan": "‹ back to the plan",
-    "nothing": "Nothing standing here states a climate, so there is nothing to set.",
     "waiting": "{{device}} has not sent its settings yet, so there is nothing to write a climate into. Changing any setting on the device itself sends them; connecting alone does not, and nothing written here can stand in for them.",
-    "prefill": "Or take a climate preset and adjust it – only what is saved applies:",
     "presets": "Presets",
     "light": "Light limit",
     "needsCo2": "needs a CO₂ sensor",
@@ -3059,8 +3003,6 @@
     "save": "Save",
     "saving": "Saving…",
     "discard": "Discard",
-    "sentAt": "Sent to the device {{time}}",
-    "sentNote": "The device acknowledges no setting, so what it is running is not reported back.",
     "readOnly": "This session may look and not set.",
     "leave": {
       "title": "Targets not saved",
@@ -3071,53 +3013,33 @@
     },
     "growStays": "This changes the targets only: {{name}} stays in the {{stage}} phase. To move the phase and the climate together, use Phase in the grow.",
     "drying": {
-      "starts": "Saving starts drying: no light and no CO₂, the device only dehumidifies and heats.",
-      "ends": "Saving ends drying: the device holds day and night, light and CO₂ again."
+      "starts": "Applying starts drying: no light and no CO₂, the device only dehumidifies and heats.",
+      "ends": "Applying ends drying: the device holds day and night, light and CO₂ again."
     },
     "germination": {
-      "starts": "Saving switches to Germination · dark: light off, no CO₂, one temperature and {{humidity}} % humidity for a humidifier round the clock. The other targets stay for afterwards.",
-      "ends": "Saving ends germination: the device holds day and night again, with light and CO₂."
+      "starts": "Applying switches to Germination · dark: light off, no CO₂, one temperature and {{humidity}} % humidity for a humidifier round the clock. The other targets stay for afterwards.",
+      "ends": "Applying ends germination: the device holds day and night again, with light and CO₂."
     },
     "table": {
       "label": "Targets",
       "figure": "Figure",
-      "dayTitle": "Light on",
-      "dayWhat": "(day)",
-      "nightTitle": "Light off",
-      "nightWhat": "(night)",
-      "hours": "{{hours}} h",
-      "alwaysTitle": "Light round the clock",
-      "alwaysSub": "24 h · day figures",
-      "neverTitle": "Dark round the clock",
-      "neverSub": "0 h · night figures",
       "dryingTitle": "Drying",
       "germinationTitle": "Germination · dark",
       "roundTheClock": "round the clock",
       "brightTitle": "Bright",
-      "brightSub": "day, by its sensor",
       "darkTitle": "Dark",
-      "darkSub": "night",
       "now": "holds now",
       "bySchedule": "by the schedule",
       "temperature": "Temperature",
       "humidity": "Humidity",
       "co2": "CO₂ target",
-      "light": "Light limit",
       "vpd": "VPD {{value}}",
       "co2Night": "no CO₂",
-      "lightNight": "lamp off",
       "planMark": "set by the running plan",
       "zeroLimit": "Light limit 0 %: the lamp stays dark, but the day still holds – with the day figures and with CO₂.",
       "keptNight": "Night figures – hold again as soon as there is a night",
-      "keptNightHow": "With less than 24 h of light they are back in the table.",
       "keptDay": "Day figures – hold again as soon as there is a day",
-      "keptDayHow": "With more than 0 h of light they are back in the table.",
       "keptLight": "light limit {{percent}} %",
-      "afterSave": "holds once saved",
-      "byLastState": "as last left",
-      "dayPlain": "Day",
-      "dayDark": "(lamp at 0 %)",
-      "nightPlain": "Night",
       "germinationBack": "Where germination ends without a new climate, the night temperature from before holds again: {{temperature}}.",
       "germinationBackHumidity": "Where germination ends without a new climate, the night from before holds again: {{temperature}} · {{humidity}}."
     },
@@ -3126,9 +3048,7 @@
     "stepMore": "{{name}}: more",
     "planTable": {
       "legend": "set by the running plan “{{name}}” – again every hour.",
-      "ownsNothing": "The running plan “{{name}}” sets none of these figures.",
-      "pauses": "Saving pauses the plan “{{name}}” – it sets one of the figures you changed.",
-      "keeps": "The plan “{{name}}” keeps running – it sets none of them."
+      "pauses": "This pauses the plan “{{name}}” – it sets one of the figures you changed."
     },
     "plan": {
       "label": "Light plan",
@@ -3154,10 +3074,6 @@
           "night": "Sunset · light off at {{time}}, the targets gliding towards the night until then"
         },
         "offline": "{{offline}} · by the schedule it would be {{half}} now",
-        "sensor": {
-          "day": "Bright now · the day figures hold",
-          "night": "Dark now · the night figures hold"
-        },
         "dayDark": "Day now · night from {{time}}",
         "nightDark": "Night now · day from {{time}}"
       },
@@ -3381,10 +3297,9 @@
     "skip": "skip",
     "next": "Next · {{what}}",
     "finish": "Done · open the place",
-    "later": "The preset can be changed later from Control, the sockets and the cam from Devices, notifications from Me.",
+    "later": "The preset can be changed later from Control, the sockets and the cam with the devices there, notifications from Me.",
     "addDevice": "Add a device",
     "demo": "The demo may look at everything and change nothing, so it cannot claim hardware. Sign in with your own account to add a device.",
-    "backToDevices": "Back to Devices",
     "code": {
       "title": "Read the code off the display",
       "text": "The controller shows a short code, and the box carries the same one as a QR.",
@@ -3449,7 +3364,7 @@
       "onStage": "on {{stage}}",
       "measuring": "measuring only",
       "nothingYet": "nothing set yet",
-      "window": "{{light}} – when it comes on is changed under Control › Targets.",
+      "window": "{{light}} – when it comes on is changed under Control.",
       "germination": "Germination · dark: the light goes off, there is no CO₂, and the device holds {{temperature}} °C round the clock; a humidifier on a smart socket holds {{humidity}} % humidity besides. Once the sprouts are up, switch to “Seedling · with light”."
     },
     "hardware": {
@@ -3460,7 +3375,7 @@
       "noSockets": "none yet",
       "notReported": "not reported yet",
       "cam": "Cam",
-      "socketsAtTheDevice": "A Terp Control socket is paired on the device itself – press the button, then Smart Sockets – and shows up in this list once the device reports it. A Tasmota socket you pair later under Devices › your device › Advanced, by its IP address.",
+      "socketsAtTheDevice": "A Terp Control socket is paired on the device itself – press the button, then Smart Sockets – and shows up in this list once the device reports it. A Tasmota socket you pair later under Control › your device › Smart sockets, by its IP address.",
       "pairTheCam": "Pair a Terp Cam",
       "bothCanWait": "Both can wait: the device measures the place it stands in even with nothing plugged into it."
     },
@@ -3485,7 +3400,8 @@
       "move": "Or move a grow here",
       "title": "What grows here?",
       "text": "With a grow the app keeps the diary. It can wait."
-    }
+    },
+    "backToControl": "Back to Control"
   },
   "admin": {
     "section": "Admin",
@@ -3775,7 +3691,7 @@
       "task_not_found": "That task is not there any more.",
       "insufficient_access": "You may read this but not change it.",
       "claim_code_unknown": "No device is showing that code. Read it off the display again.",
-      "device_already_yours": "You have already added this device. It is on your Devices list.",
+      "device_already_yours": "You have already added this device. You find it under Control.",
       "device_claimed": "That device already belongs to somebody else. It has to be removed there first.",
       "space_archived": "That place has ended. Bring it back before putting anything in it.",
       "capability_not_announced": "This device has not said it understands that. It needs newer firmware.",
@@ -3815,7 +3731,9 @@
     "wifi": "Wi-Fi and router: is the router on, does the signal reach the device?",
     "replug": "Unplug the device, wait 10 seconds, plug it back in.",
     "keeps": "The last readings stay until something arrives again.",
-    "device": "See the device"
+    "device": "See the device",
+    "title": "{{device}} has been offline since {{time}}.",
+    "help": "What you can do"
   },
   "help": {
     "about": "About {{title}}",
@@ -3933,11 +3851,7 @@
     },
     "maintenance": {
       "title": "Maintenance",
-      "text": "For working in the tent or cabinet: for 15, 30 or 60 minutes the device stops the heater, the dehumidifier or compressor and the CO₂ valve, and dims the light. Alarms stay off 10 minutes longer, until the climate is back. Then everything carries on by itself; you can also end maintenance sooner."
-    },
-    "reboot": {
-      "title": "Restart",
-      "text": "Restarts the device – useful when it hangs or behaves oddly. It is usually offline for less than a minute and regulates nothing meanwhile. Targets and settings are kept; anything switched by hand ends."
+      "text": "For working in the tent or cabinet: for a quarter of an hour the device stops the heater, the dehumidifier or compressor and the CO₂ valve, and dims the light; \"Extend\" adds another. Alarms stay off 10 minutes longer, until the climate is back. Then everything carries on by itself; you can also end maintenance sooner."
     },
     "endMaintenance": {
       "title": "End now",
@@ -4009,7 +3923,7 @@
     },
     "firmwareChannel": {
       "title": "Updates",
-      "text": "Whether the device installs new firmware by itself. A newly added device has it switched on. On: new stable versions arrive by themselves, with their fixes; under Advanced test versions (beta, alpha) can be chosen too. Off: it stays on the version it has. While an update installs, a controller or fridge module switches every output and socket off for a moment, then restarts."
+      "text": "Whether the device installs new firmware by itself. A newly added device has it switched on. On: new stable versions arrive by themselves, with their fixes; the update channel below lets test versions (beta, alpha) in too. Off: it stays on the version it has until you install another one below. While an update installs, a controller or fridge module switches every output and socket off for a moment, then restarts."
     },
     "stillCadence": {
       "title": "Still every",
@@ -4029,7 +3943,7 @@
     },
     "timelapses": {
       "title": "Timelapses",
-      "text": "Films made from this camera's stored pictures, 25 to the second. The day, week and month films rebuild themselves; the chips film today, the last complete week, the current phase or the whole grow."
+      "text": "Films made from this camera's stored pictures, 25 to the second. The day, week and month films rebuild themselves. The camera page plays the newest film of each kind; where there is none yet you make it: of the day chosen, the last complete week, the current phase or the whole grow."
     },
     "overlays": {
       "title": "Overlays",
@@ -4152,29 +4066,13 @@
         "title": "Transport",
         "text": "How the stream is read. TCP is right for almost every camera. HTTP or HTTPS only where the camera offers RTSP tunnelled through HTTP alone. UDP only for a camera the cloud reaches directly; it does not pass through the device. Where no picture comes, try another setting and then “Take a picture now”."
       },
-      "release": {
-        "title": "Give the device up",
-        "text": "Takes the device out of your account so someone else can add it – after a sale, a move to another account or a swap. Its grow plan, its alarms and the camera connected through it go with it. The place and the diary stay, and nothing changes on the device itself."
-      },
       "updateChannel": {
         "title": "Update channel",
-        "text": "Which channel the device installs new firmware from by itself. Stable gets released versions only. Beta gets test versions before everyone else, alpha earlier ones still. Test versions can have faults a stable one does not. Manual switches automatic updates off: the device stays on its version, and you choose below which one it installs."
+        "text": "Which channel the device installs new firmware from by itself. Stable gets released versions only. Beta gets test versions before everyone else, alpha earlier ones still. Test versions can have faults a stable one does not."
       },
       "firmwarePin": {
         "title": "Firmware version",
-        "text": "On the manual channel you choose the version yourself: any that was ever stable, or a newer one, for example to try a test version or to go back to an earlier stable one. While it installs, the device switches its outputs off for a moment and restarts. It stays on the version until you install another one or choose a channel."
-      },
-      "pairSocket": {
-        "title": "Pair a socket by IP",
-        "text": "Pairs a Tasmota socket with this device by its address on the local network. The role says what it switches with: the heater, the dehumidifier, the CO₂, the light – or by a cycle of its own as a pump or an own timer. A Terp Control socket is paired on the device itself."
-      },
-      "editSocket": {
-        "title": "Change a socket",
-        "text": "Rarely needed: the device finds its sockets again by their hardware id, even when the router gives them new addresses. Address, role and credentials can be changed; empty credentials keep what the socket has."
-      },
-      "removeSocket": {
-        "title": "Remove a socket",
-        "text": "The device forgets the socket and resets it. It then no longer switches along and leaves the list. Only works while the device is connected."
+        "text": "With automatic updates off you choose the version yourself: any that was ever stable, or a newer one, for example to try a test version or to go back to an earlier stable one. While it installs, the device switches its outputs off for a moment and restarts. It stays on the version until you install another one or switch automatic updates back on."
       },
       "co2Dosing": {
         "title": "CO₂ dosing",
@@ -4377,8 +4275,6 @@
   },
   "advanced": {
     "title": "Advanced",
-    "titleOf": "Advanced · {{device}}",
-    "operatingModeAtDevice": "Operating mode under Devices",
     "lead": {
       "device": "What most growers never need. A change applies at once and is sent to the device.",
       "charts": "Finer settings of the charts.",
@@ -4397,10 +4293,6 @@
       "germination": "on · germination · dark"
     },
     "offAction": "Switch control off",
-    "offDoes": {
-      "fridge": "Heater, compressor, light and CO₂ stop",
-      "controller": "Heater, dehumidifier, light and CO₂ stop"
-    },
     "onAction": "Switch control on",
     "onDoes": "Holds the targets again",
     "onDoesPlan": "Holds the targets again, and the plan goes on",
@@ -4420,11 +4312,6 @@
     "pauseReason": "Control was switched off.",
     "dryingNote": "Drying: no day and night, no light, no CO₂. The device only dehumidifies and heats.",
     "endDrying": "End drying",
-    "modeNote": {
-      "greenhouse": "Operating mode greenhouse: the device holds the temperature only, not the humidity. Light and CO₂ run by the light plan.",
-      "germination": "Germination · dark: no light, no CO₂, the temperature below round the clock; only a humidifier holds the humidity. Once the sprouts are up, choose “Seedling · with light” below and save."
-    },
-    "modeChange": "Change operating mode",
     "offTitle": "Control off.",
     "endDryingAsk": "End drying …",
     "endDryingTitle": "End drying?",
@@ -4653,8 +4540,6 @@
   },
   "release": {
     "label": "Give the device up",
-    "open": "Remove from account …",
-    "note": "After a sale, a move to another account or a swap: someone else can then add it with the code on its display.",
     "title": "Give {{name}} up",
     "sureTitle": "Really give it up?",
     "what": "“{{name}}” leaves your account. Whoever holds the device next adds it to their own account with the code on its display.",
@@ -4671,9 +4556,6 @@
   "autoUpdate": {
     "label": "Update automatically",
     "note": {
-      "stable": "New stable firmware installs by itself.",
-      "beta": "New firmware installs by itself, test releases too (beta, under Advanced).",
-      "alpha": "New firmware installs by itself, early test releases too (alpha, under Advanced).",
       "manual": "Off: the device stays on its version, and fixes do not arrive by themselves either."
     }
   },
@@ -4685,14 +4567,12 @@
     "note": {
       "stable": "Only released versions.",
       "beta": "Test releases too, before they are released to everyone.",
-      "alpha": "Early test releases too, for whoever tries new things first.",
-      "manual": "No automatic updates: the device stays on its version until you install another one below."
-    },
-    "manual": "Manual"
+      "alpha": "Early test releases too, for whoever tries new things first."
+    }
   },
   "firmwarePin": {
     "label": "Firmware version",
-    "note": "Every version that was ever stable, and anything newer. The device stays on it until you install another one or choose a channel.",
+    "note": "Every version that was ever stable, and anything newer. The device stays on it until you install another one or switch automatic updates on.",
     "pick": "Pick a build …",
     "none": "No builds for this device class",
     "running": "running",
@@ -4709,9 +4589,7 @@
   "socketForm": {
     "pair": {
       "label": "Pair a socket by IP",
-      "open": "Pair …",
       "another": "Pair another socket",
-      "note": "For a Tasmota socket on the same Wi-Fi.",
       "title": "Pair a socket by IP",
       "intro": "For a Tasmota socket – NOUS, Athom or a Shelly you flashed yourself – on the same Wi-Fi as {{device}}. A Terp Control socket is paired on the device itself: press the button, then Smart Sockets.",
       "yes": "Pair",
@@ -4744,7 +4622,6 @@
     "noRoles": "This firmware does not say which roles it knows, so nothing can be paired here. A firmware update brings it; until then, pair on the device itself.",
     "edit": {
       "label": "Address, role, credentials",
-      "open": "Change …",
       "title": "Change {{name}}",
       "yes": "Send",
       "sent": "Sent. The list shows the change once {{device}} reports its sockets.",
@@ -4752,7 +4629,6 @@
     },
     "remove": {
       "label": "Remove the socket",
-      "open": "Remove …",
       "title": "Remove {{name}}?",
       "text": "The device forgets the socket ({{address}}) and resets it; it no longer switches along. A Terp Control socket is then paired again on the device, a Tasmota socket here by IP.",
       "yes": "Remove",
@@ -4793,7 +4669,7 @@
       "cooler": "For a cooler or a fan: on once it is warmer than the switch-on point, off below the switch-off point.",
       "humidify": "For a humidifier: on once the air is drier than the switch-on point, off above the switch-off point.",
       "dehumidify": "For a dehumidifier: on once the air is more humid than the switch-on point, off below the switch-off point.",
-      "co2": "For a CO₂ valve: on below the switch-on point, off above the switch-off point. Needs the CO₂ sensor sold as an accessory; without it the Plantalytix Socket stays off. Dosing in intervals and slowing an AIR down are under Devices › this Plantalytix Socket › Advanced.",
+      "co2": "For a CO₂ valve: on below the switch-on point, off above the switch-off point. Needs the CO₂ sensor sold as an accessory; without it the Plantalytix Socket stays off. Dosing in intervals and slowing an AIR down are on this Plantalytix Socket's page under Advanced.",
       "timer": "The Plantalytix Socket switches at set times of day, whatever the readings say."
     },
     "dayNight": "Own switch points at night",
@@ -4874,7 +4750,7 @@
     "mostBelowLeast": "The highest speed cannot be below the lowest.",
     "slowed": "While {{plug}} doses CO₂, the fan runs at {{speed}} % at most.",
     "uncouple": "Stop slowing it",
-    "fixedTargets": "In “Fixed” mode the fan runs at the speeds above and follows no target. Temperature and humidity are set once it runs by temperature or humidity."
+    "fixedTargets": "In “Fixed” mode the fan runs at fixed speeds and follows no target. Its mode and speeds are under Control › Outputs."
   },
   "lightSettings": {
     "title": "Light",
@@ -5161,8 +5037,7 @@
     },
     "offline": {
       "title": "The device has not reported since {{time}}.",
-      "text": "It keeps regulating with the last targets. What stands below is the last there is.",
-      "help": "What you can do"
+      "text": "It keeps regulating with the last targets. What stands below is the last there is."
     },
     "demo": {
       "says": "Demo · you are looking on, nothing can be changed",
@@ -5233,5 +5108,165 @@
   },
   "age": {
     "yesterday": "yesterday"
+  },
+  "device": {
+    "back": "Back",
+    "backToControl": "Back to Control",
+    "backTo": "Back to {{name}}",
+    "in": "in {{place}}",
+    "standsIn": "stands in {{place}}",
+    "offlineKeeps": "What you set here reaches the device as soon as it is heard again.",
+    "waitsForDevice": "Maintenance, restart and update have to wait until the device is back online.",
+    "curves": "This device's curves",
+    "asOf": "as of {{time}}",
+    "control": {
+      "switchedOn": "Control switched on"
+    },
+    "firmware": {
+      "updateTo": "Update of {{day}}",
+      "updateNow": "Update now",
+      "there": "Newer firmware of {{day}} is available",
+      "coming": "Newer firmware of {{day}} installs by itself",
+      "told": {
+        "stable": "Automatic updates on · stable versions",
+        "beta": "Automatic updates on · beta too",
+        "alpha": "Automatic updates on · alpha too",
+        "manual": "Automatic updates off"
+      }
+    },
+    "advanced": {
+      "tuning": "Fine tuning",
+      "ramps": "Ramps",
+      "factors": "Sensor factors",
+      "dosing": "CO₂ dosing",
+      "cylinder": "CO₂ cylinder"
+    },
+    "sockets": {
+      "none": "none paired",
+      "paired_one": "{{count}} paired",
+      "paired_other": "{{count}} paired",
+      "pair": "pair by IP",
+      "pairMore": "pair another",
+      "empty": "No smart socket paired yet."
+    },
+    "details": {
+      "line": "Device ID, type, build",
+      "copyId": "Copy device ID"
+    },
+    "socket": {
+      "title": "Socket {{name}}",
+      "gone": "{{device}} no longer reports this socket.",
+      "removeWaits": "has to wait until the device is back online"
+    },
+    "waitsForRestart": "Restart and update have to wait until the device is back online."
+  },
+  "control": {
+    "back": "Back to Control",
+    "page": {
+      "alarms": "Alarms",
+      "plan": "Grow plan",
+      "outputs": "Outputs",
+      "mode": "Operating mode"
+    },
+    "climateIn": "Climate in {{place}}",
+    "devicesIn": "Devices in {{place}}",
+    "change": "Change",
+    "stand": "as of {{time}}",
+    "light": {
+      "title": "Light",
+      "on": "On at {{time}} · {{hours}} h",
+      "off": "off at {{time}}",
+      "change": "Change times",
+      "limit": "Limit",
+      "lower": "Lower the light limit",
+      "raise": "Raise the light limit",
+      "times": "Light times"
+    },
+    "preset": {
+      "named": "Preset: {{name}}",
+      "open": "Preset",
+      "title": "Apply a preset",
+      "take": "Apply",
+      "taken": "Preset {{name}}",
+      "same": "These are this preset’s figures already.",
+      "sets": "What the preset changes"
+    },
+    "figure": {
+      "change": "Change {{name}}, {{value}}",
+      "changePending": "Change {{name}}, {{value}}, not with the device yet"
+    },
+    "vpd": {
+      "day": "VPD day {{value}}",
+      "night": "VPD night {{value}}"
+    },
+    "saved": {
+      "now": "{{what}} · saved",
+      "later": "{{what}} · saved, {{device}} takes it over when it next connects"
+    },
+    "pending": {
+      "atClock": "at {{time}}",
+      "atDay": "on {{time}}",
+      "figure": "{{name}}: {{value}} saved {{saved}}. The device still holds {{held}} until it is back online.",
+      "window": "{{name}}: {{value}} saved {{saved}}. The device still runs {{held}} until it is back online.",
+      "unknown": "{{name}}: {{value}} saved {{saved}}. The device takes it over once it is back online.",
+      "behind": "saved {{saved}}, not with the device yet",
+      "more_one": "{{count}} more setting saved, not with the device yet",
+      "more_other": "{{count}} more settings saved, not with the device yet"
+    },
+    "offline": {
+      "text": "You can set everything all the same. The device takes it over once it reports again, and until then regulates with what it held at {{time}}."
+    },
+    "state": {
+      "on": "Control on",
+      "off": "Control off",
+      "drying": "Drying",
+      "germination": "Germination",
+      "maintenance": "Maintenance until {{until}}"
+    },
+    "rows": {
+      "label": "More about this place",
+      "alarmsNone": "no rule on",
+      "alarmsOn_one": "{{count}} rule",
+      "alarmsOn_other": "{{count}} rules",
+      "alarmsCalm": "all quiet",
+      "alarmRaised": "“{{name}}” has raised",
+      "alarmsRaised_one": "{{count}} has raised",
+      "alarmsRaised_other": "{{count}} have raised",
+      "planOff": "off · you set the targets by hand",
+      "planAtRest": "“{{name}}” · {{status}}",
+      "light": "Light",
+      "fans": "Fans",
+      "allAuto": "all on auto",
+      "modeAlso": "{{mode}} · also {{others}}",
+      "mode": {
+        "standard": "Standard",
+        "greenhouse": "Greenhouse",
+        "germination": "Germination",
+        "drying": "Drying",
+        "energySaving": "Energy saving"
+      }
+    },
+    "outputs": {
+      "none": "Nothing standing here has outputs of its own.",
+      "unheard": "Offline · nobody is listening, so nothing is sent."
+    },
+    "device": {
+      "online": "online",
+      "late": "online · last heard {{age}} ago",
+      "firmware": "Firmware of {{day}}",
+      "all": "Everything about {{name}}"
+    },
+    "camera": {
+      "last": "last picture {{time}}",
+      "none": "no picture yet",
+      "waits": "waiting for {{device}}"
+    },
+    "add": {
+      "title": "Add a device or a camera"
+    },
+    "half": {
+      "day": "Day",
+      "night": "Night"
+    }
   }
 }

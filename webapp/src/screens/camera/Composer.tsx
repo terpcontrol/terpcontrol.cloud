@@ -186,7 +186,7 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
             onClick={() => render('hd')}
           >
             {t('composer.renderHd')}
-            {free ? <span className={styles.premium}>{t('devices.premium')}</span> : null}
+            {free ? <span className={styles.premium}>{t('camera.premium')}</span> : null}
           </button>
           <button type="button" className={ui.button} disabled={pending || refusal !== null} onClick={() => render('sd')}>
             {t('composer.renderSd')}
