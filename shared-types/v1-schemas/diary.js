@@ -2,7 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.growReadingNames = exports.readingName = exports.entryReading = void 0;
 exports.overviewClimate = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.homeClimate = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardTransition = exports.cardValue = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCapture = exports.captureFailure = exports.testCaptureState = exports.cameraStill = exports.cameraUpdate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = void 0;
+exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growDiaryPage = exports.growDiaryWeek = exports.growDiaryDay = exports.growDayClimate = exports.growDayEvent = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = void 0;
+exports.linkCard = void 0;
 const zod_1 = require("zod");
 const capture_js_1 = require("./capture.js");
 const common_js_1 = require("./common.js");
@@ -1463,6 +1464,88 @@ exports.growWeekCard = (0, common_js_1.named)('GrowWeekCard', zod_1.z.object({
  * and one Mongo read answers it for the whole page.
  */
 exports.growWeekCardPage = (0, common_js_1.named)('GrowWeekCardPage', (0, common_js_1.page)(exports.growWeekCard).extend({ people: zod_1.z.array(common_js_1.person) }));
+/**
+ * Something a device did on one day that nobody wrote down: its lamp switching,
+ * or a stretch its climate spent outside what it was aiming at. They are read
+ * from the measurements on every read and stored nowhere, so a day that has
+ * left the store's raw samples has none.
+ */
+exports.growDayEvent = (0, common_js_1.named)('GrowDayEvent', zod_1.z.discriminatedUnion('kind', [
+    zod_1.z.object({
+        kind: zod_1.z.literal('light'),
+        at: (0, common_js_1.instant)(),
+        on: zod_1.z.boolean(),
+    }),
+    zod_1.z.object({
+        kind: zod_1.z.literal('excursion'),
+        at: (0, common_js_1.instant)().describe('When the reading left its band, or the start of the day where it was already outside.'),
+        endedAt: (0, common_js_1.instant)().nullable().describe('Null for a run still going when the day, or the reading of it, ended.'),
+        metric: common_js_1.metric,
+        above: zod_1.z.boolean().describe('Which edge it left over: true is above the band.'),
+        extremeValue: zod_1.z.number().nullable(),
+    }),
+]));
+/**
+ * How one day was kept: the means of what was measured where the grow stood,
+ * and the share of the day inside what the devices were aiming at.
+ *
+ * `inBandFraction` is judged window by window against the target record, as
+ * the verdict of a place's last 24 hours is. It is null where it would be a
+ * guess: no record of what was aimed at that day, or readings for less than
+ * half of it.
+ */
+exports.growDayClimate = (0, common_js_1.named)('GrowDayClimate', zod_1.z.object({
+    temperature: zod_1.z.number().nullable(),
+    humidity: zod_1.z.number().nullable(),
+    inBandFraction: zod_1.z.number().nullable(),
+}));
+/**
+ * One day of a grow's diary, which writes itself: the camera's picture of the
+ * day, how the climate was, what the devices did, and the lines of that day.
+ *
+ * A day is a date on the calendar of the grow's owner, so "today" holds what
+ * happened since midnight there. `dayNumber` is the day of the grow that
+ * begins on that date: the date the grow began on is day 1.
+ */
+exports.growDiaryDay = (0, common_js_1.named)('GrowDiaryDay', zod_1.z.object({
+    date: zod_1.z.string().describe('The date on the owner’s calendar, `YYYY-MM-DD`.'),
+    dayNumber: zod_1.z.number().int(),
+    startsAt: (0, common_js_1.instant)(),
+    endsAt: (0, common_js_1.instant)().describe('The end of the date, or now, the end of the grow or the end of the reader’s window, whichever comes first.'),
+    still: zod_1.z
+        .object({ mediaId: (0, common_js_1.id)(), cameraId: (0, common_js_1.id)(), capturedAt: (0, common_js_1.instant)() })
+        .nullable()
+        .describe('The camera’s picture of the day: the still taken in the light nearest midday, and on the day still running the newest one taken in the light. Null where no camera watched, or the reader was not given the cameras.'),
+    climate: exports.growDayClimate.nullable().describe('Null where nothing measured where the grow stood that day.'),
+    events: zod_1.z.array(exports.growDayEvent).describe('In the order they happened.'),
+    entries: zod_1.z
+        .array(exports.entry)
+        .describe('The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, what its devices and the plan wrote where the grow stood.'),
+}));
+/**
+ * A week of the diary: seven days of the grow, newest first, under the stage
+ * the week lay in. `film` is the week film whose first frame falls inside it,
+ * named by the days it really covers - a film is cut on the calendar's weeks.
+ */
+exports.growDiaryWeek = (0, common_js_1.named)('GrowDiaryWeek', zod_1.z.object({
+    weekNumber: zod_1.z.number().int(),
+    dayFrom: zod_1.z.number().int(),
+    dayTo: zod_1.z.number().int(),
+    stage: common_js_1.growthStage.nullable(),
+    preset: zod_1.z.string().nullable(),
+    stageWeek: zod_1.z.number().int().nullable().describe('1 in the week the stage began; null before the first phase.'),
+    film: zod_1.z
+        .object({
+        mediaId: (0, common_js_1.id)(),
+        dayFrom: zod_1.z.number().int(),
+        dayTo: zod_1.z.number().int(),
+        lengthSeconds: zod_1.z.number().nullable(),
+    })
+        .nullable(),
+    days: zod_1.z.array(exports.growDiaryDay).describe('The days of the week that have happened and that the reader may see, newest first.'),
+}));
+/** The diary, a few weeks at a time, with everyone its lines name. */
+exports.growDiaryPage = (0, common_js_1.named)('GrowDiaryPage', (0, common_js_1.page)(exports.growDiaryWeek).extend({ people: zod_1.z.array(common_js_1.person) }));
 /**
  * One stretch of the grow at one stage, as the report tells its story: a
  * chapter with its cover, its day range, how it was kept and what was done to

@@ -78,7 +78,7 @@ beforeEach(async () => {
   });
   await db.reset();
 
-  media = new MediaService(db.media, db.grows, new ImageStore(db.connection));
+  media = new MediaService(db.media, db.grows, new ImageStore(db.connection), db.entries);
   builder = new TimelapseService(undefined as never, media, new EntitlementService(PREMIUM), undefined as never) as unknown as Builder;
   told = null;
   builder.writeFilm = async (_directory, path, options) => {

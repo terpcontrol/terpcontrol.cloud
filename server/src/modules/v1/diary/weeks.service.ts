@@ -5,9 +5,9 @@ import { z } from 'zod';
 import type { EntryKind, GrowWeekCard, GrowWeekCardPage, GrowWeekDay, GrowWeekFeeding, GrowWeekReading, SchemeAmount } from '@fg2/shared-types/v1';
 import { growOriginOf, schemeWeekOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
-import { decodeCursor, pageOf } from '@common/v1/pages';
+import { pageOf } from '@common/v1/pages';
 import { peopleNamed } from '@common/v1/people';
-import { Span, clampRange, overlapsRange, picturesWithinRange, seenOf } from '@common/v1/range';
+import { Span, clampRange, overlapsRange, seenOf } from '@common/v1/range';
 import { PageQuery, pageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -20,7 +20,8 @@ import { spacesDuring } from '../grow/grow-places';
 import { Redaction, latestPhase } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { DIARY_KINDS, READING_KINDS, readingsIn, serialiseDiaryEntry } from './diary-entries';
-import { DAY_MS, GrowWeekSpan, horizonOf, pictureHourIn, weeksOf } from './grow-calendar';
+import { WeekFilm, stillsOfDays, weekFilmsOf } from './diary-pictures';
+import { DAY_MS, GrowWeekSpan, headlinePhaseAt, horizonOf, pictureHourIn, weeksAfter, weeksOf } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
 
 /**
@@ -66,15 +67,6 @@ export const weeksQuery = pageQuery.extend({
 /** How many diary lines a card carries. The card draws two or three and says how many more there are. */
 const ENTRIES_PER_WEEK = 10;
 
-/**
- * How far from the middle of a day a still may be taken and still stand for that
- * day. Wide enough that a camera taking one picture an hour fills the strip,
- * narrow enough that reading a week of thumbnails is not reading a week of
- * pictures - stills are thinned as they age, so an older week answers a handful
- * of rows and only the newest answers many.
- */
-const STILL_WINDOW_MS = 90 * 60 * 1000;
-
 /** No screen has a control for how often a grow is fed, so the rhythm is read from its reminders. */
 const FEEDS_PER_WEEK_WITHOUT_A_REMINDER = 3;
 
@@ -97,7 +89,7 @@ interface PageWorld {
   readings: EntryDocument[];
   cameraIds: string[];
   controllers: { deviceId: string; spaceId: string | null }[];
-  films: Pick<MediaDocument, 'id' | 'capturedAt'>[];
+  films: WeekFilm[];
 }
 
 @Injectable()
@@ -119,7 +111,10 @@ export class GrowWeeksService {
 
     // Newest first, which is the order the grow page reads in.
     const lived = weeksOf(origin, horizonOf(grow, now)).filter(week => overlapsRange(range, week.startsAt, week.endsAt));
-    const page = pageOf(after(lived.reverse(), query.cursor), limitOf(query.limit), week => ({ at: week.startsAt, id: String(week.weekNumber) }));
+    const page = pageOf(weeksAfter(lived.reverse(), query.cursor), limitOf(query.limit), week => ({
+      at: week.startsAt,
+      id: String(week.weekNumber),
+    }));
     if (page.items.length === 0) return { items: [], nextCursor: null, people: [] };
 
     // The part of the page the caller may see, which is where every read below
@@ -138,7 +133,12 @@ export class GrowWeeksService {
       this.readingEntriesIn(grow.id, { startsAt: range.startsAt, endsAt: span.endsAt }),
       this.climate.controllersIn(spaceIds),
       this.feedsPerWeek(grow.id),
-      this.weekFilms(cameras, span, range),
+      weekFilmsOf(
+        this.media,
+        cameras.map(camera => camera.id),
+        span,
+        range,
+      ),
     ]);
 
     const world: PageWorld = {
@@ -220,10 +220,8 @@ export class GrowWeeksService {
   }
 
   /**
-   * The seven thumbnails: for each day of the week, the still taken in the
-   * light nearest the middle of it. One read per week rather than one per day, and only the
-   * pictures around each of the seven hours rather than every picture the
-   * cameras took; a day with none near its middle is then looked through whole.
+   * The seven thumbnails: for each day of the week, the camera's picture of it
+   * (`stillsOfDays`), taken nearest the middle of the day.
    *
    * The seven days are always answered - the card says which days it is of,
    * whatever happened on them - but a day the window does not cover gets no
@@ -243,52 +241,15 @@ export class GrowWeeksService {
         seen: startsAt < seen.endsAt && endsAt > seen.startsAt,
       };
     });
-    const pictured = days.filter(day => day.seen);
-
-    const stills =
-      cameraIds.length === 0 || pictured.length === 0
-        ? []
-        : await this.media
-            .find(
-              {
-                $and: [
-                  { cameraId: { $in: cameraIds }, kind: 'still', lit: { $ne: false } },
-                  { capturedAt: { $gte: seen.startsAt, $lte: seen.endsAt } },
-                  {
-                    $or: pictured.map(day => ({
-                      capturedAt: {
-                        $gte: new Date(day.nearest.getTime() - STILL_WINDOW_MS),
-                        $lte: new Date(day.nearest.getTime() + STILL_WINDOW_MS),
-                      },
-                    })),
-                  },
-                ],
-              },
-              { id: 1, cameraId: 1, capturedAt: 1 },
-            )
-            .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'>[]>();
-
-    // A day whose midday the cameras missed can still be one they covered for
-    // hours - a lamp on a night schedule, a camera plugged in in the evening -
-    // and drawn empty it looked exactly like a day with no picture at all. So
-    // such a day takes the still nearest its midday from anywhere inside it:
-    // two indexed reads per day that needs them, the one before and the one
-    // after, both bounded by the day and by the window.
-    // The same goes for a day whose lamp was off at midday: its picture is the
-    // one taken in the light nearest midday, and only a day the camera never saw
-    // lit is shown by a dark one.
-    const missing = pictured.filter(day => nearestTo(stills, day.nearest) === null);
-    const fallbacks = new Map(
-      await Promise.all(
-        missing.map(
-          async day =>
-            [day.dayNumber, (await this.nearestInDay(cameraIds, day, seen, true)) ?? (await this.nearestInDay(cameraIds, day, seen, false))] as const,
-        ),
-      ),
+    const stills = await stillsOfDays(
+      this.media,
+      cameraIds,
+      days.filter(day => day.seen).map(day => ({ key: day.dayNumber, startsAt: day.startsAt, endsAt: day.endsAt, nearest: day.nearest })),
+      seen,
     );
 
     return days.map(day => {
-      const closest = day.seen ? (nearestTo(stills, day.nearest) ?? fallbacks.get(day.dayNumber) ?? null) : null;
+      const closest = stills.get(day.dayNumber) ?? null;
 
       return {
         dayNumber: day.dayNumber,
@@ -301,39 +262,6 @@ export class GrowWeeksService {
         capturedAt: closest?.capturedAt.toISOString() ?? null,
       };
     });
-  }
-
-  /** The still nearest the day's picture hour from anywhere inside the day and the window, or nothing where the day holds none. */
-  private async nearestInDay(
-    cameraIds: string[],
-    day: { startsAt: Date; endsAt: Date; nearest: Date },
-    seen: Span,
-    lit: boolean,
-  ): Promise<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'> | null> {
-    if (cameraIds.length === 0) return null;
-
-    const from = day.startsAt > seen.startsAt ? day.startsAt : seen.startsAt;
-    const until = day.endsAt < seen.endsAt ? day.endsAt : seen.endsAt;
-    // The picture hour can lie past the window's end - a window that closes at
-    // midnight on a day that runs to the next afternoon - so the look back from
-    // it stops where the window does, like the look forward.
-    const upTo = day.nearest < until ? day.nearest : until;
-    const projection = { id: 1, cameraId: 1, capturedAt: 1 };
-    const light = lit ? { lit: { $ne: false } } : {};
-    const [before, after] = await Promise.all([
-      this.media
-        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', ...light, capturedAt: { $gte: from, $lte: upTo } }, projection)
-        .sort({ capturedAt: -1 })
-        .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'>>(),
-      this.media
-        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', ...light, capturedAt: { $gt: day.nearest, $lt: until } }, projection)
-        .sort({ capturedAt: 1 })
-        .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'>>(),
-    ]);
-    if (!before || !after) return before ?? after ?? null;
-
-    const distance = (row: Pick<MediaDocument, 'capturedAt'>) => Math.abs(row.capturedAt.getTime() - day.nearest.getTime());
-    return distance(before) <= distance(after) ? before : after;
   }
 
   private diaryIn(growId: string, span: Span): Promise<EntryDocument[]> {
@@ -372,30 +300,6 @@ export class GrowWeeksService {
   }
 
   /**
-   * The week films the timelapse builder has already made, so a card points at
-   * one rather than asking for it to be built. Only a film that ends inside the
-   * reader's window is one: the media route refuses the rest, and a card naming
-   * it would be pointing at days nobody sent.
-   */
-  private weekFilms(cameras: CameraDocument[], span: Span, range: AccessRange): Promise<Pick<MediaDocument, 'id' | 'capturedAt'>[]> {
-    if (cameras.length === 0) return Promise.resolve([]);
-    const held = picturesWithinRange(range);
-
-    return this.media
-      .find(
-        {
-          cameraId: { $in: cameras.map(camera => camera.id) },
-          kind: 'timelapse',
-          window: 'week',
-          capturedAt: { $gte: span.startsAt, $lt: span.endsAt },
-          ...(held.length > 0 ? { $and: held } : {}),
-        },
-        { id: 1, capturedAt: 1 },
-      )
-      .lean<Pick<MediaDocument, 'id' | 'capturedAt'>[]>();
-  }
-
-  /**
    * How many feeds a week is supposed to have. No screen has a control for it,
    * so it is read from the grow's own rhythm: the feed reminder, else the water
    * reminder, else three.
@@ -408,15 +312,7 @@ export class GrowWeeksService {
   }
 }
 
-const nearestTo = <T extends { capturedAt: Date }>(rows: readonly T[], instant: Date): T | null =>
-  rows.reduce<T | null>((best, row) => {
-    const distance = Math.abs(row.capturedAt.getTime() - instant.getTime());
-    if (distance > STILL_WINDOW_MS) return best;
-
-    return best === null || distance < Math.abs(best.capturedAt.getTime() - instant.getTime()) ? row : best;
-  }, null);
-
-const filmOf = (films: readonly Pick<MediaDocument, 'id' | 'capturedAt'>[], week: GrowWeekSpan): string | null =>
+const filmOf = (films: readonly WeekFilm[], week: GrowWeekSpan): string | null =>
   films.find(film => film.capturedAt >= week.startsAt && film.capturedAt < week.endsAt)?.id ?? null;
 
 /**
@@ -446,19 +342,6 @@ const spineOf = (grow: GrowDocument): PhaseDocument[] => {
  */
 const begunOn = (phases: PhaseDocument[], from: Date, until: Date): PhaseDocument | null =>
   latestPhase(phases.filter(phase => phase.startedAt >= from && phase.startedAt < until));
-
-/**
- * The phase the grow as a whole was in when the week ended, which is what the
- * week is named after. A phase scoped to some of the plants is a split, and a
- * split is told in the timeline rather than by renaming the week everybody else
- * is still in.
- */
-const headlinePhaseAt = (grow: GrowDocument, at: Date): PhaseDocument | null => {
-  const started = grow.phases.filter(phase => phase.startedAt <= at);
-  const spine = started.filter(phase => phase.plantIds === null);
-
-  return latestPhase(spine.length > 0 ? spine : started);
-};
 
 /**
  * What the scheme says to feed this week, with the grow's own strength already
@@ -509,17 +392,3 @@ const readingsOf = (grow: GrowDocument, entries: readonly EntryDocument[], seen:
 const round = (value: number): number => Math.round(value * 100) / 100;
 
 const limitOf = (limit?: number): number => (!limit || limit < 1 ? DEFAULT_WEEKS : Math.min(Math.trunc(limit), MAX_WEEKS));
-
-/**
- * The weeks after the one the cursor names. A week is worked out rather than
- * queried, so the cursor is found in the list instead of filtering a collection
- * by it.
- */
-const after = (weeks: GrowWeekSpan[], cursor?: string): GrowWeekSpan[] => {
-  if (!cursor) return weeks;
-
-  const { id } = decodeCursor(cursor);
-  const index = weeks.findIndex(week => String(week.weekNumber) === id);
-
-  return index < 0 ? [] : weeks.slice(index + 1);
-};

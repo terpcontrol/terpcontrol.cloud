@@ -1,7 +1,7 @@
 ---
 summary: The /v1 data model, the API conventions and routes, the access rule, the frozen device protocol and the migration from the old database - read before changing a collection, a route, a migration step or anything a device touches
 updated: 2026-11-12
-source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08
+source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12)
 paths:
   - server/src/database/**
   - server/src/migrations/**
@@ -17,7 +17,7 @@ paths:
 - **Amended** on 2026-09-19 (Chris's sign-off of the backend as built), 2026-09-22 and 09-23 (access and sharing,
   measurement bands, the migration's names and corrections), 2026-10-01 to 10-04 (the work mode, the target
   record, light hours, the plan routes), 2026-10-07 (a device's settings in its `fetch`), 2026-10-08 (a still's
-  colour) and 2026-10-14 (deleting an alert). Each change is marked "Amended <date>" where it stands and says what it replaced. Built and merged with
+  colour), 2026-10-14 (deleting an alert) and 2026-11-12 (a grow's diary by the day). Each change is marked "Amended <date>" where it stands and says what it replaced. Built and merged with
   #104 on 2026-10-04; every question left open at acceptance is answered, and two have been opened since (see the
   end). Decided on their own since: [ADR 0005](0005-device-times-on-the-wall-clock.md) (device times on the wall
   clock), [ADR 0006](0006-day-and-night-by-the-device-clock.md) (day and night by the device's clock),
@@ -350,6 +350,9 @@ rule that names an output and a threshold nothing would read cannot be written d
   writes `text`. `values` has one schema per kind; readings of any kind share one shape, `values.readings:
   [{ key, value, plantId }]`, keyed by the grow's measurement definitions. The lines a device and the plan engine
   write for themselves (`system`, `plan`) are kept like any other but left out of week cards and reports.
+  *Amended 2026-11-12:* a grow's diary (`GET /grows/{id}/diary`) draws them in: what the devices and the plan wrote
+  in the places the grow stood, while it stood there, for the people who keep the place - a curated list of keys,
+  joined at read time by place and placement, so no line gained a `growId` and nothing stored changed.
 - **A feed stores what was poured** (2026-09-18), absolute and resolved, so the line reads the same after the
   scheme is edited: litres without doses resolve against the scheme row of the week the feed happened in, doses
   given are stored as given, `schemeWeek` records the row, doses are rounded to two decimals. The arithmetic
@@ -440,7 +443,7 @@ removed together with the Angular app.
 | Sockets | `GET /devices/{id}/sockets`, `PUT/DELETE /devices/{id}/sockets/{slot}` (pair by address, role, timer; remove), `PUT/DELETE /devices/{id}/sockets/{slot}/override`, `POST /devices/{id}/sockets/{slot}/tests` |
 | Plan | `GET/PUT/DELETE /devices/{id}/plan` (`DELETE` stops; `?steps=remove` takes the plan away), `POST /devices/{id}/plan/transitions` (confirm, skip, extend, pause, resume, goto), `GET/POST /plan-templates`, `GET/PATCH/DELETE /plan-templates/{id}` |
 | Alarms | `GET/POST /devices/{id}/alarm-rules`, `PATCH/DELETE /alarm-rules/{id}`, `PUT/DELETE /alarm-rules/{id}/silence`, `GET /alerts`, `GET/DELETE /alerts/{id}` |
-| Grows | `GET/POST /grows`, `GET/PATCH/DELETE /grows/{id}`, `GET/POST /grows/{id}/plants`, `PATCH/DELETE /plants/{id}`, `POST /grows/{id}/phases`, `PATCH/DELETE /grows/{id}/phases/{phaseId}`, `POST /grows/{id}/placements` (a move), `PATCH/DELETE /grows/{id}/placements/{placementId}`, `POST /grows/{id}/harvests`, `POST /grows/{id}/splits`, `GET /grows/{id}/weeks`, `GET /grows/{id}/report`, `GET /grows/{id}/series`, `GET /grows/{id}/export` |
+| Grows | `GET/POST /grows`, `GET/PATCH/DELETE /grows/{id}`, `GET/POST /grows/{id}/plants`, `PATCH/DELETE /plants/{id}`, `POST /grows/{id}/phases`, `PATCH/DELETE /grows/{id}/phases/{phaseId}`, `POST /grows/{id}/placements` (a move), `PATCH/DELETE /grows/{id}/placements/{placementId}`, `POST /grows/{id}/harvests`, `POST /grows/{id}/splits`, `GET /grows/{id}/diary`, `GET /grows/{id}/weeks`, `GET /grows/{id}/report`, `GET /grows/{id}/series`, `GET /grows/{id}/export` |
 | Diary | `GET/POST /entries`, `GET/PATCH/DELETE /entries/{id}`, `GET/POST /reminders`, `PATCH/DELETE /reminders/{id}`, `GET /tasks`, `POST /tasks/{id}/completions` |
 | Cameras | `GET/POST /cameras`, `GET/PATCH/DELETE /cameras/{id}`, `POST /cameras/{id}/test-captures` (answered at once), `GET /cameras/{id}/test-captures/{captureId}`, `GET /cameras/{id}/frames`, `GET/POST /cameras/{id}/timelapses` |
 | Media | `POST /media` (a photo), `GET /media/{id}`, `GET /media/{id}/content`, `DELETE /media/{id}` |
@@ -450,6 +453,17 @@ removed together with the Angular app.
 | Admin | `GET/POST /admin/users`, `GET/PATCH/DELETE /admin/users/{id}`, `GET /admin/fleet`, `GET /admin/stats`, `GET /admin/logs` (not built), `GET/POST /admin/devices`, `POST /admin/devices/provisioned`, `GET/POST /admin/device-classes`, `GET/PATCH /admin/device-classes/{id}`, `GET/POST /admin/firmwares`, `PATCH/DELETE /admin/firmwares/{id}`, `PUT /admin/firmwares/{id}/binaries/{name}`, `PUT /admin/cameras/{id}/entitlement` |
 
 `GET /healthz` and `GET /readyz` replace `/` and `/readycheck`; the compose health check moves with them.
+
+*Amended 2026-11-12:* `GET /grows/{id}/diary` is the read the grow page's diary and pictures are made of
+(`GrowDiaryPage`: weeks of `GrowDiaryDay`, with everyone their lines name). It is additive - the week cards stay for
+the public page and the share link - and a read model, nothing of it stored: a day is a date on the owner's
+calendar with the camera's picture of it, the means of its climate, the share of it inside the targets where the
+target record says what was aimed at, what the devices did (`GrowDayEvent`: the lamp, stretches outside the band)
+and its lines. It reaches whatever `view` on the grow reaches, clamped to the grant's window; a reader from outside
+is answered no machines' lines, and no pictures unless the grant carries the cameras. What it costs and how a day
+is judged: [server-engines.md](../knowledge/server-engines.md#read-models). The stills a diary line or a grow's
+cover names are spared by thinning and the sweeps ([terp-cam.md](../knowledge/terp-cam.md)), again without a new
+field.
 
 *Amended 2026-09-18 to 10-03:* a home card carries its own 24-hour trend, from one time-series query across all
 devices, because a sparkline fetched per card made a club's home one request per card (09-18), and a grow started

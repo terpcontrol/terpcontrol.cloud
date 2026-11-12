@@ -2,12 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { PhaseTargets } from '@fg2/shared-types/v1';
+import { STEERED } from '@fg2/shared-types/v1-schemas';
+import { Span } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { DataService } from '@modules/data/data.service';
 import { targetsOf } from '../phase/phase-targets';
-import { cyclesOf, recordOf } from '../phase/target-record';
+import { climateOf, cyclesOf, recordOf } from '../phase/target-record';
+import { DayDevice } from './day-climate';
 import { ClimateSummary, CLIMATE_METRICS, summariseClimate } from './week-climate';
 
 /**
@@ -37,10 +40,26 @@ const LIGHT_TYPE = 'light';
 /** Narrow enough that a week is a readable curve, wide enough that a week is one query; a longer stretch widens it. */
 const CLIMATE_STEP_SECONDS = 900;
 
-/** A device that steers a climate, and where it stands. */
+/**
+ * How finely a day is read: fine enough that an excursion of ten minutes is
+ * two windows, and the grain the lamp's switchings are read at anyway. A week
+ * of it is two thousand windows a field.
+ */
+const DAY_STEP_SECONDS = 300;
+
+/**
+ * How far before a stretch its read begins. The store answers the state a
+ * read opens in and every switching after it, so a lamp that comes on at the
+ * very instant a stretch begins would otherwise be the state found, not a
+ * switching.
+ */
+const LEAD_MS = 2 * DAY_STEP_SECONDS * 1000;
+
+/** A device that steers a climate, where it stands, and which sensors it says it has. */
 interface Controller {
   deviceId: string;
   spaceId: string | null;
+  hardware: Record<string, string>;
 }
 
 @Injectable()
@@ -68,11 +87,51 @@ export class GrowClimateService {
     const named = spaceIds.filter((id): id is string => id !== null);
     if (named.length === 0) return [];
 
-    const rows = await this.devices.find({ spaceId: { $in: named } }, { id: 1, type: 1, spaceId: 1, configuration: 1 }).lean<StoredDevice[]>();
+    const rows = await this.devices
+      .find({ spaceId: { $in: named } }, { id: 1, type: 1, spaceId: 1, configuration: 1, 'state.hardware': 1 })
+      .lean<StoredDevice[]>();
 
     return rows
       .filter(device => targetsOf(device.configuration) !== null || device.type === LIGHT_TYPE)
-      .map(device => ({ deviceId: device.id, spaceId: device.spaceId }));
+      .map(device => ({ deviceId: device.id, spaceId: device.spaceId, hardware: device.state?.hardware ?? {} }));
+  }
+
+  /**
+   * What each controller recorded over each of these stretches, for the days
+   * inside them to be read from (`dayClimateOf`): the curve at a day's grain
+   * with the lamp's switchings, and the device's target record over all of
+   * them. One history read per stretch per controller, side by side, and the
+   * record once per controller.
+   */
+  public async recorded(controllers: readonly Controller[], stretches: readonly Span[]): Promise<DayDevice[][]> {
+    if (controllers.length === 0 || stretches.length === 0) return stretches.map(() => []);
+
+    const whole = {
+      startsAt: new Date(Math.min(...stretches.map(stretch => stretch.startsAt.getTime()))),
+      endsAt: new Date(Math.max(...stretches.map(stretch => stretch.endsAt.getTime()))),
+    };
+    const [records, histories] = await Promise.all([
+      Promise.all(controllers.map(controller => recordOf(this.targetRecord, controller.deviceId, whole))),
+      Promise.all(
+        stretches.map(stretch =>
+          Promise.all(
+            controllers.map(controller =>
+              this.data.history(controller.deviceId, {
+                startsAt: new Date(stretch.startsAt.getTime() - LEAD_MS),
+                endsAt: stretch.endsAt,
+                metrics: STEERED,
+                outputs: ['light'],
+                stepSeconds: DAY_STEP_SECONDS,
+              }),
+            ),
+          ),
+        ),
+      ),
+    ]);
+
+    return histories.map(perController =>
+      perController.map((history, index) => ({ history, record: records[index].map(climateOf), hardware: controllers[index].hardware })),
+    );
   }
 
   /**

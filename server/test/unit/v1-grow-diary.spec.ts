@@ -1,0 +1,535 @@
+import type { DeviceSeries, GrowDiaryDay, GrowDiaryPage, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
+import { growDayAt } from '@fg2/shared-types/v1-schemas';
+import { AccessService } from '@common/v1/access.service';
+import { AccessContext, Grant } from '@common/v1/access.types';
+import { DataService, DeviceHistory } from '@modules/data/data.service';
+import { diaryWeeksOf } from '@modules/v1/diary/diary-calendar';
+import { GrowClimateService } from '@modules/v1/diary/grow-climate.service';
+import { GrowDiaryService } from '@modules/v1/diary/grow-diary.service';
+import { EntryDocument } from '@database/schemas/v1/entries.schema';
+import { session, visitor } from './support/callers';
+import { accessOn, growsOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
+
+/**
+ * A grow's diary, day by day.
+ *
+ * What is asserted is what nobody can see wrong in the data: which date a
+ * line is filed under, which day of the grow a date is, when a day's share
+ * inside its targets is a number and when it is nothing, and what a reader
+ * from outside is not handed.
+ *
+ * The world is a Berlin grower's tent in November - an hour ahead of UTC -
+ * with a controller, a camera and a grow begun on a Monday at three in the
+ * afternoon. "Now" is ten on the Thursday of the week after: the eleventh
+ * date of the grow, and by the grow's own twenty-four-hour count still its
+ * tenth day.
+ */
+
+const OWNER = 'user-owner';
+const TENT = 'space-tent';
+const SPARE_TENT = 'space-spare';
+const CONTROLLER = 'device-controller';
+const SPARE_CONTROLLER = 'device-spare';
+const CAMERA = 'camera-1';
+const GROW = 'grow-autumn';
+
+const ORIGIN = new Date('2026-11-02T14:00:00.000Z');
+const NOW = new Date('2026-11-12T09:00:00.000Z');
+
+const STEP_SECONDS = 300;
+const HOUR_MS = 3600 * 1000;
+
+/** An instant on the Berlin clock of a November date. */
+const berlin = (day: number, clock: string): Date => new Date(`2026-11-${String(day).padStart(2, '0')}T${clock}:00.000+01:00`);
+
+const db = useV1TestDatabase();
+let access: AccessService;
+let diary: GrowDiaryService;
+
+/** What the store holds: readings by instant, null for a window nothing was heard in. */
+let measured: (at: Date) => { temperature: number | null; humidity: number | null };
+let readWindows: { deviceId: string; startsAt: Date; endsAt: Date }[];
+
+/** The hours of the Berlin clock the lamp is lit between: six in the morning to six in the evening unless a test says otherwise. */
+let lamp: { from: number; until: number };
+
+const lit = (at: number): boolean => {
+  const hour = new Date(at + HOUR_MS).getUTCHours();
+  return hour >= lamp.from && hour < lamp.until;
+};
+
+interface FakeRequest {
+  startsAt: Date;
+  endsAt: Date;
+  metrics: readonly Metric[];
+  outputs?: readonly OutputMetric[];
+}
+
+/** The store's windows over a read: aligned to the step, each stamped at its end. */
+const windowsIn = (request: FakeRequest): number[] => {
+  const step = STEP_SECONDS * 1000;
+  const first = Math.floor(request.startsAt.getTime() / step) * step;
+  return Array.from({ length: Math.ceil((request.endsAt.getTime() - first) / step) }, (_, index) => first + index * step);
+};
+
+const fakeData = {
+  history: async (deviceId: string, request: FakeRequest): Promise<DeviceHistory> => {
+    readWindows.push({ deviceId, startsAt: request.startsAt, endsAt: request.endsAt });
+    const windows = windowsIn(request);
+    const points = (value: (startsAt: number) => number | null): SeriesPoint[] =>
+      windows.map(startsAt => ({ measuredAt: new Date(startsAt + STEP_SECONDS * 1000).toISOString(), value: value(startsAt) }));
+    const heard = (startsAt: number) => measured(new Date(startsAt));
+
+    return {
+      series: {
+        deviceId,
+        startsAt: request.startsAt.toISOString(),
+        endsAt: request.endsAt.toISOString(),
+        stepSeconds: STEP_SECONDS,
+        metrics: request.metrics.map(metric => ({
+          metric,
+          points: points(startsAt =>
+            metric === 'temperature' ? heard(startsAt).temperature : metric === 'humidity' ? heard(startsAt).humidity : null,
+          ),
+        })),
+        outputs: (request.outputs ?? []).map(output => ({ output, points: points(startsAt => (lit(startsAt) ? 100 : 0)) })),
+      } as DeviceSeries,
+      // The state the read opens in, then every switching after it.
+      outputs: (request.outputs ?? []).map(output => ({
+        output,
+        switchings: windows.flatMap((startsAt, index) =>
+          index === 0 || lit(startsAt) !== lit(windows[index - 1]) ? [{ at: new Date(startsAt).toISOString(), on: lit(startsAt) }] : [],
+        ),
+      })),
+      lastSampleAt: request.endsAt.toISOString(),
+    };
+  },
+} as unknown as DataService;
+
+const entry = (over: Partial<EntryDocument>): EntryDocument =>
+  ({
+    id: `entry-${Math.random()}`,
+    createdAt: NOW,
+    kind: 'note',
+    occurredAt: NOW,
+    source: 'human',
+    authorId: OWNER,
+    growId: null,
+    spaceId: null,
+    deviceId: null,
+    plantIds: [],
+    cameraId: null,
+    taskId: null,
+    alertId: null,
+    severity: null,
+    text: null,
+    message: null,
+    values: { kind: 'note' },
+    mediaIds: [],
+    undoUntil: null,
+    ...over,
+  }) as EntryDocument;
+
+const machine = (id: string, key: string, occurredAt: Date, over: Partial<EntryDocument> = {}): EntryDocument =>
+  entry({
+    id,
+    kind: 'system',
+    source: 'device',
+    authorId: null,
+    spaceId: TENT,
+    deviceId: CONTROLLER,
+    occurredAt,
+    message: { key, params: [] },
+    values: { kind: 'system' },
+    ...over,
+  });
+
+const TARGETS = { day: { temperature: 25, humidity: 55 }, night: { temperature: 20, humidity: 56 }, co2: null };
+
+const still = (id: string, capturedAt: Date, lamp: boolean | null = true) => ({
+  id,
+  kind: 'still',
+  mime: 'image/jpeg',
+  bytes: 1,
+  cameraId: CAMERA,
+  capturedAt,
+  lit: lamp,
+});
+
+const world = async (): Promise<void> => {
+  await db.users.create({ id: OWNER, email: 'owner@test.invalid', handle: 'owner', passwordHash: 'x', preferences: { timezone: 'Europe/Berlin' } });
+  await db.spaces.create([
+    { id: TENT, ownerId: OWNER, kind: 'tent', name: 'Tent', roomId: null },
+    { id: SPARE_TENT, ownerId: OWNER, kind: 'tent', name: 'Spare', roomId: null },
+  ]);
+  await db.devices.create([
+    { id: CONTROLLER, type: 'controller', ownerId: OWNER, spaceId: TENT, configuration: { day: { temperature: 25 }, night: { temperature: 20 } } },
+    {
+      id: SPARE_CONTROLLER,
+      type: 'controller',
+      ownerId: OWNER,
+      spaceId: SPARE_TENT,
+      configuration: { day: { temperature: 25 }, night: { temperature: 20 } },
+    },
+  ]);
+  await db.cameras.create({ id: CAMERA, ownerId: OWNER, kind: 'terpcam_controller', deviceId: CONTROLLER, spaceId: TENT, name: 'Cam' });
+  // What the controller aimed at is on record from noon of the fourth date on.
+  await db.targetChanges.create({ id: 'change-1', deviceId: CONTROLLER, at: berlin(5, '12:00'), targets: TARGETS, cycle: null });
+
+  await db.grows.create({
+    id: GROW,
+    ownerId: OWNER,
+    name: 'Autumn run',
+    type: 'photoperiod',
+    phases: [
+      {
+        id: 'phase-veg',
+        stage: 'vegetative',
+        preset: null,
+        startedAt: ORIGIN,
+        source: 'human',
+        plantIds: null,
+        deviceId: CONTROLLER,
+        targets: TARGETS,
+        setBy: OWNER,
+      },
+      {
+        id: 'phase-flower',
+        stage: 'flowering',
+        preset: null,
+        startedAt: berlin(10, '09:00'),
+        source: 'human',
+        plantIds: null,
+        deviceId: CONTROLLER,
+        targets: TARGETS,
+        setBy: OWNER,
+      },
+    ],
+    placements: [{ id: 'placement-1', spaceId: TENT, startedAt: ORIGIN, endedAt: null, plantIds: null }],
+    slug: 'autumn-run',
+    startedAt: ORIGIN,
+    endedAt: null,
+  });
+
+  await db.entries.create([
+    entry({
+      id: 'watered-this-morning',
+      growId: GROW,
+      kind: 'water',
+      occurredAt: berlin(12, '08:12'),
+      values: { kind: 'water', litres: 1.5, readings: [] },
+    }),
+    entry({ id: 'note-last-night', growId: GROW, occurredAt: berlin(11, '21:40'), text: 'Smells good' }),
+    machine('booted', 'message-device-booted', berlin(11, '06:00')),
+    // The device's own housekeeping is the place's record, not the grow's.
+    machine('firmware', 'message-device-firmware-update', berlin(11, '07:00')),
+    // A line of the same tent from before the grow stood in it.
+    machine('booted-before', 'message-device-booted', berlin(2, '11:00')),
+    // And one of a tent the grow never stood in.
+    machine('booted-elsewhere', 'message-device-booted', berlin(11, '08:00'), { spaceId: SPARE_TENT, deviceId: SPARE_CONTROLLER }),
+    entry({
+      id: 'plan-step',
+      kind: 'plan',
+      source: 'plan',
+      authorId: null,
+      growId: GROW,
+      spaceId: TENT,
+      occurredAt: berlin(10, '09:00'),
+      message: { key: 'message-recipe-advanced', params: ['2'] },
+      values: { kind: 'plan', planId: 'plan-1', stepIndex: 1, transition: null },
+    }),
+    // The plan's line about another grow sharing the tent is that grow's.
+    entry({
+      id: 'plan-step-of-another',
+      kind: 'plan',
+      source: 'plan',
+      authorId: null,
+      growId: 'grow-other',
+      spaceId: TENT,
+      occurredAt: berlin(10, '09:30'),
+      message: { key: 'message-recipe-advanced', params: ['2'] },
+      values: { kind: 'plan', planId: 'plan-2', stepIndex: 1, transition: null },
+    }),
+  ]);
+
+  await db.media.create([
+    still('still-11-morning', berlin(11, '09:00')),
+    still('still-11-midday', berlin(11, '13:10')),
+    still('still-12-early', berlin(12, '08:00')),
+    still('still-12-newest-lit', berlin(12, '09:30')),
+    still('still-12-dark', berlin(12, '09:50'), false),
+    {
+      id: 'film-week',
+      kind: 'timelapse',
+      mime: 'video/mp4',
+      bytes: 1,
+      cameraId: CAMERA,
+      window: 'week',
+      capturedAt: berlin(9, '00:00'),
+      endsAt: berlin(16, '00:00'),
+      lengthSeconds: 20,
+    },
+  ]);
+};
+
+beforeEach(async () => {
+  await db.reset();
+  readWindows = [];
+  lamp = { from: 6, until: 18 };
+  measured = at => ({ temperature: lit(at.getTime()) ? 25 : 20, humidity: 55 });
+  access = accessOn(db);
+  diary = new GrowDiaryService(
+    db.entries,
+    db.cameras,
+    db.media,
+    db.users,
+    growsOn(db, access),
+    new GrowClimateService(db.devices, db.targetChanges, fakeData),
+  );
+  await world();
+});
+
+const grantFor = async (ctx: AccessContext): Promise<Grant> => {
+  const grant = await access.access(ctx, { type: 'grow', id: GROW }, 'view');
+  if (!grant) throw new Error('refused');
+
+  return grant;
+};
+
+const read = async (ctx: AccessContext = session(OWNER), query: { limit?: number; cursor?: string } = {}): Promise<GrowDiaryPage> =>
+  diary.page(GROW, await grantFor(ctx), query, NOW);
+
+const dayOf = (page: GrowDiaryPage, dayNumber: number): GrowDiaryDay => {
+  const day = page.items.flatMap(week => week.days).find(one => one.dayNumber === dayNumber);
+  if (!day) throw new Error(`no day ${dayNumber}`);
+
+  return day;
+};
+
+describe('the days of a diary', () => {
+  it('are the dates of the owner´s calendar, numbered from the date the grow began on, newest first', async () => {
+    const page = await read();
+
+    expect(page.items.map(week => [week.weekNumber, week.dayFrom, week.dayTo])).toEqual([
+      [2, 8, 14],
+      [1, 1, 7],
+    ]);
+    expect(page.items[0].days.map(day => [day.dayNumber, day.date])).toEqual([
+      [11, '2026-11-12'],
+      [10, '2026-11-11'],
+      [9, '2026-11-10'],
+      [8, '2026-11-09'],
+    ]);
+    expect(page.items[1].days.map(day => day.dayNumber)).toEqual([7, 6, 5, 4, 3, 2, 1]);
+    // Midnight to midnight in Berlin; the day still running ends now.
+    expect(dayOf(page, 10)).toMatchObject({ startsAt: '2026-11-10T23:00:00.000Z', endsAt: '2026-11-11T23:00:00.000Z' });
+    expect(dayOf(page, 11)).toMatchObject({ startsAt: '2026-11-11T23:00:00.000Z', endsAt: NOW.toISOString() });
+  });
+
+  it('file this morning´s line under today, whatever hour the grow´s own day turns over at', async () => {
+    // The grow began at three in the afternoon, so by its own count it is still on yesterday´s day.
+    expect(growDayAt(ORIGIN, NOW)).toBe(10);
+
+    const page = await read();
+
+    expect(dayOf(page, 11).entries.map(line => line.id)).toEqual(['watered-this-morning']);
+    expect(dayOf(page, 10).entries.map(line => line.id)).toEqual(['note-last-night', 'booted']);
+  });
+
+  it('name a week after the stage it lay in, counted in the diary´s own weeks', async () => {
+    const page = await read();
+
+    expect(page.items.map(week => [week.stage, week.stageWeek])).toEqual([
+      ['flowering', 1],
+      ['vegetative', 1],
+    ]);
+  });
+
+  it('come a few weeks at a time', async () => {
+    const first = await read(session(OWNER), { limit: 1 });
+    expect(first.items.map(week => week.weekNumber)).toEqual([2]);
+    expect(first.nextCursor).not.toBeNull();
+
+    const second = await read(session(OWNER), { limit: 1, cursor: first.nextCursor! });
+    expect(second.items.map(week => week.weekNumber)).toEqual([1]);
+    expect(second.nextCursor).toBeNull();
+    // One read of the store per week and controller, and none of a tent the grow never stood in.
+    expect(readWindows.map(window => window.deviceId)).toEqual([CONTROLLER, CONTROLLER]);
+  });
+});
+
+describe('the calendar a diary is told in', () => {
+  it('counts the date the clocks go back on once, twenty-five hours long', () => {
+    // Berlin leaves summer time on 25 October 2026.
+    const weeks = diaryWeeksOf(new Date('2026-10-20T13:00:00.000Z'), new Date('2026-10-27T09:00:00.000Z'), 'Europe/Berlin');
+    const days = weeks.flatMap(week => week.days);
+
+    expect(days.map(day => day.date)).toEqual([
+      '2026-10-20',
+      '2026-10-21',
+      '2026-10-22',
+      '2026-10-23',
+      '2026-10-24',
+      '2026-10-25',
+      '2026-10-26',
+      '2026-10-27',
+    ]);
+    expect(days.map(day => day.dayNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(days[5]).toMatchObject({ startsAt: new Date('2026-10-24T22:00:00.000Z'), endsAt: new Date('2026-10-25T23:00:00.000Z') });
+    expect(weeks.map(week => [week.weekNumber, week.days.length])).toEqual([
+      [1, 7],
+      [2, 1],
+    ]);
+  });
+
+  it('is the calendar of UTC for an owner who never chose a zone', () => {
+    const [week] = diaryWeeksOf(new Date('2026-11-02T23:30:00.000Z'), new Date('2026-11-03T00:30:00.000Z'), null);
+
+    expect(week.days.map(day => day.date)).toEqual(['2026-11-02', '2026-11-03']);
+  });
+});
+
+describe('what a day says about its climate', () => {
+  it('states the means and the share inside what the device aimed at', async () => {
+    const day = dayOf(await read(), 10);
+
+    expect(day.climate).toEqual({ temperature: 22.5, humidity: 55, inBandFraction: 1 });
+  });
+
+  it('counts a stretch outside the band against the share and names it', async () => {
+    measured = at => ({
+      temperature: lit(at.getTime()) ? 25 : 20,
+      humidity: at >= berlin(10, '20:00') && at < berlin(10, '20:30') ? 70 : 55,
+    });
+
+    const day = dayOf(await read(), 9);
+
+    expect(day.climate?.inBandFraction).toBeCloseTo(282 / 288, 3);
+    expect(day.events.filter(event => event.kind === 'excursion')).toEqual([
+      {
+        kind: 'excursion',
+        at: berlin(10, '20:00').toISOString(),
+        endedAt: berlin(10, '20:30').toISOString(),
+        metric: 'humidity',
+        above: true,
+        extremeValue: 70,
+      },
+    ]);
+  });
+
+  it('says nothing of a day from before the record of what was aimed at', async () => {
+    const page = await read();
+
+    // The record begins at noon of the fourth date: the days before it are stated, not graded.
+    expect(dayOf(page, 3).climate).toEqual({ temperature: 22.5, humidity: 55, inBandFraction: null });
+    // From noon on is half the day, and that half is judged.
+    expect(dayOf(page, 4).climate?.inBandFraction).toBe(1);
+  });
+
+  it('does not grade a day by the one good hour that was heard of it', async () => {
+    measured = at =>
+      at >= berlin(11, '00:00') && at < berlin(12, '00:00') && !(at >= berlin(11, '10:00') && at < berlin(11, '12:00'))
+        ? { temperature: null, humidity: null }
+        : { temperature: lit(at.getTime()) ? 25 : 20, humidity: 55 };
+
+    expect(dayOf(await read(), 10).climate).toEqual({ temperature: 25, humidity: 55, inBandFraction: null });
+  });
+
+  it('is nothing at all where nothing measured', async () => {
+    measured = () => ({ temperature: null, humidity: null });
+
+    expect(dayOf(await read(), 10).climate).toBeNull();
+  });
+});
+
+describe('what the devices did', () => {
+  it('is the lamp coming on and going off', async () => {
+    const page = await read();
+
+    expect(dayOf(page, 10).events).toEqual([
+      { kind: 'light', at: berlin(11, '06:00').toISOString(), on: true },
+      { kind: 'light', at: berlin(11, '18:00').toISOString(), on: false },
+    ]);
+    // Today the lamp has come on and not gone off yet.
+    expect(dayOf(page, 11).events).toEqual([{ kind: 'light', at: berlin(12, '06:00').toISOString(), on: true }]);
+  });
+
+  it('is a lamp coming on at midnight too, on the day a week of the diary begins', async () => {
+    lamp = { from: 0, until: 12 };
+
+    // The eighth date opens the second week, and with it a read of the store of its own.
+    expect(dayOf(await read(), 8).events).toEqual([
+      { kind: 'light', at: berlin(9, '00:00').toISOString(), on: true },
+      { kind: 'light', at: berlin(9, '12:00').toISOString(), on: false },
+    ]);
+  });
+
+  it('is what they wrote where the grow stood while it stood there, and only what happened to the grow', async () => {
+    const page = await read();
+    const machines = page.items.flatMap(week => week.days.flatMap(day => day.entries.filter(line => line.source !== 'human').map(line => line.id)));
+
+    expect(machines).toEqual(['booted', 'plan-step']);
+  });
+});
+
+describe('the pictures of a diary', () => {
+  it('are the still nearest midday, and today the newest one taken in the light', async () => {
+    const page = await read();
+
+    expect(dayOf(page, 10).still).toEqual({ mediaId: 'still-11-midday', cameraId: CAMERA, capturedAt: berlin(11, '13:10').toISOString() });
+    expect(dayOf(page, 11).still?.mediaId).toBe('still-12-newest-lit');
+    expect(dayOf(page, 9).still).toBeNull();
+  });
+
+  it('show a day the camera never saw lit by a dark picture once it is over, and the day still running by none yet', async () => {
+    await db.media.deleteMany({ kind: 'still' });
+    await db.media.create([still('still-10-dark', berlin(10, '13:00'), false), still('still-12-dark', berlin(12, '09:50'), false)]);
+
+    const page = await read();
+
+    expect(dayOf(page, 9).still?.mediaId).toBe('still-10-dark');
+    // Today's lamp may yet come on: a black frame says less than no picture.
+    expect(dayOf(page, 11).still).toBeNull();
+  });
+
+  it('name the week film by the days it covers', async () => {
+    const page = await read();
+
+    expect(page.items[0].film).toEqual({ mediaId: 'film-week', dayFrom: 8, dayTo: 11, lengthSeconds: 20 });
+    expect(page.items[1].film).toBeNull();
+  });
+});
+
+describe('a reader from outside', () => {
+  beforeEach(async () => {
+    await db.shareLinks.create({
+      id: 'share-1',
+      token: 'two-days',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      range: { startsAt: berlin(10, '00:00'), endsAt: berlin(11, '13:00') },
+      includeCameras: false,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+  });
+
+  it('is answered the days of the window, and each only as far as the window reaches', async () => {
+    const page = await read(visitor('two-days'));
+
+    expect(page.items.flatMap(week => week.days.map(day => day.dayNumber))).toEqual([10, 9]);
+    expect(dayOf(page, 10).endsAt).toBe(berlin(11, '13:00').toISOString());
+  });
+
+  it('is told neither what the machines wrote nor that a camera exists', async () => {
+    const page = await read(visitor('two-days'));
+    const days = page.items.flatMap(week => week.days);
+
+    expect(days.flatMap(day => day.entries.map(line => line.id))).toEqual([]);
+    expect(days.map(day => day.still)).toEqual([null, null]);
+    expect(page.items.map(week => week.film)).toEqual([null]);
+    expect(page.people).toEqual([]);
+  });
+});

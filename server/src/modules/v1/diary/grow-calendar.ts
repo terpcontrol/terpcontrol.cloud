@@ -1,5 +1,7 @@
 import { growWeekAt } from '@fg2/shared-types/v1-schemas';
-import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { decodeCursor } from '@common/v1/pages';
+import { GrowDocument, PhaseDocument } from '@database/schemas/v1/grows.schema';
+import { latestPhase } from '../grow/grow-serialiser';
 
 /**
  * What a grow's weeks are, as the grow page draws them.
@@ -67,4 +69,31 @@ export const pictureHourIn = (dayStartsAt: Date): Date => {
   midday.setUTCHours(PICTURE_HOUR_UTC, 0, 0, 0);
 
   return midday >= dayStartsAt ? midday : new Date(midday.getTime() + DAY_MS);
+};
+
+/**
+ * The phase the grow as a whole was in at an instant, which is what a week is
+ * named after. A phase scoped to some of the plants is a split, and a split is
+ * told in the timeline rather than by renaming the week everybody else is
+ * still in - unless every phase begun by then is one.
+ */
+export const headlinePhaseAt = (grow: GrowDocument, at: Date): PhaseDocument | null => {
+  const started = grow.phases.filter(phase => phase.startedAt <= at);
+  const spine = started.filter(phase => phase.plantIds === null);
+
+  return latestPhase(spine.length > 0 ? spine : started);
+};
+
+/**
+ * The weeks after the one the cursor names. A week is worked out rather than
+ * queried, so the cursor is found in the list instead of filtering a collection
+ * by it.
+ */
+export const weeksAfter = <W extends { weekNumber: number }>(weeks: W[], cursor?: string): W[] => {
+  if (!cursor) return weeks;
+
+  const { id } = decodeCursor(cursor);
+  const index = weeks.findIndex(week => String(week.weekNumber) === id);
+
+  return index < 0 ? [] : weeks.slice(index + 1);
 };

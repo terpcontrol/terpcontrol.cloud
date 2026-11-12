@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
-updated: 2026-10-14
-source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+updated: 2026-11-12
+source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12)
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -139,3 +139,21 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
 - A week's light hours are lit time over heard time, refused below a day heard; a report judges each phase against
   the band snapshotted for it, never today's targets; photo totals count the pictures of matched entries, because
   migrated pictures hang on notes.
+- **A grow's diary** (`GET /v1/grows/{id}/diary`, `modules/v1/diary/grow-diary.service.ts`) is computed per read and
+  stored nowhere: a few weeks a page, each day a date on the **owner's** calendar (`diary-calendar.ts`), numbered
+  from the date the grow began on - not the 24-hour count of `growDayAt`, which would file this morning's watering
+  under yesterday for a grow begun in the afternoon. Per day: the lit still nearest midday (`diary-pictures.ts`,
+  shared with the week cards; the day still running takes the newest lit one and no dark one), the means of
+  temperature and humidity, the share inside the targets, the lamp's first on and last off, the stretches outside
+  the band, and the lines - the grow's own, and for the people who keep the place the machines' lines written
+  where the grow stood while it stood there (found by place and kept by placement; only the keys listed in
+  `DEVICE_LINES_OF_A_GROW` and the plan's lines about this grow or none).
+- **A day's share is the 24-hour verdict asked of one date** (`day-climate.ts` calls `verdictOf`) over 5-minute
+  means, judged by the target record alone: a day before the record's first row has no share (the verdict's own
+  fallback, the first row standing for everything before it, is not used here), a day whose record begins inside it
+  is judged from there on, and a share is stated only once an hour and half of the day's span were judged. One
+  history read per week and controller, begun ten minutes early so a lamp that comes on at midnight is a switching
+  and not the state the read opened in. Measured on a development stack on 2026-11-12, medians of 11 runs: the
+  first page (three weeks) 91 ms for a grow of four weeks and 103 ms for one of four months with a reading every
+  minute, a later page 50 to 130 ms, the whole four months page after page 0.7 s. Density is not what it costs:
+  eight days written at a device's own five seconds read in 47 ms.

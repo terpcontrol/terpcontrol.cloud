@@ -1,6 +1,6 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
-updated: 2026-10-22
+updated: 2026-11-12
 source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/database/**
@@ -136,7 +136,7 @@ Pitfalls, each met at least once:
 | Job | When | What goes |
 | --- | --- | --- |
 | Climate retention (`modules/retention/`) | 03:00 server time; first pass 10 min after boot | Days older than the window (cut at UTC midnight) become one mean per field and day in `status_daily`, then their raw points go. Window: the space's `retention.climateDays`, else the owner's, else `RETENTION_CLIMATE_DAYS` (compose default 0: nothing is swept). 500 devices a pass, rotated by `devices.climateSweptAt`, 90 days of backlog each; last pass in `GET /admin/stats` (memory only). |
-| Still thinning (daily), picture sweep (hourly) | per camera, removed ones included | See GridFS. With `PREMIUM_ENFORCED` and `PREMIUM_FREE_RETENTION`, a camera without entitlement keeps stills `PREMIUM_FREE_STILL_DAYS` and films `PREMIUM_FREE_TIMELAPSE_DAYS`; off by default. |
+| Still thinning (daily), picture sweep (hourly) | per camera, removed ones included | See GridFS. Stills a diary line names or a grow shows as its cover are spared ([terp-cam.md](terp-cam.md), Stills). With `PREMIUM_ENFORCED` and `PREMIUM_FREE_RETENTION`, a camera without entitlement keeps stills `PREMIUM_FREE_STILL_DAYS` and films `PREMIUM_FREE_TIMELAPSE_DAYS`; off by default. |
 | Cleanup (`modules/cleanup/`) | daily; first run 5 min after boot | After 7 days' grace: entries whose grow, space and device are all gone; media whose camera, grow and space are all gone and that no entry, grow cover or film, or avatar names (every export, therefore); GridFS files without a media row. Successful `message-cam-capture` lines at any age. |
 | TTL indexes | MongoDB | `sessions`, `passwordResets`, `notificationLog` at `expiresAt`. |
 | Account deletion | in the request; resumed 5 s after boot and hourly | What the account owns. Device rows stay claimable and keep their readings; its lines in other people's records stay, authorless. |

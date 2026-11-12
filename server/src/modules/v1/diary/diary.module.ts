@@ -9,6 +9,7 @@ import { EntriesController } from './entries.controller';
 import { EntriesService } from './entries.service';
 import { EntryWritesService } from './entry-writes.service';
 import { GrowClimateService } from './grow-climate.service';
+import { GrowDiaryService } from './grow-diary.service';
 import { GrowReportService } from './report.service';
 import { GrowWeeksController } from './weeks.controller';
 import { GrowWeeksService } from './weeks.service';
@@ -20,8 +21,8 @@ import { TasksService } from './tasks.service';
 import { VisibleSubjectsService } from './visible-subjects.service';
 
 /**
- * The diary: the timeline read and written, the week cards the grow page is made
- * of, the report that tells a grow as chapters, the rhythms somebody is kept to
+ * The diary: the timeline read and written, the day cards the grow page is made
+ * of, the week cards of a public diary, the report that tells a grow as chapters, the rhythms somebody is kept to
  * and the tasks derived from them.
  *
  * It is a module of its own rather than routes on grows because the read models
@@ -50,6 +51,7 @@ import { VisibleSubjectsService } from './visible-subjects.service';
     TasksService,
     VisibleSubjectsService,
     GrowWeeksService,
+    GrowDiaryService,
     GrowReportService,
     GrowClimateService,
   ],

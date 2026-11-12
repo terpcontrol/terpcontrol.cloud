@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
 updated: 2026-11-12
-source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12)
+source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -73,6 +73,12 @@ hardware, the development devices and copies of production data are in
 - **A type check that looks inexplicably wrong**: look at `server/node_modules/@fg2/shared-types` and its webapp twin,
   both links to `../../../shared-types`. An agent's scratch copy once repointed one mid-run;
   `ln -sfn ../../../shared-types shared-types` inside `node_modules/@fg2/` puts it back.
+- **The server's `tsc` runs out of memory** (12 GB and counting) when `server/node_modules/zod` and
+  `shared-types/node_modules/zod` are different releases: the contract's declarations name zod's types, and two
+  copies are compared structurally without end. `npm ci` in both puts them in step; an old worktree whose
+  `node_modules` predate a zod bump has exactly this after `npm ci` in `shared-types/` alone (2026-11-12). The
+  check itself needs more than the default heap: `NODE_OPTIONS=--max-old-space-size=8000 ./node_modules/.bin/tsc
+  --noEmit -p tsconfig.json --pretty false`.
 - **"Cannot use import statement outside a module" in a file that compiles** means the two server suites share a jest
   cache again. Each config has its own `cacheDirectory`; keep it so.
 

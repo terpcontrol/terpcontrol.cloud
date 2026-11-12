@@ -13521,6 +13521,333 @@
       "people"
     ]
   },
+  "GrowDayEvent": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "light"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "on": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "at",
+          "on"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "excursion"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When the reading left its band, or the start of the day where it was already outside."
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a run still going when the day, or the reading of it, ended."
+          },
+          "metric": {
+            "$ref": "#/components/schemas/Metric"
+          },
+          "above": {
+            "type": "boolean",
+            "description": "Which edge it left over: true is above the band."
+          },
+          "extremeValue": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "at",
+          "endedAt",
+          "metric",
+          "above",
+          "extremeValue"
+        ]
+      }
+    ]
+  },
+  "GrowDayClimate": {
+    "type": "object",
+    "properties": {
+      "temperature": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "humidity": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "inBandFraction": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "temperature",
+      "humidity",
+      "inBandFraction"
+    ]
+  },
+  "GrowDiaryDay": {
+    "type": "object",
+    "properties": {
+      "date": {
+        "type": "string",
+        "description": "The date on the owner’s calendar, `YYYY-MM-DD`."
+      },
+      "dayNumber": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "startsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+        "description": "The end of the date, or now, the end of the grow or the end of the reader’s window, whichever comes first."
+      },
+      "still": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "mediaId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "cameraId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "capturedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "mediaId",
+              "cameraId",
+              "capturedAt"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The camera’s picture of the day: the still taken in the light nearest midday, and on the day still running the newest one taken in the light. Null where no camera watched, or the reader was not given the cameras."
+      },
+      "climate": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GrowDayClimate"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null where nothing measured where the grow stood that day."
+      },
+      "events": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowDayEvent"
+        },
+        "description": "In the order they happened."
+      },
+      "entries": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Entry"
+        },
+        "description": "The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, what its devices and the plan wrote where the grow stood."
+      }
+    },
+    "required": [
+      "date",
+      "dayNumber",
+      "startsAt",
+      "endsAt",
+      "still",
+      "climate",
+      "events",
+      "entries"
+    ]
+  },
+  "GrowDiaryWeek": {
+    "type": "object",
+    "properties": {
+      "weekNumber": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "dayFrom": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "dayTo": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "stage": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GrowthStage"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "preset": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "stageWeek": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "1 in the week the stage began; null before the first phase."
+      },
+      "film": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "mediaId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "dayFrom": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "dayTo": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "lengthSeconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "mediaId",
+              "dayFrom",
+              "dayTo",
+              "lengthSeconds"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "days": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowDiaryDay"
+        },
+        "description": "The days of the week that have happened and that the reader may see, newest first."
+      }
+    },
+    "required": [
+      "weekNumber",
+      "dayFrom",
+      "dayTo",
+      "stage",
+      "preset",
+      "stageWeek",
+      "film",
+      "days"
+    ]
+  },
+  "GrowDiaryPage": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowDiaryWeek"
+        }
+      },
+      "nextCursor": {
+        "description": "Pass back as `cursor` for the next page; null on the last one.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "people": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Person"
+        }
+      }
+    },
+    "required": [
+      "items",
+      "nextCursor",
+      "people"
+    ]
+  },
   "GrowReportPhase": {
     "type": "object",
     "properties": {

@@ -68,7 +68,7 @@ const compose = (body: TimelapseCreate, cameraId = CAMERA) => controller.request
 const build = (): void => {
   const entitlement = new EntitlementService(PREMIUM);
   const cameras = new CamerasService(db.cameras, db.devices, db.memberships, entitlement, db.users, db.alerts);
-  media = new MediaService(db.media, db.grows, null as never);
+  media = new MediaService(db.media, db.grows, null as never, db.entries);
   const access = accessOn(db);
   const poller = { settingsChanged: () => undefined, forget: () => undefined };
   // The builder is asked to take the queue now rather than on its hourly pass;

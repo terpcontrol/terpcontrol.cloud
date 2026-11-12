@@ -107,6 +107,9 @@ interface EncodeOptions extends Omit<FfmpegOptions, 'watermark'> {
   } | null;
 }
 
+/** The pictures a diary holds on to, asked for at most once by the sweeps of one pass. */
+type Held = () => Promise<Set<string>>;
+
 /** What an `sd` render is scaled to. `hd` keeps the frames at the size the camera delivered them. */
 const SD_WIDTH = 1280;
 
@@ -145,6 +148,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     await this.drainTheQueue();
 
     const shouldThin = Date.now() - this.lastThinningRun >= THIN_INTERVAL_MS;
+    const held = this.heldOnce();
 
     for (const camera of await this.cameras.all()) {
       // As in the poller: a pass walks every camera and runs ffmpeg as it
@@ -160,8 +164,8 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
 
       // A camera that is gone keeps its pictures, so they are still thinned
       // and still swept: what stops is only the making of new films.
-      await this.sweep(camera);
-      if (shouldThin) await this.thin(camera);
+      await this.sweep(camera, held);
+      if (shouldThin) await this.thin(camera, held);
     }
 
     if (shouldThin) this.lastThinningRun = Date.now();
@@ -564,22 +568,32 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   // Thinning and retention
   // -------------------------------------------------------------------------
 
-  private async thin(camera: CameraDocument): Promise<void> {
+  /**
+   * The pictures no sweep takes because a diary holds on to them
+   * (`MediaService.heldByDiaries`): read once for all the cameras of a pass,
+   * and only when a sweep has something to remove.
+   */
+  private heldOnce(): Held {
+    let held: Promise<Set<string>> | null = null;
+    return () => (held ??= this.media.heldByDiaries());
+  }
+
+  private async thin(camera: CameraDocument, held: Held = this.heldOnce()): Promise<void> {
     const now = Date.now();
 
     for (let tier = 0; tier < THINNING_TIERS.length; tier++) {
       const { afterMs, minIntervalMs } = THINNING_TIERS[tier];
       const coarser = THINNING_TIERS[tier + 1];
-      await this.thinRange(camera.id, new Date(coarser ? now - coarser.afterMs : 0), new Date(now - afterMs), minIntervalMs);
+      await this.thinRange(camera.id, new Date(coarser ? now - coarser.afterMs : 0), new Date(now - afterMs), minIntervalMs, held);
     }
   }
 
-  private thinRange(cameraId: string, from: Date, before: Date, minIntervalMs: number): Promise<void> {
+  private thinRange(cameraId: string, from: Date, before: Date, minIntervalMs: number, held: Held): Promise<void> {
     const kept = spacedBy(minIntervalMs);
     return this.removeInBatches(
       this.media.positions({ cameraId, kind: 'still', from, before }),
       still => !kept(still),
-      ids => this.removeThinned(ids),
+      ids => this.removeThinned(ids, held),
     );
   }
 
@@ -595,11 +609,11 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
    * somebody already has should be thinned at all is a decision for the release
    * that drops `legacy_*`; until then it is left alone.
    */
-  private async removeThinned(ids: string[]): Promise<void> {
+  private async removeThinned(ids: string[], held: Held): Promise<void> {
     if (ids.length === 0) return;
 
-    const held = await this.media.carriedOverAndStillHeld(ids);
-    await this.media.deleteMany(ids.filter(id => !held.has(id)));
+    const [carried, inDiaries] = await Promise.all([this.media.carriedOverAndStillHeld(ids), held()]);
+    await this.media.deleteMany(ids.filter(id => !carried.has(id) && !inDiaries.has(id)));
   }
 
   /**
@@ -609,21 +623,22 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
    * said how many days - so an install that says nothing keeps every picture
    * exactly as long as it did before there was a tier at all.
    */
-  private async sweep(camera: CameraDocument): Promise<void> {
+  private async sweep(camera: CameraDocument, held: Held = this.heldOnce()): Promise<void> {
     const free = this.entitlement.isEntitled(camera) ? null : this.entitlement.freeTier();
 
     const stillDays = free?.stillDays ? Math.min(free.stillDays, STILL_RETENTION_DAYS) : STILL_RETENTION_DAYS;
-    await this.deleteBefore(camera.id, 'still', stillDays);
+    // A still a diary holds on to is the diary's, however old the camera's own history may get.
+    await this.deleteBefore(camera.id, 'still', stillDays, async ids => {
+      if (ids.length === 0) return;
+      const inDiaries = await held();
+      await this.media.deleteMany(ids.filter(id => !inDiaries.has(id)));
+    });
 
-    if (free?.timelapseDays) await this.deleteBefore(camera.id, 'timelapse', free.timelapseDays);
+    if (free?.timelapseDays) await this.deleteBefore(camera.id, 'timelapse', free.timelapseDays, ids => this.media.deleteMany(ids));
   }
 
-  private deleteBefore(cameraId: string, kind: 'still' | 'timelapse', days: number): Promise<void> {
-    return this.removeInBatches(
-      this.media.positions({ cameraId, kind, before: new Date(Date.now() - days * MS_IN_A_DAY) }),
-      () => true,
-      ids => this.media.deleteMany(ids),
-    );
+  private deleteBefore(cameraId: string, kind: 'still' | 'timelapse', days: number, remove: (ids: string[]) => Promise<void>): Promise<void> {
+    return this.removeInBatches(this.media.positions({ cameraId, kind, before: new Date(Date.now() - days * MS_IN_A_DAY) }), () => true, remove);
   }
 
   /** The rows `doomed` picks, handed to `remove` a batch at a time. */

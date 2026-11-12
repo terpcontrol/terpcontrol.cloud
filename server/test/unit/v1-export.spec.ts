@@ -298,7 +298,7 @@ beforeEach(async () => {
   await db.reset();
   access = accessOn(db);
   store = new ImageStore(db.connection);
-  media = new MediaService(db.media, db.grows, store);
+  media = new MediaService(db.media, db.grows, store, db.entries);
   exports = new ExportService(
     db.grows,
     db.plants,

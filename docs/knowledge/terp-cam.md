@@ -167,8 +167,8 @@ way and what the code has to respect. Internal notes on the camera exist.
 
 ## Stills (`media`, kind `still`; storage in [data.md](data.md))
 - `lit`: the controller's light output at capture time, else `false` for a picture too dark to show anything (mean
-  luma under 24), else null, which counts as lit. Pictures meant to show plants (week cards, Start and grow cards)
-  query `lit != false`; a week's day takes the lit still nearest midday.
+  luma under 24), else null, which counts as lit. Pictures meant to show plants (the diary's days, week cards, Start
+  and grow cards) query `lit != false`; a day takes the lit still nearest midday (`diary/diary-pictures.ts`).
 - `monochrome` (since 2026-10-08, server-side only): whether the still came out grey - the camera's night (IR) mode,
   or a black tent - measured once when stored (`monochromeOf`, `still-light.ts`: channels under 4 of 255 apart on a
   192-pixel copy; night stills measure 0, day stills 20-53 on the development cameras); null for an unreadable
@@ -182,6 +182,11 @@ way and what the code has to respect. Internal notes on the camera exist.
   90 days one per hour (`THINNING_TIERS`, `still-thinning.ts`). Stills the previous release still holds rows for are
   left alone until the release that drops `legacy_*`. Stills go after 3 years; cameras without Premium only earlier
   where the install switches that on.
+- **A still a diary holds on to outlives all of that**: thinning and both sweeps spare every still a diary line
+  names in `mediaIds` (the grow page makes a line of a day's picture) and every grow's `coverMediaId`
+  (`MediaService.heldByDiaries`, read once per pass and only when a sweep has something to remove). A day's own
+  picture needs no sparing from thinning - an hour's spacing always leaves a lit still near midday - but the sweeps
+  take it with the rest, so a day older than a camera's retention has no picture.
 
 ## Timelapses (`timelapse.service.ts`)
 - The builder runs 60 s after start, then an hour after its previous pass ends: queued renders first (also woken

@@ -111,6 +111,37 @@ describe('the week cards', () => {
   });
 });
 
+describe('the diary by the day', () => {
+  interface Day {
+    dayNumber: number;
+    climate: { temperature: number | null; humidity: number | null } | null;
+    events: { kind: string }[];
+  }
+
+  it('is a card for every date the grow lived, newest first, in the weeks of its calendar', async () => {
+    const page = (await owner.client.get(`/v1/grows/${growId}/diary?limit=1`).expect(200)).body;
+
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0]).toMatchObject({ weekNumber: 3, dayFrom: 15, dayTo: 21, stage: 'flowering', stageWeek: 1 });
+    expect(page.items[0].days.map((day: Day) => day.dayNumber)).toEqual([21, 20, 19, 18, 17, 16, 15]);
+    expect(page.nextCursor).not.toBeNull();
+  });
+
+  it('says how a day was and what the lamp did, through the store', async () => {
+    const page = (await owner.client.get(`/v1/grows/${growId}/diary?limit=1`).expect(200)).body;
+    // Yesterday: a whole date of twelve hours at each target.
+    const yesterday: Day = page.items[0].days[1];
+
+    expect(yesterday.climate?.temperature).toBeCloseTo((DAY_TEMPERATURE + NIGHT_TEMPERATURE) / 2, 0);
+    expect(yesterday.climate?.humidity).toBe(55);
+    expect(yesterday.events.some(event => event.kind === 'light')).toBe(true);
+  });
+
+  it('is not there for a stranger', async () => {
+    await stranger.client.get(`/v1/grows/${growId}/diary`).expect(404);
+  });
+});
+
 describe('the report', () => {
   it('is one chapter per phase, judged against the targets the phase recorded', async () => {
     const report = (await owner.client.get(`/v1/grows/${growId}/report`).expect(200)).body;

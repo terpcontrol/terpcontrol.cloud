@@ -252,6 +252,30 @@ export type VerdictRating = 'good' | 'watch' | 'poor';
 
 export type TimelineRange = '24h' | '7d' | '30d' | 'phase' | 'grow';
 
+export type GrowDayEvent =
+  | {
+      kind: 'light';
+      at: string;
+      on: boolean;
+    }
+  | {
+      kind: 'excursion';
+      /**
+       * When the reading left its band, or the start of the day where it was already outside.
+       */
+      at: string;
+      /**
+       * Null for a run still going when the day, or the reading of it, ended.
+       */
+      endedAt: string | null;
+      metric: Metric;
+      /**
+       * Which edge it left over: true is above the band.
+       */
+      above: boolean;
+      extremeValue: number | null;
+    };
+
 export type GrowSeriesRange = '24h' | '7d' | 'phase' | 'grow' | 'custom';
 
 export type SharedSubject = SharedGrow | SharedSpace;
@@ -4178,6 +4202,76 @@ export interface GrowWeekCard {
 
 export interface GrowWeekCardPage {
   items: GrowWeekCard[];
+  /**
+   * Pass back as `cursor` for the next page; null on the last one.
+   */
+  nextCursor: string | null;
+  people: Person[];
+}
+
+export interface GrowDayClimate {
+  temperature: number | null;
+  humidity: number | null;
+  inBandFraction: number | null;
+}
+
+export interface GrowDiaryDay {
+  /**
+   * The date on the owner’s calendar, `YYYY-MM-DD`.
+   */
+  date: string;
+  dayNumber: number;
+  startsAt: string;
+  /**
+   * The end of the date, or now, the end of the grow or the end of the reader’s window, whichever comes first.
+   */
+  endsAt: string;
+  /**
+   * The camera’s picture of the day: the still taken in the light nearest midday, and on the day still running the newest one taken in the light. Null where no camera watched, or the reader was not given the cameras.
+   */
+  still: {
+    mediaId: string;
+    cameraId: string;
+    capturedAt: string;
+  } | null;
+  /**
+   * Null where nothing measured where the grow stood that day.
+   */
+  climate: GrowDayClimate | null;
+  /**
+   * In the order they happened.
+   */
+  events: GrowDayEvent[];
+  /**
+   * The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, what its devices and the plan wrote where the grow stood.
+   */
+  entries: Entry[];
+}
+
+export interface GrowDiaryWeek {
+  weekNumber: number;
+  dayFrom: number;
+  dayTo: number;
+  stage: GrowthStage | null;
+  preset: string | null;
+  /**
+   * 1 in the week the stage began; null before the first phase.
+   */
+  stageWeek: number | null;
+  film: {
+    mediaId: string;
+    dayFrom: number;
+    dayTo: number;
+    lengthSeconds: number | null;
+  } | null;
+  /**
+   * The days of the week that have happened and that the reader may see, newest first.
+   */
+  days: GrowDiaryDay[];
+}
+
+export interface GrowDiaryPage {
+  items: GrowDiaryWeek[];
   /**
    * Pass back as `cursor` for the next page; null on the last one.
    */

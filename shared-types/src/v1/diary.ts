@@ -1921,6 +1921,109 @@ export const growWeekCard = named(
 export const growWeekCardPage = named('GrowWeekCardPage', page(growWeekCard).extend({ people: z.array(person) }));
 
 /**
+ * Something a device did on one day that nobody wrote down: its lamp switching,
+ * or a stretch its climate spent outside what it was aiming at. They are read
+ * from the measurements on every read and stored nowhere, so a day that has
+ * left the store's raw samples has none.
+ */
+export const growDayEvent = named(
+  'GrowDayEvent',
+  z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('light'),
+      at: instant(),
+      on: z.boolean(),
+    }),
+    z.object({
+      kind: z.literal('excursion'),
+      at: instant().describe('When the reading left its band, or the start of the day where it was already outside.'),
+      endedAt: instant().nullable().describe('Null for a run still going when the day, or the reading of it, ended.'),
+      metric: metric,
+      above: z.boolean().describe('Which edge it left over: true is above the band.'),
+      extremeValue: z.number().nullable(),
+    }),
+  ]),
+);
+
+/**
+ * How one day was kept: the means of what was measured where the grow stood,
+ * and the share of the day inside what the devices were aiming at.
+ *
+ * `inBandFraction` is judged window by window against the target record, as
+ * the verdict of a place's last 24 hours is. It is null where it would be a
+ * guess: no record of what was aimed at that day, or readings for less than
+ * half of it.
+ */
+export const growDayClimate = named(
+  'GrowDayClimate',
+  z.object({
+    temperature: z.number().nullable(),
+    humidity: z.number().nullable(),
+    inBandFraction: z.number().nullable(),
+  }),
+);
+
+/**
+ * One day of a grow's diary, which writes itself: the camera's picture of the
+ * day, how the climate was, what the devices did, and the lines of that day.
+ *
+ * A day is a date on the calendar of the grow's owner, so "today" holds what
+ * happened since midnight there. `dayNumber` is the day of the grow that
+ * begins on that date: the date the grow began on is day 1.
+ */
+export const growDiaryDay = named(
+  'GrowDiaryDay',
+  z.object({
+    date: z.string().describe('The date on the owner’s calendar, `YYYY-MM-DD`.'),
+    dayNumber: z.number().int(),
+    startsAt: instant(),
+    endsAt: instant().describe('The end of the date, or now, the end of the grow or the end of the reader’s window, whichever comes first.'),
+    still: z
+      .object({ mediaId: id(), cameraId: id(), capturedAt: instant() })
+      .nullable()
+      .describe(
+        'The camera’s picture of the day: the still taken in the light nearest midday, and on the day still running the newest one taken in the light. Null where no camera watched, or the reader was not given the cameras.',
+      ),
+    climate: growDayClimate.nullable().describe('Null where nothing measured where the grow stood that day.'),
+    events: z.array(growDayEvent).describe('In the order they happened.'),
+    entries: z
+      .array(entry)
+      .describe(
+        'The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, what its devices and the plan wrote where the grow stood.',
+      ),
+  }),
+);
+
+/**
+ * A week of the diary: seven days of the grow, newest first, under the stage
+ * the week lay in. `film` is the week film whose first frame falls inside it,
+ * named by the days it really covers - a film is cut on the calendar's weeks.
+ */
+export const growDiaryWeek = named(
+  'GrowDiaryWeek',
+  z.object({
+    weekNumber: z.number().int(),
+    dayFrom: z.number().int(),
+    dayTo: z.number().int(),
+    stage: growthStage.nullable(),
+    preset: z.string().nullable(),
+    stageWeek: z.number().int().nullable().describe('1 in the week the stage began; null before the first phase.'),
+    film: z
+      .object({
+        mediaId: id(),
+        dayFrom: z.number().int(),
+        dayTo: z.number().int(),
+        lengthSeconds: z.number().nullable(),
+      })
+      .nullable(),
+    days: z.array(growDiaryDay).describe('The days of the week that have happened and that the reader may see, newest first.'),
+  }),
+);
+
+/** The diary, a few weeks at a time, with everyone its lines name. */
+export const growDiaryPage = named('GrowDiaryPage', page(growDiaryWeek).extend({ people: z.array(person) }));
+
+/**
  * One stretch of the grow at one stage, as the report tells its story: a
  * chapter with its cover, its day range, how it was kept and what was done to
  * the plants in it.

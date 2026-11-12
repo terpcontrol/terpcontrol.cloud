@@ -5599,6 +5599,587 @@ export declare const growWeekCardPage: z.ZodObject<{
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
+ * Something a device did on one day that nobody wrote down: its lamp switching,
+ * or a stretch its climate spent outside what it was aiming at. They are read
+ * from the measurements on every read and stored nowhere, so a day that has
+ * left the store's raw samples has none.
+ */
+export declare const growDayEvent: z.ZodDiscriminatedUnion<[z.ZodObject<{
+    kind: z.ZodLiteral<"light">;
+    at: z.ZodISODateTime;
+    on: z.ZodBoolean;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"excursion">;
+    at: z.ZodISODateTime;
+    endedAt: z.ZodNullable<z.ZodISODateTime>;
+    metric: z.ZodEnum<{
+        offline: "offline";
+        co2: "co2";
+        temperature: "temperature";
+        humidity: "humidity";
+        leafTemperature: "leafTemperature";
+        lux: "lux";
+        vpd: "vpd";
+        ppfd: "ppfd";
+    }>;
+    above: z.ZodBoolean;
+    extremeValue: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>], "kind">;
+/**
+ * How one day was kept: the means of what was measured where the grow stood,
+ * and the share of the day inside what the devices were aiming at.
+ *
+ * `inBandFraction` is judged window by window against the target record, as
+ * the verdict of a place's last 24 hours is. It is null where it would be a
+ * guess: no record of what was aimed at that day, or readings for less than
+ * half of it.
+ */
+export declare const growDayClimate: z.ZodObject<{
+    temperature: z.ZodNullable<z.ZodNumber>;
+    humidity: z.ZodNullable<z.ZodNumber>;
+    inBandFraction: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>;
+/**
+ * One day of a grow's diary, which writes itself: the camera's picture of the
+ * day, how the climate was, what the devices did, and the lines of that day.
+ *
+ * A day is a date on the calendar of the grow's owner, so "today" holds what
+ * happened since midnight there. `dayNumber` is the day of the grow that
+ * begins on that date: the date the grow began on is day 1.
+ */
+export declare const growDiaryDay: z.ZodObject<{
+    date: z.ZodString;
+    dayNumber: z.ZodNumber;
+    startsAt: z.ZodISODateTime;
+    endsAt: z.ZodISODateTime;
+    still: z.ZodNullable<z.ZodObject<{
+        mediaId: z.ZodString;
+        cameraId: z.ZodString;
+        capturedAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
+    climate: z.ZodNullable<z.ZodObject<{
+        temperature: z.ZodNullable<z.ZodNumber>;
+        humidity: z.ZodNullable<z.ZodNumber>;
+        inBandFraction: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
+    events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
+        kind: z.ZodLiteral<"light">;
+        at: z.ZodISODateTime;
+        on: z.ZodBoolean;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"excursion">;
+        at: z.ZodISODateTime;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        above: z.ZodBoolean;
+        extremeValue: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>], "kind">>;
+    entries: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        createdAt: z.ZodISODateTime;
+        kind: z.ZodEnum<{
+            move: "move";
+            water: "water";
+            feed: "feed";
+            photo: "photo";
+            note: "note";
+            measurement: "measurement";
+            training: "training";
+            phase: "phase";
+            harvest: "harvest";
+            visit: "visit";
+            alarm: "alarm";
+            plan: "plan";
+            system: "system";
+        }>;
+        occurredAt: z.ZodISODateTime;
+        source: z.ZodEnum<{
+            alarm: "alarm";
+            plan: "plan";
+            human: "human";
+            device: "device";
+            preset: "preset";
+        }>;
+        authorId: z.ZodNullable<z.ZodString>;
+        growId: z.ZodNullable<z.ZodString>;
+        spaceId: z.ZodNullable<z.ZodString>;
+        deviceId: z.ZodNullable<z.ZodString>;
+        plantIds: z.ZodArray<z.ZodString>;
+        cameraId: z.ZodNullable<z.ZodString>;
+        taskId: z.ZodNullable<z.ZodString>;
+        alertId: z.ZodNullable<z.ZodString>;
+        severity: z.ZodNullable<z.ZodEnum<{
+            critical: "critical";
+            warning: "warning";
+            info: "info";
+        }>>;
+        text: z.ZodNullable<z.ZodString>;
+        message: z.ZodNullable<z.ZodObject<{
+            key: z.ZodString;
+            params: z.ZodArray<z.ZodString>;
+        }, z.core.$strip>>;
+        values: z.ZodDiscriminatedUnion<[z.ZodObject<{
+            kind: z.ZodLiteral<"water">;
+            litres: z.ZodNullable<z.ZodNumber>;
+            readings: z.ZodArray<z.ZodObject<{
+                key: z.ZodString;
+                value: z.ZodNumber;
+                plantId: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"feed">;
+            litres: z.ZodNullable<z.ZodNumber>;
+            schemeWeek: z.ZodNullable<z.ZodNumber>;
+            doses: z.ZodArray<z.ZodObject<{
+                productKey: z.ZodString;
+                name: z.ZodString;
+                amount: z.ZodNumber;
+                unit: z.ZodString;
+            }, z.core.$strip>>;
+            readings: z.ZodArray<z.ZodObject<{
+                key: z.ZodString;
+                value: z.ZodNumber;
+                plantId: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"measurement">;
+            readings: z.ZodArray<z.ZodObject<{
+                key: z.ZodString;
+                value: z.ZodNumber;
+                plantId: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"photo">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"note">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"training">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"visit">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"system">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"alarm">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"phase">;
+            phaseId: z.ZodString;
+            stage: z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>;
+            preset: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"move">;
+            placementId: z.ZodString;
+            spaceId: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"harvest">;
+            wetWeightG: z.ZodNullable<z.ZodNumber>;
+            dryWeightG: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"plan">;
+            planId: z.ZodString;
+            stepIndex: z.ZodNumber;
+            transition: z.ZodNullable<z.ZodEnum<{
+                pause: "pause";
+                resume: "resume";
+                confirm: "confirm";
+                extend: "extend";
+                skip: "skip";
+                goto: "goto";
+            }>>;
+        }, z.core.$strip>], "kind">;
+        mediaIds: z.ZodArray<z.ZodString>;
+        undoUntil: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
+ * A week of the diary: seven days of the grow, newest first, under the stage
+ * the week lay in. `film` is the week film whose first frame falls inside it,
+ * named by the days it really covers - a film is cut on the calendar's weeks.
+ */
+export declare const growDiaryWeek: z.ZodObject<{
+    weekNumber: z.ZodNumber;
+    dayFrom: z.ZodNumber;
+    dayTo: z.ZodNumber;
+    stage: z.ZodNullable<z.ZodEnum<{
+        germination: "germination";
+        seedling: "seedling";
+        vegetative: "vegetative";
+        flowering: "flowering";
+        drying: "drying";
+        curing: "curing";
+    }>>;
+    preset: z.ZodNullable<z.ZodString>;
+    stageWeek: z.ZodNullable<z.ZodNumber>;
+    film: z.ZodNullable<z.ZodObject<{
+        mediaId: z.ZodString;
+        dayFrom: z.ZodNumber;
+        dayTo: z.ZodNumber;
+        lengthSeconds: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
+    days: z.ZodArray<z.ZodObject<{
+        date: z.ZodString;
+        dayNumber: z.ZodNumber;
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodISODateTime;
+        still: z.ZodNullable<z.ZodObject<{
+            mediaId: z.ZodString;
+            cameraId: z.ZodString;
+            capturedAt: z.ZodISODateTime;
+        }, z.core.$strip>>;
+        climate: z.ZodNullable<z.ZodObject<{
+            temperature: z.ZodNullable<z.ZodNumber>;
+            humidity: z.ZodNullable<z.ZodNumber>;
+            inBandFraction: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
+        events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
+            kind: z.ZodLiteral<"light">;
+            at: z.ZodISODateTime;
+            on: z.ZodBoolean;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"excursion">;
+            at: z.ZodISODateTime;
+            endedAt: z.ZodNullable<z.ZodISODateTime>;
+            metric: z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>;
+            above: z.ZodBoolean;
+            extremeValue: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>], "kind">>;
+        entries: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            createdAt: z.ZodISODateTime;
+            kind: z.ZodEnum<{
+                move: "move";
+                water: "water";
+                feed: "feed";
+                photo: "photo";
+                note: "note";
+                measurement: "measurement";
+                training: "training";
+                phase: "phase";
+                harvest: "harvest";
+                visit: "visit";
+                alarm: "alarm";
+                plan: "plan";
+                system: "system";
+            }>;
+            occurredAt: z.ZodISODateTime;
+            source: z.ZodEnum<{
+                alarm: "alarm";
+                plan: "plan";
+                human: "human";
+                device: "device";
+                preset: "preset";
+            }>;
+            authorId: z.ZodNullable<z.ZodString>;
+            growId: z.ZodNullable<z.ZodString>;
+            spaceId: z.ZodNullable<z.ZodString>;
+            deviceId: z.ZodNullable<z.ZodString>;
+            plantIds: z.ZodArray<z.ZodString>;
+            cameraId: z.ZodNullable<z.ZodString>;
+            taskId: z.ZodNullable<z.ZodString>;
+            alertId: z.ZodNullable<z.ZodString>;
+            severity: z.ZodNullable<z.ZodEnum<{
+                critical: "critical";
+                warning: "warning";
+                info: "info";
+            }>>;
+            text: z.ZodNullable<z.ZodString>;
+            message: z.ZodNullable<z.ZodObject<{
+                key: z.ZodString;
+                params: z.ZodArray<z.ZodString>;
+            }, z.core.$strip>>;
+            values: z.ZodDiscriminatedUnion<[z.ZodObject<{
+                kind: z.ZodLiteral<"water">;
+                litres: z.ZodNullable<z.ZodNumber>;
+                readings: z.ZodArray<z.ZodObject<{
+                    key: z.ZodString;
+                    value: z.ZodNumber;
+                    plantId: z.ZodNullable<z.ZodString>;
+                }, z.core.$strip>>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"feed">;
+                litres: z.ZodNullable<z.ZodNumber>;
+                schemeWeek: z.ZodNullable<z.ZodNumber>;
+                doses: z.ZodArray<z.ZodObject<{
+                    productKey: z.ZodString;
+                    name: z.ZodString;
+                    amount: z.ZodNumber;
+                    unit: z.ZodString;
+                }, z.core.$strip>>;
+                readings: z.ZodArray<z.ZodObject<{
+                    key: z.ZodString;
+                    value: z.ZodNumber;
+                    plantId: z.ZodNullable<z.ZodString>;
+                }, z.core.$strip>>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"measurement">;
+                readings: z.ZodArray<z.ZodObject<{
+                    key: z.ZodString;
+                    value: z.ZodNumber;
+                    plantId: z.ZodNullable<z.ZodString>;
+                }, z.core.$strip>>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"photo">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"note">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"training">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"visit">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"system">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"alarm">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"phase">;
+                phaseId: z.ZodString;
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"move">;
+                placementId: z.ZodString;
+                spaceId: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"harvest">;
+                wetWeightG: z.ZodNullable<z.ZodNumber>;
+                dryWeightG: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"plan">;
+                planId: z.ZodString;
+                stepIndex: z.ZodNumber;
+                transition: z.ZodNullable<z.ZodEnum<{
+                    pause: "pause";
+                    resume: "resume";
+                    confirm: "confirm";
+                    extend: "extend";
+                    skip: "skip";
+                    goto: "goto";
+                }>>;
+            }, z.core.$strip>], "kind">;
+            mediaIds: z.ZodArray<z.ZodString>;
+            undoUntil: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/** The diary, a few weeks at a time, with everyone its lines name. */
+export declare const growDiaryPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        weekNumber: z.ZodNumber;
+        dayFrom: z.ZodNumber;
+        dayTo: z.ZodNumber;
+        stage: z.ZodNullable<z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>>;
+        preset: z.ZodNullable<z.ZodString>;
+        stageWeek: z.ZodNullable<z.ZodNumber>;
+        film: z.ZodNullable<z.ZodObject<{
+            mediaId: z.ZodString;
+            dayFrom: z.ZodNumber;
+            dayTo: z.ZodNumber;
+            lengthSeconds: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
+        days: z.ZodArray<z.ZodObject<{
+            date: z.ZodString;
+            dayNumber: z.ZodNumber;
+            startsAt: z.ZodISODateTime;
+            endsAt: z.ZodISODateTime;
+            still: z.ZodNullable<z.ZodObject<{
+                mediaId: z.ZodString;
+                cameraId: z.ZodString;
+                capturedAt: z.ZodISODateTime;
+            }, z.core.$strip>>;
+            climate: z.ZodNullable<z.ZodObject<{
+                temperature: z.ZodNullable<z.ZodNumber>;
+                humidity: z.ZodNullable<z.ZodNumber>;
+                inBandFraction: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>;
+            events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
+                kind: z.ZodLiteral<"light">;
+                at: z.ZodISODateTime;
+                on: z.ZodBoolean;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"excursion">;
+                at: z.ZodISODateTime;
+                endedAt: z.ZodNullable<z.ZodISODateTime>;
+                metric: z.ZodEnum<{
+                    offline: "offline";
+                    co2: "co2";
+                    temperature: "temperature";
+                    humidity: "humidity";
+                    leafTemperature: "leafTemperature";
+                    lux: "lux";
+                    vpd: "vpd";
+                    ppfd: "ppfd";
+                }>;
+                above: z.ZodBoolean;
+                extremeValue: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>], "kind">>;
+            entries: z.ZodArray<z.ZodObject<{
+                id: z.ZodString;
+                createdAt: z.ZodISODateTime;
+                kind: z.ZodEnum<{
+                    move: "move";
+                    water: "water";
+                    feed: "feed";
+                    photo: "photo";
+                    note: "note";
+                    measurement: "measurement";
+                    training: "training";
+                    phase: "phase";
+                    harvest: "harvest";
+                    visit: "visit";
+                    alarm: "alarm";
+                    plan: "plan";
+                    system: "system";
+                }>;
+                occurredAt: z.ZodISODateTime;
+                source: z.ZodEnum<{
+                    alarm: "alarm";
+                    plan: "plan";
+                    human: "human";
+                    device: "device";
+                    preset: "preset";
+                }>;
+                authorId: z.ZodNullable<z.ZodString>;
+                growId: z.ZodNullable<z.ZodString>;
+                spaceId: z.ZodNullable<z.ZodString>;
+                deviceId: z.ZodNullable<z.ZodString>;
+                plantIds: z.ZodArray<z.ZodString>;
+                cameraId: z.ZodNullable<z.ZodString>;
+                taskId: z.ZodNullable<z.ZodString>;
+                alertId: z.ZodNullable<z.ZodString>;
+                severity: z.ZodNullable<z.ZodEnum<{
+                    critical: "critical";
+                    warning: "warning";
+                    info: "info";
+                }>>;
+                text: z.ZodNullable<z.ZodString>;
+                message: z.ZodNullable<z.ZodObject<{
+                    key: z.ZodString;
+                    params: z.ZodArray<z.ZodString>;
+                }, z.core.$strip>>;
+                values: z.ZodDiscriminatedUnion<[z.ZodObject<{
+                    kind: z.ZodLiteral<"water">;
+                    litres: z.ZodNullable<z.ZodNumber>;
+                    readings: z.ZodArray<z.ZodObject<{
+                        key: z.ZodString;
+                        value: z.ZodNumber;
+                        plantId: z.ZodNullable<z.ZodString>;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"feed">;
+                    litres: z.ZodNullable<z.ZodNumber>;
+                    schemeWeek: z.ZodNullable<z.ZodNumber>;
+                    doses: z.ZodArray<z.ZodObject<{
+                        productKey: z.ZodString;
+                        name: z.ZodString;
+                        amount: z.ZodNumber;
+                        unit: z.ZodString;
+                    }, z.core.$strip>>;
+                    readings: z.ZodArray<z.ZodObject<{
+                        key: z.ZodString;
+                        value: z.ZodNumber;
+                        plantId: z.ZodNullable<z.ZodString>;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"measurement">;
+                    readings: z.ZodArray<z.ZodObject<{
+                        key: z.ZodString;
+                        value: z.ZodNumber;
+                        plantId: z.ZodNullable<z.ZodString>;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"photo">;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"note">;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"training">;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"visit">;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"system">;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"alarm">;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"phase">;
+                    phaseId: z.ZodString;
+                    stage: z.ZodEnum<{
+                        germination: "germination";
+                        seedling: "seedling";
+                        vegetative: "vegetative";
+                        flowering: "flowering";
+                        drying: "drying";
+                        curing: "curing";
+                    }>;
+                    preset: z.ZodNullable<z.ZodString>;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"move">;
+                    placementId: z.ZodString;
+                    spaceId: z.ZodNullable<z.ZodString>;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"harvest">;
+                    wetWeightG: z.ZodNullable<z.ZodNumber>;
+                    dryWeightG: z.ZodNullable<z.ZodNumber>;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"plan">;
+                    planId: z.ZodString;
+                    stepIndex: z.ZodNumber;
+                    transition: z.ZodNullable<z.ZodEnum<{
+                        pause: "pause";
+                        resume: "resume";
+                        confirm: "confirm";
+                        extend: "extend";
+                        skip: "skip";
+                        goto: "goto";
+                    }>>;
+                }, z.core.$strip>], "kind">;
+                mediaIds: z.ZodArray<z.ZodString>;
+                undoUntil: z.ZodNullable<z.ZodISODateTime>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    nextCursor: z.ZodNullable<z.ZodString>;
+    people: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        handle: z.ZodString;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
  * One stretch of the grow at one stage, as the report tells its story: a
  * chapter with its cover, its day range, how it was kept and what was done to
  * the plants in it.
