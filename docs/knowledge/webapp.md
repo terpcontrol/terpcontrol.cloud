@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-12
-source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12)
+source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12)
 paths:
   - webapp/**
 ---
@@ -24,7 +24,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 | `src/api/` | one module per resource with its TanStack Query hooks and query factories; plumbing: `client.ts`, `session.ts`, `clock.ts`, `read.ts`, `write.ts`, `pages.ts`, `problem.ts`, `config.ts`, `query-client.ts` |
 | `src/ui/` | shared primitives (`Sheet`, `Menu`, `Lines`, `Rows`, `PageHead`, `OfflineHelp`, `Switch`, `Asking`, `BackLink`, `Help.tsx`, `advanced/`) and one-place helpers (`zone.ts`, `days.ts`, `wall-clock.ts`, `age.ts`, `figures.ts`, `units.ts`, `naming.ts`, `stored.ts`, `session-access.ts`, `refusal.ts`) |
 | `src/log/` | the entry sheet, its send queue and undo toasts, `corrections.ts`, the moment a line is dated to (`Moment.tsx`, EXIF in `taken-at.ts`) |
-| `src/charts/`, `src/i18n/` | ECharts binding and chart arithmetic; i18next setup and device-message resolver |
+| `src/charts/`, `src/i18n/` | ECharts binding, a plot as data, the gestures of a plot, the time axis; i18next setup and device-message resolver |
 | `src/theme/`, `src/styles/`, `src/sw.ts` | `tokens.css`, `ThemeProvider`, `global.css`; the service worker |
 | `public/` | manifest, icons, catalogues `assets/i18n/`, feeding schemes `assets/schemes/` |
 | `test/`, `test/live/` | Vitest suites; the live ones need a running stack |
@@ -46,8 +46,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   | `/grows`, `/grows/new`, `/grows/:growId/:tab?`, `.../plants/:plantId`, `.../measurements` | every grow ("Alle Grows"); one grow with the same tabs | Grow |
   | `/grows/schemes`, `/grows/share-links`, `/grows/following` | what belongs to growing without being a grow, behind the doors of "Alle Grows" | Grow |
   | `/log` | opens the entry sheet | - |
-  | `/timeline` | Verlauf of the chosen place (`focus`, `at`, `device` in the query; `grow` with a moment of that grow's diary) | Verlauf |
-  | `/charts` | Graphen, its whole view in the query | Verlauf |
+  | `/timeline` | Verlauf of the chosen place, its whole view in the query (below) | Verlauf |
   | `/control/:page?` | Steuerung of the chosen place, and the pages behind its rows: `alarms`, `plan`, `outputs`, `mode` | Steuerung |
   | `/devices/:deviceId/:page?`, `/devices/:deviceId/sockets/:socket` | a device's own page with `advanced`, `details` under it; one smart socket | Steuerung |
   | `/devices` | names nothing: the not-found page inside the shell | Steuerung |
@@ -99,7 +98,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   (`screens/grow/diary/read-back.ts`). **Start** reads the place's lamp once for the page and its card (`useLamp`,
   `screens/start/reads.ts`). What a silent device has not been handed is `pending` of `useDeviceLive`
   ([server-engines.md](server-engines.md#read-models)), read through `climate/figures.ts`.
-- **The chosen place** (`src/app/places.ts`) is what `/grow`, `/timeline`, `/control` and `/charts` show: the place
+- **The chosen place** (`src/app/places.ts`) is what `/grow`, `/timeline` and `/control` show: the place
   their address names in `?space=`, else the one chosen (`terp.place` in this browser, a store the header's chip and
   the page both follow), else the first of Start's order (`sortedByAttention`), which is then kept. `usePlaceChoice`
   is the one resolver - the pages read it through `useCurrentPlace`, the chip (`shell/PlaceChoice.tsx`) and the entry
@@ -115,9 +114,29 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `cameraPath` those to a device, one of its sockets and a camera. The way back is no part of a link: the head's
   arrow steps back in history (`ui/BackLink.tsx`, [app-ux.md §2](app-ux.md#2-navigation-and-the-place-page)), and
   only a socket's row under Ausgänge hands its page an address (`leadingBackTo`), for the page to put in its own
-  place once the socket is removed. Charts reads and writes its view
-  (`space`/`grow`, `range`, `zoom`, `show`, `layout`, ...) only in `src/screens/charts/address.ts`, through which
-  `app/old-charts.ts` maps old bookmarks too.
+  place once the socket is removed. Verlauf's view is read and written
+  only in `src/screens/timeline/view.ts` (below), through which `app/old-charts.ts` maps old bookmarks too.
+- **Verlauf** is `src/screens/timeline/`. `view.ts` is its address and nothing else: `viewOf` reads it, `viewParams`
+  writes a change of it, and the arithmetic of a window lives beside them - `windowOf` (a chip, a width ending
+  now, a window that stands still, the day around a moment the chip does not reach), `askOf` (what the server is
+  asked: a chip by its name, so Start's two curves and Verlauf share one cached answer; any other window by its
+  two ends), `stepped`, `zoomed` over the ladder `WIDTHS`, `selected` for a stretch marked or pinched to,
+  `dayHolding`, and `definitionOf` / `appliedOf` for a view kept in the account. The parameters: `range`
+  (`24h` left out, `7d`, `30d`, `phase`, `grow`), `from` + `to` (a window that stands still), `last` (seconds of a
+  width ending now that no chip names), `at` (the cursor), `grow`, `device`, `show` (the keys ticked: metrics,
+  `m.<key>` for a grow's own measurement, `light`, `outputs`, `diary`, `machine`), `one`, `step`, `vpd`,
+  `compare` (`grow:<id>` or `space:<id>`), `focus`. `model.ts` turns one answer into what is drawn - which curves
+  the place offers and which are ticked, each panel as a `Plot` with its figures, the strips and the curve each
+  stands under (`ACTS_ON`), what a cursor reads, the table - so `Timeline.tsx` holds the view and the reads and
+  nothing of the arithmetic. `Panel.tsx`, `Strips.tsx`, `CursorCard.tsx`, `DiaryCard.tsx` and `Adjust.tsx` draw;
+  `labels.ts` says when; `window.ts` holds the bands by day and night and the picture of a moment. One read
+  answers the page, `GET /v1/spaces/{id}/timeline` (`useTimeline`, `src/api/timeline.ts`), asked for every panel a
+  place can have so the sheet offers a tick only for what is there; a second one of the same route is what is
+  laid over, and a grow's own measurements come from `useMeasurementSeries`. A change of the view is a
+  `setSearchParams` with `replace`, which React Router applies as a transition: what has to show at once - a tick
+  in the sheet, the cursor under a thumb - is held in state beside it. `terp.curves` remembers the last ticks for
+  an address that names none. The page a share link shows (`SharedTimeline`) is the same screen without the
+  account's half (`Own`).
 - The old Angular app's addresses still work (`OldAddresses.tsx`, `old-charts.ts`, redirects at the end of
   `screens`): `/login?recovery=|?code=` from old mails, `/demo` (website buttons; a signed-in user goes straight in),
   `/list`, `/account`, `/shares`, `/diagnostics`, `/device/<id>/<page>` (the same page of the device's place) and
@@ -180,11 +199,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - Every read goes through `useRead` / `useReadPages` (`src/api/read.ts`): a read that failed once is no longer a
   first load (`hasFailed`, `isFirstLoad`, via `errorUpdateCount`, which survives the retry that clears the error),
   and the last error is kept to tell a 404 from a dropped connection. What a screen then says: app-ux.md §3.
-- To keep the last good answer drawn: `placeholderData: keepPreviousData`, and where a refetch fails, read the last
-  answer back out of the query cache (`held` / `lastOf` in `src/api/charts.ts`). `lastOf` takes any answer cached
-  under `['grow'|'space', id, 'series']`, so a read of the same route that asks for less needs a key of its own
-  (`'measurement-series'`). The lint rejects the obvious alternatives: a ref read or written during render
-  (`react-hooks/refs`) and setState in an effect (`react-hooks/set-state-in-effect`).
+- To keep the last good answer drawn while the next window is read: `placeholderData: keepPreviousData`
+  (`useTimeline`), with the screen dimming what it still shows. The lint rejects keeping it by hand: a ref read or
+  written during render (`react-hooks/refs`) and setState in an effect (`react-hooks/set-state-in-effect`).
 - `noLongerThere()` (`problem.ts`) is the 404 test: `access()` answers 404 to a reader who may not see a subject and
   403 to a refused write. Not every 404 is a subject gone: `GET /v1/devices/{id}/plan` answers 404 `plan_not_found`
   for a device that runs no plan (`isMissing`, `src/api/plans.ts`). Refusals are worded by `refusalText()`
@@ -244,26 +261,36 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - Browser storage holds per-browser conveniences only (`terp.language`, `terp.theme`, `terp.place`,
   `terp.shape.<user>`, `terp.loaded.<user>` - when Start last had an answer, for a Start that cannot load -
   `terp.lightHold.<device>` - the last light hold sent, `{ state, until }`, since no device reports one back; read
-  and written in `screens/devices/lights.ts` alone - ...); whatever has to follow the account (zone, diary layer,
+  and written in `screens/devices/lights.ts` alone -, `terp.curves` - the curves last ticked in Verlauf - ...); whatever has to follow the account (zone, diary layer,
   notices seen, the language for text the server writes) lives in `me.preferences`. `localStorage` is read and
   written through `src/ui/stored.ts`, which answers null and keeps nothing where storage is blocked; only
   `src/api/session.ts` has its own, as it uses `sessionStorage` too.
 
 ## Charts
 
-- ECharts through `echarts/core`, with the pieces drawn registered in `src/charts/Chart.tsx`; a new chart type is a
-  line there. The binding is an effect, a `ResizeObserver` and `dispose`, and redraws when `data-theme` or the
-  system scheme changes. Colours come from `src/charts/tokens.ts`, which reads the CSS variables - a canvas cannot.
-- ECharts' own axes are hidden (`src/charts/series.ts`); the figures app-ux.md §7 asks for are DOM around the plot
-  (`screens/charts/ChartCard.tsx`, the Timeline's panels). The cursor is an HTML overlay - `useScrub` in
-  `src/charts/scrub.ts`, on Charts and the Timeline alike (only Charts passes `onSelect`) - so a chart is drawn
-  once per answer and scrubbing costs no redraw; on Charts a mouse drag also marks a stretch to zoom into, a touch
-  drag only moves the cursor.
-- Axis bounds come from `niceScale()` in `src/charts/series.ts`, shared by Charts and Timeline, with both corners
-  snapped to the step's decimals: a corner one ULP above a round number (169 × 0.2 = 33.800000000000004) trips an
-  ECharts assert that exists only in development builds, i.e. under the dev server.
-- Gridlines fall on the account's clock and calendar (`src/charts/ticks.ts`); the window widths are in
-  `src/screens/charts/span.ts`.
+- ECharts through `echarts/core`, with the pieces drawn registered in `src/charts/Chart.tsx` - a line chart, the
+  grid and mark areas; a new chart type is a line there. The binding is an effect, a `ResizeObserver` and
+  `dispose`, and redraws when `data-theme` or the system scheme changes. Colours come from `src/charts/tokens.ts`,
+  which reads the CSS variables - a canvas cannot.
+- A plot is described as data (`Plot`, `src/charts/series.ts`) and turned into an option in one place,
+  `plotOption`: each line against a scale of its own, so several units share a picture; the nights, the bands and
+  an alarm's stretch as mark areas of the first line; and behind a line the stretch between its points' lowest
+  and highest as two stacked series (`stackStrategy: 'all'`, or a low below zero would not stack). From 130 points
+  down each point is a symbol.
+- ECharts' own axes are hidden; the figures app-ux.md §7 asks for are DOM around the plot (`screens/timeline/
+  Panel.tsx`). The cursor is an HTML overlay with the gestures of `useScrub` (`src/charts/scrub.ts`): a chart is
+  drawn once per answer and scrubbing costs no redraw. The overlay claims sideways gestures only
+  (`touch-action: pan-y`) and holds a touch back until it travelled sideways or lifted as a tap, so the page
+  scrolls over a plot; two pointers are a pinch; a mouse reads while it moves and marks a stretch by dragging.
+  Ctrl + wheel needs a listener of its own that is not passive (`Panel.tsx`), or the browser zooms the page.
+- Axis bounds come from `niceScale()` in `src/charts/series.ts`, with both corners snapped to the step's decimals:
+  a corner one ULP above a round number (169 × 0.2 = 33.800000000000004) trips an ECharts assert that exists only
+  in development builds, i.e. under the dev server.
+- Gridlines fall on the account's clock and calendar (`src/charts/ticks.ts`); a label that would stand on another
+  is left out where the axis is drawn (`Axis`, `Panel.tsx`).
+- A point of the server's is stamped where its window closes; the page draws it at the window's middle
+  (`pointsOf`, `screens/timeline/model.ts`), which is where a mean belongs and what lines a curve up with the
+  strip of the output under it.
 
 ## Media URLs
 
@@ -314,8 +341,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   dev server blurs and the production bundle does not. The header and the tab bar were translucent over that blur,
   and in the built app the page's text showed through them (found 2026-11-12), so both are solid now
   (`app/shell/TopBar.module.css`, `TabBar.module.css`). Do not bring the blur back, and judge anything translucent
-  on a build (`npm run build && npm run preview`), not on the dev server. The photo caption (`ui/ui.module.css`) and
-  the pinned reading over Verlauf and Graphen still write the pair and are equally unblurred when built.
+  on a build (`npm run build && npm run preview`), not on the dev server. The photo caption (`ui/ui.module.css`)
+  still writes the pair and is equally unblurred when built.
 - While a sheet is open the page behind it does not scroll: `html:has([data-scrim])` in `src/styles/global.css`,
   the attribute being the sheet's backdrop (`ui/Sheet.tsx`). The place sheet is portalled to `<body>`, because the
   header it is opened from is a layer of its own under the tab bar.
@@ -324,7 +351,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   derived from the colour logo by `scripts/derive-logo.mjs`.
 - An Erweitert item is a file `*.advanced.tsx` exporting `items` built with
   `advancedItem({ scope, id, order, shows, Item })`, found by `import.meta.glob` in `src/ui/advanced/registry.ts`.
-  Scopes: `device`, `charts`; a device's are drawn open on its page `/devices/:id/advanced`
+  One scope, `device`, drawn open on the device's page `/devices/:id/advanced`
   (`screens/devices/DevicePage.tsx`). The fast-refresh lint rule is off for these files. A device item's
   settings are the lines of `screens/control/devices/Settings.tsx` on `useSettings` (`climate/saved.ts`), named as
   `CONFIGURATION_FIELDS` names them per type (`shared-types/src/v1/configuration-fields.ts`, the AIR fan and the
@@ -373,6 +400,12 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   tests mock `@/api/session` and stub `fetch`. Off a terminal only failures are printed, and console output from a
   passing test is a fault to fix. `npm run test:live` (node environment) signs in with `AGENT_TESTING_*` from the root
   `.env` against a running stack.
+- A chart is a canvas, which jsdom has not got: a screen test mocks `@/charts/Chart` with an element that carries the
+  plot's label, and what a plot draws is held as data by the model's tests (`test/timeline-model.test.ts`, which
+  reads `plotOption`'s series). jsdom has no `matchMedia` either, so `useWideWindow` answers "wide" under test; a
+  test of a phone's layout stubs it (`test/timeline.test.tsx`). A gesture is fired as a `MouseEvent` given a
+  `pointerType` and `pointerId`, and a mouse leaving as `pointerout` with a `relatedTarget`, which is what React
+  works a leave out from (`test/scrub.test.tsx`).
 - `test/toast.tsx` (`Toast`) is the seam for a screen that answers through `tell`: Alarme, the plan panel, an
   alert's card and the device pages need it, or `LogProvider`. `test/toasts.test.tsx` holds the toasts' limit and
   their place over a sheet.

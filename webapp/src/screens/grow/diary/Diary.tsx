@@ -71,6 +71,12 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
       const spaceId = placeAt(grow, at);
       return spaceId ? timelinePath(spaceId, metric, at, grow.id) : null;
     },
+    curvesOf: day => {
+      const spaceId = placeAt(grow, day.startsAt);
+      // The day still running is the last 24 hours; a day that is over is that day.
+      const over = Date.parse(day.endsAt) <= now.toMillis();
+      return spaceId ? timelinePath(spaceId, null, null, grow.id, over ? { from: day.startsAt, to: day.endsAt } : null) : null;
+    },
   };
   const pictures = weeks.flatMap(week => week.days).flatMap(picturesOfDay);
   const film = weeks.find(hasFilm) ?? null;

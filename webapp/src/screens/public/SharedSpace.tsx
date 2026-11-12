@@ -93,9 +93,8 @@ export function SharedSpace({
       {/* "Look at my curves" is why a place is shared, so its Timeline is
           here: the last day, week or month, read only and through the link's
           own window. */}
-      <section className={styles.timeline} aria-label={t('publicPage.timeline')}>
-        <span className="label">{t('publicPage.timeline')}</span>
-        <SharedTimeline spaceId={space.spaceId} shared={{ token, picture }} />
+      <section className={styles.timeline}>
+        <SharedTimeline spaceId={space.spaceId} shared={{ token, picture }} title={<h2>{t('publicPage.timeline')}</h2>} />
       </section>
 
       {space.grows.length > 0 ? (

@@ -80,9 +80,6 @@ export function DeviceDiagnosis() {
           <Link className={ui.button} to={timelinePath(one.spaceId)}>
             {t('admin.diagnosis.timeline')}
           </Link>
-          <Link className={ui.button} to={`/charts?space=${encodeURIComponent(one.spaceId)}`}>
-            {t('admin.diagnosis.charts')}
-          </Link>
           <Link className={ui.button} to={placePath(one.spaceId)}>
             {t('admin.diagnosis.open')}
           </Link>

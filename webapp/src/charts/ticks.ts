@@ -14,7 +14,7 @@ import { CLOCK, zonedAt } from '@/ui/zone';
  * the line adds: an hour within a day, the weekday at a midnight, a date where
  * the window runs past a week.
  */
-export interface Tick {
+interface Tick {
   at: number;
   label: string;
 }
@@ -36,20 +36,13 @@ const STEPS: Step[] = [
   { unit: 'year', count: 1, ms: 365 * DAY_MS },
 ];
 
-/** How much room a label wants beside the window's two ends, which is what decides how many of them fit across a plot. */
-export const TICK_ROOM_PX = 72;
-
 /**
- * And on a row of its own. A phone's plot is a quarter of a metre of glass
- * with the two ends of the window written under it, and between "25. Sep 16:04"
- * and "2. Okt 16:04" there was no room left for a single date: a week and a
- * month were read without one. There the gridlines are named on a row of their
- * own, where a date needs only its own width and a little air.
+ * How much room a label wants on the row the gridlines are named on: a date
+ * needs its own width and a little air, and four weeks of a month are 58
+ * pixels apart on a phone. A label that would still stand on another is left
+ * out where the row is drawn.
  */
-export const NARROW_TICK_ROOM_PX = 52;
-
-/** Below this width a plot's gridlines are named on that row of their own. */
-export const NARROW_PLOT_PX = 480;
+export const TICK_ROOM_PX = 52;
 
 /**
  * How many lines a plot of this width carries at most: never fewer than two,

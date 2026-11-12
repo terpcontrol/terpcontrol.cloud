@@ -9,7 +9,7 @@ import { PublicShell } from '@/screens/public/PublicShell';
 import { Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import styles from '@/screens/SignIn.module.css';
-import { chartsAddressOf } from './old-charts';
+import { timelineAddressOf } from './old-charts';
 import { controlPath, placePath, timelinePath } from './places';
 import { RequireSession } from './RequireSession';
 
@@ -80,7 +80,7 @@ export function OpenDemo() {
 
 /** What the old app's device pages are now, page by page, with what the old address asked for where the page now reads it. */
 const OLD_DEVICE_PAGES: Record<string, (spaceId: string, params: URLSearchParams) => string> = {
-  charts: chartsAddressOf,
+  charts: timelineAddressOf,
   diary: spaceId => timelinePath(spaceId),
   settings: spaceId => controlPath(spaceId),
   testmode: spaceId => controlPath(spaceId),

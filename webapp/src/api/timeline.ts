@@ -1,39 +1,64 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { useRead } from './read';
-import type { SpaceTimeline, TimelineRange } from '@fg2/shared-types/v1';
+import type { Metric, SpaceTimeline, TimelineRange } from '@fg2/shared-types/v1';
 import { api } from './client';
 
 /**
- * The Timeline tab is one read per range chip - frames, panels, night, alarms,
- * lanes and rail are all views of the same window, so asking for them
- * separately would draw six windows that disagree at their edges.
+ * Verlauf is one read per window - frames, panels, night, alarms, strips and
+ * the diary's lines are all views of the same window, so asking for them
+ * separately would draw windows that disagree at their edges.
  *
- * A chip is a change of window and not of screen, so the answer in hand stays
- * drawn until the next one arrives: without that, every tap empties the frame,
- * the header and the panels, and the two chips that need a grow go dead for as
- * long as the read takes, because nothing on screen knows about one any more.
- *
- * Only the two rolling ranges are refreshed: a phase and a grow end where they
- * end, and re-reading them would redraw the same picture. A refresh that fails
- * leaves the last answer on the screen with the line that says how old it is.
+ * A step, a zoom or a chip is a change of window and not of screen, so the
+ * answer in hand stays drawn until the next one arrives.
  */
+
+/** A window that ends now is asked again on this beat; one that stands still is not. */
 const TIMELINE_REFRESH_MS = 60_000;
+
+/** Every panel a place can have: what is measured, and what is worked out from it. */
+export const TIMELINE_METRICS: Metric[] = ['temperature', 'humidity', 'vpd', 'co2', 'leafTemperature', 'lux', 'ppfd'];
 
 /** `phase` and `grow` are stretches of one grow, so the server refuses them without one. */
 export const rangeNeedsGrow = (range: TimelineRange): boolean => range === 'phase' || range === 'grow';
 
-/** A link's token, where the Timeline is read through one: the reader's whole proof, and the window it was given. */
-export const useTimeline = (
-  spaceId: string,
-  range: TimelineRange,
-  growId: string | null,
-  share: string | null = null,
-  deviceId: string | null = null,
-) =>
-  useRead({
-    queryKey: ['space', spaceId, 'timeline', range, growId, share, deviceId],
-    queryFn: ({ signal }) => api.get<SpaceTimeline>(`/spaces/${spaceId}/timeline`, { range, growId, share, deviceId }, signal),
-    enabled: spaceId !== '' && (!rangeNeedsGrow(range) || growId !== null),
-    refetchInterval: rangeNeedsGrow(range) ? false : TIMELINE_REFRESH_MS,
+export interface TimelineAsk {
+  range: TimelineRange;
+  growId?: string | null;
+  /** Both ends of a window named outright, as instants; the range then only says which grow it is of. */
+  from?: string;
+  to?: string;
+  /** The step somebody chose; left out, the width of the window decides it. */
+  stepSeconds?: number | null;
+  /** One climate of several, where a place holds more than one. */
+  deviceId?: string | null;
+  /** A link's token, where the place is read through one: the reader's whole proof, and the window it was given. */
+  share?: string | null;
+  /** False for a window that stands still: nothing new can arrive in it. */
+  follows?: boolean;
+}
+
+export const useTimeline = (spaceId: string | null, ask: TimelineAsk | null) => {
+  const { follows = true, ...asked } = ask ?? { range: '24h' as const };
+
+  return useRead({
+    queryKey: ['space', spaceId, 'timeline', asked],
+    queryFn: ({ signal }) =>
+      api.get<SpaceTimeline>(
+        `/spaces/${spaceId}/timeline`,
+        {
+          range: asked.range,
+          growId: asked.growId ?? undefined,
+          from: asked.from,
+          to: asked.to,
+          stepSeconds: asked.stepSeconds || undefined,
+          deviceId: asked.deviceId ?? undefined,
+          share: asked.share ?? undefined,
+          metrics: TIMELINE_METRICS,
+        },
+        signal,
+      ),
+    enabled: spaceId !== null && spaceId !== '' && ask !== null && (!rangeNeedsGrow(asked.range) || !!asked.growId || !!asked.from),
+    refetchInterval: follows ? TIMELINE_REFRESH_MS : false,
     placeholderData: keepPreviousData,
   });
+};

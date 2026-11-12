@@ -178,15 +178,6 @@
   text-align: center;
 }
 
-/* The row that walks a day of pictures, under the mat: play where there is
-   one, the one slider, and the ends or the time at the cursor beside it. */
-.transport {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-}
-
 /* What a picture is, laid on the picture: its time, its age, how many there
    are. Smoked glass in the corner, the same in both modes because the picture
    under it does not change with the theme; it sits bottom left, and is cut

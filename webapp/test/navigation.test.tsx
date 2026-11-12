@@ -538,12 +538,12 @@ describe('the choice of place', () => {
     const router = open('/');
 
     await waitFor(() => expect(chips('Fridge 1')).toHaveLength(1));
-    for (const address of ['/timeline', '/control', '/control/alarms', '/grow', '/grow/plants', '/charts']) {
+    for (const address of ['/timeline', '/control', '/control/alarms', '/grow', '/grow/plants']) {
       await act(() => router.navigate(address));
       expect(chips('Fridge 1')).toHaveLength(2);
     }
     // A page about one grow, about every grow or about none of them is not about the chosen place.
-    for (const address of ['/grows', '/grows/grow-9/weeks', '/charts?grow=grow-9', QUIET]) {
+    for (const address of ['/grows', '/grows/grow-9/weeks', QUIET]) {
       await act(() => router.navigate(address));
       expect(chips('Fridge 1')).toHaveLength(1);
     }

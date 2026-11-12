@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) - where its decisions and knowledge live now, and what it left open; read before picking up one of those open items
 updated: 2026-11-12
-source: rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign and its fix pass (the redesign session of 2026-11-12)
+source: rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign and its fix pass (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -41,19 +41,18 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
   2026-11-11; internal notes exist) and a click prototype outside the app comes before any change to it. The new
   routes need no redirects from today's, and a change to the data model comes as a migration step (Chris,
   2026-11-11). It is built in rounds; the bar, the header's choice of place, the addresses, Start, the grow page
-  with its diary by the day, the public page on the same day cards, and Steuerung with a page per device and the
-  camera page are in since 2026-11-12 ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)), the
-  other pages follow. A read of the whole web app on 2026-11-11 found, as the things the redesign still has to
+  with its diary by the day, the public page on the same day cards, Steuerung with a page per device and the
+  camera page, and Verlauf as the one page of curves are in since 2026-11-12
+  ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page),
+  [§7](knowledge/app-ux.md#7-verlauf-day-and-night)), the other pages follow. A read of the whole web app on 2026-11-11 found, as the things the redesign still has to
   settle:
-  - Verlauf and Graphen are two screens over one engine. Verlauf's windows all end now and it cannot zoom; Graphen
-    can step back and zoom, is reached by a chip in Verlauf's range row, and opens on 24 h
-    whatever Verlauf showed. On touch a drag only moves the cursor (`webapp/src/charts/scrub.ts`), so zooming is the
-    button "Hineinzoomen", and every zoom is a new read.
-  - A curve's automatic step is `max(60 s, range / 480)` and each point a mean without minimum and maximum
-    (`server/src/modules/v1/timeline/timeline-window.ts`). The comment on `MIN_STEP_SECONDS` there says no device
-    reports faster, but devices send a `bulk` sample every 5 s ([device-protocol.md](device-protocol.md)) and the
-    store honours an asked step from 5 s (`server/src/modules/data/flux.ts`). The old page loaded 5 to 20 s points up
-    to a day and zoomed on them in the browser.
+  - Settled on 2026-11-12: Verlauf and Graphen were two screens over one engine, and a curve was a mean of at
+    least a minute. Verlauf is one page now, with its view in the address, and a point is read from 5 s with its
+    window's lowest and highest ([app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night),
+    [server-engines.md](knowledge/server-engines.md#read-models)). Left of the page before it: the routes
+    `GET /v1/spaces/{id}/series` and the climate half of `GET /v1/grows/{id}/series`, which the web app no longer
+    asks - only a grow's own measurements are still read there - and `ChartView.definition.layout: 'day_of_grow'`,
+    which nothing writes any more. They wait for the round that clears up.
   - A claim offers "ein neuer Ort" first when places exist (`screens/claim/CodeStep.tsx`), so a second device in the
     same tent makes a second place and Start turns into the several-places layout.
   - The weight is live duplication, not dead code: 21 ideas (place chooser, rename sheet, maintenance, climate

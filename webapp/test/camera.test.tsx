@@ -856,10 +856,14 @@ describe('the days under the picture', () => {
     drawPage();
     moveTo(32);
 
-    expect(screen.getByRole('link', { name: 'Curves of this day' })).toHaveAttribute(
-      'href',
-      `/timeline?${new URLSearchParams({ space: 'space-1', at: still(32).capturedAt, grow: 'grow-1' }).toString()}`,
-    );
+    // That day of the grow's calendar as the window, and the cursor on its picture.
+    const curves = new URL(screen.getByRole('link', { name: 'Curves of this day' }).getAttribute('href')!, 'http://app');
+    const asked = Object.fromEntries(curves.searchParams);
+    expect(curves.pathname).toBe('/timeline');
+    expect(asked).toMatchObject({ space: 'space-1', at: still(32).capturedAt, grow: 'grow-1' });
+    expect(Date.parse(asked.to) - Date.parse(asked.from)).toBe(24 * 3600 * 1000);
+    expect(Date.parse(asked.from)).toBeLessThanOrEqual(Date.parse(still(32).capturedAt));
+    expect(Date.parse(asked.to)).toBeGreaterThan(Date.parse(still(32).capturedAt));
   });
 
   /**

@@ -61,17 +61,27 @@ export const controlPath = (
 ): string => withQuery(page ? `/control/${page}` : '/control', { space: spaceId, ...query }) + (hash ? `#${hash}` : '');
 
 /**
- * The Timeline of a place, opened on one reading where `focus` names it, and
- * on one moment where `at` does. A moment of a grow's diary names the grow as
- * well: further back than the rolling windows reach, it is the grow's own
- * stretch that holds it.
+ * Verlauf of a place, opened on one reading where `focus` names it and with
+ * its cursor on one moment where `at` does - however old, with that moment's
+ * own day around it. A moment of a grow's diary names the grow as well, whose
+ * bands and day count are then the ones drawn. What the address means is read
+ * in `screens/timeline/view.ts`.
  */
-export const timelinePath = (spaceId: string, focus: string | null = null, at: string | null = null, growId: string | null = null): string =>
-  withQuery('/timeline', { space: spaceId, ...(focus ? { focus } : {}), ...(at ? { at } : {}), ...(growId ? { grow: growId } : {}) });
-
-/** Graphen of a place, with the curves named drawn and no others: the way from a reading Verlauf has no panel for. */
-export const chartsPath = (spaceId: string, show: string | null = null): string =>
-  withQuery('/charts', { space: spaceId, ...(show ? { show } : {}) });
+export const timelinePath = (
+  spaceId: string,
+  focus: string | null = null,
+  at: string | null = null,
+  growId: string | null = null,
+  /** A window named outright, as two instants: one day of a grow, the stretch of an old bookmark. */
+  window: { from: string; to: string } | null = null,
+): string =>
+  withQuery('/timeline', {
+    space: spaceId,
+    ...(focus ? { focus } : {}),
+    ...(at ? { at } : {}),
+    ...(growId ? { grow: growId } : {}),
+    ...(window ?? {}),
+  });
 
 /** The pages below a device's own: what few growers set, and what support asks for. */
 export const DEVICE_PAGES = ['advanced', 'details'] as const;
@@ -92,15 +102,12 @@ export const cameraPath = (cameraId: string): string => `/cameras/${encodeURICom
  * Graphen stands under Verlauf for as long as it is a page of its own, and is
  * about a grow instead where its address names one.
  */
-const ITEMS = [GROW, '/timeline', '/control', '/charts'];
+const ITEMS = [GROW, '/timeline', '/control'];
 
-const itemOf = (pathname: string, search: string): string | null => {
-  const item = ITEMS.find(path => pathname === path || pathname.startsWith(`${path}/`)) ?? null;
-  return item === '/charts' && new URLSearchParams(search).has('grow') ? null : item;
-};
+const itemOf = (pathname: string): string | null => ITEMS.find(path => pathname === path || pathname.startsWith(`${path}/`)) ?? null;
 
 /** Whether an address is one of those: a page that shows the chosen place. */
-export const isAboutPlace = (pathname: string, search = ''): boolean => itemOf(pathname, search) !== null;
+export const isAboutPlace = (pathname: string): boolean => itemOf(pathname) !== null;
 
 /**
  * The chosen place, and the place the page on screen belongs to where it is
@@ -206,12 +213,12 @@ const placeShown = (places: PlaceCard[], asked: string | null, chosen: string | 
  */
 export const usePlaceChoice = (places: PlaceCard[] | undefined) => {
   const { user } = useSession();
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const chosen = useChosenPlace();
   const belongs = useSyncExternalStore(subscribe, pagePlace, pagePlace) !== null;
-  const item = itemOf(pathname, search);
+  const item = itemOf(pathname);
   const asked = item ? params.get('space') : null;
   const spaces = useSpaces(user !== null);
   // Rooms that could not be read group nothing; the places are still there to choose from.

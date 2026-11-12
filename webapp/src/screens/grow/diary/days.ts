@@ -36,6 +36,8 @@ export interface DiaryReader {
   correct: (entry: Entry, dayNumber: number | null) => (() => void) | undefined;
   /** The curve of a reading at a moment of the diary, where the reader has one to open. */
   curveOf: (metric: Metric, at: string) => string | null;
+  /** The curves of one whole day, which its climate line leads to. */
+  curvesOf: (day: Pick<GrowDiaryDay, 'startsAt' | 'endsAt'>) => string | null;
 }
 
 /** How many of the newest days stand open as cards; the days before them fold into their weeks. */

@@ -1,6 +1,6 @@
 import { CanvasRenderer } from 'echarts/renderers';
 import { LineChart } from 'echarts/charts';
-import { DatasetComponent, GridComponent, MarkAreaComponent, MarkLineComponent, TooltipComponent } from 'echarts/components';
+import { GridComponent, MarkAreaComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { useEffect, useRef } from 'react';
 import { readChartPalette, type ChartPalette } from './tokens';
@@ -10,7 +10,7 @@ import { readChartPalette, type ChartPalette } from './tokens';
  * importing the bundle keeps everything the screens do not draw out of the
  * download; a chart type a later screen needs is a line here.
  */
-echarts.use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, DatasetComponent, MarkAreaComponent, MarkLineComponent]);
+echarts.use([CanvasRenderer, LineChart, GridComponent, MarkAreaComponent]);
 
 export type ChartOption = echarts.EChartsCoreOption;
 

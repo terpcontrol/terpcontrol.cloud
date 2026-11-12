@@ -1,6 +1,6 @@
 import type { DateTime } from 'luxon';
 import type { CardSetpoint, CardValue, Device, DeviceLive, ValueState } from '@fg2/shared-types/v1';
-import { chartsPath, timelinePath } from '@/app/places';
+import { timelinePath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { heldWords } from '@/screens/control/held-light';
 import type { Held } from '@/screens/devices/HandHold';
@@ -139,9 +139,9 @@ export const readingFacts = (t: Translate, readings: Reading[]): string[] =>
             : t('start.card.lightOff'),
     );
 
-/** Where a reading's curve is drawn: its panel of Verlauf, and Graphen for VPD, which Verlauf has no panel for. */
+/** Where a reading's curve is drawn: its panel of Verlauf. */
 export const curvePath = (spaceId: string, reading: Pick<Reading, 'key' | 'focus'>): string =>
-  reading.key === 'vpd' ? chartsPath(spaceId, 'vpd') : timelinePath(spaceId, reading.focus);
+  timelinePath(spaceId, reading.key === 'vpd' ? 'vpd' : reading.focus);
 
 /** One of the further readings: its words and the panel of Verlauf it is drawn on. */
 export interface Extra {

@@ -7,7 +7,7 @@ import { useSettings } from '@/screens/control/climate/saved';
 import { ChoiceSetting, NumberSetting, SettingsBlock, SwitchSetting } from '@/screens/control/devices/Settings';
 import { AdvancedSection } from '@/ui/advanced/Advanced';
 import { fieldValue, heldSetting } from '@/ui/advanced/field-values';
-import { advancedItem, type AdvancedItem, type ChartsContext } from '@/ui/advanced/item';
+import { advancedItem, type AdvancedItem } from '@/ui/advanced/item';
 import { itemsFor } from '@/ui/advanced/registry';
 import { drawAt } from './harness';
 import { Toast } from './toast';
@@ -55,38 +55,28 @@ describe('the registry', () => {
 
 describe('a section', () => {
   const ITEMS: AdvancedItem[] = [
-    advancedItem({ scope: 'charts', id: 'second', order: 20, shows: () => true, Item: () => <p>second</p> }),
+    advancedItem({ scope: 'device', id: 'second', order: 20, shows: () => true, Item: () => <p>second</p> }),
     advancedItem({
-      scope: 'charts',
+      scope: 'device',
       id: 'first',
       order: 10,
-      shows: ({ vpdDrawn }) => vpdDrawn,
-      Item: ({ spaceId }) => <p>first of {spaceId}</p>,
+      shows: ({ mayManage }) => mayManage,
+      Item: ({ device }) => <p>first of {device.id}</p>,
     }),
-    advancedItem({ scope: 'device', id: 'elsewhere', order: 0, shows: () => true, Item: () => <p>elsewhere</p> }),
   ];
-  const charts = (vpdDrawn: boolean): ChartsContext => ({
-    growId: null,
-    spaceId: 'space-1',
-    settings: { stepSeconds: null, vpdHalf: 'all', live: false },
-    change: () => undefined,
-    answeredStep: null,
-    vpdDrawn,
-    endsNow: true,
-  });
+  const context = (mayManage: boolean) => ({ device: fridge(), mayManage, offline: false });
 
   it('draws its items folded, in their order, with the context of its scope', () => {
-    drawAt(<AdvancedSection scope="charts" context={charts(true)} items={ITEMS} />);
+    drawAt(<AdvancedSection scope="device" context={context(true)} items={ITEMS} />);
 
     const section = screen.getByText('Advanced').closest('details')!;
     expect(section).not.toHaveAttribute('open');
     // Nothing is explained over the items: each says what it is behind its own help.
-    expect([...section.querySelectorAll('p')].map(line => line.textContent)).toEqual(['first of space-1', 'second']);
-    expect(screen.queryByText('elsewhere')).not.toBeInTheDocument();
+    expect([...section.querySelectorAll('p')].map(line => line.textContent)).toEqual(['first of fridge-1', 'second']);
   });
 
   it('is not drawn at all where none of its items applies', () => {
-    const { container } = drawAt(<AdvancedSection scope="charts" context={charts(false)} items={ITEMS.filter(item => item.id === 'first')} />);
+    const { container } = drawAt(<AdvancedSection scope="device" context={context(false)} items={ITEMS.filter(item => item.id === 'first')} />);
 
     expect(container).toBeEmptyDOMElement();
   });

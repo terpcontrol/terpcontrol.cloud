@@ -33,6 +33,16 @@
   white-space: nowrap;
 }
 
+/* A stamp that leads to its moment is a finger high, like the line beside it. */
+button.stamp {
+  min-height: var(--control-height);
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  color: var(--brand);
+}
+
 .text {
   flex: 1;
   min-width: 0;

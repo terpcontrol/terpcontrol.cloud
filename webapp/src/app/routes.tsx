@@ -9,7 +9,6 @@ import { AdminOnly } from '@/screens/admin/AdminOnly';
 import { Users as AdminUsers } from '@/screens/admin/Users';
 import { Alerts } from '@/screens/Alerts';
 import { CameraPage } from '@/screens/camera/CameraPage';
-import { Charts } from '@/screens/charts/Charts';
 import { Claim } from '@/screens/claim/Claim';
 import { Demo } from '@/screens/admin/Demo';
 import { DeviceDiagnosis } from '@/screens/admin/DeviceDiagnosis';
@@ -58,7 +57,6 @@ export const screens: RouteObject[] = [
   { index: true, element: <Start /> },
   { path: 'timeline', element: <Timeline /> },
   { path: 'control/:page?', element: <ControlTab /> },
-  { path: 'charts', element: <Charts /> },
   { path: 'log', element: <LogRoute /> },
   // No list of devices stands here - they are found under Steuerung - and without this the address would be read as somebody's handle.
   { path: 'devices', element: <NotFound /> },

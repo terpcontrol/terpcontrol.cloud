@@ -6,10 +6,13 @@ import type { OverviewTargets, SpaceTimeline } from '@fg2/shared-types/v1';
 import { useTimeline } from '@/api/timeline';
 import { timelinePath } from '@/app/places';
 import { HOUR_MS } from '@/ui/days';
-import { figureWithUnit } from '@/ui/units';
+import { figure, figureWithUnit } from '@/ui/units';
 import { at, stretchesOf } from '@/screens/timeline/window';
 import { judgedPanel } from './place';
 import styles from './Start.module.css';
+
+/** The same read Verlauf opens on, so the page behind this card is already in hand. */
+const LAST_DAY = { range: '24h' as const };
 
 const WIDTH = 240;
 const HEIGHT = 56;
@@ -24,7 +27,7 @@ const GAP_MS = HOUR_MS;
  */
 export function DayCurves({ spaceId, targets }: { spaceId: string; targets: OverviewTargets | null }) {
   const { t } = useTranslation();
-  const timeline = useTimeline(spaceId, '24h', null).data;
+  const timeline = useTimeline(spaceId, LAST_DAY).data;
   if (!timeline) return null;
 
   return (
@@ -44,7 +47,7 @@ function Curve({ timeline, targets, metric }: { timeline: SpaceTimeline; targets
   const to = Date.parse(timeline.endsAt);
   const panel = judgedPanel(timeline.panels.find(one => one.metric === metric) ?? null, targets, timeline.startsAt, timeline.endsAt);
   const points = (panel?.points ?? []).filter(point => point.value !== null && at(point.measuredAt) >= from);
-  if (!panel || points.length < 2 || to <= from) return <span className={styles.curve} aria-hidden />;
+  if (!panel || points.length < 2 || to <= from) return null;
 
   const stretches = stretchesOf(panel, timeline.nights, from, to, timeline.transitions);
   const values = points.map(point => point.value as number);
@@ -69,6 +72,11 @@ function Curve({ timeline, targets, metric }: { timeline: SpaceTimeline; targets
 
   return (
     <span className={styles.curve}>
+      {/* What the curve is of and what it ran between, so the shape is read as a reading. */}
+      <span className={styles.curveLabel} data-tone={metric} aria-hidden>
+        {t(`home.metric.${metric}`)}
+        <small>{t('start.curveSpan', { low: figure(Math.min(...values), metric), high: figureWithUnit(Math.max(...values), metric) })}</small>
+      </span>
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" role="img" aria-label={said}>
         <clipPath id={clip}>
           <rect width={WIDTH} height={HEIGHT} />

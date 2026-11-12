@@ -120,7 +120,7 @@ describe('Start of one place with a camera and a grow', () => {
     expect(screen.queryByRole('link', { name: 'Temperature' })).not.toBeInTheDocument();
   });
 
-  it('opens each reading´s curve from the picture: a panel of Verlauf, and Graphen for VPD', async () => {
+  it('opens each reading´s curve from the picture: its panel of Verlauf', async () => {
     draw();
 
     const picture = (await screen.findByRole('img', { name: 'The newest picture of Fridge 1' })).closest('a')!.parentElement!;
@@ -130,7 +130,10 @@ describe('Start of one place with a camera and a grow', () => {
       '/timeline?space=space-1&focus=temperature',
     );
     expect(within(picture).getByRole('link', { name: /^Humidity 61 %/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=humidity');
-    expect(within(picture).getByRole('link', { name: 'VPD 1.03 kPa, open the chart' })).toHaveAttribute('href', '/charts?space=space-1&show=vpd');
+    expect(within(picture).getByRole('link', { name: 'VPD 1.03 kPa, open the timeline' })).toHaveAttribute(
+      'href',
+      '/timeline?space=space-1&focus=vpd',
+    );
     expect(await within(picture).findByRole('link', { name: /^Light 65 %/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=light');
   });
 
@@ -437,9 +440,9 @@ describe('Start of a place that only regulates', () => {
     expect(screen.getByRole('link', { name: 'Temperature' })).toHaveAttribute('href', '/timeline?space=space-1&focus=temperature');
     expect(temperature).toHaveTextContent('Temperature25.1 °Cin band');
     expect(screen.getByRole('link', { name: 'Humidity' }).closest('div')).toHaveTextContent('Humidity61 %in band');
-    // VPD has no panel in Verlauf, so its tile opens Graphen on that one curve - and explains itself beside its name.
+    // VPD leads to its own panel of Verlauf like every reading, and explains itself beside its name.
     const vpd = screen.getByRole('link', { name: 'VPD' });
-    expect(vpd).toHaveAttribute('href', '/charts?space=space-1&show=vpd');
+    expect(vpd).toHaveAttribute('href', '/timeline?space=space-1&focus=vpd');
     expect(vpd.closest('div')).toHaveTextContent('1.03 kPa');
     expect(within(vpd.closest('div')!).getByRole('button', { name: /VPD/ })).toBeInTheDocument();
     // The lamp says how bright it is and when it switches next, by the account's clock.

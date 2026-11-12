@@ -507,7 +507,6 @@ describe('support for a customer', () => {
     expect(screen.getByText('64800 · 18:00 UTC · 18:00 for the customer')).toBeInTheDocument();
     expect(await screen.findByText('Blue Dream tent')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Timeline' })).toHaveAttribute('href', '/timeline?space=space-1');
-    expect(screen.getByRole('link', { name: 'Charts' })).toHaveAttribute('href', '/charts?space=space-1');
     expect(screen.getByText('The device has reported nothing yet.')).toBeInTheDocument();
     // It reads and writes nothing.
     expect(server.wrote).toEqual([]);

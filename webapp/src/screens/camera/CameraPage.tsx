@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
 import { CAPTURE_BUDGET_SECONDS, readsThroughDevice } from '@fg2/shared-types/v1-schemas/capture.js';
 import { useAccountMe } from '@/api/account';
+import { serverNow } from '@/api/clock';
 import { gaveUp, useCamera, useLatestStills, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useGrowDiary, useSpaceGrows } from '@/api/grows';
@@ -19,6 +20,7 @@ import { ALL_GROWS, devicePath, placePath, timelinePath, usePageOfPlace } from '
 import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
 import { dayNamed, reachesBackTo, useReadBackTo } from '@/screens/grow/diary/read-back';
+import { dayHolding } from '@/screens/timeline/view';
 import { shownStill } from '@/screens/start/place';
 import { ageLabel, deviceLiveness, sinceLabel } from '@/ui/age';
 import { useCameraCalled } from '@/ui/camera-name';
@@ -342,7 +344,7 @@ function Watch({
 
         <Rows>
           {place && measured ? (
-            <Row to={timelinePath(place.id, null, day?.capturedAt ?? null, day ? (grow?.id ?? null) : null)} title={t('camera.row.curves')} />
+            <Row to={curvesOfDay(place.id, day?.capturedAt ?? null, day ? (grow ?? null) : null)} title={t('camera.row.curves')} />
           ) : null}
           {grow ? <Row to={`${ALL_GROWS}/${grow.id}${day ? `?day=${day.dayNumber}` : ''}`} title={t('camera.row.diary')} /> : null}
           {mayManage ? <Row onOpen={() => setOpen('composer')} title={t('camera.makeOne')} /> : null}
@@ -411,3 +413,19 @@ function Shot({ test, mayOwn, offline }: { test: ReturnType<typeof useTestCaptur
     </div>
   ) : null;
 }
+
+/**
+ * Verlauf on the day the page shows: that day of the grow's calendar, with the
+ * cursor on its picture, so the stills of that day are read along its curves.
+ * Today is the last 24 hours, which hold this morning.
+ */
+const curvesOfDay = (spaceId: string, at: string | null, grow: Pick<GrowListItem, 'id' | 'summary'> | null): string => {
+  const day = at ? dayHolding(Date.parse(at), grow?.summary.zone ?? null, serverNow().toMillis()) : null;
+  return timelinePath(
+    spaceId,
+    null,
+    at,
+    grow?.id ?? null,
+    day ? { from: new Date(day.from).toISOString(), to: new Date(day.to).toISOString() } : null,
+  );
+};

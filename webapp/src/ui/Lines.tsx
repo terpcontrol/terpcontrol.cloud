@@ -28,6 +28,8 @@ export function Line({
   onOpen,
   opens,
   to,
+  onStamp,
+  stampDoes,
 }: {
   stamp: string;
   children: ReactNode;
@@ -37,13 +39,23 @@ export function Line({
   /** What opening the line does, for the tooltip and a screen reader; correcting it where nothing else is said. */
   opens?: string;
   to?: string | null;
+  /** What a tap on the stamp does, and what that is called: Verlauf sets its cursor on the line's moment. */
+  onStamp?: (() => void) | null;
+  stampDoes?: string;
 }) {
   const { t } = useTranslation();
   const does = opens ?? t('grow.correctLine');
 
   return (
     <li className={styles.line} data-severity={severity ?? undefined}>
-      <span className={styles.stamp}>{stamp}</span>
+      {onStamp ? (
+        <button type="button" className={styles.stamp} title={stampDoes} onClick={onStamp}>
+          {stamp}
+          {stampDoes ? <span className={ui.visuallyHidden}>{`, ${stampDoes}`}</span> : null}
+        </button>
+      ) : (
+        <span className={styles.stamp}>{stamp}</span>
+      )}
       {/* The mark stands in the line's own row, so it takes room only where there is one. */}
       <span className={styles.body}>
         {to ? (

@@ -58,6 +58,7 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
     byline: false,
     correct: () => undefined,
     curveOf: () => null,
+    curvesOf: () => null,
   };
 
   return (

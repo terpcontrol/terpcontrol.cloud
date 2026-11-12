@@ -112,136 +112,6 @@
     "text": "Die aufgerufene Seite existiert nicht oder wurde verschoben.",
     "home": "Zurück zur App"
   },
-  "charts": {
-    "title": "Graphen",
-    "noData": "In diesem Zeitraum liegen keine Messwerte vor — bitte den Zeitraum ändern.",
-    "quietWindow": "In diesem Zeitraum liegen keine Messwerte vor · zuletzt gemessen vor {{age}} — bitte den Zeitraum ändern.",
-    "resetZoom": "Zoom zurücksetzen",
-    "back": "Zurück",
-    "rangeLabel": "Zeitraum",
-    "range": {
-      "custom": "Eigener …"
-    },
-    "custom": {
-      "from": "Von",
-      "to": "Bis",
-      "need": "Beide Enden wählen, dann wird dazwischen gezeichnet.",
-      "unreadable": "Das ist kein lesbares Datum — bitte beide Enden neu wählen.",
-      "backwards": "Dieser Zeitraum endet vor seinem Anfang — bitte ein Von wählen, das vor dem Bis liegt."
-    },
-    "seriesLabel": "Kurven",
-    "metric": {
-      "temperature": "Temperatur",
-      "humidity": "Luftfeuchte",
-      "vpd": "VPD",
-      "co2": "CO₂",
-      "leafTemperature": "Blatttemperatur",
-      "lux": "Lux",
-      "ppfd": "PPFD"
-    },
-    "more": "+ mehr",
-    "less": "− weniger",
-    "savedLabel": "Gespeichert",
-    "about": {
-      "band": "Zielband folgt der Phase",
-      "bandTargets": "Zielband aus den Zielwerten",
-      "leaf": "Blatt {{offset}} °C",
-      "leafHalves": "Blatt tags {{day}} °C, nachts {{night}} °C",
-      "pair": "überlagert, zwei Achsen",
-      "overlay": "überlagert",
-      "measured": "erfasst",
-      "perPlant": "je Pflanze",
-      "output": "wann an",
-      "outputPooled": "wann an, bei einem von {{count}} Geräten",
-      "level": "Stufe in % der vollen Leistung",
-      "levelPooled": "höchste Stufe von {{count}} Geräten, in %",
-      "dose": "dosiert je {{step}}",
-      "dosePooled": "dosiert je {{step}}, {{count}} Geräte zusammen"
-    },
-    "leftOut_one": "{{names}} bleibt weg: zwei Einheiten in einem Feld nur, wenn sie zusammengehören.",
-    "leftOut_other": "{{names}} bleiben weg: zwei Einheiten in einem Feld nur, wenn sie zusammengehören.",
-    "plotAlt": "{{title}} über den Zeitraum",
-    "layoutLabel": "Darstellung",
-    "layout": {
-      "stacked": "Gestapelt",
-      "overlay": "Überlagert",
-      "day_of_grow": "Grow-Tag"
-    },
-    "saveView": "Sichern",
-    "csv": "CSV",
-    "csvOutput": "{{output}} (an/aus)",
-    "csvNote": "Die CSV-Datei enthält jede oben gewählte Kurve: eine Zeile je {{step}} und eine weitere, wann immer ein Ausgang schaltet oder ein Messwert eingetragen wird.",
-    "exportOn": "Den ganzen Grow mit Bildern und Tagebuch gibt es unter Export bei",
-    "note": "Stell dir beliebige Kurven über beliebige Zeiträume zusammen, speichere Ansichten und exportiere sie als CSV.",
-    "nothingPicked": "Noch nichts gewählt — oben eine Kurve antippen.",
-    "whichGrow": "Hier steht noch kein Gerät. Wähle einen Grow, dessen Messungen gezeichnet werden.",
-    "views": {
-      "newTitle": "Diese Ansicht sichern",
-      "editTitle": "Gesicherte Ansicht",
-      "name": "Name",
-      "placeholder": "Blütewochen, Temperatur und Luftfeuchte",
-      "holdsTheQuestion": "Eine Ansicht merkt sich die Frage und nie die Messwerte; Überschreiben kostet also keinen Messwert.",
-      "save": "Sichern",
-      "saving": "Wird gesichert…",
-      "saveAsNew": "Als neue sichern",
-      "delete": "Löschen",
-      "deleteAsk": "Diese Ansicht wegwerfen? Es geht nichts Gemessenes mit.",
-      "deleteYes": "Wegwerfen",
-      "cancel": "Abbrechen"
-    },
-    "compareLabel": "Vergleich",
-    "on": "an",
-    "off": "aus",
-    "notHere_one": "Für {{names}} ist in diesem Zeitraum nichts erfasst, deshalb wird nichts gezeichnet.",
-    "notHere_other": "Für {{names}} ist in diesem Zeitraum nichts erfasst, deshalb wird nichts gezeichnet.",
-    "width": {
-      "20m": "20 Min",
-      "1h": "1 Std",
-      "6h": "6 Std",
-      "12h": "12 Std",
-      "24h": "24 Std",
-      "3d": "3 Tage",
-      "7d": "7 Tage",
-      "14d": "14 Tage",
-      "30d": "30 Tage",
-      "90d": "90 Tage",
-      "180d": "180 Tage",
-      "1y": "1 Jahr",
-      "3y": "3 Jahre"
-    },
-    "nothingYet": "Noch nichts zu zeichnen: Graphen zeigen die Werte eines Geräts oder die Messungen eines Grows.",
-    "zoomed": "Zoom: {{from}} – {{to}}",
-    "zoomIn": "Hineinzoomen",
-    "offsetLabel": "Zeitraum verschieben",
-    "earlier": "Früher",
-    "later": "Später",
-    "from": "Ab",
-    "now": "jetzt",
-    "backToNow": "Bis jetzt",
-    "cameraChip": "Kamerabild",
-    "share": "Teilen",
-    "sharedTitle": "Link zum Teilen",
-    "sharedSpace": "Wer diesen Link öffnet, sieht diesen Ort ohne Konto - die Werte und den Verlauf über 24 Stunden, 7 oder 30 Tage, nur zum Ansehen.",
-    "sharedGrow": "Wer diesen Link öffnet, sieht diesen Grow ohne Konto, nur zum Ansehen.",
-    "copyLink": "Link kopieren",
-    "allLinks": "Alle geteilten Links",
-    "moreWidths": "Weitere …",
-    "fewerWidths": "Weniger",
-    "stepUnit": {
-      "h": "Std",
-      "min": "Min",
-      "d_one": "Tag",
-      "d_other": "Tage",
-      "s": "s"
-    },
-    "csvHead": {
-      "time": "Zeit",
-      "day": "Tag"
-    },
-    "csvDose": "{{output}} (Takte je {{step}})",
-    "ticks_one": "Takt",
-    "ticks_other": "Takte"
-  },
   "devices": {
     "lightOutput": {
       "title": "Lichtausgang",
@@ -1609,7 +1479,8 @@
       "lightOnAt": "Licht an um {{at}}",
       "lightOnSince": "Licht an seit {{at}}",
       "lightAgainAt": "wieder an um {{at}}",
-      "lightAgainSince": "wieder an seit {{at}}"
+      "lightAgainSince": "wieder an seit {{at}}",
+      "openCurves": "Kurven dieses Tages öffnen"
     },
     "pictures": {
       "makeEntry": "Als Eintrag ins Tagebuch",
@@ -2174,27 +2045,21 @@
       "phase": "Phase",
       "grow": "Grow"
     },
-    "pickGrow": "Welcher Grow",
     "dayN": "Tag {{day}}",
     "dayRange": "Tag {{from}}–{{to}}",
     "now": "jetzt",
     "play": "Zeitraum abspielen",
     "pause": "Anhalten",
-    "scrubber": "Cursor durch den Zeitraum bewegen",
     "frameAlt": "{{name}} am Cursor",
-    "noFrames": "Keine Bilder in diesem Zeitraum",
-    "recordingSince": "Aufzeichnung seit {{time}} – die Kurve füllt sich",
-    "lastReading": "letzte Messung",
     "metric": {
       "temperature": "Temperatur",
       "humidity": "Luftfeuchte",
       "co2": "CO₂",
       "leafTemperature": "Blatttemperatur",
-      "lux": "Lichtstärke"
+      "lux": "Lichtstärke",
+      "vpd": "VPD",
+      "ppfd": "PPFD"
     },
-    "panelAlt": "{{metric}} über den Zeitraum",
-    "band": "Ziel {{low}}–{{high}}",
-    "noTarget": "kein Ziel",
     "output": {
       "heater": "Heizung",
       "dehumidifier": "Entfeuchter",
@@ -2207,37 +2072,103 @@
       "fanExternal": "Klemmlüfter",
       "fanBackwall": "Rückwand­lüfter"
     },
-    "events": "Einträge",
-    "noEvents": "Nichts geschrieben in diesem Zeitraum",
-    "machineCapped": "Die neuesten {{shown}} von {{total}} Zeilen, die Geräte und Plan geschrieben haben",
-    "noPanels": "Hier misst nichts, also gibt es keine Kurven zu zeichnen",
-    "quietWindow": "In diesem Zeitraum nichts gehört · zuletzt gemessen vor {{age}}",
+    "quietWindow": "In diesem Zeitraum wurde nichts gemessen · letzter Wert vor {{age}}",
     "noSpaces": "Noch nichts zu zeichnen. Füge ein Gerät hinzu oder starte einen Grow – beides auf der Seite",
     "demoNoSpaces": "Die Demo hat nichts zu zeichnen; in dieser wurde nichts zum Anschauen hinterlegt.",
-    "leafShort": "Blatt",
-    "noTargetNow": "um diese Zeit kein Ziel",
-    "readAt": "gemessen {{time}}",
-    "camSince": "Kein Cam-Bild um {{time}} – die Cam filmt seit {{since}}",
-    "noFrameAt": "Kein Cam-Bild um {{time}}",
-    "photoAt": "Foto · {{time}}",
     "visiting": "Support-Ansicht eines Kundenorts",
-    "bandDay": "Tagesziel {{low}}–{{high}}",
-    "bandNight": "Nachtziel {{low}}–{{high}}",
-    "bandChanging": "Übergang {{low}}–{{high}}",
-    "noTargetNight": "nachts kein Ziel",
-    "nightLegend": "Grau hinterlegt: die Nacht",
-    "bandHeld": {
-      "always_day": "Ziel {{low}}–{{high}} · rund um die Uhr",
-      "always_night": "Ziel {{low}}–{{high}} · rund um die Uhr",
-      "drying": "Trocknungsziel {{low}}–{{high}}",
-      "germination": "Keimungsziel {{low}}–{{high}}"
+    "navLabel": "Zeitraum verschieben und zoomen",
+    "earlier": "{{span}} früher",
+    "later": "{{span}} später",
+    "zoomIn": "Hineinzoomen",
+    "zoomOut": "Herauszoomen",
+    "nowAt": "jetzt, {{time}}",
+    "lastValue": "letzter Wert · {{time}}",
+    "windowSpan": "{{from}} bis {{to}}",
+    "day": {
+      "today": "Heute",
+      "todayThen": "heute",
+      "yesterday": "Gestern",
+      "yesterdayThen": "gestern"
     },
-    "legendNone": "Keine Nacht: ein Ziel rund um die Uhr",
-    "laneAverage": "Ø {{share}} %",
-    "devices": {
-      "waiting": "Gerät wird gelesen …",
-      "pick": "Welches Gerät",
-      "all": "Alle Geräte"
+    "pointEvery": "ein Punkt alle {{step}}",
+    "cursor": "Cursor",
+    "cursorOn": "Cursor auf {{name}}",
+    "noFrame": "Kein Bild um diese Zeit",
+    "lowAt": "Tief {{value}}",
+    "highAt": "Hoch {{value}}",
+    "low": "Tief",
+    "high": "Hoch",
+    "comparedAt": "Vergleich {{value}}",
+    "comparedWith": "Gestrichelt: {{name}}",
+    "comparedEnd": "Vergleich beenden",
+    "plotAlt": "Kurven über den Zeitraum: {{names}}",
+    "plotRange": "{{name}} zwischen {{low}} und {{high}} {{unit}}",
+    "stripShare": "{{name}}: {{share}} % der Zeit an",
+    "stripUnheard": "{{name}}: in diesem Zeitraum nichts gehört",
+    "on": "an",
+    "off": "aus",
+    "lightAndOutputs": "Licht und Ausgänge",
+    "lightShare": "{{share}} % der Zeit an",
+    "lightSince": "an seit {{from}}",
+    "lightSpan": "{{from}} bis {{to}}",
+    "waiting": "Wartet auf erste Werte: Sobald das Gerät misst, stehen hier seine Kurven.",
+    "noDevice": "Hier misst kein Gerät, also gibt es keine Kurven.",
+    "toLast": "Zum letzten Wert",
+    "noneTicked": "Keine Kurve gewählt. Unter „Anpassen“ wählst du, was gezeichnet wird.",
+    "mouseHint": "Ziehen wählt einen Ausschnitt, Strg + Mausrad zoomt.",
+    "csvOutput": "{{output}} (an/aus)",
+    "csvTime": "Zeit",
+    "diary": {
+      "title": "Tagebuch in diesem Zeitraum",
+      "all": "Alle {{count}} Zeilen zeigen",
+      "none": "Kein Eintrag.",
+      "toMoment": "Cursor auf diesen Moment",
+      "capped": "Die neuesten {{shown}} von {{total}} Zeilen der Geräte",
+      "note": "Notiz zu {{at}} schreiben"
+    },
+    "adjust": {
+      "title": "Anpassen",
+      "done": "Fertig",
+      "curves": "Kurven",
+      "outputs": "Ausgänge",
+      "diary": "Tagebuch",
+      "machine": "Meldungen der Geräte",
+      "one": "Alle Kurven in einem Bild",
+      "compare": "Vergleichen",
+      "compareLine": "mit einem früheren Grow oder einem anderen Ort",
+      "compareNone": "Kein Vergleich",
+      "compare_grow": "früherer Grow · gleiche Grow-Tage",
+      "compare_space": "anderer Ort · gleiche Zeit",
+      "views": "Ansichten",
+      "viewsLine": "{{count}} gesichert · diese sichern",
+      "viewsNone": "diese Ansicht sichern",
+      "step": "Abstand der Punkte",
+      "stepAuto": "Automatisch",
+      "stepWidened": "für diesen Zeitraum zu fein, gezeichnet mit {{step}}",
+      "vpdHalf": "VPD zeigen für",
+      "half": {
+        "all": "Tag und Nacht",
+        "day": "Tag",
+        "night": "Nacht"
+      },
+      "device": "Gerät",
+      "deviceAll": "Alle Geräte",
+      "share": "Teilen",
+      "csv": "Als CSV laden",
+      "viewDelete": "Löschen",
+      "viewDeleteAsk": "Die Ansicht „{{name}}“ löschen? Messwerte gehen dabei nicht verloren.",
+      "viewKeep": "Diese Ansicht sichern",
+      "viewName": "Name, z. B. Blütewochen",
+      "viewSave": "Sichern",
+      "viewSaving": "Wird gesichert …",
+      "day": "Zu einem Tag springen",
+      "viewSaved": "Ansicht „{{name}}“ gesichert",
+      "viewDeleted": "Ansicht „{{name}}“ gelöscht"
+    },
+    "shared": {
+      "title": "Link zum Teilen",
+      "copy": "Link kopieren",
+      "all": "Alle geteilten Links"
     }
   },
   "camera": {
@@ -3619,7 +3550,6 @@
       "firmware": "Firmware · Kanal",
       "place": "Ort",
       "timeline": "Verlauf",
-      "charts": "Graphen",
       "settings": "Einstellungen, wie an das Gerät geschickt",
       "noSettings": "Das Gerät hat noch kein Einstellungsdokument.",
       "factors": "Faktoren und Regelung",
@@ -3799,14 +3729,6 @@
     "feedFlip": {
       "title": "Umstellung",
       "text": "Das Schema wird nach der Grow-Woche gelesen, gezählt ab Tag 1. Die Umstellung sagt, wann der Grow auf 12/12 ging, und kennzeichnet die Wochen des Schemas ab dann als Blüte; sie schaltet weder das Licht noch beginnt sie eine Phase."
-    },
-    "chartLayout": {
-      "title": "Darstellung",
-      "text": "Gestapelt gibt jedem Messwert ein eigenes Diagramm; Überlagert legt sie in eines und nennt die, deren Skala nicht passt. Grow-Tag zählt die Achse in Grow-Tagen statt Daten – beim Zeitraum Phase oder Grow –, sodass sich ein früherer Grow am selben Ort darüberlegen lässt."
-    },
-    "chartLayoutPlace": {
-      "title": "Darstellung",
-      "text": "Gestapelt gibt jedem Messwert ein eigenes Diagramm; Überlagert legt sie in eines und nennt die, deren Skala nicht passt."
     },
     "muteAll": {
       "title": "Alles stumm",
@@ -4009,18 +3931,6 @@
         "title": "Betriebsart",
         "text": "Was das Gerät als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Gewächshaus regelt nur die Temperatur: Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Keimung · dunkel und Trocknung wählst du nicht hier: Sie gehören zum Stadium und kommen und gehen mit dem Klima-Preset unter Steuerung, mit einer Phase im Grow oder mit einem Planschritt. Der Energiespar-Modus gilt nur im Standard."
       },
-      "chartStep": {
-        "title": "Intervall",
-        "text": "Jeder Punkt einer Kurve ist der Mittelwert über dieses Intervall. Automatisch passt es zum Zeitraum. Kürzere Intervalle zeigen mehr Einzelheiten, längere glätten. Ist ein Intervall für den Zeitraum zu kurz, wird das kürzeste gezeichnet, das passt - höchstens 5000 Punkte je Kurve."
-      },
-      "chartVpdHalf": {
-        "title": "VPD für Tag oder Nacht",
-        "text": "Tag und Nacht werden auf verschiedene VPD-Werte geregelt, deshalb sieht eine Linie über beide aus wie eine Säge. Hier lässt du nur die Tag- oder nur die Nachtwerte zeichnen. Tag und Nacht sind dieselben wie bei der grauen Schattierung der Kurven."
-      },
-      "chartLive": {
-        "title": "Automatisch aktualisieren",
-        "text": "Die Graphen laden alle 30 Sekunden neu und laufen mit der Zeit mit - praktisch, wenn die Seite offen neben dem Gerät liegt. Ein zurückgeblätterter, gezoomter oder eigener Zeitraum bleibt stehen."
-      },
       "cameraTunnel": {
         "title": "Über das Gerät holen",
         "text": "Eingeschaltet holt die Cloud den Stream über die Verbindung des Geräts an diesem Ort aus deinem Heimnetz, so braucht die Kamera weder Portfreigabe noch DynDNS. Ausschalten nur für eine Kamera, die aus dem Internet erreichbar ist: dann öffnet die Cloud den Stream selbst, und die Verbindung des Geräts wird nicht belastet."
@@ -4102,14 +4012,6 @@
       "title": "Dienst für den Webhook",
       "text": "Für Home Assistant, Discord, Telegram und ntfy füllt die App URL, Methode und Nachrichten aus den wenigen Angaben, die der Dienst braucht. Gespeichert wird ein ganz normaler Webhook, den du danach noch von Hand ändern kannst. Eine Home-Assistant-Adresse im lokalen Netz wird automatisch über den Tunnel des Geräts aufgerufen."
     },
-    "chartZoom": {
-      "title": "Zoom",
-      "text": "„Hineinzoomen“ zeigt ein Drittel des Zeitraums um den Cursor herum, mit feineren Punkten. Am Computer kannst du auch mit gedrückter Maustaste einen Bereich über den Kurven markieren. „Zoom zurücksetzen“ zeigt wieder den ganzen Zeitraum."
-    },
-    "chartMessages": {
-      "title": "Meldungen",
-      "text": "Was über den Zeitraum geschrieben wurde: Meldungen der Geräte, Alarme, der Grow-Plan und das Tagebuch. Jede Säule steht für ein Stück des Zeitraums und ist so hoch, wie dort Meldungen sind - gelb mit einer Warnung, rot mit etwas Kritischem. Tippe eine Säule an, um nur ihre Meldungen zu lesen; der Cursor springt mit."
-    },
     "streamAddress": {
       "title": "Stream-Adresse",
       "text": "Wo die Kamera ihren Videostream anbietet, mit ihrer IP in deinem Netz (steht im Router oder in der App der Kamera). Übliche Adressen:\nTapo: rtsp://IP:554/stream1\nReolink: rtsp://IP:554/h264Preview_01_main\nHikvision: rtsp://IP:554/Streaming/Channels/101\nBenutzer und Passwort gehören in die Felder darunter. Bei Tapo ist das das Kamerakonto aus der Tapo-App (Kamera-Einstellungen › Erweiterte Einstellungen › Kamerakonto), nicht dein TP-Link-Konto. Bei Reolink muss RTSP in den Netzwerk-Einstellungen der Kamera eingeschaltet sein."
@@ -4166,13 +4068,9 @@
       "title": "Drehzahl",
       "text": "In Prozent der vollen Drehzahl. Mit festem Modus gilt je ein Wert für Tag und Nacht. Geregelt läuft der Lüfter nie langsamer als „Mindestens“ und nie schneller als „Höchstens“ – so bleibt nachts Ruhe, und die Luft wird trotzdem bewegt."
     },
-    "chartOutputs": {
-      "title": "Ausgänge im Graphen",
-      "text": "Licht, Lüfter und Heizung zeigen, wie stark sie liefen: 0 % ist aus, 100 % volle Leistung, und beim Licht sieht man Dimmung, Sonnenauf- und -untergang. Das CO₂-Ventil zeigt, wie viel es dosiert hat: Das Gerät zählt, wie lange das Ventil offen war, in Takten seiner Uhr, und die Linie zeigt die Summe je Intervall. Je höher, desto mehr CO₂ – Gramm sind das nicht. Entfeuchter und Steckdosen kennen nur an und aus."
-    },
     "nightBand": {
-      "title": "Grau hinterlegt: die Nacht",
-      "text": "Grau hinterlegt sind die Nächte: die Stunden, in denen nach dem Lichtplan Nacht ist – das Licht aus, die Nachtwerte gelten, CO₂ wird nicht zugegeben. Das grüne Band ist der Zielbereich, nachts der der Nachtwerte. In der Stunde nach jedem Wechsel – beim Kühlschrank ab Beginn des Dimmens – und nach jeder Änderung der Zielwerte, des Lichtplans oder der Betriebsart reicht es über die Werte davor und danach: So lange hat das Klima Zeit zu folgen. Wo nichts wechselt – Trocknung, Keimung, 24 oder 0 Std Licht –, ist nichts grau, und das Band ist das eine Ziel, das rund um die Uhr gilt."
+      "title": "Band, Nacht und Schwankung",
+      "text": "Das grüne Band ist der Zielbereich, nachts der der Nachtwerte. Grau hinterlegt sind die Nächte: die Stunden, in denen nach dem Lichtplan Nacht ist – das Licht aus, die Nachtwerte gelten, CO₂ wird nicht zugegeben. Die helle Fläche um eine Kurve reicht vom tiefsten bis zum höchsten Messwert jedes Punkts: Eine Tür, die 40 Sekunden offen stand, bleibt so auch im Tagesbild sichtbar. Die Streifen unter einer Kurve zeigen, wann ein Ausgang lief – je kräftiger, desto länger in diesem Abschnitt. In der Stunde nach jedem Wechsel – beim Kühlschrank ab Beginn des Dimmens – und nach jeder Änderung der Zielwerte, des Lichtplans oder der Betriebsart reicht das Band über die Werte davor und danach: So lange hat das Klima Zeit zu folgen. Wo nichts wechselt – Trocknung, Keimung, 24 oder 0 Std Licht –, ist nichts grau, und das Band ist das eine Ziel, das rund um die Uhr gilt."
     },
     "dayShare": {
       "title": "Im Ziel",
@@ -4335,46 +4233,6 @@
     "update": "Warte, bis das Firmware-Update durch ist und das Modul neu gestartet hat.",
     "failed": "Steht dort „Connection failed“, starte das Modul neu - sonst kommst du aus dem Menü nicht mehr heraus.",
     "portal": "Rufe jetzt „Connect to portal“ auf. Das Modul zeigt dann den Code, den du hier eingibst."
-  },
-  "chartMessages": {
-    "title": "Meldungen",
-    "chip": "Meldungen",
-    "count_one": "{{count}} im Zeitraum",
-    "count_other": "{{count}} im Zeitraum",
-    "filter": "Welche Meldungen",
-    "lane": "Meldungen über den Zeitraum",
-    "column_one": "{{count}} Meldung",
-    "column_other": "{{count}} Meldungen",
-    "failed": "Die Meldungen ließen sich gerade nicht laden.",
-    "none": "In diesem Zeitraum wurde nichts gemeldet.",
-    "noneShown": "Keine Meldungen der gewählten Arten.",
-    "all": "Alle zeigen",
-    "more": "Es gibt weitere Meldungen - tippe eine Säule an oder wähle einen kürzeren Zeitraum.",
-    "category": {
-      "device": "Gerät",
-      "alarm": "Alarme",
-      "plan": "Grow-Plan",
-      "diary": "Tagebuch"
-    }
-  },
-  "chartFine": {
-    "step": "Intervall",
-    "auto": "Automatisch",
-    "stepAuto": "Passend zum Zeitraum: kurz für Stunden, lang für Monate.",
-    "widened": "Für diesen Zeitraum zu fein - gezeichnet mit {{step}}.",
-    "vpdHalf": "VPD zeigen für",
-    "half": {
-      "all": "Tag und Nacht",
-      "day": "nur Tag",
-      "night": "nur Nacht"
-    },
-    "vpdHalfNote": {
-      "all": "Eine Linie über beide Hälften des Tages.",
-      "day": "Nur die Punkte am Tag - die Nacht bleibt eine Lücke.",
-      "night": "Nur die Punkte in der Nacht - der Tag bleibt eine Lücke."
-    },
-    "live": "Automatisch aktualisieren",
-    "liveHeld": "Folgt nur einem Zeitraum, der jetzt endet - zurückgeblättert oder gezoomt bleibt er stehen."
   },
   "planLight": {
     "label": "Licht an für",
@@ -4980,10 +4838,10 @@
     },
     "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone.",
     "reading": {
-      "open": "Verlauf öffnen",
-      "chart": "Graph öffnen"
+      "open": "Verlauf öffnen"
     },
-    "noRoom": "Ohne Raum"
+    "noRoom": "Ohne Raum",
+    "curveSpan": "{{low}}–{{high}}"
   },
   "liveness": {
     "ago": "vor {{age}}",

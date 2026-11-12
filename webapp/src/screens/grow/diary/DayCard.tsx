@@ -78,7 +78,7 @@ export function DayCard({
       ) : null}
       <div className={styles.dayHead}>
         <h2 className={styles.dayTitle}>{title}</h2>
-        {climate ? <span className={styles.dayClimate}>{climate}</span> : null}
+        {climate ? <DayClimate to={reader.curvesOf(day)}>{climate}</DayClimate> : null}
         {share ? (
           <span className={styles.dayShare} data-good={share.good || undefined}>
             <span className={styles.shareLong}>
@@ -127,5 +127,20 @@ export function DayCard({
         <p className={styles.nothing}>{t('grow.diary.nothingYet')}</p>
       ) : null}
     </article>
+  );
+}
+
+/** The day's climate in a line, which leads to that day's curves where the reader has them. */
+function DayClimate({ to, children }: { to: string | null; children: string }) {
+  const { t } = useTranslation();
+
+  return to ? (
+    <Link to={to} className={styles.dayClimate}>
+      {children}
+      <span aria-hidden>{'\u00a0›'}</span>
+      <span className={ui.visuallyHidden}>{`, ${t('grow.diary.openCurves')}`}</span>
+    </Link>
+  ) : (
+    <span className={styles.dayClimate}>{children}</span>
   );
 }

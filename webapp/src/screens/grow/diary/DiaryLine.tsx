@@ -26,6 +26,8 @@ export function DiaryLine({
   to = null,
   onOpen = null,
   opens,
+  onStamp = null,
+  stampDoes,
 }: {
   line: DayLine;
   /** When it happened, as the list it stands in says moments. */
@@ -41,6 +43,9 @@ export function DiaryLine({
   /** What a tap on a written line opens, and what that is called where it is not the correction. */
   onOpen?: (() => void) | null;
   opens?: string;
+  /** What a tap on the stamp does, where the list has a use for a line's moment. */
+  onStamp?: (() => void) | null;
+  stampDoes?: string;
 }) {
   const { t } = useTranslation();
   const mark = line.own ? null : t('grow.diary.byItself');
@@ -48,14 +53,14 @@ export function DiaryLine({
 
   if (what.kind === 'said') {
     return (
-      <Line stamp={stamp} mark={mark} to={to}>
+      <Line stamp={stamp} mark={mark} to={to} onStamp={onStamp} stampDoes={stampDoes}>
         {what.words}
       </Line>
     );
   }
   if (what.kind === 'alarm') {
     return (
-      <Line stamp={stamp} mark={mark} severity={what.over ? null : warningOf(what.entry)}>
+      <Line stamp={stamp} mark={mark} severity={what.over ? null : warningOf(what.entry)} onStamp={onStamp} stampDoes={stampDoes}>
         <span className={ui.visuallyHidden}>{`${t('home.entryKind.alarm')}: `}</span>
         <Facts
           facts={[
@@ -71,7 +76,7 @@ export function DiaryLine({
 
   const { entry } = what;
   return (
-    <Line stamp={stamp} mark={mark} severity={warningOf(entry)} onOpen={onOpen} opens={opens}>
+    <Line stamp={stamp} mark={mark} severity={warningOf(entry)} onOpen={onOpen} opens={opens} onStamp={onStamp} stampDoes={stampDoes}>
       <span className={ui.visuallyHidden}>{`${t(`home.entryKind.${entry.kind}`)}: `}</span>
       <EntryWords entry={entry} people={people} measurements={measurements} now={now} zone={zone} byline={byline} repeats={what} brief pictures />
     </Line>

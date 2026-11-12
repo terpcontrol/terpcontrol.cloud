@@ -84,13 +84,7 @@ export function Picture({
                   </span>
                   {/* Said as one sentence that names the reading, with the verdict the picture has no room to draw. */}
                   <span className={ui.visuallyHidden}>
-                    {[
-                      `${reading.label} ${reading.figure}`,
-                      reading.note,
-                      curveOf ? t(reading.key === 'vpd' ? 'start.reading.chart' : 'start.reading.open') : null,
-                    ]
-                      .filter(Boolean)
-                      .join(', ')}
+                    {[`${reading.label} ${reading.figure}`, reading.note, curveOf ? t('start.reading.open') : null].filter(Boolean).join(', ')}
                   </span>
                 </>
               );

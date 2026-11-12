@@ -34,7 +34,7 @@ string exists in English and German, with no English left in the German catalogu
 | --- | --- | --- |
 | where a grow or device stands | place | Ort ("Raum" only for a real room; never Bereich) |
 | the account | account | Konto, also in sign-in and activation |
-| the charts screen | Charts | Graph / Graphen, not Chart or Diagramm |
+| the page of curves | Timeline | Verlauf; what it draws are Kurven, not Graphen, Charts or Diagramme |
 | what a device holds | targets | Zielwerte, not Sollwerte |
 | a stage's climate in one tap; a saved plan | climate preset; template | Klima-Preset; Vorlage |
 | a place, a device or a camera that reports | online | online (never "live"; "verbunden" only in "Verbunden über") |

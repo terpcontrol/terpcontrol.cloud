@@ -112,136 +112,6 @@
     "text": "The page you were looking for does not exist or has moved.",
     "home": "Back to the app"
   },
-  "charts": {
-    "title": "Charts",
-    "noData": "No measurements in this period — try a different range.",
-    "quietWindow": "No measurements in this period · last measured {{age}} ago — try a different range.",
-    "resetZoom": "Reset zoom",
-    "back": "Back",
-    "rangeLabel": "Range",
-    "range": {
-      "custom": "Custom …"
-    },
-    "custom": {
-      "from": "From",
-      "to": "To",
-      "need": "Pick both ends and the chart is drawn between them.",
-      "unreadable": "That is not a date this can read — pick both ends again.",
-      "backwards": "That range ends before it begins — pick a From that is earlier than the To."
-    },
-    "seriesLabel": "Series",
-    "metric": {
-      "temperature": "Temp",
-      "humidity": "RH",
-      "vpd": "VPD",
-      "co2": "CO₂",
-      "leafTemperature": "Leaf",
-      "lux": "Lux",
-      "ppfd": "PPFD"
-    },
-    "more": "+ more",
-    "less": "− less",
-    "savedLabel": "Saved",
-    "about": {
-      "band": "target band follows the phase",
-      "bandTargets": "Target band from the targets",
-      "leaf": "leaf {{offset}} °C",
-      "leafHalves": "leaf {{day}} °C by day, {{night}} °C at night",
-      "pair": "overlaid, two axes",
-      "overlay": "overlaid",
-      "measured": "measured",
-      "perPlant": "per plant",
-      "output": "when on",
-      "outputPooled": "when on, at any of {{count}} devices",
-      "level": "level in % of full output",
-      "levelPooled": "highest level of {{count}} devices, in %",
-      "dose": "dosed per {{step}}",
-      "dosePooled": "dosed per {{step}}, {{count}} devices added up"
-    },
-    "leftOut_one": "{{names}} is left out: two units on one panel only when they belong together.",
-    "leftOut_other": "{{names}} are left out: two units on one panel only when they belong together.",
-    "plotAlt": "{{title}} over the window",
-    "layoutLabel": "Layout",
-    "layout": {
-      "stacked": "Stacked",
-      "overlay": "Overlay",
-      "day_of_grow": "Day-of-grow"
-    },
-    "saveView": "Save view",
-    "csv": "CSV",
-    "csvOutput": "{{output}} (on/off)",
-    "csvNote": "The CSV file holds every curve chosen above: one row per {{step}}, and another whenever an output switches or a reading is written down.",
-    "exportOn": "The whole grow, pictures and diary included, is under Export on",
-    "note": "Put together any curves over any span, save views and export them as CSV.",
-    "nothingPicked": "Nothing picked yet — tap a series above.",
-    "whichGrow": "No device stands anywhere yet. Pick a grow whose measurements are drawn.",
-    "views": {
-      "newTitle": "Save this view",
-      "editTitle": "Saved view",
-      "name": "Name",
-      "placeholder": "Flower weeks, temp and RH",
-      "holdsTheQuestion": "A view keeps the question and never the readings, so saving over one costs no measurement.",
-      "save": "Save",
-      "saving": "Saving…",
-      "saveAsNew": "Save as new",
-      "delete": "Delete",
-      "deleteAsk": "Throw this view away? Nothing measured goes with it.",
-      "deleteYes": "Throw it away",
-      "cancel": "Cancel"
-    },
-    "compareLabel": "Compare",
-    "on": "on",
-    "off": "off",
-    "notHere_one": "{{names}} has nothing in this period, so it is not drawn.",
-    "notHere_other": "{{names}} have nothing in this period, so they are not drawn.",
-    "width": {
-      "20m": "20 min",
-      "1h": "1 h",
-      "6h": "6 h",
-      "12h": "12 h",
-      "24h": "24 h",
-      "3d": "3 d",
-      "7d": "7 d",
-      "14d": "14 d",
-      "30d": "30 d",
-      "90d": "90 d",
-      "180d": "180 d",
-      "1y": "1 year",
-      "3y": "3 years"
-    },
-    "nothingYet": "Nothing to draw yet: charts show a device's readings or a grow's measurements.",
-    "zoomed": "Zoom: {{from}} – {{to}}",
-    "zoomIn": "Zoom in",
-    "offsetLabel": "Move the window",
-    "earlier": "Earlier",
-    "later": "Later",
-    "from": "From",
-    "now": "now",
-    "backToNow": "Up to now",
-    "cameraChip": "Camera picture",
-    "share": "Share",
-    "sharedTitle": "Link to share",
-    "sharedSpace": "Whoever opens this link sees this place without an account - the readings and the timeline over 24 hours, 7 or 30 days, read only.",
-    "sharedGrow": "Whoever opens this link sees this grow without an account, read only.",
-    "copyLink": "Copy link",
-    "allLinks": "Every shared link",
-    "moreWidths": "More …",
-    "fewerWidths": "Fewer",
-    "stepUnit": {
-      "h": "h",
-      "min": "min",
-      "d_one": "d",
-      "d_other": "d",
-      "s": "s"
-    },
-    "csvHead": {
-      "time": "time",
-      "day": "day"
-    },
-    "csvDose": "{{output}} (ticks per {{step}})",
-    "ticks_one": "tick",
-    "ticks_other": "ticks"
-  },
   "devices": {
     "lightOutput": {
       "title": "Light output",
@@ -1600,7 +1470,8 @@
       "lightOnAt": "Light on at {{at}}",
       "lightOnSince": "Light on since {{at}}",
       "lightAgainAt": "on again at {{at}}",
-      "lightAgainSince": "on again since {{at}}"
+      "lightAgainSince": "on again since {{at}}",
+      "openCurves": "open this day's curves"
     },
     "pictures": {
       "makeEntry": "Add to the diary as an entry",
@@ -2165,27 +2036,21 @@
       "phase": "Phase",
       "grow": "Grow"
     },
-    "pickGrow": "Which grow",
     "dayN": "day {{day}}",
     "dayRange": "day {{from}}–{{to}}",
     "now": "now",
     "play": "Play the window",
     "pause": "Stop",
-    "scrubber": "Move the cursor through the window",
     "frameAlt": "{{name}} at the cursor",
-    "noFrames": "No pictures in this window",
-    "recordingSince": "Recording since {{time}} – the curve fills in from here",
-    "lastReading": "last reading",
     "metric": {
       "temperature": "Temperature",
       "humidity": "Humidity",
       "co2": "CO₂",
       "leafTemperature": "Leaf temperature",
-      "lux": "Light intensity"
+      "lux": "Light intensity",
+      "vpd": "VPD",
+      "ppfd": "PPFD"
     },
-    "panelAlt": "{{metric}} over the window",
-    "band": "target {{low}}–{{high}}",
-    "noTarget": "no target",
     "output": {
       "heater": "Heater",
       "dehumidifier": "Dehumidifier",
@@ -2198,37 +2063,103 @@
       "fanExternal": "Clip fan",
       "fanBackwall": "Back-wall fan"
     },
-    "events": "Events",
-    "noEvents": "Nothing written in this window",
-    "machineCapped": "The newest {{shown}} of {{total}} lines the devices and the plan wrote",
-    "noPanels": "Nothing measures here, so there are no curves to draw",
-    "quietWindow": "Nothing heard in this window · last measured {{age}} ago",
+    "quietWindow": "Nothing was measured in this window · last reading {{age}} ago",
     "noSpaces": "Nothing to draw yet. Add a device or start a grow – both on the page",
     "demoNoSpaces": "The demo has nothing to draw; nothing has been left in this one to look at.",
-    "leafShort": "leaf",
-    "noTargetNow": "no target at this time",
-    "readAt": "read {{time}}",
-    "camSince": "No camera picture at {{time}} – the camera has filmed since {{since}}",
-    "noFrameAt": "No camera picture at {{time}}",
-    "photoAt": "Photo · {{time}}",
     "visiting": "support view of a customer's place",
-    "bandDay": "day target {{low}}–{{high}}",
-    "bandNight": "night target {{low}}–{{high}}",
-    "bandChanging": "changing over {{low}}–{{high}}",
-    "noTargetNight": "no target at night",
-    "nightLegend": "Shaded grey: the night",
-    "bandHeld": {
-      "always_day": "Target {{low}}–{{high}} · round the clock",
-      "always_night": "Target {{low}}–{{high}} · round the clock",
-      "drying": "Drying target {{low}}–{{high}}",
-      "germination": "Germination target {{low}}–{{high}}"
+    "navLabel": "Move and zoom the window",
+    "earlier": "{{span}} earlier",
+    "later": "{{span}} later",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "nowAt": "now, {{time}}",
+    "lastValue": "last reading · {{time}}",
+    "windowSpan": "{{from}} to {{to}}",
+    "day": {
+      "today": "Today",
+      "todayThen": "today",
+      "yesterday": "Yesterday",
+      "yesterdayThen": "yesterday"
     },
-    "legendNone": "No night: one target round the clock",
-    "laneAverage": "avg {{share}} %",
-    "devices": {
-      "waiting": "Reading the device …",
-      "pick": "Which device",
-      "all": "All devices"
+    "pointEvery": "a point every {{step}}",
+    "cursor": "Cursor",
+    "cursorOn": "Cursor on {{name}}",
+    "noFrame": "No picture at this time",
+    "lowAt": "Low {{value}}",
+    "highAt": "High {{value}}",
+    "low": "low",
+    "high": "high",
+    "comparedAt": "Compared {{value}}",
+    "comparedWith": "Dashed: {{name}}",
+    "comparedEnd": "End comparison",
+    "plotAlt": "Curves over the window: {{names}}",
+    "plotRange": "{{name}} between {{low}} and {{high}} {{unit}}",
+    "stripShare": "{{name}}: on {{share}} % of the time",
+    "stripUnheard": "{{name}}: nothing heard in this window",
+    "on": "on",
+    "off": "off",
+    "lightAndOutputs": "Light and outputs",
+    "lightShare": "on {{share}} % of the time",
+    "lightSince": "on since {{from}}",
+    "lightSpan": "{{from}} to {{to}}",
+    "waiting": "Waiting for first values: the curves appear here once the device measures.",
+    "noDevice": "No device measures here, so there are no curves.",
+    "toLast": "Go to the last reading",
+    "noneTicked": "No curve is ticked. Choose what is drawn under “Adjust”.",
+    "mouseHint": "Drag to choose a stretch, Ctrl + wheel zooms.",
+    "csvOutput": "{{output}} (on/off)",
+    "csvTime": "Time",
+    "diary": {
+      "title": "Diary in this window",
+      "all": "Show all {{count}} lines",
+      "none": "No entry.",
+      "toMoment": "Set the cursor on this moment",
+      "capped": "The newest {{shown}} of {{total}} lines the devices wrote",
+      "note": "Write a note at {{at}}"
+    },
+    "adjust": {
+      "title": "Adjust",
+      "done": "Done",
+      "curves": "Curves",
+      "outputs": "Outputs",
+      "diary": "Diary",
+      "machine": "Device messages",
+      "one": "All curves in one picture",
+      "compare": "Compare",
+      "compareLine": "with an earlier grow or another place",
+      "compareNone": "No comparison",
+      "compare_grow": "earlier grow · same grow days",
+      "compare_space": "another place · same hours",
+      "views": "Views",
+      "viewsLine": "{{count}} saved · save this one",
+      "viewsNone": "save this view",
+      "step": "Point spacing",
+      "stepAuto": "Automatic",
+      "stepWidened": "too fine for this window, drawn at {{step}}",
+      "vpdHalf": "Show VPD for",
+      "half": {
+        "all": "Day and night",
+        "day": "Day",
+        "night": "Night"
+      },
+      "device": "Device",
+      "deviceAll": "All devices",
+      "share": "Share",
+      "csv": "Download as CSV",
+      "viewDelete": "Delete",
+      "viewDeleteAsk": "Delete the view “{{name}}”? No readings go with it.",
+      "viewKeep": "Keep this view",
+      "viewName": "Name, e.g. flowering weeks",
+      "viewSave": "Save",
+      "viewSaving": "Saving…",
+      "day": "Jump to a day",
+      "viewSaved": "View “{{name}}” saved",
+      "viewDeleted": "View “{{name}}” deleted"
+    },
+    "shared": {
+      "title": "Link to share",
+      "copy": "Copy link",
+      "all": "All shared links"
     }
   },
   "camera": {
@@ -3610,7 +3541,6 @@
       "firmware": "Firmware · channel",
       "place": "Place",
       "timeline": "Timeline",
-      "charts": "Charts",
       "settings": "Settings, as sent to the device",
       "noSettings": "The device has no settings document yet.",
       "factors": "Factors and control",
@@ -3790,14 +3720,6 @@
     "feedFlip": {
       "title": "Flip week",
       "text": "The scheme is read by the grow's own week, counted from day 1. The flip week says when the grow went to 12/12 and marks the scheme's weeks from then on as flowering; it does not switch the light or enter a phase."
-    },
-    "chartLayout": {
-      "title": "Layout",
-      "text": "Stacked gives each measure a chart of its own; Overlay lays them on one chart and names any whose scale does not fit. Day-of-grow counts the axis in grow days instead of dates – with the Phase or Grow range – so an earlier grow of the same place can be laid over it."
-    },
-    "chartLayoutPlace": {
-      "title": "Layout",
-      "text": "Stacked gives each measure a chart of its own; Overlay lays them on one chart and names any whose scale does not fit."
     },
     "muteAll": {
       "title": "Mute all",
@@ -4000,18 +3922,6 @@
         "title": "Operating mode",
         "text": "What the device does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Greenhouse holds the temperature only: light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Germination · dark and Drying are not chosen here: they belong to the stage and come and go with the climate preset under Control, with a phase of the grow or with a plan step. Energy saving applies to standard only."
       },
-      "chartStep": {
-        "title": "Interval",
-        "text": "Each point of a curve is the mean over this interval. Automatic fits it to the window. Shorter intervals show more detail, longer ones smooth. An interval too short for the window is drawn at the shortest that fits - at most 5000 points a curve."
-      },
-      "chartVpdHalf": {
-        "title": "VPD by day or night",
-        "text": "Day and night are steered to different VPD values, so one line across both looks like a saw. Here you draw only the day or only the night values. Day and night are the same as in the grey shading of the curves."
-      },
-      "chartLive": {
-        "title": "Update automatically",
-        "text": "The charts reload every 30 seconds and move on with the time - handy with the page open beside the device. A window stepped back, zoomed or picked by hand stands still."
-      },
       "cameraTunnel": {
         "title": "Pull through the device",
         "text": "On, the cloud pulls the stream from your home network over the connection of the device in this place, so the camera needs no port forwarding and no dynamic DNS. Turn it off only for a camera reachable from the internet: the cloud then opens the stream itself, and the device's connection is left alone."
@@ -4093,14 +4003,6 @@
       "title": "Service for the webhook",
       "text": "For Home Assistant, Discord, Telegram and ntfy the app fills in the URL, method and messages from the few answers the service needs. What is saved is an ordinary webhook, which you can still change by hand. A Home Assistant address on the local network is called through the device's tunnel automatically."
     },
-    "chartZoom": {
-      "title": "Zoom",
-      "text": "“Zoom in” shows a third of the window around the cursor, at finer points. On a computer you can also mark a stretch across the curves with the mouse button held down. “Reset zoom” shows the whole window again."
-    },
-    "chartMessages": {
-      "title": "Messages",
-      "text": "What was written over the window: the devices' messages, alarms, the grow plan and the diary. Each column stands for a stretch of the window and is as tall as the messages in it - yellow with a warning, red with something critical. Tap a column to read its messages alone; the cursor moves there too."
-    },
     "streamAddress": {
       "title": "Stream address",
       "text": "Where the camera offers its video stream, with its IP on your network (shown in your router or in the camera's app). Common addresses:\nTapo: rtsp://IP:554/stream1\nReolink: rtsp://IP:554/h264Preview_01_main\nHikvision: rtsp://IP:554/Streaming/Channels/101\nUser and password go into the fields below. For Tapo that is the camera account from the Tapo app (Camera Settings › Advanced Settings › Camera Account), not your TP-Link account. A Reolink camera needs RTSP switched on in its network settings."
@@ -4157,13 +4059,9 @@
       "title": "Speed",
       "text": "As a share of full speed. In fixed mode one value holds by day and one at night. Regulated, the fan never runs slower than “At least” and never faster than “Most” – so the night stays quiet and the air still moves."
     },
-    "chartOutputs": {
-      "title": "Outputs on the chart",
-      "text": "Light, fans and heater show how hard they ran: 0 % is off, 100 % full output, and the light shows its dimming, sunrise and sunset. The CO₂ valve shows how much it dosed: the device counts how long the valve was open, in ticks of its clock, and the line shows the sum per interval. Higher means more CO₂ – it is not grams. Dehumidifiers and sockets only know on and off."
-    },
     "nightBand": {
-      "title": "Shaded grey: the night",
-      "text": "The grey stretches are the nights: the hours the light plan makes night – the light off, the night figures holding, no CO₂ dosed. The green band is the target range, at night the night figures’ one. For the hour after each switch – on a fridge, from the start of its dimming – and after every change of the targets, the light plan or the operating mode it spans the figures from before and after: that is how long the climate is given to follow. Where nothing alternates – drying, germination, 24 or 0 h of light – nothing is grey, and the band is the one target that holds round the clock."
+      "title": "Band, night and spread",
+      "text": "The green band is the target range, at night the night figures’ one. The grey stretches are the nights: the hours the light plan makes night – the light off, the night figures holding, no CO₂ dosed. The pale area around a curve reaches from the lowest to the highest reading of each point: a door that stood open for 40 seconds still shows in a day’s picture. The strips under a curve show when an output ran – the stronger, the longer within that stretch. For the hour after each switch – on a fridge, from the start of its dimming – and after every change of the targets, the light plan or the operating mode the band spans the figures from before and after: that is how long the climate is given to follow. Where nothing alternates – drying, germination, 24 or 0 h of light – nothing is grey, and the band is the one target that holds round the clock."
     },
     "dayShare": {
       "title": "On target",
@@ -4326,46 +4224,6 @@
     "update": "Wait until the firmware update has finished and the module has restarted.",
     "failed": "If it says “Connection failed”, restart the module - otherwise you cannot leave the menu.",
     "portal": "Now open “Connect to portal”. The module then shows the code you enter here."
-  },
-  "chartMessages": {
-    "title": "Messages",
-    "chip": "Messages",
-    "count_one": "{{count}} in the window",
-    "count_other": "{{count}} in the window",
-    "filter": "Which messages",
-    "lane": "Messages over the window",
-    "column_one": "{{count}} message",
-    "column_other": "{{count}} messages",
-    "failed": "The messages could not be loaded just now.",
-    "none": "Nothing was reported in this window.",
-    "noneShown": "No messages of the kinds chosen.",
-    "all": "Show all",
-    "more": "There are more messages - tap a column or pick a shorter window.",
-    "category": {
-      "device": "Device",
-      "alarm": "Alarms",
-      "plan": "Grow plan",
-      "diary": "Diary"
-    }
-  },
-  "chartFine": {
-    "step": "Interval",
-    "auto": "Automatic",
-    "stepAuto": "Fitted to the window: short for hours, long for months.",
-    "widened": "Too fine for this window - drawn at {{step}}.",
-    "vpdHalf": "Show VPD for",
-    "half": {
-      "all": "Day and night",
-      "day": "Day only",
-      "night": "Night only"
-    },
-    "vpdHalfNote": {
-      "all": "One line across both halves of the day.",
-      "day": "Only the points by day - the night is left as a gap.",
-      "night": "Only the points at night - the day is left as a gap."
-    },
-    "live": "Update automatically",
-    "liveHeld": "Follows only a window that ends now - stepped back or zoomed, it stands still."
   },
   "planLight": {
     "label": "Light on for",
@@ -4971,10 +4829,10 @@
     },
     "visiting": "Support view of a customer's place: read only. Times are in your time zone.",
     "reading": {
-      "open": "open the timeline",
-      "chart": "open the chart"
+      "open": "open the timeline"
     },
-    "noRoom": "In no room"
+    "noRoom": "In no room",
+    "curveSpan": "{{low}}–{{high}}"
   },
   "liveness": {
     "ago": "{{age}} ago",

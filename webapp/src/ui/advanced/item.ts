@@ -3,7 +3,7 @@ import type { Device, SocketPage } from '@fg2/shared-types/v1';
 
 /**
  * The items an Erweitert section offers, wherever one stands: per device on
- * its page, and on the charts page. Erweitert is where what most growers
+ * its page. Erweitert is where what most growers
  * never need goes, one collapsed section beside the thing it is about; a
  * section with nothing to offer is not drawn at all.
  *
@@ -29,37 +29,8 @@ export interface DeviceContext {
   sockets?: SocketPage;
 }
 
-export const VPD_HALVES = ['all', 'day', 'night'] as const;
-export type VpdHalf = (typeof VPD_HALVES)[number];
-
-/** The fine settings of the charts page, which its items read and change; they travel in the page's address. */
-export interface ChartSettings {
-  /** The window each point summarises; null leaves it to the width of the window. */
-  stepSeconds: number | null;
-  vpdHalf: VpdHalf;
-  /** Whether a window that ends now follows it. */
-  live: boolean;
-}
-
-/** What an item on the charts page is drawn with. */
-export interface ChartsContext {
-  /** The grow charted, where one is. */
-  growId: string | null;
-  /** The place charted, where one is. */
-  spaceId: string | null;
-  settings: ChartSettings;
-  change: (over: Partial<ChartSettings>) => void;
-  /** The step the answer was drawn at, which a step asked for may have been widened to; null until one has arrived. */
-  answeredStep: number | null;
-  /** Whether a VPD line is drawn, which is the only time its half matters. */
-  vpdDrawn: boolean;
-  /** Whether the window ends now, which is the only kind that can follow it. */
-  endsNow: boolean;
-}
-
 export interface AdvancedContexts {
   device: DeviceContext;
-  charts: ChartsContext;
 }
 
 export type AdvancedScope = keyof AdvancedContexts;

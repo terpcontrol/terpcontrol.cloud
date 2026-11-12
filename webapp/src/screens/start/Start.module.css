@@ -960,15 +960,40 @@ a.tileLabel::after {
 
 .curve {
   position: relative;
+  display: flex;
   flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
-  height: 56px;
+}
+
+/* What the curve is of, in its colour, and what it ran between. */
+.curveLabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--temperature);
+}
+
+.curveLabel[data-tone='humidity'] {
+  color: var(--humidity);
+}
+
+.curveLabel small {
+  font-family: var(--font-figure);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .curve svg {
   display: block;
   width: 100%;
-  height: 100%;
+  height: 44px;
   overflow: visible;
 }
 

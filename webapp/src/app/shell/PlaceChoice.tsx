@@ -37,14 +37,14 @@ import styles from './PlaceChoice.module.css';
 export function PlaceChoice({ everywhere = false }: { everywhere?: boolean }) {
   const { t } = useTranslation();
   const { user } = useSession();
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
   const shape = useShape();
   const home = useHomeShape(user !== null);
   const places = home.data?.spaces.filter(isPlace);
   const { here, visiting, choose } = usePlaceChoice(places);
   const [open, setOpen] = useState(false);
 
-  if (!everywhere && !isAboutPlace(pathname, search)) return null;
+  if (!everywhere && !isAboutPlace(pathname)) return null;
   // The rail keeps the chip's room while the places are on their way, so its items do not jump once they are in.
   if (!places) return everywhere && shape.places > 1 ? <span className={styles.chip} data-place-chip data-waiting aria-hidden /> : null;
   if (!here || places.length < 2 || visiting) return null;

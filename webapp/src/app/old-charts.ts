@@ -1,33 +1,31 @@
-import { zoomValue } from '@/screens/charts/address';
-import { instant, WIDTHS, type Width } from '@/screens/charts/span';
+import { timelinePath } from '@/app/places';
+import { viewParams, withParams, WIDTHS } from '@/screens/timeline/view';
+import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/ui/days';
 
 /**
- * What a bookmark of the old charts page asked for, in the words the Charts
- * view reads its own address in.
- *
- * The old page kept its whole view in the address - the timespan, the curves,
- * the step, the VPD half, auto-update, a stretch picked by date, the picture and
- * the messages - and people bookmarked it that way. Sent on as the bare place,
- * every one of those bookmarks opened on the default day. Only the old page's
- * own log categories have no counterpart: they were the firmware's keys, and
- * the messages are filtered by four plain kinds of line now.
+ * What a bookmark of the old charts page asked for, in Verlauf's words. The
+ * old address named a device and carried its whole view in the query, and
+ * growers kept such addresses, so they are read once here rather than dropped.
  */
 
-const TIMESPANS: Record<string, Width> = {
-  '20m': '20m',
-  '1h': '1h',
-  '6h': '6h',
-  '12h': '12h',
-  '1d': '24h',
-  '3d': '3d',
-  '1w': '7d',
-  '2w': '14d',
-  '1m': '30d',
-  '3m': '90d',
-  '6m': '180d',
-  '1y': '1y',
-  '3y': '3y',
+/** The old page's widths, in milliseconds. */
+const TIMESPANS: Record<string, number> = {
+  '20m': 20 * MINUTE_MS,
+  '1h': HOUR_MS,
+  '6h': 6 * HOUR_MS,
+  '12h': 12 * HOUR_MS,
+  '1d': DAY_MS,
+  '3d': 3 * DAY_MS,
+  '1w': 7 * DAY_MS,
+  '2w': 14 * DAY_MS,
+  '1m': 30 * DAY_MS,
+  '3m': 90 * DAY_MS,
+  '6m': 180 * DAY_MS,
+  '1y': 365 * DAY_MS,
+  '3y': WIDTHS[WIDTHS.length - 1],
 };
+
+const CHIPS: Record<number, '7d' | '30d'> = { [7 * DAY_MS]: '7d', [30 * DAY_MS]: '30d' };
 
 const INTERVALS: Record<string, number> = {
   '5s': 5,
@@ -43,7 +41,7 @@ const INTERVALS: Record<string, number> = {
   '1w': 7 * 24 * 3600,
 };
 
-/** The old page's names for its curves, which are the device's own field names, and what the Charts view calls each. */
+/** The old page's names for its curves, which are the device's own field names, and what Verlauf ticks for each. */
 const MEASURES: Record<string, string> = {
   temperature: 'temperature',
   humidity: 'humidity',
@@ -51,44 +49,38 @@ const MEASURES: Record<string, string> = {
   co2: 'co2',
   leaf_temperature: 'leafTemperature',
   ppfd: 'ppfd',
-  out_heater: 'out.heater',
-  out_dehumidifier: 'out.dehumidifier',
-  out_fan: 'out.fan',
-  out_co2: 'out.co2',
-  out_light: 'out.light',
-  'out_fan-internal': 'out.fanInternal',
-  'out_fan-external': 'out.fanExternal',
-  'out_fan-backwall': 'out.fanBackwall',
+  out_light: 'light',
+  out_heater: 'outputs',
+  out_dehumidifier: 'outputs',
+  out_fan: 'outputs',
+  out_co2: 'outputs',
+  'out_fan-internal': 'outputs',
+  'out_fan-external': 'outputs',
+  'out_fan-backwall': 'outputs',
+  logs: 'diary',
 };
 
-/** An instant the old page wrote, as the contract spells one; null where it wrote none or nothing that reads as one. */
 const instantOf = (value: string | null): number | null => {
   const time = value ? Date.parse(value) : Number.NaN;
   return Number.isFinite(time) ? time : null;
 };
 
-export const chartsAddressOf = (spaceId: string, old: URLSearchParams): string => {
-  const next = new URLSearchParams({ space: spaceId });
-  const range = TIMESPANS[old.get('timespan') ?? ''];
-  if (range) next.set('range', range);
-
+export const timelineAddressOf = (spaceId: string, old: URLSearchParams): string => {
+  const width = TIMESPANS[old.get('timespan') ?? ''] ?? null;
   const measures = (old.get('measures') ?? '').split(',').filter(Boolean);
-  const shown = measures.flatMap(name => (MEASURES[name] ? [MEASURES[name]] : []));
-  if (measures.length > 0) next.set('show', shown.join(','));
-  if (measures.includes('logs')) next.set('msgs', '1');
-  if (measures.includes('image')) next.set('cam', '1');
-
-  const vpd = old.get('vpdMode');
-  if (vpd === 'day' || vpd === 'night') next.set('vpd', vpd);
-  if (old.get('autoUpdate') === 'true') next.set('live', '1');
-  const step = INTERVALS[old.get('interval') ?? ''];
-  if (step) next.set('step', String(step));
-
-  // Two dates were a stretch of the old page's own; one was where a timespan started.
   const from = instantOf(old.get('date'));
   const to = instantOf(old.get('dateEnd'));
-  if (from !== null && to !== null && from < to) next.set('zoom', zoomValue({ from, to }));
-  else if (from !== null && range) next.set('at', instant(from + WIDTHS[range]));
+  const vpd = old.get('vpdMode');
+  // A start with an end was a zoom; a start alone was the window stepped back to it.
+  const fixed = from !== null && to !== null && from < to ? { from, to } : from !== null && width !== null ? { from, to: from + width } : null;
+  const ticked = [...new Set(measures.flatMap(name => (MEASURES[name] ? [MEASURES[name]] : [])))];
 
-  return `/charts?${next.toString()}`;
+  const view = viewParams({
+    ...(fixed ? { fixed } : width === null ? {} : CHIPS[width] ? { range: CHIPS[width] } : width === DAY_MS ? {} : { last: width }),
+    ...(measures.length > 0 ? { show: [...ticked, ...(measures.includes('logs') ? ['machine'] : [])] } : {}),
+    ...(vpd === 'day' || vpd === 'night' ? { vpdHalf: vpd } : {}),
+    ...(INTERVALS[old.get('interval') ?? ''] ? { stepSeconds: INTERVALS[old.get('interval') ?? ''] } : {}),
+  });
+
+  return `/timeline?${withParams(new URLSearchParams(timelinePath(spaceId).split('?')[1]), view).toString()}`;
 };

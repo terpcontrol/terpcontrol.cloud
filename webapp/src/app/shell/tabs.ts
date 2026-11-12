@@ -17,7 +17,7 @@ interface Tab {
 const HOME: Tab = { path: '/', labelKey: 'shell.tabs.home', Icon: House, owns: ['/spaces'] };
 const GROW: Tab = { path: '/grow', labelKey: 'shell.tabs.grow', Icon: Sprout, owns: ['/grows'] };
 const LOG: Tab = { path: '/log', labelKey: 'shell.tabs.log', Icon: Plus, log: true };
-const TIMELINE: Tab = { path: '/timeline', labelKey: 'shell.tabs.timeline', Icon: ChartLine, owns: ['/charts'] };
+const TIMELINE: Tab = { path: '/timeline', labelKey: 'shell.tabs.timeline', Icon: ChartLine };
 /** The devices are steered, added and set up under Steuerung; a camera's own page is a picture and marks nothing. */
 const CONTROL: Tab = { path: '/control', labelKey: 'shell.tabs.control', Icon: SlidersHorizontal, owns: ['/devices', '/claim', '/cameras/add'] };
 

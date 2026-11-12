@@ -453,6 +453,7 @@ describe('a day of the diary', () => {
       zone: null,
       readingNames: grow.measurements,
       picture: mediaUrl,
+      curvesOf: () => null,
       cameras,
       byline: session.user.user?.isDemo !== true,
       correct: (line, dayNumber) => correcting(line, { label: grow.name, dayNumber, ...growStanding(grow) }),

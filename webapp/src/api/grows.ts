@@ -144,9 +144,9 @@ export const useSpaceGrows = (spaceId: string | null) =>
  * Every grow that has ever stood in one tent, newest first, which is a
  * different question from what stands there now.
  *
- * The Charts view is the one screen that asks it: laying two runs of a tent
- * over each other is a thing to do with the run that finished, and the list of
- * what is growing there this minute holds exactly one of them.
+ * Grow asks it where nothing grows in the chosen place: the run that finished
+ * there is what it then leads to, and the list of what is growing there this
+ * minute does not hold it.
  */
 export const useGrowsEverIn = (spaceId: string | null) =>
   useRead({
@@ -179,9 +179,8 @@ export const useCreateGrow = () =>
  * to delete a definition: whether anything has ever been written under its key.
  *
  * Which keys are wanted is said in the request, because a series asked for and
- * thrown away is a read of the store nobody looks at. It is kept apart from the
- * Charts view's series, whose last answer stands in for a failed read and has to
- * be one that asked for the climate.
+ * thrown away is a read of the store nobody looks at. Verlauf draws the charted
+ * ones beside its curves and reads the climate elsewhere.
  */
 export const useMeasurementSeries = (growId: string | null, range: GrowSeriesRange, measurements: string[]) => {
   const keys = [...measurements].sort();
