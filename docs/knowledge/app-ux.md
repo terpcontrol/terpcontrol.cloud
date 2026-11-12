@@ -46,7 +46,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   account has and the session may do (Chris, 2026-11-11): Grow with the diary; the green Eintrag button with the diary
   and the right to write a line; Verlauf with a device; Steuerung with a device the session may manage, so a member
   who may only log and the demo have none. One device without a diary is Start · Verlauf · Steuerung, a diary without
-  hardware Start · Grow · Eintrag (`app/shell/tabs.ts`, drawn from `app/shell/shape.ts`). Meldungen and Ich are not
+  hardware Start · Grow · Eintrag, and an account with nothing yet has no bar on the phone - Start alone is no
+  choice (`app/shell/tabs.ts`, drawn from `app/shell/shape.ts`). Meldungen and Ich are not
   items: the phone's header carries the bell (a dot while something is open) and the way to Ich, the rail both at its
   foot with the open count. An item stays marked on its pages - Start on a place's page and the task list, Grow on
   every grow, Verlauf on Graphen, Steuerung on the devices, the claim and adding a camera - and a camera's page,

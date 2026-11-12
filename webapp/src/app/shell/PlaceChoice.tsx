@@ -17,7 +17,6 @@ import { groupedByRoom } from '@/screens/home/rooms';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { Sheet } from '@/ui/Sheet';
 import { Dot } from '@/ui/Spoken';
-import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useShape } from './shape';
 import styles from './PlaceChoice.module.css';
@@ -100,8 +99,7 @@ function PlaceSheet({ chosen, onChoose, onClose }: { chosen: string; onChoose: (
   );
 
   return (
-    <Sheet title={t('shell.place.title')} onClose={onClose}>
-      <p className={`${ui.note} ${styles.holds}`}>{t('shell.place.holds')}</p>
+    <Sheet title={t('shell.place.title')} note={t('shell.place.holds')} onClose={onClose}>
       {home.isPending ? <Waiting lines={3} /> : null}
       {home.isError && !home.data ? <LoadFailed retry={() => void home.refetch()} /> : null}
       <div className={styles.places}>

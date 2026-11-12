@@ -66,6 +66,10 @@
   --selected: var(--brand);
   --selected-edge: var(--brand);
   --on-selected: var(--on-brand);
+  /* The marked item of the phone's bar, which has only its colour to say so:
+     the brand blue on white, and white on navy, where the pale link blue is
+     too near the muted ink of the items beside it. */
+  --bar-current: var(--brand);
 
   /* Brand green. `--green` is a surface colour - a dot, a line, a filled
      segment - and reaches only 3.3:1 as text on white, so green text takes
@@ -299,6 +303,7 @@
   --selected: #2a4a86;
   --selected-edge: #b8d4ff;
   --on-selected: #ffffff;
+  --bar-current: #ffffff;
   --green: #6fbe4a;
   --green-ink: #c2eca0;
   --green-wash: #244a45;
@@ -368,6 +373,7 @@
     --selected: #2a4a86;
     --selected-edge: #b8d4ff;
     --on-selected: #ffffff;
+    --bar-current: #ffffff;
     --green: #6fbe4a;
     --green-ink: #c2eca0;
     --green-wash: #244a45;

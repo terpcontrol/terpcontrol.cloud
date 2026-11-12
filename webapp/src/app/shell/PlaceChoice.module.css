@@ -30,12 +30,6 @@
   white-space: nowrap;
 }
 
-/* What the choice holds for, under the sheet's title. */
-.holds {
-  margin-top: calc(var(--space-3) * -1);
-  margin-bottom: var(--space-3);
-}
-
 .places,
 .room {
   display: flex;
@@ -43,9 +37,10 @@
   gap: var(--space-2);
 }
 
-.room + .room,
+/* A room stands apart from what is listed before and after it, so a place in no room does not read as its last. */
+.room + *,
 .place + .room {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
 }
 
 .roomName {

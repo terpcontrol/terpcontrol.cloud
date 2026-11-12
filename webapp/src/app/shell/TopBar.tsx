@@ -21,7 +21,6 @@ export function TopBar() {
       <Link to="/" className={styles.wordmark}>
         <Logo />
       </Link>
-      <span className={styles.gap} />
       <PlaceChoice />
       <Link to="/alerts" className={styles.action} aria-label={bell ? t(bell.key, { count: bell.count }) : t('shell.alerts')}>
         <Bell size={22} strokeWidth={2} aria-hidden />

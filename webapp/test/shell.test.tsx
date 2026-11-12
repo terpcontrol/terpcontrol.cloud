@@ -13,13 +13,13 @@ vi.mock('@/api/session', async importOriginal => {
   return { ...(await importOriginal<object>()), useSession: () => SIGNED_IN };
 });
 
-const wire = vi.hoisted(() => ({ diary: false }));
+const wire = vi.hoisted(() => ({ diary: false, devices: 1 }));
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
   if (path === '/home') return json({ spaces: [], followedGrows: [], people: [], layers: { diary: wire.diary } });
   if (path === '/me') return json({ preferences: { layoutSeen: null }, layers: { diary: wire.diary } });
-  if (path === '/devices') return json({ items: [{ id: 'device-1', ownerId: 'user-1', spaceId: null }], nextCursor: null });
+  if (path === '/devices') return json({ items: [{ id: 'device-1', ownerId: 'user-1', spaceId: null }].slice(0, wire.devices), nextCursor: null });
   return json({ items: [], nextCursor: null });
 });
 
@@ -40,6 +40,7 @@ describe('the navigation', () => {
     vi.stubGlobal('fetch', fetchStub);
     localStorage.clear();
     wire.diary = false;
+    wire.devices = 1;
   });
 
   afterEach(() => {
@@ -63,6 +64,19 @@ describe('the navigation', () => {
     );
     expect(screen.getByRole('button', { name: 'Log' })).toBeInTheDocument();
     expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/', '/grow', '/timeline', '/control']);
+  });
+
+  it('draws no bar on the phone for an account that has nothing yet, and keeps the rail with Start, Alerts and Me', async () => {
+    wire.devices = 0;
+    const { container } = draw(
+      <>
+        <TabBar />
+        <Rail />
+      </>,
+    );
+
+    await waitFor(() => expect(container.querySelectorAll('nav')).toHaveLength(1));
+    expect(screen.getAllByRole('link').map(link => link.textContent)).toEqual(['Home', 'Alerts', 'Me']);
   });
 
   it('draws the same pages down the rail, with Alerts and Me at its foot and Log only where the diary is kept', async () => {

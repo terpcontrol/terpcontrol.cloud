@@ -27,6 +27,7 @@ import styles from './Sheet.module.css';
  */
 export function Sheet({
   title,
+  note,
   aside,
   corner,
   children,
@@ -34,6 +35,8 @@ export function Sheet({
   onClose,
 }: {
   title: string;
+  /** A line under the title that says what the sheet's answer is for. */
+  note?: string;
   /** The line the board puts opposite the title, such as the grid a feed is dosed from. */
   aside?: ReactNode;
   /** A control in the top corner, beside the close: the moment a diary line is dated to. */
@@ -51,7 +54,10 @@ export function Sheet({
       <div className={styles.sheet} ref={panel} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
         <span className={styles.grabber} aria-hidden />
         <header className={styles.header}>
-          <h2 className={styles.title}>{title}</h2>
+          <h2 className={styles.title}>
+            {title}
+            {note ? <span className={styles.note}>{note}</span> : null}
+          </h2>
           {aside ? <span className={`mono ${styles.aside}`}>{aside}</span> : null}
           {corner}
           <button type="button" className={styles.close} onClick={onClose} aria-label={t('log.close')}>

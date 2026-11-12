@@ -9,7 +9,9 @@ import styles from './TabBar.module.css';
  * The phone's navigation. Replaced by the rail from the tablet breakpoint up.
  *
  * Every item is a page but Eintrag: logging happens over the screen you are
- * on, so the button does not take you anywhere.
+ * on, so the button does not take you anywhere. An account with nothing yet
+ * would have Start alone, which is no choice: it gets no bar, and the logo
+ * in the header leads to Start.
  */
 export function TabBar() {
   const { t } = useTranslation();
@@ -17,6 +19,8 @@ export function TabBar() {
   const underneath = useOpeningUnderneath();
   const tabs = useTabs();
   const isOn = useIsOn();
+
+  if (tabs.length < 2) return null;
 
   return (
     <nav className={styles.bar} aria-label={t('shell.navigation')} data-print="omit">

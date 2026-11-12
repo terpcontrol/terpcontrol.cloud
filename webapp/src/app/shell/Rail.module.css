@@ -23,7 +23,7 @@
   }
 
   .wordmark {
-    --logo-height: 32px;
+    --logo-height: 28px;
 
     padding: 0 var(--space-3) var(--space-4);
     line-height: 0;

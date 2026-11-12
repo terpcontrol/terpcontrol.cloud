@@ -223,11 +223,12 @@ or more.
 | `--muted` | `#5a6275` | `#b9c4dc` | secondary text |
 | `--label` | `#586074` | `#aab7d3` | labels, captions |
 | `--heading` | `#1f3a6e` | `#ffffff` | titles and names |
-| `--brand` | `#2d4b95` | `#b8d4ff` | active tab, links, focus, a secondary button's words |
+| `--brand` | `#2d4b95` | `#b8d4ff` | the rail's current item, links, focus, a secondary button's words |
 | `--on-brand` | `#ffffff` | `#14264a` | text on the brand |
 | `--brand-wash` | `#e8eef9` | `#2a4a86` | behind whatever is selected |
 | `--selected` / `--selected-edge` | `#2d4b95` / same | `#2a4a86` / `#b8d4ff` | a chosen chip or segment: fill and ring |
 | `--on-selected` | `#ffffff` | `#ffffff` | text on a choice |
+| `--bar-current` | `#2d4b95` | `#ffffff` | the current item of the phone's bar, which only its colour marks: in dark mode the pale blue is too near the muted ink beside it |
 | `--green` | `#50a030` | `#6fbe4a` | live dots, in-band marks, reached segments |
 | `--green-ink` | `#35701f` | `#c2eca0` | green text |
 | `--green-wash` | `#eaf4e4` | `#244a45` | behind a green word: live, a stage, the current step |

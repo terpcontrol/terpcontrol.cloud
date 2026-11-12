@@ -20,22 +20,15 @@
   }
 }
 
+/* The logo stands small, so that the name of a chosen place has the room beside it; what follows keeps to the right. */
 .wordmark {
-  --logo-height: 28px;
+  --logo-height: 22px;
 
+  display: flex;
   flex: none;
-  line-height: 0;
-}
-
-/* The narrowest phones: the logo gives the chosen place's name the room. */
-@media (max-width: 359px) {
-  .wordmark {
-    --logo-height: 22px;
-  }
-}
-
-.gap {
-  flex: 1;
+  align-items: center;
+  min-height: var(--control-height);
+  margin-right: auto;
 }
 
 .action {
