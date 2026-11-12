@@ -22,6 +22,7 @@ import { shownCameras } from '../timeline/frames';
 import { TimelineWindow, narrowedTo, windowOf } from '../timeline/timeline-window';
 import { spacesDuring } from './grow-places';
 import { Redaction } from './grow-serialiser';
+import { stoodIn } from '@common/v1/device-placements';
 import { GrowsService } from './grows.service';
 
 /**
@@ -93,13 +94,12 @@ export class GrowSeriesService {
     const outputs = asked.outputs ?? [];
     // Wherever the grow stood over the window: a grow that moved between tents
     // is read from the devices and cameras of both, because the chart draws what
-    // its plants lived through and not what one tent did. A device knows only
-    // where it stands now, so one that has since been moved out is not read for
-    // the days it kept - the same limit the diary's days have.
+    // its plants lived through and not what one tent did - each device for the
+    // days it stood there, as the diary's days read them.
     const spaceIds = spacesDuring(grow, window.startsAt, window.endsAt).filter((id): id is string => id !== null);
 
     const [devices, cameras] = await Promise.all([
-      metrics.length > 0 || outputs.length > 0 ? this.devicesIn(spaceIds) : Promise.resolve([]),
+      metrics.length > 0 || outputs.length > 0 ? stoodIn(this.devices, spaceIds, window) : Promise.resolve([]),
       shownCameras(this.cameras, spaceIds, grant.includeCameras),
     ]);
     const [charts, readings] = await Promise.all([
@@ -190,16 +190,6 @@ export class GrowSeriesService {
     }
 
     return [...new Set(asked)];
-  }
-
-  /** The devices standing in these spaces now, oldest first. */
-  private devicesIn(spaceIds: readonly string[]): Promise<StoredDevice[]> {
-    if (spaceIds.length === 0) return Promise.resolve([]);
-
-    return this.devices
-      .find({ spaceId: { $in: spaceIds } })
-      .sort({ createdAt: 1, id: 1 })
-      .lean<StoredDevice[]>();
   }
 
   /**

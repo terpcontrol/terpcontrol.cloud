@@ -1,7 +1,7 @@
 ---
 summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores; read it before an upgrade, a restore or a repair by hand
-updated: 2026-10-14
-source: Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+updated: 2026-11-12
+source: Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); steps 026-028: the redesign session of 2026-11-12; agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/migrations/**
   - backup.sh
@@ -54,6 +54,15 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
   Changing one changes what that step writes on every install not yet migrated, while migrated ones keep the old
   result: a refactor there leaves each step's output as it was (the step specs and a dry run on a copy show it), and
   a new meaning for migrated data is a new step.
+- **Steps on the new collections** (`026-device-placements`, `027-empty-rooms`, `028-unique-place-names`; the
+  redesign session of 2026-11-12, ADR 0001 "Places, rooms and where a device stood"): they read `devices` and
+  `spaces` in the new shape, move nothing aside and reject nothing. Each finds its work by what is still wrong - a
+  device without `placements`, a room that has not ended and holds nothing, two names that collide - so a second run
+  changes nothing and a run killed half-way continues. A database from the old cloud has no rooms, so 027 finds none
+  there; 028 renames only the places of one owner that were named after devices sharing a name (step 004 numbers
+  the places it names itself). 026 dates a placement from `state.claimedAt`, which step 005 leaves null for every
+  device carried over, and then from the device's `createdAt`: a carried-over device has stood in its place since it
+  registered, which is what every read assumed before.
 - **Duration:** the real run on a copy of the hosted database took 1.5 to 2 minutes (93-115 s for the 17 steps of
   2026-09-23) once the command built its indexes first and `011-entries` thinned the repeated sensor lines, nearly all
   of it `011-entries`. A dry run writes nothing and under-reports (6x before the thinning).

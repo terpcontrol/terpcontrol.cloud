@@ -44,8 +44,23 @@ export interface StoredDeviceState extends Omit<
   socketsReportedAt: Date | null;
 }
 
+/** One stay of a device in a place. `endedAt: null` is where it stands now, and at most one is open. */
+export interface DevicePlacement {
+  spaceId: string;
+  startedAt: Date;
+  endedAt: Date | null;
+}
+
 export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'control'> {
   createdAt: Date;
+  /**
+   * Where the device stood and when, oldest first, so that what is read about a
+   * stretch of time keeps a device for the days it stood in a place
+   * (`common/v1/device-placements.ts`). `spaceId` is the open one's place and is
+   * written with it. Stored rather than served: no screen reads a device's past
+   * places, the reads about a place's past do.
+   */
+  placements: DevicePlacement[];
   mqtt: StoredDeviceMqtt | null;
   /**
    * When the climate retention sweep last reached this device. Stored rather
@@ -125,6 +140,15 @@ const mqttSchema = new Schema<StoredDeviceMqtt>(
   { _id: false, versionKey: false },
 );
 
+const placementSchema = new Schema<DevicePlacement>(
+  {
+    spaceId: { type: String, required: true },
+    startedAt: { type: Date, required: true },
+    endedAt: { type: Date, default: null },
+  },
+  { _id: false, versionKey: false },
+);
+
 const scheduleClockSchema = new Schema<ScheduleClock>(
   {
     zone: { type: String, required: true },
@@ -200,6 +224,7 @@ export const devicesSchema = new Schema<StoredDevice>(
     serialNumber: { type: Number, default: null },
     ownerId: { type: String, default: null },
     spaceId: { type: String, default: null },
+    placements: { type: [placementSchema], required: true, default: [] },
     name: { type: String, default: null },
     // Never served: the contract has no field for it. Read by `MqttAuthService`
     // alone, which asks for it explicitly.
@@ -235,6 +260,8 @@ devicesSchema.index({ 'mqtt.username': 1 }, { unique: true, partialFilterExpress
 // A person's devices, and the devices of one space's card.
 devicesSchema.index({ ownerId: 1 });
 devicesSchema.index({ spaceId: 1 });
+// Which devices stood in a place over a stretch of time: a place's curves, a grow's days, an export.
+devicesSchema.index({ 'placements.spaceId': 1 });
 // The rollout counts a class by the build its devices run, and picks the next ones to update.
 devicesSchema.index({ classId: 1, 'state.firmwareId': 1 });
 // The retention sweep's rotation: least recently swept first, oldest first

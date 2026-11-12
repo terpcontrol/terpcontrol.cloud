@@ -48,12 +48,39 @@ describe('making a space', () => {
     });
   });
 
-  it('groups one under a room', async () => {
-    const roomId = await makeSpace(owner, { kind: 'room', name: 'The flower room' });
-    const made = await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent in it', roomId }).expect(201);
+  it('makes the room a place names, groups the next place under it, and ends the room with its last place', async () => {
+    const first = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent in it', roomName: 'The flower room' }).expect(201)).body;
+    const second = (await owner.client.post('/v1/spaces').send({ kind: 'fridge', name: 'Fridge in it', roomName: 'the flower room' }).expect(201))
+      .body;
 
-    expect(made.body.roomId).toBe(roomId);
-    expect(await listed(owner, `?roomId=${roomId}`)).toEqual([made.body.id]);
+    expect(first.roomId).toEqual(expect.any(String));
+    expect(second.roomId).toBe(first.roomId);
+    expect((await owner.client.get(`/v1/spaces/${first.roomId}`).expect(200)).body).toMatchObject({ kind: 'room', name: 'The flower room' });
+    expect(await listed(owner, `?roomId=${first.roomId}`)).toEqual([first.id, second.id]);
+
+    await owner.client.patch(`/v1/spaces/${first.id}`).send({ roomId: null }).expect(200);
+    expect((await owner.client.get(`/v1/spaces/${first.roomId}`).expect(200)).body.archivedAt).toBeNull();
+    await owner.client.delete(`/v1/spaces/${second.id}`).expect(204);
+    expect((await owner.client.get(`/v1/spaces/${first.roomId}`).expect(200)).body.archivedAt).toEqual(expect.any(String));
+  });
+
+  it('refuses a room made, ended or put away by itself', async () => {
+    const made = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent in a kept room', roomName: 'A kept room' }).expect(201))
+      .body;
+
+    expect((await owner.client.post('/v1/spaces').send({ kind: 'room', name: 'By itself' }).expect(409)).body.code).toBe('room_by_itself');
+    expect((await owner.client.delete(`/v1/spaces/${made.roomId}`).expect(409)).body.code).toBe('room_by_itself');
+    expect((await owner.client.put(`/v1/spaces/${made.roomId}/archive`).expect(409)).body.code).toBe('room_by_itself');
+    expect((await owner.client.patch(`/v1/spaces/${made.id}`).send({ kind: 'room' }).expect(409)).body.code).toBe('room_by_itself');
+  });
+
+  it('refuses a second place of one name with a sentence that names it', async () => {
+    await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Named once' }).expect(201);
+    const refused = await owner.client.post('/v1/spaces').send({ kind: 'fridge', name: ' named ONCE ' }).expect(409);
+
+    expect(refused.body).toMatchObject({ code: 'name_taken', detail: 'Another place is already called "Named once".' });
+    // Somebody else may call theirs the same.
+    await stranger.client.post('/v1/spaces').send({ kind: 'tent', name: 'Named once' }).expect(201);
   });
 
   it('refuses a kind the contract does not have, and says which field', async () => {
@@ -64,7 +91,8 @@ describe('making a space', () => {
   });
 
   it('refuses a room inside somebody else´s room as if it were not there', async () => {
-    const roomId = await makeSpace(owner, { kind: 'room', name: 'Not yours' });
+    const { roomId } = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'In a room of mine', roomName: 'Not yours' }).expect(201))
+      .body;
     const refused = await stranger.client.post('/v1/spaces').send({ kind: 'tent', name: 'Mine', roomId }).expect(404);
 
     expect(refused.body.code).toBe('space_not_found');

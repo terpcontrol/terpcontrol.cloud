@@ -1,3 +1,5 @@
+import { stoodIn } from '@common/v1/device-placements';
+import { Span } from '@common/v1/range';
 import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { createReadStream, createWriteStream } from 'node:fs';
@@ -491,7 +493,8 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
    */
   private async writeDeviceClimate(zip: ZipWriter, device: StoredDevice): Promise<void> {
     const from = device.state?.claimedAt ?? device.createdAt;
-    await zip.add(`climate/${device.id}.csv`, from, Readable.from(this.climateBetween([device.id], from, new Date())), true);
+    const whole = { startsAt: from, endsAt: new Date() };
+    await zip.add(`climate/${device.id}.csv`, from, Readable.from(this.climateBetween([{ deviceId: device.id, stay: whole }], whole)), true);
   }
 
   /**
@@ -547,37 +550,38 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
    */
   private async *climateOf(grow: GrowDocument): AsyncGenerator<Buffer> {
     const endsAt = grow.endedAt ?? new Date();
+    const whole = { startsAt: grow.startedAt, endsAt };
     const spaceIds = spacesDuring(grow, grow.startedAt, endsAt).filter((id): id is string => id !== null);
-    const devices = spaceIds.length
-      ? await this.devices
-          .find({ spaceId: { $in: spaceIds } }, { id: 1 })
-          .sort({ createdAt: 1, id: 1 })
-          .lean<StoredDevice[]>()
-      : [];
+    // Every device that stood there while the grow did, each for its days there.
+    const stood = await stoodIn(this.devices, spaceIds, whole, {});
 
     yield* this.climateBetween(
-      devices.map(device => device.id),
-      grow.startedAt,
-      endsAt,
+      stood.map(one => ({ deviceId: one.device.id, stay: one.stay })),
+      whole,
     );
   }
 
-  /** The same file for whatever devices and whatever stretch of time the caller means, which is a grow's place or a device's whole life. */
-  private async *climateBetween(deviceIds: readonly string[], startsAt: Date, endsAt: Date): AsyncGenerator<Buffer> {
+  /**
+   * The same file for whatever devices and whatever stretch of time the caller
+   * means - a grow's places or a device's whole life - each device over the
+   * part of the stretch named for it.
+   */
+  private async *climateBetween(devices: readonly { deviceId: string; stay: Span }[], { startsAt, endsAt }: Span): AsyncGenerator<Buffer> {
     yield csvHeader(climateColumns(EXPORTED_METRICS, EXPORTED_OUTPUTS));
-    if (deviceIds.length === 0) return;
+    if (devices.length === 0) return;
 
     for (let from = startsAt.getTime(); from < endsAt.getTime(); from += CLIMATE_CHUNK_MS) {
       const window = { startsAt: new Date(from), endsAt: new Date(Math.min(from + CLIMATE_CHUNK_MS, endsAt.getTime())) };
       const series: DeviceSeries[] = await Promise.all(
-        deviceIds.map(deviceId =>
-          this.data.series(deviceId, {
-            ...window,
-            stepSeconds: CLIMATE_STEP_SECONDS,
-            metrics: EXPORTED_METRICS,
-            outputs: EXPORTED_OUTPUTS,
-          }),
-        ),
+        devices.flatMap(({ deviceId, stay }) => {
+          const part = {
+            startsAt: new Date(Math.max(window.startsAt.getTime(), stay.startsAt.getTime())),
+            endsAt: new Date(Math.min(window.endsAt.getTime(), stay.endsAt.getTime())),
+          };
+          return part.endsAt > part.startsAt
+            ? [this.data.series(deviceId, { ...part, stepSeconds: CLIMATE_STEP_SECONDS, metrics: EXPORTED_METRICS, outputs: EXPORTED_OUTPUTS })]
+            : [];
+        }),
       );
 
       const rows = climateRows(series, EXPORTED_METRICS, EXPORTED_OUTPUTS).filter(row => row.slice(2).some(value => value !== null));

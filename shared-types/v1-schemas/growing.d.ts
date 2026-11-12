@@ -688,6 +688,10 @@ export declare const growListItem: z.ZodObject<{
  * `POST /spaces`. A space is little more than a name and a kind; the room it
  * hangs in and the two settings have defaults, so the sheet that creates one
  * asks for two fields.
+ *
+ * A room is a field of the place and never made by itself: `roomId` names one
+ * that exists, `roomName` the owner's room of that name, which the server makes
+ * where there is none. `kind: room` is refused.
  */
 export declare const spaceCreate: z.ZodObject<{
     name: z.ZodString;
@@ -706,6 +710,7 @@ export declare const spaceCreate: z.ZodObject<{
         ask: "ask";
     }>>;
     roomId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    roomName: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 /**
  * `PATCH /spaces/{id}`: the same fields, each only if it changes. `archivedAt`
@@ -729,6 +734,7 @@ export declare const spaceUpdate: z.ZodObject<{
         ask: "ask";
     }>>>;
     roomId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    roomName: z.ZodOptional<z.ZodOptional<z.ZodString>>;
 }, z.core.$strip>;
 /**
  * What a client may do about the grow when a preset is applied to a space that

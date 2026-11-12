@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
 updated: 2026-11-12
-source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12)
+source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12)
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -43,6 +43,19 @@ built by mongoose as it compiles. What boot seeds - device classes, the admin ac
 
 Pitfalls, each met at least once:
 
+- **Where a device stood** is `devices.placements[]` (`spaceId`, `startedAt`, `endedAt`; at most one open), and
+  `devices.spaceId` is the open one's place. One writer sets both in one update (`DevicesService.place`, with the
+  arithmetic in `movedTo`): never `$set` a device's `spaceId` anywhere else. A read about now asks `spaceId`, a read
+  about a stretch of time asks `stoodIn`/`stayOf`, which answer each device with the part of the stretch it stood
+  there - and a history read is asked for that part only, so no hour of a place is ever read from a device that
+  stood elsewhere. A device's first placement is read back past its `startedAt` (`beginsAt`): what it measured
+  before it was first put anywhere counts for its first place. A spec that puts a device in a place gives it the placement too (`standingIn`,
+  `test/unit/support/placed.ts`), or every read about the past finds the place empty (the redesign session of
+  2026-11-12).
+- **Names are unique without an index:** a place's name among its owner's places that have not ended, a room's among
+  its rooms, compared by `nameKey` (`common/v1/space-names.ts`: blanks and case make no second name). The comparison
+  is not a field, so nothing in MongoDB states it; every write of a name goes through `refuseTakenName`, or through
+  `freeNameFor` where the server names a place itself and must not refuse (a claim).
 - **Undeclared fields vanish:** strict mode drops on save what the schema does not declare, silently (a recipe step's
   name, `ppfdLuxFactor`). A persisted field goes into the schema as well as into the `shared-types` contract.
 - **Defaults do not backfill:** a lean read answers what the document holds, so a new field is missing on older
@@ -191,6 +204,6 @@ at a time and re-queues a build left in `rendering`.
   has nowhere to.
 - **Written by hand** (`export-zip.ts`: streamed entries, data descriptors, Zip64; no zip library in `server/`). An
   alarm's custom webhook is exported as `custom · webhook` only.
-- **No placement history:** a device row knows only where it stands now, so a grow's climate (export, series, week
-  cards) comes from the devices standing today in the spaces the grow stood in (`spacesDuring`,
-  `modules/v1/grow/grow-places.ts`); one moved out is not read for the days it was there.
+- **A device is exported for the days it stood there:** a grow's `climate.csv` takes every device that stood in the
+  spaces the grow stood in (`spacesDuring`, `modules/v1/grow/grow-places.ts`) while it stood there, each over its own
+  stay (`stoodIn`, `common/v1/device-placements.ts`; ADR 0001, "Places, rooms and where a device stood").

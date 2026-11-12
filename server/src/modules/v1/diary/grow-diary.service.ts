@@ -7,6 +7,7 @@ import { growDayAt, growOriginOf, growWeekOfDay } from '@fg2/shared-types/v1-sch
 import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { pageOf } from '@common/v1/pages';
 import { peopleNamed } from '@common/v1/people';
+import { stayOf } from '@common/v1/device-placements';
 import { Span, clampRange, overlapsRange, seenOf } from '@common/v1/range';
 import { pageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -18,11 +19,11 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { spacesDuring } from '../grow/grow-places';
 import { Redaction } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
-import { DayDevice, dayClimateOf } from './day-climate';
+import { dayClimateOf } from './day-climate';
 import { DIARY_KINDS, TOLD_OF_MACHINES, serialiseDiaryEntry, toldOf, writtenFor } from './diary-entries';
 import { DayStill, WeekFilm, stillsOfDays, weekFilmsOf } from './diary-pictures';
 import { DiaryDay, DiaryWeek, dateStartOf, diaryWeeksOf, headlinePhaseAt, horizonOf, middayOf, weeksAfter } from './grow-calendar';
-import { GrowClimateService } from './grow-climate.service';
+import { GrowClimateService, RecordedController } from './grow-climate.service';
 
 /**
  * A grow's diary as it writes itself: a card per day, a week of them at a time.
@@ -65,7 +66,6 @@ const MAX_EARLIER = 200;
 const SHORTEST_FILM_SECONDS = 2;
 
 /** What a controller recorded over a week, and the place it stands in. */
-type PlacedDevice = DayDevice & { spaceId: string | null };
 
 /** Everything the days of a page are built from that was read once for all of them. */
 interface PageWorld {
@@ -124,7 +124,7 @@ export class GrowDiaryService {
       this.linesIn(grow, grant, seen, isOutsider(grant) ? [] : named),
       // What was dated to before the grow began has no day, and stands after the last of them.
       page.nextCursor === null ? this.earlierThan(grow, grant, dateStartOf(origin, zone), range) : Promise.resolve([]),
-      this.climate.controllersIn(spaceIds),
+      this.climate.controllersIn(spaceIds, life),
       weekFilmsOf(this.media, cameraIds, seen, range),
       stillsOfDays(
         this.media,
@@ -137,6 +137,7 @@ export class GrowDiaryService {
     const stretches = page.items.map(week => lifeOf(week, life));
     const recorded = await this.climate.recorded(
       controllers,
+      spaceIds,
       stretches.filter((stretch): stretch is Span => stretch !== null),
     );
     const recordedOf = new Map(
@@ -144,13 +145,7 @@ export class GrowDiaryService {
     );
 
     const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, maintenance, stills, films };
-    const weeks = page.items.map(week =>
-      this.weekOf(
-        week,
-        world,
-        (recordedOf.get(week.weekNumber) ?? []).map((device, index) => ({ ...device, spaceId: controllers[index].spaceId })),
-      ),
-    );
+    const weeks = page.items.map(week => this.weekOf(week, world, recordedOf.get(week.weekNumber) ?? []));
 
     const before = earlier.map(entry => serialiseDiaryEntry(entry, hide, grant));
     const people = await peopleNamed(this.users, [
@@ -161,7 +156,7 @@ export class GrowDiaryService {
     return { items: weeks, nextCursor: page.nextCursor, people, earlier: before };
   }
 
-  private weekOf(week: DiaryWeek, world: PageWorld, devices: PlacedDevice[]): GrowDiaryWeek {
+  private weekOf(week: DiaryWeek, world: PageWorld, devices: RecordedController[]): GrowDiaryWeek {
     const { grow, origin, horizon, zone } = world;
     // A week that is over is named after the stage standing at its middle,
     // the week still running after the stage the grow is in now.
@@ -194,18 +189,18 @@ export class GrowDiaryService {
     };
   }
 
-  private dayOf(day: DiaryDay, world: PageWorld, devices: PlacedDevice[]): GrowDiaryDay | null {
+  private dayOf(day: DiaryDay, world: PageWorld, devices: RecordedController[]): GrowDiaryDay | null {
     const seen = lifeOf(day, seenOf({ startsAt: day.startsAt, endsAt: laterOf(day.endsAt, world.horizon, false) }, world.range));
     if (!seen) return null;
 
     // The day's lines are filed by the date; its climate and its picture are of the hours the grow lived.
     const life = lifeOf(seen, { startsAt: world.origin, endsAt: world.horizon });
     const still = world.stills.get(day.dayNumber) ?? null;
-    // Only the controllers standing where the grow stood that day speak for it.
+    // Only the controllers that stood where the grow stood that day speak for it.
     const here = life ? spacesDuring(world.grow, life.startsAt, life.endsAt) : [];
     const { climate, events } = life
       ? dayClimateOf(
-          devices.filter(device => here.includes(device.spaceId)),
+          devices.filter(device => stayOf(device.placements, here, life) !== null),
           life,
           world.grow.endedAt === null && day.endsAt > world.horizon,
         )

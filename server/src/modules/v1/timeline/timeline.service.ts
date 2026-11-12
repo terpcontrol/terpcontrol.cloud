@@ -21,13 +21,13 @@ import { DataService } from '@modules/data/data.service';
 import { DIARY_KINDS, MACHINE_KINDS, readingNamesOf, serialiseDiaryEntry, writtenFor } from '../diary/diary-entries';
 import { grantRedaction } from '../grow/redactions';
 import { alertsRaisedIn } from '../home/open-alerts';
-import { recordOf } from '../phase/target-record';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
 import { lastReadingOf } from './last-reading';
 import { PANEL_METRICS, chartPartsOf, panelsOf } from './timeline-series';
-import { TimelineWindow, actingOn, camerasOfDevice, narrowedToDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
+import { narrowedToDevice, predecessorsOf, recordAcross, withPredecessors } from './place-history';
+import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
  * The Timeline tab, as one answer.
@@ -106,9 +106,8 @@ export class TimelineService {
 
   public async read(grant: Grant, spaceId: string, asked: TimelineQuery, now: Date = new Date()): Promise<SpaceTimeline> {
     const at = asked.at ?? now;
-    const [space, standing, stood] = await Promise.all([
+    const [space, stood] = await Promise.all([
       this.places.require(spaceId),
-      this.live.devicesIn([spaceId]),
       // Every grow that has ever stood here, newest first: the one the bands are
       // of and the ones the rail is of are both in this one read.
       this.grows
@@ -117,23 +116,29 @@ export class TimelineService {
         .lean<GrowDocument[]>(),
     ]);
 
-    const devices = narrowedToDevice(standing, asked.deviceId);
-
     // A link's window decides which grows it is told about: the ones that stood
     // here inside it, not whatever moved in after the window closed.
     const known = stood.filter(one => stoodDuring(one, spaceId, grant.range));
     const grow = this.growFor(asked, known, spaceId, storyEndsAt(grant.range, now));
     const window = windowOf(asked.range, grant, grow, grow ? await zoneOfOwner(this.users, grow.ownerId) : null, at, asked.stepSeconds, asked.window);
     const metrics = asked.metrics ?? PANEL_METRICS;
+    // Every device that stood here inside the window, each read over its stay: one that has left still draws the
+    // days it kept, and one that came draws nothing of where it stood before.
+    const present = narrowedToDevice(await this.live.stoodIn([spaceId], window), asked.deviceId);
+    const devices = present.map(one => one.device);
+    const steering = steeringOf(devices);
+    // Somebody who asked for one device is shown that device, not the place's climate through time.
+    const before = asked.deviceId ? [] : predecessorsOf(present, steering?.id ?? null, [spaceId]);
     const growIds = known.filter(one => stoodDuring(one, spaceId, window)).map(one => one.id);
 
     const [series, alerts, recorded, cameras, aimed] = await Promise.all([
       Promise.all(
-        devices.map(device =>
+        present.map(({ device, stay }) =>
           this.data.history(
             device.id,
             {
-              ...spanOf(window),
+              ...stay,
+              stepSeconds: window.stepSeconds,
               metrics,
               // The lowest and the highest of every window, which a panel draws behind its mean.
               extremes: true,
@@ -161,7 +166,7 @@ export class TimelineService {
         .lean<StoredAlert[]>(),
       this.eventsOf(grant, spaceId, growIds, window),
       shownCameras(this.cameras, [spaceId], grant.includeCameras).then(all => camerasOfDevice(all, asked.deviceId)),
-      recordOf(this.targetRecord, steeringOf(devices)?.id ?? null, window),
+      recordAcross(this.targetRecord, present.find(one => one.device.id === steering?.id) ?? null, before, window),
     ]);
 
     const [watched, frames, hide] = await Promise.all([
@@ -170,9 +175,12 @@ export class TimelineService {
       grantRedaction(this.users, grant),
     ]);
     const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant));
-    const own = ownOf(devices, series);
+    const leading = ownOf(devices, series);
+    const own = leading && leading.series.deviceId === steering?.id ? withPredecessors(leading, before, series) : leading;
     const panels = panelsOf(own?.series ?? null, stretchesOf(grow, devices, window, at, aimed), metrics, true);
-    const acting = new Set(actingOn(devices, own?.series.deviceId ?? null).map(device => device.id));
+    // What switched under the curve: the leading device's outputs, those of what is no climate of its own, and
+    // those of the devices whose curve stands in front of it.
+    const acting = new Set([...actingOn(devices, own?.series.deviceId ?? null).map(device => device.id), ...before.map(link => link.deviceId)]);
 
     return {
       spaceId: space.id,
@@ -196,7 +204,13 @@ export class TimelineService {
       // Which device the curves are of is the hardware in the tent, and a reader from outside is shown the tent.
       deviceId: isOutsider(grant) ? null : (own?.series.deviceId ?? null),
       panels,
-      lastReadingAt: panels.length > 0 ? null : await lastReadingOf(this.data, devices),
+      lastReadingAt:
+        panels.length > 0
+          ? null
+          : await lastReadingOf(
+              this.data,
+              devices.filter(device => device.spaceId === spaceId),
+            ),
       // An alarm is the keeper's: when a tent stood outside its rules is not a reader's from outside, nor are the ids.
       alarms: isOutsider(grant) ? [] : alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
       events: told,
@@ -331,13 +345,6 @@ interface TimelineQuery {
   metrics?: readonly Metric[];
   deviceId?: string;
 }
-
-/** The window on its own, for the readers that take a window and nothing else. */
-const spanOf = (window: TimelineWindow): { startsAt: Date; endsAt: Date; stepSeconds: number } => ({
-  startsAt: window.startsAt,
-  endsAt: window.endsAt,
-  stepSeconds: window.stepSeconds,
-});
 
 /**
  * An alert that had not been resolved before the window began. Its own

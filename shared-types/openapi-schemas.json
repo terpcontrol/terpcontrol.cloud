@@ -5685,7 +5685,7 @@
             "type": "null"
           }
         ],
-        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own."
+        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left."
       },
       "presetPrompt": {
         "$ref": "#/components/schemas/PresetPrompt"
@@ -7000,13 +7000,17 @@
             "type": "null"
           }
         ],
-        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own."
+        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left."
       },
       "presetPrompt": {
         "$ref": "#/components/schemas/PresetPrompt"
       },
       "retention": {
         "$ref": "#/components/schemas/SpaceRetention"
+      },
+      "roomName": {
+        "description": "The room this place stands in, by name: the owner’s room called so, made if there is none. Instead of `roomId`, never beside it.",
+        "type": "string"
       }
     },
     "required": [
@@ -7033,13 +7037,17 @@
             "type": "null"
           }
         ],
-        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own."
+        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left."
       },
       "presetPrompt": {
         "$ref": "#/components/schemas/PresetPrompt"
       },
       "retention": {
         "$ref": "#/components/schemas/SpaceRetention"
+      },
+      "roomName": {
+        "description": "The room this place stands in, by name: the owner’s room called so, made if there is none. Instead of `roomId`, never beside it.",
+        "type": "string"
       }
     }
   },
@@ -11875,7 +11883,7 @@
         "items": {
           "$ref": "#/components/schemas/Person"
         },
-        "description": "Everyone the cards name, so a card can say who wrote an entry without another read."
+        "description": "Everyone the cards name, so a card can say who wrote an entry without another read - and the owner of every place that is not the reader’s own, so a shared place says whose it is."
       },
       "layers": {
         "$ref": "#/components/schemas/AccountLayers"

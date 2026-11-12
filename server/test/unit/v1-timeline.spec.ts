@@ -12,6 +12,7 @@ import { session, visitor } from './support/callers';
 import { isLit, lastSampleOf, seriesOf, SWITCHING_GRAIN_MS, switchingsOf } from './support/fake-data';
 import { accessOn, spacesOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
+import { standingIn } from './support/placed';
 
 /**
  * The Timeline tab: one answer per range chip.
@@ -205,11 +206,11 @@ const world = async (): Promise<void> => {
       id: CONTROLLER,
       type: 'controller',
       ownerId: OWNER,
-      spaceId: TENT,
+      ...standingIn(TENT),
       configuration: { day: { temperature: 27, humidity: 40 }, night: { temperature: 22, humidity: 45 }, co2: { target: 1100 } },
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     },
-    { id: PLUG, type: 'plug', ownerId: OWNER, spaceId: TENT, configuration: null, createdAt: new Date('2026-01-02T00:00:00.000Z') },
+    { id: PLUG, type: 'plug', ownerId: OWNER, ...standingIn(TENT), configuration: null, createdAt: new Date('2026-01-02T00:00:00.000Z') },
   ]);
 
   await db.cameras.create({
@@ -657,7 +658,7 @@ describe('one climate of several', () => {
       id: FRIDGE_MODULE,
       type: 'fridge',
       ownerId: OWNER,
-      spaceId: TENT,
+      ...standingIn(TENT),
       configuration: { day: { temperature: 18, humidity: 60 }, night: { temperature: 16, humidity: 60 } },
       createdAt: new Date('2026-01-03T00:00:00.000Z'),
     });
@@ -1663,5 +1664,129 @@ describe('what the store says an output did', () => {
       { at: '2026-02-01T00:00:00Z', on: false },
       { at: '2026-02-01T05:00:00Z', on: true },
     ]);
+  });
+});
+
+describe('a place whose devices changed', () => {
+  const OLD = 'device-old';
+  const NEW = 'device-new';
+  /** The old controller was taken out twelve hours ago and the new one put in at the same moment. */
+  const SWAPPED = new Date(NOW.getTime() - 12 * 60 * 60 * 1000);
+  const configuration = { day: { temperature: 27, humidity: 40 }, night: { temperature: 22, humidity: 45 } };
+
+  beforeEach(async () => {
+    await db.devices.create([
+      {
+        id: OLD,
+        type: 'controller',
+        ownerId: OWNER,
+        spaceId: null,
+        placements: [{ spaceId: BARE, startedAt: new Date(0), endedAt: SWAPPED }],
+        configuration,
+        createdAt: new Date('2026-01-03T00:00:00.000Z'),
+      },
+      { id: NEW, type: 'controller', ownerId: OWNER, ...standingIn(BARE, SWAPPED), configuration, createdAt: new Date('2026-01-04T00:00:00.000Z') },
+    ]);
+    reports = {
+      ...reports,
+      [OLD]: () => ({ metrics: { temperature: 20 }, outputs: { heater: 1 } }),
+      [NEW]: () => ({ metrics: { temperature: 26 }, outputs: { heater: 1 } }),
+    };
+  });
+
+  const temperatures = (page: Awaited<ReturnType<typeof readAs>>) =>
+    page.panels[0].points.flatMap(point => (point.value === null ? [] : [{ at: Date.parse(point.measuredAt), value: point.value }]));
+
+  it('draws the device that held the place before, up to the change, and the one standing there from it', async () => {
+    const page = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE);
+    const drawn = temperatures(page);
+
+    expect(page.deviceId).toBe(NEW);
+    expect(new Set(drawn.filter(point => point.at < SWAPPED.getTime()).map(point => point.value))).toEqual(new Set([20]));
+    expect(new Set(drawn.filter(point => point.at > SWAPPED.getTime()).map(point => point.value))).toEqual(new Set([26]));
+    // The one that left was asked only about its stay. The new one came straight out of its box, so what it measured
+    // before it was put here is read too - and gives way to the device that held the place then.
+    expect(reads.map(read => [read.startsAt.toISOString(), read.endsAt.toISOString()]).sort()).toEqual(
+      [
+        [new Date(NOW.getTime() - 24 * 60 * 60 * 1000).toISOString(), SWAPPED.toISOString()],
+        [new Date(NOW.getTime() - 24 * 60 * 60 * 1000).toISOString(), NOW.toISOString()],
+      ].sort(),
+    );
+    // What switched under the curve is each device's own, the one that left included.
+    expect(page.outputs.filter(lane => lane.output === 'heater').map(lane => lane.deviceId)).toEqual([NEW, OLD]);
+  });
+
+  it('draws nothing from where a device stood before it came', async () => {
+    await db.devices.deleteOne({ id: OLD });
+    await db.devices.updateOne(
+      { id: NEW },
+      {
+        $set: {
+          placements: [
+            { spaceId: TENT, startedAt: new Date(0), endedAt: SWAPPED },
+            { spaceId: BARE, startedAt: SWAPPED, endedAt: null },
+          ],
+        },
+      },
+    );
+    const drawn = temperatures(await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE));
+
+    expect(drawn.length).toBeGreaterThan(0);
+    expect(drawn.every(point => point.at >= SWAPPED.getTime() && point.value === 26)).toBe(true);
+    expect(reads.map(read => read.startsAt.toISOString())).toEqual([SWAPPED.toISOString()]);
+  });
+
+  it('draws what a device measured before it was first put anywhere, where nothing else held the place', async () => {
+    await db.devices.deleteOne({ id: OLD });
+    const drawn = temperatures(await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE));
+
+    expect(drawn.some(point => point.at < SWAPPED.getTime())).toBe(true);
+    expect(new Set(drawn.map(point => point.value))).toEqual(new Set([26]));
+  });
+
+  it('shows a device that has left alone when it is asked for, and refuses one that never stood there', async () => {
+    const page = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'], deviceId: OLD }, BARE);
+
+    expect(page.deviceId).toBe(OLD);
+    expect(new Set(temperatures(page).map(point => point.value))).toEqual(new Set([20]));
+    await expect(readAs(session(OWNER), { range: '24h', deviceId: CONTROLLER }, BARE)).rejects.toMatchObject({
+      problem: { code: 'device_not_here' },
+    });
+  });
+
+  it('does not take a second climate standing beside the first for its past', async () => {
+    // Both stand there now; the newer one came twelve hours ago and is not the place's own climate.
+    await db.devices.updateOne({ id: OLD }, { $set: standingIn(BARE) });
+    const drawn = temperatures(await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE));
+
+    expect(new Set(drawn.map(point => point.value))).toEqual(new Set([20]));
+  });
+
+  it('bands the stretch before the change by what the device that left aimed at', async () => {
+    await db.targetChanges.create([
+      {
+        id: 'aim-old',
+        deviceId: OLD,
+        at: new Date(0),
+        targets: { day: { temperature: 21, humidity: 50 }, night: { temperature: 21, humidity: 50 } },
+        cycle: null,
+      },
+      // Recorded while it stood somewhere else, long before it came here.
+      {
+        id: 'aim-new',
+        deviceId: NEW,
+        at: new Date(0),
+        targets: { day: { temperature: 27, humidity: 40 }, night: { temperature: 27, humidity: 40 } },
+        cycle: null,
+      },
+    ]);
+    const page = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE);
+    const aimed = page.panels[0].targets.map(stretch => ({ from: Date.parse(stretch.startsAt), setpoint: stretch.day?.setpoint }));
+
+    expect(aimed[0]).toEqual({ from: NOW.getTime() - 24 * 60 * 60 * 1000, setpoint: 21 });
+    expect(aimed.filter(stretch => stretch.from < SWAPPED.getTime()).every(stretch => stretch.setpoint === 21)).toBe(true);
+    expect(aimed.filter(stretch => stretch.from >= SWAPPED.getTime()).map(stretch => stretch.setpoint)).toEqual([27, 27]);
+    // The new device was put in at the change: the hour after it is its climate settling, as after any change.
+    expect(page.panels[0].targets.find(stretch => stretch.startsAt === SWAPPED.toISOString())?.settling).toBe(true);
   });
 });

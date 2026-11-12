@@ -7,7 +7,9 @@ import { AccessContext } from '@common/v1/access.types';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { startedNow } from '@common/v1/firmware-instruction';
+import { movedTo } from '@common/v1/device-placements';
 import { conflict, notFound } from '@common/v1/problem';
+import { freeNameFor } from '@common/v1/space-names';
 import { withSpacesInside } from '@common/v1/rooms';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -96,7 +98,8 @@ export class DevicesService {
   /** Only what a client may write. What the device is, who owns it and everything under `state` are not patched. */
   public async update(id: string, body: DeviceUpdate): Promise<StoredDevice> {
     const before = await this.devices.findOne({ id }, { firmware: 1, state: 1, spaceId: 1 }).lean<StoredDevice | null>();
-    const changes = Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined));
+    // Where it stands is the placement writer's, below.
+    const changes = Object.fromEntries(Object.entries(body).filter(([key, value]) => value !== undefined && key !== 'spaceId'));
     // Pinning a build by hand is telling a device to install one, exactly as
     // the rollout's own pass is, so it starts the same clock. Without this the
     // clock was started in one place only - the sweep over the three release
@@ -106,8 +109,9 @@ export class DevicesService {
     // once closed. The stamp is a fresh attempt, so an older verdict about the
     // build it used to owe is cleared with it.
     if (before && told(before, body)) Object.assign(changes, startedNow());
-    const changed = await this.devices.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<StoredDevice>();
-    if (!changed) throw notFound('device_not_found', 'There is no device with that id.');
+    const written = await this.devices.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<StoredDevice>();
+    if (!written) throw notFound('device_not_found', 'There is no device with that id.');
+    const changed = body.spaceId === undefined ? written : await this.place(id, body.spaceId);
 
     // A camera the controller answers for stands wherever the controller does.
     if (body.spaceId !== undefined) await this.cameras.updateMany({ deviceId: id, removedAt: null }, { $set: { spaceId: changed.spaceId } });
@@ -115,6 +119,21 @@ export class DevicesService {
     if (changed.isDemo && before?.spaceId !== changed.spaceId) await this.demoMoved(before?.spaceId ?? null, changed.spaceId);
 
     return changed;
+  }
+
+  /**
+   * The one writer of where a device stands: `spaceId` and the placement that
+   * says since when, in one update, so the two cannot say two things. `null`
+   * takes it out of every place.
+   */
+  public async place(id: string, spaceId: string | null, at: Date = new Date()): Promise<StoredDevice> {
+    const device = await this.devices.findOne({ id }, { placements: 1 }).lean<Pick<StoredDevice, 'placements'> | null>();
+    const placed = await this.devices
+      .findOneAndUpdate({ id }, { $set: { spaceId, placements: movedTo(device?.placements ?? [], spaceId, at) } }, { new: true })
+      .lean<StoredDevice>();
+    if (!placed) throw notFound('device_not_found', 'There is no device with that id.');
+
+    return placed;
   }
 
   /**
@@ -183,10 +202,10 @@ export class DevicesService {
 
     // A device that belongs to no space has no card to appear on, so a claim
     // always ends in one: naming none makes one.
-    const made = body.spaceId ? null : await this.spaces.create(this.spaceFor(ownerId, claimed, given));
+    const made = body.spaceId ? null : await this.spaces.create(await this.spaceFor(ownerId, claimed, given));
     const spaceId = body.spaceId ?? made?.id ?? null;
 
-    await this.devices.updateOne({ id: device.id }, { $set: { spaceId } });
+    const { placements } = await this.place(device.id, spaceId);
     // A report that arrived between the two writes above made the camera row
     // before the device had anywhere to stand, so the place is put right here.
     // The row is this owner's already - a camera is made for the owner of the
@@ -198,12 +217,12 @@ export class DevicesService {
     // makes one only for a device somebody owns, and the device does not say
     // its camera again until it restarts. So the claim makes it from what was
     // reported, and the camera is read from the first pass after the claim.
-    await this.cameraOf({ ...claimed, spaceId });
+    await this.cameraOf({ ...claimed, spaceId, placements });
     // A space made for the claim has nothing standing in it yet; one that was
     // named may be a tent in the middle of a grow.
     if (body.spaceId) await this.stoodIn(device.id, body.spaceId);
 
-    return { device: this.serialise({ ...claimed, spaceId }, ctx.isDemo), spaceCreated: made !== null };
+    return { device: this.serialise({ ...claimed, spaceId, placements }, ctx.isDemo), spaceCreated: made !== null };
   }
 
   private async cameraOf(device: StoredDevice): Promise<void> {
@@ -228,8 +247,13 @@ export class DevicesService {
    * The alerts it and its camera raised go too. Nothing watches the device for
    * the previous owner any more, so an open one would stay open on their bell
    * for good, and a closed one would turn up on the next owner's device page.
+   *
+   * Where it stood stays on the record, closed: the readings it took there are
+   * still in the store, and the grows of the account that gives it up keep
+   * their curves. The next owner's places begin with a placement of their own.
    */
   public async releaseClaim(id: string): Promise<void> {
+    await this.place(id, null);
     const released = await this.devices
       .findOneAndUpdate({ id }, { $set: { ownerId: null, spaceId: null, name: null, isDemo: false, scheduleClock: null, 'state.claimedAt': null } })
       .lean<StoredDevice>();
@@ -277,12 +301,15 @@ export class DevicesService {
    * to no language and to no second device, and stands there until the person
    * who plugged the device in says what the place is called.
    */
-  private spaceFor(ownerId: string, device: StoredDevice, name: string | null): SpaceDocument {
+  private async spaceFor(ownerId: string, device: StoredDevice, name: string | null): Promise<SpaceDocument> {
+    const kind = SPACE_KIND[device.type] ?? 'other';
+
     return {
       id: uuidv4(),
       ownerId,
-      kind: SPACE_KIND[device.type] ?? 'other',
-      name: name ?? device.id.slice(-6).toUpperCase(),
+      kind,
+      // A claim is never refused for a name: a second "Zelt" is "Zelt 2".
+      name: await freeNameFor(this.spaces, ownerId, kind, name ?? device.id.slice(-6).toUpperCase()),
       roomId: null,
       presetPrompt: 'ask',
       retention: { climateDays: null },

@@ -6,8 +6,9 @@ import { AccountsService } from '@modules/v1/account/accounts.service';
 import { AccountMailService } from '@modules/v1/account/account-mail.service';
 import { PasswordResetService } from '@modules/v1/account/password-reset.service';
 import { SessionsService } from '@modules/v1/sessions/sessions.service';
-import { accessOn, devicesOn } from './support/services';
+import { accessOn, devicesOn, spacesOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
+import { standingIn } from './support/placed';
 
 /**
  * What an account deletion leaves behind, which is the whole question: the rows
@@ -98,6 +99,7 @@ const build = (): void => {
     sessions,
     resets,
     devices,
+    spacesOn(db, accessOn(db), devices),
     { ...AUTH },
   );
 };
@@ -283,7 +285,7 @@ describe('what belongs to somebody else', () => {
 
     await db.spaces.create({ id: 'our-tent', ownerId: leaving.id, kind: 'tent', name: 'Our tent' });
     await db.grows.create({ id: 'their-grow', ownerId: staying.id, name: 'Theirs', type: 'photoperiod', slug: 'theirs', startedAt: new Date() });
-    await db.devices.create({ id: 'their-device', type: 'fridge', ownerId: staying.id, spaceId: 'our-tent' });
+    await db.devices.create({ id: 'their-device', type: 'fridge', ownerId: staying.id, ...standingIn('our-tent') });
     await db.cameras.create({ id: 'their-camera', ownerId: staying.id, kind: 'rtsp', name: 'Theirs', spaceId: 'our-tent' });
 
     const aLine = (id: string, about: Record<string, string>) =>
@@ -401,7 +403,7 @@ describe('what belongs to somebody else', () => {
       startedAt: new Date(),
       placements: [{ id: 'placement-1', spaceId: 'our-tent', startedAt: new Date(), endedAt: null }],
     });
-    await db.devices.create({ id: 'their-device', type: 'fridge', ownerId: staying.id, spaceId: 'our-tent' });
+    await db.devices.create({ id: 'their-device', type: 'fridge', ownerId: staying.id, ...standingIn('our-tent') });
     await db.cameras.create({ id: 'their-camera', ownerId: staying.id, kind: 'rtsp', name: 'Theirs', spaceId: 'our-tent' });
 
     await deletion.deleteAccount(leaving.id);
@@ -417,7 +419,7 @@ describe('what belongs to somebody else', () => {
 
 describe('the hardware', () => {
   const aDevice = async (ownerId: string): Promise<void> => {
-    await db.devices.create({ id: 'device-1', type: 'controller', ownerId, spaceId: 'space-1', name: 'The tent' });
+    await db.devices.create({ id: 'device-1', type: 'controller', ownerId, ...standingIn('space-1'), name: 'The tent' });
     await db.plans.create({ id: 'plan-1', deviceId: 'device-1', name: 'Nights off' });
     await db.alarmRules.create({
       id: 'rule-1',

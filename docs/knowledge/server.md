@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
 updated: 2026-11-12
-source: Chris (PR reviews and sessions 2025-10..2026-10); app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+source: Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/**
   - shared-types/**
@@ -120,6 +120,19 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   each other ([data.md](data.md#mongodb)). A list built in memory cuts its page with `pageOf`. A list widens as
   `access()` does (a room membership covers the spaces in it: `withSpacesInside`, `common/v1/rooms.ts`). An
   administrator's own lists stay personal; the install is read via `/v1/admin/*`.
+- **A room is a field of the place** (the redesign session of 2026-11-12; ADR 0001, "Places, rooms and where a
+  device stood", awaiting Chris's confirmation). It is still a row of `spaces` with `kind: room`, because memberships
+  and invites on it cover the places in it, but no client makes, ends or archives one: those answer 409
+  `room_by_itself`. A place names its room in `POST`/`PATCH /spaces` - `roomId` for one that exists, `roomName` for
+  the owner's room of that name, made where there is none (both at once: 422 `two_rooms`) - and
+  `SpacesService.endRoomIfEmpty` ends a room once no place that has not ended stands in it and nobody is a member of
+  it. It is called wherever one of the two can become true: a place leaves a room, ends or is archived, a membership
+  is removed, an account is deleted. A new path that takes a place out of a room or removes a membership calls it too.
+- **A second name is refused with a sentence:** 409 `name_taken`, whose `detail` names the place or room that has it
+  ("Another place is already called "Zelt"."), from `POST`/`PATCH /spaces` and from bringing an archived place back;
+  a blank name is 422 `name_required`. A claim is never refused for a name: the place it makes counts on ("Zelt 2").
+- `GET /home` names in `people` the owner of every place on it that is not the reader's own, beside the authors and
+  assignees its cards name, so a shared place can say whose it is.
 - A write is authorised on every subject it names (an entry's grow, space, device, plants, media), not on a primary
   one. A write that must happen once rests on a unique index, and a duplicate key (E11000, `isDuplicateKey()` in
   `database/duplicate-key.ts`) is answered as already done: a read followed by a write cannot stop a race, and there

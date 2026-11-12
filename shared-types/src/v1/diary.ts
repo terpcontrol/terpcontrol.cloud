@@ -1307,7 +1307,11 @@ export const homeAnswer = named(
   z.object({
     spaces: z.array(homeSpaceCard),
     followedGrows: z.array(followedGrowCard),
-    people: z.array(person).describe('Everyone the cards name, so a card can say who wrote an entry without another read.'),
+    people: z
+      .array(person)
+      .describe(
+        'Everyone the cards name, so a card can say who wrote an entry without another read - and the owner of every place that is not the reader’s own, so a shared place says whose it is.',
+      ),
     layers: accountLayers,
   }),
 );

@@ -340,6 +340,13 @@ describe('the diary layer', () => {
     await db.memberships.create({ id: 'membership-looker', spaceId: TENT, userId: LOOKER, role: 'can_log' });
   });
 
+  it('tells a guest whose the place is, though the owner wrote nothing a card shows', async () => {
+    await db.entries.deleteMany({});
+
+    expect((await home.read(session(LOOKER), NOW)).people).toEqual([{ id: OWNER, handle: 'owner' }]);
+    expect((await home.read(session(OWNER), NOW)).people).toEqual([]);
+  });
+
   it('is on for the grower whose grows these are', async () => {
     expect((await home.read(session(OWNER), NOW)).layers).toEqual({ diary: true });
   });

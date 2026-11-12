@@ -2,11 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { AccessNeed, Device, ProblemError, Space, SpaceCreate, SpaceKind, SpaceUpdate } from '@fg2/shared-types/v1';
+import { AccessNeed, Device, ProblemError, Space, SpaceCreate, SpaceUpdate } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound, unprocessable } from '@common/v1/problem';
+import { namedLike, refuseTakenName } from '@common/v1/space-names';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -28,10 +29,18 @@ import { accountOf } from '../caller';
  * outlives what it held: history names it, and it is archived rather than
  * removed.
  *
- * A room is a space of kind `room` and not a second collection. The grouping is
- * one level deep in both directions: a room holds spaces, a room never hangs in
- * one.
+ * A room is a space of kind `room` and not a second collection, because a
+ * membership and an invite on it cover the places in it. The grouping is one
+ * level deep in both directions: a room holds spaces, a room never hangs in one.
+ * To a client it is a field of the place: a place names its room (`roomId`, or
+ * `roomName` for one that may not exist yet), the server makes it, and ends it
+ * once its last place and its last member have left. Nobody makes, ends or
+ * brings back a room by itself.
  */
+
+/** What a room is refused: every act that would treat it as a place of its own. */
+const roomByItself = (detail: string) =>
+  conflict('room_by_itself', 'A room is a field of the places standing in it.', [{ field: 'kind', code: 'not_allowed', detail }]);
 
 /** What a list of spaces narrows by. Neither is a page of its own, so both are query parameters. */
 interface SpaceFilter {
@@ -104,15 +113,20 @@ export class SpacesService {
   public async create(ctx: AccessContext, body: SpaceCreate): Promise<Space> {
     const userId = accountOf(ctx, 'A space belongs to somebody, and this session is nobody.');
 
-    this.refuseRoomInRoom(body.kind, body.roomId ?? null);
-    const room = body.roomId ? await this.requireRoom(ctx, body.roomId) : null;
+    if (body.kind === 'room') throw roomByItself('Name the room on a place (`roomName`); the server makes it.');
+    this.refuseTwoRooms(body);
+    const name = nameOf(body.name);
+    const named = body.roomId ? await this.requireRoom(ctx, body.roomId) : null;
+    // A space made in a room belongs to whoever owns the room, so that a
+    // club's rooms stay whole when one of its managers adds a tent.
+    const ownerId = named?.ownerId ?? userId;
+    await refuseTakenName(this.spaces, ownerId, body.kind, name);
+    const room = named ?? (body.roomName === undefined ? null : await this.roomNamed(ownerId, body.roomName));
     const space = await this.spaces.create({
       id: uuidv4(),
-      // A space made in a room belongs to whoever owns the room, so that a
-      // club's rooms stay whole when one of its managers adds a tent.
-      ownerId: room?.ownerId ?? userId,
+      ownerId,
       kind: body.kind,
-      name: body.name,
+      name,
       roomId: room?.id ?? null,
       presetPrompt: body.presetPrompt ?? 'ask',
       retention: { climateDays: body.retention?.climateDays ?? null },
@@ -131,47 +145,101 @@ export class SpacesService {
   public async update(ctx: AccessContext, id: string, body: SpaceUpdate): Promise<Space> {
     const space = await this.require(id);
     const kind = body.kind ?? space.kind;
-    const roomId = body.roomId === undefined ? space.roomId : body.roomId;
-
-    // Asked of what the space will be, not of what changed: becoming a room and
-    // hanging in one are each allowed alone and never together.
-    this.refuseRoomInRoom(kind, roomId);
-
-    if (kind !== 'room' && space.kind === 'room' && (await this.spaces.exists({ roomId: id }))) {
-      throw conflict('room_not_empty', 'Spaces are grouped under this room. Move them out before it stops being one.');
+    if ((kind === 'room') !== (space.kind === 'room')) throw roomByItself('A place does not become a room, nor a room a place.');
+    this.refuseTwoRooms(body);
+    // The grouping is one level deep in both directions: a room holds spaces, a room never hangs in one.
+    if (kind === 'room' && (body.roomName !== undefined || (body.roomId ?? null) !== null)) {
+      throw unprocessable('room_in_room', 'A room groups spaces; it does not stand in one.', [
+        { field: 'roomId', code: 'not_allowed', detail: 'A space of kind `room` hangs in no room.' },
+      ]);
     }
 
-    if (roomId !== null && roomId !== space.roomId) {
-      const room = await this.requireRoom(ctx, roomId, id);
+    const name = body.name === undefined ? undefined : nameOf(body.name);
+    if (name !== undefined) await refuseTakenName(this.spaces, space.ownerId, kind, name, id);
+
+    if (body.roomId && body.roomId !== space.roomId) {
+      const room = await this.requireRoom(ctx, body.roomId, id);
       // A room and the spaces in it belong to one account: the grouping is what
-      // its owner shares and deletes, and a space of somebody else's in it would
-      // be theirs alone.
+      // its owner shares, and a space of somebody else's in it would be theirs alone.
       if (room.ownerId !== space.ownerId) {
         throw conflict('room_of_another_account', 'A space is grouped by a room of the same account.');
       }
     }
+    const roomId = body.roomName === undefined ? body.roomId : (await this.roomNamed(space.ownerId, body.roomName)).id;
 
     const changes = {
       ...(body.kind === undefined ? {} : { kind: body.kind }),
-      ...(body.name === undefined ? {} : { name: body.name }),
-      ...(body.roomId === undefined ? {} : { roomId: body.roomId }),
+      ...(name === undefined ? {} : { name }),
+      ...(roomId === undefined ? {} : { roomId }),
       ...(body.presetPrompt === undefined ? {} : { presetPrompt: body.presetPrompt }),
       ...(body.retention === undefined ? {} : { retention: { climateDays: body.retention.climateDays } }),
     };
 
     const changed = await this.spaces.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<SpaceDocument>();
     if (!changed) throw notFound('space_not_found', 'There is no space with that id.');
+    if (changed.roomId !== space.roomId) await this.endRoomIfEmpty(space.roomId);
 
     return this.serialise(changed, await this.mayIn1(ctx, changed));
   }
 
-  /** The grouping is one level deep in both directions: a room holds spaces, a room never hangs in one. */
-  private refuseRoomInRoom(kind: SpaceKind, roomId: string | null): void {
-    if (kind === 'room' && roomId !== null) {
-      throw unprocessable('room_in_room', 'A room groups spaces; it does not stand in one.', [
-        { field: 'roomId', code: 'not_allowed', detail: 'A space of kind `room` hangs in no room.' },
+  /** A room is named by its id or by its name, never both: two statements about one field can disagree. */
+  private refuseTwoRooms(body: Pick<SpaceUpdate, 'roomId' | 'roomName'>): void {
+    if (body.roomName !== undefined && body.roomId !== undefined) {
+      throw unprocessable('two_rooms', 'Name the room by `roomId` or by `roomName`, not both.', [
+        { field: 'roomName', code: 'exclusive', detail: 'Leave `roomId` out where `roomName` is given.' },
       ]);
     }
+  }
+
+  /**
+   * The owner's room of that name, made where there is none. Typing the name of
+   * a room that exists is choosing it, so a second room of one name is never
+   * made this way and nothing has to be refused.
+   */
+  private async roomNamed(ownerId: string, wanted: string): Promise<SpaceDocument> {
+    const name = nameOf(wanted, 'roomName');
+    const room = await namedLike(this.spaces, ownerId, 'room', name);
+    if (room) return room;
+
+    const made = await this.spaces.create({
+      id: uuidv4(),
+      ownerId,
+      kind: 'room',
+      name,
+      roomId: null,
+      presetPrompt: 'ask',
+      retention: { climateDays: null },
+      isDemo: false,
+      archivedAt: null,
+      createdAt: new Date(),
+    });
+    return made.toObject<SpaceDocument>();
+  }
+
+  /**
+   * Ends a room nothing is left in: no place that has not ended, nobody who is
+   * a member of it, and nothing standing in it itself. It goes the way a deleted
+   * place goes - a tombstone history can still name, its invites and share
+   * links gone. A room people are still members of stays until they have left.
+   */
+  public async endRoomIfEmpty(roomId: string | null): Promise<void> {
+    if (roomId === null) return;
+    const room = await this.spaces.findOne({ id: roomId, kind: 'room', archivedAt: null }).lean<SpaceDocument>();
+    if (!room) return;
+
+    const kept =
+      (await this.spaces.exists({ roomId, archivedAt: null })) ??
+      (await this.memberships.exists({ spaceId: roomId })) ??
+      (await this.deviceRows.exists({ spaceId: roomId })) ??
+      (await this.cameras.exists({ spaceId: roomId, removedAt: null })) ??
+      (await this.grows.exists({ endedAt: null, placements: { $elemMatch: { spaceId: roomId, endedAt: null } } }));
+    if (kept) return;
+
+    await this.spaces.updateOne({ id: roomId }, { $set: { archivedAt: new Date() } });
+    // The ended places still naming it stand in no room: brought back, they must not hang in one that is gone.
+    await this.spaces.updateMany({ roomId }, { $set: { roomId: null } });
+    await this.invites.deleteMany({ spaceId: roomId });
+    await this.shareLinks.deleteMany({ 'subject.type': 'space', 'subject.id': roomId });
   }
 
   /**
@@ -203,18 +271,16 @@ export class SpacesService {
    */
   public async archive(ctx: AccessContext, id: string, archived: boolean): Promise<Space> {
     const space = await this.require(id);
+    if (space.kind === 'room') throw roomByItself('A room ends with its last place and its last member, and is not put away or brought back.');
     if (archived === (space.archivedAt !== null)) return this.serialise(space, await this.mayIn1(ctx, space));
-
-    // A room whose spaces are still in use would leave the home screen with a
-    // group whose room is gone, so it is emptied or archived with them.
-    if (archived && space.kind === 'room' && (await this.spaces.exists({ roomId: id, archivedAt: null }))) {
-      throw conflict('room_not_empty', 'Spaces are grouped under this room. Archive or move them first.');
-    }
+    // A place that comes back is one of the owner's places again, and may not take a name another carries by now.
+    if (!archived) await refuseTakenName(this.spaces, space.ownerId, space.kind, space.name, id);
 
     const changed = await this.spaces
       .findOneAndUpdate({ id }, { $set: { archivedAt: archived ? new Date() : null } }, { new: true })
       .lean<SpaceDocument>();
     if (!changed) throw notFound('space_not_found', 'There is no space with that id.');
+    if (archived) await this.endRoomIfEmpty(space.roomId);
 
     return this.serialise(changed, await this.mayIn1(ctx, changed));
   }
@@ -233,11 +299,13 @@ export class SpacesService {
    */
   public async remove(id: string): Promise<void> {
     const space = await this.require(id);
+    if (space.kind === 'room') throw roomByItself('A room ends by itself once its last place and its last member have left.');
     await this.refuseWhileOccupied(space);
 
     await this.spaces.updateOne({ id }, { $set: { archivedAt: space.archivedAt ?? new Date() } });
     await this.invites.deleteMany({ spaceId: id });
     await this.shareLinks.deleteMany({ 'subject.type': 'space', 'subject.id': id });
+    await this.endRoomIfEmpty(space.roomId);
   }
 
   /**
@@ -247,10 +315,8 @@ export class SpacesService {
    * the people sharing it takes theirs.
    *
    * The members counted are this space's own rows. A membership held on the room
-   * above reaches in here as well, but it is the room's to end, and a room is
-   * already refused while any space is grouped under it - so a shared room is
-   * emptied first and then meets its own members, rather than making every tent
-   * inside it undeletable.
+   * above reaches in here as well, but it is the room's, and the room stays for
+   * as long as anybody is a member of it.
    */
   private async refuseWhileOccupied(space: SpaceDocument): Promise<void> {
     const errors: ProblemError[] = [];
@@ -266,10 +332,6 @@ export class SpacesService {
     if (await this.grows.exists({ endedAt: null, placements: { $elemMatch: { spaceId: space.id, endedAt: null } } })) {
       errors.push({ field: 'id', code: 'grow_here', detail: 'A grow stands in this space. Move it or end it first.' });
     }
-    if (await this.spaces.exists({ roomId: space.id })) {
-      errors.push({ field: 'id', code: 'space_here', detail: 'Spaces are grouped under this room. Move them out first.' });
-    }
-
     const members = await this.memberships.countDocuments({ spaceId: space.id });
     if (members > 0) {
       errors.push({
@@ -296,6 +358,8 @@ export class SpacesService {
   public async placeDevice(spaceId: string, deviceId: string, redacted: boolean): Promise<Device> {
     const space = await this.require(spaceId);
     if (space.archivedAt !== null) throw conflict('space_archived', 'That space has ended. Bring it back before putting anything in it.');
+
+    if (space.kind === 'room') throw roomByItself('A device stands in a place, and the place in a room.');
 
     return this.devices.serialise(await this.devices.update(deviceId, { spaceId }), redacted);
   }
@@ -369,3 +433,12 @@ export class SpacesService {
     };
   }
 }
+
+/** A name as it is stored: without the blanks around it, and never empty. */
+const nameOf = (name: string, field: 'name' | 'roomName' = 'name'): string => {
+  const trimmed = name.trim().replace(/\s+/g, ' ');
+  if (trimmed === '')
+    throw unprocessable('name_required', 'A name is at least one character.', [{ field, code: 'required', detail: 'Type a name.' }]);
+
+  return trimmed;
+};

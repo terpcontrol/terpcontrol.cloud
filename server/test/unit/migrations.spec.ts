@@ -37,6 +37,9 @@ import { darkGermination } from '@/migrations/steps/022-dark-germination';
 import { fridgeCo2Sensor } from '@/migrations/steps/023-fridge-co2-sensor';
 import { orphanedAlerts } from '@/migrations/steps/024-orphaned-alerts';
 import { demoPlaces } from '@/migrations/steps/025-demo-places';
+import { devicePlacements } from '@/migrations/steps/026-device-placements';
+import { emptyRooms } from '@/migrations/steps/027-empty-rooms';
+import { uniquePlaceNames } from '@/migrations/steps/028-unique-place-names';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -633,6 +636,198 @@ describe('demo places', () => {
 
     expect(await flags()).toEqual({ 'old-tent': false, 'new-tent': true, 'kept-tent': true, room: true });
     expect(context.stats).toMatchObject({ 'spaces.demoFlagged': 1, 'spaces.demoCleared': 1 });
+  });
+});
+
+describe('where a device stood', () => {
+  const placementsOf = async (id: string) => (await one<Record<string, any>>('devices', { id }))?.placements;
+
+  it('opens one placement for a device standing in a place, and none for one standing nowhere', async () => {
+    const claimed = new Date(AT - 5 * DAY);
+    const registered = new Date(AT - 90 * DAY);
+    await collection('spaces').insertMany([
+      { id: 'tent', kind: 'tent', archivedAt: null },
+      { id: 'gone', kind: 'tent', archivedAt: new Date(AT - DAY) },
+    ]);
+    await collection('devices').insertMany([
+      // Carried over from the old cloud: nothing recorded the claim.
+      { id: 'carried-over', ownerId: 'ada', spaceId: 'tent', createdAt: registered, state: { claimedAt: null } },
+      { id: 'claimed-since', ownerId: 'ada', spaceId: 'tent', createdAt: registered, state: { claimedAt: claimed } },
+      { id: 'unclaimed', ownerId: null, spaceId: null, createdAt: registered, state: { claimedAt: null } },
+      // An owner and no place: what a repair by hand left behind.
+      { id: 'placeless', ownerId: 'ada', spaceId: null, createdAt: registered, state: { claimedAt: null } },
+      { id: 'in-an-ended-place', ownerId: 'ada', spaceId: 'gone', createdAt: registered, state: { claimedAt: null } },
+      {
+        id: 'already-kept',
+        ownerId: 'ada',
+        spaceId: 'tent',
+        createdAt: registered,
+        placements: [{ spaceId: 'tent', startedAt: claimed, endedAt: null }],
+      },
+    ]);
+
+    await devicePlacements.run(new MigrationContext(db(), true, new Date(AT)));
+    expect(await placementsOf('carried-over')).toBeUndefined();
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await devicePlacements.run(context);
+
+    expect(await placementsOf('carried-over')).toEqual([{ spaceId: 'tent', startedAt: registered, endedAt: null }]);
+    expect(await placementsOf('claimed-since')).toEqual([{ spaceId: 'tent', startedAt: claimed, endedAt: null }]);
+    expect(await placementsOf('unclaimed')).toEqual([]);
+    expect(await placementsOf('placeless')).toEqual([]);
+    expect(await placementsOf('in-an-ended-place')).toEqual([{ spaceId: 'gone', startedAt: registered, endedAt: null }]);
+    expect(await placementsOf('already-kept')).toEqual([{ spaceId: 'tent', startedAt: claimed, endedAt: null }]);
+    // The rows of the old database lying beside them have no place either, and are counted as standing nowhere.
+    expect(context.stats).toMatchObject({ 'devices.placed': 3, 'devices.placedInAnEndedSpace': 1 });
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await devicePlacements.run(again);
+    expect(again.stats).toEqual({ rejected: 0 });
+  });
+
+  it('gives every device the old database held its placement at the day it registered', async () => {
+    await migrate();
+
+    const tent = await one<Record<string, any>>('devices', { id: LEGACY_DEVICE_IDS.controller });
+    expect(tent?.placements).toEqual([{ spaceId: spaceIdOf(LEGACY_DEVICE_IDS.controller), startedAt: tent?.createdAt, endedAt: null }]);
+    expect((await one<Record<string, any>>('devices', { id: LEGACY_DEVICE_IDS.unnamed }))?.placements).toHaveLength(1);
+    expect((await one<Record<string, any>>('devices', { id: LEGACY_DEVICE_IDS.light }))?.placements).toEqual([]);
+    expect(await collection('devices').countDocuments({ placements: { $exists: false } })).toBe(0);
+  });
+});
+
+describe('rooms nothing is left in', () => {
+  it('ends an empty room with its ways in, and leaves one that holds a place, a member or something of its own', async () => {
+    const space = (id: string, kind: string, more: Record<string, unknown> = {}) => ({
+      id,
+      ownerId: 'ada',
+      kind,
+      name: id,
+      roomId: null,
+      archivedAt: null,
+      ...more,
+    });
+    await collection('spaces').insertMany([
+      space('room-empty', 'room'),
+      space('room-of-ended-places', 'room'),
+      space('room-with-a-tent', 'room'),
+      space('room-with-a-member', 'room'),
+      space('room-holding-a-device', 'room'),
+      space('room-holding-a-camera', 'room'),
+      space('room-holding-a-grow', 'room'),
+      space('room-ended-before', 'room', { archivedAt: new Date(AT - DAY) }),
+      space('tent', 'tent', { roomId: 'room-with-a-tent' }),
+      space('ended-tent', 'tent', { roomId: 'room-of-ended-places', archivedAt: new Date(AT - DAY) }),
+    ]);
+    await collection('memberships').insertOne({ id: 'm1', spaceId: 'room-with-a-member', userId: 'ben', role: 'can_log' });
+    await collection('devices').insertOne({ id: 'd1', spaceId: 'room-holding-a-device' });
+    await collection('cameras').insertMany([
+      { id: 'c1', spaceId: 'room-holding-a-camera', removedAt: null },
+      { id: 'c2', spaceId: 'room-empty', removedAt: new Date(AT - DAY) },
+    ]);
+    await collection('grows').insertMany([
+      { id: 'g1', endedAt: null, placements: [{ spaceId: 'room-holding-a-grow', endedAt: null }] },
+      { id: 'g2', endedAt: new Date(AT - DAY), placements: [{ spaceId: 'room-empty', endedAt: null }] },
+    ]);
+    await collection('invites').insertMany([
+      { id: 'i1', spaceId: 'room-empty' },
+      { id: 'i2', spaceId: 'room-with-a-tent' },
+    ]);
+    await collection('shareLinks').insertMany([
+      { id: 's1', subject: { type: 'space', id: 'room-empty' } },
+      { id: 's2', subject: { type: 'space', id: 'tent' } },
+    ]);
+    const ended = async () =>
+      (
+        await collection('spaces')
+          .find({ kind: 'room', archivedAt: { $ne: null } })
+          .toArray()
+      )
+        .map(row => row.id)
+        .sort();
+
+    await emptyRooms.run(new MigrationContext(db(), true, new Date(AT)));
+    expect(await ended()).toEqual(['room-ended-before']);
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await emptyRooms.run(context);
+
+    expect(await ended()).toEqual(['room-empty', 'room-ended-before', 'room-of-ended-places']);
+    expect((await one<Record<string, any>>('spaces', { id: 'room-empty' }))?.archivedAt).toEqual(new Date(AT));
+    expect((await one<Record<string, any>>('spaces', { id: 'room-ended-before' }))?.archivedAt).toEqual(new Date(AT - DAY));
+    expect((await one<Record<string, any>>('spaces', { id: 'ended-tent' }))?.roomId).toBeNull();
+    expect((await one<Record<string, any>>('spaces', { id: 'tent' }))?.roomId).toBe('room-with-a-tent');
+    expect((await collection('invites').find({}).toArray()).map(row => row.id)).toEqual(['i2']);
+    expect((await collection('shareLinks').find({}).toArray()).map(row => row.id)).toEqual(['s2']);
+    expect(context.stats).toEqual({ 'rooms.ended': 2, 'rooms.kept': 5, 'spaces.takenOutOfAnEndedRoom': 1, rejected: 0 });
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await emptyRooms.run(again);
+    expect(again.stats).toEqual({ 'rooms.kept': 5, rejected: 0 });
+  });
+});
+
+describe('one name, one place', () => {
+  it('numbers the later places and rooms of a name, per owner, and leaves ended ones alone', async () => {
+    let made = 0;
+    const space = (id: string, ownerId: string, kind: string, name: string, more: Record<string, unknown> = {}) => ({
+      id,
+      ownerId,
+      kind,
+      name,
+      archivedAt: null,
+      createdAt: new Date(AT + made++ * 1000),
+      ...more,
+    });
+    await collection('spaces').insertMany([
+      // Two modules both named "Fridge" by their owner: the places made for them share the name.
+      space('fridge-first', 'ada', 'fridge', 'Fridge'),
+      space('fridge-second', 'ada', 'fridge', 'fridge '),
+      // "Fridge 2" is taken by a place somebody called that, so the third takes the next number.
+      space('fridge-two', 'ada', 'other', 'Fridge 2'),
+      space('fridge-third', 'ada', 'tent', 'FRIDGE'),
+      // A room may be called what a place is called; two rooms may not share a name.
+      space('room-first', 'ada', 'room', 'Fridge'),
+      space('room-second', 'ada', 'room', 'Fridge'),
+      // Somebody else's, and one that has ended: neither takes part.
+      space('bens', 'ben', 'fridge', 'Fridge'),
+      space('ended', 'ada', 'fridge', 'Fridge', { archivedAt: new Date(AT - DAY) }),
+      // What step 004 numbers by itself never collides.
+      space('tent-1', 'ada', 'tent', 'Tent 1'),
+      space('tent-2', 'ada', 'tent', 'Tent 2'),
+    ]);
+    const names = async () => Object.fromEntries((await collection('spaces').find({}).toArray()).map(row => [row.id, row.name]));
+    const before = await names();
+
+    await uniquePlaceNames.run(new MigrationContext(db(), true, new Date(AT)));
+    expect(await names()).toEqual(before);
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await uniquePlaceNames.run(context);
+
+    expect(await names()).toEqual({
+      ...before,
+      'fridge-second': 'fridge 3',
+      'fridge-third': 'FRIDGE 4',
+      'room-second': 'Fridge 2',
+    });
+    expect(context.stats).toEqual({ 'spaces.renamed': 2, 'rooms.renamed': 1, rejected: 0 });
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await uniquePlaceNames.run(again);
+    expect(again.stats).toEqual({ rejected: 0 });
+  });
+
+  it('renames nothing in what the old database becomes', async () => {
+    await migrate();
+    const before = (await collection('spaces').find({}).toArray()).map(row => row.name);
+
+    const context = new MigrationContext(db(), false, new Date(AT + DAY));
+    await uniquePlaceNames.run(context);
+
+    expect(context.stats).toEqual({ rejected: 0 });
+    expect((await collection('spaces').find({}).toArray()).map(row => row.name)).toEqual(before);
   });
 });
 

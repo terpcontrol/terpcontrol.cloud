@@ -49,6 +49,17 @@ describe('claiming a device', () => {
     expect(place).toMatchObject({ name: 'Tent 1', kind: 'tent' });
   });
 
+  it('never refuses a claim for a name: the place of a second device of one name counts on', async () => {
+    const twin = await registerDevice('controller');
+
+    const claimed = await owner.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(twin.deviceId), name: 'Tent 1' })
+      .expect(201);
+
+    expect((await owner.client.get(`/v1/spaces/${claimed.body.device.spaceId}`).expect(200)).body.name).toBe('Tent 2');
+  });
+
   it('tells the owner of a device that they already added it', async () => {
     const device = await provisionDevice(owner);
 

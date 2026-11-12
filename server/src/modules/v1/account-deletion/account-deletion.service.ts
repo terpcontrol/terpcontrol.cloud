@@ -29,6 +29,7 @@ import { authConfig } from '@config/configuration';
 import { logger } from '@utils/logger';
 import { AccountsService } from '../account/accounts.service';
 import { PasswordResetService } from '../account/password-reset.service';
+import { SpacesService } from '../space/spaces.service';
 import { DevicesService } from '../device/devices.service';
 import { SessionsService } from '../sessions/sessions.service';
 
@@ -120,6 +121,7 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
     private readonly sessions: SessionsService,
     private readonly resets: PasswordResetService,
     private readonly devices: DevicesService,
+    private readonly places: SpacesService,
     @Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>,
   ) {}
 
@@ -332,7 +334,10 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
       // What other people had standing in these places. Their things are not
       // this account's to delete, so they are only taken out of the room: their
       // owner sees them unplaced, which is what has happened to them.
-      await this.deviceRows.updateMany({ spaceId: { $in: spaceIds } }, { $set: { spaceId: null } });
+      // Through the one writer of where a device stands, so its stay here is closed and stays on its record:
+      // a device with nothing on its record would be read back, by its next place, to before it left this one.
+      const theirs: string[] = await this.deviceRows.distinct('id', { spaceId: { $in: spaceIds } });
+      for (const id of theirs) await this.devices.place(id, null);
       await this.cameras.updateMany({ spaceId: { $in: spaceIds } }, { $set: { spaceId: null } });
       // A placement is ended rather than emptied: `endedAt` is already what the
       // model means by "no longer standing there", while a placement with no
@@ -364,7 +369,10 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
     await this.pushSubscriptions.deleteMany({ userId });
     await this.notifications.deleteMany({ userId });
     await this.follows.deleteMany({ userId });
+    const shared: string[] = await this.memberships.distinct('spaceId', { userId });
     await this.memberships.deleteMany({ userId });
+    // Somebody else's room this account was the last member of, with no place left in it, ends with the membership.
+    for (const spaceId of shared) await this.places.endRoomIfEmpty(spaceId);
     await this.shareLinks.deleteMany({ createdBy: userId });
 
     if (user.avatarMediaId) tally.media += await this.purgeMedia({ id: user.avatarMediaId });

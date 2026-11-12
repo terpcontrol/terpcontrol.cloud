@@ -13,7 +13,8 @@ import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { chartSeriesOf } from './chart-series';
 import { shownCameras } from './frames';
-import { narrowedTo, camerasOfDevice, narrowedToDevice } from './timeline-window';
+import { narrowedToDevice } from './place-history';
+import { narrowedTo, camerasOfDevice } from './timeline-window';
 
 /** What the route was asked for, after the query string has been checked against the contract. */
 export interface SpaceSeriesQuery {
@@ -60,13 +61,13 @@ export class SpaceSeriesService {
       ]);
     }
 
-    const [space, standing, cameras] = await Promise.all([
+    const window = narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, null, null, now, asked.stepSeconds);
+    const [space, stood, cameras] = await Promise.all([
       this.places.require(spaceId),
-      this.live.devicesIn([spaceId]),
+      this.live.stoodIn([spaceId], window),
       shownCameras(this.cameras, [spaceId], grant.includeCameras).then(all => camerasOfDevice(all, asked.deviceId)),
     ]);
-    const devices = narrowedToDevice(standing, asked.deviceId);
-    const window = narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, null, null, now, asked.stepSeconds);
+    const devices = narrowedToDevice(stood, asked.deviceId);
     const charts = await chartSeriesOf(
       { data: this.data, targetRecord: this.targetRecord, media: this.media },
       grant,

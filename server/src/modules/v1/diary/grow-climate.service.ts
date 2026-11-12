@@ -3,9 +3,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { PhaseTargets } from '@fg2/shared-types/v1';
 import { STEERED } from '@fg2/shared-types/v1-schemas';
+import { stayOf, stoodIn } from '@common/v1/device-placements';
 import { Span } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
-import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { DevicePlacement, StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { DataService } from '@modules/data/data.service';
 import { targetsOf } from '../phase/phase-targets';
@@ -55,12 +56,15 @@ const DAY_STEP_SECONDS = 300;
  */
 const LEAD_MS = 2 * DAY_STEP_SECONDS * 1000;
 
-/** A device that steers a climate, where it stands, and which sensors it says it has. */
-interface Controller {
+/** A device that steers a climate, where it stood and when, and which sensors it says it has. */
+export interface Controller {
   deviceId: string;
-  spaceId: string | null;
+  placements: readonly DevicePlacement[];
   hardware: Record<string, string>;
 }
+
+/** What one controller recorded over the part of a stretch it stood in the grow's places. */
+export type RecordedController = DayDevice & Pick<Controller, 'placements'>;
 
 @Injectable()
 export class GrowClimateService {
@@ -80,20 +84,18 @@ export class GrowClimateService {
    * same grow, while the diary day said nothing stood there to average. A plug
    * steers neither and is left out.
    *
-   * A device knows only where it stands now, so a controller that has since been
-   * moved out of the tent is not read for the weeks it kept.
+   * Every one that stood there inside the stretch, by its placements: a
+   * controller that has since been moved out of the tent still speaks for the
+   * weeks it kept, and one that came later says nothing of where it stood before.
    */
-  public async controllersIn(spaceIds: readonly (string | null)[]): Promise<Controller[]> {
+  public async controllersIn(spaceIds: readonly (string | null)[], span: Span): Promise<Controller[]> {
     const named = spaceIds.filter((id): id is string => id !== null);
-    if (named.length === 0) return [];
+    const stood = await stoodIn(this.devices, named, span, { type: 1, configuration: 1, 'state.hardware': 1 });
 
-    const rows = await this.devices
-      .find({ spaceId: { $in: named } }, { id: 1, type: 1, spaceId: 1, configuration: 1, 'state.hardware': 1 })
-      .lean<StoredDevice[]>();
-
-    return rows
+    return stood
+      .map(one => one.device)
       .filter(device => targetsOf(device.configuration) !== null || device.type === LIGHT_TYPE)
-      .map(device => ({ deviceId: device.id, spaceId: device.spaceId, hardware: device.state?.hardware ?? {} }));
+      .map(device => ({ deviceId: device.id, placements: device.placements ?? [], hardware: device.state?.hardware ?? {} }));
   }
 
   /**
@@ -101,9 +103,15 @@ export class GrowClimateService {
    * inside them to be read from (`dayClimateOf`): the curve at a day's grain
    * with the lamp's switchings, and the device's target record over all of
    * them. One history read per stretch per controller, side by side, and the
-   * record once per controller.
+   * record once per controller. A controller is read over the part of a stretch
+   * it stood in one of these places, and not at all for a stretch it stood
+   * elsewhere.
    */
-  public async recorded(controllers: readonly Controller[], stretches: readonly Span[]): Promise<DayDevice[][]> {
+  public async recorded(
+    controllers: readonly Controller[],
+    spaceIds: readonly (string | null)[],
+    stretches: readonly Span[],
+  ): Promise<RecordedController[][]> {
     if (controllers.length === 0 || stretches.length === 0) return stretches.map(() => []);
 
     const whole = {
@@ -115,22 +123,31 @@ export class GrowClimateService {
       Promise.all(
         stretches.map(stretch =>
           Promise.all(
-            controllers.map(controller =>
-              this.data.history(controller.deviceId, {
-                startsAt: new Date(stretch.startsAt.getTime() - LEAD_MS),
-                endsAt: stretch.endsAt,
+            controllers.map(controller => {
+              const stay = stayOf(controller.placements, spaceIds, stretch);
+              if (!stay) return null;
+
+              // The lead only where the device was already there: before it came, its lamp lit another place.
+              const lead = stay.startsAt > stretch.startsAt ? 0 : LEAD_MS;
+              return this.data.history(controller.deviceId, {
+                startsAt: new Date(stay.startsAt.getTime() - lead),
+                endsAt: stay.endsAt,
                 metrics: STEERED,
                 outputs: ['light'],
                 stepSeconds: DAY_STEP_SECONDS,
-              }),
-            ),
+              });
+            }),
           ),
         ),
       ),
     ]);
 
     return histories.map(perController =>
-      perController.map((history, index) => ({ history, record: records[index].map(climateOf), hardware: controllers[index].hardware })),
+      perController.flatMap((history, index) =>
+        history
+          ? [{ history, record: records[index].map(climateOf), hardware: controllers[index].hardware, placements: controllers[index].placements }]
+          : [],
+      ),
     );
   }
 
@@ -143,18 +160,24 @@ export class GrowClimateService {
    * today.
    */
   public async summarise(
-    deviceIds: readonly string[],
-    window: { startsAt: Date; endsAt: Date },
+    controllers: readonly Controller[],
+    spaceIds: readonly (string | null)[],
+    window: Span,
     targets: PhaseTargets | null,
   ): Promise<ClimateSummary> {
+    // Each controller over the part of the stretch it stood where the plants stood.
+    const stood = controllers.flatMap(controller => {
+      const stay = stayOf(controller.placements, spaceIds, window);
+      return stay ? [{ deviceId: controller.deviceId, stay }] : [];
+    });
     const [histories, records] = await Promise.all([
       Promise.all(
-        deviceIds.map(deviceId =>
-          this.data.history(deviceId, { ...window, metrics: CLIMATE_METRICS, outputs: ['light'], stepSeconds: CLIMATE_STEP_SECONDS }),
+        stood.map(({ deviceId, stay }) =>
+          this.data.history(deviceId, { ...stay, metrics: CLIMATE_METRICS, outputs: ['light'], stepSeconds: CLIMATE_STEP_SECONDS }),
         ),
       ),
       // What each device's cycle was, which is what tells its day from its night.
-      Promise.all(deviceIds.map(async deviceId => [deviceId, cyclesOf(await recordOf(this.targetRecord, deviceId, window), window)] as const)),
+      Promise.all(stood.map(async ({ deviceId, stay }) => [deviceId, cyclesOf(await recordOf(this.targetRecord, deviceId, stay), stay)] as const)),
     ]);
 
     return summariseClimate(histories, targets, new Map(records));

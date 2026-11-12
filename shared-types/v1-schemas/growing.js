@@ -36,7 +36,9 @@ exports.space = (0, common_js_1.named)('Space', zod_1.z.object({
     youMay: exports.accessNeed.describe('The most this account may do here. It is about the reader, so two people reading the same space are answered differently.'),
     kind: common_js_1.spaceKind,
     name: zod_1.z.string(),
-    roomId: (0, common_js_1.id)().nullable().describe('A space of kind `room`, one level deep. Null is a space that stands on its own.'),
+    roomId: (0, common_js_1.id)()
+        .nullable()
+        .describe('A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left.'),
     presetPrompt: exports.presetPrompt,
     retention: exports.spaceRetention,
     isDemo: zod_1.z.boolean(),
@@ -327,10 +329,20 @@ exports.growListItem = (0, common_js_1.named)('GrowListItem', exports.grow.exten
  * `POST /spaces`. A space is little more than a name and a kind; the room it
  * hangs in and the two settings have defaults, so the sheet that creates one
  * asks for two fields.
+ *
+ * A room is a field of the place and never made by itself: `roomId` names one
+ * that exists, `roomName` the owner's room of that name, which the server makes
+ * where there is none. `kind: room` is refused.
  */
 exports.spaceCreate = (0, common_js_1.named)('SpaceCreate', exports.space
     .pick({ kind: true, name: true, roomId: true, presetPrompt: true, retention: true })
-    .partial({ roomId: true, presetPrompt: true, retention: true }));
+    .partial({ roomId: true, presetPrompt: true, retention: true })
+    .extend({
+    roomName: zod_1.z
+        .string()
+        .optional()
+        .describe('The room this place stands in, by name: the owner’s room called so, made if there is none. Instead of `roomId`, never beside it.'),
+}));
 /**
  * `PATCH /spaces/{id}`: the same fields, each only if it changes. `archivedAt`
  * is not among them - archiving is a route of its own, so that ending a space's

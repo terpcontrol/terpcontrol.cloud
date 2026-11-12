@@ -351,20 +351,29 @@ like a place.
    - A claim opens a placement, a move closes it and opens the next, taking a device out of a place or giving it up
      closes it. Giving a device up keeps the closed placements: the readings stay in the store, and the grows of the
      account that gave it up keep their curves; the next owner's places begin with their own placement and read
-     nothing from before it. Deleting an account takes the placements in its places with them.
+     nothing from before it. Deleting an account closes the placements in its places the same way.
+   - **A device's first placement also speaks for what it measured before it was put there.** The hour between
+     plugging a new device in and claiming it, and everything a device carried over from the old cloud had measured
+     before anybody recorded a claim, was measured where it first stood; every later placement begins when it began.
+     Where another device held the place until the new one was put in - a controller replaced - that device's days
+     stay its own, and the new one's begin when it came. (It is also what keeps a simulated device's backfilled
+     history readable: the simulator claims first and writes three weeks of readings behind the claim.)
    - **A stay of less than five minutes is a mistake put right, not a stay**: a move away from a place the device
      came to less than five minutes ago drops that placement, and where the device goes back to the place it had
      left, the placement there is opened again as if nothing had happened. The move sheet's "undo" is that case; five
      minutes is the window in which a diary line may be taken back, for the same reason.
 2. **What a read does with it.** A read about now is unchanged. A read about a stretch of time takes **every device
    that stood in the place inside that stretch, each over the part of the stretch it stood there** - from its first
-   moment there inside the stretch to its last; a device that left and came back inside one stretch is read across
-   the gap, which the five-minute rule keeps to moves somebody meant.
-   - *A place's Verlauf* (`GET /spaces/{id}/timeline`, `/series`): the curve is the place's own climate device as
+   moment there inside the stretch (for its first placement: from the beginning of the stretch) to its last; a
+   device that left and came back inside one stretch is read across the gap, which the five-minute rule keeps to
+   moves somebody meant.
+   - *A place's Verlauf* (`GET /spaces/{id}/timeline`): the curve is the place's own climate device as
      before. Over the part of a window before that device came, it is the curve of the climate device that stood
      there then, with its targets, its nights and its outputs; a device that has left draws nothing after it left,
      and a device that came draws nothing from where it stood before - until now a device moved from one tent to
-     another brought a month of the other tent's air along. `?deviceId=` may name a device that has left.
+     another brought a month of the other tent's air along. `?deviceId=` may name a device that has left. The hour
+     after a device came is its climate settling, as after any change of targets. `GET /spaces/{id}/series` reads
+     each device over its stay as well, without joining a curve across a change.
    - *A grow's diary and report* (`GET /grows/{id}/diary`, `/report`): a day's climate, its share inside the targets
      and what the lamp did are of the devices standing where the plants stood on that day, each for the hours it
      stood there. *A grow's series* (`GET /grows/{id}/series`) and *the exports* (`climate.csv` of a grow) the same:
@@ -376,7 +385,8 @@ like a place.
    have not ended; a place may be called what a room is called. Compared as a person reads them: surrounding blanks
    and upper or lower case make no second name. `POST /spaces`, `PATCH /spaces/{id}` and bringing an ended place back
    (`DELETE /spaces/{id}/archive`) refuse a second one with 409 `name_taken` and a sentence that says which name. A
-   claim is never refused for a name: the place it makes takes the next free number ("Zelt", "Zelt 2"). No unique
+   claim is never refused for a name: the place it makes takes the next free number ("Zelt", "Zelt 2"; a name that
+   ends in a number counts on from it). No unique
    index states it - the comparison is not a field - so two writes in the same instant can still slip through, and
    the next rename meets the refusal. A place shared with somebody may be called what one of their own is; that is
    why Start says whose it is (point 5).
@@ -412,7 +422,7 @@ test stack, a self-hosted one on master - are what the second and third are for)
 
 | Step | What it does | To every shape it can meet |
 | --- | --- | --- |
-| `026-device-placements` | gives every device without the field its `placements` | a device standing in a place gets one open placement there, from `state.claimedAt`, or from its `createdAt` where nothing recorded the claim (every device carried over from the old database: step 005 left `claimedAt` null) - which is what every read assumed until now, that a device has always stood where it stands; an unclaimed device, and a claimed one without a place (a repair by hand left such rows), gets an empty list; a device whose place has since ended is given the placement all the same and counted |
+| `026-device-placements` | gives every device without the field its `placements` | a device standing in a place gets one open placement there, from `state.claimedAt`, or from its `createdAt` where nothing recorded the claim (every device carried over from the old database: step 005 left `claimedAt` null); being its first, it is read back past that instant, so nothing a screen shows changes with the step - every read assumed until now that a device has always stood where it stands; an unclaimed device, and a claimed one without a place (a repair by hand left such rows), gets an empty list; a device whose place has since ended is given the placement all the same and counted |
 | `027-empty-rooms` | ends the rooms nothing is left in | a room with no place that has not ended, no membership and nothing standing in it directly is ended as point 4 says, and the ended places still naming it are taken out of it; a room with members, with a place, or holding something itself is left |
 | `028-unique-place-names` | renames what collides | per owner, among the places that have not ended and among the rooms that have not: the oldest of a name keeps it, each later one takes the next free number ("Tent", "Tent 2"); ended places are not touched. Step 004 numbered the places it named itself, so on a database from the old cloud only places named after devices that share a name can collide |
 

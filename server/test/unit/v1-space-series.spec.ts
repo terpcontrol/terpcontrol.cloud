@@ -10,6 +10,7 @@ import { admin, session, visitor } from './support/callers';
 import { isLit, seriesOf, switchingsOf } from './support/fake-data';
 import { accessOn, spacesOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
+import { standingIn } from './support/placed';
 
 /**
  * The charts page of a place: any two instants, at any step, whether or not a
@@ -81,7 +82,7 @@ beforeEach(async () => {
     id: CONTROLLER,
     type: 'controller',
     ownerId: OWNER,
-    spaceId: TENT,
+    ...standingIn(TENT),
     configuration: { day: { temperature: 25, humidity: 55 }, night: { temperature: 20, humidity: 60 } },
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
   });
@@ -166,7 +167,7 @@ describe('one climate of several', () => {
       id: 'device-fridge-module',
       type: 'fridge',
       ownerId: OWNER,
-      spaceId: TENT,
+      ...standingIn(TENT),
       configuration: { day: { temperature: 18, humidity: 60 }, night: { temperature: 16, humidity: 60 } },
       createdAt: new Date('2026-01-02T00:00:00.000Z'),
     });

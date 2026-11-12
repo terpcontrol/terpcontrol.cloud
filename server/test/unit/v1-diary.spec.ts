@@ -10,6 +10,7 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { anonymous, session, visitor } from './support/callers';
 import { accessOn, growsOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
+import { standingIn } from './support/placed';
 
 /**
  * Reading the diary: the timeline, and the report that tells a grow as
@@ -194,9 +195,15 @@ const world = async (): Promise<void> => {
   await db.memberships.create({ id: 'membership-1', spaceId: TENT, userId: MEMBER, role: 'can_log' });
 
   await db.devices.create([
-    { id: CONTROLLER, type: 'controller', ownerId: OWNER, spaceId: TENT, configuration: { day: { temperature: 25 }, night: { temperature: 20 } } },
+    {
+      id: CONTROLLER,
+      type: 'controller',
+      ownerId: OWNER,
+      ...standingIn(TENT),
+      configuration: { day: { temperature: 25 }, night: { temperature: 20 } },
+    },
     // A plug measures and steers nothing, so it is not read for a week's climate.
-    { id: PLUG, type: 'plug', ownerId: OWNER, spaceId: TENT, configuration: null },
+    { id: PLUG, type: 'plug', ownerId: OWNER, ...standingIn(TENT), configuration: null },
   ]);
   await db.cameras.create({ id: CAMERA, ownerId: OWNER, kind: 'terpcam_controller', deviceId: CONTROLLER, spaceId: TENT, name: 'Cam 1' });
 

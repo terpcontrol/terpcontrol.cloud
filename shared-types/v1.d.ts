@@ -2030,7 +2030,7 @@ export interface Space {
   kind: SpaceKind;
   name: string;
   /**
-   * A space of kind `room`, one level deep. Null is a space that stands on its own.
+   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left.
    */
   roomId: string | null;
   presetPrompt: PresetPrompt;
@@ -2377,22 +2377,30 @@ export interface SpaceCreate {
   kind: SpaceKind;
   name: string;
   /**
-   * A space of kind `room`, one level deep. Null is a space that stands on its own.
+   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left.
    */
   roomId?: string | null;
   presetPrompt?: PresetPrompt;
   retention?: SpaceRetention;
+  /**
+   * The room this place stands in, by name: the owner’s room called so, made if there is none. Instead of `roomId`, never beside it.
+   */
+  roomName?: string;
 }
 
 export interface SpaceUpdate {
   kind?: SpaceKind;
   name?: string;
   /**
-   * A space of kind `room`, one level deep. Null is a space that stands on its own.
+   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left.
    */
   roomId?: string | null;
   presetPrompt?: PresetPrompt;
   retention?: SpaceRetention;
+  /**
+   * The room this place stands in, by name: the owner’s room called so, made if there is none. Instead of `roomId`, never beside it.
+   */
+  roomName?: string;
 }
 
 export interface PresetApplicationCreate {
@@ -3701,7 +3709,7 @@ export interface HomeAnswer {
   spaces: HomeSpaceCard[];
   followedGrows: FollowedGrowCard[];
   /**
-   * Everyone the cards name, so a card can say who wrote an entry without another read.
+   * Everyone the cards name, so a card can say who wrote an entry without another read - and the owner of every place that is not the reader’s own, so a shared place says whose it is.
    */
   people: Person[];
   layers: AccountLayers;

@@ -225,10 +225,11 @@ export class HomeService {
 
     const [followedGrows, people, layers] = await Promise.all([
       ctx.userId && !ctx.isDemo ? this.followed(ctx.userId, now) : Promise.resolve([]),
-      peopleNamed(
-        this.users,
-        answers.flatMap(card => [...card.entries.map(entry => entry.authorId), ...card.dueTasks.map(task => task.assigneeId)]),
-      ),
+      peopleNamed(this.users, [
+        ...answers.flatMap(card => [...card.entries.map(entry => entry.authorId), ...card.dueTasks.map(task => task.assigneeId)]),
+        // Whose a place is, where it is not the reader's own: a guest's card says "von @handle". The tour names nobody.
+        ...(ctx.isDemo ? [] : spaces.filter(space => space.ownerId !== ctx.userId).map(space => space.ownerId)),
+      ]),
       this.layersOf(ctx),
     ]);
 

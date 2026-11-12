@@ -507,8 +507,9 @@ describe('the people in a space', () => {
     host = await createAccount('members-host');
     guest = await createAccount('members-guest');
 
-    room = (await host.client.post('/v1/spaces').send({ kind: 'room', name: 'Grow room' }).expect(201)).body.id;
-    inTheRoom = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent 1', roomId: room }).expect(201)).body.id;
+    const tent = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent 1', roomName: 'Grow room' }).expect(201)).body;
+    room = tent.roomId;
+    inTheRoom = tent.id;
   });
 
   describe('an invite', () => {

@@ -57,7 +57,11 @@ export const space = named(
     youMay: accessNeed.describe('The most this account may do here. It is about the reader, so two people reading the same space are answered differently.'),
     kind: spaceKind,
     name: z.string(),
-    roomId: id().nullable().describe('A space of kind `room`, one level deep. Null is a space that stands on its own.'),
+    roomId: id()
+      .nullable()
+      .describe(
+        'A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left.',
+      ),
     presetPrompt,
     retention: spaceRetention,
     isDemo: z.boolean(),
@@ -436,12 +440,22 @@ export const growListItem = named('GrowListItem', grow.extend({ summary: growSum
  * `POST /spaces`. A space is little more than a name and a kind; the room it
  * hangs in and the two settings have defaults, so the sheet that creates one
  * asks for two fields.
+ *
+ * A room is a field of the place and never made by itself: `roomId` names one
+ * that exists, `roomName` the owner's room of that name, which the server makes
+ * where there is none. `kind: room` is refused.
  */
 export const spaceCreate = named(
   'SpaceCreate',
   space
     .pick({ kind: true, name: true, roomId: true, presetPrompt: true, retention: true })
-    .partial({ roomId: true, presetPrompt: true, retention: true }),
+    .partial({ roomId: true, presetPrompt: true, retention: true })
+    .extend({
+      roomName: z
+        .string()
+        .optional()
+        .describe('The room this place stands in, by name: the owner’s room called so, made if there is none. Instead of `roomId`, never beside it.'),
+    }),
 );
 
 /**

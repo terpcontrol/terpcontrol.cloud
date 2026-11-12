@@ -15,6 +15,7 @@ import { demo, session, visitor } from './support/callers';
 import { seriesOf } from './support/fake-data';
 import { accessOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
+import { standingIn } from './support/placed';
 
 /**
  * Exporting: the job, the zip it leaves behind, and the fact that the zip is
@@ -110,7 +111,7 @@ const world = async (): Promise<void> => {
   ]);
   await db.spaces.create({ id: TENT, ownerId: OWNER, kind: 'tent', name: 'Tent 1', roomId: null });
   await db.memberships.create({ id: 'membership-member', spaceId: TENT, userId: MEMBER, role: 'can_manage' });
-  await db.devices.create({ id: CONTROLLER, type: 'controller', ownerId: OWNER, spaceId: TENT, configuration: null, createdAt: ORIGIN });
+  await db.devices.create({ id: CONTROLLER, type: 'controller', ownerId: OWNER, ...standingIn(TENT), configuration: null, createdAt: ORIGIN });
 
   await db.grows.create({
     id: GROW,

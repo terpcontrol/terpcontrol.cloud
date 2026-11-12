@@ -10,6 +10,7 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { anonymous, session, visitor } from './support/callers';
 import { accessOn, growsOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
+import { standingIn } from './support/placed';
 
 /**
  * A grow's diary, day by day.
@@ -167,12 +168,18 @@ const world = async (): Promise<void> => {
     { id: SPARE_TENT, ownerId: OWNER, kind: 'tent', name: 'Spare', roomId: null },
   ]);
   await db.devices.create([
-    { id: CONTROLLER, type: 'controller', ownerId: OWNER, spaceId: TENT, configuration: { day: { temperature: 25 }, night: { temperature: 20 } } },
+    {
+      id: CONTROLLER,
+      type: 'controller',
+      ownerId: OWNER,
+      ...standingIn(TENT),
+      configuration: { day: { temperature: 25 }, night: { temperature: 20 } },
+    },
     {
       id: SPARE_CONTROLLER,
       type: 'controller',
       ownerId: OWNER,
-      spaceId: SPARE_TENT,
+      ...standingIn(SPARE_TENT),
       configuration: { day: { temperature: 25 }, night: { temperature: 20 } },
     },
   ]);
@@ -470,6 +477,37 @@ describe('what a day says about its climate', () => {
     measured = () => ({ temperature: null, humidity: null });
 
     expect(dayOf(await read(), 10).climate).toBeNull();
+  });
+
+  it('keeps a controller for the days it stood in the tent, though it has left since', async () => {
+    // Taken out of the tent at the start of the grow's ninth day, and standing nowhere now.
+    await db.devices.updateOne(
+      { id: CONTROLLER },
+      { $set: { spaceId: null, placements: [{ spaceId: TENT, startedAt: new Date(0), endedAt: berlin(10, '00:00') }] } },
+    );
+    const page = await read();
+
+    expect(dayOf(page, 8).climate).toMatchObject({ temperature: 22.5, humidity: 55 });
+    expect(dayOf(page, 9).climate).toBeNull();
+    expect(dayOf(page, 10).climate).toBeNull();
+  });
+
+  it('says nothing of the days before a controller came from another place', async () => {
+    await db.devices.updateOne(
+      { id: CONTROLLER },
+      {
+        $set: {
+          placements: [
+            { spaceId: 'another-place', startedAt: new Date(0), endedAt: berlin(10, '00:00') },
+            { spaceId: TENT, startedAt: berlin(10, '00:00'), endedAt: null },
+          ],
+        },
+      },
+    );
+    const page = await read();
+
+    expect(dayOf(page, 8).climate).toBeNull();
+    expect(dayOf(page, 9).climate).toMatchObject({ temperature: 22.5, humidity: 55 });
   });
 });
 

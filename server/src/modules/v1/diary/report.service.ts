@@ -137,13 +137,9 @@ export class GrowReportService {
     const spaceIds = spacesDuring(grow, seen.startsAt, seen.endsAt);
     const entries = world.diary.filter(entry => entry.occurredAt >= seen.startsAt && entry.occurredAt < seen.endsAt);
 
-    const controllers = await this.climate.controllersIn(spaceIds);
+    const controllers = await this.climate.controllersIn(spaceIds, seen);
     const [climate, coverMediaId] = await Promise.all([
-      this.climate.summarise(
-        controllers.map(controller => controller.deviceId),
-        seen,
-        bandOf(chapter),
-      ),
+      this.climate.summarise(controllers, spaceIds, seen, bandOf(chapter)),
       this.coverOf(spaceIds, new Date((seen.startsAt.getTime() + seen.endsAt.getTime()) / 2), world.grant, world.range).then(
         cover => cover ?? photoOf(entries, new Date((seen.startsAt.getTime() + seen.endsAt.getTime()) / 2), world.grant),
       ),

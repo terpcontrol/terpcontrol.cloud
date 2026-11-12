@@ -10,6 +10,7 @@ import { demo, session, visitor } from './support/callers';
 import { isLit, lastSampleOf, seriesOf, switchingsOf } from './support/fake-data';
 import { accessOn, growsOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
+import { standingIn } from './support/placed';
 
 /**
  * The Charts view: what a line is drawn from, and who is allowed to be told.
@@ -134,11 +135,11 @@ const world = async (): Promise<void> => {
       id: CONTROLLER,
       type: 'controller',
       ownerId: OWNER,
-      spaceId: TENT,
+      ...standingIn(TENT),
       configuration: { day: { temperature: 27, humidity: 40 }, night: { temperature: 22, humidity: 45 }, co2: { target: 1100 } },
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     },
-    { id: CHILLER, type: 'fridge', ownerId: OWNER, spaceId: FRIDGE, configuration: null, createdAt: new Date('2026-01-02T00:00:00.000Z') },
+    { id: CHILLER, type: 'fridge', ownerId: OWNER, ...standingIn(FRIDGE), configuration: null, createdAt: new Date('2026-01-02T00:00:00.000Z') },
   ]);
 
   await db.grows.create({

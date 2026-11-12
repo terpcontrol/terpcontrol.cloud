@@ -1,8 +1,8 @@
 import { Model } from 'mongoose';
 import type { Metric, OutputMetric, SpaceSeries } from '@fg2/shared-types/v1';
 import { Grant, isOutsider } from '@common/v1/access.types';
+import { Stood } from '@common/v1/device-placements';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
-import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
@@ -24,7 +24,8 @@ interface ChartSources {
  * The body a place's charts page and a grow's Charts view share: the curves
  * that were ticked, banded by what the steering device aimed at, with the
  * lanes, the night and the camera frames around them. Each screen picks its own
- * window, devices and cameras, and adds what is its own.
+ * window, devices and cameras, and adds what is its own. A device is read over
+ * the part of the window it stood there.
  *
  * The store is not read where neither a metric nor an output was asked for.
  */
@@ -32,7 +33,7 @@ export const chartSeriesOf = async (
   sources: ChartSources,
   grant: Grant,
   grow: GrowDocument | null,
-  devices: StoredDevice[],
+  stood: readonly Stood[],
   cameras: CameraDocument[],
   window: TimelineWindow,
   asked: { metrics: readonly Metric[]; outputs: readonly OutputMetric[] },
@@ -40,15 +41,12 @@ export const chartSeriesOf = async (
 ): Promise<Omit<SpaceSeries, 'spaceId'>> => {
   const { metrics, outputs } = asked;
   const read = metrics.length > 0 || outputs.length > 0;
+  const devices = stood.map(one => one.device);
 
   const [histories, aimed, frames] = await Promise.all([
     Promise.all(
-      (read ? devices : []).map(device =>
-        sources.data.history(
-          device.id,
-          { startsAt: window.startsAt, endsAt: window.endsAt, stepSeconds: window.stepSeconds, metrics, outputs },
-          true,
-        ),
+      (read ? stood : []).map(({ device, stay }) =>
+        sources.data.history(device.id, { startsAt: stay.startsAt, endsAt: stay.endsAt, stepSeconds: window.stepSeconds, metrics, outputs }, true),
       ),
     ),
     recordOf(sources.targetRecord, steeringOf(devices)?.id ?? null, window),
