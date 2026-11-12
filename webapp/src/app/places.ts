@@ -85,6 +85,19 @@ export const chartsPath = (spaceId: string, show: string | null = null): string 
 /** The account's devices, with the ones standing in a place opened where it is named. */
 export const devicesPath = (spaceId: string | null = null): string => (spaceId ? withQuery('/devices', { space: spaceId }) : '/devices');
 
+/** The pages below a device's own: its smart sockets, what few growers set, and what support asks for. */
+export const DEVICE_PAGES = ['sockets', 'advanced', 'details'] as const;
+export type DevicePageName = (typeof DEVICE_PAGES)[number];
+
+/** A device's own page, reached from its card under Steuerung. */
+export const devicePath = (deviceId: string, page: DevicePageName | null = null): string =>
+  `/devices/${encodeURIComponent(deviceId)}${page ? `/${page}` : ''}`;
+
+/** One smart socket of a device, by the key its row is known by (`rowsOf`, `screens/devices/sockets.ts`). */
+export const socketPath = (deviceId: string, socket: string): string => `${devicePath(deviceId, 'sockets')}/${encodeURIComponent(socket)}`;
+
+export const cameraPath = (cameraId: string): string => `/cameras/${encodeURIComponent(cameraId)}`;
+
 /**
  * The addresses of the bar's items that show the chosen place: each with the
  * pages under it, and with the place in `?space=` where a link names one.

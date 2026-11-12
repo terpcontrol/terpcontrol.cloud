@@ -14,6 +14,7 @@ import { Claim } from '@/screens/claim/Claim';
 import { Demo } from '@/screens/admin/Demo';
 import { DeviceDiagnosis } from '@/screens/admin/DeviceDiagnosis';
 import { Devices } from '@/screens/devices/Devices';
+import { DevicePage, SocketPage } from '@/screens/devices/DevicePage';
 import { FirmwareScreen } from '@/screens/admin/Firmware';
 import { Fleet } from '@/screens/admin/Fleet';
 import { CurrentGrow } from '@/screens/grow/CurrentGrow';
@@ -61,6 +62,8 @@ export const screens: RouteObject[] = [
   { path: 'charts', element: <Charts /> },
   { path: 'log', element: <LogRoute /> },
   { path: 'devices', element: <Devices /> },
+  { path: 'devices/:deviceId/sockets/:socket', element: <SocketPage /> },
+  { path: 'devices/:deviceId/:page?', element: <DevicePage /> },
   { path: 'claim', element: <Claim /> },
   { path: 'cameras/add', element: <AddCamera /> },
   { path: 'cameras/:cameraId', element: <CameraPage /> },
