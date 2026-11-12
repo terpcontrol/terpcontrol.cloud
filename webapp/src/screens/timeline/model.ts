@@ -184,6 +184,16 @@ export const levelsOf = (strip: Pick<Strip, 'levels'>, from: number, to: number,
   });
 };
 
+/** What a device's live figure of an output has to be multiplied by to be per cent: the server's `OUTPUT_LEVEL`, for the outputs that have a level. */
+const LIVE_PERCENT: Partial<Record<OutputMetric, number>> = { light: 1, fan: 1, heater: 100, fanInternal: 100, fanExternal: 100, fanBackwall: 100 };
+
+/** What an output is doing as the device last said it: the live figure, and no mean of a window. Null where the device said nothing of it. */
+export const stateNow = (output: OutputMetric, value: number | null | undefined): { on: boolean; level: number | null } | null => {
+  if (value == null) return null;
+  const scale = LIVE_PERCENT[output];
+  return { on: value > 0, level: scale === undefined ? null : Math.round(Math.min(100, value * scale)) };
+};
+
 /** What an output did at one instant: running or not, how hard where it says, and null where nobody heard of it. */
 export const stateAt = (strip: Strip, time: number, stepMs: number): { on: boolean; level: number | null } | null => {
   if (time > strip.heardUntil) return null;
@@ -280,8 +290,16 @@ const metricCurve = (
   // The device's last reading closes the curve of a window that ends now: "jetzt" is that reading, on every range,
   // and not the mean of the last hour and a half of a month.
   const lastAt = last?.value != null && last.measuredAt ? at(last.measuredAt) : null;
-  const closes = lastAt !== null && lastAt <= at(data.endsAt) + LATE_MS && lastAt > (means.findLast(point => point[1] !== null)?.[0] ?? from);
-  const points = halfOf(closes ? [...means, [lastAt, last?.value ?? null] as const] : means, data.nights, metric === 'vpd' ? half : 'all');
+  // The mean of the window that reading fell into gives way to it, whichever half of the window it fell in: a
+  // device that stopped at 16:17 ends on what it read at 16:17, not on the mean of the hour and a half around it.
+  const own = drawnBefore(data.stepSeconds);
+  const before =
+    lastAt === null || lastAt > at(data.endsAt) + LATE_MS || lastAt < from
+      ? null
+      : means.filter(point => point[1] === null || point[0] < lastAt || point[0] - lastAt > own);
+  // A curve with means newer than the reading is ahead of it, and ends on its own.
+  const closes = before !== null && !before.some(point => point[1] !== null && point[0] > (lastAt as number));
+  const points = halfOf(closes ? [...before, [lastAt as number, last?.value ?? null] as const] : means, data.nights, metric === 'vpd' ? half : 'all');
   const bands = stretchesOf(panel, data.nights, from, heardUntil, data.transitions ?? NO_SPANS).map(stretch => ({
     from: stretch.from,
     to: stretch.to,

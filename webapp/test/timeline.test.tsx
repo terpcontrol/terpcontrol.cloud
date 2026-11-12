@@ -122,6 +122,9 @@ const server = {
   over: {} as Partial<SpaceTimeline>,
   /** What Verlauf was answered instead, for a test about a read that fails. */
   fails: false,
+  /** Whether Verlauf's answer is held back until `release`, for a test about the moment it is asked. */
+  holds: false,
+  release: () => {},
   asked: [] as URLSearchParams[],
   /** Every path read, in order. */
   askedFor: [] as string[],
@@ -147,6 +150,10 @@ const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
     server.asked.push(url.searchParams);
     if (url.searchParams.get('deviceId') === 'device-gone') {
       return json({ status: 404, code: 'device_not_here', title: 'That device does not stand in this space.', detail: '', errors: [] }, 404);
+    }
+    if (server.holds) {
+      server.holds = false;
+      await new Promise<void>(resolve => (server.release = resolve));
     }
     return server.fails
       ? json({ status: 500, code: 'unexpected', title: 'Broken', detail: '', errors: [] }, 500)
@@ -201,7 +208,7 @@ beforeAll(() => translate());
 
 beforeEach(() => {
   who.is = 'you';
-  Object.assign(server, { youMay: 'own', over: {}, fails: false, asked: [], askedFor: [], values: null, views: [], wrote: [] });
+  Object.assign(server, { youMay: 'own', over: {}, fails: false, holds: false, asked: [], askedFor: [], values: null, views: [], wrote: [] });
   opened.length = 0;
   told.length = 0;
   localStorage.clear();
@@ -414,9 +421,21 @@ describe('a window that is not what the address asked for', () => {
     expect(screen.getByRole('button', { name: '30 d' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Adjust' })).toBeEnabled();
     expect(screen.getByRole('button', { name: /earlier/ })).toBeEnabled();
+    // The label names the window that is drawn - the day - and the figures of that picture stay where they were.
+    expect(screen.getByText(/^Yesterday \d\d:\d\d to now$/)).toBeInTheDocument();
+    expect(within(panel('Temperature')).getByText('25.2 °C')).toBeInTheDocument();
 
-    server.fails = false;
+    // Asked again, it says on the button that it tries, and nothing else on the page moves while it does.
+    server.holds = true;
     fireEvent.click(within(notice).getByRole('button', { name: /Try again/i }));
+    const trying = await screen.findByRole('button', { name: 'Trying…' });
+    expect(trying).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('This window could not be loaded');
+    expect(within(panel('Temperature')).getByText('25.2 °C')).toBeInTheDocument();
+
+    // The notice goes when a read succeeds again.
+    server.fails = false;
+    server.release();
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     expect(screen.getByRole('button', { name: '7 d', pressed: true })).toBeInTheDocument();
   });
@@ -629,6 +648,13 @@ describe('Verlauf with nothing to draw', () => {
 
     expect(await screen.findByRole('button', { name: /Try again/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '7 d' })).toBeInTheDocument();
+    // One sentence, and no zoom on a plot that is not there.
+    expect(
+      within(screen.getByRole('alert'))
+        .getAllByText(/./)
+        .filter(node => node.tagName === 'P'),
+    ).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Zoom in' })).not.toBeInTheDocument();
     server.fails = false;
     fireEvent.click(screen.getByRole('button', { name: /Try again/i }));
     expect(await settled()).toBeInTheDocument();

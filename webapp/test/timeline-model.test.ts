@@ -16,6 +16,7 @@ import {
   shownOf,
   slicesOf,
   stateAt,
+  stateNow,
   stripsOf,
   type Shown,
 } from '@/screens/timeline/model';
@@ -205,6 +206,33 @@ describe('a panel', () => {
     // A reading the place does not have now closes nothing, and a window that ended is left as it was measured.
     expect(vpd.curves[0].lastAt).toBeNull();
     expect(drawn(answer()).panels[0].curves[0].lastAt).toBeNull();
+  });
+
+  it('ends on a silent device`s last reading whatever half of its window that fell in, and not on the window`s mean', () => {
+    // The device stopped twelve minutes into the hour whose mean is drawn at its half: the reading takes that mean's place.
+    const stopped = FROM + 20.2 * HOUR;
+    const quiet = answer({
+      panels: [{ metric: 'temperature', points: [19, 20, 21].map(hour => ({ measuredAt: at(hour), value: 24.8 })), targets: [] }],
+    });
+    const now = {
+      values: [{ metric: 'temperature', value: 23.9, measuredAt: new Date(stopped).toISOString(), state: 'offline' } as CardValue],
+      silentSince: stopped,
+    };
+    const [curve] = drawn(quiet, null, { now }).panels[0].curves;
+
+    expect(curve.points.map(point => point[0])).toEqual([FROM + 18.5 * HOUR, FROM + 19.5 * HOUR, stopped]);
+    expect(nearestPoint(curve.points, stopped, 5_400_000)).toEqual([stopped, 23.9]);
+    // A curve whose means run on past a reading is ahead of it - the live read is the older of the two - and ends on its own.
+    const older = { values: [{ metric: 'temperature', value: 23.9, measuredAt: at(10), state: 'live' } as CardValue], silentSince: null };
+    expect(drawn(answer(), null, { now: older }).panels[0].curves[0].lastAt).toBeNull();
+  });
+
+  it('says what an output is doing as the device last said it: its live level in per cent, on or off where it only switches', () => {
+    expect(stateNow('light', 65)).toEqual({ on: true, level: 65 });
+    expect(stateNow('heater', 0.62)).toEqual({ on: true, level: 62 });
+    expect(stateNow('dehumidifier', 1)).toEqual({ on: true, level: null });
+    expect(stateNow('light', 0)).toEqual({ on: false, level: 0 });
+    expect(stateNow('fan', null)).toBeNull();
   });
 
   it('ends the band and the night where the device stopped reporting by the offline rule, at its last reading', () => {

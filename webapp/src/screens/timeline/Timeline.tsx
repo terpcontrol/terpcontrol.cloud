@@ -1,10 +1,12 @@
 import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
+import { hashKey } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import type {
   CardValue,
   ChartView,
+  DeviceLive,
   Entry,
   GrowListItem,
   GrowSeriesPoint,
@@ -13,14 +15,14 @@ import type {
   Space,
   SpaceTimeline,
 } from '@fg2/shared-types/v1';
-import { useDevices } from '@/api/devices';
+import { useDeviceLive, useDevices } from '@/api/devices';
 import { useGrow, useMeasurementSeries } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { ApiError } from '@/api/problem';
 import type { Picture } from '@/api/public';
 import { useSession } from '@/api/session';
 import { useSpaceLive, useSpaces } from '@/api/spaces';
-import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
+import { rangeNeedsGrow, timelineKey, useTimeline } from '@/api/timeline';
 import { isPlace, SHARE_LINKS } from '@/app/places';
 import { useScrub, type Selection } from '@/charts/scrub';
 import type { Translate } from '@/i18n/i18n';
@@ -35,7 +37,7 @@ import { saveFile } from '@/ui/download';
 import { startOfDayOn } from '@/ui/days';
 import { decimalMark } from '@/ui/figures';
 import { deviceTitle } from '@/ui/naming';
-import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { RefreshFailed, Waiting } from '@/ui/PageState';
 import { standsIn, useMayLogIn, useMayManage, useVisiting } from '@/ui/session-access';
 import { Sheet } from '@/ui/Sheet';
 import { refusalText } from '@/ui/refusal';
@@ -59,6 +61,7 @@ import {
   shareOf,
   shownOf,
   stateAt,
+  stateNow,
   stripsOf,
   type Compared,
   type Strip,
@@ -150,6 +153,7 @@ function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
   );
   // The read Start lays over its readings every half minute: one `last()`, under the same key.
   const reads = useSpaceLive(spaceId, true).data;
+  const deviceLive = useDeviceLive(page.view.deviceId ?? page.data?.deviceId ?? null).data;
   const lost = useGrow(page.dropped?.what === 'grow' ? page.dropped.id : null).data;
   const card = (home.data?.spaces ?? []).filter(isPlace).find(one => one.spaceId === spaceId);
   const climates = (card?.climates ?? []).flatMap(climate => (climate.deviceId ? [climate.deviceId] : []));
@@ -202,7 +206,17 @@ function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
 
   // What the device drawn reads now, as Start says it: the climate asked for, else the place's own.
   const drawn = reads?.devices.find(one => one.deviceId === (page.view.deviceId ?? data?.deviceId));
-  return <Screen page={page} spaceId={spaceId} title={title} place={placeName} own={own} values={drawn?.values ?? reads?.values ?? null} />;
+  return (
+    <Screen
+      page={page}
+      spaceId={spaceId}
+      title={title}
+      place={placeName}
+      own={own}
+      values={drawn?.values ?? reads?.values ?? null}
+      outputs={deviceLive?.outputs ?? null}
+    />
+  );
 }
 
 /**
@@ -259,11 +273,20 @@ const usePage = (spaceId: string, share: string | null) => {
   const [kept, setKept] = useState<SpaceTimeline | null>(null);
   const fresh = timeline.data !== undefined && !timeline.isPlaceholderData ? timeline.data : null;
   if (fresh && fresh !== kept) setKept(fresh);
-  const failed = timeline.isError && timeline.data === undefined;
+  // Which window would not load, and why. It is held here and not read off the query: asked again, a query with
+  // no answer goes back to "pending" with no error, and the notice would blink away while it tries. It goes when
+  // a read succeeds - this window's, or another one's the reader moved on to.
+  const asking = hashKey(timelineKey(spaceId, ask));
+  const [refusal, setRefusal] = useState<{ asking: string; error: unknown } | null>(null);
+  if (timeline.isError && timeline.data === undefined && (refusal?.asking !== asking || refusal.error !== timeline.error)) {
+    setRefusal({ asking, error: timeline.error });
+  }
+  if (refusal !== null && (fresh !== null || refusal.asking !== asking)) setRefusal(null);
+  const failed = refusal?.asking === asking && fresh === null;
 
   // A device or a grow the address names and the place does not have: the place's own Verlauf, and a sentence.
   const [dropped, setDropped] = useState<{ what: 'device' | 'grow'; id: string } | null>(null);
-  const refused = failed && timeline.error instanceof ApiError ? timeline.error.problem.code : null;
+  const refused = failed && refusal.error instanceof ApiError ? refusal.error.problem.code : null;
   const gone =
     refused === 'device_not_here' && view.deviceId
       ? ({ what: 'device', id: view.deviceId } as const)
@@ -281,8 +304,10 @@ const usePage = (spaceId: string, share: string | null) => {
     view,
     asked,
     timeline,
-    data: timeline.data ?? (failed ? (kept ?? undefined) : undefined),
+    // The window that failed keeps the picture before it for as long as it is asked again.
+    data: failed ? (kept ?? undefined) : timeline.data,
     failed,
+    refusal: failed ? refusal.error : null,
     dropped,
     change,
     now,
@@ -299,11 +324,19 @@ function Screen({
   own,
   picture,
   values,
-}: TimelineProps & { page: ReturnType<typeof usePage>; own: Own | null; picture?: Picture; values: CardValue[] | null }) {
+  outputs = null,
+}: TimelineProps & {
+  page: ReturnType<typeof usePage>;
+  own: Own | null;
+  picture?: Picture;
+  values: CardValue[] | null;
+  /** What the drawn device's outputs are doing as it last said, where the reader may ask the device. */
+  outputs?: DeviceLive['outputs'] | null;
+}) {
   const { t } = useTranslation();
   const zone = useZone();
   const wide = useWideWindow();
-  const { view, asked, timeline, data, failed, change, now, clock } = page;
+  const { view, asked, timeline, data, failed, refusal, change, now, clock } = page;
   // Where the cursor is being moved to before the address says so: under a mouse or a dragging thumb for as long as it
   // moves, and once set down until the address has followed - `before` is the cursor the address held then.
   const [scrub, setScrub] = useState<{ time: number; before?: number | null } | null>(null);
@@ -337,7 +370,8 @@ function Screen({
   const compared: Compared | null = useMemo(() => (comparing && laid.data ? { data: laid.data, shift } : null), [comparing, laid.data, shift]);
 
   // Whether the window drawn ends now: the one asked for does, or it is a grow's own stretch that reaches the clock.
-  const live = !failed && (asked ? asked.live : window !== null && window.to >= clock - 60_000);
+  // The picture kept under a window that would not load is still the one it was: it ended now, and reads so.
+  const live = asked && !failed ? asked.live : window !== null && window.to >= clock - 2 * LIVE_BEAT_MS;
   // "Jetzt" is the device's last reading, as Start and Steuerung say it, and only while the device reports: by the
   // offline rule it is "letzter Wert" with its own time, on every range.
   const heard = live ? (values ?? []).filter(value => value.value !== null && value.measuredAt !== null) : [];
@@ -491,7 +525,8 @@ function Screen({
           <ChevronLeft size={20} strokeWidth={2} aria-hidden />
         </button>
         <span className={styles.window}>
-          {named ? windowLabel(t, named, named.live, now, zone) : '…'}
+          {/* Under a window that would not load, the name is of the picture that is drawn. */}
+          {failed && window ? windowLabel(t, window, live, now, zone) : named ? windowLabel(t, named, named.live, now, zone) : '…'}
           <small>
             {[
               data && data.dayFrom !== null && data.dayTo !== null && !timeline.isPlaceholderData && !failed
@@ -528,7 +563,7 @@ function Screen({
             {t('timeline.toNow')}
           </button>
         ) : null}
-        {cursorShown ? null : zoomButtons}
+        {cursorShown || !data ? null : zoomButtons}
       </div>
     </header>
   );
@@ -537,16 +572,19 @@ function Screen({
     return (
       <div className={styles.screen}>
         {head}
-        {timeline.isPending && !timeline.isError ? (
+        {failed ? (
+          // Nothing was ever drawn here: one sentence - whether the server answered or there is no connection - and the way to ask again.
+          <div className={styles.failed} role="alert">
+            <p className={ui.problem}>{refusalText(refusal)}</p>
+            <button type="button" className={ui.button} disabled={timeline.isFetching} onClick={() => void timeline.refetch()}>
+              {t(timeline.isFetching ? 'timeline.retrying' : 'home.retry')}
+            </button>
+          </div>
+        ) : (
           <>
             <Waiting lines={2} />
             <Waiting lines={4} />
             <Waiting lines={4} />
-          </>
-        ) : (
-          <>
-            <Refused error={timeline.error} />
-            <LoadFailed retry={() => void timeline.refetch()} />
           </>
         )}
       </div>
@@ -578,7 +616,10 @@ function Screen({
   const shared = new Set(curves.map(curve => curve.unit).filter((unit, index, all) => unit !== '' && all.indexOf(unit) !== index));
   const outputsAt = (shown.light || shown.outputs ? strips : [])
     .filter(strip => (strip.output === 'light' ? shown.light : shown.outputs))
-    .map(strip => outputWords(t, strip, stateAt(strip, cursor, stepMs)));
+    // At rest the card says what the device last said - its live levels, as Start does - and no mean of a window.
+    .map(strip =>
+      outputWords(t, strip, (resting && live ? stateNow(strip.output, outputs?.[strip.output]?.value) : null) ?? stateAt(strip, cursor, stepMs)),
+    );
   const cameras = data.cameras.filter(camera => camera.frames.length > 0);
   const ends = axisEnds(t, window, live, zone);
   const nothing = data.panels.length === 0 && data.outputs.length === 0;
@@ -621,13 +662,18 @@ function Screen({
 
   return (
     // Busy while another window is on its way: what is drawn is the one before it, dimmed rather than taken away.
-    <div className={styles.screen} ref={screen} aria-busy={timeline.isPlaceholderData} style={{ '--gutter': `${gutter}px` } as React.CSSProperties}>
+    <div
+      className={styles.screen}
+      ref={screen}
+      aria-busy={timeline.isPlaceholderData && !failed}
+      style={{ '--gutter': `${gutter}px` } as React.CSSProperties}
+    >
       {head}
       {failed ? (
         // The picture is the window before: this one would not load, for the reason said, and can be asked for again.
         <div className={styles.failed} role="alert">
           <p className={ui.problem}>
-            {t('timeline.windowFailed')} {refusalText(timeline.error)}
+            {t('timeline.windowFailed')} {refusalText(refusal)}
           </p>
           <button type="button" className={ui.button} disabled={timeline.isFetching} onClick={() => void timeline.refetch()}>
             {t(timeline.isFetching ? 'timeline.retrying' : 'home.retry')}
