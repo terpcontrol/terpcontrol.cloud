@@ -87,6 +87,12 @@ A round is one pass of building or fixing with its checks, ending in a short rep
   The code ends lean - nothing built twice, one concern per module - with the tests changed along with it. Any
   number of sub-agents is allowed for this, kept in proportion to the size of the app so that they do not cost more
   than they help.
+- **One writer per checkout, the critic beside the next round** (how the navigation redesign ran, 2026-11-12): a
+  round that is committed is built into the stack's image, and the critic walks that image while the next round is
+  built in the working tree - so a critic never judges an app that moves under it. The session decides each
+  finding and writes the decisions down; the round's own builder, resumed so that it keeps what it knows, fixes
+  them once the next round has landed and before the one after it starts. No two agents edit the checkout at the
+  same time, and each critic is told which findings are already known and being fixed.
 - **Loops of critic agents are for the app's screens**, judged from the running app and its screenshots, not code.
   A backend or data-model design is written up directly, and a step that looks like paperwork is done directly
   rather than orchestrated (Chris, 2026-09-17/18).
