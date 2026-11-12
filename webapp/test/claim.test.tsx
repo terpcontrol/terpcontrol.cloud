@@ -180,7 +180,7 @@ describe('adding a device', () => {
   it('asks for the code first and offers nothing to skip ahead with', () => {
     draw();
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 1 of 5');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 1 of 6');
     expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('');
     expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled();
     expect(screen.queryByRole('textbox', { name: 'Name of the place' })).not.toBeInTheDocument();
@@ -210,7 +210,7 @@ describe('adding a device', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: /Claimed/ })).toHaveTextContent('Claimed · Terp Controller · 7F3A');
     expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('online 20 s ago · firmware 082eda0-stable · 0 sockets · Cam: none');
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 2 of 5');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 2 of 6');
     expect(screen.getByRole('button', { name: /Next/ })).toHaveTextContent('Next · what is it doing?');
   });
 
@@ -255,7 +255,7 @@ describe('adding a device', () => {
     draw('/claim?device=sim-plug-1&at=2');
 
     expect(await screen.findByRole('button', { name: 'Next · cam?' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 of 5');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 of 6');
     // What the first step says it found names the cam and no sockets a plug cannot have.
     expect(screen.getByText(/Cam: none/)).toBeInTheDocument();
     expect(screen.queryByText(/0 sockets/)).not.toBeInTheDocument();
@@ -276,22 +276,22 @@ describe('adding a device', () => {
     expect(await screen.findByRole('button', { name: 'Next · notifications' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 2, name: 'Sockets and cam' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 2, name: 'Cam' })).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 of 4');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 of 5');
     expect(screen.queryByText(/Cam: none|0 sockets/)).not.toBeInTheDocument();
   });
 
   /**
    * A new device arms the offline rule the cloud keeps, and a new account has
-   * no way to be told about it. The flow ends on that, with the one tap that
+   * no way to be told about it. The flow asks about that with the one tap that
    * mails critical alarms to the address the account signs in with - written
    * by the server from the tap alone, so nothing of the address is sent.
    */
-  it('ends on how alarms will reach anybody, and mails critical ones to the login address in one tap', async () => {
+  it('asks how alarms will reach anybody, and mails critical ones to the login address in one tap', async () => {
     draw('/claim?device=sim-controller-7f3a&at=4');
 
     expect(await screen.findByRole('heading', { level: 2, name: 'How will you hear about problems?' })).toBeInTheDocument();
     expect(await screen.findByText('to grower@example.org')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Done · open the place' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Next · what grows?' })).toBeEnabled();
     // The bottom button stays the one green action of the screen.
     expect(screen.getByRole('button', { name: 'Notify me by e-mail' }).className).not.toMatch(/primary/);
 
@@ -300,6 +300,90 @@ describe('adding a device', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/me/email-alarms'));
     expect(await screen.findByText('Critical alarms now come by e-mail to grower@example.org.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', '/me/notifications');
+  });
+
+  /**
+   * The diary is offered from the first day: setting a device up ends by
+   * asking what grows there, on a page of its own. An answer starts the grow
+   * and its phase and leaves the climate alone, which the step before set.
+   */
+  it('ends by asking what grows here, and an answer starts the grow and opens the place', async () => {
+    vi.mocked(api.post).mockImplementation((path: string) => Promise.resolve(path === '/grows' ? { id: 'grow-new' } : {}) as never);
+    draw('/claim?device=sim-controller-7f3a&at=4');
+    fireEvent.click(await screen.findByRole('button', { name: 'Next · what grows?' }));
+
+    const question = await screen.findByRole('heading', { level: 1, name: 'What grows in Terp Controller?' });
+    expect(question).toHaveFocus();
+    expect(screen.getByText('Set up Controller · step 6 of 6')).toBeInTheDocument();
+    expect(address()).toBe('/claim?device=sim-controller-7f3a&at=5');
+    // The steps before are answered and written; this page asks its one question.
+    expect(screen.queryByRole('heading', { level: 2, name: /Claimed/ })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Strain or name' }), { target: { value: 'Blue Dream' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Plants' }), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Veg' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start a grow' }));
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/grows/grow-new/phases', expect.objectContaining({ stage: 'vegetative', preset: null })),
+    );
+    expect(api.post).toHaveBeenCalledWith(
+      '/grows',
+      expect.objectContaining({ name: 'Blue Dream', spaceId: 'space-new', plants: [{ strain: 'Blue Dream', count: 3 }], scheme: null }),
+    );
+    expect(api.post).not.toHaveBeenCalledWith('/spaces/space-new/preset-applications', expect.anything());
+    await waitFor(() => expect(address()).toBe('/spaces/space-new'));
+  });
+
+  it('leaves the question for Start when it is skipped, writing nothing', async () => {
+    draw('/claim?device=sim-controller-7f3a&at=5');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Not now' }));
+
+    expect(address()).toBe('/spaces/space-new');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('opens the question on the stage the place was just put on', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+    await screen.findByText('The targets went to 1 controller.');
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Next/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Next · what grows?' }));
+
+    await screen.findByRole('heading', { level: 1, name: /What grows in/ });
+    expect(screen.getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('does not ask what grows where a grow already stands, nor of an account that said no to the diary', async () => {
+    state.me = { ...meReaching(UNREACHED), preferences: { ...meReaching(UNREACHED).preferences, diary: 'off' } };
+    draw('/claim?device=sim-controller-7f3a&at=4');
+
+    expect(await screen.findByRole('button', { name: 'Done · open the place' })).toBeEnabled();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 5 of 5');
+  });
+
+  /** A grow that already runs elsewhere is moved in rather than started again, and not on one tap. */
+  it('offers to move a running grow here instead, in the sheet that says where it stands now', async () => {
+    state.grows = [spring];
+    state.spaces = [space, { ...space, id: 'space-other', name: 'Blue Dream tent' }];
+    // Asked for the grows standing in the new place, the server answers none: Spring run stands in the other tent.
+    vi.mocked(api.get).mockImplementation(
+      (path: string, query?: unknown) =>
+        Promise.resolve(
+          path === '/grows' && (query as { spaceId?: string } | undefined)?.spaceId ? { items: [], nextCursor: null } : answers(path),
+        ) as never,
+    );
+    draw('/claim?device=sim-controller-7f3a&at=5');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Or move a grow here' }));
+
+    const sheet = await screen.findByRole('dialog');
+    expect(await within(sheet).findByRole('button', { name: 'Spring run · Blue Dream tent' })).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('says how alarms already reach an account that has a way, and offers nothing to tap', async () => {
@@ -330,7 +414,7 @@ describe('adding a device', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { kind: 'tent' }));
   });
 
-  it('applies a stage to the place, and asks about the grow the way the server does', async () => {
+  it('applies a stage to the place and says what that did, and asks nothing about a grow there', async () => {
     await drawClaimed();
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
 
@@ -338,8 +422,10 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'flowering' }));
-    expect(await screen.findByRole('link', { name: /Start a grow here/ })).toHaveAttribute('href', '/grows/new?space=space-new&stage=flowering');
-    expect(screen.getByText('The targets went to 1 controller.')).toBeInTheDocument();
+    expect(await screen.findByText('The targets went to 1 controller.')).toBeInTheDocument();
+    expect(screen.getByText('No grow entered the stage; only the climate was written.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Start a grow/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Only the climate/ })).not.toBeInTheDocument();
   });
 
   /**
@@ -443,7 +529,7 @@ describe('adding a device', () => {
   it('comes back on the step it was left on rather than asking for a code that is spent', async () => {
     draw('/claim?device=sim-controller-7f3a&at=2');
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 3 of 5'));
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 3 of 6'));
     expect(screen.queryByRole('textbox', { name: 'Claim code' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Next/ })).toBeEnabled();
   });
@@ -460,7 +546,7 @@ describe('adding a device', () => {
     draw('/claim?device=sim-controller-7f3a&at=2');
 
     expect(await screen.findByRole('textbox', { name: 'Claim code' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 1 of 5');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 1 of 6');
     expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled();
   });
 
@@ -468,7 +554,7 @@ describe('adding a device', () => {
     await drawClaimed();
 
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Where is it?' }));
-    expect(screen.getByRole('status')).toHaveTextContent('Where is it? · step 2 of 5');
+    expect(screen.getByRole('status')).toHaveTextContent('Where is it? · step 2 of 6');
   });
 
   it('writes the stage that was picked when the bottom button is the one pressed', async () => {
@@ -478,8 +564,8 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'seedling' }));
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 3 of 5');
-    expect(await screen.findByRole('link', { name: /Start a grow here/ })).toBeInTheDocument();
+    // Written, it moves on: what grows here is the flow's last question, not this step's.
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 4 of 6'));
   });
 
   it('offers germination in the dark first, and says what it holds before it is written', async () => {
@@ -599,9 +685,10 @@ describe('adding a device', () => {
 
     expect(await screen.findByText('No controller here took the targets.')).toBeInTheDocument();
     expect(screen.getByText('No grow entered the stage, and no climate was written.')).toBeInTheDocument();
-    // Once in the visible note and once in the live region, which is the whole point of the second copy.
-    expect(screen.getAllByText(/no controller here took the climate/)).toHaveLength(2);
-    expect(screen.queryByText(/written either way/)).not.toBeInTheDocument();
+    // Said to a screen reader too, in the region that was on the page before the write.
+    expect(screen.getAllByRole('status').map(one => one.textContent)).toContain(
+      'No controller here took the targets. No grow entered the stage, and no climate was written.',
+    );
   });
 
   it('names the build rather than printing the uuid the hardware reports', async () => {
@@ -647,16 +734,6 @@ describe('adding a device', () => {
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('/spaces/space-new/archive'));
   });
 
-  /** The stage applied here is what the sheet must continue, or it writes germination over it a moment later. */
-  it('carries the applied stage into the link that starts a grow', async () => {
-    await drawClaimed();
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
-
-    expect(await screen.findByRole('link', { name: /Start a grow here/ })).toHaveAttribute('href', '/grows/new?space=space-new&stage=flowering');
-  });
-
   it('says what the write did, for a screen reader that was told only where the button goes', async () => {
     await drawClaimed();
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
@@ -668,41 +745,9 @@ describe('adding a device', () => {
 
     await waitFor(() =>
       expect(screen.getAllByRole('status').map(one => one.textContent)).toContain(
-        'The targets went to 1 controller. No grow entered the stage; only the climate was written. Nothing is growing here yet. The climate has been written either way.',
+        'The targets went to 1 controller. No grow entered the stage; only the climate was written.',
       ),
     );
-  });
-
-  it('does not move a running grow on one tap, and says where it stands now', async () => {
-    state.grows = [spring];
-    state.spaces = [space, { ...space, id: 'space-other', name: 'Blue Dream tent' }];
-    await drawClaimed();
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Move a grow here' }));
-
-    const chip = await screen.findByRole('button', { name: 'Spring run · Blue Dream tent' });
-    expect(screen.getByRole('button', { name: 'Move a grow here' })).toBeDisabled();
-
-    fireEvent.click(chip);
-    expect(api.post).toHaveBeenCalledTimes(2);
-
-    fireEvent.click(screen.getByRole('button', { name: /Move Spring run here/ }));
-    await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'flowering', decision: 'move_grow', growId: 'grow-1' }),
-    );
-  });
-
-  it('can be told never to ask about the grow here again', async () => {
-    await drawClaimed();
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
-    fireEvent.click(await screen.findByRole('button', { name: /never ask again/ }));
-
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { presetPrompt: 'never' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: /never ask again/ })).not.toBeInTheDocument());
   });
 
   it('reads the resumed step off the server rather than claiming nothing was set', async () => {

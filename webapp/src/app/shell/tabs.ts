@@ -13,8 +13,8 @@ interface Tab {
   owns?: string[];
 }
 
-/** A place's own page and who is let into it are Start's, as the task list is, which Start's blocks open. */
-const HOME: Tab = { path: '/', labelKey: 'shell.tabs.home', Icon: House, owns: ['/spaces', '/tasks'] };
+/** A place's own page and who is let into it are Start's. */
+const HOME: Tab = { path: '/', labelKey: 'shell.tabs.home', Icon: House, owns: ['/spaces'] };
 const GROW: Tab = { path: '/grow', labelKey: 'shell.tabs.grow', Icon: Sprout, owns: ['/grows'] };
 const LOG: Tab = { path: '/log', labelKey: 'shell.tabs.log', Icon: Plus, log: true };
 const TIMELINE: Tab = { path: '/timeline', labelKey: 'shell.tabs.timeline', Icon: ChartLine, owns: ['/charts'] };

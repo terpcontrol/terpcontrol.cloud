@@ -63,7 +63,8 @@ date or a figure reads in each language, which words to use - are in [app-ux.md]
   (`unitSymbol`).
 - `valueAge()` re-judges a value's `MetricValue.state` at the server's now and keeps the worse verdict. A device's
   liveness is in no answer: `deviceLiveness(lastSeenAt)`, with `heardAt()` taking the later of `lastSeenAt` and the
-  newest reading; silence is worded by `offlineLabel()`. The boundaries (`valueStateOfAge`) and `heardAt` are
+  newest reading; silence is worded by `offlineLabel()`. `dayStamp()` is when a line of a summary happened, in one
+  short word: the hour today, "gestern", the weekday within the week, the date beyond. The boundaries (`valueStateOfAge`) and `heardAt` are
   `shared-types/src/v1/value-age.ts`, as on the server and in the simulator.
 - An offline alert's `value` is the seconds of silence, not a reading; the silence began at `silentSince(alert)`
   (`startedAt` minus `value`).
@@ -127,7 +128,7 @@ its line.
 - Machine output stays on `toFixed` and plain strings: CSV cells, SVG path coordinates, the `yyyy-MM-dd` a date
   field speaks, ids, firmware versions.
 - `test/figures.test.ts` allows `.toFixed(` only in `ui/units.ts`, `ui/figures.ts` and the machine files
-  (`charts/series.ts`, `screens/cockpit/MiniCurve.tsx`, `ui/days.ts`), and keeps the localisers out of the machine
+  (`charts/series.ts`, `screens/start/DayCurves.tsx`, `ui/days.ts`), and keeps the localisers out of the machine
   files.
 
 ## Help topics

@@ -17,6 +17,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { ClaimedFacts, ClaimedTitle, CodeStep } from './CodeStep';
 import { DoingStep } from './DoingStep';
+import { GrowStep } from './GrowStep';
 import { HardwareStep } from './HardwareStep';
 import { pairsACam } from '@/screens/camera/add/pairers';
 import { NotifyStep } from '@/screens/notifications/NotifyNotice';
@@ -26,10 +27,10 @@ import { doingSummary, hardwareSummary, MEASURE, newPlaceName, NOTHING_DOING, no
 import styles from './Claim.module.css';
 
 /** The steps, in order, so the bottom button can carry the next one's name. */
-const STEPS = ['code', 'place', 'doing', 'hardware', 'notify'] as const;
+const STEPS = ['code', 'place', 'doing', 'hardware', 'notify', 'grow'] as const;
 
 /**
- * Which step the address says was open, kept inside the five. Without a device
+ * Which step the address says was open, kept inside the six. Without a device
  * there is nothing to resume and the first question is the only one that can be
  * asked.
  */
@@ -42,16 +43,17 @@ const stepIn = (params: URLSearchParams): number => {
 };
 
 /**
- * Adding a device: the five things that have to be true before a controller is
- * of any use, asked in the order they can be answered - the last of them being
- * that somebody hears when it goes wrong.
+ * Adding a device: the things that have to be true before a controller is of
+ * any use, asked in the order they can be answered - that somebody hears when
+ * it goes wrong among them - and last what grows here, which is where the
+ * diary begins (`GrowStep`).
  *
  * It is a screen of its own rather than a sheet because it is the one stretch
  * of the app where somebody is standing in a room with hardware in their hands,
- * and because every one of its five answers is written the moment it is given -
+ * and because every one of its answers is written the moment it is given -
  * there is no Save at the end and nothing is lost by leaving. That is what the
  * skip in the corner and the note under the button both say: the claim is the
- * only step that has to happen here, and the other four are the ordinary
+ * only step that has to happen here, and the others are the ordinary
  * screens, reached from Devices, from the tent's Control tab and from Me.
  *
  * Which device was claimed, and which question was open, live in the address
@@ -110,11 +112,16 @@ export function Claim() {
   // Sockets and a cam are paired at a fridge module or a controller, a cam alone
   // at a smart socket or an AIR fan; a LIGHT has neither and is not asked.
   const camOnly = claimed !== null && !SOCKET_HOST_TYPES.includes(claimed.type);
-  const shown = STEPS.flatMap((name, index) => (name === 'hardware' && claimed && !pairsACam(claimed) ? [] : [index]));
+  // What grows here is asked where nothing does yet, and not of somebody who said no to the diary.
+  const growing = growsHere.data?.items.some(grow => grow.endedAt === null) === true;
+  const asksGrow = !growing && me.data?.preferences.diary !== 'off';
+  const shown = STEPS.flatMap((name, index) =>
+    (name === 'hardware' && claimed && !pairsACam(claimed)) || (name === 'grow' && !asksGrow) ? [] : [index],
+  );
   // What a step is called, which for the fourth depends on what the device pairs.
   const keyOf = (index: number): string => (STEPS[index] === 'hardware' && camOnly ? 'camOnly' : STEPS[index]);
   const hidden = (index: number) => !shown.includes(index);
-  const at = lost ? 0 : hidden(step) ? step + 1 : step;
+  const at = lost ? 0 : hidden(step) ? (shown.find(index => index > step) ?? shown[shown.length - 1]) : step;
   const seen = lost ? 0 : furthest;
   const position = shown.indexOf(at) + 1;
   const after = shown[shown.indexOf(at) + 1] ?? null;
@@ -127,9 +134,10 @@ export function Claim() {
   const doingHeading = useRef<HTMLHeadingElement>(null);
   const hardwareHeading = useRef<HTMLHeadingElement>(null);
   const notifyHeading = useRef<HTMLHeadingElement>(null);
+  const growHeading = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
   useEffect(() => {
-    if (moved.current) [codeHeading, placeHeading, doingHeading, hardwareHeading, notifyHeading][at]?.current?.focus();
+    if (moved.current) [codeHeading, placeHeading, doingHeading, hardwareHeading, notifyHeading, growHeading][at]?.current?.focus();
     moved.current = true;
   }, [at]);
 
@@ -171,12 +179,33 @@ export function Claim() {
     apply.mutate(presetBodyOf(pending, doing), {
       onSuccess: result => {
         setDoing({ ...doing, chosen: pending, applied: result });
-        // What to do about the grow is the server's own question and it has
-        // only just been asked, so the step stays open to be answered.
-        if (!result.growDecisionNeeded && after !== null) go(after);
+        if (after !== null) go(after);
       },
     });
   };
+
+  if (STEPS[at] === 'grow') {
+    // The question is about a place by name, so it waits for the device and its place rather than asking about nothing.
+    if (!claimed || !space) {
+      return (
+        <section className={styles.screen}>
+          <Waiting lines={3} />
+        </section>
+      );
+    }
+
+    return (
+      <GrowStep
+        device={claimed}
+        space={space}
+        stage={doing.applied?.stage ?? onServer ?? null}
+        step={position}
+        of={shown.length}
+        headingRef={growHeading}
+        onLeave={leave}
+      />
+    );
+  }
 
   return (
     <section className={styles.screen}>

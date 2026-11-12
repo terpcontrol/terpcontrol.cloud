@@ -2,7 +2,7 @@
    with what the mode leaves out said inside it rather than around it. */
 
 .card {
-  /* The lamp's colour, as the cockpit's light tile draws it. */
+  /* The lamp's colour: lit, in the warm edge of the warning's ground. */
   --lit: color-mix(in srgb, var(--warning-edge) 85%, var(--card));
   --pad: var(--space-3);
 

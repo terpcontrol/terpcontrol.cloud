@@ -82,7 +82,7 @@ export const germinates = (device: Device | null): boolean => darkReasonOf(devic
  * What an output is called on this kind of hardware: one name per machine
  * wherever it is met. A fridge module drives one compressor that both cools and
  * dries, on the output the firmware calls the dehumidifier, so on a fridge that
- * output is the compressor - on the cockpit, the charts, the Timeline, the
+ * output is the compressor - on the charts, the Timeline, the
  * alarms and the maintenance sheet alike - and never an "Entfeuchter" the
  * cabinet does not have.
  */

@@ -165,8 +165,7 @@ const answer = (method: string, path: string, body: unknown): Response => {
 
     return json({ items: half(server.alerts), nextCursor: server.older.length ? 'cursor-1' : null });
   }
-  // What a card offers - silencing the rule, sending the tent into maintenance -
-  // is `manage` where the alert happened, so the space list carries the standing.
+  // What a card offers - silencing the rule - is `manage` where the alert happened, so the space list carries the standing.
   if (method === 'GET' && path === '/v1/spaces')
     return json({ items: [spaceWhere(state.youMay, { id: 'space-1', name: 'Flower room B' })], nextCursor: null });
   if (method === 'GET' && path === '/v1/devices') return json({ items: server.devices, nextCursor: null });
@@ -713,57 +712,8 @@ describe('the inbox', () => {
     await waitFor(() => expect(sentTo('DELETE', '/v1/alarm-rules/rule-1/silence')).toHaveLength(1));
   });
 
-  // Maintenance parks the heater, the dehumidifier and the CO2 valve as well as
-  // the alarms, so the chip says what that means before anything is sent.
-  it('asks the device for a quarter of an hour of maintenance, after saying what it stops', async () => {
-    server.alerts = [alert({})];
-    server.rules = [rule()];
-    draw();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance · 15 min' }));
-    expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(0);
-    expect(screen.getByText(/stops the heater, the dehumidifier and the CO₂ valve for 15 minutes/)).toBeInTheDocument();
-    // The engine holds a worked-on device's alarms for ten minutes after the
-    // window has run out, so the quiet is twenty-five and not the fifteen this
-    // card used to promise three times over.
-    expect(screen.getByText(/No alarm is raised on this device for 25 minutes/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Start maintenance' }));
-
-    await waitFor(() => expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(1));
-    expect(sentTo('POST', '/v1/devices/device-1/commands')[0].body).toEqual({ kind: 'maintenance', forSeconds: 900 });
-    expect(await screen.findByRole('status')).toHaveTextContent('Asked.');
-  });
-
-  /**
-   * A fan has no heater, no dehumidifier and no CO2 valve, and its firmware has
-   * no maintenance branch at all - the order is dropped without a word. The
-   * question over that device has to be about that device: the fifteen minutes
-   * are the cloud's alone, and nothing it drives will stop.
-   */
-  it('promises a fan only the quiet, because its hardware takes no maintenance command', async () => {
-    server.devices = [deviceRow({ type: 'fan', name: 'Exhaust fan' })];
-    server.alerts = [alert({})];
-    server.rules = [rule()];
-    draw();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance · 15 min' }));
-    expect(screen.getByText(/takes no maintenance command, so nothing it drives will stop/)).toBeInTheDocument();
-    expect(screen.queryByText(/the heater/)).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Start maintenance' }));
-
-    await waitFor(() => expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(1));
-    expect(await screen.findByRole('status')).toHaveTextContent('drops the order, so nothing it drives will stop');
-  });
-
-  /**
-   * The silence chip already reads the state it sets and flips to the way out;
-   * the maintenance chip read nothing, so pressing it twice was invisible both
-   * times and a card went on offering a quarter of an hour to a device that was
-   * already in it. It says the state now, and offers the end of it.
-   */
-  it('says that the device is already in maintenance, and offers the end of it instead of a second window', async () => {
+  /** Maintenance is the place's, started on Start and with the device under Steuerung: a card says that one stands and starts none. */
+  it('says that the device is in maintenance, and offers neither a window nor the end of one', async () => {
     server.devices = [
       deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), maintenanceUntil: iso(NOW.plus({ minutes: 8 })), hardware: {} } }),
     ];
@@ -774,13 +724,9 @@ describe('the inbox', () => {
     expect(
       await screen.findByText(new RegExp(`device in maintenance, nothing raised until ${clock(NOW.plus({ minutes: 18 }))}`)),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Maintenance · 15 min' })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'End maintenance' }));
-
-    await waitFor(() => expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(1));
-    expect(sentTo('POST', '/v1/devices/device-1/commands')[0].body).toEqual({ kind: 'maintenance', forSeconds: 0 });
-    expect(await screen.findByRole('status')).toHaveTextContent('Asked to end it.');
+    expect(screen.getByRole('button', { name: 'Silence 1 h' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /maintenance/i })).not.toBeInTheDocument();
+    expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(0);
   });
 
   /**
@@ -788,8 +734,7 @@ describe('the inbox', () => {
    * minutes between them the hardware is running again while the alarms are
    * still held. The card said "device in maintenance" for all of it - which is
    * the device's state, said wrongly, in the very minutes a grower is most
-   * likely to think the watch is back on - while its own chip below had already
-   * flipped to offering a fresh window. Both now read the same instant.
+   * likely to think the watch is back on.
    */
   it('says the device is out of maintenance while only the settling still holds the alarms', async () => {
     server.devices = [
@@ -803,35 +748,6 @@ describe('the inbox', () => {
       await screen.findByText(new RegExp(`device out of maintenance, nothing raised until ${clock(NOW.plus({ minutes: 8 }))}`)),
     ).toBeInTheDocument();
     expect(screen.queryByText(/device in maintenance/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Maintenance · 15 min' })).toBeInTheDocument();
-  });
-
-  /**
-   * A device that is offline hears neither a window nor its end. The card
-   * offered a quarter of an hour of maintenance to a fridge nobody could
-   * reach, beside the alert saying it could not be reached.
-   */
-  it('offers no maintenance to a device that is offline', async () => {
-    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })), hardware: {} } })];
-    server.alerts = [alert({})];
-    server.rules = [rule()];
-    draw();
-
-    expect(await screen.findByRole('button', { name: 'Silence 1 h' })).toBeInTheDocument();
-    await expect(screen.findByRole('button', { name: 'Maintenance · 15 min' }, { timeout: 400 })).rejects.toThrow();
-    expect(readsOf('/v1/devices')).toHaveLength(1);
-  });
-
-  it('sends nothing when the maintenance question is cancelled', async () => {
-    server.alerts = [alert({})];
-    server.rules = [rule()];
-    draw();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance · 15 min' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    expect(screen.queryByText(/stops the heater/)).not.toBeInTheDocument();
-    expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(0);
   });
 
   it('shows what the server said when it refused, under the card', async () => {
@@ -973,23 +889,21 @@ describe('the inbox', () => {
 /**
  * The same inbox, read by somebody who was let into that tent to write in its
  * diary. The cards are theirs to read - an alarm is news wherever it comes
- * from - and everything a card would do to the device is not: silencing a rule
- * and parking the tent for a quarter of an hour are `manage`, which the server
- * refuses them, so the chips are not there to be tapped.
+ * from - and what a card would do to the device is not: silencing a rule is
+ * `manage`, which the server refuses them, so the chip is not there to be tapped.
  */
 describe('a member who may only log', () => {
   beforeEach(() => {
     state.youMay = 'log';
   });
 
-  it('reads the card and is offered neither the silence nor the maintenance', async () => {
+  it('reads the card and is not offered the silence', async () => {
     server.alerts = [alert({})];
     server.rules = [rule()];
     draw();
 
     expect(await screen.findByText(/Flower room B/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Silence 1 h' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Maintenance · 15 min' })).not.toBeInTheDocument();
   });
 
   it('may not delete an episode that is over either', async () => {
@@ -1000,14 +914,13 @@ describe('a member who may only log', () => {
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 
-  it('is what the owner is not: the owner gets both chips', async () => {
+  it('is what the owner is not: the owner gets the silence', async () => {
     state.youMay = 'own';
     server.alerts = [alert({})];
     server.rules = [rule()];
     draw();
 
     expect(await screen.findByRole('button', { name: 'Silence 1 h' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Maintenance · 15 min' })).toBeInTheDocument();
   });
 });
 

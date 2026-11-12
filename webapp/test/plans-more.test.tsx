@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import type { Device, Plan, PlanReplace, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
-import { planLineOf } from '@/screens/cockpit/plan-line';
+import { planLineOf } from '@/screens/start/plan-line';
 import { PlanEditor } from '@/screens/control/PlanEditor';
 import { PlanPanel } from '@/screens/control/PlanPanel';
 import { emptyDraft, newStep, type PlanDraft } from '@/screens/control/plan-edit';

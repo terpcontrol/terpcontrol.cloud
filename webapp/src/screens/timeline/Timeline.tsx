@@ -27,7 +27,7 @@ import { Panel } from './Panel';
 import { ReadingPanel } from './ReadingPanel';
 import { loadOf, sliceAt } from './load';
 import { at, momentOf, pointAt, stampOf } from './window';
-import { ClimatePicker } from '../cockpit/ClimatePicker';
+import { ClimatePicker } from '@/screens/timeline/ClimatePicker';
 import styles from './Timeline.module.css';
 
 const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
@@ -392,10 +392,9 @@ const useReadings = (growId: string | null, measurements: MeasurementDefinition[
 export type OutputName = (lane: Pick<TimelineOutputLane, 'output' | 'fridge'>) => string;
 
 /**
- * The catalogue's name for each output, by the name the cockpit's tiles give
- * it, so a tap on "Kompressor läuft seit 12 Min" lands on a lane of the same
- * name. The lane says whose it is, a link's included, which is told no device
- * to look up.
+ * The catalogue's name for each output, one name per machine on every screen:
+ * a fridge's dehumidifier output is its compressor. The lane says whose it is,
+ * a link's included, which is told no device to look up.
  */
 const useOutputName = (): OutputName => {
   const { t } = useTranslation();

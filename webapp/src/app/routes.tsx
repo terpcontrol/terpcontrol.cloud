@@ -19,7 +19,6 @@ import { Fleet } from '@/screens/admin/Fleet';
 import { CurrentGrow } from '@/screens/grow/CurrentGrow';
 import { GrowPage } from '@/screens/grow/GrowPage';
 import { MyGrows } from '@/screens/grow/MyGrows';
-import { Home } from '@/screens/Home';
 import { JoinRoute } from '@/screens/join/JoinRoute';
 import { LogRoute } from '@/log/LogRoute';
 import { Me } from '@/screens/Me';
@@ -38,7 +37,6 @@ import { NotFound } from '@/screens/NotFound';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
 import { ControlTab } from '@/screens/place/ControlTab';
 import { PlaceMembers } from '@/screens/place/PlaceMembers';
-import { PlacePage } from '@/screens/place/PlacePage';
 import { Notifications } from '@/screens/notifications/Notifications';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
 import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
@@ -47,6 +45,7 @@ import { SharedRoute } from '@/screens/public/SharedRoute';
 import { SignIn } from '@/screens/SignIn';
 import { PrivacyStatement } from '@/screens/PrivacyStatement';
 import { SignUp } from '@/screens/SignUp';
+import { Start, StartOfPlace } from '@/screens/start/Start';
 import { Tasks } from '@/screens/Tasks';
 import { Timeline } from '@/screens/Timeline';
 
@@ -55,7 +54,7 @@ export const SESSION_ROUTE = 'session';
 
 /** Every screen behind the session, in the shell: the table a test can lay under the shell on its own. */
 export const screens: RouteObject[] = [
-  { index: true, element: <Home /> },
+  { index: true, element: <Start /> },
   { path: 'timeline', element: <Timeline /> },
   { path: 'control/:page?', element: <ControlTab /> },
   { path: 'charts', element: <Charts /> },
@@ -98,7 +97,7 @@ export const screens: RouteObject[] = [
   { path: 'grows/:growId/measurements', element: <Measurements /> },
   { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
   { path: 'grows/:growId/:tab?', element: <GrowPage /> },
-  { path: 'spaces/:spaceId', element: <PlacePage /> },
+  { path: 'spaces/:spaceId', element: <StartOfPlace /> },
   { path: 'spaces/:spaceId/members', element: <PlaceMembers /> },
   { path: 'index.html', element: <Navigate to="/" replace /> },
   // The old app's own pages, where bookmarks still point.

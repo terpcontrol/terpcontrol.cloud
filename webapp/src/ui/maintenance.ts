@@ -28,7 +28,7 @@ const PARKED_BY: Record<string, OutputMetric[]> = {
 export const parkedOutputs = (device: Device): OutputMetric[] =>
   (PARKED_BY[device.type] ?? []).filter(output => output !== 'co2' || hasCo2Sensor(device));
 
-/** How long a step-in parks the hardware, in minutes: the alarms page, the Home chip and the panel all name it. */
+/** How long a step-in parks the hardware, in minutes: Start, the entry sheet's tile and the device's panel all name it. */
 export const VISIT_MINUTES = MAINTENANCE_VISIT_SECONDS / 60;
 
 /**

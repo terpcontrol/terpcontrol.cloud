@@ -1,6 +1,6 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
-updated: 2026-10-08
+updated: 2026-11-12
 source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08)
 paths:
   - firmware/src/terpcam.*
@@ -167,7 +167,7 @@ way and what the code has to respect. Internal notes on the camera exist.
 
 ## Stills (`media`, kind `still`; storage in [data.md](data.md))
 - `lit`: the controller's light output at capture time, else `false` for a picture too dark to show anything (mean
-  luma under 24), else null, which counts as lit. Pictures meant to show plants (week, home, cockpit and grow cards)
+  luma under 24), else null, which counts as lit. Pictures meant to show plants (week cards, Start and grow cards)
   query `lit != false`; a week's day takes the lit still nearest midday.
 - `monochrome` (since 2026-10-08, server-side only): whether the still came out grey - the camera's night (IR) mode,
   or a black tent - measured once when stored (`monochromeOf`, `still-light.ts`: channels under 4 of 255 apart on a

@@ -129,12 +129,9 @@
    is late, and quiet grey when it has gone offline. `data-liveness` says
    which; the dot is `.liveDot`. */
 .live {
-  display: inline-flex;
+  display: inline-block;
   flex: none;
-  align-items: center;
-  gap: var(--space-2);
-  height: 26px;
-  padding: 0 var(--space-3) 0 10px;
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
   background: var(--card-2);
   font-family: var(--font-figure);
@@ -145,11 +142,13 @@
 }
 
 .liveDot {
-  flex: none;
+  display: inline-block;
   width: 8px;
   height: 8px;
+  margin: -2px var(--space-2) 0 0;
   border-radius: 50%;
   background: currentcolor;
+  vertical-align: middle;
 }
 
 .live[data-liveness='live'] {
@@ -162,7 +161,8 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent);
 }
 
-.live[data-liveness='stale'] {
+.live:is([data-liveness='stale'], [data-liveness='offline']) {
+  background: var(--warning-wash);
   color: var(--warning);
 }
 

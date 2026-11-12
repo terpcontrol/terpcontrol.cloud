@@ -3,6 +3,7 @@ import type { DateTime } from 'luxon';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { Device, DeviceClaimCreate, DeviceClaimResult, SocketPage, Space } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { claimCodeOf, useClaimDevice } from '@/api/claims';
@@ -130,6 +131,11 @@ export function CodeStep({
       <button type="submit" className={`${ui.button} ${ui.primary} ${styles.wide}`} disabled={claim.isPending}>
         {claim.isPending ? t('claim.code.claiming') : t('claim.code.claim')}
       </button>
+
+      {/* A camera of its own - an RTSP stream - has no claim code, so it has its own way in. */}
+      <Link to="/cameras/add" className={`${ui.headLink} ${styles.aside}`}>
+        {t('claim.code.rtsp')} ›
+      </Link>
 
       <LegacyMove />
 

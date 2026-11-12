@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-12
-source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses and chosen place (2026-11-12)
+source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12)
 paths:
   - webapp/**
 ---
@@ -41,8 +41,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   | Address | Page | Bar item |
   | --- | --- | --- |
   | `/` | Start: the one place, the places by room, or the empty Start | Start |
-  | `/spaces/:spaceId`, `/spaces/:spaceId/members` | one place; who is let in | Start |
-  | `/tasks` | the task list | Start |
+  | `/spaces/:spaceId`, `/spaces/:spaceId/members` | Start of one place; who is let in | Start |
   | `/grow` | the grow running in the chosen place, else the offer to start one | Grow |
   | `/grows`, `/grows/new`, `/grows/:growId/:tab?`, `.../plants/:plantId`, `.../measurements` | every grow; one grow | Grow |
   | `/log` | opens the entry sheet | - |
@@ -51,8 +50,13 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   | `/control/:page?` | Steuerung of the chosen place: `targets`, `alarms`, `plan` | Steuerung |
   | `/devices`, `/claim`, `/cameras/add` | the device list (a row on Steuerung leads to it); adding a device or a camera | Steuerung |
   | `/cameras/:cameraId` | a camera | none |
-  | `/alerts`, `/me/...`, `/admin/...` | Meldungen, Ich, the fleet screens | none |
+  | `/alerts`, `/tasks`, `/me/...`, `/admin/...` | Meldungen and the task list its door opens, Ich, the fleet screens | none |
 
+- **Start** is `src/screens/start/`: `Start.tsx` decides what `/` is - one place (`PlaceStart.tsx`, also the page of
+  `/spaces/:spaceId`), a grow that stands in no place (`GrowStart.tsx`), the cards of several (`Places.tsx`) or the
+  empty Start - and `place.ts` holds what all of them decide before drawing: the status sentence, a reading's
+  verdict, the lamp's window. `card-status.ts` is the same sentence for a place's card and the header's choice of
+  place, so the three never disagree about a tent.
 - **The chosen place** (`src/app/places.ts`) is what `/grow`, `/timeline`, `/control` and `/charts` show: the place
   their address names in `?space=`, else the one chosen last (`terp.place` in this browser, a store the header's chip
   and the page both follow), else the first the home lists. `usePlaceChoice` is the one resolver - the pages read it
@@ -180,8 +184,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `useMayManage`, `useMayLogIn`, `useMayWith`, ...); never derive it from owner ids. What to draw for which role:
   app-ux.md §5.
 - Browser storage holds per-browser conveniences only (`terp.language`, `terp.theme`, `terp.place`,
-  `terp.shape.<user>`, `terp.lightHold.<device>` - the last light hold sent, since no device reports one back -
-  ...); whatever has to follow the account (zone, diary layer, notices seen, the language for text the server
+  `terp.shape.<user>`, `terp.loaded.<user>` - when Start last had an answer, for a Start that cannot load -
+  `terp.lightHold.<device>` - the last light hold sent, since no device reports one back - ...); whatever has to follow the account (zone, diary layer, notices seen, the language for text the server
   writes) lives in `me.preferences`. `localStorage` is read and written through `src/ui/stored.ts`, which answers
   null and keeps nothing where storage is blocked; only `src/api/session.ts` has its own, as it uses
   `sessionStorage` too.
@@ -224,7 +228,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - A precache entry without a revision is never fetched again. vite-plugin-pwa leaves the revision off everything
   under `assets/` by default, assuming Vite hashed it - but `public/assets/` (catalogues, help pages) keeps its names.
   Until October 2026 that froze the catalogues at the first release a browser saw: new code, old words, raw keys
-  (`cockpit.tile.hourMean`, `operatingMode.drying`). `dontCacheBustURLsMatching` in `vite.config.ts` now exempts only
+  (`operatingMode.drying`). `dontCacheBustURLsMatching` in `vite.config.ts` now exempts only
   hashed names; `grep -o '{"revision":null[^}]*}' dist/sw.js` after a build must list hashed files only.
 - A new release takes over at once. `src/sw.ts` calls `skipWaiting()` and `clients.claim()` itself - the plugin adds
   them only to a generated worker, and `registerType: 'autoUpdate'` does nothing without them: until October 2026 a
@@ -258,7 +262,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - On a desktop the shell centres every screen's root with a left margin (`.main > *` in
   `src/app/shell/AppShell.module.css`). A root that sets `width: 100%` therefore also needs a `max-width`
   (`--page-width`, `--reading-width`), or the margin pushes it past the window's right edge and the page scrolls
-  sideways from about 1400 px - the place cockpit at `/spaces/:id` did, until it took `--page-width` itself.
+  sideways from about 1400 px - a place's page at `/spaces/:id` did, until it took `--page-width` itself.
 - Copy through `useCopied()` (`src/ui/clipboard.ts`): it falls back to `execCommand` where `navigator.clipboard` is
   missing (plain HTTP) and answers `copied` or `failed` for the button to say.
 - Webhook templates (`src/screens/control/alarms/webhook-templates.ts`: Home Assistant, Discord, Telegram, ntfy)
@@ -275,7 +279,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   server does. `tsconfig.json` is `strict`: the contract spells "none" as `null`.
 - Vitest in jsdom (`vitest.config.ts`; `test/setup.ts` stubs `ResizeObserver`). Tests share their helpers rather than
   define their own: `test/session.ts` the sessions (`SIGNED_IN`, `ON_THE_DEMO`, `SIGNED_OUT`, `meWith`,
-  `spaceWhere(youMay)`), `test/fixtures.ts` a device (`deviceWith`), `test/harness.tsx` the drawing (`drawAt`,
+  `spaceWhere(youMay)`), `test/fixtures.ts` a device (`deviceWith`), `test/place-wire.ts` a place as the server
+  answers it and the wire it is read through (the Start suites), `test/harness.tsx` the drawing (`drawAt`,
   `testClient`, `json`, `NOT_FOUND`), `test/translations.ts` the shipped catalogues (`catalogue`, `translate`). Screen
   tests mock `@/api/session` and stub `fetch`. Off a terminal only failures are printed, and console output from a
   passing test is a fault to fix. `npm run test:live` (node environment) signs in with `AGENT_TESTING_*` from the root

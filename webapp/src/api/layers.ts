@@ -11,8 +11,8 @@ import { useWrite } from './write';
  * invitations to either - as the server worked it out for this account. The
  * home answers it beside its cards and the account beside itself, and the two
  * can disagree for a moment: starting a grow reads the home again, and the
- * account only when somebody asks. The fresher of the two answers, so the bar,
- * Start and the cockpit change together.
+ * account only when somebody asks. The fresher of the two answers, so the bar
+ * and Start change together.
  *
  * Undefined until either has answered. The demo is shown everything.
  */

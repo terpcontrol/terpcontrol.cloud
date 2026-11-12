@@ -1,7 +1,7 @@
 import { useNavigate, useNavigationType, useSearchParams } from 'react-router';
 import type { GrowthStage } from '@fg2/shared-types/v1';
 import { useMayManage } from '@/ui/session-access';
-import { Home } from '@/screens/Home';
+import { Start } from '@/screens/start/Start';
 import { START_STAGES } from './new-grow';
 import { NewGrowSheet } from './NewGrowSheet';
 
@@ -45,7 +45,7 @@ export function NewGrowRoute() {
 
   return (
     <>
-      <Home />
+      <Start />
       {mayManage ? <NewGrowSheet spaceId={search.get('space')} stage={stageIn(search)} replace onClose={close} /> : null}
     </>
   );

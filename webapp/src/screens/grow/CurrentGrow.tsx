@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { useCurrentPlace } from '@/app/places';
 import { LoadFailed, Waiting } from '@/ui/PageState';
+import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
-import { NothingGrows } from '../cockpit/GrowBlock';
+import { MoveHereSheet } from '../space/MoveHereSheet';
 import { GrowScreen } from './GrowPage';
 import { MyGrowsLine } from './MyGrows';
 import { NewGrowRow } from './new/NewGrowRow';
@@ -41,5 +43,32 @@ export function CurrentGrow() {
       <MyGrowsLine />
       {starting ? <NewGrowSheet onClose={() => setStarting(false)} /> : null}
     </section>
+  );
+}
+
+/** Nothing grows here: the two ways to change that, to somebody who may put a grow into this place. */
+function NothingGrows({ spaceId, name }: { spaceId: string; name: string }) {
+  const { t } = useTranslation();
+  const mayManage = useMayManage(spaceId);
+  const [moving, setMoving] = useState(false);
+
+  return (
+    <div className={styles.nothingGrows}>
+      <p className={ui.note}>{t('home.invite.noGrow')}</p>
+      {mayManage ? (
+        <p className={`${styles.growActions} ${ui.dots}`}>
+          <Link to={`/grows/new?space=${spaceId}`} className={ui.headLink}>
+            {t('home.invite.startGrow')}
+          </Link>
+          <span className={ui.dot}>
+            {' · '}
+            <button type="button" className={ui.headLink} onClick={() => setMoving(true)}>
+              {t('home.invite.moveGrow')}
+            </button>
+          </span>
+        </p>
+      ) : null}
+      {moving ? <MoveHereSheet spaceId={spaceId} spaceName={name} onClose={() => setMoving(false)} /> : null}
+    </div>
   );
 }

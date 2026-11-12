@@ -2,8 +2,8 @@ import { useTranslation } from 'react-i18next';
 import type { PlaceCard } from '@/app/places';
 import { useSpaceOverview } from '@/api/spaces';
 import { useNow } from '@/ui/useNow';
-import { livenessOf, measuredAtOf } from '../home/attention';
-import { LivenessPill } from '../home/LivenessPill';
+import { livenessOf, measuredAtOf } from '@/screens/start/attention';
+import { LivenessPill } from '@/ui/LivenessPill';
 import styles from './PlaceTitle.module.css';
 
 /**

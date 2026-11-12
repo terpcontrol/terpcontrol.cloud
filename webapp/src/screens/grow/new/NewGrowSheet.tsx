@@ -7,14 +7,12 @@ import type { Camera, Device, GerminationChoices as ChoiceValues, GrowListItem, 
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
-import { useCreateGrow, useGrows } from '@/api/grows';
+import { useGrows } from '@/api/grows';
 import { serverNow } from '@/api/clock';
-import { useAddPhase, useApplyPreset } from '@/api/lifecycle';
 import { growSchemeOf, useScheme, useSchemes, type SchemeSummary } from '@/api/schemes';
 import type { Translate } from '@/i18n/i18n';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { Sheet } from '@/ui/Sheet';
-import { instantOf } from '@/ui/age';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import { stageChoiceName, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
@@ -25,6 +23,7 @@ import { DAY_IN_YEAR } from '@/ui/zone';
 import { GerminationChoices } from '../../control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '../../control/germination/germination-choices';
 import { usePlaceController } from '../phase-climate';
+import { useStartGrow } from './start-grow';
 import { dayNumber, growBody, growIn, presetFor, recordsOnly, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
 import { typeName } from '@/ui/naming';
 import { growPlaces } from '../placement';
@@ -175,16 +174,7 @@ function Form({
   const [backdating, setBackdating] = useState(false);
   /** What germination is to do about the humidity, where a switch was moved here; the device's own stands otherwise. */
   const [germination, setGermination] = useState<Partial<ChoiceValues>>({});
-  /** What already stands, so that a retry after a refusal carries on rather than starting again. */
-  const [made, setMade] = useState<{ growId: string | null; phaseDone: boolean; climateDone: boolean }>({
-    growId: null,
-    phaseDone: false,
-    climateDone: false,
-  });
-
-  const createGrow = useCreateGrow();
-  const startingPhase = useAddPhase();
-  const applyPreset = useApplyPreset(draft.spaceId ?? '');
+  const { start: write, made, busy, refused } = useStartGrow(draft.spaceId);
   const scheme = useScheme(draft.schemeId);
 
   const change = (over: Partial<Draft>) => setDraft(current => ({ ...current, ...over }));
@@ -210,8 +200,6 @@ function Form({
   const choices = { ...choicesOf(controller), ...germination };
   // "Keimung · dunkel" where starting the grow puts the place on it, and the plain stage where it is only recorded.
   const stageName = (one: GrowthStage): string => (steers(one) ? stageChoiceName(t, one) : t(`home.stage.${one}`));
-  const busy = createGrow.isPending || startingPhase.isPending || applyPreset.isPending;
-  const refused = createGrow.error ?? startingPhase.error ?? applyPreset.error;
   const ready = draft.schemeId === null || scheme.data !== undefined;
   // Why the primary cannot act, said rather than left to be discovered: a place
   // that is being invented is not a place yet, and a scheme that has not been
@@ -243,24 +231,15 @@ function Form({
       t('grow.new.unnamedStrain'),
     );
     try {
-      let growId = made.growId;
-      if (growId === null) {
-        growId = (await createGrow.mutateAsync(body)).id;
-        setMade(state => ({ ...state, growId }));
-      }
-      if (!made.phaseDone) {
-        await startingPhase.mutateAsync({
-          growId,
-          body: { stage: draft.stage, preset, startedAt: instantOf(DateTime.fromJSDate(draft.startedAt)) },
-        });
-        setMade(state => ({ ...state, phaseDone: true }));
-      }
-      if (alsoClimate && !made.climateDone) {
-        // Only a switch that was moved is sent: the device's own choice stands for the rest.
-        const said = darkens && Object.keys(germination).length > 0 ? { germinationChoices: germination } : {};
-        await applyPreset.mutateAsync({ stage: draft.stage, preset: null, ...said });
-        setMade(state => ({ ...state, climateDone: true }));
-      }
+      // Only a switch that was moved is sent: the device's own choice stands for the rest.
+      const said = darkens && Object.keys(germination).length > 0 ? { germinationChoices: germination } : {};
+      const growId = await write({
+        body,
+        stage: draft.stage,
+        preset,
+        startedAt: draft.startedAt,
+        climate: alsoClimate ? { stage: draft.stage, preset: null, ...said } : null,
+      });
       await navigate(`/grows/${growId}`, { replace });
     } catch {
       // Each of the three keeps its own refusal, and what already stands is said

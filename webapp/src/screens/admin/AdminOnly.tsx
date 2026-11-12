@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useSession } from '@/api/session';
 import ui from '@/ui/ui.module.css';
-import { ADMIN_MIN_WIDTH, useWideWindow } from './wide-window';
+import { ADMIN_MIN_WIDTH, useWideWindow } from '@/ui/wide-window';
 import styles from './Admin.module.css';
 
 /**

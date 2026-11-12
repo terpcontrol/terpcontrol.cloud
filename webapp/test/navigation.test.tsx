@@ -363,11 +363,12 @@ describe('the bar', () => {
     }
   });
 
-  it('keeps Start marked on the task list, and Grow on the grows and on one of them', async () => {
+  it('marks nothing on the task list, which is Meldungen´s, and Grow on the grows and on one of them', async () => {
     withDiary();
     const router = open('/tasks');
 
-    await waitFor(() => expect(marked()).toEqual(['Home']));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tasks' })).toBeInTheDocument();
+    expect(marked()).toEqual([]);
     await act(() => router.navigate('/grows'));
     expect(await screen.findByRole('heading', { level: 1, name: 'My grows' })).toBeInTheDocument();
     expect(marked()).toEqual(['Grow']);
@@ -376,22 +377,12 @@ describe('the bar', () => {
     expect(marked()).toEqual(['Grow']);
   });
 
-  it('leads back from the task list to the place it was opened from, which is Start with one place', async () => {
+  it('leads back from the task list to Meldungen, whose door opens it', async () => {
     withDiary();
     open('/tasks');
 
     const title = await screen.findByRole('heading', { level: 1, name: 'Tasks' });
-    expect(within(title.closest('header')!).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
-  });
-
-  it('leads back from the task list to the chosen place, where there are several', async () => {
-    server.places = TWO;
-    server.diary = true;
-    server.me = meOf(true, { diary: true, places: true });
-    localStorage.setItem('terp.place', 'space-2');
-    open('/tasks');
-
-    expect(await screen.findByRole('link', { name: 'Back to Tent 2' })).toHaveAttribute('href', '/spaces/space-2');
+    expect(within(title.closest('header')!).getByRole('link', { name: 'Alerts' })).toHaveAttribute('href', '/alerts');
   });
 
   it('draws the shape this account had last time before its answers are in, rather than jumping by an item', async () => {
@@ -627,7 +618,10 @@ describe('a change to the shape of the app', () => {
     open(QUIET);
 
     await waitFor(() => expect(server.sent.some(one => one.path === '/home')).toBe(true));
+    await waitFor(() => expect(server.sent.some(one => one.path === '/spaces')).toBe(true));
     expect(patches()).toHaveLength(0);
+    // The demo has no account: asking for one is answered 403 on every page, so the shell does not ask.
+    expect(server.sent.filter(one => one.path === '/me')).toEqual([]);
   });
 });
 
@@ -635,7 +629,7 @@ describe('the place menu', () => {
   it('renames the place under the name every screen calls it by', async () => {
     open('/');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Fridge 1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
     const field = screen.getByRole('textbox', { name: 'Name' });
     fireEvent.change(field, { target: { value: 'Blue Dream' } });
@@ -650,11 +644,9 @@ describe('the place menu', () => {
     server.youMay = 'log';
     open('/');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Fridge 1' }));
     expect(await screen.findByRole('link', { name: 'Invite members' })).toHaveAttribute('href', '/spaces/space-1/members');
     expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Choose a climate preset/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Start a grow/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Maintenance/ })).not.toBeInTheDocument();
   });
 });

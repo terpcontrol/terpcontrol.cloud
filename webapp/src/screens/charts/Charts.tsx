@@ -37,7 +37,7 @@ import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR, useZone, zonedAt } from '@/ui/zone';
 import { BackLink } from '@/ui/BackLink';
 import { figure } from '@/ui/units';
-import { ClimatePicker } from '../cockpit/ClimatePicker';
+import { ClimatePicker } from '@/screens/timeline/ClimatePicker';
 import { CameraFrame } from '../timeline/CameraFrame';
 import { at, momentOf, stampFor, stampForEnds, stamps } from '../timeline/window';
 import {

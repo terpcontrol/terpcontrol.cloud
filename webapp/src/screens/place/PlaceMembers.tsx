@@ -12,7 +12,7 @@ import styles from './Place.module.css';
 /**
  * Who else is let into a place, reached from the ⋯ beside its name, and the way
  * to a link that shows it to somebody without an account. It is a page below
- * the cockpit rather than a tab beside it, because it is opened now and then
+ * the place's Start rather than a tab beside it, because it is opened now and then
  * and not every day; the way back is the place's own name.
  */
 export function PlaceMembers() {

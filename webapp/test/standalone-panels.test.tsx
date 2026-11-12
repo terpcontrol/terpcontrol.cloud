@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
 import { fanSummaryOf, ownFactOf, ownStatusOf, plugSummaryOf } from '@/screens/control/devices/own-summary';
 import { Targets } from '@/screens/control/targets/Targets';
-import { climateDeviceOf, lightWindowOf, rangeVerdictOf, switchRangeOf } from '@/screens/cockpit/place';
+import { climateDeviceOf, lightWindowOf, rangeVerdictOf, switchRangeOf } from '@/screens/start/place';
 import { drawAt, json } from './harness';
 import { translate } from './translations';
 

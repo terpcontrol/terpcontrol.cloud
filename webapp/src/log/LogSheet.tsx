@@ -7,7 +7,7 @@ import { useRecentEntries } from '@/api/entries';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { useHome } from '@/api/home';
 import type { Translate } from '@/i18n/i18n';
-import { livenessOf } from '@/screens/home/attention';
+import { livenessOf } from '@/screens/start/attention';
 import { ageLabel } from '@/ui/age';
 import { VISIT_MINUTES } from '@/ui/maintenance';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';

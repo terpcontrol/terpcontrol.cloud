@@ -80,6 +80,9 @@ const BUILDS = [
   },
 ];
 
+/** The place's CO₂ report where no cylinder was ever noted, which the device's Erweitert reads once it is unfolded. */
+const NO_CYLINDER = { cylinders: [], openingsPerGram: null, restGrams: null };
+
 const drawWith = async (device: Device, sockets: Socket[] = []) => {
   vi.mocked(api.get).mockImplementation((path: string) => {
     if (path === '/devices') return Promise.resolve({ items: [device], nextCursor: null }) as never;
@@ -87,6 +90,7 @@ const drawWith = async (device: Device, sockets: Socket[] = []) => {
     if (path.endsWith('/sockets'))
       return Promise.resolve({ items: sockets, nextCursor: null, capabilities: CAPABILITIES } satisfies SocketPage) as never;
     if (path.endsWith('/firmwares')) return Promise.resolve({ items: BUILDS, nextCursor: null }) as never;
+    if (path.endsWith('/co2-report')) return Promise.resolve(NO_CYLINDER) as never;
     return Promise.resolve({ items: [], nextCursor: null }) as never;
   });
   drawAt(<DeviceList />);
@@ -211,6 +215,7 @@ describe('giving a device up', () => {
       if (path === '/devices') return Promise.resolve({ items: [controller({ ownerId: 'user-2' })], nextCursor: null }) as never;
       if (path === '/spaces') return Promise.resolve({ items: [spaceWhere('manage')], nextCursor: null }) as never;
       if (path.endsWith('/sockets')) return Promise.resolve({ items: [], nextCursor: null, capabilities: CAPABILITIES }) as never;
+      if (path.endsWith('/co2-report')) return Promise.resolve(NO_CYLINDER) as never;
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
     drawAt(<DeviceList />);

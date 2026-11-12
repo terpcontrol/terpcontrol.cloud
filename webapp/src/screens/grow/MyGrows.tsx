@@ -250,12 +250,10 @@ const harvestOf = (t: Translate, grow: MyGrowCard): string | null => {
 };
 
 /**
- * The way from Start to this page where Start is a list - several places, or
- * none: one quiet line, "Meine Grows · 2 laufend · 3 abgeschlossen", for
- * whoever keeps a diary. With one place the cockpit's grow block leads here
- * instead. It appears once there is a grow behind it, which is Start's rule
- * for its strips, and its read is the page's own, so the page opens on an
- * answer already there.
+ * The way to this page from Grow, where nothing grows in the chosen place:
+ * one quiet line, "Meine Grows · 2 laufend · 3 abgeschlossen", for whoever
+ * keeps a diary. It appears once there is a grow behind it, and its read is
+ * the page's own, so the page opens on an answer already there.
  *
  * The counts are what it says at a glance, so on a phone too narrow for the
  * title and both of them they move under the title rather than being cut off.

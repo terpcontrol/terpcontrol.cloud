@@ -166,9 +166,8 @@ export function GrowHeader({ grow, plants, spaces, now, listed = false, onShare,
       label
     );
   // Back to where the grow was found: "My grows" for a grow opened there and
-  // for a finished one, which no cockpit shows any more; otherwise the cockpit
-  // whose grow block it was opened from - the place it stands in, else the one
-  // it last stood in.
+  // for a finished one, which no Start shows any more; otherwise the Start of
+  // the place it stands in, else of the one it last stood in.
   const toPlace = useBackToPlace(places.find(place => place.spaceId !== null)?.spaceId ?? stood?.spaceId ?? null);
   const { state } = useLocation();
   const back = listed || openedFrom(state, FROM_MY_GROWS) || endedOn ? { to: MY_GROWS, name: t('grow.mine.title') } : toPlace;

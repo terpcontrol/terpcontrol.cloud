@@ -34,8 +34,8 @@ const SETTINGS = '/me/notifications';
  *
  * Over the readings it is drawn compact, two rows: what is wrong with "Later"
  * at its end, then the tap with the address it writes to beside it. The
- * notice is there for the first screen of a cockpit, and at three rows it took
- * the room of a whole tile from it.
+ * notice stands on Start, and at three rows it took the room of a whole card
+ * from it.
  *
  * What it is about is what can call on the account: a device's alarms, and
  * without a device the reminders of a diary and a camera's warning that it
@@ -126,7 +126,7 @@ export function EmailAlarmsOffer({
   /**
    * One row rather than two: "Per E-Mail" with the address it goes to beside
    * it, which reads as the one sentence it is - "Per E-Mail an …" - in the
-   * room the notice has over a cockpit's readings.
+   * room the notice has on Start.
    */
   compact?: boolean;
   onDone?: (address: string) => void;

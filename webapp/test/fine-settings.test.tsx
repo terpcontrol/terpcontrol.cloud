@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Co2Report, Device, Entry, SocketPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
-import { daysLeftOf, items as co2Items } from '@/screens/cockpit/Co2Report.advanced';
+import { daysLeftOf, items as co2Items } from '@/screens/devices/advanced/Co2Report.advanced';
 import { items as sensorItems } from '@/screens/devices/advanced/SensorFactors.advanced';
 import { PhaseTips } from '@/screens/grow/PhaseTips';
 import { itemsFor } from '@/ui/advanced/registry';
@@ -62,12 +62,13 @@ describe('what Erweitert offers a device', () => {
       'compressor-rest',
       'continue-plan',
       'leaf-offsets',
+      'co2-report',
       'update-channel',
     ]);
   });
 
   it('offers a tent controller the ramps its lamp runs on, and the lux factor only where it measures light', () => {
-    expect(ids(device('controller'))).toEqual(['operating-mode', 'light-ramps', 'continue-plan', 'leaf-offsets', 'update-channel']);
+    expect(ids(device('controller'))).toEqual(['operating-mode', 'light-ramps', 'continue-plan', 'leaf-offsets', 'co2-report', 'update-channel']);
     expect(ids(device('controller', { ppfd: 'on' }))).toContain('lux-factor');
   });
 
@@ -264,7 +265,7 @@ describe('the fine settings themselves', () => {
   });
 });
 
-describe('the CO2 cylinder at the place', () => {
+describe('the CO2 cylinder, under the device that doses from it', () => {
   const REPORT: Co2Report = {
     cylinders: [
       { since: '2026-09-25T10:00:00.000Z', until: null, filledGrams: 425, restGrams: null, openings: 1000, openingsPerGram: null },
@@ -274,12 +275,14 @@ describe('the CO2 cylinder at the place', () => {
     restGrams: 225,
   };
   const Card = co2Items[0].Item;
-  const place = (devices: Device[]) => ({ spaceId: 'space-1', devices, mayManage: true });
+  const place = (devices: Device[]) => ({ device: devices[0], mayManage: true, offline: false });
 
   it('is offered where something doses CO2, and nowhere else', () => {
     expect(co2Items[0].shows(place([device()]))).toBe(true);
     expect(co2Items[0].shows(place([device('controller', { co2: 'off' })]))).toBe(false);
     expect(co2Items[0].shows(place([device('plug')]))).toBe(false);
+    // The cylinder is the place's, so a device standing nowhere has none to report on.
+    expect(co2Items[0].shows(place([device('fridge', {}, { spaceId: null })]))).toBe(false);
   });
 
   it('works out how long the cylinder in use lasts at the rate it has gone down', () => {

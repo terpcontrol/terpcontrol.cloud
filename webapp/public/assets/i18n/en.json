@@ -635,40 +635,21 @@
   },
   "home": {
     "entryRepeats": "{{count}}× since {{since}}",
-    "empty": {
-      "title": "Nothing here yet.",
-      "text": "Both doors lead to the same thing: a place with a diary and, if you have one, a controller.",
-      "following": "Following someone? Open their share link and tap Follow; their grow appears here.",
-      "pastTitle": "No grow is running right now.",
-      "pastText": "Your earlier grows are under “My grows”. For the next one, both doors lead to the same thing: a place with a diary and, if you have one, a controller."
-    },
     "demoEmpty": {
       "title": "The demo is empty.",
       "text": "A demo is a grow somebody has left here to be looked at, and nothing has been left in this one. Your own account is missing nothing: the demo is a session of its own, and it holds only what this install has put in it.",
-      "ownTitle": "Your own account",
-      "ownText": "Sign in and this page fills with your places, their diaries and whatever your controllers report.",
       "signIn": "Sign in with my own account"
-    },
-    "startGrow": {
-      "title": "Start a grow",
-      "text": "A diary for plants anywhere: balcony, windowsill, a tent without a controller. Add a device later.",
-      "button": "New grow"
     },
     "addDevice": {
       "title": "Add a device",
-      "text": "A fridge module, a controller, a fan or a Plantalytix Socket, with a Terp Cam too – or a light. The claim code is on the display or the box.",
       "scan": "scan QR",
-      "code": "Claim code",
       "orScan": "or scan",
       "scanUnavailable": "This browser cannot read QR codes; type the code instead.",
       "scanDenied": "The camera was not allowed — type the code instead, or allow the camera for this site.",
       "scanHint": "Point the camera at the QR code on the box.",
-      "cancel": "Cancel",
-      "camera": "Add a camera without a controller (RTSP)"
+      "cancel": "Cancel"
     },
     "demo": {
-      "title": "Try the demo",
-      "text": "A finished grow with three months of climate, entries and stills. Nothing to set up. It opens the shared demo account, so this session is signed out of yours.",
       "confirm": "Open the demo · sign out of mine",
       "stay": "Stay in my account",
       "opening": "Opening the demo…",
@@ -770,38 +751,19 @@
       "noGrow": "Nothing growing here yet",
       "startGrow": "Start a grow",
       "moveGrow": "Move a grow here",
-      "noSensor": "No sensor",
-      "addDevice": "Add a device"
+      "noSensor": "No sensor"
     },
     "diary": {
-      "offer": "Turn on the grow diary",
       "decline": "No thanks"
     },
     "strip": {
-      "due": "Due",
       "done": "Done",
       "today": "today",
       "tomorrow": "tomorrow",
       "overdue_one": "{{count}} day overdue",
       "overdue_other": "{{count}} days overdue",
-      "following": "Following",
       "inDays": "in {{count}} d",
       "dueSince": "due since {{time}}"
-    },
-    "device": {
-      "offer": "With a sensor, this place measures itself"
-    },
-    "room": {
-      "row": "Create a room",
-      "title": "New room",
-      "name": "Name",
-      "namePlaceholder": "e.g. grow room",
-      "places": "What stands in it",
-      "inRoom": "{{name}} · in {{room}}",
-      "make_one": "Create the room with {{count}} place",
-      "make_other": "Create the room with {{count}} places",
-      "making": "Creating the room …",
-      "note": "A room only gathers places: Start lists them under its name, and each device keeps steering, showing and pausing its own place. Devices that make one climate together are brought into one place instead."
     }
   },
   "me": {
@@ -1017,7 +979,7 @@
       "count_one": "{{count}} grow",
       "count_other": "{{count}} grows",
       "none": "You follow nobody yet. Follow sits at the top of any public diary.",
-      "note": "A followed grow is somebody else's public page: you see what any stranger sees, and it stays on your home until you stop following."
+      "note": "A followed grow is somebody else's public page: you see what any stranger sees, and it stays here until you stop following."
     },
     "shareLinks": {
       "title": "Share links",
@@ -2741,7 +2703,8 @@
     },
     "actionChoose": "Maintenance",
     "howLong": "How long",
-    "minutes": "{{minutes}} min"
+    "minutes": "{{minutes}} min",
+    "actionShort": "Maintenance · {{minutes}} min"
   },
   "alarms": {
     "title": "Alarms",
@@ -3319,8 +3282,6 @@
     "action": {
       "silence": "Silence 1 h",
       "unsilence": "Unsilence",
-      "maintenance": "Maintenance · {{minutes}} min",
-      "endMaintenance": "End maintenance",
       "timeline": "Open timeline",
       "editRule": "Edit rule",
       "checkCam": "Check cam",
@@ -3328,14 +3289,6 @@
     },
     "remove": {
       "ask": "The alert is deleted for everyone you share the place with. Its line in the timeline stays."
-    },
-    "maintenance": {
-      "sent": "Asked. Once it hears, the device stops {{outputs}}, and no alarm is raised on it for {{quiet}} min.",
-      "sentQuietOnly": "Asked. This device drops the order, so nothing it drives will stop; no alarm is raised on it for {{quiet}} min all the same.",
-      "unheard": "Nobody was listening: the device has not been heard from, so the command waits for it.",
-      "ask": "Maintenance mode stops {{outputs}} for {{minutes}} minutes. No alarm is raised on this device for {{quiet}} minutes: the window, and {{settle}} minutes more while the climate comes back.",
-      "askQuietOnly": "This device takes no maintenance command, so nothing it drives will stop. What it does here is hold every alarm on the device: the {{minutes}}-minute window, and {{settle}} minutes more, {{quiet}} in all.",
-      "yes": "Start maintenance"
     },
     "nothing": "Nothing has gone wrong.",
     "output": {
@@ -3407,7 +3360,8 @@
       "sockets_one": "{{count}} socket",
       "sockets_other": "{{count}} sockets",
       "camera": "Cam: {{name}}",
-      "noCamera": "none"
+      "noCamera": "none",
+      "rtsp": "Add a camera without a controller (RTSP)"
     },
     "place": {
       "next": "where is it?",
@@ -3438,7 +3392,7 @@
     "doing": {
       "next": "what is it doing?",
       "title": "What is it doing right now?",
-      "text": "Pick a stage preset, or “just measure” for monitoring only. A preset sets the climate and then asks whether a grow starts here.",
+      "text": "Pick a stage preset, or “just measure” for monitoring only. A preset sets the climate.",
       "pick": "What the place is doing",
       "measure": "just measure",
       "measureNote": "Nothing is written to the controller. It goes on reporting and the charts fill. No thresholds are set — a stage would have written them, so add your own under Control › Alarms.",
@@ -3450,15 +3404,6 @@
       "phaseWritten": "A grow here entered {{stage}}.",
       "noPhaseWritten": "No grow entered the stage; only the climate was written.",
       "noPhaseNoClimate": "No grow entered the stage, and no climate was written.",
-      "question": "Nothing is growing here yet. The climate has been written either way.",
-      "questionNothingWritten": "Nothing is growing here yet, and no controller here took the climate. You can still decide what happens to the grow.",
-      "startGrow": "Start a grow here",
-      "moveGrowHere": "Move a grow here",
-      "moveThisOne": "Move {{name}} here",
-      "moving": "Moving it here…",
-      "climateOnly": "Only the climate",
-      "climateOnlyNever": "Only the climate · never ask again",
-      "noGrowToMove": "There is no other open grow to move here.",
       "onStage": "on {{stage}}",
       "measuring": "measuring only",
       "nothingYet": "nothing set yet",
@@ -3489,6 +3434,13 @@
       "text": "When the device goes offline or it gets too warm, an alarm goes off. Without a way set up, it does not reach you.",
       "reaches": "Critical alarms by {{channels}}",
       "none": "no way set up yet"
+    },
+    "grow": {
+      "step": "Set up {{device}} · step {{step}} of {{of}}",
+      "next": "what grows?",
+      "skip": "Not now",
+      "close": "Close the setup",
+      "move": "Or move a grow here"
     }
   },
   "admin": {
@@ -4107,15 +4059,11 @@
     },
     "follow": {
       "title": "Follow",
-      "text": "Puts this grow on your home for as long as it is public. The grower is not told who follows, and nothing is sent to you when it changes."
+      "text": "Keeps this grow under Me › Following for as long as it is public. The grower is not told who follows, and nothing is sent to you when it changes."
     },
     "compressor": {
       "title": "Compressor",
       "text": "In the fridge module one compressor both cools and dries: while it runs, temperature and humidity fall together. That is why it is listed under both readings – it is one machine, not two."
-    },
-    "dayCurve": {
-      "title": "The last 24 hours",
-      "text": "The small curve shows how the reading went over the last 24 hours. The grey stretch is the night, the green band the target range – at night the night target applies. Drying, germination and 24 or 0 h of light have no night, just one target round the clock. For the hour after each switch and after every change the band spans the targets from before and after, which is how long the climate is given to follow. Tapping the tile opens the Timeline."
     },
     "ppfd": {
       "title": "PPFD",
@@ -4128,10 +4076,6 @@
     "lux": {
       "title": "Light intensity",
       "text": "How bright it is at the light sensor, in lux. The curve shows when and how strongly the lamp shines. How much of it the plant can use is the PPFD, which is estimated from the lux."
-    },
-    "deviceOffer": {
-      "title": "Device or camera",
-      "text": "A controller or a fridge module measures temperature and humidity by itself, steers heating, light and fans, and tells you when something is wrong. A camera takes pictures for the diary and for timelapses. You add either through this line or under Me › Add a device or a camera. “No thanks” hides this line on all your devices."
     },
     "schemeWeek": {
       "title": "Scheme week",
@@ -4359,32 +4303,17 @@
   "cockpit": {
     "change": "Change",
     "menu": {
-      "label": "More about {{name}}",
-      "preset": "Choose a climate preset",
-      "newGrow": "Start a grow",
-      "moveGrow": "Move a grow here",
       "deviceHere": "Bring a device here",
       "members": "Invite members",
       "rename": "Rename",
-      "presetLine": "under Control · applies once saved",
-      "openGrow": "Open the grow",
-      "growDay": "{{name}} · day {{day}}",
-      "growTurnsOn": "turns the grow diary on",
-      "growWrites": "puts the targets on the stage",
-      "shareGrow": "Share the grow",
       "putInRoom": "Put in a room",
       "room": "Room",
       "remove": "Remove place"
     },
     "devices": {
-      "count_one": "{{count}} device",
-      "count_other": "{{count}} devices",
-      "open": "{{devices}} – open the devices",
       "waiting": "Reading the device …",
       "pick": "Which device",
-      "all": "All devices",
-      "title_one": "{{count}} device here",
-      "title_other": "{{count}} devices here"
+      "all": "All devices"
     },
     "status": {
       "good": "All on target",
@@ -4404,94 +4333,29 @@
       "temperature": "Temperature",
       "humidity": "Humidity",
       "light": "Light",
-      "co2": "CO₂",
-      "leaf": "Leaf & light"
+      "co2": "CO₂"
     },
     "tile": {
-      "target": {
-        "day": "Day target {{target}}",
-        "night": "Night target {{target}}",
-        "any": "Target {{target}}",
-        "drying": "Drying target {{target}}",
-        "germination": "Germination target {{target}}",
-        "gliding": {
-          "day": "Target now {{target}} · gliding to the day",
-          "night": "Target now {{target}} · gliding to the night"
-        },
-        "bySchedule": {
-          "day": "Day target by the schedule {{target}}",
-          "night": "Night target by the schedule {{target}}"
-        }
-      },
-      "noTarget": "no target",
-      "co2Night": "no target at night",
-      "noTargetBy": "no target · {{mode}}",
-      "humidifierHolds": "Humidifier target {{target}}",
-      "mode": {
-        "off": "control off",
-        "drying": "drying",
-        "germination": "germination",
-        "greenhouse": "greenhouse"
-      },
-      "switches": "switches at {{low}}–{{high}}",
       "high": "{{delta}} too high",
       "low": "{{delta}} too low",
-      "settling": "changing over until {{time}}",
-      "vpd": "VPD {{value}}",
-      "since": "since {{time}}",
-      "day": "24 h",
-      "hourMean": "1 h avg {{value}}",
-      "curveAlt": "{{metric}} over the last 24 hours",
-      "co2Dark": "no target without light"
+      "settling": "changing over until {{time}}"
     },
     "light": {
-      "on": "On",
       "off": "Off",
-      "window": "{{on}}–{{off}} · {{hours}} h",
-      "noWindow": "no schedule",
       "dark": {
         "off": "off · control off",
         "drying": "off · drying",
         "germination": "off · germination"
       },
-      "offAt": "off at {{time}}",
-      "onAt": "on at {{time}}",
-      "barAlt": "Light on from {{on}} to {{off}}",
-      "wasOn": "Was on",
-      "wasOff": "Was off",
       "always": "on round the clock · 24 h",
-      "never": "off round the clock · 0 h",
-      "dayUntil": "day until {{time}}",
-      "nightUntil": "night until {{time}}"
+      "never": "off round the clock · 0 h"
     },
     "leaf": {
-      "leaf": "Leaf temperature",
-      "cooler": "{{value}} °C cooler than the air",
-      "warmer": "{{value}} °C warmer than the air",
-      "same": "as warm as the air",
       "lux": "{{value}} lx",
       "ppfd": "PPFD {{value}}"
     },
-    "output": {
-      "compressor": "Compressor",
-      "heater": "Heater",
-      "dehumidifier": "Dehumidifier",
-      "co2": "CO₂ valve",
-      "socket": "Plantalytix Socket",
-      "humidifier": "Humidifier"
-    },
-    "outputs": {
-      "running": "running",
-      "runningSince": "running for {{age}}",
-      "off": "off",
-      "open": "open",
-      "closed": "closed"
-    },
     "camera": {
-      "open": "Open the camera",
-      "caption": "{{name}} · {{time}} · {{age}} ago",
       "none": "No picture yet",
-      "lightOff": "{{name}} · light off · picture from {{time}}",
       "delivers": "{{name}} delivers · picture {{age}} ago",
       "quietSince": "{{name}} not delivering · since {{time}}",
       "nothingYet": "{{name}} has not delivered a picture yet"
@@ -4503,52 +4367,17 @@
       "drying": "Drying",
       "germination": "Germination",
       "light": "Light",
-      "limit": "at most {{percent}} %",
       "none": "No targets yet.",
       "controlOff": "Control off: the device holds no targets right now.",
       "awaiting": "Waiting for the device's settings.",
-      "roundTheClock": "Round the clock",
-      "now": "now",
-      "bySchedule": "by the schedule"
-    },
-    "alarms": {
-      "title": "Alarms",
-      "none": "No alarm switched on yet.",
-      "above": "above {{value}}",
-      "below": "below {{value}}",
-      "outside": "below {{lower}} or above {{upper}}",
-      "resting": "{{line}} (rests during germination)",
-      "more": "+{{count}} more",
-      "reaches": "Critical alarms by {{channels}}",
-      "reachesNobody": "don't reach you · set up ›"
-    },
-    "grow": {
-      "title": "Grow",
-      "due": "Due",
-      "tasks": "All tasks",
-      "lastEntry": "{{what}} · {{age}} ago · {{who}}",
-      "lastEntryNow": "{{what}} · just now · {{who}}"
+      "roundTheClock": "Round the clock"
     },
     "latest": {
       "title": "Latest",
-      "more": "Timeline",
       "none": "Nothing has happened yet."
     },
     "card": {
-      "lightOn": "Light on",
-      "lightOff": "Light off",
-      "lightOnUntil": "Light on until {{time}}",
-      "lightOffUntil": "Light off until {{time}}",
-      "lightAlways": "Light on round the clock",
-      "lightNever": "Light off round the clock",
-      "lightLevel": "Light"
-    },
-    "mode": {
-      "drying": "Drying: no light and no CO₂; the drying temperature and humidity are held.",
-      "greenhouse": "Operating mode greenhouse: only the temperature is held, not the humidity.",
-      "germination": "Germination · dark: no light and no CO₂, one temperature round the clock.",
-      "germinationHumidified": "Germination · dark: no light and no CO₂, one temperature round the clock, and the humidifier holds {{humidity}} humidity.",
-      "change": "Change"
+      "lightOff": "Light off"
     },
     "visiting": "Support view of a customer's place: read only. Times are in your time zone."
   },
@@ -4591,7 +4420,6 @@
     "operatingModeAtDevice": "Operating mode under Devices",
     "lead": {
       "device": "What most growers never need. A change applies at once and is sent to the device.",
-      "place": "What most growers never need, for this place.",
       "charts": "Finer settings of the charts.",
       "camera": "What most growers never need. A change applies at once, and the camera is tried again straight away."
     },
@@ -5247,18 +5075,124 @@
     "back": "Back to sign-up"
   },
   "spoken": {
-    "hourMean": "average of the last hour {{value}}",
-    "noValue": "no value",
     "newest": "newest reading {{ago}}",
-    "lightWindow_one": "{{on}} to {{off}}, {{hours}} hour",
-    "lightWindow_other": "{{on}} to {{off}}, {{hours}} hours",
-    "camera": "{{name}}, picture from {{time}}, {{ago}}",
-    "minutes": "minutes",
-    "curve": "{{label}}: lowest {{low}}, highest {{high}}, {{trend}}",
-    "trend": {
-      "rising": "rising in the last hour",
-      "falling": "falling in the last hour",
-      "steady": "steady in the last hour"
+    "minutes": "minutes"
+  },
+  "start": {
+    "allGood": "All on target.",
+    "week": "week {{week}}",
+    "harvestIn_one": "Harvest in about {{count}} week",
+    "harvestIn_other": "Harvest in about {{count}} weeks",
+    "day": "Last 24 h",
+    "curve": "{{metric}} over the last 24 hours, between {{low}} and {{high}}",
+    "waiting": "Start is loading",
+    "addPlace": "Add a place",
+    "menu": {
+      "label": "Edit {{name}}"
+    },
+    "light": {
+      "onUntil": "on until {{time}}",
+      "offUntil": "off until {{time}}",
+      "always": "on round the clock",
+      "never": "off round the clock"
+    },
+    "card": {
+      "light": "Light {{level}}",
+      "good": "on target",
+      "check": "check"
+    },
+    "extra": {
+      "co2": "CO₂ {{value}}",
+      "leaf": "Leaf {{value}}"
+    },
+    "picture": {
+      "takenAt": "Picture from {{time}}",
+      "lightOff": "Light off · picture from {{time}}",
+      "last": "last picture {{time}}",
+      "stand": "As of {{time}} · {{age}} ago",
+      "open": "Open {{name}}",
+      "photoAlt": "The newest photo of {{name}}",
+      "openGrow": "Open the grow",
+      "yours": "your photo from {{day}}",
+      "photo": "photo from {{day}}"
+    },
+    "today": {
+      "title": "Today",
+      "enter": "Enter",
+      "confirm": "Confirm"
+    },
+    "latest": {
+      "diary": "Whole diary",
+      "pictures_one": "{{count}} picture",
+      "pictures_other": "{{count}} pictures"
+    },
+    "targets": {
+      "window": "{{on}} to {{off}}",
+      "limit": "limit {{percent}} %",
+      "whoChanges": "Whoever manages {{name}} can change them.",
+      "changeOffline": "Change targets and light",
+      "offlineNote": "Works now too. The device takes it over as soon as it is back online."
+    },
+    "grow": {
+      "title": "What grows in {{name}}?",
+      "text": "With a grow the app keeps the diary: climate, phases and your entries.",
+      "textPictured": "Then the app keeps the diary: a picture and the climate every day.",
+      "name": "Strain or name",
+      "since": "Since when?",
+      "today": "today",
+      "week": "for a week",
+      "date": "Pick a date"
+    },
+    "device": {
+      "title": "With a device it measures by itself here"
+    },
+    "empty": {
+      "title": "What do you start with?",
+      "deviceNote": "with the code on its display",
+      "grow": "Start a grow without a device",
+      "growNote": "A diary with photos, watering and feeding",
+      "demo": "Look at the demo",
+      "demoNote": "a place set up to look around in",
+      "invited": "I have an invitation",
+      "camera": "Add a camera without a controller",
+      "cameraNote": "an RTSP stream that shows a place"
+    },
+    "failed": {
+      "title": "No connection to the server",
+      "text": "Your devices keep regulating. The app shows readings again once the connection is back.",
+      "retry": "Try again",
+      "loadedToday": "Last loaded at {{time}}.",
+      "loadedOn": "Last loaded on {{time}}."
+    },
+    "offline": {
+      "title": "The device has not reported since {{time}}.",
+      "text": "It keeps regulating with the last targets. What stands below is the last there is.",
+      "help": "What you can do"
+    },
+    "demo": {
+      "says": "Demo · you are looking on, nothing can be changed",
+      "signUp": "Create an account"
+    },
+    "guest": {
+      "by": "by @{{handle}}",
+      "shared": "shared with you",
+      "may": {
+        "log": "you may log",
+        "manage": "you may steer"
+      }
+    },
+    "mode": {
+      "drying": "Drying",
+      "germination": "Germination · dark",
+      "germinationHumidified": "Germination · dark · humidifier holds {{humidity}}",
+      "greenhouse": "Greenhouse mode"
     }
+  },
+  "liveness": {
+    "ago": "{{age}} ago",
+    "since": "for {{age}}"
+  },
+  "age": {
+    "yesterday": "yesterday"
   }
 }

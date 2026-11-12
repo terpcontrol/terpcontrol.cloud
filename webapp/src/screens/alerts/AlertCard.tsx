@@ -1,4 +1,4 @@
-import { DateTime } from 'luxon';
+import { type DateTime } from 'luxon';
 import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -6,30 +6,25 @@ import { controlPath, devicesPath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useRemoveAlert } from '@/api/alerts';
-import { useDeviceCommand } from '@/api/commands';
 import type { Translate } from '@/i18n/i18n';
-import { maintenanceQuiet, maintenanceSpans, parkedLabel, parksAnything, VISIT_MINUTES } from '@/ui/maintenance';
+import { maintenanceQuiet } from '@/ui/maintenance';
 import { repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
-import { ageAttribute, deviceLiveness, isAhead, offlineLabel, silentSince, sinceLabel, spanLabel } from '@/ui/age';
+import { ageAttribute, isAhead, offlineLabel, silentSince, sinceLabel, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { Asking } from '@/ui/Asking';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { OfflineSteps } from '../home/OfflineHelp';
+import { OfflineSteps } from '@/ui/OfflineHelp';
 import { figure, targetFigure } from '@/ui/units';
 import { beganAt, crossedBound, deliveryOf, lastedLabel } from './inbox';
 import type { AlertNames } from './names';
 import { looseFigure, unbroken } from '@/ui/figures';
 import styles from './Alerts.module.css';
 import { deviceName } from '@/ui/naming';
-import { serverNow } from '@/api/clock';
 
 /** How long a silence from the card holds. */
 const SILENCE_SECONDS = 3600;
-
-/** The maintenance the card offers is a step-in, and the question and the receipt name all three of its spans. */
-const SPANS = maintenanceSpans(VISIT_MINUTES);
 
 interface AlertCardProps {
   alert: Alert;
@@ -51,8 +46,7 @@ interface AlertCardProps {
  * dated, because a night the tent ran hot is still worth reading in the morning.
  *
  * What can be done about it sits on the card: while it is open, silence the
- * rule, put the device into maintenance, open the timeline it happened in, or
- * edit the rule; once it is over, open the timeline or delete it. Nothing here claims a device heard a command;
+ * rule, open the timeline it happened in, or edit the rule; once it is over, open the timeline or delete it. Nothing here claims a device heard a command;
  * what the server answered is said underneath.
  */
 export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilence }: AlertCardProps) {
@@ -98,7 +92,7 @@ export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilen
       </div>
 
       {open && mayManage ? (
-        <OpenChips alert={alert} rule={rule} device={device} now={now} explainSilence={explainSilence} />
+        <OpenChips alert={alert} rule={rule} now={now} explainSilence={explainSilence} />
       ) : !open ? (
         <ClosedChips alert={alert} rule={rule} mayManage={mayManage} />
       ) : null}
@@ -451,49 +445,18 @@ function ClosedChips({ alert, rule, mayManage }: { alert: Alert; rule: AlarmRule
 /**
  * The chips on an open card. A camera that stopped delivering is looked at
  * rather than silenced, so it gets its own page instead of the rule's actions.
- *
- * Maintenance asks before it sends. It is not the quiet version of a silence:
- * where the hardware honours it, the device parks the loops it regulates with
- * as well, so for a quarter of an hour the tent is holding nothing, and a chip
- * that names a duration alone does not say that. The question stands in the
- * place the tap was, the way the plan's own moves ask theirs.
- *
- * What the question promises is read off the device the alert came from. Only a
- * controller and a fridge park anything; the other types have empty command
- * handlers and drop the order silently, so a fan was being told its heater, its
- * dehumidifier and its CO2 valve would stop - none of which it has. On that
- * hardware the fifteen minutes are the cloud's alone, and the question says so
- * rather than describing somebody else's tent.
+ * Maintenance is not started from here: it is the place's, on Start and with
+ * the device under Steuerung.
  */
-function OpenChips({
-  alert,
-  rule,
-  device,
-  now,
-  explainSilence,
-}: {
-  alert: Alert;
-  rule: AlarmRule | null;
-  device: Device | null;
-  now: DateTime;
-  explainSilence?: boolean;
-}) {
+function OpenChips({ alert, rule, now, explainSilence }: { alert: Alert; rule: AlarmRule | null; now: DateTime; explainSilence?: boolean }) {
   const { t } = useTranslation();
   // A chip that writes is drawn only where the alert names a device, so the empty id is never sent.
   const deviceId = alert.deviceId ?? '';
   const silence = useSilenceAlarmRule(deviceId);
   const unsilence = useUnsilenceAlarmRule(deviceId);
-  const maintenance = useDeviceCommand();
-  const [asking, setAsking] = useState(false);
   const silenced = rule !== null && isAhead(rule.silencedUntil, now);
-  // Whether the device is already being worked on, so the chip offers the way
-  // out of that rather than a second window on top of the one running.
-  // Against the clock as it is now, so a window just ended is not offered again until the next beat.
-  const parked = device !== null && maintenanceQuiet(device, DateTime.max(now, serverNow()))?.parked === true;
-  const busy = silence.isPending || unsilence.isPending || maintenance.isPending;
+  const busy = silence.isPending || unsilence.isPending;
   const camera = alert.kind === 'camera_stale';
-  // A device that is offline would hear neither the window nor its end.
-  const reachable = device !== null && deviceLiveness(device.state.lastSeenAt, now) !== 'offline';
 
   return (
     <>
@@ -514,21 +477,6 @@ function OpenChips({
           </button>
         ) : null}
         {explainSilence && !camera && rule && alert.deviceId ? <Help topic="silence" /> : null}
-        {/* The chip waits for the device's own row. What maintenance does here
-            is a different sentence on a controller and on a fan, so a card that
-            cannot yet say which would have to guess, and guessing is what put a
-            heater, a dehumidifier and a CO2 valve on a fan in the first place. */}
-        {!camera && device && reachable && alert.deviceId ? (
-          <button
-            type="button"
-            className={ui.chip}
-            disabled={busy}
-            aria-expanded={parked ? undefined : asking}
-            onClick={() => (parked ? maintenance.mutate({ deviceId, command: { kind: 'maintenance', forSeconds: 0 } }) : setAsking(!asking))}
-          >
-            {t(parked ? 'alerts.action.endMaintenance' : 'alerts.action.maintenance', { minutes: SPANS.minutes })}
-          </button>
-        ) : null}
         {alert.spaceId ? <TimelineChip spaceId={alert.spaceId} alert={alert} rule={rule} /> : null}
         {!camera && rule && alert.spaceId ? (
           <Link to={controlPath(alert.spaceId, 'alarms', { rule: rule.id })} className={ui.chip}>
@@ -536,50 +484,7 @@ function OpenChips({
           </Link>
         ) : null}
       </div>
-
-      {asking && device && reachable ? (
-        <Asking
-          note={maintenanceAsk(t, device)}
-          yes={t('alerts.maintenance.yes')}
-          busy={busy}
-          onYes={() =>
-            maintenance.mutate({ deviceId, command: { kind: 'maintenance', forSeconds: VISIT_MINUTES * 60 } }, { onSuccess: () => setAsking(false) })
-          }
-          onCancel={() => setAsking(false)}
-        />
-      ) : null}
-
-      {maintenance.data && device ? (
-        <p className={`mono ${styles.answer}`} role="status">
-          {maintenance.variables?.command.kind === 'maintenance' && maintenance.variables.command.forSeconds === 0
-            ? t('maintenance.ended')
-            : maintenanceReceipt(t, device, maintenance.data.deviceOnline)}
-        </p>
-      ) : null}
-      <Refused error={silence.error ?? unsilence.error ?? maintenance.error} />
+      <Refused error={silence.error ?? unsilence.error} />
     </>
   );
 }
-
-/**
- * What maintenance is about to do here, before it is asked for. A device that
- * parks something names what it parks; one whose firmware drops the order says
- * that instead of borrowing a controller's promise.
- */
-const maintenanceAsk = (t: Translate, device: Device): string => {
-  return parksAnything(device)
-    ? t('alerts.maintenance.ask', { ...SPANS, outputs: parkedLabel(t, device) })
-    : t('alerts.maintenance.askQuietOnly', SPANS);
-};
-
-/**
- * The receipt. Whether anybody was listening only matters where the device has
- * something to do about it: on hardware that drops the order, "the command
- * waits for it" would be a second thing that never happens, so that case is
- * answered the same way whether or not the device was there to hear it.
- */
-const maintenanceReceipt = (t: Translate, device: Device, online: boolean): string => {
-  if (!parksAnything(device)) return t('alerts.maintenance.sentQuietOnly', SPANS);
-
-  return online ? t('alerts.maintenance.sent', { ...SPANS, outputs: parkedLabel(t, device) }) : t('alerts.maintenance.unheard');
-};

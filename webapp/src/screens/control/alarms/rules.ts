@@ -86,8 +86,8 @@ const presetTitle = (watch: AlarmWatch): string | null => {
  *
  * Because the cloud's own rule is never titled from its name, the sheet does
  * not offer a field for one: a rule whose name no screen reads should not ask
- * anybody to type it. It is "Gerät offline" wherever it is shown - the
- * cockpit, Steuerung › Alarme and an alert - rather than the device's own name
+ * anybody to type it. It is "Gerät offline" wherever it is shown -
+ * Steuerung › Alarme and an alert - rather than the device's own name
  * here and the generic word there: a list of several devices' rules is headed
  * by each device's name already, and an alert names its device beside it.
  */
@@ -136,7 +136,7 @@ const HARDWARE_KEY: Record<Sensor, string> = { co2: 'co2', leaf: 'leaf_temp', li
 
 /**
  * Whether the device has the sensor. On a controller or a fridge CO2 is fitted
- * unless the device says it is not - the rule the cockpit's CO2 tile and the
+ * unless the device says it is not - the rule Start's CO₂ reading and the
  * targets' CO2 slider go by, so a fridge whose report says nothing about the
  * sensor but whose readings are on Start is offered "CO₂" here as well. The
  * leaf and light sensors, and a plug's CO2, are extras that are only there
@@ -235,7 +235,7 @@ export const boundsOf = (watch: AlarmWatch): { upper: string | null; lower: stri
  * "über 30 °C", "unter 16 °C", both with a dot between; an output watched for
  * running has no bound and answers nothing. In words rather than as "› 30" -
  * the same angle is the arrow every link on the page ends in, and the
- * templates and the cockpit already said "über".
+ * templates already said "über".
  */
 export const boundLabel = (t: Translate, watch: AlarmWatch): string => {
   const { upper, lower } = boundsOf(watch);

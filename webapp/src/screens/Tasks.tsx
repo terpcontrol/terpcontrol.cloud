@@ -2,7 +2,6 @@ import type { DateTime } from 'luxon';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AccessNeed, GrowOrSpaceRef, Reminder, Task } from '@fg2/shared-types/v1';
-import { useBackToPlace } from '@/app/places';
 import { useDevices } from '@/api/devices';
 import { useGrows } from '@/api/grows';
 import { useReminders } from '@/api/reminders';
@@ -77,19 +76,14 @@ export function Tasks() {
   return <List tasks={waiting.data.items} failedAt={waiting.isError ? waiting.dataUpdatedAt : null} now={now} />;
 }
 
-/**
- * The title, with the way back to the cockpit the list was opened from - its
- * grow block's "Alle Aufgaben" or the bell - since no tab of the bar is this
- * page's own.
- */
+/** The title, with the way back to Meldungen, whose door opens the list: no item of the bar is this page's own. */
 function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => void }) {
   const { t } = useTranslation();
-  const back = useBackToPlace();
 
   return (
     <header className={styles.head}>
       <div className={styles.titleRow}>
-        <BackLink to={back.to} label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')} />
+        <BackLink to="/alerts" label={t('shell.alerts')} />
         <h1>{t('tasks.title')}</h1>
       </div>
       {scope && onScope ? (

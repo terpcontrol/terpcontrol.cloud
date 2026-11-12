@@ -635,40 +635,21 @@
   },
   "home": {
     "entryRepeats": "{{count}}× seit {{since}}",
-    "empty": {
-      "title": "Noch nichts hier.",
-      "text": "Beide Türen führen zum selben Ziel: einem Ort mit Tagebuch und, wenn du einen hast, einem Controller.",
-      "following": "Folgst du jemandem? Öffne den geteilten Link und tippe auf Folgen; der Grow erscheint hier.",
-      "pastTitle": "Gerade läuft kein Grow.",
-      "pastText": "Deine bisherigen Grows stehen unter „Meine Grows“. Für den nächsten führen beide Türen zum selben Ziel: einem Ort mit Tagebuch und, wenn du einen hast, einem Controller."
-    },
     "demoEmpty": {
       "title": "Die Demo ist leer.",
       "text": "Eine Demo ist ein Grow, den jemand hier zum Anschauen hinterlegt hat, und in dieser liegt nichts. Deinem eigenen Konto fehlt nichts: Die Demo ist eine eigene Sitzung und enthält nur das, was diese Installation hineingelegt hat.",
-      "ownTitle": "Dein eigenes Konto",
-      "ownText": "Melde dich an, dann füllt sich diese Seite mit deinen Orten, ihren Tagebüchern und dem, was deine Controller melden.",
       "signIn": "Mit meinem eigenen Konto anmelden"
-    },
-    "startGrow": {
-      "title": "Grow starten",
-      "text": "Ein Tagebuch für Pflanzen überall: Balkon, Fensterbank, ein Zelt ohne Controller. Gerät später hinzufügen.",
-      "button": "Neuer Grow"
     },
     "addDevice": {
       "title": "Gerät hinzufügen",
-      "text": "Kühlschrankmodul, Controller, Lüfter oder Plantalytix Socket, auch mit Terp Cam – oder ein Licht. Der Claim-Code steht auf dem Display oder der Verpackung.",
       "scan": "QR scannen",
-      "code": "Claim-Code",
       "orScan": "oder scannen",
       "scanUnavailable": "Dieser Browser kann keine QR-Codes lesen; tipp den Code ein.",
       "scanDenied": "Die Kamera wurde nicht freigegeben — tipp den Code ein oder erlaube der Seite die Kamera.",
       "scanHint": "Halte die Kamera auf den QR-Code auf der Verpackung.",
-      "cancel": "Abbrechen",
-      "camera": "Eine Kamera ohne Controller (RTSP) hinzufügen"
+      "cancel": "Abbrechen"
     },
     "demo": {
-      "title": "Demo ausprobieren",
-      "text": "Ein abgeschlossener Grow mit drei Monaten Klima, Einträgen und Bildern. Nichts einzurichten. Es öffnet das geteilte Demo-Konto, diese Sitzung wird also aus deinem abgemeldet.",
       "confirm": "Demo öffnen · aus meinem abmelden",
       "stay": "In meinem Konto bleiben",
       "opening": "Demo wird geöffnet…",
@@ -778,38 +759,19 @@
       "noGrow": "Hier wächst noch nichts",
       "startGrow": "Grow starten",
       "moveGrow": "Grow hierher",
-      "noSensor": "Kein Sensor",
-      "addDevice": "Gerät hinzufügen"
+      "noSensor": "Kein Sensor"
     },
     "diary": {
-      "offer": "Grow-Tagebuch einschalten",
       "decline": "Nein danke"
     },
     "strip": {
-      "due": "Fällig",
       "done": "Erledigt",
       "today": "heute",
       "tomorrow": "morgen",
       "overdue_one": "{{count}} Tag überfällig",
       "overdue_other": "{{count}} T überfällig",
-      "following": "Folge ich",
       "inDays": "in {{count}} T",
       "dueSince": "seit {{time}} fällig"
-    },
-    "device": {
-      "offer": "Mit einem Sensor misst es hier von selbst"
-    },
-    "room": {
-      "row": "Raum anlegen",
-      "title": "Neuer Raum",
-      "name": "Name",
-      "namePlaceholder": "z. B. Anbauraum",
-      "places": "Was steht darin",
-      "inRoom": "{{name}} · in {{room}}",
-      "make_one": "Raum mit {{count}} Ort anlegen",
-      "make_other": "Raum mit {{count}} Orten anlegen",
-      "making": "Legt den Raum an …",
-      "note": "Ein Raum fasst Orte nur zusammen: Auf Start stehen sie unter seinem Namen, und jedes Gerät regelt, zeigt und pausiert weiter seinen eigenen Ort. Geräte, die zusammen ein Klima machen, holst du dagegen in einen Ort."
     }
   },
   "me": {
@@ -1025,7 +987,7 @@
       "count_one": "{{count}} Grow",
       "count_other": "{{count}} Grows",
       "none": "Du folgst noch niemandem. Folgen steht oben auf jedem öffentlichen Tagebuch.",
-      "note": "Ein abonnierter Grow ist die öffentliche Seite von jemand anderem: Du siehst, was jeder Fremde sieht, und er bleibt auf deiner Startseite, bis du nicht mehr folgst."
+      "note": "Ein abonnierter Grow ist die öffentliche Seite von jemand anderem: Du siehst, was jeder Fremde sieht, und er bleibt hier, bis du nicht mehr folgst."
     },
     "shareLinks": {
       "title": "Freigabelinks",
@@ -2749,7 +2711,8 @@
     },
     "actionChoose": "Wartung",
     "howLong": "Wie lange",
-    "minutes": "{{minutes}} Min"
+    "minutes": "{{minutes}} Min",
+    "actionShort": "Wartung · {{minutes}} Min"
   },
   "alarms": {
     "title": "Alarme",
@@ -3327,8 +3290,6 @@
     "action": {
       "silence": "1 Std stumm",
       "unsilence": "Wieder laut",
-      "maintenance": "Wartung · {{minutes}} Min",
-      "endMaintenance": "Wartung beenden",
       "timeline": "Verlauf öffnen",
       "editRule": "Regel bearbeiten",
       "checkCam": "Cam prüfen",
@@ -3336,14 +3297,6 @@
     },
     "remove": {
       "ask": "Die Meldung wird für alle gelöscht, mit denen du den Ort teilst. Ihre Zeile im Verlauf bleibt."
-    },
-    "maintenance": {
-      "sent": "Angefragt. Sobald es zuhört, stellt das Gerät {{outputs}} ab, und {{quiet}} Min lang wird auf ihm kein Alarm ausgelöst.",
-      "sentQuietOnly": "Angefragt. Dieses Gerät verwirft den Befehl, es stellt also nichts ab; trotzdem wird auf ihm {{quiet}} Min lang kein Alarm ausgelöst.",
-      "unheard": "Niemand hat zugehört: Das Gerät hat sich nicht gemeldet, der Befehl wartet auf es.",
-      "ask": "Der Wartungsmodus stoppt {{minutes}} Minuten lang {{outputs}}. Auf diesem Gerät wird {{quiet}} Minuten lang kein Alarm ausgelöst: das Fenster und {{settle}} Minuten mehr, während das Klima zurückkommt.",
-      "askQuietOnly": "Dieses Gerät kennt den Wartungsbefehl nicht, es stellt also nichts ab. Es hält hier nur jeden Alarm des Geräts zurück: das Fenster von {{minutes}} Minuten und {{settle}} Minuten mehr, zusammen {{quiet}}.",
-      "yes": "Wartung starten"
     },
     "nothing": "Nichts ist schiefgegangen.",
     "output": {
@@ -3415,7 +3368,8 @@
       "sockets_one": "{{count}} Steckdose",
       "sockets_other": "{{count}} Steckdosen",
       "camera": "Cam: {{name}}",
-      "noCamera": "keine"
+      "noCamera": "keine",
+      "rtsp": "Eine Kamera ohne Controller (RTSP) hinzufügen"
     },
     "place": {
       "next": "wo steht es?",
@@ -3446,7 +3400,7 @@
     "doing": {
       "next": "was macht es?",
       "title": "Was macht es gerade?",
-      "text": "Wähl eine Phase als Vorgabe oder „nur messen“ für reine Überwachung. Eine Vorgabe setzt das Klima und fragt dann, ob hier ein Grow startet.",
+      "text": "Wähl eine Phase als Vorgabe oder „nur messen“ für reine Überwachung. Eine Vorgabe setzt das Klima.",
       "pick": "Was dort gerade läuft",
       "measure": "nur messen",
       "measureNote": "Es wird nichts an den Controller geschrieben. Er meldet weiter, die Graphen füllen sich. Es sind keine Grenzwerte gesetzt — eine Phase hätte welche geschrieben; eigene legst du unter Steuerung › Alarme an.",
@@ -3458,15 +3412,6 @@
       "phaseWritten": "Ein Grow hier ist in {{stage}} übergegangen.",
       "noPhaseWritten": "Kein Grow ist in die Phase übergegangen; geschrieben wurde nur das Klima.",
       "noPhaseNoClimate": "Kein Grow ist in die Phase übergegangen, und es wurde kein Klima geschrieben.",
-      "question": "Hier wächst noch nichts. Das Klima wurde trotzdem geschrieben.",
-      "questionNothingWritten": "Hier wächst noch nichts, und kein Controller hier hat das Klima übernommen. Du kannst trotzdem entscheiden, was mit dem Grow passiert.",
-      "startGrow": "Hier einen Grow starten",
-      "moveGrowHere": "Einen Grow hierher umziehen",
-      "moveThisOne": "{{name}} hierher umziehen",
-      "moving": "Wird umgezogen…",
-      "climateOnly": "Nur das Klima",
-      "climateOnlyNever": "Nur das Klima · nicht mehr fragen",
-      "noGrowToMove": "Es gibt keinen anderen laufenden Grow, der hierher umziehen könnte.",
       "onStage": "auf {{stage}}",
       "measuring": "nur messen",
       "nothingYet": "noch nichts gesetzt",
@@ -3497,6 +3442,13 @@
       "text": "Geht das Gerät offline oder wird es zu warm, löst ein Alarm aus. Ohne eingerichteten Weg erreicht er dich nicht.",
       "reaches": "Kritische Alarme per {{channels}}",
       "none": "noch kein Weg eingerichtet"
+    },
+    "grow": {
+      "step": "{{device}} einrichten · Schritt {{step}} von {{of}}",
+      "next": "was wächst?",
+      "skip": "Jetzt nicht",
+      "close": "Einrichten schließen",
+      "move": "Oder einen Grow hierher umziehen"
     }
   },
   "admin": {
@@ -4115,15 +4067,11 @@
     },
     "follow": {
       "title": "Folgen",
-      "text": "Setzt diesen Grow auf deine Startseite, solange er öffentlich ist. Wer folgt, erfährt der Grower nicht, und bei Änderungen wird dir nichts geschickt."
+      "text": "Merkt diesen Grow unter Ich › Folge ich vor, solange er öffentlich ist. Wer folgt, erfährt der Grower nicht, und bei Änderungen wird dir nichts geschickt."
     },
     "compressor": {
       "title": "Kompressor",
       "text": "Im Kühlschrankmodul kühlt und entfeuchtet derselbe Kompressor: Läuft er, sinken Temperatur und Luftfeuchte zugleich. Deshalb steht er bei beiden Werten – es ist ein Gerät, nicht zwei."
-    },
-    "dayCurve": {
-      "title": "Die letzten 24 Stunden",
-      "text": "Die kleine Kurve zeigt, wie der Wert in den letzten 24 Stunden lief. Grau hinterlegt ist die Nacht, grün der Zielbereich – nachts gilt das Nachtziel. In der Trocknung, der Keimung und bei 24 oder 0 Std Licht gibt es keine Nacht, sondern ein Ziel rund um die Uhr. In der Stunde nach jedem Wechsel und nach jeder Änderung reicht das Band über die Ziele davor und danach, so lange hat das Klima Zeit zu folgen. Ein Tipp auf die Kachel öffnet den Verlauf."
     },
     "ppfd": {
       "title": "PPFD",
@@ -4136,10 +4084,6 @@
     "lux": {
       "title": "Lichtstärke",
       "text": "Wie hell es am Lichtsensor ist, in Lux. Die Kurve zeigt, wann und wie stark die Lampe leuchtet. Wie viel davon die Pflanze nutzen kann, sagt der PPFD-Wert, der aus den Lux geschätzt wird."
-    },
-    "deviceOffer": {
-      "title": "Gerät oder Kamera",
-      "text": "Ein Controller oder ein Kühlschrankmodul misst Temperatur und Luftfeuchte von selbst, regelt Heizung, Licht und Lüfter und meldet sich, wenn etwas nicht stimmt. Eine Kamera macht Bilder für Tagebuch und Zeitraffer. Beides fügst du über diese Zeile hinzu oder unter Ich › Gerät oder Kamera hinzufügen. „Nein danke“ blendet diese Zeile auf all deinen Geräten aus."
     },
     "schemeWeek": {
       "title": "Schema-Woche",
@@ -4367,32 +4311,17 @@
   "cockpit": {
     "change": "Ändern",
     "menu": {
-      "label": "Mehr zu {{name}}",
-      "preset": "Klima-Preset wählen",
-      "newGrow": "Grow starten",
-      "moveGrow": "Grow hierher holen",
       "deviceHere": "Gerät hierher holen",
       "members": "Mitglieder einladen",
       "rename": "Umbenennen",
-      "presetLine": "unter Steuerung · gilt erst nach Speichern",
-      "openGrow": "Grow öffnen",
-      "growDay": "{{name}} · Tag {{day}}",
-      "growTurnsOn": "schaltet das Tagebuch ein",
-      "growWrites": "setzt die Zielwerte der Phase",
-      "shareGrow": "Grow teilen",
       "putInRoom": "In einen Raum stellen",
       "room": "Raum",
       "remove": "Ort entfernen"
     },
     "devices": {
-      "count_one": "{{count}} Gerät",
-      "count_other": "{{count}} Geräte",
-      "open": "{{devices}} – Geräte öffnen",
       "waiting": "Gerät wird gelesen …",
       "pick": "Welches Gerät",
-      "all": "Alle Geräte",
-      "title_one": "{{count}} Gerät hier",
-      "title_other": "{{count}} Geräte hier"
+      "all": "Alle Geräte"
     },
     "status": {
       "good": "Alles im Ziel",
@@ -4412,94 +4341,29 @@
       "temperature": "Temperatur",
       "humidity": "Luftfeuchte",
       "light": "Licht",
-      "co2": "CO₂",
-      "leaf": "Blatt & Licht"
+      "co2": "CO₂"
     },
     "tile": {
-      "target": {
-        "day": "Tagesziel {{target}}",
-        "night": "Nachtziel {{target}}",
-        "any": "Ziel {{target}}",
-        "drying": "Trocknungsziel {{target}}",
-        "germination": "Keimungsziel {{target}}",
-        "gliding": {
-          "day": "Ziel gerade {{target}} · gleitet zum Tag",
-          "night": "Ziel gerade {{target}} · gleitet zur Nacht"
-        },
-        "bySchedule": {
-          "day": "Tagesziel laut Zeitplan {{target}}",
-          "night": "Nachtziel laut Zeitplan {{target}}"
-        }
-      },
-      "noTarget": "kein Ziel",
-      "co2Night": "nachts kein Ziel",
-      "noTargetBy": "kein Ziel · {{mode}}",
-      "humidifierHolds": "Befeuchterziel {{target}}",
-      "mode": {
-        "off": "Regelung aus",
-        "drying": "Trocknung",
-        "germination": "Keimung",
-        "greenhouse": "Gewächshaus"
-      },
-      "switches": "schaltet bei {{low}}–{{high}}",
       "high": "{{delta}} zu hoch",
       "low": "{{delta}} zu niedrig",
-      "settling": "im Übergang bis {{time}}",
-      "vpd": "VPD {{value}}",
-      "since": "seit {{time}}",
-      "day": "24 Std",
-      "hourMean": "Ø 1 Std {{value}}",
-      "curveAlt": "{{metric}} der letzten 24 Stunden",
-      "co2Dark": "ohne Licht kein Ziel"
+      "settling": "im Übergang bis {{time}}"
     },
     "light": {
-      "on": "An",
       "off": "Aus",
-      "window": "{{on}}–{{off}} · {{hours}} Std",
-      "noWindow": "kein Zeitplan",
       "dark": {
         "off": "aus · Regelung aus",
         "drying": "aus · Trocknung",
         "germination": "aus · Keimung"
       },
-      "offAt": "aus um {{time}}",
-      "onAt": "an um {{time}}",
-      "barAlt": "Licht an von {{on}} bis {{off}}",
-      "wasOn": "War an",
-      "wasOff": "War aus",
       "always": "durchgehend an · 24 Std",
-      "never": "durchgehend aus · 0 Std",
-      "dayUntil": "Tag bis {{time}}",
-      "nightUntil": "Nacht bis {{time}}"
+      "never": "durchgehend aus · 0 Std"
     },
     "leaf": {
-      "leaf": "Blatttemperatur",
-      "cooler": "{{value}} °C kühler als die Luft",
-      "warmer": "{{value}} °C wärmer als die Luft",
-      "same": "so warm wie die Luft",
       "lux": "{{value}} lx",
       "ppfd": "PPFD {{value}}"
     },
-    "output": {
-      "compressor": "Kompressor",
-      "heater": "Heizung",
-      "dehumidifier": "Entfeuchter",
-      "co2": "CO₂-Ventil",
-      "socket": "Plantalytix Socket",
-      "humidifier": "Befeuchter"
-    },
-    "outputs": {
-      "running": "läuft",
-      "runningSince": "läuft seit {{age}}",
-      "off": "aus",
-      "open": "offen",
-      "closed": "zu"
-    },
     "camera": {
-      "open": "Kamera öffnen",
-      "caption": "{{name}} · {{time}} · vor {{age}}",
       "none": "Noch kein Bild",
-      "lightOff": "{{name}} · Licht aus · Bild von {{time}}",
       "delivers": "{{name}} liefert · Bild vor {{age}}",
       "quietSince": "{{name}} liefert nicht · seit {{time}}",
       "nothingYet": "{{name}} hat noch kein Bild geliefert"
@@ -4511,52 +4375,17 @@
       "drying": "Trocknung",
       "germination": "Keimung",
       "light": "Licht",
-      "limit": "höchstens {{percent}} %",
       "none": "Noch keine Zielwerte.",
       "controlOff": "Regelung aus: Das Gerät hält gerade keine Zielwerte.",
       "awaiting": "Wartet auf die Einstellungen des Geräts.",
-      "roundTheClock": "Rund um die Uhr",
-      "now": "jetzt",
-      "bySchedule": "laut Zeitplan"
-    },
-    "alarms": {
-      "title": "Alarme",
-      "none": "Noch kein Alarm eingeschaltet.",
-      "above": "über {{value}}",
-      "below": "unter {{value}}",
-      "outside": "unter {{lower}} oder über {{upper}}",
-      "resting": "{{line}} (ruht in der Keimung)",
-      "more": "+{{count}} weitere",
-      "reaches": "Kritische Alarme per {{channels}}",
-      "reachesNobody": "erreichen dich nicht · einrichten ›"
-    },
-    "grow": {
-      "title": "Grow",
-      "due": "Fällig",
-      "tasks": "Alle Aufgaben",
-      "lastEntry": "{{what}} · vor {{age}} · {{who}}",
-      "lastEntryNow": "{{what}} · gerade eben · {{who}}"
+      "roundTheClock": "Rund um die Uhr"
     },
     "latest": {
       "title": "Zuletzt",
-      "more": "Verlauf",
       "none": "Noch nichts passiert."
     },
     "card": {
-      "lightOn": "Licht an",
-      "lightOff": "Licht aus",
-      "lightOnUntil": "Licht an bis {{time}}",
-      "lightOffUntil": "Licht aus bis {{time}}",
-      "lightAlways": "Licht durchgehend an",
-      "lightNever": "Licht durchgehend aus",
-      "lightLevel": "Licht"
-    },
-    "mode": {
-      "drying": "Trocknung läuft: kein Licht und kein CO₂, gehalten werden Temperatur und Luftfeuchte der Trocknung.",
-      "greenhouse": "Betriebsart Gewächshaus: Geregelt wird nur die Temperatur, die Luftfeuchte nicht.",
-      "germination": "Keimung · dunkel: kein Licht und kein CO₂, rund um die Uhr eine Temperatur.",
-      "germinationHumidified": "Keimung · dunkel: kein Licht und kein CO₂, rund um die Uhr eine Temperatur, und der Befeuchter hält {{humidity}} Luftfeuchte.",
-      "change": "Ändern"
+      "lightOff": "Licht aus"
     },
     "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone."
   },
@@ -4599,7 +4428,6 @@
     "operatingModeAtDevice": "Betriebsart unter Geräte",
     "lead": {
       "device": "Was die meisten nie brauchen. Eine Änderung gilt sofort und wird ans Gerät geschickt.",
-      "place": "Was die meisten nie brauchen, für diesen Ort.",
       "charts": "Feineinstellungen der Graphen.",
       "camera": "Was die meisten nie brauchen. Eine Änderung gilt sofort, und die Kamera wird gleich neu versucht."
     },
@@ -5255,18 +5083,124 @@
     "back": "Zurück zur Registrierung"
   },
   "spoken": {
-    "hourMean": "Mittel der letzten Stunde {{value}}",
-    "noValue": "kein Wert",
     "newest": "neuester Wert {{ago}}",
-    "lightWindow_one": "{{on}} bis {{off}} Uhr, {{hours}} Stunde",
-    "lightWindow_other": "{{on}} bis {{off}} Uhr, {{hours}} Stunden",
-    "camera": "{{name}}, Bild von {{time}} Uhr, {{ago}}",
-    "minutes": "Minuten",
-    "curve": "{{label}}: tiefster Wert {{low}}, höchster {{high}}, {{trend}}",
-    "trend": {
-      "rising": "in der letzten Stunde steigend",
-      "falling": "in der letzten Stunde fallend",
-      "steady": "in der letzten Stunde gleichbleibend"
+    "minutes": "Minuten"
+  },
+  "start": {
+    "allGood": "Alles im Ziel.",
+    "week": "Woche {{week}}",
+    "harvestIn_one": "Ernte in etwa {{count}} Woche",
+    "harvestIn_other": "Ernte in etwa {{count}} Wochen",
+    "day": "Letzte 24 Std",
+    "curve": "{{metric}} der letzten 24 Stunden, zwischen {{low}} und {{high}}",
+    "waiting": "Start lädt",
+    "addPlace": "Ort hinzufügen",
+    "menu": {
+      "label": "{{name}} bearbeiten"
+    },
+    "light": {
+      "onUntil": "an bis {{time}}",
+      "offUntil": "aus bis {{time}}",
+      "always": "durchgehend an",
+      "never": "durchgehend aus"
+    },
+    "card": {
+      "light": "Licht {{level}}",
+      "good": "im Ziel",
+      "check": "prüfen"
+    },
+    "extra": {
+      "co2": "CO₂ {{value}}",
+      "leaf": "Blatt {{value}}"
+    },
+    "picture": {
+      "takenAt": "Bild von {{time}}",
+      "lightOff": "Licht aus · Bild von {{time}}",
+      "last": "letztes Bild {{time}}",
+      "stand": "Stand {{time}} · vor {{age}}",
+      "open": "{{name}} öffnen",
+      "photoAlt": "Das neueste Foto von {{name}}",
+      "openGrow": "Grow öffnen",
+      "yours": "dein Foto von {{day}}",
+      "photo": "Foto von {{day}}"
+    },
+    "today": {
+      "title": "Heute",
+      "enter": "Eintragen",
+      "confirm": "Bestätigen"
+    },
+    "latest": {
+      "diary": "Ganzes Tagebuch",
+      "pictures_one": "{{count}} Bild",
+      "pictures_other": "{{count}} Bilder"
+    },
+    "targets": {
+      "window": "{{on}} bis {{off}}",
+      "limit": "Grenze {{percent}} %",
+      "whoChanges": "Ändern kann, wer {{name}} verwaltet.",
+      "changeOffline": "Zielwerte und Licht ändern",
+      "offlineNote": "Geht auch jetzt. Das Gerät übernimmt es, sobald es wieder online ist."
+    },
+    "grow": {
+      "title": "Was wächst in {{name}}?",
+      "text": "Mit einem Grow schreibt die App das Tagebuch mit: Klima, Phasen und deine Einträge.",
+      "textPictured": "Dann schreibt die App das Tagebuch mit: jeden Tag ein Bild und das Klima.",
+      "name": "Sorte oder Name",
+      "since": "Seit wann?",
+      "today": "heute",
+      "week": "seit einer Woche",
+      "date": "Datum wählen"
+    },
+    "device": {
+      "title": "Mit einem Gerät misst es hier von selbst"
+    },
+    "empty": {
+      "title": "Womit fängst du an?",
+      "deviceNote": "mit dem Code von seinem Display",
+      "grow": "Grow ohne Gerät starten",
+      "growNote": "Tagebuch mit Fotos, Gießen und Düngen",
+      "demo": "Demo ansehen",
+      "demoNote": "ein eingerichteter Ort zum Umsehen",
+      "invited": "Ich habe eine Einladung",
+      "camera": "Kamera ohne Controller hinzufügen",
+      "cameraNote": "ein RTSP-Stream, der einen Ort zeigt"
+    },
+    "failed": {
+      "title": "Keine Verbindung zum Server",
+      "text": "Deine Geräte regeln weiter. Die App zeigt erst wieder Werte, wenn die Verbindung steht.",
+      "retry": "Nochmal versuchen",
+      "loadedToday": "Zuletzt geladen um {{time}}.",
+      "loadedOn": "Zuletzt geladen am {{time}}."
+    },
+    "offline": {
+      "title": "Das Gerät meldet sich seit {{time}} nicht.",
+      "text": "Es regelt mit den letzten Zielwerten weiter. Was unten steht, ist der letzte Stand.",
+      "help": "Was du tun kannst"
+    },
+    "demo": {
+      "says": "Demo · du siehst zu, ändern geht nicht",
+      "signUp": "Konto anlegen"
+    },
+    "guest": {
+      "by": "von @{{handle}}",
+      "shared": "mit dir geteilt",
+      "may": {
+        "log": "du darfst eintragen",
+        "manage": "du darfst steuern"
+      }
+    },
+    "mode": {
+      "drying": "Trocknung läuft",
+      "germination": "Keimung · dunkel",
+      "germinationHumidified": "Keimung · dunkel · Befeuchter hält {{humidity}}",
+      "greenhouse": "Betriebsart Gewächshaus"
     }
+  },
+  "liveness": {
+    "ago": "vor {{age}}",
+    "since": "seit {{age}}"
+  },
+  "age": {
+    "yesterday": "gestern"
   }
 }

@@ -26,7 +26,7 @@ import styles from './SensorFactors.module.css';
 type Name = keyof typeof DEVICE_SETTING_RANGES;
 
 /**
- * The hardware whose VPD the cockpit tiles and the targets draw: a fridge and a
+ * The hardware whose VPD Start and the targets draw: a fridge and a
  * tent controller. A plug, a fan and a lamp measure the air too, but where they
  * stand beside one of those their VPD is not the one anybody reads.
  */

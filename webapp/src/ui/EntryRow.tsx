@@ -151,14 +151,11 @@ export function EntryRow({
   repeats = null,
   brief = false,
 }: EntryRowProps) {
-  const { t, i18n } = useTranslation();
-  const { user } = useSession();
+  const { t } = useTranslation();
   const own = useZone();
   const zone = given === undefined ? own : given;
   const Icon = KIND_ICON[entry.kind];
   const at = zoned(entry.occurredAt, zone);
-  const readings = 'readings' in entry.values ? entry.values.readings : [];
-  const detail = entryDetail(i18n, entry, { zone, at: entry.occurredAt });
   const [opened, setOpened] = useState<number | null>(null);
   /**
    * The pictures of this line this surface may actually show. A share link
@@ -169,49 +166,8 @@ export function EntryRow({
   const shown = entry.mediaIds.filter(mediaId => picture(mediaId, THUMBNAIL_WIDTH.strip) !== null);
   const frames = shown.map(mediaId => picture(mediaId, THUMBNAIL_WIDTH.frame) ?? '');
 
-  const byYou = entry.authorId === user?.id;
-  const doneBy = byline && entry.source === 'human' ? doneByOf(t, i18n, entry, byYou) : null;
-  const named = byline && entry.source === 'human' && (doneBy !== null || !byYou);
   const said = (
-    <>
-      {/* A device, the plan or an alarm is named by its mark; a person by
-          name - as the subject of what they did ("Du hast gegossen", "lea hat
-          gegossen"), or ahead of their own words as a speaker is ("lea: Untere
-          Blätter ausgelichtet"). Somebody's own words need no name: "du Untere
-          Blätter ausgelichtet" read as a sentence nobody would write. */}
-      {named ? (
-        <>
-          <span className={styles.author}>{byYou ? t('home.author.youLead') : authorOf(t, entry, people, user?.id)}</span>
-          {doneBy === null ? ': ' : ' '}
-        </>
-      ) : null}
-      {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
-      <span className={styles.headline}>{doneBy ?? headlineOf(t, i18n, entry)}</span>
-      {repeats && repeats.count > 1 ? (
-        <span className="mono">
-          {' · '}
-          {t('home.entryRepeats', { count: repeats.count, since: sinceOf(repeats.since, now, zone) })}
-        </span>
-      ) : null}
-      {readings.length > 0 ? (
-        <span className={`mono ${styles.readings}`}>
-          {readings.map(reading => {
-            const definition = measurements.find(one => one.key === reading.key) ?? ownReading(t, reading.key);
-            return (
-              <span key={`${reading.key}-${reading.plantId ?? ''}`}>
-                {' · '}
-                {definition?.name ?? reading.key} {looseFigure(reading.value)}
-                {definition?.unit ? ` ${definition.unit}` : ''}
-              </span>
-            );
-          })}
-        </span>
-      ) : null}
-      {/* What the machine's line said, under the kind of thing it was: the
-          reading an alarm tripped on, the settings a save changed, the reason
-          a device rebooted. */}
-      {detail === null || (brief && entry.kind !== 'alarm') ? null : <span className={styles.detail}>{detail}</span>}
-    </>
+    <EntryWords entry={entry} people={people} measurements={measurements} now={now} byline={byline} zone={zone} repeats={repeats} brief={brief} />
   );
 
   return (
@@ -278,6 +234,72 @@ export function EntryRow({
       </span>
       {opened === null || shown.length === 0 ? null : <PictureViewer pictures={frames} from={opened} onClose={() => setOpened(null)} />}
     </li>
+  );
+}
+
+/**
+ * What a line says, without the row around it: who did what, how often a
+ * machine repeated it, the readings and what the machine went on to explain.
+ * A surface that lays its row out itself - Start's last lines - draws these
+ * words, so a line reads the same wherever it is met.
+ */
+export function EntryWords({
+  entry,
+  people,
+  measurements = [],
+  now,
+  byline = true,
+  zone,
+  repeats = null,
+  brief = false,
+}: Pick<EntryRowProps, 'entry' | 'people' | 'measurements' | 'now' | 'byline' | 'repeats' | 'brief'> & { zone: string | null }) {
+  const { t, i18n } = useTranslation();
+  const { user } = useSession();
+  const readings = 'readings' in entry.values ? entry.values.readings : [];
+  const detail = entryDetail(i18n, entry, { zone, at: entry.occurredAt });
+  const byYou = entry.authorId === user?.id;
+  const doneBy = byline && entry.source === 'human' ? doneByOf(t, i18n, entry, byYou) : null;
+  const named = byline && entry.source === 'human' && (doneBy !== null || !byYou);
+  return (
+    <>
+      {/* A device, the plan or an alarm is named by its mark; a person by
+          name - as the subject of what they did ("Du hast gegossen", "lea hat
+          gegossen"), or ahead of their own words as a speaker is ("lea: Untere
+          Blätter ausgelichtet"). Somebody's own words need no name: "du Untere
+          Blätter ausgelichtet" read as a sentence nobody would write. */}
+      {named ? (
+        <>
+          <span className={styles.author}>{byYou ? t('home.author.youLead') : authorOf(t, entry, people, user?.id)}</span>
+          {doneBy === null ? ': ' : ' '}
+        </>
+      ) : null}
+      {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
+      <span className={styles.headline}>{doneBy ?? headlineOf(t, i18n, entry)}</span>
+      {repeats && repeats.count > 1 ? (
+        <span className="mono">
+          {' · '}
+          {t('home.entryRepeats', { count: repeats.count, since: sinceOf(repeats.since, now, zone) })}
+        </span>
+      ) : null}
+      {readings.length > 0 ? (
+        <span className={`mono ${styles.readings}`}>
+          {readings.map(reading => {
+            const definition = measurements.find(one => one.key === reading.key) ?? ownReading(t, reading.key);
+            return (
+              <span key={`${reading.key}-${reading.plantId ?? ''}`}>
+                {' · '}
+                {definition?.name ?? reading.key} {looseFigure(reading.value)}
+                {definition?.unit ? ` ${definition.unit}` : ''}
+              </span>
+            );
+          })}
+        </span>
+      ) : null}
+      {/* What the machine's line said, under the kind of thing it was: the
+          reading an alarm tripped on, the settings a save changed, the reason
+          a device rebooted. */}
+      {detail === null || (brief && entry.kind !== 'alarm') ? null : <span className={styles.detail}>{detail}</span>}
+    </>
   );
 }
 

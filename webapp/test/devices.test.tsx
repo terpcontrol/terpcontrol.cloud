@@ -736,6 +736,7 @@ describe('what the sockets offer, by who is reading', () => {
 });
 
 describe('what the Devices tab calls a device', () => {
+  /** A controller as the list reads it; what a test says of its state is laid over a state that is whole. */
   const standing = (over: Partial<Device>): Device =>
     ({
       id: 'device-aaaabbbb-c0ffee',
@@ -743,8 +744,8 @@ describe('what the Devices tab calls a device', () => {
       type: 'controller',
       spaceId: 'space-1',
       firmware: { channel: 'stable' },
-      state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: null },
       ...over,
+      state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: null, hardware: {}, ...over.state },
     }) as Device;
 
   const hanging = (over: Partial<Camera>): Camera =>
@@ -830,7 +831,7 @@ describe('what the Devices tab calls a device', () => {
     // clock the reader is sitting at rather than against a fixture's idea of now.
     const heard = DateTime.now().minus({ days: 4 }).toISO()!;
     const measured = DateTime.now().minus({ days: 3 }).toISO()!;
-    list.devices = [standing({ state: { lastSeenAt: heard, firmwareId: null } } as Partial<Device>)];
+    list.devices = [standing({ state: { lastSeenAt: heard, firmwareId: null, hardware: {} } } as Partial<Device>)];
     list.cameras = [];
     vi.mocked(api.get).mockImplementation((path: string) => {
       if (path === '/devices') return Promise.resolve({ items: list.devices, nextCursor: null }) as never;
@@ -1048,7 +1049,7 @@ describe('what the Devices tab calls a device', () => {
     await drawOpened(
       standing({
         firmware: { channel: 'manual', targetId: running.id },
-        state: { lastSeenAt: NOW.toISO()!, firmwareId: running.id },
+        state: { lastSeenAt: NOW.toISO()!, firmwareId: running.id, hardware: {} },
       } as Partial<Device>),
       () => Promise.resolve({ items: [running], nextCursor: null }),
       'Details of Controller',

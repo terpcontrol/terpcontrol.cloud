@@ -1,18 +1,12 @@
-import { ChevronRight } from 'lucide-react';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
-import type { GrowthStage, PresetApplication } from '@fg2/shared-types/v1';
+import type { GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset, GERMINATION_HUMIDITY, GERMINATION_TEMPERATURE, STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
-import { useApplyPreset } from '@/api/lifecycle';
-import { useSetPresetPrompt } from '@/api/spaces';
+import { type useApplyPreset } from '@/api/lifecycle';
 import { Refused } from '@/ui/PageState';
 import { stageChoiceName } from '@/ui/presets';
 import { Choice, Choices } from '@/ui/SheetParts';
-import { GrowPicker } from '@/screens/space/GrowPicker';
-import { useMovableGrows } from '@/screens/space/movable-grows';
 import { statesTargets } from '@/ui/climate-hardware';
 import ui from '@/ui/ui.module.css';
 import { offsetOf } from '@/ui/wall-clock';
@@ -35,11 +29,8 @@ import styles from './Claim.module.css';
  * server's own terms. `curing` is not offered because a jar is not steered; the
  * stages with a climate are the contract's list rather than a second copy of it.
  *
- * A tent with nothing growing in it is the ordinary case at this point in the
- * flow, so the server asks what to do about the grow and the same three answers
- * the tent page gives are given here. Starting one is a sheet of its own and is
- * linked to rather than imitated: it asks for a name and the plants, which is
- * more than this step knows.
+ * What grows here is not asked on this step: the flow ends with that question
+ * (`GrowStep`), where an answer starts the grow.
  *
  * The write is the step's own action and not the screen's, so it is drawn as
  * the lesser of the two: the green on this screen belongs to the button on the
@@ -60,10 +51,6 @@ export function DoingStep({
   apply: ReturnType<typeof useApplyPreset>;
 }) {
   const { t } = useTranslation();
-  // Which application's question has been answered, rather than a flag: a
-  // second stage applied here asks again, and the answer to the first one is
-  // not the answer to it.
-  const [answeredFor, setAnsweredFor] = useState<PresetApplication | null>(null);
   // What germination does about the humidity, asked as everywhere germination is set. The screen holds the
   // answer, because its own button carries the choice into the write as well.
   const controller = usePlaceController(spaceId);
@@ -76,7 +63,6 @@ export function DoingStep({
   // never sent its settings takes nothing, and the lines below then have no
   // climate write to report.
   const wrote = (applied?.deviceIds.length ?? 0) > 0;
-  const asking = applied?.growDecisionNeeded === true && answeredFor !== applied;
   const window = useWindowOf(spaceId, applied?.stage ?? stage);
   const wroteLine = applied ? (wrote ? t('claim.doing.wroteTo', { count: applied.deviceIds.length }) : t('claim.doing.wroteNothing')) : '';
   const phaseLine = applied?.phaseId
@@ -89,7 +75,7 @@ export function DoingStep({
           this one is always drawn and says nothing until a write has happened.
           What it reads is what the lines below say, so nothing is read twice. */}
       <p className={ui.visuallyHidden} role="status">
-        {applied ? [wroteLine, phaseLine, asking ? t(wrote ? 'claim.doing.question' : 'claim.doing.questionNothingWritten') : ''].join(' ') : ''}
+        {applied ? [wroteLine, phaseLine].join(' ') : ''}
       </p>
 
       <Choices label={t('claim.doing.pick')}>
@@ -147,16 +133,6 @@ export function DoingStep({
           <li>{phaseLine}</li>
         </ul>
       ) : null}
-
-      {applied && asking && spaceId ? (
-        <GrowQuestion
-          spaceId={spaceId}
-          stage={applied.stage}
-          decisions={applied.decisions}
-          wrote={wrote}
-          onAnswered={() => setAnsweredFor(applied)}
-        />
-      ) : null}
     </>
   );
 }
@@ -178,102 +154,3 @@ const useWindowOf = (spaceId: string | null, stage: GrowthStage | null): string 
   if (hours === null || !device?.configuration) return null;
   return scheduleTitle(t, { lightsOn: draftOf(device.configuration).lightsOn, lightHours: hours }, offsetOf(serverNow(), zone));
 };
-
-/**
- * What to do about the grow, once a stage has been applied to a tent with none
- * in it.
- *
- * "Only the climate" is answered here and not sent: the server does nothing
- * with that answer but stop asking, and sending it would write the same targets
- * to the same controller a second time for no reason. Beside it stands the
- * lasting form of the same answer, for the tent that will never hold a grow -
- * a fridge full of jars, a room somebody only watches - because a question that
- * can only ever be answered one way should be asked once.
- *
- * The question says what the application actually did rather than promising a
- * climate write: where no controller took the targets, claiming one had been
- * made would contradict the line directly above it.
- */
-function GrowQuestion({
-  spaceId,
-  stage,
-  decisions,
-  wrote,
-  onAnswered,
-}: {
-  spaceId: string;
-  stage: GrowthStage;
-  decisions: PresetApplication['decisions'];
-  wrote: boolean;
-  onAnswered: () => void;
-}) {
-  const { t } = useTranslation();
-  const apply = useApplyPreset(spaceId);
-  const prompt = useSetPresetPrompt(spaceId);
-  const movable = useMovableGrows(spaceId);
-  const [picking, setPicking] = useState(false);
-  const [growId, setGrowId] = useState<string | null>(null);
-
-  const moving = movable.items.find(grow => grow.id === growId) ?? null;
-
-  return (
-    <div className={styles.question}>
-      <p className={ui.note}>{t(wrote ? 'claim.doing.question' : 'claim.doing.questionNothingWritten')}</p>
-
-      {picking ? (
-        <>
-          {movable.items.length === 0 ? (
-            <p className={ui.note}>{t('claim.doing.noGrowToMove')}</p>
-          ) : (
-            <>
-              <GrowPicker grows={movable.items} chosen={growId} disabled={apply.isPending} onChoose={setGrowId} />
-              <button
-                type="button"
-                className={`${ui.button} ${styles.aside}`}
-                disabled={moving === null || apply.isPending}
-                onClick={() => moving && apply.mutate({ stage, decision: 'move_grow', growId: moving.id }, { onSuccess: onAnswered })}
-              >
-                {apply.isPending
-                  ? t('claim.doing.moving')
-                  : moving
-                    ? t('claim.doing.moveThisOne', { name: moving.name })
-                    : t('claim.doing.moveGrowHere')}
-              </button>
-            </>
-          )}
-          <Refused error={apply.error} />
-        </>
-      ) : (
-        <div className={styles.answers}>
-          {decisions.includes('start_grow') ? (
-            <Link className={ui.button} to={`/grows/new?space=${spaceId}&stage=${stage}`}>
-              {t('claim.doing.startGrow')}
-              <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
-            </Link>
-          ) : null}
-          {decisions.includes('move_grow') ? (
-            <button type="button" className={ui.button} onClick={() => setPicking(true)}>
-              {t('claim.doing.moveGrowHere')}
-            </button>
-          ) : null}
-          {decisions.includes('climate_only') ? (
-            <>
-              <button type="button" className={ui.button} onClick={onAnswered}>
-                {t('claim.doing.climateOnly')}
-              </button>
-              <button
-                type="button"
-                className={ui.button}
-                disabled={prompt.isPending}
-                onClick={() => prompt.mutate('never', { onSuccess: onAnswered })}
-              >
-                {t('claim.doing.climateOnlyNever')}
-              </button>
-            </>
-          ) : null}
-          <Refused error={prompt.error} />
-        </div>
-      )}
-    </div>
-  );
-}

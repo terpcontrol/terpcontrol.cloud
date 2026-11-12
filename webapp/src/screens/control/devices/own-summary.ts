@@ -13,9 +13,9 @@ import { targetWithUnit } from '@/ui/units';
 import { wallClock } from '@/ui/wall-clock';
 
 /**
- * What a smart socket is set to, in the few lines the cockpit's summary has:
- * what it switches by, and the points or the windows it switches at. The
- * cockpit says what is true and Steuerung is where it is changed, so this is
+ * What a smart socket is set to, in the few words the targets' row on Start has:
+ * what it switches by, and the points or the windows it switches at. Start
+ * says what is true and Steuerung is where it is changed, so this is
  * read from the device's own document and never drawn as a control.
  */
 
@@ -116,7 +116,7 @@ export const fanSummaryOf = (t: Translate, device: Device): SummaryRow[] | null 
 };
 
 /**
- * What the cockpit's first line says where nothing here holds targets but a
+ * What a place's status sentence says where nothing here holds targets but a
  * stand-alone module is set to something of its own: "no targets yet" would
  * send a socket's owner looking for a setting they have already made.
  */

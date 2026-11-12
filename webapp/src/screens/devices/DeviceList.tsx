@@ -49,7 +49,7 @@ import styles from './Devices.module.css';
  *
  * The Devices page is this with a header over it. `opened` names a place whose
  * devices are drawn open, which is what a link about that place - Steuerung's
- * row, the offline box on its cockpit - asks for: the row
+ * row, the offline box on its Start - asks for: the row
  * that says since when it has been quiet and what to try.
  */
 export function DeviceList({ opened = null }: { opened?: string | null }) {
@@ -93,7 +93,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
       return table ? lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null) !== null : false;
     })?.id ?? null;
   // How often an output came on today is counted per place, so the list asks
-  // each place it draws a row from - under the key the cockpit reads the same
+  // each place it draws a row from - under the key Start reads the same
   // overview by, so a place already looked at costs nothing more.
   const verdicts = useSpaceVerdicts([...new Set(mine.map(device => device.spaceId).filter((id): id is string => id !== null))]);
 

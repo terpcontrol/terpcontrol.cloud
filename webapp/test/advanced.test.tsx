@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Device } from '@fg2/shared-types/v1';
+import type { Camera, Device } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { AdvancedSection } from '@/ui/advanced/Advanced';
 import { fieldValue } from '@/ui/advanced/field-values';
@@ -48,25 +48,26 @@ describe('the registry', () => {
 
 describe('a section', () => {
   const ITEMS: AdvancedItem[] = [
-    advancedItem({ scope: 'place', id: 'second', order: 20, shows: () => true, Item: () => <p>second</p> }),
+    advancedItem({ scope: 'camera', id: 'second', order: 20, shows: () => true, Item: () => <p>second</p> }),
     advancedItem({
-      scope: 'place',
+      scope: 'camera',
       id: 'first',
       order: 10,
       shows: ({ devices }) => devices.length > 0,
-      Item: ({ spaceId }) => <p>first in {spaceId}</p>,
+      Item: ({ camera }) => <p>first of {camera.id}</p>,
     }),
     advancedItem({ scope: 'charts', id: 'elsewhere', order: 0, shows: () => true, Item: () => <p>elsewhere</p> }),
   ];
+  const camera = { id: 'camera-1' } as Camera;
 
   it('draws its items folded, in their order, with the context of its scope', () => {
-    drawAt(<AdvancedSection scope="place" context={{ spaceId: 'space-1', devices: [fridge()], mayManage: true }} items={ITEMS} />);
+    drawAt(<AdvancedSection scope="camera" context={{ camera, devices: [fridge()], mayManage: true }} items={ITEMS} />);
 
     const section = screen.getByText('Advanced').closest('details')!;
     expect(section).not.toHaveAttribute('open');
     expect([...section.querySelectorAll('p')].map(line => line.textContent)).toEqual([
-      'What most growers never need, for this place.',
-      'first in space-1',
+      'What most growers never need. A change applies at once, and the camera is tried again straight away.',
+      'first of camera-1',
       'second',
     ]);
     expect(screen.queryByText('elsewhere')).not.toBeInTheDocument();
@@ -74,11 +75,7 @@ describe('a section', () => {
 
   it('is not drawn at all where none of its items applies', () => {
     const { container } = drawAt(
-      <AdvancedSection
-        scope="place"
-        context={{ spaceId: 'space-1', devices: [], mayManage: true }}
-        items={ITEMS.filter(item => item.id === 'first')}
-      />,
+      <AdvancedSection scope="camera" context={{ camera, devices: [], mayManage: true }} items={ITEMS.filter(item => item.id === 'first')} />,
     );
 
     expect(container).toBeEmptyDOMElement();

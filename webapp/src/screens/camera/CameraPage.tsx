@@ -28,7 +28,7 @@ import { useNow } from '@/ui/useNow';
 import { CLOCK, DATED_CLOCK, WEEKDAY_DAY, zoned, zonedAt, zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
 import { deviceName } from '@/ui/naming';
-import { OfflineHelp } from '../home/OfflineHelp';
+import { OfflineHelp } from '@/ui/OfflineHelp';
 import { causeOf } from './capture-failure';
 import { at, frameAt, stampOf } from '../timeline/window';
 import { Slider } from '../timeline/CameraFrame';
@@ -185,7 +185,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   return (
     <section className={styles.page}>
       <header className={styles.header}>
-        {/* The camera belongs to the place it watches: the way back leads there, as the cockpit's picture led here. */}
+        {/* The camera belongs to the place it watches: the way back leads there, as Start's picture led here. */}
         <BackLink to={place ? placePath(place.id) : '/devices'} label={place?.name ?? t('devices.title')} />
         <h1 className={styles.name}>{called(camera.name)}</h1>
         <span className={ui.live} data-liveness={liveness}>

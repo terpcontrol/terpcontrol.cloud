@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import type { MetricValue, ValueState } from '@fg2/shared-types/v1';
 import { valueStateOfAge } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { serverNow } from '@/api/clock';
-import { CLOCK, DATED_CLOCK, nowThere, zoned } from './zone';
+import { CLOCK, DATED_CLOCK, DAY_IN_YEAR, nowThere, zoned } from './zone';
 
 /**
  * Every value on a screen carries its age: this puts that age into words, says
@@ -113,6 +113,18 @@ export const silentSince = (alert: { startedAt: string; value: number | null }):
 export const sinceLabel = (instant: string, now: DateTime, zone: string | null): string => {
   const at = zoned(instant, zone);
   return at.hasSame(nowThere(now, zone), 'day') ? at.toFormat(CLOCK) : at.toFormat(DATED_CLOCK);
+};
+
+/**
+ * When a line of a summary happened, in one short word: the hour today,
+ * "gestern", the weekday while that weekday means one day, the date beyond.
+ */
+export const dayStamp = (instant: string, now: DateTime, zone: string | null): string => {
+  const at = zoned(instant, zone);
+  const days = Math.floor(nowThere(now, zone).startOf('day').diff(at.startOf('day'), 'days').days);
+  if (days <= 0) return at.toFormat(CLOCK);
+  if (days === 1) return i18next.t('age.yesterday');
+  return at.toFormat(days < 7 ? 'cccc' : DAY_IN_YEAR);
 };
 
 /**

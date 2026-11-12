@@ -3,8 +3,7 @@ import type { Camera, Device, SocketPage } from '@fg2/shared-types/v1';
 
 /**
  * The items an Erweitert section offers, wherever one stands: per device in its
- * panel, per place at the foot of its cockpit, on the charts page and per
- * camera on its page.
+ * panel, on the charts page and per camera on its page.
  *
  * Erweitert is where what most growers never need goes - a work mode, a ramp, a
  * protocol - one collapsed section beside the thing it is about rather than one
@@ -34,15 +33,6 @@ export interface DeviceContext {
   sockets?: SocketPage;
 }
 
-/** What an item about one place is drawn with. */
-export interface PlaceContext {
-  spaceId: string;
-  /** Everything standing there. */
-  devices: Device[];
-  mayManage: boolean;
-}
-
-/** Which half of the cycle the VPD line keeps: both, or only the lit or only the dark one. */
 export const VPD_HALVES = ['all', 'day', 'night'] as const;
 export type VpdHalf = (typeof VPD_HALVES)[number];
 
@@ -81,7 +71,6 @@ export interface CameraContext {
 
 export interface AdvancedContexts {
   device: DeviceContext;
-  place: PlaceContext;
   charts: ChartsContext;
   camera: CameraContext;
 }

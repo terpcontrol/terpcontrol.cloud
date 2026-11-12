@@ -8,8 +8,8 @@ import { useVisiting } from './session-access';
  *
  * An account's own places are answered from its own device list. Support
  * reading a customer's place has none of the customer's devices in that list,
- * so a cockpit and a Steuerung drawn from it lost the lamp's tile, the outputs
- * under the readings, the alarms and the targets' light - the very things a
+ * so a Start and a Steuerung drawn from it lost the lamp, the alarms and the
+ * targets' light - the very things a
  * support case about a lamp or a compressor is about - and Steuerung invited
  * the administrator to add a device. There each device the place names is read
  * on its own, which an administrator may.

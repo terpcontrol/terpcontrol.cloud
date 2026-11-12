@@ -346,3 +346,15 @@
     max-width: var(--reading-width);
   }
 }
+
+/* Grow where nothing grows in the chosen place: the two ways to change that. */
+.nothingGrows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.growActions {
+  margin: 0;
+  font-size: var(--text-sm);
+}

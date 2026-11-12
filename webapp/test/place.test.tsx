@@ -4,7 +4,7 @@ import { Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, SpaceOverview } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
-import { PlacePage } from '@/screens/place/PlacePage';
+import { StartOfPlace } from '@/screens/start/Start';
 import { LogProvider } from '@/log/LogProvider';
 import { drawAt } from './harness';
 import { translate } from './translations';
@@ -67,12 +67,7 @@ vi.mock('@/api/spaces', async importOriginal => {
   };
 });
 
-/**
- * The tent's overview is one answer drawn as it came: values with their
- * targets and ages, what is due with a Done that says what it writes, what
- * grows here, today's stills, the day's verdict in the board's words, and the
- * latest lines.
- */
+/** A place as its overview answers it, for the two reads behind its Start. */
 
 const NOW = DateTime.fromISO('2026-09-18T12:00:00.000Z');
 const at = (secondsAgo: number) => NOW.minus({ seconds: secondsAgo }).toISO()!;
@@ -209,7 +204,7 @@ describe('a tent that is no longer shared with the reader', () => {
     drawAt(
       <LogProvider>
         <Routes>
-          <Route path="/spaces/:spaceId" element={<PlacePage />} />
+          <Route path="/spaces/:spaceId" element={<StartOfPlace />} />
         </Routes>
       </LogProvider>,
       { at: '/spaces/space-1' },
@@ -228,7 +223,7 @@ describe('a tent that is no longer shared with the reader', () => {
     read.error = new Error('network down');
     drawPage();
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Could not load. Try again.');
+    expect(screen.getByRole('alert')).toHaveTextContent('No connection to the server');
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 });
@@ -244,7 +239,7 @@ describe('the banner over a page that could not refresh', () => {
     drawAt(
       <LogProvider>
         <Routes>
-          <Route path="/spaces/:spaceId" element={<PlacePage />} />
+          <Route path="/spaces/:spaceId" element={<StartOfPlace />} />
         </Routes>
       </LogProvider>,
       { at: '/spaces/space-1' },

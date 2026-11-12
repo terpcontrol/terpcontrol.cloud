@@ -108,7 +108,7 @@
 }
 
 /*
- * Over a cockpit's readings: two rows rather than three, and the frame and its
+ * At the head of Start's cards: two rows rather than three, and the frame and its
  * gaps drawn tighter. The tap and the address it writes to share a row - the
  * address wraps beside the button rather than under it - so the first screen
  * keeps a tile it would otherwise give up to the notice.

@@ -50,34 +50,43 @@ interface TwoLinesProps {
 /**
  * "Maintenance" and what that means under it, or, while the devices are
  * parked, until when. It opens the question, where the length is chosen; it
- * never sends.
+ * never sends. `plain` is the one line Start draws it as: "Wartung · 15 Min".
  */
 export function MaintenanceButton({
   devices,
   now,
   disabled,
   className,
+  plain = false,
 }: {
   devices: Device[];
   now: DateTime;
   disabled?: boolean;
   className?: string;
+  plain?: boolean;
 }) {
   const { t } = useTranslation();
   const zone = useZone();
   const [asking, setAsking] = useState(false);
   const running = parkedQuiet(devices, DateTime.max(now, serverNow()));
+  const until = running ? t('maintenance.running', { until: clock(running.until, zone) }) : null;
 
   return (
     <>
-      <TwoLines
-        Icon={Wrench}
-        name={running ? t('maintenance.running', { until: clock(running.until, zone) }) : t('maintenance.actionChoose')}
-        does={t(running ? 'maintenance.runningNote' : 'maintenance.actionNote')}
-        disabled={disabled}
-        className={className}
-        onClick={() => setAsking(true)}
-      />
+      {plain ? (
+        <button type="button" className={className} disabled={disabled} onClick={() => setAsking(true)}>
+          {until ?? t('maintenance.actionShort', { minutes: VISIT_MINUTES })}
+        </button>
+      ) : (
+        <TwoLines
+          Icon={Wrench}
+          name={until ?? t('maintenance.actionChoose')}
+          does={t(running ? 'maintenance.runningNote' : 'maintenance.actionNote')}
+          disabled={disabled}
+          className={className}
+          onClick={() => setAsking(true)}
+        />
+      )}
       {asking ? <MaintenanceSheet devices={devices} now={now} onClose={() => setAsking(false)} /> : null}
     </>
   );
