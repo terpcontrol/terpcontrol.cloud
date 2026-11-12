@@ -145,6 +145,13 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     - the days of each stage in the head's bar;
     - strains and plant count in the head (the tab Pflanzen and the cards of "Alle Grows" have them);
     - the entry tiles' captions with the last value (the watering detail says when and how much the last was).
+    And four things went with the second grow form, since "Was wächst hier?" is the one form a grow starts with:
+    - several strains at creation (the tab Pflanzen names them afterwards);
+    - a feeding scheme at creation (the tab Düngung chooses one);
+    - making a new place in the form (a grow starts in a place that exists or without a fixed one);
+    - the autoflower choice at creation - it moved to the grow's menu, "Name und Art".
+    Germination's two humidity choices went with it too and come back into the form
+    ([ADR 0007](adr/0007-germination-in-the-dark.md), G2: they travel with every way germination is set).
     Also open: whether a day's camera picture outlives the camera's retention - today only a still that a diary
     line or a grow's cover names is spared.
 
