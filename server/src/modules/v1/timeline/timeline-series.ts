@@ -19,7 +19,7 @@ import { OUTPUT_LEVEL } from '@common/v1/metrics';
 import type { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import type { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import type { DeviceHistory, OutputHistory } from '@modules/data/data.service';
-import type { OutputSwitching } from '@modules/data/flux';
+import { MAX_SAMPLED_SECONDS, MIN_STEP_SECONDS, type OutputSwitching } from '@modules/data/flux';
 import { bandAround, halvesHeld, recordedBandAt, unionOf, type RecordedClimate } from '../device/held-targets';
 import { cyclesOf, type CycleStretch } from '../phase/target-record';
 
@@ -79,11 +79,18 @@ export const panelsOf = (
   series: DeviceSeries | null,
   stretches: readonly TargetStretch[],
   metrics: readonly Metric[] = PANEL_METRICS,
+  /** Whether the read asked for each window's lowest and highest (`SeriesRequest.extremes`). */
+  extremes = false,
 ): TimelinePanel[] =>
   metrics.flatMap(metric => {
     const points = series ? heardOf(series, metric) : [];
+    if (!series || !points.some(point => point.value !== null)) return [];
 
-    return points.some(point => point.value !== null) ? [{ metric, points, targets: targetsOf(metric, stretches) }] : [];
+    // Said outright, because the points cannot: a window of one figure carries no extremes either, and a
+    // screen has to know whether "lowest" is the lowest sample or the lowest mean.
+    const single = series.stepSeconds <= MIN_STEP_SECONDS;
+    const narrow = millis(series.endsAt) - millis(series.startsAt) <= MAX_SAMPLED_SECONDS * 1000;
+    return [{ metric, points, sampled: single || (extremes && (metric !== 'vpd' || narrow)), targets: targetsOf(metric, stretches) }];
   });
 
 /**

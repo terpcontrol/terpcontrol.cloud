@@ -27,7 +27,7 @@ import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
 import { lastReadingOf } from './last-reading';
 import { PANEL_METRICS, chartPartsOf, panelsOf } from './timeline-series';
-import { TimelineWindow, camerasOfDevice, narrowedToDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
+import { TimelineWindow, actingOn, camerasOfDevice, narrowedToDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
  * The Timeline tab, as one answer.
@@ -171,7 +171,8 @@ export class TimelineService {
     ]);
     const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant));
     const own = ownOf(devices, series);
-    const panels = panelsOf(own?.series ?? null, stretchesOf(grow, devices, window, at, aimed), metrics);
+    const panels = panelsOf(own?.series ?? null, stretchesOf(grow, devices, window, at, aimed), metrics, true);
+    const acting = new Set(actingOn(devices, own?.series.deviceId ?? null).map(device => device.id));
 
     return {
       spaceId: space.id,
@@ -183,7 +184,15 @@ export class TimelineService {
       dayTo: window.dayTo,
       startsAt: window.startsAt.toISOString(),
       endsAt: window.endsAt.toISOString(),
-      ...chartPartsOf({ histories: series, devices, window, redacted: isOutsider(grant), aimed, cameras, frames }),
+      ...chartPartsOf({
+        histories: series.filter(one => acting.has(one.series.deviceId)),
+        devices,
+        window,
+        redacted: isOutsider(grant),
+        aimed,
+        cameras,
+        frames,
+      }),
       // Which device the curves are of is the hardware in the tent, and a reader from outside is shown the tent.
       deviceId: isOutsider(grant) ? null : (own?.series.deviceId ?? null),
       panels,

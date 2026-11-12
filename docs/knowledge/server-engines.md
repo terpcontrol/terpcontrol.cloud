@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
 updated: 2026-11-12
-source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack)
+source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12)
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -147,7 +147,11 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   - or the one a reader asked for with `deviceId`; where nothing in the place holds targets, the first device
   that measured in the window (`ownOf`, `timeline-window.ts`). A tent's controller and a fridge module in one
   place are two climates, and their mean is a figure neither read. The answer names the device (`deviceId`,
-  null to a reader from outside); the lanes stay those of every device standing there.
+  null to a reader from outside). The lanes are that device's and those of whatever else in the place is no
+  climate of its own - a socket, a lamp, a fan (`actingOn`): another climate's compressor does not act on this
+  one's air. Each panel says whether its lowest and highest are of samples (`sampled`): the points cannot, since
+  a window of one figure carries no extremes either, and a screen has to know whether "low" is the lowest
+  sample or the lowest mean - which it is for VPD over more than three days.
 - **The state a window is found in holds from the window's start.** The switchings read stamps its opening
   state with the first grain a sample fell into, up to a grain after the window began; a night that began there
   left a sliver of day in a window of darkness (`stateStretches`). **A lane runs to the window's end only while

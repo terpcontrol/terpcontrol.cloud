@@ -217,6 +217,18 @@ export const ownOf = (devices: readonly StoredDevice[], histories: readonly Devi
 };
 
 /**
+ * The devices whose outputs stand under a device's curves: its own, and whatever
+ * else in the place is no climate of its own - a socket, a lamp, a fan. Another
+ * climate's heater does not act on this one's air: a fridge module standing in
+ * a tent's place has its compressor under its own curves, not the tent's.
+ */
+export const actingOn = (devices: readonly StoredDevice[], ownId: string | null): StoredDevice[] => {
+  const climates = new Set(climatesOf(devices.filter(device => targetsOf(device.configuration) !== null)).map(device => device.id));
+
+  return devices.filter(device => device.id === ownId || !climates.has(device.id));
+};
+
+/**
  * The stretches the bands are drawn over: the grow's own phases, clipped to the
  * window, and cut again wherever the steering device's record says its targets
  * moved.

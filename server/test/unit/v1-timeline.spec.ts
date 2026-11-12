@@ -681,6 +681,37 @@ describe('one climate of several', () => {
     expect((await readAs(session(OWNER), { range: '24h', deviceId: FRIDGE_MODULE })).deviceId).toBe(FRIDGE_MODULE);
   });
 
+  it('stands under a device`s curves its own outputs and not another climate`s: a fridge`s compressor is no part of the tent`s air', async () => {
+    reports = { ...reports, [FRIDGE_MODULE]: () => ({ metrics: { temperature: 18 }, outputs: { dehumidifier: 1 } }) };
+    const lanesOf = async (deviceId?: string) =>
+      (await readAs(session(OWNER), { range: '24h', ...(deviceId ? { deviceId } : {}) })).outputs.map(lane => lane.deviceId);
+
+    expect(new Set(await lanesOf())).toEqual(new Set([CONTROLLER]));
+    expect(new Set(await lanesOf(FRIDGE_MODULE))).toEqual(new Set([FRIDGE_MODULE]));
+    // Both still stand in the place, whichever is drawn.
+    expect((await readAs(session(OWNER), { range: '24h' })).deviceIds).toEqual(expect.arrayContaining([CONTROLLER, FRIDGE_MODULE]));
+  });
+
+  it('says whether a panel`s lowest and highest are of samples: all of them over a day, and not the deficit over a week', () => {
+    const read = (days: number, stepSeconds: number): DeviceSeries => ({
+      deviceId: CONTROLLER,
+      startsAt: new Date(NOW.getTime() - days * 24 * 3600_000).toISOString(),
+      endsAt: NOW.toISOString(),
+      stepSeconds,
+      metrics: (['humidity', 'vpd'] as const).map(metric => ({ metric, points: [{ measuredAt: NOW.toISOString(), value: 1 }] })),
+      outputs: [],
+    });
+    const sampled = (series: DeviceSeries, extremes?: boolean) =>
+      Object.fromEntries(panelsOf(series, [], ['humidity', 'vpd'], extremes).map(panel => [panel.metric, panel.sampled]));
+
+    expect(sampled(read(1, 180), true)).toEqual({ humidity: true, vpd: true });
+    // A week is too many samples to work out the deficit of each: its points are means and say so.
+    expect(sampled(read(7, 1260), true)).toEqual({ humidity: true, vpd: false });
+    // A read that asked for no extremes has none, and a window of one sample is its own.
+    expect(sampled(read(1, 180))).toEqual({ humidity: false, vpd: false });
+    expect(sampled(read(0.01, 5))).toEqual({ humidity: true, vpd: true });
+  });
+
   it('shows the camera of the controller it is paired to beside that climate only', async () => {
     expect((await readAs(session(OWNER), { range: '24h', deviceId: CONTROLLER })).cameras.map(camera => camera.cameraId)).toEqual([CAMERA]);
     expect((await readAs(session(OWNER), { range: '24h', deviceId: FRIDGE_MODULE })).cameras).toEqual([]);

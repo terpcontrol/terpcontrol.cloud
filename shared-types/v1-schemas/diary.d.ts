@@ -4764,6 +4764,7 @@ export declare const timelinePanel: z.ZodObject<{
         min: z.ZodOptional<z.ZodNumber>;
         max: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>>;
+    sampled: z.ZodOptional<z.ZodBoolean>;
     targets: z.ZodArray<z.ZodObject<{
         startsAt: z.ZodISODateTime;
         endsAt: z.ZodISODateTime;
@@ -4977,6 +4978,7 @@ export declare const spaceTimeline: z.ZodObject<{
             min: z.ZodOptional<z.ZodNumber>;
             max: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
+        sampled: z.ZodOptional<z.ZodBoolean>;
         targets: z.ZodArray<z.ZodObject<{
             startsAt: z.ZodISODateTime;
             endsAt: z.ZodISODateTime;
@@ -6530,6 +6532,7 @@ export declare const growSeries: z.ZodObject<{
             min: z.ZodOptional<z.ZodNumber>;
             max: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
+        sampled: z.ZodOptional<z.ZodBoolean>;
         targets: z.ZodArray<z.ZodObject<{
             startsAt: z.ZodISODateTime;
             endsAt: z.ZodISODateTime;
@@ -6658,6 +6661,7 @@ export declare const spaceSeries: z.ZodObject<{
             min: z.ZodOptional<z.ZodNumber>;
             max: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
+        sampled: z.ZodOptional<z.ZodBoolean>;
         targets: z.ZodArray<z.ZodObject<{
             startsAt: z.ZodISODateTime;
             endsAt: z.ZodISODateTime;

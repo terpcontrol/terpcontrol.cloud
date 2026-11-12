@@ -1270,6 +1270,10 @@ exports.timelineTargets = (0, common_js_1.named)('TimelineTargets', zod_1.z.obje
 exports.timelinePanel = (0, common_js_1.named)('TimelinePanel', zod_1.z.object({
     metric: common_js_1.metric,
     points: zod_1.z.array(common_js_1.seriesPoint),
+    sampled: zod_1.z
+        .boolean()
+        .optional()
+        .describe('Whether the lowest and highest of the points are of samples: `min`/`max` were read for each window, or a window is one sample. False where they were not - a read that asked for none, and VPD over a window too wide to work out the deficit of every sample - so the points are means and nothing more.'),
     targets: zod_1.z.array(exports.timelineTargets).describe('In order, each ending where the next begins; empty where nothing held a target over the window.'),
 }));
 /**

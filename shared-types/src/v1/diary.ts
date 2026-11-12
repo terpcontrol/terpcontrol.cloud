@@ -1664,6 +1664,12 @@ export const timelinePanel = named(
   z.object({
     metric: metric,
     points: z.array(seriesPoint),
+    sampled: z
+      .boolean()
+      .optional()
+      .describe(
+        'Whether the lowest and highest of the points are of samples: `min`/`max` were read for each window, or a window is one sample. False where they were not - a read that asked for none, and VPD over a window too wide to work out the deficit of every sample - so the points are means and nothing more.',
+      ),
     targets: z.array(timelineTargets).describe('In order, each ending where the next begins; empty where nothing held a target over the window.'),
   }),
 );
