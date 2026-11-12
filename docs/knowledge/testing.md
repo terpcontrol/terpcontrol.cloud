@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
-updated: 2026-10-23
-source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23)
+updated: 2026-11-12
+source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -162,6 +162,11 @@ hardware, the development devices and copies of production data are in
 - **Memory:** one VM of about 8 GB serves every stack. A restore's index build got mongod killed twice beside four
   stacks and orphaned Playwright browsers (~700 MB each). Before a restore or migration, stop the other stacks and
   close leftover browsers by their own PID - a broad `pkill` kills other agents' browsers. Close browsers in `finally`.
+- **Every `docker` command hangs without an error**, `docker ps` included, when Docker Desktop's engine has stopped
+  while its app keeps running: `docker desktop status` says `stopped`, and `docker desktop start` answers that it
+  is already running. `docker desktop restart` brings the engine back, and with it the containers of every stack
+  (found 2026-11-12). A stack script started meanwhile waits on its first `docker` call for good: stop it and run it
+  again.
 - **Pulls hang** when `docker-credential-desktop` waits on a keychain prompt; `DOCKER_CONFIG` pointing at a directory
   with a credential-free `config.json` gets builds going.
 - **RabbitMQ crash-loops with `failed_to_parse_configuration_file`:** its entrypoint edits the config inside the
