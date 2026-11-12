@@ -415,7 +415,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   while somebody reads them. The pill beside a place's name counts it instead, "offline · seit 42 Min", as it counts
   a live place's newest reading. A reading no longer live says "letzter Wert 10:19" instead of a verdict.
 - **One freshness clock per screen**: the pill at the head of what it dates ("live · vor 20 s" on a place,
-  `ui/LivenessPill.tsx`; a device and a camera keep theirs). The shell draws none. A place whose devices have
+  `ui/LivenessPill.tsx`; a device and a camera keep theirs, and a fleet screen's says how old its read is, "Stand
+  vor 20 s", `AdminHead` in `screens/admin/parts.tsx`). The shell draws none. A place whose devices have
   sent nothing yet is none of live, stale and offline: its pill says "wartet auf erste Werte".
 - **Countdowns round up and carry the unit** (59 min 30 s left is "1 Std"); elapsed ages floor (`ui/age.ts`).
 - **A reading is judged as written** (`asWritten`, `ui/units.ts`): against 21 ± 1 °C "1,0 zu hoch" is in target and

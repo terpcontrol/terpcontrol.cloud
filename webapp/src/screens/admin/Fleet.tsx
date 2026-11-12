@@ -91,7 +91,7 @@ export function Fleet() {
 
   return (
     <section className={styles.page}>
-      <AdminHead title={t('admin.fleet.title')}>
+      <AdminHead title={t('admin.fleet.title')} readAt={fleet.dataUpdatedAt}>
         <span className={`mono ${styles.counts}`}>
           {`${t('admin.count.devices', { count: counted })} · ${t('admin.count.online', { count: online })}`}
         </span>

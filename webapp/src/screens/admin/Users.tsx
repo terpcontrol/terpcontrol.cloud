@@ -64,7 +64,7 @@ export function Users() {
 
   return (
     <section className={styles.page}>
-      <AdminHead title={t('admin.users.title')}>
+      <AdminHead title={t('admin.users.title')} readAt={people.dataUpdatedAt}>
         <span className={`mono ${styles.counts}`}>
           {[
             t('admin.count.accounts', { count: all.length }),

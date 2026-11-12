@@ -48,7 +48,7 @@ export function FirmwareScreen() {
   useFollowCursor(firmwares);
   useFollowCursor(devices);
 
-  const header = <AdminHead title={t('admin.firmware.title')} crumb={t('admin.firmware.title')} />;
+  const header = <AdminHead title={t('admin.firmware.title')} crumb={t('admin.firmware.title')} readAt={firmwares.dataUpdatedAt} />;
 
   if (classes.isPending || firmwares.isPending) return <AdminNotLoaded head={header} />;
 

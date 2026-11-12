@@ -3662,7 +3662,8 @@
       "clockTime": "{{utc}} UTC",
       "clockTimeThere": "{{utc}} UTC · {{there}} for the customer",
       "open": "Open the place"
-    }
+    },
+    "asOf": "as of {{age}} ago"
   },
   "units": {
     "s": "s",

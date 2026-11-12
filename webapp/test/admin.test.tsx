@@ -340,6 +340,8 @@ describe('the fleet table', () => {
     // server said is online - never a count of the rows that happen to be here.
     expect(screen.getByText('4 devices · 1 online')).toBeInTheDocument();
     expect(screen.getByText(/showing 3 of 3 loaded · 4 devices on this install/)).toBeInTheDocument();
+    // Nothing else on the screen dates it: the pill beside the title says how old the read is.
+    expect(screen.getByText(/^as of \d+ s ago$/)).toBeInTheDocument();
   });
 
   it("follows the camera list past its first page, so a standalone cam on the second page is a row and the reader's own cams are counted whole", async () => {

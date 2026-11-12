@@ -3671,7 +3671,8 @@
       "clockTime": "{{utc}} UTC",
       "clockTimeThere": "{{utc}} UTC · {{there}} beim Kunden",
       "open": "Ort öffnen"
-    }
+    },
+    "asOf": "Stand vor {{age}}"
   },
   "units": {
     "s": "s",
