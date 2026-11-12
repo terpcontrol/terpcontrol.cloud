@@ -115,6 +115,12 @@ export const fanSummaryOf = (t: Translate, device: Device): SummaryRow[] | null 
   ];
 };
 
+/** "Fest", "Tagsüber 70 %", "Nachts 40 %": what an AIR fan's speed follows and, fixed, how fast it runs - for the row that leads to where it is set. */
+export const fanFactsOf = (t: Translate, device: Device): string[] => {
+  const mode = fieldValue(device, 'fanMode');
+  return typeof mode === 'string' ? [t(`fanSettings.mode.${mode}`), ...(fanSummaryOf(t, device)?.[1]?.parts ?? [])] : [];
+};
+
 /**
  * What a place's status sentence says where nothing here holds targets but a
  * stand-alone module is set to something of its own: "no targets yet" would

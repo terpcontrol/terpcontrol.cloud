@@ -16,7 +16,7 @@ import { choicesOf } from '../germination/germination-choices';
 import { hoursWritten } from '../targets/schedule-words';
 import { shapeOf, type Shape } from '../targets/day-night';
 import { prefilled, presetOf, type TargetsDraft } from '../targets/targets-draft';
-import { figureName, figureText, movedFields, spellChangeOf } from './figures';
+import { FIGURES, figureName, figureText, movedFields, spellChangeOf } from './figures';
 import styles from './Climate.module.css';
 
 /**
@@ -24,6 +24,11 @@ import styles from './Climate.module.css';
  * each figure it moves, from what to what - and whether it starts or ends a
  * drying spell or a germination, all before "Übernehmen" writes it. A preset
  * moves the targets and nothing else; the grow's phase is moved in the grow.
+ *
+ * This is the one place a device is put into germination or drying, and taken
+ * out of them: the work mode follows the stage. While a device germinates,
+ * what germination does about the humidity is changed here too, without
+ * taking the preset again.
  */
 export function PresetSheet({
   device,
@@ -48,7 +53,8 @@ export function PresetSheet({
   pauses: (next: TargetsDraft, chip: ClimateChoice, choices?: ChoiceValues) => string | null;
   busy: boolean;
   error: Error | null;
-  onSave: (next: TargetsDraft, chip: ClimateChoice, choices?: ChoiceValues) => Promise<boolean>;
+  /** `label` is what the toast says was saved. */
+  onSave: (next: TargetsDraft, chip: ClimateChoice, choices: ChoiceValues | undefined, label: string) => Promise<boolean>;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -69,18 +75,26 @@ export function PresetSheet({
     ? shapeOf(device, next, { drying: picked.stage === 'drying', germination: germinates, humidified: humidifier && choices.humidifierHolds })
     : shape;
   // A tent without a CO2 sensor has no CO2 to set, and a fan no lamp: what the preset says of them is not a change here.
+  // A spell holds the night's figures round the clock, so the day's are not named beside them under the same words.
+  const spell = after.regime === 'drying' || after.regime === 'germination';
   const moved = movedFields(next, baseline).filter(
-    field => (field !== 'co2' || hasCo2) && (device.type !== 'fan' || (field !== 'co2' && field !== 'lightLimit')),
+    field =>
+      (field !== 'co2' || hasCo2) &&
+      (device.type !== 'fan' || (field !== 'co2' && field !== 'lightLimit')) &&
+      !(spell && FIGURES[field].half === 'day' && field !== 'co2'),
   );
   const hours = next.lightHours !== baseline.lightHours && device.type !== 'fan';
-  const sets = picked !== null && (moved.length > 0 || hours || drying !== null || germination !== null || changes !== null);
   const said = germinates && changes !== null ? choices : undefined;
-  const paused = picked && sets ? pauses(next, picked, said) : null;
+  const sets = (picked !== null && (moved.length > 0 || hours || drying !== null || germination !== null)) || said !== undefined;
+  // Unpicked, the choices of a germination that runs are saved with the stage it is in.
+  const chip = picked ?? CLIMATE_CHOICES.find(one => one.stage === 'germination') ?? null;
+  const paused = chip && sets ? pauses(next, chip, said) : null;
 
   const save = async () => {
-    if (!picked) return;
+    if (!chip) return;
     setAsked(true);
-    if (await onSave(next, picked, said)) onClose();
+    const label = picked ? t('control.preset.taken', { name: climateChoiceName(t, picked) }) : t('germinationChoices.label');
+    if (await onSave(next, chip, said, label)) onClose();
   };
 
   return (
@@ -140,7 +154,7 @@ export function PresetSheet({
           </p>
         ) : null}
         {/* Germination regulates no humidity of its own; what it does about it is the grower's to say. */}
-        {picked && germinates ? (
+        {germinates ? (
           <GerminationChoices
             value={choices}
             onChange={change => setChanges({ ...(changes ?? {}), ...change })}

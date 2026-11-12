@@ -275,7 +275,7 @@ describe('what Steuerung offers, by who is reading', () => {
   it('gives whoever steers the place each figure as a button, the rows, and the way to add a device', async () => {
     drawTab();
 
-    expect(await screen.findByRole('button', { name: /^Change Day temperature, 25 °C/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Change Day temperature, 25.0 °C/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Alarms/ })).toHaveAttribute('href', '/control/alarms?space=space-1');
     expect(screen.getByRole('link', { name: /^Grow plan/ })).toHaveAttribute('href', '/control/plan?space=space-1');
     expect(screen.getByRole('button', { name: '+ Add a device or a camera' })).toBeInTheDocument();
@@ -287,9 +287,11 @@ describe('what Steuerung offers, by who is reading', () => {
     state.devices = [theirs()];
     drawTab();
 
-    expect(await screen.findByRole('table', { name: 'Targets' })).toHaveTextContent('25 °C');
+    expect(await screen.findByRole('table', { name: 'Targets' })).toHaveTextContent('25.0 °C');
     expect(screen.getAllByText(/You may log in this place, not steer it/)).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: /^Change|^Preset|the light limit$|Maintenance|Restart|Add a device/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^Change|^Climate preset|the light limit$|Maintenance|Restart|Add a device/ }),
+    ).not.toBeInTheDocument();
     // The pages behind the rows still open: what the tent is set to is worth reading.
     expect(screen.getByRole('link', { name: /^Alarms/ })).toBeInTheDocument();
   });
@@ -340,11 +342,12 @@ describe('what Steuerung opens on, and the rows under the climate', () => {
     expect(screen.queryByText('No plan yet.')).not.toBeInTheDocument();
   });
 
-  it('names a paused plan in its row, in the colour of what needs a person, with the way on beside the figures', async () => {
+  it('names a paused plan in its row, in the colour of what needs a person, and leaves continuing it to the plan page', async () => {
     state.plan = plan({}, { status: 'paused' });
     drawTab();
 
-    expect(await screen.findByRole('button', { name: 'Resume plan' })).toBeInTheDocument();
+    expect(await screen.findByRole('table', { name: 'Targets' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Resume plan' })).not.toBeInTheDocument();
     const line = within(screen.getByRole('link', { name: /^Grow plan/ })).getByText(/paused/i);
     expect(line.closest('[data-tone="warn"]')).not.toBeNull();
   });
@@ -373,7 +376,7 @@ describe('what Steuerung opens on, and the rows under the climate', () => {
     state.devices = [{ ...device(), id: 'device-2', type: 'light', name: 'Bar light', configuration: { day: 68400, night: 25200, limit: 65 } }];
     drawTab();
 
-    expect(await screen.findByLabelText('Light on at')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Light' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Alarms/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^Grow plan/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^Operating mode/ })).not.toBeInTheDocument();
@@ -449,7 +452,7 @@ describe('what a row says about the page behind it', () => {
 
   it('says the mode that runs and what else its page offers', () => {
     const fridge = { ...device(), type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } } as Device;
-    expect(modeLine(t, fridge)).toEqual({ text: 'Standard · also Greenhouse, Germination, Drying, Energy saving', warn: false });
+    expect(modeLine(t, fridge)).toEqual({ text: 'Standard · also Greenhouse, Energy saving', warn: false });
     expect(modeLine(t, { ...fridge, control: { ...fridge.control!, drying: true } }).warn).toBe(true);
   });
 });

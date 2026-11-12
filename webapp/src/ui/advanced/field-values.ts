@@ -1,5 +1,11 @@
 import type { Device } from '@fg2/shared-types/v1';
-import { configurationFieldsOf, nestedAt, workModeOf, type TimerWindow } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import {
+  configurationFieldsOf,
+  nestedAt,
+  workModeOf,
+  type ConfigurationField,
+  type TimerWindow,
+} from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 
 export type FieldValue = number | boolean | string | TimerWindow[];
 
@@ -19,12 +25,30 @@ export const fieldValue = (device: Device, name: string): FieldValue | null => {
     return name === 'energySaving' ? control.energySaving : name === 'mode' ? workModeOf(control) : null;
   }
 
-  const value = nestedAt(device.configuration, field.path);
+  return settingOf(field, nestedAt(device.configuration, field.path));
+};
+
+/** A value of a device's document as its setting reads it. */
+const settingOf = (field: ConfigurationField, value: unknown): FieldValue | null => {
   if (field.kind === 'switch') return typeof value === 'number' ? value > 0 : typeof value === 'boolean' ? value : null;
   if (field.kind === 'windows') return Array.isArray(value) ? value.filter(isWindow).map(({ ontime, duration }) => ({ ontime, duration })) : null;
   // A choice the firmware keeps as a number is read back as the word for it.
   if (field.kind === 'choice' && field.codes) return typeof value === 'number' ? (field.options[field.codes.indexOf(value)] ?? null) : null;
   return typeof value === 'number' || typeof value === 'string' ? value : null;
+};
+
+/**
+ * What a silent device was last handed for a setting, read as the setting is:
+ * the server says it as the diary line of the change wrote it - a figure, a
+ * word, or anything else as JSON. Null where it says none.
+ */
+export const heldSetting = (field: ConfigurationField, held: number | string | null): FieldValue | null => {
+  if (typeof held !== 'string') return held === null ? null : settingOf(field, held);
+  try {
+    return settingOf(field, JSON.parse(held));
+  } catch {
+    return settingOf(field, held);
+  }
 };
 
 const isWindow = (value: unknown): value is TimerWindow =>

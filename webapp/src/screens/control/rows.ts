@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
 import type { AlarmRule, Device, PendingSetting, Plan, SocketPage } from '@fg2/shared-types/v1';
 import type { OutputLevel } from '@/api/devices';
-import { configurationFieldsOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { configurationFieldsOf, workModesOf, type WorkMode } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import type { Translate } from '@/i18n/i18n';
 import { isLightRole, lightOutputOf } from '@/screens/devices/lights';
 import { socketName, socketState } from '@/screens/devices/socket-words';
@@ -22,8 +22,18 @@ export interface RowLine {
   warn?: boolean;
 }
 
-/** Whether a device has a work mode to choose, which is what the row "Betriebsart" and its page are drawn for. */
-export const hasMode = (device: Device): boolean => configurationFieldsOf(device.type).mode !== undefined && Boolean(device.control);
+/**
+ * The work modes a person picks on Betriebsart: the ones no climate preset sets. Germination and drying follow the
+ * stage, so they are chosen with the preset and only read here.
+ */
+export const modesOf = (device: Device): readonly WorkMode[] => workModesOf(device.type).filter(mode => mode !== 'germination' && mode !== 'drying');
+
+/**
+ * Whether Betriebsart has anything to choose for a device - a second mode, or a fridge's energy saving - which is
+ * what its row and its page are drawn for.
+ */
+export const hasMode = (device: Device): boolean =>
+  Boolean(device.control) && (modesOf(device).length > 1 || configurationFieldsOf(device.type).energySaving !== undefined);
 
 /** "Normal", "Trocknung", "Keimung · dunkel": the mode the device runs. */
 const modeWord = (t: Translate, device: Device): string =>
@@ -101,12 +111,14 @@ export const outputsLine = (t: Translate, all: Outputs[], now: DateTime, stand: 
   };
 };
 
-/** "Normal · auch Keimung, Trocknung, Energiesparen": the mode that runs, and what else the page offers. */
+/** "Standard · auch Gewächshaus, Energiesparen": the mode that runs and what else the page offers - or that the climate preset set it. */
 export const modeLine = (t: Translate, device: Device): RowLine => {
-  const field = configurationFieldsOf(device.type).mode;
   const running = device.control?.drying ? 'drying' : (device.control?.mode ?? 'standard');
-  const others = (field?.kind === 'choice' ? field.options : []).filter(mode => mode !== running).map(mode => t(`control.rows.mode.${mode}`));
-  if (device.type === 'fridge') others.push(t('control.rows.mode.energySaving'));
+  if (running === 'drying' || running === 'germination') return { text: `${modeWord(t, device)} · ${t('operatingMode.byPreset')}`, warn: true };
+  const others = modesOf(device)
+    .filter(mode => mode !== running)
+    .map(mode => t(`control.rows.mode.${mode}`));
+  if (configurationFieldsOf(device.type).energySaving) others.push(t('control.rows.mode.energySaving'));
 
   return {
     text: others.length > 0 ? t('control.rows.modeAlso', { mode: modeWord(t, device), others: others.join(', ') }) : modeWord(t, device),

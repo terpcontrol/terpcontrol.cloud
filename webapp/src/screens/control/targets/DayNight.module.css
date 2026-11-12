@@ -263,6 +263,13 @@
   box-shadow: inset 0 0 0 1px var(--brand);
 }
 
+/* Stored, and not yet with the device: the amber of every setting it has not been handed. */
+.stepper[data-pending] {
+  background: var(--warning-wash);
+  border-color: var(--warning-edge);
+  box-shadow: inset 0 0 0 1px var(--warning-edge);
+}
+
 .stepButton {
   display: grid;
   place-items: center;

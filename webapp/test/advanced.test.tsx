@@ -1,20 +1,24 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device } from '@fg2/shared-types/v1';
+import { configurationFieldsOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { api } from '@/api/client';
+import { useSettings } from '@/screens/control/climate/saved';
+import { ChoiceSetting, NumberSetting, SettingsBlock, SwitchSetting } from '@/screens/control/devices/Settings';
 import { AdvancedSection } from '@/ui/advanced/Advanced';
-import { fieldValue } from '@/ui/advanced/field-values';
-import { FieldNumber, FieldSwitch } from '@/ui/advanced/Fields';
+import { fieldValue, heldSetting } from '@/ui/advanced/field-values';
 import { advancedItem, type AdvancedItem } from '@/ui/advanced/item';
 import { itemsFor } from '@/ui/advanced/registry';
 import { drawAt } from './harness';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
  * The Erweitert sections and what goes into them: an item is a file of its
  * own that the registry finds, a section with nothing to offer is not drawn,
- * and the controls an item is made of read a setting by the name the device's
- * type gives it and write it on the tap.
+ * and the lines an item is made of read a setting by the name the device's
+ * type gives it. How they write - the value sheet, the tap, the toast, a
+ * silent device - is `fine-settings.test.tsx` and `standalone-panels.test.tsx`.
  */
 
 vi.mock('@/api/client', () => ({
@@ -33,7 +37,10 @@ const fridge = (over: Partial<Device> = {}): Device =>
 
 beforeAll(() => translate());
 
-beforeEach(() => vi.mocked(api.patch).mockReset());
+beforeEach(() => {
+  vi.mocked(api.patch).mockReset();
+  vi.mocked(api.get).mockRejectedValue(new Error('no stub'));
+});
 
 describe('the registry', () => {
   it('finds an item by its file alone, and offers it only where it applies', () => {
@@ -65,11 +72,8 @@ describe('a section', () => {
 
     const section = screen.getByText('Advanced').closest('details')!;
     expect(section).not.toHaveAttribute('open');
-    expect([...section.querySelectorAll('p')].map(line => line.textContent)).toEqual([
-      'What most growers never need. A change applies at once, and the camera is tried again straight away.',
-      'first of camera-1',
-      'second',
-    ]);
+    // Nothing is explained over the items: each says what it is behind its own help.
+    expect([...section.querySelectorAll('p')].map(line => line.textContent)).toEqual(['first of camera-1', 'second']);
     expect(screen.queryByText('elsewhere')).not.toBeInTheDocument();
   });
 
@@ -82,39 +86,49 @@ describe('a section', () => {
   });
 });
 
-describe('the controls an item is made of', () => {
-  it('reads the work mode from what the server says, and a figure from its place in the document', () => {
+describe('the lines an item is made of', () => {
+  it('read the work mode from what the server says, and a figure from its place in the document', () => {
     expect(fieldValue(fridge(), 'energySaving')).toBe(true);
     expect(fieldValue(fridge(), 'mode')).toBe('standard');
     expect(fieldValue(fridge(), 'compressorRest')).toBe(300);
     expect(fieldValue(fridge(), 'nothingCalledThis')).toBeNull();
   });
 
-  it('writes a switch on the tap, by its name', async () => {
-    vi.mocked(api.patch).mockResolvedValue(fridge() as never);
-    drawAt(<FieldSwitch device={fridge()} name="energySaving" label="Energy saving" />);
+  /** The server says what a silent device holds as the diary line of the change wrote it. */
+  it('read what a silent device was last handed as the setting itself is read', () => {
+    const plug = configurationFieldsOf('plug');
+    const fan = configurationFieldsOf('fan');
 
-    const toggle = screen.getByRole('switch', { name: 'Energy saving' });
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
-    fireEvent.click(toggle);
-
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/fridge-1/configuration', { set: { energySaving: false } }));
+    expect(heldSetting(plug.overheatAt, 30.5)).toBe(30.5);
+    expect(heldSetting(plug.dayNight, 'false')).toBe(false);
+    expect(heldSetting(plug.dayNight, 1)).toBe(true);
+    expect(heldSetting(plug.plugMode, 'heater')).toBe('heater');
+    expect(heldSetting(fan.fanMode, 2)).toBe('humidity');
+    expect(heldSetting(plug.timerWindows, '[{"ontime":36000,"duration":10}]')).toEqual([{ ontime: 36000, duration: 10 }]);
+    expect(heldSetting(plug.overheatAt, null)).toBeNull();
   });
 
-  it('saves a figure only once it is typed whole and inside the range the type allows', async () => {
-    vi.mocked(api.patch).mockResolvedValue(fridge() as never);
-    drawAt(<FieldNumber device={fridge()} name="compressorRest" label="Compressor rest" unit="s" />);
+  /** A control the reader may not use is absent: the settings are read as text. */
+  it('are text, and no control, for whoever may not manage the device', () => {
+    function Lines({ device }: { device: Device }) {
+      const settings = useSettings(device);
+      const shared = { device, settings, mayManage: false };
+      return (
+        <SettingsBlock label="Fine">
+          <NumberSetting {...shared} name="compressorRest" label="Compressor rest" unit="s" />
+          <SwitchSetting {...shared} name="energySaving" label="Energy saving" />
+          <ChoiceSetting {...shared} name="mode" label="Operating mode" options={[{ value: 'standard', label: 'Standard' }]} />
+        </SettingsBlock>
+      );
+    }
+    drawAt(
+      <Toast>
+        <Lines device={fridge({ state: { hardware: {}, lastSeenAt: new Date().toISOString() } as Device['state'] })} />
+      </Toast>,
+    );
 
-    const field = screen.getByRole('textbox', { name: 'Compressor rest' });
-    expect(field).toHaveValue('300');
-
-    fireEvent.change(field, { target: { value: '120' } });
-    expect(screen.getByText('From 240 to 900 s.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-
-    fireEvent.change(field, { target: { value: '480' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/fridge-1/configuration', { set: { compressorRest: 480 } }));
+    expect(screen.getByRole('region', { name: 'Fine' })).toHaveTextContent('Compressor rest300 sEnergy savingonOperating modeStandard');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 });

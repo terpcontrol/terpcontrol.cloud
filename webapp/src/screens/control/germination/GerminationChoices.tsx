@@ -40,7 +40,6 @@ export function GerminationChoices({
     <div className={styles.choices} role="group" aria-label={t('germinationChoices.label')}>
       <span className="label">{t('germinationChoices.label')}</span>
       <SwitchRow
-        keep
         label={t('germinationChoices.alarm')}
         help="germinationAlarm"
         note={t(value.warnTooHumid ? 'germinationChoices.alarmOn' : 'germinationChoices.alarmOff', { line: GERMINATION_TOO_HUMID })}
@@ -50,7 +49,6 @@ export function GerminationChoices({
       />
       {humidifier ? (
         <SwitchRow
-          keep
           label={t('germinationChoices.humidifier')}
           help="germinationHumidifier"
           note={

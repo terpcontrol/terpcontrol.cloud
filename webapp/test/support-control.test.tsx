@@ -73,7 +73,7 @@ describe('Steuerung of a customer´s place, read by support', () => {
       </Toast>,
     );
 
-    expect(await screen.findByRole('table', { name: 'Targets' })).toHaveTextContent('25 °C');
+    expect(await screen.findByRole('table', { name: 'Targets' })).toHaveTextContent('25.0 °C');
     expect(screen.getByText('This session may look and not set.')).toBeInTheDocument();
     expect(screen.queryByText(/Nothing stands here yet/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
@@ -92,7 +92,7 @@ describe('Steuerung of a customer´s place, read by support', () => {
     );
 
     expect(await screen.findByRole('heading', { name: /Control · Kundenzelt/ })).toHaveTextContent("support view of a customer's place");
-    expect(await screen.findByRole('table', { name: 'Targets' })).toHaveTextContent('25 °C');
+    expect(await screen.findByRole('table', { name: 'Targets' })).toHaveTextContent('25.0 °C');
     expect(screen.queryByText(/Nothing to control yet/)).not.toBeInTheDocument();
   });
 });

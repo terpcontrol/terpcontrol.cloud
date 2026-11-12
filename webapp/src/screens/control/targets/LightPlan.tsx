@@ -31,6 +31,8 @@ interface LightPlanProps {
   owned: ReadonlySet<Field>;
   /** The light schedule a running plan puts back within the hour, where it is not the one that runs. */
   planSets?: { name: string; schedule: LightSchedule } | null;
+  /** The longest day the lamp can be told, in hours: a stand-alone LIGHT keeps two times of day and has no word for a day that never ends. */
+  longest?: number;
 }
 
 /**
@@ -46,7 +48,7 @@ interface LightPlanProps {
  * said before the save rather than found out after it.
  */
 export function LightPlan(props: LightPlanProps) {
-  const { device, draft, baseline, set, readOnly, now, offset, owned, planSets = null } = props;
+  const { device, draft, baseline, set, readOnly, now, offset, owned, planSets = null, longest = 24 } = props;
   const { t } = useTranslation();
   const changed = draft.lightsOn !== baseline.lightsOn || draft.lightHours !== baseline.lightHours;
   const words = windowWords(draft, offset);
@@ -101,7 +103,7 @@ export function LightPlan(props: LightPlanProps) {
         {/* Light round the clock, or none, has no time it comes on: the hour is
             kept for the day a photoperiod is set again, and said under the plan. */}
         {words.always || words.never ? null : (
-          <div className={styles.field} data-keep>
+          <div className={styles.field}>
             <span className={styles.fieldLabel}>
               {t('targets.plan.lightsOn')}
               {mark('lightsOn')}
@@ -119,7 +121,7 @@ export function LightPlan(props: LightPlanProps) {
             />
           </div>
         )}
-        <div className={styles.field} data-keep>
+        <div className={styles.field}>
           <span className={styles.fieldLabel}>
             {t('targets.plan.hours')}
             {mark('lightHours')}
@@ -128,7 +130,7 @@ export function LightPlan(props: LightPlanProps) {
             name={t('targets.aria.lightHours')}
             value={draft.lightHours}
             min={0}
-            max={24}
+            max={longest}
             step={1}
             decimals={1}
             unit={t('targets.unit.hours')}

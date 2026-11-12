@@ -1,13 +1,14 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { DateTime } from 'luxon';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { DateTime, Settings } from 'luxon';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Co2Report, Device, Entry, SocketPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
+import type { Told } from '@/log/log-context';
 import { daysLeftOf, items as co2Items } from '@/screens/devices/advanced/Co2Report.advanced';
-import { items as sensorItems } from '@/screens/devices/advanced/SensorFactors.advanced';
 import { itemsFor } from '@/ui/advanced/registry';
 import { EntryRow } from '@/ui/EntryRow';
 import { drawAt } from './harness';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
@@ -41,12 +42,33 @@ const device = (type = 'fridge', hardware: Record<string, string> = {}, over: Pa
 
 const ids = (one: Device, mayManage = true) => itemsFor('device', { device: one, mayManage, offline: false }).map(item => item.id);
 
-beforeAll(() => translate());
+/** When a silent device was last heard. */
+const HEARD = '2026-09-19T13:00:00.000Z';
+
+/** What the toast was told: the line, and the way it is taken back. */
+const told: Told[] = [];
+const said = () => told[0]?.label.replace(/\u00a0/g, ' ');
+
+beforeAll(async () => {
+  Settings.defaultZone = 'utc';
+  await translate();
+});
+
+afterAll(() => {
+  Settings.defaultZone = 'system';
+});
 
 beforeEach(() => {
   vi.mocked(api.get).mockReset();
+  // Nothing answers but what a test stubs: a read that fails is not a read that answers nothing.
+  vi.mocked(api.get).mockRejectedValue(new Error('no stub'));
   vi.mocked(api.post).mockReset();
   vi.mocked(api.patch).mockReset();
+  told.length = 0;
+});
+
+afterEach(() => {
+  Settings.now = () => Date.now();
 });
 
 describe('what Erweitert offers a device', () => {
@@ -86,75 +108,126 @@ describe('what Erweitert offers a device', () => {
 });
 
 describe('the fine settings themselves', () => {
-  it('write a figure by its name, once it is typed whole and within its range', async () => {
-    vi.mocked(api.patch).mockResolvedValue(device() as never);
-    const Ramps = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'light-ramps')!.Item;
-    drawAt(<Ramps device={device()} mayManage offline={false} />);
+  /** An item of Erweitert, drawn for a device as its page draws it. */
+  const drawItem = (id: string, one: Device = device()) => {
+    const { Item } = itemsFor('device', { device: one, mayManage: true, offline: false }).find(item => item.id === id)!;
+    return drawAt(
+      <Toast told={told}>
+        <Item device={one} mayManage offline={false} />
+      </Toast>,
+    );
+  };
+  const sheet = () => screen.getByRole('dialog');
+  const save = () => fireEvent.click(within(sheet()).getByRole('button', { name: 'Save' }));
+  const type = (name: string, to: string) => {
+    const field = within(sheet()).getByRole('spinbutton', { name });
+    fireEvent.change(field, { target: { value: to } });
+    fireEvent.blur(field);
+  };
 
-    const sunrise = screen.getByRole('textbox', { name: 'Sunrise' });
-    expect(sunrise).toHaveValue('15');
-    fireEvent.change(sunrise, { target: { value: '90' } });
-    expect(screen.getByText('From 0 to 60 min.')).toBeInTheDocument();
-    fireEvent.change(sunrise, { target: { value: '30' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  it('are lines that open the value sheet, held to the range of the type, saved by name and taken back from the toast', async () => {
+    vi.mocked(api.patch).mockResolvedValue(device() as never);
+    drawItem('light-ramps');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change Sunrise, 15 min' }));
+    expect(within(sheet()).getByRole('button', { name: 'Save' })).toBeDisabled();
+    // A figure typed past the range lands on its end.
+    type('Sunrise', '90');
+    expect(within(sheet()).getByRole('spinbutton', { name: 'Sunrise' })).toHaveValue('60');
+    type('Sunrise', '30');
+    save();
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { sunrise: 30 } }));
+    await waitFor(() => expect(said()).toBe('Sunrise 30 min · saved'));
+    await act(async () => {
+      await told[0].undo!();
+    });
+    expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1/configuration', { set: { sunrise: 15 } });
   });
 
-  it('switch CO2 at night on the tap, and say what it means', async () => {
+  it('switch CO2 at night on the tap and answer, with what it means behind its help rather than under it', async () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
-    const Co2Night = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'co2-night')!.Item;
-    drawAt(<Co2Night device={device()} mayManage offline={false} />);
+    drawItem('co2-night');
 
-    expect(screen.getByText('CO₂ is dosed only while the light is on.')).toBeInTheDocument();
+    expect(screen.queryByText(/CO₂ is dosed/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'About CO₂ at night too' })).toHaveAccessibleDescription(/Roots in deep water culture/);
     fireEvent.click(screen.getByRole('switch', { name: 'CO₂ at night too' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { co2Night: true } }));
+    await waitFor(() => expect(said()).toBe('CO₂ at night too on · saved'));
   });
 
   it('show the compressor rest the firmware runs with where the document does not state it', () => {
-    const rest = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'compressor-rest')!;
-    const Rest = rest.Item;
-    drawAt(<Rest device={device()} mayManage offline={false} />);
+    drawItem('compressor-rest');
 
-    expect(screen.getByRole('textbox', { name: 'Compressor rest' })).toHaveValue('240');
-    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Change Compressor rest, 240 s' })).toBeInTheDocument();
   });
 
-  it('move a leaf offset half a degree a tap and save it with the other factors as they are', async () => {
+  /** Offline is true under Erweitert too: stored, since when, what the device still holds - and never that it was sent. */
+  it('say what a silent device has not been handed, and that it takes a new figure over', async () => {
+    Settings.now = () => Date.parse('2026-09-19T15:00:00.000Z');
     vi.mocked(api.patch).mockResolvedValue(device() as never);
-    const Offsets = sensorItems[0].Item;
-    drawAt(<Offsets device={device()} mayManage offline={false} />);
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      path === '/devices/device-1/live'
+        ? (Promise.resolve({
+            deviceId: 'device-1',
+            metrics: {},
+            outputs: {},
+            setpoints: null,
+            pending: { since: HEARD, settings: [{ field: 'lights.sunrise', held: 15, savedAt: '2026-09-19T14:31:00.000Z' }] },
+          }) as never)
+        : (Promise.reject(new Error(`no stub for ${path}`)) as never),
+    );
+    const silent = device('fridge', {}, { state: { ...device().state, lastSeenAt: HEARD } });
+    drawItem('light-ramps', { ...silent, configuration: { ...silent.configuration, lights: { limit: 80, sunrise: 30, sunset: 15 } } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Leaf against air · day: cooler' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Leaf against air · day: cooler' }));
-    expect(screen.getByText('−3.0 °C')).toBeInTheDocument();
+    expect(await screen.findByText(/^Sunrise: 30 min saved at 14:31\. The device still holds 15 min until it is back online\.$/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Change Sunrise, 30 min, not with the device yet' })).toHaveAttribute('data-pending');
+    expect(screen.queryByText(/sent to the device/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change Sunset, 15 min' }));
+    type('Sunset', '20');
+    save();
+    await waitFor(() => expect(said()).toBe('Sunset 20 min · saved, Fridge takes it over when it next connects'));
+  });
+
+  /** The leaf offsets are the cloud's own reckoning: nothing of them is handed to a device, silent or not. */
+  it('move a leaf offset half a degree a tap on its sheet and save it with the other factors as they are', async () => {
+    Settings.now = () => Date.parse('2026-09-19T15:00:00.000Z');
+    vi.mocked(api.patch).mockResolvedValue(device() as never);
+    drawItem('leaf-offsets', device('fridge', {}, { state: { ...device().state, lastSeenAt: HEARD } }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change Leaf against air · day, −2.0 °C' }));
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Leaf against air · day: less' }));
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Leaf against air · day: less' }));
     expect(api.patch).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    save();
 
     await waitFor(() =>
       expect(api.patch).toHaveBeenCalledWith('/devices/device-1', {
         settings: { vpdLeafOffsetDay: -3, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
       }),
     );
+    await waitFor(() => expect(said()).toBe('Leaf against air · day −3.0 °C · saved'));
   });
 
-  it('set the lux factor of a known lamp on the tap, and refuse a typed one no lamp has', async () => {
+  it('take the lux factor of a known lamp on its sheet, and hold a typed one to the range', async () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
-    const Lux = sensorItems[1].Item;
-    drawAt(<Lux device={device('controller', { ppfd: 'on' })} mayManage offline={false} />);
+    drawItem('lux-factor', device('controller', { ppfd: 'on' }));
 
-    expect(screen.getByRole('button', { name: 'White LED · 0.015' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'HPS · 0.0122' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change Lux to PPFD factor, 0.015' }));
+    expect(within(sheet()).getByRole('button', { name: 'White LED · 0.015' })).toHaveAttribute('aria-pressed', 'true');
+    type('Lux to PPFD factor', '1.5');
+    expect(within(sheet()).getByRole('spinbutton', { name: 'Lux to PPFD factor' })).toHaveValue('0.0500');
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'HPS · 0.0122' }));
+    save();
+
     await waitFor(() =>
       expect(api.patch).toHaveBeenCalledWith('/devices/device-1', {
         settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.0122 },
       }),
     );
-
-    fireEvent.change(screen.getByRole('textbox', { name: 'Lux to PPFD factor' }), { target: { value: '1,5' } });
-    expect(screen.getByText('From 0.005 to 0.05.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    await waitFor(() => expect(said()).toBe('Lux to PPFD factor 0.0122 · saved'));
   });
 });
 

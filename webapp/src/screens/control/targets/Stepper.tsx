@@ -69,8 +69,12 @@ interface StepperProps {
   /** The two buttons, as a screen reader reads them out. */
   less: string;
   more: string;
-  /** The figure differs from what the device holds, which is drawn so a save is seen to send it. */
+  /** The figure differs from what is stored, which is drawn so a save is seen to send it. */
   changed?: boolean;
+  /** Stored, and not yet with a device that is not heard: the amber of everything it has not been handed. */
+  pending?: boolean;
+  /** Writes a whole figure with its decimals too - "25,0" - where it stands beside others of its reading. */
+  padded?: boolean;
   disabled?: boolean;
   onChange: (value: number) => void;
 }
@@ -98,16 +102,16 @@ export function Stepper({
   less,
   more,
   changed = false,
+  pending = false,
+  padded = false,
   disabled = false,
   onChange,
 }: StepperProps) {
   const [typing, setTyping] = useState<string | null>(null);
   const [announced, setAnnounced] = useState('');
-  const textOf = (figure: number) => {
-    const written = decimalFigure(figure, Number.isInteger(figure) ? 0 : decimals);
-    return spokenUnit ? `${written} ${spokenUnit}` : written;
-  };
-  const written = decimalFigure(value, Number.isInteger(value) ? 0 : decimals);
+  const writtenOf = (figure: number) => decimalFigure(figure, Number.isInteger(figure) && !padded ? 0 : decimals);
+  const textOf = (figure: number) => (spokenUnit ? `${writtenOf(figure)} ${spokenUnit}` : writtenOf(figure));
+  const written = writtenOf(value);
 
   const scale = 10 ** decimals;
   const clamp = (next: number) => Math.min(max, Math.max(min, Math.round(next * scale) / scale));
@@ -140,7 +144,7 @@ export function Stepper({
   };
 
   return (
-    <span className={styles.stepper} data-changed={changed || undefined}>
+    <span className={styles.stepper} data-changed={changed || undefined} data-pending={(pending && !changed) || undefined}>
       {/* At the end of its range a button says so rather than being disabled, which would drop the focus. */}
       <button type="button" className={styles.stepButton} aria-label={less} disabled={disabled} aria-disabled={value <= min || undefined} {...down}>
         <Minus size={16} strokeWidth={2} aria-hidden />

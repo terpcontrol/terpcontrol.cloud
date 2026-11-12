@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import { useState } from 'react';
-import type { GrowCreate, GrowthStage } from '@fg2/shared-types/v1';
+import type { GerminationChoices, GrowCreate, GrowthStage } from '@fg2/shared-types/v1';
 import { useCreateGrow } from '@/api/grows';
 import { useChooseDiary, useDiaryDeclined } from '@/api/layers';
 import { useAddPhase } from '@/api/lifecycle';
@@ -25,12 +25,15 @@ export const useStartGrow = () => {
     stage,
     startedAt,
     climate,
+    germinationChoices,
   }: {
     body: GrowCreate;
     stage: GrowthStage;
     startedAt: Date;
     /** Whether the controllers of the place are put on the stage's climate; a stage that is only recorded moves nothing. */
     climate: boolean;
+    /** What germination is to do about the humidity, where its climate is written and the grower moved a choice. */
+    germinationChoices?: Partial<GerminationChoices>;
   }): Promise<string> => {
     let growId = made;
     if (growId === null) {
@@ -42,7 +45,12 @@ export const useStartGrow = () => {
     }
     await startingPhase.mutateAsync({
       growId,
-      body: { stage, preset: null, ...(climate ? { climate: true } : {}), startedAt: instantOf(DateTime.fromJSDate(startedAt)) },
+      body: {
+        stage,
+        preset: null,
+        ...(climate ? { climate: true, ...(germinationChoices ? { germinationChoices } : {}) } : {}),
+        startedAt: instantOf(DateTime.fromJSDate(startedAt)),
+      },
     });
     return growId;
   };

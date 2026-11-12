@@ -2928,10 +2928,8 @@
   "targets": {
     "title": "Zielwerte",
     "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin ein Klima stehen könnte. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht, und was hier stünde, kann sie nicht ersetzen.",
-    "presets": "Vorlagen",
-    "light": "Lichtgrenze",
+    "presets": "Klima-Presets",
     "needsCo2": "braucht einen CO₂-Sensor",
-    "typed": "{{name}}, eingetippt",
     "aria": {
       "dayTemperature": "Temperatur am Tag",
       "dayHumidity": "Luftfeuchte am Tag",
@@ -2948,28 +2946,15 @@
     },
     "unit": {
       "temperature": "°C",
-      "humidity": "%",
       "percent": "%",
-      "hours": "Std",
-      "co2": "ppm"
+      "hours": "Std"
     },
-    "planPaused": "Der Plan ist pausiert, solange diese Zielwerte gelten.",
-    "planPausedFor": "Der Plan ist pausiert: {{reason}}",
-    "resume": "Plan fortsetzen",
     "pauseReason": "Zielwerte von Hand gesetzt",
     "pauseReasonGermination": "Keimung von Hand anders gewählt",
-    "unsaved": "Ungespeicherte Änderungen",
     "save": "Speichern",
     "saving": "Wird gespeichert…",
     "discard": "Verwerfen",
     "readOnly": "Diese Sitzung darf schauen, aber nichts einstellen.",
-    "leave": {
-      "title": "Zielwerte nicht gespeichert",
-      "body": "Du hast Zielwerte geändert, aber noch nicht gespeichert. Ohne Speichern regelt das Gerät weiter nach den alten Werten.",
-      "save": "Speichern und weiter",
-      "discard": "Verwerfen",
-      "stay": "Weiter bearbeiten"
-    },
     "growStays": "Das ändert nur die Zielwerte: {{name}} bleibt in der Phase {{stage}}. Phase und Klima zusammen stellst du im Grow unter Phase um.",
     "drying": {
       "starts": "Übernehmen schaltet die Trocknung ein: kein Licht und kein CO₂, das Gerät entfeuchtet und heizt nur.",
@@ -3019,7 +3004,6 @@
       "germination": "Licht aus · Keimung",
       "dryingLine": "Das Licht bleibt aus, solange die Trocknung läuft. Danach gilt wieder der Lichtplan: {{window}}.",
       "germinationLine": "In der Keimung bleibt das Licht rund um die Uhr aus. Der Lichtplan – {{window}} – gilt wieder, sobald sie endet: mit „Sämling · mit Licht“ oder einem anderen Klima.",
-      "sensor": "Tag ist, solange der Lichtsensor des Lüfters Licht sieht.",
       "draft": "Entwurf",
       "was": "bisher: {{window}}",
       "draftBarAlt": "Entwurf: {{window}}",
@@ -4000,7 +3984,7 @@
     "advanced": {
       "operatingMode": {
         "title": "Betriebsart",
-        "text": "Was das Gerät als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Keimung · dunkel hält es rund um die Uhr dunkel und ohne CO₂ und heizt und kühlt auf eine Temperatur – die der Spalte „Keimung · dunkel“ unter Zielwerte; am Zelt kühlt dabei die Abluft, und ein Entfeuchter bleibt aus. Die Luftfeuchte stellt sie auf 75 %, die ein Befeuchter hält: Die Nacht-Luftfeuchte davor war für Blätter gedacht, oft 50 %, und hielte die Samen zu trocken; sie gilt wieder, sobald die Keimung endet. Ob „Zu feucht“ dabei warnt und ob ein Befeuchter die Luftfeuchte hält, wählst du während der Keimung darunter. Dieselbe Keimung stellen auch das Klima „Keimung · dunkel“ und die Phase Keimung ein. Der Kühlschrank kennt dazu Gewächshaus: nur die Temperatur, Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Trocknung hält es rund um die Uhr dunkel und ohne CO₂ auf den Nachtwerten; endet sie, kehrt das Gerät zur Betriebsart und den Zielwerten von vorher zurück. Dieselbe Trocknung stellen das Klima „Trocknung“ und die Phase Trocknung ein. Der Energiespar-Modus gilt nur im Standard."
+        "text": "Was das Gerät als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Gewächshaus regelt nur die Temperatur: Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Keimung · dunkel und Trocknung wählst du nicht hier: Sie gehören zum Stadium und kommen und gehen mit dem Klima-Preset unter Steuerung, mit einer Phase im Grow oder mit einem Planschritt. Der Energiespar-Modus gilt nur im Standard."
       },
       "chartStep": {
         "title": "Intervall",
@@ -4117,15 +4101,15 @@
     },
     "drying": {
       "title": "Trocknung",
-      "text": "In der Trocknung kennt das Gerät keinen Tag und keine Nacht: Das Licht bleibt aus, CO₂ wird nicht dosiert, es wird nur entfeuchtet und geheizt, auf die Zielwerte der Trocknung. Sie beginnt mit dem Preset „Trocknung“ unter Steuerung, mit der Phase Trocknung im Grow oder mit einem Planschritt der Trocknung. Ein anderes Preset, eine andere Phase oder ein Planschritt beenden sie mit ihren eigenen Zielwerten. „Trocknung beenden“ und „Regelung aus“ bringen die Zielwerte von vor der Trocknung zurück, und das Gerät kehrt zu seiner Betriebsart zurück, Energiespar eingeschlossen."
+      "text": "In der Trocknung kennt das Gerät keinen Tag und keine Nacht: Das Licht bleibt aus, CO₂ wird nicht dosiert, es wird nur entfeuchtet und geheizt, auf die Zielwerte der Trocknung. Sie beginnt mit dem Preset „Trocknung“ unter Steuerung, mit der Phase Trocknung im Grow oder mit einem Planschritt der Trocknung. Ein anderes Preset, eine andere Phase oder ein Planschritt beenden sie mit ihren eigenen Zielwerten. „Regelung aus“ bringt die Zielwerte von vor der Trocknung zurück, und das Gerät kehrt zu seiner Betriebsart zurück, Energiespar eingeschlossen."
     },
     "germination": {
       "title": "Keimung · dunkel",
-      "text": "Samen keimen im Dunkeln: Das Gerät geht in die Betriebsart Keimung – kein Licht, kein CO₂, die Luftfeuchte hält höchstens ein Befeuchter – und heizt und kühlt rund um die Uhr auf eine Temperatur. Am Zelt kühlt dabei die Abluft; ein Entfeuchter bleibt aus, denn er würde wärmen und das Keimsubstrat austrocknen. Vorgeschlagen sind 24 °C, die Mitte der 22–26 °C, in denen Samen am schnellsten keimen. Dazu bringt die Keimung 75 % Luftfeuchte mit: Samen keimen gut zwischen etwa 70 und 90 % – trockener trocknet das Substrat oben aus und die Samenschale wird hart, feuchter steht Wasser auf Substrat und Schale. 75 % liegt sicher dazwischen, unter den 90 %, ab denen „Zu feucht“ warnt, und der Sämling danach hält 65–70 %. Halten kann sie nur ein Befeuchter an einer Steckdose; endet die Keimung, gilt die Luftfeuchte von vorher wieder. Die Keimung beginnt mit „Keimung · dunkel“ unter Steuerung, als Klima der Phase Keimung, beim Einrichten, mit einem Planschritt der Keimung oder in der Betriebsart. Jedes andere Klima, jede andere Phase und jeder andere Planschritt – auch einer ohne Stadium – beendet sie: Das Gerät hält wieder Tag und Nacht mit Licht, im Standard samt Energiespar. Wer die Phase Keimung ohne Klima einträgt, ändert am Gerät nichts, auch nicht an seinen Alarmen. Ob „Zu feucht“ in der Keimung warnt und ob ein Befeuchter die Luftfeuchte hält, wählst du dort, wo du die Keimung einstellst."
+      "text": "Samen keimen im Dunkeln: Das Gerät geht in die Betriebsart Keimung – kein Licht, kein CO₂, die Luftfeuchte hält höchstens ein Befeuchter – und heizt und kühlt rund um die Uhr auf eine Temperatur. Am Zelt kühlt dabei die Abluft; ein Entfeuchter bleibt aus, denn er würde wärmen und das Keimsubstrat austrocknen. Vorgeschlagen sind 24 °C, die Mitte der 22–26 °C, in denen Samen am schnellsten keimen. Dazu bringt die Keimung 75 % Luftfeuchte mit: Samen keimen gut zwischen etwa 70 und 90 % – trockener trocknet das Substrat oben aus und die Samenschale wird hart, feuchter steht Wasser auf Substrat und Schale. 75 % liegt sicher dazwischen, unter den 90 %, ab denen „Zu feucht“ warnt, und der Sämling danach hält 65–70 %. Halten kann sie nur ein Befeuchter an einer Steckdose; endet die Keimung, gilt die Luftfeuchte von vorher wieder. Die Keimung beginnt mit „Keimung · dunkel“ unter Steuerung, als Klima der Phase Keimung, beim Einrichten oder mit einem Planschritt der Keimung. Jedes andere Klima, jede andere Phase und jeder andere Planschritt – auch einer ohne Stadium – beendet sie: Das Gerät hält wieder Tag und Nacht mit Licht, im Standard samt Energiespar. Wer die Phase Keimung ohne Klima einträgt, ändert am Gerät nichts, auch nicht an seinen Alarmen. Ob „Zu feucht“ in der Keimung warnt und ob ein Befeuchter die Luftfeuchte hält, wählst du dort, wo du die Keimung einstellst; solange sie läuft, änderst du beides unter Steuerung im Klima-Preset."
     },
     "germinationAlarm": {
       "title": "„Zu feucht“ in der Keimung",
-      "text": "Keimende Samen stehen mit Absicht feucht, und eine Keimbox misst oft weit mehr, als für Blätter gut ist. Darum ruht der Alarm „Zu feucht“ der Phase während der Keimung, solange du das Warnen nicht einschaltest – ein Alarm, der jede Nacht anschlägt, wird bald überhört. Eingeschaltet warnt er in der Keimung über 90 %, gleich ob du sie unter Steuerung, in der Betriebsart, mit einer Phase oder einem Plan eingestellt hast (darüber steht Wasser auf Substrat und Schale, dort beginnen Schimmel und Umfallkrankheit); hat das Gerät noch keinen, wird er angelegt. Nach der Keimung gilt wieder seine eigene Grenze. Alarme, die du selbst angelegt hast, und alle anderen Alarme bleiben immer wach. Ruhen heißt: Der Alarm bleibt eingeschaltet und behält deine Einstellungen; eine offene Meldung endet ohne Entwarnung und steht unter Meldungen als „ruht in der Keimung“. Die Wahl gilt für diese Keimung, die nächste beginnt wieder ohne Warnen."
+      "text": "Keimende Samen stehen mit Absicht feucht, und eine Keimbox misst oft weit mehr, als für Blätter gut ist. Darum ruht der Alarm „Zu feucht“ der Phase während der Keimung, solange du das Warnen nicht einschaltest – ein Alarm, der jede Nacht anschlägt, wird bald überhört. Eingeschaltet warnt er in der Keimung über 90 %, gleich ob du sie unter Steuerung, mit einer Phase oder einem Plan eingestellt hast (darüber steht Wasser auf Substrat und Schale, dort beginnen Schimmel und Umfallkrankheit); hat das Gerät noch keinen, wird er angelegt. Nach der Keimung gilt wieder seine eigene Grenze. Alarme, die du selbst angelegt hast, und alle anderen Alarme bleiben immer wach. Ruhen heißt: Der Alarm bleibt eingeschaltet und behält deine Einstellungen; eine offene Meldung endet ohne Entwarnung und steht unter Meldungen als „ruht in der Keimung“. Die Wahl gilt für diese Keimung, die nächste beginnt wieder ohne Warnen."
     },
     "germinationHumidifier": {
       "title": "Befeuchter in der Keimung",
@@ -4137,7 +4121,7 @@
     },
     "plugMode": {
       "title": "Schaltet nach",
-      "text": "Was der Plantalytix Socket mit seinem eigenen Sensor regelt: Heizen, Kühlen, Befeuchten, Entfeuchten oder CO₂ – dann schaltet er an zwei Schaltpunkten des Messwerts. Mit Zeitschaltung schaltet er zu festen Uhrzeiten, und Aus hält ihn aus."
+      "text": "Was der Plantalytix Socket mit seinem eigenen Sensor regelt: Heizen, Kühlen, Befeuchten, Entfeuchten oder CO₂ – dann schaltet er an zwei Schaltpunkten des Messwerts. Mit Zeitschaltung schaltet er zu festen Uhrzeiten, und Aus hält ihn aus. CO₂ braucht den CO₂-Sensor, den es als Zubehör gibt; ohne ihn bleibt der Plantalytix Socket aus. Dosieren in Intervallen und das Drosseln eines AIR stehen auf der Seite des Plantalytix Socket unter Erweitert."
     },
     "plugDayNight": {
       "title": "Tag und Nacht",
@@ -4153,7 +4137,7 @@
     },
     "fanMode": {
       "title": "Lüfter läuft",
-      "text": "Fest: Der AIR läuft tagsüber und nachts mit je einer eingestellten Drehzahl. Nach Temperatur, Luftfeuchte oder beidem: Er läuft mit der Mindestdrehzahl, solange der Wert unter dem Ziel bleibt, und dreht hoch, je weiter der Wert darüber steigt – bis zur Höchstdrehzahl. Tag ist für den AIR, solange sein Lichtsensor Licht sieht."
+      "text": "Fest: Der AIR läuft tagsüber und nachts mit je einer eingestellten Drehzahl. Nach Temperatur, Luftfeuchte oder beidem: Er läuft mit der Mindestdrehzahl, solange der Wert unter dem Ziel bleibt, und dreht hoch, je weiter der Wert darüber steigt – bis zur Höchstdrehzahl. Tag ist für den AIR, solange sein Lichtsensor Licht sieht. Nach Temperatur dreht er ab 1 °C unter dem Ziel hoch und läuft 1 °C darüber mit der Höchstdrehzahl, nach Luftfeuchte ab 5 % darunter bis 5 % darüber. Nach beidem folgt er dem Wert, der weiter über seinem Ziel liegt."
     },
     "fanSpeeds": {
       "title": "Drehzahl",
@@ -4233,15 +4217,7 @@
     "holdsAboveLine": "Der Befeuchter hält mehr, als „Zu feucht“ in der Keimung zulässt ({{line}} %): Der Alarm wird oft auslösen."
   },
   "advanced": {
-    "title": "Erweitert",
-    "lead": {
-      "device": "Was die meisten nie brauchen. Eine Änderung gilt sofort und wird ans Gerät geschickt.",
-      "charts": "Feineinstellungen der Graphen.",
-      "camera": "Was die meisten nie brauchen. Eine Änderung gilt sofort, und die Kamera wird gleich neu versucht."
-    },
-    "range": "Von {{min}} bis {{max}} {{unit}}.",
-    "save": "Speichern",
-    "cancel": "Abbrechen"
+    "title": "Erweitert"
   },
   "climateControl": {
     "label": "Regelung",
@@ -4269,21 +4245,7 @@
     "done": "Die Regelung ist aus.",
     "unheard": "Das Gerät ist gerade nicht erreichbar und übernimmt es, sobald es sich wieder meldet.",
     "pauseReason": "Die Regelung wurde ausgeschaltet.",
-    "dryingNote": "Trocknung läuft: kein Tag und keine Nacht, kein Licht, kein CO₂. Das Gerät entfeuchtet und heizt nur.",
-    "endDrying": "Trocknung beenden",
     "offTitle": "Regelung aus.",
-    "endDryingAsk": "Trocknung beenden …",
-    "endDryingTitle": "Trocknung beenden?",
-    "endDryingDoes": "Das Gerät hält wieder Tag und Nacht, schaltet das Licht nach seinem Zeitplan und dosiert CO₂.",
-    "endDryingBack": "Es gelten wieder die Zielwerte von vor der Trocknung: {{targets}}.",
-    "endDryingRecord": "Es gelten wieder die Zielwerte, die zuletzt vor der Trocknung gespeichert waren; war das Licht aus, leuchtet es wieder mit 100 %. Prüf sie danach unter Zielwerte oder wähl ein Preset.",
-    "endDryingDone": "Die Trocknung ist beendet. Das Gerät bekommt die Zielwerte, sobald es verbunden ist.",
-    "returns": {
-      "day": "Tag {{values}}",
-      "night": "Nacht {{values}}",
-      "light": "Licht {{percent}} %",
-      "co2": "CO₂ {{value}}"
-    },
     "offLine": {
       "fridge": "Das Gerät misst nur noch: Heizung, Kompressor, Licht und CO₂ stehen still, Zielwerte hält es keine. Schalte die Regelung ein, damit es sie wieder hält.",
       "controller": "Das Gerät misst nur noch: Heizung, Entfeuchter, Licht und CO₂ stehen still, Zielwerte hält es keine. Schalte die Regelung ein, damit es sie wieder hält.",
@@ -4292,9 +4254,7 @@
     "offLineRead": "Das Gerät misst nur noch und hält gerade keine Zielwerte."
   },
   "energySaving": {
-    "label": "Energiespar-Modus",
-    "onNote": "Der Rückwandlüfter steht still, solange der Kompressor aus ist.",
-    "offNote": "Der Rückwandlüfter läuft auch, wenn der Kompressor aus ist."
+    "label": "Energiespar-Modus"
   },
   "operatingMode": {
     "label": "Betriebsart",
@@ -4303,12 +4263,9 @@
     "greenhouse": "Gewächshaus",
     "greenhouseNote": "Nur die Temperatur: Licht und CO₂ laufen, der Kompressor kühlt nur, die Luftfeuchte wird nicht geregelt.",
     "germination": "Keimung · dunkel",
-    "germinationNote": "Für Samen, die im Dunkeln keimen: kein Licht, kein CO₂, rund um die Uhr eine Temperatur – zuerst die bisherige Nachttemperatur, unter Zielwerte zu ändern – und {{humidity}} % Luftfeuchte für einen Befeuchter. Ein Entfeuchter bleibt dabei aus; am Zelt kühlt die Abluft. Zurück auf Standard gilt die Nacht von vorher wieder. „Keimung · dunkel“ unter Steuerung stellt dasselbe ein, gleich mit {{temperature}} °C.",
     "drying": "Trocknung",
-    "dryingNote": "Für die Ernte, die trocknet: kein Licht, kein CO₂, rund um die Uhr die Nachtwerte unter Zielwerte. Endet die Trocknung, gelten die Zielwerte von vorher wieder. Die Phase Trocknung und das Klima „Trocknung“ unter Steuerung stellen dasselbe ein.",
-    "ask": "Auf {{mode}} umstellen? {{what}} Zurück geht es hier mit Standard.",
-    "choicesAfter": "Nach dem Umstellen lässt sich das hier ändern.",
-    "yes": "Auf {{mode}} umstellen"
+    "byPreset": "vom Klima-Preset gesetzt",
+    "toPreset": "Klima-Preset ändern"
   },
   "recover": {
     "title": "Passwort vergessen",
@@ -4420,11 +4377,7 @@
     "sunrise": "Sonnenaufgang",
     "sunset": "Sonnenuntergang",
     "maintenanceLight": "Licht an in der Wartung",
-    "maintenanceLightOn": "Auch nachts brennt das Licht während der Wartung mit 15 %.",
-    "maintenanceLightOff": "Nachts bleibt es während der Wartung dunkel.",
     "co2Night": "CO₂ auch nachts",
-    "co2NightOn": "CO₂ wird auch in der Dunkelphase auf den Zielwert dosiert.",
-    "co2NightOff": "CO₂ wird nur dosiert, solange das Licht an ist.",
     "clipFan": "Klemmlüfter",
     "innerFans": "Innenlüfter, mindestens",
     "compressorRest": "Kompressor-Pause"
@@ -4433,15 +4386,12 @@
     "day": "Blatt zur Luft · Tag",
     "night": "Blatt zur Luft · Nacht",
     "offset": "{{value}} °C",
-    "colder": "{{label}}: kühler",
-    "warmer": "{{label}}: wärmer",
-    "measured": "Der Blattsensor misst die Blatttemperatur selbst; diese Werte gelten nur, wo er keinen Wert liefert, und für die VPD-Vorschau der Zielwerte.",
     "lux": "Lux-zu-PPFD-Faktor",
-    "luxRange": "Von {{min}} bis {{max}}.",
     "lamp": {
       "led": "Weiß-LED · {{factor}}",
       "hps": "HPS · {{factor}}"
-    }
+    },
+    "lamps": "Bekannte Lampen"
   },
   "continuePlan": {
     "label": "Plan bei Schritt fortsetzen",
@@ -4472,7 +4422,7 @@
   },
   "co2Report": {
     "title": "CO₂-Flasche",
-    "none": "Noch keine Flasche eingetragen. Trag die nächste ein, wenn du sie einsetzt – ab der ersten leeren Flasche rechnet die Karte aus, was in der aktuellen noch ist und wie lange sie reicht.",
+    "none": "Noch keine Flasche eingetragen.",
     "inUse": "In Gebrauch seit {{day}} · {{grams}} g",
     "rest": "Noch etwa {{grams}} g ({{percent}} %)",
     "lasts_one": "reicht noch etwa {{count}} Tag",
@@ -4599,11 +4549,9 @@
   "ownPanel": {
     "title": "Einstellungen",
     "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt, also gibt es hier noch nichts zu ändern. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht.",
-    "sentNote": "Das Gerät bestätigt keine Einstellung; was es wirklich tut, zeigen seine Werte.",
     "status": "Werte kommen an · Plantalytix Socket: {{mode}}",
     "statusLight": "Werte kommen an · Licht {{on}}–{{off}}",
-    "statusFan": "Werte kommen an · Lüfter läuft: {{mode}}",
-    "sentAt": "Um {{time}} ans Gerät geschickt"
+    "statusFan": "Werte kommen an · Lüfter läuft: {{mode}}"
   },
   "plugSettings": {
     "mode": {
@@ -4616,22 +4564,8 @@
       "co2": "CO₂",
       "timer": "Zeitschaltung"
     },
-    "modeNote": {
-      "off": "Der Plantalytix Socket bleibt aus.",
-      "heater": "Für ein Heizgerät: an, sobald es kälter als der Einschaltpunkt ist, aus über dem Ausschaltpunkt.",
-      "cooler": "Für eine Kühlung oder einen Lüfter: an, sobald es wärmer als der Einschaltpunkt ist, aus unter dem Ausschaltpunkt.",
-      "humidify": "Für einen Befeuchter: an, sobald die Luft trockener als der Einschaltpunkt ist, aus über dem Ausschaltpunkt.",
-      "dehumidify": "Für einen Entfeuchter: an, sobald die Luft feuchter als der Einschaltpunkt ist, aus unter dem Ausschaltpunkt.",
-      "co2": "Für ein CO₂-Ventil: an unter dem Einschaltpunkt, aus über dem Ausschaltpunkt. Braucht den CO₂-Sensor, den es als Zubehör gibt; ohne ihn bleibt der Plantalytix Socket aus. Dosieren in Intervallen und das Drosseln eines AIR stehen auf der Seite dieses Plantalytix Socket unter Erweitert.",
-      "timer": "Der Plantalytix Socket schaltet zu festen Uhrzeiten, ohne auf einen Messwert zu schauen."
-    },
     "dayNight": "Nachts eigene Schaltpunkte",
-    "dayNightOn": "Tagsüber und nachts gelten getrennte Schaltpunkte.",
-    "dayNightOff": "Dieselben Schaltpunkte gelten rund um die Uhr.",
     "dayOnly": "Nur tagsüber dosieren",
-    "dayOnlyOn": "Nachts bleibt das Ventil zu.",
-    "dayOnlyOff": "Dosiert rund um die Uhr, sobald der Wert unter den Einschaltpunkt fällt.",
-    "dayLabel": "Tag und Nacht",
     "dayFrom": "Tag ab",
     "nightFrom": "Nacht ab",
     "points": "Schaltpunkte",
@@ -4656,22 +4590,21 @@
       "label": "Zeitfenster",
       "none": "Kein Zeitfenster: Der Plantalytix Socket bleibt aus.",
       "add": "+ Zeitfenster",
-      "most": "Höchstens {{count}} Zeitfenster.",
-      "at": "an um",
-      "atLabel": "Zeitfenster {{number}}: an um",
-      "for": "für",
-      "forLabel": "Zeitfenster {{number}}: Minuten",
-      "minutes": "Min",
+      "at": "An um",
+      "for": "Dauer",
       "ends": "bis {{time}}",
-      "remove": "Zeitfenster {{number}} entfernen",
-      "bad": "Jedes Zeitfenster läuft 1 bis 1440 Minuten."
+      "remove": "Entfernen",
+      "one": "Zeitfenster {{number}}",
+      "removed": "Zeitfenster {{window}} entfernt"
     },
     "summary": {
       "rising": "ein unter {{on}} · aus über {{off}}",
       "falling": "ein über {{on}} · aus unter {{off}}",
       "dayOnly": "nur tagsüber",
       "noWindows": "keine"
-    }
+    },
+    "title": "Schalten",
+    "dayLabel": "Tag und Nacht"
   },
   "fanSettings": {
     "mode": {
@@ -4681,18 +4614,9 @@
       "humidity": "Nach Luftfeuchte",
       "both": "Nach beidem"
     },
-    "modeNote": {
-      "fixed": "Läuft tagsüber und nachts mit der eingestellten Drehzahl und folgt keinem Zielwert.",
-      "temperature": "Dreht hoch, sobald es wärmer als 1 °C unter der Zieltemperatur ist, und läuft 1 °C darüber mit der Höchstdrehzahl. Die Luftfeuchte unten gilt nicht.",
-      "humidity": "Dreht hoch, sobald die Luft feuchter als 5 % unter der Ziel-Luftfeuchte ist, und läuft 5 % darüber mit der Höchstdrehzahl. Die Temperatur unten gilt nicht.",
-      "both": "Folgt dem der beiden Werte, der weiter über seinem Ziel liegt."
-    },
     "speeds": "Drehzahl",
     "day": "Tagsüber",
     "night": "Nachts",
-    "mostDay": "Höchstens tags",
-    "mostNight": "Höchstens nachts",
-    "least": "Mindestens",
     "aria": {
       "fixedDay": "Drehzahl tagsüber",
       "fixedNight": "Drehzahl nachts",
@@ -4703,27 +4627,21 @@
     "mostBelowLeast": "Die Höchstdrehzahl darf nicht unter der Mindestdrehzahl liegen.",
     "slowed": "Während {{plug}} CO₂ dosiert, läuft der Lüfter höchstens mit {{speed}} %.",
     "uncouple": "Nicht mehr drosseln",
-    "fixedTargets": "Im Modus „Fest“ läuft der Lüfter mit festen Drehzahlen und folgt keinem Zielwert. Modus und Drehzahlen stehen unter Steuerung › Ausgänge."
+    "title": "Lüfter",
+    "uncoupled": "Lüfter wird nicht mehr gedrosselt"
   },
   "lightSettings": {
-    "title": "Licht",
-    "on": "Licht an um",
-    "off": "Licht aus um",
-    "hours": "{{hours}} Std an"
+    "title": "Licht"
   },
   "plugCo2": {
     "label": "CO₂-Dosierung",
     "const": "Durchgehend",
     "periodic": "In Intervallen",
-    "constNote": "Das Ventil öffnet, sobald der Wert unter den Einschaltpunkt fällt.",
-    "periodicNote": "Dosiert nur in einem Fenster jedes Intervalls, etwa 10 Minuten jede Stunde.",
     "every": "Intervall",
     "for": "Davon dosieren",
     "fan": "AIR-Lüfter drosseln",
     "noFan": "Keinen",
-    "fanSpeed": "Lüfter während der Dosierung",
-    "fanNone": "Kein Lüfter wird gedrosselt.",
-    "fanNote": "Während der Dosierung läuft der Lüfter höchstens mit {{speed}} %, damit das CO₂ im Zelt bleibt."
+    "fanSpeed": "Lüfter während der Dosierung"
   },
   "plugProtections": {
     "overheat": "Aus bei Übertemperatur",
@@ -4738,8 +4656,7 @@
     "needsFirmware": "Diese Firmware hält die Schutzfunktionen nicht ein. Ein Firmware-Update bringt sie; bis dahin lassen sie sich nicht einstellen."
   },
   "lightOverheat": {
-    "label": "Dimmen ab",
-    "note": "Gemessen am Lichtmodul selbst. Darüber dimmt es sich, um sich zu schützen."
+    "label": "Dimmen ab"
   },
   "configChange": {
     "field": {
@@ -5135,13 +5052,13 @@
       "times": "Lichtzeiten"
     },
     "preset": {
-      "named": "Vorlage: {{name}}",
-      "open": "Vorlage",
-      "title": "Vorlage übernehmen",
+      "named": "Klima-Preset: {{name}}",
+      "open": "Klima-Preset",
+      "title": "Klima-Preset übernehmen",
       "take": "Übernehmen",
-      "taken": "Vorlage {{name}}",
-      "same": "Das sind schon die Werte dieser Vorlage.",
-      "sets": "Was die Vorlage ändert"
+      "taken": "Klima-Preset {{name}}",
+      "same": "Das sind schon die Werte dieses Klima-Presets.",
+      "sets": "Was das Klima-Preset ändert"
     },
     "figure": {
       "change": "{{name}} ändern, {{value}}",
@@ -5163,7 +5080,12 @@
       "unknown": "{{name}}: {{value}} gespeichert {{saved}}. Das Gerät übernimmt es, sobald es wieder online ist.",
       "behind": "gespeichert {{saved}}, noch nicht am Gerät",
       "more_one": "{{count}} weitere Einstellung gespeichert, noch nicht am Gerät",
-      "more_other": "{{count}} weitere Einstellungen gespeichert, noch nicht am Gerät"
+      "more_other": "{{count}} weitere Einstellungen gespeichert, noch nicht am Gerät",
+      "several": "{{number}} Werte gespeichert {{saved}}, noch nicht am Gerät",
+      "one": "{{name}}: {{value}} · am Gerät noch {{held}}",
+      "oneUnknown": "{{name}}: {{value}}",
+      "off": "Regelung aus gespeichert {{saved}}, noch nicht am Gerät: {{device}} regelt weiter, bis es wieder online ist.",
+      "modeOff": "Regelung aus"
     },
     "offline": {
       "text": "Du kannst trotzdem alles einstellen. Das Gerät übernimmt es, sobald es sich wieder meldet, und regelt bis dahin mit dem Stand von {{time}}."
@@ -5193,8 +5115,6 @@
       "mode": {
         "standard": "Standard",
         "greenhouse": "Gewächshaus",
-        "germination": "Keimung",
-        "drying": "Trocknung",
         "energySaving": "Energiesparen"
       }
     },

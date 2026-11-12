@@ -1,22 +1,18 @@
 import { CalendarRange } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceConfiguration, GerminationChoices as ChoiceValues } from '@fg2/shared-types/v1';
 import { useDeviceLive, useHeardAt, useLiveReads, useSaveConfiguration } from '@/api/devices';
-import { isMissing, useDevicePlan, usePlanTransition, useStopPlan } from '@/api/plans';
+import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import type { Translate } from '@/i18n/i18n';
-import { useLog } from '@/log/log-context';
-import { deviceLiveness, offlineLabel } from '@/ui/age';
-import { Asking } from '@/ui/Asking';
-import { figureOf, hasCo2Sensor } from '@/ui/climate-hardware';
-import { factsOf, unbroken } from '@/ui/fact-text';
+import { offlineLabel } from '@/ui/age';
+import { hasCo2Sensor } from '@/ui/climate-hardware';
+import { unbroken } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
-import { Help, Term } from '@/ui/Help';
-import { deviceName } from '@/ui/naming';
-import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { Term } from '@/ui/Help';
+import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/presets';
-import { figure, targetWithUnit } from '@/ui/units';
-import ui from '@/ui/ui.module.css';
+import { figure, targetWithUnit, UNIT } from '@/ui/units';
 import { useNow } from '@/ui/useNow';
 import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
@@ -37,10 +33,8 @@ import {
   type Shape,
 } from '../targets/day-night';
 import { ControlOff } from '../Mode';
-import { scheduleTitle, windowWords } from '../targets/schedule-words';
-import { Stepper } from '../targets/Stepper';
+import { scheduleTitle } from '../targets/schedule-words';
 import { draftOf, equalsPreset, leafOffset, presetOf, vpdOf, withDraft, type LightSchedule, type TargetsDraft } from '../targets/targets-draft';
-import { FigureSheet } from './FigureSheet';
 import {
   FIGURES,
   figureName,
@@ -48,13 +42,16 @@ import {
   MODE_PATHS,
   pendingByPath,
   pendingFigure,
-  pendingWindow,
-  savedWords,
+  pendingMode,
   spellChangeOf,
   type FigureField,
+  type PendingItem,
 } from './figures';
-import { LightSheet } from './LightSheet';
+import { LightCard, PlanMark } from './LightCard';
+import { PendingNote } from './Pending';
 import { PresetSheet } from './PresetSheet';
+import { useSaved } from './saved';
+import { FigureButton, ValueSheet } from './ValueSheet';
 import styles from './Climate.module.css';
 
 /**
@@ -73,9 +70,6 @@ import styles from './Climate.module.css';
  * server's own reckoning (`pending`), never by a guess of the page's.
  */
 
-/** How long a stepped figure rests before it is sent: the first step of a series would already pause a running plan. */
-const REST_MS = 1500;
-
 interface ClimateWrite {
   next: TargetsDraft;
   /** The preset taken, which says whether a drying spell or a germination starts or ends with it. */
@@ -85,27 +79,29 @@ interface ClimateWrite {
   label: string;
 }
 
-type Open = { kind: 'figure'; field: FigureField } | { kind: 'light' } | { kind: 'preset' } | null;
+type Open = { kind: 'figure'; field: FigureField } | { kind: 'preset' } | null;
 
-export function Climate({ device, stored, mayManage }: { device: Device; stored: DeviceConfiguration; mayManage: boolean }) {
+export function Climate({ device: read, stored, mayManage }: { device: Device; stored: DeviceConfiguration; mayManage: boolean }) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
-  const { tell } = useLog();
-  const plan = useDevicePlan(device.id);
-  const liveRead = useDeviceLive(device.id);
+  const plan = useDevicePlan(read.id);
+  const liveRead = useDeviceLive(read.id);
   const save = useSaveConfiguration();
-  const move = usePlanTransition(device.id);
-  const stop = useStopPlan(device.id);
-  const humidifier = useHumidifier(device);
-  const heard = useHeardAt(device);
-  const spoke = useLiveReads([device.id]).measuredAt.get(device.id) ?? heard;
+  const saved = useSaved(read);
+  const move = usePlanTransition(read.id);
+  const humidifier = useHumidifier(read);
+  const heard = useHeardAt(read);
+  const spoke = useLiveReads([read.id]).measuredAt.get(read.id) ?? heard;
   const [open, setOpen] = useState<Open>(null);
-  const [stopping, setStopping] = useState(false);
 
-  const name = deviceName(device, t);
+  const pending = pendingByPath(liveRead.data?.pending);
+  const modeHeld = pending.get(MODE_PATHS[0]);
+  // Switched off while it was not heard, a device goes on holding what it was last handed: the cards stay as it runs them.
+  const stillRuns = read.control?.running === false && modeHeld !== undefined && modeHeld.held !== 'off';
+  const device: Device = stillRuns && read.control ? { ...read, control: { ...read.control, running: true } } : read;
   const offset = offsetOf(now, zone);
-  const isOffline = deviceLiveness(heard, now) === 'offline';
+  const isOffline = saved.offline;
   const offline = isOffline ? offlineLabel(spoke, now, zone, true) : null;
   const baseline = draftOf(stored);
   const climateOnly = device.type === 'fan';
@@ -127,8 +123,7 @@ export function Climate({ device, stored, mayManage }: { device: Device; stored:
   const step = runningStep(plan.data);
   const owned = ownedBy(step);
   const planName = plan.data?.name ?? '';
-  const pending = pendingByPath(liveRead.data?.pending);
-  const busy = save.isPending || move.isPending || stop.isPending;
+  const busy = save.isPending || move.isPending;
 
   /** Whether writing `next` puts back by hand what the running plan's step writes, so the plan has to pause first. */
   const pausesFor = (next: TargetsDraft, chip: ClimateChoice | null = null, choices?: ChoiceValues): boolean => {
@@ -165,16 +160,16 @@ export function Climate({ device, stored, mayManage }: { device: Device; stored:
       });
       // A spell that began or ended moved more than figures - the mode, what is kept for after it - and is not one write to take back.
       const whole = dryingChange === null && germinationChange === null && choices === undefined;
-      tell({
-        label: t(isOffline ? 'control.saved.later' : 'control.saved.now', { what: label, device: name }),
-        undo: whole
+      saved.say(
+        label,
+        whole
           ? async () => {
               const back = { ...draftOf(answer.configuration), ...Object.fromEntries(moved.map(field => [field, baseline[field]])) };
               await save.mutateAsync({ deviceId: device.id, configuration: withDraft(answer.configuration, back, climateOnly) });
               if (pauses) await move.mutateAsync({ kind: 'resume' });
             }
           : null,
-      });
+      );
       return true;
     } catch {
       // Said under the control that asked, from the write that was refused.
@@ -182,24 +177,13 @@ export function Climate({ device, stored, mayManage }: { device: Device; stored:
     }
   };
 
-  const limit = useResting(baseline.lightLimit, value =>
-    write({ next: { ...baseline, lightLimit: value }, label: `${t('targets.aria.lightLimit')} ${figureText('lightLimit', value)}` }),
-  );
-
   if (plan.isPending) return <Waiting lines={4} />;
   // Whether a save has to pause a plan first is not guessed at: a plan that could not be read is a card that cannot be drawn yet.
   if (!plan.data && !isMissing(plan.error)) return <LoadFailed retry={() => void plan.refetch()} />;
 
-  if (regime === 'off') {
-    return <ControlOff device={device} mayManage={mayManage} />;
-  }
+  if (regime === 'off') return <ControlOff device={device} mayManage={mayManage} />;
 
   const halves = halvesOf(regime);
-  const words = windowWords(baseline, offset);
-  const scheduled = regime === 'cycle' || regime === 'always' || regime === 'never';
-  const window = pendingWindow(pending, { day: figureOf(stored, 'daynight', 'day'), night: figureOf(stored, 'daynight', 'night') });
-  const savedAt = (at: string) => savedWords(t, at, now, zone);
-  const planSets = planScheduleOf(step, baseline);
   const preset = CLIMATE_CHOICES.find(chip => chosenBy(chip, baseline, shape, hasCo2, climateOnly)) ?? null;
   const rows = [
     { key: 'temperature', label: t('targets.table.temperature'), fields: { day: 'dayTemperature', night: 'nightTemperature' } },
@@ -209,117 +193,52 @@ export function Climate({ device, stored, mayManage }: { device: Device; stored:
     ...(hasDay(regime) && hasCo2 ? [{ key: 'co2', label: t('targets.table.co2'), fields: { day: 'co2', night: null } }] : []),
   ] as { key: string; label: string; fields: Record<Half, FigureField | null> }[];
   const shown = rows.flatMap(row => halves.flatMap(half => (row.fields[half] ? [row.fields[half]] : [])));
-  const waiting = shown.flatMap(field => {
-    const held = pendingFigure(pending, field);
-    return held ? [{ field, held }] : [];
-  });
-  const limitHeld = hasDay(regime) ? pendingFigure(pending, 'lightLimit') : undefined;
-  const modeHeld = pending.get(MODE_PATHS[0]);
+  const mode = stillRuns ? null : pendingMode(t, device, pending);
+  const waiting: PendingItem[] = [
+    // A mode stored for a silent device changes what this card shows, while the device still runs the mode it had.
+    ...(mode ? [mode] : []),
+    ...shown.flatMap(field => {
+      const held = pendingFigure(pending, field);
+      return held
+        ? [
+            {
+              name: figureName(t, field, regime),
+              value: figureText(field, baseline[field]),
+              held: typeof held.held === 'number' ? figureText(field, held.held) : null,
+              savedAt: held.savedAt,
+            },
+          ]
+        : [];
+    }),
+  ];
 
   return (
     <>
       <RefreshFailed failedAt={plan.isError && plan.data ? plan.dataUpdatedAt : null} now={now} />
+      {stillRuns && modeHeld ? <ControlOff device={read} mayManage={mayManage} storedAt={modeHeld.savedAt} /> : null}
 
       {regime === 'sensor' ? null : (
-        <section className={`${styles.card} ${styles.light}`} aria-labelledby={`light-${device.id}`}>
-          <h2 className={styles.title} id={`light-${device.id}`}>
-            {t('control.light.title')}
-          </h2>
-          {scheduled ? (
-            <div className={styles.line}>
-              <p className={styles.says} data-pending={window !== null || undefined}>
-                {words.always || words.never ? (
-                  scheduleTitle(t, baseline, offset)
-                ) : (
-                  <>
-                    <span className={styles.short}>
-                      {unbroken(t('control.light.on', { time: words.on, hours: words.hours }))}
-                      <span className={styles.sub}>{t('control.light.off', { time: words.off })}</span>
-                    </span>
-                    {/* Beside the rail the three stand in one line, and break between two of them where they must. */}
-                    <span className={styles.long}>
-                      <Facts
-                        facts={[
-                          ...factsOf(t('control.light.on', { time: words.on, hours: words.hours })),
-                          t('control.light.off', { time: words.off }),
-                        ]}
-                      />
-                    </span>
-                  </>
-                )}
-              </p>
-              {mayManage ? (
-                <button type="button" className={styles.pillButton} aria-label={t('control.light.change')} onClick={() => setOpen({ kind: 'light' })}>
-                  <span className={styles.short}>{t('control.change')}</span>
-                  <span className={styles.long}>{t('control.light.change')}</span>
-                </button>
-              ) : null}
-            </div>
-          ) : (
-            // Drying and germination have no light to plan: the lamp stays off, and the plan that comes back after is said.
-            <p className={styles.says}>
-              {t(`targets.plan.${regime as 'drying' | 'germination'}`)}
-              <span className={styles.sub}>
-                {t(`targets.plan.${regime as 'drying' | 'germination'}Line`, { window: scheduleTitle(t, baseline, offset) })}
-              </span>
-            </p>
-          )}
-          {scheduled && planSets ? (
-            <p className={styles.warn}>{t('targets.plan.planSets', { name: planName, window: scheduleTitle(t, planSets, offset) })}</p>
-          ) : null}
-          {hasDay(regime) ? (
-            <div className={styles.line}>
-              <span className={styles.limitLabel}>
-                <span className={styles.short}>{t('targets.aria.lightLimit')}</span>
-                <span className={styles.long}>{t('control.light.limit')}</span>
-                <Help topic="lightLimit" />
-                {owned.has('lightLimit') ? <PlanMark /> : null}
-              </span>
-              {mayManage ? (
-                <span className={styles.nudge}>
-                  <Stepper
-                    name={t('targets.aria.lightLimit')}
-                    value={limit.value}
-                    min={FIGURES.lightLimit.min}
-                    max={FIGURES.lightLimit.max}
-                    step={FIGURES.lightLimit.step}
-                    decimals={FIGURES.lightLimit.decimals}
-                    unit={t('targets.unit.percent')}
-                    less={t('control.light.lower')}
-                    more={t('control.light.raise')}
-                    changed={limitHeld !== undefined || limit.resting}
-                    onChange={limit.set}
-                  />
-                </span>
-              ) : (
-                <span className={styles.nudgeFigure}>{figureText('lightLimit', baseline.lightLimit)}</span>
-              )}
-            </div>
-          ) : null}
-          {hasDay(regime) && baseline.lightLimit <= 0 ? <p className={styles.warn}>{t('targets.table.zeroLimit')}</p> : null}
-          {window ? (
-            <p className={styles.pending} role="status">
-              {t(window.held ? 'control.pending.window' : 'control.pending.unknown', {
-                name: t('control.light.times'),
-                value: scheduleWords(t, baseline, offset),
-                saved: savedAt(window.savedAt),
-                held: window.held ? scheduleWords(t, window.held, offset) : '',
-              })}
-            </p>
-          ) : null}
-          {limitHeld ? (
-            <p className={styles.pending} role="status">
-              {pendingSentence(
-                t,
-                t('targets.aria.lightLimit'),
-                figureText('lightLimit', baseline.lightLimit),
-                savedAt(limitHeld.savedAt),
-                heldText('lightLimit', limitHeld.held),
-              )}
-            </p>
-          ) : null}
-          {open?.kind !== 'light' ? <Refused error={limit.failed ? save.error : null} /> : null}
-        </section>
+        <LightCard
+          device={device}
+          stored={stored}
+          shape={shape}
+          baseline={baseline}
+          now={now}
+          offset={offset}
+          holding={holding}
+          offline={offline}
+          pending={pending}
+          owned={owned}
+          plan={status === 'running' ? { name: planName, sets: planScheduleOf(step, baseline) } : null}
+          mayManage={mayManage}
+          busy={busy}
+          error={save.error ?? move.error}
+          pauses={next => (pausesFor(next) ? planName : null)}
+          onTimes={next => write({ next, label: scheduleTitle(t, next, offset) })}
+          onLimit={value =>
+            write({ next: { ...baseline, lightLimit: value }, label: `${t('targets.aria.lightLimit')} ${figureText('lightLimit', value)}` })
+          }
+        />
       )}
 
       <section className={styles.card} aria-labelledby={`targets-${device.id}`}>
@@ -333,7 +252,6 @@ export function Climate({ device, stored, mayManage }: { device: Device; stored:
             </button>
           ) : null}
         </div>
-        {regime === 'sensor' ? <p className={styles.note}>{t('targets.plan.sensor')}</p> : null}
 
         <div className={styles.grid} role="table" aria-label={t('targets.table.label')} data-single={halves.length === 1 || undefined}>
           <div role="row" className={styles.gridRow}>
@@ -357,34 +275,17 @@ export function Climate({ device, stored, mayManage }: { device: Device; stored:
               </span>
               {halves.map(half => {
                 const field = row.fields[half];
-                if (!field) {
-                  return (
-                    <span role="cell" key={half} className={styles.none}>
-                      {t('targets.table.co2Night')}
-                    </span>
-                  );
-                }
-                const text = figureText(field, baseline[field]);
-                const held = pendingFigure(pending, field);
                 return (
-                  <span role="cell" key={half}>
-                    {mayManage ? (
-                      <button
-                        type="button"
-                        className={styles.figure}
-                        data-pending={held !== undefined || undefined}
-                        aria-label={t(held ? 'control.figure.changePending' : 'control.figure.change', {
-                          name: figureName(t, field, regime),
-                          value: spaced(text),
-                        })}
-                        onClick={() => setOpen({ kind: 'figure', field })}
-                      >
-                        {text}
-                      </button>
+                  <span role="cell" key={half} className={field ? undefined : styles.none}>
+                    {field ? (
+                      <FigureButton
+                        name={figureName(t, field, regime)}
+                        text={figureText(field, baseline[field])}
+                        pending={pendingFigure(pending, field) !== undefined}
+                        onOpen={mayManage ? () => setOpen({ kind: 'figure', field }) : null}
+                      />
                     ) : (
-                      <span className={styles.figure} data-pending={held !== undefined || undefined} data-read>
-                        {text}
-                      </span>
+                      t('targets.table.co2Night')
                     )}
                   </span>
                 );
@@ -409,53 +310,8 @@ export function Climate({ device, stored, mayManage }: { device: Device; stored:
           </p>
         ) : null}
         <Kept device={device} shape={shape} baseline={baseline} hasCo2={hasCo2} />
-        {/* A mode stored for a silent device changes what this card shows, while the device still runs the mode it had. */}
-        {modeHeld && device.control ? (
-          <p className={styles.pending} role="status">
-            {pendingSentence(
-              t,
-              t('operatingMode.label'),
-              t(`operatingMode.${device.control.drying ? 'drying' : device.control.mode}`),
-              savedAt(modeHeld.savedAt),
-              null,
-            )}
-          </p>
-        ) : null}
-        {waiting.map(({ field, held }) => (
-          <p className={styles.pending} role="status" key={field}>
-            {pendingSentence(t, figureName(t, field, regime), figureText(field, baseline[field]), savedAt(held.savedAt), heldText(field, held.held))}
-          </p>
-        ))}
+        <PendingNote items={waiting} />
       </section>
-
-      {/* Paused is where a plan lands once a figure it writes is set by hand, and the way out of it stands where that was done. */}
-      {status === 'paused' ? (
-        <section className={styles.paused} role="status">
-          <p>{plan.data?.state.pauseReason ? t('targets.planPausedFor', { reason: plan.data.state.pauseReason }) : t('targets.planPaused')}</p>
-          {mayManage ? (
-            <div className={styles.pausedMoves}>
-              <button type="button" className={ui.button} disabled={busy} onClick={() => move.mutate({ kind: 'resume' })}>
-                {t('targets.resume')}
-              </button>
-              <button type="button" className={`${ui.button} ${ui.danger}`} disabled={busy} onClick={() => setStopping(!stopping)}>
-                {t('space.control.move.stop')}
-              </button>
-              <Help topic="resumePlan" />
-            </div>
-          ) : null}
-          {mayManage && stopping ? (
-            <Asking
-              note={t('space.control.ask.stop')}
-              yes={t('space.control.ask.stopYes')}
-              danger
-              busy={busy}
-              onYes={() => stop.mutate(undefined, { onSuccess: () => setStopping(false) })}
-              onCancel={() => setStopping(false)}
-            />
-          ) : null}
-          {open === null ? <Refused error={move.error ?? stop.error} /> : null}
-        </section>
-      ) : null}
 
       {open?.kind === 'figure' ? (
         <FigureSheet
@@ -471,24 +327,6 @@ export function Climate({ device, stored, mayManage }: { device: Device; stored:
           onClose={() => setOpen(null)}
         />
       ) : null}
-      {open?.kind === 'light' ? (
-        <LightSheet
-          device={device}
-          shape={shape}
-          baseline={baseline}
-          now={now}
-          offset={offset}
-          holding={holding}
-          offline={offline}
-          owned={owned}
-          planSets={planSets ? { name: planName, schedule: planSets } : null}
-          pauses={next => (pausesFor(next) ? planName : null)}
-          busy={busy}
-          error={save.error ?? move.error}
-          onSave={next => write({ next, label: scheduleTitle(t, next, offset) })}
-          onClose={() => setOpen(null)}
-        />
-      ) : null}
       {open?.kind === 'preset' ? (
         <PresetSheet
           device={device}
@@ -500,7 +338,7 @@ export function Climate({ device, stored, mayManage }: { device: Device; stored:
           pauses={(next, chip, choices) => (pausesFor(next, chip, choices) ? planName : null)}
           busy={busy}
           error={save.error ?? move.error}
-          onSave={(next, chip, choices) => write({ next, chip, choices, label: t('control.preset.taken', { name: climateChoiceName(t, chip) }) })}
+          onSave={(next, chip, choices, label) => write({ next, chip, choices, label })}
           onClose={() => setOpen(null)}
         />
       ) : null}
@@ -508,10 +346,66 @@ export function Climate({ device, stored, mayManage }: { device: Device; stored:
   );
 }
 
-/** The mark on a figure a running plan writes back every hour. */
-function PlanMark() {
+/**
+ * One target, changed by itself: the stepper, the VPD a temperature or a
+ * humidity makes with its partner, and - where a running plan writes this
+ * figure - that saving pauses the plan, said before the tap.
+ */
+function FigureSheet({
+  device,
+  field,
+  regime,
+  baseline,
+  pauses,
+  busy,
+  error,
+  onSave,
+  onClose,
+}: {
+  device: Device;
+  field: FigureField;
+  regime: Regime;
+  baseline: TargetsDraft;
+  pauses: (next: TargetsDraft) => string | null;
+  busy: boolean;
+  error: Error | null;
+  onSave: (next: TargetsDraft) => Promise<boolean>;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
-  return <CalendarRange size={13} strokeWidth={2} className={styles.planMark} role="img" aria-label={t('targets.table.planMark')} />;
+  const { metric, half, min, max, step, decimals } = FIGURES[field];
+  const name = figureName(t, field, regime);
+  const withValue = (value: number): TargetsDraft => ({ ...baseline, [field]: value });
+
+  return (
+    <ValueSheet
+      title={name}
+      figures={[{ key: field, label: name, value: baseline[field], min, max, step, decimals, unit: metric === 'light' ? '%' : (UNIT[metric] ?? '') }]}
+      busy={busy}
+      error={error}
+      onSave={values => onSave(withValue(values[field]))}
+      onClose={onClose}
+    >
+      {values => {
+        const next = withValue(values[field]);
+        const paused = pauses(next);
+        return (
+          <>
+            {half && (metric === 'temperature' || metric === 'humidity') ? (
+              <p className={`mono ${styles.derived}`}>
+                <Term topic="vpd">{t('targets.table.vpd', { value: vpdText(device, next, half) })}</Term>
+              </p>
+            ) : null}
+            {paused ? (
+              <p className={styles.warn} role="status">
+                {t('targets.planTable.pauses', { name: paused })}
+              </p>
+            ) : null}
+          </>
+        );
+      }}
+    </ValueSheet>
+  );
 }
 
 /**
@@ -578,12 +472,6 @@ const halfName = (t: Translate, regime: Regime, half: Half): string =>
         ? t('targets.table.roundTheClock')
         : t(`targets.table.${regime as 'drying' | 'germination'}Title`);
 
-/** "An um 06:00 · 18 Std", or the words for a lamp that never goes off or never comes on. */
-const scheduleWords = (t: Translate, schedule: LightSchedule, offset: number): string => {
-  const words = windowWords(schedule, offset);
-  return words.always || words.never ? scheduleTitle(t, schedule, offset) : unbroken(t('control.light.on', { time: words.on, hours: words.hours }));
-};
-
 const vpdText = (device: Device, draft: TargetsDraft, half: Half): string =>
   figure(
     vpdOf(
@@ -593,16 +481,6 @@ const vpdText = (device: Device, draft: TargetsDraft, half: Half): string =>
     ),
     'vpd',
   );
-
-/** A figure as it is spoken: the space that keeps it with its unit on a line is a space to a screen reader. */
-const spaced = (text: string): string => text.replace(/\u00a0/g, ' ');
-
-/** What a silent device still holds for a figure, written as the figure is; null where the cloud does not know. */
-const heldText = (field: FigureField, held: number | string | null): string | null => (typeof held === 'number' ? figureText(field, held) : null);
-
-/** "Temperatur am Tag: 24,0 °C gespeichert um 14:31. Am Gerät gelten noch 25,0 °C, bis es wieder online ist." */
-const pendingSentence = (t: Translate, name: string, value: string, saved: string, held: string | null): string =>
-  t(held === null ? 'control.pending.unknown' : 'control.pending.figure', { name, value, saved, held: held ?? '' });
 
 /**
  * Whether the stored figures are what a preset writes, which names it on the
@@ -630,44 +508,3 @@ const planScheduleOf = (step: ReturnType<typeof runningStep>, runs: TargetsDraft
   const schedule = { lightsOn: on ?? runs.lightsOn, lightHours: hours ?? runs.lightHours };
   return schedule.lightsOn === runs.lightsOn && schedule.lightHours === runs.lightHours ? null : schedule;
 };
-
-/**
- * A figure stepped where it stands and sent once it rests: the steps of a
- * series are one write, and one line in the toast. Left with a step still
- * resting - another page, a sheet - it is sent at once rather than dropped.
- */
-function useResting(stored: number, send: (value: number) => Promise<boolean>) {
-  const [stepped, setStepped] = useState<{ value: number; against: number } | null>(null);
-  const [failed, setFailed] = useState(false);
-  const timer = useRef<number | null>(null);
-  const waiting = useRef<number | null>(null);
-  const latest = useRef(send);
-  useEffect(() => {
-    latest.current = send;
-  });
-
-  const flush = useCallback(() => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-    timer.current = null;
-    const value = waiting.current;
-    waiting.current = null;
-    if (value !== null) void latest.current(value).then(done => setFailed(!done));
-  }, []);
-  useEffect(() => flush, [flush]);
-
-  // The stepped figure holds until the stored one moves: a save in flight does not snap it back.
-  const value = stepped && stepped.against === stored ? stepped.value : stored;
-
-  return {
-    value,
-    resting: stepped !== null && stepped.against === stored && stepped.value !== stored,
-    failed,
-    set: (next: number) => {
-      setFailed(false);
-      setStepped({ value: next, against: stored });
-      waiting.current = next === stored ? null : next;
-      if (timer.current !== null) window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(flush, REST_MS);
-    },
-  };
-}

@@ -2919,10 +2919,8 @@
   "targets": {
     "title": "Targets",
     "waiting": "{{device}} has not sent its settings yet, so there is nothing to write a climate into. Changing any setting on the device itself sends them; connecting alone does not, and nothing written here can stand in for them.",
-    "presets": "Presets",
-    "light": "Light limit",
+    "presets": "Climate presets",
     "needsCo2": "needs a CO₂ sensor",
-    "typed": "{{name}}, typed",
     "aria": {
       "dayTemperature": "Day temperature",
       "dayHumidity": "Day humidity",
@@ -2939,28 +2937,15 @@
     },
     "unit": {
       "temperature": "°C",
-      "humidity": "%",
       "percent": "%",
-      "hours": "h",
-      "co2": "ppm"
+      "hours": "h"
     },
-    "planPaused": "The plan is paused while these targets hold.",
-    "planPausedFor": "The plan is paused: {{reason}}",
-    "resume": "Resume plan",
     "pauseReason": "Targets set by hand",
     "pauseReasonGermination": "Germination choice changed by hand",
-    "unsaved": "Unsaved changes",
     "save": "Save",
     "saving": "Saving…",
     "discard": "Discard",
     "readOnly": "This session may look and not set.",
-    "leave": {
-      "title": "Targets not saved",
-      "body": "You changed targets but have not saved them. Without saving, the device keeps running on the old ones.",
-      "save": "Save and go on",
-      "discard": "Discard",
-      "stay": "Keep editing"
-    },
     "growStays": "This changes the targets only: {{name}} stays in the {{stage}} phase. To move the phase and the climate together, use Phase in the grow.",
     "drying": {
       "starts": "Applying starts drying: no light and no CO₂, the device only dehumidifies and heats.",
@@ -3010,7 +2995,6 @@
       "germination": "Light off · germination",
       "dryingLine": "The light stays off while drying runs. Afterwards the light plan holds again: {{window}}.",
       "germinationLine": "Germination keeps the light off round the clock. The light plan – {{window}} – holds again once it ends: with “Seedling · with light” or another climate.",
-      "sensor": "It is day while the fan’s light sensor sees light.",
       "draft": "Draft",
       "was": "so far: {{window}}",
       "draftBarAlt": "Draft: {{window}}",
@@ -3991,7 +3975,7 @@
     "advanced": {
       "operatingMode": {
         "title": "Operating mode",
-        "text": "What the device does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Germination · dark keeps it dark round the clock without CO₂ and heats and cools to one temperature – the one in the “Germination · dark” column under Targets; in a tent the exhaust does the cooling, and a dehumidifier stays off. It sets the humidity to 75 % for a humidifier to hold: the night humidity before it was meant for leaves, often 50 %, and would keep the seeds too dry; it applies again once germination ends. Whether “Too humid” warns and whether a humidifier holds the humidity meanwhile is chosen below while the device germinates. The “Germination · dark” climate and the germination phase set the same germination. A fridge also has greenhouse: the temperature only, light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Drying keeps it dark round the clock without CO₂ on the night targets; when it ends, the device returns to its operating mode and the targets from before. The “Drying” climate and the drying phase set the same drying. Energy saving applies to standard only."
+        "text": "What the device does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Greenhouse holds the temperature only: light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Germination · dark and Drying are not chosen here: they belong to the stage and come and go with the climate preset under Control, with a phase of the grow or with a plan step. Energy saving applies to standard only."
       },
       "chartStep": {
         "title": "Interval",
@@ -4108,15 +4092,15 @@
     },
     "drying": {
       "title": "Drying",
-      "text": "While drying the device knows no day and no night: the light stays off, no CO₂ is dosed, it only dehumidifies and heats to the drying targets. Drying starts with the “Drying” preset under Control, with the drying phase in the grow or with a drying plan step. Another preset, another phase or a plan step end it with targets of their own. “End drying” and “Control off” bring back the targets from before drying, and the device goes back to its operating mode, energy saving included."
+      "text": "While drying the device knows no day and no night: the light stays off, no CO₂ is dosed, it only dehumidifies and heats to the drying targets. Drying starts with the “Drying” preset under Control, with the drying phase in the grow or with a drying plan step. Another preset, another phase or a plan step end it with targets of their own. “Control off” brings back the targets from before drying, and the device goes back to its operating mode, energy saving included."
     },
     "germination": {
       "title": "Germination · dark",
-      "text": "Seeds germinate in the dark: the device goes into its germination mode – no light, no CO₂, only a humidifier holding the humidity – and heats and cools to one temperature round the clock. In a tent the exhaust does the cooling; a dehumidifier stays off, as it would warm the tent and dry out the medium the seeds sprout in. 24 °C is suggested, the middle of the 22–26 °C seeds sprout fastest at. Germination also brings 75 % humidity: seeds sprout well between about 70 and 90 % – drier, the medium dries out on top and the seed coat hardens; wetter, water stands on the medium and the tray. 75 % sits safely in between, below the 90 % at which “Too humid” warns, and the seedling after it holds 65–70 %. Only a humidifier on a smart socket can hold it; once germination ends, the humidity from before applies again. Germination starts with “Germination · dark” under Control, as the climate of the germination phase, during setup, with a germination plan step or in the operating mode. Any other climate, phase or plan step – one without a stage too – ends it: the device holds day and night with light again, on standard with its energy saving. Entering the germination phase without a climate changes nothing on the device, its alarms included. Whether “Too humid” warns during germination and whether a humidifier holds the humidity is chosen wherever germination is set."
+      "text": "Seeds germinate in the dark: the device goes into its germination mode – no light, no CO₂, only a humidifier holding the humidity – and heats and cools to one temperature round the clock. In a tent the exhaust does the cooling; a dehumidifier stays off, as it would warm the tent and dry out the medium the seeds sprout in. 24 °C is suggested, the middle of the 22–26 °C seeds sprout fastest at. Germination also brings 75 % humidity: seeds sprout well between about 70 and 90 % – drier, the medium dries out on top and the seed coat hardens; wetter, water stands on the medium and the tray. 75 % sits safely in between, below the 90 % at which “Too humid” warns, and the seedling after it holds 65–70 %. Only a humidifier on a smart socket can hold it; once germination ends, the humidity from before applies again. Germination starts with “Germination · dark” under Control, as the climate of the germination phase, during setup or with a germination plan step. Any other climate, phase or plan step – one without a stage too – ends it: the device holds day and night with light again, on standard with its energy saving. Entering the germination phase without a climate changes nothing on the device, its alarms included. Whether “Too humid” warns during germination and whether a humidifier holds the humidity is chosen wherever germination is set; while it runs, both are changed under Control in the climate preset."
     },
     "germinationAlarm": {
       "title": "“Too humid” during germination",
-      "text": "Germinating seeds are kept moist on purpose, and a germination box often reads far above what is good for leaves. So the phase’s “Too humid” rests during germination unless you switch warning on – an alarm that goes off every night is soon ignored. Switched on, it warns above 90 % during germination, whether you set germination under Control, in the operating mode, with a phase or with a plan (above that, water stands on the medium and the tray, where mould and damping-off begin); a device that has none gets one. After germination its own line holds again. Alarms you set up yourself, and every other alarm, always stay awake. Resting means the alarm stays switched on and keeps your settings; an open alert ends without an all-clear and is listed under Alerts as “resting during germination”. The choice is for this germination; the next one starts without warning again."
+      "text": "Germinating seeds are kept moist on purpose, and a germination box often reads far above what is good for leaves. So the phase’s “Too humid” rests during germination unless you switch warning on – an alarm that goes off every night is soon ignored. Switched on, it warns above 90 % during germination, whether you set germination under Control, with a phase or with a plan (above that, water stands on the medium and the tray, where mould and damping-off begin); a device that has none gets one. After germination its own line holds again. Alarms you set up yourself, and every other alarm, always stay awake. Resting means the alarm stays switched on and keeps your settings; an open alert ends without an all-clear and is listed under Alerts as “resting during germination”. The choice is for this germination; the next one starts without warning again."
     },
     "germinationHumidifier": {
       "title": "Humidifier during germination",
@@ -4128,7 +4112,7 @@
     },
     "plugMode": {
       "title": "Switches by",
-      "text": "What the Plantalytix Socket regulates with its own sensor: heating, cooling, humidifying, dehumidifying or CO₂ – then it switches at two points of the reading. With a timer it switches at set times of day, and Off keeps it off."
+      "text": "What the Plantalytix Socket regulates with its own sensor: heating, cooling, humidifying, dehumidifying or CO₂ – then it switches at two points of the reading. With a timer it switches at set times of day, and Off keeps it off. CO₂ needs the CO₂ sensor sold as an accessory; without it the Plantalytix Socket stays off. Dosing in intervals and slowing an AIR down are on the Plantalytix Socket’s page under Advanced."
     },
     "plugDayNight": {
       "title": "Day and night",
@@ -4144,7 +4128,7 @@
     },
     "fanMode": {
       "title": "The fan runs",
-      "text": "Fixed: the AIR runs at one set speed by day and another at night. By temperature, humidity or both: it runs at its lowest speed while the reading stays under the target, and speeds up the further the reading rises above it – up to its highest speed. Day, for the AIR, is while its light sensor sees light."
+      "text": "Fixed: the AIR runs at one set speed by day and another at night. By temperature, humidity or both: it runs at its lowest speed while the reading stays under the target, and speeds up the further the reading rises above it – up to its highest speed. Day, for the AIR, is while its light sensor sees light. By temperature it speeds up from 1 °C below the target and runs at its highest speed 1 °C above it, by humidity from 5 % below to 5 % above. By both it follows whichever reading is further over its target."
     },
     "fanSpeeds": {
       "title": "Speed",
@@ -4224,15 +4208,7 @@
     "holdsAboveLine": "The humidifier holds more than “Too humid” allows during germination ({{line}} %): the alarm will go off often."
   },
   "advanced": {
-    "title": "Advanced",
-    "lead": {
-      "device": "What most growers never need. A change applies at once and is sent to the device.",
-      "charts": "Finer settings of the charts.",
-      "camera": "What most growers never need. A change applies at once, and the camera is tried again straight away."
-    },
-    "range": "From {{min}} to {{max}} {{unit}}.",
-    "save": "Save",
-    "cancel": "Cancel"
+    "title": "Advanced"
   },
   "climateControl": {
     "label": "Control",
@@ -4260,21 +4236,7 @@
     "done": "Control is off.",
     "unheard": "The device cannot be reached right now and takes it as soon as it is back.",
     "pauseReason": "Control was switched off.",
-    "dryingNote": "Drying: no day and night, no light, no CO₂. The device only dehumidifies and heats.",
-    "endDrying": "End drying",
     "offTitle": "Control off.",
-    "endDryingAsk": "End drying …",
-    "endDryingTitle": "End drying?",
-    "endDryingDoes": "The device holds day and night again, switches the light by its schedule and doses CO₂.",
-    "endDryingBack": "The targets from before drying apply again: {{targets}}.",
-    "endDryingRecord": "The targets last saved before drying apply again; a light left off comes back at 100 %. Check them under Targets afterwards, or pick a preset.",
-    "endDryingDone": "Drying has ended. The device is sent the targets as soon as it is connected.",
-    "returns": {
-      "day": "day {{values}}",
-      "night": "night {{values}}",
-      "light": "light {{percent}} %",
-      "co2": "CO₂ {{value}}"
-    },
     "offLine": {
       "fridge": "The device only measures: heater, compressor, light and CO₂ stand still, and it holds no targets. Switch control on for it to hold them again.",
       "controller": "The device only measures: heater, dehumidifier, light and CO₂ stand still, and it holds no targets. Switch control on for it to hold them again.",
@@ -4283,9 +4245,7 @@
     "offLineRead": "The device only measures and holds no targets right now."
   },
   "energySaving": {
-    "label": "Energy saving",
-    "onNote": "The back-wall fan rests while the compressor is off.",
-    "offNote": "The back-wall fan runs even while the compressor is off."
+    "label": "Energy saving"
   },
   "operatingMode": {
     "label": "Operating mode",
@@ -4294,12 +4254,9 @@
     "greenhouse": "Greenhouse",
     "greenhouseNote": "Temperature only: light and CO₂ run, the compressor only cools, humidity is not controlled.",
     "germination": "Germination · dark",
-    "germinationNote": "For seeds germinating in the dark: no light, no CO₂, one temperature round the clock – the night temperature at first, to be changed under Targets – and {{humidity}} % humidity for a humidifier. A dehumidifier stays off; in a tent the exhaust does the cooling. Back on standard, the night from before holds again. “Germination · dark” under Control sets the same, at {{temperature}} °C straight away.",
     "drying": "Drying",
-    "dryingNote": "For a harvest that dries: no light, no CO₂, the night targets round the clock. When drying ends, the targets from before hold again. The drying phase and the “Drying” climate under Control set the same.",
-    "ask": "Switch to {{mode}}? {{what}} Standard here switches it back.",
-    "choicesAfter": "This can be changed here once it is switched.",
-    "yes": "Switch to {{mode}}"
+    "byPreset": "set by the climate preset",
+    "toPreset": "Change the climate preset"
   },
   "recover": {
     "title": "Forgot your password",
@@ -4411,11 +4368,7 @@
     "sunrise": "Sunrise",
     "sunset": "Sunset",
     "maintenanceLight": "Light on during maintenance",
-    "maintenanceLightOn": "The light runs at 15 % during maintenance at night too.",
-    "maintenanceLightOff": "At night it stays dark during maintenance.",
     "co2Night": "CO₂ at night too",
-    "co2NightOn": "CO₂ is dosed to the target in the dark period as well.",
-    "co2NightOff": "CO₂ is dosed only while the light is on.",
     "clipFan": "Clip fan",
     "innerFans": "Inner fans, at least",
     "compressorRest": "Compressor rest"
@@ -4424,15 +4377,12 @@
     "day": "Leaf against air · day",
     "night": "Leaf against air · night",
     "offset": "{{value}} °C",
-    "colder": "{{label}}: cooler",
-    "warmer": "{{label}}: warmer",
-    "measured": "The leaf sensor measures the leaf itself; these apply only where it gives no reading, and to the VPD preview of the targets.",
     "lux": "Lux to PPFD factor",
-    "luxRange": "From {{min}} to {{max}}.",
     "lamp": {
       "led": "White LED · {{factor}}",
       "hps": "HPS · {{factor}}"
-    }
+    },
+    "lamps": "Known lamps"
   },
   "continuePlan": {
     "label": "Continue the plan at a step",
@@ -4463,7 +4413,7 @@
   },
   "co2Report": {
     "title": "CO₂ cylinder",
-    "none": "No cylinder noted yet. Note the next one when it goes in – from the first empty one on, the card works out what is left in the one in use and how long it will last.",
+    "none": "No cylinder entered yet.",
     "inUse": "In use since {{day}} · {{grams}} g",
     "rest": "About {{grams}} g left ({{percent}} %)",
     "lasts_one": "lasts about {{count}} more day",
@@ -4590,11 +4540,9 @@
   "ownPanel": {
     "title": "Settings",
     "waiting": "{{device}} has not sent its settings yet, so there is nothing to change here. Changing any setting on the device itself sends them; connecting alone does not.",
-    "sentNote": "The device acknowledges no setting; what it really does shows in its readings.",
     "status": "Readings arrive · Plantalytix Socket: {{mode}}",
     "statusLight": "Readings arrive · light {{on}}–{{off}}",
-    "statusFan": "Readings arriving · fan runs: {{mode}}",
-    "sentAt": "Sent to the device at {{time}}"
+    "statusFan": "Readings arriving · fan runs: {{mode}}"
   },
   "plugSettings": {
     "mode": {
@@ -4607,22 +4555,8 @@
       "co2": "CO₂",
       "timer": "Timer"
     },
-    "modeNote": {
-      "off": "The Plantalytix Socket stays off.",
-      "heater": "For a heater: on once it is colder than the switch-on point, off above the switch-off point.",
-      "cooler": "For a cooler or a fan: on once it is warmer than the switch-on point, off below the switch-off point.",
-      "humidify": "For a humidifier: on once the air is drier than the switch-on point, off above the switch-off point.",
-      "dehumidify": "For a dehumidifier: on once the air is more humid than the switch-on point, off below the switch-off point.",
-      "co2": "For a CO₂ valve: on below the switch-on point, off above the switch-off point. Needs the CO₂ sensor sold as an accessory; without it the Plantalytix Socket stays off. Dosing in intervals and slowing an AIR down are on this Plantalytix Socket's page under Advanced.",
-      "timer": "The Plantalytix Socket switches at set times of day, whatever the readings say."
-    },
     "dayNight": "Own switch points at night",
-    "dayNightOn": "Day and night each have their own switch points.",
-    "dayNightOff": "The same switch points hold round the clock.",
     "dayOnly": "Dose by day only",
-    "dayOnlyOn": "The valve stays shut at night.",
-    "dayOnlyOff": "Doses round the clock whenever the reading drops below the switch-on point.",
-    "dayLabel": "Day and night",
     "dayFrom": "Day from",
     "nightFrom": "Night from",
     "points": "Switch points",
@@ -4647,22 +4581,21 @@
       "label": "Time windows",
       "none": "No time window: the Plantalytix Socket stays off.",
       "add": "+ Time window",
-      "most": "{{count}} time windows at most.",
-      "at": "on at",
-      "atLabel": "Time window {{number}}: on at",
-      "for": "for",
-      "forLabel": "Time window {{number}}: minutes",
-      "minutes": "min",
+      "at": "On at",
+      "for": "Duration",
       "ends": "until {{time}}",
-      "remove": "Remove time window {{number}}",
-      "bad": "Every time window runs 1 to 1440 minutes."
+      "remove": "Remove",
+      "one": "Time window {{number}}",
+      "removed": "Time window {{window}} removed"
     },
     "summary": {
       "rising": "on below {{on}} · off above {{off}}",
       "falling": "on above {{on}} · off below {{off}}",
       "dayOnly": "by day only",
       "noWindows": "none"
-    }
+    },
+    "title": "Switching",
+    "dayLabel": "Day and night"
   },
   "fanSettings": {
     "mode": {
@@ -4672,18 +4605,9 @@
       "humidity": "By humidity",
       "both": "By both"
     },
-    "modeNote": {
-      "fixed": "Runs at the set speed by day and at night, and follows no target.",
-      "temperature": "Speeds up once it is warmer than 1 °C below the target temperature, and runs at its most 1 °C above it. The humidity below does not apply.",
-      "humidity": "Speeds up once the air is more humid than 5 % below the target humidity, and runs at its most 5 % above it. The temperature below does not apply.",
-      "both": "Follows whichever of the two readings is further over its target."
-    },
     "speeds": "Speed",
     "day": "By day",
     "night": "At night",
-    "mostDay": "Most by day",
-    "mostNight": "Most at night",
-    "least": "At least",
     "aria": {
       "fixedDay": "Speed by day",
       "fixedNight": "Speed at night",
@@ -4694,27 +4618,21 @@
     "mostBelowLeast": "The highest speed cannot be below the lowest.",
     "slowed": "While {{plug}} doses CO₂, the fan runs at {{speed}} % at most.",
     "uncouple": "Stop slowing it",
-    "fixedTargets": "In “Fixed” mode the fan runs at fixed speeds and follows no target. Its mode and speeds are under Control › Outputs."
+    "title": "Fan",
+    "uncoupled": "Fan no longer slowed"
   },
   "lightSettings": {
-    "title": "Light",
-    "on": "Light on at",
-    "off": "Light off at",
-    "hours": "on {{hours}} h"
+    "title": "Light"
   },
   "plugCo2": {
     "label": "CO₂ dosing",
     "const": "Throughout",
     "periodic": "In intervals",
-    "constNote": "The valve opens whenever the reading drops below the switch-on point.",
-    "periodicNote": "Doses only in one window of every interval, say 10 minutes every hour.",
     "every": "Interval",
     "for": "Dosing for",
     "fan": "Slow an AIR fan",
     "noFan": "None",
-    "fanSpeed": "Fan while dosing",
-    "fanNone": "No fan is slowed.",
-    "fanNote": "While dosing, the fan runs at {{speed}} % at most so the CO₂ stays in the tent."
+    "fanSpeed": "Fan while dosing"
   },
   "plugProtections": {
     "overheat": "Off when too hot",
@@ -4729,8 +4647,7 @@
     "needsFirmware": "This firmware does not keep to the protections. A firmware update brings them; until then they cannot be set."
   },
   "lightOverheat": {
-    "label": "Dim from",
-    "note": "Measured at the light module itself. Above it, the light dims itself to stay safe."
+    "label": "Dim from"
   },
   "configChange": {
     "field": {
@@ -5126,13 +5043,13 @@
       "times": "Light times"
     },
     "preset": {
-      "named": "Preset: {{name}}",
-      "open": "Preset",
-      "title": "Apply a preset",
+      "named": "Climate preset: {{name}}",
+      "open": "Climate preset",
+      "title": "Apply a climate preset",
       "take": "Apply",
-      "taken": "Preset {{name}}",
-      "same": "These are this preset’s figures already.",
-      "sets": "What the preset changes"
+      "taken": "Climate preset {{name}}",
+      "same": "These are this climate preset’s figures already.",
+      "sets": "What the climate preset changes"
     },
     "figure": {
       "change": "Change {{name}}, {{value}}",
@@ -5154,7 +5071,12 @@
       "unknown": "{{name}}: {{value}} saved {{saved}}. The device takes it over once it is back online.",
       "behind": "saved {{saved}}, not with the device yet",
       "more_one": "{{count}} more setting saved, not with the device yet",
-      "more_other": "{{count}} more settings saved, not with the device yet"
+      "more_other": "{{count}} more settings saved, not with the device yet",
+      "several": "{{number}} settings saved {{saved}}, not with the device yet",
+      "one": "{{name}}: {{value}} · the device still holds {{held}}",
+      "oneUnknown": "{{name}}: {{value}}",
+      "off": "Control off saved {{saved}}, not with the device yet: {{device}} goes on regulating until it is back online.",
+      "modeOff": "Control off"
     },
     "offline": {
       "text": "You can set everything all the same. The device takes it over once it reports again, and until then regulates with what it held at {{time}}."
@@ -5184,8 +5106,6 @@
       "mode": {
         "standard": "Standard",
         "greenhouse": "Greenhouse",
-        "germination": "Germination",
-        "drying": "Drying",
         "energySaving": "Energy saving"
       }
     },

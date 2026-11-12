@@ -1,23 +1,23 @@
-import { useCallback, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { awaitingClimate, statesTargets } from '@/ui/climate-hardware';
-import { deviceName, deviceTitle } from '@/ui/naming';
+import { deviceTitle } from '@/ui/naming';
 import { enough, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { Climate } from './climate/Climate';
+import { FanPanel } from './devices/FanPanel';
 import { LightPanel } from './devices/LightPanel';
-import type { OwnPanelProps } from './devices/OwnPanel';
 import { PlugPanel } from './devices/PlugPanel';
-import { LeaveGuard, type Unsaved } from './targets/LeaveGuard';
 
 /**
  * What one device is set to that is its own: the light and the targets of a
- * controller, a fridge or an AIR fan, the switching of a Plantalytix Socket,
- * the window of a LIGHT. Steuerung draws it for the device that is the
- * place's climate, a device's own page for every other one.
+ * controller or a fridge, an AIR fan's own control with the targets it
+ * follows, the switching of a Plantalytix Socket, the window of a LIGHT.
+ * Steuerung draws it for the device that is the place's climate, a device's
+ * own page for every other one. All of them are built from the same parts
+ * and saved the same way: nothing here is a draft.
  *
  * What may be done is asked of the device rather than of the screen: the same
  * reader owns one tent and only reads the next. A device whose document has
@@ -35,42 +35,16 @@ export function OwnSettings({ device }: { device: Device }) {
     return key ? <p className={`${ui.cardDashed} ${ui.note}`}>{t(key, { device: deviceTitle(device, t, all.data?.items) })}</p> : null;
   }
 
-  if (device.type === 'plug' || device.type === 'light') {
-    const Panel = device.type === 'plug' ? PlugPanel : LightPanel;
-    return <Guarded>{own => <Panel device={device} name={deviceName(device, t)} titled={false} mayManage={mayManage} {...own} />}</Guarded>;
-  }
-
+  if (device.type === 'plug') return <PlugPanel device={device} mayManage={mayManage} />;
+  if (device.type === 'light') return <LightPanel device={device} mayManage={mayManage} />;
   if (!statesTargets(configuration)) return null;
-  // At a fixed speed an AIR fan follows no target, and none is offered: its speed is among the outputs.
-  if (device.type === 'fan' && fieldValue(device, 'fanMode') === 'fixed')
-    return <p className={`${ui.cardDashed} ${ui.note}`}>{t('fanSettings.fixedTargets')}</p>;
-
-  return <Climate device={device} stored={configuration} mayManage={mayManage} />;
-}
-
-/**
- * The panels that keep a Save of their own - a socket's switching, a lamp's
- * window, the fans among the outputs - with the question that is asked before
- * figures nobody saved are left behind. The climate's figures need none: each
- * is written by its own sheet.
- */
-export function Guarded({ children }: { children: (own: Pick<OwnPanelProps, 'report' | 'asking'>) => ReactNode }) {
-  const [unsaved, setUnsaved] = useState<ReadonlyMap<string, Unsaved>>(new Map());
-  const [asking, setAsking] = useState(false);
-  const report = useCallback((id: string, entry: Unsaved | null) => {
-    setUnsaved(current => {
-      if (entry === null && !current.has(id)) return current;
-      const next = new Map(current);
-      if (entry) next.set(id, entry);
-      else next.delete(id);
-      return next;
-    });
-  }, []);
+  if (device.type !== 'fan') return <Climate device={device} stored={configuration} mayManage={mayManage} />;
 
   return (
     <>
-      {children({ report, asking })}
-      <LeaveGuard unsaved={unsaved} onAsking={setAsking} />
+      <FanPanel device={device} mayManage={mayManage} />
+      {/* At a fixed speed an AIR fan follows no target, and none is offered. */}
+      {fieldValue(device, 'fanMode') === 'fixed' ? null : <Climate device={device} stored={configuration} mayManage={mayManage} />}
     </>
   );
 }

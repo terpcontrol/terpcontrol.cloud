@@ -1,49 +1,29 @@
 import { useTranslation } from 'react-i18next';
-import { configurationFieldsOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import { Block } from '@/ui/SheetParts';
-import { useFieldsDraft } from './fields-draft';
-import { OwnPanel, type OwnPanelProps } from './OwnPanel';
-import { TargetRow } from './TargetRow';
+import type { Device } from '@fg2/shared-types/v1';
+import { useSettings } from '../climate/saved';
+import { NumberSetting, SettingsBlock } from './Settings';
+import { figureSaid, pendingOf } from './setting-words';
 
 /**
- * A fridge's fans, under its targets: the clip fan outside that moves the
+ * A fridge's fans, among its outputs: the clip fan outside that moves the
  * leaves, and the inner fans that move the air in the cabinet. They are set as
  * often as the climate is - lower for seedlings, quieter at night - so they
- * stand where the climate is changed rather than only under Erweitert.
+ * stand under Steuerung rather than under Erweitert.
  */
-
-const FIELDS = ['clipFan', 'innerFans'];
-
-export function FridgeFansPanel(props: OwnPanelProps) {
+export function FridgeFansPanel({ device, mayManage }: { device: Device; mayManage: boolean }) {
   const { t } = useTranslation();
-  const draft = useFieldsDraft(props.device, FIELDS);
-  const fields = configurationFieldsOf(props.device.type);
-
-  const speed = (field: string, label: string) => {
-    const spec = fields[field];
-    if (spec?.kind !== 'number') return null;
-    return (
-      <TargetRow
-        id={`fridge-fan-${props.device.id}-${field}`}
-        label={label}
-        name={label}
-        value={draft.value<number>(field, spec.max)}
-        min={spec.min}
-        max={spec.max}
-        step={spec.step}
-        unit={t('targets.unit.percent')}
-        disabled={!props.mayManage}
-        onChange={value => draft.set(field, value)}
-      />
-    );
-  };
+  const settings = useSettings(device);
+  const unit = t('targets.unit.percent');
+  const fans = [
+    { name: 'clipFan', label: t('tuning.clipFan'), say: figureSaid(unit) },
+    { name: 'innerFans', label: t('tuning.innerFans'), say: figureSaid(unit) },
+  ];
 
   return (
-    <OwnPanel {...props} draft={draft} saysReadOnly={false}>
-      <Block grouped label={t('targets.fans')} help="advanced.fans">
-        {speed('clipFan', t('tuning.clipFan'))}
-        {speed('innerFans', t('tuning.innerFans'))}
-      </Block>
-    </OwnPanel>
+    <SettingsBlock title={t('targets.fans')} help="advanced.fans" pending={pendingOf(device, settings, fans)}>
+      {fans.map(fan => (
+        <NumberSetting key={fan.name} device={device} settings={settings} mayManage={mayManage} name={fan.name} label={fan.label} unit={unit} />
+      ))}
+    </SettingsBlock>
   );
 }

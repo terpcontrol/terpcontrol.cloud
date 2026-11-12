@@ -1,37 +1,32 @@
 import { Power } from 'lucide-react';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Device, DryingReturn, GerminationChoices as Choices } from '@fg2/shared-types/v1';
-import { GERMINATION_HUMIDITY, GERMINATION_TEMPERATURE, GERMINATION_TOO_HUMID } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { configurationFieldsOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import { useConfigure } from '@/api/devices';
-import type { Translate } from '@/i18n/i18n';
-import { FieldChoice, FieldSwitch } from '@/ui/advanced/Fields';
+import type { Device } from '@fg2/shared-types/v1';
+import { controlPath, devicePath } from '@/app/places';
 import { Announce } from '@/ui/Announce';
-import { figureOf, germinates } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
 import { deviceName } from '@/ui/naming';
 import { Refused } from '@/ui/PageState';
-import { Sheet } from '@/ui/Sheet';
-import { Answered, SheetAnswer } from '@/ui/SheetParts';
-import { targetFigure, targetWithUnit } from '@/ui/units';
+import { Row, Rows } from '@/ui/Rows';
 import ui from '@/ui/ui.module.css';
+import { useNow } from '@/ui/useNow';
+import { useZone } from '@/ui/zone';
 import { useSwitchOn } from '../devices/switch-on';
-import { GerminationChoices } from './germination/GerminationChoices';
-import { choicesOf, useHumidifier } from './germination/germination-choices';
-import { hasMode } from './rows';
+import { pendingMode, savedWords } from './climate/figures';
+import { useSaved, useSettings } from './climate/saved';
+import { ChoiceSetting, SettingLine, SettingsBlock, SwitchSetting } from './devices/Settings';
+import { useLeads } from './lead';
+import { hasMode, modesOf } from './rows';
 import styles from './Control.module.css';
+import own from './devices/Own.module.css';
 
 /**
- * Betriebsart: what a fridge or a tent controller does as a whole while its
- * control is on, behind its own row under Steuerung - the one list of work
- * modes per type (`WORK_MODES_BY_TYPE`), a fridge's energy saving, what
- * germination does about the humidity while it runs, and the way out of a
- * drying spell for somebody who keeps no diary to end it with a phase.
+ * Betriebsart: what a fridge does as a whole while its control is on, behind
+ * its own row under Steuerung - the work modes no climate preset sets, and
+ * its energy saving.
  *
- * Standard is what everything else in the app assumes and is one tap; every
- * other mode darkens the device or stops it holding its humidity and is asked
- * first. Each choice is written on the tap.
+ * Germination and drying are not chosen here: the stage decides the work
+ * mode, so a device is put into them and taken out of them by its climate
+ * preset alone. One of them running is read here, with the way to the preset.
  */
 
 export function ModePage({ devices, mayManage }: { devices: Device[]; mayManage: boolean }) {
@@ -52,95 +47,57 @@ export function ModePage({ devices, mayManage }: { devices: Device[]; mayManage:
 
 function DeviceMode({ device, mayManage }: { device: Device; mayManage: boolean }) {
   const { t } = useTranslation();
+  const settings = useSettings(device);
+  const leads = useLeads(device);
   const control = device.control;
-  const humidifier = useHumidifier(device);
-  // The question outlives the line it is asked from: ending the spell takes the line away, and what happened is still to be read.
-  const [ending, setEnding] = useState<DryingReturn | null | undefined>(undefined);
-  const field = configurationFieldsOf(device.type).mode;
-  const modes = field?.kind === 'choice' ? field.options : [];
-  // What germination will do about the humidity is said before the switch, as everywhere germination is set.
-  const choices = choicesOf(device);
-  const choicesSaid = [
-    t(choices.warnTooHumid ? 'germinationChoices.alarmOn' : 'germinationChoices.alarmOff', { line: GERMINATION_TOO_HUMID }),
-    humidifier
-      ? choices.humidifierHolds
-        ? t('germinationChoices.humidifierOn', { humidity: targetWithUnit(GERMINATION_HUMIDITY, 'humidity') })
-        : t('germinationChoices.humidifierOff')
-      : null,
-    t('operatingMode.choicesAfter'),
-  ]
-    .filter(Boolean)
-    .join(' ');
-  const figures = {
-    temperature: targetFigure(GERMINATION_TEMPERATURE, 'temperature'),
-    humidity: targetFigure(GERMINATION_HUMIDITY, 'humidity'),
-  };
-
   if (!control) return null;
   if (!control.running) return <ControlOff device={device} mayManage={mayManage} />;
-  // Whoever may not steer the place reads which mode holds, and is drawn no choice they could not make.
-  if (!mayManage) {
+
+  const held = pendingMode(t, device, settings.pending);
+  const pending = held ? [held] : [];
+  const title = t('operatingMode.label');
+  // A mode the stage brought is the climate preset's to end, where the device's climate is set.
+  const spell = control.drying ? 'drying' : control.mode === 'germination' ? 'germination' : null;
+  if (spell) {
     return (
-      <p className={styles.card}>
-        <span className="label">{t('operatingMode.label')}</span>
-        {[t(`operatingMode.${control.drying ? 'drying' : control.mode}`), control.energySaving ? t('energySaving.label') : null]
-          .filter(Boolean)
-          .join(' · ')}
-      </p>
+      <>
+        <SettingsBlock label={title} pending={pending}>
+          <SettingLine label={title} help={spell}>
+            <span className={own.read}>{t(`operatingMode.${spell}`)}</span>
+          </SettingLine>
+        </SettingsBlock>
+        {mayManage ? (
+          <Rows>
+            <Row
+              to={leads && device.spaceId ? controlPath(device.spaceId) : devicePath(device.id)}
+              title={t('operatingMode.toPreset')}
+              line={t('operatingMode.byPreset')}
+            />
+          </Rows>
+        ) : null}
+      </>
     );
   }
 
+  const modes = modesOf(device);
+  const shared = { device, settings, mayManage };
   return (
-    <>
-      {control.drying ? (
-        <div className={styles.state} data-tone="warn">
-          <p>
-            {t('climateControl.dryingNote')}
-            <Help topic="drying" />
-          </p>
-          <button type="button" className={ui.button} onClick={() => setEnding(control.afterDrying ?? null)}>
-            {t('climateControl.endDryingAsk')}
-          </button>
-        </div>
-      ) : null}
-      <div className={styles.card}>
-        <FieldChoice
-          device={device}
+    <SettingsBlock label={title} pending={pending} error={settings.error}>
+      {modes.length > 1 ? (
+        <ChoiceSetting
+          {...shared}
           name="mode"
-          label={t('operatingMode.label')}
+          label={title}
           help="advanced.operatingMode"
-          options={modes.map(mode => ({ value: mode, label: t(`operatingMode.${mode}`), note: t(`operatingMode.${mode}Note`, figures) }))}
-          ask={mode =>
-            mode === 'standard'
-              ? null
-              : {
-                  question: [
-                    t('operatingMode.ask', { mode: t(`operatingMode.${mode}`), what: t(`operatingMode.${mode}Note`, figures) }),
-                    mode === 'germination' ? choicesSaid : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' '),
-                  yes: t('operatingMode.yes', { mode: t(`operatingMode.${mode}`) }),
-                }
-          }
+          options={modes.map(mode => ({ value: mode, label: t(`operatingMode.${mode}`) }))}
+          says={mode => t(`operatingMode.${mode}Note`)}
         />
-        {germinates(device) ? <Choosing device={device} humidifier={humidifier} /> : null}
-      </div>
-      {/* Energy saving belongs to a day and night of the standard mode, which neither a drying spell nor germination is. */}
-      {device.type === 'fridge' && control.mode === 'standard' && !control.drying ? (
-        <div className={styles.card}>
-          <FieldSwitch
-            alone
-            device={device}
-            name="energySaving"
-            label={t('energySaving.label')}
-            help="energySaving"
-            note={on => t(on ? 'energySaving.onNote' : 'energySaving.offNote')}
-          />
-        </div>
       ) : null}
-      {ending !== undefined ? <EndDryingSheet device={device} back={ending} onClose={() => setEnding(undefined)} /> : null}
-    </>
+      {/* Energy saving belongs to a day and night of the standard mode. */}
+      {device.type === 'fridge' && control.mode === 'standard' ? (
+        <SwitchSetting {...shared} name="energySaving" label={t('energySaving.label')} help="energySaving" />
+      ) : null}
+    </SettingsBlock>
   );
 }
 
@@ -149,20 +106,36 @@ function DeviceMode({ device, mayManage }: { device: Device; mayManage: boolean 
  * there is no table, because it holds none of it, and the one way out is
  * beside the sentence - on is one tap, as it is the state everything else
  * assumes. Switching off is on the device's own page.
+ *
+ * Switched off while the device was not heard (`storedAt`), off is a setting
+ * it has not been handed like any other: the sentence says since when it is
+ * stored and that the device goes on regulating, and the cards under it stay.
  */
-export function ControlOff({ device, mayManage }: { device: Device; mayManage: boolean }) {
+export function ControlOff({ device, mayManage, storedAt = null }: { device: Device; mayManage: boolean; storedAt?: string | null }) {
   const { t } = useTranslation();
+  const now = useNow();
+  const zone = useZone();
   const on = useSwitchOn(device);
+  const saved = useSaved(device);
   const kind = device.type === 'fridge' || device.type === 'controller' ? device.type : 'other';
+  const switchOn = async () => {
+    if (await on.switchOn()) saved.say(`${t('climateControl.label')} ${t('climateControl.state.on')}`);
+  };
 
   return (
-    <div className={styles.state} data-tone="warn">
+    <div className={styles.state} data-tone="warn" role={storedAt ? 'status' : undefined}>
       <p>
-        <strong>{t('climateControl.offTitle')}</strong> {t(mayManage ? `climateControl.offLine.${kind}` : 'climateControl.offLineRead')}
+        {storedAt ? (
+          t('control.pending.off', { saved: savedWords(t, storedAt, now, zone), device: deviceName(device, t) })
+        ) : (
+          <>
+            <strong>{t('climateControl.offTitle')}</strong> {t(mayManage ? `climateControl.offLine.${kind}` : 'climateControl.offLineRead')}
+          </>
+        )}
         <Help topic="climateControl" />
       </p>
       {mayManage ? (
-        <button type="button" className={`${ui.button} ${ui.primary}`} disabled={on.pending} onClick={() => void on.switchOn()}>
+        <button type="button" className={`${ui.button} ${storedAt ? '' : ui.primary}`} disabled={on.pending} onClick={() => void switchOn()}>
           <Power size={16} strokeWidth={1.75} aria-hidden />
           {t(on.pending ? 'climateControl.switching' : 'climateControl.onAction')}
         </button>
@@ -172,94 +145,3 @@ export function ControlOff({ device, mayManage }: { device: Device; mayManage: b
     </div>
   );
 }
-
-/** The two choices of germination, each written on the tap through the settings by name. */
-function Choosing({ device, humidifier }: { device: Device; humidifier: boolean }) {
-  const configure = useConfigure(device.id);
-  const asked = configure.isPending ? configure.variables : undefined;
-  const stored = choicesOf(device);
-  const shown: Choices = {
-    warnTooHumid: typeof asked?.germinationWarnTooHumid === 'boolean' ? asked.germinationWarnTooHumid : stored.warnTooHumid,
-    humidifierHolds: typeof asked?.germinationHumidifier === 'boolean' ? asked.germinationHumidifier : stored.humidifierHolds,
-  };
-  const humidity = device.configuration ? figureOf(device.configuration, 'night', 'humidity') : null;
-
-  return (
-    <>
-      <GerminationChoices
-        value={shown}
-        humidifier={humidifier}
-        humidity={humidity}
-        disabled={configure.isPending}
-        onChange={change =>
-          configure.mutate({
-            ...(change.warnTooHumid !== undefined ? { germinationWarnTooHumid: change.warnTooHumid } : {}),
-            ...(change.humidifierHolds !== undefined ? { germinationHumidifier: change.humidifierHolds } : {}),
-          })
-        }
-      />
-      <Refused error={configure.error} />
-    </>
-  );
-}
-
-/**
- * Ending a drying spell by itself, asked first: the device goes back to its day
- * and night, its light and its CO2, and the question says on which targets -
- * the ones that held before the spell began, written out, or where those were
- * never kept the ones recorded before it, to be checked afterwards.
- */
-function EndDryingSheet({ device, back, onClose }: { device: Device; back: DryingReturn | null; onClose: () => void }) {
-  const { t } = useTranslation();
-  const configure = useConfigure(device.id);
-  const done = configure.isSuccess;
-
-  return (
-    <Sheet
-      title={t('climateControl.endDryingTitle')}
-      onClose={onClose}
-      actions={
-        <SheetAnswer done={done} error={configure.error} onClose={onClose}>
-          <button
-            type="button"
-            className={`${ui.button} ${ui.primary}`}
-            disabled={configure.isPending}
-            onClick={() => configure.mutate({ drying: false })}
-          >
-            {t(configure.isPending ? 'climateControl.switching' : 'climateControl.endDrying')}
-          </button>
-        </SheetAnswer>
-      }
-    >
-      <div className={styles.sheetText}>
-        {done ? (
-          <Answered>{t('climateControl.endDryingDone')}</Answered>
-        ) : (
-          <>
-            <p>{t('climateControl.endDryingDoes')}</p>
-            <p>{back ? t('climateControl.endDryingBack', { targets: returnLine(t, back) }) : t('climateControl.endDryingRecord')}</p>
-          </>
-        )}
-      </div>
-    </Sheet>
-  );
-}
-
-/** "Tag 25 °C · 60 %, Nacht 20 °C · 55 %, Licht 80 %, CO₂ 900 ppm", leaving out what the document never stated. */
-const returnLine = (t: Translate, back: DryingReturn): string => {
-  const pair = (temperature: number | null, humidity: number | null) =>
-    [temperature === null ? null : targetWithUnit(temperature, 'temperature'), humidity === null ? null : targetWithUnit(humidity, 'humidity')]
-      .filter(Boolean)
-      .join(' · ');
-  const day = pair(back.dayTemperature, back.dayHumidity);
-  const night = pair(back.nightTemperature, back.nightHumidity);
-
-  return [
-    day ? t('climateControl.returns.day', { values: day }) : null,
-    night ? t('climateControl.returns.night', { values: night }) : null,
-    back.lightLimit === null ? null : t('climateControl.returns.light', { percent: Math.round(back.lightLimit) }),
-    back.co2 === null ? null : t('climateControl.returns.co2', { value: targetWithUnit(back.co2, 'co2') }),
-  ]
-    .filter(Boolean)
-    .join(', ');
-};

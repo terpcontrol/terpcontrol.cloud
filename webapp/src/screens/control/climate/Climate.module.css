@@ -105,6 +105,10 @@
   white-space: nowrap;
 }
 
+.nudgeFigure[data-pending] {
+  color: var(--warning);
+}
+
 /* On a wide desktop the light is one row: when it burns, the button that changes it, and its limit. */
 @media (min-width: 1280px) {
   .light {
@@ -239,6 +243,16 @@ button.figure:hover {
   border-width: 2px;
 }
 
+/* One of a few choices is words: the text's own face, and a second line rather than a cut. */
+.figure[data-word] {
+  padding: var(--space-1) var(--space-3);
+  font-family: inherit;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  white-space: normal;
+  text-align: center;
+}
+
 .none {
   font-size: var(--text-sm);
   color: var(--muted);
@@ -296,27 +310,20 @@ button.figure:hover {
   color: var(--warning);
 }
 
-/* A plan paused for a figure set by hand, with the way on and the way out. */
-.paused {
+/* Several at once are their count, which unfolds each of them behind the app's own chevron; the count is a finger high. */
+.pending > summary {
+  min-height: var(--control-height);
+  margin: -10px 0;
+}
+
+.pending > ul {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: 14px var(--space-4);
-  background: var(--warning-wash);
-  border: var(--rule-width) solid var(--warning-edge);
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-}
-
-.paused p {
-  margin: 0;
-}
-
-.pausedMoves {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  margin: calc(10px + var(--space-1)) 0 0;
+  padding: 0;
+  list-style: none;
+  font-weight: var(--weight-regular);
 }
 
 /* --- the sheets --- */

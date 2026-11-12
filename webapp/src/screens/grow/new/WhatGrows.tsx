@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import type { GrowthStage } from '@fg2/shared-types/v1';
+import type { GerminationChoices as Choices, GrowthStage } from '@fg2/shared-types/v1';
+import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { serverNow } from '@/api/clock';
 import { useGrows } from '@/api/grows';
 import { useSpaces } from '@/api/spaces';
 import { GROW } from '@/app/places';
+import { GerminationChoices } from '@/screens/control/germination/GerminationChoices';
+import { choicesOf, useHumidifier } from '@/screens/control/germination/germination-choices';
 import { usePlaceStage } from '@/screens/start/stage';
 import { DAY_MS, dayOf, momentOn } from '@/ui/days';
 import { Refused } from '@/ui/PageState';
@@ -39,7 +42,9 @@ const NOWHERE = '';
  * A stage the form only opened on is recorded and moves nothing. A stage the
  * grower chose puts the place's controller on its climate, and then the button
  * says so - except seeds beside plants already growing there, whose darkness
- * is not theirs (`recordsOnly`).
+ * is not theirs (`recordsOnly`). Where that climate is germination's, the form
+ * asks what germination does about the humidity, as every way of setting
+ * germination does; only what was moved is sent.
  */
 export function WhatGrows({
   spaceId: fixed = null,
@@ -68,6 +73,7 @@ export function WhatGrows({
   const [count, setCount] = useState(1);
   const [picked, setStage] = useState<GrowthStage | null>(null);
   const [where, setWhere] = useState<string | null>(null);
+  const [germination, setGermination] = useState<Partial<Choices>>({});
 
   const places = growPlaces(spaces.data?.items ?? []);
   const running = grows.data?.items ?? [];
@@ -79,6 +85,9 @@ export function WhatGrows({
   const opened: GrowthStage | null = on === undefined ? null : on && START_STAGES.includes(on) ? on : 'vegetative';
   const stage = picked ?? opened;
   const climate = picked !== null && picked !== on && controller !== null && !recordsOnly(picked, spaceId ? growIn(running, spaceId) : null);
+  const germinates = climate && stage === 'germination';
+  // Asked of the place's sockets only once the choices are on the form.
+  const humidifier = useHumidifier(germinates ? controller : null);
 
   const submit = async () => {
     // Not before the place has said which stage it is on: what is chosen is told apart from it.
@@ -93,7 +102,8 @@ export function WhatGrows({
     );
     onStarting?.();
     try {
-      onStarted(await start({ body, stage, startedAt, climate }), spaceId);
+      const germinationChoices = germinates && Object.keys(germination).length > 0 ? germination : undefined;
+      onStarted(await start({ body, stage, startedAt, climate, germinationChoices }), spaceId);
     } catch {
       // The refusal is drawn under the fields; what already stands is not written again on the next tap.
     }
@@ -164,6 +174,15 @@ export function WhatGrows({
           </button>
         ))}
       </div>
+      {germinates ? (
+        <GerminationChoices
+          value={{ ...choicesOf(controller), ...germination }}
+          onChange={change => setGermination({ ...germination, ...change })}
+          humidifier={humidifier}
+          humidity={GERMINATION_HUMIDITY}
+          disabled={busy}
+        />
+      ) : null}
       <Refused error={refused} />
       <button
         type="submit"

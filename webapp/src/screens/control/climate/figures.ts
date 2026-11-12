@@ -1,10 +1,11 @@
 import type { DateTime } from 'luxon';
 import type { Device, Metric, PendingSetting, PendingSettings } from '@fg2/shared-types/v1';
+import { CONFIGURATION_FIELDS, configurationFieldsOf, type ConfigurationField } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import type { Translate } from '@/i18n/i18n';
 import type { ClimateChoice } from '@/ui/presets';
 import { unbroken } from '@/ui/figures';
-import { targetWithUnit } from '@/ui/units';
+import { figureWithUnit } from '@/ui/units';
 import { CLOCK, DATED_CLOCK, nowThere, zoned } from '@/ui/zone';
 import type { Field, Half, Regime } from '../targets/day-night';
 import type { LightSchedule, TargetsDraft } from '../targets/targets-draft';
@@ -40,11 +41,14 @@ export const FIGURES: Record<FigureField, Spec> = {
 };
 
 /** The two paths a light window is stored under. */
-export const WINDOW_PATHS = ['daynight.day', 'daynight.night'] as const;
+const WINDOW_PATHS = ['daynight.day', 'daynight.night'] as const;
 
-/** "25,0 °C", "60 %", "900 ppm", "65 %": a figure as its button and its sentence write it. */
+/**
+ * "25,0 °C", "60 %", "900 ppm", "65 %": a figure as its button and its sentence write it. Every figure of a
+ * reading carries that reading's decimals, so "25,0 °C" stands beside "21,5 °C".
+ */
 export const figureText = (field: FigureField, value: number): string =>
-  unbroken(field === 'lightLimit' ? `${Math.round(value)} %` : targetWithUnit(value, FIGURES[field].metric as Metric));
+  unbroken(field === 'lightLimit' ? `${Math.round(value)} %` : figureWithUnit(value, FIGURES[field].metric as Metric));
 
 /**
  * What a figure is called: "Temperatur am Tag", and by the spell where the
@@ -97,12 +101,68 @@ export const pendingWindow = (
   return { held: heldDay === null || heldNight === null ? null : lightWindowOf(heldDay, heldNight), savedAt };
 };
 
+/** The setting of a device's document a name of `CONFIGURATION_FIELDS` stands for, or undefined. */
+export const fieldOf = (device: Pick<Device, 'type'>, name: string): ConfigurationField | undefined => configurationFieldsOf(device.type)[name];
+
+/** What the device still holds for a setting named as `CONFIGURATION_FIELDS` names it; undefined where it is not pending. */
+export const pendingField = (pending: ReadonlyMap<string, PendingSetting>, device: Pick<Device, 'type'>, name: string): PendingSetting | undefined =>
+  pending.get(fieldOf(device, name)?.path ?? '');
+
+/** What a Plantalytix Socket, an AIR fan and a LIGHT show where a controller's climate stands: every setting but the fine ones, which are Erweitert's. */
+const FINE: Readonly<Record<string, RegExp | null>> = {
+  plug: /^(co2Dosing|co2Every|co2For|overheat|cold|least)/,
+  fan: null,
+  light: /^(sunrise|sunset|overheat)/,
+};
+const OWN_PATHS = Object.entries(FINE).flatMap(([type, fine]) =>
+  Object.entries(CONFIGURATION_FIELDS[type]).flatMap(([name, field]) => (field.path === null || fine?.test(name) ? [] : [field.path])),
+);
+
 /** The paths Steuerung's own cards say, so whatever else is pending is counted on the device's card. */
-export const SAID_ON_CARDS: readonly string[] = [...Object.values(FIGURES).map(spec => spec.path), ...WINDOW_PATHS];
+export const SAID_ON_CARDS: readonly string[] = [...Object.values(FIGURES).map(spec => spec.path), ...WINDOW_PATHS, ...OWN_PATHS];
 
 /** The paths behind the row "Betriebsart" and the row "Ausgänge". */
 export const MODE_PATHS: readonly string[] = ['workmode'];
 export const isOutputPath = (path: string): boolean => path.startsWith('fans.');
+
+/** One setting a silent device has not been handed: what is stored, since when, and what the device still holds. */
+export interface PendingItem {
+  name: string;
+  value: string;
+  /** What the device still holds, as the page writes it; null where the cloud does not know. */
+  held: string | null;
+  savedAt: string;
+  /** What is held is one thing rather than a figure - a mode, a window - which German says in the singular. */
+  one?: boolean;
+}
+
+/** The firmware's word for a work mode, in the app's: the one catalogue key both the stored and the held mode are said with. */
+const MODE_KEYS: Readonly<Record<string, string>> = {
+  off: 'control.pending.modeOff',
+  small: 'operatingMode.standard',
+  full: 'operatingMode.standard',
+  temp: 'operatingMode.greenhouse',
+  breed: 'operatingMode.germination',
+  dry: 'operatingMode.drying',
+};
+
+/**
+ * The work mode stored for a silent device that still runs another: what is
+ * stored, and what it was last handed. A fridge's energy saving is a work
+ * mode of the firmware's too (`full`), and is said as the switch it is.
+ */
+export const pendingMode = (t: Translate, device: Device, pending: ReadonlyMap<string, PendingSetting>): PendingItem | null => {
+  const held = pending.get(MODE_PATHS[0]);
+  const control = device.control;
+  if (!held || !control) return null;
+  const heldKey = MODE_KEYS[String(held.held)] ?? null;
+  const storedKey = !control.running ? MODE_KEYS.off : `operatingMode.${control.drying ? 'drying' : control.mode}`;
+  const onOff = (on: boolean) => t(`climateControl.state.${on ? 'on' : 'off'}`);
+
+  return heldKey === storedKey && storedKey === MODE_KEYS.small
+    ? { name: t('energySaving.label'), value: onOff(control.energySaving), held: onOff(held.held === 'full'), savedAt: held.savedAt, one: true }
+    : { name: t('operatingMode.label'), value: t(storedKey), held: heldKey ? t(heldKey) : null, savedAt: held.savedAt, one: true };
+};
 
 /** Whether a draft's figure differs from another's, for the fields a sheet moved. */
 export const movedFields = (next: TargetsDraft, before: TargetsDraft): FigureField[] =>

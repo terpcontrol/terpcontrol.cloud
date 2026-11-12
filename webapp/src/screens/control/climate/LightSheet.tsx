@@ -26,6 +26,7 @@ export function LightSheet({
   offline,
   owned,
   planSets,
+  longest,
   pauses,
   busy,
   error,
@@ -41,6 +42,7 @@ export function LightSheet({
   offline: string | null;
   owned: ReadonlySet<Field>;
   planSets: { name: string; schedule: LightSchedule } | null;
+  longest?: number;
   pauses: (next: TargetsDraft) => string | null;
   busy: boolean;
   error: Error | null;
@@ -83,6 +85,7 @@ export function LightSheet({
           offline={offline}
           owned={owned}
           planSets={planSets}
+          longest={longest}
         />
         {paused ? (
           <p className={styles.warn} role="status">
