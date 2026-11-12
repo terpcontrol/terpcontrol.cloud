@@ -96,6 +96,9 @@ A round is one pass of building or fixing with its checks, ending in a short rep
 - **The rounds stay one after another** (Chris, 2026-11-12: he asked for the rounds to run in parallel where
   possible, and withdrew it within the hour - proceed as before). Building rounds side by side in worktrees and
   stacks of their own was set up and taken down again unused; do not start it without his asking again.
+- **A simple task may go to a smaller model** (Chris, 2026-11-12: "feel free to choose Opus for simple tasks").
+  A sub-agent whose task is mechanical - restoring test data, a lookup, saving notes, a check that only runs
+  commands - can be started on Opus; a round's builder and its critic stay on the session's model.
 - **A rule is sourced to the person who said it, and to nobody else** (2026-11-12: a builder wrote the session's
   own decisions on a critic's findings into `docs/` as "Chris, 2026-11-12", because its brief said they had been
   told to him). What a session decides for itself is sourced as that session and marked as waiting for Chris's
