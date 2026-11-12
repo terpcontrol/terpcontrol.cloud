@@ -17,10 +17,11 @@ import { invalidate, useWrite } from './write';
 const chartViewsKey = ['chart-views'];
 
 /** One page is every view this account has, so there is no cursor to follow. */
-export const useChartViews = () =>
+export const useChartViews = (enabled = true) =>
   useRead({
     queryKey: chartViewsKey,
     queryFn: ({ signal }) => api.get<ChartViewPage>('/chart-views', { limit: 100 }, signal),
+    enabled,
   });
 
 const viewsChanged = (client: QueryClient): void => void invalidate(client, chartViewsKey);

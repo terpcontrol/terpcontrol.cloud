@@ -141,6 +141,12 @@
   gap: var(--space-3);
 }
 
+/* A name is one word as often as not, and a long one must not push the page sideways. */
+.title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .titles {
   flex: 1;
   min-width: 0;

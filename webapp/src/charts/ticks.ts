@@ -19,7 +19,7 @@ interface Tick {
   label: string;
 }
 
-type Unit = 'minute' | 'hour' | 'day' | 'month' | 'year';
+type Unit = 'second' | 'minute' | 'hour' | 'day' | 'month' | 'year';
 
 interface Step {
   unit: Unit;
@@ -29,7 +29,9 @@ interface Step {
 }
 
 const STEPS: Step[] = [
-  ...[5, 10, 15, 30].map(count => ({ unit: 'minute' as const, count, ms: count * MINUTE_MS })),
+  // Five minutes of single samples are counted by the minute, and by the half minute where there is room.
+  { unit: 'second', count: 30, ms: MINUTE_MS / 2 },
+  ...[1, 2, 5, 10, 15, 30].map(count => ({ unit: 'minute' as const, count, ms: count * MINUTE_MS })),
   ...[1, 2, 3, 6, 12].map(count => ({ unit: 'hour' as const, count, ms: count * HOUR_MS })),
   ...[1, 2, 7, 14].map(count => ({ unit: 'day' as const, count, ms: count * DAY_MS })),
   ...[1, 2, 3, 6].map(count => ({ unit: 'month' as const, count, ms: count * 30 * DAY_MS })),
@@ -44,6 +46,9 @@ const STEPS: Step[] = [
  */
 export const TICK_ROOM_PX = 52;
 
+/** The same for a time of day alone, which is all a window of an hour or less writes: "03:10" is narrower than "27. Sep". */
+export const CLOCK_ROOM_PX = 40;
+
 /**
  * How many lines a plot of this width carries at most: never fewer than two,
  * and never so many that the plot turns into a grid. Not rounded down, because
@@ -57,6 +62,10 @@ export const ticksFor = (widthPx: number, room = TICK_ROOM_PX): number => Math.m
 const firstOn = (from: number, step: Step, zone: string | null): DateTime => {
   const start = zonedAt(from, zone);
   switch (step.unit) {
+    case 'second': {
+      const floor = start.startOf('minute');
+      return floor.plus({ seconds: Math.ceil(start.diff(floor, 'seconds').seconds / step.count) * step.count });
+    }
     case 'minute': {
       const floor = start.startOf('hour');
       return floor.plus({ minutes: Math.ceil(start.diff(floor, 'minutes').minutes / step.count) * step.count });
@@ -86,7 +95,9 @@ const plusOne = (step: Step): DurationLikeObject => ({ [`${step.unit}s`]: step.c
 
 /** What a line says, given the step and the width of the window it is drawn across. */
 const labelOf = (time: DateTime, step: Step, span: number, dayInYear: string): string => {
-  if (step.unit === 'minute' || step.unit === 'hour') {
+  if (step.unit === 'second' || step.unit === 'minute' || step.unit === 'hour') {
+    // Between two full minutes the minute alone would be written twice.
+    if (time.second !== 0) return time.toFormat(`${CLOCK}:ss`);
     if (time.hour !== 0 || time.minute !== 0) return time.toFormat(CLOCK);
     // Midnight is the day turning over, which is what the line is there to show.
     return span <= 7 * DAY_MS ? time.toFormat('ccc') : time.toFormat(dayInYear);

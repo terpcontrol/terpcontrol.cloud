@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import type { MeasurementDefinition } from '@fg2/shared-types/v1';
+import type { GrowSeriesPoint, MeasurementDefinition } from '@fg2/shared-types/v1';
 import { usePageOfGrow } from '@/app/places';
 import { useGrow, useMeasurementSeries, useUpdateGrow } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
+import { Chart } from '@/charts/Chart';
+import { plotOption } from '@/charts/series';
+import type { ChartPalette } from '@/charts/tokens';
+import { measurementCurve } from '@/screens/timeline/model';
+import { HOUR_MS } from '@/ui/days';
 import { LoadFailed, NoLongerHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import { Switch } from '@/ui/Switch';
@@ -24,8 +29,12 @@ import styles from './Measurements.module.css';
  * keeps in plain sight: a key is a key only once, a measurement that has been
  * written under is not deleted here, and per plant or per grow is chosen once.
  * The screen learns which of them have been written under from the same series
- * read a chart is drawn from, so it can say why a delete is not on offer rather
- * than offering one and being refused.
+ * read its curves are drawn from, so it can say why a delete is not on offer
+ * rather than offering one and being refused.
+ *
+ * Each measurement switched on has its curve here, over the whole grow: what
+ * was measured by hand belongs to the grow, whether or not it stands in a
+ * place with a Verlauf of its own.
  */
 export function Measurements() {
   const { growId = '' } = useParams();
@@ -65,6 +74,11 @@ export function Measurements() {
   const write = (measurements: MeasurementDefinition[]) => update.mutate({ measurements });
   const flip = (definition: MeasurementDefinition) =>
     write(definitions.map(one => (one.key === definition.key ? { ...one, chart: !one.chart } : one)));
+  // The grow from its first day to its last, or to the hour now.
+  const stretch = {
+    from: Date.parse(grow.data.startedAt),
+    to: grow.data.endedAt ? Date.parse(grow.data.endedAt) : Math.ceil(now.toMillis() / HOUR_MS) * HOUR_MS,
+  };
 
   return (
     <section className={styles.page}>
@@ -101,6 +115,8 @@ export function Measurements() {
               mayManage={mayManage}
               onEdit={() => setEditing(definition)}
               onFlip={() => flip(definition)}
+              points={definition.chart ? (series.data?.measurements.find(one => one.key === definition.key)?.points ?? []) : []}
+              stretch={stretch}
             />
           ))}
         </ul>
@@ -160,6 +176,9 @@ interface CardProps {
   mayManage: boolean;
   onEdit: () => void;
   onFlip: () => void;
+  /** What was written under it, where its curve is switched on, and the stretch of the grow it is drawn over. */
+  points: readonly GrowSeriesPoint[];
+  stretch: { from: number; to: number };
 }
 
 /**
@@ -168,7 +187,7 @@ interface CardProps {
  * thing about a definition that is changed often enough to be worth a tap of
  * its own.
  */
-function Card({ definition, mayManage, onEdit, onFlip }: CardProps) {
+function Card({ definition, mayManage, onEdit, onFlip, points, stretch }: CardProps) {
   const { t } = useTranslation();
   const band = bandOf(t, definition);
   const facts = [
@@ -195,6 +214,49 @@ function Card({ definition, mayManage, onEdit, onFlip }: CardProps) {
       {/* Held rather than hidden for a session that may only look: which
           measurements a grow draws is part of reading it. */}
       <Switch label={t('grow.measurements.onTheChart', { name: definition.name })} on={definition.chart} disabled={!mayManage} onChange={onFlip} />
+      {points.length > 0 ? <Curve definition={definition} points={points} stretch={stretch} /> : null}
     </li>
+  );
+}
+
+/**
+ * One measurement over the grow, small: the readings as the dots they are,
+ * the band aimed at behind them - the drawing Verlauf makes of it - and under
+ * it what it ran between and what was read last.
+ */
+function Curve({ definition, points, stretch }: Pick<CardProps, 'definition' | 'points' | 'stretch'>) {
+  const { t } = useTranslation();
+  const { curve, bands } = useMemo(
+    () => measurementCurve(definition, points, stretch.from, stretch.to),
+    [definition, points, stretch.from, stretch.to],
+  );
+  const option = useMemo(
+    () => (palette: ChartPalette) => plotOption(palette, { ...stretch, nights: [], bands, alarms: [], lines: [curve.line] }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the stretch is its two ends
+    [curve, bands, stretch.from, stretch.to],
+  );
+  const last = curve.points.at(-1)?.[1];
+  if (curve.low === null || curve.high === null || last == null) return null;
+  const written = (value: number) => `${curve.written(value)}${curve.unit ? `\u00a0${curve.unit}` : ''}`;
+
+  return (
+    <figure className={styles.curve}>
+      <Chart
+        option={option}
+        height={64}
+        ariaLabel={t('grow.measurements.curve.alt', {
+          name: definition.name,
+          count: curve.points.length,
+          low: curve.written(curve.low),
+          high: curve.written(curve.high),
+          unit: curve.unit,
+        })}
+      />
+      <figcaption className="mono">
+        {curve.points.length === 1
+          ? t('grow.measurements.curve.one', { last: written(last) })
+          : t('grow.measurements.curve.span', { low: curve.written(curve.low), high: curve.written(curve.high), last: written(last) })}
+      </figcaption>
+    </figure>
   );
 }

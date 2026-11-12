@@ -376,7 +376,7 @@ describe('what Premium covers', () => {
       'Stills kept',
       'Timelapse over the whole grow, HD',
       'Reel export with overlays',
-      'Control, charts, diary, alarms, sharing',
+      'Control, timeline, diary, alarms, sharing',
     ]);
   });
 

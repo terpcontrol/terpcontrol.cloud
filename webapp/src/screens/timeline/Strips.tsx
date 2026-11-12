@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { slicesOf, shareOf, type Strip } from './model';
+import { levelsOf, slicesOf, shareOf, type Strip } from './model';
 import { fractionOf } from './window';
 import styles from './Timeline.module.css';
 
@@ -8,6 +8,8 @@ interface StripsProps {
   strips: readonly Strip[];
   from: number;
   to: number;
+  /** The width of a window of the answer, which is what a level stands for. */
+  stepMs: number;
   /** Where the cursor stands; null while it rests at the end of the window. */
   cursor: number | null;
   /** The output a link was about, whose strip is marked. */
@@ -19,41 +21,45 @@ interface StripsProps {
  * a dehumidifier's run stands under the dip it made. A strip says when an
  * output ran and how much of each stretch: a slice is tinted by the share of
  * it the output was on, so a compressor cycling all week reads as how often it
- * ran rather than as one solid bar. Past the last thing heard the strip is
- * blank, which is not "off".
+ * ran rather than as one solid bar. An output driven at a level - a dimmed
+ * lamp, a fan's speed - fills its strip to that level, so a sunrise is a
+ * ramp and 60 % is not 100 %. Past the last thing heard the strip is blank,
+ * which is not "off".
  */
-export function Strips({ strips, from, to, cursor, focus = null }: StripsProps) {
+export function Strips({ strips, from, to, stepMs, cursor, focus = null }: StripsProps) {
   if (strips.length === 0) return null;
 
   return (
     <ul className={styles.strips}>
       {strips.map(strip => (
-        <StripRow key={strip.output} strip={strip} from={from} to={to} cursor={cursor} focused={strip.output === focus} />
+        <StripRow key={strip.output} strip={strip} from={from} to={to} stepMs={stepMs} cursor={cursor} focused={strip.output === focus} />
       ))}
     </ul>
   );
 }
 
-function StripRow({ strip, from, to, cursor, focused }: { strip: Strip; from: number; to: number; cursor: number | null; focused: boolean }) {
+function StripRow({ strip, from, to, stepMs, cursor, focused }: Omit<StripsProps, 'strips' | 'focus'> & { strip: Strip; focused: boolean }) {
   const { t } = useTranslation();
   const slices = useMemo(() => slicesOf(strip, from, to), [strip, from, to]);
-  // Neighbours that ran the same share are one block, so a lamp on all day is one bar and not a row of seams.
+  const levels = useMemo(() => levelsOf(strip, from, to, stepMs), [strip, from, to, stepMs]);
+  // Neighbours that ran the same share at the same level are one block, so a lamp on all day is one bar and not a row of seams.
   const blocks = useMemo(
     () =>
-      slices.reduce<{ from: number; to: number; ran: number }[]>((kept, ran, index) => {
+      slices.reduce<{ from: number; to: number; ran: number; level: number }[]>((kept, ran, index) => {
         const last = kept.at(-1);
         if (!ran) return kept;
-        if (last && last.to === index && last.ran === ran) last.to = index + 1;
-        else kept.push({ from: index, to: index + 1, ran });
+        const level = levels?.[index] ?? 1;
+        if (last && last.to === index && last.ran === ran && last.level === level) last.to = index + 1;
+        else kept.push({ from: index, to: index + 1, ran, level });
         return kept;
       }, []),
-    [slices],
+    [slices, levels],
   );
   const share = shareOf(strip, from, to);
   const heard = fractionOf(strip.heardUntil, from, to) * slices.length;
 
   return (
-    <li className={styles.strip} data-output={strip.output} data-focus={focused || undefined}>
+    <li className={styles.strip} data-output={strip.output} data-levelled={levels !== null || undefined} data-focus={focused || undefined}>
       <span className={styles.stripName}>{strip.name}</span>
       <span className={styles.stripTrack}>
         <svg
@@ -72,8 +78,9 @@ function StripRow({ strip, from, to, cursor, focused }: { strip: Strip; from: nu
               key={block.from}
               className={styles.stripRan}
               x={block.from}
+              y={1 - block.level}
               width={block.to - block.from}
-              height={1}
+              height={block.level}
               opacity={0.35 + 0.65 * block.ran}
             />
           ))}

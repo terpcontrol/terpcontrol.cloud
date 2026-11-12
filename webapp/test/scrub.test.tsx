@@ -85,10 +85,29 @@ describe('a thumb on a plot', () => {
     touch('pointerup', 1, 40);
     touch('pointerup', 2, 160);
 
-    // Fingers at 40 % and 60 % moved to 20 % and 80 %: a third of the window, around its middle.
-    expect(did).toHaveLength(1);
-    expect((did[0] as Selection).from).toBeCloseTo(1 / 3, 5);
-    expect((did[0] as Selection).to).toBeCloseTo(2 / 3, 5);
+    // Fingers at 40 % and 60 % moved to 20 % and 80 %: a third of the window, around its middle. The second finger
+    // coming down gives the cursor back to where it stood, and nothing else happens.
+    expect(did).toHaveLength(2);
+    expect(did[0]).toBe('leave');
+    expect((did[1] as Selection).from).toBeCloseTo(1 / 3, 5);
+    expect((did[1] as Selection).to).toBeCloseTo(2 / 3, 5);
+  });
+
+  it('never sets the cursor with a second finger: not where the first had dragged it, not where either lifts', () => {
+    touch('pointerdown', 1, 50);
+    touch('pointermove', 1, 90);
+    touch('pointerdown', 2, 150);
+    // Two fingers resting, then one moving on alone, then both lifting.
+    touch('pointermove', 1, 92);
+    touch('pointerup', 2, 150);
+    touch('pointermove', 1, 120);
+    touch('pointerup', 1, 120);
+
+    expect(did).toEqual(['cursor 0.45', 'leave']);
+    // The next touch is a gesture of its own again.
+    touch('pointerdown', 3, 60);
+    touch('pointerup', 3, 60);
+    expect(did.at(-1)).toBe('place 0.30');
   });
 
   it('zooms out past both ends when two fingers are drawn together', () => {
@@ -98,8 +117,8 @@ describe('a thumb on a plot', () => {
     touch('pointermove', 2, 120);
     touch('pointerup', 2, 120);
 
-    expect((did[0] as Selection).from).toBeLessThan(0);
-    expect((did[0] as Selection).to).toBeGreaterThan(1);
+    expect((did[1] as Selection).from).toBeLessThan(0);
+    expect((did[1] as Selection).to).toBeGreaterThan(1);
   });
 });
 

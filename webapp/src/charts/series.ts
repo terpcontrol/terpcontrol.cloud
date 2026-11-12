@@ -64,6 +64,7 @@ export const plotOption = (palette: ChartPalette, plot: Plot): ChartOption => ({
     const colour = palette[line.dashed ? 'muted' : line.colour];
     const spread = line.points.some(point => point[2] !== undefined);
     const base = { type: 'line' as const, yAxisIndex: index, silent: true, connectNulls: false, showSymbol: false };
+    const dotted = line.shape === 'points' || line.points.length <= DOTS_UNTIL;
 
     return [
       ...(spread && !line.dashed
@@ -87,9 +88,14 @@ export const plotOption = (palette: ChartPalette, plot: Plot): ChartOption => ({
         : []),
       {
         ...base,
-        data: line.points.map(([time, value]) => [time, value]),
-        showSymbol: line.shape === 'points' || line.points.length <= DOTS_UNTIL,
-        symbol: 'circle',
+        // A reading with a silence on either side has no line to stand on, so it is drawn as the dot it is.
+        data: line.points.map(([time, value], at) =>
+          !dotted && value !== null && (line.points[at - 1]?.[1] ?? null) === null && (line.points[at + 1]?.[1] ?? null) === null
+            ? { value: [time, value], symbol: 'circle' }
+            : [time, value],
+        ),
+        showSymbol: true,
+        symbol: dotted ? 'circle' : 'none',
         symbolSize: line.shape === 'points' ? 7 : 4,
         itemStyle: line.shape === 'points' ? { color: palette.card, borderColor: colour, borderWidth: 1.5 } : { color: colour },
         lineStyle: { width: line.dashed ? 1.2 : 1.6, type: line.dashed ? ('dashed' as const) : ('solid' as const), color: colour },
@@ -202,19 +208,22 @@ export interface CsvColumn {
   holds?: boolean;
 }
 
-export const csvOf = (columns: readonly CsvColumn[], zone: string | null, timeHead = 'time'): string => {
+export const csvOf = (columns: readonly CsvColumn[], zone: string | null, timeHead = 'time', decimalComma = false): string => {
   const times = [...new Set(columns.flatMap(column => column.points.map(([time]) => time)))].sort((one, other) => one - other);
-  const cells = columns.map(column => (column.holds ? carried(column.points, times) : measured(column.points, times)));
-  const rows = times.map((time, row) => [zonedAt(time, zone).toISO() ?? '', ...cells.map(column => column[row])].join(','));
+  // Where figures are written with a comma a spreadsheet reads the file with semicolons between them.
+  const cell = (value: number | null): string => (value === null ? '' : decimalComma ? String(value).replace('.', ',') : String(value));
+  const between = decimalComma ? ';' : ',';
+  const cells = columns.map(column => (column.holds ? carried(column.points, times) : measured(column.points, times)).map(cell));
+  const rows = times.map((time, row) => [zonedAt(time, zone).toISO() ?? '', ...cells.map(column => column[row])].join(between));
 
-  return [[timeHead, ...columns.map(column => column.label)].map(quoted).join(','), ...rows].join('\n');
+  return [[timeHead, ...columns.map(column => column.label)].map(quoted).join(between), ...rows].join('\n');
 };
 
 /** A column's own instants and nothing else: where it measured nothing, it says nothing. */
-const measured = (points: readonly [number, number | null][], times: readonly number[]): string[] => {
+const measured = (points: readonly [number, number | null][], times: readonly number[]): (number | null)[] => {
   const byTime = new Map(points.map(([time, value]) => [time, value]));
 
-  return times.map(time => cell(byTime.get(time) ?? null));
+  return times.map(time => byTime.get(time) ?? null);
 };
 
 /**
@@ -223,7 +232,7 @@ const measured = (points: readonly [number, number | null][], times: readonly nu
  * it at all there is nothing to carry, and a break in the wave - where the
  * device went quiet - carries a nothing forward exactly as it should.
  */
-const carried = (points: readonly [number, number | null][], times: readonly number[]): string[] => {
+const carried = (points: readonly [number, number | null][], times: readonly number[]): (number | null)[] => {
   let next = 0;
   let last: number | null = null;
   let heard = false;
@@ -235,11 +244,9 @@ const carried = (points: readonly [number, number | null][], times: readonly num
       next += 1;
     }
 
-    return heard ? cell(last) : '';
+    return heard ? last : null;
   });
 };
-
-const cell = (value: number | null): string => (value === null ? '' : String(value));
 
 /** A name a grower gave a measurement may hold a comma, so every heading is quoted and its own quotes doubled. */
 const quoted = (cell: string): string => `"${cell.replace(/"/g, '""')}"`;

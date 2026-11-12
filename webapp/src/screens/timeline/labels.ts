@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
 import type { Translate } from '@/i18n/i18n';
-import { durationLabel } from '@/ui/age';
 import { DAY_MS, HOUR_MS } from '@/ui/days';
+import { looseFigure } from '@/ui/figures';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY, DAY_IN_YEAR, zonedAt } from '@/ui/zone';
 import type { Span } from './view';
 
@@ -26,13 +26,25 @@ const dayWord = (t: Translate, time: number, now: DateTime, zone: string | null,
   return day.toFormat(day.year === today.year ? DAY_IN_YEAR : DAY);
 };
 
-/** "Gestern 14:30 bis jetzt", "Heute 03:00 bis 03:20", "5. Nov bis 12. Nov": the window, as the row between the arrows names it. */
+/**
+ * "Gestern 14:30 bis jetzt", "Heute 03:00 bis 03:20", "5. Nov bis 12. Nov": the window, as the row between the
+ * arrows names it. A whole day of the calendar is that day and not its two midnights: "Gestern", "Mo, 11. Aug",
+ * and today up to now "Heute bis jetzt".
+ */
 export const windowLabel = (t: Translate, window: Span, live: boolean, now: DateTime, zone: string | null): string => {
+  const start = zonedAt(window.from, zone);
+  const midnight = start.equals(start.startOf('day'));
+  if (midnight && !live && start.plus({ days: 1 }).toMillis() === window.to) {
+    const back = Math.round(zonedAt(now.toMillis(), zone).startOf('day').diff(start, 'days').days);
+    return back === 0 || back === 1 ? dayWord(t, window.from, now, zone) : start.toFormat(`ccc, ${start.year === now.year ? DAY_IN_YEAR : DAY}`);
+  }
+
   const clocked = window.to - window.from <= BY_CLOCK;
   const clock = (time: number) => zonedAt(time, zone).toFormat(CLOCK);
-  const from = clocked ? `${dayWord(t, window.from, now, zone)} ${clock(window.from)}` : dayWord(t, window.from, now, zone);
+  const today = midnight && live && start.hasSame(zonedAt(now.toMillis(), zone), 'day');
+  const from = clocked && !today ? `${dayWord(t, window.from, now, zone)} ${clock(window.from)}` : dayWord(t, window.from, now, zone);
   // The last instant inside the window names its day: a window that closes at midnight has not begun the next date.
-  const sameDay = zonedAt(window.from, zone).hasSame(zonedAt(window.to - 1, zone), 'day');
+  const sameDay = start.hasSame(zonedAt(window.to - 1, zone), 'day');
   const to = live
     ? t('timeline.now')
     : clocked
@@ -50,6 +62,17 @@ export const cursorStamp = (time: number, window: Span, stepSeconds: number, zon
   return zonedAt(time, zone).toFormat(format);
 };
 
+/** "Mittel 03:09–03:12": a point that is the mean of a window says so, and over which stretch. */
+export const meanStamp = (t: Translate, middle: number, window: Span, stepSeconds: number, zone: string | null): string => {
+  const [from, to] = [middle - stepSeconds * 500, middle + stepSeconds * 500];
+  const sameDay = zonedAt(from, zone).hasSame(zonedAt(to, zone), 'day');
+  const clock = stepSeconds % 60 === 0 ? CLOCK : `${CLOCK}:ss`;
+  return t('timeline.meanOver', {
+    from: cursorStamp(from, window, stepSeconds, zone),
+    to: sameDay ? zonedAt(to, zone).toFormat(clock) : cursorStamp(to, window, stepSeconds, zone),
+  });
+};
+
 /** Both ends of the window as the axis writes them; one that ends now says so. */
 export const axisEnds = (t: Translate, window: Span, live: boolean, zone: string | null): [string, string] => {
   const span = window.to - window.from;
@@ -57,5 +80,18 @@ export const axisEnds = (t: Translate, window: Span, live: boolean, zone: string
   return [zonedAt(window.from, zone).toFormat(format), live ? t('timeline.now') : zonedAt(window.to, zone).toFormat(format)];
 };
 
-/** "ein Punkt alle 5 s": how far apart the points drawn are. */
-export const stepWords = (t: Translate, stepSeconds: number): string => t('timeline.pointEvery', { step: durationLabel(stepSeconds) });
+/** "alle 3 Min", "alle 4,5 Std", "alle 2,3 Tage": how far apart the points drawn are, in the unit that fits. */
+export const stepWords = (t: Translate, stepSeconds: number): string => {
+  const [unit, size] =
+    stepSeconds < 60
+      ? (['s', 1] as const)
+      : stepSeconds < 3600
+        ? (['min', 60] as const)
+        : stepSeconds < 86400
+          ? (['h', 3600] as const)
+          : (['d', 86400] as const);
+  return t(`timeline.every.${unit}`, {
+    count: Math.round((stepSeconds / size) * 10) / 10,
+    n: looseFigure(Math.round((stepSeconds / size) * 10) / 10),
+  });
+};

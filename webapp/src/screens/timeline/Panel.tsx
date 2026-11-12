@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Chart } from '@/charts/Chart';
 import type { Selection } from '@/charts/scrub';
 import { plotOption } from '@/charts/series';
-import { TICK_ROOM_PX, ticksFor, timeTicks } from '@/charts/ticks';
+import { CLOCK_ROOM_PX, TICK_ROOM_PX, ticksFor, timeTicks } from '@/charts/ticks';
 import type { ChartPalette } from '@/charts/tokens';
+import { HOUR_MS } from '@/ui/days';
 import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { DAY_IN_YEAR, useZone } from '@/ui/zone';
@@ -27,10 +28,13 @@ interface PanelProps {
   stamp: string;
   scrub: React.HTMLAttributes<HTMLDivElement>;
   selection: Selection | null;
-  onNudge: (direction: -1 | 1) => void;
+  /** The cursor by the keys: a point to either side, the window's start, or back to its end where it rests. */
+  onNudge: (to: -1 | 1 | 'start' | 'end') => void;
   /** A pinch on a trackpad, or the wheel with Ctrl held: one width in (`1`) or out, around a fraction of the plot. */
   onWheelZoom: (direction: -1 | 1, fraction: number) => void;
   focus: string | null;
+  /** The width of one window of the answer, in milliseconds. */
+  stepMs: number;
   /** The cursor rests at the end of the window: its dot is drawn and its line is not, which would stand on the scale's figures. */
   resting: boolean;
   /** The first panel explains what every panel draws: the band, the night, the stretch around the line. */
@@ -57,6 +61,7 @@ export function Panel({
   onNudge,
   onWheelZoom,
   focus,
+  stepMs,
   resting,
   explain = false,
   comparedAt,
@@ -104,13 +109,17 @@ export function Panel({
               {first.key === 'vpd' ? <Help topic="vpd" /> : explain ? <Help topic="nightBand" /> : null}
             </h2>
             <span className={styles.panelRange}>
-              {compared !== null && compared !== undefined ? (
-                t('timeline.comparedAt', { value: first.written(compared) })
-              ) : first.low !== null && first.high !== null ? (
-                <Facts
-                  facts={[t('timeline.lowAt', { value: first.written(first.low) }), t('timeline.highAt', { value: first.written(first.high) })]}
-                />
-              ) : null}
+              <Facts
+                facts={[
+                  // Where the points are means and carry no samples' extremes - a deficit over a week - the two ends are those of the means, and say so.
+                  ...(first.low === null || first.high === null
+                    ? []
+                    : first.sampled
+                      ? [t('timeline.lowAt', { value: first.written(first.low) }), t('timeline.highAt', { value: first.written(first.high) })]
+                      : [t('timeline.meansBetween', { low: first.written(first.low), high: first.written(first.high) })]),
+                  ...(compared !== null && compared !== undefined ? [t('timeline.comparedAt', { value: first.written(compared) })] : []),
+                ]}
+              />
             </span>
             <strong className={styles.panelValue}>
               {read[0].point ? `${first.written(read[0].point[1] as number)}\u00a0${first.unit}`.trim() : '—'}
@@ -126,7 +135,8 @@ export function Panel({
           </h2>
         )}
       </header>
-      <div className={styles.plot}>
+      {/* One picture of many curves has a pair of figures for each, so it is as high as they need. */}
+      <div className={styles.plot} style={alone || panel.curves.length < 4 ? undefined : { height: panel.curves.length * 28 + 8 }}>
         <Chart
           option={option}
           height="100%"
@@ -165,9 +175,10 @@ export function Panel({
           aria-valuenow={Math.round(fractionOf(cursor, from, to) * 100)}
           aria-valuetext={stamp}
           onKeyDown={event => {
-            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            const to = ({ ArrowLeft: -1, ArrowRight: 1, Home: 'start', End: 'end' } as const)[event.key];
+            if (to === undefined) return;
             event.preventDefault();
-            onNudge(event.key === 'ArrowLeft' ? -1 : 1);
+            onNudge(to);
           }}
           {...scrub}
         >
@@ -189,7 +200,7 @@ export function Panel({
           })}
         </div>
       </div>
-      <Strips strips={panel.strips} from={from} to={to} cursor={resting ? null : cursor} focus={focus} />
+      <Strips strips={panel.strips} from={from} to={to} stepMs={stepMs} cursor={resting ? null : cursor} focus={focus} />
       <Axis from={from} to={to} ends={ends} />
     </section>
   );
@@ -203,7 +214,10 @@ export function Axis({ from, to, ends }: { from: number; to: number; ends: reado
   const zone = useZone();
   const axis = useRef<HTMLParagraphElement>(null);
   const [width, setWidth] = useState(0);
-  const ticks = useMemo(() => (width > 0 ? timeTicks(from, to, zone, ticksFor(width, TICK_ROOM_PX), DAY_IN_YEAR) : []), [from, to, zone, width]);
+  const ticks = useMemo(
+    () => (width > 0 ? timeTicks(from, to, zone, ticksFor(width, to - from <= HOUR_MS ? CLOCK_ROOM_PX : TICK_ROOM_PX), DAY_IN_YEAR) : []),
+    [from, to, zone, width],
+  );
 
   useEffect(() => {
     const element = axis.current;

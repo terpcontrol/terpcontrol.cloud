@@ -60,6 +60,8 @@ export const screens: RouteObject[] = [
   { path: 'log', element: <LogRoute /> },
   // No list of devices stands here - they are found under Steuerung - and without this the address would be read as somebody's handle.
   { path: 'devices', element: <NotFound /> },
+  // The page "Graphen" went with Verlauf; its address is nothing now, said inside the app and not as a profile nobody has.
+  { path: 'charts', element: <NotFound /> },
   { path: 'devices/:deviceId/sockets/:socket', element: <SocketPage /> },
   { path: 'devices/:deviceId/:page?', element: <DevicePage /> },
   { path: 'claim', element: <Claim /> },

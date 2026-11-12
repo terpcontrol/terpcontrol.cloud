@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
 updated: 2026-11-12
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12)
+source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -804,44 +804,78 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
 Verlauf is the one page of curves (Chris chose it on 2026-11-11, decision 6, and accepted the prototype on
 2026-11-12; the page "Graphen" and its address went). Chris's verdict on the two pages before it was that they were
 less precise and less intuitive than the old app's charts; what follows answers that. Where a rule is not Chris's
-it was decided by the redesign session of 2026-11-12 while building it.
+it was decided by the redesign session of 2026-11-12 while building it, or after its critic walked the built
+page the same day ("after the walk" below) - none of those is Chris's.
 - **One page, its whole view in the address** (`screens/timeline/view.ts`): which stretch of time, where the cursor
   stands, which curves are ticked, one picture or several, the step, what is laid over, one climate of several. A
   reload, a bookmark and a link sent to somebody open on the same picture, and the page changes its view only by
-  rewriting its address, in place: Back leaves Verlauf rather than undoing a zoom.
+  rewriting its address, in place: Back leaves Verlauf rather than undoing a zoom - a history entry per zoom
+  would be worse (kept after the walk). A bare address that draws the ticks remembered in this browser writes
+  them into itself, so a copied address draws the same curves anywhere. A device, a grow or a comparison the
+  address names and the place does not have is said in a sentence and dropped; a grow that stands in no place
+  is sent to its page Messwerte, where its hand-measured curves are (after the walk).
 - **Every stretch of time is three kinds of step away**: the chips 24 Std · 7 Tage · 30 Tage, and Phase · Grow
   where a grow stands; the arrows, back and on by the window's own width and never past now; and the zoom, in and
-  out through one ladder of widths - 5 and 20 minutes, 90 minutes, 6 hours, a day, 3, 7, 30 and 90 days, one and
-  three years - so three taps lead from a day to every single sample and the old charts' three years are four taps
-  out. The window is named between the arrows ("Gestern 14:30 bis jetzt"), with the grow's days and, once it is
-  not a chip's own, how far apart its points are ("ein Punkt alle 5 s"). A window that reaches now follows it and
-  says "jetzt"; one stepped back to stands still. Nothing is a switch for "live".
+  out through one ladder of widths - 5 and 20 minutes, an hour, 6 hours, a day, 3, 7, 30 and 90 days, one and
+  three years - so four taps lead from a day to every single sample and the old charts' three years are four taps
+  out. The window is named between the arrows ("Gestern 14:30 bis jetzt"), with the grow's days and how far apart
+  its points are, said once and quietly in the unit that fits ("alle 3 Min", "alle 4,5 Std", "alle 2,3 Tage"). A
+  whole day of the calendar reads as that day ("Gestern", "Mo, 11. Aug"), and today - a day card's link, the
+  sheet's jump - is shown from its midnight up to now and follows it, until its own midnight has come. A window
+  that reaches now follows it and says "jetzt"; one stepped back to stands still, and then - only then - a
+  button "Jetzt" leads back to the same width ending now (after the walk: the way back must be marked). No chip
+  is hidden: the chips wrap, and where the head does not fit one row - several places, a device to choose - it
+  takes a second; no row scrolls. No chip is lit for a range the page is not showing.
 - **The cursor keeps its instant through a zoom**, and its place on the screen. Resting at the end of a window
-  that follows now, a zoom stays at now. A drag with the mouse marks the stretch to zoom into, two fingers pinch
-  to it, and Ctrl with the wheel - a trackpad's pinch - zooms around the pointer; the wheel alone is the page's.
+  that follows now, a zoom stays at now; in a window that stands still with no cursor set, it keeps the middle.
+  A drag with the mouse marks the stretch to zoom into, two fingers pinch to it, and Ctrl with the wheel - a
+  trackpad's pinch - zooms around the pointer; the wheel alone is the page's. There is no free panning - the
+  old Ctrl-drag, a two-finger pan: steps by the window, drag-select and pinch stand in (kept after the walk; a
+  question for Chris). The zoom's two buttons stand in the cursor's card, which stays in sight while the page
+  scrolls. Arrow keys move the cursor a point, Home and End to the window's start and back to rest.
 - **A thumb scrolls the page over a plot** (`charts/scrub.ts`): a touch moves the cursor only once it travelled
-  sideways or was a tap, so a scroll that starts on a curve leaves the cursor where it stood. A mouse reads on its
-  way over a plot and sets the cursor down with a click; leaving gives back the one set down.
+  sideways or was a tap, so a scroll that starts on a curve leaves the cursor where it stood. A second finger
+  never sets the cursor: it gives back the one the first was moving, and the gesture is a pinch or nothing
+  until both have lifted. A mouse reads on its way over a plot and sets the cursor down with a click; leaving
+  gives back the one set down.
 - **A chart is not finished until it states a number**: each panel's head says the lowest and the highest of the
-  window and the reading at the cursor; the scale's two ends stand in the plot's corner, both ends of the window
-  under it. What is true at the cursor is read in a card that stays put - a tooltip under a thumb cannot be read:
+  window and the reading at the cursor; the scale's two ends stand in a gutter beside the plot - as wide as the
+  longest figure, the same for every plot so they share one time axis - and never on a curve or on the dot of
+  "now"; both ends of the window under it, with at least three lines between them down to five minutes. What is true at the cursor is read in a card that stays put - a tooltip under a thumb cannot be read:
   the camera's still of that moment, the instant, a figure per curve drawn and what each output did. On a phone
   the card stays under the header while the panels scroll; beside the rail it stands right of them. The cursor
-  reads the point nearest to it and its dot sits on the line; where points are finer than a minute the instant is
-  written to the second. This card is the one place a moment's picture inside a day is seen - the camera's page
+  reads the point nearest to it and its dot sits on the line. A single sample - a window read at the five seconds
+  a device reports in - stands at its own time, to the second; a point of a wider step is a mean and says so,
+  with its stretch ("Mittel 03:09–03:12"). Two figures in one unit are told apart by name. This card is the one place a moment's picture inside a day is seen - the camera's page
   scrubs no day - and it can play the window through its pictures.
 - **A point is the mean of its window with the lowest and highest sample around it**, drawn as a pale area behind
   the line: a door open for forty seconds moves a three-minute mean by a fraction of what it moved the air, and
   was invisible in a day's picture. "Tief" and "Hoch" are those samples, not the means. Zoomed to 130 points or
-  fewer each point is a dot on its line. A humidity is read to the tenth here, as the sensor delivers it: a
-  dehumidifier's swing of a per cent is what is looked for.
+  fewer each point is a dot on its line, and a reading with a silence on either side is a dot at any zoom.
+- **One figure for one thing** (after the walk). A reading is written here as every screen writes it
+  (`figure()`), so Start's tile, a day card and a panel's head agree to the last digit - humidity in whole per
+  cent, not to the tenth the first build chose. "Jetzt" is the device's last reading, the one Start and
+  Steuerung show (`useSpaceLive`), drawn as the curve's last point on every range - not the mean of a month's last
+  hour and a half - and only while the device reports: silent by the offline rule, the head and the card read
+  "letzter Wert · 16:17", the band, the night and the lamp's strip end there, on 30 Tage as on 24 Std. Start's
+  two small curves name the lowest and highest sample of the day, as Verlauf's head does. **A figure of VPD is
+  a VPD that occurred**: its "Tief" and "Hoch" are of the deficit of single samples, which the server works out
+  for a window of three days at the most ([data.md](data.md#influxdb)); over a wider one the head says "Mittel
+  0,97 bis 1,24" - the two ends of the means, named as that - and draws no envelope. Whether three days is the
+  right line is open (the redesign session's, with the measured cost).
+- **A place with several climates draws one**: its own, the device Steuerung leads with, and the head names it
+  in a choice that leads to another; no curve is a mean of two devices, and the strips under it are its own
+  outputs and those of what is no climate itself (after the walk).
 - **An output is a strip under the curve it acts on**, on that curve's own time axis so a run stands under what it
   did: the heater under temperature, the dehumidifier (a fridge's compressor) under humidity, the CO₂ valve under
   CO₂; the lamp and what acts on no curve drawn - fans, a socket's relay - in a card of their own on a phone and
   under the last panel beside the rail. This replaces the lanes and the outputs drawn as curves. A slice of a
   strip is tinted by the share of it the output ran, which keeps what Chris asked of the lanes on 2026-10-12 - a
   compressor cycling all week reads as how often it ran, not as one solid bar. How hard it ran is said at the
-  cursor ("Licht 65 %"). Past the last thing heard a strip is blank, which is not "off". The picture puts a
+  cursor ("Licht 65 %"), and drawn: an output driven at a level - a dimmed lamp, a fan's speed, the heater's
+  demand - fills its strip to that level, so a sunrise is a ramp; one that only switches fills it whole (after
+  the walk; the old charts drew outputs as curves). Past the last thing heard a strip is blank, which is not
+  "off". The picture puts a
   strip's name left of it; it stands over the strip instead, because a strip that starts a name's width to the
   right no longer lines up with the curve above.
 - **"Anpassen" holds what the page has no room for** - one sheet: a tick per curve the place has (temperature,
@@ -849,31 +883,38 @@ it was decided by the redesign session of 2026-11-12 while building it.
   wait for theirs), the lamp, the outputs, the diary's lines and the devices' own; all curves in one picture,
   each against its own scale and named with its figure; another run laid over as a dashed line - an earlier grow
   of the place on the same grow days, or another place at the same hours; the views kept in the account; a
-  day of the calendar to jump to; the step; VPD of the day, the night or both; one climate of several; a link;
-  the table. A tick is in the address
-  at once, and the last choice is remembered in the browser for an address that names none. The reading a link
-  was about is drawn whatever is ticked.
+  day of the calendar to jump to; the step; VPD of the day, the night or both; a link; the table. A tick is in
+  the address at once, and the last choice is remembered in the browser for an address that names none. The
+  reading a link was about is drawn whatever is ticked. A place that measures nothing is offered only what
+  applies to it, and a reader through a link is not asked for saved views it cannot have.
 - **The page keeps every capability of the old charts**, better rather than a copy (Chris, 2026-10-02). Not
   carried over (Chris, 2026-10-04): curated and user chart presets (saved views stand in), the timelapse in place
   of the still, the navigator strip, ctrl-drag. Not carried over from the page "Graphen" (the redesign session of
   2026-11-12, each waiting for Chris's word): an own range typed as two dates - the sheet jumps to one day of the
   calendar, and the arrows and the zoom lead on from there -, renaming a saved view, the four kinds a line could
-  be filtered by (people's lines and the devices' are two ticks), and a grow in no place charted for its hand
-  measurements alone, which the function list drops with the chip that opened it.
+  be filtered by (people's lines and the devices' are two ticks). A grow's hand measurements have their curve
+  on its page **Messwerte**, with or without a place (after the walk): one small curve per measurement switched
+  on, over the grow, from the read that page already has, drawn by Verlauf's plot (`measurementCurve`,
+  `plotOption`); the words there no longer promise "Graphen", and neither does any other screen.
 - **The table holds every curve drawn** with the lowest and highest of each window beside its mean, and every
-  output as the state it held, at the step on screen.
+  output as the state it held, at the step on screen - with semicolons and decimal commas where the reader's
+  figures have commas, so a spreadsheet there reads columns.
 - **The diary of the window is told as the diary tells it** (`DiaryLine`): oldest first, as the curves run, a run
-  of the same device line folded, an alarm by its rule. A line's stamp sets the cursor on its moment; its words
+  of the same device line folded - standing at its first, "3× bis 01:03" -, an alarm by its rule. A line's
+  stamp sets the cursor on its moment; its words
   open its correction for whoever may correct it. Once the cursor was set down, "Notiz zu 03:10 schreiben"
   writes a note dated to it.
 - **Every link into Verlauf names its moment or its day and lands on it, however old**: a diary line, an alert and
   a reading outside its targets open the day around their moment with the cursor on it; a day card's climate line
-  and the camera page's "Kurven zu diesem Tag" open that day of the calendar - today as the last 24 hours -, the
+  and the camera page's "Kurven zu diesem Tag" open that day of the calendar - today up to now, live -, the
   camera's with the cursor on the day's picture, so this morning's picture is two taps from the camera page.
 - **Nothing to draw is said as what it is**: a device that has sent nothing "wartet auf erste Werte"; a window
   nothing was measured in is dated by the last reading and leads to it; a place no device measures in says so and
   lists what was written. While another window is on its way the one before it stays, dimmed; a place gone quiet
   rests the cursor on its last reading and says that it is the last, and the band and the night end with it.
+  **A window whose read fails keeps the last picture** (after the walk): the chips, the arrows and "Anpassen"
+  stay, a notice says that this window could not be loaded and whether the server answered or there is no
+  connection (`refusalText`), and its retry says that it is trying.
 - **A reader from outside is shown the tent and not the hardware**: through a place's link the curves, the band,
   the night and the strips; no alarm, no line of a device, no grow to choose, no camera page, no view, no link,
   no note - the server answers none of it and the page offers none.
@@ -885,8 +926,8 @@ it was decided by the redesign session of 2026-11-12 while building it.
   band, the grey and the pale area mean is behind the (i) of the first panel.
 - **A picture meant to show the plants is a lit still**, picked by the server: the newest lit one ("Licht aus · Bild
   von 14:20" while the lamp is off), for a day of the diary the one nearest midday, for a grow's card its cover first.
-- **Start's two small curves say what they are**: each under its name in its colour, with what it ran between
-  ("Temperatur 19,9–27,5 °C").
+- **Start's two small curves say what they are**: each under its name in its colour, with the lowest and highest
+  sample it ran between ("Temperatur 19,9–27,5 °C").
 
 ## 8. Steuerung and work modes
 - **Day and night side by side, no switching** ("direction B", Chris, 2026-10-03), and only where the mode has them:

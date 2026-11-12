@@ -91,7 +91,7 @@
         "1": "Gieße, wenn die oberen Zentimeter des Mediums trocken sind — der Topf-Hebetest sagt mehr als ein Zeitplan.",
         "2": "Jetzt ist Trainingszeit: Topping oder Herunterbinden (LST) sorgt für ein ebenes Blätterdach und mehr Blütenansätze.",
         "3": "Steigere die Lichtintensität Schritt für Schritt Richtung 80–100 %, sobald die Pflanzen kräftiger werden.",
-        "4": "Behalte den VPD-Graphen im Blick: 0,8–1,1 kPa halten Verdunstung und Wachstum im Gleichgewicht."
+        "4": "Behalte die VPD-Kurve im Verlauf im Blick: 0,8–1,1 kPa halten Verdunstung und Wachstum im Gleichgewicht."
       },
       "flowering": {
         "1": "Halte die Luftfeuchte bei maximal 50 % — dichte Buds plus hohe Feuchte ist der Anfang von Schimmel.",
@@ -622,7 +622,8 @@
       "inDays": "in {{count}} T",
       "dueSince": "seit {{time}} fällig"
     },
-    "entrySchemeWeek": "Schema-Woche {{week}}"
+    "entrySchemeWeek": "Schema-Woche {{week}}",
+    "entryRepeatsUntil": "{{count}}× bis {{until}}"
   },
   "me": {
     "title": "Ich",
@@ -781,7 +782,7 @@
         "title": "Klimaverlauf aufbewahren",
         "line": "Rohwerte · danach Tageswerte",
         "ask": {
-          "what": "Klimawerte, die älter sind als {{keep}}, werden zu einem Wert pro Tag: alles vor dem {{date}}, und von jetzt an jeder Tag, der aus dem Fenster fällt. Der Tageswert bleibt in den Graphen und im Export; die Messwerte selbst werden gelöscht und kommen nicht zurück.",
+          "what": "Klimawerte, die älter sind als {{keep}}, werden zu einem Wert pro Tag: alles vor dem {{date}}, und von jetzt an jeder Tag, der aus dem Fenster fällt. Der Tageswert bleibt im Verlauf und im Export; die Messwerte selbst werden gelöscht und kommen nicht zurück.",
           "yes": "{{keep}} behalten"
         },
         "installKeeps_one": "diese Installation behält höchstens {{count}} Tag Rohdaten · danach Tageswerte",
@@ -942,7 +943,7 @@
         "wholeGrowHd": "Zeitraffer über den ganzen Grow, HD",
         "reel": "Reel-Export mit Overlays",
         "watermark": "Wasserzeichen",
-        "rest": "Steuerung, Graphen, Tagebuch, Alarme, Teilen",
+        "rest": "Steuerung, Verlauf, Tagebuch, Alarme, Teilen",
         "keptDays_one": "{{count}} Tag",
         "keptDays_other": "{{count}} Tage",
         "widthPx": "{{width}} px",
@@ -1258,7 +1259,7 @@
       "title": "Messwerte",
       "back": "Zurück zum Grow",
       "yours": "Deine",
-      "chartHint": "eingeschaltet heißt: im Graphen",
+      "chartHint": "eingeschaltet heißt: als Kurve",
       "none": "Hier wird noch nichts gemessen · eine Vorlage unten ist ein Tipp",
       "perPlant": "pro Pflanze",
       "perGrow": "pro Grow",
@@ -1267,13 +1268,13 @@
       "bandBetween": "{{low}}–{{high}}",
       "bandFrom": "ab {{low}}",
       "bandTo": "unter {{high}}",
-      "onTheChart": "{{name}} im Graphen",
+      "onTheChart": "{{name}} als Kurve",
       "edit": "{{name}} bearbeiten",
       "templates": "Vorlagen",
       "tapToAdd": "tippen zum Hinzufügen",
       "ownChip": "eigen · Name · Einheit",
       "alreadyHere": "wird hier schon gemessen",
-      "note": "Ein Messwert ist eine Messen-Kachel im Eintrag, eine Zeile im Tagebuch, eine Kurve in den Graphen und eine Spalte im Export. Pro Pflanze oder pro Grow wird einmal entschieden.",
+      "note": "Ein Messwert ist eine Messen-Kachel im Eintrag, eine Zeile im Tagebuch, eine Kurve hier und im Verlauf und eine Spalte im Export. Pro Pflanze oder pro Grow wird einmal entschieden.",
       "readingsUnread": "Was gemessen wurde, konnte gerade nicht gelesen werden, deshalb sagt diese Liste nichts darüber.",
       "template": {
         "water_temp": "Wassertemperatur",
@@ -1308,8 +1309,8 @@
         "delete": "Löschen",
         "deleteAsk": "Diesen Messwert löschen? Es wurde noch nichts darunter eingetragen.",
         "deleteYes": "Ja, löschen",
-        "keptForReadings_one": "{{count}} Messwert steht darunter, also bleibt er. Nimm ihn stattdessen aus dem Graphen.",
-        "keptForReadings_other": "{{count}} Messwerte stehen darunter, also bleibt er. Nimm ihn stattdessen aus dem Graphen.",
+        "keptForReadings_one": "{{count}} Messwert steht darunter, also bleibt er. Schalte stattdessen seine Kurve aus.",
+        "keptForReadings_other": "{{count}} Messwerte stehen darunter, also bleibt er. Schalte stattdessen seine Kurve aus.",
         "keptForReadingsOffChart_one": "{{count}} Messwert steht darunter, also bleibt er.",
         "keptForReadingsOffChart_other": "{{count}} Messwerte stehen darunter, also bleibt er."
       },
@@ -1332,6 +1333,11 @@
         "setUp": "Messwerte einrichten",
         "noGrow": "Ein Messwert gehört zu einem Grow, und hier wächst noch nichts.",
         "startGrow": "Hier einen Grow starten"
+      },
+      "curve": {
+        "alt": "{{name}} über den Grow: {{count}} Messwerte zwischen {{low}} und {{high}} {{unit}}",
+        "span": "{{low}} bis {{high}} · zuletzt {{last}}",
+        "one": "Erst ein Messwert: {{last}}"
       }
     },
     "plant": {
@@ -1480,7 +1486,7 @@
       "lightOnSince": "Licht an seit {{at}}",
       "lightAgainAt": "wieder an um {{at}}",
       "lightAgainSince": "wieder an seit {{at}}",
-      "openCurves": "Kurven dieses Tages öffnen"
+      "openCurves": "Kurven zu diesem Tag"
     },
     "pictures": {
       "makeEntry": "Als Eintrag ins Tagebuch",
@@ -2090,7 +2096,6 @@
       "yesterday": "Gestern",
       "yesterdayThen": "gestern"
     },
-    "pointEvery": "ein Punkt alle {{step}}",
     "cursor": "Cursor",
     "cursorOn": "Cursor auf {{name}}",
     "noFrame": "Kein Bild um diese Zeit",
@@ -2151,8 +2156,6 @@
         "day": "Tag",
         "night": "Nacht"
       },
-      "device": "Gerät",
-      "deviceAll": "Alle Geräte",
       "share": "Teilen",
       "csv": "Als CSV laden",
       "viewDelete": "Löschen",
@@ -2169,6 +2172,26 @@
       "title": "Link zum Teilen",
       "copy": "Link kopieren",
       "all": "Alle geteilten Links"
+    },
+    "device": "Gerät",
+    "toNow": "Jetzt",
+    "zoomLabel": "Zoomen",
+    "windowFailed": "Dieser Zeitraum ließ sich nicht laden; zu sehen ist der davor.",
+    "retrying": "Versucht es …",
+    "missing": {
+      "device": "Das Gerät aus der Adresse steht nicht an diesem Ort. Gezeigt wird der Ort mit seinem eigenen Gerät.",
+      "grow": "Der Grow aus der Adresse stand nie an diesem Ort. Gezeigt wird der Ort ohne ihn.",
+      "growNoPlace": "„{{name}}“ hat keinen Ort und damit keine Klimakurven. Was du von Hand gemessen hast, steht als Kurve unter",
+      "compare": "Der Vergleich aus der Adresse ist nicht mehr da. Gezeigt wird der Ort allein."
+    },
+    "meanOver": "Mittel {{from}}–{{to}}",
+    "meansBetween": "Mittel {{low}} bis {{high}}",
+    "every": {
+      "s": "alle {{n}} s",
+      "min": "alle {{n}} Min",
+      "h": "alle {{n}} Std",
+      "d_one": "jeden Tag",
+      "d_other": "alle {{n}} Tage"
     }
   },
   "camera": {
@@ -3239,7 +3262,7 @@
       "text": "Wähl eine Phase als Vorgabe oder „nur messen“ für reine Überwachung. Eine Vorgabe setzt das Klima.",
       "pick": "Was dort gerade läuft",
       "measure": "nur messen",
-      "measureNote": "Es wird nichts an den Controller geschrieben. Er meldet weiter, die Graphen füllen sich. Es sind keine Grenzwerte gesetzt — eine Phase hätte welche geschrieben; eigene legst du unter Steuerung › Alarme an.",
+      "measureNote": "Es wird nichts an den Controller geschrieben. Er meldet weiter, der Verlauf füllt sich. Es sind keine Grenzwerte gesetzt — eine Phase hätte welche geschrieben; eigene legst du unter Steuerung › Alarme an.",
       "apply": "Auf {{stage}} stellen",
       "applying": "Zielwerte werden geschrieben…",
       "wroteNothing": "Kein Controller hier hat die Zielwerte übernommen.",

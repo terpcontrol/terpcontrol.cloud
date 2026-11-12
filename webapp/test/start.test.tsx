@@ -375,7 +375,9 @@ describe('Start of one place with a camera and a grow', () => {
 
     const curves = (await screen.findByText('Last 24 h')).closest('a')!;
     expect(curves).toHaveAttribute('href', '/timeline?space=space-1');
-    expect(within(curves).getByRole('img', { name: /^Temperature over the last 24 hours, between 24.6 °C and 25.2 °C$/ })).toBeInTheDocument();
+    // The lowest and the highest sample of the day, as Verlauf's head says them - not the lowest and highest mean.
+    expect(within(curves).getByRole('img', { name: /^Temperature over the last 24 hours, between 20.6 °C and 25.2 °C$/ })).toBeInTheDocument();
+    expect(curves).toHaveTextContent('20.6–25.2 °C');
     expect(within(curves).getByRole('img', { name: /^Humidity over the last 24 hours/ })).toBeInTheDocument();
   });
 

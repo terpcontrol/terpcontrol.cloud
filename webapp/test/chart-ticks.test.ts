@@ -1,6 +1,6 @@
 import { DateTime, Settings } from 'luxon';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { TICK_ROOM_PX, ticksFor, timeTicks } from '@/charts/ticks';
+import { CLOCK_ROOM_PX, TICK_ROOM_PX, ticksFor, timeTicks } from '@/charts/ticks';
 
 const ZONE = 'Europe/Berlin';
 const DAY_DE = "d'.' LLL";
@@ -55,5 +55,12 @@ describe('the gridlines of a chart over time', () => {
 
     expect(labels('2026-09-25T16:04', '2026-10-02T16:04', phone)).toEqual(['26. Sep', '28. Sep', '30. Sep', '2. Okt']);
     expect(labels('2026-09-02T16:04', '2026-10-02T16:04', phone)).toEqual(['7. Sep', '14. Sep', '21. Sep', '28. Sep']);
+  });
+
+  /** Five minutes of single samples had one line or none: the finest step was five minutes. */
+  it('counts five minutes by the minute on a phone, and by the half minute where there is room - with seconds only between two minutes', () => {
+    // The narrowest phone's plot: a time of day needs less room than a date.
+    expect(labels('2026-09-25T03:08:13', '2026-09-25T03:13:13', ticksFor(218, CLOCK_ROOM_PX))).toEqual(['03:09', '03:10', '03:11', '03:12', '03:13']);
+    expect(labels('2026-09-25T03:08:13', '2026-09-25T03:13:13', 10).slice(0, 4)).toEqual(['03:08:30', '03:09', '03:09:30', '03:10']);
   });
 });

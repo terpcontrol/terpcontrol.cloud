@@ -53,6 +53,24 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     `GET /v1/spaces/{id}/series` and the climate half of `GET /v1/grows/{id}/series`, which the web app no longer
     asks - only a grow's own measurements are still read there - and `ChartView.definition.layout: 'day_of_grow'`,
     which nothing writes any more. They wait for the round that clears up.
+  - Round 5 (Verlauf), state of 2026-11-12 (the redesign session; rules in
+    [app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night)). Built, walked by the session's critic - one
+    blocker, five larger points, nineteen smaller - and what the walk found is built: a figure of VPD is a VPD
+    that occurred (the deficit of single samples, for a window of three days at the most; no envelope beyond);
+    "jetzt" is the device's last reading and only while it reports; no chip hidden; a night begins where it
+    begins; a failed window keeps the last picture; a grow's hand measurements have their curves on its page
+    Messwerte; one figure for one thing; a marked way back to now; a place's own device and never a mean of two;
+    an output's level drawn. Open, for Chris:
+      1. Where the line for the true extremes of VPD is drawn: three days costs a day's read 47 ms more; a week
+         would cost half a second and a month over two ([data.md](knowledge/data.md#influxdb)). Storing the
+         deficit with each sample would make every range cheap, and is a new stored field.
+      2. No free panning (the old Ctrl-drag, a two-finger pan), and the four things that went with "Graphen": a
+         range typed as two dates, renaming a saved view, the four kinds a line was filtered by, and - now
+         answered by Messwerte - the charts of a grow without a place.
+      3. Humidity is written in whole per cent on Verlauf as everywhere, where the picture reads it to a tenth
+         in a panel's head.
+      4. A live reading works out VPD from the newest of every field within 30 days, so a leaf sensor that was
+         taken out keeps bending "jetzt" for a month (`DataService.live`); seen on test data, not fixed.
   - A claim offers "ein neuer Ort" first when places exist (`screens/claim/CodeStep.tsx`), so a second device in the
     same tent makes a second place and Start turns into the several-places layout.
   - The weight is live duplication, not dead code: 21 ideas (place chooser, rename sheet, maintenance, climate

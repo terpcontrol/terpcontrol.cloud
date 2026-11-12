@@ -27,8 +27,6 @@ interface AdjustProps {
   change: (over: Partial<View>) => void;
   /** The step the curves are drawn at, which one asked for may have been widened to. */
   stepDrawn: number;
-  /** The climates of a place that holds several, to draw one of them alone; none where it holds one. */
-  devices: { id: string; name: string }[];
   comparable: Comparable[];
   /** Keeping the view in the account, where the session has one: the definition to keep, and what applying one does. */
   views: { definition: ChartViewDefinition; apply: (view: ChartView) => void } | null;
@@ -44,11 +42,15 @@ interface AdjustProps {
  * everything the page itself has no room for, in one sheet. Each tick is in
  * the address at once, so the curves behind the sheet follow it.
  */
-export function Adjust({ view, offered, shown, change, stepDrawn, devices, comparable, views, day, onShare, onCsv, onClose }: AdjustProps) {
+export function Adjust({ view, offered, shown, change, stepDrawn, comparable, views, day, onShare, onCsv, onClose }: AdjustProps) {
   const { t } = useTranslation();
   const [pane, setPane] = useState<'main' | 'compare' | 'views'>('main');
-  const saved = useChartViews().data?.items ?? [];
+  // Asked only where a view can be kept: a reader through a link has no account to keep one in.
+  const saved = useChartViews(views !== null).data?.items ?? [];
   const compared = comparable.find(one => one.kind === view.compare?.kind && one.id === view.compare.id) ?? null;
+  // A place that measures nothing - no device, or one that never sent a value - is offered only what applies to it:
+  // the lines to tick, a day to jump to, a view, a link. Nothing about curves it has not got.
+  const curves = offered.metrics.length + offered.measurements.length > 0;
 
   // The sheet's own copy of what is ticked: the address follows a moment later, and a tick shows at once.
   const [keys, setKeys] = useState(() => view.show ?? [...new Set([...keysOf(shown), ...DEFAULT_SHOW])]);
@@ -117,20 +119,22 @@ export function Adjust({ view, offered, shown, change, stepDrawn, devices, compa
           ))}
         </fieldset>
 
-        <label className={styles.oneRow}>
-          <span>{t('timeline.adjust.one')}</span>
-          <input
-            type="checkbox"
-            checked={one}
-            onChange={() => {
-              setOne(!one);
-              change({ one: !one });
-            }}
-          />
-        </label>
+        {curves ? (
+          <label className={styles.oneRow}>
+            <span>{t('timeline.adjust.one')}</span>
+            <input
+              type="checkbox"
+              checked={one}
+              onChange={() => {
+                setOne(!one);
+                change({ one: !one });
+              }}
+            />
+          </label>
+        ) : null}
 
         <Rows>
-          {comparable.length > 0 ? (
+          {curves && comparable.length > 0 ? (
             <Row
               title={t('timeline.adjust.compare')}
               line={compared ? compared.name : t('timeline.adjust.compareLine')}
@@ -148,28 +152,30 @@ export function Adjust({ view, offered, shown, change, stepDrawn, devices, compa
             <span>{t('timeline.adjust.day')}</span>
             <input type="date" value={day.shown} max={day.last} onChange={event => event.target.value && day.jump(event.target.value)} />
           </label>
-          <label className={styles.pickRow}>
-            <span>
-              {t('timeline.adjust.step')}
-              {/* A step too fine for the window is widened by the server, which is said where it was asked for. */}
-              {view.stepSeconds !== null && stepDrawn > view.stepSeconds ? (
-                <small>{t('timeline.adjust.stepWidened', { step: durationLabel(stepDrawn) })}</small>
-              ) : null}
-            </span>
-            <select
-              value={view.stepSeconds ?? ''}
-              onChange={event => change({ stepSeconds: event.target.value === '' ? null : Number(event.target.value) })}
-            >
-              <option value="">{t('timeline.adjust.stepAuto')}</option>
-              {[...new Set([...STEPS, ...(view.stepSeconds ? [view.stepSeconds] : [])])]
-                .sort((one, other) => one - other)
-                .map(step => (
-                  <option key={step} value={step}>
-                    {durationLabel(step)}
-                  </option>
-                ))}
-            </select>
-          </label>
+          {curves ? (
+            <label className={styles.pickRow}>
+              <span>
+                {t('timeline.adjust.step')}
+                {/* A step too fine for the window is widened by the server, which is said where it was asked for. */}
+                {view.stepSeconds !== null && stepDrawn > view.stepSeconds ? (
+                  <small>{t('timeline.adjust.stepWidened', { step: durationLabel(stepDrawn) })}</small>
+                ) : null}
+              </span>
+              <select
+                value={view.stepSeconds ?? ''}
+                onChange={event => change({ stepSeconds: event.target.value === '' ? null : Number(event.target.value) })}
+              >
+                <option value="">{t('timeline.adjust.stepAuto')}</option>
+                {[...new Set([...STEPS, ...(view.stepSeconds ? [view.stepSeconds] : [])])]
+                  .sort((one, other) => one - other)
+                  .map(step => (
+                    <option key={step} value={step}>
+                      {durationLabel(step)}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          ) : null}
           {shown.metrics.includes('vpd') ? (
             <label className={styles.pickRow}>
               <span>{t('timeline.adjust.vpdHalf')}</span>
@@ -177,19 +183,6 @@ export function Adjust({ view, offered, shown, change, stepDrawn, devices, compa
                 {VPD_HALVES.map(half => (
                   <option key={half} value={half}>
                     {t(`timeline.adjust.half.${half}`)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          {devices.length > 1 ? (
-            <label className={styles.pickRow}>
-              <span>{t('timeline.adjust.device')}</span>
-              <select value={view.deviceId ?? ''} onChange={event => change({ deviceId: event.target.value || null })}>
-                <option value="">{t('timeline.adjust.deviceAll')}</option>
-                {devices.map(device => (
-                  <option key={device.id} value={device.id}>
-                    {device.name}
                   </option>
                 ))}
               </select>

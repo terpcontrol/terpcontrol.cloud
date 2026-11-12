@@ -19,13 +19,14 @@ export const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
 const ROLLING: Partial<Record<TimelineRange, number>> = { '24h': DAY_MS, '7d': 7 * DAY_MS, '30d': 30 * DAY_MS };
 
 /**
- * The widths a zoom steps through, each about a quarter of the next: from the
- * three years the old charts reached down to five minutes of single samples.
+ * The widths a zoom steps through, each a few times the one before: from the
+ * three years the old charts reached down to five minutes of single samples,
+ * by way of the hour a grower thinks in.
  */
 export const WIDTHS = [
   5 * MINUTE_MS,
   20 * MINUTE_MS,
-  90 * MINUTE_MS,
+  HOUR_MS,
   6 * HOUR_MS,
   DAY_MS,
   3 * DAY_MS,
@@ -143,7 +144,9 @@ const around = (at: number, now: number): Span => {
  * server's answer knows the ends of. `now` is the page's clock.
  */
 export const windowOf = (view: View, now: number): Window | null => {
-  if (view.fixed) return { ...view.fixed, live: false };
+  // A window named past now - today, to its midnight - ends now and follows it until its own end has come.
+  if (view.fixed && view.fixed.from < now)
+    return view.fixed.to > now ? { from: view.fixed.from, to: now, live: true } : { ...view.fixed, live: false };
   if (view.last) return { from: now - view.last, to: now, live: true };
 
   const width = ROLLING[view.range];
@@ -155,13 +158,14 @@ export const windowOf = (view: View, now: number): Window | null => {
 
 /** What the server is asked for a view. A stretch of a grow the address names no grow for is read as the last day instead. */
 export const askOf = (view: View, window: Window | null, share: string | null = null): TimelineAsk => {
-  const stretch = ROLLING[view.range] === undefined;
-  const chip = window === null || (window.live && view.last === null);
+  // A named window is asked as it was named, its end in the future included: the server ends it now, and the
+  // answer is kept under one key while the clock moves through it.
+  const named = view.fixed && window && window.from === view.fixed.from ? view.fixed : window && (!window.live || view.last !== null) ? window : null;
 
   return {
-    range: stretch && !view.growId ? '24h' : view.range,
+    range: shownRange(view),
     growId: view.growId,
-    ...(chip ? {} : { from: instant(window.from), to: instant(window.to) }),
+    ...(named ? { from: instant(named.from), to: instant(named.to) } : {}),
     stepSeconds: view.stepSeconds,
     deviceId: view.deviceId,
     share,
@@ -173,9 +177,12 @@ export const askOf = (view: View, window: Window | null, share: string | null = 
 /** Whether a range is a width ending now rather than a stretch of a grow. */
 export const isRolling = (range: TimelineRange): boolean => ROLLING[range] !== undefined;
 
+/** The range a view comes to: a stretch of a grow the address names no grow for is the last day. */
+const shownRange = (view: View): TimelineRange => (isRolling(view.range) || view.growId ? view.range : '24h');
+
 /** The chip a window is one of: its own while nothing moved it, and the rolling one of the same width where it was stepped. */
 export const chipOf = (view: View, window: Window | null): TimelineRange | null => {
-  if (view.fixed === null && view.last === null && (window === null || window.live)) return view.range;
+  if (view.fixed === null && view.last === null && (window === null || window.live)) return shownRange(view);
   if (window === null) return null;
   return (Object.keys(ROLLING) as TimelineRange[]).find(range => Math.abs((ROLLING[range] as number) - (window.to - window.from)) < 1000) ?? null;
 };
@@ -200,10 +207,13 @@ export const stepped = (window: Span, direction: -1 | 1, now: number): Partial<V
 export const nextWidth = (width: number, direction: -1 | 1): number | null =>
   (direction === 1 ? [...WIDTHS].reverse().find(one => one < width * 0.99) : WIDTHS.find(one => one > width * 1.01)) ?? null;
 
+/** The same width ending now: the way back from wherever the arrows and the zoom led. */
+export const toNow = (window: Span, now: number): Partial<View> => held({ from: now - (window.to - window.from), to: now }, now, null);
+
 /**
  * Zoomed in or out by one width of the ladder. The cursor keeps its instant
- * and its place on the screen; resting at the end of a window that follows
- * now, the zoomed window follows now too.
+ * and its place on the screen; without one a window that follows now keeps
+ * following it, and one that stands still keeps its middle.
  */
 export const zoomed = (
   window: Window,
@@ -216,7 +226,7 @@ export const zoomed = (
   if (width === null) return null;
 
   // What the zoom holds still: the cursor, or the spot a wheel was turned over.
-  const anchor = around ?? window.to;
+  const anchor = around ?? (window.from + window.to) / 2;
   const share = (anchor - window.from) / (window.to - window.from);
   const to = Math.min(now, anchor - share * width + width);
   return around === null && window.live ? held({ from: now - width, to: now }, now, null) : held({ from: to - width, to }, now, cursor);
@@ -232,11 +242,16 @@ export const selected = (window: Span, fractions: Span, cursor: number | null, n
   return held(next, now, cursor !== null && cursor >= next.from && cursor <= next.to ? cursor : null);
 };
 
-/** The calendar day an instant falls on, where the reader's clock is; null for today, which the last 24 hours show. */
-export const dayHolding = (at: number, zone: string | null, now: number): Span | null => {
+/** The calendar day an instant falls on, where the reader's clock is. Today's ends in the future, and is shown up to now (`windowOf`). */
+export const dayHolding = (at: number, zone: string | null): Span => {
   const start = zonedAt(at, zone).startOf('day');
-  const to = start.plus({ days: 1 }).toMillis();
-  return to > now ? null : { from: start.toMillis(), to };
+  return { from: start.toMillis(), to: start.plus({ days: 1 }).toMillis() };
+};
+
+/** The same day as a link names it: two instants. */
+export const dayWindow = (at: number, zone: string | null): { from: string; to: string } => {
+  const day = dayHolding(at, zone);
+  return { from: instant(day.from), to: instant(day.to) };
 };
 
 /** What a saved view keeps of the one on screen: the question - which curves, over what stretch, how - and never its readings. */

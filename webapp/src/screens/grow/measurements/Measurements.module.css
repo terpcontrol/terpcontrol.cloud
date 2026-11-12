@@ -40,9 +40,22 @@
    where these are eight lines of one setting. */
 .card {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
+}
+
+/* A measurement's curve over the grow, on a row of its own under its name and switch. */
+.curve {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.curve figcaption {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
 }
 
 /* The card's own text is the way into the sheet, so the whole of it is the

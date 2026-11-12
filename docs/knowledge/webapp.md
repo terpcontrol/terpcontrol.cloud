@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-12
-source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12)
+source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12)
 paths:
   - webapp/**
 ---
@@ -118,10 +118,12 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   only in `src/screens/timeline/view.ts` (below), through which `app/old-charts.ts` maps old bookmarks too.
 - **Verlauf** is `src/screens/timeline/`. `view.ts` is its address and nothing else: `viewOf` reads it, `viewParams`
   writes a change of it, and the arithmetic of a window lives beside them - `windowOf` (a chip, a width ending
-  now, a window that stands still, the day around a moment the chip does not reach), `askOf` (what the server is
-  asked: a chip by its name, so Start's two curves and Verlauf share one cached answer; any other window by its
-  two ends), `stepped`, `zoomed` over the ladder `WIDTHS`, `selected` for a stretch marked or pinched to,
-  `dayHolding`, and `definitionOf` / `appliedOf` for a view kept in the account. The parameters: `range`
+  now, a window that stands still, a window named past now - today - which ends now and follows it, the day
+  around a moment the chip does not reach), `askOf` (what the server is asked: a chip by its name, so Start's two
+  curves and Verlauf share one cached answer; any other window by its two ends, today's by its own midnight so
+  its answer keeps one key all day), `stepped`, `toNow`, `zoomed` over the ladder `WIDTHS`, `selected` for a
+  stretch marked or pinched to, `dayHolding` / `dayWindow`, and `definitionOf` / `appliedOf` for a view kept in
+  the account. The parameters: `range`
   (`24h` left out, `7d`, `30d`, `phase`, `grow`), `from` + `to` (a window that stands still), `last` (seconds of a
   width ending now that no chip names), `at` (the cursor), `grow`, `device`, `show` (the keys ticked: metrics,
   `m.<key>` for a grow's own measurement, `light`, `outputs`, `diary`, `machine`), `one`, `step`, `vpd`,
@@ -132,7 +134,12 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `labels.ts` says when; `window.ts` holds the bands by day and night and the picture of a moment. One read
   answers the page, `GET /v1/spaces/{id}/timeline` (`useTimeline`, `src/api/timeline.ts`), asked for every panel a
   place can have so the sheet offers a tick only for what is there; a second one of the same route is what is
-  laid over, and a grow's own measurements come from `useMeasurementSeries`. A change of the view is a
+  laid over, and a grow's own measurements come from `useMeasurementSeries`. What the place reads now comes from
+  `useSpaceLive`, the read Start lays over its readings, under the same key: `panelsOf` closes each curve of a window that ends
+  now with that reading, which is what "jetzt" is and why it agrees with Start. A read that fails for a new
+  window leaves `data` empty in TanStack Query - `keepPreviousData` holds only while pending - so `usePage`
+  keeps the last answer itself and hands it on with `failed`. A refusal that names a device or a grow the place
+  does not have (`device_not_here`, `grow_not_found`) drops that parameter and says so. A change of the view is a
   `setSearchParams` with `replace`, which React Router applies as a transition: what has to show at once - a tick
   in the sheet, the cursor under a thumb - is held in state beside it. `terp.curves` remembers the last ticks for
   an address that names none. The page a share link shows (`SharedTimeline`) is the same screen without the

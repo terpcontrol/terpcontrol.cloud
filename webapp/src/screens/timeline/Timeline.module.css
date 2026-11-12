@@ -2,6 +2,9 @@
    the rail, once both fit, the panels left and the cursor's card and the diary right. */
 
 .screen {
+  /* The room beside every plot for its scale's two figures: no figure stands on a curve or on the dot of "now". */
+  --gutter: 38px;
+
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -11,7 +14,8 @@
 
 /* ------------------------------------------------------------------ head */
 
-/* On a phone three rows: the title with "Anpassen", the ranges, the window between its arrows. On a wide window one. */
+/* On a phone three rows: the title with "Anpassen", the ranges, the window between its arrows. On a wide window one,
+   as far as it fits - what does not takes the next row, so no chip is ever out of sight and no row scrolls. */
 .head {
   display: flex;
   flex-wrap: wrap;
@@ -58,14 +62,39 @@
 }
 
 .ranges {
+  display: flex;
   flex: 1 1 100%;
+  flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
 }
 
+/* Which of a place's climates is drawn, where it holds several. */
+.device {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.device select {
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  background: var(--card);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font: inherit;
+  font-weight: var(--weight-semibold);
+}
+
 .range {
   min-height: var(--control-height);
-  padding: 0 var(--space-3);
+  padding: 0 10px;
   background: var(--card);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-pill);
@@ -109,8 +138,30 @@
   opacity: 0.6;
 }
 
-.zoomOut {
-  margin-left: var(--space-2);
+/* The way back to now, wherever the arrows and the zoom led. */
+.toNow {
+  flex: none;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  background: var(--card);
+  border: 1px solid var(--selected-edge);
+  border-radius: var(--radius-pill);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+/* A window that would not load: said over the picture of the one before, with the way to ask again. */
+.failed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.failed p {
+  flex: 1 1 14rem;
+  margin: 0;
 }
 
 /* The window in words; under it the grow's days and how fine the points are. It gives way before a button does. */
@@ -126,6 +177,7 @@
 }
 
 .window small {
+  min-height: 1.3em;
   font-size: var(--text-xs);
   font-weight: var(--weight-regular);
   color: var(--muted);
@@ -219,8 +271,8 @@
 .frame {
   position: relative;
   flex: none;
-  width: 104px;
-  height: 72px;
+  width: 96px;
+  height: 92px;
   overflow: hidden;
   background: var(--card-2);
   border-radius: var(--radius-sm);
@@ -247,12 +299,12 @@
 /* The window played through its pictures. A finger wide by the room around it, small enough to leave the picture. */
 .play {
   position: absolute;
-  right: 4px;
-  bottom: 4px;
+  right: 6px;
+  bottom: 6px;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   background: var(--overlay-solid);
   border: 0;
@@ -263,14 +315,27 @@
 .play::after {
   content: '';
   position: absolute;
-  inset: -8px;
+  inset: -6px;
 }
 
 .cursorText {
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+/* Zooming, in the card that stays in sight: one over the other beside the figures. */
+.zoom {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.zoom:empty {
+  display: none;
 }
 
 .cursorStamp,
@@ -319,7 +384,7 @@
 .panelHead h2 button::after {
   content: '';
   position: absolute;
-  inset: -12px;
+  inset: -14px;
 }
 
 .panelRange {
@@ -378,15 +443,18 @@
 .plot {
   position: relative;
   height: 104px;
+  margin-right: var(--gutter);
 }
 
+/* The scale's two ends, in the gutter beside the plot; one pair per curve where a picture holds several. */
 .scaleHigh,
 .scaleLow {
   position: absolute;
-  right: 2px;
+  left: calc(100% + 7px);
   display: flex;
-  gap: var(--space-2);
+  flex-direction: column;
   font-family: var(--font-figure);
+  line-height: 1.2;
   font-size: var(--text-2xs);
   color: var(--muted);
   pointer-events: none;
@@ -484,6 +552,12 @@
   position: relative;
   display: block;
   height: 10px;
+  margin-right: var(--gutter);
+}
+
+/* An output driven at a level has the height to show it: a lamp at 60 % is not a lamp at 100 %. */
+.strip[data-levelled] .stripTrack {
+  height: 22px;
 }
 
 .stripTrack svg {
@@ -512,7 +586,7 @@
   position: relative;
   display: flex;
   justify-content: space-between;
-  margin: 0;
+  margin: 0 var(--gutter) 0 0;
   font-family: var(--font-figure);
   font-size: var(--text-2xs);
   color: var(--muted);
@@ -765,7 +839,13 @@
   }
 
   .cursorText {
+    flex: none;
     padding: 0 6px 4px;
+  }
+
+  .zoom {
+    flex-direction: row;
+    justify-content: flex-end;
   }
 
   .cursorValues {
@@ -777,44 +857,40 @@
   }
 }
 
-/* The head in one row once it fits: the title, the ranges, the window between its buttons, and "Anpassen" last. The
-   ranges give way first - they scroll - so the row never breaks. */
+/* The head in one row where it fits: the title, the ranges, the window between its buttons, and "Anpassen" last.
+   Nothing in it shrinks out of sight - with several places and a device to choose it takes a second row. */
 @media (min-width: 1280px) {
-  .head {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  .title {
+    flex: 0 1 auto;
   }
 
   .title h1 {
     font-size: 28px;
   }
 
+  .device {
+    flex: none;
+    order: 1;
+  }
+
   .ranges {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .ranges::after {
-    display: none;
-  }
-
-  .range {
-    padding: 0 10px;
+    flex: 0 0 auto;
+    order: 2;
+    margin-left: auto;
   }
 
   .nav {
-    grid-column: 3;
-    grid-row: 1;
+    flex: 0 0 auto;
+    order: 3;
   }
 
   .window {
-    flex: 0 1 auto;
-    max-width: 200px;
+    flex: 0 0 auto;
+    min-width: 150px;
     padding: 0 var(--space-2);
   }
 
   .adjustButton {
-    grid-column: 4;
-    grid-row: 1;
+    order: 4;
   }
 }

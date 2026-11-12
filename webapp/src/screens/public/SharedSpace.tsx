@@ -94,7 +94,12 @@ export function SharedSpace({
           here: the last day, week or month, read only and through the link's
           own window. */}
       <section className={styles.timeline}>
-        <SharedTimeline spaceId={space.spaceId} shared={{ token, picture }} title={<h2>{t('publicPage.timeline')}</h2>} />
+        <SharedTimeline
+          spaceId={space.spaceId}
+          shared={{ token, picture }}
+          title={<h2>{t('publicPage.timeline')}</h2>}
+          values={space.climates[0]?.values ?? space.values}
+        />
       </section>
 
       {space.grows.length > 0 ? (

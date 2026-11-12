@@ -322,6 +322,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   const space = /^\/spaces\/([^/]+)\/(overview|live|timeline)$/.exec(path);
   if (space) {
     const name = server.places.find(([id]) => id === space[1])?.[1] ?? 'Gone';
+    if (space[2] === 'live') return json({ spaceId: space[1], values: overviewOf(space[1], name).values, setpoints: [], devices: [], cameras: [] });
     return json(space[2] === 'timeline' ? timeline(space[1], name) : overviewOf(space[1], name));
   }
 

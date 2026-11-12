@@ -165,8 +165,13 @@ export const deviceLive = (over: Partial<DeviceLive['outputs']> = {}): DeviceLiv
   setpoints: { day: { temperature: 25, humidity: 60, co2: 900 }, night: { temperature: 21, humidity: 55 }, active: 'day', transition: null },
 });
 
+/** A day at an hour to the point; in one of them a door stood open, which its mean hardly shows and its lowest sample does. */
 const curve = (from: number, step: number) =>
-  Array.from({ length: 24 }, (_, index) => ({ measuredAt: ago(24 * 60 - index * 60), value: from + (index % 3) * step }));
+  Array.from({ length: 24 }, (_, index) => ({
+    measuredAt: ago(24 * 60 - index * 60),
+    value: from + (index % 3) * step,
+    ...(index === 12 ? { min: from - 4, max: from + 2 * step } : {}),
+  }));
 
 export const timeline = (): SpaceTimeline =>
   ({

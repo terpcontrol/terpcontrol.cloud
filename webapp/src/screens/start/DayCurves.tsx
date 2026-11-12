@@ -7,6 +7,7 @@ import { useTimeline } from '@/api/timeline';
 import { timelinePath } from '@/app/places';
 import { HOUR_MS } from '@/ui/days';
 import { figure, figureWithUnit } from '@/ui/units';
+import { extremesOf } from '@/screens/timeline/model';
 import { at, stretchesOf } from '@/screens/timeline/window';
 import { judgedPanel } from './place';
 import styles from './Start.module.css';
@@ -48,6 +49,9 @@ function Curve({ timeline, targets, metric }: { timeline: SpaceTimeline; targets
   const panel = judgedPanel(timeline.panels.find(one => one.metric === metric) ?? null, targets, timeline.startsAt, timeline.endsAt);
   const points = (panel?.points ?? []).filter(point => point.value !== null && at(point.measuredAt) >= from);
   if (!panel || points.length < 2 || to <= from) return null;
+  // The lowest and highest sample of the day, as Verlauf's head says them: one figure for one thing.
+  const reach = extremesOf(points.map(point => [0, point.value, point.min, point.max] as const));
+  const [lowest, highest] = [reach.low as number, reach.high as number];
 
   const stretches = stretchesOf(panel, timeline.nights, from, to, timeline.transitions);
   const values = points.map(point => point.value as number);
@@ -66,8 +70,8 @@ function Curve({ timeline, targets, metric }: { timeline: SpaceTimeline; targets
     .join(' ');
   const said = t('start.curve', {
     metric: t(`home.metric.${metric}`),
-    low: figureWithUnit(Math.min(...values), metric),
-    high: figureWithUnit(Math.max(...values), metric),
+    low: figureWithUnit(lowest, metric),
+    high: figureWithUnit(highest, metric),
   });
 
   return (
@@ -75,7 +79,7 @@ function Curve({ timeline, targets, metric }: { timeline: SpaceTimeline; targets
       {/* What the curve is of and what it ran between, so the shape is read as a reading. */}
       <span className={styles.curveLabel} data-tone={metric} aria-hidden>
         {t(`home.metric.${metric}`)}
-        <small>{t('start.curveSpan', { low: figure(Math.min(...values), metric), high: figureWithUnit(Math.max(...values), metric) })}</small>
+        <small>{t('start.curveSpan', { low: figure(lowest, metric), high: figureWithUnit(highest, metric) })}</small>
       </span>
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" role="img" aria-label={said}>
         <clipPath id={clip}>

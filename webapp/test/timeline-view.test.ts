@@ -7,10 +7,12 @@ import {
   askOf,
   chipOf,
   dayHolding,
+  dayWindow,
   definitionOf,
   nextWidth,
   selected,
   stepped,
+  toNow,
   viewOf,
   viewParams,
   windowOf,
@@ -174,8 +176,8 @@ describe('the arrows', () => {
 });
 
 describe('the zoom', () => {
-  it('steps through the ladder: a day, six hours, ninety minutes, twenty, five - and three taps reach every sample', () => {
-    expect([DAY, 6 * HOUR, 90 * MINUTE, 20 * MINUTE].map(width => nextWidth(width, 1))).toEqual([6 * HOUR, 90 * MINUTE, 20 * MINUTE, 5 * MINUTE]);
+  it('steps through the ladder: a day, six hours, an hour, twenty minutes, five - and three taps reach every sample', () => {
+    expect([DAY, 6 * HOUR, HOUR, 20 * MINUTE].map(width => nextWidth(width, 1))).toEqual([6 * HOUR, HOUR, 20 * MINUTE, 5 * MINUTE]);
     expect(nextWidth(5 * MINUTE, 1)).toBeNull();
     expect(nextWidth(DAY, -1)).toBe(3 * DAY);
     expect(nextWidth(3 * 365 * DAY, -1)).toBeNull();
@@ -199,8 +201,16 @@ describe('the zoom', () => {
 
   it('never reaches past now, and goes no further than the ladder', () => {
     const cursor = NOW - 10 * MINUTE;
-    expect(zoomed({ from: NOW - 20 * MINUTE, to: NOW, live: true }, cursor, -1, NOW)).toEqual({ fixed: null, last: 90 * MINUTE, at: cursor });
+    expect(zoomed({ from: NOW - 20 * MINUTE, to: NOW, live: true }, cursor, -1, NOW)).toEqual({ fixed: null, last: HOUR, at: cursor });
     expect(zoomed({ from: NOW - 5 * MINUTE, to: NOW, live: true }, null, 1, NOW)).toBeNull();
+  });
+
+  it('keeps the middle of a window that stands still where no cursor says otherwise', () => {
+    const day = { from: NOW - 3 * DAY, to: NOW - 2 * DAY, live: false };
+    const next = zoomed(day, null, 1, NOW)!;
+
+    expect(next.fixed).toEqual({ from: NOW - 2.5 * DAY - 3 * HOUR, to: NOW - 2.5 * DAY + 3 * HOUR });
+    expect(next.at).toBeNull();
   });
 
   it('holds still the spot a wheel was turned over, and leaves the cursor where it stands', () => {
@@ -226,13 +236,31 @@ describe('the zoom', () => {
 });
 
 describe('a day of the calendar', () => {
-  it('is that date where the reader`s clock is, and today is left to the last 24 hours', () => {
-    const noon = Date.parse('2026-11-05T11:00:00.000Z');
-    expect(dayHolding(noon, 'Europe/Berlin', NOW)).toEqual({
-      from: Date.parse('2026-11-04T23:00:00.000Z'),
-      to: Date.parse('2026-11-05T23:00:00.000Z'),
-    });
-    expect(dayHolding(NOW - HOUR, 'Europe/Berlin', NOW)).toBeNull();
+  const noon = Date.parse('2026-11-05T11:00:00.000Z');
+
+  it('is that date where the reader`s clock is, as two instants in a link', () => {
+    expect(dayHolding(noon, 'Europe/Berlin')).toEqual({ from: Date.parse('2026-11-04T23:00:00.000Z'), to: Date.parse('2026-11-05T23:00:00.000Z') });
+    expect(dayWindow(noon, 'Europe/Berlin')).toEqual({ from: '2026-11-04T23:00:00.000Z', to: '2026-11-05T23:00:00.000Z' });
+  });
+
+  it('is shown up to now while it is still running, follows now, and is asked for as the day it is', () => {
+    const today = dayHolding(noon, 'Europe/Berlin');
+    const view = viewOf(new URLSearchParams(viewParams({ fixed: today }) as Record<string, string>));
+
+    // At noon the day has not ended: it ends now, and the clock moving on moves its end.
+    expect(windowOf(view, noon)).toEqual({ from: today.from, to: noon, live: true });
+    // The server is asked for the whole day and ends it now itself, so the answer is kept under one key all day.
+    expect(askOf(view, windowOf(view, noon))).toMatchObject({ from: '2026-11-04T23:00:00.000Z', to: '2026-11-05T23:00:00.000Z', follows: true });
+    expect(askOf(view, windowOf(view, noon + HOUR))).toMatchObject({ to: '2026-11-05T23:00:00.000Z' });
+    // Once its midnight has come it is the day, standing still.
+    expect(windowOf(view, today.to + HOUR)).toEqual({ ...today, live: false });
+  });
+});
+
+describe('the way back to now', () => {
+  it('keeps the width: a day stepped back to is the last day again, twenty minutes somewhere are the last twenty', () => {
+    expect(toNow({ from: NOW - 5 * DAY, to: NOW - 4 * DAY }, NOW)).toEqual({ fixed: null, last: null, range: '24h', at: null });
+    expect(toNow({ from: NOW - 5 * DAY, to: NOW - 5 * DAY + 20 * MINUTE }, NOW)).toEqual({ fixed: null, last: 20 * MINUTE, at: null });
   });
 });
 

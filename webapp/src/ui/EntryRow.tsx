@@ -108,7 +108,7 @@ interface EntryRowProps {
    * Identical machine lines before this one that a list folded into it (see
    * `foldRepeats`): how many there were in all, and when the first was written.
    */
-  repeats?: { count: number; since: string } | null;
+  repeats?: { count: number; since: string; until?: string } | null;
   /**
    * The line without what the machine went on to explain, for a summary of the
    * last few things that happened rather than their record. An alarm keeps its
@@ -270,7 +270,10 @@ export function EntryWords({
     )),
     repeats && repeats.count > 1 ? (
       <span key="repeats" className="mono">
-        {t('home.entryRepeats', { count: repeats.count, since: sinceOf(repeats.since, now, zone) })}
+        {/* A list that runs forwards stands a folded line at its first and says until when it went on. */}
+        {repeats.until
+          ? t('home.entryRepeatsUntil', { count: repeats.count, until: sinceOf(repeats.until, now, zone) })
+          : t('home.entryRepeats', { count: repeats.count, since: sinceOf(repeats.since, now, zone) })}
       </span>
     ) : null,
     ...readings.map(reading => {

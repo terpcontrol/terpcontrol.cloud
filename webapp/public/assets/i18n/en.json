@@ -91,7 +91,7 @@
         "1": "Water when the top few centimeters of the medium feel dry — lifting the pot tells you more than a schedule.",
         "2": "Now is training time: topping or bending (LST) creates an even canopy and more bud sites.",
         "3": "Raise light intensity step by step towards 80–100 % as the plants toughen up.",
-        "4": "Watch the VPD chart: 0.8–1.1 kPa keeps transpiration and growth in balance."
+        "4": "Watch the VPD curve on Timeline: 0.8–1.1 kPa keeps transpiration and growth in balance."
       },
       "flowering": {
         "1": "Keep humidity at or below 50 % — dense buds plus high humidity is how mold starts.",
@@ -613,7 +613,8 @@
       "inDays": "in {{count}} d",
       "dueSince": "due since {{time}}"
     },
-    "entrySchemeWeek": "scheme week {{week}}"
+    "entrySchemeWeek": "scheme week {{week}}",
+    "entryRepeatsUntil": "{{count}}× until {{until}}"
   },
   "me": {
     "title": "Me",
@@ -772,7 +773,7 @@
         "title": "Keep climate history",
         "line": "raw samples · then daily summaries",
         "ask": {
-          "what": "Climate readings older than {{keep}} become one figure a day: everything before {{date}}, and from now on each day that leaves the window. The daily figure stays in the charts and in your export; the readings themselves are deleted and cannot come back.",
+          "what": "Climate readings older than {{keep}} become one figure a day: everything before {{date}}, and from now on each day that leaves the window. The daily figure stays on Timeline and in your export; the readings themselves are deleted and cannot come back.",
           "yes": "Keep {{keep}}"
         },
         "installKeeps_one": "this install keeps at most {{count}} day of raw samples · then daily summaries",
@@ -933,7 +934,7 @@
         "wholeGrowHd": "Timelapse over the whole grow, HD",
         "reel": "Reel export with overlays",
         "watermark": "watermark",
-        "rest": "Control, charts, diary, alarms, sharing",
+        "rest": "Control, timeline, diary, alarms, sharing",
         "keptDays_one": "{{count}} day",
         "keptDays_other": "{{count}} days",
         "widthPx": "{{width}} px",
@@ -1249,7 +1250,7 @@
       "title": "Measurements",
       "back": "Back to the grow",
       "yours": "Yours",
-      "chartHint": "shown on the chart when on",
+      "chartHint": "drawn as a curve when on",
       "none": "Nothing is measured here yet · a template below is one tap",
       "perPlant": "per plant",
       "perGrow": "per grow",
@@ -1258,13 +1259,13 @@
       "bandBetween": "{{low}}–{{high}}",
       "bandFrom": "from {{low}}",
       "bandTo": "under {{high}}",
-      "onTheChart": "{{name}} on the chart",
+      "onTheChart": "{{name}} as a curve",
       "edit": "Edit {{name}}",
       "templates": "Templates",
       "tapToAdd": "tap to add",
       "ownChip": "own · name · unit",
       "alreadyHere": "already measured here",
-      "note": "A measurement is a Measure tile on the Log sheet, a line in the diary, a series on the Charts view and a column in the export. Per plant or per grow is chosen once.",
+      "note": "A measurement is a Measure tile on the Log sheet, a line in the diary, a curve here and on Timeline and a column in the export. Per plant or per grow is chosen once.",
       "readingsUnread": "What has been measured could not be read just now, so this list says nothing about it.",
       "template": {
         "water_temp": "Water temp",
@@ -1299,8 +1300,8 @@
         "delete": "Delete",
         "deleteAsk": "Delete this measurement? Nothing has been written under it.",
         "deleteYes": "Delete it",
-        "keptForReadings_one": "{{count}} reading is written under this one, so it stays. Turn it off the chart instead.",
-        "keptForReadings_other": "{{count}} readings are written under this one, so it stays. Turn it off the chart instead.",
+        "keptForReadings_one": "{{count}} reading is written under this one, so it stays. Turn its curve off instead.",
+        "keptForReadings_other": "{{count}} readings are written under this one, so it stays. Turn its curve off instead.",
         "keptForReadingsOffChart_one": "{{count}} reading is written under this one, so it stays.",
         "keptForReadingsOffChart_other": "{{count}} readings are written under this one, so it stays."
       },
@@ -1323,6 +1324,11 @@
         "setUp": "Set up measurements",
         "noGrow": "A reading belongs to a grow, and nothing is growing here yet.",
         "startGrow": "Start a grow here"
+      },
+      "curve": {
+        "alt": "{{name}} over the grow: {{count}} readings between {{low}} and {{high}} {{unit}}",
+        "span": "{{low}} to {{high}} · last {{last}}",
+        "one": "One reading so far: {{last}}"
       }
     },
     "plant": {
@@ -1471,7 +1477,7 @@
       "lightOnSince": "Light on since {{at}}",
       "lightAgainAt": "on again at {{at}}",
       "lightAgainSince": "on again since {{at}}",
-      "openCurves": "open this day's curves"
+      "openCurves": "Curves of this day"
     },
     "pictures": {
       "makeEntry": "Add to the diary as an entry",
@@ -2081,7 +2087,6 @@
       "yesterday": "Yesterday",
       "yesterdayThen": "yesterday"
     },
-    "pointEvery": "a point every {{step}}",
     "cursor": "Cursor",
     "cursorOn": "Cursor on {{name}}",
     "noFrame": "No picture at this time",
@@ -2142,8 +2147,6 @@
         "day": "Day",
         "night": "Night"
       },
-      "device": "Device",
-      "deviceAll": "All devices",
       "share": "Share",
       "csv": "Download as CSV",
       "viewDelete": "Delete",
@@ -2160,6 +2163,26 @@
       "title": "Link to share",
       "copy": "Copy link",
       "all": "All shared links"
+    },
+    "device": "Device",
+    "toNow": "Now",
+    "zoomLabel": "Zoom",
+    "windowFailed": "This window could not be loaded; what you see is the one before.",
+    "retrying": "Trying…",
+    "missing": {
+      "device": "The device in the address does not stand in this place. Shown is the place with its own device.",
+      "grow": "The grow in the address never stood in this place. Shown is the place without it.",
+      "growNoPlace": "“{{name}}” has no place and so no climate curves. What you measured by hand has its curves under",
+      "compare": "The comparison in the address is no longer there. Shown is the place alone."
+    },
+    "meanOver": "mean {{from}}–{{to}}",
+    "meansBetween": "means {{low}} to {{high}}",
+    "every": {
+      "s": "every {{n}} s",
+      "min": "every {{n}} min",
+      "h": "every {{n}} h",
+      "d_one": "every day",
+      "d_other": "every {{n}} days"
     }
   },
   "camera": {
@@ -3230,7 +3253,7 @@
       "text": "Pick a stage preset, or “just measure” for monitoring only. A preset sets the climate.",
       "pick": "What the place is doing",
       "measure": "just measure",
-      "measureNote": "Nothing is written to the controller. It goes on reporting and the charts fill. No thresholds are set — a stage would have written them, so add your own under Control › Alarms.",
+      "measureNote": "Nothing is written to the controller. It goes on reporting and the timeline fills. No thresholds are set — a stage would have written them, so add your own under Control › Alarms.",
       "apply": "Put it on {{stage}}",
       "applying": "Writing the targets…",
       "wroteNothing": "No controller here took the targets.",

@@ -20,6 +20,9 @@ import { translate } from './translations';
  * Every request is the app's own client, mocked at that one seam, so what is
  * asserted is what would go on the wire.
  */
+// A chart is a canvas, which jsdom has not got; what it draws is held by Verlauf's model.
+vi.mock('@/charts/Chart', () => ({ Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} /> }));
+
 vi.mock('@/api/client', () => ({
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
@@ -201,6 +204,18 @@ describe('what a grow measures', () => {
     expect(within(rows[2]).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
   });
 
+  it('draws the curve of each measurement switched on, over the grow, with what it ran between and what was read last', async () => {
+    await drawScreen();
+
+    const rows = within(screen.getByRole('list', { name: 'Yours' })).getAllByRole('listitem');
+    // Height is switched on and was measured three times: its curve stands on this page, place or no place.
+    expect(await within(rows[0]).findByRole('img', { name: 'Height over the grow: 3 readings between 52 and 58 cm' })).toBeInTheDocument();
+    expect(rows[0]).toHaveTextContent('52 to 58 · last 54 cm');
+    // Switched on and never measured, and switched off: no curve to draw.
+    expect(within(rows[1]).queryByRole('img')).not.toBeInTheDocument();
+    expect(within(rows[2]).queryByRole('img')).not.toBeInTheDocument();
+  });
+
   it('adds a template in one tap, sending the list it already had with the new row on the end', async () => {
     await drawScreen();
 
@@ -228,7 +243,7 @@ describe('what a grow measures', () => {
   it('takes a measurement off the chart with the switch, and changes nothing else about it', async () => {
     await drawScreen();
 
-    fireEvent.click(screen.getByRole('switch', { name: 'EC · input on the chart' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'EC · input as a curve' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalled());
     expect(sent()[1]).toEqual({ measurements: [height, { ...ec, chart: false }, runoff] });
@@ -276,8 +291,8 @@ describe('what a grow measures', () => {
 
     expect(screen.queryByRole('group', { name: 'Templates' })).not.toBeInTheDocument();
     // The switch still says what is drawn; it simply cannot be moved.
-    expect(screen.getByRole('switch', { name: 'Height on the chart' })).toBeDisabled();
-    expect(screen.getByRole('switch', { name: 'Height on the chart' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('switch', { name: 'Height as a curve' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Height as a curve' })).toHaveAttribute('aria-checked', 'true');
   });
 });
 
@@ -326,7 +341,7 @@ describe('changing one measurement', () => {
     const sheet = screen.getByRole('dialog');
     expect(within(sheet).getByRole('button', { name: 'per plant' })).toBeDisabled();
     expect(within(sheet).getByText('Chosen once, and this one has readings.')).toBeInTheDocument();
-    expect(within(sheet).getByText('3 readings are written under this one, so it stays. Turn it off the chart instead.')).toBeInTheDocument();
+    expect(within(sheet).getByText('3 readings are written under this one, so it stays. Turn its curve off instead.')).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 

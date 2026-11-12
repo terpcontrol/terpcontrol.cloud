@@ -2,13 +2,24 @@ import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
-import type { ChartView, Entry, GrowListItem, GrowSeriesPoint, MeasurementDefinition, ShareLink, Space, SpaceTimeline } from '@fg2/shared-types/v1';
+import type {
+  CardValue,
+  ChartView,
+  Entry,
+  GrowListItem,
+  GrowSeriesPoint,
+  MeasurementDefinition,
+  ShareLink,
+  Space,
+  SpaceTimeline,
+} from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
 import { useGrow, useMeasurementSeries } from '@/api/grows';
 import { useHome } from '@/api/home';
+import { ApiError } from '@/api/problem';
 import type { Picture } from '@/api/public';
 import { useSession } from '@/api/session';
-import { useSpaces } from '@/api/spaces';
+import { useSpaceLive, useSpaces } from '@/api/spaces';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
 import { isPlace, SHARE_LINKS } from '@/app/places';
 import { useScrub, type Selection } from '@/charts/scrub';
@@ -18,14 +29,16 @@ import { useLog } from '@/log/log-context';
 import { targetsOf } from '@/log/targets';
 import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
 import { linkAddress } from '@/screens/me/sharing/links';
-import { ageLabel, durationLabel, instantOf } from '@/ui/age';
+import { ageLabel, durationLabel, instantOf, valueAge } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
 import { saveFile } from '@/ui/download';
 import { startOfDayOn } from '@/ui/days';
+import { decimalMark } from '@/ui/figures';
 import { deviceTitle } from '@/ui/naming';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { useMayLogIn, useMayManage, useVisiting } from '@/ui/session-access';
+import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { standsIn, useMayLogIn, useMayManage, useVisiting } from '@/ui/session-access';
 import { Sheet } from '@/ui/Sheet';
+import { refusalText } from '@/ui/refusal';
 import { readStoredJson, writeStored } from '@/ui/stored';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -34,7 +47,7 @@ import { useZone, zonedAt } from '@/ui/zone';
 import { Adjust, type Comparable } from './Adjust';
 import { CursorCard } from './CursorCard';
 import { DiaryCard } from './DiaryCard';
-import { axisEnds, cursorStamp, stepWords, windowLabel } from './labels';
+import { axisEnds, cursorStamp, meanStamp, stepWords, windowLabel } from './labels';
 import {
   csvFor,
   nearestPoint,
@@ -42,6 +55,7 @@ import {
   panelsOf,
   quietSince,
   reachOf,
+  SAMPLE_SECONDS,
   shareOf,
   shownOf,
   stateAt,
@@ -62,6 +76,7 @@ import {
   RANGES,
   selected,
   stepped,
+  toNow,
   viewOf,
   viewParams,
   windowOf,
@@ -83,9 +98,13 @@ interface Own {
   measured: { definition: MeasurementDefinition; points: GrowSeriesPoint[] }[];
   devices: { id: string; name: string }[];
   comparable: Comparable[];
+  /** Whether what can be laid over is read: only then is one the address names known to be gone. */
+  known: boolean;
   /** Whether a view can be kept: the account that keeps it is the session's own. */
   keeps: boolean;
   sharing: { grows: GrowListItem[]; spaces: Space[] } | null;
+  /** What the address named and the place does not have - a device gone, a grow that never stood here - in a sentence. */
+  missing: React.ReactNode;
   correct: (entry: Entry) => (() => void) | undefined;
   /** Opens a note dated to an instant; null where the session may not write here. */
   note: ((time: number) => void) | null;
@@ -108,7 +127,7 @@ export function Timeline({ spaceId, title, place = null }: TimelineProps) {
   return <OwnTimeline key={spaceId} spaceId={spaceId} title={title} place={place} />;
 }
 
-function OwnTimeline({ spaceId, title, place }: TimelineProps) {
+function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
   const { t } = useTranslation();
   const { user } = useSession();
   const page = usePage(spaceId, null);
@@ -129,6 +148,9 @@ function OwnTimeline({ spaceId, title, place }: TimelineProps) {
     'grow',
     charted.map(definition => definition.key),
   );
+  // The read Start lays over its readings every half minute: one `last()`, under the same key.
+  const reads = useSpaceLive(spaceId, true).data;
+  const lost = useGrow(page.dropped?.what === 'grow' ? page.dropped.id : null).data;
   const card = (home.data?.spaces ?? []).filter(isPlace).find(one => one.spaceId === spaceId);
   const climates = (card?.climates ?? []).flatMap(climate => (climate.deviceId ? [climate.deviceId] : []));
   const target = targetsOf(home.data).find(one => one.standsIn === spaceId || one.spaceId === spaceId) ?? null;
@@ -156,7 +178,21 @@ function OwnTimeline({ spaceId, title, place }: TimelineProps) {
         .filter(one => one.spaceId !== spaceId && one.deviceIds.length > 0)
         .map(one => ({ kind: 'space' as const, id: one.spaceId, name: one.name })),
     ],
+    known: home.data !== undefined && data !== undefined,
     keeps: user !== null && user.isDemo !== true && !visiting,
+    missing:
+      page.dropped === null ? null : lost && standsIn(lost) === null ? (
+        // A grow without a place has no climate to draw; what was measured by hand has its curves on its own page.
+        <>
+          {t('timeline.missing.growNoPlace', { name: lost.name })}{' '}
+          <Link to={`/grows/${lost.id}/measurements`} className={styles.more}>
+            {t('grow.measurements.title')}
+            {'\u00a0›'}
+          </Link>
+        </>
+      ) : (
+        t(`timeline.missing.${page.dropped.what}`)
+      ),
     sharing: mayManage && (spaceRow || grow.data) ? { grows: grow.data ? [grow.data] : [], spaces: spaceRow ? [spaceRow] : [] } : null,
     correct: entry => correcting(entry, { label: data?.name ?? '', spaceId }),
     note: mayLog && target ? time => openDetails('note', target, null, new Date(time)) : null,
@@ -164,7 +200,9 @@ function OwnTimeline({ spaceId, title, place }: TimelineProps) {
     byline: user?.isDemo !== true,
   };
 
-  return <Screen page={page} spaceId={spaceId} title={title} place={place} own={own} />;
+  // What the device drawn reads now, as Start says it: the climate asked for, else the place's own.
+  const drawn = reads?.devices.find(one => one.deviceId === (page.view.deviceId ?? data?.deviceId));
+  return <Screen page={page} spaceId={spaceId} title={title} place={placeName} own={own} values={drawn?.values ?? reads?.values ?? null} />;
 }
 
 /**
@@ -172,21 +210,27 @@ function OwnTimeline({ spaceId, title, place }: TimelineProps) {
  * week or month through the link's own window, with nothing of the account
  * behind it - no grow to name, no line to correct, no view to keep.
  */
-export function SharedTimeline({ spaceId, shared, title }: { spaceId: string; shared: { token: string; picture: Picture }; title: React.ReactNode }) {
+export function SharedTimeline({
+  spaceId,
+  shared,
+  title,
+  values,
+}: {
+  spaceId: string;
+  shared: { token: string; picture: Picture };
+  title: React.ReactNode;
+  /** What the place reads now, as the page above says it. */
+  values: CardValue[];
+}) {
   const page = usePage(spaceId, shared.token);
-  return <Screen page={page} spaceId={spaceId} title={title} place={null} own={null} picture={shared.picture} />;
+  return <Screen page={page} spaceId={spaceId} title={title} place={null} own={null} picture={shared.picture} values={values} />;
 }
 
 /** The view the address names, the answer to it, and the one way the view is changed. */
 const usePage = (spaceId: string, share: string | null) => {
   const [params, setParams] = useSearchParams();
   const now = useNow();
-  // What was last ticked in this browser stands in for an address that names no curves; a reader through a link keeps nothing.
-  const view = useMemo(() => {
-    const named = viewOf(params);
-    const kept = named.show === null && share === null ? readStoredJson<unknown>(CURVES_KEY) : null;
-    return Array.isArray(kept) ? { ...named, show: kept.filter((key): key is string => typeof key === 'string') } : named;
-  }, [params, share]);
+  const view = useMemo(() => viewOf(params), [params]);
   const beat = Math.floor(now.toMillis() / LIVE_BEAT_MS) * LIVE_BEAT_MS;
   const asked = windowOf(view, beat);
   // Keyed by its two ends, so the clock moving on does not ask again for a window that stands still.
@@ -201,7 +245,50 @@ const usePage = (spaceId: string, share: string | null) => {
     setParams(withParams(params, viewParams(over)), { replace: true });
   };
 
-  return { view, asked, timeline, data: timeline.data, change, now, clock: beat, shared: share !== null };
+  // What was last ticked in this browser stands in for an address that names no curves, and is written into it:
+  // an address copied from here then draws the same curves anywhere. A reader through a link keeps nothing.
+  const bare = share === null && view.show === null;
+  useEffect(() => {
+    const kept = bare ? readStoredJson<unknown>(CURVES_KEY) : null;
+    if (Array.isArray(kept)) change({ show: kept.filter((key): key is string => typeof key === 'string') });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per bare address
+  }, [bare]);
+
+  // A window whose read fails keeps the last picture: the answer before it stays drawn, with the chips and arrows
+  // that lead away from the window that would not load.
+  const [kept, setKept] = useState<SpaceTimeline | null>(null);
+  const fresh = timeline.data !== undefined && !timeline.isPlaceholderData ? timeline.data : null;
+  if (fresh && fresh !== kept) setKept(fresh);
+  const failed = timeline.isError && timeline.data === undefined;
+
+  // A device or a grow the address names and the place does not have: the place's own Verlauf, and a sentence.
+  const [dropped, setDropped] = useState<{ what: 'device' | 'grow'; id: string } | null>(null);
+  const refused = failed && timeline.error instanceof ApiError ? timeline.error.problem.code : null;
+  const gone =
+    refused === 'device_not_here' && view.deviceId
+      ? ({ what: 'device', id: view.deviceId } as const)
+      : refused === 'grow_not_found' && view.growId
+        ? ({ what: 'grow', id: view.growId } as const)
+        : null;
+  if (gone && gone.id !== dropped?.id) setDropped(gone);
+  useEffect(() => {
+    if (gone?.what === 'device') change({ deviceId: null });
+    else if (gone?.what === 'grow') change({ growId: null, ...(isRolling(view.range) ? {} : { range: '24h' }) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per refusal
+  }, [gone?.id]);
+
+  return {
+    view,
+    asked,
+    timeline,
+    data: timeline.data ?? (failed ? (kept ?? undefined) : undefined),
+    failed,
+    dropped,
+    change,
+    now,
+    clock: beat,
+    shared: share !== null,
+  };
 };
 
 function Screen({
@@ -211,11 +298,12 @@ function Screen({
   place,
   own,
   picture,
-}: TimelineProps & { page: ReturnType<typeof usePage>; own: Own | null; picture?: Picture }) {
+  values,
+}: TimelineProps & { page: ReturnType<typeof usePage>; own: Own | null; picture?: Picture; values: CardValue[] | null }) {
   const { t } = useTranslation();
   const zone = useZone();
   const wide = useWideWindow();
-  const { view, asked, timeline, data, change, now, clock } = page;
+  const { view, asked, timeline, data, failed, change, now, clock } = page;
   // Where the cursor is being moved to before the address says so: under a mouse or a dragging thumb for as long as it
   // moves, and once set down until the address has followed - `before` is the cursor the address held then.
   const [scrub, setScrub] = useState<{ time: number; before?: number | null } | null>(null);
@@ -231,7 +319,8 @@ function Screen({
   const here = data?.grows.find(one => one.growId === data.growId) ?? null;
   const other = view.compare?.kind === 'grow' ? (data?.grows.find(one => one.growId === view.compare?.id) ?? null) : null;
   const shift = here && other ? at(here.startedAt) - at(other.startedAt) : 0;
-  const comparing = own !== null && view.compare !== null && window !== null && (view.compare.kind === 'space' || other !== null);
+  const comparedTo = own?.comparable.find(one => one.kind === view.compare?.kind && one.id === view.compare.id) ?? null;
+  const comparing = comparedTo !== null && window !== null && (comparedTo.kind === 'space' || other !== null);
   const laid = useTimeline(
     comparing ? (view.compare?.kind === 'space' ? view.compare.id : spaceId) : null,
     comparing && window && data
@@ -247,6 +336,15 @@ function Screen({
   );
   const compared: Compared | null = useMemo(() => (comparing && laid.data ? { data: laid.data, shift } : null), [comparing, laid.data, shift]);
 
+  // Whether the window drawn ends now: the one asked for does, or it is a grow's own stretch that reaches the clock.
+  const live = !failed && (asked ? asked.live : window !== null && window.to >= clock - 60_000);
+  // "Jetzt" is the device's last reading, as Start and Steuerung say it, and only while the device reports: by the
+  // offline rule it is "letzter Wert" with its own time, on every range.
+  const heard = live ? (values ?? []).filter(value => value.value !== null && value.measuredAt !== null) : [];
+  const lastHeard = heard.length > 0 ? Math.max(...heard.map(value => at(value.measuredAt as string))) : null;
+  const silent = heard.length > 0 && heard.every(value => valueAge(value, now) === 'offline');
+  const reads = useMemo(() => (live && values ? { values, silentSince: silent ? lastHeard : null } : null), [live, values, silent, lastHeard]);
+
   const measured = own?.measured;
   const model = useMemo(() => {
     if (!data) return null;
@@ -257,9 +355,17 @@ function Screen({
       offered,
       shown,
       strips,
-      ...panelsOf(t, data, strips, { shown, one: view.one, vpdHalf: view.vpdHalf, measured: measured ?? [], compared, restUnderLast: wide }),
+      ...panelsOf(t, data, strips, {
+        shown,
+        one: view.one,
+        vpdHalf: view.vpdHalf,
+        measured: measured ?? [],
+        compared,
+        now: reads,
+        restUnderLast: wide,
+      }),
     };
-  }, [data, measured, view.show, view.focus, view.one, view.vpdHalf, compared, wide, t]);
+  }, [data, measured, view.show, view.focus, view.one, view.vpdHalf, compared, reads, wide, t]);
 
   // Once per focus, when what it names is drawn: scrolling again on every refresh would take the page from under a thumb.
   useEffect(() => {
@@ -270,9 +376,7 @@ function Screen({
     target.scrollIntoView?.({ block: 'center' });
   }, [view.focus, model]);
 
-  // Whether the window drawn ends now: the one asked for does, or it is a grow's own stretch that reaches the clock.
-  const live = asked ? asked.live : window !== null && window.to >= clock - 60_000;
-  const quiet = data && live ? quietSince(data) : null;
+  const quiet = !data || !live ? null : values ? (silent ? lastHeard : null) : quietSince(data);
   const rest = quiet ?? window?.to ?? clock;
   const scrubbed = scrub && (scrub.before === undefined || scrub.before === view.at) ? scrub.time : null;
   const cursor = window ? Math.min(window.to, Math.max(window.from, scrubbed ?? view.at ?? rest)) : rest;
@@ -295,6 +399,8 @@ function Screen({
   // The window the address names, which a second tap steps on from before the first one's answer is back; a grow's
   // stretch is known by its answer alone.
   const named = asked ?? (window ? { ...window, live } : null);
+  // Today up to now is stepped as the day it is: back to the whole of yesterday.
+  const whole = named && view.fixed && named.live ? { ...view.fixed, live: true } : named;
   const zoom = (direction: -1 | 1, around: number | null = view.at) => {
     const next = named ? zoomed(named, view.at, direction, clock, around) : null;
     setScrubbed(null);
@@ -302,14 +408,38 @@ function Screen({
   };
   const step = (direction: -1 | 1) => {
     setScrubbed(null);
-    if (named) change(stepped(named, direction, clock));
+    if (whole) change(stepped(whole, direction, clock));
   };
   const width = named ? named.to - named.from : 0;
   const growId = view.growId ?? data?.growId ?? null;
   const chip = chipOf(view, asked);
   const ranges = RANGES.filter(range => isRolling(range) || (own !== null && growId !== null));
-  const stepDrawn = data && data.stepSeconds > 0 ? data.stepSeconds : null;
-  const fine = stepDrawn !== null && (view.fixed !== null || view.last !== null || view.stepSeconds !== null);
+  const stepDrawn = data && data.stepSeconds > 0 && !failed ? data.stepSeconds : null;
+  const zoomButtons = (
+    <>
+      <button
+        type="button"
+        className={styles.navButton}
+        disabled={!named || nextWidth(width, -1) === null}
+        aria-label={t('timeline.zoomOut')}
+        onClick={() => zoom(-1)}
+      >
+        <Minus size={20} strokeWidth={2} aria-hidden />
+      </button>
+      <button
+        type="button"
+        className={styles.navButton}
+        disabled={!named || nextWidth(width, 1) === null}
+        aria-label={t('timeline.zoomIn')}
+        onClick={() => zoom(1)}
+      >
+        <Plus size={20} strokeWidth={2} aria-hidden />
+      </button>
+    </>
+  );
+  // The zoom stays with the cursor's card, which stays in sight while the page scrolls; only a window with nothing
+  // to read a cursor in keeps it in the head.
+  const cursorShown = data !== undefined && (data.panels.length > 0 || data.outputs.length > 0);
 
   const head = (
     <header className={styles.head}>
@@ -320,7 +450,20 @@ function Screen({
       <button type="button" className={styles.adjustButton} disabled={!model} onClick={() => setAdjusting(true)}>
         {t('timeline.adjust.title')}
       </button>
-      <div className={`${ui.scrollRow} ${styles.ranges}`} role="group" aria-label={t('timeline.rangeLabel')}>
+      {/* A place with several climates draws one of them - its own, unless another is chosen here. */}
+      {own && own.devices.length > 1 ? (
+        <label className={styles.device}>
+          <span>{t('timeline.device')}</span>
+          <select value={view.deviceId ?? data?.deviceId ?? ''} onChange={event => change({ deviceId: event.target.value || null })}>
+            {own.devices.map(device => (
+              <option key={device.id} value={device.id}>
+                {device.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      <div className={styles.ranges} role="group" aria-label={t('timeline.rangeLabel')}>
         {ranges.map(range => (
           <button
             key={range}
@@ -348,12 +491,19 @@ function Screen({
         </button>
         <span className={styles.window}>
           {named ? windowLabel(t, named, named.live, now, zone) : '…'}
-          {data && data.dayFrom !== null && data.dayTo !== null && !timeline.isPlaceholderData ? (
-            <small>
-              {data.dayFrom === data.dayTo ? t('timeline.dayN', { day: data.dayTo }) : t('timeline.dayRange', { from: data.dayFrom, to: data.dayTo })}
-            </small>
-          ) : null}
-          {fine && !timeline.isPlaceholderData ? <small>{stepWords(t, stepDrawn)}</small> : null}
+          <small>
+            {[
+              data && data.dayFrom !== null && data.dayTo !== null && !timeline.isPlaceholderData && !failed
+                ? data.dayFrom === data.dayTo
+                  ? t('timeline.dayN', { day: data.dayTo })
+                  : t('timeline.dayRange', { from: data.dayFrom, to: data.dayTo })
+                : null,
+              // How far apart the points are, said once and quietly: a point of a day is three minutes, not a sample.
+              stepDrawn !== null && !timeline.isPlaceholderData ? stepWords(t, stepDrawn) : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </small>
         </span>
         <button
           type="button"
@@ -364,24 +514,20 @@ function Screen({
         >
           <ChevronRight size={20} strokeWidth={2} aria-hidden />
         </button>
-        <button
-          type="button"
-          className={`${styles.navButton} ${styles.zoomOut}`}
-          disabled={!named || nextWidth(width, -1) === null}
-          aria-label={t('timeline.zoomOut')}
-          onClick={() => zoom(-1)}
-        >
-          <Minus size={20} strokeWidth={2} aria-hidden />
-        </button>
-        <button
-          type="button"
-          className={styles.navButton}
-          disabled={!named || nextWidth(width, 1) === null}
-          aria-label={t('timeline.zoomIn')}
-          onClick={() => zoom(1)}
-        >
-          <Plus size={20} strokeWidth={2} aria-hidden />
-        </button>
+        {/* The marked way back, wherever the arrows and the zoom led. */}
+        {named && !named.live ? (
+          <button
+            type="button"
+            className={styles.toNow}
+            onClick={() => {
+              setScrubbed(null);
+              change(toNow(named, clock));
+            }}
+          >
+            {t('timeline.toNow')}
+          </button>
+        ) : null}
+        {cursorShown ? null : zoomButtons}
       </div>
     </header>
   );
@@ -397,7 +543,10 @@ function Screen({
             <Waiting lines={4} />
           </>
         ) : (
-          <LoadFailed retry={() => void timeline.refetch()} />
+          <>
+            <Refused error={timeline.error} />
+            <LoadFailed retry={() => void timeline.refetch()} />
+          </>
         )}
       </div>
     );
@@ -407,15 +556,25 @@ function Screen({
   const stepMs = Math.max(data.stepSeconds, 1) * 1000;
   const curves = panels.flatMap(panel => panel.curves);
   const read = curves.map(curve => ({ curve, point: nearestPoint(curve.points, cursor, reachOf(data, curve)) }));
+  const first = read.find(one => one.point && one.curve.line.shape === 'line');
   // Where the points are fine the cursor reads the one it stands on, to its second.
-  const stood = data.stepSeconds > 0 && data.stepSeconds < 60 ? (read.find(one => one.point)?.point?.[0] ?? cursor) : cursor;
+  const stood = data.stepSeconds > 0 && data.stepSeconds < 60 ? (first?.point?.[0] ?? cursor) : cursor;
   const resting = scrubbed === null && view.at === null;
   const stamp =
     resting && quiet !== null
       ? t('timeline.lastValue', { time: cursorStamp(quiet, window, 60, zone) })
       : resting && live
         ? t('timeline.nowAt', { time: cursorStamp(cursor, window, 60, zone) })
-        : cursorStamp(stood, window, data.stepSeconds, zone);
+        : // A point of a wider step is the mean of its window, and says over which; a device's own reading is an instant.
+          first?.point && data.stepSeconds > SAMPLE_SECONDS && first.point[0] !== first.curve.lastAt
+          ? meanStamp(t, first.point[0], window, data.stepSeconds, zone)
+          : cursorStamp(stood, window, data.stepSeconds, zone);
+  // The room beside every plot is as wide as the longest figure a scale writes there, and the same for all of
+  // them: the plots stand on one time axis down the page.
+  const gutter =
+    Math.max(4, ...curves.flatMap(curve => [curve.corner(curve.line.scale.low).length, curve.corner(curve.line.scale.high).length])) * 6.5 + 12;
+  // Two figures in one unit - the air's and the leaf's degrees - are told apart by name.
+  const shared = new Set(curves.map(curve => curve.unit).filter((unit, index, all) => unit !== '' && all.indexOf(unit) !== index));
   const outputsAt = (shown.light || shown.outputs ? strips : [])
     .filter(strip => (strip.output === 'light' ? shown.light : shown.outputs))
     .map(strip => outputWords(t, strip, stateAt(strip, cursor, stepMs)));
@@ -431,7 +590,12 @@ function Screen({
   const cursorCard = (
     <CursorCard
       stamp={stamp}
-      readings={read.map(({ curve, point }) => (point ? `${curve.written(point[1] as number)}\u00a0${curve.unit}`.trim() : '—'))}
+      readings={read.map(({ curve, point }) =>
+        [shared.has(curve.unit) ? curve.name : null, point ? `${curve.written(point[1] as number)}\u00a0${curve.unit}`.trim() : '—']
+          .filter(Boolean)
+          .join(' '),
+      )}
+      zoom={zoomButtons}
       outputs={outputsAt}
       cameras={cameras}
       cursor={cursor}
@@ -456,22 +620,36 @@ function Screen({
 
   return (
     // Busy while another window is on its way: what is drawn is the one before it, dimmed rather than taken away.
-    <div className={styles.screen} ref={screen} aria-busy={timeline.isPlaceholderData}>
+    <div className={styles.screen} ref={screen} aria-busy={timeline.isPlaceholderData} style={{ '--gutter': `${gutter}px` } as React.CSSProperties}>
       {head}
-      <RefreshFailed failedAt={timeline.isError ? timeline.dataUpdatedAt : null} now={now} />
+      {failed ? (
+        // The picture is the window before: this one would not load, for the reason said, and can be asked for again.
+        <div className={styles.failed} role="alert">
+          <p className={ui.problem}>
+            {t('timeline.windowFailed')} {refusalText(timeline.error)}
+          </p>
+          <button type="button" className={ui.button} disabled={timeline.isFetching} onClick={() => void timeline.refetch()}>
+            {t(timeline.isFetching ? 'timeline.retrying' : 'home.retry')}
+          </button>
+        </div>
+      ) : (
+        <RefreshFailed failedAt={timeline.isError ? timeline.dataUpdatedAt : null} now={now} />
+      )}
+      {own?.missing ? <p className={`${ui.cardDashed} ${ui.note}`}>{own.missing}</p> : null}
+      {view.compare !== null && own?.known && comparedTo === null ? (
+        <p className={`${ui.cardDashed} ${ui.note}`}>{t('timeline.missing.compare')}</p>
+      ) : null}
       {compared ? (
         <p className={styles.compared}>
           <span aria-hidden className={styles.dashes} />
-          {t('timeline.comparedWith', {
-            name: own?.comparable.find(one => one.kind === view.compare?.kind && one.id === view.compare.id)?.name ?? '',
-          })}
+          {t('timeline.comparedWith', { name: comparedTo?.name ?? '' })}
           <button type="button" className={styles.more} onClick={() => change({ compare: null })}>
             {t('timeline.comparedEnd')}
           </button>
         </p>
       ) : null}
 
-      <div className={styles.stage} data-busy={timeline.isPlaceholderData || undefined}>
+      <div className={styles.stage} data-busy={timeline.isPlaceholderData || failed || undefined}>
         <div className={styles.curves}>
           {nothing ? (
             <Nothing
@@ -494,9 +672,10 @@ function Screen({
               stamp={stamp}
               scrub={gestures.handlers}
               selection={gestures.selection}
-              onNudge={direction => setCursor(cursor + direction * stepMs)}
+              onNudge={to => (to === 'end' ? change({ at: null }) : setCursor(to === 'start' ? window.from : cursor + to * stepMs))}
               onWheelZoom={(direction, fraction) => zoom(direction, toTime(fraction))}
               focus={view.focus}
+              stepMs={stepMs}
               resting={resting}
               comparedAt={
                 compared
@@ -516,7 +695,7 @@ function Screen({
                 <h2>{t(loose.length === 1 && light ? 'timeline.output.light' : light ? 'timeline.lightAndOutputs' : 'timeline.adjust.outputs')}</h2>
                 {light ? <span className={styles.panelRange}>{lightWords(t, light, window, live, zone)}</span> : null}
               </header>
-              <Strips strips={loose} from={window.from} to={window.to} cursor={resting ? null : cursor} focus={view.focus} />
+              <Strips strips={loose} from={window.from} to={window.to} stepMs={stepMs} cursor={resting ? null : cursor} focus={view.focus} />
               {panels.length === 0 ? <Axis from={window.from} to={window.to} ends={ends} /> : null}
             </section>
           ) : null}
@@ -535,7 +714,6 @@ function Screen({
           shown={shown}
           change={change}
           stepDrawn={data.stepSeconds}
-          devices={own?.devices ?? []}
           comparable={own?.comparable ?? []}
           views={
             own?.keeps
@@ -555,10 +733,15 @@ function Screen({
             shown: zonedAt(window.from, zone).toFormat('yyyy-MM-dd'),
             last: zonedAt(clock, zone).toFormat('yyyy-MM-dd'),
             jump: day => {
-              // That day of the calendar; today is the last 24 hours, which follow now.
-              const span = dayHolding(startOfDayOn(day, zone).getTime() + 12 * 3600_000, zone, clock);
+              // That day of the calendar; today's is shown up to now.
               setScrubbed(null);
-              change({ range: '24h', growId: null, fixed: span, last: null, at: null });
+              change({
+                range: '24h',
+                growId: null,
+                fixed: dayHolding(startOfDayOn(day, zone).getTime() + 12 * 3600_000, zone),
+                last: null,
+                at: null,
+              });
             },
           }}
           onShare={
@@ -573,7 +756,7 @@ function Screen({
             curves.length + strips.length > 0
               ? () =>
                   saveFile(
-                    new Blob([csvFor(t, panels, shown.outputs || shown.light ? strips : [], window.from, window.to, zone)], {
+                    new Blob([csvFor(t, panels, shown.outputs || shown.light ? strips : [], window.from, window.to, zone, decimalMark() === ',')], {
                       type: 'text/csv;charset=utf-8',
                     }),
                     `${slug(data.name) || 'verlauf'}-${zonedAt(window.from, zone).toFormat('yyyy-MM-dd')}.csv`,

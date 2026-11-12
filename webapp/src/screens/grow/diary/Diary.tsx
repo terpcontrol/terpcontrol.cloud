@@ -11,6 +11,7 @@ import { timelinePath } from '@/app/places';
 import { useCorrecting } from '@/log/corrections';
 import { EntryWords } from '@/ui/EntryRow';
 import { Facts } from '@/ui/Facts';
+import { MINUTE_MS } from '@/ui/days';
 import { useKept, useKeptScroll } from '@/ui/kept';
 import { Line, Lines } from '@/ui/Lines';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -18,6 +19,7 @@ import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { DATED_CLOCK, useZone, zoned } from '@/ui/zone';
 import { PictureShow } from '../pictures/PictureShow';
+import { dayWindow } from '@/screens/timeline/view';
 import { DayCard } from './DayCard';
 import { OPEN_DAYS, hasFilm, hasSomething, picturesOfDay, placeAt, stageOfWeek, writtenIn, type DiaryReader, type GrowPicture } from './days';
 import { FilmCard } from './Film';
@@ -73,9 +75,11 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
     },
     curvesOf: day => {
       const spaceId = placeAt(grow, day.startsAt);
-      // The day still running is the last 24 hours; a day that is over is that day.
-      const over = Date.parse(day.endsAt) <= now.toMillis();
-      return spaceId ? timelinePath(spaceId, null, null, grow.id, over ? { from: day.startsAt, to: day.endsAt } : null) : null;
+      // A day that is over is that day as the diary cut it; the one still running is named to its own midnight,
+      // which Verlauf shows up to now and follows - not up to the minute this diary was read.
+      const over = Date.parse(day.endsAt) < now.toMillis() - MINUTE_MS;
+      const named = over ? { from: day.startsAt, to: day.endsAt } : dayWindow(Date.parse(day.startsAt), grow.summary.zone);
+      return spaceId ? timelinePath(spaceId, null, null, grow.id, named) : null;
     },
   };
   const pictures = weeks.flatMap(week => week.days).flatMap(picturesOfDay);

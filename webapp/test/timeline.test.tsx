@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, SpaceTimeline } from '@fg2/shared-types/v1';
+import type { AccessNeed, CardValue, SpaceTimeline } from '@fg2/shared-types/v1';
 import { LogContext, type Told } from '@/log/log-context';
 import { SharedTimeline } from '@/screens/timeline/Timeline';
 import { Timeline } from '@/screens/Timeline';
@@ -76,7 +76,7 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
     panels: [
       { metric: 'temperature', points: points(25.2, { min: 19.4, max: 25.3 }), targets: [] },
       { metric: 'humidity', points: points(58, { min: 54.2, max: 71.5 }), targets: [] },
-      { metric: 'vpd', points: points(1.4), targets: [] },
+      { metric: 'vpd', sampled: false, points: points(1.4), targets: [] },
       { metric: 'co2', points: points(820), targets: [] },
     ],
     nights: [],
@@ -123,6 +123,10 @@ const server = {
   /** What Verlauf was answered instead, for a test about a read that fails. */
   fails: false,
   asked: [] as URLSearchParams[],
+  /** Every path read, in order. */
+  askedFor: [] as string[],
+  /** What the place reads now, as Start is answered it; none answers no live read at all. */
+  values: null as CardValue[] | null,
   views: [] as { id: string; name: string; definition: unknown }[],
   wrote: [] as string[],
 };
@@ -132,13 +136,18 @@ const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
   const path = url.pathname.replace(/^.*\/v1/, '');
   const method = init?.method ?? 'GET';
   if (method !== 'GET') server.wrote.push(`${method} ${path}`);
+  else server.askedFor.push(path);
 
   if (path === '/home') return json(homeOf([cardOf({ name: 'Tent 1', kind: 'tent' })], true));
   if (path === '/spaces') return json(spacePage(spaceWhere(server.youMay)));
   if (path === '/devices') return json({ items: [fridge()], nextCursor: null });
   if (path === '/me') return json(meWith({ preferences: { ...meWith().preferences, timezone: 'UTC' } }));
+  if (path === '/spaces/space-1/live' && server.values) return json({ spaceId: 'space-1', values: server.values, setpoints: [], devices: [] });
   if (path === '/spaces/space-1/timeline') {
     server.asked.push(url.searchParams);
+    if (url.searchParams.get('deviceId') === 'device-gone') {
+      return json({ status: 404, code: 'device_not_here', title: 'That device does not stand in this space.', detail: '', errors: [] }, 404);
+    }
     return server.fails
       ? json({ status: 500, code: 'unexpected', title: 'Broken', detail: '', errors: [] }, 500)
       : json(answerTo(url.searchParams, server.over));
@@ -192,7 +201,7 @@ beforeAll(() => translate());
 
 beforeEach(() => {
   who.is = 'you';
-  Object.assign(server, { youMay: 'own', over: {}, fails: false, asked: [], views: [], wrote: [] });
+  Object.assign(server, { youMay: 'own', over: {}, fails: false, asked: [], askedFor: [], values: null, views: [], wrote: [] });
   opened.length = 0;
   told.length = 0;
   localStorage.clear();
@@ -210,12 +219,15 @@ describe('Verlauf as it opens', () => {
     // The lowest and highest sample of the window, not of its means: the door that stood open shows.
     expect(panel('Temperature')).toHaveTextContent('Low 19.4 · High 25.3');
     expect(within(panel('Temperature')).getByText('25.2 °C')).toBeInTheDocument();
-    expect(panel('Humidity')).toHaveTextContent('Low 54.2 · High 71.5');
-    expect(within(panel('Humidity')).getByText('58.0 %')).toBeInTheDocument();
+    // As every screen writes a humidity: whole per cent.
+    expect(panel('Humidity')).toHaveTextContent('Low 54 · High 72');
+    expect(within(panel('Humidity')).getByText('58 %')).toBeInTheDocument();
+    // A deficit whose points carry no samples` extremes says its two ends are those of the means.
+    expect(panel('VPD')).toHaveTextContent('means 1.40 to 1.40');
     expect(panel('VPD')).toBeInTheDocument();
     // CO₂ is measured and waits for its tick.
     expect(screen.queryByRole('region', { name: 'CO₂' })).not.toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /Humidity between 54.2 and 71.5 %/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Humidity between 54 and 72 %/ })).toBeInTheDocument();
   });
 
   it('asks for the last 24 hours by their name, with every panel a place can have', async () => {
@@ -266,7 +278,9 @@ describe('Verlauf as it opens', () => {
     expect(within(card).getByRole('img', { name: /at the cursor/ })).toHaveAttribute('src', '/media/still-new');
     expect(within(card).getByRole('link')).toHaveAttribute('href', '/cameras/camera-1');
     expect(card).toHaveTextContent(/Cursor · now, \d\d:\d\d/);
-    expect(card).toHaveTextContent('25.2 °C · 58.0 % · 1.40 kPa');
+    expect(card).toHaveTextContent('25.2 °C · 58 % · 1.40 kPa');
+    // The zoom stands with the card, which stays in sight while the page scrolls.
+    expect(within(card).getByRole('button', { name: 'Zoom in' })).toBeInTheDocument();
     expect(card).toHaveTextContent('Light 65 % · Heater off · Dehumidifier off');
   });
 
@@ -306,7 +320,7 @@ describe('the view in the address', () => {
     expect(address().searchParams.get('at')).toBe(iso(cursor));
     expect((cursor - from) / (to - from)).toBeCloseTo(0.75, 3);
     await waitFor(() => expect(server.asked.at(-1)!.get('from')).toBe(iso(from)));
-    expect(await screen.findByText('a point every 15 min')).toBeInTheDocument();
+    expect(await screen.findByText(/every 15 min/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { pressed: true })).not.toBeInTheDocument();
   });
 
@@ -354,6 +368,95 @@ describe('the view in the address', () => {
 
     expect(screen.getAllByRole('button', { pressed: false }).map(chip => chip.textContent)).toEqual(expect.arrayContaining(['7 d', '30 d']));
     expect(screen.queryByRole('button', { name: 'Phase' })).not.toBeInTheDocument();
+  });
+});
+
+describe('what the place reads now', () => {
+  const reading = (metric: CardValue['metric'], value: number, minutesAgo: number): CardValue =>
+    ({ metric, value, measuredAt: iso(NOW - minutesAgo * 60_000), state: minutesAgo > 10 ? 'offline' : 'live' }) as CardValue;
+
+  it('is the device`s last reading as Start says it, in the head of each panel and in the card - not the mean of the last window', async () => {
+    server.values = [reading('temperature', 26.7, 0.1), reading('humidity', 61.4, 0.1), reading('vpd', 1.52, 0.1)];
+    draw('/timeline?range=30d');
+    await settled();
+
+    await waitFor(() => expect(within(panel('Temperature')).getByText('26.7 °C')).toBeInTheDocument());
+    const card = screen.getByRole('region', { name: 'Cursor' });
+    expect(card).toHaveTextContent(/Cursor · now, \d\d:\d\d/);
+    expect(card).toHaveTextContent('26.7 °C · 61 % · 1.52 kPa');
+  });
+
+  it('is "last reading" with its own time once the device has stopped reporting by the offline rule, on a month as on a day', async () => {
+    server.values = [reading('temperature', 24.1, 95), reading('humidity', 55, 95)];
+    // The curve's last mean closes two hours ago; nothing was measured after the device went quiet.
+    const points = [4, 3, 2].map(hours => ({ measuredAt: ago(hours), value: 25.2 }));
+    server.over = { panels: [{ metric: 'temperature', points, targets: [] }], outputs: [], cameras: [] };
+    draw('/timeline?range=30d');
+    await settled();
+
+    const card = screen.getByRole('region', { name: 'Cursor' });
+    await waitFor(() => expect(card).toHaveTextContent(/Cursor · last reading · /));
+    expect(card).not.toHaveTextContent('now');
+    expect(within(panel('Temperature')).getByText('24.1 °C')).toBeInTheDocument();
+  });
+});
+
+describe('a window that is not what the address asked for', () => {
+  it('keeps the last picture where a window`s read fails, says whether the server answered, and shows that a retry is trying', async () => {
+    draw();
+    await settled();
+    server.fails = true;
+    fireEvent.click(screen.getByRole('button', { name: '7 d' }));
+
+    const notice = await screen.findByRole('alert');
+    expect(notice).toHaveTextContent('This window could not be loaded; what you see is the one before.');
+    // The picture, the chips, the arrows and the sheet are all still there.
+    expect(panel('Temperature')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '30 d' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Adjust' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /earlier/ })).toBeEnabled();
+
+    server.fails = false;
+    fireEvent.click(within(notice).getByRole('button', { name: /Try again/i }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: '7 d', pressed: true })).toBeInTheDocument();
+  });
+
+  it('draws the place`s own device where the address names one that does not stand here, says so, and drops it', async () => {
+    draw('/timeline?device=device-gone');
+
+    expect(await screen.findByText(/The device in the address does not stand in this place/)).toBeInTheDocument();
+    expect(await settled()).toBeInTheDocument();
+    expect(address().searchParams.has('device')).toBe(false);
+  });
+
+  it('lights no chip for a stretch of a grow the address names no grow for: it is the last day that is drawn', async () => {
+    draw('/timeline?range=grow');
+    await settled();
+
+    expect(screen.getByRole('button', { name: '24 h', pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Grow', pressed: false })).toBeInTheDocument();
+  });
+
+  it('offers the way back to now whenever the window does not end now, and not while it does', async () => {
+    draw();
+    await settled();
+    expect(screen.queryByRole('button', { name: 'Now' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '24 h earlier' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Now' }));
+    await waitFor(() => expect(address().search).toBe(''));
+    expect(screen.queryByRole('button', { name: 'Now' })).not.toBeInTheDocument();
+  });
+
+  it('writes the curves last ticked in this browser into a bare address, so a copied one draws the same anywhere', async () => {
+    localStorage.setItem('terp.curves', JSON.stringify(['temperature', 'co2', 'diary']));
+    draw();
+    await settled();
+
+    await waitFor(() => expect(address().searchParams.get('show')).toBe('temperature,co2,diary'));
+    expect(screen.getByRole('region', { name: 'CO₂' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Humidity' })).not.toBeInTheDocument();
   });
 });
 
@@ -537,7 +640,7 @@ describe('a place read through a link', () => {
   const shared = () =>
     draw(
       '/shared/token-1',
-      <SharedTimeline spaceId="space-1" shared={{ token: 'token-1', picture: id => `/shared-media/${id}` }} title={<h2>Timeline</h2>} />,
+      <SharedTimeline spaceId="space-1" shared={{ token: 'token-1', picture: id => `/shared-media/${id}` }} title={<h2>Timeline</h2>} values={[]} />,
     );
 
   it('reads with the link`s token, draws the curves and the strips, and keeps nothing of the account', async () => {
@@ -575,6 +678,8 @@ describe('a place read through a link', () => {
     expect(within(sheet).getByRole('checkbox', { name: 'CO₂' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Download as CSV' })).toBeInTheDocument();
     for (const name of ['Share', /Views/, /Compare/]) expect(within(sheet).queryByRole('button', { name })).not.toBeInTheDocument();
+    // Saved views belong to an account, so a reader through a link does not even ask for them.
+    expect(server.askedFor).not.toContain('/chart-views');
     // No line of a device was answered, so there is none to tick away either.
     expect(within(sheet).queryByRole('checkbox', { name: 'Device messages' })).not.toBeInTheDocument();
     expect(server.wrote).toEqual([]);
@@ -584,7 +689,7 @@ describe('a place read through a link', () => {
     server.over = { deviceIds: null, events: [watered], machineEvents: { shown: 0, total: 0 }, grows: [], growId: null };
     draw(
       `/shared/token-1?at=${ago(3)}`,
-      <SharedTimeline spaceId="space-1" shared={{ token: 'token-1', picture: id => `/shared-media/${id}` }} title={<h2>Timeline</h2>} />,
+      <SharedTimeline spaceId="space-1" shared={{ token: 'token-1', picture: id => `/shared-media/${id}` }} title={<h2>Timeline</h2>} values={[]} />,
     );
     await settled();
 

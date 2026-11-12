@@ -49,6 +49,8 @@ export const useScrub = ({
   const touches = useRef(new Map<number, { start: number; now: number; x: number }>());
   const mouseFrom = useRef<number | null>(null);
   const dragging = useRef(false);
+  /** Two fingers have been down in this gesture: until all have lifted it is a pinch or nothing, never a cursor. */
+  const pinching = useRef(false);
   const pinched = useRef<Selection | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
 
@@ -68,6 +70,8 @@ export const useScrub = ({
     dragging.current = false;
     mark(null);
   };
+  /** How many fingers are still on the glass; the map above is emptied when the first one lifts. */
+  const down = useRef(0);
 
   return {
     selection,
@@ -80,7 +84,16 @@ export const useScrub = ({
           mouseFrom.current = fraction;
           onCursor(fraction);
         } else {
+          down.current += 1;
           touches.current.set(event.pointerId, { start: fraction, now: fraction, x: event.clientX });
+          if (touches.current.size > 1 && !pinching.current) {
+            // The first finger may have been moving the cursor already: it goes back to where it stood, and the
+            // pinch begins where both fingers are now.
+            pinching.current = true;
+            dragging.current = false;
+            for (const each of touches.current.values()) each.start = each.now;
+            onLeave();
+          }
         }
       },
       onPointerMove: event => {
@@ -102,7 +115,7 @@ export const useScrub = ({
           const scale = (other.start - one.start) / Math.max(0.02, right - left);
           const from = one.start - left * scale;
           mark({ from, to: from + scale });
-        } else if (dragging.current || Math.abs(event.clientX - touch.x) > SLOP_PX) {
+        } else if (!pinching.current && (dragging.current || Math.abs(event.clientX - touch.x) > SLOP_PX)) {
           dragging.current = true;
           onCursor(fraction);
         }
@@ -111,15 +124,19 @@ export const useScrub = ({
         const fraction = fractionOf(event);
         event.currentTarget.releasePointerCapture?.(event.pointerId);
         const marked = pinched.current;
-        const pinch = touches.current.size > 1;
+        const pinch = pinching.current;
         // The second finger of a pinch lifts after the first has ended it, and sets nothing down.
         const own = mouseFrom.current !== null || touches.current.has(event.pointerId);
         end();
+        if (event.pointerType !== 'mouse') down.current = Math.max(0, down.current - 1);
+        if (down.current === 0) pinching.current = false;
         if (marked && (pinch ? Math.abs(marked.to - marked.from - 1) > LEAST_PINCH : marked.to - marked.from >= LEAST_SELECTION)) onZoom(marked);
         else if (!pinch && own && fraction !== null) onPlace(fraction);
       },
       onPointerCancel: () => {
         end();
+        down.current = 0;
+        pinching.current = false;
         onLeave();
       },
       onPointerLeave: event => {

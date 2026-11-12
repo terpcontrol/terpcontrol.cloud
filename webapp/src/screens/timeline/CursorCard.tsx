@@ -26,6 +26,8 @@ interface CursorCardProps {
   /** Where a picture comes from - a link's for somebody reading through one - and whether its camera's page can be opened. */
   picture?: (mediaId: string, width?: number) => string | null;
   linked: boolean;
+  /** Zooming in and out: it stands with the card, which stays in sight while the page scrolls under a thumb. */
+  zoom: React.ReactNode;
 }
 
 /**
@@ -33,7 +35,7 @@ interface CursorCardProps {
  * thumb cannot be read: the camera's picture of that moment, the instant, a
  * figure per curve and what the outputs did.
  */
-export function CursorCard({ stamp, readings, outputs, cameras, cursor, onCursor, picture = mediaUrl, linked }: CursorCardProps) {
+export function CursorCard({ stamp, readings, outputs, cameras, cursor, onCursor, picture = mediaUrl, linked, zoom }: CursorCardProps) {
   const { t } = useTranslation();
   const called = useCameraCalled();
   const [chosen, setChosen] = useState(0);
@@ -74,6 +76,9 @@ export function CursorCard({ stamp, readings, outputs, cameras, cursor, onCursor
         </span>
         <strong className={styles.cursorValues}>{readings.length > 0 ? <Facts facts={readings} /> : '—'}</strong>
         {outputs.length > 0 ? <Facts className={styles.cursorOutputs} facts={outputs} /> : null}
+      </div>
+      <div className={styles.zoom} role="group" aria-label={t('timeline.zoomLabel')}>
+        {zoom}
       </div>
     </section>
   );

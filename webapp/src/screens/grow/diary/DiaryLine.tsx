@@ -28,6 +28,7 @@ export function DiaryLine({
   opens,
   onStamp = null,
   stampDoes,
+  forwards = false,
 }: {
   line: DayLine;
   /** When it happened, as the list it stands in says moments. */
@@ -46,6 +47,8 @@ export function DiaryLine({
   /** What a tap on the stamp does, where the list has a use for a line's moment. */
   onStamp?: (() => void) | null;
   stampDoes?: string;
+  /** The list was folded oldest first: a line stands at the first of its run, and the other end of it is until when it went on. */
+  forwards?: boolean;
 }) {
   const { t } = useTranslation();
   const mark = line.own ? null : t('grow.diary.byItself');
@@ -65,7 +68,11 @@ export function DiaryLine({
         <Facts
           facts={[
             what.rule,
-            what.count > 1 ? t('home.entryRepeats', { count: what.count, since: sinceLabel(what.since, now, zone) }) : null,
+            what.count > 1
+              ? forwards
+                ? t('home.entryRepeatsUntil', { count: what.count, until: sinceLabel(what.since, now, zone) })
+                : t('home.entryRepeats', { count: what.count, since: sinceLabel(what.since, now, zone) })
+              : null,
             what.over ? t('grow.diary.alarmOver') : null,
           ]}
         />
@@ -78,7 +85,17 @@ export function DiaryLine({
   return (
     <Line stamp={stamp} mark={mark} severity={warningOf(entry)} onOpen={onOpen} opens={opens} onStamp={onStamp} stampDoes={stampDoes}>
       <span className={ui.visuallyHidden}>{`${t(`home.entryKind.${entry.kind}`)}: `}</span>
-      <EntryWords entry={entry} people={people} measurements={measurements} now={now} zone={zone} byline={byline} repeats={what} brief pictures />
+      <EntryWords
+        entry={entry}
+        people={people}
+        measurements={measurements}
+        now={now}
+        zone={zone}
+        byline={byline}
+        repeats={forwards ? { ...what, until: what.since } : what}
+        brief
+        pictures
+      />
     </Line>
   );
 }

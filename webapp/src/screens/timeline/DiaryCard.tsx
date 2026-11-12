@@ -71,6 +71,7 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note }:
                 byline={byline}
                 onOpen={entry ? (correct?.(entry) ?? null) : null}
                 onStamp={() => onCursor(at(line.at))}
+                forwards
                 stampDoes={t('timeline.diary.toMoment')}
               />
             );
