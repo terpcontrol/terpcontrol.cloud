@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -457,12 +457,13 @@ describe('Steuerung of a place with several devices', () => {
   const regulating = { running: true, drying: false, mode: 'standard', energySaving: false } as Device['control'];
   const plug = (): Device => ({ ...device(), id: 'device-2', type: 'plug', name: 'Pump socket', configuration: { workmode: 'heater' } });
   const second = (): Device => ({ ...device(), id: 'device-3', name: 'Second controller' });
-  const here = (deviceIds: string[]): PlaceCard =>
+  const here = (deviceIds: string[], climates: PlaceCard['climates'] = []): PlaceCard =>
     ({
       spaceId: 'space-1',
       name: 'Tent',
       deviceIds,
       values: [{ metric: 'temperature', value: 24, measuredAt: NOW.toISO(), state: 'live' }],
+      climates,
     }) as unknown as PlaceCard;
 
   it('gives the place´s own device its card with what is done to the hardware, and every further device a short one', async () => {
@@ -501,6 +502,24 @@ describe('Steuerung of a place with several devices', () => {
     const pill = (await screen.findByText('Control on')).closest('[data-tone]');
     expect(pill).toHaveAttribute('data-tone', 'warn');
     expect(pill).toHaveTextContent('Control on · as of 10:00');
+  });
+
+  it('dates the device the page leads with in a place of two climates, not whichever of them spoke last', async () => {
+    // The lead went quiet two hours ago; a second climate in the same place is live, and the place's merged values with it.
+    const quiet = NOW.minus({ hours: 2 }).toISO();
+    state.devices = [{ ...device(NOW.minus({ hours: 2 })), control: regulating }, second()];
+    drawTab(
+      null,
+      '/control',
+      here(['device-1', 'device-3'], [
+        { deviceId: 'device-1', values: [{ metric: 'temperature', value: 22, measuredAt: quiet, state: 'offline' }], setpoints: [] },
+        { deviceId: 'device-3', values: [{ metric: 'temperature', value: 24, measuredAt: NOW.toISO(), state: 'live' }], setpoints: [] },
+      ] as PlaceCard['climates']),
+    );
+
+    const head = (await screen.findByRole('heading', { level: 1 })).closest('header')!;
+    await waitFor(() => expect(head).toHaveTextContent(/offline/));
+    expect(head).not.toHaveTextContent('Control on');
   });
 
   it('says a heard lead regulates, and dates a place led by a device with no regulation of its own', async () => {

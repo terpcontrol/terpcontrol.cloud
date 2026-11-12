@@ -89,7 +89,13 @@ export function Control({
   const head = sub ? (
     <PageHead title={t(`control.page.${sub}`)} back={{ to: controlPath(spaceId), label: t('control.back') }} />
   ) : here ? (
-    <PlaceTitle title={title} here={here} place={several ? place : null} state={lead ? stateOf(t, lead, items, spoke, now, zone) : null} />
+    <PlaceTitle
+      title={title}
+      here={here}
+      place={several ? place : null}
+      deviceId={lead?.id ?? null}
+      state={lead ? stateOf(t, lead, items, spoke, now, zone) : null}
+    />
   ) : (
     <VisitingTitle title={title} spaceId={spaceId} />
   );

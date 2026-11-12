@@ -207,9 +207,11 @@ export class TimelineService {
       lastReadingAt:
         panels.length > 0
           ? null
-          : await lastReadingOf(
+          : // Of the device the curves are of - the one asked for, else the place's own - so "to the last reading"
+            // lands on a value of the curve it stands under and not on another climate's that happens to be newer.
+            await lastReadingOf(
               this.data,
-              devices.filter(device => device.spaceId === spaceId),
+              devices.filter(device => device.spaceId === spaceId && (!steering || asked.deviceId !== undefined || device.id === steering.id)),
             ),
       // An alarm is the keeper's: when a tent stood outside its rules is not a reader's from outside, nor are the ids.
       alarms: isOutsider(grant) ? [] : alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),

@@ -26,23 +26,27 @@ export function PlaceTitle({
   here,
   place = null,
   state = null,
+  deviceId = null,
 }: {
   title: string;
   here: PlaceCard;
   place?: string | null;
   state?: ReactNode;
+  /** The device the page is about, where the place holds several climates: the pill dates that one, not whichever spoke last. */
+  deviceId?: string | null;
 }) {
   const now = useNow();
-  const devices = useDevices(here.deviceIds.length > 0 && here.values.length === 0).data?.items ?? [];
+  const values = here.climates.find(climate => climate.deviceId === deviceId)?.values ?? here.values;
+  const devices = useDevices(here.deviceIds.length > 0 && values.length === 0).data?.items ?? [];
   // As on the place's Start: no value at all is a device waiting for its first one, unless it was heard and went quiet.
   const silence = silenceOf(
-    here.values,
-    devices.filter(device => here.deviceIds.includes(device.id)),
+    values,
+    devices.filter(device => (deviceId ? device.id === deviceId : here.deviceIds.includes(device.id))),
     now,
   );
   const silentSince = silence && !silence.waiting ? silence.since : null;
-  const liveness = livenessOf(here, now);
-  const waiting = liveness === 'offline' && here.values.length === 0 && silentSince === null;
+  const liveness = livenessOf({ values, deviceIds: here.deviceIds }, now);
+  const waiting = liveness === 'offline' && values.length === 0 && silentSince === null;
 
   return (
     <header className={styles.head}>
@@ -53,7 +57,7 @@ export function PlaceTitle({
       {state && !waiting && (liveness === 'live' || liveness === 'stale') ? (
         state
       ) : (
-        <LivenessPill liveness={liveness} measuredAt={measuredAtOf(here.values) ?? silentSince} now={now} explain waiting={waiting} />
+        <LivenessPill liveness={liveness} measuredAt={measuredAtOf(values) ?? silentSince} now={now} explain waiting={waiting} />
       )}
     </header>
   );

@@ -80,6 +80,8 @@ let sensed: Metric[] = ['temperature', 'humidity', 'co2'];
  * as a plug or a fan.
  */
 let lastReading: DeviceLive['metrics'] = {};
+/** The devices a live reading was asked of, in order. */
+let liveAsked: string[] = [];
 
 const controllerReport = (at: Date): Reading | null => {
   if (quietFrom && quietUntil && at >= quietFrom && at < quietUntil) return null;
@@ -126,7 +128,10 @@ const fakeData = {
       output: (output, at) => valueAt(at, reading => reading.outputs?.[output]),
     });
   },
-  live: async (deviceId: string) => ({ metrics: reports[deviceId] ? lastReading : {}, outputs: {}, isDay: null, lightOn: null }),
+  live: async (deviceId: string) => {
+    liveAsked.push(deviceId);
+    return { metrics: reports[deviceId] ? lastReading : {}, outputs: {}, isDay: null, lightOn: null };
+  },
 } as unknown as DataService;
 
 const build = (): TimelineService => {
@@ -691,6 +696,18 @@ describe('one climate of several', () => {
     expect(new Set(await lanesOf(FRIDGE_MODULE))).toEqual(new Set([FRIDGE_MODULE]));
     // Both still stand in the place, whichever is drawn.
     expect((await readAs(session(OWNER), { range: '24h' })).deviceIds).toEqual(expect.arrayContaining([CONTROLLER, FRIDGE_MODULE]));
+  });
+
+  it('dates a window without curves by the device its curves are of, not by another climate that spoke later', async () => {
+    // Nothing measured in the window by either; each is asked for its own last reading, and only the drawn one's counts.
+    reports = { [CONTROLLER]: () => null, [FRIDGE_MODULE]: () => null };
+    liveAsked = [];
+    await readAs(session(OWNER), { range: '24h' });
+    expect(liveAsked).toEqual([CONTROLLER]);
+
+    liveAsked = [];
+    await readAs(session(OWNER), { range: '24h', deviceId: FRIDGE_MODULE });
+    expect(liveAsked).toEqual([FRIDGE_MODULE]);
   });
 
   it('shows the camera of the controller it is paired to beside that climate only', async () => {

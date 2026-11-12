@@ -44,8 +44,11 @@ export function SharedSpace({
   banner?: ReactNode;
 }) {
   const { t } = useTranslation();
-  const liveness = livenessOf(space, now);
-  const shown = TILES.flatMap(metric => space.values.filter(value => value.metric === metric));
+  // A place with two climates is about one of them on every page: the tiles, the pill and the curves under them
+  // are the place's own device's, which the server names first.
+  const values = space.climates[0]?.values ?? space.values;
+  const liveness = livenessOf({ values, deviceIds: space.deviceIds }, now);
+  const shown = TILES.flatMap(metric => values.filter(value => value.metric === metric));
 
   return (
     <article className={styles.diary}>
@@ -54,7 +57,7 @@ export function SharedSpace({
       <header className={styles.hero}>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{space.name}</h1>
-          <LivenessPill liveness={liveness} measuredAt={measuredAtOf(space.values)} now={now} explain />
+          <LivenessPill liveness={liveness} measuredAt={measuredAtOf(values)} now={now} explain />
         </div>
         <p className={`mono ${styles.facts}`}>
           {[t(`publicPage.spaceKind.${space.kind}`), space.grows.map(grow => grow.name).join(', ')].filter(Boolean).join(' · ')}
@@ -98,7 +101,7 @@ export function SharedSpace({
           spaceId={space.spaceId}
           shared={{ token, picture }}
           title={<h2>{t('publicPage.timeline')}</h2>}
-          values={space.climates[0]?.values ?? space.values}
+          values={values}
         />
       </section>
 
