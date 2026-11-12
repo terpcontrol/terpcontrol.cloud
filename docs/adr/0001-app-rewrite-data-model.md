@@ -1,6 +1,6 @@
 ---
 summary: The /v1 data model, the API conventions and routes, the access rule, the frozen device protocol and the migration from the old database - read before changing a collection, a route, a migration step or anything a device touches
-updated: 2026-10-14
+updated: 2026-11-12
 source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08
 paths:
   - server/src/database/**
@@ -253,9 +253,9 @@ setpoints, and the configuration only says what is aimed at now, so `targetChang
 a target band and of the nights can be read from: a row each time the targets in a device's stored configuration
 move, whoever moved them (a save, a plan step, a preset, the device's own menu), none for a write that moves
 nothing, and each row with the cycle that decides which half holds. Timeline and Charts cut their bands where the
-record says the targets moved, and the cockpit's verdict judges each window against what held then
+record says the targets moved, and the place's verdict judges each window against what held then
 (`server/src/modules/v1/device/held-targets.ts`). It replaced drawing a band from the phase's snapshot alone,
-which disagreed with the cockpit whenever a preset moved the targets of a grow already in its stage; the snapshot
+which disagreed with that verdict whenever a preset moved the targets of a grow already in its stage; the snapshot
 is still read where the record says nothing. Migration 018 opened the record for every device.
 
 An alarm watches a reading or an output. The tent that gets too warm is the rule everyone writes, but a grower
@@ -493,10 +493,9 @@ stays. Giving a device up now deletes its alerts, as it already deleted its rule
   and 24-hour verdict; the device id is null on a shared read) and `GET /home` a `climates[]` per card (values and
   setpoints); the flat `values`, `setpoints`, `targets` and `verdict` stay, as the place merged and its first
   climate. `GET /spaces/{id}/timeline?deviceId=` and `GET /spaces/{id}/series?deviceId=` narrow panels, bands,
-  nights and lanes to one device (404 `device_not_here` for one that does not stand there), which is how the
-  cockpit draws each climate's curves and how Verlauf and Graphen offer "Alle Geräte" or one device. Still pooled
-  or of the first climate: a week's climate and report, the phase snapshot's one `deviceId`, and the shared tent
-  page.
+  nights and lanes to one device (404 `device_not_here` for one that does not stand there), which is how Verlauf
+  and Graphen offer "Alle Geräte" or one device. Still pooled or of the first climate: what Start says of a place,
+  a week's climate and report, the phase snapshot's one `deviceId`, and the shared tent page.
 - **One phase writer.** `GrowService.setPhase` is called by the grow routes, the plan engine and
   `preset-applications`. It appends the phase, writes the `phase` entry and re-reads stage-bound alarm
   thresholds from one table in `shared-types`. Applying a preset to a space with an open grow sets its phase;

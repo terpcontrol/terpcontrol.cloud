@@ -303,7 +303,7 @@ describe('the alarm rules page', () => {
   it('names the two rules nobody here wrote by what they watch, so they read in the language of the page', async () => {
     draw();
 
-    // The cloud's own rule is "Device offline" here as on the cockpit, whatever the server stored and the device is called.
+    // The cloud's own rule is "Device offline" here, whatever the server stored and the device is called.
     expect(await screen.findByText('Device offline')).toBeInTheDocument();
     expect(screen.queryByText('Controller offline')).not.toBeInTheDocument();
     expect(screen.queryByText('Blue Dream tent offline')).not.toBeInTheDocument();
@@ -715,7 +715,7 @@ describe('the rule sheet', () => {
    * contradict. Its CO2 stays an answer about this plug rather than about
    * plugs, because whether that sensor is fitted is the device's to say.
    */
-  it('calls a fridge´s outputs what the cockpit calls them, and offers the CO2 its tile shows', async () => {
+  it('calls a fridge´s outputs what the device´s card calls them, and offers the CO2 the fridge reads', async () => {
     vi.mocked(api.get).mockImplementation(
       (path: string) => Promise.resolve(path === '/devices/fridge-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
     );

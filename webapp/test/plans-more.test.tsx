@@ -21,7 +21,7 @@ import { translate } from './translations';
  * What came back of the old app's plans: light hours in a step, which is what
  * a photoperiod plan turns to flower with; the two ready-made plans a fridge
  * starts from; going on with a plan at a step of one's choosing; and the line
- * on the cockpit that says where a running plan stands.
+ * on Start that says where a running plan stands.
  */
 
 const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
@@ -473,7 +473,7 @@ describe('going on with a plan at a step', () => {
   });
 });
 
-describe('the cockpit´s line for a running plan', () => {
+describe('Start´s line for a running plan', () => {
   it('says the step, how long it has left and what follows', () => {
     expect(planLineOf(t, plan(), NOW)).toBe('Veg, 10 days to go, then Flower');
     expect(planLineOf(t, plan({}, { activeStepIndex: 1, stepStartedAt: NOW.minus({ days: 42 }).plus({ hours: 5 }).toISO()! }), NOW)).toBe(

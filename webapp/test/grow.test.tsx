@@ -430,7 +430,7 @@ describe('a grow that has ended', () => {
     expect(screen.getByRole('link', { name: 'Charts' })).toHaveAttribute('href', '/charts?grow=grow-1');
   });
 
-  it('leads back to the cockpit of the place it stands in, where Start is a card per place', () => {
+  it('leads back to the Start of the place it stands in, where Start is a card per place', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
     client.setQueryData(['home'], {
       spaces: [

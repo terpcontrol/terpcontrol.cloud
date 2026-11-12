@@ -73,8 +73,8 @@ export const plugSummaryOf = (t: Translate, device: Device, offset: number): Sum
     const switching = mode as PlugSwitching;
     const day = pair(switching, 'day');
     const night = dayNight ? pair(switching, 'night') : null;
-    if (day) rows.push({ label: t(dayNight ? 'cockpit.targets.day' : 'plugSettings.points'), parts: [day] });
-    if (night) rows.push({ label: t('cockpit.targets.night'), parts: [night] });
+    if (day) rows.push({ label: t(dayNight ? 'start.targets.day' : 'plugSettings.points'), parts: [day] });
+    if (night) rows.push({ label: t('start.targets.night'), parts: [night] });
   }
 
   if (mode === 'co2') {

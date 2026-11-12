@@ -47,10 +47,10 @@ export function Latest({
   return (
     <section className={styles.card} aria-labelledby="start-latest">
       <h2 className={styles.cardTitle} id="start-latest">
-        {t('cockpit.latest.title')}
+        {t('start.latest.title')}
       </h2>
       {folded.length === 0 ? (
-        <p className={styles.cardText}>{t('cockpit.latest.none')}</p>
+        <p className={styles.cardText}>{t('start.latest.none')}</p>
       ) : (
         <ul className={styles.lines}>
           {folded.map(({ entry, count, since }) => {

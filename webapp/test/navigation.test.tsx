@@ -128,7 +128,7 @@ const timeline = (spaceId: string, name: string): SpaceTimeline => ({
   people: [],
 });
 
-/** The grow a cockpit's grow block opens, standing in the first place. */
+/** The grow a place's Start opens, standing in the first place. */
 const grow: GrowListItem = {
   id: 'grow-1',
   ownerId: 'user-1',

@@ -30,15 +30,15 @@ export function ClimatePicker({
 
   return (
     <div className={className}>
-      <Choices label={t('cockpit.devices.pick')}>
+      <Choices label={t('timeline.devices.pick')}>
         <Choice chosen={chosen === null || !ids.includes(chosen)} onChoose={() => onChoose(null)}>
-          {t('cockpit.devices.all')}
+          {t('timeline.devices.all')}
         </Choice>
         {ids.map(id => {
           const device = devices?.find(one => one.id === id);
           return (
             <Choice key={id} chosen={chosen === id} onChoose={() => onChoose(id)}>
-              {device ? deviceTitle(device, t, devices) : t('cockpit.devices.waiting')}
+              {device ? deviceTitle(device, t, devices) : t('timeline.devices.waiting')}
             </Choice>
           );
         })}

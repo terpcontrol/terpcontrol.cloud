@@ -84,7 +84,7 @@ export function DeviceDiagnosis() {
             {t('admin.diagnosis.charts')}
           </Link>
           <Link className={ui.button} to={placePath(one.spaceId)}>
-            {t('admin.diagnosis.cockpit')}
+            {t('admin.diagnosis.open')}
           </Link>
         </div>
       ) : null}

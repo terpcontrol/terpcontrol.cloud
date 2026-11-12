@@ -175,7 +175,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
       </header>
       {guest && space ? <GuestLine space={space} people={overview.people} /> : null}
       <RefreshFailed failedAt={failedAt} now={now} />
-      {visiting ? <p className={styles.cardText}>{t('cockpit.visiting')}</p> : null}
+      {visiting ? <p className={styles.cardText}>{t('start.visiting')}</p> : null}
       {/* Devices moved together leave their old places empty; whether one goes is for its owner to say. */}
       {visiting ? null : <EmptyPlace spaceId={spaceId} onRemoved={() => void navigate('/')} />}
       {offline ? <OfflineBox overview={overview} since={measuredAt} /> : null}
@@ -291,7 +291,7 @@ function CameraHead({
       readings={readings}
       age={offline ? 'offline' : 'live'}
       stand={stand}
-      empty={t('cockpit.camera.none')}
+      empty={t('start.camera.none')}
     />
   );
 }
@@ -359,9 +359,9 @@ function StatusSentence({
     const quiet = last === null || now.toMillis() - DateTime.fromISO(last).toMillis() > CAMERA_QUIET_MS;
     text = quiet
       ? last
-        ? t('cockpit.camera.quietSince', { name: called(camera.name), time: sinceLabel(last, now, zone) })
-        : t('cockpit.camera.nothingYet', { name: called(camera.name) })
-      : t('cockpit.camera.delivers', { name: called(camera.name), age: ageLabel(last, now) });
+        ? t('start.camera.quietSince', { name: called(camera.name), time: sinceLabel(last, now, zone) })
+        : t('start.camera.nothingYet', { name: called(camera.name) })
+      : t('start.camera.delivers', { name: called(camera.name), age: ageLabel(last, now) });
     tone = quiet ? 'warn' : 'good';
     to = `/cameras/${camera.cameraId}`;
   } else {
@@ -433,7 +433,7 @@ function ModeLine({
       </span>
       {mayManage ? (
         <Link to={kind === 'greenhouse' ? devicesPath(spaceId) : controlPath(spaceId)} className={styles.modeChange}>
-          {t('cockpit.change')} ›
+          {t('start.change')} ›
         </Link>
       ) : null}
     </p>

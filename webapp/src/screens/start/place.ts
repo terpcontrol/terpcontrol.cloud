@@ -76,9 +76,9 @@ export type Verdict =
 export const verdictSaid = (t: Translate, verdict: Verdict, metric: Metric, now: DateTime, zone: string | null): string | null => {
   if (!verdict) return null;
   if (verdict.kind === 'in') return t('home.card.inBand');
-  if (verdict.kind === 'settling') return t('cockpit.tile.settling', { time: clock(verdict.until, zone) });
+  if (verdict.kind === 'settling') return t('start.tile.settling', { time: clock(verdict.until, zone) });
   if (verdict.kind === 'last') return [t('offline.lastValue'), verdict.at ? sinceLabel(verdict.at, now, zone) : null].filter(Boolean).join(' ');
-  return t(`cockpit.tile.${verdict.kind}`, { delta: figureWithUnit(verdict.delta, metric) });
+  return t(`start.tile.${verdict.kind}`, { delta: figureWithUnit(verdict.delta, metric) });
 };
 
 export const verdictOf = (value: CardValue | null, setpoint: CardSetpoint | null, now: DateTime): Verdict => {
@@ -395,22 +395,22 @@ export const statusText = (t: Translate, status: Status, now: DateTime, zone: st
     case 'none':
       return t('home.invite.noSensor');
     case 'off': {
-      const words = t(`cockpit.status.${status.high ? 'high' : 'low'}${status.since === null ? 'Now' : ''}`, {
-        metric: t(`cockpit.metric.${status.metric}`),
+      const words = t(`start.status.${status.high ? 'high' : 'low'}${status.since === null ? 'Now' : ''}`, {
+        metric: t(`start.metric.${status.metric}`),
         delta: figureWithUnit(status.delta, status.metric),
       });
-      return status.since ? `${words} · ${t('cockpit.status.since', { time: sinceLabel(status.since, now, zone) })}` : words;
+      return status.since ? `${words} · ${t('start.status.since', { time: sinceLabel(status.since, now, zone) })}` : words;
     }
     case 'alert':
-      return `${alertLabel(t, status.alert, now, zone)} · ${t('cockpit.status.since', { time: sinceLabel(status.alert.startedAt, now, zone) })}`;
+      return `${alertLabel(t, status.alert, now, zone)} · ${t('start.status.since', { time: sinceLabel(status.alert.startedAt, now, zone) })}`;
     case 'maintenance':
       return status.quiet.parked
-        ? t('cockpit.status.maintenance', { until: clock(status.quiet.until, zone) })
-        : t('cockpit.status.settling', { until: clock(status.quiet.alarmsUntil, zone) });
+        ? t('start.status.maintenance', { until: clock(status.quiet.until, zone) })
+        : t('start.status.settling', { until: clock(status.quiet.alarmsUntil, zone) });
     case 'stale':
-      return t('cockpit.status.stale', { time: status.at ? sinceLabel(status.at, now, zone) : '' });
+      return t('start.status.stale', { time: status.at ? sinceLabel(status.at, now, zone) : '' });
     default:
-      return t(`cockpit.status.${status.kind}`);
+      return t(`start.status.${status.kind}`);
   }
 };
 

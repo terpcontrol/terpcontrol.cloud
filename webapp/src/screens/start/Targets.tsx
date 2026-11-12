@@ -51,14 +51,14 @@ const targetsLine = (
   const named = (label: string, parts: string[]): string[] => (parts.length > 0 ? [`${label} ${parts.join(' · ')}`] : []);
   if (regime === 'drying' || regime === 'germination') {
     const held = regime === 'germination' && humidifierHold ? [targetWithUnit(humidifierHold.target, 'humidity')] : [];
-    return named(t(`cockpit.targets.${regime}`), [...halfOf(targets.night, false, humidity), ...held]);
+    return named(t(`start.targets.${regime}`), [...halfOf(targets.night, false, humidity), ...held]);
   }
-  if (regime === 'always') return named(t('cockpit.targets.roundTheClock'), halfOf(targets.day, true, humidity));
-  if (regime === 'never') return named(t('cockpit.targets.roundTheClock'), halfOf(targets.night, false, humidity));
+  if (regime === 'always') return named(t('start.targets.roundTheClock'), halfOf(targets.day, true, humidity));
+  if (regime === 'never') return named(t('start.targets.roundTheClock'), halfOf(targets.night, false, humidity));
 
   return [
-    ...named(t('cockpit.targets.day'), halfOf(targets.day, true, humidity)),
-    ...named(t('cockpit.targets.night'), halfOf(targets.night, false, humidity)),
+    ...named(t('start.targets.day'), halfOf(targets.day, true, humidity)),
+    ...named(t('start.targets.night'), halfOf(targets.night, false, humidity)),
   ];
 };
 
@@ -66,13 +66,13 @@ const targetsLine = (
 const lightLine = (t: Translate, device: Device | null, now: DateTime, zone: string | null): string | null => {
   const light = lightWindowOf(device, now, zone);
   const dark = darkReasonOf(device);
-  if (!light) return dark && dark !== 'off' ? `${t('cockpit.targets.light')} ${t(`cockpit.light.dark.${dark}`)}` : null;
+  if (!light) return dark && dark !== 'off' ? `${t('start.targets.light')} ${t(`start.light.dark.${dark}`)}` : null;
   const window = light.always
-    ? t('cockpit.light.always')
+    ? t('start.light.always')
     : light.never
-      ? t('cockpit.light.never')
+      ? t('start.light.never')
       : t('start.targets.window', { on: light.on, off: light.off });
-  return [`${t('cockpit.targets.light')} ${window}`, light.limit < 100 && !light.never ? t('start.targets.limit', { percent: light.limit }) : null]
+  return [`${t('start.targets.light')} ${window}`, light.limit < 100 && !light.never ? t('start.targets.limit', { percent: light.limit }) : null]
     .filter(Boolean)
     .join(' · ');
 };
@@ -112,7 +112,7 @@ export function Targets({
   const plan = useDevicePlans(mayManage && device?.control ? [device.id] : []).plans[0];
   const planLine = plan ? planLineOf(t, plan, now) : null;
   const own = device?.type === 'plug' || device?.type === 'light';
-  const title = t(own ? 'ownPanel.title' : 'cockpit.targets.title');
+  const title = t(own ? 'ownPanel.title' : 'start.targets.title');
   const parts = targetsLine(t, { targets, device, humidifierHold, offset: offsetOf(now, zone) });
   const line =
     parts.length > 0 ? (
@@ -126,10 +126,10 @@ export function Targets({
       <span>
         {t(
           darkReasonOf(device) === 'off'
-            ? 'cockpit.targets.controlOff'
+            ? 'start.targets.controlOff'
             : device && awaitingClimate(device)
-              ? 'cockpit.targets.awaiting'
-              : 'cockpit.targets.none',
+              ? 'start.targets.awaiting'
+              : 'start.targets.none',
         )}
       </span>
     );

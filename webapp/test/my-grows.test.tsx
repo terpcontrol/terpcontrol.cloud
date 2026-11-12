@@ -306,13 +306,13 @@ describe('the way back from a grow', () => {
     expect(screen.getByRole('link', { name: 'Back to My grows' })).toHaveAttribute('href', '/grows');
   });
 
-  it('leads to "My grows" from a finished grow, which no cockpit shows any more', () => {
+  it('leads to "My grows" from a finished grow, which no Start shows any more', () => {
     draw(<GrowHeader grow={{ ...grow, endedAt: '2026-06-01T10:00:00.000Z' }} plants={[]} spaces={spaces} now={NOW} onShare={null} />);
 
     expect(screen.getByRole('link', { name: 'Back to My grows' })).toHaveAttribute('href', '/grows');
   });
 
-  it('leads to the cockpit it came from otherwise, which with one place is Start', () => {
+  it('leads to the Start of the place it came from otherwise, which with one place is Start itself', () => {
     draw(<GrowHeader grow={grow} plants={[]} spaces={spaces} now={NOW} onShare={null} />);
 
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');

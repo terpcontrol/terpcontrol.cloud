@@ -1084,7 +1084,7 @@ describe('what a plot is made of', () => {
     expect(screen.getByText(/when on$/)).toBeInTheDocument();
   });
 
-  /** One machine, one name: the cockpit, the alarms and the device panel call a fridge's dehumidifier output its compressor. */
+  /** One machine, one name: the alarms and the device panel call a fridge's dehumidifier output its compressor. */
   it('calls a fridge module´s dehumidifier output the compressor, on its chip and its card', async () => {
     state.series = {
       ...series,

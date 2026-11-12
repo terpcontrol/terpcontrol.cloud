@@ -89,12 +89,12 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
         <div className={styles.menuList} id={listId}>
           {mayManage ? (
             <button type="button" onClick={() => choose('rename')}>
-              {t('cockpit.menu.rename')}
+              {t('start.menu.rename')}
             </button>
           ) : null}
           {mayRoom ? (
             <button type="button" onClick={() => choose('room')}>
-              {room ? t('cockpit.menu.room') : t('cockpit.menu.putInRoom')}
+              {room ? t('start.menu.room') : t('start.menu.putInRoom')}
               {room ? (
                 <>
                   {' '}
@@ -106,17 +106,17 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
           {/* Who else is here is a member's question; support reading a customer's place is not one. */}
           {member ? (
             <Link to={membersPath(overview.spaceId)} onClick={() => setOpen(false)}>
-              {t('cockpit.menu.members')}
+              {t('start.menu.members')}
             </Link>
           ) : null}
           {mayBringDevice ? (
             <button type="button" onClick={() => choose('device')}>
-              {t('cockpit.menu.deviceHere')}
+              {t('start.menu.deviceHere')}
             </button>
           ) : null}
           {mayRemove ? (
             <button type="button" onClick={() => choose('remove')}>
-              {t('cockpit.menu.remove')}
+              {t('start.menu.remove')}
             </button>
           ) : null}
         </div>

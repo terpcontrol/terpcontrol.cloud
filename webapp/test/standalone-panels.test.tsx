@@ -12,7 +12,7 @@ import { translate } from './translations';
 /**
  * What a smart socket, an AIR fan and a LIGHT are set to under Steuerung: each
  * a panel of its own, saved with one Save that sends only what changed, by the
- * names the contract gives the settings - and what the cockpit and the device
+ * names the contract gives the settings - and what Start and the device
  * panel say about them.
  *
  * The page reads in UTC, so a time on the screen is the time in the document.
@@ -199,7 +199,7 @@ describe('a LIGHT under Steuerung', () => {
   });
 });
 
-describe('what the cockpit and the device panel say about them', () => {
+describe('what Start and the device panel say about them', () => {
   it('sums a socket up by what it switches by and at', () => {
     const plug = device('plug-1', 'plug', { ...PLUG, usedaynight: 1 });
     expect(plugSummaryOf(t, plug, 0)).toEqual([
@@ -228,7 +228,7 @@ describe('what the cockpit and the device panel say about them', () => {
     expect(rangeVerdictOf(reading(21), { low: 22, high: 25 }, at(12))).toEqual({ kind: 'low', delta: 1 });
   });
 
-  it('sums a fan at a fixed speed up by its speeds, and says so in the cockpit´s first line', () => {
+  it('sums a fan at a fixed speed up by its speeds, and says so in the first line of Start´s targets', () => {
     const fan = device('fan-1', 'fan', FAN);
     expect(fanSummaryOf(t, fan)).toEqual([
       { label: 'The fan runs', parts: ['Fixed'] },

@@ -1,6 +1,6 @@
 ---
 summary: Why the cloud, the app and the simulator decide day and night exactly as the firmware does - by the device's clock window and work mode, never by the lamp - through one shared module, how a switch between the halves is judged, and how a plug or an AIR fan, having no lamp, tells day from night for its VPD - read before touching day-night.ts, setpoints, the climate verdict, night bands, a VPD's leaf offset or how a light window is written
-updated: 2026-10-08
+updated: 2026-11-12
 source: rewrite commits of 2026-10-01 to 10-03 merged with PR #104; checked against shared-types/, server/ and scripts/simulate-device.mjs on 2026-10-08; codebase cleanup (2026-10-08); Chris (a plug's and an AIR fan's day for their VPD, 2026-10-08)
 paths:
   - shared-types/src/v1/day-night.ts
@@ -30,7 +30,7 @@ document, seconds past midnight UTC, it is day, otherwise night; drying, germina
 at all. Whether the lamp really shines changes nothing about which targets hold.
 
 The cloud read it off the lamp instead: light output above zero was day. A lamp held off at noon, set to 0 %,
-dimmed by the heat or at 15 % in maintenance turned the cockpit's day into night while the fridge went on heating
+dimmed by the heat or at 15 % in maintenance turned the place's day into night while the fridge went on heating
 to its day target - "night target 22 °C, 3.9 °C too high", and CO2 "no target at night" while the valve dosed -
 and the same wrong half went into the verdict, the status line's "since", the Timeline's night bands and the
 diary's day and night averages. And every evening read "too warm since 20:02" and every morning "too cold since

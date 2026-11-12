@@ -312,9 +312,9 @@ describe('the timeline', () => {
 
   /**
    * A fridge module cools and dries with one compressor, on the output the
-   * firmware calls the dehumidifier. The cockpit's tiles call it the
-   * compressor, and a tap from one lands here, so the lane and the header do
-   * too - and a tent's dehumidifier stays a dehumidifier.
+   * firmware calls the dehumidifier. The device's card and the alarms call it
+   * the compressor, so the lane and the header do too - and a tent's
+   * dehumidifier stays a dehumidifier.
    */
   it('calls a fridge´s dehumidifier output its compressor, in the lane and in the header', () => {
     const dehumidifier = { output: 'dehumidifier' as const, spans: [{ startsAt: at(0), endsAt: at(24) }], heardUntil: at(24) };
@@ -494,7 +494,7 @@ describe('the timeline', () => {
  * rail, and its count badge is opaque and sits over a 12px glyph.
  */
 /**
- * A tile of a place's cockpit opens the Timeline on the reading it is about.
+ * A tile of a place's Start opens the Timeline on the reading it is about.
  * The screen lands on that panel - or, for the lamp, on its lane - and marks
  * it, so the tap ends on the curve it was for rather than at the top of a
  * stack the grower then has to search.

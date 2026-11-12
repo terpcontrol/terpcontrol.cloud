@@ -97,8 +97,8 @@ export const readingsOf = (t: Translate, { values, setpoints, device, lit, hold,
     const on = level.value > 0;
     readings.push({
       key: 'light',
-      label: t('cockpit.metric.light'),
-      figure: on ? `${decimalFigure(Math.round(level.value), 0)} %` : t('cockpit.light.off'),
+      label: t('start.metric.light'),
+      figure: on ? `${decimalFigure(Math.round(level.value), 0)} %` : t('start.light.off'),
       note: age === 'live' ? lightNote(t, lit, on, now, zone) : verdictSaid(t, { kind: 'last', at: level.measuredAt }, 'temperature', now, zone),
       tone: 'quiet',
       judged: false,
@@ -118,7 +118,7 @@ export const readingsLine = (t: Translate, readings: Reading[]): string =>
       reading.key === 'light'
         ? reading.figure.endsWith('%')
           ? t('start.card.light', { level: reading.figure })
-          : t('cockpit.card.lightOff')
+          : t('start.card.lightOff')
         : reading.figure,
     )
     .join(' · ');
@@ -136,8 +136,8 @@ export const extrasOf = (t: Translate, values: CardValue[]): { text: string; foc
   const parts = [
     co2 ? t('start.extra.co2', { value: figureWithUnit(co2.value!, 'co2') }) : null,
     leaf ? t('start.extra.leaf', { value: figureWithUnit(leaf.value!, 'leafTemperature') }) : null,
-    lux ? t('cockpit.leaf.lux', { value: figure(lux.value!, 'lux') }) : null,
-    ppfd ? t('cockpit.leaf.ppfd', { value: decimalFigure(Math.round(ppfd.value!), 0) }) : null,
+    lux ? t('start.leaf.lux', { value: figure(lux.value!, 'lux') }) : null,
+    ppfd ? t('start.leaf.ppfd', { value: decimalFigure(Math.round(ppfd.value!), 0) }) : null,
   ].filter((part): part is string => part !== null);
 
   return parts.length === 0 ? null : { text: parts.join(' · '), focus: co2 ? 'co2' : leaf ? 'leafTemperature' : 'lux' };

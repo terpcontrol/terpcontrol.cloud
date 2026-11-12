@@ -2285,7 +2285,12 @@
       "germination": "Keimungsziel {{low}}–{{high}}"
     },
     "legendNone": "Keine Nacht: ein Ziel rund um die Uhr",
-    "laneAverage": "Ø {{share}} %"
+    "laneAverage": "Ø {{share}} %",
+    "devices": {
+      "waiting": "Gerät wird gelesen …",
+      "pick": "Welches Gerät",
+      "all": "Alle Geräte"
+    }
   },
   "camera": {
     "never": "nie",
@@ -3702,7 +3707,6 @@
       "place": "Ort",
       "timeline": "Verlauf",
       "charts": "Graphen",
-      "cockpit": "Ort öffnen",
       "settings": "Einstellungen, wie an das Gerät geschickt",
       "noSettings": "Das Gerät hat noch kein Einstellungsdokument.",
       "factors": "Faktoren und Regelung",
@@ -3710,7 +3714,8 @@
       "lines": "Meldungen des Geräts",
       "noLines": "Das Gerät hat noch nichts gemeldet.",
       "clockTime": "{{utc}} UTC",
-      "clockTimeThere": "{{utc}} UTC · {{there}} beim Kunden"
+      "clockTimeThere": "{{utc}} UTC · {{there}} beim Kunden",
+      "open": "Ort öffnen"
     }
   },
   "units": {
@@ -4307,87 +4312,6 @@
       "taken": "Ein anderer Ort heißt schon so.",
       "note": "So heißt der Ort auf Start, in Verlauf und Steuerung und in jeder Meldung."
     }
-  },
-  "cockpit": {
-    "change": "Ändern",
-    "menu": {
-      "deviceHere": "Gerät hierher holen",
-      "members": "Mitglieder einladen",
-      "rename": "Umbenennen",
-      "putInRoom": "In einen Raum stellen",
-      "room": "Raum",
-      "remove": "Ort entfernen"
-    },
-    "devices": {
-      "waiting": "Gerät wird gelesen …",
-      "pick": "Welches Gerät",
-      "all": "Alle Geräte"
-    },
-    "status": {
-      "good": "Alles im Ziel",
-      "high": "{{metric}} {{delta}} zu hoch",
-      "low": "{{metric}} {{delta}} zu niedrig",
-      "highNow": "{{metric}} gerade {{delta}} zu hoch",
-      "lowNow": "{{metric}} gerade {{delta}} zu niedrig",
-      "since": "seit {{time}}",
-      "maintenance": "Wartung bis {{until}} · Regelung und Alarme pausieren",
-      "settling": "Wartung vorbei · Alarme ruhen noch bis {{until}}",
-      "stale": "Letzte Werte von {{time}} · das Gerät meldet sich verzögert",
-      "noTargets": "Werte kommen an · noch keine Zielwerte",
-      "waiting": "Wartet auf die ersten Werte",
-      "controlOff": "Regelung aus: Das Gerät hält keine Zielwerte"
-    },
-    "metric": {
-      "temperature": "Temperatur",
-      "humidity": "Luftfeuchte",
-      "light": "Licht",
-      "co2": "CO₂"
-    },
-    "tile": {
-      "high": "{{delta}} zu hoch",
-      "low": "{{delta}} zu niedrig",
-      "settling": "im Übergang bis {{time}}"
-    },
-    "light": {
-      "off": "Aus",
-      "dark": {
-        "off": "aus · Regelung aus",
-        "drying": "aus · Trocknung",
-        "germination": "aus · Keimung"
-      },
-      "always": "durchgehend an · 24 Std",
-      "never": "durchgehend aus · 0 Std"
-    },
-    "leaf": {
-      "lux": "{{value}} lx",
-      "ppfd": "PPFD {{value}}"
-    },
-    "camera": {
-      "none": "Noch kein Bild",
-      "delivers": "{{name}} liefert · Bild vor {{age}}",
-      "quietSince": "{{name}} liefert nicht · seit {{time}}",
-      "nothingYet": "{{name}} hat noch kein Bild geliefert"
-    },
-    "targets": {
-      "title": "Zielwerte",
-      "day": "Tag",
-      "night": "Nacht",
-      "drying": "Trocknung",
-      "germination": "Keimung",
-      "light": "Licht",
-      "none": "Noch keine Zielwerte.",
-      "controlOff": "Regelung aus: Das Gerät hält gerade keine Zielwerte.",
-      "awaiting": "Wartet auf die Einstellungen des Geräts.",
-      "roundTheClock": "Rund um die Uhr"
-    },
-    "latest": {
-      "title": "Zuletzt",
-      "none": "Noch nichts passiert."
-    },
-    "card": {
-      "lightOff": "Licht aus"
-    },
-    "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone."
   },
   "climatePick": {
     "label": "Zielwerte",
@@ -5096,18 +5020,31 @@
     "waiting": "Start lädt",
     "addPlace": "Ort hinzufügen",
     "menu": {
-      "label": "{{name}} bearbeiten"
+      "label": "{{name}} bearbeiten",
+      "deviceHere": "Gerät hierher holen",
+      "members": "Mitglieder einladen",
+      "rename": "Umbenennen",
+      "putInRoom": "In einen Raum stellen",
+      "room": "Raum",
+      "remove": "Ort entfernen"
     },
     "light": {
       "onUntil": "an bis {{time}}",
       "offUntil": "aus bis {{time}}",
       "always": "durchgehend an",
-      "never": "durchgehend aus"
+      "never": "durchgehend aus",
+      "off": "Aus",
+      "dark": {
+        "off": "aus · Regelung aus",
+        "drying": "aus · Trocknung",
+        "germination": "aus · Keimung"
+      }
     },
     "card": {
       "light": "Licht {{level}}",
       "good": "im Ziel",
-      "check": "prüfen"
+      "check": "prüfen",
+      "lightOff": "Licht aus"
     },
     "extra": {
       "co2": "CO₂ {{value}}",
@@ -5132,14 +5069,26 @@
     "latest": {
       "diary": "Ganzes Tagebuch",
       "pictures_one": "{{count}} Bild",
-      "pictures_other": "{{count}} Bilder"
+      "pictures_other": "{{count}} Bilder",
+      "title": "Zuletzt",
+      "none": "Noch nichts passiert."
     },
     "targets": {
       "window": "{{on}} bis {{off}}",
       "limit": "Grenze {{percent}} %",
       "whoChanges": "Ändern kann, wer {{name}} verwaltet.",
       "changeOffline": "Zielwerte und Licht ändern",
-      "offlineNote": "Geht auch jetzt. Das Gerät übernimmt es, sobald es wieder online ist."
+      "offlineNote": "Geht auch jetzt. Das Gerät übernimmt es, sobald es wieder online ist.",
+      "title": "Zielwerte",
+      "day": "Tag",
+      "night": "Nacht",
+      "drying": "Trocknung",
+      "germination": "Keimung",
+      "light": "Licht",
+      "none": "Noch keine Zielwerte.",
+      "controlOff": "Regelung aus: Das Gerät hält gerade keine Zielwerte.",
+      "awaiting": "Wartet auf die Einstellungen des Geräts.",
+      "roundTheClock": "Rund um die Uhr"
     },
     "grow": {
       "title": "Was wächst in {{name}}?",
@@ -5194,7 +5143,44 @@
       "germination": "Keimung · dunkel",
       "germinationHumidified": "Keimung · dunkel · Befeuchter hält {{humidity}}",
       "greenhouse": "Betriebsart Gewächshaus"
-    }
+    },
+    "change": "Ändern",
+    "status": {
+      "good": "Alles im Ziel",
+      "high": "{{metric}} {{delta}} zu hoch",
+      "low": "{{metric}} {{delta}} zu niedrig",
+      "highNow": "{{metric}} gerade {{delta}} zu hoch",
+      "lowNow": "{{metric}} gerade {{delta}} zu niedrig",
+      "since": "seit {{time}}",
+      "maintenance": "Wartung bis {{until}} · Regelung und Alarme pausieren",
+      "settling": "Wartung vorbei · Alarme ruhen noch bis {{until}}",
+      "stale": "Letzte Werte von {{time}} · das Gerät meldet sich verzögert",
+      "noTargets": "Werte kommen an · noch keine Zielwerte",
+      "waiting": "Wartet auf die ersten Werte",
+      "controlOff": "Regelung aus: Das Gerät hält keine Zielwerte"
+    },
+    "metric": {
+      "temperature": "Temperatur",
+      "humidity": "Luftfeuchte",
+      "light": "Licht",
+      "co2": "CO₂"
+    },
+    "tile": {
+      "high": "{{delta}} zu hoch",
+      "low": "{{delta}} zu niedrig",
+      "settling": "im Übergang bis {{time}}"
+    },
+    "leaf": {
+      "lux": "{{value}} lx",
+      "ppfd": "PPFD {{value}}"
+    },
+    "camera": {
+      "none": "Noch kein Bild",
+      "delivers": "{{name}} liefert · Bild vor {{age}}",
+      "quietSince": "{{name}} liefert nicht · seit {{time}}",
+      "nothingYet": "{{name}} hat noch kein Bild geliefert"
+    },
+    "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone."
   },
   "liveness": {
     "ago": "vor {{age}}",

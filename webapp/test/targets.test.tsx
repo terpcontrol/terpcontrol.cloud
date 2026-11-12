@@ -360,7 +360,7 @@ describe('the targets page', () => {
   /**
    * Which half holds is the device's word, as the server answers it for a
    * device that is heard - by its clock and its mode, never by the lamp. The
-   * page used to work it out itself and said "day" where the cockpit beside it
+   * page used to work it out itself and said "day" where Start beside it
    * said "night".
    */
   it('shades the column the device says holds now, and says until when', async () => {

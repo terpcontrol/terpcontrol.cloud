@@ -2277,7 +2277,12 @@
       "germination": "Germination target {{low}}–{{high}}"
     },
     "legendNone": "No night: one target round the clock",
-    "laneAverage": "avg {{share}} %"
+    "laneAverage": "avg {{share}} %",
+    "devices": {
+      "waiting": "Reading the device …",
+      "pick": "Which device",
+      "all": "All devices"
+    }
   },
   "camera": {
     "never": "never",
@@ -3694,7 +3699,6 @@
       "place": "Place",
       "timeline": "Timeline",
       "charts": "Charts",
-      "cockpit": "Open the place",
       "settings": "Settings, as sent to the device",
       "noSettings": "The device has no settings document yet.",
       "factors": "Factors and control",
@@ -3702,7 +3706,8 @@
       "lines": "The device's messages",
       "noLines": "The device has reported nothing yet.",
       "clockTime": "{{utc}} UTC",
-      "clockTimeThere": "{{utc}} UTC · {{there}} for the customer"
+      "clockTimeThere": "{{utc}} UTC · {{there}} for the customer",
+      "open": "Open the place"
     }
   },
   "units": {
@@ -4299,87 +4304,6 @@
       "taken": "Another place already has this name.",
       "note": "This is what Home, the Timeline, Control and every alert call the place."
     }
-  },
-  "cockpit": {
-    "change": "Change",
-    "menu": {
-      "deviceHere": "Bring a device here",
-      "members": "Invite members",
-      "rename": "Rename",
-      "putInRoom": "Put in a room",
-      "room": "Room",
-      "remove": "Remove place"
-    },
-    "devices": {
-      "waiting": "Reading the device …",
-      "pick": "Which device",
-      "all": "All devices"
-    },
-    "status": {
-      "good": "All on target",
-      "high": "{{metric}} {{delta}} too high",
-      "low": "{{metric}} {{delta}} too low",
-      "highNow": "{{metric}} {{delta}} too high just now",
-      "lowNow": "{{metric}} {{delta}} too low just now",
-      "since": "since {{time}}",
-      "maintenance": "Maintenance until {{until}} · regulation and alarms paused",
-      "settling": "Maintenance over · alarms held until {{until}}",
-      "stale": "Last readings from {{time}} · the device is reporting late",
-      "noTargets": "Readings arriving · no targets yet",
-      "waiting": "Waiting for the first readings",
-      "controlOff": "Control off: the device holds no targets"
-    },
-    "metric": {
-      "temperature": "Temperature",
-      "humidity": "Humidity",
-      "light": "Light",
-      "co2": "CO₂"
-    },
-    "tile": {
-      "high": "{{delta}} too high",
-      "low": "{{delta}} too low",
-      "settling": "changing over until {{time}}"
-    },
-    "light": {
-      "off": "Off",
-      "dark": {
-        "off": "off · control off",
-        "drying": "off · drying",
-        "germination": "off · germination"
-      },
-      "always": "on round the clock · 24 h",
-      "never": "off round the clock · 0 h"
-    },
-    "leaf": {
-      "lux": "{{value}} lx",
-      "ppfd": "PPFD {{value}}"
-    },
-    "camera": {
-      "none": "No picture yet",
-      "delivers": "{{name}} delivers · picture {{age}} ago",
-      "quietSince": "{{name}} not delivering · since {{time}}",
-      "nothingYet": "{{name}} has not delivered a picture yet"
-    },
-    "targets": {
-      "title": "Targets",
-      "day": "Day",
-      "night": "Night",
-      "drying": "Drying",
-      "germination": "Germination",
-      "light": "Light",
-      "none": "No targets yet.",
-      "controlOff": "Control off: the device holds no targets right now.",
-      "awaiting": "Waiting for the device's settings.",
-      "roundTheClock": "Round the clock"
-    },
-    "latest": {
-      "title": "Latest",
-      "none": "Nothing has happened yet."
-    },
-    "card": {
-      "lightOff": "Light off"
-    },
-    "visiting": "Support view of a customer's place: read only. Times are in your time zone."
   },
   "climatePick": {
     "label": "Targets",
@@ -5088,18 +5012,31 @@
     "waiting": "Start is loading",
     "addPlace": "Add a place",
     "menu": {
-      "label": "Edit {{name}}"
+      "label": "Edit {{name}}",
+      "deviceHere": "Bring a device here",
+      "members": "Invite members",
+      "rename": "Rename",
+      "putInRoom": "Put in a room",
+      "room": "Room",
+      "remove": "Remove place"
     },
     "light": {
       "onUntil": "on until {{time}}",
       "offUntil": "off until {{time}}",
       "always": "on round the clock",
-      "never": "off round the clock"
+      "never": "off round the clock",
+      "off": "Off",
+      "dark": {
+        "off": "off · control off",
+        "drying": "off · drying",
+        "germination": "off · germination"
+      }
     },
     "card": {
       "light": "Light {{level}}",
       "good": "on target",
-      "check": "check"
+      "check": "check",
+      "lightOff": "Light off"
     },
     "extra": {
       "co2": "CO₂ {{value}}",
@@ -5124,14 +5061,26 @@
     "latest": {
       "diary": "Whole diary",
       "pictures_one": "{{count}} picture",
-      "pictures_other": "{{count}} pictures"
+      "pictures_other": "{{count}} pictures",
+      "title": "Latest",
+      "none": "Nothing has happened yet."
     },
     "targets": {
       "window": "{{on}} to {{off}}",
       "limit": "limit {{percent}} %",
       "whoChanges": "Whoever manages {{name}} can change them.",
       "changeOffline": "Change targets and light",
-      "offlineNote": "Works now too. The device takes it over as soon as it is back online."
+      "offlineNote": "Works now too. The device takes it over as soon as it is back online.",
+      "title": "Targets",
+      "day": "Day",
+      "night": "Night",
+      "drying": "Drying",
+      "germination": "Germination",
+      "light": "Light",
+      "none": "No targets yet.",
+      "controlOff": "Control off: the device holds no targets right now.",
+      "awaiting": "Waiting for the device's settings.",
+      "roundTheClock": "Round the clock"
     },
     "grow": {
       "title": "What grows in {{name}}?",
@@ -5186,7 +5135,44 @@
       "germination": "Germination · dark",
       "germinationHumidified": "Germination · dark · humidifier holds {{humidity}}",
       "greenhouse": "Greenhouse mode"
-    }
+    },
+    "change": "Change",
+    "status": {
+      "good": "All on target",
+      "high": "{{metric}} {{delta}} too high",
+      "low": "{{metric}} {{delta}} too low",
+      "highNow": "{{metric}} {{delta}} too high just now",
+      "lowNow": "{{metric}} {{delta}} too low just now",
+      "since": "since {{time}}",
+      "maintenance": "Maintenance until {{until}} · regulation and alarms paused",
+      "settling": "Maintenance over · alarms held until {{until}}",
+      "stale": "Last readings from {{time}} · the device is reporting late",
+      "noTargets": "Readings arriving · no targets yet",
+      "waiting": "Waiting for the first readings",
+      "controlOff": "Control off: the device holds no targets"
+    },
+    "metric": {
+      "temperature": "Temperature",
+      "humidity": "Humidity",
+      "light": "Light",
+      "co2": "CO₂"
+    },
+    "tile": {
+      "high": "{{delta}} too high",
+      "low": "{{delta}} too low",
+      "settling": "changing over until {{time}}"
+    },
+    "leaf": {
+      "lux": "{{value}} lx",
+      "ppfd": "PPFD {{value}}"
+    },
+    "camera": {
+      "none": "No picture yet",
+      "delivers": "{{name}} delivers · picture {{age}} ago",
+      "quietSince": "{{name}} not delivering · since {{time}}",
+      "nothingYet": "{{name}} has not delivered a picture yet"
+    },
+    "visiting": "Support view of a customer's place: read only. Times are in your time zone."
   },
   "liveness": {
     "ago": "{{age}} ago",
