@@ -1,7 +1,7 @@
 ---
 summary: Working on the device firmware or on what the server does with it - build, flash, serial log, OTA and update channels, memory, NVS and RTC limits, reconnecting and the daily recovery reboot, safety stops, known gaps
-updated: 2026-10-12
-source: Chris (decisions 2026-07..10); agent sessions and PR descriptions 2026-05..10, #145; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; connection-loss tests on the development devices (2026-10-12)
+updated: 2026-11-12
+source: Chris (decisions 2026-07..10); agent sessions and PR descriptions 2026-05..10, #145; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; connection-loss tests on the development devices (2026-10-12); `manual` in the app and checking the firmware card on a stack without firmware (the redesign session of 2026-11-12)
 paths:
   - firmware/**
   - fw-buildcontainer/**
@@ -250,6 +250,19 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   newest of those, and the running and targeted builds (`GET /v1/devices/{id}/firmwares`, `PATCH /v1/devices/{id}`;
   Chris, 2026-10-06); an administrator any build. Migration `005-devices` mapped the old fields
   (`cloudSettings.firmwareChannel`, else auto-update on to `stable`, else `manual`).
+- In the app `manual` is the firmware card's switch "Automatisch aktualisieren" off
+  (`webapp/src/screens/devices/Firmware.tsx`; the redesign session of 2026-11-12). The pick and "Installieren …"
+  write `PATCH /v1/devices/{id}` with `firmware: { channel: 'manual', targetId }`, and switching the channel sends
+  the `targetId` the device has along, since `firmware` is written whole. "Jetzt aktualisieren" / "Update vom …"
+  is that same pin onto the stable channel's current build, offered only to a `manual` device whose running build
+  is known to the list and older (`firmware-builds.ts`).
+- **Checking the card on a stack without real firmware** (the redesign session of 2026-11-12): a fresh stack has
+  no build, so the card says "Version nicht bekannt" and the pick "Keine Builds für diese Geräteklasse". Register
+  a build on the administrator's screen `/admin/firmware` ("Build anlegen", then "Datei hochladen" - any file does
+  for a simulated device, which reports the id it is told) and point a channel at it with "Übernehmen". A class is
+  all devices of one type on the stack: pointing `stable` at a build tells every device of that type that follows
+  `stable`, so use a type whose devices are yours to update. A simulated device reports the new id a few seconds
+  after being told; the card shows it at the next read of the device list (the 30 s beat).
 - A build is not deleted while a channel of a class points at it (409 `firmware_in_use`).
 - The firmware id is a uuid, not an orderable version: gate a new feature on a capability the device announces, never
   on its version ([device-protocol.md 12](../device-protocol.md#12-extending-it-safely)).

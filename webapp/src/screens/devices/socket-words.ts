@@ -4,16 +4,9 @@ import type { Translate } from '@/i18n/i18n';
 import { ageLabel, durationLabel, leftLabel } from '@/ui/age';
 import type { SocketRowModel } from './sockets';
 
-/**
- * A smart socket in words, wherever one is named: on its own page and in the
- * rows that lead to it.
- */
+/** A smart socket in words, wherever one is named. */
 
-/**
- * The socket's name: the role, numbered where the role holds more than one
- * socket. Two lamps in one tent are two sockets called "Licht", and a person
- * switching one of them off has to know which one they have got.
- */
+/** The socket's name: the role, numbered where the role holds more than one socket - two lamps are two sockets called "Licht". */
 export const socketName = (t: Translate, row: SocketRowModel): string =>
   row.ordinal === null ? t(row.titleKey) : t('devices.socket.numbered', { name: t(row.titleKey), number: row.ordinal });
 
@@ -23,8 +16,7 @@ export const forcedOf = (row: SocketRowModel) => (row.override && row.override.s
 /**
  * What the socket is doing: on or off as the device last reported it, and
  * whether its role switches it ("Auto") or a person holds it and for how much
- * longer. A socket that was answering and stopped says since when; one the
- * device says nothing about says that.
+ * longer. A socket that was answering and stopped says since when.
  *
  * What is left of a hold is read off the clock as it is drawn: a countdown
  * rounds up, and against the page's beat - up to ten seconds old when a table

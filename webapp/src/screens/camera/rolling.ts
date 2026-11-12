@@ -5,8 +5,7 @@ import type { MediaWindow } from '@fg2/shared-types/v1';
  * Why a rolling film would hold no picture at all, as the key of the sentence
  * that says so, or null where it may. The camera page's one-tap buttons and the
  * composer's chips of the same name ask this one question, so the two cannot
- * offer different films under one word: the composer's Today used to queue a
- * render for a camera the button beside it had already said was dark.
+ * offer different films under one word.
  *
  * Each window is proved empty by its own arithmetic. The day holding now never
  * starts earlier than a day ago, so a newest picture older than that proves it

@@ -12,13 +12,12 @@ import type { HelpTopic } from '@/ui/explain';
  * What a few growers tune about the hardware itself: how slowly the lamp
  * comes up and goes down, whether it stays on through a maintenance window at
  * night, whether CO2 is dosed in the dark, and how long a fridge's compressor
- * rests - its fans are outputs and are set under Steuerung. The settings are
- * the device's own document's, by the names `CONFIGURATION_FIELDS` gives
- * them, so the range a sheet offers is the range the server holds it to, and
- * each is saved and answered as every other setting of the device is.
+ * rests. The settings are the device's own document's, by the names
+ * `CONFIGURATION_FIELDS` gives them, so the range a sheet offers is the range
+ * the server holds it to.
  *
  * Each is drawn only where the firmware reads it, and only once the device has
- * sent its document: there is nothing to change a figure in before that.
+ * sent its document.
  */
 
 const hasDocument = (device: Device): boolean => device.configuration != null && Object.keys(device.configuration).length > 0;

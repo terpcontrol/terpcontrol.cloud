@@ -2411,8 +2411,7 @@
       "terpcam_controller": "Terp Cam",
       "terpcam_standalone": "standalone · Wi-Fi",
       "rtsp": "RTSP"
-    },
-    "title": "Camera"
+    }
   },
   "cameras": {
     "add": {
@@ -3257,7 +3256,6 @@
     "next": "Next · {{what}}",
     "finish": "Done · open the place",
     "later": "The preset can be changed later from Control, the sockets and the cam with the devices there, notifications from Me.",
-    "addDevice": "Add a device",
     "demo": "The demo may look at everything and change nothing, so it cannot claim hardware. Sign in with your own account to add a device.",
     "code": {
       "title": "Read the code off the display",

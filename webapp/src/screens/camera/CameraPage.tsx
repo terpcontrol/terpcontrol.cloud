@@ -64,12 +64,11 @@ const ADDRESS_REST_MS = 150;
 /**
  * The day the slider was left on, null for today. It stands in the address
  * (`?day=`), so a reload and the way back find it - written there without a
- * navigation: the history entry stays the one it was, because what the page
- * keeps for it (`ui/kept.ts`) and the entry a sheet left behind
- * (`ui/sheet-back.ts`) are found by its key, which a navigation renews. So
- * moving the slider adds nothing to the history either. A sheet stands on an
- * entry of its own: Back out of one lands on the page's first entry, whose
- * address is then told the day too.
+ * navigation, which would renew the entry's key, and what the page keeps for
+ * the entry (`ui/kept.ts`) and what a sheet left on it (`ui/sheet-back.ts`)
+ * are found by that key. So moving the slider adds nothing to the history. A
+ * sheet stands on an entry of its own: Back out of one lands on the page's
+ * first entry, whose address is then told the day too.
  */
 function useDayInAddress(): [number | null, (day: number | null) => void] {
   const [params] = useSearchParams();
@@ -104,11 +103,10 @@ function useDayInAddress(): [number | null, (day: number | null) => void] {
 type Diary = ReturnType<typeof useGrowDiary>;
 
 /**
- * The page of a camera that is there. The days under the picture are the
- * days of the grow running where the camera looks, read from that grow's
- * diary - so a camera nothing grows in front of has no days, only its newest
- * picture, and the films that grow left stay those of the last one. Exported
- * for the tests, which drive the page itself rather than the read above it.
+ * The page of a camera that is there. The days under the picture are the days
+ * of the grow running where the camera looks, read from that grow's diary: a
+ * camera nothing grows in front of has only its newest picture, and the films
+ * the last grow left. Exported for the tests, which drive the page itself.
  */
 export function CameraScreen({ camera, failedAt = null }: { camera: Camera; failedAt?: number | null }) {
   const grows = useSpaceGrows(camera.spaceId).data?.items ?? [];
@@ -388,11 +386,9 @@ const pillOf = (t: Translate, camera: Camera, freshness: string, waitsFor: strin
 
 /**
  * Why "Jetzt ein Bild" brought no picture, under the row it stands in: the
- * kind of failure, as the box over the picture names the camera's last one,
- * with the camera's own words for its owner. A request that never reached the
- * server is not that: the camera was not asked. The press waits as long as
- * the server's read may take and a little longer, so nothing within that says
- * to press again rather than to wait on.
+ * kind of failure, with the camera's own words for its owner. A request that
+ * never reached the server is not that: the camera was not asked. The press
+ * waits as long as the server's read may take and a little longer.
  */
 function Shot({ test, mayOwn, offline }: { test: ReturnType<typeof useTestCapture>; mayOwn: boolean; offline: boolean }) {
   const { t } = useTranslation();

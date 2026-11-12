@@ -66,11 +66,10 @@ export interface SheetFigure {
 export type SheetValues = Readonly<Record<string, number>>;
 
 /**
- * The sheet a setting of a device is changed on, wherever it stands: the
- * figure with − and + either side of it, what it amounts to under it, and
- * "Speichern", before which nothing is written. Most settings are one figure;
- * a sheet holds several only where they make sense together - the point a
- * socket switches on at and the one it switches off at, a window's start and
+ * The sheet a setting of a device is changed on: the figure with − and +
+ * either side of it, what it amounts to under it, and "Speichern", before
+ * which nothing is written. A sheet holds several figures only where they
+ * make sense together - a socket's two switch points, a window's start and
  * its length.
  */
 export function ValueSheet({

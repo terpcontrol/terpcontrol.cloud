@@ -52,16 +52,14 @@ const KEPT_BY_SERVER: readonly (keyof CameraUpdate)[] = ['url', 'username', 'pas
  * reached, what it is pointed at, when it takes a picture, what it says when
  * it stops, how long its Premium runs - and, for its owner, the way to take
  * it off the account. Everything the contract lets a camera be set to is
- * here, because a setting with no screen is one nobody can undo.
+ * here: a setting with no screen is one nobody can undo.
  *
  * How it is reached is what the camera *is* and is stated rather than
  * offered; a stream's address can be corrected, and how it is pulled is under
- * Erweitert. Somebody who may only look reads the same facts with no fields.
- * One Save writes what was changed - a switch and Erweitert included, so no
- * answer stands over the sheet - and the toast names it, with the way back
- * where the server can put it back; closing with something unsaved asks
- * first. The fields are `manage` where the camera stands, taking it off the
- * account is `own`, as the routes ask them.
+ * Erweitert. One Save writes what was changed - a switch and Erweitert
+ * included, so no answer stands over the sheet - and closing with something
+ * unsaved asks first. The fields are `manage` where the camera stands, taking
+ * it off the account is `own`, as the routes ask them.
  */
 export function CameraSettings({
   camera,

@@ -10,13 +10,10 @@ import { readStored, writeStored } from '@/ui/stored';
 
 /**
  * Where a place's pages are, and the one place Grow, Verlauf and Steuerung are
- * about.
- *
- * A place has one page of its own, its Start, and the pages it is a tap from -
- * who else is let in. Grow, Verlauf and Steuerung are items of the bar and not
- * pages of a place: they show the place chosen in the header, and whatever
- * names another - a link from an alert, a page that belongs to that place -
- * chooses it, so the header never names a place the page is not about.
+ * about. Those three are items of the bar and not pages of a place: they show
+ * the place chosen in the header, and whatever names another - a link from an
+ * alert, a page that belongs to that place - chooses it, so the header never
+ * names a place the page is not about.
  */
 
 /** A card of the home that stands for a place, rather than for a grow standing in none. */
@@ -39,16 +36,9 @@ export const SCHEMES = `${ALL_GROWS}/schemes`;
 export const SHARE_LINKS = `${ALL_GROWS}/share-links`;
 export const FOLLOWING = `${ALL_GROWS}/following`;
 
-/** What the list of every grow is told when Ich's door opened it, so its way back leads to Ich rather than to Grow. */
-export const FROM_ME = { from: 'me' } as const;
-
-/** Whether a page was opened from where `from` says, by the state the link that opened it carried. */
-export const openedFrom = (state: unknown, from: { from: string }): boolean => (state as { from?: unknown } | null)?.from === from.from;
-
 /**
- * What a page under a grow - its measurements, one of its plants - is told by
- * the link that opened it: the address it leads back to. A grow is on screen
- * under two, the bar's own and its id, and the way back is the one taken.
+ * What a socket's page is told by the row under Ausgänge that opened it: the address it puts in its own place once
+ * the socket is removed. The head's arrow needs none - it steps back in history (`ui/BackLink.tsx`).
  */
 export const leadingBackTo = (pathname: string) => ({ back: pathname });
 
@@ -151,11 +141,8 @@ const pagePlace = (): string | null => pageOf;
  * A page that belongs to one of the account's places says so: the place's
  * Start, who is let into it, a grow running there, its camera, its devices.
  * Opening it makes that place the chosen one, and while it is on screen the
- * header's choice of another leads to that one's Start - the page has nothing
- * to say about a place it does not belong to.
- *
- * A place that is none of the account's - a customer's, read by support - is
- * no choice of the reader's and is left out.
+ * header's choice of another leads to that one's Start. A place that is none
+ * of the account's - a customer's, read by support - is left out.
  */
 export const usePageOfPlace = (spaceId: string | null) => {
   const { user } = useSession();
@@ -181,9 +168,8 @@ export const usePageOfGrow = (grow: { endedAt: string | null; placements: Placem
 /**
  * The place a browser that has chosen none is shown, the same for Grow,
  * Verlauf and Steuerung: in the order Start lists the places (`startOrder`)
- * the first where a grow runs, else the first with a device, else the first.
- * So Grow does not open on an empty balcony while a tent is in flower, and the
- * place the header names is one Start shows near its top.
+ * the first where a grow runs, else the first with a device, else the first -
+ * so Grow does not open on an empty balcony while a tent is in flower.
  */
 export const firstChoice = (places: PlaceCard[], spaces: readonly Space[]): PlaceCard | null => {
   const ordered = startOrder(places, spaces).flatMap(group => group.cards);

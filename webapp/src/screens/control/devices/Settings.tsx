@@ -20,12 +20,10 @@ import styles from './Own.module.css';
 
 /**
  * What a device's settings beyond its targets are drawn with, wherever they
- * stand - a socket's switching, a fan's speeds, a fridge's fans, the work mode
- * and everything under Erweitert: a block of lines, each a name with what it
- * is set to. A figure opens the value sheet, one of a few its sheet of
- * choices, and a switch is written on the tap; every write goes through the
- * block's one `useSettings` and is answered by the toast. Whoever may not
- * manage the device reads the same lines and is offered no control.
+ * stand: a block of lines, each a name with what it is set to. A figure opens
+ * the value sheet, one of a few its sheet of choices, and a switch is written
+ * on the tap; every write goes through the block's one `useSettings`. Whoever
+ * may not manage the device reads the same lines and is offered no control.
  */
 
 interface SettingProps {

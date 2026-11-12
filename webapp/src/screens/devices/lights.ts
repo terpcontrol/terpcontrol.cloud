@@ -8,18 +8,12 @@ import { readStored, writeStored } from '@/ui/stored';
 import type { Held } from './HandHold';
 
 /**
- * The two different things that light a tent, which one screen has to keep
- * apart.
- *
- * The controller drives its lamp itself, on a PWM channel, and reports what it
- * is doing as a percentage: it is dimmable, it ramps through sunrise and sunset,
- * and the brightness it runs at is a key of its own configuration document
- * rather than anything a command carries. A light socket is a plug with a role,
- * on or off and nothing between; it follows the output whenever the output is
- * above zero, unless an override of its own is holding it.
- *
- * So the output takes a level and the plugs take a switch, and neither control
- * can stand in for the other.
+ * The two things that light a tent, which one screen has to keep apart. The
+ * controller drives its lamp itself and reports a percentage: it is dimmable,
+ * ramps through sunrise and sunset, and its brightness is a key of its own
+ * configuration document. A light socket is a plug with a role, on or off; it
+ * follows the output whenever that is above zero, unless an override of its
+ * own holds it. So the output takes a level and the plugs take a switch.
  */
 
 /** The roles whose sockets follow the controller's light output, and so belong beside it. */
@@ -29,15 +23,12 @@ export const isLightRole = (role: SocketRole): boolean => LIGHT_ROLES.includes(r
 
 /**
  * Where a device states the brightness it runs its lamp at, as a percentage of
- * the lamp's own maximum. The firmware caps the light curve with it, so it is a
- * ceiling and not a dimmer knob: the lamp still ramps up at sunrise and is dark
- * at night, and this is how bright it gets in between.
+ * the lamp's own maximum. The firmware caps the light curve with it, so it is
+ * a ceiling and not a dimmer knob.
  *
- * The controller and the fridge keep it in a `lights` section, and a client
- * that once wrote it dotted meant the same thing, so both are read - exactly as
- * the server reads a setpoint out of the same document. A Light keeps it at the
- * top of its document as `limit`, and reads nothing else: a brightness written
- * into a section there is a key the lamp never looks at.
+ * The controller and the fridge keep it in a `lights` section - also where a
+ * client wrote it dotted, as the server reads a setpoint. A Light keeps it at
+ * the top of its document as `limit` and reads nothing else.
  */
 const SECTION = 'lights';
 const FIELD = 'limit';
@@ -52,12 +43,10 @@ const lightLimitOf = (configuration: DeviceConfiguration | null, type: Device['t
 };
 
 /**
- * The controller's own light output, as its row is drawn from it.
- *
- * `level` is a reading: a lamp set to 60 % is dark at night all the same, and
- * only the reading can tell a grower which of the two the tent is in. The
- * device acknowledges neither a setting nor an override, so what it reports
- * is the only thing here that is a fact about the hardware.
+ * The controller's own light output, as its row is drawn from it. `level` is
+ * a reading: a lamp set to 60 % is dark at night all the same. The device
+ * acknowledges neither a setting nor an override, so what it reports is the
+ * only fact here about the hardware.
  */
 export interface LightOutput {
   deviceId: string;

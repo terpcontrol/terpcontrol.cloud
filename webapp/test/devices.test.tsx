@@ -740,6 +740,8 @@ describe('a device on its own page', () => {
 
     it('offers a Plantalytix Socket no plan, no outputs and no mode, and an AIR fan no outputs that would only lead back', async () => {
       place.leads = false;
+      // Neither build announces a light output of its own, which is what would give it one under Ausgänge.
+      wire.capabilities = { ...CAPABILITIES, lightOverride: false };
       wire.devices = [controller({ type: 'plug', control: null, configuration: { mode: 2 } })];
       await draw('/devices/device-1', 'Plantalytix Socket');
       const rows = () => within(screen.getByRole('navigation', { name: 'Under Control' }));
@@ -752,6 +754,18 @@ describe('a device on its own page', () => {
       await draw('/devices/device-1', 'Fan');
       expect(await rows().findByRole('link', { name: /^Alarms/ })).toBeInTheDocument();
       expect(rows().queryByRole('link', { name: /^Outputs/ })).not.toBeInTheDocument();
+    });
+
+    /** What a device has under Ausgänge is asked as that page asks it, so a lamp module is led to the hold of its lamp. */
+    it('leads a LIGHT to its lamp under Ausgänge, and says there what this browser holds it at', async () => {
+      place.leads = false;
+      wire.devices = [controller({ type: 'light', control: null, configuration: { limit: 80, lightsOn: 0, lightsOff: 43200 } })];
+      localStorage.setItem('terp.lightHold.device-1', JSON.stringify({ state: 'off', until: NOW.plus({ minutes: 30 }).toISO() }));
+      await draw('/devices/device-1', 'Light');
+
+      const outputs = await within(screen.getByRole('navigation', { name: 'Under Control' })).findByRole('link', { name: /^Outputs/ });
+      expect(outputs).toHaveAttribute('href', '/control/outputs?space=space-1&device=device-1');
+      expect(outputs).toHaveTextContent(/held off/);
     });
 
     it('offers somebody who may not steer the curves alone', async () => {

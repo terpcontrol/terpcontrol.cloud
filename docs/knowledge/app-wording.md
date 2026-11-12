@@ -1,7 +1,7 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
 updated: 2026-11-12
-source: Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08
+source: Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk)
 paths:
   - webapp/public/assets/i18n/**
   - webapp/src/ui/figures.ts
@@ -37,6 +37,7 @@ string exists in English and German, with no English left in the German catalogu
 | the charts screen | Charts | Graph / Graphen, not Chart or Diagramm |
 | what a device holds | targets | Zielwerte, not Sollwerte |
 | a stage's climate in one tap; a saved plan | climate preset; template | Klima-Preset; Vorlage |
+| a place, a device or a camera that reports | online | online (never "live"; "verbunden" only in "Verbunden über") |
 | the automatic schedule | plan | Plan, never Rezept; old message keys stay and read the new way |
 | the lamp's ceiling | light limit | Lichtgrenze |
 | maintenance | Maintenance · 15 min | Wartung · 15 Min ("Regelung und Alarme pausieren") |
@@ -69,6 +70,18 @@ string exists in English and German, with no English left in the German catalogu
   existing ones ("Zelt 2", "Kühlschrank 1", "Ort 1"), never the raw type key.
 - "Keimung · dunkel" and "Sämling · mit Licht" name the stage only where choosing it sets the climate (see
   [app-ux.md §5](app-ux.md#5-controls)).
+- **What reports is "online"** (the redesign session of 2026-11-12): on the pill ("online · vor 20 s"), a
+  device's card and a camera's row. A device's page says it on the pill and nowhere else. "live" is said of
+  none of them, and "verbunden" only of how a camera or a socket is reached ("Verbunden über").
+- **A stage's climate is never a "Vorlage"** (the redesign session of 2026-11-12): the button over the targets,
+  its sheet, the group the alarm rules a stage wrote stand under ("Aus dem Klima-Preset Blüte") and their tag
+  say "Klima-Preset". "Vorlage" is a saved plan - and a ready-made measurement on a grow's Messwerte page -, and
+  the ready-made form of a webhook is "Dienst für den Webhook" (`alarms.sheet.template`, `help.webhookTemplate`).
+- English: the page is "Control" and so is the regulation (`climateControl.*`), so Steuerung's pill reads
+  "Regulating" / "Not regulating" rather than "Control · Control on". An output held by hand is "held on", never
+  "forced on" (`devices.socket.forced`). A device's page says "in {{place}}", and its sheet's block is "Place".
+- A place with nothing to steer and an account with no place read one sentence at Steuerung's address: "Hier gibt
+  es noch nichts zu steuern: Zielwerte und Alarme kommen mit dem ersten Gerät." (`place.control.nothing`).
 - Superseded names: "Pflegemodus" (Chris, 2025-11-07, the old app) and the rewrite's "Reingehen" / "Alarme aus"
   became "Wartung" (2026-10-04); "Bereich" (2026-09-23) became "Ort" (Chris, 2026-10-01), and English "space" became
   "place" (2026-10-04).

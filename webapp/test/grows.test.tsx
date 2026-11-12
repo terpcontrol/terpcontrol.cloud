@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { createMemoryRouter, type InitialEntry, RouterProvider } from 'react-router';
+import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MyGrowCard } from '@fg2/shared-types/v1';
 import { LogProvider } from '@/log/LogProvider';
@@ -96,7 +96,7 @@ vi.stubGlobal(
   }),
 );
 
-const draw = (node: React.ReactNode, at?: InitialEntry) => drawAt(<LogProvider>{node}</LogProvider>, { at });
+const draw = (node: React.ReactNode) => drawAt(<LogProvider>{node}</LogProvider>);
 
 const shelf = (name: string) => screen.getByRole('region', { name });
 
@@ -156,13 +156,9 @@ describe('the page', () => {
     vi.useRealTimers();
   });
 
-  it('leads back to Grow, or to Me where its door there opened it', async () => {
-    const grow = draw(<Grows />);
+  it('leads up to Grow where it was opened by its address', async () => {
+    draw(<Grows />);
     expect(await screen.findByRole('link', { name: 'Back to Grow' })).toHaveAttribute('href', '/grow');
-    grow.unmount();
-
-    draw(<Grows />, { pathname: '/grows', state: { from: 'me' } });
-    expect(await screen.findByRole('link', { name: 'Back to Me' })).toHaveAttribute('href', '/me');
   });
 
   it('leaves a half out that holds nothing, and says so where there is no grow at all', async () => {
@@ -225,7 +221,7 @@ describe('the page', () => {
 describe('the address of a grow opened by its id', () => {
   const drawRoute = (pathname: string) => {
     const router = createMemoryRouter([{ path: '/grows/:growId/:tab?', element: <GrowPage /> }], {
-      initialEntries: [{ pathname, state: { from: 'me' } }],
+      initialEntries: [pathname],
     });
     render(
       <QueryClientProvider client={testClient()}>
@@ -242,10 +238,9 @@ describe('the address of a grow opened by its id', () => {
     expect(router.state.location.pathname).toBe('/grows/spring');
   });
 
-  it('leads a tab the grow has not got to its diary, keeping where it was opened from', async () => {
+  it('leads a tab the grow has not got to its diary', async () => {
     const router = drawRoute('/grows/spring/weeks');
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/grows/spring'));
-    expect(router.state.location.state).toEqual({ from: 'me' });
   });
 });

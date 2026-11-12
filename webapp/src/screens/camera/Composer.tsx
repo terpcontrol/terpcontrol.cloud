@@ -46,9 +46,7 @@ interface ComposerProps {
 export function Composer({ camera, grow, growFilms = true, pending, onRender, onClose }: ComposerProps) {
   const { t } = useTranslation();
   // A date somebody picks here is a day of theirs, so the days the fields open
-  // on and the instants they are turned into are the account's - the same zone
-  // the rest of the app draws its clocks in. Read from the cache the camera
-  // page has already filled; until it answers, the browser's zone stands in.
+  // on and the instants they are turned into are in the account's zone.
   const zone = useZone();
   const [range, setRange] = useState<MediaWindow>('day');
   const [from, setFrom] = useState(today(zone, 7));
@@ -68,7 +66,7 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
   const others = (beside.data?.items ?? []).filter(one => one.id !== camera.id);
   // The newest picture, as the camera's own row reads it: the preview is what
   // the film is made of and not a frame of the range, which has no picture of
-  // its own until it is rendered.
+  // its own until it is rendered - so its caption says which picture it is.
   const preview = useLatestStills([camera.id]).get(camera.id) ?? null;
 
   const free = camera.entitlement.tier === 'free';
@@ -130,10 +128,6 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
             // picture at all, which is not the same as today holding none.
             <p className={`mono ${ui.matNote}`}>{t('composer.noPictureYet')}</p>
           )}
-          {/* The picture is the camera's newest still and not a frame of the
-              range, which has no picture of its own until it is rendered - so
-              the caption says which picture it is and how old, rather than
-              naming a range it may be days outside of. */}
           {preview && camera.state.lastStillAt ? (
             <span className={ui.photoCaption}>{t('composer.latestPicture', { age: ageLabel(camera.state.lastStillAt) })}</span>
           ) : null}
@@ -220,9 +214,8 @@ function Toggle({ label, help, on, onToggle }: { label: string; help?: HelpTopic
  * Both ends of the span, where the client is the one that knows them. The
  * rolling windows are cut by the server on the owner's calendar, so they carry
  * at most an instant inside the period meant: the day holding now, and for the
- * week no instant at all, which the route answers with the last complete week -
- * what the camera page's Week button has always asked for. Naming now there
- * filmed the week that had opened that morning, most of it still to come.
+ * week none at all, which the route answers with the last complete week -
+ * naming now would film the week that opened this morning.
  */
 const spanOf = (
   range: MediaWindow,

@@ -1,7 +1,7 @@
 import { Globe } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import type { GrowListItem, Space } from '@fg2/shared-types/v1';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
@@ -29,10 +29,8 @@ import styles from './GrowPage.module.css';
 /** A grow opened by its id: every grow of "Alle Grows" - a finished one, one of another place, somebody else's. */
 export function GrowPage() {
   const { growId = '', tab: segment } = useParams();
-  // Where the grow was opened from goes along to the tab it lands on, so its way back is the same.
-  const { state } = useLocation();
   const tab = growTabOf(segment);
-  if (tab === null) return <Navigate to={`/grows/${growId}`} replace state={state} />;
+  if (tab === null) return <Navigate to={`/grows/${growId}`} replace />;
 
   return <GrowScreen growId={growId} tab={tab} />;
 }
@@ -55,7 +53,6 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
   const plants = useGrowPlants(growId);
   const spaces = useSpaces();
   const mayWith = useMayWith();
-  const { state } = useLocation();
   // "Grow teilen" in a place's menu opens the grow on its share sheet.
   const [params] = useSearchParams();
 
@@ -91,8 +88,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
         />
       </GrowHead>
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
-      {/* Switching tabs keeps where the page was opened from, so its way back stays the same. */}
-      <Tabs items={tabs} label={t('grow.tabsLabel')} state={state} />
+      <Tabs items={tabs} label={t('grow.tabsLabel')} />
       {tab === 'diary' ? <Diary grow={grow.data} now={now} picturesTo={growTabPath(base, 'pictures')} /> : null}
       {tab === 'pictures' ? <Pictures grow={grow.data} now={now} /> : null}
       {tab === 'plants' ? <Plants grow={grow.data} plants={plants} spaces={spaces.data?.items ?? []} /> : null}

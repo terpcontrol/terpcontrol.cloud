@@ -25,10 +25,9 @@ import styles from './Climate.module.css';
  * drying spell or a germination, all before "Übernehmen" writes it. A preset
  * moves the targets and nothing else; the grow's phase is moved in the grow.
  *
- * This is the one place a device is put into germination or drying, and taken
- * out of them: the work mode follows the stage. While a device germinates,
- * what germination does about the humidity is changed here too, without
- * taking the preset again.
+ * This is the one place a device is put into germination or drying and taken
+ * out of them. While it germinates, what germination does about the humidity
+ * is changed here too, without taking the preset again.
  */
 export function PresetSheet({
   device,

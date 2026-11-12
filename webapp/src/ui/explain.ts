@@ -141,12 +141,10 @@ interface Placement {
 /**
  * What a bubble must keep clear of: the trigger itself, and the block it
  * stands in as long as that block is short - the sentence an (i) ends, the
- * label a word sits in, the row of buttons it follows. An (i) at the end of a
- * three-line sentence would otherwise open over the first two lines, which
- * are what it explains. A tall block - a card, a whole panel - is not kept
- * clear, because the bubble would then have nowhere to go; the trigger's own
- * line still is. Across, the bubble stays on the trigger, so its arrow points
- * at what was pressed.
+ * label a word sits in - since those lines are what it explains. A tall block
+ * - a card, a whole panel - is not kept clear, because the bubble would then
+ * have nowhere to go; the trigger's own line still is. Across, the bubble
+ * stays on the trigger, so its arrow points at what was pressed.
  */
 export function anchorOf(trigger: Box, block: Box | null): Box {
   // Read field by field: a DOMRect keeps its sides on its prototype, so spreading one copies nothing.
@@ -171,14 +169,12 @@ const ARROW_INSET = 14;
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), Math.max(low, high));
 
 /**
- * Where an explanation stands: above the line it explains when there is room
- * for it there, below it when there is not, and on whichever side has more
- * room when neither is enough. Above first, because what a word or a heading
- * explains is that line and what follows it - a bubble dropped over the field
- * under its label would hide the very control it is about, and on a phone
- * there is no second column for it to move into. It never overlaps the line
- * it was opened from, and it is kept inside the window's gutters, with its
- * arrow still pointing at the trigger when the bubble has had to slide.
+ * Where an explanation stands: above the line it explains when there is room,
+ * below it when there is not, and on whichever side has more room when
+ * neither is enough. Above first, because a bubble dropped over the field
+ * under its label would hide the control it is about. It never overlaps the
+ * line it was opened from and is kept inside the window's gutters, its arrow
+ * still pointing at the trigger when the bubble has had to slide.
  */
 export function placeBubble(anchor: Box, size: { width: number; height: number }, view: { width: number; height: number }): Placement {
   const above = anchor.top - GAP - EDGE_Y;

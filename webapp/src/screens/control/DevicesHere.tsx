@@ -32,11 +32,9 @@ import styles from './Control.module.css';
 
 /**
  * What stands in the place, under its climate: the card of the place's own
- * device with what is done to the hardware itself - its update, maintenance,
- * a restart - and the way to everything else about it; a short card for every
- * further device, whose page holds all of that; a row per camera and per smart
- * socket; and the one way to add another. This is where a device is found:
- * the bar has no item for them. `devices` come in Steuerung's order.
+ * device with its update, maintenance and restart; a short card for every
+ * further device, whose page holds those; a row per camera and per smart
+ * socket; and the one way to add another. `devices` come in Steuerung's order.
  */
 export function DevicesHere({
   spaceId,

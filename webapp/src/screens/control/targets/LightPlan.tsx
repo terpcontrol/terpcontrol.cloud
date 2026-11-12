@@ -37,15 +37,14 @@ interface LightPlanProps {
 
 /**
  * The light plan as its sheet edits it: what it is in one line, the day it
- * makes drawn from midnight to midnight with the ramps and now marked, one
- * line on what holds at this moment and until when, and the two figures it is
- * set by - when the light comes on, and for how long. The night is not set
- * anywhere: it is what the day leaves, and is said as such.
+ * makes drawn from midnight to midnight with the ramps and now marked, what
+ * holds at this moment and until when, and the two figures it is set by -
+ * when the light comes on, and for how long. The night is what the day leaves.
  *
- * Everything that says "now" is about what the device runs. The schedule being
- * edited is drawn beside it as a draft, and where saving it would turn the day
- * into night on the spot - or light the lamp in the middle of one - that is
- * said before the save rather than found out after it.
+ * Everything that says "now" is about what the device runs. The schedule
+ * being edited is drawn beside it as a draft, and where saving it would turn
+ * the day into night on the spot - or light the lamp in the middle of one -
+ * that is said before the save.
  */
 export function LightPlan(props: LightPlanProps) {
   const { device, draft, baseline, set, readOnly, now, offset, owned, planSets = null, longest = 24 } = props;
@@ -240,10 +239,9 @@ const piecesOf = (startMinutes: number, minutes: number): Piece[] => {
 
 /**
  * Today from midnight to midnight on the account's clock: lit while the light
- * is on, fading in and out over the dimming ramps, with now marked. A window
- * that runs past midnight is two pieces, one at each end; 24 hours is the
- * whole bar, without a ramp. A draft is a thin outlined track
- * under it, so what is being typed is never drawn as what runs.
+ * is on, fading over the dimming ramps, with now marked. A window that runs
+ * past midnight is two pieces; 24 hours is the whole bar, without a ramp. A
+ * draft is a thin outlined track under it, never drawn as what runs.
  */
 function Bar({
   schedule,

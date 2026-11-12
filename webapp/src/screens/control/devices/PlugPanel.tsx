@@ -27,12 +27,9 @@ import styles from './Own.module.css';
 
 /**
  * A Plantalytix Socket - the plug with a sensor of its own that switches
- * whatever is plugged into it: what it switches by, the two points it switches
- * at by day and by night, or the windows of its timer. For its owner this is
- * the device's main setting, so it stands where a controller's targets do and
- * is built from the same parts.
- *
- * Its CO2 dosing, its protections and the fan it slows while dosing are under
+ * whatever is plugged into it: what it switches by, and the two points it
+ * switches at by day and by night or the windows of its timer. Its CO2
+ * dosing, its protections and the fan it slows while dosing are under
  * Erweitert on the device's page.
  */
 

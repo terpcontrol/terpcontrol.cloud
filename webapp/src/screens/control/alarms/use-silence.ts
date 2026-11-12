@@ -10,11 +10,9 @@ import { ruleTitle } from './rules';
 const SILENCE_SECONDS = 3600;
 
 /**
- * Silencing a rule for an hour, and making it loud again: the one tap for a
- * rule that keeps announcing itself while somebody is already on it. The rule
- * goes on watching; only the announcement stops. It is offered where the rule
- * shows that it has raised - on its alert's card and on its own card under
- * Steuerung › Alarme - and is one thing in both: what was done is said in the
+ * Silencing a rule for an hour, and making it loud again: the rule goes on
+ * watching, only the announcement stops. One thing on the alert's card and on
+ * the rule's own card under Steuerung › Alarme: what was done is said in the
  * toast, and a silence is taken back there.
  */
 export const useSilence = (rule: AlarmRule | null, deviceId: string, now: DateTime) => {

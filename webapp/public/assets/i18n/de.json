@@ -2420,8 +2420,7 @@
       "terpcam_controller": "Terp Cam",
       "terpcam_standalone": "eigenständig · WLAN",
       "rtsp": "RTSP"
-    },
-    "title": "Kamera"
+    }
   },
   "cameras": {
     "add": {
@@ -3266,7 +3265,6 @@
     "next": "Weiter · {{what}}",
     "finish": "Fertig · Ort öffnen",
     "later": "Die Vorgabe lässt sich später unter Steuerung ändern, Steckdosen und Cam dort bei den Geräten, Benachrichtigungen unter Ich.",
-    "addDevice": "Gerät hinzufügen",
     "demo": "Die Demo darf alles ansehen und nichts ändern, also kann sie keine Hardware übernehmen. Melde dich mit deinem eigenen Konto an, um ein Gerät hinzuzufügen.",
     "code": {
       "title": "Den Code vom Display ablesen",

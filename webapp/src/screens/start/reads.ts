@@ -13,12 +13,8 @@ import { humidifierHoldOf, type HumidifierHold } from '@/screens/start/place';
  * once a minute and costs a day of series for the verdict; the live read is one
  * `last()` every half minute, and it is the values that age.
  *
- * How old the page is, is said once, by the pill beside the place's name - the
- * age of its newest reading, or since when it has been offline.
- *
  * A refresh that failed is dated by the half that failed, and of two failed
- * halves by the older, because what is on the screen is as old as its older
- * half.
+ * halves by the older: what is on the screen is as old as its older half.
  */
 export const usePlace = (spaceId: string) => {
   const overview = useSpaceOverview(spaceId);

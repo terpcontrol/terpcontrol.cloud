@@ -13,17 +13,14 @@ import { countdownLabel as wordsLeftFor, spanLabel as wordsFor } from '@/ui/age'
 /**
  * Where a plan stands, read the way the server reads it.
  *
- * The plan is the one thing on these screens that moves without anybody asking:
- * the engine walks it every twenty seconds, so between two reads the step the
- * device is on may already be over. What is worked out here is therefore not a
- * second opinion but the same arithmetic the engine does (`plan-clock.ts` in
- * the contract), so the screen says what the next pass will do rather than what
- * it would like to be true. The instants are all the server's; only the reading
- * of them is ours.
+ * The plan moves without anybody asking: the engine walks it every twenty
+ * seconds, so between two reads the step the device is on may already be over.
+ * What is worked out here is the same arithmetic the engine does
+ * (`plan-clock.ts` in the contract), so the screen says what the next pass
+ * will do. The instants are all the server's; only the reading of them is ours.
  *
  * Which of the five moves are offered is the same question asked once: the
- * server refuses the rest, and a button that is only there to be refused is a
- * button that has told somebody nothing.
+ * server refuses the rest.
  */
 
 export { activeStep, nextStepIndex };
@@ -59,10 +56,9 @@ const CLOCKS_AGREE_MS = 2_000;
 /**
  * The instant to read a plan at. A step started this very moment carries the
  * server's instant of the press, which this side's reading of the server's clock
- * can put a second or so in the future; read as it stands, a step nobody
- * extended then said its clock was yet to start, with a minute too many left. A
- * start that close ahead is taken as now - an extension is at least a minute,
- * so one is never mistaken for it for longer than the clocks disagree.
+ * can put a second or so in the future. A start that close ahead is taken as
+ * now - an extension is at least a minute, so one is never mistaken for it for
+ * longer than the clocks disagree.
  */
 export const readingAt = (state: PlanState, now: DateTime): DateTime => {
   if (!state.stepStartedAt) return now;

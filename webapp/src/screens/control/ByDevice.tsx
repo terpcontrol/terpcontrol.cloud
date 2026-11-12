@@ -11,16 +11,13 @@ import type { RowLine } from './rows';
 import styles from './Control.module.css';
 
 /**
- * A page behind one of Steuerung's rows, device by device. It leads with the
- * place's own device - `devices` come in Steuerung's order, the place's
- * climate first - and that one stands open; every further device is one row
- * that says its state and unfolds in place. A device with nothing for the
- * page is not handed in, so the page lists no device only to say it has
- * nothing. One device alone needs no name over it: the page is about it.
+ * A page behind one of Steuerung's rows, device by device. `devices` come in
+ * Steuerung's order: the first stands open, every further one is a row that
+ * says its state and unfolds in place, and one alone has no name over it. A
+ * device with nothing for the page is not handed in.
  *
- * `?device=` names a device to open unfolded - the way a second device's own
- * page leads here - and `unfolded` another the page itself wants open, such as
- * the one holding the alarm rule a link named.
+ * `?device=` names a device to open unfolded, `unfolded` another the page
+ * itself wants open - the one holding the alarm rule a link named.
  */
 export function ByDevice({
   devices,

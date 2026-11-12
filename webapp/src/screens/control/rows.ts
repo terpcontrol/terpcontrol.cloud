@@ -21,26 +21,16 @@ import { activeStep, isWaiting, readingAt } from './plan-clock';
 export const standOf = (t: Translate, spoke: string | null, now: DateTime, zone: string | null): string | null =>
   spoke !== null && deviceLiveness(spoke, now) === 'offline' ? t('control.stand', { time: sinceLabel(spoke, now, zone) }) : null;
 
-/**
- * What the rows under Steuerung's climate say about what is behind them: each
- * a page of its own, and each line the page's state in a few words, so the row
- * is read rather than opened to find out. Amber is for what needs a person.
- */
+/** What a row under Steuerung's climate says of the page behind it, in a few words; amber is for what needs a person. */
 export interface RowLine {
   text: string;
   warn?: boolean;
 }
 
-/**
- * The work modes a person picks on Betriebsart: the ones no climate preset sets. Germination and drying follow the
- * stage, so they are chosen with the preset and only read here.
- */
+/** The work modes a person picks on Betriebsart: the ones no climate preset sets. Germination and drying follow the stage. */
 export const modesOf = (device: Device): readonly WorkMode[] => workModesOf(device.type).filter(mode => mode !== 'germination' && mode !== 'drying');
 
-/**
- * Whether Betriebsart has anything to choose for a device - a second mode, or a fridge's energy saving - which is
- * what its row and its page are drawn for.
- */
+/** Whether Betriebsart has anything to choose for a device: a second mode, or a fridge's energy saving. */
 export const hasMode = (device: Device): boolean =>
   Boolean(device.control) && (modesOf(device).length > 1 || configurationFieldsOf(device.type).energySaving !== undefined);
 
@@ -106,13 +96,11 @@ const socketFact = (t: Translate, row: SocketRowModel, now: DateTime): string =>
   `${socketName(t, row)} ${forcedOf(row) || row.state === 'unknown' ? socketState(t, row, now).replace(' · ', ', ') : t(`devices.socket.${row.state}`)}`;
 
 /**
- * "Licht 80 % · Abluft an · Befeuchter aus · alle Auto": each output of the
- * place's devices with what it does, as of `stand` once they have gone quiet,
- * and in amber what is held by hand - a socket by its device's word, a lamp by
- * what this browser asked of it (`held`, by device). The outputs of a further
- * device are led by its name, so two lamps are not one said twice. "alle
+ * "Licht 80 % · Abluft an · Befeuchter aus · alle Auto": each output with what
+ * it does, as of `stand` once the devices have gone quiet, and in amber what
+ * is held by hand. The outputs of a further device are led by its name. "alle
  * Auto" is said only of a list made of sockets: a lamp reports no hold, so
- * nothing is claimed of one that somebody else may be holding.
+ * nothing is claimed of one somebody else may be holding.
  */
 export const outputsLine = (
   t: Translate,

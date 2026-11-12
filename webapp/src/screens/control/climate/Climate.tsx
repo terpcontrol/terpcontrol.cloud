@@ -57,18 +57,14 @@ import styles from './Climate.module.css';
 
 /**
  * What one device holds a place at: its light, and the targets by day and by
- * night - Steuerung's top for the device that is the place's climate, and the
- * same two cards on the page of any other device that holds targets of its own.
+ * night - Steuerung's top for the place's climate, and the same two cards on
+ * the page of any other device that holds targets of its own.
  *
- * Nothing here is a draft. A figure is a button that opens a small sheet for
- * that one figure, the light's times and a preset have a sheet each, and the
- * light limit is stepped where it stands and sent once it rests. Every write
- * is answered by the toast, which names what changed and takes it back.
- *
- * A device that is not heard is set all the same: the cloud stores the change
- * and hands it over when the device connects again. What it has not been
- * handed is marked and said under the card, with what it still holds - by the
- * server's own reckoning (`pending`), never by a guess of the page's.
+ * Nothing here is a draft: a figure opens a sheet for that one figure, the
+ * light's times and a preset have a sheet each, and every write is answered
+ * by the toast. A device that is not heard is set all the same; what it has
+ * not been handed is marked and said under the card by the server's own
+ * reckoning (`pending`), never by a guess of the page's.
  */
 
 interface ClimateWrite {

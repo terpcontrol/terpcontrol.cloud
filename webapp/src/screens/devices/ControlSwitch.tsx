@@ -17,24 +17,17 @@ import styles from './Maintenance.module.css';
 /**
  * Regelung ein/aus: the whole of a fridge's or a controller's climate control,
  * switched off for an empty cabinet, a clean or the weeks between two grows,
- * and on again.
+ * and on again. A row of the device's own page, the one place it is switched
+ * off; Steuerung says that it is off and switches it back on.
  *
  * Off is asked first, because it stops the heater, the cooling, the light and
- * the CO2 at once and they stay stopped. A running plan is paused with it - the
- * plan's next step would switch the control back on, which is what saving the
- * targets or applying a preset does too, and what the question says. On is one
- * tap: it is the state everything else in the app assumes.
+ * the CO2 at once and they stay stopped. A running plan is paused with it -
+ * its next step would switch the control back on, as saving the targets or
+ * applying a preset does. On is one tap.
  *
- * A device that is not answering is still switched: the server keeps the
- * document and the device is handed it when it next connects. Both ways are
- * answered as every setting of a device is (`useSaved`): the toast says that
- * it is stored, or that the device takes it over when it next connects, and
- * switching off can be taken back there - which also resumes the plan it
- * paused.
- *
- * It is a row of the device's own page - the one place the control is switched
- * off; Steuerung says that it is off and switches it back on where the targets
- * would stand.
+ * A device that is not answering is still switched: both ways are answered as
+ * every setting of a device is (`useSaved`), and taking off back also resumes
+ * the plan it paused.
  */
 export function ControlRow({ device, offline }: { device: Device; offline: boolean }) {
   const { t } = useTranslation();

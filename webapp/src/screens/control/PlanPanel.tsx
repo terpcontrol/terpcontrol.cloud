@@ -47,20 +47,12 @@ import styles from './Control.module.css';
  *
  * The plan moves on the engine's clock whether or not this screen is open, so
  * everything here is drawn from the state the server last answered and the
- * instants in it. What the tent is actually holding is a separate question:
- * the line that says when the step last reached the device is dimmed by how
- * long the device has been quiet.
+ * instants in it.
  *
  * A step writes a climate and nothing else, so where that climate would land
- * (`climateLanding`) decides what the panel offers. A plug or a lamp has
- * nowhere for one to go and is no panel of the plan page unless it carries a
- * plan; a controller whose document has not arrived is told what the targets
- * page tells it. A plan that is already on either is still drawn in full,
- * because a plan nobody can see is a plan nobody can stop.
- *
- * Whose plan it is, the page says: its head for a place's one device, the name
- * over each where there are several (`ByDevice`). What a plan is stands behind
- * the (i), never as a paragraph over the buttons.
+ * (`climateLanding`) decides what the panel offers. A plan on a device with
+ * nowhere for one to go is still drawn in full: a plan nobody can see is a
+ * plan nobody can stop.
  */
 export function PlanPanel({ device, mayManage, landing }: { device: Device; mayManage: boolean; landing: ClimateLanding }) {
   const { t } = useTranslation();
@@ -74,7 +66,6 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   const [editing, setEditing] = useState<PlanDraft | null>(null);
   const [keeping, setKeeping] = useState(false);
   const [picking, setPicking] = useState(false);
-  // Starting from a template is offered only where there is one to start from.
   const templates = usePlanTemplates();
   const ready = offersReadyPlans(device);
   const anyTemplate = templates.data?.items.length !== 0 || ready;
@@ -167,7 +158,6 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
       </div>
 
       <Steps plan={plan.data} now={now} />
-      {/* Going on at a step of one's own choosing stands under the steps it chooses among. */}
       {mayManage && landing === 'document' ? <ContinuePlan device={device} /> : null}
 
       {mayManage ? (
@@ -192,18 +182,10 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   );
 }
 
-/**
- * What a plan written here notifies by default: no mail until somebody asks for
- * one, and a diary line at every step, because a tent that changed what it holds
- * is exactly what a diary is read for.
- */
+/** What a plan written here notifies by default: no mail until somebody asks, and a diary line at every step. */
 const DEFAULT_NOTIFY: PlanNotify = { mode: 'off', email: null, writeEntries: true };
 
-/**
- * Where the plan stands: which step, how long it has been there, what follows,
- * and - when the step is one somebody has to answer - that it is standing still
- * until they do.
- */
+/** Where the plan stands: which step, for how long, what follows - and that it stands still until somebody answers. */
 function Standing({ plan, device, now }: { plan: Plan; device: Device; now: DateTime }) {
   const { t } = useTranslation();
   const step = activeStep(plan);
@@ -319,9 +301,8 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
 
 /**
  * The five moves and the stop, each offered only where the server would take
- * it. Skipping and stopping say what they will do before they do it, in the
- * place where the tap would be - the same two-step the rest of the app asks a
- * question in - because neither of them can be taken back afterwards.
+ * it. Skipping and stopping ask first, where the tap would be: neither can be
+ * taken back.
  */
 function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; now: DateTime; onRefresh: () => void }) {
   const { t } = useTranslation();
@@ -417,9 +398,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
         {can.resume || can.pause ? <Help topic="planMoves" /> : null}
       </div>
 
-      {/* Starting puts the grow standing here into the stage the first step names, with a diary
-          line: said before the tap, because a ready plan begins at the seedling whatever the
-          grow stands in, and a fridge in bloom read nothing about it until it had happened. */}
+      {/* Starting puts the grow standing here into the stage the first step names, with a diary line: said before the tap. */}
       {can.resume && plan.state.status !== 'paused' && startStage ? (
         <p className={ui.note}>{t('space.control.startsStage', { stage: t(`home.stage.${startStage}`) })}</p>
       ) : null}

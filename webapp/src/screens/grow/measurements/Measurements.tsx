@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import type { MeasurementDefinition } from '@fg2/shared-types/v1';
-import { backOf, usePageOfGrow } from '@/app/places';
+import { usePageOfGrow } from '@/app/places';
 import { useGrow, useMeasurementSeries, useUpdateGrow } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { LoadFailed, NoLongerHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
@@ -28,7 +28,6 @@ import styles from './Measurements.module.css';
  * than offering one and being refused.
  */
 export function Measurements() {
-  const { state } = useLocation();
   const { growId = '' } = useParams();
   const { t } = useTranslation();
   const now = useNow();
@@ -70,7 +69,7 @@ export function Measurements() {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <BackLink to={backOf(state, `/grows/${growId}`)} label={t('grow.measurements.back')} />
+        <BackLink to={`/grows/${growId}`} label={t('grow.measurements.back')} />
         <h1>{t('grow.measurements.title')}</h1>
         <span className={`mono ${styles.growName}`}>{grow.data.name}</span>
       </header>

@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) - where its decisions and knowledge live now, and what it left open; read before picking up one of those open items
 updated: 2026-11-12
-source: rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign (the redesign session of 2026-11-12)
+source: rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign and its fix pass (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -59,73 +59,117 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
   - The weight is live duplication, not dead code: 21 ideas (place chooser, rename sheet, maintenance, climate
     preset, light limit, ...) are each built in three to nine places, against one unused export.
   - Round 4 (Steuerung, devices, camera), state of 2026-11-12 (the redesign session; rules in
-    [app-ux.md §2, §3, §5, §8](knowledge/app-ux.md)). Built and committed, checks green, walked on a development
-    stack in seven account shapes, phone and desktop, light and dark:
-    - *Steuerung with "Geräte in …"*: built (`screens/control/Control.tsx`, `climate/`, `rows.ts`, `Mode.tsx`,
-      `Outputs.tsx`, `DevicesHere.tsx`). Nothing is a draft: a sheet per figure, per light window and per preset,
-      each write answered by a toast with undo. Not seen on a stack, tests only: a paired smart socket's rows, a
-      place led by a Plantalytix Socket, a LIGHT or an AIR fan, a running or paused plan, the screens in English.
-    - *The device's own page*: built (`/devices/:id` with `sockets`, `advanced`, `details`, and
-      `/devices/:id/sockets/:socket`; `screens/devices/`). The prototype's "meldet sich alle 5 s · WLAN gut" is
-      not drawn: the app has no such data. "Update auf …" is offered only to a device whose automatic updates are
-      off (a newer stable build than the one the cloud knows it runs); a device on a channel reads "kommt von
-      selbst" - a "now" for those needs a server route.
-    - *Offline does not lock*: built. Proven with the simulator: a save is stored at once and published once on
-      the device's `configuration` topic, which a silent device misses; on its next connect its `fetch` is
-      answered with the stored document, and it acknowledges nothing. So the page says what the cloud stored
-      since the device was last heard and what it had stored by then - `pending` of `GET /v1/devices/{id}/live`
+    [app-ux.md §2, §3, §5, §8](knowledge/app-ux.md)). Built, walked by the session's critic - two blockers and ten
+    larger points - and what the walk found built in a fix pass the same day; checks green. The fix pass has not
+    been walked by a critic, and its rules are the redesign session's, not Chris's.
+    - *Steuerung with "Geräte in …"*: built (`screens/control/Control.tsx`, `PageRows.tsx`, `ByDevice.tsx`,
+      `climate/`, `rows.ts`, `Mode.tsx`, `Outputs.tsx`, `DevicesHere.tsx`). Nothing is a draft, and a setting is
+      changed one way: a sheet with "Speichern" for a figure, a write on the tap for a switch, each answered by a
+      toast with undo (`climate/saved.ts`). The fix pass: a page behind a row leads with the place's own device
+      and folds the others, and choosing another place keeps the page; a place led by a Plantalytix Socket, a
+      LIGHT or an AIR fan is built from the controller's parts, and the draft bar with its leave question is
+      gone; Keimung and Trocknung are chosen as a climate preset only
+      ([ADR 0007](adr/0007-germination-in-the-dark.md): the stage decides the work mode); an output held by hand
+      is said wherever its state is said, Start included; a paused plan is continued and stopped on the plan page
+      alone; an hour of silence for a rule that has raised is back under Alarme; toasts are held to two.
+    - *The device's own page*: built (`/devices/:id` with `advanced`, `details`, and
+      `/devices/:id/sockets/:socket`; `screens/devices/`). The fix pass: a socket is switched by saying which way
+      (`HandHold.tsx`, the control Ausgänge has); the list of a device's sockets under its page went, since they
+      stand under Steuerung and under Ausgänge; a device is moved by a button, after the sheet said what goes
+      with it, and the move can be taken back; a second device's page leads to its own part of Steuerung's pages
+      (the rows Steuerung draws, `PageRows`); the head's arrow steps back; every write is answered by a toast.
+      The prototype's "meldet sich alle 5 s · WLAN gut" is not drawn: the app has no such data. "Update vom …" is
+      offered only to a device whose automatic updates are off (a newer stable build than the one the cloud knows
+      it runs); a device on a channel reads "kommt von selbst" - a "now" for those needs a server route. Picking
+      a build by hand was shown on a stack with a registered build
+      ([firmware.md](knowledge/firmware.md#ota-and-update-channels)).
+    - *Offline does not lock*: built, and since the fix pass true of every panel that writes a setting -
+      Plantalytix Socket, LIGHT, AIR fan, Erweitert, the work mode, regulation switched off. Proven with the
+      simulator: a save is stored at once and published once on the device's `configuration` topic, which a
+      silent device misses; on its next connect its `fetch` is answered with the stored document, and it
+      acknowledges nothing. So the page says what the cloud stored since the device was last heard and what it
+      had stored by then - `pending` of `GET /v1/devices/{id}/live`
       ([server-engines.md](knowledge/server-engines.md#read-models)), computed from the target record and the
       diary line of a person's save, no new stored field. Its limits: nothing is said in the first ten minutes of
       silence; a figure outside the target record that a plan or a preset moved meanwhile, and one past the twelve
       a long diary line names, are not known.
-    - *The camera page*: built (`screens/camera/CameraPage.tsx`, `days.ts`, `Films.tsx`). The slider runs over
-      the days of the grow running in the camera's place and is not drawn without one, or for a second camera of
-      one place: the diary names one still per day. Scrubbing through one day's stills went with the prototype's
-      design; the day's film and Verlauf's cursor are to show them (round 5).
+    - *The camera page*: built (`screens/camera/CameraPage.tsx`, `days.ts`, `Films.tsx`, `CameraSettings.tsx`).
+      The slider runs over the days of the grow running in the camera's place and is not drawn without one, or
+      for a second camera of one place: the diary names one still per day. The fix pass: the day stands in the
+      address, "Im Tagebuch zeigen" opens the diary on it, a film asked for is followed until the button plays
+      it, and the settings are one sheet with one Save. Scrubbing through one day's stills went with the
+      prototype's design; the day's film and Verlauf's cursor are to show them (round 5).
     - *Several devices in one place*: built as far as the app goes - Steuerung's top is the device the server
-      names as the place's climate (`screens/control/lead.ts`), every other device draws its own settings on its
-      page with the way to its curves. What becomes of a place with two climates stays the data model's question.
+      names as the place's climate (`screens/control/lead.ts`), its pages list the others folded, and every other
+      device draws its own settings on its page with the way to its curves and its part of those pages. What
+      becomes of a place with two climates stays the data model's question.
     - *The list `/devices`*: gone, with its panels, the second Erweitert under the targets, the maintenance
-      sheet, `/control/targets` and the light limit's second slider. Erweitert lost the work mode, a fridge's
-      fans, continuing a plan, the update channel, pairing a socket and giving a device up to places of their own.
+      sheet, `/control/targets` and the light limit's second slider; the address is the not-found page inside the
+      shell. Erweitert lost the work mode, a fridge's fans, continuing a plan, the update channel, pairing a
+      socket and giving a device up to places of their own, and its fields are lines that open the sheets
+      Steuerung has.
     - *The freshness pill*: a device's and a camera's page date themselves in their head; the fleet screens say
-      "Stand vor …" beside their title (`AdminHead`).
-    - Not done, and not to be forgotten: `webapp/src` came down by about 150 lines only (tests by about 690) -
-      the sheets, the pending marks and three sub-pages cost what the list saved. What could still go: the panels
-      that are forms with their own Save and leave question (a socket's switching, a LIGHT's window, a fan's
-      speeds, a fridge's fans; `screens/control/devices/`, `Guarded` in `OwnSettings.tsx`) are a second way to
-      change a setting beside the sheets; Start's and Ich's door rows are not yet `ui/Rows`. Switching control on
-      stands on Steuerung, where the climate would be, and on the device's page; off only on the device's page. Maintenance, a restart and an update stand on the device's card and on
-      its page alike, against "every setting has one place" read strictly - they are done to the hardware, not
-      settings; Chris's to confirm. The session's critic has not walked this round yet.
+      "Stand vor …" beside their title (`AdminHead`). What reports is "online" on every pill, card and row.
+    - *Tests only*: the rows on the page of a second device of a place, as the shared part draws them - no place
+      of the accounts the fix pass was walked with holds two devices.
+    - *Not built, and why*: a held light on another browser - the device reports no hold of its own lamp and the
+      server keeps none, so the hold is what this browser sent; since when a plan is paused - its state keeps no
+      instant of the pause; a hold sent again the same way with another length - the firmware reports a hold only
+      when its way changes; a stream camera's two address notes behind a help topic (`camera.addressNote`,
+      `camera.addressChangeNote` still stand in the sheet); a moment's camera picture in Verlauf's cursor,
+      reached from the camera page (round 5); `/claim` for a guest in somebody's place (round 6). Three of
+      Erweitert's fields did not fit the value sheet as it was: the Lux-to-PPFD factor took a finer step and the
+      two known lamps as chips, the AIR fan a socket slows is a choice with a write of its own, and the CO₂
+      cylinder is a report with a refill form and stayed as it was. Left for the wording pass:
+      `climateControl.back` still says "ein Preset anwendest", `home.liveness.*` repeats `home.reading.*` for one
+      fleet screen, English `alerts.action.unsilence` is "Unsilence", and the arrow's name "Zurück" lives under
+      `device.back`. Start's and Ich's door rows are not yet `ui/Rows`.
+    - *The line count*: `webapp/src` stands at 73,564 lines (`.ts`, `.tsx`, `.css`) against 74,461 when the run
+      began - the fix pass itself began at 73,914 and removed a second and a third way to save a setting -, and
+      `webapp/test` at 35,639 against 33,865.
+    - *Chris's to answer*, collected and not yet asked:
+      1. Maintenance, a restart and an update stand on the card of the place's own device and on every device's
+         page, one component - against "every setting has one place" read strictly; they are done to the
+         hardware and are no settings.
+      2. Regulation is switched off only on the device's page, and on wherever a page says that it is off.
+      3. Scrubbing through one day's stills left the camera page for Verlauf's cursor (round 5).
+      4. "Update vom …" is offered only to a device without automatic updates; a "now" for a device on a channel
+         needs a server route.
+      5. Keimung and Trocknung are chosen as a climate preset only, no longer under Betriebsart as well. With
+         that, "Trocknung beenden" has no control left: a spell ends by another preset, a phase or a plan step,
+         and nothing leads back to the targets from before drying.
+      6. Moving a device is asked and can be taken back - except into a place made in the same sheet, which has
+         no undo: taking it back would leave the new place behind empty.
+      7. An output is held by choosing its length - An or Aus, then how long: two taps where one tap held for an
+         hour.
+      8. A light output's hold is known only to the browser that sent it. For every browser to say it, the live
+         read has to carry the hold: either the server remembers the last light override it published, or the
+         firmware reports it in the table it already sends (the session's recommendation). With it: may the
+         firmware report its table on every override, so that a hold sent again with another length is seen?
+      9. A paused plan keeps no instant it was paused at, so its row says why and not since when; a stored
+         `pausedAt` on the plan's state would give the hour.
+      10. A stand-alone LIGHT stops at 23.5 h of light: it holds two times of day, and two equal ones are no day.
+      11. The day in the camera's address (`?day=`) is the grow's day number, not a date.
+      12. "Manuell" is the off state of the switch "Automatisch aktualisieren", not an option of the channel
+          select.
+      13. Installing a build picked by hand waits for the device to be heard, as every update does.
+      14. A Plantalytix Socket's and an AIR fan's mode are saved from a sheet with "Speichern" and not on the tap,
+          and a stream camera's Erweitert with its sheet's Save.
+      15. A pump's or a timer's cycle is set only in the socket's sheet ("Zeitschaltung, Adresse, Rolle").
+      16. Whoever may not manage a device is not shown how many sockets it has: the count stands on the row that
+          pairs one.
+      17. A toast over a short sheet stands above the button row and so over the foot of the sheet's body; above
+          the sheet it would cover nothing and stand a hand away from the thumb.
+      18. English says "Regulating" / "Not regulating" on Steuerung's pill, while every other English string
+          calls the regulation "control".
+      19. "Jetzt ein Bild" is answered by a toast; a picture that could not be taken is said under the button.
   - A line of the diary opens Verlauf on its moment however old; today one from more than 30 days back opens the
     grow's whole stretch, the only window that holds it, because Verlauf's windows all end now (round 5: Verlauf's
     address carries its window).
-  - Round 4's walk by the critic (2026-11-12): two blockers and ten larger points. Decided by the redesign
-    session, not built yet, and not Chris's word:
-    - A socket is switched by saying which way: the socket page takes Ausgänge's control (Auto, An, Aus, then
-      how long), shows what was asked at once and sends nothing twice. Its duration chips flipped the state
-      without naming it.
-    - Offline is true on every panel that writes a setting - Plantalytix Socket, LIGHT, AIR fan, Erweitert - by
-      one save path with the controller's answer; an offline plug answered "ans Gerät geschickt". Regulation
-      switched off while offline is a stored setting like any other, and the cards stay until it is taken.
-    - One way to change a setting: a sheet with "Speichern" for a figure, a write on tap for a switch, each
-      answered by a toast. The draft bar and the forms of `screens/control/devices/` go; Erweitert's fields open
-      the same sheet.
-    - Moving a device is asked (the sheet says what goes with it) and answered with undo; one tap moved it.
-    - Germination and drying are chosen as a climate preset only ([ADR 0007](adr/0007-germination-in-the-dark.md):
-      the stage decides the work mode); Betriebsart offers what no preset sets.
-    - A sub-page of Steuerung leads with the place's own device, the others unfold, a device with nothing there
-      is not listed; choosing another place keeps the sub-page. A second device's page links to its part of each.
-    - An output held by hand is said wherever its state is said, Start included. A paused plan is continued in
-      one place, the plan page.
-    - Came back or comes back: muting a triggered alarm rule for an hour; the manual update channel with a build
-      to pick is to be shown on a stack that has builds.
-    - Left for round 5: a moment's camera picture in Verlauf's cursor, reached from the camera page.
   - Where the run stands (2026-11-12). Built, walked by a critic and fixed: the frame, Start, the grow pages.
-    Round 4 is built and walked, its fixes decided (above) and not built. The second walk of Start and the grow
-    pages found one blocker - a device's alarms reached outside readers, closed - and eight larger points, built:
-    their rules stand in [app-ux.md](knowledge/app-ux.md) and
+    Round 4 is built, walked and its fixes built (above); a critic has yet to walk the fixes. The second walk of
+    Start and the grow pages found one blocker - a device's alarms reached outside readers, closed - and eight
+    larger points, built: their rules stand in [app-ux.md](knowledge/app-ux.md) and
     [server-engines.md](knowledge/server-engines.md#read-models), each marked as the redesign session's. Then, one round after another, each followed by its critic
     ([development-workflow.md](knowledge/development-workflow.md), Long runs and rounds):
     Verlauf as one page with the server's finer step, place and room with the data model's migration steps, Ich
@@ -150,8 +194,9 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     - a feeding scheme at creation (the tab Düngung chooses one);
     - making a new place in the form (a grow starts in a place that exists or without a fixed one);
     - the autoflower choice at creation - it moved to the grow's menu, "Name und Art".
-    Germination's two humidity choices went with it too and come back into the form
-    ([ADR 0007](adr/0007-germination-in-the-dark.md), G2: they travel with every way germination is set).
+    Germination's two humidity choices went with it too and are back in the form, asked where it writes
+    germination's climate ([ADR 0007](adr/0007-germination-in-the-dark.md), G2: they travel with every way
+    germination is set).
     Also open: whether a day's camera picture outlives the camera's retention - today only a still that a diary
     line or a grow's cover names is spared.
 

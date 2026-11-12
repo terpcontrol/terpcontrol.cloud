@@ -16,18 +16,16 @@ import styles from './Maintenance.module.css';
 
 /**
  * Maintenance as one control, for whoever is about to open the tent: one tap
- * on "Wartung · 15 Min" starts a quarter of an hour - no sheet and nothing to
- * read first, because the hand that taps it is already on the zip. While the
- * window stands the same spot says until when and carries the two things left
- * to decide, ending it and another quarter of an hour.
+ * on "Wartung · 15 Min" starts a quarter of an hour, with no sheet before it.
+ * While the window stands the same spot says until when and offers ending it
+ * and another quarter of an hour.
  *
  * It is the device command and no diary line, sent to every device it is
- * given: the place's on Start, the one a card is about under Steuerung. What
- * came back is what it says: the toast names the window as it now stands and
- * puts it back as it stood, a device that was not there to hear it is named,
- * a refusal is drawn. `disabled` is a device known to be offline. A tap while
- * the last is on its way sends nothing, and no button is disabled for it: the
- * focus stays where the hand was.
+ * given. The toast names the window as it now stands and puts it back as it
+ * stood; a device that was not there to hear it is named. `disabled` is a
+ * device known to be offline. A tap while the last is on its way sends
+ * nothing, and no button is disabled for it: the focus stays where the hand
+ * was.
  */
 export function MaintenanceControl({ devices, now, id, disabled = false }: { devices: Device[]; now: DateTime; id?: string; disabled?: boolean }) {
   const { t } = useTranslation();
@@ -100,11 +98,10 @@ export function MaintenanceControl({ devices, now, id, disabled = false }: { dev
 }
 
 /**
- * A restart, asked first. What it costs is short and real: the device is gone
- * for a moment, regulates nothing while it is, and anything switched by hand is
- * let go, because an override lives in the device's memory and dies with it.
- * Heard, the sheet goes and the toast says so; a device that was not there to
- * hear it is said in the sheet, which stays.
+ * A restart, asked first: the device is gone for a moment, regulates nothing
+ * while it is, and anything switched by hand is let go, because an override
+ * lives in the device's memory. A device that was not there to hear it is
+ * said in the sheet, which stays.
  */
 export function RebootSheet({ device, name, onClose }: { device: Device; name: string; onClose: () => void }) {
   const { t } = useTranslation();

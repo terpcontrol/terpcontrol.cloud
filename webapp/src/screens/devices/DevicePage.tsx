@@ -3,21 +3,18 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import type { Device, SocketPage as SocketTable } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
-import { useAlarmRulesOf } from '@/api/alarm-rules';
-import { useDeviceFirmwares, useLiveReads, useSocketTables } from '@/api/devices';
-import { useDevicePlans } from '@/api/plans';
+import { useDeviceFirmwares, useSocketTables } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { controlPath, DEVICE_PAGES, devicePath, placePath, timelinePath, usePageOfPlace, type ControlPage, type DevicePageName } from '@/app/places';
-import { watchable } from '@/screens/control/alarms/rules';
+import { controlPath, DEVICE_PAGES, devicePath, placePath, timelinePath, usePageOfPlace, type DevicePageName } from '@/app/places';
 import { OwnSettings } from '@/screens/control/OwnSettings';
+import { PageRows } from '@/screens/control/PageRows';
 import { useLeads } from '@/screens/control/lead';
-import { alarmsLine, hasMode, hasOutputs, modeLine, outputsLine, outputsOf, planLine, type RowLine } from '@/screens/control/rows';
 import advancedStyles from '@/ui/advanced/Advanced.module.css';
 import type { DeviceContext } from '@/ui/advanced/item';
 import { itemsFor } from '@/ui/advanced/registry';
 import { sinceLabel } from '@/ui/age';
-import { climateLanding, darkReasonOf } from '@/ui/climate-hardware';
+import { darkReasonOf } from '@/ui/climate-hardware';
 import { CopyButton } from '@/ui/CopyButton';
 import { Facts as FactLine } from '@/ui/Facts';
 import { useKeptScroll } from '@/ui/kept';
@@ -70,17 +67,14 @@ const GROUP_ORDER = ['tuning', 'ramps', 'factors', 'dosing', 'cylinder'];
  * place, pairing a smart socket, what few growers set, what support asks for,
  * switching its regulation off and giving it away.
  *
- * What the place is held at - the light, the targets, the work mode, the
- * outputs - is Steuerung's and is not offered again here. Only a device that
- * is not the place's climate keeps what it is set to on its own page, since
- * Steuerung draws one climate, and rows that lead to its own part of the
- * pages behind Steuerung's rows (`Steering`).
+ * What the place is held at is Steuerung's and is not offered again here.
+ * Only a device that is not the place's climate keeps what it is set to on
+ * its own page, since Steuerung draws one climate, with the rows that open
+ * its own part of the pages behind Steuerung's rows (`PageRows`).
  *
- * `/advanced` and `/details` are pages under it and lead back to it; its
- * sockets are listed where they are switched, under Steuerung. What may be
- * done is asked of the device rather than of the session: the same reader
- * owns one tent and only reads the next. Come back to, the page stands where
- * it was left.
+ * `/advanced` and `/details` are pages under it. What may be done is asked of
+ * the device rather than of the session: the same reader owns one tent and
+ * only reads the next.
  */
 export function DevicePage() {
   const { deviceId = '', page = null } = useParams();
@@ -191,7 +185,11 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
       {leads ? null : (
         <>
           <OwnSettings device={device} />
-          {device.spaceId ? <Steering device={device} spaceId={device.spaceId} table={hosts ? table : undefined} mayManage={mayManage} /> : null}
+          {device.spaceId ? (
+            <PageRows spaceId={device.spaceId} devices={mayManage ? [device] : []} now={now} alone>
+              <Row to={`${timelinePath(device.spaceId)}&device=${encodeURIComponent(device.id)}`} title={t('device.curves')} />
+            </PageRows>
+          ) : null}
         </>
       )}
 
@@ -217,47 +215,6 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
         />
       ) : null}
     </section>
-  );
-}
-
-/**
- * What Steuerung holds for a device that is not the place's climate, as rows
- * that open it there: its curves, and of the pages behind Steuerung's rows -
- * alarms, grow plan, outputs, work mode - each one this device has something
- * on, with the device unfolded (`?device=`). Nothing of them is drawn here a
- * second time. The pages are for whoever may steer; the curves for everybody.
- */
-function Steering({ device, spaceId, table, mayManage }: { device: Device; spaceId: string; table: SocketTable | undefined; mayManage: boolean }) {
-  const { t } = useTranslation();
-  const now = useNow();
-  const zone = useZone();
-  const ids = mayManage ? [device.id] : [];
-  const rules = useAlarmRulesOf(ids);
-  const plans = useDevicePlans(ids);
-  const level = useLiveReads([device.id]).levels.get(device.id) ?? null;
-  // An AIR fan's speed is its own control, which this page holds: Ausgänge would only say it again and lead back here.
-  const outputs = { ...outputsOf(device, table, level), speed: false };
-  const page = (name: ControlPage, has: boolean, line: RowLine | null) =>
-    mayManage && has ? (
-      <Row
-        key={name}
-        to={controlPath(spaceId, name, { device: device.id })}
-        title={t(`control.page.${name}`)}
-        line={line ? <FactLine facts={line.text.split(' · ')} /> : null}
-        warn={line?.warn}
-      />
-    ) : null;
-
-  return (
-    <nav aria-label={t('device.steering')}>
-      <Rows>
-        <Row to={`${timelinePath(spaceId)}&device=${encodeURIComponent(device.id)}`} title={t('device.curves')} />
-        {page('alarms', watchable(device) || rules.rules.size > 0, rules.isPending ? null : alarmsLine(t, [...rules.rules.values()]))}
-        {page('plan', climateLanding(device) !== 'nowhere' || plans.plans.length > 0, plans.isPending ? null : planLine(t, plans.plans, now))}
-        {page('outputs', hasOutputs(outputs), outputsLine(t, [outputs], now, zone))}
-        {page('mode', hasMode(device), modeLine(t, device))}
-      </Rows>
-    </nav>
   );
 }
 

@@ -153,27 +153,15 @@ interface What {
  * where it is not.
  *
  * An offline alert is dated from when the device was last heard rather than
- * from the alert's start, because what a reader wants to know is how long the
- * tent has gone unwatched and not how long ago the cloud noticed. A device this
- * account cannot see leaves the alert's own start as the only answer there is.
+ * from the alert's start: what a reader wants to know is how long the tent
+ * has gone unwatched, not how long ago the cloud noticed. Last heard is not
+ * last sample, and the words say so - a device reports its presence and its
+ * readings on different beats. Both instants are the server's, and so is the
+ * now they are taken from.
  *
- * Last heard is not last sample, and the words say so. A device reports its
- * presence and its readings on different beats, and a migrated one can carry a
- * connect stamped hours before the last figure it stored - so this card said
- * "no sample for 4 d" about a tent whose newest reading the header of its own
- * page dates three days back. The two ages are meant to differ; describing one
- * of them as the other is what made them look like a contradiction.
- * Both instants are the server's, and so is the now they are taken from: a
- * silence is the whole of what such a card says, and a browser an hour out
- * would add that hour to it while the "since" beside it stayed put.
- *
- * A camera alert is dated the same way and for the same reason. It used to
- * print the moment the cloud noticed, which on a real blackout of three days
- * and twenty-two hours read "no image since 13:19 … resolved 13:20 · lasted
- * 1 min" - a camera that looked to have blinked. The staleness is on the alert
- * itself, so the last picture is that many seconds before it was raised, and
- * the date is written beside the hour whenever it is not today's: a gap that
- * began late one night is otherwise moved onto the wrong day by a bare clock.
+ * A camera alert is dated the same way: the staleness is on the alert itself,
+ * so the last picture is that many seconds before it was raised, and the date
+ * is written beside the hour whenever it is not today's.
  */
 const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Device | null, now: DateTime, zone: string | null): What => {
   switch (alert.kind) {
@@ -183,12 +171,9 @@ const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Devi
       return { label: offlineLabel(quietSince, now, zone), figure: null };
     }
     case 'camera_stale': {
-      // The alert carries how long the camera had been dark when it was
-      // raised, so the picture it was dark since is that many seconds before
-      // the raise. Both an open and a resolved alert are dated this way: an
-      // open one has no newer picture by definition, and a resolved one's
-      // camera now holds the still that ended the gap, so its live state is
-      // the wrong thing to read.
+      // The alert carries how long the camera had been dark when it was raised, so
+      // the picture it was dark since is that many seconds before the raise - also
+      // for a resolved alert, whose camera now holds the still that ended the gap.
       const quiet = alert.value ?? alert.extremeValue;
       const since = quiet === null ? alert.startedAt : (zoned(alert.startedAt, zone).minus({ seconds: quiet }).toISO() ?? alert.startedAt);
 
@@ -211,26 +196,15 @@ interface Watched {
 /**
  * What this episode was about. The band and the metric are the episode's own -
  * the copy the alert kept of its rule as the episode opened - and only where it
- * kept none are they read off the rule as it stands today.
- *
- * The copy wins over the rule even while the rule is in hand, because the two
- * part as soon as somebody edits the rule, which the card's own "Edit rule"
- * chip is the supported way to do with the episode still open. Read off the
- * rule, a band widened from 30 to 60 made a card raised on 41 % read
- * "humidity 41 % › 60" - a crossing that never happened - where the episode
- * itself says "› 30", which is the one that did.
- *
- * A rule can also be deleted, and the episodes it raised stay: they are the
- * record of something that happened in a tent, and retiring the rule is not a
- * statement that it did not. Without the copy such a card said "alarm" and a
- * bare figure, with no metric, no unit and no name to tell one deleted rule's
- * night from another's.
+ * kept none are they read off the rule as it stands today: the two part as
+ * soon as somebody edits the rule, and a rule can be deleted while the
+ * episodes it raised stay.
  *
  * The rule's name is not taken from here: a renamed rule is still the rule a
- * reader knows it by, so `ruleName()` reads the copy only once the rule is gone.
- * What stays with the live rule alone is what only a rule can answer: the grade
- * it carries today, the silence resting on it, how often it repeats, how long it
- * asks a reading to stay out, and whether it can be edited from here at all.
+ * reader knows it by, so `ruleName()` reads the copy only once the rule is
+ * gone. What stays with the live rule alone is what only a rule can answer:
+ * the grade it carries today, the silence resting on it, how often it repeats,
+ * how long it asks a reading to stay out, and whether it can be edited here.
  */
 const watchedOf = (alert: Alert, rule: AlarmRule | null): Watched | null => {
   const watch = alert.watched?.watch ?? rule?.watch;
@@ -251,11 +225,7 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
 
   const value = alert.value ?? alert.extremeValue;
   const crossed = crossedBound(watch, value);
-  // A reading carries the metric's unit and decimals; a level carries whatever
-  // its own output sends. The inbox used to call every level a percent and
-  // round it to a whole number, so a heater watched at half power read "1 %" on
-  // a series whose whole range is nought to one - and the card beside it, which
-  // knew better, wrote the same bound with no unit at all.
+  // A reading carries the metric's unit and decimals; a level carries whatever its own output sends.
   const asFigure = (x: number) => (watch.kind === 'reading' ? figure(x, watch.metric) : looseFigure(x));
   const asEdge = (x: number) => (watch.kind === 'reading' ? targetFigure(x, watch.metric) : looseFigure(x));
   const unit = unitOf(watch);
@@ -283,28 +253,18 @@ const whole = (phrase: string): string => phrase.split(' · ').map(unbroken).joi
 /**
  * Which rule raised it, how much it matters, when it began and how long it
  * stood, then what will go on being done about it. The rule leads the line
- * because two rules on one sensor make two cards that are otherwise word for
- * word the same, and the severity follows it because the coloured edge beside
- * it is the only other place that is said and a colour is not a word.
+ * because two rules on one sensor make two cards that are otherwise the same,
+ * and the severity follows it because a colour is not a word.
  *
  * The severity is the alert's own - the grade the episode was raised and
- * announced at - and so is everything said about being told, so that the card
- * cannot promise what the rule would do today about a grade it no longer
- * carries. A rule re-graded while its episode is open carries the change into
- * the alert, so the two only differ where somebody edited the rule before that
- * was so; where they do differ the card says which, rather than quietly
- * reading half from each.
+ * announced at - and so is everything said about being told; where the rule's
+ * grade differs today the card says which.
  *
  * Whether anybody was told is said of every open card, whether or not a rule
- * raised it. A camera the health loop found dark carries none, and the server
- * routes it through the same channels a rule's alert goes through - so hanging
- * the clause on the rule left a critical card reading "nobody was listening"
- * above a warning card in exactly that state and silent about it, and a silence
- * where the card beside it names the trouble reads as the assurance that this
- * one did reach somebody. Only what a rule alone can answer - the grade it
+ * raised it: a camera the health loop found dark carries none and is routed
+ * through the same channels. Only what a rule alone can answer - the grade it
  * carries today, the silence resting on it, how often it says itself again -
- * stays behind one, and a card whose rule is merely not in hand goes on saying
- * nothing about delivery at all.
+ * stays behind one.
  */
 const metaOf = (
   t: Translate,
@@ -343,19 +303,10 @@ const metaOf = (
 
     if (rule && isAhead(rule.silencedUntil, now)) parts.push(t('alerts.meta.silenced', { time: clock(rule.silencedUntil!, zone) }));
 
-    // A device being worked on has its alarms held by the engine itself, so
-    // this card will not change while that stands. It is said for the same
-    // reason the silence beside it is: what a reader can see of an open alert
-    // has to include why nothing more is going to happen to it.
-    //
-    // Which of the two things is standing is said too. The quiet outlasts the
-    // window by the settling, and for those ten minutes the hardware is running
-    // again while the alarms are still held - so a card that went on calling
-    // the device "in maintenance" was telling a grower their fan was parked
-    // when it had been let go, in the very minutes they are most likely to
-    // believe the watch is back on. The alarms page one tap away already told
-    // the two apart, and the card's own maintenance chip flipped with them
-    // while this line did not.
+    // A device being worked on has its alarms held by the engine itself, so this
+    // card will not change while that stands, and it says so. Which of the two
+    // is standing is said too: the quiet outlasts the window by the settling,
+    // and for those minutes the hardware runs again while the alarms are held.
     const quiet = device && maintenanceQuiet(device, now);
     if (quiet) parts.push(t(quiet.parked ? 'alerts.meta.inMaintenance' : 'alerts.meta.settling', { time: clock(quiet.alarmsUntil, zone) }));
   }
@@ -369,12 +320,10 @@ const metaOf = (
 };
 
 /**
- * What the rule is called, in the words the alarm rules page calls it by; a
- * rule no longer in hand at all leaves the name the episode wrote down when it
- * opened. The last
- * of those is the plain stored name rather than a title, because a title is
- * made from what the rule is today and there is no today for a rule that is
- * gone.
+ * What the rule is called, in the words the alarm rules page calls it by. A
+ * rule no longer in hand leaves the name the episode wrote down when it
+ * opened - the plain stored name, since a title is made from what the rule is
+ * today.
  */
 const ruleName = (t: Translate, alert: Alert, rule: AlarmRule | null): string | null => {
   if (!rule) return alert.watched?.name ?? null;

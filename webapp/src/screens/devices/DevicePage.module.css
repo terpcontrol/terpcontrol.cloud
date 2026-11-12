@@ -123,7 +123,7 @@
 .pick > button[aria-disabled='true'] {
   background: var(--card-2);
   border-color: transparent;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted) 55%, var(--card-2));
   cursor: default;
 }
 
@@ -142,7 +142,7 @@
 
 .update[aria-disabled='true'] {
   background: var(--card-2);
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted) 55%, var(--card-2));
   cursor: default;
 }
 

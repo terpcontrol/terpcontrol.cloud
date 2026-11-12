@@ -12,12 +12,11 @@ import { typedFigure } from '@/ui/figures';
  * it switches with, where the device reaches it, its web credentials if it has
  * any, and - for a pump or a timer of one's own - the cycle it repeats.
  *
- * The roles offered are the ones the controller always had, the exhaust that
- * runs on over-temperature and the humidifier that runs under the humidity
- * target, and the two that run on a timer; the others the contract knows wait
- * until they have been tried in a real tent. Of those, only what the device's
- * build announced is offered, because a role it does not know is dropped when
- * its table is loaded.
+ * The roles offered are the exhaust that runs on over-temperature, the
+ * humidifier that runs under the humidity target, and the two that run on a
+ * timer; the others the contract knows wait until they have been tried in a
+ * real tent. Of those, only what the device's build announced is offered: a
+ * role it does not know is dropped when its table is loaded.
  */
 const OFFERED_ROLES: readonly SocketRole[] = [
   'heater',

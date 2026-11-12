@@ -3,19 +3,15 @@ import type { Device, SocketPage } from '@fg2/shared-types/v1';
 
 /**
  * The items an Erweitert section offers, wherever one stands: per device on
- * its page, and on the charts page.
- *
- * Erweitert is where what most growers never need goes - a work mode, a ramp, a
- * protocol - one collapsed section beside the thing it is about rather than one
- * expert switch for the whole app, which hid the everyday settings along with
- * the rare ones. A section with nothing to offer here is not drawn at all.
+ * its page, and on the charts page. Erweitert is where what most growers
+ * never need goes, one collapsed section beside the thing it is about; a
+ * section with nothing to offer is not drawn at all.
  *
  * An item is one file anywhere under `src/` whose name ends in `.advanced.tsx`
  * and that exports `items`, built with `advancedItem`: the registry
  * (`registry.ts`) finds it at build time, so adding one touches no file but its
- * own (and the catalogues). Its help topics are named
- * `advanced.<name>` and live under `help.advanced` in both catalogues, so they
- * are not added to the app's list either.
+ * own (and the catalogues). Its help topics are named `advanced.<name>` and
+ * live under `help.advanced` in both catalogues.
  */
 
 /** What an item about one device is drawn with. */

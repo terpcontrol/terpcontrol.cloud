@@ -16,12 +16,10 @@ import { answerSoon, forgetRow, type SocketRowModel } from './sockets';
 import styles from './Sockets.module.css';
 
 /**
- * Pairing a socket by its address, and changing or removing one: what a Tasmota
- * socket can only be given from here, and what a paired one rarely needs again,
- * because the device finds its sockets by their hardware id when the network
- * moves them. Pairing stands on the device's page, changing and removing on
- * the socket's own; the cycle of a pump or a timer of one's own is changed
- * with the rest of the socket.
+ * Pairing a socket by its address, and changing or removing one. A paired
+ * socket rarely needs either again: the device finds its sockets by their
+ * hardware id when the network moves them. Pairing stands on the device's
+ * page, changing and removing on the socket's own.
  *
  * Every one of them is a command: a device that was listening is answered
  * with a toast and the sheet goes; one that was not leaves the sheet open and

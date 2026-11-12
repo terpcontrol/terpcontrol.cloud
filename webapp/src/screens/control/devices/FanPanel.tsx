@@ -14,12 +14,10 @@ import styles from './Own.module.css';
 
 /**
  * An AIR fan's own control: what its speed follows and how fast it may run.
- * At a fixed speed it reads no target, so this is all it is set to; following
- * a reading, the temperature and the humidity it is held to stand under it as
- * a controller's targets do.
- *
- * Day and night are the fan's own: it tells them apart by its light sensor, so
- * its night is when the lamp it hangs under is off.
+ * At a fixed speed it reads no target; following a reading, the temperature
+ * and the humidity it is held to stand under it as a controller's targets do.
+ * It tells day from night by its light sensor: its night is when the lamp it
+ * hangs under is off.
  */
 export function FanPanel({ device, mayManage }: { device: Device; mayManage: boolean }) {
   const { t } = useTranslation();

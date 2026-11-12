@@ -1,7 +1,7 @@
 ---
 summary: How the controller and the fridge pair, identify, drive and report their Tasmota smart sockets, what the cloud and the app do with them, and the stand-alone Plantalytix Socket (plug) - read before changing any of it
 updated: 2026-11-12
-source: Chris (light set-up rule, 2026-09-19; the name Plantalytix Socket, 2026-10-12); agents' PRs #23, #77, #82, #103, #104, #136 (reverted by #154, owner 2026-10-09), #145 and sessions 2026-05..10; checked against the code 2026-10-08; a socket's own page (the redesign session of 2026-11-12)
+source: Chris (light set-up rule, 2026-09-19; the name Plantalytix Socket, 2026-10-12); agents' PRs #23, #77, #82, #103, #104, #136 (reverted by #154, owner 2026-10-09), #145 and sessions 2026-05..10; checked against the code 2026-10-08; a socket's own page (the redesign session of 2026-11-12); the one control for a hold, and where sockets are listed, after that session's critic's walk (2026-11-12)
 paths:
   - firmware/src/wifi.*
   - firmware/src/lanscan.*
@@ -148,20 +148,35 @@ A socket outside the module's /24 is never found.
 
 - **Lights** (Chris, 2026-09-19): a lamp on the controller's own PWM output and light sockets switched
   independently must both be possible and obvious. Steuerung › Ausgänge shows the device's own output first (what
-  it runs at, hold on/off/auto; its limit is set on Steuerung's light card), then every socket as a row, a
+  it runs at and its hold; its limit is set on Steuerung's light card), then every socket as a row, a
   `light`/`secondary_light` socket numbered within its role ("Light 1", "Light 2").
 - **A socket has a page** (`/devices/:id/sockets/:socket`, `SocketPage.tsx`; the redesign session of 2026-11-12),
-  reached from its row under Steuerung, under Ausgänge and in the device's list of sockets, and found by its slot
-  when its role changes: the switch, the hold, "Finden", the cycle of a timed role, its facts, and changing or
-  removing it. The device's sockets and pairing by address are at `/devices/:id/sockets`. A socket's line reads
-  "an · Auto" or "an gehalten · 42 Min" (`socket-words.ts`), with "Stand hh:mm" in front once the device is
-  offline.
+  reached from its row under Steuerung and under Ausgänge - the only two lists of a device's sockets - and found
+  by its slot when its role changes: its state in the device's words, the hold, its facts, and the rows Finden,
+  changing it (for a pump or a timer of one's own "Zeitschaltung, Adresse, Rolle", amber while no cycle is set)
+  and removing it. A device's own page counts its sockets and pairs another by address (`PairSocketRow`,
+  `SocketSheets.tsx`); `/devices/:id/sockets` is no page. A socket's line reads "an · Auto" or "an gehalten ·
+  42 Min" (`socket-words.ts`), with "Stand hh:mm" in front once the device is offline.
+- **A hold has one control** (`HandHold.tsx`; the redesign session of 2026-11-12, after its critic's walk), on a
+  socket's page and on the light output's row under Ausgänge: Auto · An · Aus, and under An or Aus the lengths of
+  a hold, each chosen - no tap holds for a default hour. What the control owes the grower is in
+  [app-ux.md §5](app-ux.md#5-controls). The firmware sends its table at once after `socket_set` and
+  `socket_remove` and within 30 s after an override; the app reads it again at 2 to 40 s (`answerSoon`,
+  `sockets.ts`) and takes a removed socket off the screen at once (`forgetRow`). A hold sent again the same way
+  with another length is taken but not reported (`socketReportSignature`, `firmware/src/wifi.cpp`), so the app
+  does not offer it.
+- **The light output reports no hold back**: `useLightHold` / `rememberLightHold` (`lights.ts`,
+  `terp.lightHold.<device>` in this browser, holding `{ state, until }`) is the one place a held light is read,
+  and another browser knows nothing of it.
+- **Pairing, changing and removing are commands**: each closes its sheet with a toast when the device was
+  listening and keeps it open, saying that nothing changed, when it was not. "Finden" is the firmware's own pulse,
+  two seconds on and then off.
 - Roles offered for pairing and editing (`OFFERED_ROLES` in `socket-form.ts`): heater, dehumidifier, humidifier,
   exhaust, co2, light, secondary_light, pump, custom_timer - each only where the build announced it.
   `circulation`, `fan` and `manual` are in the firmware and the contract but not offered until they have been
   tried in a real tent. A socket being edited keeps its own role on offer.
-- Holds: 15 min, 1 h (a plain tap), 4 h, 8 h, 24 h. Why a switch is unavailable is said once on the page, offline
-  first, then that the build takes no override.
+- Holds: 15 min, 1 h, 4 h, 8 h, 24 h (`HOLD_SECONDS`). Why no hold can be asked for is said once on the page,
+  offline first, then that the build takes no override.
 - A timed socket's state column cannot show short pulses: the table is re-reported at most every 30 s, so a 30 s
   on-pulse may never be seen as on. The timer column says what it repeats.
 

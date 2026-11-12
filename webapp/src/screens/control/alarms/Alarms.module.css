@@ -49,12 +49,8 @@
   padding: var(--space-3) var(--space-4);
 }
 
-/* The rule an alert linked to. "The one you followed" is not a state the rule
-   is in, so it is not drawn as one: green all round the card is how the app
-   says something is running now, and a ring in it here would read as a rule
-   that has just gone off. A bar down the left edge in plain ink is a pointing
-   finger instead, and says the same thing in both modes without borrowing a
-   colour that already means something else. */
+/* The rule an alert linked to: a bar down the left edge in plain ink. Green
+   round the card would read as a rule that has just gone off. */
 .card[data-highlight] {
   box-shadow: inset 3px 0 0 var(--ink);
 }
@@ -182,66 +178,16 @@
   text-align: center;
 }
 
-.fields {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: var(--rule-dashed);
-  border-radius: var(--radius);
-}
-
 .bounds {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-2);
 }
 
-.figure {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--card-2);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-}
-
-.figureLabel {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-.figureInput {
-  width: 72px;
-  min-width: 0;
-  background: none;
-  border: 0;
-  color: var(--ink);
-  font-size: var(--text-md);
-  text-align: right;
-}
-
-.figureInput:focus {
-  outline: none;
-}
-
-.figureUnit {
-  flex-shrink: 0;
-  font-size: var(--text-xs);
-  color: var(--label);
-}
-
 .duration {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-.number {
-  width: 88px;
 }
 
 .textarea {

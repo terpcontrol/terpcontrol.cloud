@@ -2,9 +2,9 @@ import { Move, Scissors, Split } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import type { Entry, GrowListItem, GrowSeries, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
-import { backOf, usePageOfGrow } from '@/app/places';
+import { usePageOfGrow } from '@/app/places';
 import { useGrow, useGrowPlants, useMeasurementSeries, usePlantEntries } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
@@ -40,7 +40,6 @@ const LINES = 12;
  * its own pictures, and the lines that name it.
  */
 export function PlantPage() {
-  const { state } = useLocation();
   const { growId = '', plantId = '' } = useParams();
   const { t } = useTranslation();
   const now = useNow();
@@ -93,7 +92,7 @@ export function PlantPage() {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <BackLink to={backOf(state, `/grows/${growId}/plants`)} label={t('grow.plant.back')} className={styles.back} />
+        <BackLink to={`/grows/${growId}/plants`} label={t('grow.plant.back')} className={styles.back} />
         <div className={styles.titles}>
           <h1>{plant.label}</h1>
           <p className={styles.subtitle}>{subtitle(t, grow.data, plant)}</p>

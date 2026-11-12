@@ -13,21 +13,15 @@ import { RtspCamera } from './RtspCamera';
 import styles from './AddCamera.module.css';
 
 /**
- * The two ways a camera arrives, which are two different things to explain
- * rather than two shapes of the same form.
+ * The two ways a camera arrives. A Terp Cam is paired at a fridge module or a
+ * controller and the cloud hears about it over MQTT, so this screen has
+ * nothing to send for one: it says what to do at the hardware and watches for
+ * what turns up. Only a stream camera has a form. A Terp Cam without a device
+ * to pair it at is not offered: the cloud reaches one only through that device.
  *
- * A Terp Cam is paired at a fridge module or a controller and the cloud hears
- * about it over MQTT, so this screen has nothing to send for one: it says what
- * to do at the hardware and then watches for what turns up. Only a stream
- * camera has a form, because a stream is an address and nobody but the person
- * knows it. A Terp Cam without a device to pair it at is not offered: the cloud
- * reaches a Terp Cam only through the device it is paired at.
- *
- * Which of the two is meant is held here rather than in the address: they are
- * one question with two answers, and a tab is not a place to come back to.
- * They are drawn as chips saying which one is pressed rather than as an ARIA
- * tab strip: a tab strip tells a screen reader to press an arrow key, and the
- * app has no arrow-key handler anywhere to answer that promise.
+ * The two are drawn as chips saying which one is pressed rather than as an
+ * ARIA tab strip: a tab strip promises arrow keys, which nothing in the app
+ * answers.
  */
 export function AddCamera() {
   const { t } = useTranslation();
@@ -47,17 +41,14 @@ export function AddCamera() {
 
 /**
  * The tabs and whichever of the two is open, which is everything that reads
- * an account. It is its own component so that a session which may only look
- * asks for none of it.
+ * an account - its own component so that a session which may only look asks
+ * for none of it.
  *
- * Two things are owned here rather than by the tab that uses them. The first is
- * which tab opens: pairing at a device is the way in only for somebody who has
- * one to pair at, so an account with none opens on the address form instead,
- * and the choice waits for the device list so that the tab never moves under a
- * finger. A link that names the address form (`?kind=rtsp`) opens on it.
- * The second is the line a newly paired camera is measured against, which has
- * to outlive a tab change: it is the cameras this account had when the *screen*
- * was opened, and looking at the RTSP tab and back is not opening it again.
+ * Which tab opens is decided here: pairing at a device only for somebody who
+ * has one, else the address form, and the choice waits for the device list so
+ * that the tab never moves under a finger; `?kind=rtsp` opens on the form. So
+ * is the line a newly paired camera is measured against: the cameras this
+ * account had when the screen was opened, which outlives a tab change.
  */
 function Ways() {
   const { t } = useTranslation();
@@ -75,11 +66,6 @@ function Ways() {
 
   return (
     <>
-      {/* The two ways in, as one control: which of them is meant is a choice
-          between two, not two buttons that each do something. They say which
-          one is pressed rather than being an ARIA tab strip, because the arrow
-          keys a tab strip promises are a behaviour nothing else in the app
-          has. */}
       <div className={`${ui.segments} ${ui.segmentsFill}`} role="group" aria-label={t('cameras.add.which')}>
         {KINDS.map(one => (
           <button key={one} type="button" className={ui.segment} aria-pressed={one === kind} onClick={() => setChosen(one)}>

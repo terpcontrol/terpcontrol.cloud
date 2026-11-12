@@ -41,14 +41,11 @@ const rowOf = (rows: SocketRowModel[], key: string): SocketRowModel | null => {
 /**
  * One smart socket, on a page of its own: what it is doing, holding it on or
  * off by hand, finding it in the tent, and what is rarely needed again - where
- * it is reached, the cycle of a timed role, and removing it.
+ * it is reached, the cycle of a timed role, and removing it, which puts the
+ * page it was opened from in this one's place.
  *
  * What the socket is doing is the device's last report and nothing else: a
- * command that went out is said as asked until the device reports it. A
- * reader who may not manage the device reads the state alone.
- *
- * It leads back to where it was opened from - Steuerung or its outputs - and
- * so does removing it.
+ * command that went out is said as asked until the device reports it.
  */
 export function SocketPage() {
   const { deviceId = '', socket = '' } = useParams();

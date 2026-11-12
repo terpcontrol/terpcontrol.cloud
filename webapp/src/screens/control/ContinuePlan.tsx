@@ -12,15 +12,12 @@ import styles from './ContinuePlan.module.css';
 
 /**
  * Going on with the plan at a step of one's own choosing: back to a step that
- * ended too soon, or into the middle of a recipe for a grow that is already
- * flowering. Rare, and without it there is no way out of either - the plan
- * screen skips forward one step at a time and starts at the first.
+ * ended too soon, or into the middle of a recipe for a grow already flowering.
+ * The plan's own moves only skip forward one step at a time.
  *
- * The step chosen starts from nought, the way the engine starts any step, so
- * the question says so before it is sent, as every move of a plan asks (`Asking`); a plan that was paused or put away
- * runs again, because going on with a step is not pausing at it. It stands
- * under the plan it moves, draws nothing for a device without steps, and is
- * answered by the toast.
+ * The step chosen starts from nought, as the engine starts any step, and a
+ * plan that was paused or put away runs again; the question says so first
+ * (`Asking`). It draws nothing for a device without steps.
  */
 export function ContinuePlan({ device }: { device: Device }) {
   const { t } = useTranslation();

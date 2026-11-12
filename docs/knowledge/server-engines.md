@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
 updated: 2026-11-12
-source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12
+source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -215,7 +215,12 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   changing; any other figure is known only from the diary line a person's save writes, whose first since then says
   what the figure was before (`modules/device-protocol/change-lines.ts` writes those lines and reads them back, so
   the two cannot drift). So a figure outside the record that something else moved meanwhile is not known, nor one
-  past the twelve a long entry names, and a figure that is no number comes as its line spells it. The two reads
+  past the twelve a long entry names, and a figure that is no number comes as its line spells it. **A switch is
+  compared as the firmware reads it** (`asRead`): a document holds `true` and `false` until a write stores `1`
+  and `0` in their place, and the device takes either for the same thing - so the two are one value on the two
+  sides of a diary line and against the document. A switch flipped and flipped back while the device was silent
+  is not pending, and neither is a write that only spelled it the other way; `held` is still answered as the line
+  spells it (unit test "reads a switch as the firmware does", `server/test/unit/pending-settings.spec.ts`). The two reads
   run only for an offline device, each on its collection's index by device and time (`pendingOf` beside
   `recordOf`). Measured on a development stack on 2026-11-12, medians of 11 runs of the live read: 6 ms for a
   device that is heard, 7 ms for a silent one with a change pending.

@@ -27,12 +27,11 @@ const LIGHT = { kind: 'output', output: 'light' } as const;
  * The controller's own light output, under Ausgänge: what the lamp is running
  * at, and holding it on or off for a while.
  *
- * The level is a reading, and the only fact here the device vouches for, so
- * it is dated. A hold is a command the device never
- * reports back, so the row says the one this browser sent until its time is
- * up (`useLightHold`). It dies with a reboot, and it is offered only where
- * one could be asked for - a type that holds, a build that announced it, a
- * device that is listening; anywhere else one sentence says why.
+ * The level is a reading, the only fact here the device vouches for, so it is
+ * dated. A hold is a command the device never reports back, so the row says
+ * the one this browser sent until its time is up (`useLightHold`). It dies
+ * with a reboot, and is offered only where one could be asked for - a type
+ * that holds, a build that announced it, a device that is listening.
  */
 export function LightOutputRow({ output, offline, mayManage, runs, now }: LightOutputRowProps) {
   const { t } = useTranslation();

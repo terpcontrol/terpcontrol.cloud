@@ -23,13 +23,10 @@ import { api } from './client';
 import { invalidate, useWrite, useWriteSettled } from './write';
 
 /**
- * The first read, and the pattern for every one after it: a key, a route, and a
- * type that comes from the contract rather than from here. A device id is the
- * server's own, so it goes into a route as it is.
- *
- * The device list and the socket tables are refreshed on the live beat,
- * because a socket row is the device's own report: nothing changes when a
- * switch is tapped, only when the device next says what it is doing.
+ * The pattern for every read: a key, a route, and a type that comes from the
+ * contract. The device list and the socket tables are refreshed on the live
+ * beat, because a socket row is the device's own report: nothing changes when
+ * a switch is tapped, only when the device next says what it is doing.
  */
 export const devicesQuery = queryOptions({
   queryKey: ['devices'],
@@ -48,12 +45,7 @@ const deviceLiveQuery = (deviceId: string) =>
     queryFn: ({ signal }) => api.get<DeviceLive>(`/devices/${deviceId}/live`, undefined, signal),
   });
 
-/**
- * Every device this account can see. `enabled` is here for the readers that only
- * want the list under one condition: a sheet that names the hardware of a place
- * for one of its eight tiles should not read the whole fleet for the other
- * seven.
- */
+/** Every device this account can see; `enabled` for a reader that wants the list only under a condition. */
 export const useDevices = (enabled = true) => useRead({ ...devicesQuery, refetchInterval: LIVE_BEAT_MS, enabled });
 
 /** The same list, followed rather than polled: how many devices there are, for the navigation. */
@@ -94,16 +86,10 @@ export const useSocketTables = (deviceIds: string[]) =>
 
 /**
  * What a device's light output is running at, which is a reading and not a
- * setting: the controller dims its own lamp, so the level is the one thing that
- * says whether the tent is dark, lit, or lit at two fifths.
- *
- * It is read from the device's live answer, beside every sensor it reports,
- * because that is the one read that has no window to pick: it answers the newest
- * value there is with the age and the state the server decided for it. A lamp
- * that has been quiet for four days therefore comes back dimmed and dated - the
- * rule this screen holds every other value to - where a series over the last
- * quarter of an hour used to come back empty and the level vanished from a row
- * that knew it perfectly well.
+ * setting: the controller dims its own lamp, so the level is the one thing
+ * that says whether the tent is dark, lit, or lit at two fifths. It is read
+ * from the device's live answer, which has no window to pick: a lamp quiet
+ * for four days comes back dimmed and dated rather than not at all.
  */
 export interface OutputLevel {
   percent: number;
@@ -113,14 +99,10 @@ export interface OutputLevel {
 }
 
 /**
- * What each of these devices is reading and driving right now.
- *
- * One read per device, and two things are taken from it: the lamp's level,
- * which is the only word a controller gives on its own light output, and the
- * newest instant anywhere in the answer, which is the proof a row has that the
- * device was heard at all. A device list that judged liveness by `lastSeenAt`
- * alone called a device quiet for four days on the same card as a reading of
- * its own three days old.
+ * What each of these devices is reading and driving right now. One read per
+ * device, and two things are taken from it: the lamp's level, the only word a
+ * controller gives on its own light output, and the newest instant anywhere
+ * in the answer, which with `lastSeenAt` says when the device was heard.
  */
 export const useLiveReads = (deviceIds: string[]) =>
   useQueries({
@@ -132,22 +114,13 @@ export const useLiveReads = (deviceIds: string[]) =>
     }),
   });
 
-/**
- * When one device was last heard, as the Devices row and the server count it:
- * the later of its last message and its newest reading. The Control panels
- * aged `lastSeenAt` alone, which on a migrated device is half a day older, so
- * one silence read "6 d" there and "5 d" on the Devices page.
- */
+/** When one device was last heard, as the server counts it: the later of its last message and its newest reading. */
 export const useHeardAt = (device: { id: string; state: { lastSeenAt: string | null } }): string | null => {
   const reads = useLiveReads([device.id]);
   return heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
 };
 
-/**
- * One device's newest values, outputs and the half of the cycle it says it is
- * in. The key is the one the device rows read the same answer under, so a
- * place's Start and the Devices page beside it cost one request between them.
- */
+/** One device's newest values, outputs and the half of the cycle it says it is in, under the key `useLiveReads` shares. */
 export const useDeviceLive = (deviceId: string | null) =>
   useRead({ ...deviceLiveQuery(deviceId!), enabled: deviceId !== null, refetchInterval: LIVE_BEAT_MS });
 
@@ -196,14 +169,11 @@ export const useSaveConfiguration = () =>
 
 /**
  * Settings beyond the targets, by the names `CONFIGURATION_FIELDS` gives them
- * for the device's type: the work mode's three switches, and whatever an
- * Erweitert item offers. It writes on the tap - there is no draft to keep, and
- * nothing else on the screen is waiting to be saved with it.
- *
- * The answer is the device as the server stored it, which is not always what
- * was asked: the work mode is decided from it (a drying device keeps drying,
- * one that is off stays off), so the list is given the answer rather than the
- * request, and the place reads that judge the tent are read again.
+ * for the device's type. The answer is the device as the server stored it,
+ * which is not always what was asked: the work mode is decided from it (a
+ * drying device keeps drying, one that is off stays off), so the list is
+ * given the answer rather than the request, and the place reads that judge
+ * the tent are read again.
  */
 export const useConfigure = (deviceId: string) =>
   useWrite(
@@ -222,18 +192,11 @@ const deviceMoved = (client: QueryClient): void => void invalidate(client, ['dev
 /**
  * What a person decides about a device: what it is called, and where it stands.
  *
- * The route has always taken both - it is the first thing `PATCH /devices/{id}`
- * is documented as doing - and until now nothing in the app called it, so the
- * name every list is built around could only be given by the claim that stored
- * the type as one, and hardware that landed in the wrong tent stayed there.
- *
- * A move is the wider of the two writes and is why the reads below are thrown
- * away rather than patched: the device leaves one place's Devices page and
- * appears on another's, the home cards of both change, and the camera the
- * controller answers for is moved with it by the server, which no answer here
- * mentions. The device itself is written into its own key as well, because the
- * claim flow reads one device by id and would otherwise go on drawing the place
- * it has just been moved out of.
+ * A move is why the reads below are thrown away rather than patched: the
+ * device leaves one place and appears in another, the home cards of both
+ * change, and the camera the controller answers for is moved with it by the
+ * server, which no answer here mentions. The device itself is written into
+ * its own key as well, because the claim flow reads one device by id.
  */
 export const useUpdateDevice = (deviceId: string) =>
   useWrite(
@@ -250,12 +213,9 @@ export const useUpdateDevice = (deviceId: string) =>
 
 /**
  * Giving a device up: it leaves this account and can be claimed by whoever
- * stands in front of it next, with the code its display shows.
- *
- * Nothing is read again here. The panel the question was asked in belongs to
- * the device that is going, and reading the list again would take it away
- * before the answer is on it; whoever asked lets go of it with `forget` once
- * the answer has been read.
+ * stands in front of it next. Nothing is read again here - that would take
+ * the panel the question was asked in away before the answer is on it;
+ * whoever asked lets go of it with `forget` once the answer has been read.
  */
 export const useReleaseDevice = (deviceId: string) => {
   const queryClient = useQueryClient();

@@ -314,33 +314,6 @@
   }
 }
 
-/* The way to add one more to a list - a device, a camera, a grow: a dashed
-   row that closes the list it adds to, its words in the middle. */
-.addRow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  width: 100%;
-  min-height: var(--control-height);
-  padding: var(--space-2) var(--space-3);
-  background: transparent;
-  border: var(--rule-dashed);
-  border-radius: var(--radius);
-  color: var(--muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  text-align: center;
-  transition:
-    background-color 120ms ease-out,
-    color 120ms ease-out;
-}
-
-.addRow:hover {
-  background: color-mix(in srgb, var(--card) 60%, transparent);
-  color: var(--ink);
-}
-
 /* The secondary button, as the site draws its own: white, its words in the
    brand blue, an edge that turns blue under the pointer. */
 .button {
@@ -405,14 +378,12 @@
   border-color: transparent;
 }
 
-/* A primary that cannot be pressed gives the green up rather than fading it.
-   Turning green down works in the light theme, where it washes towards a pale
-   page, and fails in the dark one, where it lands on a still-saturated green
-   that is the brightest thing on the screen. It takes the card's second
-   surface instead, and its words step back towards that surface: the muted
-   ink alone is nearly as bright as the ink in the dark theme, and the button
-   read there as one more quiet button that could be pressed. This rule
-   follows `.button:disabled` so that it wins the tie on equal weight. */
+/* A primary that cannot be pressed gives the green up rather than fading it:
+   turned down, it lands on a still-saturated green in the dark theme. It
+   takes the card's second surface, and its words step back towards that
+   surface, since the muted ink alone is nearly as bright as the ink there.
+   This rule follows `.button:disabled` so that it wins the tie on equal
+   weight. */
 .primary:disabled {
   background: var(--card-2);
   border-color: var(--rule);

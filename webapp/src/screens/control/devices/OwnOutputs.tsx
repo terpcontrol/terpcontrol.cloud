@@ -9,9 +9,8 @@ import { fanFactsOf } from './own-summary';
 
 /**
  * What a device drives by a setting of its own, among the outputs: a fridge's
- * fans, set here, and an AIR fan's speed, which is the fan's own control and
- * set where the fan's settings stand - Steuerung's top where it is the place's
- * climate, its own page otherwise. The row says it and leads there.
+ * fans, set here, and an AIR fan's speed, which is said here and set where
+ * the fan's settings stand - Steuerung's top or its own page.
  */
 export function OwnOutputs({ device, mayManage }: { device: Device; mayManage: boolean }) {
   if (!device.configuration) return null;

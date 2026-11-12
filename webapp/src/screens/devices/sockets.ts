@@ -4,24 +4,19 @@ import { SOCKET_HOLD_MAX_SECONDS } from '@fg2/shared-types/v1-schemas/socket-rep
 import { liveKey, socketsKey, type OverrideRequest } from '@/api/devices';
 
 /**
- * What a smart socket is drawn from - on its own page and in the rows that
- * lead there - and how long an output is held by hand.
- *
- * The rows are the device's own table and nothing else. The controller's own
- * outputs are not sockets - one of them dims and none of them is reported in a
- * table - so they are drawn from their own model.
+ * What a smart socket is drawn from, and how long an output is held by hand.
+ * The rows are the device's own table and nothing else: the controller's own
+ * outputs are not sockets and are drawn from their own model.
  */
 
 /**
- * The lengths a hold offers, up to the longest an override may live, and
- * every one of them whatever is being held.
+ * The lengths a hold offers, up to the longest an override may live, whatever
+ * is being held.
  *
- * `pulseSeconds` is not a minimum on-time and filtering by it read the device
- * backwards: it is the failsafe the socket programs itself with, the time after
- * the last command at which it switches off on its own, so that a controller
- * that goes quiet cannot leave a heater running. The controller re-asserts long
- * before then, so it never shortens a hold - which is why neither the role nor
- * the build narrows this list.
+ * `pulseSeconds` is no minimum on-time and narrows nothing here: it is the
+ * failsafe the socket programs itself with, the time after the last command
+ * at which it switches off on its own, so that a controller that goes quiet
+ * cannot leave a heater running. The controller re-asserts long before then.
  */
 export const HOLD_SECONDS: readonly number[] = [900, 3600, 4 * 3600, 8 * 3600, SOCKET_HOLD_MAX_SECONDS];
 
@@ -64,11 +59,7 @@ export interface SocketRowModel extends Socket {
   key: string;
   /** The name of the row: what the role is called, or "unassigned" for a socket nobody gave one. */
   titleKey: string;
-  /**
-   * Which of them this is, where a role holds several - a tent with two lamps
-   * has two rows called "Light", and a switch has to belong to one of them.
-   * Null where the role holds one socket and the name is already unambiguous.
-   */
+  /** Which of them this is, where a role holds several; null where the role's name is already unambiguous. */
   ordinal: number | null;
   target: OverrideRequest['target'];
 }
@@ -83,10 +74,8 @@ const socketRow = (socket: Socket, ordinal: number | null = null): SocketRowMode
 
 /**
  * The device's table in slot order, each row numbered within its role where
- * that role holds more than one socket.
- *
- * Two plugs both called "Light" are two lamps a grower switches separately, and
- * a row that cannot be told from the one under it is a switch nobody can aim.
+ * that role holds more than one socket: two plugs called "Light" are two lamps
+ * a grower switches separately.
  */
 export const rowsOf = (sockets: Socket[]): SocketRowModel[] => {
   const perRole = new Map<SocketRole, number>();

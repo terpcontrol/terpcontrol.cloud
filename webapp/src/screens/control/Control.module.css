@@ -172,12 +172,10 @@
   list-style: none;
 }
 
-/* A step, a row of the plan's one list, the way the camera's settings are: a
-   card with a rule between rows, not a stack of twenty cards. The editor's
-   steps too. The step the device is standing on is the group's current row -
-   marked as that rather than the others dimmed, because they are not old,
-   they are simply not now - and held when the plan is paused or waiting, so
-   it carries the colour the card above it carries. */
+/* A step, a row of the plan's one list: a card with a rule between rows. The
+   step the device is standing on is the group's current row, held when the
+   plan is paused or waiting, so it carries the colour the card above it
+   carries. */
 .step,
 .editStep {
   display: flex;
@@ -344,9 +342,7 @@
 }
 
 /* A figure the hardware standing here cannot run: the row keeps its place in
-   the grid, so the six read as the two halves of the cycle they are, and says
-   what is missing where the number would have been - the same words the manual
-   targets page says in the same place. */
+   the grid and says what is missing where the number would have been. */
 .figureNeeds {
   flex-shrink: 0;
   font-size: var(--text-xs);
@@ -434,9 +430,7 @@
   }
 }
 
-/* The way out of a page with nothing to set, inside the dashed note: underlined
-   rather than coloured, so it reads as the link it is without shouting from a
-   quiet note, and the green stays the Save's. */
+/* The way out of a page with nothing to set, inside the dashed note: underlined, so the green stays the Save's. */
 .addDevice {
   display: inline-flex;
   align-items: center;

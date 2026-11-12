@@ -59,10 +59,8 @@
   max-width: 100%;
 }
 
-/* A failure in words, and the server's own under it: a paragraph of ffmpeg
-   with an address in it, useless to a grower and the only thing that tells
-   whoever can fix the camera what is wrong - a tap away, selectable, and told
-   to break anywhere rather than to push the page open. */
+/* A failure in words, and the server's own under it for whoever can fix the
+   camera: a tap away, selectable, and told to break anywhere. */
 .said {
   display: flex;
   flex-direction: column;

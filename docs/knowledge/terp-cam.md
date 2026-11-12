@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
 updated: 2026-11-12
-source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12)
+source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -223,6 +223,13 @@ way and what the code has to respect. Internal notes on the camera exist.
   show `unknown`. The camera page reads no day of stills: its days come from the grow's diary
   (`GET /v1/grows/{id}/diary`, the lit still nearest midday per day), today's picture from the place's overview,
   else the camera's newest still (`webapp/src/screens/camera/days.ts`, `webapp/src/api/cameras.ts`).
+- The camera page's day and the diary it leads to share `?day=`, the grow's day number, not a date
+  (`dayNamed`, `webapp/src/screens/grow/diary/read-back.ts`).
+- A film asked for is read by `GET /v1/media/{id}` while it renders (`useMedia`); the page needs no second read
+  of the film list to follow it.
+- Tunnel, carrier and transport are written by the settings sheet's Save in one `PATCH /v1/cameras/{id}`, with
+  whatever else was changed. UDP does not pass through a tunnel, so turning the tunnel on for a stream read over
+  UDP sends `transport: null` (`webapp/src/screens/camera/CameraSettings.tsx`).
 
 ## Configuration
 - `TERPCAM_RELAY_URL`: `docker-compose.yaml` defaults it to `${API_URL_EXTERNAL}/terpcam/relay` - defaults belong

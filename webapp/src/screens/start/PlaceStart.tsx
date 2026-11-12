@@ -500,8 +500,7 @@ function StatusSentence({
  * The work mode where it is not the everyday one, under the status: a device
  * germinating is dark and holds one temperature, and "Alles im Ziel" over it
  * reads like a device holding its day. Named in two words, explained by its
- * help, and changed under Steuerung - the greenhouse mode in the device's
- * panel.
+ * help, and changed under Steuerung.
  */
 function ModeLine({
   device,

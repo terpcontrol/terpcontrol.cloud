@@ -36,6 +36,7 @@ import {
   withSeverity,
 } from './rules';
 import { isComplete, templateOf, WEBHOOK_TEMPLATES, type TemplateValues, type WebhookTemplate } from './webhook-templates';
+import control from '../Control.module.css';
 import styles from './Alarms.module.css';
 
 const SEVERITIES: Severity[] = ['critical', 'warning', 'info'];
@@ -345,7 +346,7 @@ function TemplateFields({ draft, onChange }: { draft: RuleDraft; onChange: (over
         ))}
       </Choices>
       {chosen ? (
-        <div className={styles.fields}>
+        <div className={control.fields}>
           <p className={ui.note}>{t(`webhookTargets.${chosen.id}.hint`)}</p>
           {chosen.fields.map(field => (
             <label key={field.key} className={styles.templateField}>
@@ -456,10 +457,10 @@ function BoundField({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className={styles.figure}>
-      <span className={styles.figureLabel}>{label}</span>
+    <label className={control.figure}>
+      <span className={control.figureLabel}>{label}</span>
       <input
-        className={`mono ${styles.figureInput}`}
+        className={`mono ${control.figureInput}`}
         type="number"
         inputMode="decimal"
         step="any"
@@ -470,7 +471,7 @@ function BoundField({
         value={value}
         onChange={event => onChange(event.target.value)}
       />
-      {unit ? <span className={`mono ${styles.figureUnit}`}>{unit}</span> : null}
+      {unit ? <span className={`mono ${control.figureUnit}`}>{unit}</span> : null}
     </label>
   );
 }
@@ -482,7 +483,7 @@ function Minutes({ label, value, onChange }: { label: string; value: number; onC
   return (
     <div className={styles.duration}>
       <input
-        className={`${ui.input} ${styles.number}`}
+        className={`${ui.input} ${control.number}`}
         type="number"
         inputMode="decimal"
         min={0}
@@ -491,7 +492,7 @@ function Minutes({ label, value, onChange }: { label: string; value: number; onC
         aria-label={`${label} ${t('spoken.minutes')}`}
         onChange={event => onChange(Math.max(0, Number(event.target.value) || 0))}
       />
-      <span className={`mono ${styles.figureUnit}`}>{t('alarms.sheet.minutes')}</span>
+      <span className={`mono ${control.figureUnit}`}>{t('alarms.sheet.minutes')}</span>
     </div>
   );
 }
@@ -501,7 +502,7 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
   const { t } = useTranslation();
 
   return (
-    <div className={styles.fields}>
+    <div className={control.fields}>
       <input
         className={ui.input}
         type="url"

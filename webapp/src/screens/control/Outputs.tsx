@@ -19,11 +19,10 @@ import { OwnOutputs } from './devices/OwnOutputs';
 import { hasOutputs, outputsLine, outputsOf, standOf } from './rows';
 
 /**
- * Ausgänge: what the place's devices drive beside holding the climate - the
- * controller's own lamp with its hold, a fridge's fans, an AIR fan's speed -
- * and the smart sockets, each a row that says its state, as of when once the
- * device has gone quiet, and leads to the socket's own page, where it is held
- * by hand.
+ * Ausgänge: what the place's devices drive beside holding the climate - a
+ * lamp with its hold, a fridge's fans, an AIR fan's speed - and the smart
+ * sockets, each a row that says its state, as of when once the device has
+ * gone quiet, and leads to the socket's page.
  */
 export function OutputsPage({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
   const { t } = useTranslation();

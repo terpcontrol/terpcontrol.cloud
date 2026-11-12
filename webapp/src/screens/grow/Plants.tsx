@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation } from 'react-router';
-import { leadingBackTo } from '@/app/places';
+import { Link } from 'react-router';
 import type { GrowListItem, PlantPage, Space } from '@fg2/shared-types/v1';
 import type { useGrowPlants } from '@/api/grows';
 import { LoadFailed, Waiting } from '@/ui/PageState';
@@ -28,7 +27,6 @@ export function Plants({ grow, plants, spaces }: PlantsProps) {
 
 function PlantList({ grow, page, spaces }: { grow: GrowListItem; page: PlantPage; spaces: Space[] }) {
   const { t } = useTranslation();
-  const { pathname } = useLocation();
   const { summary } = grow;
 
   const stageOf = (plantId: string) => summary.groups.find(group => group.plantIds.includes(plantId))?.stage ?? summary.stage;
@@ -48,7 +46,7 @@ function PlantList({ grow, page, spaces }: { grow: GrowListItem; page: PlantPage
           <li key={plant.id} className={styles.row}>
             {/* The whole row leads to the plant's own page: its readings, its
                 pictures and the lines that name it alone. */}
-            <Link to={`/grows/${grow.id}/plants/${plant.id}`} state={leadingBackTo(pathname)} className={styles.rowMain}>
+            <Link to={`/grows/${grow.id}/plants/${plant.id}`} className={styles.rowMain}>
               <span className={styles.rowTitle}>{plant.label}</span>
               <span className={styles.rowSub}>
                 {plant.strain}

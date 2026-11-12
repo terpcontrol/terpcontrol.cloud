@@ -42,12 +42,12 @@
   opacity: 0.45;
 }
 
-/* What a device nobody hears cannot take: still in reach of the focus, and visibly out of use. */
+/* What a device nobody hears cannot take: still in reach of the focus, and out of use in the ink `.primary:disabled` has. */
 .controlStart[aria-disabled='true'],
 .controlRunning > button[aria-disabled='true'] {
   background: var(--card-2);
   border-color: transparent;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted) 55%, var(--card-2));
   cursor: default;
 }
 

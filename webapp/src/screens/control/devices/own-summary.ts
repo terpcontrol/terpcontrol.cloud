@@ -13,10 +13,8 @@ import { targetWithUnit } from '@/ui/units';
 import { wallClock } from '@/ui/wall-clock';
 
 /**
- * What a smart socket is set to, in the few words the targets' row on Start has:
- * what it switches by, and the points or the windows it switches at. Start
- * says what is true and Steuerung is where it is changed, so this is
- * read from the device's own document and never drawn as a control.
+ * What a smart socket is set to, in the few words the targets' row on Start
+ * has: what it switches by, and the points or the windows it switches at.
  */
 
 interface SummaryRow {
@@ -98,9 +96,7 @@ export const plugSummaryOf = (t: Translate, device: Device, offset: number): Sum
 
 /**
  * What an AIR fan running at a fixed speed is set to, which is all it has: it
- * follows no target then, and the summary said "no targets yet" over a fan
- * somebody had set up. Following a reading it has targets, and is summed up by
- * them.
+ * follows no target then. Following a reading it is summed up by its targets.
  */
 export const fanSummaryOf = (t: Translate, device: Device): SummaryRow[] | null => {
   if (device.type !== 'fan' || fieldValue(device, 'fanMode') !== 'fixed') return null;

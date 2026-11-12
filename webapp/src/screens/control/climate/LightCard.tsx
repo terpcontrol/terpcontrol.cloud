@@ -27,12 +27,10 @@ const REST_MS = 1500;
 
 /**
  * The light of one lamp - a controller's, a fridge's, a stand-alone LIGHT's:
- * when it comes on, for how long and when it goes off, with "Ändern" opening
- * the day's plan on its sheet, and the limit it is dimmed to, stepped where it
- * stands and sent once it rests. A lamp held by hand says so over its times,
- * until when, with the way to where it is handed back to its schedule: the
- * hold's own control under Ausgänge. Under them the card's one note on what a
- * silent device has not been handed.
+ * its window, with "Ändern" opening the day's plan on its sheet, and the
+ * limit it is dimmed to, stepped where it stands and sent once it rests. A
+ * lamp held by hand says so over its times, with the way to the hold's own
+ * control under Ausgänge.
  */
 export function LightCard({
   device,

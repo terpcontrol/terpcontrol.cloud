@@ -34,11 +34,9 @@ export const useSaved = (device: Device) => {
 
 /**
  * The settings of a device's document beyond its targets, by the names
- * `CONFIGURATION_FIELDS` gives them: a socket's switching, a fan's speeds, a
- * lamp's window, the work mode, whatever Erweitert offers. One write for all
- * of them - only what is named is sent, and the server keeps every other key
- * - answered as the targets are, and what a silent device has not been
- * handed read from the same `pending`.
+ * `CONFIGURATION_FIELDS` gives them. One write for all of them - only what is
+ * named is sent, and the server keeps every other key - answered as the
+ * targets are.
  */
 type SettingsSet = DeviceConfigurationPatch['set'];
 

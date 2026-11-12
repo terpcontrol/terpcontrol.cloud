@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation } from 'react-router';
-import { leadingBackTo } from '@/app/places';
+import { Link } from 'react-router';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
 import { Menu } from '@/ui/Menu';
 import { Sheet } from '@/ui/Sheet';
@@ -51,7 +50,6 @@ export function GrowMenu({
   sharing?: boolean;
 }) {
   const { t } = useTranslation();
-  const { pathname } = useLocation();
   const [open, setOpen] = useState<GrowSheet | null>(sharing && mayOwn ? 'share' : null);
   const close = () => setOpen(null);
   const running = grow.endedAt === null;
@@ -77,9 +75,7 @@ export function GrowMenu({
       <Menu label={t('grow.menu.label', { name: grow.name })} words={t('grow.menu.more')}>
         {mayManage ? item('phase', t('grow.lifecycle.actions.phase'), true) : null}
         {mayOwn ? item('share', t('sharing.share'), true) : null}
-        <Link to={`/grows/${grow.id}/measurements`} state={leadingBackTo(pathname)}>
-          {t('grow.measurements.title')}
-        </Link>
+        <Link to={`/grows/${grow.id}/measurements`}>{t('grow.measurements.title')}</Link>
         {mayManage ? item('move', t('grow.lifecycle.actions.move')) : null}
         {mayManage && running ? item('split', t('grow.lifecycle.actions.split')) : null}
         {mayManage && running ? item('harvest', t('grow.lifecycle.actions.harvest')) : null}

@@ -21,13 +21,9 @@ import styles from './Control.module.css';
 import own from './devices/Own.module.css';
 
 /**
- * Betriebsart: what a fridge does as a whole while its control is on, behind
- * its own row under Steuerung - the work modes no climate preset sets, and
- * its energy saving.
- *
- * Germination and drying are not chosen here: the stage decides the work
- * mode, so a device is put into them and taken out of them by its climate
- * preset alone. One of them running is read here, with the way to the preset.
+ * Betriebsart: the work modes no climate preset sets, and a fridge's energy
+ * saving. Germination and drying follow the stage, so the climate preset
+ * alone starts and ends them; running, they are read here with the way there.
  */
 
 export function ModePage({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
@@ -107,10 +103,8 @@ function DeviceMode({ device, mayManage }: { device: Device; mayManage: boolean 
 }
 
 /**
- * A device whose control is switched off, said where its climate would stand:
- * there is no table, because it holds none of it, and the one way out is
- * beside the sentence - on is one tap, as it is the state everything else
- * assumes. Switching off is on the device's own page.
+ * A device whose control is switched off, said where its climate would stand,
+ * with the one tap that switches it on; off is switched on the device's page.
  *
  * Switched off while the device was not heard (`storedAt`), off is a setting
  * it has not been handed like any other: the sentence says since when it is

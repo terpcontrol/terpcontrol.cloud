@@ -76,20 +76,14 @@ const presetTitle = (watch: AlarmWatch): string | null => {
 };
 
 /**
- * What a rule is called on the card.
+ * What a rule is called on the card. A name the server wrote is English
+ * wherever it was written, so the two kinds of rule nobody here named - the
+ * one the cloud keeps for every device and the four a stage applies - are
+ * titled from what they watch instead, in the language the page is in. A rule
+ * somebody wrote, by hand or through the firmware, keeps the name it was given.
  *
- * A name the server wrote is English wherever it was written, so the two kinds
- * of rule nobody here named - the one the cloud keeps for every device and the
- * four a stage applies - are titled from what they watch instead, and read in
- * the language the page is in. A rule somebody wrote, by hand or through the
- * firmware, keeps the name it was given.
- *
- * Because the cloud's own rule is never titled from its name, the sheet does
- * not offer a field for one: a rule whose name no screen reads should not ask
- * anybody to type it. It is "Gerät offline" wherever it is shown -
- * Steuerung › Alarme and an alert - rather than the device's own name
- * here and the generic word there: a list of several devices' rules is headed
- * by each device's name already, and an alert names its device beside it.
+ * The cloud's own rule is "Gerät offline" wherever it is shown, and the sheet
+ * offers no field for a name no screen reads.
  */
 export const ruleTitle = (t: Translate, rule: AlarmRule): string => {
   if (rule.origin === 'always') return t('alarms.offlineRule');
@@ -247,20 +241,15 @@ export const boundLabel = (t: Translate, watch: AlarmWatch): string => {
 
 /**
  * Why nothing at all would be said right now, or null while the account is
- * being listened to.
+ * being listened to. Routing is only half of what decides whether a rule
+ * reaches anybody: the server holds every message back while the account is
+ * muted and everything short of critical during quiet hours, by the
+ * contract's `silenceOf`.
  *
- * Routing is only half of what decides whether a rule reaches anybody: the
- * server holds every message back while the account is muted and everything
- * short of critical during quiet hours, by the contract's `silenceOf`. A rules
- * page that reads only the grid therefore promised "goes to you by e-mail ·
- * repeats every 30 min" for an account that had muted itself a tab away and
- * would have been sent nothing at all.
- *
- * Quiet hours are read in the account's own zone, because that is the zone the
- * window was set in and the one the server reads it in, and not on the
- * browser's clock. Only a rule routed through the account's grid is subject to
- * it: a rule delivering to a target of its own goes out through the alarm's own
- * delivery and is unaffected by either.
+ * Quiet hours are read in the account's own zone, the one the window was set
+ * in and the server reads it in. Only a rule routed through the account's
+ * grid is subject to it: a rule delivering to a target of its own is
+ * unaffected by either.
  */
 export const heldBackBy = (me: Me | undefined, severity: Severity, now: DateTime): 'muted' | 'quiet' | null => {
   if (!me) return null;

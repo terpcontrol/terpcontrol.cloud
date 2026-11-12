@@ -25,19 +25,17 @@ const NEW = 'new';
  * What a device is called, and which place it stands in: one sheet with one
  * button, before which nothing is written. A place chip only chooses; the
  * sheet then says what goes with the device - the camera it answers for, its
- * smart sockets - and the button says "Umziehen". What was done is said in the
- * toast, with the way to take it back.
+ * smart sockets - and the button says "Umziehen". The toast says what was
+ * done, with the way to take it back.
  *
- * The field starts on the name somebody gave. A claim leaves the type's key as
- * the name, which no screen shows, so an unnamed device starts empty with the
- * name every screen does show as the placeholder; emptied, a device goes back
- * to that.
+ * A claim leaves the type's key as the name, which no screen shows, so an
+ * unnamed device starts empty with the name every screen does show as the
+ * placeholder; emptied, a device goes back to that.
  *
- * A place that does not exist yet is named here as well, because taking one
- * device out of a place it shares - a fridge module carried in beside a tent
- * controller - means standing it somewhere of its own. It is made in the room
- * the device leaves, and a move into it is not offered to be taken back: the
- * place would stay behind empty.
+ * A place that does not exist yet is named here as well: taking one device
+ * out of a place it shares means standing it somewhere of its own. It is made
+ * in the room the device leaves, and a move into it is not offered to be
+ * taken back - the place would stay behind empty.
  */
 export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClose: () => void }) {
   const { t } = useTranslation();

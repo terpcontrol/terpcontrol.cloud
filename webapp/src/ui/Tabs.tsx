@@ -13,21 +13,13 @@ interface TabItem {
 /**
  * The strip under a page header: a row of names, the active one underlined in
  * the brand colour. Each tab is an address, so a tab survives a reload and can
- * be linked to from elsewhere. `state` rides along from tab to tab, so what a
- * page was told about where it was opened from outlasts a change of tab.
+ * be linked to from elsewhere.
  */
-export function Tabs({ items, label, state }: { items: TabItem[]; label: string; state?: unknown }) {
+export function Tabs({ items, label }: { items: TabItem[]; label: string }) {
   return (
     <nav className={`${ui.scrollRow} ${styles.tabs}`} aria-label={label} data-print="omit">
       {items.map(item => (
-        <NavLink
-          key={item.key}
-          to={item.to}
-          end={item.end}
-          replace
-          state={state}
-          className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}
-        >
+        <NavLink key={item.key} to={item.to} end={item.end} replace className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}>
           {item.label}
         </NavLink>
       ))}

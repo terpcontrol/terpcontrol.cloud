@@ -9,7 +9,7 @@ import { APP_VERSION, BUILD_MODE } from '@/api/config';
 import { useGrows, useMyGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
 import { session, useSession } from '@/api/session';
-import { FROM_ME, ALL_GROWS } from '@/app/places';
+import { ALL_GROWS } from '@/app/places';
 import { initials } from '@/ui/handle';
 import { ownsCamera } from '@/screens/devices/cameras';
 import { useTheme } from '@/theme/theme-context';
@@ -143,7 +143,7 @@ function AccountDoors({ handle }: { handle: string }) {
       {/* What the account has grown is its own content rather than a setting, so it stands apart from the doors below. */}
       {hasGrows ? (
         <div className={ui.group}>
-          <Door to={ALL_GROWS} state={FROM_ME} title={t('grow.all.pill')} line={line([mine], () => growsLine(t, mine.data!.items))} />
+          <Door to={ALL_GROWS} title={t('grow.all.pill')} line={line([mine], () => growsLine(t, mine.data!.items))} />
         </div>
       ) : null}
 
@@ -230,9 +230,9 @@ function Identity({ handle, children }: { handle: string; children: ReactNode })
 }
 
 /** A door: the title, the mono line saying what is behind it, the state word the board sets at the right, and the chevron. */
-function Door({ to, title, line, aside = null, state }: { to: string; title: string; line: ReactNode; aside?: string | null; state?: unknown }) {
+function Door({ to, title, line, aside = null }: { to: string; title: string; line: ReactNode; aside?: string | null }) {
   return (
-    <Link to={to} state={state} className={`${styles.row} ${styles.link}`}>
+    <Link to={to} className={`${styles.row} ${styles.link}`}>
       <span className={styles.doorText}>
         <span className={styles.rowTitle}>{title}</span>
         <span className={`mono ${styles.doorLine}`}>{line}</span>

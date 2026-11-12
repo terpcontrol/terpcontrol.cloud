@@ -2,14 +2,14 @@ import { ChevronRight, Sprout } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation } from 'react-router';
+import { Link } from 'react-router';
 import type { MyGrowCard } from '@fg2/shared-types/v1';
 import { useGrows, useMyGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
 import { useOwnSchemes, useSchemes } from '@/api/schemes';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { useFollows, useShareLinks } from '@/api/sharing';
-import { FOLLOWING, FROM_ME, GROW, SCHEMES, SHARE_LINKS, openedFrom } from '@/app/places';
+import { FOLLOWING, GROW, SCHEMES, SHARE_LINKS } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { followingLine, schemesLine, shareLinksLine } from '@/screens/me/doors';
 import { BackLink } from '@/ui/BackLink';
@@ -46,9 +46,6 @@ export function Grows() {
   const grows = useMyGrows();
   const mayManage = useMayManage();
   const [starting, setStarting] = useState(false);
-  // Back to where the page was opened from: Ich has a door to it, and Grow the pill beside a grow's name.
-  const { state } = useLocation();
-  const back = openedFrom(state, FROM_ME) ? { to: '/me', label: t('me.title') } : { to: GROW, label: t('shell.tabs.grow') };
 
   if (grows.isPending) {
     return (
@@ -66,7 +63,7 @@ export function Grows() {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <BackLink to={back.to} label={t('place.backTo', { name: back.label })} />
+        <BackLink to={GROW} label={t('place.backTo', { name: t('shell.tabs.grow') })} />
         <h1>{t('grow.all.title')}</h1>
         {mayManage ? (
           <button type="button" className={styles.new} onClick={() => setStarting(true)}>

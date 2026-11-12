@@ -1,10 +1,6 @@
 import styles from './Devices.module.css';
 
-/**
- * What a page has to say about hardware: one fact per line, the name of it on
- * the left and the figure on the right. A device and a socket both have some,
- * so the shape is stated once.
- */
+/** What a page has to say about hardware: one fact per line, its name on the left and the figure on the right. */
 export function Facts({ children }: { children: React.ReactNode }) {
   return <dl className={styles.facts}>{children}</dl>;
 }

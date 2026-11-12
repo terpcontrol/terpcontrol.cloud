@@ -6,9 +6,8 @@ import { figureSaid, pendingOf } from './setting-words';
 
 /**
  * A fridge's fans, among its outputs: the clip fan outside that moves the
- * leaves, and the inner fans that move the air in the cabinet. They are set as
- * often as the climate is - lower for seedlings, quieter at night - so they
- * stand under Steuerung rather than under Erweitert.
+ * leaves, and the inner fans that move the air in the cabinet. They are set
+ * as often as the climate is, so they stand under Steuerung, not Erweitert.
  */
 export function FridgeFansPanel({ device, mayManage }: { device: Device; mayManage: boolean }) {
   const { t } = useTranslation();

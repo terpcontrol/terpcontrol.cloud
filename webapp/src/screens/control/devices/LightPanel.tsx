@@ -15,11 +15,10 @@ import { scheduleTitle } from '../targets/schedule-words';
 import { draftOf } from '../targets/targets-draft';
 
 /**
- * A LIGHT: when it comes on and for how long, and how bright it gets - the
- * whole of a lamp module's job, on the card and the sheet a controller's lamp
- * has. Its document keeps the two times and the brightness at its top, so it
- * is read here as a controller's is; how long it fades in and out and the
- * temperature it protects itself from stand under Erweitert on its page.
+ * A LIGHT: when it comes on, for how long and how bright it gets, on the card
+ * and the sheet a controller's lamp has. Its document keeps the two times and
+ * the brightness at its top; its ramps and the temperature it protects itself
+ * from stand under Erweitert on its page.
  */
 
 /** Where a controller's document keeps what a LIGHT keeps at the top of its own. */

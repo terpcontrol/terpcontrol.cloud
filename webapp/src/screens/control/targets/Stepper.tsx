@@ -8,11 +8,9 @@ import { TimeInput } from '../TimeInput';
 import styles from './DayNight.module.css';
 
 /**
- * A press that is held steps again and again, the way a thermostat's buttons
- * do: once on the press, then after a pause every tenth of a second until the
- * finger comes off. The click a press ends in is the one step a short press
- * makes, so a press that has been repeating swallows it rather than stepping
- * once more.
+ * A press that is held steps again and again, as a thermostat's buttons do:
+ * once on the press, then after a pause every tenth of a second. The click a
+ * repeating press ends in is swallowed rather than stepping once more.
  */
 function useRepeat(step: () => void) {
   const latest = useRef(step);
@@ -81,14 +79,9 @@ interface StepperProps {
 
 /**
  * One target, set in place: − and + either side of the figure, the figure
- * itself typed into where that is quicker. A thumb sets a temperature to the
- * half degree with a tap or two rather than chasing it along a slider a
- * hundred pixels wide, and the two halves of a table fit side by side on a
- * phone.
- *
- * The field keeps what is being typed until it is left, because "3" on the way
- * to "31" is not a temperature to snap to; the arrow keys step like the
- * buttons do.
+ * itself typed into where that is quicker. The field keeps what is being
+ * typed until it is left, because "3" on the way to "31" is not a temperature
+ * to snap to; the arrow keys step as the buttons do.
  */
 export function Stepper({
   name,
@@ -197,9 +190,8 @@ const HALF_HOUR = 30 * 60;
 
 /**
  * A time of day, set the same way: the buttons move it by half an hour along
- * the account's wall clock, landing on the half hour, and the field in the
- * middle is the browser's own time field - a wheel on a phone - for a time
- * that is easier typed.
+ * the account's wall clock, and the field in the middle is the browser's own
+ * time field - a wheel on a phone.
  */
 export function ClockStepper({ name, seconds, offset, less, more, changed = false, disabled = false, onChange }: ClockStepperProps) {
   const local = roundTheClock(seconds + offset);

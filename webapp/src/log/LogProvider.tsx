@@ -243,11 +243,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * What the toast says instead of the generic line. A refusal carries a sentence
- * written for the person - which tent it was, which rule stood in the way - and
- * that is worth far more than "could not save"; anything else has nothing to say.
- */
+/** What the toast says instead of the generic line: a refusal's sentence written for the person; anything else has none. */
 const reasonOf = (error: unknown): string | null => (error instanceof ApiError ? refusalText(error) : null);
 
 /** The toast's Details: the line that was just written, opened in the tile it came from. */

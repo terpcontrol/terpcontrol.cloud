@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-12
-source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12)
+source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12)
 paths:
   - webapp/**
 ---
@@ -49,8 +49,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   | `/timeline` | Verlauf of the chosen place (`focus`, `at`, `device` in the query; `grow` with a moment of that grow's diary) | Verlauf |
   | `/charts` | Graphen, its whole view in the query | Verlauf |
   | `/control/:page?` | Steuerung of the chosen place, and the pages behind its rows: `alarms`, `plan`, `outputs`, `mode` | Steuerung |
-  | `/devices/:deviceId/:page?`, `/devices/:deviceId/sockets/:socket` | a device's own page with `sockets`, `advanced`, `details` under it; one smart socket | Steuerung |
-  | `/claim`, `/cameras/add` | adding a device or a camera | Steuerung |
+  | `/devices/:deviceId/:page?`, `/devices/:deviceId/sockets/:socket` | a device's own page with `advanced`, `details` under it; one smart socket | Steuerung |
+  | `/devices` | names nothing: the not-found page inside the shell | Steuerung |
+  | `/claim`, `/cameras/add` | adding a device or a camera (`?kind=rtsp` opens the camera page on its address form) | Steuerung |
   | `/cameras/:cameraId` | a camera | none |
   | `/alerts`, `/tasks`, `/me/...`, `/admin/...` | Meldungen and the task list its door opens, Ich, the fleet screens | none |
 
@@ -70,17 +71,34 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   sheet that corrects a line and the curve of a moment, the public page (`screens/public/Diary.tsx`) neither.
   A grow's days are counted in the owner's zone, which a grow carries as `summary.zone`; a client that counts a
   day itself - the day a line is dated to - hands it to `growDayAt`.
-- **Steuerung** is `src/screens/control/`: `Control.tsx` draws the page and the pages behind its rows, `climate/`
-  the light and the targets of one device (`Climate.tsx`, a sheet per figure, per light window and per preset, each
-  write through one `write()` that pauses a plan where it has to and answers with the toast), `rows.ts` the rows'
-  lines, `Mode.tsx` and `Outputs.tsx` their pages, `DevicesHere.tsx` the cards and rows of what stands in the
-  place. `lead.ts` says which device is the place's climate; `OwnSettings.tsx` draws what one device is set to,
-  for the lead on Steuerung and for every other device on its own page. **A device's pages** are
-  `src/screens/devices/`: `DevicePage.tsx` (the page and `sockets`, `advanced`, `details` under it), `Firmware.tsx`
-  with `firmware-builds.ts`, `DeviceActions.tsx` (maintenance, restart, update - shared with Steuerung's card),
-  `SocketPage.tsx`. **The camera page** is `src/screens/camera/CameraPage.tsx` with `days.ts` (the slider's days,
-  from the grow's diary read) and `Films.tsx`. What a silent device has not been handed is `pending` of
-  `useDeviceLive` ([server-engines.md](server-engines.md#read-models)), read through `climate/figures.ts`.
+- **Steuerung** is `src/screens/control/`: `Control.tsx` draws the page and the pages behind its rows.
+  `PageRows.tsx` is the one assembly of those rows - which of Alarme, Grow-Plan, Ausgänge and Betriebsart a list
+  of devices has something on, and what each row says (`rows.ts`, which also dates what a silent device is said to
+  do, `standOf`) - drawn for a place by Steuerung and for one device (`alone`, its links carrying `?device=`) by
+  that device's own page. `ByDevice.tsx` draws a page behind a row device by device, and the sentence of a page
+  with nothing (`NothingHere`); `lead.ts` says which device is the place's climate and the order of the others
+  (`inOrder`). `climate/` is the light and the targets of one device: `Climate.tsx` (the targets, each write
+  through one `write()` that pauses a plan where it has to and answers with the toast), `LightCard.tsx` with
+  `LightSheet.tsx`, `PresetSheet.tsx`, `ValueSheet.tsx` (the sheet any figure of a device is changed on),
+  `Pending.tsx` (the note on what a device has not been handed) and `saved.ts` - **the one save path**:
+  `useSaved(device).say(what, undo, from)` answers a write with the toast, `useSettings(device)` writes the
+  settings beyond the targets and reads what is pending of them. `devices/Settings.tsx` holds the lines every
+  such setting is drawn with (`SettingsBlock`, `NumberSetting`, `ChoiceSetting`, `SwitchSetting`), of which the
+  panels of a Plantalytix Socket, a LIGHT, an AIR fan and a fridge's fans are made. `Mode.tsx` and `Outputs.tsx`
+  are their pages, `DevicesHere.tsx` the cards and rows of what stands in the place, `held-light.ts` the one
+  reader of a lamp held by hand, `alarms/use-silence.ts` with `alarms/Silence.tsx` the hour of silence an alert's
+  card shares. `OwnSettings.tsx` draws what one device is set to, for the lead on Steuerung and for every other
+  device on its own page. **A device's pages** are `src/screens/devices/`: `DevicePage.tsx` (the page, `advanced`
+  and `details` under it), `DeviceSettingsSheet.tsx` (rename and move), `Firmware.tsx` with `FirmwarePin.tsx` and
+  `firmware-builds.ts`, `DeviceActions.tsx` (maintenance, restart, update - shared with Steuerung's card),
+  `Maintenance.tsx` (the maintenance control, also Start's, and the restart sheet), `ControlSwitch.tsx`,
+  `SocketPage.tsx`, `SocketSheets.tsx` (the pairing row, the change and remove sheets) and `HandHold.tsx` (the
+  one control for an output held by hand, also under Ausgänge). **The camera page** is
+  `src/screens/camera/CameraPage.tsx` with `days.ts` (the slider's days, from the grow's diary read), `Films.tsx`
+  and `CameraSettings.tsx`; the day it shows and the diary it leads to share `?day=`
+  (`screens/grow/diary/read-back.ts`). **Start** reads the place's lamp once for the page and its card (`useLamp`,
+  `screens/start/reads.ts`). What a silent device has not been handed is `pending` of `useDeviceLive`
+  ([server-engines.md](server-engines.md#read-models)), read through `climate/figures.ts`.
 - **The chosen place** (`src/app/places.ts`) is what `/grow`, `/timeline`, `/control` and `/charts` show: the place
   their address names in `?space=`, else the one chosen (`terp.place` in this browser, a store the header's chip and
   the page both follow), else the first of Start's order (`sortedByAttention`), which is then kept. `usePlaceChoice`
@@ -88,12 +106,16 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   sheet's aim (`log/underneath.ts`) directly. A page that belongs to one place says so with `usePageOfPlace` (a
   grow's pages with `usePageOfGrow`): that chooses the place and tells the chip where a choice leads, as
   [app-ux.md §2](app-ux.md#2-navigation-and-the-place-page) lists it. A choice made on one of the four is a navigation
-  to the item's address with `?space=`, kept once that address is on screen, so the unsaved-targets question can
-  hold it back. The effect that keeps a pick does not write over a choice made since its render: the page mounted
+  to the item's address with `?space=` - on a page below Steuerung to that page's address -, kept once that
+  address is on screen. The effect that keeps a pick does not write over a choice made since its render: the page mounted
   with it may have chosen first. `useCurrentPlace` takes a `?space=` the account has not got out of the address, but
   not while the home is being read again - a link names a place made a moment ago before the home lists it.
-  `timelinePath` and `controlPath` build the links that name a place, `devicePath`, `socketPath` and `cameraPath`
-  those to a device, one of its sockets and a camera. Charts reads and writes its view
+  `timelinePath` and `controlPath` build the links that name a place - `controlPath(spaceId, page, { device })`
+  the one that opens a page behind Steuerung's rows with a device unfolded -, `devicePath`, `socketPath` and
+  `cameraPath` those to a device, one of its sockets and a camera. The way back is no part of a link: the head's
+  arrow steps back in history (`ui/BackLink.tsx`, [app-ux.md §2](app-ux.md#2-navigation-and-the-place-page)), and
+  only a socket's row under Ausgänge hands its page an address (`leadingBackTo`), for the page to put in its own
+  place once the socket is removed. Charts reads and writes its view
   (`space`/`grow`, `range`, `zoom`, `show`, `layout`, ...) only in `src/screens/charts/address.ts`, through which
   `app/old-charts.ts` maps old bookmarks too.
 - The old Angular app's addresses still work (`OldAddresses.tsx`, `old-charts.ts`, redirects at the end of
@@ -173,6 +195,10 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - Lifecycle mutations (`src/api/lifecycle.ts`) re-read the grow after the server answers instead of patching the
   cache, because the server works out day counter, stage and placements; the entry sheet's queue
   (`src/log/LogProvider.tsx`) confirms first and sends after.
+- `useUpdateDevice` and `useConfigure` write the answered device into the device list as well as under its own
+  key, so a new name, place or setting is on screen before the list is read again. `socketsKey` and `liveKey`
+  (`src/api/devices.ts`) are the keys a device's socket table and live values are read under, for whoever reads
+  one again by hand - `answerSoon` after a command (`screens/devices/sockets.ts`).
 
 ## Session
 
@@ -217,10 +243,11 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   app-ux.md §5.
 - Browser storage holds per-browser conveniences only (`terp.language`, `terp.theme`, `terp.place`,
   `terp.shape.<user>`, `terp.loaded.<user>` - when Start last had an answer, for a Start that cannot load -
-  `terp.lightHold.<device>` - the last light hold sent, since no device reports one back - ...); whatever has to follow the account (zone, diary layer, notices seen, the language for text the server
-  writes) lives in `me.preferences`. `localStorage` is read and written through `src/ui/stored.ts`, which answers
-  null and keeps nothing where storage is blocked; only `src/api/session.ts` has its own, as it uses
-  `sessionStorage` too.
+  `terp.lightHold.<device>` - the last light hold sent, `{ state, until }`, since no device reports one back; read
+  and written in `screens/devices/lights.ts` alone - ...); whatever has to follow the account (zone, diary layer,
+  notices seen, the language for text the server writes) lives in `me.preferences`. `localStorage` is read and
+  written through `src/ui/stored.ts`, which answers null and keeps nothing where storage is blocked; only
+  `src/api/session.ts` has its own, as it uses `sessionStorage` too.
 
 ## Charts
 
@@ -297,11 +324,14 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   derived from the colour logo by `scripts/derive-logo.mjs`.
 - An Erweitert item is a file `*.advanced.tsx` exporting `items` built with
   `advancedItem({ scope, id, order, shows, Item })`, found by `import.meta.glob` in `src/ui/advanced/registry.ts`.
-  Scopes: `device`, `charts`, `camera`; a device's are drawn open on its page `/devices/:id/advanced`
-  (`screens/devices/DevicePage.tsx`). The fast-refresh lint rule is off for these files. Its device
-  settings are `Field*` controls (`src/ui/advanced/Fields.tsx`) named as `CONFIGURATION_FIELDS` names them per type
-  (`shared-types/src/v1/configuration-fields.ts`, the AIR fan and the LIGHT included), written on the tap through
-  `useConfigure` (`PATCH /v1/devices/{id}/configuration` with `set`); a row then shows what the server stored.
+  Scopes: `device`, `charts`; a device's are drawn open on its page `/devices/:id/advanced`
+  (`screens/devices/DevicePage.tsx`). The fast-refresh lint rule is off for these files. A device item's
+  settings are the lines of `screens/control/devices/Settings.tsx` on `useSettings` (`climate/saved.ts`), named as
+  `CONFIGURATION_FIELDS` names them per type (`shared-types/src/v1/configuration-fields.ts`, the AIR fan and the
+  LIGHT included): a figure opens the value sheet, a switch is written on the tap, both through `useConfigure`
+  (`PATCH /v1/devices/{id}/configuration` with `set`) and answered by the toast; a line then shows what the
+  server stored. A stream camera's Erweitert is no item: it is a fold of the camera's settings sheet, saved with
+  it (`screens/camera/StreamOptions.tsx`).
 - On a desktop the shell centres every screen's root with a left margin (`.main > *` in
   `src/app/shell/AppShell.module.css`). A root that sets `width: 100%` therefore also needs a `max-width`
   (`--page-width`, `--reading-width`), or the margin pushes it past the window's right edge and the page scrolls
@@ -309,10 +339,16 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - The window's title follows the page's `<h1>` inside the shell (`app/shell/page-title.ts`). Outside it nothing
   does, so the card every such page stands in names it: `Door` (`src/screens/Door.tsx`) takes `page` - or the
   step's `title` - and sets "… – Terp Control". A tab that came from the demo carried the demo place's name over
-  the sign-up form until it did.
+  the sign-up form until it did. An address that names nothing has its `<h1>` from `NoLongerHere`
+  (`ui/PageState.tsx`).
 - A toast is the entry sheet's (`src/log/LogProvider.tsx`): a line on its way to the server, with Undo. `tell({
-  label, undo })` says something already done where the tap took its own button away - an offer declined on Start
-  - with the caller's own way back; nothing is sent for it. `complete(taskId, label, { changed })` reads again
+  label, undo, from })` says something already done - an offer declined on Start, a setting saved, a command
+  taken - with the caller's own way back; nothing is sent for it. `from` names the control where it may be used
+  again at once, and its next toast takes the last one's place: `<device>:<setting>` through the save path's
+  `say`, `firmware-<device>`, `maintenance-<devices>`, `device-<device>` (rename and move), `plan-<device>`,
+  `rule-<rule>`, `silence-<rule>`. `log/toast-room.ts` keeps the toasts to two; `Toasts.tsx` stands them above
+  the button row of an open sheet (`[data-scrim] [role=dialog] > footer`, measured, placed again on
+  `animationend`). `complete(taskId, label, { changed })` reads again
   what a tick changed beyond the diary - `planMoved` (`src/api/plans.ts`) for a plan step, whose plan and device
   reads would otherwise say the step that was left until their next beat.
 - Copy through `useCopied()` (`src/ui/clipboard.ts`): it falls back to `execCommand` where `navigator.clipboard` is
@@ -337,6 +373,13 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   tests mock `@/api/session` and stub `fetch`. Off a terminal only failures are printed, and console output from a
   passing test is a fault to fix. `npm run test:live` (node environment) signs in with `AGENT_TESTING_*` from the root
   `.env` against a running stack.
+- `test/toast.tsx` (`Toast`) is the seam for a screen that answers through `tell`: Alarme, the plan panel, an
+  alert's card and the device pages need it, or `LogProvider`. `test/toasts.test.tsx` holds the toasts' limit and
+  their place over a sheet.
+- A memory router keeps no entries on the window's history, so in it every page is one opened by its address and
+  the head's arrow leads to its parent. `test/back-arrow.test.tsx` draws in a browser router on jsdom's history
+  instead, stubs `window.scrollTo` (jsdom has none and says so on the console) and disposes its routers after
+  each test - a router left behind keeps listening to `popstate` and throws into the next test.
 - Tests that read the source or the assets: `zone.test.ts`, `figures.test.ts`, `help.test.tsx`,
   `device-message.test.ts` (see [webapp-time-and-language.md](webapp-time-and-language.md)) and `schemes.test.ts`
   (the feeding schemes in `public/assets/schemes/` against the contract, `flipWeek` = first flowering week; they are

@@ -13,16 +13,13 @@ import { PlugPanel } from './devices/PlugPanel';
 
 /**
  * What one device is set to that is its own: the light and the targets of a
- * controller or a fridge, an AIR fan's own control with the targets it
- * follows, the switching of a Plantalytix Socket, the window of a LIGHT.
- * Steuerung draws it for the device that is the place's climate, a device's
- * own page for every other one. All of them are built from the same parts
- * and saved the same way: nothing here is a draft.
+ * controller or a fridge, an AIR fan's control with the targets it follows,
+ * the switching of a Plantalytix Socket, the window of a LIGHT. Steuerung
+ * draws it for the place's climate, a device's own page for every other one.
  *
  * What may be done is asked of the device rather than of the screen: the same
  * reader owns one tent and only reads the next. A device whose document has
- * not arrived is waited for by name - nothing here stands in for settings it
- * has never sent.
+ * not arrived is waited for by name.
  */
 export function OwnSettings({ device }: { device: Device }) {
   const { t } = useTranslation();

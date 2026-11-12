@@ -21,15 +21,13 @@ import styles from './DevicePage.module.css';
  * offered, and where its updates come from.
  *
  * The build is named by the day it was made, the one thing about it a grower
- * can compare; its stamp stands under the technical details. One switch says
- * whether the device updates itself: on, it follows a release channel chosen
- * beside it; off (the channel `manual`), it stays on its build until one is
- * installed here - any build the server offers this reader - which asks
- * first, because the device restarts with it.
+ * can compare. One switch says whether the device updates itself: on, it
+ * follows a release channel chosen beside it; off (the channel `manual`), it
+ * stays on its build until one is installed here, which asks first, because
+ * the device restarts with it.
  *
- * What the controls mean is behind their (i). A change is shown at once and
- * answered by the toast, and no control is disabled while it is on its way:
- * the focus stays on the one that was used, and a second change waits.
+ * No control is disabled while its change is on its way: the focus stays on
+ * the one that was used, and a second change waits.
  */
 export function FirmwareCard({ device, offline, mayManage }: { device: Device; offline: boolean; mayManage: boolean }) {
   const { t } = useTranslation();

@@ -7,12 +7,9 @@ import type { LogRequest, LogTarget, TileKind } from './log-context';
 import styles from './Toasts.module.css';
 
 /**
- * What was just written, for as long as it can still be taken back.
- *
- * The line appears the moment a tile is tapped, before anything has been sent -
- * that is what makes the sheet quick - so it also has to be the place where a
- * write that never landed is admitted to, rather than a screen that quietly
- * shows one line fewer than the person wrote.
+ * What was just written, for as long as it can still be taken back. The line
+ * appears the moment a tile is tapped, before anything has been sent, so it is
+ * also the place where a write that never landed is admitted to.
  *
  * There are never more than two (`toast-room.ts`), and none stands on a sheet's
  * buttons: while a sheet is open they stand above its button row.
@@ -122,9 +119,7 @@ function Toast({ line, onUndo, onRetry, onDismiss, onDetails }: Omit<ToastsProps
   }, [line.undoUntil, line.undoing, line.key, onDismiss]);
 
   if (line.state === 'failed') {
-    // A refusal arrives with a sentence written for the person in it, and that
-    // sentence says which tent or which rule stood in the way; the generic line
-    // is for a failure that has nothing to say, such as a connection that died.
+    // A refusal's own sentence where it has one; the generic line is for a failure that has nothing to say.
     return (
       <div className={styles.toast} data-failed>
         <span className={styles.label}>

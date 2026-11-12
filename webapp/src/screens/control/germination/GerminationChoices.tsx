@@ -8,16 +8,15 @@ import styles from './GerminationChoices.module.css';
 
 /**
  * The two choices germination makes about the humidity, wherever germination
- * is set: the targets, the operating mode, a phase with its climate and a plan
- * step. Each is a switch with what it does said under it, in the same words in
- * all four places, and a help bubble that says why the default is what it is.
+ * is set: each a switch with what it does said under it, in the same words
+ * everywhere, and a help bubble that says why the default is what it is.
  *
  * The humidifier's switch is offered only where a socket is paired as one: on
- * a device without, nothing reads the humidity in the dark and there is nothing
- * to choose. `humidity` is the night's, which a humidifier that holds goes by;
- * null where the screen cannot say it, and the note then names it in words.
- * Where it holds more than "Zu feucht" lets pass and the grower asked to be
- * warned, the two choices work against each other, and that is said.
+ * a device without, nothing reads the humidity in the dark. `humidity` is the
+ * night's, which a humidifier that holds goes by; null where the screen
+ * cannot say it, and the note then names it in words. Where it holds more
+ * than "Zu feucht" lets pass and the grower asked to be warned, the two
+ * choices work against each other, and that is said.
  */
 export function GerminationChoices({
   value,

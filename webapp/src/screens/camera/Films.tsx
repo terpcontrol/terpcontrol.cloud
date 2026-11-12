@@ -20,14 +20,12 @@ import styles from './CameraPage.module.css';
 /**
  * The films of a camera, by name: the day's, the week's, the phase's and the
  * whole grow's. A chip chooses which, and the one button under them plays the
- * newest film of that kind where it stands - or, for whoever may steer the
- * place, makes it where there is none yet, and then says where the render has
- * got to: once it plays, it is the film of its kind and the button says so.
- * A film that cannot be made stays a chip and says why once chosen.
+ * newest film of that kind - or, for whoever may steer the place, makes it
+ * where there is none yet and says where the render has got to. A film that
+ * cannot be made stays a chip and says why once chosen.
  *
- * Somebody who may only look is offered the kinds there is a film of and
- * nothing to make. `beside` is the page's second button, `below` what that
- * button last answered: the two share a row and its receipt.
+ * `beside` is the page's second button, `below` what that button last
+ * answered: the two share a row and its receipt.
  */
 export function Films({
   camera,

@@ -9,10 +9,9 @@ import { sinceLabel } from '@/ui/age';
 
 /**
  * A device's lamp held by hand, for every place that says what the light is
- * doing - the Licht card, Start's tile and its sentence: its own light output
- * as this browser last asked for it (the device reports no hold of it, see
- * `useLightHold`), else a light socket its table says is held. Null for a
- * lamp that keeps to its schedule, as far as anything here can know.
+ * doing: its own light output as this browser last asked for it (the device
+ * reports no hold of it, see `useLightHold`), else a light socket its table
+ * says is held. Null for a lamp that keeps to its schedule.
  */
 export const useHeldLight = (device: Device | null, now: DateTime): Held | null => {
   const hosts = device !== null && SOCKET_HOST_TYPES.includes(device.type);

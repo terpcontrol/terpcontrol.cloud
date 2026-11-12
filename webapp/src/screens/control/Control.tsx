@@ -4,14 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router';
 import type { Device } from '@fg2/shared-types/v1';
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
-import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { serverNow } from '@/api/clock';
-import { useDeviceLive, useLiveReads, useSocketTables } from '@/api/devices';
+import { useLiveReads, useSocketTables } from '@/api/devices';
 import { useDevicePlans } from '@/api/plans';
 import { useSession } from '@/api/session';
 import { CONTROL_PAGES, controlPath, devicePath, type ControlPage, type PlaceCard } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
-import { useLightHolds } from '@/screens/devices/lights';
 import { PlaceTitle, VisitingTitle } from '@/screens/place/PlaceTitle';
 import { deviceLiveness, sinceLabel } from '@/ui/age';
 import { climateLanding } from '@/ui/climate-hardware';
@@ -22,38 +20,32 @@ import { deviceName } from '@/ui/naming';
 import { OfflineBox } from '@/ui/OfflineHelp';
 import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, Waiting } from '@/ui/PageState';
-import { Row, Rows } from '@/ui/Rows';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { clock, useZone } from '@/ui/zone';
 import { Alarms } from './alarms/Alarms';
 import { ByDevice, NothingHere } from './ByDevice';
-import { savedWords } from './climate/figures';
 import { DevicesHere } from './DevicesHere';
 import { inOrder, leadOf, useLead } from './lead';
 import { ModePage } from './Mode';
 import { OutputsPage } from './Outputs';
 import { OwnSettings } from './OwnSettings';
+import { PageRows } from './PageRows';
 import { PlanPanel } from './PlanPanel';
-import { alarmsLine, hasMode, hasOutputs, modeLine, outputsLine, outputsOf, pendingBehind, planLine, standOf, type RowLine } from './rows';
+import { planLine, standOf } from './rows';
 import styles from './Control.module.css';
 
 const isSub = (value: string | null): value is ControlPage => (CONTROL_PAGES as readonly string[]).includes(value ?? '');
 
 /**
- * Steuerung of one place: its climate on top - the light and the targets of
- * the device the server names as the place's climate - then a row each for
- * what watches over it, what sets the targets by itself, what the devices
- * drive and the mode they run in, and under them the devices standing there.
+ * Steuerung of one place: the light and the targets of the device the server
+ * names as the place's climate, then a row each for the alarms, the plan, the
+ * outputs and the work mode, and under them the devices standing there.
  *
- * It always opens on the climate, because that is what somebody with one tent
- * comes here to change; a plan that runs says so in its row, and one that
- * waits for an answer says it in amber. Each row is a page of its own in the
- * address, so an alert can link to the rule it came from and Back returns to
- * Steuerung, scrolled to where it was left. A page lists the place's devices
- * in Steuerung's order, the place's own first (`ByDevice`). A device that is
- * not heard locks nothing: settings are stored and handed over when it
+ * Each row is a page of its own in the address, so an alert can link to the
+ * rule it came from and Back returns to Steuerung where it was left. A device
+ * that is not heard locks nothing: settings are stored and handed over when it
  * connects, and the page says what it has not taken yet.
  */
 export function Control({
@@ -148,7 +140,7 @@ export function Control({
         </h2>
         <Offline device={lead} spoke={spoke} now={now} />
         <OwnSettings device={lead} />
-        <PageRows spaceId={spaceId} devices={ordered} lead={lead} spoke={spoke} now={now} />
+        <PageRows spaceId={spaceId} devices={ordered} now={now} />
         {reader}
       </div>
       <div className={styles.column}>
@@ -160,13 +152,11 @@ export function Control({
 }
 
 /**
- * What the place's climate is doing as a whole, in the head where a live
- * place's age would stand: "Regelung ein", or what is away from it - switched
- * off, drying, germinating, parked for maintenance. A device without a control
- * of its own - a socket, a lamp - has no such state, nor has one that has yet
- * to send its first values, and the place's age stays. A lead nobody hears is
- * not said to regulate now, also where another device keeps the place live:
- * its state stands as of when it was last heard, and not in green.
+ * What the place's climate is doing, in the head where a live place's age
+ * would stand: "Regelung ein", or what is away from it. A lead with no control
+ * of its own, or without its first values, leaves the place's age there. One
+ * nobody hears is not said to regulate in green, also while another device
+ * keeps the place live: its state stands as of when it was last heard.
  */
 const stateOf = (t: Translate, lead: Device, devices: Device[], spoke: string | null, now: DateTime, zone: string | null): ReactNode => {
   const control = lead.control;
@@ -219,10 +209,8 @@ function PlanPage({ spaceId, devices, mayManage, now }: { spaceId: string; devic
 }
 
 /**
- * A place whose climate device has gone quiet: since when, that everything can
- * be set all the same and when the device takes it over, and behind one tap
- * what to try. Nothing here can ask a silent device for anything, so the steps
- * are the grower's own.
+ * A place whose climate device has gone quiet: since when, that everything
+ * can be set all the same, and behind one tap what to try.
  */
 function Offline({ device, spoke, now }: { device: Device; spoke: string | null; now: DateTime }) {
   const { t } = useTranslation();
@@ -236,56 +224,4 @@ function Offline({ device, spoke, now }: { device: Device; spoke: string | null;
       {t('control.offline.text', { time })}
     </OfflineBox>
   );
-}
-
-/**
- * The rows under the climate, each a page: the alarm rules, the grow plan, the
- * outputs and the work mode. A row whose page would hold nothing is not drawn -
- * a place of one socket has no plan a step could write into and no mode.
- */
-function PageRows({ spaceId, devices, lead, spoke, now }: { spaceId: string; devices: Device[]; lead: Device; spoke: string | null; now: DateTime }) {
-  const { t } = useTranslation();
-  const zone = useZone();
-  const ids = devices.map(device => device.id);
-  const rules = useAlarmRulesOf(ids);
-  const plans = useDevicePlans(ids);
-  const tables = useSocketTables(ids);
-  const reads = useLiveReads(ids);
-  const held = useLightHolds(ids, now);
-  const pending = useDeviceLive(lead.id).data?.pending?.settings ?? [];
-  const outputs = devices.map(device => outputsOf(device, tables.tables.get(device.id), reads.levels.get(device.id) ?? null)).filter(hasOutputs);
-  const moded = devices.find(hasMode) ?? null;
-  const planned = plans.plans.length > 0 || devices.some(device => climateLanding(device) !== 'nowhere');
-  const stand = standOf(t, spoke, now, zone);
-  const waits = (row: 'mode' | 'outputs', line: RowLine): RowLine => {
-    const behind = pendingBehind(pending, row);
-    return behind ? { text: `${line.text} · ${t('control.pending.behind', { saved: savedWords(t, behind.savedAt, now, zone) })}`, warn: true } : line;
-  };
-
-  return (
-    <nav aria-label={t('control.rows.label')}>
-      <Rows grid>
-        <PageRow
-          to={controlPath(spaceId, 'alarms')}
-          title={t('control.page.alarms')}
-          line={rules.isPending ? null : alarmsLine(t, [...rules.rules.values()])}
-        />
-        {planned ? (
-          <PageRow to={controlPath(spaceId, 'plan')} title={t('control.page.plan')} line={plans.isPending ? null : planLine(t, plans.plans, now)} />
-        ) : null}
-        {outputs.length > 0 ? (
-          <PageRow
-            to={controlPath(spaceId, 'outputs')}
-            title={t('control.page.outputs')}
-            line={waits('outputs', outputsLine(t, outputs, now, zone, stand, held))}
-          />
-        ) : null}
-        {moded ? <PageRow to={controlPath(spaceId, 'mode')} title={t('control.page.mode')} line={waits('mode', modeLine(t, moded))} /> : null}
-      </Rows>
-    </nav>
-  );
-}
-
-function PageRow({ to, title, line }: { to: string; title: string; line: RowLine | null }) {
-  return <Row to={to} title={title} line={line ? <Facts facts={line.text.split(' · ')} /> : null} warn={line?.warn} />;
 }

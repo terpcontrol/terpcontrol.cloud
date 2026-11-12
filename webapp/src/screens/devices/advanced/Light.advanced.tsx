@@ -7,9 +7,8 @@ import { LightRamps } from './Tuning.advanced';
 
 /**
  * What a LIGHT does beyond its times and its brightness, which are under
- * Steuerung: how many minutes it fades in after it comes on and out before it
- * goes off, and the temperature at the lamp it starts dimming at to protect
- * itself. The firmware's defaults are sensible, which is why these are here.
+ * Steuerung: how many minutes it fades in and out, and the temperature at the
+ * lamp it starts dimming at to protect itself.
  */
 
 function Overheat({ device, mayManage }: DeviceContext) {
