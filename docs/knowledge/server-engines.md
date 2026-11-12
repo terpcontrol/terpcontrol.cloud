@@ -139,9 +139,10 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
 - A week's light hours are lit time over heard time, refused below a day heard; a report judges each phase against
   the band snapshotted for it, never today's targets; photo totals count the pictures of matched entries, because
   migrated pictures hang on notes.
-- **A grow's day is a date on its owner's calendar** (Chris, 2026-11-12): `growDayAt(origin, at, zone)` counts
-  dates, day 1 the date the grow began on. Whoever counts reads the owner's zone first (`zoneOfOwner`,
-  `zonesOfOwners` in `common/v1/owner-zone.ts`; `GrowsService.zoneOf`) and hands it down - the serialiser, the
+- **A grow's day is a date on its owner's calendar** (the redesign session of 2026-11-12, not yet confirmed by
+  Chris; [app-wording.md](app-wording.md), Grow time): `growDayAt(origin, at, zone)` counts dates, day 1 the date
+  the grow began on. Whoever counts reads the owner's zone first (`zoneOfOwner`, `zonesOfOwners` in
+  `common/v1/owner-zone.ts`; `GrowsService.zoneOf`) and hands it down - the serialiser, the
   overview, the home, the report, Verlauf's day range, the exports, the scheme week a feed is dosed at. A stretch
   ends on the day of its last instant (`growDayUpTo`), so a window closing at midnight has not begun the next date.
 - **A grow's diary** (`GET /v1/grows/{id}/diary`, `modules/v1/diary/grow-diary.service.ts`) is computed per read and

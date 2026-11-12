@@ -457,8 +457,8 @@ removed together with the Angular app.
 *Amended 2026-11-12:* `GET /grows/{id}/diary` is the read every diary is made of - the grow page's diary and
 pictures, the public page and the share link (`GrowDiaryPage`: weeks of `GrowDiaryDay`, with everyone their lines
 name, and on the last page the lines dated to before the grow began). **It replaces the week cards**:
-`GET /grows/{id}/weeks`, `GrowWeekCard` and its parts are removed (Chris, 2026-11-12), `PublicGrowPage.weeks` and
-the two public weeks routes answer `GrowDiaryWeek`, and a public page carries `readingNames`, so a reading in a
+`GET /grows/{id}/weeks`, `GrowWeekCard` and its parts are removed (the redesign session of 2026-11-12, for Chris
+to confirm with the redesign's pull request), `PublicGrowPage.weeks` and the two public weeks routes answer `GrowDiaryWeek`, and a public page carries `readingNames`, so a reading in a
 line is said by the grow's own name for it. It is a read model, nothing of it stored: a day is a date on the
 owner's calendar with the camera's picture of it, the means of its climate, the share of it inside the targets
 where the target record says what was aimed at, what happened that is nobody's line (`GrowDayEvent`: the lamp,
@@ -502,8 +502,8 @@ stays. Giving a device up now deletes its alerts, as it already deleted its rule
   counted in elapsed 24-hour periods, so it is zone-free (*amended 2026-11-12:* no longer - a grow's day is a date
   on its owner's calendar, day 1 the date it began on, counted by `growDayAt(origin, at, zone)` in dates and never
   stored; `summary.zone` tells a member's client the zone, and `originAt` of a grow series is the start of that
-  first date. Chris, 2026-11-12: one count everywhere, because 24 hours from the hour of the start filed a
-  morning's line under yesterday); a stage's last day is the day before the next phase's
+  first date. The redesign session of 2026-11-12, for Chris to confirm with the redesign's pull request: one count
+  everywhere, because 24 hours from the hour of the start filed a morning's line under yesterday); a stage's last day is the day before the next phase's
   first, so the spans tile the grow and add up to its day count; the server publishes `stageWeek` rather than each
   client counting it. `GET /grows/{id}/series` answers `originAt`, so a day-of-grow axis and one grow against
   another are the client's arithmetic over two ordinary reads, not a mode of the route.

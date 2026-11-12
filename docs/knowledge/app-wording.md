@@ -74,14 +74,15 @@ string exists in English and German, with no English left in the German catalogu
   "place" (2026-10-04).
 
 ## Grow time
-- **One day count: the calendar's** (Chris, 2026-11-12; it replaces the count of 24 hours from the hour the grow
-  began, which filed a morning's watering under yesterday and had the head of the grow page one behind its own
-  diary). A grow's day is a date on its owner's calendar everywhere - the head, Start, Verlauf, the report, the
-  day cards, the entry sheet, the exports: day 1 is the date the grow began on, and every midnight there adds one.
-  Counted, never stored (`growDayAt` in `shared-types/src/v1/feeding.ts`, in dates because a day of the calendar
-  is 23 or 25 hours long twice a year; the server knows the owner's zone, and tells a member's app in
-  `summary.zone`). A stretch ends on the day of its last instant (`growDayUpTo`): a window that closes at midnight
-  has not begun the next date. A grow's progress reads "Tag 29", a finished one "126 Tage · beendet 14. Aug 2026".
+- **One day count: the calendar's** (the redesign session of 2026-11-12, told to Chris and not yet confirmed by
+  him; it replaces the count of 24 hours from the hour the grow began, which filed a morning's watering under
+  yesterday and had the head of the grow page one behind its own diary). A grow's day is a date on its owner's
+  calendar everywhere - the head, Start, Verlauf, the report, the day cards, the entry sheet, the exports: day 1 is
+  the date the grow began on, and every midnight there adds one. Counted, never stored (`growDayAt` in
+  `shared-types/src/v1/feeding.ts`, in dates because a day of the calendar is 23 or 25 hours long twice a year; the
+  server knows the owner's zone, and tells a member's app in `summary.zone`). A stretch ends on the day of its last
+  instant (`growDayUpTo`): a window that closes at midnight has not begun the next date. A grow's progress reads
+  "Tag 29", a finished one "126 Tage · beendet 14. Aug 2026".
 - **The diary is told in those dates** (Chris, 2026-11-11, with the day cards): a card is called "Heute",
   "Gestern", the weekday while it names one day ("Montag"), then the date, each with its number - "Heute ·
   Tag 29". A diary that has ended, and one read from outside past its window, has no today: its cards are dates.

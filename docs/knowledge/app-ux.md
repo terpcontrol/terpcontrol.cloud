@@ -235,8 +235,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   it, and nothing is said above the tabs about what a guest may not: it is simply not offered. Tabs:
   **Tagebuch · Bilder · Pflanzen · Düngung · Bericht**; the diary is the page's own address. A long name takes
   two lines of the head and is cut there, and a sheet opened from the page is titled by what it does, not by the
-  grow's name again. The page is **one column beside the rail until two fit** (Chris, 2026-11-12; a critic found
-  the day card squeezed to a letter's width between 900 and 1200 px): the facts stand on their own line under the
+  grow's name again. The page is **one column beside the rail until two fit** (the redesign session of 2026-11-12;
+  a critic found the day card squeezed to a letter's width between 900 and 1200 px): the facts stand on their own line under the
   name at every width, and the newest pictures stand beside the days only from 1200 px
   (`screens/grow/diary/Diary.module.css`) - Start falls the same way at the 1100 px its own columns need. Ending a
   grow - the last plants harvested, or "Grow beenden" - lands on its report with a toast that says so.
@@ -252,8 +252,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *The climate* is the day's means in one line, and the share of the day inside the targets only where the
     server states one: it judges each window by what the device aimed at then, and says nothing of a day before
     that record began or one heard for less than half of itself. "Im Ziel" is explained once, on the newest card.
-  - *The lines* are what people did and what the devices did by themselves (Chris, 2026-11-12, after a critic
-    walked the first cards). **A grower's own line is never folded behind a device's**: up to six of their own
+  - *The lines* are what people did and what the devices did by themselves (the redesign session of 2026-11-12,
+    after a critic walked the first cards; not yet confirmed by Chris). **A grower's own line is never folded behind a device's**: up to six of their own
     show, then the fold; what the devices did fills what is left of four lines, what is out of the ordinary - a
     reading outside its targets, an alarm, a step of the plan - before the lamp (`shownLines`, `diary/days.ts`).
     **"von allein" marks only what a device or the plan did without a person**: maintenance somebody switched is

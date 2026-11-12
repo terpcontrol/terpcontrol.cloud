@@ -62,6 +62,20 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
   - A line of the diary opens Verlauf on its moment however old; today one from more than 30 days back opens the
     grow's whole stretch, the only window that holds it, because Verlauf's windows all end now (round 5: Verlauf's
     address carries its window).
+  - Waiting for Chris's word (asked on 2026-11-12, no answer yet). The rules the redesign session set itself after
+    its critics' walks - the calendar's day count, which lines a day card shows, the week cards' removal from the
+    contract - are marked as such where they stand and are his to confirm with the redesign's pull request. And
+    six things went with the grow page's tab "Wochen" that no page shows any more, against the rule that no old
+    capability disappears silently ([app-ux.md](knowledge/app-ux.md)); each comes back or is decided away:
+    - how many of a scheme week's feedings are logged ("n / m erledigt") - the week's feed lines and the rhythm
+      behind "m" were reads of the removed week cards, the tab Düngung makes neither;
+    - the day/night strip and the light hours per week (the report has them per phase);
+    - a reading with its change from the week before (the Messwerte page has the curves);
+    - the days of each stage in the head's bar;
+    - strains and plant count in the head (the tab Pflanzen and the cards of "Alle Grows" have them);
+    - the entry tiles' captions with the last value (the watering detail says when and how much the last was).
+    Also open: whether a day's camera picture outlives the camera's retention - today only a still that a diary
+    line or a grow's cover names is spared.
 
 - **Unit preferences are saved, not applied.** Me › Appearance stores °C/°F, g/oz and l/gal (`preferences.units`),
   but every figure is still drawn in °C, g and l, as the page's `unitsNote` tells the reader; only the Me screen's
