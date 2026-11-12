@@ -698,7 +698,7 @@ describe('where a device stood', () => {
 });
 
 describe('rooms nothing is left in', () => {
-  it('ends an empty room with its ways in, and leaves one that holds a place, a member or something of its own', async () => {
+  it('ends a room no place stands in with every way into it, its members´ too, and leaves one that holds a place or something of its own', async () => {
     const space = (id: string, kind: string, more: Record<string, unknown> = {}) => ({
       id,
       ownerId: 'ada',
@@ -720,7 +720,11 @@ describe('rooms nothing is left in', () => {
       space('tent', 'tent', { roomId: 'room-with-a-tent' }),
       space('ended-tent', 'tent', { roomId: 'room-of-ended-places', archivedAt: new Date(AT - DAY) }),
     ]);
-    await collection('memberships').insertOne({ id: 'm1', spaceId: 'room-with-a-member', userId: 'ben', role: 'can_log' });
+    await collection('memberships').insertMany([
+      { id: 'm1', spaceId: 'room-with-a-member', userId: 'ben', role: 'can_log' },
+      { id: 'm2', spaceId: 'room-with-a-member', userId: 'cleo', role: 'can_manage' },
+      { id: 'm3', spaceId: 'room-with-a-tent', userId: 'ben', role: 'can_log' },
+    ]);
     await collection('devices').insertOne({ id: 'd1', spaceId: 'room-holding-a-device' });
     await collection('cameras').insertMany([
       { id: 'c1', spaceId: 'room-holding-a-camera', removedAt: null },
@@ -753,18 +757,26 @@ describe('rooms nothing is left in', () => {
     const context = new MigrationContext(db(), false, new Date(AT));
     await emptyRooms.run(context);
 
-    expect(await ended()).toEqual(['room-empty', 'room-ended-before', 'room-of-ended-places']);
+    // A room exists only while a place stands in it: the one with members and no place ends, and they go with it.
+    expect(await ended()).toEqual(['room-empty', 'room-ended-before', 'room-of-ended-places', 'room-with-a-member']);
+    expect((await collection('memberships').find({}).toArray()).map(row => row.id)).toEqual(['m3']);
     expect((await one<Record<string, any>>('spaces', { id: 'room-empty' }))?.archivedAt).toEqual(new Date(AT));
     expect((await one<Record<string, any>>('spaces', { id: 'room-ended-before' }))?.archivedAt).toEqual(new Date(AT - DAY));
     expect((await one<Record<string, any>>('spaces', { id: 'ended-tent' }))?.roomId).toBeNull();
     expect((await one<Record<string, any>>('spaces', { id: 'tent' }))?.roomId).toBe('room-with-a-tent');
     expect((await collection('invites').find({}).toArray()).map(row => row.id)).toEqual(['i2']);
     expect((await collection('shareLinks').find({}).toArray()).map(row => row.id)).toEqual(['s2']);
-    expect(context.stats).toEqual({ 'rooms.ended': 2, 'rooms.kept': 5, 'spaces.takenOutOfAnEndedRoom': 1, rejected: 0 });
+    expect(context.stats).toEqual({
+      'rooms.ended': 3,
+      'rooms.kept': 4,
+      'memberships.endedWithARoom': 2,
+      'spaces.takenOutOfAnEndedRoom': 1,
+      rejected: 0,
+    });
 
     const again = new MigrationContext(db(), false, new Date(AT + DAY));
     await emptyRooms.run(again);
-    expect(again.stats).toEqual({ 'rooms.kept': 5, rejected: 0 });
+    expect(again.stats).toEqual({ 'rooms.kept': 4, rejected: 0 });
   });
 });
 

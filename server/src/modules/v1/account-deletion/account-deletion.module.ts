@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ModelsModule } from '@database/models.module';
 import { AccountModule } from '../account/account.module';
-import { SpaceModule } from '../space/space.module';
 import { DeviceModule } from '../device/device.module';
 import { SessionsModule } from '../sessions/sessions.module';
 import { AccountDeletionService } from './account-deletion.service';
@@ -25,7 +24,7 @@ import { MeDeletionController } from './me-deletion.controller';
  * right for one person ending one thing and wrong for an account that is going.
  */
 @Module({
-  imports: [ModelsModule, AccountModule, SessionsModule, DeviceModule, SpaceModule],
+  imports: [ModelsModule, AccountModule, SessionsModule, DeviceModule],
   controllers: [MeDeletionController],
   providers: [AccountDeletionService],
   exports: [AccountDeletionService],

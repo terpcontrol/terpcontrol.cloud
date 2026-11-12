@@ -57,7 +57,7 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
 - **Steps on the new collections** (`026-device-placements`, `027-empty-rooms`, `028-unique-place-names`; the
   redesign session of 2026-11-12, ADR 0001 "Places, rooms and where a device stood"): they read `devices` and
   `spaces` in the new shape, move nothing aside and reject nothing. Each finds its work by what is still wrong - a
-  device without `placements`, a room that has not ended and holds nothing, two names that collide - so a second run
+  device without `placements`, a room that has not ended and holds no place, two names that collide - so a second run
   changes nothing and a run killed half-way continues. A database from the old cloud has no rooms, so 027 finds none
   there; 028 renames only the places of one owner that were named after devices sharing a name (step 004 numbers
   the places it names itself). 026 dates a placement from `state.claimedAt`, which step 005 leaves null for every

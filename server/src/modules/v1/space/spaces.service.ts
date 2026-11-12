@@ -34,7 +34,7 @@ import { accountOf } from '../caller';
  * level deep in both directions: a room holds spaces, a room never hangs in one.
  * To a client it is a field of the place: a place names its room (`roomId`, or
  * `roomName` for one that may not exist yet), the server makes it, and ends it
- * once its last place and its last member have left. Nobody makes, ends or
+ * with its last place - its members' access with it. Nobody makes, ends or
  * brings back a room by itself.
  */
 
@@ -217,10 +217,13 @@ export class SpacesService {
   }
 
   /**
-   * Ends a room nothing is left in: no place that has not ended, nobody who is
-   * a member of it, and nothing standing in it itself. It goes the way a deleted
-   * place goes - a tombstone history can still name, its invites and share
-   * links gone. A room people are still members of stays until they have left.
+   * Ends a room no place stands in any more. A room exists only while a place
+   * stands in it: it is a field of its places, and one that outlived them would
+   * be a list of people let into nothing. So it goes with its last place the
+   * way a deleted place goes - a tombstone history can still name - and takes
+   * every way into it along: its members' rows, its invites, its share links.
+   * A room that itself holds a device, a camera or a grow is somebody's place
+   * and stays.
    */
   public async endRoomIfEmpty(roomId: string | null): Promise<void> {
     if (roomId === null) return;
@@ -229,7 +232,6 @@ export class SpacesService {
 
     const kept =
       (await this.spaces.exists({ roomId, archivedAt: null })) ??
-      (await this.memberships.exists({ spaceId: roomId })) ??
       (await this.deviceRows.exists({ spaceId: roomId })) ??
       (await this.cameras.exists({ spaceId: roomId, removedAt: null })) ??
       (await this.grows.exists({ endedAt: null, placements: { $elemMatch: { spaceId: roomId, endedAt: null } } }));
@@ -238,6 +240,7 @@ export class SpacesService {
     await this.spaces.updateOne({ id: roomId }, { $set: { archivedAt: new Date() } });
     // The ended places still naming it stand in no room: brought back, they must not hang in one that is gone.
     await this.spaces.updateMany({ roomId }, { $set: { roomId: null } });
+    await this.memberships.deleteMany({ spaceId: roomId });
     await this.invites.deleteMany({ spaceId: roomId });
     await this.shareLinks.deleteMany({ 'subject.type': 'space', 'subject.id': roomId });
   }

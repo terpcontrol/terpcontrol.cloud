@@ -199,8 +199,6 @@ export class MembersService {
 
     await this.memberships.deleteOne({ spaceId, userId });
     if (shownTheDoor) await this.closeTheWayIn(row);
-    // A room nothing stands in any more ends with its last member.
-    await this.spacesService.endRoomIfEmpty(spaceId);
   }
 
   /**

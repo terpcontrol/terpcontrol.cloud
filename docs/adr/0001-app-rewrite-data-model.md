@@ -316,8 +316,8 @@ rule that names an output and a threshold nothing would read cannot be written d
   the space's own rows - a membership held on the room above reaches in as well, but it is the room's, and a
   room is already refused while any space is grouped under it, so a shared room is emptied and then meets its
   own members rather than making every tent inside it undeletable. *Amended 2026-11-12
-  (awaiting confirmation):* a client no longer deletes a room at all - the server ends it once its last place and
-  its last member have left, see "Places, rooms and where a device stood".
+  (awaiting confirmation):* a client no longer deletes a room at all - the server ends it with its last place, see
+  "Places, rooms and where a device stood".
 - **Deleting an account is the other act, and stays possible.** A person cannot be held in an account because
   somebody else is a member of their tent, so `DELETE /me` removes the memberships on the spaces it owns as part
   of deleting them. The two are not the same thing said twice: ending one space is a place closing while its
@@ -407,10 +407,12 @@ like a place.
      `kind: room`, a `kind` that changes to or from `room`, `DELETE /spaces/{id}` and both archive routes on a room
      answer 409 `room_by_itself`, and so does putting a device into a room - by a claim, a move or
      `PUT /spaces/{id}/devices/{deviceId}`. Its name can still be changed (`PATCH /spaces/{id}`), within point 3.
-   - **The server removes a room when its last place and its last member have left**: whenever a place leaves a
-     room, ends, or the last membership on a room is taken away, a room with no place in it that has not ended and no
-     membership is ended the way a deleted place is - a tombstone with `archivedAt`, its invites and share links
-     deleted. A room that people are still members of stays, empty, until they have gone.
+   - **A room exists only while a place stands in it** (changed after the round's walk, 2026-11-12; first written
+     as "… and its last member have left", which kept an empty room with the people let into it - a list of people
+     let into nothing, on no screen). Whenever a place leaves a room, ends or is put away, a room with no place in
+     it that has not ended is ended the way a deleted place is - a tombstone with `archivedAt` - and every way into
+     it goes with it: its members' rows, its invites and its share links. The app says so before the write that
+     does it and names the people; the write itself is not refused, and cannot be taken back.
    - Renaming a place or putting it into another room writes no line and no move into any grow; a grow moves only
      when its plants do.
 5. **Start says whose a shared place is.** `home.people` also names the owner of every place on it that is not the
@@ -432,7 +434,7 @@ test stack, a self-hosted one on master - are what the second and third are for)
 | Step | What it does | To every shape it can meet |
 | --- | --- | --- |
 | `026-device-placements` | gives every device without the field its `placements` | a device standing in a place gets one open placement there, from `state.claimedAt`, or from its `createdAt` where nothing recorded the claim (every device carried over from the old database: step 005 left `claimedAt` null); being its first, it is read back past that instant, so nothing a screen shows changes with the step - every read assumed until now that a device has always stood where it stands; an unclaimed device, and a claimed one without a place (a repair by hand left such rows), gets an empty list; a device whose place has since ended is given the placement all the same and counted |
-| `027-empty-rooms` | ends the rooms nothing is left in | a room with no place that has not ended, no membership and nothing standing in it directly is ended as point 4 says, and the ended places still naming it are taken out of it; a room with members, with a place, or holding something itself is left |
+| `027-empty-rooms` | ends the rooms nothing is left in | a room with no place that has not ended and nothing standing in it directly is ended as point 4 says - its members' rows deleted with it and counted (`memberships.endedWithARoom`) -, and the ended places still naming it are taken out of it; a room with a place, or holding something itself, is left |
 | `028-unique-place-names` | renames what collides | per owner, among the places that have not ended and among the rooms that have not: the oldest of a name keeps it, each later one takes the next free number ("Tent", "Tent 2"); ended places are not touched. Step 004 numbered the places it named itself, so on a database from the old cloud only places named after devices that share a name can collide |
 
 ### Diary, tasks, pictures

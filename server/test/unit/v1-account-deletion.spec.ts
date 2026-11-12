@@ -6,7 +6,7 @@ import { AccountsService } from '@modules/v1/account/accounts.service';
 import { AccountMailService } from '@modules/v1/account/account-mail.service';
 import { PasswordResetService } from '@modules/v1/account/password-reset.service';
 import { SessionsService } from '@modules/v1/sessions/sessions.service';
-import { accessOn, devicesOn, spacesOn } from './support/services';
+import { accessOn, devicesOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
 import { standingIn } from './support/placed';
 
@@ -99,7 +99,6 @@ const build = (): void => {
     sessions,
     resets,
     devices,
-    spacesOn(db, accessOn(db), devices),
     { ...AUTH },
   );
 };

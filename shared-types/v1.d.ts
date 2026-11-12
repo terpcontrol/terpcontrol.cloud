@@ -2030,7 +2030,7 @@ export interface Space {
   kind: SpaceKind;
   name: string;
   /**
-   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left.
+   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it with its last place, the memberships on it included.
    */
   roomId: string | null;
   presetPrompt: PresetPrompt;
@@ -2377,7 +2377,7 @@ export interface SpaceCreate {
   kind: SpaceKind;
   name: string;
   /**
-   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left.
+   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it with its last place, the memberships on it included.
    */
   roomId?: string | null;
   presetPrompt?: PresetPrompt;
@@ -2392,7 +2392,7 @@ export interface SpaceUpdate {
   kind?: SpaceKind;
   name?: string;
   /**
-   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left.
+   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it with its last place, the memberships on it included.
    */
   roomId?: string | null;
   presetPrompt?: PresetPrompt;

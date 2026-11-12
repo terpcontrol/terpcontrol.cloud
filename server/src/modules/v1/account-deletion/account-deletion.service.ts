@@ -29,7 +29,6 @@ import { authConfig } from '@config/configuration';
 import { logger } from '@utils/logger';
 import { AccountsService } from '../account/accounts.service';
 import { PasswordResetService } from '../account/password-reset.service';
-import { SpacesService } from '../space/spaces.service';
 import { DevicesService } from '../device/devices.service';
 import { SessionsService } from '../sessions/sessions.service';
 
@@ -121,7 +120,6 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
     private readonly sessions: SessionsService,
     private readonly resets: PasswordResetService,
     private readonly devices: DevicesService,
-    private readonly places: SpacesService,
     @Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>,
   ) {}
 
@@ -369,10 +367,7 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
     await this.pushSubscriptions.deleteMany({ userId });
     await this.notifications.deleteMany({ userId });
     await this.follows.deleteMany({ userId });
-    const shared: string[] = await this.memberships.distinct('spaceId', { userId });
     await this.memberships.deleteMany({ userId });
-    // Somebody else's room this account was the last member of, with no place left in it, ends with the membership.
-    for (const spaceId of shared) await this.places.endRoomIfEmpty(spaceId);
     await this.shareLinks.deleteMany({ createdBy: userId });
 
     if (user.avatarMediaId) tally.media += await this.purgeMedia({ id: user.avatarMediaId });

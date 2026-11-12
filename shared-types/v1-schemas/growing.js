@@ -38,7 +38,7 @@ exports.space = (0, common_js_1.named)('Space', zod_1.z.object({
     name: zod_1.z.string(),
     roomId: (0, common_js_1.id)()
         .nullable()
-        .describe('A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it when its last place and its last member have left.'),
+        .describe('A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it with its last place, the memberships on it included.'),
     presetPrompt: exports.presetPrompt,
     retention: exports.spaceRetention,
     isDemo: zod_1.z.boolean(),

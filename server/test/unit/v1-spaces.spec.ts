@@ -295,16 +295,25 @@ describe('a room that empties', () => {
     expect((await spaces.require(other.roomId!)).archivedAt).not.toBeNull();
   });
 
-  it('stays while somebody is a member of it, and ends when the last of them leaves', async () => {
+  it('never outlives its places: it ends with the last of them, and its members´ way in with it', async () => {
     const { roomId, tentId } = await attic();
     await db.memberships.create({ id: 'membership-attic', spaceId: roomId, userId: MEMBER, role: 'can_log' });
 
     await spaces.update(session(OWNER), tentId, { roomId: null });
-    expect((await spaces.require(roomId)).archivedAt).toBeNull();
 
-    await db.memberships.deleteOne({ id: 'membership-attic' });
-    await spaces.endRoomIfEmpty(roomId);
     expect((await spaces.require(roomId)).archivedAt).not.toBeNull();
+    expect(await db.memberships.countDocuments({ spaceId: roomId })).toBe(0);
+    // The member's own row on a tent is another way in and is untouched.
+    expect(await db.memberships.countDocuments({ id: 'membership-member' })).toBe(1);
+  });
+
+  it('stays while a room holds something itself, though no place stands in it', async () => {
+    const { roomId, tentId } = await attic();
+    await db.cameras.create({ id: 'camera-attic', ownerId: OWNER, kind: 'rtsp', name: 'Attic cam', spaceId: roomId });
+
+    await spaces.update(session(OWNER), tentId, { roomId: null });
+
+    expect((await spaces.require(roomId)).archivedAt).toBeNull();
   });
 
   it('stays while a place stands in it', async () => {

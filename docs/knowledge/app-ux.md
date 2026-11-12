@@ -270,7 +270,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     the page could not know. Upper and lower case and blanks make no second name (`nameKey`, shared with the server).
   - *A room is a field*: one of the owner's rooms, "Neuer Raum …" with its name, or "Kein Raum". It is asked from
     the second place on, and of the owner only. Nobody makes, renames or deletes a room by itself: the server makes
-    the one a place names and ends the one its last place and its last member have left.
+    the one a place names and ends it with its last place.
   - *"Geräte hier"* lists the devices and cameras standing there, each leading to its page, and "+ Gerät hierher
     holen": a device standing elsewhere moves by the device's own sheet, opened with this place chosen - it says
     what goes along, and the toast takes the move back -, a new one by its code (`/claim?space=`).
