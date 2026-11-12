@@ -103,6 +103,16 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
   - A line of the diary opens Verlauf on its moment however old; today one from more than 30 days back opens the
     grow's whole stretch, the only window that holds it, because Verlauf's windows all end now (round 5: Verlauf's
     address carries its window).
+  - Where the run stands (2026-11-12, the session stopped at the account's token limit). Built, walked by a
+    critic and fixed: the frame, Start, the grow pages. Built and not walked by a critic: round 4. A second walk of
+    Start and the grow pages found one blocker and eight larger points; what was decided about them is not built
+    and comes first when the run goes on. Then, one round after another, each followed by its critic
+    ([development-workflow.md](knowledge/development-workflow.md), Long runs and rounds): the critic for round 4,
+    Verlauf as one page with the server's finer step, place and room with the data model's migration steps, Ich
+    and Meldungen, and the clearing up (unused code, one wording pass, these documents, the line counts against
+    74,461 in `webapp/src` and 33,865 in `webapp/test` when the run began). The briefs of the rounds, the list of
+    every function with its new place and the decisions on each critic's findings are internal notes; the target
+    pictures come from the click prototype.
   - Waiting for Chris's word (asked on 2026-11-12, no answer yet). The rules the redesign session set itself after
     its critics' walks - the calendar's day count, which lines a day card shows, the week cards' removal from the
     contract - are marked as such where they stand and are his to confirm with the redesign's pull request. And
