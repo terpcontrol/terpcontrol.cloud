@@ -140,7 +140,6 @@ function VersionPick({ device, offline, firmware }: { device: Device; offline: b
   const [asking, setAsking] = useState(false);
   const builds = [...firmware.builds].sort((one, other) => other.createdAt.localeCompare(one.createdAt));
   const build = builds.find(one => one.id === picked) ?? null;
-  // Two builds stamped alike are told apart by when they were made: the day, and the hour where they share it.
   const label = (one: DeviceFirmware) =>
     [
       buildName(one),

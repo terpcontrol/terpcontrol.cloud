@@ -1,10 +1,10 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import type { Person, Space } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
-import { session, useSession } from '@/api/session';
+import { useSession } from '@/api/session';
 import { sinceLabel } from '@/ui/age';
+import { useLeave } from '@/ui/leave';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, useZone, zoned } from '@/ui/zone';
@@ -85,14 +85,7 @@ export function StartFailed({ retry, error = null, retrying = false }: { retry: 
 /** The demo says what it is on Start, with the way to an account of one's own: the demo's session ends, and sign-up opens. */
 export function DemoBanner() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const [leaving, setLeaving] = useState(false);
-
-  const leave = async () => {
-    setLeaving(true);
-    await session.logOut();
-    await navigate('/sign-up', { replace: true });
-  };
+  const { leaving, leave } = useLeave('/sign-up');
 
   return (
     <div className={styles.demo}>

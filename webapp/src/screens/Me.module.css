@@ -56,73 +56,6 @@
   white-space: nowrap;
 }
 
-/* A door, a row of a run of doors that is one group - a list read top to
-   bottom rather than a stack of separate things. */
-.row {
-  padding: var(--space-3) var(--space-4);
-}
-
-.rowTitle {
-  font-weight: var(--weight-semibold);
-}
-
-/* A row that is a door to another screen: the chevron says so. */
-.link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  min-height: 64px;
-  color: var(--ink);
-  transition: background-color 120ms ease-out;
-}
-
-.link:hover {
-  background: var(--card-2);
-}
-
-.link:focus-visible {
-  outline-offset: -2px;
-}
-
-.link svg {
-  flex: none;
-  color: var(--label);
-}
-
-.doorText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-
-/* What the page behind the door currently says, in figures. */
-.doorLine {
-  font-size: var(--text-sm);
-  line-height: 1.35;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-
-/* The state word the board sets against the right edge: "active", "expired". */
-.aside {
-  flex: none;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-/* A row that leads nowhere says why, under its title, and its title is
-   turned down to the muted ink: without a chevron it is a fact, not a door. */
-.rowNote {
-  margin-top: 2px;
-}
-
-.row:not(.link) .rowTitle {
-  color: var(--muted);
-}
-
 /* Signing out stands apart from the doors, at the foot. */
 .foot {
   padding-top: var(--space-2);
@@ -136,19 +69,11 @@
     gap: var(--space-5);
     padding-top: 0;
   }
-
-  .row {
-    padding: var(--space-3) var(--space-5);
-  }
 }
 
-/* The install's own screens, under their label: one line each, so a row a step lower than a door with its line. */
+/* The install's own screens, under their label. */
 .admin {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-
-.adminDoor {
-  min-height: 52px;
 }

@@ -236,6 +236,16 @@ describe('the form a grow is started with', () => {
     expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toBeInTheDocument();
   });
 
+  it('opens on the stage of that device too, not of the first controller standing in the place', async () => {
+    // Eighteen hours of light: growth, beside a flowering controller the place does not name.
+    const growing = fridge({ type: 'controller', configuration: { ...controller.configuration, daynight: { day: 6 * 3600, night: 0 } } });
+    stack.devices = [fridge({ id: 'device-0', type: 'controller' }), growing];
+    stack.climate = 'device-1';
+    await drawLoaded('space-1');
+
+    expect(stage('Veg')).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('keeps its button in the sheet´s foot, where it stands while the questions scroll, and starts the grow from there', async () => {
     await drawLoaded('space-1');
 

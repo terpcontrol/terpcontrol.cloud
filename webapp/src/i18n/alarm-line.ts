@@ -4,11 +4,7 @@ import { OFFLINE_RULE_NAME } from '@fg2/shared-types/v1-schemas/alert-routing.js
 import { figureWithUnit, targetWithUnit, UNIT } from '@/ui/units';
 import type { Translate } from './i18n';
 
-/**
- * What a preset's rules are called, by what each watches. The catalogue has
- * one name per band rather than per preset, because a stage writes the same
- * four rules whichever preset it stands on.
- */
+/** What a preset's rules are called, by what each watches: a stage writes the same four whichever preset it stands on. */
 const PRESET_TITLE: Record<string, string> = {
   'temperature-upper': 'tooHot',
   'temperature-lower': 'tooCold',
@@ -27,13 +23,10 @@ const presetTitle = (watch: AlarmWatch): string | null => {
 };
 
 /**
- * What a rule is called, wherever it is named: Steuerung › Alarme, Meldungen,
- * Start, a line of the diary. A name the server wrote is English wherever it
- * was written, so the two kinds of rule nobody here named - the one the cloud
- * keeps for every device and the four a stage applies - are titled in the
- * language the page is in: from what the rule watches, and where only the
- * name it is stored under is in hand, from that name. A rule somebody wrote,
- * by hand or through the firmware, keeps the name it was given.
+ * What a rule is called, wherever it is named. The server names its own rules
+ * in English - the one it keeps for every device and the four a stage applies
+ * - so those are titled in the reader's language: from what the rule watches,
+ * else from the name it is stored under. A rule somebody wrote keeps its name.
  */
 export const ruleTitle = (t: Translate, { name, origin, watch }: Pick<AlarmRule, 'name'> & Partial<Pick<AlarmRule, 'origin' | 'watch'>>): string => {
   if (origin === 'always' || (!origin && name === OFFLINE_RULE_NAME)) return t('alarms.offlineRule');

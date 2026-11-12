@@ -2,7 +2,7 @@ import { CalendarRange } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceConfiguration, GerminationChoices as ChoiceValues } from '@fg2/shared-types/v1';
-import { useConfigure, useDeviceLive, useHeardAt, useLiveReads, useSaveConfiguration } from '@/api/devices';
+import { readConfiguration, useConfigure, useDeviceLive, useHeardAt, useLiveReads, useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { useSpaceOverview } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
@@ -160,18 +160,21 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
       const resume = async () => {
         if (pauses) await move.mutateAsync({ kind: 'resume' });
       };
-      const put = (figures: Partial<TargetsDraft>, extra: { germination?: boolean } = {}) =>
-        save.mutateAsync({
+      // Into the document as it stands at the tap, so a setting saved since stays as it is.
+      const put = async (figures: Partial<TargetsDraft>, extra: { germination?: boolean; germinationChoices?: Partial<ChoiceValues> } = {}) => {
+        const current = (await readConfiguration(device.id)) ?? answer.configuration;
+        return save.mutateAsync({
           deviceId: device.id,
-          configuration: withDraft(answer.configuration, { ...draftOf(answer.configuration), ...figures }, climateOnly),
+          configuration: withDraft(current, { ...draftOf(current), ...figures }, climateOnly),
           ...extra,
         });
+      };
       const before = Object.fromEntries(moved.map(field => [field, baseline[field]]));
-      const night = device.control?.afterGermination;
-      // What one tap takes back. A drying spell keeps and returns more than figures. Germination begun is ended by
-      // the document from before. One ended is begun again in two writes, since the dark keeps the day it finds and
-      // the night it replaces: the document from before in the light, with the night germination had kept, then
-      // germination with its own. A humidifier's rested band is not kept across that, so there is no way back then.
+      const kept = device.control?.afterGermination;
+      // What one tap takes back: the figures this save moved, and nothing else. A drying spell keeps and returns
+      // more than figures. Germination ended is begun again in two writes, since the dark keeps the day it finds
+      // and the night it replaces: the night germination had kept in the light, then germination with its own.
+      // A humidifier's rested band is not kept across that, so there is no way back then.
       const undo =
         dryingChange !== null || (germinationChange === null && choices !== undefined)
           ? null
@@ -182,17 +185,15 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
               : humidifier && !storedChoices.humidifierHolds
                 ? null
                 : async () => {
-                    const kept = {
-                      nightTemperature: night?.nightTemperature ?? baseline.nightTemperature,
-                      nightHumidity: night?.nightHumidity ?? baseline.nightHumidity,
-                    };
-                    await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, { ...baseline, ...kept }, climateOnly) });
-                    await save.mutateAsync({
-                      deviceId: device.id,
-                      configuration: stored,
-                      germination: true,
-                      germinationChoices: choicesSaid(storedChoices, humidifier),
+                    await put({
+                      ...before,
+                      nightTemperature: kept?.nightTemperature ?? baseline.nightTemperature,
+                      nightHumidity: kept?.nightHumidity ?? baseline.nightHumidity,
                     });
+                    await put(
+                      { ...before, nightTemperature: baseline.nightTemperature, nightHumidity: baseline.nightHumidity },
+                      { germination: true, germinationChoices: choicesSaid(storedChoices, humidifier) },
+                    );
                     await resume();
                   };
       saved.say(label, undo, chip ? 'preset' : moved.join(' '));

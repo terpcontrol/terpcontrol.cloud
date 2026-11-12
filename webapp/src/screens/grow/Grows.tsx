@@ -11,7 +11,7 @@ import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { useFollows, useShareLinks } from '@/api/sharing';
 import { FOLLOWING, GROW, SCHEMES, SHARE_LINKS } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
-import { followingLine, schemesLine, shareLinksLine } from '@/screens/me/doors';
+import { followingLine, lineOnce, schemesLine, shareLinksLine, type Read } from '@/screens/me/doors';
 import { BackLink } from '@/ui/BackLink';
 import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
@@ -142,8 +142,7 @@ function Beside() {
   const diary = useDiaryLayer();
   // The shelf is what a grow's feeds are dosed from: a door of the diary's, kept for whoever wrote a scheme of their own.
   const feeds = diary || (own.data?.items.length ?? 0) > 0;
-  const line = (queries: { data: unknown; isPending: boolean }[], text: () => string): string =>
-    queries.every(query => query.data !== undefined) ? text() : queries.some(query => query.isPending) ? t('home.waiting') : t('shell.loadFailed');
+  const line = (reads: Read[], text: () => string) => lineOnce(t, reads, text);
   const door = (to: string, title: string, says: string) => (
     <Link to={to} className={styles.door}>
       <span className={styles.text}>

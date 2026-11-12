@@ -148,6 +148,10 @@ const newestInstant = (live: DeviceLive | undefined): string | null =>
  * it parses at every connect. What comes back is what was stored and sent, never
  * what the device is now running - it sends no acknowledgement at all.
  */
+/** A device's document as the server holds it this moment, for a write that must not put back what the page read earlier. */
+export const readConfiguration = async (deviceId: string): Promise<DeviceConfiguration | null> =>
+  (await api.get<Device>(`/devices/${deviceId}`)).configuration;
+
 export const useSaveConfiguration = () =>
   useWriteSettled(
     ({

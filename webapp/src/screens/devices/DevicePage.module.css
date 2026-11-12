@@ -154,9 +154,8 @@
   cursor: default;
 }
 
-/* Maintenance and restart side by side while both names fit a line each: each is as wide as its name at least,
-   and they share what is left - from one basis above a button's own padding, so they come out alike where there
-   is room. A window that is standing takes the row for itself, as does the sentence on why both wait. */
+/* Maintenance and restart side by side while both names fit a line each, sharing what is left from one basis so
+   they come out alike. A window that is standing takes the row for itself, as does the sentence on why both wait. */
 .actions {
   display: flex;
   flex-wrap: wrap;

@@ -45,10 +45,7 @@ export const useFirmware = (device: Device, enabled = true) => {
 /** A build by what its container stamped it with. */
 export const buildName = (build: DeviceFirmware): string => buildLabel(build) ?? build.id.slice(0, 8);
 
-/**
- * The day a build was made, which is what a grower compares - with its hour where `among` holds another of that
- * day. The hour takes the year's place while the year is this one: a button says it too.
- */
+/** The day a build was made - with its hour where `among` holds another of that day, in the year's place while the year is this one. */
 export const buildDay = (build: DeviceFirmware, among: readonly DeviceFirmware[], zone: string | null): string => {
   const made = zoned(build.createdAt, zone);
   const alone = among.every(other => other.id === build.id || !zoned(other.createdAt, zone).hasSame(made, 'day'));

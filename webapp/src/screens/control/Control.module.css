@@ -559,59 +559,11 @@
   letter-spacing: 0;
 }
 
-.fold {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  width: 100%;
-  min-height: 58px;
-  padding: var(--space-2) var(--space-4);
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  color: var(--ink);
-  font-size: var(--text-md);
-  text-align: left;
-}
-
-.fold:hover {
-  background: var(--tint);
-}
-
-.foldMark {
-  flex: none;
-  color: var(--muted);
-  transition: transform 120ms ease-out;
-}
-
-.fold[aria-expanded='true'] .foldMark {
-  transform: rotate(180deg);
-}
-
-.rowText {
-  flex: 1;
-  min-width: 0;
-  font-weight: var(--weight-semibold);
-  overflow-wrap: anywhere;
-}
-
-.rowLine {
-  display: block;
-  margin: 0;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-regular);
-  color: var(--muted);
-}
-
-.rowLine[data-tone='warn'],
 .pendingLine {
+  margin: 0;
   color: var(--warning);
-  font-weight: var(--weight-semibold);
-}
-
-.pendingLine {
-  margin: 0;
   font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }
 
 /* --- the devices standing in the place --- */
@@ -637,6 +589,12 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-3);
+}
+
+/* The name keeps its words: a button it has no room beside wraps under it. */
+.deviceHead > :first-child {
+  flex-basis: 9rem;
+  overflow-wrap: break-word;
 }
 
 /* A further device: its name, how it is and the way to its page, close together. */

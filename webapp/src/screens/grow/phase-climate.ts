@@ -30,14 +30,19 @@ export const climateRequest = (pick: PhaseClimate, stage: GrowthStage): Pick<Pha
  * The device standing in a place that holds targets a climate could be written
  * to, or null: the place's climate as Steuerung reads it (`useLead`), so a form
  * that sets a climate asks about the device the climate preset is taken on -
- * its humidifier socket, what it does in germination. Until the place has said
- * which that is, the first device there that states targets.
+ * its humidifier socket, what it does in germination, the stage it is on.
+ * Until the place has said which that is (`known`), the first device there
+ * that states targets.
  */
-export const usePlaceController = (spaceId: string | null): Device | null => {
-  const { devices, lead } = useLead(spaceId);
+export const usePlaceClimate = (spaceId: string | null): { controller: Device | null; known: boolean } => {
+  const { devices, overview, lead } = useLead(spaceId);
   const holds = (device: Device | null): device is Device => !!device?.configuration && statesTargets(device.configuration);
-  return spaceId === null ? null : holds(lead) ? lead : (devices.items.find(holds) ?? null);
+  const controller = spaceId === null ? null : holds(lead) ? lead : (devices.items.find(holds) ?? null);
+  // A place whose overview could not be read is answered by the devices alone.
+  return { controller, known: !devices.isPending && !overview.isPending };
 };
+
+export const usePlaceController = (spaceId: string | null): Device | null => usePlaceClimate(spaceId).controller;
 
 /**
  * What a phase sheet starts on: the targets as they are - nothing is chosen for

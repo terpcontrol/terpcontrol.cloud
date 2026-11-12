@@ -54,11 +54,7 @@ interface ToastsProps {
   onDetails: (line: LoggedLine) => void;
 }
 
-/**
- * The element the toasts are drawn into, which is put where they stand. It is
- * a live region a sheet must not silence: what was just written is said, and
- * taken back, while one is open.
- */
+/** The element the toasts are drawn into: a live region a sheet must not silence, so what was written is said while one is open. */
 const hostOf = (): HTMLElement => {
   const host = document.createElement('div');
   host.className = styles.toasts;
@@ -68,10 +64,7 @@ const hostOf = (): HTMLElement => {
   return host;
 };
 
-/**
- * The top sheet's box as it stands without toasts in its foot: the room they
- * take there is its body's again, as far as the body has more to show.
- */
+/** The top sheet's box as it stands without toasts in its foot: their room is its body's again, as far as the body has more to show. */
 const boxOf = (sheet: HTMLElement, foot: HTMLElement): { top: number; bottom: number } => {
   const body = foot.previousElementSibling;
   const grown = Math.max(0, foot.offsetHeight - (body ? body.scrollHeight - body.clientHeight : 0));
@@ -81,11 +74,10 @@ const boxOf = (sheet: HTMLElement, foot: HTMLElement): { top: number; bottom: nu
 };
 
 /**
- * Puts the toasts where they stand now and answers the sheet they stand by.
- * At the page's foot; while a sheet is open beside its box, or in its foot
- * above the button row (`besideSheet`), where they are part of the sheet: its
- * body gives them the room and scrolls. A sheet is measured where it comes to
- * rest, not where its rise or a pull has it.
+ * Puts the toasts where they stand now and answers the sheet they stand by:
+ * at the page's foot, or beside an open sheet's box, or in its foot
+ * (`besideSheet`). A sheet is measured where it comes to rest, not where its
+ * rise or a pull has it.
  */
 const stand = (host: HTMLElement): HTMLElement | null => {
   if (!host.isConnected) document.body.append(host);

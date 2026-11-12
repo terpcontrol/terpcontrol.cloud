@@ -23,6 +23,17 @@ import { isDead } from './sharing/links';
  * checked against the shapes it reads without drawing the page.
  */
 
+export type Read = { data: unknown; isPending: boolean };
+
+/**
+ * A door's line once every read it is worked out from has answered. The reads
+ * land in any order, so each is named: a line worked out from one still
+ * missing would throw and take the page with it. One outstanding says it is
+ * loading and one that failed says so, under its own door.
+ */
+export const lineOnce = (t: Translate, reads: Read[], text: () => string): string =>
+  reads.every(read => read.data !== undefined) ? text() : reads.some(read => read.isPending) ? t('home.waiting') : t('shell.loadFailed');
+
 /** The parts of a line, in the board's spelling: a middle dot between each. */
 export const joined = (parts: (string | null)[]): string => parts.filter((part): part is string => part !== null && part !== '').join(' · ');
 
@@ -78,24 +89,18 @@ export const shareLinksLine = (t: Translate, links: ShareLink[], now: DateTime):
 };
 
 /**
- * The cameras and their entitlement, with the state word the board sets at
- * the right edge. One camera is named with its own date; several are counted,
- * and the state word then speaks for all of them or says that it cannot.
+ * The cameras and their entitlement, ending on the state word. One camera is
+ * named with its own date; several are counted, and the state word then
+ * speaks for all of them or says that it cannot.
  *
  * An install that gates nothing is said in those words rather than as "active".
  * Every camera does read as entitled there, but calling that Premium would
  * promise a self-hosted grower something they have not got and could not lose.
  */
-export const premiumLine = (
-  t: Translate,
-  cameras: Camera[],
-  now: DateTime,
-  enforced: boolean,
-  zone: string | null,
-): { text: string; aside: string | null } => {
+export const premiumLine = (t: Translate, cameras: Camera[], now: DateTime, enforced: boolean, zone: string | null): string => {
   const owned = cameras.filter(camera => camera.removedAt === null && !camera.isDemo);
-  if (owned.length === 0) return { text: t('me.door.premium.none'), aside: null };
-  if (!enforced) return { text: t('me.door.premium.ungated', { count: owned.length }), aside: null };
+  if (owned.length === 0) return t('me.door.premium.none');
+  if (!enforced) return t('me.door.premium.ungated', { count: owned.length });
 
   const premium = owned.filter(camera => camera.entitlement.tier === 'premium').length;
   if (owned.length === 1) {
@@ -104,18 +109,14 @@ export const premiumLine = (
     const until =
       validUntil && grant ? t(`me.door.premium.grant.${grant}`, { date: calendarDay(validUntil, zone) }) : t('me.door.premium.noEntitlement');
 
-    return { text: joined([camera.name, until]), aside: stateWord(t, camera, now) };
+    return joined([camera.name, until, stateWord(t, camera, now)]);
   }
 
-  return {
-    text: joined([t('me.door.premium.cameras', { count: owned.length }), t('me.door.premium.premium', { count: premium })]),
-    aside:
-      premium === owned.length
-        ? t('me.door.premium.state.active')
-        : premium === 0
-          ? t('me.door.premium.state.free')
-          : t('me.door.premium.state.partly'),
-  };
+  return joined([
+    t('me.door.premium.cameras', { count: owned.length }),
+    t('me.door.premium.premium', { count: premium }),
+    t(`me.door.premium.state.${premium === owned.length ? 'active' : premium === 0 ? 'free' : 'partly'}`),
+  ]);
 };
 
 /** Premium is "active"; a camera whose year has run out is "expired", and one that never had one is "free". */

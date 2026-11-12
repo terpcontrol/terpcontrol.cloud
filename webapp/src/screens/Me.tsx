@@ -1,52 +1,41 @@
-import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShape } from '@/app/shell/shape';
-import { Link, useNavigate } from 'react-router';
 import { useAccountMe, useMe } from '@/api/account';
 import { useCameras } from '@/api/cameras';
 import { APP_VERSION, BUILD_MODE } from '@/api/config';
 import { useGrows, useMyGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
-import { session, useSession } from '@/api/session';
+import { useSession } from '@/api/session';
 import { ALL_GROWS } from '@/app/places';
 import { initials } from '@/ui/handle';
+import { useLeave } from '@/ui/leave';
 import { ownsCamera } from '@/screens/devices/cameras';
 import { useTheme } from '@/theme/theme-context';
+import { Row, Rows } from '@/ui/Rows';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
-import { appearanceLine, growsLine, notificationsLine, premiumLine, privacyLine, publicLine, versionLine } from './me/doors';
+import { appearanceLine, growsLine, lineOnce, notificationsLine, premiumLine, privacyLine, publicLine, versionLine, type Read } from './me/doors';
 import styles from './Me.module.css';
 
 /**
  * Where the avatar leads: who is signed in, the way to every grow for whoever
  * keeps a diary, and a door to each of the things an account is made of. What
- * belongs to growing - the feeding schemes, the share links, the grows of
- * others the account follows - stands with the grows, under "Alle Grows".
+ * belongs to growing stands with the grows, under "Alle Grows".
  *
  * Every door says under its title what the page behind it currently holds,
- * read from the server and never guessed - how many grows are public, which
- * channels are on, what the shelf carries - so that the page is worth a look
- * even for somebody who opens none of them. A line whose answer has not
- * arrived says that it is loading, one whose read failed says so, and one
- * that is genuinely empty says the empty thing rather than a nought.
+ * read from the server and never guessed (`lineOnce`); one that is genuinely
+ * empty says the empty thing rather than a nought.
  *
- * The demo looks at somebody else's grow and has no account of its own, so
- * the doors that need one are lines saying that rather than links to a page
- * the server would refuse; the two that need none - the appearance, and what
- * this install is - stay open to it.
+ * The demo has no account of its own, so the doors that need one are lines
+ * saying that rather than links to a page the server would refuse.
  */
 export function Me() {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
-  const navigate = useNavigate();
+  const { leaving, leave } = useLeave('/sign-in');
   const isDemo = user?.isDemo === true;
-
-  const signOut = async () => {
-    await session.logOut();
-    await navigate('/sign-in', { replace: true });
-  };
 
   return (
     <section className={styles.screen}>
@@ -54,15 +43,15 @@ export function Me() {
 
       {isDemo ? <DemoDoors handle={user?.handle ?? '?'} /> : <AccountDoors handle={user?.handle ?? '?'} />}
 
-      <div className={ui.group}>
-        <Door to="/me/appearance" title={t('me.appearance.title')} line={<AppearanceLine language={i18n.resolvedLanguage ?? i18n.language} />} />
-        <Door to="/me/about" title={t('me.about.title')} line={versionLine(t, APP_VERSION, BUILD_MODE)} />
-      </div>
+      <Rows>
+        <Row to="/me/appearance" title={t('me.appearance.title')} line={<AppearanceLine language={i18n.resolvedLanguage ?? i18n.language} />} />
+        <Row to="/me/about" title={t('me.about.title')} line={versionLine(t, APP_VERSION, BUILD_MODE)} />
+      </Rows>
 
       {user?.isAdmin ? <AdminDoors /> : null}
 
       <div className={styles.foot}>
-        <button type="button" className={ui.button} onClick={signOut}>
+        <button type="button" className={ui.button} disabled={leaving} onClick={() => void leave()}>
           {t('me.signOut')}
         </button>
       </div>
@@ -78,26 +67,18 @@ const ADMIN_LINKS = [
   { path: '/admin/demo', labelKey: 'admin.demo.title' },
 ] as const;
 
-/**
- * The fleet, for whoever runs this install. Its doors are here and nowhere
- * else: the screens behind them are tables that need a wide window and say so
- * on a phone, and an account that is not an administrator is shown no section
- * it cannot open.
- */
+/** The fleet, for whoever runs this install: its doors are here and nowhere else, and no other account is shown the section. */
 function AdminDoors() {
   const { t } = useTranslation();
 
   return (
     <section className={styles.admin} aria-label={t('admin.section')}>
       <span className="label">{t('admin.section')}</span>
-      <div className={ui.group}>
+      <Rows>
         {ADMIN_LINKS.map(({ path, labelKey }) => (
-          <Link key={path} to={path} className={`${styles.row} ${styles.link} ${styles.adminDoor}`}>
-            <span className={styles.rowTitle}>{t(labelKey)}</span>
-            <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
-          </Link>
+          <Row key={path} to={path} title={t(labelKey)} />
         ))}
-      </div>
+      </Rows>
     </section>
   );
 }
@@ -116,23 +97,7 @@ function AccountDoors({ handle }: { handle: string }) {
   // Every grow is a door of the diary's, and stays one for whoever has a grow and has since turned the diary off.
   const hasGrows = diary || (mine.data?.items.length ?? 0) > 0;
 
-  /**
-   * One door's line, drawn only once every read it is worked out from has
-   * answered. Several reads fan out from this page and they land in whatever
-   * order the connection gives them, so a line must name every query it reads
-   * rather than the first of them: a gate that lists one of two is a promise
-   * that the other has arrived, and a line that believes it takes the hub - and
-   * with it the only way to privacy, the export and signing out - down to the
-   * router's error screen on a phone. A read still outstanding says it is
-   * loading and a read that failed says so, each under its own door, so one
-   * answer missing costs its own line and nothing else.
-   */
-  const line = (queries: { data: unknown; isPending: boolean }[], text: () => string): string =>
-    queries.every(query => query.data !== undefined) ? text() : queries.some(query => query.isPending) ? t('home.waiting') : t('shell.loadFailed');
-
-  // Gated exactly as `line` gates, so that the two cannot disagree about whether this is safe to read.
-  const premium =
-    cameras.data !== undefined && me.data !== undefined ? premiumLine(t, cameras.data.items, now, me.data.premium.enforced, zone) : null;
+  const line = (queries: Read[], text: () => string) => lineOnce(t, queries, text);
 
   return (
     <>
@@ -141,35 +106,31 @@ function AccountDoors({ handle }: { handle: string }) {
       </Identity>
 
       {/* What the account has grown is its own content rather than a setting, so it stands apart from the doors below. */}
-      {hasGrows ? (
-        <div className={ui.group}>
-          <Door to={ALL_GROWS} title={t('grow.all.pill')} line={line([mine], () => growsLine(t, mine.data!.items))} />
-        </div>
-      ) : null}
+      {hasGrows ? <Row alone to={ALL_GROWS} title={t('grow.all.pill')} line={line([mine], () => growsLine(t, mine.data!.items))} /> : null}
 
-      <div className={ui.group}>
-        {/* What reaches the grower when something goes wrong comes first: for
-            somebody with one tent it is the door that matters, and the doors
-            about grows and sharing follow it. */}
-        <Door to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now))} />
-        {/* Premium is what a camera can do beyond its free tier, so it is a
-            door only for an account that has one; without, the page behind it
-            is a table about hardware this grower does not own. */}
+      <Rows>
+        {/* What reaches the grower when something goes wrong comes first: with one tent it is the door that matters. */}
+        <Row to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now))} />
+        {/* Premium is what a camera can do beyond its free tier, so it is a door only for an account that has one. */}
         {cameras.data && ownsCamera(cameras.data.items) ? (
-          <Door to="/me/premium" title={t('me.premium.title')} line={line([cameras, me], () => premium!.text)} aside={premium?.aside ?? null} />
+          <Row
+            to="/me/premium"
+            title={t('me.premium.title')}
+            line={line([cameras, me], () => premiumLine(t, cameras.data.items, now, me.data!.premium.enforced, zone))}
+          />
         ) : null}
-        <Door to="/me/privacy" title={t('me.privacy.title')} line={line([me], () => privacyLine(t, me.data!))} />
-        <Door
+        <Row to="/me/privacy" title={t('me.privacy.title')} line={line([me], () => privacyLine(t, me.data!))} />
+        <Row
           to="/me/public"
           title={t('me.public.title')}
           line={line([grows, me], () => publicLine(t, grows.data!.items, me.data!, window.location.host))}
         />
         {/* Without any hardware nothing on Start or in the bar leads to adding some; this is where it comes in. */}
         {ready && !steering && cameraCount === 0 ? (
-          <Door to="/control" title={t('me.door.addDevice.title')} line={t('me.door.addDevice.line')} />
+          <Row to="/control" title={t('me.door.addDevice.title')} line={t('me.door.addDevice.line')} />
         ) : null}
-        <Door to="/me/account" title={t('me.account.title')} line={t('me.door.account')} />
-      </div>
+        <Row to="/me/account" title={t('me.account.title')} line={t('me.door.account')} />
+      </Rows>
     </>
   );
 }
@@ -182,24 +143,21 @@ function DemoDoors({ handle }: { handle: string }) {
     <>
       <Identity handle={handle}>{t('me.demo')}</Identity>
 
-      <div className={ui.group}>
-        <Closed title={t('me.public.title')} note={t('me.demo')} />
-        <Closed title={t('me.premium.title')} note={t('me.demo')} />
-        <Closed title={t('notifications.title')} note={t('notifications.demo')} />
-        <Closed title={t('me.privacy.title')} note={t('me.privacy.demo')} />
-        <Closed title={t('me.account.title')} note={t('me.demo')} />
-      </div>
+      <Rows>
+        <Row waits title={t('me.public.title')} line={t('me.demo')} />
+        <Row waits title={t('me.premium.title')} line={t('me.demo')} />
+        <Row waits title={t('notifications.title')} line={t('notifications.demo')} />
+        <Row waits title={t('me.privacy.title')} line={t('me.privacy.demo')} />
+        <Row waits title={t('me.account.title')} line={t('me.demo')} />
+      </Rows>
     </>
   );
 }
 
 /**
  * The theme and the language are the browser's and known at once; the units
- * are the account's and arrive with it, so the line waits for the account
- * like every other rather than saying half of itself first. A read that failed
- * says so instead of dropping the units quietly, because a line of two thirds
- * reads as a settled answer rather than as an answer that never came. The demo
- * has no units to wait for.
+ * are the account's, so the line waits for the account rather than saying two
+ * thirds of itself as if that were all. The demo has no units to wait for.
  */
 function AppearanceLine({ language }: { language: string }) {
   const { t } = useTranslation();
@@ -226,29 +184,5 @@ function Identity({ handle, children }: { handle: string; children: ReactNode })
         <span className={`mono ${styles.whoLine}`}>{children}</span>
       </div>
     </header>
-  );
-}
-
-/** A door: the title, the mono line saying what is behind it, the state word the board sets at the right, and the chevron. */
-function Door({ to, title, line, aside = null }: { to: string; title: string; line: ReactNode; aside?: string | null }) {
-  return (
-    <Link to={to} className={`${styles.row} ${styles.link}`}>
-      <span className={styles.doorText}>
-        <span className={styles.rowTitle}>{title}</span>
-        <span className={`mono ${styles.doorLine}`}>{line}</span>
-      </span>
-      {aside ? <span className={`mono ${styles.aside}`}>{aside}</span> : null}
-      <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
-    </Link>
-  );
-}
-
-/** A door that leads nowhere for this session, and says why under its title. */
-function Closed({ title, note }: { title: string; note: string }) {
-  return (
-    <div className={styles.row}>
-      <span className={styles.rowTitle}>{title}</span>
-      <p className={`${ui.note} ${styles.rowNote}`}>{note}</p>
-    </div>
   );
 }

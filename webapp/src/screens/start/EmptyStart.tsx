@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { session, useSession } from '@/api/session';
+import { useLeave } from '@/ui/leave';
 import ui from '@/ui/ui.module.css';
 import { Door, PlaceDoors } from './AddPlace';
 import styles from './Start.module.css';
@@ -65,14 +66,7 @@ export function EmptyStart() {
 /** Signing out first rather than a link to the form: a session that exists is sent straight back off the sign-in page. */
 function NothingInTheDemo() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const [leaving, setLeaving] = useState(false);
-
-  const leave = async () => {
-    setLeaving(true);
-    await session.logOut();
-    await navigate('/sign-in', { replace: true });
-  };
+  const { leaving, leave } = useLeave('/sign-in');
 
   return (
     <section className={`${styles.page} ${styles.empty}`} data-single>

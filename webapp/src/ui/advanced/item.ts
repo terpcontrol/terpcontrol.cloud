@@ -2,10 +2,8 @@ import type { ComponentType } from 'react';
 import type { Device, SocketPage } from '@fg2/shared-types/v1';
 
 /**
- * The items an Erweitert section offers, wherever one stands: per device on
- * its page. Erweitert is where what most growers
- * never need goes, one collapsed section beside the thing it is about; a
- * section with nothing to offer is not drawn at all.
+ * The items Erweitert offers on a device's page: where what most growers never
+ * need goes. With nothing to offer it is not drawn at all.
  *
  * An item is one file anywhere under `src/` whose name ends in `.advanced.tsx`
  * and that exports `items`, built with `advancedItem`: the registry

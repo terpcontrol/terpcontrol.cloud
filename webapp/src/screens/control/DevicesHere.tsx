@@ -18,13 +18,13 @@ import { rowsOf } from '@/screens/devices/sockets';
 import { ageLabel, deviceLiveness, offlineLabel, sinceLabel } from '@/ui/age';
 import { Facts } from '@/ui/Facts';
 import { cameraTitle, deviceName, deviceTitle } from '@/ui/naming';
-import { Row, Rows } from '@/ui/Rows';
+import { Row, Rows, RowText } from '@/ui/Rows';
 import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';
 import { useWideWindow } from '@/ui/wide-window';
-import { calendarDay, useZone } from '@/ui/zone';
+import { useZone } from '@/ui/zone';
 import { isOutputPath, MODE_PATHS, SAID_ON_CARDS } from './climate/figures';
 import { ownFactOf } from './devices/own-summary';
 import { standOf } from './rows';
@@ -146,9 +146,8 @@ function DeviceCard({
   const offline = liveness === 'offline';
   const waiting = spokeAt === null;
   const title = deviceTitle(device, t, among);
-  const build = useFirmware(device, leads).running;
-  // The build is named by the day it was made, the one thing about it a grower can compare.
-  const firmware = build ? t('control.device.firmware', { day: calendarDay(build.createdAt, zone) }) : null;
+  const { running, madeOn } = useFirmware(device, leads);
+  const firmware = running ? t('control.device.firmware', { day: madeOn(running) }) : null;
   const says = waiting
     ? t('liveness.waiting')
     : offline
@@ -163,12 +162,7 @@ function DeviceCard({
   return (
     <section className={styles.device} aria-label={title} data-short={!leads || undefined}>
       <div className={styles.deviceHead}>
-        <span className={styles.rowText}>
-          {title}
-          <span className={styles.rowLine} data-tone={offline && !waiting ? 'warn' : undefined}>
-            <Facts facts={[says, firmware, own ? `${own.label}: ${own.value}` : null]} />
-          </span>
-        </span>
+        <RowText title={title} line={<Facts facts={[says, firmware, own ? `${own.label}: ${own.value}` : null]} />} warn={offline && !waiting} />
         {leads && mayManage ? <UpdateButton device={device} offline={offline} /> : null}
       </div>
       {/* Maintenance, a restart and an update of a further device are on its own page, so the list stays short. */}

@@ -48,12 +48,16 @@ const preferredLanguage = (): Language => {
   return (fromBrowser as Language) ?? FALLBACK_LANGUAGE;
 };
 
+/** Fetches the catalogues the session does not hold yet: every language, or the one named. */
+export const loadCatalogues = async (languages: readonly Language[] = LANGUAGES): Promise<void> => {
+  const missing = languages.filter(language => !i18next.hasResourceBundle(language, 'translation'));
+  await Promise.all(missing.map(async language => i18next.addResourceBundle(language, 'translation', await catalogue(language))));
+};
+
 export const setLanguage = async (language: Language): Promise<void> => {
   writeStored(STORAGE_KEY, language);
   // Fetched before the switch, so no screen renders a moment of missing keys.
-  if (!i18next.hasResourceBundle(language, 'translation')) {
-    i18next.addResourceBundle(language, 'translation', await catalogue(language));
-  }
+  await loadCatalogues([language]);
   // Before the switch, so the render the switch triggers already formats its dates in the new language.
   followLanguage(language);
   await i18next.changeLanguage(language);

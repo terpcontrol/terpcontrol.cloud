@@ -1,7 +1,7 @@
 import i18next from 'i18next';
 import { useEffect, useState } from 'react';
 import type { DeviceConfiguration, GerminationChoices, GrowthStage, Plan, StepDuration } from '@fg2/shared-types/v1';
-import { LANGUAGES, saidInAnyLanguage, type Translate } from '@/i18n/i18n';
+import { loadCatalogues, saidInAnyLanguage, type Translate } from '@/i18n/i18n';
 import { stageChoiceName } from '@/ui/presets';
 import { wallClock } from '@/ui/wall-clock';
 import { isDarkStage, stepLightHours, stepLightsOn, writesNothing } from './plan-edit';
@@ -82,10 +82,9 @@ export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = 
 };
 
 /**
- * A plan's pause reason in the reader's language. The server stores it as
- * words, in the language of whoever paused: one the app wrote itself is known
- * by its words in a catalogue the session holds and said from the reader's,
- * anything else stands as it was stored.
+ * A plan's pause reason in the reader's language. The server stores words, in
+ * the language of whoever paused: one the app wrote is known by its words in
+ * a catalogue the session holds, anything else stands as stored.
  */
 const OWN_REASONS = ['targets.pauseReason', 'targets.pauseReasonGermination', 'climateControl.pauseReason'];
 const ownReason = (reason: string | null): string | undefined => OWN_REASONS.find(key => saidInAnyLanguage(i18next, key, reason));
@@ -100,14 +99,9 @@ export const usePauseReasons = (plans: readonly (Plan | null | undefined)[]): vo
   const [, setLoaded] = useState(false);
   const unknown = plans.some(plan => plan?.state.status === 'paused' && plan.state.pauseReason !== null && !ownReason(plan.state.pauseReason));
   useEffect(() => {
-    const missing = unknown ? LANGUAGES.filter(language => !i18next.hasResourceBundle(language, 'translation')) : [];
-    const fetched = missing.map(async language => {
-      const response = await fetch(`/assets/i18n/${language}.json`);
-      if (response.ok) i18next.addResourceBundle(language, 'translation', await response.json());
-    });
     // Without them the reason stays as it was stored.
-    if (fetched.length > 0)
-      void Promise.all(fetched)
+    if (unknown)
+      void loadCatalogues()
         .then(() => setLoaded(true))
         .catch(() => undefined);
   }, [unknown]);

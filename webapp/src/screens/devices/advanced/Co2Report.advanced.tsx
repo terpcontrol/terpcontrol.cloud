@@ -5,7 +5,6 @@ import type { Co2Report as Report, Device } from '@fg2/shared-types/v1';
 import { useCo2Report, useWriteRefill } from '@/api/co2-report';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
-import { useUnfolded } from '@/ui/advanced/unfolded';
 import { CO2_HOLDERS, hasCo2Sensor } from '@/ui/climate-hardware';
 import { DAY_MS } from '@/ui/days';
 import { decimalFigure, typedFigure } from '@/ui/figures';
@@ -49,14 +48,13 @@ function Co2Report({ device, mayManage }: DeviceContext) {
   const { t } = useTranslation();
   const zone = useZone();
   const now = useNow();
-  const { ref, unfolded } = useUnfolded<HTMLDivElement>();
   // The cylinder is the place's: what stands there doses from it, and its refills are lines of the place's diary.
   const spaceId = device.spaceId ?? '';
-  const report = useCo2Report(spaceId, unfolded);
+  const report = useCo2Report(spaceId);
   const [adding, setAdding] = useState(false);
 
   const body = () => {
-    if (!unfolded || report.isPending) return <Waiting lines={2} />;
+    if (report.isPending) return <Waiting lines={2} />;
     if (!report.data) return <LoadFailed retry={() => void report.refetch()} />;
 
     const { cylinders, openingsPerGram, restGrams } = report.data;
@@ -111,7 +109,7 @@ function Co2Report({ device, mayManage }: DeviceContext) {
 
   return (
     <SettingRow label={t('co2Report.title')} help="advanced.co2Report" wide>
-      <div className={styles.card} ref={ref}>
+      <div className={styles.card}>
         {body()}
         {mayManage && report.data ? (
           adding ? (

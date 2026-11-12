@@ -51,7 +51,7 @@ export const heldSetting = (field: ConfigurationField, held: number | string | n
   }
 };
 
-const isWindow = (value: unknown): value is TimerWindow =>
+export const isWindow = (value: unknown): value is TimerWindow =>
   typeof value === 'object' &&
   value !== null &&
   typeof (value as TimerWindow).ontime === 'number' &&

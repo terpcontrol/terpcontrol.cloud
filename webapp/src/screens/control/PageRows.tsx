@@ -19,11 +19,9 @@ import { alarmsLine, followsPlan, hasMode, hasOutputs, modeLine, outputsLine, ou
 /**
  * The rows that open the pages behind Steuerung - alarm rules, grow plan,
  * outputs, work mode - each saying its page's state, and none drawn whose page
- * would hold nothing or only repeat the card over the rows: a socket has no
- * plan a step could write into and no mode, a fan at a fixed speed follows no
- * plan, and its speed is its card. Steuerung draws them for a place, whose
- * climate comes first in `devices`; a device's own page for that device
- * `alone`, and its rows open the pages with it unfolded (`?device=`).
+ * would hold nothing or only repeat the card over the rows. Steuerung draws
+ * them for a place, whose climate comes first in `devices`; a device's own
+ * page for that device `alone`, its rows opening the pages with it unfolded.
  */
 export function PageRows({
   spaceId,

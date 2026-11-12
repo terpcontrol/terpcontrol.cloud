@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type InputHTMLAttributes } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AdminUserUpdate, User } from '@fg2/shared-types/v1';
 import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '@/api/admin';
@@ -175,6 +175,16 @@ function AccountRow({ account, isMe, lastAdmin }: { account: User; isMe: boolean
   );
 }
 
+/** A field of an account's sheet: nothing a browser remembered is filled into somebody else's account. */
+function Field({ label, onType, ...input }: { label: string; onType: (value: string) => void } & InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <label className={styles.field}>
+      <span className="label">{label}</span>
+      <input className={`mono ${ui.input}`} autoComplete="off" {...input} onChange={event => onType(event.target.value)} />
+    </label>
+  );
+}
+
 /** A new account is active at once and has no activation code, because whoever made it can hand the password over. */
 function CreateSheet({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -202,24 +212,9 @@ function CreateSheet({ onClose }: { onClose: () => void }) {
       }
     >
       <p className={styles.sheetBody}>{t('admin.users.createBody')}</p>
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.column.address')}</span>
-        <input className={`mono ${ui.input}`} type="email" autoComplete="off" value={email} onChange={event => setEmail(event.target.value)} />
-      </label>
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.column.handle')}</span>
-        <input className={`mono ${ui.input}`} autoComplete="off" value={handle} onChange={event => setHandle(event.target.value)} />
-      </label>
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.password')}</span>
-        <input
-          className={`mono ${ui.input}`}
-          type="password"
-          autoComplete="new-password"
-          value={password}
-          onChange={event => setPassword(event.target.value)}
-        />
-      </label>
+      <Field label={t('admin.users.column.address')} type="email" value={email} onType={setEmail} />
+      <Field label={t('admin.users.column.handle')} value={handle} onType={setHandle} />
+      <Field label={t('admin.users.password')} type="password" autoComplete="new-password" value={password} onType={setPassword} />
       <label className={styles.row}>
         <input type="checkbox" checked={isAdmin} onChange={event => setIsAdmin(event.target.checked)} />
         <span>{t('admin.users.makeAdmin')}</span>
@@ -318,25 +313,16 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
     >
       <p className={styles.sheetBody}>{isMe ? t('admin.users.changeMine') : t('admin.users.changeSomebody', { handle: account.handle })}</p>
 
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.column.address')}</span>
-        <input className={`mono ${ui.input}`} type="email" autoComplete="off" value={email} onChange={event => setEmail(event.target.value)} />
-      </label>
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.column.handle')}</span>
-        <input className={`mono ${ui.input}`} autoComplete="off" value={handle} onChange={event => setHandle(event.target.value)} />
-      </label>
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.newPassword')}</span>
-        <input
-          className={`mono ${ui.input}`}
-          type="password"
-          autoComplete="new-password"
-          placeholder={t('admin.users.unchanged')}
-          value={password}
-          onChange={event => setPassword(event.target.value)}
-        />
-      </label>
+      <Field label={t('admin.users.column.address')} type="email" value={email} onType={setEmail} />
+      <Field label={t('admin.users.column.handle')} value={handle} onType={setHandle} />
+      <Field
+        label={t('admin.users.newPassword')}
+        type="password"
+        autoComplete="new-password"
+        placeholder={t('admin.users.unchanged')}
+        value={password}
+        onType={setPassword}
+      />
       <label className={styles.row}>
         <input type="checkbox" checked={isActive} disabled={lastAdmin} onChange={event => setIsActive(event.target.checked)} />
         <span>{t('admin.users.isActive')}</span>

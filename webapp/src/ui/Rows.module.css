@@ -31,7 +31,6 @@
   background: none;
   color: var(--ink);
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
   text-align: left;
   text-decoration: none;
 }
@@ -55,6 +54,7 @@
 .text {
   flex: 1;
   min-width: 0;
+  font-weight: var(--weight-semibold);
   overflow-wrap: anywhere;
 }
 
@@ -73,6 +73,11 @@
 .chevron {
   flex: none;
   color: var(--muted);
+  transition: transform 120ms ease-out;
+}
+
+.row[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
 }
 
 /* Beside the rail a grid of rows stands two by two, each a card of its own. */
@@ -89,6 +94,10 @@
 
   .rows[data-grid] > li + li {
     border-top: 0;
+  }
+
+  .rows[data-grid] > li:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 
   .rows[data-grid] .row {

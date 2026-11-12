@@ -137,6 +137,8 @@ const wire = {
   sockets: null as string[] | null,
   /** The grow standing in the place, as its overview names it; none answers a place nothing grows in. */
   grow: null as { stage: string; preset: string | null } | null,
+  /** The document the server holds, which every save replaces. */
+  stored: CONFIGURATION,
   calls: [] as Call[],
 };
 
@@ -153,6 +155,7 @@ vi.stubGlobal(
     if (method === 'GET' && path === '/me') {
       return wire.zone ? json(account(wire.zone)) : problem(404, 'not_found', 'No account here.');
     }
+    if (method === 'GET' && path === '/devices/device-1') return json(device({ configuration: wire.stored }));
     if (method === 'GET' && path === '/devices/device-1/live') {
       return wire.live
         ? json({
@@ -202,7 +205,9 @@ vi.stubGlobal(
       });
     }
     if (method === 'PUT' && path === '/devices/device-1/configuration') {
-      return wire.refuseSave ? problem(wire.refuseSave.status, wire.refuseSave.code, wire.refuseSave.detail) : json(body);
+      if (wire.refuseSave) return problem(wire.refuseSave.status, wire.refuseSave.code, wire.refuseSave.detail);
+      wire.stored = body.configuration;
+      return json(body);
     }
     return problem(404, 'not_found', `No stub for ${method} ${path}`);
   }),
@@ -266,6 +271,7 @@ beforeEach(() => {
   wire.refuseSave = null;
   wire.sockets = null;
   wire.grow = null;
+  wire.stored = CONFIGURATION;
   wire.calls = [];
   told.length = 0;
 });
@@ -277,6 +283,8 @@ describe('the climate under Steuerung', () => {
    * says what it changes - the day's beside the night's.
    */
   it('draws the light, its limit and each target as a button, the day beside the night', async () => {
+    // Noon, so the schedule the test reads is on its day whatever the hour the suite runs at.
+    Settings.now = () => NOW.toMillis();
     await drawn();
 
     expect(screen.getByText('On at 06:00 · 12 h')).toBeInTheDocument();
@@ -347,6 +355,29 @@ describe('the climate under Steuerung', () => {
 
     expect(sent('PUT')).toHaveLength(2);
     expect((sent('PUT')[1].body as { configuration: DeviceConfiguration }).configuration.night).toEqual({ temperature: 20, humidity: 55 });
+  });
+
+  /** The route replaces the document whole, so the way back reads it again: what was saved after the figure is not its to take back. */
+  it('takes back only the figure that save moved, and keeps a setting saved after it', async () => {
+    await drawn();
+    fireEvent.click(figure('Day temperature'));
+    type('Day temperature', 24);
+    save();
+    await waitFor(() => expect(told).toHaveLength(1));
+    wire.stored = { ...wire.stored, lights: { sunrise: 15, sunset: 15, limit: 60 }, night: { temperature: 20, humidity: 50 } };
+
+    await act(async () => {
+      await told[0].undo!();
+    });
+
+    expect((sent('PUT')[1].body as { configuration: DeviceConfiguration }).configuration).toEqual({
+      workmode: 'breed',
+      day: { temperature: 25, humidity: 60, heating: 'hard' },
+      night: { temperature: 20, humidity: 50 },
+      co2: { target: 800, sunsetOff: 1 },
+      lights: { sunrise: 15, sunset: 15, limit: 60 },
+      daynight: { day: 21600, night: 64800, maxDehumidifySeconds: 120 },
+    });
   });
 
   it('says why a save was refused in the sheet that asked, and keeps the sheet', async () => {
@@ -624,8 +655,8 @@ describe('the climate under Steuerung', () => {
       expect(within(screen.getByRole('dialog')).queryByRole('button', { name: /^End / })).not.toBeInTheDocument();
     });
 
-    /** Germination begun by a preset is one write to take back: the document from before, and the dark ended. */
-    it('takes a preset into germination back with the document from before', async () => {
+    /** Germination begun by a preset is one write to take back: the figures from before, and the dark ended. */
+    it('takes a preset into germination back with the figures from before', async () => {
       await drawn(device({ type: 'fridge', control: CONTROL }));
 
       tap('Climate preset');
@@ -639,7 +670,7 @@ describe('the climate under Steuerung', () => {
       expect(sent('PUT')[1].body).toMatchObject({ germination: false, configuration: { night: CONFIGURATION.night, day: CONFIGURATION.day } });
     });
 
-    /** Out of germination the way back is two writes: the document from before with the night germination had kept, then germination with its own night and choices. */
+    /** Out of germination the way back is two writes: the figures from before with the night germination had kept, then germination with its own night and choices. */
     it('takes a preset out of germination back so that it keeps the same night again', async () => {
       const afterGermination = { dayTemperature: null, dayHumidity: null, nightTemperature: 18, nightHumidity: 50, co2: null, lightLimit: null };
       const germinating = device({ type: 'fridge', control: { ...CONTROL, mode: 'germination', afterGermination } });
@@ -656,7 +687,12 @@ describe('the climate under Steuerung', () => {
       // In the dark the server keeps the day it finds, so the day from before is written while the device is in the light.
       expect(night.configuration).toMatchObject({ day: CONFIGURATION.day, night: { temperature: 18, humidity: 50 }, co2: CONFIGURATION.co2 });
       expect(night.germination).toBeUndefined();
-      expect(again).toMatchObject({ germination: true, germinationChoices: { warnTooHumid: false }, configuration: CONFIGURATION });
+      const { 'lights.limit': limit, ...before } = CONFIGURATION;
+      expect(again).toMatchObject({
+        germination: true,
+        germinationChoices: { warnTooHumid: false },
+        configuration: { ...before, lights: { sunrise: 15, sunset: 15, limit } },
+      });
     });
 
     it('offers no way back from a germination whose humidifier rested: its band is not kept across the two writes', async () => {

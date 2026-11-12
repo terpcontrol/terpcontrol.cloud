@@ -26,13 +26,11 @@ export interface RowLine {
 }
 
 /**
- * The one rule for a line that sums up a device. What the device reported - a
- * lamp's level, a socket's state - is dated once it has gone quiet (`standOf`:
- * "Stand 13:49 · Licht 80 %"). A setting is what is stored and carries no
- * date, and one the silent device has not been handed is said as that, in
- * amber (`notTaken`: "Lüfter: Nach Temperatur gespeichert um 16:07, noch nicht
- * am Gerät") - never behind the "Stand" of a report, a moment at which the
- * device held another.
+ * The one rule for a line that sums up a device. What it reported is dated
+ * once it has gone quiet (`standOf`: "Stand 13:49 · Licht 80 %"). A setting is
+ * what is stored and carries no date; one the silent device has not been
+ * handed is said as that, in amber (`notTaken`), never behind a "Stand" at
+ * which the device held another.
  */
 export const standOf = (t: Translate, spoke: string | null, now: DateTime, zone: string | null): string | null =>
   spoke !== null && deviceLiveness(spoke, now) === 'offline' ? t('control.stand', { time: sinceLabel(spoke, now, zone) }) : null;
@@ -57,10 +55,7 @@ export const hasMode = (device: Device): boolean =>
 const modeWord = (t: Translate, device: Device): string =>
   device.control ? t(`operatingMode.${device.control.drying ? 'drying' : device.control.mode}`) : '';
 
-/**
- * "3 Regeln · alle ruhig", or which rule has raised; where rules are switched off, how many of them are on ("1 von 7
- * Regeln an"), and in amber that the offline rule is among those off - nobody is told when that device falls silent.
- */
+/** "3 Regeln · alle ruhig", or which rule has raised; "1 von 7 Regeln an" where some are off - in amber when the offline rule is one of them. */
 export const alarmsLine = (t: Translate, rules: AlarmRule[]): RowLine => {
   const on = rules.filter(rule => rule.enabled);
   const deaf = rules.some(rule => rule.origin === 'always' && !rule.enabled);
@@ -86,9 +81,8 @@ export const followsPlan = (device: Device): boolean =>
   climateLanding(device) !== 'nowhere' && !(device.type === 'fan' && fieldValue(device, 'fanMode') === 'fixed');
 
 /**
- * "aus · Zielwerte stellst du von Hand" - the second half only while something `holds` targets, not of a device
- * switched off - or where the plan stands; a step waiting for its word is said in amber, and so is a plan that is
- * paused, with why - it is continued and stopped on the page the row opens.
+ * "aus · Zielwerte stellst du von Hand" - the second half only while something `holds` targets - or where the plan
+ * stands; in amber a step waiting for its word and a paused plan, with why.
  */
 export const planLine = (t: Translate, plans: Plan[], now: DateTime, holds = true): RowLine => {
   const plan = plans.find(one => one.state.status === 'running') ?? plans.find(one => one.state.status === 'paused') ?? plans[0] ?? null;
@@ -134,12 +128,10 @@ const socketFact = (t: Translate, row: SocketRowModel, now: DateTime): string =>
 const FAN_SETTINGS = ['fanMode', 'fixedDay', 'fixedNight'];
 
 /**
- * "Licht 80 % · Abluft an · Befeuchter aus · alle Auto": each output with what
- * it does, by the rule above - what the first device reported as of `stand`,
- * its settings as stored, and what of them is `pending` as that - and in amber
- * what is held by hand. The outputs of a further device are led by its name.
- * "alle Auto" is said only of a list made of sockets: a lamp reports no hold,
- * so nothing is claimed of one somebody else may be holding.
+ * "Licht 80 % · Abluft an · Befeuchter aus · alle Auto": each output by the
+ * rule above, and in amber what is held by hand. A further device's outputs
+ * are led by its name. "alle Auto" is said only of a list made of sockets: a
+ * lamp reports no hold, so nothing is claimed of one.
  */
 export const outputsLine = (
   t: Translate,
@@ -189,9 +181,8 @@ export const outputsLine = (
 };
 
 /**
- * "Standard · auch Gewächshaus, Energiesparen": the mode that runs and what else the page offers - or that the
- * climate preset set it. What is stored for a silent device that still runs another mode is said as stored
- * (`notTaken`): the mode the line names, or beside it a switch of its own - energy saving, control off.
+ * "Standard · auch Gewächshaus, Energiesparen": the mode that runs and what else the page offers, or that the
+ * climate preset set it; what is stored for a silent device that still runs another is said as stored (`notTaken`).
  */
 export const modeLine = (
   t: Translate,

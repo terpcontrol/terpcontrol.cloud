@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
 updated: 2026-11-12
-source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help (the same session after its critic's second walk, 2026-11-12)
+source: Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12)
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -308,9 +308,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     waiting for its first values leave the place's age in the pill (`stateOf`, `Control.tsx`).
   - *The place is named once.* On a desktop it stands beside the title once the account has several, and the
     columns are headed "Klima" and "Geräte"; with one place they read "Klima in …" and "Geräte in …".
-  - One column until 1200 px, then the climate left and the devices right, and the four rows two by two beside
-    the rail. The page keeps how far it was scrolled for its history entry (`useKeptScroll`), put back once the
-    socket rows at its foot are there, so Back from a socket's page finds the row it was opened from.
+  - One column until 1200 px, then the climate left and the devices right, and the rows two by two beside the
+    rail; the last of an odd count spans both columns, so the grid has no hole. The page keeps how far it was
+    scrolled for its history entry (`useKeptScroll`), put back once the socket rows at its foot are there, so
+    Back from a socket's page finds the row it was opened from.
   - A place with nothing to steer says so over the one button, and an account with no place reads the same
     sentence with the way to add a device: "Hier gibt es noch nichts zu steuern: Zielwerte und Alarme kommen mit
     dem ersten Gerät." A guest and the demo, who have no Steuerung in the bar, read the figures as text at its
@@ -348,8 +349,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   `screens/devices/firmware-builds.ts`): "Neuere Firmware vom 12. Nov 14:46 ist da" beside "vom 12. Nov 13:12",
   never two builds "vom 12. Nov 2026". The hour stands where the year stood while the year is this one, since
   the words are a button's too ("Update vom 12. Nov 14:46" on Steuerung's card, beside the device's name). The
-  card, the update it offers and the list a build is picked from say it the same way, which is also what tells
-  two builds stamped alike apart there.
+  card, Steuerung's card, the update either offers and the list a build is picked from say it through one
+  function (`madeOn` of `useFirmware`), which is also what tells two builds stamped alike apart there. On
+  Steuerung's card the device's name keeps its words: a button it has no room beside wraps under it.
   *"Wartung · 15 Min" and "Neu starten" stand side by side wherever both names fit a line each* (`DeviceActions`,
   on this page and on Steuerung's card): each is as wide as its name at least and they share the rest, so no
   width of the card and no language stacks two buttons that fit or cuts a name. **A device's smart sockets are
@@ -409,8 +411,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     that could not be taken is said under its button.
 - **Rows that open something are one component** (`ui/Rows.tsx`): the title, a line that says what is behind it,
   "›" only where the row leads somewhere, a finger high; one card for a list, a card of its own for a row standing
-  alone; a row that does what it names has no "›", and one that waits for its device is drawn unavailable with
-  the line saying why. Steuerung, a device's pages and the camera page are built from it, and their heads from
+  alone; a row that does what it names has no "›", one that unfolds what stands under it has a mark that turns
+  (the folded devices of a page behind Steuerung), and one that waits is drawn unavailable with the line saying
+  why. Steuerung, a device's pages, the camera page and Ich's doors are built from it, and their heads from
   `ui/PageHead.tsx`: the arrow that steps back (above), a finger wide, the name, which takes the lines it needs
   and breaks by words, and the pill that dates the page, beside the name and under it before the two meet. A
   device gone quiet is said by one box on all of them and on Start (`OfflineBox`, `ui/OfflineHelp.tsx`): since
@@ -495,13 +498,14 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   Grows, the entry sheet, `/grows/new` - and the longer sheet that asked strains, kind, scheme and a new place is
   gone. It asks what cannot wait: a name, since when, how many, where - only where it was opened for no place, the
   first place with nothing standing in it chosen - and the phase. It opens on the stage the place is on, read off
-  its device, and waits for that answer rather than choosing before it, so it opens the same on first arrival
-  and after a reload; where nothing says, on growth. **A stage it only opened on is recorded and moves nothing; a
+  the device its questions are about (below; `usePlaceStage`, `screens/start/stage.ts`), and waits for that
+  answer rather than choosing before it, so it opens the same on first arrival and after a reload; where nothing
+  says, on growth. **A stage it only opened on is recorded and moves nothing; a
   stage the grower chose puts the place's controller on its climate, and then the button says so** ("Starten und
   Klima auf Sämling · mit Licht stellen") - except seeds beside plants already growing there, which are only
   recorded. Where that climate is germination's, the form asks germination's two choices (`GerminationChoices`;
   ADR 0007) of the device the climate preset is taken on - the place's climate as Steuerung reads it
-  (`usePlaceController`, `screens/grow/phase-climate.ts`), so a humidifier socket there is asked about here too,
+  (`usePlaceClimate`, `screens/grow/phase-climate.ts`), so a humidifier socket there is asked about here too,
   whichever device stands first in the place - and nothing is asked where the stage is only recorded. As a
   sheet its button is the sheet's foot and stays in view while the questions scroll, and the stage's name
   stands whole on it. Nothing is explained in it. The kind of
@@ -724,10 +728,14 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   figure, the light's times and a preset each have a sheet with one button; the light limit is stepped in place
   and sent once it rests. The answer is the toast that names what changed ("Temperatur am Tag 24,0 °C ·
   gespeichert", and for an offline device that it takes it over when it next connects) with "Widerrufen" where
-  taking it back is real - it also resumes a plan the save paused. A preset into germination is taken back by
-  the document from before; one out of it by two writes, since the dark keeps the day it finds and remembers
-  the night it replaces: the document from before in the light with the night germination had kept, then
-  germination with its own (`write`, `climate/Climate.tsx`). A preset that starts or ends a drying spell has no
+  taking it back is real - it also resumes a plan the save paused. **"Widerrufen" writes back only what that
+  save moved** (the redesign session of 2026-11-12, after its critic's second walk saw a light limit stepped
+  after a target go back with the target): the route replaces the device's document whole, so the way back
+  reads the document as it stands at the tap and puts the figures from before into it - a setting saved in
+  between stays (`write`, `climate/Climate.tsx`; `readConfiguration`, `api/devices.ts`). A preset into
+  germination is taken back that way with the dark ended; one out of it by two such writes, since the dark
+  keeps the day it finds and remembers the night it replaces: the figures from before in the light with the
+  night germination had kept, then germination with its own. A preset that starts or ends a drying spell has no
   way back, nor has a spell ended by itself (§8) or a germination left while its humidifier rested: the server
   keeps and returns more than one write puts back. **No panel is a form**: a figure opens the value sheet (`climate/ValueSheet.tsx`), one
   of a few its sheet of choices, a switch is written on the tap (`devices/Settings.tsx`), and a place led by a

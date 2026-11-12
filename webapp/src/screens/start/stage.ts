@@ -2,8 +2,9 @@ import { useState } from 'react';
 import type { Device, GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useDevices } from '@/api/devices';
-import { darkReasonOf, statesTargets } from '@/ui/climate-hardware';
 import { draftOf } from '@/screens/control/targets/targets-draft';
+import { usePlaceClimate } from '@/screens/grow/phase-climate';
+import { darkReasonOf, statesTargets } from '@/ui/climate-hardware';
 
 /** The stages with a day and a night of their own, which a device's figures can be told apart by. */
 const LIT: readonly GrowthStage[] = ['seedling', 'vegetative', 'flowering'];
@@ -44,21 +45,21 @@ export const stageOn = (device: Device | null): GrowthStage | null => {
 };
 
 /**
- * The same for a place by its id: the first device standing there that holds a
- * climate. Undefined until the devices have answered - and an answer from
- * before this was asked, which is being read again, is not one yet: a device
- * claimed or set a moment ago is in the next. So a form that opens on the
- * stage opens on the same one on first arrival and after a reload. Once
- * answered, the stage follows the device without going back to undefined.
+ * The same for a place by its id: read off the device a climate is written to
+ * there (`usePlaceClimate`). Undefined until the place has answered - and a
+ * device list from before this was asked, which is being read again, is not an
+ * answer yet: a device claimed or set a moment ago is in the next. So a form
+ * that opens on the stage opens on the same one on first arrival and after a
+ * reload. Once answered, the stage follows the device without going back to
+ * undefined.
  */
 export const usePlaceStage = (spaceId: string | null): GrowthStage | null | undefined => {
   const devices = useDevices(spaceId !== null);
+  const { controller, known } = usePlaceClimate(spaceId);
   const [answered, setAnswered] = useState(false);
   // Adjusted from what has just been rendered, which React re-runs the render for.
   if (!answered && devices.data && !(devices.isStale && devices.isFetching)) setAnswered(true);
   if (spaceId === null) return null;
-  if (!answered || !devices.data) return undefined;
-  const here = devices.data.items.filter(device => device.spaceId === spaceId && device.configuration && statesTargets(device.configuration));
 
-  return stageOn(here.find(device => device.type !== 'fan') ?? here[0] ?? null);
+  return answered && known ? stageOn(controller) : undefined;
 };

@@ -1,10 +1,11 @@
 import type { i18n as I18n } from 'i18next';
 import { DateTime } from 'luxon';
-import { co2FanOf, FAN_MODES, PLUG_SWITCHING, type TimerWindow } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { co2FanOf, FAN_MODES, PLUG_SWITCHING } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { ALWAYS_LIT_FROM, lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { serverNow } from '@/api/clock';
 import { PLUG_READING, RISING } from '@/screens/control/devices/own-summary';
 import { scheduleTitle } from '@/screens/control/targets/schedule-words';
+import { isWindow } from '@/ui/advanced/field-values';
 import { UNIT } from '@/ui/units';
 import { offsetOf, wallClock } from '@/ui/wall-clock';
 
@@ -244,12 +245,6 @@ const valueOf = (i18n: I18n, field: Field, raw: string, context: ChangeContext):
     }
   }
 };
-
-const isWindow = (value: unknown): value is TimerWindow =>
-  typeof value === 'object' &&
-  value !== null &&
-  typeof (value as TimerWindow).ontime === 'number' &&
-  typeof (value as TimerWindow).duration === 'number';
 
 /** A socket timer's windows on the account's clock - "10:00–10:30, 22:00–01:00" - or null for what is no list of them. */
 const windowsOf = (i18n: I18n, raw: string, context: ChangeContext): string | null => {

@@ -258,19 +258,9 @@ describe('the CO2 cylinder, under the device that doses from it', () => {
     expect(daysLeftOf({ ...REPORT, openingsPerGram: null, restGrams: null }, DateTime.fromISO('2026-10-02T10:00:00.000Z'))).toBeNull();
   });
 
-  it('reads nothing while its section is folded, and says what is left once it is opened', async () => {
+  it('says what is left in the cylinder in use, and what the ones before it gave', async () => {
     vi.mocked(api.get).mockResolvedValue(REPORT as never);
-    drawAt(
-      <details>
-        <summary>Advanced</summary>
-        <Card {...place([device()])} />
-      </details>,
-    );
-
-    expect(api.get).not.toHaveBeenCalledWith('/spaces/space-1/co2-report', undefined, expect.anything());
-    const section = screen.getByText('Advanced').closest('details')!;
-    section.open = true;
-    fireEvent(section, new Event('toggle'));
+    drawAt(<Card {...place([device()])} />);
 
     expect(await screen.findByText('About 225 g left (53 %)', { exact: false })).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/spaces/space-1/co2-report', undefined, expect.anything());

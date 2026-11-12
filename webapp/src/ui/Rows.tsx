@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Children, isValidElement, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import styles from './Rows.module.css';
@@ -44,22 +44,32 @@ interface RowProps {
   waits?: boolean;
   /** A row that does what it names instead of opening something has no chevron. */
   acts?: boolean;
+  /** A row that unfolds what stands under it, and whether it has. */
+  unfolded?: boolean;
 }
 
-export function Row({ title, line = null, warn = false, to, state, onOpen, lead = null, alone = false, waits = false, acts = false }: RowProps) {
+/** A row's words - the title and the line under it - also for a card that is no row. */
+export function RowText({ title, line = null, warn = false }: Pick<RowProps, 'title' | 'line' | 'warn'>) {
+  return (
+    <span className={styles.text}>
+      {title}
+      {line ? (
+        <span className={styles.line} data-tone={warn ? 'warn' : undefined}>
+          {line}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+export function Row({ title, line, warn, to, state, onOpen, lead = null, alone = false, waits = false, acts = false, unfolded }: RowProps) {
   const className = alone ? `${styles.row} ${styles.alone}` : styles.row;
+  const Mark = unfolded === undefined ? ChevronRight : ChevronDown;
   const inside = (
     <>
       {lead}
-      <span className={styles.text}>
-        {title}
-        {line ? (
-          <span className={styles.line} data-tone={warn ? 'warn' : undefined}>
-            {line}
-          </span>
-        ) : null}
-      </span>
-      {waits || acts ? null : <ChevronRight className={styles.chevron} size={20} strokeWidth={2} aria-hidden />}
+      <RowText title={title} line={line} warn={warn} />
+      {waits || acts ? null : <Mark className={styles.chevron} size={20} strokeWidth={2} aria-hidden />}
     </>
   );
 
@@ -68,7 +78,7 @@ export function Row({ title, line = null, warn = false, to, state, onOpen, lead 
       {inside}
     </Link>
   ) : (
-    <button type="button" className={className} aria-disabled={waits || undefined} onClick={waits ? undefined : onOpen}>
+    <button type="button" className={className} aria-disabled={waits || undefined} aria-expanded={unfolded} onClick={waits ? undefined : onOpen}>
       {inside}
     </button>
   );

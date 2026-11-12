@@ -1,4 +1,3 @@
-import { ChevronDown } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
@@ -6,6 +5,7 @@ import type { Device } from '@fg2/shared-types/v1';
 import { Facts } from '@/ui/Facts';
 import { useKept } from '@/ui/kept';
 import { deviceTitle } from '@/ui/naming';
+import { Row } from '@/ui/Rows';
 import ui from '@/ui/ui.module.css';
 import type { RowLine } from './rows';
 import styles from './Control.module.css';
@@ -100,17 +100,14 @@ function Folded({
   return (
     <section ref={arrive} className={styles.block} aria-label={title}>
       <h2 className={styles.foldHead}>
-        <button type="button" className={styles.fold} aria-expanded={open} onClick={() => setOpen(!open)}>
-          <span className={styles.rowText}>
-            {title}
-            {line && !open ? (
-              <span className={styles.rowLine} data-tone={line.warn ? 'warn' : undefined}>
-                <Facts facts={line.text.split(' · ')} />
-              </span>
-            ) : null}
-          </span>
-          <ChevronDown className={styles.foldMark} size={20} strokeWidth={2} aria-hidden />
-        </button>
+        <Row
+          alone
+          title={title}
+          line={line && !open ? <Facts facts={line.text.split(' · ')} /> : null}
+          warn={line?.warn}
+          unfolded={open}
+          onOpen={() => setOpen(!open)}
+        />
       </h2>
       {open ? children() : null}
     </section>
