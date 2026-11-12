@@ -62,7 +62,12 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
   there; 028 renames only the places of one owner that were named after devices sharing a name (step 004 numbers
   the places it names itself). 026 dates a placement from `state.claimedAt`, which step 005 leaves null for every
   device carried over, and then from the device's `createdAt`: a carried-over device has stood in its place since it
-  registered, which is what every read assumed before.
+  registered, which is what every read assumed before. On a restored copy of a migrated database (2026-11-12,
+  by the runbook, on a stack of its own) the three steps took 10 ms of a run of under 0.1 s: every device with a
+  place got one open placement, the unclaimed ones an empty list, no room was found, one place was renamed, and
+  the second run and the boot after it said "nothing to do". Its reads are empty over "the last 24 hours" for a
+  reason that is not the migration: a backup's readings end on the day it was taken, so a place's curves are checked
+  there with `?at=` on that day, and a grow's diary on its older pages.
 - **Duration:** the real run on a copy of the hosted database took 1.5 to 2 minutes (93-115 s for the 17 steps of
   2026-09-23) once the command built its indexes first and `011-entries` thinned the repeated sensor lines, nearly all
   of it `011-entries`. A dry run writes nothing and under-reports (6x before the thinning).
