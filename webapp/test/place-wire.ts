@@ -149,6 +149,7 @@ export const growOf = (over: Partial<SpaceOverview['grows'][number]> = {}): Spac
 
 export const deviceLive = (over: Partial<DeviceLive['outputs']> = {}): DeviceLive => ({
   deviceId: 'device-1',
+  pending: null,
   metrics: {},
   outputs: {
     dehumidifier: { value: 1, measuredAt: ago(0.2), state: 'live' },

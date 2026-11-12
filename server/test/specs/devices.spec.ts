@@ -371,6 +371,8 @@ describe('what reaches the hardware', () => {
 
     expect(live.body.metrics.temperature).toMatchObject({ value: 21.5, state: 'live' });
     expect(live.body.metrics.humidity).toMatchObject({ value: 55 });
+    // A device that is heard holds whatever is stored.
+    expect(live.body.pending).toBeNull();
   });
 
   /**

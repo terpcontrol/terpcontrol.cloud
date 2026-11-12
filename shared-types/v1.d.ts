@@ -1767,6 +1767,29 @@ export interface Setpoints {
   transition?: SetpointsTransition | null;
 }
 
+export interface PendingSetting {
+  /**
+   * The setting by its dotted path in the device's document: `day.temperature`, `daynight.day`, `workmode`, `lights.limit`.
+   */
+  field: string;
+  /**
+   * What the device was last handed for it: a figure, or anything else as the diary line of a change writes it (a work mode by its word, `true`, a list as JSON). null where the document stated none.
+   */
+  held: number | string | null;
+  /**
+   * When the value the cloud holds now was stored.
+   */
+  savedAt: string;
+}
+
+export interface PendingSettings {
+  /**
+   * When the device was last heard.
+   */
+  since: string;
+  settings: PendingSetting[];
+}
+
 export interface DeviceLive {
   deviceId: string;
   metrics: {
@@ -1782,6 +1805,10 @@ export interface DeviceLive {
    * null for a device that holds no targets, such as a plug.
    */
   setpoints: Setpoints | null;
+  /**
+   * Set only while the device counts as offline and a setting stored since it was last heard differs from what it held then; one changed and changed back is not in it.
+   */
+  pending: PendingSettings | null;
 }
 
 export interface MetricSeries {

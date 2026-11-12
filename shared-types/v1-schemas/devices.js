@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.deviceFirmwarePage = exports.deviceFirmware = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.provisionedDevice = exports.adminDeviceProvision = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.co2FanCoupling = exports.deviceConfigurationPatch = exports.timerWindow = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.deviceSettingsWritten = exports.devicePage = exports.device = exports.deviceState = exports.deviceControl = exports.dryingReturn = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.setpointsTransition = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = void 0;
+exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.pendingSettings = exports.pendingSetting = exports.setpoints = exports.setpointsTransition = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const configuration_fields_js_1 = require("./configuration-fields.js");
@@ -837,6 +837,26 @@ exports.setpoints = (0, common_js_1.named)('Setpoints', zod_1.z.object({
         .optional()
         .describe('Set while the device is changing from one half to the other and the climate is given time to follow; null otherwise.'),
 }));
+/** One setting the cloud stored while its device was silent, and what the device still holds for it. */
+exports.pendingSetting = (0, common_js_1.named)('PendingSetting', zod_1.z.object({
+    field: zod_1.z
+        .string()
+        .describe("The setting by its dotted path in the device's document: `day.temperature`, `daynight.day`, `workmode`, `lights.limit`."),
+    held: zod_1.z
+        .union([zod_1.z.number(), zod_1.z.string()])
+        .nullable()
+        .describe('What the device was last handed for it: a figure, or anything else as the diary line of a change writes it (a work mode by its word, `true`, a list as JSON). null where the document stated none.'),
+    savedAt: (0, common_js_1.instant)().describe('When the value the cloud holds now was stored.'),
+}));
+/**
+ * What a silent device has not been handed. A device acknowledges nothing, so
+ * this is never what it runs: it was last heard at `since`, what it holds is
+ * what the cloud had stored by then, and each setting here was stored after.
+ */
+exports.pendingSettings = (0, common_js_1.named)('PendingSettings', zod_1.z.object({
+    since: (0, common_js_1.instant)().describe('When the device was last heard.'),
+    settings: zod_1.z.array(exports.pendingSetting),
+}));
 /**
  * One device's newest reading of everything it measures: one `last()` per
  * device.
@@ -853,6 +873,9 @@ exports.deviceLive = (0, common_js_1.named)('DeviceLive', zod_1.z.object({
     metrics: zod_1.z.partialRecord(common_js_1.metric, common_js_1.metricValue),
     outputs: zod_1.z.partialRecord(common_js_1.outputMetric, common_js_1.metricValue).describe('The newest value of each output the device has reported driving.'),
     setpoints: exports.setpoints.nullable().describe('null for a device that holds no targets, such as a plug.'),
+    pending: exports.pendingSettings
+        .nullable()
+        .describe('Set only while the device counts as offline and a setting stored since it was last heard differs from what it held then; one changed and changed back is not in it.'),
 }));
 exports.metricSeries = (0, common_js_1.named)('MetricSeries', zod_1.z.object({ metric: common_js_1.metric, points: zod_1.z.array(common_js_1.seriesPoint) }));
 exports.outputSeries = (0, common_js_1.named)('OutputSeries', zod_1.z.object({ output: common_js_1.outputMetric, points: zod_1.z.array(common_js_1.seriesPoint) }));

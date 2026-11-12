@@ -24,6 +24,7 @@ import { logger } from '@utils/logger';
 // The plan hands over what its step stored; the port it asks through is the plan's.
 import { DeviceConfigurationWriter } from '../v1/plan/device-configuration.port';
 import { recordTargets } from '../v1/phase/target-record';
+import { CONFIGURATION_UPDATED, GERMINATION_CHOICES, changeLine, changeOf, linesJoined } from './change-lines';
 import { HIDDEN_FIGURES, HUMIDIFIER_REST_BAND, heldTo } from './class-rules';
 import { fieldChangesOf, withFigures } from './configuration-fields';
 import { DevicePublisherService } from './device-publisher.service';
@@ -264,8 +265,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       deviceId,
       severity: 'info',
       message: {
-        key: 'message-device-configuration-updated',
-        params: [moved.join('\n'), decisive ? mode : '', device?.type ?? ''],
+        key: CONFIGURATION_UPDATED,
+        params: [linesJoined(moved), decisive ? mode : '', device?.type ?? ''],
       },
     });
   }
@@ -561,7 +562,7 @@ const choicesMoved = (choices: Written['choices']): string[] =>
   choices
     ? (['warnTooHumid', 'humidifierHolds'] as const)
         .filter(choice => choices.before[choice] !== choices.after[choice])
-        .map(choice => `germination.${choice}: ${choices.before[choice]} → ${choices.after[choice]}`)
+        .map(choice => changeLine(`${GERMINATION_CHOICES}.${choice}`, choices.before[choice], choices.after[choice]))
     : [];
 
 /** A diary line is read, not scrolled: past this many figures the rest are counted rather than listed. */
@@ -583,7 +584,7 @@ const figuresMoved = (before: unknown, after: unknown, path: string): string[] =
   }
   if (HIDDEN_FIGURES.has(path) || JSON.stringify(before) === JSON.stringify(after)) return [];
 
-  return [`${path || 'configuration'}: ${figureOf(before)} → ${figureOf(after)}`];
+  return [changeLine(path || 'configuration', before, after)];
 };
 
 /**
@@ -601,19 +602,16 @@ const LIGHT_WINDOWS = [
 /** Both times of the light schedule where one of them moved, the one that stayed written as itself on both sides. */
 const withScheduleWhole = (lines: string[], after: DeviceConfiguration): string[] =>
   LIGHT_WINDOWS.reduce<string[]>((all, [on, off]) => {
-    const named = (path: string) => all.some(line => line.startsWith(`${path}: `));
+    const named = (path: string) => all.some(line => changeOf(line)?.path === path);
     if (named(on) === named(off)) return all;
 
     const missing = named(on) ? off : on;
     const value = nestedAt(after, missing);
-    return typeof value === 'number' ? [...all, `${missing}: ${value} → ${value}`].sort() : all;
+    return typeof value === 'number' ? [...all, changeLine(missing, value, value)].sort() : all;
   }, lines);
 
 /** A device that has never sent its document: a write would reach it as the change alone. */
 const sentNoSettings = (configuration: DeviceConfiguration | null | undefined): boolean => !configuration || Object.keys(configuration).length === 0;
-
-const figureOf = (value: unknown): string =>
-  value === undefined || value === null ? '–' : typeof value === 'string' ? value : JSON.stringify(value);
 
 const mergeSections = (current: DeviceConfiguration, settings: DeviceConfiguration): DeviceConfiguration =>
   Object.fromEntries(

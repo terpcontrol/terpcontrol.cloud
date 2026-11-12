@@ -1657,6 +1657,7 @@ describe('the shape of a device’s day', () => {
 describe('what holds now', () => {
   const live = (setpoints: object): DeviceLive => ({
     deviceId: 'device-1',
+    pending: null,
     metrics: {},
     outputs: {},
     setpoints: { day: {}, night: {}, active: 'day', ...setpoints },

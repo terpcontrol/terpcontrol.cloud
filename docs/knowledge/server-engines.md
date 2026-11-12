@@ -1,13 +1,14 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
 updated: 2026-11-12
-source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12)
+source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
   - server/src/modules/device-protocol/**
   - server/src/modules/v1/plan/**
   - server/src/modules/v1/phase/**
+  - server/src/modules/v1/device/**
   - server/src/modules/v1/space/**
   - server/src/modules/v1/timeline/**
   - server/src/modules/v1/diary/**
@@ -168,3 +169,20 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   first page (three weeks) 91 ms for a grow of four weeks and 103 ms for one of four months with a reading every
   minute, a later page 50 to 130 ms, the whole four months page after page 0.7 s. Density is not what it costs:
   eight days written at a device's own five seconds read in 47 ms.
+- **What a silent device has not been handed** (`pending` of `GET /v1/devices/{id}/live`; the redesign session of
+  2026-11-12) is computed per read and stored nowhere, so that settings stay changeable while a device is offline
+  and a page can say what it has not taken yet. A save is stored at once and published once, a device that was not
+  listening is answered the stored document when it next connects, and it acknowledges nothing - so the one thing
+  known is when it was last heard (`heardAt`, the rule a device is dated by everywhere): what it holds is what the
+  cloud had stored by then. `pending` is null unless the device counts as offline at the read and a setting stored
+  since differs from what stood then. Each such setting is named by its dotted place in the document, with what
+  stood then (`held`) and when the value of now was stored (`savedAt`); one changed and changed back is not in it.
+  Two sources, both kept anyway (`modules/v1/device/pending-settings.ts`): the target record says the targets, the
+  light window, the ramps and the work mode, whoever moved them - a person, a plan step, a preset, the clocks
+  changing; any other figure is known only from the diary line a person's save writes, whose first since then says
+  what the figure was before (`modules/device-protocol/change-lines.ts` writes those lines and reads them back, so
+  the two cannot drift). So a figure outside the record that something else moved meanwhile is not known, nor one
+  past the twelve a long entry names, and a figure that is no number comes as its line spells it. The two reads
+  run only for an offline device, each on its collection's index by device and time (`pendingOf` beside
+  `recordOf`). Measured on a development stack on 2026-11-12, medians of 11 runs of the live read: 6 ms for a
+  device that is heard, 7 ms for a silent one with a change pending.

@@ -1,10 +1,14 @@
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
+import type { PendingSettings } from '@fg2/shared-types/v1';
 import { isSection } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { STEERED } from '@fg2/shared-types/v1-schemas';
 import { SETTLE_SECONDS, cycleOf, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
+import { CONFIGURATION_UPDATED, linesOf } from '@modules/device-protocol/change-lines';
 import { settlingOf, type RecordedClimate, type Settling } from '../device/held-targets';
+import { pendingSettingsOf } from '../device/pending-settings';
 import { targetsOf } from './phase-targets';
 
 /**
@@ -152,4 +156,34 @@ export const settlingsOf = async (
   );
 
   return new Map(settlings.flat());
+};
+
+/**
+ * What a device that fell silent has not been handed (`pendingSettingsOf`), or
+ * null where it holds everything stored: its record from the instant it was
+ * last heard, and the diary entries of the saves people made since. Two reads,
+ * and only ever asked for a device that is offline.
+ */
+export const pendingOf = async (
+  record: Model<StoredTargetChange>,
+  entries: Model<EntryDocument>,
+  device: { id: string; type: string; configuration?: Record<string, unknown> | null },
+  heard: Date,
+  now: Date,
+): Promise<PendingSettings | null> => {
+  const [rows, saves] = await Promise.all([
+    recordOf(record, device.id, { startsAt: heard, endsAt: now }),
+    entries
+      .find({ deviceId: device.id, occurredAt: { $gt: heard }, 'message.key': CONFIGURATION_UPDATED }, { occurredAt: 1, message: 1 })
+      .sort({ occurredAt: 1 })
+      .lean<Pick<EntryDocument, 'occurredAt' | 'message'>[]>(),
+  ]);
+  const settings = pendingSettingsOf(
+    heard.getTime(),
+    device,
+    rows.map(climateOf),
+    saves.map(save => ({ at: save.occurredAt.getTime(), lines: linesOf(save.message?.params[0]) })),
+  );
+
+  return settings.length > 0 ? { since: heard.toISOString(), settings } : null;
 };

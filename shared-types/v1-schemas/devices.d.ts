@@ -2446,6 +2446,25 @@ export declare const setpoints: z.ZodObject<{
         }> & z.core.$partial, z.ZodNumber>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
+/** One setting the cloud stored while its device was silent, and what the device still holds for it. */
+export declare const pendingSetting: z.ZodObject<{
+    field: z.ZodString;
+    held: z.ZodNullable<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    savedAt: z.ZodISODateTime;
+}, z.core.$strip>;
+/**
+ * What a silent device has not been handed. A device acknowledges nothing, so
+ * this is never what it runs: it was last heard at `since`, what it holds is
+ * what the cloud had stored by then, and each setting here was stored after.
+ */
+export declare const pendingSettings: z.ZodObject<{
+    since: z.ZodISODateTime;
+    settings: z.ZodArray<z.ZodObject<{
+        field: z.ZodString;
+        held: z.ZodNullable<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        savedAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
 /**
  * One device's newest reading of everything it measures: one `last()` per
  * device.
@@ -2558,6 +2577,14 @@ export declare const deviceLive: z.ZodObject<{
                 ppfd: "ppfd";
             }> & z.core.$partial, z.ZodNumber>;
         }, z.core.$strip>>>;
+    }, z.core.$strip>>;
+    pending: z.ZodNullable<z.ZodObject<{
+        since: z.ZodISODateTime;
+        settings: z.ZodArray<z.ZodObject<{
+            field: z.ZodString;
+            held: z.ZodNullable<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            savedAt: z.ZodISODateTime;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const metricSeries: z.ZodObject<{

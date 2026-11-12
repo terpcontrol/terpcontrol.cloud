@@ -1134,6 +1134,36 @@ export const setpoints = named(
   }),
 );
 
+/** One setting the cloud stored while its device was silent, and what the device still holds for it. */
+export const pendingSetting = named(
+  'PendingSetting',
+  z.object({
+    field: z
+      .string()
+      .describe("The setting by its dotted path in the device's document: `day.temperature`, `daynight.day`, `workmode`, `lights.limit`."),
+    held: z
+      .union([z.number(), z.string()])
+      .nullable()
+      .describe(
+        'What the device was last handed for it: a figure, or anything else as the diary line of a change writes it (a work mode by its word, `true`, a list as JSON). null where the document stated none.',
+      ),
+    savedAt: instant().describe('When the value the cloud holds now was stored.'),
+  }),
+);
+
+/**
+ * What a silent device has not been handed. A device acknowledges nothing, so
+ * this is never what it runs: it was last heard at `since`, what it holds is
+ * what the cloud had stored by then, and each setting here was stored after.
+ */
+export const pendingSettings = named(
+  'PendingSettings',
+  z.object({
+    since: instant().describe('When the device was last heard.'),
+    settings: z.array(pendingSetting),
+  }),
+);
+
 /**
  * One device's newest reading of everything it measures: one `last()` per
  * device.
@@ -1152,6 +1182,11 @@ export const deviceLive = named(
     metrics: z.partialRecord(metric, metricValue),
     outputs: z.partialRecord(outputMetric, metricValue).describe('The newest value of each output the device has reported driving.'),
     setpoints: setpoints.nullable().describe('null for a device that holds no targets, such as a plug.'),
+    pending: pendingSettings
+      .nullable()
+      .describe(
+        'Set only while the device counts as offline and a setting stored since it was last heard differs from what it held then; one changed and changed back is not in it.',
+      ),
   }),
 );
 
