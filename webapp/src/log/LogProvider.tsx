@@ -8,6 +8,7 @@ import { LogContext, type CompleteOptions, type LogOpening, type LogRequest, typ
 import { LogSheet } from './LogSheet';
 import { EntryDetails } from './EntryDetails';
 import { PhotoEntry } from './PhotoEntry';
+import { withRoom } from './toast-room';
 import { Toasts, type LoggedLine } from './Toasts';
 import { refusalText } from '@/ui/refusal';
 
@@ -120,7 +121,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
         undoUntil: null,
         progress: null,
       };
-      setLines(current => [...current, line]);
+      setLines(current => withRoom(current, line));
       setOpening(null);
       setDetails(null);
       attempt(key, request.send, request.changed);
@@ -198,15 +199,15 @@ export function LogProvider({ children }: { children: ReactNode }) {
       },
       [log],
     ),
-    tell: useCallback(({ label, undo: back }: Told) => {
+    tell: useCallback(({ label, undo: back, from }: Told) => {
       const key = nextKey.current++;
-      setLines(current => [
-        ...current,
-        {
+      setLines(current =>
+        withRoom(current, {
           key,
           label,
           send: () => Promise.reject(new Error('nothing to send')),
           revert: back,
+          from,
           details: null,
           state: 'saved',
           failure: null,
@@ -216,8 +217,8 @@ export function LogProvider({ children }: { children: ReactNode }) {
           undoable: back !== null,
           undoUntil: Date.now() + TOLD_MS,
           progress: null,
-        },
-      ]);
+        }),
+      );
     }, []),
   };
 

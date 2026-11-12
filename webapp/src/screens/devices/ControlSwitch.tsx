@@ -4,12 +4,12 @@ import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { useConfigure } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
+import { useSaved } from '@/screens/control/climate/saved';
 import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { Row } from '@/ui/Rows';
-import { Answered, SheetAnswer } from '@/ui/SheetParts';
+import { SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { useLog } from '@/log/log-context';
 import { useSwitchOn } from './switch-on';
 import rows from './DevicePage.module.css';
 import styles from './Maintenance.module.css';
@@ -26,8 +26,11 @@ import styles from './Maintenance.module.css';
  * tap: it is the state everything else in the app assumes.
  *
  * A device that is not answering is still switched: the server keeps the
- * document and the device is handed it when it next connects, and the receipt
- * says so.
+ * document and the device is handed it when it next connects. Both ways are
+ * answered as every setting of a device is (`useSaved`): the toast says that
+ * it is stored, or that the device takes it over when it next connects, and
+ * switching off can be taken back there - which also resumes the plan it
+ * paused.
  *
  * It is a row of the device's own page - the one place the control is switched
  * off; Steuerung says that it is off and switches it back on where the targets
@@ -35,14 +38,14 @@ import styles from './Maintenance.module.css';
  */
 export function ControlRow({ device, offline }: { device: Device; offline: boolean }) {
   const { t } = useTranslation();
-  const { tell } = useLog();
+  const saved = useSaved(device);
   const on = useSwitchOn(device);
   const [asking, setAsking] = useState(false);
   const control = device.control;
   if (!control) return null;
 
   const switchOn = async () => {
-    if (await on.switchOn()) tell({ label: t('device.control.switchedOn'), undo: null });
+    if (await on.switchOn()) saved.say(`${t('climateControl.label')} ${t('climateControl.state.on')}`, null, 'control');
   };
 
   return (
@@ -58,26 +61,35 @@ export function ControlRow({ device, offline }: { device: Device; offline: boole
         />
       )}
       {!control.running && on.error ? <Refused error={on.error} className={rows.rowSays} /> : null}
-      {asking ? <ControlOffSheet device={device} offline={offline} onClose={() => setAsking(false)} /> : null}
+      {asking ? <ControlOffSheet device={device} onClose={() => setAsking(false)} /> : null}
     </>
   );
 }
 
-/** What stops, whether a plan is paused for it, and how it comes back on; then what happened. */
-function ControlOffSheet({ device, offline, onClose }: { device: Device; offline: boolean; onClose: () => void }) {
+/** What stops, whether a plan is paused for it, and how it comes back on. */
+function ControlOffSheet({ device, onClose }: { device: Device; onClose: () => void }) {
   const { t } = useTranslation();
+  const saved = useSaved(device);
   const plan = useDevicePlan(device.id);
   const move = usePlanTransition(device.id);
   const configure = useConfigure(device.id);
   const running = plan.data?.state.status === 'running' ? plan.data : null;
   // Whether a plan has to be paused is not guessed: a plan that could not be read keeps the switch back.
   const planKnown = plan.data !== undefined || isMissing(plan.error);
-  const done = configure.isSuccess;
 
   const switchOff = async () => {
     try {
       if (running) await move.mutateAsync({ kind: 'pause', reason: t('climateControl.pauseReason') });
       await configure.mutateAsync({ control: false });
+      saved.say(
+        `${t('climateControl.label')} ${t('climateControl.state.off')}`,
+        async () => {
+          await configure.mutateAsync({ control: true });
+          if (running) await move.mutateAsync({ kind: 'resume' });
+        },
+        'control',
+      );
+      onClose();
     } catch {
       // Shown under the buttons, from the mutation that refused.
     }
@@ -85,7 +97,7 @@ function ControlOffSheet({ device, offline, onClose }: { device: Device; offline
 
   const busy = move.isPending || configure.isPending;
   const actions = (
-    <SheetAnswer done={done} error={move.error ?? configure.error ?? (planKnown ? null : plan.error)} onClose={onClose}>
+    <SheetAnswer done={false} error={move.error ?? configure.error ?? (planKnown ? null : plan.error)} onClose={onClose}>
       <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy || !planKnown} onClick={() => void switchOff()}>
         <Power size={16} strokeWidth={1.75} aria-hidden />
         {t(busy ? 'climateControl.switching' : 'climateControl.yes')}
@@ -96,19 +108,10 @@ function ControlOffSheet({ device, offline, onClose }: { device: Device; offline
   return (
     <Sheet title={t('climateControl.title')} onClose={onClose} actions={actions}>
       <div className={styles.body}>
-        {done ? (
-          <>
-            <Answered>{t('climateControl.done')}</Answered>
-            {offline ? <p className={ui.note}>{t('climateControl.unheard')}</p> : null}
-          </>
-        ) : (
-          <>
-            <p>{t(`climateControl.stops.${device.type === 'fridge' ? 'fridge' : 'controller'}`)}</p>
-            <p>{t('climateControl.measures')}</p>
-            {running ? <p>{t('climateControl.plan', { name: running.name })}</p> : null}
-            <p className={ui.note}>{t('climateControl.back')}</p>
-          </>
-        )}
+        <p>{t(`climateControl.stops.${device.type === 'fridge' ? 'fridge' : 'controller'}`)}</p>
+        <p>{t('climateControl.measures')}</p>
+        {running ? <p>{t('climateControl.plan', { name: running.name })}</p> : null}
+        <p className={ui.note}>{t('climateControl.back')}</p>
       </div>
     </Sheet>
   );

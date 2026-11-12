@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, DeviceConfiguration, GerminationChoices as ChoiceValues } from '@fg2/shared-types/v1';
 import { useDeviceLive, useHeardAt, useLiveReads, useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
+import { useSpaceOverview } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { offlineLabel } from '@/ui/age';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
@@ -11,7 +12,7 @@ import { unbroken } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/presets';
+import { CLIMATE_CHOICES, climateChoiceName, writesClimate, type ClimateChoice } from '@/ui/presets';
 import { figure, targetWithUnit, UNIT } from '@/ui/units';
 import { useNow } from '@/ui/useNow';
 import { offsetOf, wallClock } from '@/ui/wall-clock';
@@ -94,6 +95,8 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
   const heard = useHeardAt(read);
   const spoke = useLiveReads([read.id]).measuredAt.get(read.id) ?? heard;
   const [open, setOpen] = useState<Open>(null);
+  // The stage the grow standing here is in, as the server names it: the alarm rules of that stage are grouped under the same name.
+  const grow = useSpaceOverview(read.spaceId ?? '', read.spaceId !== null).data?.grows?.[0] ?? null;
 
   const pending = pendingByPath(liveRead.data?.pending);
   const modeHeld = pending.get(MODE_PATHS[0]);
@@ -169,6 +172,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
               if (pauses) await move.mutateAsync({ kind: 'resume' });
             }
           : null,
+        chip ? 'preset' : moved.join(' '),
       );
       return true;
     } catch {
@@ -185,6 +189,12 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
 
   const halves = halvesOf(regime);
   const preset = CLIMATE_CHOICES.find(chip => chosenBy(chip, baseline, shape, hasCo2, climateOnly)) ?? null;
+  // The button names the preset the figures are. One figure set by hand later it still names what the server knows the
+  // place is on: the spell the device runs, else the stage of the grow standing here.
+  const spell = regime === 'drying' || regime === 'germination' ? regime : null;
+  const staged = grow?.stage && writesClimate(grow.stage) && grow.stage !== 'drying' && grow.stage !== 'germination' ? grow : null;
+  const named: ClimateChoice | null =
+    preset ?? (spell ? { stage: spell, preset: null } : staged?.stage ? { stage: staged.stage, preset: staged.preset } : null);
   const rows = [
     { key: 'temperature', label: t('targets.table.temperature'), fields: { day: 'dayTemperature', night: 'nightTemperature' } },
     ...(holdsHumidity(shape)
@@ -248,7 +258,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           </h2>
           {mayManage ? (
             <button type="button" className={styles.pillButton} onClick={() => setOpen({ kind: 'preset' })}>
-              {preset ? t('control.preset.named', { name: climateChoiceName(t, preset) }) : t('control.preset.open')}
+              {named ? t('control.preset.named', { name: climateChoiceName(t, named) }) : t('control.preset.open')}
             </button>
           ) : null}
         </div>

@@ -3,14 +3,23 @@ import type { AlarmRule, Device, PendingSetting, Plan, SocketPage } from '@fg2/s
 import type { OutputLevel } from '@/api/devices';
 import { configurationFieldsOf, workModesOf, type WorkMode } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import type { Translate } from '@/i18n/i18n';
-import { isLightRole, lightOutputOf } from '@/screens/devices/lights';
-import { socketName, socketState } from '@/screens/devices/socket-words';
+import type { Held } from '@/screens/devices/HandHold';
+import { isLightRole, lightOutputOf, percentLabel } from '@/screens/devices/lights';
+import { forcedOf, socketName, socketState } from '@/screens/devices/socket-words';
 import { rowsOf, type SocketRowModel } from '@/screens/devices/sockets';
 import { planLineOf } from '@/screens/start/plan-line';
 import { fieldValue } from '@/ui/advanced/field-values';
+import { deviceLiveness, sinceLabel } from '@/ui/age';
+import { deviceName } from '@/ui/naming';
 import { ruleTitle } from './alarms/rules';
 import { isOutputPath, MODE_PATHS } from './climate/figures';
-import { isWaiting, readingAt } from './plan-clock';
+import { fanFactsOf } from './devices/own-summary';
+import { heldWords } from './held-light';
+import { activeStep, isWaiting, readingAt } from './plan-clock';
+
+/** "Stand 13:49" for a device heard last at `spoke` and silent since, which dates whatever is said of it; null while it is heard. */
+export const standOf = (t: Translate, spoke: string | null, now: DateTime, zone: string | null): string | null =>
+  spoke !== null && deviceLiveness(spoke, now) === 'offline' ? t('control.stand', { time: sinceLabel(spoke, now, zone) }) : null;
 
 /**
  * What the rows under Steuerung's climate say about what is behind them: each
@@ -53,20 +62,29 @@ export const alarmsLine = (t: Translate, rules: AlarmRule[]): RowLine => {
   };
 };
 
-/** "aus · Zielwerte stellst du von Hand", or where the plan stands; a step waiting for its word is said in amber. */
+/**
+ * "aus · Zielwerte stellst du von Hand", or where the plan stands; a step waiting for its word is said in amber, and
+ * so is a plan that is paused, with why - it is continued and stopped on the page the row opens.
+ */
 export const planLine = (t: Translate, plans: Plan[], now: DateTime): RowLine => {
   const plan = plans.find(one => one.state.status === 'running') ?? plans.find(one => one.state.status === 'paused') ?? plans[0] ?? null;
   if (!plan) return { text: t('control.rows.planOff') };
+  if (plan.state.status === 'paused') {
+    const paused = t('control.rows.planPaused', { step: activeStep(plan)?.name ?? plan.name });
+    return { text: [paused, plan.state.pauseReason].filter(Boolean).join(' · '), warn: true };
+  }
   const going = planLineOf(t, plan, now);
   if (going === null) return { text: t('control.rows.planAtRest', { name: plan.name, status: t(`space.control.status.${plan.state.status}`) }) };
 
-  return { text: going, warn: plan.state.status === 'paused' || isWaiting(plan, readingAt(plan.state, now)) };
+  return { text: going, warn: isWaiting(plan, readingAt(plan.state, now)) };
 };
 
 /** What a device drives beside its climate: its own lamp, a fridge's fans, an AIR fan's speed, its smart sockets. */
 export interface Outputs {
   device: Device;
   light: boolean;
+  /** What the lamp last ran at, where it reported. */
+  level: OutputLevel | null;
   fans: boolean;
   speed: boolean;
   sockets: SocketRowModel[];
@@ -75,6 +93,7 @@ export interface Outputs {
 export const outputsOf = (device: Device, table: SocketPage | undefined, level: OutputLevel | null): Outputs => ({
   device,
   light: table !== undefined && lightOutputOf(device, table.capabilities, level) !== null,
+  level,
   fans: device.type === 'fridge' && device.configuration !== null,
   speed: device.type === 'fan' && device.configuration !== null,
   sockets: rowsOf(table?.items ?? []),
@@ -82,33 +101,57 @@ export const outputsOf = (device: Device, table: SocketPage | undefined, level: 
 
 export const hasOutputs = (outputs: Outputs): boolean => outputs.light || outputs.fans || outputs.speed || outputs.sockets.length > 0;
 
-/**
- * "Licht, Abluft, Befeuchter · alle Auto": what the place's devices drive and
- * whether anything is held by hand. Only a smart socket reports a hold, so
- * "alle Auto" is said only of a list made of sockets; a lamp's hold is never
- * reported back and nothing is claimed about it.
- */
-export const outputsLine = (t: Translate, all: Outputs[], now: DateTime, stand: string | null): RowLine => {
-  const sockets = all.flatMap(one => one.sockets);
-  const names = [
-    ...(all.some(one => one.light) && !sockets.some(row => isLightRole(row.role)) ? [t('control.rows.light')] : []),
-    ...(all.some(one => one.fans || one.speed) ? [t('control.rows.fans')] : []),
-    ...[...new Set(sockets.map(row => t(row.titleKey)))],
-  ];
-  const held = sockets.filter(row => row.override && row.override.state !== 'auto');
-  const state =
-    held.length > 0
-      ? held.map(row => `${socketName(t, row)} ${socketState(t, row, now)}`).join(', ')
-      : sockets.length > 0 && !all.some(one => one.light || one.fans || one.speed)
-        ? t('control.rows.allAuto')
-        : null;
-  const fan = all.find(one => one.speed);
-  const mode = fan ? fieldValue(fan.device, 'fanMode') : null;
+/** "Abluft an", "Pumpe aus gehalten, noch 15 Min": a socket by its name and what it does. */
+const socketFact = (t: Translate, row: SocketRowModel, now: DateTime): string =>
+  `${socketName(t, row)} ${forcedOf(row) || row.state === 'unknown' ? socketState(t, row, now).replace(' · ', ', ') : t(`devices.socket.${row.state}`)}`;
 
-  return {
-    text: [stand, names.join(', '), state ?? (typeof mode === 'string' ? t(`fanSettings.mode.${mode}`) : null)].filter(Boolean).join(' · '),
-    warn: held.length > 0,
-  };
+/**
+ * "Licht 80 % · Abluft an · Befeuchter aus · alle Auto": each output of the
+ * place's devices with what it does, as of `stand` once they have gone quiet,
+ * and in amber what is held by hand - a socket by its device's word, a lamp by
+ * what this browser asked of it (`held`, by device). The outputs of a further
+ * device are led by its name, so two lamps are not one said twice. "alle
+ * Auto" is said only of a list made of sockets: a lamp reports no hold, so
+ * nothing is claimed of one that somebody else may be holding.
+ */
+export const outputsLine = (
+  t: Translate,
+  all: Outputs[],
+  now: DateTime,
+  zone: string | null,
+  stand: string | null = null,
+  held: ReadonlyMap<string, Held> = new Map(),
+): RowLine => {
+  const sockets = all.flatMap(one => one.sockets);
+  const facts = all.flatMap((one, index) => {
+    const hold = held.get(one.device.id);
+    const lamp = t('control.rows.light');
+    const fan = one.fans
+      ? ['clipFan', 'innerFans'].flatMap(name => {
+          const speed = fieldValue(one.device, name);
+          return typeof speed === 'number' ? [`${t(`tuning.${name}`)} ${percentLabel(speed)}`] : [];
+        })
+      : one.speed
+        ? fanFactsOf(t, one.device).map((fact, at) => (at === 0 ? `${t('control.rows.fans')}: ${fact}` : fact))
+        : [];
+    const own = [
+      // A light socket follows the lamp and is named "Licht" itself; the output is then said only while it is held.
+      ...(hold
+        ? [`${lamp} ${heldWords(t, hold, now, zone)}`]
+        : one.light && !one.sockets.some(row => isLightRole(row.role))
+          ? [one.level ? (one.level.percent > 0 ? `${lamp} ${percentLabel(one.level.percent)}` : t('start.card.lightOff')) : lamp]
+          : []),
+      ...fan,
+      ...one.sockets.map(row => socketFact(t, row, now)),
+    ];
+    // A device called what its one output is called - a lamp, a fan - needs no name before it.
+    const name = deviceName(one.device, t);
+    return index > 0 && own.length > 0 && !own[0].startsWith(name) ? [`${name}: ${own[0]}`, ...own.slice(1)] : own;
+  });
+  const byHand = all.some(one => held.has(one.device.id)) || sockets.some(row => forcedOf(row));
+  const allAuto = !byHand && sockets.length > 0 && !all.some(one => one.light || one.fans || one.speed);
+
+  return { text: [stand, ...facts, allAuto ? t('control.rows.allAuto') : null].filter(Boolean).join(' · '), warn: byHand };
 };
 
 /** "Standard · auch Gewächshaus, Energiesparen": the mode that runs and what else the page offers - or that the climate preset set it. */

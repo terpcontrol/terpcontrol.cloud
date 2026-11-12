@@ -1,10 +1,12 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
+import type { ReactNode } from 'react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import type { Device, Plan, PlanReplace, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
+import type { Told } from '@/log/log-context';
 import { planLineOf } from '@/screens/start/plan-line';
 import { ContinuePlan } from '@/screens/control/ContinuePlan';
 import { PlanEditor } from '@/screens/control/PlanEditor';
@@ -15,6 +17,7 @@ import { READY_PLANS, readyDraft } from '@/screens/control/ready-plans';
 import { climateLanding } from '@/ui/climate-hardware';
 import { deviceWith } from './fixtures';
 import { drawAt } from './harness';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
@@ -50,7 +53,14 @@ vi.mock('@/api/plans', async importOriginal => ({
     dataUpdatedAt: NOW.toMillis(),
     refetch: () => {},
   }),
-  usePlanTransition: () => ({ mutate: (body: PlanTransition) => state.sent.push(body), error: null, isPending: false, isSuccess: false }),
+  usePlanTransition: () => ({
+    mutate: (body: PlanTransition, options?: { onSuccess?: () => void }) => {
+      state.sent.push(body);
+      options?.onSuccess?.();
+    },
+    error: null,
+    isPending: false,
+  }),
   useStopPlan: () => ({ mutate: () => {}, error: null, isPending: false }),
   useRemovePlan: () => ({ mutate: () => {}, error: null, isPending: false }),
   useSavePlan: () => ({ mutate: (body: PlanReplace) => state.saved.push(body), error: null, isPending: false }),
@@ -116,7 +126,12 @@ const noPlan = new ApiError({ status: 404, code: 'plan_not_found', title: 'Not f
 
 beforeAll(() => translate());
 
+/** What the panel answered a move with. */
+let told: Told[] = [];
+const drawn = (node: ReactNode) => drawAt(<Toast told={told}>{node}</Toast>);
+
 beforeEach(() => {
+  told = [];
   state.plan = plan();
   state.planError = null;
   state.saved = [];
@@ -402,7 +417,7 @@ describe('the two ready-made plans', () => {
     state.plan = null;
     state.planError = noPlan;
     const fridge = device();
-    drawAt(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose a ready-made plan' }));
     const sheet = screen.getByRole('dialog', { name: 'Start from a template' });
@@ -417,7 +432,7 @@ describe('the two ready-made plans', () => {
   it('say before a plan is started which stage it puts the grow into', () => {
     state.plan = plan({}, { status: 'stopped', stepStartedAt: null, lastAppliedAt: null });
     const fridge = device();
-    const view = drawAt(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    const view = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
 
     expect(screen.getByRole('button', { name: 'Start the plan' })).toBeInTheDocument();
     expect(screen.getByText(/^Starting puts a grow standing here into Veg,/)).toBeInTheDocument();
@@ -425,7 +440,7 @@ describe('the two ready-made plans', () => {
     // A paused plan goes on where it stood, so resuming it says nothing of the kind.
     view.unmount();
     state.plan = plan({}, { status: 'paused' });
-    drawAt(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
     expect(screen.queryByText(/^Starting puts a grow/)).not.toBeInTheDocument();
   });
 
@@ -433,25 +448,37 @@ describe('the two ready-made plans', () => {
     state.plan = null;
     state.planError = noPlan;
     const tent = device('controller');
-    drawAt(<PlanPanel device={tent} mayManage landing={climateLanding(tent)} />);
+    drawn(<PlanPanel device={tent} mayManage landing={climateLanding(tent)} />);
 
     expect(screen.queryByRole('button', { name: 'Choose a ready-made plan' })).not.toBeInTheDocument();
+  });
+
+  /** Nothing is explained over the buttons: what a plan is stands behind the (i) beside the sentence that there is none. */
+  it('leave a device without a plan one sentence and its buttons, with what a plan is behind the help', () => {
+    state.plan = null;
+    state.planError = noPlan;
+    const fridge = device();
+    const { container } = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+
+    expect(container.querySelectorAll('p')).toHaveLength(1);
+    expect(screen.getByText('No plan yet.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'About Grow plan' })).toHaveAccessibleDescription(/Saving a plan does not start it\./);
   });
 });
 
 describe('going on with a plan at a step', () => {
   /** It stands under the steps it chooses among, for whoever may move the plan - and not where a climate could not land. */
   it('is offered under the plan to whoever may change it, and to nobody else', () => {
-    const { unmount } = drawAt(<PlanPanel device={device()} mayManage landing="document" />);
+    const { unmount } = drawn(<PlanPanel device={device()} mayManage landing="document" />);
     expect(screen.getByRole('combobox', { name: 'Step' })).toBeInTheDocument();
     unmount();
 
-    drawAt(<PlanPanel device={device()} mayManage={false} landing="document" />);
+    drawn(<PlanPanel device={device()} mayManage={false} landing="document" />);
     expect(screen.queryByRole('combobox', { name: 'Step' })).not.toBeInTheDocument();
   });
 
   it('asks before it sends, says the step starts over, and sends the step by its id', () => {
-    drawAt(<ContinuePlan device={device()} />);
+    drawn(<ContinuePlan device={device()} />);
 
     const which = screen.getByRole('combobox', { name: 'Step' });
     // The step after the one the plan stands on is the one offered first.
@@ -459,17 +486,22 @@ describe('going on with a plan at a step', () => {
     fireEvent.change(which, { target: { value: 'step-1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue here' }));
 
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('“Photoperiod” carries on at 1 · Veg. The step starts from the beginning');
+    const question = screen.getByText(/^“Photoperiod” carries on at 1 · Veg\. The step starts from the beginning/);
+    // Asked as every move of a plan is, and read first: the question takes the focus.
+    expect(question).toHaveFocus();
     expect(state.sent).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Continue at step 1' }));
 
     expect(state.sent).toEqual([{ kind: 'goto', stepId: 'step-1' }]);
+    // Answered by the toast, which names the step: the question is gone, and no line of its own stays under the plan.
+    expect(told.map(one => one.label)).toEqual(['The plan is now running at step 1, Veg']);
+    expect(question).not.toBeInTheDocument();
   });
 
   it('draws nothing for a device that runs no plan', () => {
     state.plan = null;
     state.planError = noPlan;
-    const { container } = drawAt(<ContinuePlan device={device()} />);
+    const { container } = drawn(<ContinuePlan device={device()} />);
 
     expect(container).toBeEmptyDOMElement();
   });

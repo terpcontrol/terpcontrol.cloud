@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { ActuatorRuns, ClimateVerdict, OutputMetric, Socket, SocketPage, SocketRole } from '@fg2/shared-types/v1';
 import { SOCKET_HOLD_MAX_SECONDS } from '@fg2/shared-types/v1-schemas/socket-report.js';
-import type { OverrideRequest } from '@/api/devices';
+import { liveKey, socketsKey, type OverrideRequest } from '@/api/devices';
 
 /**
  * What a smart socket is drawn from - on its own page and in the rows that
@@ -32,13 +32,13 @@ export const TEST_SECONDS = 5;
  * A device answers a command with a report - its socket table, or its next
  * sample - and the firmware sends a changed table within half a minute. That
  * read is taken a few times on the way rather than on the next beat, wherever
- * the reader has gone meanwhile. The keys are the ones `api/devices.ts` reads
- * the table and the live values under.
+ * the reader has gone meanwhile.
  */
 const ANSWER_READS_MS = [2_000, 6_000, 12_000, 20_000, 30_000, 40_000];
 
 export const answerSoon = (client: QueryClient, deviceId: string, what: 'sockets' | 'live' = 'sockets') => {
-  for (const ms of ANSWER_READS_MS) setTimeout(() => void client.invalidateQueries({ queryKey: ['devices', deviceId, what] }), ms);
+  const queryKey = what === 'live' ? liveKey(deviceId) : socketsKey(deviceId);
+  for (const ms of ANSWER_READS_MS) setTimeout(() => void client.invalidateQueries({ queryKey }), ms);
 };
 
 /**
@@ -49,7 +49,7 @@ export const answerSoon = (client: QueryClient, deviceId: string, what: 'sockets
  */
 export const forgetRow = (client: QueryClient, deviceId: string, gone: Socket) =>
   client.setQueryData<SocketPage>(
-    ['devices', deviceId, 'sockets'],
+    socketsKey(deviceId),
     table =>
       table && {
         ...table,

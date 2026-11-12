@@ -1,6 +1,22 @@
-import type { ReactNode } from 'react';
+import { useLayoutEffect, type ReactNode } from 'react';
+import { useLocation, useNavigationType } from 'react-router';
 import { BackLink } from './BackLink';
 import styles from './PageHead.module.css';
+
+/**
+ * A page opened anew starts at its top: nothing else puts it there, and one
+ * opened from a row far down the page before it stood as far down itself. A
+ * page come back to is put where it was left by whoever keeps that
+ * (`useKeptScroll`, `ui/kept.ts`), so only a step forward is answered here.
+ */
+const useStartsAtTop = () => {
+  const { key } = useLocation();
+  const opened = useNavigationType() === 'PUSH';
+
+  useLayoutEffect(() => {
+    if (opened && window.scrollY > 0) window.scrollTo(0, 0);
+  }, [key, opened]);
+};
 
 /**
  * The head of a page reached from another: the way back, the page's name and,
@@ -20,6 +36,8 @@ export function PageHead({
   of?: string | null;
   children?: ReactNode;
 }) {
+  useStartsAtTop();
+
   return (
     <header className={styles.head}>
       <BackLink to={back.to} label={back.label} />

@@ -4,11 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath, devicePath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
-import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useRemoveAlert } from '@/api/alerts';
 import type { Translate } from '@/i18n/i18n';
 import { maintenanceQuiet } from '@/ui/maintenance';
 import { repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
+import { SilenceChip } from '@/screens/control/alarms/Silence';
+import { useSilence } from '@/screens/control/alarms/use-silence';
 import { ageAttribute, isAhead, offlineLabel, silentSince, sinceLabel, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { Asking } from '@/ui/Asking';
@@ -22,9 +23,6 @@ import type { AlertNames } from './names';
 import { looseFigure, unbroken } from '@/ui/figures';
 import styles from './Alerts.module.css';
 import { deviceName } from '@/ui/naming';
-
-/** How long a silence from the card holds. */
-const SILENCE_SECONDS = 3600;
 
 interface AlertCardProps {
   alert: Alert;
@@ -451,11 +449,7 @@ function ClosedChips({ alert, rule, mayManage }: { alert: Alert; rule: AlarmRule
 function OpenChips({ alert, rule, now, explainSilence }: { alert: Alert; rule: AlarmRule | null; now: DateTime; explainSilence?: boolean }) {
   const { t } = useTranslation();
   // A chip that writes is drawn only where the alert names a device, so the empty id is never sent.
-  const deviceId = alert.deviceId ?? '';
-  const silence = useSilenceAlarmRule(deviceId);
-  const unsilence = useUnsilenceAlarmRule(deviceId);
-  const silenced = rule !== null && isAhead(rule.silencedUntil, now);
-  const busy = silence.isPending || unsilence.isPending;
+  const silence = useSilence(rule, alert.deviceId ?? '', now);
   const camera = alert.kind === 'camera_stale';
 
   return (
@@ -466,16 +460,7 @@ function OpenChips({ alert, rule, now, explainSilence }: { alert: Alert; rule: A
             {t('alerts.action.checkCam')}
           </Link>
         ) : null}
-        {!camera && rule && alert.deviceId ? (
-          <button
-            type="button"
-            className={ui.chip}
-            disabled={busy}
-            onClick={() => (silenced ? unsilence.mutate(rule.id) : silence.mutate({ ruleId: rule.id, body: { forSeconds: SILENCE_SECONDS } }))}
-          >
-            {t(silenced ? 'alerts.action.unsilence' : 'alerts.action.silence')}
-          </button>
-        ) : null}
+        {!camera && rule && alert.deviceId ? <SilenceChip silence={silence} /> : null}
         {explainSilence && !camera && rule && alert.deviceId ? <Help topic="silence" /> : null}
         {alert.spaceId ? <TimelineChip spaceId={alert.spaceId} alert={alert} rule={rule} /> : null}
         {!camera && rule && alert.spaceId ? (
@@ -484,7 +469,7 @@ function OpenChips({ alert, rule, now, explainSilence }: { alert: Alert; rule: A
           </Link>
         ) : null}
       </div>
-      <Refused error={silence.error ?? unsilence.error} />
+      <Refused error={silence.error} />
     </>
   );
 }

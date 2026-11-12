@@ -12,10 +12,11 @@ import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 import { useSwitchOn } from '../devices/switch-on';
 import { pendingMode, savedWords } from './climate/figures';
+import { ByDevice, NothingHere } from './ByDevice';
 import { useSaved, useSettings } from './climate/saved';
 import { ChoiceSetting, SettingLine, SettingsBlock, SwitchSetting } from './devices/Settings';
 import { useLeads } from './lead';
-import { hasMode, modesOf } from './rows';
+import { hasMode, modeLine, modesOf } from './rows';
 import styles from './Control.module.css';
 import own from './devices/Own.module.css';
 
@@ -29,19 +30,23 @@ import own from './devices/Own.module.css';
  * preset alone. One of them running is read here, with the way to the preset.
  */
 
-export function ModePage({ devices, mayManage }: { devices: Device[]; mayManage: boolean }) {
+export function ModePage({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
   const { t } = useTranslation();
   const moded = devices.filter(hasMode);
 
+  // A tent controller has no mode to choose: what is left to say is where its stage's mode is set.
+  if (moded.length === 0) {
+    return (
+      <NothingHere to={controlPath(spaceId)} where={t('control.back')}>
+        {t('control.mode.none')}
+      </NothingHere>
+    );
+  }
+
   return (
-    <div className={styles.page}>
-      {moded.map(device => (
-        <section key={device.id} className={styles.block} aria-label={deviceName(device, t)}>
-          {moded.length > 1 ? <h2 className={styles.blockTitle}>{deviceName(device, t)}</h2> : null}
-          <DeviceMode device={device} mayManage={mayManage} />
-        </section>
-      ))}
-    </div>
+    <ByDevice devices={moded} line={device => modeLine(t, device)}>
+      {device => <DeviceMode device={device} mayManage={mayManage} />}
+    </ByDevice>
   );
 }
 

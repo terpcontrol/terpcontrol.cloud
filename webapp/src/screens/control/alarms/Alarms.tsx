@@ -7,14 +7,17 @@ import { Link, useSearchParams } from 'react-router';
 import { controlPath } from '@/app/places';
 import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
+import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { useSpaceOverview } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
+import { useLog } from '@/log/log-context';
 import { targetWithUnit } from '@/ui/units';
 import { channelsLabel, routedChannels, severityReaches } from '@/screens/notifications/reach';
 import { timeOf } from '@/screens/notifications/settings';
 import { durationLabel } from '@/ui/age';
+import { factsOf } from '@/ui/fact-text';
+import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
@@ -22,46 +25,34 @@ import ui from '@/ui/ui.module.css';
 import { maintenanceQuiet } from '@/ui/maintenance';
 import { useNow } from '@/ui/useNow';
 import { clock, zoneOf } from '@/ui/zone';
-import { AddDeviceNote } from '../AddDeviceNote';
+import { ByDevice, NothingHere } from '../ByDevice';
+import { alarmsLine } from '../rows';
 import { RuleSheet } from './RuleSheet';
+import { SilenceChip } from './Silence';
+import { useSilence } from './use-silence';
 import { ruleFor, templateBody, templatesFor, type AlarmTemplate, type TemplateKey } from './templates';
 import { boundLabel, groupRules, heldBackBy, missingSensor, repeatsEvery, ruleTitle, watchable, watchLabel } from './rules';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import styles from './Alarms.module.css';
-import { deviceName } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
 
 /**
- * The alarm rules of the tent, under Control › Alarms.
+ * The alarm rules of a place, under Steuerung › Alarme.
  *
- * A rule belongs to the device that measures what it watches, so a tent with
- * two controllers has two lists, each under the name of its device. Within a
- * list the rules stand by where they came from, and the order says what a
- * person can expect of each group: the stage's rules are rewritten at the next
- * stage, the cloud's own are there for every device, the firmware's were asked
- * for by the hardware, and the last group is what was written here.
+ * A rule belongs to the device that measures what it watches, so each device
+ * has its list - in Steuerung's order, the place's own device open and every
+ * other folded behind its name (`ByDevice`); the device holding a rule a link
+ * names is unfolded for it. Within a list the rules stand by where they came
+ * from: the stage's are rewritten at the next stage, the cloud's own are there
+ * for every device, the firmware's were asked for by the hardware, and the
+ * last group is what was written here. A device is listed when it holds a rule
+ * or one could be written for it - a plug, a fan and a lamp carry the cloud's
+ * offline rule although none measures a climate.
  *
- * Which devices get a list is the server's answer and not this screen's guess:
- * the cloud keeps an offline rule for everything that is claimed, and the
- * firmware asks for rules of its own, so a plug, a fan and a lamp all carry
- * rules although none of them measures a climate. A device is therefore listed
- * when it holds a rule or when a rule could be written for it, and the type is
- * asked about once only - for what the sheet has to offer somebody writing one.
- *
- * Nothing is decided on this side. Whether a rule stands triggered, whether it
- * is silenced and until when, are the server's answers and are drawn with the
- * server's instants; what this screen adds is what the account's routing would
- * do with the rule, read off the grid the notification settings hold - and
- * only once they have been read, because a rule is not "not announced" merely
- * because the account has yet to answer for itself.
- *
- * The account is asked for only where there is one to ask about. The demo tours
- * somebody else's space and has no account of its own, so the server refuses
- * `/me` for it: a screen that asked anyway would draw its whole list on the back
- * of a 403, which is the rule `useZone` states for the same read. What the
- * refusal would have cost is a routing verdict and a zone, and both already have
- * an answer for an account that has not spoken - the browser's zone, and no
- * verdict at all.
+ * Nothing is decided on this side: whether a rule stands triggered or silenced
+ * are the server's answers, drawn with its instants. What the page adds is
+ * what the account's routing would do with the rule, and only once the account
+ * has answered. The demo has no account and is not asked for one.
  */
 export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
   const { t } = useTranslation();
@@ -87,33 +78,43 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
       {watched.length === 0 && held.isPending ? (
         <Waiting lines={3} />
       ) : watched.length === 0 ? (
-        <AddDeviceNote>{t('alarms.noController')}</AddDeviceNote>
+        <NothingHere to="/claim" where={t('space.control.noControllerAdd')}>
+          {t('alarms.noController')}
+        </NothingHere>
       ) : (
-        watched.map(device => (
-          <DeviceRules
-            key={device.id}
-            device={device}
-            grow={grow}
-            me={me.data}
-            toldAbove={reachesNoOne}
-            mayManage={mayManage}
-            highlighted={params.get('rule')}
-            named={watched.length > 1}
-            now={now}
-          />
-        ))
+        <ByDevice
+          devices={watched}
+          unfolded={held.rules.get(params.get('rule') ?? '')?.deviceId ?? null}
+          line={device =>
+            held.isPending
+              ? null
+              : alarmsLine(
+                  t,
+                  [...held.rules.values()].filter(rule => rule.deviceId === device.id),
+                )
+          }
+        >
+          {device => (
+            <DeviceRules
+              device={device}
+              grow={grow}
+              me={me.data}
+              toldAbove={reachesNoOne}
+              mayManage={mayManage}
+              highlighted={params.get('rule')}
+              now={now}
+            />
+          )}
+        </ByDevice>
       )}
 
-      {/* Silencing a rule and quietening a device are not the same thing. Only
-          maintenance reaches the engine: `alarm-engine.service.ts` skips a
-          device that is being worked on, so no alert is opened at all. A
-          silence is read by the delivery alone, so the rule goes on tripping
-          and the one thing that stops is the announcement. That difference is
-          one tap away rather than a paragraph under every list. */}
-      <p className={`mono ${styles.quietLine}`}>
-        {t('alarms.quietLine')}
-        <Help topic="alarmQuiet" />
-      </p>
+      {/* A silence stops the announcement and maintenance stops the engine: which is which is one tap away, not a paragraph. */}
+      {watched.length > 0 ? (
+        <p className={`mono ${styles.quietLine}`}>
+          {t('alarms.quietLine')}
+          <Help topic="alarmQuiet" />
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -128,18 +129,29 @@ interface DeviceRulesProps {
   mayManage: boolean;
   /** The rule an alert linked to, which is scrolled to and marked. */
   highlighted: string | null;
-  /** Whether the device's name is drawn over its list, which it is only where there is another list to tell it from. */
-  named: boolean;
   now: DateTime;
 }
 
 /** One device's rules, in their groups, with the row that writes a new one under them. */
-function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, named, now }: DeviceRulesProps) {
+function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, now }: DeviceRulesProps) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const rules = useDeviceAlarmRules(device.id);
   const update = useUpdateAlarmRule(device.id);
-  const unsilence = useUnsilenceAlarmRule(device.id);
   const [open, setOpen] = useState<AlarmRule | 'new' | null>(null);
+  // The switch answers with what it did, and takes it back: a rule switched off by a slip of the thumb watches nothing.
+  const toggle = (rule: AlarmRule, enabled: boolean) =>
+    update.mutate(
+      { ruleId: rule.id, body: { enabled } },
+      {
+        onSuccess: () =>
+          tell({
+            label: t(enabled ? 'alarms.told.on' : 'alarms.told.off', { name: ruleTitle(t, rule) }),
+            undo: () => update.mutateAsync({ ruleId: rule.id, body: { enabled: !enabled } }),
+            from: `rule-${rule.id}`,
+          }),
+      },
+    );
   // The rule a template has just written, marked like a linked one so the eye
   // finds where the tap went: the template leaves its place, the rule takes one.
   const [made, setMade] = useState<string | null>(null);
@@ -155,25 +167,8 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, name
     setOpen(linked);
   }, [highlighted, mayManage, rules.data]);
 
-  const name = deviceName(device, t);
-  const title = named ? <h2 className={styles.deviceName}>{name}</h2> : null;
-
-  if (rules.isPending) {
-    return (
-      <section className={styles.device}>
-        {title}
-        <Waiting lines={3} />
-      </section>
-    );
-  }
-  if (!rules.data) {
-    return (
-      <section className={styles.device}>
-        {title}
-        <LoadFailed retry={() => void rules.refetch()} />
-      </section>
-    );
-  }
+  if (rules.isPending) return <Waiting lines={3} />;
+  if (!rules.data) return <LoadFailed retry={() => void rules.refetch()} />;
 
   // The name of the stage's group: the preset the grow stands on where the
   // catalogue has a name for it, otherwise the stage itself - and the bare
@@ -183,8 +178,7 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, name
   const groups = groupRules(rules.data.items);
 
   return (
-    <section className={styles.device}>
-      {title}
+    <div className={styles.device}>
       <RefreshFailed failedAt={rules.isError ? rules.dataUpdatedAt : null} now={now} />
 
       {/* Over the rules rather than under them: while this stands, every switch
@@ -215,18 +209,17 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, name
                 toldAbove={toldAbove}
                 mayManage={mayManage}
                 highlighted={rule.id === highlighted || rule.id === made}
-                busy={update.isPending || unsilence.isPending}
+                busy={update.isPending}
                 now={now}
                 onOpen={() => setOpen(rule)}
-                onToggle={enabled => update.mutate({ ruleId: rule.id, body: { enabled } })}
-                onUnsilence={() => unsilence.mutate(rule.id)}
+                onToggle={enabled => toggle(rule, enabled)}
               />
             ))}
           </ul>
         </div>
       ))}
 
-      <Refused error={update.error ?? unsilence.error} />
+      <Refused error={update.error} />
 
       {mayManage ? <Templates device={device} rules={rules.data.items} onMade={setMade} /> : null}
 
@@ -237,7 +230,7 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, name
       ) : null}
 
       {open ? <RuleSheet device={device} rule={open === 'new' ? null : open} me={me} onClose={() => setOpen(null)} /> : null}
-    </section>
+    </div>
   );
 }
 
@@ -260,7 +253,9 @@ const TEMPLATE_ICON: Record<TemplateKey, LucideIcon> = {
  */
 function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule[]; onMade: (ruleId: string) => void }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const create = useCreateAlarmRule(device.id);
+  const remove = useRemoveAlarmRule(device.id);
   const [making, setMaking] = useState<TemplateKey | null>(null);
   const offered = templatesFor(device).filter(template => ruleFor(rules, template) === null);
 
@@ -269,7 +264,10 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
   const make = (template: AlarmTemplate) => {
     setMaking(template.key);
     create.mutate(templateBody(t, template), {
-      onSuccess: rule => onMade(rule.id),
+      onSuccess: rule => {
+        onMade(rule.id);
+        tell({ label: t('alarms.told.made', { name: ruleTitle(t, rule) }), undo: () => remove.mutateAsync(rule.id) });
+      },
       onSettled: () => setMaking(null),
     });
   };
@@ -306,7 +304,9 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
                 <Icon size={18} strokeWidth={1.75} aria-hidden className={styles.templateIcon} />
                 <span className={styles.templateText}>
                   <span className={styles.templateName}>{name}</span>
-                  <span className={`mono ${styles.templateLine}`}>{making === template.key ? t('alarms.template.making') : line}</span>
+                  <span className={`mono ${styles.templateLine}`}>
+                    {making === template.key ? t('alarms.template.making') : <Facts facts={factsOf(line)} />}
+                  </span>
                 </span>
               </button>
             </li>
@@ -320,16 +320,10 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
 
 /**
  * That this device is being worked on, and until when: the state that decides
- * what every rule below will do, while their switches still stand armed. A rule
- * silenced one at a time says so on its own card, so the silence of the whole
- * device is said too, or it would read as an oversight rather than a decision.
- *
- * Both halves are named because they end at different times. The hardware is
- * let go when the window runs out; the alarms are held for the settling after
- * that, and those are the minutes a grower is most likely to be standing in the
- * tent believing the watch is back on. "End now" gives back the hardware at
- * once - it is the same command with no seconds in it - and the line then says
- * that the alarms are still coming, because they are.
+ * what every rule below will do while their switches still stand armed. Both
+ * halves are named because they end at different times - the hardware is let
+ * go when the window runs out, the alarms are held for the settling after it -
+ * and "End now" gives back the hardware at once.
  */
 function InMaintenance({ device, me, mayManage, now }: { device: Device; me: Me | undefined; mayManage: boolean; now: DateTime }) {
   const { t } = useTranslation();
@@ -374,7 +368,6 @@ interface RuleCardProps {
   now: DateTime;
   onOpen: () => void;
   onToggle: (enabled: boolean) => void;
-  onUnsilence: () => void;
 }
 
 /**
@@ -382,21 +375,25 @@ interface RuleCardProps {
  * how long, how loud and to whom. The switch is the one thing changed in
  * place; everything else is the sheet's, which a tap on the card opens.
  *
+ * A rule that has raised offers to be silent for an hour, and a silenced one
+ * to be loud again, the same tap its alert's card has (`useSilence`).
+ *
  * The switch is drawn but not offered where the device does not report what
  * the rule watches - a CO2 rule the stage wrote for a controller with no
  * sensor - because switching it on would be a promise nothing can keep, and
  * the reason stands under it rather than the control quietly doing nothing.
  */
-function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, now, onOpen, onToggle, onUnsilence }: RuleCardProps) {
+function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, now, onOpen, onToggle }: RuleCardProps) {
   const { t } = useTranslation();
   const card = useRef<HTMLLIElement>(null);
+  const silence = useSilence(rule, device.id, now);
 
   useEffect(() => {
     if (highlighted) card.current?.scrollIntoView?.({ block: 'center' });
   }, [highlighted]);
 
   const missing = missingSensor(rule.watch, device);
-  const silenced = rule.silencedUntil !== null && DateTime.fromISO(rule.silencedUntil) > now;
+  const silenced = silence.silenced;
   // The stage's "too humid" rests while the device germinates, unless the grower asked to be warned there too,
   // and warns at germination's own line where they did - which is the line the card shows while it lasts.
   const workmode = device.configuration?.workmode;
@@ -451,12 +448,13 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
         ) : (
           <span className={`mono ${styles.state}`}>{t(rule.enabled ? 'misc.on' : 'misc.off')}</span>
         )}
-        {silenced && mayManage ? (
-          <button type="button" className={ui.chip} disabled={busy} onClick={onUnsilence}>
-            {t('alarms.unsilence')}
-          </button>
-        ) : null}
+        {mayManage && (silenced || rule.state.triggered) ? <SilenceChip silence={silence} /> : null}
       </span>
+      {silence.error ? (
+        <span className={styles.refused}>
+          <Refused error={silence.error} />
+        </span>
+      ) : null}
       {/* Outside the card's button, which a link cannot stand in, and on a line of its own across it.
           Where the choice is made is Steuerung, which shows it while the device germinates. */}
       {resting && mayManage && device.spaceId ? (
@@ -476,39 +474,16 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
 /**
  * "custom · for 10 min · critical · goes to you by push + Telegram · repeats
  * every 30 min": where the rule came from, how long it has to last, how loud
- * it is, where it goes and how often it says so again. The origin rides here
- * rather than beside the name because a long name leaves it alone on a line of
- * its own.
+ * it is, where it goes and how often it says so again.
  *
- * A routed rule goes where the account's grid sends that severity, which may
- * be nowhere, and that is said rather than left blank - but only once the
- * account has answered, since until then nothing is known either way. It is
- * said as the reader's own, because that is what it is: a tent with two
- * managers has one rule and two routings, and naming the channels flatly would
- * tell each of them that the rule itself is what the other one's settings say.
- * A rule with a delivery of its own names the channel, and one whose delivery
- * this session was not answered - it is a manager's to see - says only that it
- * has one. What repeats is what the rule itself carries, whoever wrote it: the
- * engine says an alarm again on `repeatSeconds` and never on anything else, so
- * the rule the cloud keeps is described by its own half hour like the rest.
- * How often something is said is left off where it is not said at all.
- *
- * Everything about being told is in the future tense, and a rule that is off
- * has no future to speak of: it is watching nothing, so it will reach nobody
- * and repeat nothing whatever it is set to. The line therefore ends at the
- * state rather than going on to promise a delivery and a half hour that only
- * hold once somebody throws the switch beside it. What the rule is set to do
- * is not lost with it - it is all in the sheet the card opens.
- *
- * An account that has muted itself, or that is inside its own quiet hours, is
- * the same case: the server sends nothing at all while either holds, so a
- * routed rule ends at the silence rather than going on to name channels and a
- * half hour that nothing would come out of. Which silence it is, is said, and
- * until when - the inbox says it in those words two taps away, and the way out
- * is there rather than here. A rule delivering to a target of its own is not
- * qualified: it goes out through the alarm's own delivery and really does
- * still send while the account is quiet, so saying otherwise would be the same
- * lie told the other way round.
+ * A routed rule goes where the account's grid sends that severity - said as
+ * the reader's own, since a place with two managers has one rule and two
+ * routings, and only once the account has answered. A rule with a delivery of
+ * its own names the channel. All of it is in the future tense, so the line
+ * ends at the state for a rule that is off, and at the silence - which one,
+ * and until when - for an account that has muted itself or is inside its
+ * quiet hours, where the server sends nothing. A rule with a target of its
+ * own still sends then and is not qualified.
  */
 const metaLine = (t: Translate, rule: AlarmRule, me: Me | undefined, now: DateTime): string => {
   const parts: string[] = [t(`alarms.origin.${rule.origin}`)];

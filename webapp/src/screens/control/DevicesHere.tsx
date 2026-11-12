@@ -23,17 +23,20 @@ import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';
+import { useWideWindow } from '@/ui/wide-window';
 import { calendarDay, useZone } from '@/ui/zone';
 import { isOutputPath, MODE_PATHS, SAID_ON_CARDS } from './climate/figures';
 import { ownFactOf } from './devices/own-summary';
+import { standOf } from './rows';
 import styles from './Control.module.css';
 
 /**
- * What stands in the place, under its climate: a card per device with what is
- * done to the hardware itself - its update, maintenance, a restart - and the
- * way to everything else about it; a row per camera and per smart socket; and
- * the one way to add another. This is where a device is found: the bar has no
- * item for them.
+ * What stands in the place, under its climate: the card of the place's own
+ * device with what is done to the hardware itself - its update, maintenance,
+ * a restart - and the way to everything else about it; a short card for every
+ * further device, whose page holds all of that; a row per camera and per smart
+ * socket; and the one way to add another. This is where a device is found:
+ * the bar has no item for them. `devices` come in Steuerung's order.
  */
 export function DevicesHere({
   spaceId,
@@ -53,17 +56,18 @@ export function DevicesHere({
   const now = useNow();
   const zone = useZone();
   const [adding, setAdding] = useState(false);
-  const ordered = [...devices].sort((one, other) => Number(other.id === lead?.id) - Number(one.id === lead?.id));
-  const ids = ordered.map(device => device.id);
+  const wide = useWideWindow();
+  const ids = devices.map(device => device.id);
   const reads = useLiveReads(ids);
   const tables = useSocketTables(ids);
   const cameras = (useCameras().data?.items ?? []).filter(camera => camera.spaceId === spaceId && camera.removedAt === null);
-  const stills = useLatestStills(cameras.map(camera => camera.id));
+  // A camera's picture stands in its row beside the rail only: a phone is not sent a picture it does not draw.
+  const stills = useLatestStills(wide ? cameras.map(camera => camera.id) : []);
   const spokeAt = (device: Device) => heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
 
   return (
     <div className={styles.standing}>
-      {ordered.map(device => (
+      {devices.map(device => (
         <DeviceCard
           key={device.id}
           device={device}
@@ -82,18 +86,15 @@ export function DevicesHere({
             key={camera.id}
             alone
             to={cameraPath(camera.id)}
-            lead={<Thumb stillId={stills.get(camera.id) ?? null} />}
+            lead={wide ? <Thumb stillId={stills.get(camera.id) ?? null} /> : null}
             title={cameraTitle(camera, carrier, t)}
             line={<Facts facts={cameraFacts(t, camera, carrier, carrier ? deviceLiveness(spokeAt(carrier), now) === 'offline' : false, now, zone)} />}
           />
         );
       })}
 
-      {ordered.flatMap(device => {
-        const stand =
-          deviceLiveness(spokeAt(device), now) === 'offline' && spokeAt(device)
-            ? t('control.stand', { time: sinceLabel(spokeAt(device)!, now, zone) })
-            : null;
+      {devices.flatMap(device => {
+        const stand = standOf(t, spokeAt(device), now, zone);
         return rowsOf(tables.tables.get(device.id)?.items ?? []).map(row => (
           <Row
             key={`${device.id}-${row.key}`}
@@ -114,8 +115,9 @@ export function DevicesHere({
         <Sheet title={t('control.add.title')} onClose={() => setAdding(false)}>
           <div className={ui.sheetBody}>
             <Rows>
-              <Row to="/claim" title={t('home.addDevice.title')} line={t('start.empty.deviceNote')} />
-              <Row to="/cameras/add" title={t('start.empty.camera')} line={t('start.empty.cameraNote')} />
+              <Row to="/claim" title={t('control.add.device')} line={t('start.empty.deviceNote')} />
+              <Row to="/cameras/add" title={t('control.add.terpCam')} line={t('control.add.terpCamNote')} />
+              <Row to="/cameras/add?kind=rtsp" title={t('control.add.camera')} line={t('start.empty.cameraNote')} />
             </Rows>
           </div>
         </Sheet>
@@ -146,7 +148,7 @@ function DeviceCard({
   const offline = liveness === 'offline';
   const waiting = spokeAt === null;
   const title = deviceTitle(device, t, among);
-  const build = useFirmware(device).running;
+  const build = useFirmware(device, leads).running;
   // The build is named by the day it was made, the one thing about it a grower can compare.
   const firmware = build ? t('control.device.firmware', { day: calendarDay(build.createdAt, zone) }) : null;
   const says = waiting
@@ -155,28 +157,24 @@ function DeviceCard({
       ? offlineLabel(spokeAt, now, zone)
       : liveness === 'stale'
         ? t('control.device.late', { age: ageLabel(spokeAt, now) })
-        : t('control.device.online');
+        : t('home.reading.live');
   // What a device that is not the place's climate is set to, which its own page changes.
   const own = leads ? null : ownFactOf(t, device, offsetOf(now, zone));
   const elsewhere = unsaid(pending, leads);
 
   return (
-    <section className={styles.device} aria-label={title}>
+    <section className={styles.device} aria-label={title} data-short={!leads || undefined}>
       <div className={styles.deviceHead}>
         <span className={styles.rowText}>
           {title}
           <span className={styles.rowLine} data-tone={offline && !waiting ? 'warn' : undefined}>
-            <Facts facts={[says, ...(firmware ? [firmware] : [])]} />
+            <Facts facts={[says, firmware, own ? `${own.label}: ${own.value}` : null]} />
           </span>
         </span>
-        {mayManage ? <UpdateButton device={device} offline={offline} /> : null}
+        {leads && mayManage ? <UpdateButton device={device} offline={offline} /> : null}
       </div>
-      {own ? (
-        <p className={styles.rowLine}>
-          {own.label}: {own.value}
-        </p>
-      ) : null}
-      {mayManage ? <DeviceActions device={device} offline={offline || waiting} /> : null}
+      {/* Maintenance, a restart and an update of a further device are on its own page, so the list stays short. */}
+      {leads && mayManage ? <DeviceActions device={device} offline={offline || waiting} /> : null}
       {elsewhere > 0 ? (
         <p className={styles.pendingLine} role="status">
           {t('control.pending.more', { count: elsewhere })}
@@ -207,7 +205,7 @@ const cameraFacts = (t: Translate, camera: Camera, carrier: Device | null, carri
     : t('control.camera.none');
   if (carrier && carrierOffline) return [last, t('control.camera.waits', { device: deviceName(carrier, t) })];
   const fresh = cameraFreshness(camera, now);
-  return [...(fresh === 'live' ? [t('control.device.online')] : []), last];
+  return [...(fresh === 'live' ? [t('home.reading.live')] : []), last];
 };
 
 function Thumb({ stillId }: { stillId: string | null }) {

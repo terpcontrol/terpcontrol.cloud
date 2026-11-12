@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceFirmware, FirmwareChannel } from '@fg2/shared-types/v1';
 import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas/firmware-channels.js';
-import { useDeviceFirmwares } from '@/api/devices';
+import { useDeviceFirmwares, useUpdateDevice } from '@/api/devices';
 import { useLog } from '@/log/log-context';
 import { ageLabel } from '@/ui/age';
 import { Help } from '@/ui/Help';
@@ -14,35 +14,32 @@ import { calendarDay, useZone } from '@/ui/zone';
 import { UpdateButton } from './DeviceActions';
 import { buildName, useFirmware } from './firmware-builds';
 import { PinSheet } from './FirmwarePin';
-import { useChannel } from './update-channel';
 import styles from './DevicePage.module.css';
 
 /**
  * A device's firmware, on its own page: what it runs, what it owes or is
  * offered, and where its updates come from.
  *
- * The build is named by the day it was made, which is the one thing about it
- * a grower can compare; what the build container stamped it with is a commit
- * and a branch and stands under the technical details. One switch says whether
- * the device updates itself. Switched on it follows a release channel, chosen
- * beside it - a new device is enrolled on the stable one; switched off it
- * stays on its build until one is installed here, which asks first because the
- * device restarts with it. A device carried over from the old cloud had no
- * channel that ever worked and starts switched off.
+ * The build is named by the day it was made, the one thing about it a grower
+ * can compare; its stamp stands under the technical details. One switch says
+ * whether the device updates itself: on, it follows a release channel chosen
+ * beside it; off (the channel `manual`), it stays on its build until one is
+ * installed here - any build the server offers this reader - which asks
+ * first, because the device restarts with it.
  *
- * A grower is offered every build that was ever stable and everything newer
- * than the last of those; an administrator every build of the class, for a
- * rollback or a test build.
+ * What the controls mean is behind their (i). A change is shown at once and
+ * answered by the toast, and no control is disabled while it is on its way:
+ * the focus stays on the one that was used, and a second change waits.
  */
-export function FirmwareCard({ device, offline, mayManage, isAdmin }: { device: Device; offline: boolean; mayManage: boolean; isAdmin: boolean }) {
+export function FirmwareCard({ device, offline, mayManage }: { device: Device; offline: boolean; mayManage: boolean }) {
   const { t } = useTranslation();
   const zone = useZone();
   const now = useNow();
   const { tell } = useLog();
   const firmware = useFirmware(device);
-  const update = useChannel(device);
+  const update = useUpdateDevice(device.id);
   const channelId = useId();
-  const channel = update.asked ?? device.firmware.channel;
+  const channel = (update.isPending ? update.variables?.firmware?.channel : null) ?? device.firmware.channel;
   const auto = channel !== 'manual';
   const maySet = mayManage && !device.isDemo;
 
@@ -73,11 +70,13 @@ export function FirmwareCard({ device, offline, mayManage, isAdmin }: { device: 
         ? t('device.firmware.coming', { day: calendarDay(firmware.coming.createdAt, zone) })
         : null;
 
+  // `firmware` is written whole, so the pinned build goes back as it was: a channel chosen tells the device to install nothing.
+  const set = (to: FirmwareChannel) => update.mutateAsync({ firmware: { channel: to, targetId: device.firmware.targetId } });
   const change = (to: FirmwareChannel) => {
     const before = device.firmware.channel;
-    if (to === before) return;
-    void update.set(to).then(
-      () => tell({ label: t(`device.firmware.told.${to}`), undo: () => update.set(before) }),
+    if (to === before || update.isPending) return;
+    void set(to).then(
+      () => tell({ label: t(`device.firmware.told.${to}`), undo: () => set(before), from: `firmware-${device.id}` }),
       // Said under the controls, from the write that refused.
       () => undefined,
     );
@@ -103,7 +102,7 @@ export function FirmwareCard({ device, offline, mayManage, isAdmin }: { device: 
               {t('autoUpdate.label')}
               <Help topic="firmwareChannel" />
             </span>
-            <Switch label={t('autoUpdate.label')} on={auto} disabled={update.isPending} onChange={on => change(on ? 'stable' : 'manual')} />
+            <Switch label={t('autoUpdate.label')} on={auto} onChange={on => change(on ? 'stable' : 'manual')} />
           </div>
           {auto ? (
             <label className={styles.setting} htmlFor={channelId}>
@@ -115,7 +114,6 @@ export function FirmwareCard({ device, offline, mayManage, isAdmin }: { device: 
                 id={channelId}
                 className={`${ui.input} ${styles.select}`}
                 value={channel}
-                disabled={update.isPending}
                 onChange={event => change(event.target.value as FirmwareChannel)}
               >
                 {RELEASE_CHANNELS.map(one => (
@@ -126,9 +124,8 @@ export function FirmwareCard({ device, offline, mayManage, isAdmin }: { device: 
               </select>
             </label>
           ) : null}
-          <p className={ui.note}>{t(auto ? `updateChannel.note.${channel}` : 'autoUpdate.note.manual')}</p>
           <Refused error={update.error} />
-          {!auto && device.classId !== null ? <VersionPick device={device} isAdmin={isAdmin} /> : null}
+          {!auto && device.classId !== null ? <VersionPick device={device} offline={offline} /> : null}
         </>
       ) : (
         <p className={ui.note}>{t(`devices.panel.channel.${device.firmware.channel}`)}</p>
@@ -137,8 +134,12 @@ export function FirmwareCard({ device, offline, mayManage, isAdmin }: { device: 
   );
 }
 
-/** The build a device whose updates are off is put on by hand, picked from what its list offers. */
-function VersionPick({ device, isAdmin }: { device: Device; isAdmin: boolean }) {
+/**
+ * The build a device whose updates are off is put on by hand, picked from what
+ * its list offers. Installing is an update like any other: it waits for a
+ * device that is not heard.
+ */
+function VersionPick({ device, offline }: { device: Device; offline: boolean }) {
   const { t } = useTranslation();
   const zone = useZone();
   const firmwares = useDeviceFirmwares(device.id, true);
@@ -189,12 +190,18 @@ function VersionPick({ device, isAdmin }: { device: Device; isAdmin: boolean }) 
               </option>
             ))}
           </select>
-          <button type="button" className={ui.button} disabled={!build || build.id === device.state.firmwareId} onClick={() => setAsking(true)}>
+          <button
+            type="button"
+            className={ui.button}
+            disabled={!build || build.id === device.state.firmwareId}
+            aria-disabled={offline || undefined}
+            onClick={() => (offline ? undefined : setAsking(true))}
+          >
             {t('firmwarePin.install')}
           </button>
         </span>
       </div>
-      <p className={ui.note}>{firmwares.isError ? t('devices.buildUnread') : t(isAdmin ? 'firmwarePin.noteAdmin' : 'firmwarePin.note')}</p>
+      {firmwares.isError ? <p className={ui.note}>{t('devices.buildUnread')}</p> : null}
       {asking && build ? <PinSheet device={device} build={build} onClose={() => setAsking(false)} /> : null}
     </>
   );

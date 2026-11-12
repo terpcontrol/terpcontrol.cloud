@@ -2,13 +2,17 @@ import { CalendarRange } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { Device, DeviceConfiguration, PendingSetting } from '@fg2/shared-types/v1';
+import { controlPath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { figureOf } from '@/ui/climate-hardware';
 import { factsOf, unbroken } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
+import { useZone } from '@/ui/zone';
+import { heldWords, useHeldLight } from '../held-light';
 import { hasDay, type Field, type NowHolding, type Shape } from '../targets/day-night';
 import { scheduleTitle, windowWords } from '../targets/schedule-words';
 import { Stepper } from '../targets/Stepper';
@@ -25,7 +29,9 @@ const REST_MS = 1500;
  * The light of one lamp - a controller's, a fridge's, a stand-alone LIGHT's:
  * when it comes on, for how long and when it goes off, with "Ändern" opening
  * the day's plan on its sheet, and the limit it is dimmed to, stepped where it
- * stands and sent once it rests. Under them the card's one note on what a
+ * stands and sent once it rests. A lamp held by hand says so over its times,
+ * until when, with the way to where it is handed back to its schedule: the
+ * hold's own control under Ausgänge. Under them the card's one note on what a
  * silent device has not been handed.
  */
 export function LightCard({
@@ -73,7 +79,9 @@ export function LightCard({
   onLimit: (value: number) => Promise<boolean>;
 }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const [open, setOpen] = useState(false);
+  const held = useHeldLight(device, now);
   const limit = useResting(baseline.lightLimit, onLimit);
   const regime = shape.regime;
   const words = windowWords(baseline, offset);
@@ -110,6 +118,16 @@ export function LightCard({
       <h2 className={styles.title} id={`light-${device.id}`}>
         {t('control.light.title')}
       </h2>
+      {held ? (
+        <p className={styles.held} role="status">
+          {heldWords(t, held, now, zone)}
+          {mayManage && device.spaceId ? (
+            <Link to={controlPath(device.spaceId, 'outputs', { device: device.id })} className={styles.heldWay}>
+              {t('control.light.toAuto')} ›
+            </Link>
+          ) : null}
+        </p>
+      ) : null}
       {scheduled ? (
         <div className={styles.line}>
           <p className={styles.says} data-pending={windowHeld !== null || undefined}>

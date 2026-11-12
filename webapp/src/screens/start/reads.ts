@@ -1,7 +1,10 @@
+import type { DateTime } from 'luxon';
 import type { Device, SpaceOverview } from '@fg2/shared-types/v1';
+import { useDeviceLive } from '@/api/devices';
 import { failingSince } from '@/api/read';
 import { useSpaceLive, useSpaceOverview } from '@/api/spaces';
 import { useHumidifier } from '@/screens/control/germination/germination-choices';
+import { useHeldLight } from '@/screens/control/held-light';
 import { humidifierHoldOf, type HumidifierHold } from '@/screens/start/place';
 
 /**
@@ -46,3 +49,23 @@ export const usePlace = (spaceId: string) => {
  * none does. A place's Start and its card among several judge the humidity by it.
  */
 export const useHumidifierHold = (device: Device | null): HumidifierHold | null => humidifierHoldOf(device, useHumidifier(device));
+
+/**
+ * The place's lamp as it last reported, and whether somebody holds it by hand:
+ * the climate device's own light output, or else a light of its own standing
+ * in the same place. A place's Start and its card among several say the same
+ * lamp.
+ */
+export const useLamp = (device: Device | null, here: Device[], now: DateTime) => {
+  const live = useDeviceLive(device?.id ?? null).data;
+  const lamp = here.find(one => one.type === 'light' && one.id !== device?.id) ?? null;
+  const lampLive = useDeviceLive(lamp?.id ?? null).data;
+  const lit =
+    device && live?.outputs.light?.value != null
+      ? { device, live }
+      : lamp && lampLive?.outputs.light?.value != null
+        ? { device: lamp, live: lampLive }
+        : null;
+
+  return { live, lit, held: useHeldLight(lit?.device ?? null, now) };
+};

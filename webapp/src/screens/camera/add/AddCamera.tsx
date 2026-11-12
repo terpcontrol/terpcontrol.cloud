@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 import { useCamerasAsOpened } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { LoadFailed, Waiting } from '@/ui/PageState';
@@ -53,7 +54,7 @@ export function AddCamera() {
  * which tab opens: pairing at a device is the way in only for somebody who has
  * one to pair at, so an account with none opens on the address form instead,
  * and the choice waits for the device list so that the tab never moves under a
- * finger.
+ * finger. A link that names the address form (`?kind=rtsp`) opens on it.
  * The second is the line a newly paired camera is measured against, which has
  * to outlive a tab change: it is the cameras this account had when the *screen*
  * was opened, and looking at the RTSP tab and back is not opening it again.
@@ -62,6 +63,7 @@ function Ways() {
   const { t } = useTranslation();
   const devices = useDevices();
   const [chosen, setChosen] = useState<Kind | null>(null);
+  const asked = useSearchParams()[0].get('kind');
 
   const pairers = pairersOf(devices.data?.items ?? []);
   const opened = useCamerasAsOpened(pairers.length > 0);
@@ -69,7 +71,7 @@ function Ways() {
   if (devices.isPending) return <Waiting lines={4} />;
   if (!devices.data) return <LoadFailed retry={() => void devices.refetch()} />;
 
-  const kind = chosen ?? (pairers.length > 0 ? 'terpcam' : 'rtsp');
+  const kind = chosen ?? (pairers.length > 0 && asked !== 'rtsp' ? 'terpcam' : 'rtsp');
 
   return (
     <>

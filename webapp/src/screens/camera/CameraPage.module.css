@@ -45,14 +45,6 @@
   }
 }
 
-/* The name keeps its words whole: the pill goes under it before a word is cut in two, and only a word longer than
-   the line beside the way back - a finger wide, less what it hangs out by - breaks. */
-.page > header > h1 {
-  min-width: auto;
-  max-width: calc(100% - var(--control-height) + var(--space-3) - var(--space-2));
-  overflow-wrap: break-word;
-}
-
 /* A name longer than its place is cut there: the grow's on the picture, a camera's on a chip, and a device's in the
    pill that dates the page ("wartet auf …"), which stays inside the screen. */
 .cut {

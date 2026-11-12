@@ -16,12 +16,6 @@
   gap: var(--space-6);
 }
 
-.deviceName {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-heading);
-  line-height: var(--line-tight);
-}
-
 .group {
   display: flex;
   flex-direction: column;
@@ -72,8 +66,10 @@
   flex: 1;
   flex-direction: column;
   align-items: stretch;
+  justify-content: center;
   gap: var(--space-1);
   min-width: 0;
+  min-height: var(--control-height);
   padding: 0;
   background: none;
   border: 0;
@@ -123,8 +119,13 @@
 
 /* A rule that reaches nobody, with the way to change that: a line of its own
    across the card, under the rule it is about, in the warning's colour. */
-.card:has(> .fix) {
+.card:has(> .fix, > .refused) {
   flex-wrap: wrap;
+}
+
+/* A silence the server refused, said across the card under the chip that asked. */
+.refused {
+  flex-basis: 100%;
 }
 
 .fix {
@@ -154,6 +155,17 @@
   flex-shrink: 0;
   align-items: flex-end;
   gap: var(--space-2);
+}
+
+/* The switch and the chip under it are a finger high where they are tapped: the switch reaches into the card's own air. */
+.side > [role='switch']::after {
+  content: '';
+  position: absolute;
+  inset: -11px -2px;
+}
+
+.side > button:not([role='switch']) {
+  height: var(--control-height);
 }
 
 /* The switch's place, for a reader who may not throw it: the fact alone. */

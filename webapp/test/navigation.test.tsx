@@ -648,7 +648,9 @@ describe('the choice of place', () => {
   });
 
   it.each([
-    ['Steuerung, on a page below it', '/control/alarms?space=space-2&rule=rule-1', '/control?space=space-1'],
+    ['Steuerung', '/control?space=space-2', '/control?space=space-1'],
+    // A page below Steuerung stays that page: the other place has its alarms too. What named a rule of the place left goes.
+    ['Steuerung, on a page below it', '/control/alarms?space=space-2&rule=rule-1', '/control/alarms?space=space-1'],
     ['Verlauf', '/timeline?space=space-2&focus=humidity', '/timeline?space=space-1'],
     ['Grow, on one of its tabs', '/grow/plants?space=space-2', '/grow?space=space-1'],
   ])('keeps the item and shows it for the place chosen: %s', async (_what, from, to) => {

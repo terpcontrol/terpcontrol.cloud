@@ -13,7 +13,8 @@ import { fieldOf, pendingByPath, pendingField } from './figures';
  * wherever: the toast that names what changed - "… gespeichert", and for a
  * device that is not heard that it takes the setting over when it next
  * connects - with the way to take it back where that is one write. A device
- * acknowledges nothing, so nothing here says that it took anything.
+ * acknowledges nothing, so nothing here says that it took anything. `from`
+ * names the setting, so saving it again answers in the same toast.
  */
 export const useSaved = (device: Device) => {
   const { t } = useTranslation();
@@ -22,8 +23,12 @@ export const useSaved = (device: Device) => {
 
   return {
     offline,
-    say: (what: string, undo: (() => Promise<unknown>) | null = null) =>
-      tell({ label: t(offline ? 'control.saved.later' : 'control.saved.now', { what, device: deviceName(device, t) }), undo }),
+    say: (what: string, undo: (() => Promise<unknown>) | null = null, from?: string) =>
+      tell({
+        label: t(offline ? 'control.saved.later' : 'control.saved.now', { what, device: deviceName(device, t) }),
+        undo,
+        from: from === undefined ? undefined : `${device.id}:${from}`,
+      }),
   };
 };
 
@@ -69,7 +74,7 @@ export const useSettings = (device: Device) => {
         await configure.mutateAsync(set);
         // A setting the document never stated has nothing to go back to.
         const whole = before.every(([, value]) => value !== null);
-        saved.say(what, whole ? () => configure.mutateAsync(Object.fromEntries(before) as SettingsSet) : null);
+        saved.say(what, whole ? () => configure.mutateAsync(Object.fromEntries(before) as SettingsSet) : null, Object.keys(set).join(' '));
         return true;
       } catch {
         // Said under the control that asked, from the write that was refused.

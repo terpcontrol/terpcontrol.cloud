@@ -135,6 +135,8 @@ const wire = {
   refuseSave: null as { status: number; code: string; detail: string } | null,
   /** The roles of the sockets paired at the device; none answers 404, a device that reports no table. */
   sockets: null as string[] | null,
+  /** The grow standing in the place, as its overview names it; none answers a place nothing grows in. */
+  grow: null as { stage: string; preset: string | null } | null,
   calls: [] as Call[],
 };
 
@@ -178,6 +180,9 @@ vi.stubGlobal(
             nextCursor: null,
           })
         : problem(404, 'not_found', 'No socket table.');
+    }
+    if (method === 'GET' && path === '/spaces/space-1/overview') {
+      return json({ spaceId: 'space-1', name: 'Tent', grows: wire.grow ? [{ growId: 'grow-1', ...wire.grow }] : [], climates: [] });
     }
     if (method === 'GET' && path === '/devices/device-1/plan') {
       return wire.plan ? json(wire.plan) : problem(404, 'plan_not_found', 'This device is not being run by a plan.');
@@ -260,6 +265,7 @@ beforeEach(() => {
   wire.zone = null;
   wire.refuseSave = null;
   wire.sockets = null;
+  wire.grow = null;
   wire.calls = [];
   told.length = 0;
 });
@@ -468,6 +474,25 @@ describe('the climate under Steuerung', () => {
       );
 
       expect(screen.getByRole('button', { name: 'Climate preset: Flower' })).toBeInTheDocument();
+    });
+
+    /** One figure set by hand does not make the place nameless: the server still knows what stage it is on. */
+    it('is named by the stage the server knows the place is on, once a figure was set by hand', async () => {
+      wire.grow = { stage: 'flowering', preset: 'late_flowering' };
+      await drawn();
+
+      expect(await screen.findByRole('button', { name: 'Climate preset: Late flower' })).toBeInTheDocument();
+    });
+
+    it('is named by the spell the device runs, whatever the grow is recorded in, and by nothing where nothing is known', async () => {
+      const bare = draw();
+      await screen.findByRole('table', { name: 'Targets' });
+      expect(screen.getByRole('button', { name: 'Climate preset' })).toBeInTheDocument();
+      bare.unmount();
+
+      wire.grow = { stage: 'flowering', preset: null };
+      await drawn(device({ type: 'fridge', control: { ...CONTROL, drying: true } }));
+      expect(await screen.findByRole('button', { name: 'Climate preset: Drying' })).toBeInTheDocument();
     });
 
     /** A chip only shows what it would set; nothing is written before "Apply". */

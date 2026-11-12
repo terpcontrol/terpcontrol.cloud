@@ -3,6 +3,8 @@ import { DateTime } from 'luxon';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Camera, Device, DeviceCapabilities, DeviceConfiguration, PlanTransition, Socket } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
+import { ApiError } from '@/api/problem';
+import type { Told } from '@/log/log-context';
 import { cameraFreshness } from '@/screens/devices/cameras';
 import { drawDevicePages } from './device-pages';
 import { deviceWith } from './fixtures';
@@ -70,12 +72,13 @@ vi.mock('@/api/plans', async importOriginal => {
   };
 });
 
-/** What the pages said in a toast, which is the app's and not theirs to draw. */
-const told: { label: string }[] = [];
+/** What the pages said in a toast, which is the app's and not theirs to draw, each with the way it is taken back. */
+const told: Told[] = [];
 vi.mock('@/log/log-context', async importOriginal => ({
   ...(await importOriginal<object>()),
-  useLog: () => ({ tell: (one: { label: string }) => told.push(one) }),
+  useLog: () => ({ tell: (one: Told) => told.push(one) }),
 }));
+const said = () => told.map(one => one.label);
 
 /** Steuerung's own parts, which a device's page draws only for a device that is not the place's climate. */
 const place = vi.hoisted(() => ({ leads: true }));
@@ -116,6 +119,8 @@ const wire = {
 
 const answer = () =>
   vi.mocked(api.get).mockImplementation((path: string) => {
+    if (path.endsWith('/plan'))
+      return Promise.reject(new ApiError({ status: 404, code: 'plan_not_found', title: 'Not found', detail: '', errors: [] }));
     if (path === '/devices') return Promise.resolve({ items: wire.devices, nextCursor: null }) as never;
     if (path === '/spaces') return Promise.resolve({ items: [spaceWhere(wire.youMay)], nextCursor: null }) as never;
     if (path === '/me') return Promise.resolve({ id: 'user-1', handle: 'you' }) as never;
@@ -133,6 +138,7 @@ const controller = ({ state, ...over }: Partial<Omit<Device, 'state'>> & { state
   deviceWith({ ownerId: THE_HOST, ...over, state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, ...state } });
 
 const LIGHTS = { sunrise: 15, sunset: 15, limit: 80 };
+const CONTROL = { running: true, drying: false, mode: 'standard', energySaving: false } as Device['control'];
 
 beforeAll(async () => {
   await translate();
@@ -174,6 +180,9 @@ describe('how late a camera is', () => {
   });
 });
 
+/** What the pill in the head dates the device as. */
+const pill = () => document.querySelector('[data-liveness]')?.getAttribute('data-liveness');
+
 describe('a device on its own page', () => {
   /** A page of the device, once it is drawn and has read the places - which say where it stands and what the reader may do. */
   const draw = async (at = '/devices/device-1', title = 'Controller') => {
@@ -201,13 +210,15 @@ describe('a device on its own page', () => {
     wire.builds = () => Promise.resolve({ items, nextCursor: null });
   };
 
-  it('says where the device stands and that it is heard, and leads back to Steuerung of its place', async () => {
+  it('says where the device stands and, once, how it is heard, and leads back to Steuerung of its place', async () => {
     await draw();
 
     expect(screen.getByRole('link', { name: 'Back to Control' })).toHaveAttribute('href', '/control?space=space-1');
     expect(screen.getByRole('link', { name: 'in Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
-    expect(screen.getByText('connected')).toBeInTheDocument();
-    expect(screen.getByText('live')).toBeInTheDocument();
+    // How it is heard is the pill's to say: the line under the name does not say it a second time, in a second word.
+    expect(pill()).toBe('live');
+    expect(screen.getByRole('link', { name: 'in Tent 1' }).closest('p')).toHaveTextContent(/^in Tent 1$/);
+    expect(screen.queryByText(/connected/)).not.toBeInTheDocument();
   });
 
   it('names a device´s type in the catalogue rather than printing the contract´s key', async () => {
@@ -251,7 +262,7 @@ describe('a device on its own page', () => {
     );
     await draw();
 
-    expect(await screen.findByText('live')).toBeInTheDocument();
+    await waitFor(() => expect(pill()).toBe('live'));
     expect(screen.queryByText(/^Offline since/)).not.toBeInTheDocument();
   });
 
@@ -260,7 +271,6 @@ describe('a device on its own page', () => {
     await draw();
 
     expect(screen.getByText('waiting for first values')).toBeInTheDocument();
-    expect(screen.getByText('has never reported')).toBeInTheDocument();
     expect(screen.queryByText(/^Offline since/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Restart' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Maintenance · 15 min' })).not.toBeInTheDocument();
@@ -334,13 +344,46 @@ describe('a device on its own page', () => {
 
       const toggle = screen.getByRole('switch', { name: 'Update automatically' });
       expect(toggle).toHaveAttribute('aria-checked', 'false');
-      expect(screen.getByText(/Off: the device stays on its version/)).toBeInTheDocument();
       // Switched off there is no channel to choose, only the version to install by hand.
       expect(screen.queryByRole('combobox', { name: 'Update channel' })).not.toBeInTheDocument();
       fireEvent.click(toggle);
 
       await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1', { firmware: { channel: 'stable', targetId: 'fw-old' } }));
-      await waitFor(() => expect(told.map(one => one.label)).toEqual(['Automatic updates on · stable versions']));
+      await waitFor(() => expect(said()).toEqual(['Automatic updates on · stable versions']));
+      // Taken back, the device is on no channel again.
+      await told[0].undo!();
+      expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1', { firmware: { channel: 'manual', targetId: 'fw-old' } });
+    });
+
+    /**
+     * A control disabled while its write is on its way drops the focus, which
+     * then lands on the (i) beside it - and that opened by itself. So nothing
+     * is disabled: the change shows at once and a second one waits.
+     */
+    it('shows a change at once, keeps the control that was used in reach and opens no explanation by itself', async () => {
+      wire.devices = [controller({ classId: 'class-1', firmware: { channel: 'stable', targetId: null } })];
+      let answerWrite: (device: Device) => void = () => undefined;
+      vi.mocked(api.patch).mockImplementation(() => new Promise<Device>(resolve => (answerWrite = resolve)) as never);
+      await draw();
+
+      const toggle = screen.getByRole('switch', { name: 'Update automatically' });
+      toggle.focus();
+      fireEvent.click(toggle);
+
+      await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'));
+      expect(api.patch).toHaveBeenCalledTimes(1);
+      expect(toggle).toBeEnabled();
+      expect(toggle).toHaveFocus();
+      // A second tap while the first is on its way sends nothing.
+      fireEvent.click(toggle);
+      expect(api.patch).toHaveBeenCalledTimes(1);
+
+      answerWrite({ ...wire.devices[0], firmware: { channel: 'manual', targetId: null } });
+      await waitFor(() => expect(said()).toEqual(['Automatic updates off']));
+      expect(toggle).toHaveFocus();
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+      // Nothing is explained beside the controls: what they mean is behind their (i).
+      expect(screen.queryByText(/the device stays on its version|Only released versions/)).not.toBeInTheDocument();
     });
 
     it('offers the release channels while the device updates itself, and no version to pick', async () => {
@@ -354,12 +397,13 @@ describe('a device on its own page', () => {
           .getAllByRole('option')
           .map(option => option.textContent),
       ).toEqual(['Stable', 'Beta', 'Alpha']);
-      expect(screen.getByText('Only released versions.')).toBeInTheDocument();
       // On a release channel there is no version to pick: the channel decides it.
       expect(screen.queryByRole('combobox', { name: 'Firmware version' })).not.toBeInTheDocument();
       fireEvent.change(channel, { target: { value: 'beta' } });
 
       await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1', { firmware: { channel: 'beta', targetId: null } }));
+      expect(channel).toBeEnabled();
+      await waitFor(() => expect(said()).toEqual(['Automatic updates on · beta too']));
     });
 
     /**
@@ -382,6 +426,11 @@ describe('a device on its own page', () => {
       fireEvent.click(within(asked).getByRole('button', { name: 'Install' }));
 
       await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1', { firmware: { channel: 'manual', targetId: 'fw-new' } }));
+      // The sheet goes and the toast says what was asked of the device - not that it took it, and with nothing to take back.
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(told).toEqual([
+        { label: 'Update to e4f5a6b asked for · Controller restarts with it', undo: null, from: expect.stringMatching(/^firmware-/) },
+      ]);
     });
 
     it('says a newer build comes by itself to a device that follows its channel, and offers no button for it', async () => {
@@ -437,17 +486,39 @@ describe('a device on its own page', () => {
 
       fireEvent.click(within(asked).getByRole('button', { name: 'Restart now' }));
 
-      expect(await within(asked).findByText('Restart asked for. The device will be back in a moment.')).toBeInTheDocument();
-      expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'reboot' });
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'reboot' }));
+      // Heard, the sheet goes and the toast says so; a restart is not taken back.
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(told).toEqual([{ label: 'Restart asked for · Fridge module will be back in a moment', undo: null }]);
     });
 
-    it('starts a quarter of an hour of maintenance on this device with one tap', async () => {
+    it('keeps the question open and says so where the device was not there to hear the restart', async () => {
+      vi.mocked(api.post).mockResolvedValue({ publishedAt: NOW.toISO(), deviceOnline: false } as never);
       wire.devices = [fridge()];
       await draw('/devices/device-1', 'Fridge module');
-      fireEvent.click(screen.getByRole('button', { name: 'Maintenance · 15 min' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Restart' }));
+      const asked = await screen.findByRole('dialog', { name: 'Restart Fridge module?' });
+      fireEvent.click(within(asked).getByRole('button', { name: 'Restart now' }));
+
+      expect(await within(asked).findByText(/could not be reached just now and most likely did not get the command/)).toBeInTheDocument();
+      expect(told).toEqual([]);
+    });
+
+    it('starts a quarter of an hour of maintenance on this device with one tap, says until when, and ends it again when taken back', async () => {
+      wire.devices = [fridge()];
+      await draw('/devices/device-1', 'Fridge module');
+      const start = screen.getByRole('button', { name: 'Maintenance · 15 min' });
+      start.focus();
+      fireEvent.click(start);
 
       await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 900 }));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      // The button that was tapped is not disabled under the hand while the command is on its way.
+      expect(start).toBeEnabled();
+      await waitFor(() => expect(said()).toEqual([expect.stringMatching(/^Maintenance started · until \d\d:\d\d$/)]));
+
+      await told[0].undo!();
+      expect(api.post).toHaveBeenLastCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 0 });
     });
 
     it('says a window is standing, until when, and offers its end and another quarter of an hour', async () => {
@@ -459,6 +530,31 @@ describe('a device on its own page', () => {
       fireEvent.click(screen.getByRole('button', { name: 'End' }));
 
       await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 0 }));
+      await waitFor(() => expect(said()).toEqual(['Maintenance ended']));
+      // Taken back, the window stands until the minute it stood until.
+      await told[0].undo!();
+      expect(api.post).toHaveBeenLastCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 480 });
+    });
+
+    it('says until when a window holds once it was extended, and puts it back as it stood when taken back', async () => {
+      wire.devices = [fridge({ maintenanceUntil: NOW.plus({ minutes: 8 }).toISO()! })];
+      await draw('/devices/device-1', 'Fridge module');
+      fireEvent.click(screen.getByRole('button', { name: 'Extend' }));
+
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 23 * 60 }));
+      await waitFor(() => expect(said()).toEqual([expect.stringMatching(/^Maintenance extended · until \d\d:\d\d$/)]));
+      await told[0].undo!();
+      expect(api.post).toHaveBeenLastCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 480 });
+    });
+
+    it('says nothing was started where the device was not there to hear it', async () => {
+      vi.mocked(api.post).mockResolvedValue({ publishedAt: NOW.toISO(), deviceOnline: false } as never);
+      wire.devices = [fridge()];
+      await draw('/devices/device-1', 'Fridge module');
+      fireEvent.click(screen.getByRole('button', { name: 'Maintenance · 15 min' }));
+
+      expect(await screen.findByText('A device could not be reached just now and may not have got the command.')).toBeInTheDocument();
+      expect(told).toEqual([]);
     });
 
     it('holds both back while the device is offline, says why once, and what to try', async () => {
@@ -513,9 +609,26 @@ describe('a device on its own page', () => {
 
       fireEvent.click(within(asked).getByRole('button', { name: 'Switch off' }));
 
-      expect(await within(asked).findByText('Control is off.')).toBeInTheDocument();
+      // Answered as every setting of a device is: the sheet goes, the toast says it is stored.
+      await waitFor(() => expect(said()).toEqual(['Control off · saved']));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(moves).toEqual([{ kind: 'pause', reason: 'Control was switched off.' }]);
       expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { control: false } });
+
+      // Taken back, control is on again and the plan it paused goes on.
+      await told[0].undo!();
+      expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1/configuration', { set: { control: true } });
+      expect(moves).toEqual([{ kind: 'pause', reason: 'Control was switched off.' }, { kind: 'resume' }]);
+    });
+
+    it('says of a device that is not heard that it takes the switch over when it next connects', async () => {
+      wire.devices = [{ ...regulating(), state: { ...regulating().state, lastSeenAt: NOW.minus({ minutes: 25 }).toISO()! } }];
+      vi.mocked(api.patch).mockResolvedValue(regulating({ running: false }) as never);
+      await draw('/devices/device-1', 'Fridge module');
+      fireEvent.click(screen.getByRole('button', { name: 'Switch control off' }));
+      fireEvent.click(within(await screen.findByRole('dialog', { name: 'Switch control off?' })).getByRole('button', { name: 'Switch off' }));
+
+      await waitFor(() => expect(said()).toEqual(['Control off · saved, Fridge module takes it over when it next connects']));
     });
 
     it('says that control is off, switches it back on with one tap, and says that it did', async () => {
@@ -527,7 +640,7 @@ describe('a device on its own page', () => {
       fireEvent.click(screen.getByRole('button', { name: /^Switch control on/ }));
 
       await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { control: true } }));
-      await waitFor(() => expect(told.map(one => one.label)).toEqual(['Control switched on']));
+      await waitFor(() => expect(said()).toEqual(['Control on · saved']));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
@@ -552,7 +665,7 @@ describe('a device on its own page', () => {
       wire.sockets = [socket()];
       await draw();
 
-      expect(screen.getByRole('button', { name: /^Rename or move/ })).toHaveTextContent('stands in Tent 1');
+      expect(screen.getByRole('button', { name: /^Rename or move/ })).toHaveTextContent('in Tent 1');
       // The sockets themselves are listed where they are switched, under Steuerung: here they are counted, and another is paired.
       await waitFor(() => expect(screen.getByRole('button', { name: /^Pair a socket/ })).toHaveTextContent('1 paired'));
       expect(screen.queryByRole('link', { name: /Heater/ })).not.toBeInTheDocument();
@@ -601,6 +714,52 @@ describe('a device on its own page', () => {
 
       expect(screen.getByText('own settings of device-1')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /This device's curves/ })).toHaveAttribute('href', '/timeline?space=space-1&device=device-1');
+    });
+
+    /** Everything of a second device is one tap from its page, and nothing of it is built a second time. */
+    it('leads another device of the place to its own part of the pages behind Steuerung´s rows, each only where it has something there', async () => {
+      place.leads = false;
+      wire.devices = [controller({ type: 'fridge', configuration: { workmode: 'small', day: { temperature: 25, humidity: 60 } }, control: CONTROL })];
+      wire.sockets = [socket()];
+      await draw('/devices/device-1', 'Fridge module');
+
+      const rows = within(screen.getByRole('navigation', { name: 'Under Control' }));
+      await waitFor(() => expect(rows.getAllByRole('link')).toHaveLength(5));
+      for (const [name, page] of [
+        [/^Alarms/, 'alarms'],
+        [/^Grow plan/, 'plan'],
+        [/^Outputs/, 'outputs'],
+        [/^Operating mode/, 'mode'],
+      ] as const) {
+        expect(rows.getByRole('link', { name })).toHaveAttribute('href', `/control/${page}?space=space-1&device=device-1`);
+      }
+      // Each row says what stands behind it, as Steuerung's own rows do.
+      expect(rows.getByRole('link', { name: /^Grow plan/ })).toHaveTextContent('off');
+      expect(rows.getByRole('link', { name: /^Outputs/ })).toHaveTextContent('Heater off');
+    });
+
+    it('offers a Plantalytix Socket no plan, no outputs and no mode, and an AIR fan no outputs that would only lead back', async () => {
+      place.leads = false;
+      wire.devices = [controller({ type: 'plug', control: null, configuration: { mode: 2 } })];
+      await draw('/devices/device-1', 'Plantalytix Socket');
+      const rows = () => within(screen.getByRole('navigation', { name: 'Under Control' }));
+
+      expect(await rows().findByRole('link', { name: /^Alarms/ })).toBeInTheDocument();
+      for (const name of [/^Grow plan/, /^Outputs/, /^Operating mode/]) expect(rows().queryByRole('link', { name })).not.toBeInTheDocument();
+      cleanup();
+
+      wire.devices = [controller({ type: 'fan', control: null, configuration: { mode: 0, day: { speed: 70 }, night: { speed: 40 } } })];
+      await draw('/devices/device-1', 'Fan');
+      expect(await rows().findByRole('link', { name: /^Alarms/ })).toBeInTheDocument();
+      expect(rows().queryByRole('link', { name: /^Outputs/ })).not.toBeInTheDocument();
+    });
+
+    it('offers somebody who may not steer the curves alone', async () => {
+      place.leads = false;
+      wire.youMay = 'log';
+      await draw();
+
+      expect(within(screen.getByRole('navigation', { name: 'Under Control' })).getAllByRole('link')).toHaveLength(1);
     });
   });
 
@@ -657,7 +816,10 @@ describe('a device on its own page', () => {
       );
       drawDevicePages('/devices/someone-elses');
 
-      expect(await screen.findByText('This device cannot be opened.')).toBeInTheDocument();
+      // A page all the same: a heading that titles the window, the sentence, and a way on.
+      expect(await screen.findByRole('heading', { level: 1, name: 'Device' })).toBeInTheDocument();
+      expect(screen.getByText('This device cannot be opened.')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
       expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
     });
   });

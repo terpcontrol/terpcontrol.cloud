@@ -69,3 +69,20 @@
   text-align: right;
   overflow-wrap: anywhere;
 }
+
+/* The places a device can stand in: a long name takes the lines it needs inside the sheet instead of running out of it. */
+.places button {
+  height: auto;
+  min-height: var(--control-height);
+  max-width: 100%;
+  padding-block: var(--space-1);
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* What goes with a device that moves. */
+.along {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}

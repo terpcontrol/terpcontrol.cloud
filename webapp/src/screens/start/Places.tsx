@@ -2,7 +2,7 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Device, HomeAnswer, HomeSpaceCard, Space } from '@fg2/shared-types/v1';
-import { useDeviceLive, useDevices } from '@/api/devices';
+import { useDevices } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
@@ -19,6 +19,7 @@ import { judgedAt, livenessOf } from './attention';
 import { useCardStatus } from './card-status';
 import { toneOf } from './place';
 import { readingFacts, readingsOf } from './readings';
+import { useLamp } from './reads';
 import { startOrder } from './rooms';
 import { DemoBanner, GuestLine } from './states';
 import { dueNow, useWaitingSteps, type Due } from './due';
@@ -158,20 +159,12 @@ function PlaceCard({
   const { t } = useTranslation();
   const zone = useZone();
   const { here, device, values, status, said } = useCardStatus(card, devices, judged);
-  const live = useDeviceLive(device?.id ?? null).data;
-  const lamp = here.find(one => one.type === 'light' && one.id !== device?.id) ?? null;
-  const lampLive = useDeviceLive(lamp?.id ?? null).data;
-  const lit =
-    device && live?.outputs.light?.value != null
-      ? { device, live }
-      : lamp && lampLive?.outputs.light?.value != null
-        ? { device: lamp, live: lampLive }
-        : null;
+  const { lit, held } = useLamp(device, here, now);
   const tone = toneOf(status);
   const asks = tone === 'warn' || tone === 'alarm';
   const offline = status.kind === 'offline';
   const setpoints = card.climates[0]?.setpoints ?? card.setpoints;
-  const readings = readingsOf(t, { values, setpoints, device, lit: offline ? null : lit, hold: null, now, zone });
+  const readings = readingsOf(t, { values, setpoints, device, lit: offline ? null : lit, held, hold: null, now, zone });
   const figures = readingFacts(t, readings);
   const pill = offline ? 'home.reading.offline' : PILL[tone];
   const still = card.latestStill ? mediaUrl(card.latestStill.mediaId, THUMBNAIL_WIDTH.still) : null;

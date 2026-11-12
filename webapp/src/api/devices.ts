@@ -69,7 +69,9 @@ export const useDevicesById = (deviceIds: readonly string[], enabled = true) =>
     queries: deviceIds.map(deviceId => ({ ...deviceQuery(deviceId), enabled })),
   });
 
-const socketsKey = (deviceId: string) => ['devices', deviceId, 'sockets'];
+/** The keys a device's socket table and its live values are read under, for whoever reads one again by hand. */
+export const socketsKey = (deviceId: string) => ['devices', deviceId, 'sockets'];
+export const liveKey = (deviceId: string) => deviceLiveQuery(deviceId).queryKey;
 
 /**
  * The socket tables of several devices at once. One read per device: a table is
@@ -237,6 +239,10 @@ export const useUpdateDevice = (deviceId: string) =>
   useWrite(
     (body: DeviceUpdate) => api.patch<Device>(`/devices/${deviceId}`, body),
     (client, device) => {
+      // Into the list as well, which is what the device's own page is drawn from: a new name stands there at once.
+      client.setQueryData<DevicePage>(['devices'], page =>
+        page ? { ...page, items: page.items.map(one => (one.id === device.id ? device : one)) } : page,
+      );
       client.setQueryData(['devices', device.id], device);
       deviceMoved(client);
     },

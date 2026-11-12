@@ -1,13 +1,15 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, AlarmRule, Device, Plan, PlanStep, PlanTransition, Socket, SocketPage } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
+import type { PlaceCard } from '@/app/places';
+import type { Told } from '@/log/log-context';
 import { Control } from '@/screens/control/Control';
 import { PlanEditor } from '@/screens/control/PlanEditor';
 import { PlanPanel } from '@/screens/control/PlanPanel';
-import { alarmsLine, modeLine, outputsLine, outputsOf, pendingBehind } from '@/screens/control/rows';
+import { alarmsLine, modeLine, outputsLine, outputsOf, pendingBehind, planLine } from '@/screens/control/rows';
 import { elapsedMs, leftMs, movesOf, throughStep } from '@/screens/control/plan-clock';
 import {
   asWritableBy,
@@ -80,12 +82,24 @@ vi.mock('@/api/plans', async importOriginal => ({
     refetch: () => {},
   }),
   usePlanTransition: () => ({
-    mutate: (body: PlanTransition) => state.sent.push(body),
+    // A move the server takes answers the caller; one it refuses is said from `error`.
+    mutate: (body: PlanTransition, options?: { onSuccess?: () => void }) => {
+      state.sent.push(body);
+      if (state.moveError === null) options?.onSuccess?.();
+    },
+    mutateAsync: (body: PlanTransition) => Promise.resolve(state.sent.push(body)),
     error: state.moveError,
     isPending: false,
   }),
-  useStopPlan: () => ({ mutate: () => {}, error: null, isPending: false }),
-  useRemovePlan: () => ({ mutate: () => (state.removed += 1), error: null, isPending: false }),
+  useStopPlan: () => ({ mutate: (_: undefined, options?: { onSuccess?: () => void }) => options?.onSuccess?.(), error: null, isPending: false }),
+  useRemovePlan: () => ({
+    mutate: (_: undefined, options?: { onSuccess?: () => void }) => {
+      state.removed += 1;
+      options?.onSuccess?.();
+    },
+    error: null,
+    isPending: false,
+  }),
   useSavePlan: () => ({ mutate: () => {}, error: null, isPending: false }),
   useDevicePlans: () => ({ plans: state.plan ? [state.plan] : [], isPending: false }),
   usePlanTemplates: () => ({ data: state.templates, isPending: state.templates === undefined, error: null }),
@@ -176,12 +190,21 @@ const withoutCo2 = (): Device => {
   return { ...one, state: { ...one.state, hardware: { ...one.state.hardware, co2: 'off' } } };
 };
 
-const draw = (one: Device = device()) => drawAt(<PlanPanel device={one} mayManage landing={climateLanding(one)} />);
+/** What the page answered its writes with: each toast, with the way it is taken back. */
+let told: Told[] = [];
+
+const draw = (one: Device = device()) =>
+  drawAt(
+    <Toast told={told}>
+      <PlanPanel device={one} mayManage landing={climateLanding(one)} />
+    </Toast>,
+  );
 
 beforeAll(() => translate());
 
 beforeEach(() => {
   may.youMay = 'own';
+  told = [];
   state.plan = plan();
   state.planError = null;
   state.moveError = null;
@@ -191,18 +214,19 @@ beforeEach(() => {
   state.templates = undefined;
 });
 
-const drawTab = (sub: string | null = null) =>
+const drawTab = (sub: string | null = null, at = '/control', here: PlaceCard | null = null) =>
   drawAt(
-    <Toast>
-      <Control spaceId="space-1" sub={sub} />
+    <Toast told={told}>
+      <Control spaceId="space-1" sub={sub} here={here} />
     </Toast>,
+    { at },
   );
 
 describe('Steuerung of a place with nothing standing in it', () => {
   it('offers the one thing that would change that, and no row to a page that would be as empty', () => {
     drawTab();
 
-    expect(screen.getByText(/Nothing stands here yet/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing to control yet/)).toBeInTheDocument();
     // One way to add, not a link in the note and a button under it.
     expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '+ Add a device or a camera' }));
@@ -239,17 +263,19 @@ describe('the plan panel over hardware that states no climate', () => {
     });
   });
 
-  it('says nothing here runs on a plan, and offers neither way to write one', () => {
-    drawAt(<PlanPanel device={lamp()} mayManage landing={climateLanding(lamp())} />);
+  it('lists no lamp on the plan page, and says what is missing with the way back where that leaves it empty', async () => {
+    state.devices = [lamp()];
+    drawTab('plan');
 
-    expect(screen.getByText('Nothing here runs on a plan.')).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing standing here takes targets from a plan\./)).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Back to Control' }).at(-1)).toHaveAttribute('href', '/control?space=space-1');
+    expect(screen.queryByText('Bar light')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Write a plan' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Start from a template' })).not.toBeInTheDocument();
   });
 
   it('refuses a controller whose document has not arrived the way the targets page refuses it', () => {
     const waiting = { ...device(), configuration: null };
-    drawAt(<PlanPanel device={waiting} mayManage landing={climateLanding(waiting)} />);
+    draw(waiting);
 
     expect(screen.getByText(/has not sent its settings yet/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Write a plan' })).not.toBeInTheDocument();
@@ -348,8 +374,19 @@ describe('what Steuerung opens on, and the rows under the climate', () => {
 
     expect(await screen.findByRole('table', { name: 'Targets' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Resume plan' })).not.toBeInTheDocument();
-    const line = within(screen.getByRole('link', { name: /^Grow plan/ })).getByText(/paused/i);
+    const row = screen.getByRole('link', { name: /^Grow plan/ });
+    const line = within(row).getByText(/paused/i);
     expect(line.closest('[data-tone="warn"]')).not.toBeNull();
+    // The row leads to where it is continued, and does not send the reader to the page they are on.
+    expect(row).toHaveAttribute('href', '/control/plan?space=space-1');
+    expect(row).not.toHaveTextContent(/under Control/);
+  });
+
+  it('says why a paused plan stands still, as the pause wrote it down', () => {
+    const t = i18next.t.bind(i18next);
+    const paused = plan({}, { status: 'paused', stepStartedAt: null, pausedElapsedMs: 3_600_000, pauseReason: 'Targets set by hand' });
+
+    expect(planLine(t, [paused], NOW)).toEqual({ text: 'Veg paused · Targets set by hand', warn: true });
   });
 
   it('draws the plan page behind its row, titled by itself, with the way back to Steuerung', async () => {
@@ -392,6 +429,180 @@ describe('what Steuerung opens on, and the rows under the climate', () => {
 });
 
 /**
+ * A place holds any number of devices. Steuerung stays short with them, and a
+ * page behind one of its rows leads with the place's own device.
+ */
+describe('Steuerung of a place with several devices', () => {
+  const regulating = { running: true, drying: false, mode: 'standard', energySaving: false } as Device['control'];
+  const plug = (): Device => ({ ...device(), id: 'device-2', type: 'plug', name: 'Pump socket', configuration: { workmode: 'heater' } });
+  const second = (): Device => ({ ...device(), id: 'device-3', name: 'Second controller' });
+  const here = (deviceIds: string[]): PlaceCard =>
+    ({
+      spaceId: 'space-1',
+      name: 'Tent',
+      deviceIds,
+      values: [{ metric: 'temperature', value: 24, measuredAt: NOW.toISO(), state: 'live' }],
+    }) as unknown as PlaceCard;
+
+  it('gives the place´s own device its card with what is done to the hardware, and every further device a short one', async () => {
+    state.devices = [plug(), device()];
+    drawTab();
+
+    const lead = await screen.findByRole('region', { name: 'Blue Dream tent' });
+    expect(within(lead).getByRole('button', { name: 'Restart' })).toBeInTheDocument();
+    // The further device says how it is and what it is set to, and leads to its page: its restart is there.
+    const short = screen.getByRole('region', { name: 'Pump socket' });
+    expect(short).toHaveTextContent('Switches by: Heating');
+    expect(within(short).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(short).getByRole('link', { name: /Everything about Pump socket/ })).toHaveAttribute('href', '/devices/device-2');
+    // The place's own device stands first, whatever order the account lists them in.
+    expect(lead.compareDocumentPosition(short) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('names the three things that can be added, the Terp Cam among them', async () => {
+    state.devices = [device()];
+    drawTab();
+
+    fireEvent.click(await screen.findByRole('button', { name: '+ Add a device or a camera' }));
+    const links = within(screen.getByRole('dialog')).getAllByRole('link');
+    expect(links.map(link => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['Devicewith the code on its display', '/claim'],
+      ['Terp Campaired at a device’s display', '/cameras/add'],
+      ['Another camera (RTSP)an RTSP stream that shows a place', '/cameras/add?kind=rtsp'],
+    ]);
+  });
+
+  it('says a silent lead´s state as of when it was known, not in green, also while another device keeps the place live', async () => {
+    const silent = { ...device(NOW.minus({ hours: 2 })), control: regulating };
+    state.devices = [silent, plug()];
+    drawTab(null, '/control', here(['device-1', 'device-2']));
+
+    const pill = (await screen.findByText('Regulating')).closest('[data-tone]');
+    expect(pill).toHaveAttribute('data-tone', 'warn');
+    expect(pill).toHaveTextContent('Regulating · as of 10:00');
+  });
+
+  it('says a heard lead regulates, and dates a place led by a device with no regulation of its own', async () => {
+    state.devices = [{ ...device(), control: regulating }];
+    const live = drawTab(null, '/control', here(['device-1']));
+
+    const pill = await screen.findByText('Regulating');
+    expect(pill.closest('[data-tone]')).toBeNull();
+    live.unmount();
+
+    // A socket has no regulation to report: the head says how fresh the place is instead of nothing.
+    state.devices = [plug()];
+    drawTab(null, '/control', here(['device-2']));
+    await screen.findByRole('region', { name: 'Pump socket' });
+    expect(screen.getByRole('heading', { level: 1 }).closest('header')).toHaveTextContent(/online/);
+  });
+
+  it('leads a page with the place´s own device, folds every other behind a row and lists none with nothing for the page', async () => {
+    state.plan = plan({}, { status: 'paused', stepStartedAt: null, pauseReason: null });
+    state.devices = [plug(), device(), second()];
+    drawTab('plan');
+
+    // The plan mock answers one plan, the first controller's: it stands open under its name.
+    expect(await screen.findByRole('heading', { level: 2, name: 'Blue Dream tent' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Autoflower, 12 weeks' })).toBeInTheDocument();
+    // The second controller is one row; the socket follows no plan and is not listed at all.
+    const fold = screen.getByRole('button', { name: /Second controller/ });
+    expect(fold).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Pump socket')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing here runs on a plan.')).not.toBeInTheDocument();
+
+    fireEvent.click(fold);
+    expect(fold).toHaveAttribute('aria-expanded', 'true');
+    expect(within(screen.getByRole('region', { name: 'Second controller' })).getByText('Autoflower, 12 weeks')).toBeInTheDocument();
+  });
+
+  it('opens a page with the device a link names unfolded', async () => {
+    state.devices = [device(), second()];
+    drawTab('plan', '/control/plan?space=space-1&device=device-3');
+
+    expect(await screen.findByRole('button', { name: /Second controller/ })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('says what is missing on a page with nothing for the place, with the way back', async () => {
+    // A tent controller has no mode to choose: germination and drying come with the climate preset.
+    state.devices = [{ ...device(), control: regulating }];
+    drawTab('mode');
+
+    expect(await screen.findByText(/There is no operating mode to choose here:/)).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Back to Control' }).at(-1)).toHaveAttribute('href', '/control?space=space-1');
+  });
+});
+
+/**
+ * Every move of a plan is answered by a toast that names what changed, since
+ * the button that asked may be gone with it; only a pause is taken back.
+ */
+describe('what a plan´s move is answered with', () => {
+  it('names the plan that was paused, and takes the pause back by continuing it', async () => {
+    draw();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+
+    expect(told.map(one => one.label)).toEqual(['“Autoflower, 12 weeks” paused']);
+    await told[0].undo!();
+    expect(state.sent).toEqual([{ kind: 'pause', reason: null }, { kind: 'resume' }]);
+  });
+
+  it('says where a skip led and that a stop stopped, with nothing to take back', () => {
+    draw();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Skip the step' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop the plan' }));
+
+    expect(told.map(one => [one.label, one.undo])).toEqual([
+      ['On to Flower', null],
+      ['“Autoflower, 12 weeks” stopped', null],
+    ]);
+    // One toast per plan: the next move's answer takes the last one's place.
+    expect(new Set(told.map(one => one.from))).toEqual(new Set(['plan-device-1']));
+  });
+
+  it('says nothing of a move the server refused', () => {
+    state.moveError = new ApiError({ status: 409, code: 'plan_not_running', title: 'Conflict', detail: 'Not running.', errors: [] });
+    draw();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+
+    expect(told).toEqual([]);
+  });
+});
+
+/**
+ * A lamp held by hand keeps to no schedule, so the card that states the
+ * schedule says so - by what this browser asked of it, the device reporting
+ * no hold of its own lamp - with the way to where it is handed back.
+ */
+describe('the Licht card of a lamp held by hand', () => {
+  afterEach(() => localStorage.clear());
+
+  it('says which way it is held and until when, and leads to the hold´s own control', async () => {
+    localStorage.setItem('terp.lightHold.device-1', JSON.stringify({ state: 'off', until: NOW.plus({ minutes: 65 }).toISO() }));
+    state.devices = [device()];
+    drawTab();
+
+    const light = await screen.findByRole('region', { name: 'Light' });
+    expect(within(light).getByRole('status')).toHaveTextContent('held off until 13:05');
+    expect(within(light).getByRole('link', { name: 'Back to auto ›' })).toHaveAttribute('href', '/control/outputs?space=space-1&device=device-1');
+  });
+
+  it('says nothing once the hold has run out', async () => {
+    localStorage.setItem('terp.lightHold.device-1', JSON.stringify({ state: 'off', until: NOW.minus({ minutes: 1 }).toISO() }));
+    state.devices = [device()];
+    drawTab();
+
+    const light = await screen.findByRole('region', { name: 'Light' });
+    expect(within(light).queryByText(/held off/)).not.toBeInTheDocument();
+  });
+});
+
+/**
  * A row is read rather than opened to find out: its line is the page's state
  * in a few words, and amber only where somebody is needed.
  */
@@ -417,24 +628,48 @@ describe('what a row says about the page behind it', () => {
   });
 
   /** Only a smart socket reports a hold: "all on auto" is claimed of a list made of sockets, and never of a lamp. */
-  it('names what the devices drive, and says "all on auto" only of sockets', () => {
+  it('says each output with what it does, and "all on auto" only of sockets', () => {
     const lampless = { ...device(), configuration: { day: { temperature: 25 } } } as Device;
-    const withSockets = outputsOf(lampless, sockets(socket('exhaust', 0), socket('humidifier', 1)), null);
-    expect(outputsLine(t, [withSockets], NOW, null)).toEqual({ text: 'Exhaust, Humidifier · all on auto', warn: false });
+    const withSockets = outputsOf(lampless, sockets(socket('exhaust', 0), socket('humidifier', 1, { state: 'off' })), null);
+    expect(outputsLine(t, [withSockets], NOW, null)).toEqual({ text: 'Exhaust on · Humidifier off · all on auto', warn: false });
 
     const held = outputsOf(
       lampless,
       sockets(socket('exhaust', 0, { override: { state: 'on', validUntil: NOW.plus({ minutes: 40 }).toISO() } })),
       null,
     );
-    expect(outputsLine(t, [held], NOW, 'as of 13:49')).toEqual({
-      text: 'as of 13:49 · Exhaust · Exhaust forced on · 40 min',
-      warn: true,
-    });
+    expect(outputsLine(t, [held], NOW, null, 'as of 13:49')).toEqual({ text: 'as of 13:49 · Exhaust held on, 40 min', warn: true });
 
-    // The controller's own lamp reports no hold back, so nothing is claimed about it.
-    const lamp = outputsOf(device(), sockets(socket('exhaust', 0)), null);
-    expect(outputsLine(t, [lamp], NOW, null).text).toBe('Light, Exhaust');
+    // The controller's own lamp reports no hold back, so nothing is claimed about it - only what it runs at.
+    const level = { percent: 80, measuredAt: NOW.toISO()!, state: 'live' as const };
+    const lamp = outputsOf(device(), sockets(socket('exhaust', 0)), level);
+    expect(outputsLine(t, [lamp], NOW, null)).toEqual({ text: 'Light 80 % · Exhaust on', warn: false });
+    expect(outputsLine(t, [outputsOf(device(), sockets(), { ...level, percent: 0 })], NOW, null).text).toBe('Light off');
+  });
+
+  it('says a lamp held by hand in the outputs´ line, until when, in the colour of what needs a person', () => {
+    const lamp = outputsOf(device(), sockets(socket('exhaust', 0)), { percent: 0, measuredAt: NOW.toISO()!, state: 'live' });
+    const hold = new Map([['device-1', { state: 'off' as const, until: NOW.plus({ minutes: 65 }).toISO()! }]]);
+
+    expect(outputsLine(t, [lamp], NOW, null, null, hold)).toEqual({ text: 'Light held off until 13:05 · Exhaust on', warn: true });
+  });
+
+  /** A fan's mode stands with the fan it is of, so no line ends on a bare "Fixed". */
+  it('binds an AIR fan´s mode to its name', () => {
+    const fan = { ...device(), type: 'fan', configuration: { mode: 0, day: { fixed_speed: 70 }, night: { fixed_speed: 40 } } } as unknown as Device;
+    const line = outputsLine(t, [outputsOf(fan, sockets(), null)], NOW, null).text;
+
+    expect(line).toBe('Fans: Fixed · By day 70 % · At night 40 %');
+  });
+
+  it('leads a further device´s outputs with its name, unless its one output is called the same', () => {
+    const level = { percent: 100, measuredAt: NOW.toISO()!, state: 'live' as const };
+    const second = { ...device(), id: 'device-3', name: 'Second controller' } as Device;
+    const lamp = { ...device(), id: 'device-4', type: 'light', name: null, configuration: { day: 68400, night: 25200, limit: 65 } } as Device;
+
+    expect(
+      outputsLine(t, [outputsOf(device(), sockets(), level), outputsOf(second, sockets(), level), outputsOf(lamp, sockets(), level)], NOW, null).text,
+    ).toBe('Light 100 % · Second controller: Light 100 % · Light 100 %');
   });
 
   /** A setting that lives behind a row and has not reached a silent device is said in that row's line. */

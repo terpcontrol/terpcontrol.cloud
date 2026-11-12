@@ -128,13 +128,27 @@ describe('maintenance on Start', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('says so where a device was not there to hear it', async () => {
+  /** The window appears further down the page than the tap was, and nothing else answered it. */
+  it('answers the tap with a toast that says until when, and ends the window again when it is taken back', async () => {
+    draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance · 15 min' }));
+
+    const toast = (await screen.findByText(/^Maintenance started/)).closest('[role="status"]') as HTMLElement;
+    expect(toast).toHaveTextContent(/Maintenance started · until \d\d:\d\d/);
+    fireEvent.click(within(toast).getByRole('button', { name: 'Undo' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenLastCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 0 }));
+  });
+
+  it('says so where a device was not there to hear it, and claims no window in a toast', async () => {
     vi.mocked(api.post).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: false } as never);
     draw();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Maintenance · 15 min' }));
 
     expect(await screen.findByText('A device could not be reached just now and may not have got the command.')).toBeInTheDocument();
+    expect(screen.queryByText(/^Maintenance started/)).not.toBeInTheDocument();
   });
 
   it('is not offered while the place is offline', async () => {
@@ -171,6 +185,7 @@ describe('maintenance on Start', () => {
     fireEvent.click(within(control).getByRole('button', { name: 'End' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 0 }));
+    expect(await screen.findByText('Maintenance ended')).toBeInTheDocument();
   });
 
   it('extends a standing window by another quarter of an hour', async () => {

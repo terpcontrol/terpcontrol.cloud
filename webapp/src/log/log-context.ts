@@ -83,6 +83,8 @@ export interface Told {
   label: string;
   /** Takes it back; a refusal is said in the toast, which then offers to try again. Null where there is no taking it back. */
   undo: (() => Promise<unknown>) | null;
+  /** The control that was used, where it may be used again at once - a switch, a stepper: its next toast takes this one's place. */
+  from?: string;
 }
 
 interface LogState {

@@ -50,12 +50,15 @@ type Subject = 'space' | 'grow' | 'camera' | 'device';
  * because somebody was taken out of a tent. It is not worth trying again, so it
  * offers home, and names only the two causes a 404 can have: it does not say the
  * subject ended, nor name a sharer, since a 404 does not tell which ids exist.
+ * It is a page all the same: its heading says what the address was about and
+ * titles the window.
  */
 export function NoLongerHere({ what }: { what: Subject }) {
   const { t } = useTranslation();
 
   return (
     <section className={styles.failed}>
+      <h1>{t(`shell.gone.title.${what}`)}</h1>
       <p className={ui.problem} role="alert">
         {t(`shell.gone.${what}`)}
       </p>

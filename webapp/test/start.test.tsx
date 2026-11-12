@@ -147,7 +147,8 @@ describe('Start of one place with a camera and a grow', () => {
     draw();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument();
-    expect(screen.getByText('live')).toBeInTheDocument();
+    // A place that reports is "online": one word for it on the pill, a device's card and a camera's row.
+    expect(screen.getByText('online')).toBeInTheDocument();
     expect(screen.getByText('· 18 s ago')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('All on target.');
   });
@@ -446,6 +447,30 @@ describe('Start of a place that only regulates', () => {
     // No grow, no diary: nothing about either but the one card that offers it.
     expect(screen.queryByRole('heading', { name: 'Today' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Whole diary ›' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * A lamp somebody holds off keeps to no schedule. "All on target" alone over
+   * it read as a tent keeping its day, and the tile promised a switch at an
+   * hour the hold would pass.
+   */
+  it('says a lamp held by hand in its tile and under the sentence, with the way to where it is handed back', async () => {
+    localStorage.setItem('terp.lightHold.device-1', JSON.stringify({ state: 'off', until: new Date(Date.now() + 65 * 60_000).toISOString() }));
+    server.live = { ...server.live, outputs: { light: { value: 0, measuredAt: ago(0.3), state: 'live' } } } as never;
+    draw();
+
+    expect((await screen.findByRole('link', { name: 'Light' })).closest('div')).toHaveTextContent('LightOffheld off until 12:05');
+    expect(screen.getByRole('status')).toHaveTextContent('All on target.');
+    const line = screen.getByText('Light held off until 12:05').closest('p')!;
+    expect(within(line).getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', '/control/outputs?space=space-1');
+  });
+
+  it('says nothing of a hold whose time is up', async () => {
+    localStorage.setItem('terp.lightHold.device-1', JSON.stringify({ state: 'off', until: new Date(Date.now() - 60_000).toISOString() }));
+    draw();
+
+    expect((await screen.findByRole('link', { name: 'Light' })).closest('div')).toHaveTextContent('Light65 %on until 18:00');
+    expect(screen.queryByText(/held off/)).not.toBeInTheDocument();
   });
 
   it('says the one thing that is off its target, and leads to that reading´s curve', async () => {

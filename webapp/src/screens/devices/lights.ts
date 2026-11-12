@@ -112,15 +112,33 @@ export const rememberLightHold = (deviceId: string, hold: Held | null) => {
   for (const listener of listeners) listener();
 };
 
+const rawHold = (deviceId: string): string | null => readStored(HOLD_KEY(deviceId)) ?? unkept.get(deviceId) ?? null;
+
 export const useLightHold = (deviceId: string, now: DateTime): Held | null => {
   const raw = useSyncExternalStore(
     subscribe,
-    () => readStored(HOLD_KEY(deviceId)) ?? unkept.get(deviceId) ?? null,
+    () => rawHold(deviceId),
     () => null,
   );
   const held = useMemo(() => heldIn(raw), [raw]);
 
   return held && isAhead(held.until, now) ? held : null;
+};
+
+/** The holds of several devices' light outputs, by device: for a line that says what a whole place drives. */
+export const useLightHolds = (deviceIds: readonly string[], now: DateTime): ReadonlyMap<string, Held> => {
+  const ids = deviceIds.join(' ');
+  const raw = useSyncExternalStore(
+    subscribe,
+    () => JSON.stringify(ids.split(' ').map(rawHold)),
+    () => '[]',
+  );
+
+  return useMemo(() => {
+    const said = JSON.parse(raw) as (string | null)[];
+    const holds = ids.split(' ').map((id, index) => [id, heldIn(said[index] ?? null)] as const);
+    return new Map(holds.filter((hold): hold is readonly [string, Held] => hold[1] !== null && isAhead(hold[1].until, now)));
+  }, [ids, raw, now]);
 };
 
 const heldIn = (raw: string | null): Held | null => {

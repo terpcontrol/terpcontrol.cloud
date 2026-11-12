@@ -49,22 +49,13 @@ import styles from './CameraPage.module.css';
  * diary, to a film of one's own and to what the camera is set to.
  */
 export function CameraPage() {
-  const { t } = useTranslation();
   const { cameraId = '' } = useParams();
   const camera = useCamera(cameraId);
   usePageOfPlace(camera.data?.spaceId ?? null);
 
   if (camera.isPending) return <Waiting lines={3} />;
   if (camera.data) return <CameraScreen camera={camera.data} failedAt={camera.isError ? camera.dataUpdatedAt : null} />;
-  if (!noLongerThere(camera.error)) return <LoadFailed retry={() => void camera.refetch()} />;
-
-  // An address that names no camera this account can open is a page all the same: a heading, which titles the window, and the way to Start.
-  return (
-    <section className={styles.page}>
-      <h1>{t('camera.title')}</h1>
-      <NoLongerHere what="camera" />
-    </section>
-  );
+  return noLongerThere(camera.error) ? <NoLongerHere what="camera" /> : <LoadFailed retry={() => void camera.refetch()} />;
 }
 
 /** The least time between two writes of the address: a drag across a grow is as many days, and a browser refuses a hundred writes in ten seconds. */

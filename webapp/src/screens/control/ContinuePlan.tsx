@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDevicePlan, usePlanTransition } from '@/api/plans';
 import type { Device } from '@fg2/shared-types/v1';
+import { useLog } from '@/log/log-context';
 import { SettingRow } from '@/ui/advanced/SettingRow';
+import { Asking } from '@/ui/Asking';
 import ui from '@/ui/ui.module.css';
 import { isGoing } from './plan-clock';
 import { PlanRefusal } from './Refusal';
@@ -15,12 +17,14 @@ import styles from './ContinuePlan.module.css';
  * screen skips forward one step at a time and starts at the first.
  *
  * The step chosen starts from nought, the way the engine starts any step, so
- * the question says so before it is sent; a plan that was paused or put away
+ * the question says so before it is sent, as every move of a plan asks (`Asking`); a plan that was paused or put away
  * runs again, because going on with a step is not pausing at it. It stands
- * under the plan it moves, and draws nothing for a device without steps.
+ * under the plan it moves, draws nothing for a device without steps, and is
+ * answered by the toast.
  */
 export function ContinuePlan({ device }: { device: Device }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const plan = useDevicePlan(device.id);
   const move = usePlanTransition(device.id);
   const [chosen, setChosen] = useState<string | null>(null);
@@ -57,48 +61,31 @@ export function ContinuePlan({ device }: { device: Device }) {
               </option>
             ))}
           </select>
-          <button type="button" className={ui.chip} disabled={move.isPending} onClick={() => setAsking(true)}>
+          <button type="button" className={ui.button} disabled={move.isPending} onClick={() => setAsking(true)}>
             {t('continuePlan.go')}
           </button>
         </div>
       </SettingRow>
 
       {asking && step ? (
-        <div className={`${ui.cardDashed} ${styles.ask}`} role="alertdialog" aria-label={t('continuePlan.label')}>
-          <p className={ui.note}>
-            {t(going ? 'continuePlan.ask' : 'continuePlan.askAtRest', { step: label(index + 1, step.name), plan: plan.data?.name ?? '' })}
-          </p>
-          <div className={styles.row}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              disabled={move.isPending}
-              onClick={() =>
-                move.mutate(
-                  { kind: 'goto', stepId: step.id },
-                  {
-                    onSuccess: () => {
-                      setAsking(false);
-                      setChosen(null);
-                    },
-                  },
-                )
-              }
-            >
-              {t('continuePlan.yes', { number: index + 1 })}
-            </button>
-            <button type="button" className={ui.button} onClick={() => setAsking(false)}>
-              {t('grow.lifecycle.cancel')}
-            </button>
-          </div>
-        </div>
-      ) : null}
-      {move.isSuccess && !asking ? (
-        <p className={`${ui.note} ${styles.done}`} role="status">
-          {t('continuePlan.done', {
-            step: label((plan.data?.state.activeStepIndex ?? 0) + 1, steps[plan.data?.state.activeStepIndex ?? 0]?.name ?? ''),
-          })}
-        </p>
+        <Asking
+          note={t(going ? 'continuePlan.ask' : 'continuePlan.askAtRest', { step: label(index + 1, step.name), plan: plan.data?.name ?? '' })}
+          yes={t('continuePlan.yes', { number: index + 1 })}
+          busy={move.isPending}
+          onYes={() =>
+            move.mutate(
+              { kind: 'goto', stepId: step.id },
+              {
+                onSuccess: () => {
+                  setAsking(false);
+                  setChosen(null);
+                  tell({ label: t('continuePlan.done', { number: index + 1, name: step.name }), undo: null, from: `plan-${device.id}` });
+                },
+              },
+            )
+          }
+          onCancel={() => setAsking(false)}
+        />
       ) : null}
       <PlanRefusal error={move.error} onRefresh={() => void plan.refetch()} />
     </>

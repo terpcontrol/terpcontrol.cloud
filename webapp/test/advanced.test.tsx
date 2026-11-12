@@ -1,13 +1,13 @@
 import { screen } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Camera, Device } from '@fg2/shared-types/v1';
+import type { Device } from '@fg2/shared-types/v1';
 import { configurationFieldsOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { api } from '@/api/client';
 import { useSettings } from '@/screens/control/climate/saved';
 import { ChoiceSetting, NumberSetting, SettingsBlock, SwitchSetting } from '@/screens/control/devices/Settings';
 import { AdvancedSection } from '@/ui/advanced/Advanced';
 import { fieldValue, heldSetting } from '@/ui/advanced/field-values';
-import { advancedItem, type AdvancedItem } from '@/ui/advanced/item';
+import { advancedItem, type AdvancedItem, type ChartsContext } from '@/ui/advanced/item';
 import { itemsFor } from '@/ui/advanced/registry';
 import { drawAt } from './harness';
 import { Toast } from './toast';
@@ -55,32 +55,38 @@ describe('the registry', () => {
 
 describe('a section', () => {
   const ITEMS: AdvancedItem[] = [
-    advancedItem({ scope: 'camera', id: 'second', order: 20, shows: () => true, Item: () => <p>second</p> }),
+    advancedItem({ scope: 'charts', id: 'second', order: 20, shows: () => true, Item: () => <p>second</p> }),
     advancedItem({
-      scope: 'camera',
+      scope: 'charts',
       id: 'first',
       order: 10,
-      shows: ({ devices }) => devices.length > 0,
-      Item: ({ camera }) => <p>first of {camera.id}</p>,
+      shows: ({ vpdDrawn }) => vpdDrawn,
+      Item: ({ spaceId }) => <p>first of {spaceId}</p>,
     }),
-    advancedItem({ scope: 'charts', id: 'elsewhere', order: 0, shows: () => true, Item: () => <p>elsewhere</p> }),
+    advancedItem({ scope: 'device', id: 'elsewhere', order: 0, shows: () => true, Item: () => <p>elsewhere</p> }),
   ];
-  const camera = { id: 'camera-1' } as Camera;
+  const charts = (vpdDrawn: boolean): ChartsContext => ({
+    growId: null,
+    spaceId: 'space-1',
+    settings: { stepSeconds: null, vpdHalf: 'all', live: false },
+    change: () => undefined,
+    answeredStep: null,
+    vpdDrawn,
+    endsNow: true,
+  });
 
   it('draws its items folded, in their order, with the context of its scope', () => {
-    drawAt(<AdvancedSection scope="camera" context={{ camera, devices: [fridge()], mayManage: true }} items={ITEMS} />);
+    drawAt(<AdvancedSection scope="charts" context={charts(true)} items={ITEMS} />);
 
     const section = screen.getByText('Advanced').closest('details')!;
     expect(section).not.toHaveAttribute('open');
     // Nothing is explained over the items: each says what it is behind its own help.
-    expect([...section.querySelectorAll('p')].map(line => line.textContent)).toEqual(['first of camera-1', 'second']);
+    expect([...section.querySelectorAll('p')].map(line => line.textContent)).toEqual(['first of space-1', 'second']);
     expect(screen.queryByText('elsewhere')).not.toBeInTheDocument();
   });
 
   it('is not drawn at all where none of its items applies', () => {
-    const { container } = drawAt(
-      <AdvancedSection scope="camera" context={{ camera, devices: [], mayManage: true }} items={ITEMS.filter(item => item.id === 'first')} />,
-    );
+    const { container } = drawAt(<AdvancedSection scope="charts" context={charts(false)} items={ITEMS.filter(item => item.id === 'first')} />);
 
     expect(container).toBeEmptyDOMElement();
   });

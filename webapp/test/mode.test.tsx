@@ -58,7 +58,7 @@ const said = () => told[0]?.label.replace(/\u00a0/g, ' ');
 const draw = (one: Device, mayManage = true) =>
   drawAt(
     <Toast told={told}>
-      <ModePage devices={[one]} mayManage={mayManage} />
+      <ModePage spaceId="space-1" devices={[one]} mayManage={mayManage} />
     </Toast>,
   );
 

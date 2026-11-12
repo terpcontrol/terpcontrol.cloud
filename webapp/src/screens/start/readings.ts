@@ -2,6 +2,8 @@ import type { DateTime } from 'luxon';
 import type { CardSetpoint, CardValue, Device, DeviceLive, ValueState } from '@fg2/shared-types/v1';
 import { chartsPath, timelinePath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
+import { heldWords } from '@/screens/control/held-light';
+import type { Held } from '@/screens/devices/HandHold';
 import { valueAge } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 import { figure, figureWithUnit } from '@/ui/units';
@@ -38,6 +40,8 @@ export interface Reading {
   focus: string | null;
   /** For the lamp: whether it is on. */
   lit?: boolean;
+  /** For the lamp: that it is held by hand, in words - "von Hand aus bis 13:05". */
+  held?: string | null;
 }
 
 interface ReadingsInput {
@@ -47,6 +51,8 @@ interface ReadingsInput {
   device: Device | null;
   /** What the device with the place's lamp last reported, and that device. */
   lit: { device: Device; live: DeviceLive } | null;
+  /** The lamp held by hand (`useHeldLight`), which then keeps to no schedule. */
+  held?: Held | null;
   hold: HumidifierHold | null;
   now: DateTime;
   zone: string | null;
@@ -72,7 +78,7 @@ const lightNote = (
   return half === 'day' ? null : t('start.light.offUntil', { time: window.on });
 };
 
-export const readingsOf = (t: Translate, { values, setpoints, device, lit, hold, now, zone }: ReadingsInput): Reading[] => {
+export const readingsOf = (t: Translate, { values, setpoints, device, lit, held = null, hold, now, zone }: ReadingsInput): Reading[] => {
   const readings: Reading[] = [];
 
   for (const metric of ['temperature', 'humidity', 'vpd'] as const) {
@@ -98,16 +104,21 @@ export const readingsOf = (t: Translate, { values, setpoints, device, lit, hold,
   if (lit && level?.value != null) {
     const age = valueAge(level, now);
     const on = level.value > 0;
+    // Held by hand, the lamp switches when the hold ends and not by its schedule.
+    const byHand = held && age === 'live' ? heldWords(t, held, now, zone) : null;
     readings.push({
       key: 'light',
       label: t('start.metric.light'),
       figure: on ? `${decimalFigure(Math.round(level.value), 0)} %` : t('start.light.off'),
-      note: age === 'live' ? lightNote(t, lit, on, now, zone) : verdictSaid(t, { kind: 'last', at: level.measuredAt }, 'temperature', now, zone),
+      note:
+        byHand ??
+        (age === 'live' ? lightNote(t, lit, on, now, zone) : verdictSaid(t, { kind: 'last', at: level.measuredAt }, 'temperature', now, zone)),
       tone: 'quiet',
       judged: false,
       age,
       focus: 'light',
       lit: on,
+      held: byHand,
     });
   }
 
@@ -119,7 +130,13 @@ export const readingFacts = (t: Translate, readings: Reading[]): string[] =>
   readings
     .filter(reading => reading.key !== 'vpd')
     .map(reading =>
-      reading.key === 'light' ? (reading.lit ? t('start.card.light', { level: reading.figure }) : t('start.card.lightOff')) : reading.figure,
+      reading.key !== 'light'
+        ? reading.figure
+        : reading.held
+          ? `${t('start.metric.light')} ${reading.held}`
+          : reading.lit
+            ? t('start.card.light', { level: reading.figure })
+            : t('start.card.lightOff'),
     );
 
 /** Where a reading's curve is drawn: its panel of Verlauf, and Graphen for VPD, which Verlauf has no panel for. */

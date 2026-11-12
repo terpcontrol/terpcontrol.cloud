@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Entry } from '@fg2/shared-types/v1';
 import { Facts } from '@/ui/Facts';
@@ -13,6 +13,9 @@ import styles from './Toasts.module.css';
  * that is what makes the sheet quick - so it also has to be the place where a
  * write that never landed is admitted to, rather than a screen that quietly
  * shows one line fewer than the person wrote.
+ *
+ * There are never more than two (`toast-room.ts`), and none stands on a sheet's
+ * buttons: while a sheet is open they stand above its button row.
  */
 
 export interface LoggedLine {
@@ -24,6 +27,8 @@ export interface LoggedLine {
   changed?: LogRequest['changed'];
   /** For a toast that tells of something already done: how it is taken back. Null for a line that was written. */
   revert: (() => Promise<unknown>) | null;
+  /** The control a toast that tells of something came from, whose next toast takes its place. */
+  from?: string;
   /** The line could not be sent because nothing answered: it is sent again by itself once the connection is back. */
   waiting?: boolean;
   details: { kind: TileKind; target: LogTarget } | null;
@@ -50,11 +55,53 @@ interface ToastsProps {
   onDetails: (line: LoggedLine) => void;
 }
 
+/** The room a toast keeps above what it stands over. */
+const GAP = 8;
+
+/**
+ * Where the toasts stand while a sheet is open: above its button row, and
+ * above the sheet itself where it has none, so no toast lies on a control of
+ * the sheet. It follows sheets opening and closing for as long as a toast is
+ * shown, and is written straight onto the element - no render waits on it.
+ */
+const useOverSheet = (shown: boolean) => {
+  const toasts = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const element = toasts.current;
+    if (!shown || !element) return undefined;
+
+    const place = () => {
+      const sheet = [...document.querySelectorAll('[data-scrim] [role="dialog"]')].at(-1);
+      const edge = sheet?.querySelector(':scope > footer') ?? sheet;
+      // Never off the top of the window: a sheet that fills it keeps the toast inside the screen.
+      const from = edge ? Math.min(window.innerHeight - edge.getBoundingClientRect().top + GAP, window.innerHeight - 96) : null;
+      if (from === null) element.style.removeProperty('bottom');
+      else element.style.setProperty('bottom', `${Math.round(from)}px`);
+      element.toggleAttribute('data-over-sheet', from !== null);
+    };
+    place();
+    const observer = new MutationObserver(place);
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener('resize', place);
+    // A sheet rises into its place: where its buttons stand is known once it has arrived.
+    document.addEventListener('animationend', place, true);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', place);
+      document.removeEventListener('animationend', place, true);
+    };
+  }, [shown]);
+
+  return toasts;
+};
+
 export function Toasts({ lines, onUndo, onRetry, onDismiss, onDetails }: ToastsProps) {
+  const toasts = useOverSheet(lines.length > 0);
   if (lines.length === 0) return null;
 
   return (
-    <div className={styles.toasts} role="status" aria-live="polite">
+    <div ref={toasts} className={styles.toasts} role="status" aria-live="polite">
       {lines.map(line => (
         <Toast key={line.key} line={line} onUndo={onUndo} onRetry={onRetry} onDismiss={onDismiss} onDetails={onDetails} />
       ))}

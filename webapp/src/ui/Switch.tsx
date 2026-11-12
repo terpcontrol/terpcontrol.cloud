@@ -38,9 +38,6 @@ export function Switch({
 /**
  * A switch with what it means beside it: the label, the help that says why,
  * and a line on what the switch does in the position it is in.
- *
- * `keep` marks the whole row as what a screen with a save bar keeps clear of
- * the bar after a change, as it does a row of the targets.
  */
 export function SwitchRow({
   label,
@@ -48,7 +45,6 @@ export function SwitchRow({
   help,
   on,
   disabled,
-  keep,
   onChange,
 }: {
   label: string;
@@ -56,13 +52,12 @@ export function SwitchRow({
   help?: HelpTopic;
   on: boolean;
   disabled?: boolean;
-  keep?: boolean;
   onChange: (on: boolean) => void;
 }) {
   const noteId = useId();
 
   return (
-    <div className={styles.row} data-keep={keep ? '' : undefined}>
+    <div className={styles.row}>
       <span className={styles.text}>
         <span className={styles.label}>
           {label}

@@ -60,6 +60,8 @@ export const screens: RouteObject[] = [
   { path: 'control/:page?', element: <ControlTab /> },
   { path: 'charts', element: <Charts /> },
   { path: 'log', element: <LogRoute /> },
+  // No list of devices stands here - they are found under Steuerung - and without this the address would be read as somebody's handle.
+  { path: 'devices', element: <NotFound /> },
   { path: 'devices/:deviceId/sockets/:socket', element: <SocketPage /> },
   { path: 'devices/:deviceId/:page?', element: <DevicePage /> },
   { path: 'claim', element: <Claim /> },

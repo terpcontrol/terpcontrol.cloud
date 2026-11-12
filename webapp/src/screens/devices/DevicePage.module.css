@@ -101,11 +101,13 @@
   height: 44px;
 }
 
+/* The list of builds is as wide as its longest line by itself: it gives way to the card, not the card to it. */
 .pick {
   display: flex;
   flex: 1 1 100%;
   flex-wrap: wrap;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .pick .select {
@@ -115,6 +117,14 @@
 
 .pick > button {
   min-height: 44px;
+}
+
+/* An install waits for a device that is heard, as the update beside the build does. */
+.pick > button[aria-disabled='true'] {
+  background: var(--card-2);
+  border-color: transparent;
+  color: var(--muted);
+  cursor: default;
 }
 
 /* "Update vom 3. Nov." - the one filled button of a card. */
@@ -203,11 +213,4 @@
 .socketState {
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
-}
-
-/* The way to this device's curves, a finger high like the rows under it. */
-.curves {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
 }

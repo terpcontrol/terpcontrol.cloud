@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { controlPath, devicePath } from '@/app/places';
+import { Facts } from '@/ui/Facts';
 import { Row, Rows } from '@/ui/Rows';
 import { useLeads } from '../lead';
 import { FridgeFansPanel } from './FridgeFansPanel';
@@ -27,7 +28,7 @@ function FanRow({ fan }: { fan: Device }) {
       <Row
         to={leads && fan.spaceId ? controlPath(fan.spaceId) : devicePath(fan.id)}
         title={t('fanSettings.title')}
-        line={fanFactsOf(t, fan).join(' · ')}
+        line={<Facts facts={fanFactsOf(t, fan)} />}
       />
     </Rows>
   );

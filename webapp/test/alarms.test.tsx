@@ -10,8 +10,10 @@ import { Alarms } from '@/screens/control/alarms/Alarms';
 import { boundLabel, repeatsEvery, scaleNote, watchLabel } from '@/screens/control/alarms/rules';
 import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
+import type { Told } from '@/log/log-context';
 import { headersOf } from '@/ui/headers';
 import { announced, drawAt } from './harness';
+import { Toast } from './toast';
 import { catalogue, translate } from './translations';
 
 /**
@@ -132,8 +134,16 @@ const answers = (path: string): unknown => {
   throw new Error(`no answer for ${path}`);
 };
 
+/** What the page answered its writes with: each toast, with the way it is taken back. */
+let told: Told[] = [];
+
 const draw = (devices: Device[] = [device()], mayManage = true, at = '/control/alarms?space=space-1') =>
-  drawAt(<Alarms spaceId="space-1" devices={devices} mayManage={mayManage} />, { at });
+  drawAt(
+    <Toast told={told}>
+      <Alarms spaceId="space-1" devices={devices} mayManage={mayManage} />
+    </Toast>,
+    { at },
+  );
 
 const card = async (name: string) => (await screen.findByText(name)).closest('li')!;
 
@@ -141,9 +151,12 @@ beforeAll(() => translate());
 
 beforeEach(() => {
   session.demo = false;
+  told = [];
   vi.mocked(api.get).mockReset();
   vi.mocked(api.post).mockReset();
   vi.mocked(api.patch).mockReset();
+  vi.mocked(api.put).mockReset();
+  vi.mocked(api.delete).mockReset();
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.post).mockImplementation((_path: string, body: unknown) => Promise.resolve({ ...RULES[0], ...(body as object) }) as never);
   vi.mocked(api.patch).mockImplementation((_path: string, body: unknown) => Promise.resolve({ ...RULES[0], ...(body as object) }) as never);
@@ -228,11 +241,11 @@ describe('the alarm rules page', () => {
   it('groups the rules by where they came from, under the preset the grow stands on', async () => {
     draw();
 
-    expect(await screen.findByText('From the Flower preset')).toBeInTheDocument();
+    expect(await screen.findByText('From the climate preset Flower')).toBeInTheDocument();
     expect(screen.getByText('thresholds move with the stage')).toBeInTheDocument();
 
-    const labels = screen.getAllByText(/^(From the Flower preset|Always on|From the device|Written here)$/).map(label => label.textContent);
-    expect(labels).toEqual(['From the Flower preset', 'Always on', 'From the device', 'Written here']);
+    const labels = screen.getAllByText(/^(From the climate preset Flower|Always on|From the device|Written here)$/).map(label => label.textContent);
+    expect(labels).toEqual(['From the climate preset Flower', 'Always on', 'From the device', 'Written here']);
   });
 
   it('writes the bound and the meta line of a preset rule, an always rule and a rule with its own webhook', async () => {
@@ -240,7 +253,7 @@ describe('the alarm rules page', () => {
 
     const hot = await card('Too hot');
     expect(within(hot).getByText('above 30 °C')).toBeInTheDocument();
-    expect(within(hot).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
+    expect(within(hot).getByText('climate preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
 
     const offline = await card('Device offline');
     expect(within(offline).getByText('always · for 10 min · critical · goes to you by push + Telegram · repeats every 30 min')).toBeInTheDocument();
@@ -291,7 +304,7 @@ describe('the alarm rules page', () => {
     const until = `${String(Math.floor(quietHours.toMinute / 60)).padStart(2, '0')}:${String(quietHours.toMinute % 60).padStart(2, '0')}`;
     expect(within(await card('Dehumidifier running non-stop')).getByText(`device · warning · your quiet hours until ${until}`)).toBeInTheDocument();
     expect(
-      within(await card('Too hot')).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once'),
+      within(await card('Too hot')).getByText('climate preset · for 10 min · critical · goes to you by push + Telegram · announced once'),
     ).toBeInTheDocument();
   });
 
@@ -314,7 +327,7 @@ describe('the alarm rules page', () => {
     draw();
 
     expect(
-      within(await card('Too hot')).getByText('preset · for 10 min · critical · goes to you by push (off) + Telegram · announced once'),
+      within(await card('Too hot')).getByText('climate preset · for 10 min · critical · goes to you by push (off) + Telegram · announced once'),
     ).toBeInTheDocument();
   });
 
@@ -356,7 +369,7 @@ describe('the alarm rules page', () => {
     vi.mocked(api.get).mockImplementation((path: string) => (path === '/me' ? new Promise(() => {}) : Promise.resolve(answers(path))) as never);
     draw();
 
-    expect(within(await card('Too hot')).getByText('preset · for 10 min · critical · announced once')).toBeInTheDocument();
+    expect(within(await card('Too hot')).getByText('climate preset · for 10 min · critical · announced once')).toBeInTheDocument();
     expect(screen.queryByText(/does not reach you/)).not.toBeInTheDocument();
   });
 
@@ -366,6 +379,19 @@ describe('the alarm rules page', () => {
     fireEvent.click(await screen.findByRole('switch', { name: 'Too hot on or off' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/alarm-rules/rule-hot', { enabled: false }));
+  });
+
+  it('answers the switch with a toast that names the rule, and takes it back there', async () => {
+    draw();
+
+    fireEvent.click(await screen.findByRole('switch', { name: 'Too hot on or off' }));
+
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(told[0].label).toBe('Alarm “Too hot” off');
+    // The switch's next answer takes this one's place rather than standing over it.
+    expect(told[0].from).toBe('rule-rule-hot');
+    await told[0].undo!();
+    expect(api.patch).toHaveBeenLastCalledWith('/alarm-rules/rule-hot', { enabled: true });
   });
 
   it('shows what the server said when it refused', async () => {
@@ -400,9 +426,74 @@ describe('the alarm rules page', () => {
 
     const hot = await card('Too hot');
     expect(within(hot).getByText(`silenced until ${until.setZone('Europe/Berlin').toFormat('HH:mm')}`)).toBeInTheDocument();
-    fireEvent.click(within(hot).getByRole('button', { name: 'unsilence' }));
+    fireEvent.click(within(hot).getByRole('button', { name: 'Unsilence' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hot/silence'));
+  });
+
+  it('offers an hour of silence on a rule that has raised, answers it with a toast and takes it back there', async () => {
+    vi.mocked(api.put).mockResolvedValue(RULES[3] as never);
+    vi.mocked(api.delete).mockResolvedValue(undefined as never);
+    draw();
+
+    // Only a rule that is raising or silenced has anything to silence: a calm one offers neither.
+    expect(within(await card('Too hot')).queryByRole('button', { name: 'Silence 1 h' })).not.toBeInTheDocument();
+    fireEvent.click(within(await card('Dehumidifier running non-stop')).getByRole('button', { name: 'Silence 1 h' }));
+
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/alarm-rules/rule-dehum/silence', { forSeconds: 3600 }));
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['“Dehumidifier running non-stop” silenced for 1 h']));
+    await told[0].undo!();
+    expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-dehum/silence');
+  });
+
+  it('leads with the place´s own device and folds every other behind a row that says its rules', async () => {
+    const plugRule = rule({
+      id: 'rule-plug',
+      deviceId: 'plug-1',
+      name: 'Plug offline',
+      origin: 'always',
+      watch: { kind: 'reading', metric: 'offline', upper: null, lower: null },
+    });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [plugRule], nextCursor: null } : answers(path)) as never,
+    );
+    draw([device(), device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
+
+    // The first device stands open under its name.
+    expect(await screen.findByRole('heading', { level: 2, name: 'Blue Dream tent' })).toBeInTheDocument();
+    expect(await screen.findByText('Too hot')).toBeInTheDocument();
+    // The second is one row: its name, and what its rules are doing.
+    const fold = await screen.findByRole('button', { name: /Pump socket/ });
+    expect(fold).toHaveAttribute('aria-expanded', 'false');
+    await waitFor(() => expect(fold).toHaveTextContent('1 rule · all quiet'));
+    const plug = screen.getByRole('region', { name: 'Pump socket' });
+    expect(within(plug).queryByRole('switch')).not.toBeInTheDocument();
+
+    fireEvent.click(fold);
+    expect(fold).toHaveAttribute('aria-expanded', 'true');
+    expect(await within(plug).findByRole('switch', { name: 'Device offline on or off' })).toBeInTheDocument();
+  });
+
+  it('opens with the device a link names unfolded, and with the one whose rule an alert linked to', async () => {
+    const plugRule = rule({
+      id: 'rule-plug',
+      deviceId: 'plug-1',
+      name: 'Plug offline',
+      origin: 'always',
+      watch: { kind: 'reading', metric: 'offline', upper: null, lower: null },
+    });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [plugRule], nextCursor: null } : answers(path)) as never,
+    );
+    const both = [device(), device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })];
+
+    const byDevice = draw(both, true, '/control/alarms?space=space-1&device=plug-1');
+    expect(await screen.findByRole('button', { name: /Pump socket/ })).toHaveAttribute('aria-expanded', 'true');
+    expect(await within(screen.getByRole('region', { name: 'Pump socket' })).findByRole('switch')).toBeInTheDocument();
+    byDevice.unmount();
+
+    draw(both, false, '/control/alarms?space=space-1&rule=rule-plug');
+    await waitFor(() => expect(screen.getByRole('button', { name: /Pump socket/ })).toHaveAttribute('aria-expanded', 'true'));
   });
 
   /**
@@ -471,7 +562,11 @@ describe('the alarm rules page', () => {
     await new Promise(settle => setTimeout(settle, 30));
 
     const ended = device({ state: { ...device().state, maintenanceUntil: DateTime.now().toISO()! } });
-    drawn.rerender(<Alarms spaceId="space-1" devices={[ended]} mayManage />);
+    drawn.rerender(
+      <Toast>
+        <Alarms spaceId="space-1" devices={[ended]} mayManage />
+      </Toast>,
+    );
 
     expect(await screen.findByText(/Out of maintenance/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'End now' })).not.toBeInTheDocument();
@@ -505,7 +600,7 @@ describe('the alarm rules page', () => {
     );
     draw();
 
-    expect(await screen.findByText('From the stage preset')).toBeInTheDocument();
+    expect(await screen.findByText('From the climate preset')).toBeInTheDocument();
   });
 
   it('marks the rule an alert linked to, and opens it for whoever may change it', async () => {
@@ -546,7 +641,7 @@ describe('the alarm rules page', () => {
     expect(within(hot as HTMLElement).getByText('On')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ Custom alarm' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Set up/ })).not.toBeInTheDocument();
-    expect(screen.getAllByText('preset · for 10 min · critical · announced once')).toHaveLength(1);
+    expect(screen.getAllByText('climate preset · for 10 min · critical · announced once')).toHaveLength(1);
     expect(vi.mocked(api.get).mock.calls.map(([path]) => path)).not.toContain('/me');
   });
 
@@ -561,12 +656,12 @@ describe('the alarm rules page', () => {
     draw();
 
     const co2 = await card('CO₂ too high');
-    expect(within(co2).getByText('preset · for 10 min · critical · switched off')).toBeInTheDocument();
+    expect(within(co2).getByText('climate preset · for 10 min · critical · switched off')).toBeInTheDocument();
     expect(within(co2).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
     expect(co2.textContent).not.toMatch(/goes to you|announced once|repeats every/);
 
     const hot = await card('Too hot');
-    expect(within(hot).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
+    expect(within(hot).getByText('climate preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
   });
 
   /**
@@ -1122,6 +1217,11 @@ describe('the alarm templates', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/alarm-rules', body));
     // Nothing else was asked: no sheet opened on the way.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // The tap is answered by name, and taken back by removing the rule it wrote.
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Alarm “Too humid” added']));
+    vi.mocked(api.delete).mockResolvedValue(undefined as never);
+    await told[0].undo!();
+    expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hot');
   });
 
   it('marks the rule a template wrote, which opens like any other', async () => {

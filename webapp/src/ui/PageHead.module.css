@@ -8,10 +8,13 @@
   min-height: var(--control-height);
 }
 
+/* The name keeps its words whole: the pill goes under it before a word is cut in two, and only a word longer than
+   the line beside the way back - a finger wide, less what it hangs out by - breaks. */
 .head h1 {
   flex: 1 1 8rem;
-  min-width: 0;
-  overflow-wrap: anywhere;
+  min-width: auto;
+  max-width: calc(100% - var(--control-height) + var(--space-3) - var(--space-2));
+  overflow-wrap: break-word;
 }
 
 /* Whose page this is, under the title. */

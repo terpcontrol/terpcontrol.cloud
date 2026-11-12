@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { useCurrentPlace } from '@/app/places';
 import { useSession } from '@/api/session';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
+import { NothingHere } from '../control/ByDevice';
 import { Control } from '../control/Control';
 import { Visited } from './PlaceTitle';
 import styles from './Place.module.css';
@@ -39,15 +40,13 @@ export function ControlTab() {
     return (
       <section className={`${styles.page} ${styles.steering}`}>
         <h1>{t('shell.tabs.control')}</h1>
-        <p className={`${ui.cardDashed} ${ui.note}`}>
-          {user?.isDemo === true ? (
-            t('place.control.demoNothing')
-          ) : (
-            <>
-              {t('place.control.nothing')} <Link to="/claim">{t('space.control.noControllerAdd')}</Link>
-            </>
-          )}
-        </p>
+        {user?.isDemo === true ? (
+          <p className={`${ui.cardDashed} ${ui.note}`}>{t('place.control.demoNothing')}</p>
+        ) : (
+          <NothingHere to="/claim" where={t('space.control.noControllerAdd')}>
+            {t('place.control.nothing')}
+          </NothingHere>
+        )}
       </section>
     );
   }

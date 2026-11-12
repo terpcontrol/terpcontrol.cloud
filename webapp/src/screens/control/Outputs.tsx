@@ -4,21 +4,19 @@ import type { ActuatorRuns, ClimateVerdict, Device } from '@fg2/shared-types/v1'
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { useLiveReads, useSocketTables } from '@/api/devices';
 import { useSpaceOverview } from '@/api/spaces';
-import { leadingBackTo, socketPath } from '@/app/places';
-import { lightOutputOf } from '@/screens/devices/lights';
+import { controlPath, leadingBackTo, socketPath } from '@/app/places';
+import { lightOutputOf, useLightHolds } from '@/screens/devices/lights';
 import { LightOutputRow } from '@/screens/devices/LightOutputRow';
-import { deviceLiveness, sinceLabel } from '@/ui/age';
+import { socketName, socketState } from '@/screens/devices/socket-words';
 import { Facts } from '@/ui/Facts';
-import { deviceName } from '@/ui/naming';
 import { Waiting } from '@/ui/PageState';
 import { Row, Rows } from '@/ui/Rows';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
+import { ByDevice, NothingHere } from './ByDevice';
 import { OwnOutputs } from './devices/OwnOutputs';
-import { socketName, socketState } from '@/screens/devices/socket-words';
-import { hasOutputs, outputsOf } from './rows';
-import styles from './Control.module.css';
+import { hasOutputs, outputsLine, outputsOf, standOf } from './rows';
 
 /**
  * Ausgänge: what the place's devices drive beside holding the climate - the
@@ -36,27 +34,44 @@ export function OutputsPage({ spaceId, devices, mayManage }: { spaceId: string; 
   const tables = useSocketTables(ids);
   const reads = useLiveReads(ids);
   const verdict = useSpaceOverview(spaceId).data?.verdict;
+  const held = useLightHolds(ids, now);
   const all = devices.map(device => outputsOf(device, tables.tables.get(device.id), reads.levels.get(device.id) ?? null)).filter(hasOutputs);
+  const stood = (device: Device) => standOf(t, heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null), now, zone);
 
   if (tables.isPending && all.length === 0) return <Waiting lines={3} />;
-  if (all.length === 0) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('control.outputs.none')}</p>;
+  if (all.length === 0) {
+    return (
+      <NothingHere to={controlPath(spaceId)} where={t('control.back')}>
+        {t('control.outputs.none')}
+      </NothingHere>
+    );
+  }
 
   return (
-    <div className={styles.page}>
-      {all.map(({ device, sockets }) => {
+    <ByDevice
+      devices={all.map(one => one.device)}
+      line={device =>
+        outputsLine(
+          t,
+          all.filter(one => one.device.id === device.id),
+          now,
+          zone,
+          stood(device),
+          held,
+        )
+      }
+    >
+      {device => {
+        const sockets = all.find(one => one.device.id === device.id)?.sockets ?? [];
         const table = tables.tables.get(device.id);
         const light = table ? lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null) : null;
-        const heard = heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
-        const offline = deviceLiveness(heard, now) === 'offline';
-        const stand = offline && heard ? t('control.stand', { time: sinceLabel(heard, now, zone) }) : null;
-        const name = deviceName(device, t);
+        const stand = stood(device);
 
         return (
-          <section key={device.id} className={styles.block} aria-label={name}>
-            {all.length > 1 ? <h2 className={styles.blockTitle}>{name}</h2> : null}
+          <>
             {light ? (
               <ul className={ui.group}>
-                <LightOutputRow output={light} offline={offline} mayManage={mayManage} runs={runsOf(verdict, 'light')} now={now} />
+                <LightOutputRow output={light} offline={stand !== null} mayManage={mayManage} runs={runsOf(verdict, 'light')} now={now} />
               </ul>
             ) : null}
             <OwnOutputs device={device} mayManage={mayManage} />
@@ -73,10 +88,10 @@ export function OutputsPage({ spaceId, devices, mayManage }: { spaceId: string; 
                 ))}
               </Rows>
             ) : null}
-          </section>
+          </>
         );
-      })}
-    </div>
+      }}
+    </ByDevice>
   );
 }
 

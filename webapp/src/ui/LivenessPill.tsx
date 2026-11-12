@@ -7,9 +7,10 @@ import { Spoken } from '@/ui/Spoken';
 import ui from '@/ui/ui.module.css';
 
 /**
- * "live · vor 20 s" beside a place's name: the word is the state, the age that
- * of the newest reading. Once nothing has come for longer than a place is
- * called live or stale it is "offline · seit 42 Min", counted from the newest
+ * "online · vor 20 s" beside a place's name: the word is the state - the one
+ * word for a place or a device that reports, on a pill, a card and a row - the
+ * age that of the newest reading. Once nothing has come for longer than a
+ * place is called online or stale it is "offline · seit 42 Min", counted from the newest
  * figure the place produced: a place is not one device, and a shared or public
  * reader is told the tent and never what stands in it, so that figure is the
  * one instant this pill can honestly date. The box under it says the hour.
@@ -18,7 +19,7 @@ import ui from '@/ui/ui.module.css';
  * `waiting` for its first values, and says that rather than "offline" about
  * hardware that has just been set up.
  *
- * `explain` makes the word the term that says what live and stale mean, on
+ * `explain` makes the word the term that says what online and stale mean, on
  * the one pill of a page that does.
  */
 export function LivenessPill({

@@ -434,10 +434,14 @@
   }
 }
 
-/* The way out of a tab with nothing to set, inside the dashed note: underlined
+/* The way out of a page with nothing to set, inside the dashed note: underlined
    rather than coloured, so it reads as the link it is without shouting from a
    quiet note, and the green stays the Save's. */
 .addDevice {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  margin-block: -12px;
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -507,14 +511,14 @@
 
 /* What the climate is doing as a whole, where a live place's age would stand. */
 .pill {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   padding: 3px 10px;
   border-radius: var(--radius-pill);
   background: var(--green-wash);
   color: var(--green-ink);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
-  white-space: nowrap;
 }
 
 .pill[data-tone='warn'] {
@@ -541,27 +545,12 @@
   margin: 0;
 }
 
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: 14px var(--space-4);
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-}
-
-/* A setting drawn on its own in a card needs no rule over it. */
-.card > :first-child {
-  padding-top: 0;
-  border-top: 0;
-}
-
-/* What one device of several holds, under its name. */
+/* What one device of several holds, under its name. Brought into view by a link that names it, it clears the header. */
 .block {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  scroll-margin-top: calc(var(--topbar-height) + env(safe-area-inset-top) + var(--space-3));
 }
 
 .blockTitle {
@@ -570,14 +559,39 @@
   overflow-wrap: anywhere;
 }
 
-.sheetText {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+/* A further device of a page, folded behind its name: a row that unfolds in place. */
+.foldHead {
+  font-size: inherit;
+  letter-spacing: 0;
 }
 
-.sheetText p {
-  margin: 0;
+.fold {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 58px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: var(--text-md);
+  text-align: left;
+}
+
+.fold:hover {
+  background: var(--tint);
+}
+
+.foldMark {
+  flex: none;
+  color: var(--muted);
+  transition: transform 120ms ease-out;
+}
+
+.fold[aria-expanded='true'] .foldMark {
+  transform: rotate(180deg);
 }
 
 .rowText {
@@ -631,6 +645,16 @@
   gap: var(--space-2) var(--space-3);
 }
 
+/* A further device: its name, how it is and the way to its page, close together. */
+.device[data-short] {
+  gap: 0;
+  padding-bottom: var(--space-1);
+}
+
+.device[data-short] .pendingLine {
+  margin-top: var(--space-2);
+}
+
 .all {
   display: inline-flex;
   align-self: flex-start;
@@ -644,8 +668,9 @@
   overflow-wrap: anywhere;
 }
 
+/* A camera's newest picture in its row, drawn beside the rail only. */
 .thumb {
-  display: none;
+  display: grid;
   flex: none;
   place-items: center;
   width: 72px;
@@ -654,12 +679,6 @@
   background: var(--card-2);
   color: var(--muted);
   object-fit: cover;
-}
-
-@media (min-width: 900px) {
-  .thumb {
-    display: grid;
-  }
 }
 
 .add {

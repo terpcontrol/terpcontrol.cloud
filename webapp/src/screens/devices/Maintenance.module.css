@@ -72,6 +72,13 @@
   color: var(--warning);
 }
 
+/* Until when, with the (i) that says what a window stops on its line. */
+.until {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .controlRunning > button {
   flex: 1 1 0;
 }

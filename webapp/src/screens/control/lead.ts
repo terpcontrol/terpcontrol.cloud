@@ -16,6 +16,10 @@ export const leadOf = (devices: Device[], climates: readonly { deviceId: string 
     devices.map(device => device.id),
   );
 
+/** The devices of a place in the order Steuerung lists them: the place's climate first, the others as they stand. */
+export const inOrder = (devices: Device[], lead: Device | null): Device[] =>
+  [...devices].sort((one, other) => Number(other.id === lead?.id) - Number(one.id === lead?.id));
+
 /** The lead of a place, with the devices standing there; null until both are read. */
 export const useLead = (spaceId: string | null) => {
   const devices = usePlaceDevices(spaceId);

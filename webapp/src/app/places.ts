@@ -206,9 +206,10 @@ const placeShown = (places: PlaceCard[], asked: string | null, chosen: string | 
  * needing a person.
  *
  * Choosing depends on the page. On one of the bar's three the item stays, at
- * its own address for the place chosen, and the choice is kept once that
- * address is on screen: a switch that the page holds back - targets nobody
- * saved - must not move the next page too. On a grow opened by its id it
+ * its own address for the place chosen - a page below Steuerung at that page,
+ * since the other place has its alarms and its outputs too - and the choice
+ * is kept once that address is on screen: a switch that the page holds back
+ * must not move the next page too. On a grow opened by its id it
  * leads to Grow of the chosen place, on any other page that belongs to a
  * place to that place's Start; anywhere else it only changes the choice.
  *
@@ -241,7 +242,7 @@ export const usePlaceChoice = (places: PlaceCard[] | undefined) => {
 
   const choose = (spaceId: string) => {
     const of = (path: string) => `${path}?${new URLSearchParams({ space: spaceId }).toString()}`;
-    if (item) void navigate(of(item), { replace: true });
+    if (item) void navigate(of(item === '/control' ? pathname : item), { replace: true });
     else if (belongs) void navigate(pathname.startsWith(`${ALL_GROWS}/`) ? of(GROW) : placePath(spaceId));
     else choosePlace(spaceId);
   };

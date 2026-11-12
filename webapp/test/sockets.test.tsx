@@ -332,7 +332,7 @@ describe('a smart socket on its own page', () => {
     account.sockets = [socket({ state: 'on', override: { state: 'on', validUntil: NOW.plus({ minutes: 15 }).toISO()! } })];
     await act(() => client.invalidateQueries());
 
-    expect(await screen.findByText(/forced on · 15 min/)).toBeInTheDocument();
+    expect(await screen.findByText(/held on · 15 min/)).toBeInTheDocument();
     expect(screen.queryByText('switching …')).not.toBeInTheDocument();
     expect(pressed()).toEqual(['On']);
   });
@@ -383,7 +383,7 @@ describe('a smart socket on its own page', () => {
     account.youMay = 'log';
     await drawSocket(socket({ state: 'on', override: { state: 'on', validUntil: NOW.plus({ minutes: 42 }).toISO()! } }));
 
-    expect(await screen.findByText(/forced on · 42 min/)).toBeInTheDocument();
+    expect(await screen.findByText(/held on · 42 min/)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Hold Heater by hand' })).not.toBeInTheDocument());
     for (const name of [/^Find it/, 'Address, role, credentials', /^Remove the socket/]) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();

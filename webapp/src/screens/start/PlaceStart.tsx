@@ -7,7 +7,6 @@ import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js
 import { useAccountMe } from '@/api/account';
 import { useLatestStills } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
-import { useDeviceLive } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
@@ -31,6 +30,7 @@ import { offsetOf } from '@/ui/wall-clock';
 import { useWideWindow } from '@/ui/wide-window';
 import { clock, useZone } from '@/ui/zone';
 import { ownStatusOf } from '@/screens/control/devices/own-summary';
+import { heldWords } from '@/screens/control/held-light';
 import { MaintenanceControl } from '@/screens/devices/Maintenance';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { EmptyPlace } from '@/screens/space/EmptyPlace';
@@ -45,7 +45,7 @@ import { climateDeviceOf, controlOffOf, shownStill, statusOf, statusText, toneOf
 import { PlaceMenu } from './PlaceMenu';
 import { curvePath, darkOf, extrasOf, readingsOf, type Extra, type Reading } from './readings';
 import { ReadingTiles } from './ReadingTiles';
-import { usePlace, useHumidifierHold } from './reads';
+import { usePlace, useHumidifierHold, useLamp } from './reads';
 import { DemoBanner, GuestLine, StartFailed, StartWaiting } from './states';
 import { Targets } from './Targets';
 import type { Due } from './due';
@@ -108,16 +108,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const values = climate?.values ?? overview.values;
   const setpoints = climate?.setpoints ?? overview.setpoints;
   const targets = climate?.targets ?? overview.targets;
-  const live = useDeviceLive(device?.id ?? null).data;
-  // The lamp is the climate device's own output, or else a light of its own standing in the same place.
-  const lamp = here.find(one => one.type === 'light' && one.id !== device?.id) ?? null;
-  const lampLive = useDeviceLive(lamp?.id ?? null).data;
-  const lit =
-    device && live?.outputs.light?.value != null
-      ? { device, live }
-      : lamp && lampLive?.outputs.light?.value != null
-        ? { device: lamp, live: lampLive }
-        : null;
+  const lamp = useLamp(device, here, now);
   const mayManage = useMayManage(spaceId);
   const visiting = useVisiting(spaceId);
   const demo = user?.isDemo === true;
@@ -156,7 +147,9 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   // A diary kept by hand, with nothing here that measures or watches: the grow is the page.
   const kept = !hasDevice && camera === null ? grow : null;
   const byHand = kept !== null;
-  const readings = readingsOf(t, { values, setpoints, device, lit: offline ? null : lit, hold: humidifierHold, now, zone });
+  const lit = offline ? null : lamp.lit;
+  const held = offline ? null : lamp.held;
+  const readings = readingsOf(t, { values, setpoints, device, lit, held, hold: humidifierHold, now, zone });
   const extras = offline ? [] : extrasOf(t, overview.values, darkOf(readings, overview.values));
   const measuredAt = measuredAtOf(values) ?? silentSince;
   const ownMedia = kept ? (ownPhotoOf(overview.entries, kept.growId)?.mediaIds[0] ?? kept.coverMediaId) : null;
@@ -233,6 +226,22 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           {camera ? further : null}
           {wide || offline ? null : sentence}
           <ModeLine device={device} spaceId={spaceId} mayManage={mayManage} humidifierHold={humidifierHold} />
+          {/* "Alles im Ziel" over a lamp somebody holds off would read as a tent keeping its day. */}
+          {held && lit ? (
+            <p className={styles.mode}>
+              <span>
+                {t('start.metric.light')} {heldWords(t, held, now, zone)}
+              </span>
+              {mayManage ? (
+                <Link
+                  to={controlPath(spaceId, 'outputs', lit.device.id === device?.id ? {} : { device: lit.device.id })}
+                  className={styles.modeChange}
+                >
+                  {t('start.change')} ›
+                </Link>
+              ) : null}
+            </p>
+          ) : null}
           {camera || readings.length === 0 ? null : <ReadingTiles spaceId={spaceId} readings={readings} />}
           {camera ? null : further}
           {grow && (camera || (kept && ownMedia)) ? <PhaseLine grow={grow} to={GROW} /> : null}

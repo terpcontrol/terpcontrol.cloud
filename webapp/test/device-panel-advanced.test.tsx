@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceCapabilities, Socket, SocketPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
+import type { Told } from '@/log/log-context';
 import { draftFor, problemOf, rolesFor, secondsOfSpan, spanOf, updateOf } from '@/screens/devices/socket-form';
 import { rowsOf } from '@/screens/devices/sockets';
 import { drawDevicePages } from './device-pages';
@@ -19,18 +20,17 @@ vi.mock('@/api/client', () => ({
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
-const who = vi.hoisted(() => ({ admin: false }));
-
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN: signedIn } = await import('./session');
-  return {
-    ...(await importOriginal<object>()),
-    mediaUrl: (id: string) => `/media/${id}`,
-    useSession: () => (who.admin ? { ...signedIn, user: { ...signedIn.user!, isAdmin: true } } : signedIn),
-  };
+  return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => signedIn };
 });
 
-vi.mock('@/log/log-context', async importOriginal => ({ ...(await importOriginal<object>()), useLog: () => ({ tell: () => undefined }) }));
+/** What the page said in a toast, each with the way it is taken back. */
+const told: Told[] = [];
+vi.mock('@/log/log-context', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useLog: () => ({ tell: (one: Told) => told.push(one) }),
+}));
 vi.mock('@/screens/control/lead', () => ({ useLeads: () => true }));
 vi.mock('@/screens/control/OwnSettings', () => ({ OwnSettings: () => null }));
 
@@ -130,7 +130,7 @@ const drawSocket = async (one: Socket, capabilities = CAPABILITIES) => {
 beforeAll(() => translate());
 
 beforeEach(() => {
-  who.admin = false;
+  told.length = 0;
   for (const call of [api.patch, api.put, api.delete]) vi.mocked(call).mockReset();
   vi.mocked(api.patch).mockImplementation((_path, body) => Promise.resolve(controller(body as Partial<Device>)) as never);
   vi.mocked(api.put).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
@@ -160,8 +160,6 @@ describe('the build a device is put on by hand', () => {
   it('lets a grower pick a version, newest first, says which one runs and where each stands, and asks first', async () => {
     await drawWith(controller());
 
-    expect(screen.getByText(/Off: the device stays on its version/)).toBeInTheDocument();
-    expect(screen.getByText(/Every version that was ever stable, and anything newer/)).toBeInTheDocument();
     const builds = await screen.findByRole('combobox', { name: 'Firmware version' });
     await waitFor(() => expect(within(builds).getAllByRole('option')).toHaveLength(3));
     expect(
@@ -173,6 +171,9 @@ describe('the build a device is put on by hand', () => {
       expect.stringMatching(/^e4f5a6b · .* · current Beta$/),
       expect.stringMatching(/^a1b2c3d · .* · running · was stable$/),
     ]);
+    // Nothing to install until a build is picked, and none of it is explained beside the list: that is behind its (i).
+    expect(screen.getByRole('button', { name: 'Install …' })).toBeDisabled();
+    expect(screen.queryByText(/Every version that was ever stable/)).not.toBeInTheDocument();
     fireEvent.change(builds, { target: { value: 'fw-new' } });
     fireEvent.click(screen.getByRole('button', { name: 'Install …' }));
 
@@ -182,6 +183,23 @@ describe('the build a device is put on by hand', () => {
     fireEvent.click(within(asked).getByRole('button', { name: 'Install' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-controller-1', { firmware: { channel: 'manual', targetId: 'fw-new' } }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(told).toEqual([
+      { label: 'Update to e4f5a6b asked for · Controller restarts with it', undo: null, from: expect.stringMatching(/^firmware-/) },
+    ]);
+  });
+
+  /** Installing is an update like the one beside the build: it waits for a device that is heard. */
+  it('holds an install back while the device is offline', async () => {
+    await drawWith(controller({ state: { ...controller().state, lastSeenAt: DateTime.now().minus({ minutes: 25 }).toISO()! } }));
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Firmware version' }), { target: { value: 'fw-new' } });
+    const install = screen.getByRole('button', { name: 'Install …' });
+    expect(install).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(install);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Maintenance, restart and update have to wait until the device is back online.')).toBeInTheDocument();
   });
 
   /** The newest build here is a beta: the stable channel points at none, so nothing is called an update. */
@@ -190,13 +208,6 @@ describe('the build a device is put on by hand', () => {
 
     await screen.findByRole('combobox', { name: 'Firmware version' });
     expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument();
-  });
-
-  it('tells an administrator that the list holds every build of the class', async () => {
-    who.admin = true;
-    await drawWith(controller());
-
-    expect(await screen.findByText(/As an admin you see every build of this device class/)).toBeInTheDocument();
   });
 });
 
