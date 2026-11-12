@@ -60,7 +60,23 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     "jetzt" is the device's last reading and only while it reports; no chip hidden; a night begins where it
     begins; a failed window keeps the last picture; a grow's hand measurements have their curves on its page
     Messwerte; one figure for one thing; a marked way back to now; a place's own device and never a mean of two;
-    an output's level drawn. Open, for Chris:
+    an output's level drawn. The critic's second walk (2026-11-12) found VPD true up to three days and still
+    wrong beyond; decided by the redesign session, not built yet, and not Chris's word:
+      - Beyond three days VPD is worked out from pushed-down means over five minutes (up to fifteen if the
+        grow's read is too dear), each judged day or night by its own time; a drawn point is the mean of those,
+        its low and high their lowest and highest. Every range has line, envelope and "Tief · Hoch" again and
+        "Mittel … bis …" goes; the help says once what low and high are there. Today a window that straddles a
+        light change gets a deficit the tent never had, and a grow of the same climate every day draws a bow-tie.
+      - A reading's VPD uses a leaf temperature only if that reading carries one, the live reading included
+        (question 4 below is answered by it); inside three days a point is the mean of its samples' VPD.
+      - A silent device's "letzter Wert" is its last reading on every range, never the last window's mean; the
+        "jetzt" card's outputs are the live levels.
+      - Humidity on Verlauf is read to a tenth (cursor, Tief/Hoch, CSV), Start's tiles stay whole - against
+        question 3 below, until Chris says otherwise.
+      - A place with two climates is about one device on every page: "Zum letzten Wert", a share link's tiles
+        and Steuerung's pill are of the device whose curves are drawn.
+      - A failed window's notice goes when a read succeeds; a rule made by one tap is named like a preset's.
+    Open, for Chris:
       1. Where the line for the true extremes of VPD is drawn: three days costs a day's read 47 ms more; a week
          would cost half a second and a month over two ([data.md](knowledge/data.md#influxdb)). Storing the
          deficit with each sample would make every range cheap, and is a new stored field.
