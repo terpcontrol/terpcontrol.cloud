@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Camera, GrowListItem, Me, Media, TimelapseCreate } from '@fg2/shared-types/v1';
 import { useTimelapses } from '@/api/cameras';
+import { useMedia } from '@/api/media';
 import { itemsOf } from '@/api/pages';
 import { rowReaches } from '@/screens/notifications/reach';
 import { Help } from '@/ui/Help';
@@ -21,7 +22,8 @@ import styles from './CameraPage.module.css';
  * whole grow's. A chip chooses which, and the one button under them plays the
  * newest film of that kind where it stands - or, for whoever may steer the
  * place, makes it where there is none yet, and then says where the render has
- * got to. A film that cannot be made stays a chip and says why once chosen.
+ * got to: once it plays, it is the film of its kind and the button says so.
+ * A film that cannot be made stays a chip and says why once chosen.
  *
  * Somebody who may only look is offered the kinds there is a film of and
  * nothing to make. `beside` is the page's second button, `below` what that
@@ -61,15 +63,19 @@ export function Films({
 }) {
   const { t } = useTranslation();
   const [chosen, setChosen] = useKept<Span>('span', 'day');
-  const [playing, setPlaying] = useState<string | null>(null);
+  // The film whose button was pressed last, to play it or to put it away again.
+  const [pressed, setPressed] = useState<{ id: string; playing: boolean } | null>(null);
+  // The film last asked for, as its render goes: the list was read before it was done.
+  const made = useMedia(ask.job?.id ?? null).data ?? ask.job;
+  const known = made ? [made, ...films.filter(one => one.id !== made.id)] : films;
 
   const at = (span: Span) => (span === 'day' ? dayAt : null);
   const offered = filmSpans(t, { camera, grow, now, growFilms, zone, dayAt }).filter(
-    one => mayManage || filmOf(films, one.span, at(one.span)) !== null,
+    one => mayManage || filmOf(known, one.span, at(one.span)) !== null,
   );
   const span = offered.find(one => one.span === chosen) ?? offered[0] ?? null;
-  const film = span ? filmOf(films, span.span, at(span.span)) : null;
-  const shown = film !== null && playing === film.id;
+  const film = span ? filmOf(known, span.span, at(span.span)) : null;
+  const shown = film !== null && pressed?.id === film.id && pressed.playing;
   // Where the camera is younger than the phase or the grow it would film, those films begin where its pictures do.
   const begun = phaseStart(grow) ?? grow?.startedAt ?? null;
   const younger = span !== null && (span.span === 'phase' || span.span === 'grow') && begun !== null && camera.createdAt > begun;
@@ -100,7 +106,12 @@ export function Films({
       {film || beside || (span && mayManage && span.reason === null) ? (
         <div className={styles.actions}>
           {film ? (
-            <button type="button" className={`${ui.button} ${ui.primary}`} aria-expanded={shown} onClick={() => setPlaying(shown ? null : film.id)}>
+            <button
+              type="button"
+              className={`${ui.button} ${ui.primary}`}
+              aria-expanded={shown}
+              onClick={() => setPressed({ id: film.id, playing: !shown })}
+            >
               {t(shown ? 'camera.film.close' : 'camera.film.playIt')}
             </button>
           ) : span && mayManage && span.reason === null ? (
@@ -124,7 +135,8 @@ export function Films({
       ) : null}
       <Refused error={ask.error} fallback={t('camera.askFailed')} />
       {film && shown ? <Film mediaId={film.id} mayOwn={mayOwn} autoPlay /> : null}
-      {ask.job && ask.job.id !== film?.id ? <Film mediaId={ask.job.id} mayOwn={mayOwn} /> : null}
+      {/* The receipt of the film last asked for, until it is played from the button or put away. */}
+      {made && made.id !== pressed?.id ? <Film mediaId={made.id} mayOwn={mayOwn} /> : null}
       {offered.length === 0 ? <p className={ui.note}>{t('camera.noFilms')}</p> : null}
     </section>
   );

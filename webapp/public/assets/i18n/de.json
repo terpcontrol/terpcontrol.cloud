@@ -2259,7 +2259,7 @@
     "makeOne": "Eigenen Zeitraffer zusammenstellen",
     "askFailed": "Dieser Film wurde nicht angefordert.",
     "testImage": "Jetzt ein Bild",
-    "testing": "Wird gelesen…",
+    "testing": "Bild wird aufgenommen …",
     "testNoPicture": "Kein Bild: {{reason}}",
     "testFailed": "Das hat die Kamera nicht erreicht.",
     "testNoAnswer": "Auch nach über {{minutes}} Minuten keine Antwort. Bitte erneut versuchen.",
@@ -2325,7 +2325,8 @@
       "which": "Film",
       "playIt": "Film abspielen",
       "make": "Film erstellen",
-      "asking": "Wird angefordert …"
+      "asking": "Wird angefordert …",
+      "asked": "{{film}} wird erstellt"
     },
     "noFilms": "Von dieser Kamera gibt es noch keinen Film.",
     "firstWeekEnds": "Der Wochenfilm zeigt die letzte volle Woche. Die erste volle Woche dieser Cam endet am {{date}}.",
@@ -2340,7 +2341,6 @@
     "password": "Passwort",
     "keepAddress": "Nicht ändern",
     "stream": {
-      "lead": "Was die meisten nie brauchen: wie die Cloud den Stream holt.",
       "tunnel": "Über das Gerät holen",
       "tunnelOn": "Die Cloud holt den Stream über {{device}} aus deinem Netz.",
       "tunnelOff": "Die Cloud öffnet den Stream selbst. Das geht nur bei einer Kamera, die aus dem Internet erreichbar ist.",
@@ -2384,7 +2384,7 @@
       "phase": "Phase",
       "grow": "Ganzer Grow"
     },
-    "testTaken": "Bild von {{time}} aufgenommen.",
+    "testTaken": "Bild von {{time}} aufgenommen",
     "row": {
       "curves": "Kurven zu diesem Tag",
       "diary": "Im Tagebuch zeigen",
@@ -2404,7 +2404,8 @@
       "terpcam_controller": "Terp Cam",
       "terpcam_standalone": "eigenständig · WLAN",
       "rtsp": "RTSP"
-    }
+    },
+    "title": "Kamera"
   },
   "cameras": {
     "add": {
@@ -2513,7 +2514,6 @@
     "to": "Bis",
     "cam": "Kamera",
     "split": "Beide · {{name}}",
-    "oneCameraHere": "Hier hängt nur eine Kamera, also gibt es nichts danebenzustellen.",
     "overlays": "Overlays",
     "dayCounter": "Tageszähler",
     "climate": "Temperatur- und Feuchtekurve",
@@ -2527,8 +2527,7 @@
     },
     "renderHd": "Rendern · HD",
     "renderSd": "Rendern · SD",
-    "backwards": "Ein Film endet nach seinem Anfang; das zweite Datum muss das spätere sein.",
-    "entriesHint": "die Einträge des Zeitraums, auf den Bildern um sie herum"
+    "backwards": "Ein Film endet nach seinem Anfang; das zweite Datum muss das spätere sein."
   },
   "publicPage": {
     "footer": "Terp Control: Ein Controller oder ein Kühlschrankmodul schreibt das Klima mit, eine Kamera macht die Bilder, den Rest schreibt der Grower.",

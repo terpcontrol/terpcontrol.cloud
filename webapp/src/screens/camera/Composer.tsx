@@ -10,8 +10,8 @@ import { ageLabel, instantOf } from '@/ui/age';
 import { endOfDayOn, startOfDayOn } from '@/ui/days';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
-import { Choice } from '@/ui/SheetParts';
-import { Switch } from '@/ui/Switch';
+import { Block, Choice, Choices } from '@/ui/SheetParts';
+import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { nowThere, useZone } from '@/ui/zone';
 import styles from './CameraPage.module.css';
@@ -91,7 +91,36 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
     });
 
   return (
-    <Sheet title={t('composer.title')} aside={grow?.name} onClose={onClose}>
+    <Sheet
+      title={t('composer.title')}
+      aside={grow?.name}
+      corner={<Help topic="render" />}
+      onClose={onClose}
+      actions={
+        <>
+          {refusal ? (
+            <p className={ui.note} role="status">
+              {refusal}
+            </p>
+          ) : null}
+          <div className={styles.renderRow}>
+            <button
+              type="button"
+              className={`${ui.button} ${ui.primary}`}
+              disabled={pending || refusal !== null || free}
+              onClick={() => render('hd')}
+            >
+              {t('composer.renderHd')}
+              {free ? <span className={styles.premium}>{t('camera.premium')}</span> : null}
+            </button>
+            <button type="button" className={ui.button} disabled={pending || refusal !== null} onClick={() => render('sd')}>
+              {t('composer.renderSd')}
+            </button>
+          </div>
+          {free && range !== 'grow' ? <p className={ui.note}>{t('camera.needsPremium')}</p> : null}
+        </>
+      }
+    >
       <div className={styles.composer}>
         <div className={`${ui.mat} ${styles.preview}`}>
           {preview ? (
@@ -132,37 +161,28 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
           </div>
         ) : null}
 
-        <Group label={t('composer.cam')}>
-          <Choice chosen={secondCameraId === null} onChoose={() => setSecondCameraId(null)}>
-            {camera.name}
-          </Choice>
-          {others.map(one => (
-            <Choice key={one.id} chosen={secondCameraId === one.id} onChoose={() => setSecondCameraId(one.id)}>
-              {t('composer.split', { name: one.name })}
+        {/* One camera or two side by side: a choice only where a second one stands here. */}
+        {others.length > 0 ? (
+          <Group label={t('composer.cam')}>
+            <Choice chosen={secondCameraId === null} onChoose={() => setSecondCameraId(null)}>
+              <span className={styles.cut}>{camera.name}</span>
             </Choice>
-          ))}
-          {others.length === 0 ? <span className={ui.note}>{t('composer.oneCameraHere')}</span> : null}
-        </Group>
+            {others.map(one => (
+              <Choice key={one.id} chosen={secondCameraId === one.id} onChoose={() => setSecondCameraId(one.id)}>
+                <span className={styles.cut}>{t('composer.split', { name: one.name })}</span>
+              </Choice>
+            ))}
+          </Group>
+        ) : null}
 
-        <div className={styles.switches}>
-          <span className="label">
-            {t('composer.overlays')}
-            <Help topic="overlays" />
-          </span>
-          <div className={ui.group}>
-            <Toggle label={t('composer.dayCounter')} on={overlays.dayCounter} onToggle={value => setOverlays({ ...overlays, dayCounter: value })} />
-            {measured ? (
-              <Toggle label={t('composer.climate')} on={overlays.climate} onToggle={value => setOverlays({ ...overlays, climate: value })} />
-            ) : null}
-            <Toggle
-              label={t('composer.entries')}
-              hint={t('composer.entriesHint')}
-              on={overlays.entries}
-              onToggle={value => setOverlays({ ...overlays, entries: value })}
-            />
-            {measured ? <Toggle label={t('composer.lightsOff')} help="lightsOffFrames" on={includeLightsOff} onToggle={setIncludeLightsOff} /> : null}
-          </div>
-        </div>
+        <Block label={t('composer.overlays')} help="overlays" grouped>
+          <Toggle label={t('composer.dayCounter')} on={overlays.dayCounter} onToggle={value => setOverlays({ ...overlays, dayCounter: value })} />
+          {measured ? (
+            <Toggle label={t('composer.climate')} on={overlays.climate} onToggle={value => setOverlays({ ...overlays, climate: value })} />
+          ) : null}
+          <Toggle label={t('composer.entries')} on={overlays.entries} onToggle={value => setOverlays({ ...overlays, entries: value })} />
+          {measured ? <Toggle label={t('composer.lightsOff')} help="lightsOffFrames" on={includeLightsOff} onToggle={setIncludeLightsOff} /> : null}
+        </Block>
 
         <Group label={t('composer.format')}>
           {ASPECTS.map(one => (
@@ -171,29 +191,6 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
             </Choice>
           ))}
         </Group>
-
-        {refusal ? (
-          <p className={ui.note} role="status">
-            {refusal}
-          </p>
-        ) : null}
-
-        <div className={styles.renderRow}>
-          <button
-            type="button"
-            className={`${ui.button} ${ui.primary} ${styles.render}`}
-            disabled={pending || refusal !== null || free}
-            onClick={() => render('hd')}
-          >
-            {t('composer.renderHd')}
-            {free ? <span className={styles.premium}>{t('camera.premium')}</span> : null}
-          </button>
-          <button type="button" className={ui.button} disabled={pending || refusal !== null} onClick={() => render('sd')}>
-            {t('composer.renderSd')}
-          </button>
-          <Help topic="render" />
-        </div>
-        {free && range !== 'grow' ? <p className={ui.note}>{t('camera.needsPremium')}</p> : null}
       </div>
     </Sheet>
   );
@@ -202,36 +199,19 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
 /** A day the account is in, some days back, as the date fields spell one. */
 const today = (zone: string | null, daysAgo: number): string => nowThere(serverNow().minus({ days: daysAgo }), zone).toISODate()!;
 
+/** One question of the composer: its label over the chips that answer it. */
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className={styles.group}>
-      <span className="label">{label}</span>
-      <div className={styles.chips}>{children}</div>
-    </div>
+    <Block label={label}>
+      <Choices label={label}>{children}</Choices>
+    </Block>
   );
 }
 
-function Toggle({
-  label,
-  hint,
-  help,
-  on,
-  onToggle,
-}: {
-  label: string;
-  hint?: string;
-  help?: HelpTopic;
-  on: boolean;
-  onToggle: (value: boolean) => void;
-}) {
+function Toggle({ label, help, on, onToggle }: { label: string; help?: HelpTopic; on: boolean; onToggle: (value: boolean) => void }) {
   return (
     <div className={`${ui.card} ${styles.toggle}`}>
-      <span className={styles.toggleLabel}>
-        {label}
-        {help ? <Help topic={help} /> : null}
-        {hint ? <span className={styles.toggleHint}>{hint}</span> : null}
-      </span>
-      <Switch label={label} on={on} onChange={onToggle} />
+      <SwitchRow label={label} help={help} on={on} onChange={onToggle} />
     </div>
   );
 }

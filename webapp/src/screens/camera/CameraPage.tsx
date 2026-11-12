@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
 import { CAPTURE_BUDGET_SECONDS, readsThroughDevice } from '@fg2/shared-types/v1-schemas/capture.js';
 import { useAccountMe } from '@/api/account';
@@ -11,16 +11,18 @@ import { useGrowDiary, useSpaceGrows } from '@/api/grows';
 import { useHomeShape } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { itemsOf } from '@/api/pages';
+import { filmStatus } from '@/api/media';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaceOverview, useSpaces } from '@/api/spaces';
 import { ALL_GROWS, devicePath, placePath, timelinePath, usePageOfPlace } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
+import { dayNamed, reachesBackTo, useReadBackTo } from '@/screens/grow/diary/read-back';
 import { shownStill } from '@/screens/start/place';
 import { ageLabel, deviceLiveness, sinceLabel } from '@/ui/age';
 import { useCameraCalled } from '@/ui/camera-name';
-import { useKept, useKeptScroll } from '@/ui/kept';
+import { useKeptScroll } from '@/ui/kept';
 import { deviceName } from '@/ui/naming';
 import { OfflineBox } from '@/ui/OfflineHelp';
 import { PageHead } from '@/ui/PageHead';
@@ -35,7 +37,7 @@ import { cameraFreshness } from '../devices/cameras';
 import { CameraSettings } from './CameraSettings';
 import { causeOf } from './capture-failure';
 import { Composer } from './Composer';
-import { firstDayOf, landsOn, nearestTo, picturedDays, reachesBackTo } from './days';
+import { firstDayOf, landsOn, nearestTo, picturedDays } from './days';
 import { Raw } from './Film';
 import { Films, FilmsSheet } from './Films';
 import { filmsOfEachSpan } from './film-spans';
@@ -47,14 +49,65 @@ import styles from './CameraPage.module.css';
  * diary, to a film of one's own and to what the camera is set to.
  */
 export function CameraPage() {
+  const { t } = useTranslation();
   const { cameraId = '' } = useParams();
   const camera = useCamera(cameraId);
   usePageOfPlace(camera.data?.spaceId ?? null);
 
   if (camera.isPending) return <Waiting lines={3} />;
-  if (!camera.data) return noLongerThere(camera.error) ? <NoLongerHere what="camera" /> : <LoadFailed retry={() => void camera.refetch()} />;
+  if (camera.data) return <CameraScreen camera={camera.data} failedAt={camera.isError ? camera.dataUpdatedAt : null} />;
+  if (!noLongerThere(camera.error)) return <LoadFailed retry={() => void camera.refetch()} />;
 
-  return <CameraScreen camera={camera.data} failedAt={camera.isError ? camera.dataUpdatedAt : null} />;
+  // An address that names no camera this account can open is a page all the same: a heading, which titles the window, and the way to Start.
+  return (
+    <section className={styles.page}>
+      <h1>{t('camera.title')}</h1>
+      <NoLongerHere what="camera" />
+    </section>
+  );
+}
+
+/** The least time between two writes of the address: a drag across a grow is as many days, and a browser refuses a hundred writes in ten seconds. */
+const ADDRESS_REST_MS = 150;
+
+/**
+ * The day the slider was left on, null for today. It stands in the address
+ * (`?day=`), so a reload and the way back find it - written there without a
+ * navigation: the history entry stays the one it was, because what the page
+ * keeps for it (`ui/kept.ts`) and the entry a sheet left behind
+ * (`ui/sheet-back.ts`) are found by its key, which a navigation renews. So
+ * moving the slider adds nothing to the history either. A sheet stands on an
+ * entry of its own: Back out of one lands on the page's first entry, whose
+ * address is then told the day too.
+ */
+function useDayInAddress(): [number | null, (day: number | null) => void] {
+  const [params] = useSearchParams();
+  const [day, setDay] = useState(() => dayNamed(params));
+  const [path] = useState(() => window.location.pathname);
+  // A stopwatch between two writes, not an instant: the browser's own.
+  const wroteAt = useRef(Number.NEGATIVE_INFINITY);
+
+  useEffect(() => {
+    const write = () => {
+      const url = new URL(window.location.href);
+      // A step of the history that left the page has changed the address already: that one is not this page's to write.
+      if (url.pathname !== path || dayNamed(url.searchParams) === day) return;
+      if (day === null) url.searchParams.delete('day');
+      else url.searchParams.set('day', String(day));
+      window.history.replaceState(window.history.state, '', url);
+      wroteAt.current = performance.now();
+    };
+    const wait = wroteAt.current + ADDRESS_REST_MS - performance.now();
+    const timer = wait > 0 ? setTimeout(write, wait) : undefined;
+    if (wait <= 0) write();
+    window.addEventListener('popstate', write);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('popstate', write);
+    };
+  }, [day, path]);
+
+  return [day, setDay];
 }
 
 type Diary = ReturnType<typeof useGrowDiary>;
@@ -118,21 +171,16 @@ function Watch({
   const carrierOffline = carrier !== null && deviceLiveness(carrier.state.lastSeenAt, now) === 'offline';
   const freshness = cameraFreshness(camera, now);
 
-  // The day the slider was left on, kept for the history entry: Back from the curves of a day returns to that day.
-  const [asked, setAsked] = useKept<number | null>('day', null);
+  const [asked, setAsked] = useDayInAddress();
   const lastDay = grow?.summary.dayNumber ?? null;
   const pages = diary?.data?.pages;
   const pictured = picturedDays(pages, camera.id).filter(one => lastDay === null || one.dayNumber < lastDay);
   const reaches = reachesBackTo(pages);
-  const fetchEarlier = diary?.fetchNextPage;
-  const fetchingEarlier = diary?.isFetchingNextPage === true;
-  // Left on a day the pages read so far do not reach: the weeks before are read until they do.
-  const reading = asked !== null && reaches !== null && asked < reaches && diary?.hasNextPage === true;
-  useEffect(() => {
-    if (reading && !fetchingEarlier) void fetchEarlier?.();
-  }, [reading, fetchingEarlier, fetchEarlier]);
+  const reading = useReadBackTo(diary, asked);
   const stops = pictured.map(one => one.dayNumber);
-  const day = asked === null ? null : (pictured.find(one => one.dayNumber === nearestTo(stops, asked)) ?? null);
+  // An address can name any day: one the grow has not reached is today, as today itself is.
+  const day =
+    asked === null || (lastDay !== null && asked >= lastDay) ? null : (pictured.find(one => one.dayNumber === nearestTo(stops, asked)) ?? null);
   const firstDay = grow && lastDay !== null ? firstDayOf(camera, grow) : null;
   const sliding = lastDay !== null && firstDay !== null && firstDay < lastDay && pictured.length > 0;
   const move = (to: number) => {
@@ -174,17 +222,25 @@ function Watch({
   const [open, setOpen] = useState<'composer' | 'films' | 'settings' | null>(null);
   const make = (body: TimelapseCreate) =>
     ask.mutate(body, {
-      onSuccess: accepted => {
-        setJob(accepted.media);
+      onSuccess: ({ media }) => {
+        setJob(media);
         setOpen(null);
+        // A film that was there already plays at once, which the button then says.
+        if (filmStatus(media) !== 'ready')
+          tell({ label: t('camera.film.asked', { film: t(`camera.film.kind.${media.window ?? 'custom'}`) }), undo: null });
       },
+    });
+  // A picture taken is on the frame, and the toast says of when it is; one that failed is said under the button.
+  const shoot = () =>
+    test.mutate(undefined, {
+      onSuccess: ({ still }) => still && tell({ label: t('camera.testTaken', { time: clock(still.capturedAt, zone) }), undo: null }),
     });
 
   return (
     <section className={styles.page}>
       {/* The camera belongs to the place it watches: the way back leads there, as Start's picture led here. */}
       <PageHead title={called(camera.name)} back={{ to: place ? placePath(place.id) : '/', label: place?.name ?? t('shell.tabs.home') }}>
-        <span className={ui.live} data-liveness={freshness}>
+        <span className={`${ui.live} ${styles.pill} ${styles.cut}`} data-liveness={freshness}>
           {freshness === 'live' ? <span className={ui.liveDot} aria-hidden /> : null}
           {pillOf(t, camera, freshness, carrierOffline && carrier ? deviceName(carrier, t) : null, now, zone)}
         </span>
@@ -226,7 +282,7 @@ function Watch({
             <span className={styles.labels}>
               {grow && shownDay !== null ? (
                 <span className={ui.photoCaption}>
-                  <span className={styles.labelName}>{grow.name}</span>
+                  <span className={styles.cut}>{grow.name}</span>
                   <span className={styles.labelKept}>{` · ${t('home.card.dayN', { day: shownDay })}`}</span>
                 </span>
               ) : null}
@@ -286,20 +342,20 @@ function Watch({
                 className={ui.button}
                 aria-disabled={carrierOffline || undefined}
                 disabled={test.isPending}
-                onClick={() => (carrierOffline ? undefined : test.mutate())}
+                onClick={carrierOffline ? undefined : shoot}
               >
                 {t(test.isPending ? 'camera.testing' : 'camera.testImage')}
               </button>
             ) : null
           }
-          below={mayManage ? <Shot test={test} mayOwn={mayOwn} offline={carrierOffline} zone={zone} /> : null}
+          below={mayManage ? <Shot test={test} mayOwn={mayOwn} offline={carrierOffline} /> : null}
         />
 
         <Rows>
           {place && measured ? (
             <Row to={timelinePath(place.id, null, day?.capturedAt ?? null, day ? (grow?.id ?? null) : null)} title={t('camera.row.curves')} />
           ) : null}
-          {grow ? <Row to={`${ALL_GROWS}/${grow.id}`} title={t('camera.row.diary')} /> : null}
+          {grow ? <Row to={`${ALL_GROWS}/${grow.id}${day ? `?day=${day.dayNumber}` : ''}`} title={t('camera.row.diary')} /> : null}
           {mayManage ? <Row onOpen={() => setOpen('composer')} title={t('camera.makeOne')} /> : null}
           {films.length > 0 ? <Row onOpen={() => setOpen('films')} title={t('camera.allFilms')} /> : null}
           <Row
@@ -340,18 +396,16 @@ const pillOf = (t: Translate, camera: Camera, freshness: string, waitsFor: strin
 };
 
 /**
- * What "Jetzt ein Bild" last answered, under the row it stands in. A press
- * that worked says so and the picture is on the frame; one that failed names
- * the kind of failure, as the box over the picture names the camera's last
- * one, and keeps the camera's own words for its owner. A request that never
- * reached the server is neither: the camera was not asked. The press waits
- * as long as the server's read may take and a little longer, so nothing
- * within that says to press again rather than to wait on.
+ * Why "Jetzt ein Bild" brought no picture, under the row it stands in: the
+ * kind of failure, as the box over the picture names the camera's last one,
+ * with the camera's own words for its owner. A request that never reached the
+ * server is not that: the camera was not asked. The press waits as long as
+ * the server's read may take and a little longer, so nothing within that says
+ * to press again rather than to wait on.
  */
-function Shot({ test, mayOwn, offline, zone }: { test: ReturnType<typeof useTestCapture>; mayOwn: boolean; offline: boolean; zone: string | null }) {
+function Shot({ test, mayOwn, offline }: { test: ReturnType<typeof useTestCapture>; mayOwn: boolean; offline: boolean }) {
   const { t } = useTranslation();
   const failed = test.data?.state === 'failed' ? test.data : null;
-  const taken = test.data?.state === 'done' ? test.data.still : null;
 
   if (offline) return <p className={ui.note}>{t('camera.testOffline')}</p>;
   if (test.isPending) return null;
@@ -362,18 +416,11 @@ function Shot({ test, mayOwn, offline, zone }: { test: ReturnType<typeof useTest
       </p>
     );
   }
-  if (failed) {
-    return (
-      <div className={styles.said} role="alert">
-        <p className={ui.problem}>{t('camera.testNoPicture', { reason: t(`camera.failure.${failed.reason ?? 'unknown'}`) })}</p>
-        {mayOwn && failed.error ? <Raw summary={t('camera.whatItSaid')}>{failed.error}</Raw> : null}
-      </div>
-    );
-  }
 
-  return taken ? (
-    <p className={`mono ${styles.taken}`} role="status">
-      {t('camera.testTaken', { time: clock(taken.capturedAt, zone) })}
-    </p>
+  return failed ? (
+    <div className={styles.said} role="alert">
+      <p className={ui.problem}>{t('camera.testNoPicture', { reason: t(`camera.failure.${failed.reason ?? 'unknown'}`) })}</p>
+      {mayOwn && failed.error ? <Raw summary={t('camera.whatItSaid')}>{failed.error}</Raw> : null}
+    </div>
   ) : null;
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAccountMe } from '@/api/account';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
-import type { Camera, CameraUpdate } from '@fg2/shared-types/v1';
+import type { Camera, CameraTransport, CameraUpdate } from '@fg2/shared-types/v1';
 import { useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
@@ -13,15 +13,18 @@ import type { Told } from '@/log/log-context';
 import { deviceName } from '@/ui/naming';
 import { countdownDays } from '@/screens/me/premium/entitlement';
 import { missingLine } from '@/screens/me/premium/free-tier';
-import { AdvancedSection } from '@/ui/advanced/Advanced';
 import { Asking } from '@/ui/Asking';
 import type { HelpTopic } from '@/ui/explain';
+import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Sheet } from '@/ui/Sheet';
+import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, zoneOf } from '@/ui/zone';
+import { carrierOf } from './stream';
+import { CarrierRow, StreamFold, TransportRow, TunnelRow } from './StreamOptions';
 import styles from './CameraPage.module.css';
 
 /** What a save says it changed, by the field it wrote. */
@@ -36,6 +39,9 @@ const SAID: Partial<Record<keyof CameraUpdate, string>> = {
   url: 'camera.address',
   username: 'camera.address',
   password: 'camera.address',
+  tunnel: 'camera.stream.tunnel',
+  deviceId: 'camera.stream.tunnel',
+  transport: 'camera.stream.transport',
 };
 
 /** What a save cannot put back: the login is never served, so the one before it is not known here. */
@@ -51,7 +57,8 @@ const KEPT_BY_SERVER: readonly (keyof CameraUpdate)[] = ['url', 'username', 'pas
  * How it is reached is what the camera *is* and is stated rather than
  * offered; a stream's address can be corrected, and how it is pulled is under
  * Erweitert. Somebody who may only look reads the same facts with no fields.
- * One Save writes what was changed and the toast names it, with the way back
+ * One Save writes what was changed - a switch and Erweitert included, so no
+ * answer stands over the sheet - and the toast names it, with the way back
  * where the server can put it back; closing with something unsaved asks
  * first. The fields are `manage` where the camera stands, taking it off the
  * account is `own`, as the routes ask them.
@@ -93,18 +100,17 @@ export function CameraSettings({
 
   const value = <K extends keyof CameraUpdate>(key: K): CameraUpdate[K] =>
     key in draft ? draft[key] : (camera[key as keyof Camera] as CameraUpdate[K]);
-  /** Nothing typed is no change, so an emptied field leaves the draft rather than standing in it as one. */
+  /** Nothing typed, and what the camera is set to already, is no change: it leaves the draft rather than standing in it as one. */
   const set = <K extends keyof CameraUpdate>(key: K, next: CameraUpdate[K]) =>
     setDraft(current => {
       const rest = { ...current };
       delete rest[key];
-      return next === undefined ? rest : { ...rest, [key]: next };
+      return next === undefined || next === camera[key as keyof Camera] ? rest : { ...rest, [key]: next };
     });
   const keepAddress = () => {
     for (const key of KEPT_BY_SERVER) set(key, undefined);
     setReaddressing(false);
   };
-  const flag = (key: 'nightOff' | 'maintenanceOff' | 'logErrors' | 'staleWarning'): boolean => (key in draft ? draft[key] : camera[key]) === true;
   const changed = Object.keys(draft).length > 0;
 
   const place = spaces.data?.items.find(space => space.id === camera.spaceId)?.name ?? null;
@@ -113,6 +119,17 @@ export function CameraSettings({
   const through = carrier ? deviceName(carrier, t) : null;
   // What a stream can be pulled through: what stands where the camera looks, and the device it already names.
   const here = (devices.data?.items ?? []).filter(device => device.spaceId === camera.spaceId || device.id === camera.deviceId);
+  const pulled = value('tunnel') === true;
+  const puller = carrierOf({ deviceId: value('deviceId') ?? null }, here);
+  /** Pulled through a device standing there, or - `null` - opened by the cloud itself. */
+  const pull = (through: string | null) => {
+    set('tunnel', through !== null);
+    set('deviceId', through ?? camera.deviceId);
+    // UDP does not pass through a tunnel: a stream turned to one is read over TCP, and as it was read once it is turned back.
+    if (through !== null && value('transport') === 'udp') set('transport', null);
+    if (through === null && draft.transport === null) set('transport', camera.transport);
+  };
+  const reached = reachedAt(camera);
 
   const save = () => {
     const keys = Object.keys(draft) as (keyof CameraUpdate)[];
@@ -159,13 +176,11 @@ export function CameraSettings({
       <div className={styles.sheet}>
         <ul className={ui.group}>
           <Row label={t('camera.connectedVia')}>
-            <span className={`mono ${styles.settingValue}`}>
-              {[connection(t, camera, through), place === through ? null : place].filter(Boolean).join(' · ')}
-            </span>
+            <Said facts={[connection(t, camera, through), place === through ? null : place]} />
           </Row>
 
           {/* Only where the answer carries it: the server keeps a camera's address for its owner and nulls it for everybody else. */}
-          {reachedAt(camera) ? (
+          {reached.length > 0 ? (
             <Row
               label={t(camera.kind === 'rtsp' ? 'camera.address' : 'camera.reachedAt')}
               help={camera.kind === 'rtsp' ? 'streamAddress' : undefined}
@@ -207,7 +222,7 @@ export function CameraSettings({
                     </span>
                   </>
                 ) : (
-                  <span className={`mono ${styles.settingValue}`}>{reachedAt(camera)}</span>
+                  <Said facts={reached} />
                 )}
                 {camera.kind === 'rtsp' ? (
                   <span className={`${ui.note} ${styles.settingNote}`}>{t(readdressing ? 'camera.addressChangeNote' : 'camera.addressNote')}</span>
@@ -230,7 +245,7 @@ export function CameraSettings({
                 aria-label={t('camera.name')}
               />
             ) : (
-              <span className={`mono ${styles.settingValue}`}>{camera.name}</span>
+              <Said facts={[camera.name]} />
             )}
           </Row>
 
@@ -244,7 +259,7 @@ export function CameraSettings({
                 aria-label={t('camera.looksAt')}
               />
             ) : (
-              <span className={`mono ${styles.settingValue}`}>{camera.looksAt ?? '—'}</span>
+              <Said facts={[camera.looksAt ?? '—']} />
             )}
           </Row>
 
@@ -263,50 +278,50 @@ export function CameraSettings({
                 <span className="mono">s</span>
                 {steered ? (
                   <>
-                    <Check label={t('camera.nightOff')} on={flag('nightOff')} onChange={next => set('nightOff', next)} />
-                    <Check
+                    <SwitchRow label={t('camera.nightOff')} on={value('nightOff') === true} onChange={next => set('nightOff', next)} />
+                    <SwitchRow
                       label={t('camera.maintenanceOff')}
                       help="cameraPauses"
-                      on={flag('maintenanceOff')}
+                      on={value('maintenanceOff') === true}
                       onChange={next => set('maintenanceOff', next)}
                     />
                   </>
                 ) : null}
               </span>
             ) : (
-              <span className={`mono ${styles.settingValue}`}>
-                {[
+              <Said
+                facts={[
                   `${camera.stillIntervalSeconds} s`,
                   steered && camera.nightOff ? t('camera.nightOff') : null,
                   steered && camera.maintenanceOff ? t('camera.maintenanceOff') : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </span>
+                ]}
+              />
             )}
           </Row>
 
           <Row label={t('camera.tellsYou')} help="staleWarning">
             {mayManage ? (
               <span className={styles.interval}>
-                <Check label={t('camera.staleWarning')} on={flag('staleWarning')} onChange={next => set('staleWarning', next)} />
+                <SwitchRow label={t('camera.staleWarning')} on={value('staleWarning') === true} onChange={next => set('staleWarning', next)} />
                 {/* A diary line is offered only to somebody who keeps a diary, or who already asked for one. */}
-                {diary || flag('logErrors') ? (
-                  <Check label={t('camera.logErrors')} on={flag('logErrors')} onChange={next => set('logErrors', next)} />
+                {diary || value('logErrors') === true ? (
+                  <SwitchRow label={t('camera.logErrors')} on={value('logErrors') === true} onChange={next => set('logErrors', next)} />
                 ) : null}
               </span>
             ) : (
-              <span className={`mono ${styles.settingValue}`}>
-                {[camera.staleWarning ? t('camera.staleWarning') : null, camera.logErrors ? t('camera.logErrors') : null]
-                  .filter(Boolean)
-                  .join(' · ') || t('camera.saysNothing')}
-              </span>
+              <Said
+                facts={
+                  camera.staleWarning || camera.logErrors
+                    ? [camera.staleWarning ? t('camera.staleWarning') : null, camera.logErrors ? t('camera.logErrors') : null]
+                    : [t('camera.saysNothing')]
+                }
+              />
             )}
           </Row>
 
           <Row label={t('camera.premium')} help={enforced ? 'premiumCamera' : undefined}>
             <span className={styles.settingStack}>
-              <span className={`mono ${styles.settingValue}`}>{entitlementLine(t, camera, enforced, zoneOf(me.data))}</span>
+              <Said facts={[entitlementLine(t, camera, enforced, zoneOf(me.data))]} />
               {ending !== null ? (
                 <span className={`mono ${styles.settingWarning}`} role="status">
                   {ending === 0 ? t('me.premium.endsToday') : t('me.premium.endsIn', { count: ending })}
@@ -324,7 +339,14 @@ export function CameraSettings({
           </Row>
         </ul>
 
-        <AdvancedSection scope="camera" context={{ camera, devices: here, mayManage }} />
+        {/* How a stream is reached, which almost nobody changes: through a device standing where it looks, or opened by the cloud itself. */}
+        {camera.kind === 'rtsp' && mayManage ? (
+          <StreamFold>
+            {puller ? <TunnelRow on={pulled} carrier={puller} onChange={next => pull(next ? puller.id : null)} /> : null}
+            {puller && pulled && here.length > 1 ? <CarrierRow devices={here} chosen={puller.id} onChoose={pull} /> : null}
+            <TransportRow value={(value('transport') as CameraTransport | null) ?? 'tcp'} tunnel={pulled} onChange={next => set('transport', next)} />
+          </StreamFold>
+        ) : null}
 
         {/* Taking the camera off the account is the owner's alone, asked where it stands, and cannot be taken back. */}
         {!mayOwn ? null : asking === 'unpair' ? (
@@ -350,15 +372,12 @@ export function CameraSettings({
   );
 }
 
-/** One of the camera's switches, labelled by what it does rather than by the field it writes. */
-function Check({ label, help, on, onChange }: { label: string; help?: HelpTopic; on: boolean; onChange: (next: boolean) => void }) {
+/** What a row states, at its right: facts side by side that break between two of them, never after a "·". */
+function Said({ facts }: { facts: readonly (string | null | false)[] }) {
   return (
-    <label className={`mono ${styles.check}`}>
-      {/* Named outright where the (i) stands in the label too, so the box is not called by the explanation's name as well. */}
-      <input type="checkbox" checked={on} aria-label={help ? label : undefined} onChange={event => onChange(event.target.checked)} />
-      {label}
-      {help ? <Help topic={help} /> : null}
-    </label>
+    <span className={`mono ${styles.settingValue}`}>
+      <Facts facts={facts} />
+    </span>
   );
 }
 
@@ -380,15 +399,12 @@ function Row({ label, help, children }: { label: string; help?: HelpTopic; child
  * (its login stripped out, which is the server's to keep) and how where that
  * is not TCP, or the P2P identity and address a Terp Cam answers on.
  */
-const reachedAt = (camera: Camera): string | null => {
-  const said =
-    camera.kind === 'rtsp'
-      ? [camera.url, camera.transport && camera.transport !== 'tcp' ? camera.transport.toUpperCase() : null]
-      : // The model is the firmware's code for it; the Terp Cam's is what the screen already calls it.
-        [camera.did, camera.ip, camera.model === 'terp_cam' ? null : camera.model];
-
-  return said.filter(Boolean).join(' · ') || null;
-};
+const reachedAt = (camera: Camera): string[] =>
+  (camera.kind === 'rtsp'
+    ? [camera.url, camera.transport && camera.transport !== 'tcp' ? camera.transport.toUpperCase() : null]
+    : // The model is the firmware's code for it; the Terp Cam's is what the screen already calls it.
+      [camera.did, camera.ip, camera.model === 'terp_cam' ? null : camera.model]
+  ).filter(fact => fact !== null && fact !== '') as string[];
 
 /** How the cloud reaches this camera, under a label that already says "via". */
 const connection = (t: Translate, camera: Camera, through: string | null): string => {

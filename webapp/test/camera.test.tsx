@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -13,16 +13,18 @@ import type {
   TimelapseCreate,
 } from '@fg2/shared-types/v1';
 import { NoAnswerInTime } from '@/api/cameras';
+import { ApiError } from '@/api/problem';
 import { serverNow } from '@/api/clock';
 import type { Told } from '@/log/log-context';
-import { CameraScreen } from '@/screens/camera/CameraPage';
+import { CameraPage, CameraScreen } from '@/screens/camera/CameraPage';
 import { causeOf, filmCauseOf } from '@/screens/camera/capture-failure';
 import { Composer } from '@/screens/camera/Composer';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
-import { firstDayOf, landsOn, nearestTo, picturedDays, reachesBackTo } from '@/screens/camera/days';
+import { firstDayOf, landsOn, nearestTo, picturedDays } from '@/screens/camera/days';
 import { Film } from '@/screens/camera/Film';
+import { reachesBackTo } from '@/screens/grow/diary/read-back';
 import { forgetKept } from '@/ui/kept';
-import { drawAt } from './harness';
+import { drawAt, NOT_FOUND, reading } from './harness';
 import { THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
@@ -39,6 +41,10 @@ import { translate } from './translations';
 const state = vi.hoisted(() => ({
   /** Every film asked for, by the composer's own callback and by the page's button alike. */
   asked: [] as TimelapseCreate[],
+  /** The film row a request is answered with; null is a request still out. */
+  accepted: null as unknown,
+  /** The cameras standing where this one does, itself among them. */
+  beside: [] as Camera[],
   film: null as unknown,
   youMay: 'own' as AccessNeed,
   lastError: null as string | null,
@@ -137,15 +143,32 @@ vi.mock('@/api/media', async importOriginal => ({
   // One film under the microscope is `film`; a list of them is served from the
   // rows themselves, and only those a test gave a span to - the rest stand for
   // reads that have not answered, which is what the paging tests draw.
-  useMedia: (id: string) => ({ data: state.film ?? state.films.find(one => one.id === id && one.capturedAt) ?? null, isError: false }),
+  useMedia: (id: string | null) => ({
+    data: id === null ? null : (state.film ?? state.films.find(one => one.id === id && one.capturedAt) ?? null),
+    isError: false,
+  }),
 }));
 
 vi.mock('@/api/cameras', async importOriginal => ({
   ...(await importOriginal<object>()),
-  useCameras: () => ({ data: { items: [], nextCursor: null } }),
+  // The page's own read of its camera is drawn only as one that found nothing; every other test hands the camera in.
+  useCamera: () => ({ isPending: false, data: undefined, error: new ApiError(NOT_FOUND), isError: true }),
+  useCameras: () => ({ data: { items: state.beside, nextCursor: null } }),
   useLatestStills: () => new Map<string, string | null>(state.lastStill ? [['camera-1', state.lastStill]] : []),
-  useTestCapture: () => ({ mutate: () => {}, data: state.capture ?? undefined, error: state.captureError, isPending: false }),
-  useRequestTimelapse: () => ({ mutate: (body: TimelapseCreate) => state.asked.push(body), error: null, isPending: false }),
+  useTestCapture: () => ({
+    mutate: (_: undefined, options?: { onSuccess?: (answer: TestCapture) => void }) => state.capture && options?.onSuccess?.(state.capture),
+    data: state.capture ?? undefined,
+    error: state.captureError,
+    isPending: false,
+  }),
+  useRequestTimelapse: () => ({
+    mutate: (body: TimelapseCreate, options?: { onSuccess?: (accepted: { media: unknown }) => void }) => {
+      state.asked.push(body);
+      if (state.accepted) options?.onSuccess?.({ media: state.accepted });
+    },
+    error: null,
+    isPending: false,
+  }),
   useTimelapses: () => ({
     data: { pages: [{ items: state.films, nextCursor: state.moreFilms ? 'cursor' : null }] },
     hasNextPage: state.moreFilms,
@@ -257,7 +280,10 @@ beforeEach(() => {
   // What a page keeps for its history entry outlives a test, whose pages all stand on the one entry a test router has.
   forgetKept();
   state.asked.length = 0;
+  state.accepted = null;
+  state.beside = [];
   state.film = null;
+  window.history.replaceState(null, '', '/');
   state.youMay = 'own';
   state.lastError = null;
   state.films = [];
@@ -371,6 +397,20 @@ describe('the composer', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Premium');
     expect(screen.getByRole('button', { name: 'Render · SD' })).toBeDisabled();
+  });
+
+  /** One camera or two side by side is a choice only where a second one stands there; nothing is said about one that does not. */
+  it('offers a second camera only where one stands there', () => {
+    const alone = draw(grow);
+    expect(screen.queryByRole('group', { name: 'Cam' })).not.toBeInTheDocument();
+    alone.unmount();
+
+    state.beside = [camera, { ...camera, id: 'camera-2', name: 'Side cam' }];
+    draw(grow);
+    fireEvent.click(within(screen.getByRole('group', { name: 'Cam' })).getByRole('button', { name: 'Both · Side cam' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Render · SD' }));
+
+    expect(state.asked[0].secondCameraId).toBe('camera-2');
   });
 
   it('sends the overlays and the shape the board offers', () => {
@@ -507,17 +547,20 @@ describe('the camera page, by who is reading', () => {
 
   /**
    * A press that worked used to change nothing at all on this page. Its answer
-   * carries the still it stored: the line under the button names it by its
-   * hour, and the frame shows it - also while the lamp is off and an older,
-   * lit picture would otherwise stand there.
+   * carries the still it stored: the toast names it by its hour, and the
+   * frame shows it - also while the lamp is off and an older, lit picture
+   * would otherwise stand there.
    */
   it('shows the picture a press took and says when, rather than going quiet', () => {
     const lit = serverNow().minus({ hours: 3 }).toISO()!;
     state.seen = { cameraId: 'camera-1', name: 'Terp Cam 1', lastStillAt: lit, stills: [], litStill: { mediaId: 'still-lit', capturedAt: lit } };
     state.capture = captured({ state: 'done', still: { mediaId: 'still-new', capturedAt: serverNow().toISO()! } });
     drawPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Take a picture now' }));
 
-    expect(screen.getByRole('status')).toHaveTextContent(/^Picture of \d\d:\d\d taken\.$/);
+    expect(state.told).toHaveLength(1);
+    expect(state.told[0].label).toMatch(/^Picture of \d\d:\d\d taken$/);
+    expect(state.told[0].undo).toBeNull();
     expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-new');
   });
 
@@ -530,7 +573,9 @@ describe('the camera page, by who is reading', () => {
   it('names the kind of failure a press met, and keeps the camera´s own words under it for the owner', () => {
     state.capture = captured({ state: 'failed', reason: 'aborted', error: 'device aborted the capture' });
     drawPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Take a picture now' }));
 
+    expect(state.told).toHaveLength(0);
     expect(screen.getByRole('alert')).toHaveTextContent(/^No picture: the camera stopped the capture/);
     expect(screen.getByText('What the camera said')).toBeInTheDocument();
     expect(screen.getByText('device aborted the capture')).toBeInTheDocument();
@@ -632,6 +677,15 @@ describe('the camera page, by who is reading', () => {
     drawPage();
     expect(screen.queryByRole('link', { name: 'Curves of this day' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Show in the diary' })).toHaveAttribute('href', '/grows/grow-1');
+  });
+
+  /** An address that names no camera the account can open is a page all the same: a heading, which titles the window, and a way on. */
+  it('says under a heading that a camera cannot be opened, with the way to Start', () => {
+    drawAt(<CameraPage />, { at: '/cameras/x' });
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Camera' })).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('This camera cannot be opened.');
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
   });
 });
 
@@ -808,6 +862,71 @@ describe('the days under the picture', () => {
     );
   });
 
+  /**
+   * The day is part of the address, so a reload and the way back find it. It
+   * is written there without a navigation: the history gains no entry, and
+   * the entry it stands on stays the one the page keeps its state for.
+   */
+  it('keeps the day it is moved to in the address, and opens on the day an address names', async () => {
+    const entries = window.history.length;
+    const first = drawPage();
+    moveTo(34);
+    expect(window.location.search).toBe('?day=34');
+    expect(window.history.length).toBe(entries);
+    first.unmount();
+
+    state.grows = [running];
+    drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...older }} />, { at: '/cameras/camera-1?day=32' });
+    expect(slider()).toHaveValue('32');
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-32');
+
+    // Back on today the address names no day.
+    moveTo(35);
+    await waitFor(() => expect(window.location.search).toBe(''));
+  });
+
+  /**
+   * A sheet stands on a history entry of its own, so Back out of one lands on
+   * the page's first entry, whose address has not heard of the day: it is told
+   * then. A step that leaves the page has an address that is not the page's.
+   */
+  it('tells the day to the entry Back out of a sheet lands on, and to no address that is not its own', () => {
+    drawPage();
+    moveTo(34);
+    window.history.replaceState(null, '', '/');
+    fireEvent.popState(window);
+    expect(window.location.search).toBe('?day=34');
+
+    window.history.replaceState(null, '', '/grows/grow-1');
+    fireEvent.popState(window);
+    expect(window.location.pathname + window.location.search).toBe('/grows/grow-1');
+  });
+
+  /** A drag across a grow is as many days: the address follows the slider at once and then no more often than a browser takes it. */
+  it('writes the address at once, and a move that follows right after once the slider has rested', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    try {
+      drawPage();
+      moveTo(34);
+      moveTo(32);
+      expect(slider()).toHaveValue('32');
+      expect(window.location.search).toBe('?day=34');
+
+      vi.advanceTimersByTime(150);
+      expect(window.location.search).toBe('?day=32');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('leads to the diary on the day shown', () => {
+    drawPage();
+    expect(screen.getByRole('link', { name: 'Show in the diary' })).toHaveAttribute('href', '/grows/grow-1');
+
+    moveTo(32);
+    expect(screen.getByRole('link', { name: 'Show in the diary' })).toHaveAttribute('href', '/grows/grow-1?day=32');
+  });
+
   /** The diary is read a few weeks at a time: a move to a day before those asks for the weeks before, and says it is reading. */
   it('reads the weeks before once it is moved to a day they hold', () => {
     state.earlierWeeks = true;
@@ -982,17 +1101,18 @@ describe('what the camera is set to', () => {
   it('draws every switch the camera carries, in the state the server gave', () => {
     drawSettings({ maintenanceOff: true, staleWarning: true, logErrors: false, nightOff: false });
 
-    expect(screen.getByRole('checkbox', { name: 'off during maintenance' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'warn when it stops delivering' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'log failed captures to the diary' })).not.toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'off in the dark' })).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: 'off during maintenance' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'warn when it stops delivering' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'log failed captures to the diary' })).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: 'off in the dark' })).not.toBeChecked();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
   it('states the stream it pulls, how, and whether it goes through the tunnel', () => {
     drawSettings({ kind: 'rtsp', did: null, model: null, url: 'rtsp://192.168.144.77:554/stream1', transport: 'http', tunnel: true });
 
     // TCP is what nearly every stream is read over, so only another way is said.
-    expect(screen.getByText('rtsp://192.168.144.77:554/stream1 · HTTP')).toBeInTheDocument();
+    expect(screen.getByText(reading('rtsp://192.168.144.77:554/stream1 · HTTP'))).toBeInTheDocument();
     expect(screen.getByText(/^RTSP via the device/)).toBeInTheDocument();
     // Stated until it is asked to change: the field it becomes is the next test file's.
     expect(screen.queryByRole('textbox', { name: 'Address' })).not.toBeInTheDocument();
@@ -1008,7 +1128,7 @@ describe('what the camera is set to', () => {
   it('states the identity and address a Terp Cam answers on', () => {
     drawSettings({ did: 'AAC2851962SPLP', ip: '192.168.144.145', model: 'terp_cam' });
 
-    expect(screen.getByText('AAC2851962SPLP · 192.168.144.145')).toBeInTheDocument();
+    expect(screen.getByText(reading('AAC2851962SPLP · 192.168.144.145'))).toBeInTheDocument();
   });
 
   it('draws no address at all where the server kept it from this reader', () => {
@@ -1022,7 +1142,7 @@ describe('what the camera is set to', () => {
   it('offers a reader who may not manage the same facts as words, and no switch, no Save and no way to unpair', () => {
     drawSettings({ maintenanceOff: true, staleWarning: true, logErrors: false }, false);
 
-    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    expect(screen.queryAllByRole('switch')).toHaveLength(0);
     expect(screen.getByText(/off during maintenance/)).toBeInTheDocument();
     expect(screen.getByText(/warn when it stops delivering/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
@@ -1035,16 +1155,16 @@ describe('what the camera is set to', () => {
 
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'off during maintenance' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'off during maintenance' }));
 
-    expect(screen.getByRole('checkbox', { name: 'off during maintenance' })).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: 'off during maintenance' })).not.toBeChecked();
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
 
   /** Every write answers: the sheet goes and the toast names what was changed, with the way to put it back. */
   it('saves what was changed, says which settings those were, and takes them back on undo', async () => {
     drawSettings({ maintenanceOff: true });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'off during maintenance' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'off during maintenance' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'Canopy' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -1075,7 +1195,7 @@ describe('what the camera is set to', () => {
     closed.mockClear();
 
     drawSettings();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'off in the dark' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'off in the dark' }));
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(closed).not.toHaveBeenCalled();
     expect(screen.getByText('What you changed is not saved yet.')).toBeInTheDocument();
@@ -1273,6 +1393,39 @@ describe('the films', () => {
     expect(sheet.textContent).not.toContain('there are not enough pictures in that span to make a film');
     // The other day failed and has nothing standing in for it, so it keeps its row.
     expect(sheet.textContent).toContain('18 Sep 00:00 → 18 Sep 23:59');
+  });
+
+  /**
+   * The list of films was read before the render was done: the film just
+   * asked for is followed by its own row, and once that plays it is the film
+   * of its kind - the button plays it rather than offering to make it again.
+   */
+  it('says that a film is being made, and plays it from the button once it is done', () => {
+    const asked = { id: 'film-new', window: 'day', capturedAt: serverNow().startOf('day').toISO()!, endsAt: serverNow().toISO()!, quality: 'sd' };
+    state.accepted = { ...asked, render: { status: 'queued', error: null } };
+    state.film = state.accepted;
+    const page = () => <CameraScreen camera={{ ...camera, ownerId: YOU, ...delivering }} />;
+    const { container, rerender } = drawAt(page());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Make the film' }));
+    expect(state.told).toEqual([{ label: 'Day film is being made', undo: null }]);
+    expect(screen.getByText('waiting · SD')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Make the film' })).toBeInTheDocument();
+    expect(container.querySelector('video')).toBeNull();
+
+    // The row is asked after until its render is over.
+    state.film = { ...asked, lengthSeconds: 12, render: { status: 'ready', error: null } };
+    rerender(page());
+
+    expect(screen.queryByRole('button', { name: 'Make the film' })).not.toBeInTheDocument();
+    expect(container.querySelectorAll('video')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Play the film' }));
+    expect(container.querySelectorAll('video')).toHaveLength(1);
+    expect(container.querySelector('video')).toHaveAttribute('autoplay');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close', expanded: true }));
+    expect(container.querySelector('video')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Play the film' })).toBeInTheDocument();
   });
 
   it('opens the composer from its row and follows the film it asked for', () => {

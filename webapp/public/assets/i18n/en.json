@@ -2250,7 +2250,7 @@
     "makeOne": "Put together your own timelapse",
     "askFailed": "That film was not asked for.",
     "testImage": "Take a picture now",
-    "testing": "Reading…",
+    "testing": "Taking a picture …",
     "testNoPicture": "No picture: {{reason}}",
     "testFailed": "That did not reach the camera.",
     "testNoAnswer": "Still no answer after more than {{minutes}} minutes. Please try again.",
@@ -2316,7 +2316,8 @@
       "which": "Film",
       "playIt": "Play the film",
       "make": "Make the film",
-      "asking": "Asking …"
+      "asking": "Asking …",
+      "asked": "{{film}} is being made"
     },
     "noFilms": "No film of this camera yet.",
     "firstWeekEnds": "The week film shows the last complete week. This camera's first complete week ends on {{date}}.",
@@ -2331,7 +2332,6 @@
     "password": "Password",
     "keepAddress": "Leave it as it is",
     "stream": {
-      "lead": "What most growers never need: how the cloud fetches the stream.",
       "tunnel": "Pull through the device",
       "tunnelOn": "The cloud pulls the stream from your network through {{device}}.",
       "tunnelOff": "The cloud opens the stream itself, which only works for a camera reachable from the internet.",
@@ -2375,7 +2375,7 @@
       "phase": "Phase",
       "grow": "Whole grow"
     },
-    "testTaken": "Picture of {{time}} taken.",
+    "testTaken": "Picture of {{time}} taken",
     "row": {
       "curves": "Curves of this day",
       "diary": "Show in the diary",
@@ -2395,7 +2395,8 @@
       "terpcam_controller": "Terp Cam",
       "terpcam_standalone": "standalone · Wi-Fi",
       "rtsp": "RTSP"
-    }
+    },
+    "title": "Camera"
   },
   "cameras": {
     "add": {
@@ -2504,7 +2505,6 @@
     "to": "To",
     "cam": "Cam",
     "split": "Both · {{name}}",
-    "oneCameraHere": "Only one camera stands here, so there is nothing to put beside it.",
     "overlays": "Overlays",
     "dayCounter": "Day counter",
     "climate": "Temperature and humidity curve",
@@ -2518,8 +2518,7 @@
     },
     "renderHd": "Render · HD",
     "renderSd": "Render · SD",
-    "backwards": "A film ends after it begins; the second date has to be the later one.",
-    "entriesHint": "the diary lines of the span, on the frames around them"
+    "backwards": "A film ends after it begins; the second date has to be the later one."
   },
   "publicPage": {
     "footer": "Terp Control: a controller or a fridge module writes the climate down, a camera takes the pictures, and the grower writes the rest.",

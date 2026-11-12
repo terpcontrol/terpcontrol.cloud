@@ -794,6 +794,62 @@ describe('the diary', () => {
     expect(screen.getByRole('heading', { name: 'Fri 11 Sep · Day 28' })).toBeInTheDocument();
   });
 
+  /** A link that names a day - the camera's "Im Tagebuch zeigen" - finds the diary open on it. */
+  describe('opened on a day', () => {
+    const into = vi.fn();
+    const drawOn = (dayNumber: number) =>
+      drawAt(
+        <LogProvider>
+          <Diary grow={grow} now={NOW} picturesTo="/grow/pictures" />
+        </LogProvider>,
+        { at: `/grows/grow-1?day=${dayNumber}` },
+      );
+
+    beforeEach(() => {
+      into.mockClear();
+      // jsdom draws nothing, so it has nothing to scroll.
+      Element.prototype.scrollIntoView = into;
+    });
+
+    it('has the week that holds the day open and its card in view, and leaves the other weeks folded', async () => {
+      drawOn(27);
+
+      const card = await screen.findByRole('article', { name: 'Thu 10 Sep · Day 27' });
+      expect(screen.getByRole('button', { name: reads(/^Day 28 to 26/) })).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('button', { name: reads(/^Day 32 to 29/) })).toHaveAttribute('aria-expanded', 'false');
+      expect(into).toHaveBeenCalledTimes(1);
+      expect(into.mock.contexts[0]).toBe(card);
+    });
+
+    it('reads the weeks before until they hold the day', async () => {
+      drawOn(21);
+
+      const card = await screen.findByRole('article', { name: 'Fri 4 Sep · Day 21' });
+      expect(wire.asked.filter(call => call.includes('/diary'))).toEqual(['/grows/grow-1/diary', '/grows/grow-1/diary?cursor=earlier&limit=8']);
+      expect(into.mock.contexts).toEqual([card]);
+    });
+
+    it('brings a day of the open cards into view without unfolding anything', async () => {
+      drawOn(34);
+
+      const card = await screen.findByRole('article', { name: 'Yesterday · Day 34' });
+      expect(into.mock.contexts).toEqual([card]);
+      expect(screen.getByRole('button', { name: reads(/^Day 28 to 26/) })).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('is left where it was scrolled to for whoever comes back to it', async () => {
+      const first = drawOn(27);
+      await screen.findByRole('article', { name: 'Thu 10 Sep · Day 27' });
+      first.unmount();
+
+      // The same entry of the history, come back to.
+      drawOn(27);
+
+      expect(await screen.findByRole('article', { name: 'Thu 10 Sep · Day 27' })).toBeInTheDocument();
+      expect(into).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('reads the weeks before only when asked for them, eight at a time', async () => {
     drawDiary();
 

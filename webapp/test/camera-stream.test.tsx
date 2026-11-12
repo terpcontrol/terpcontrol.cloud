@@ -2,6 +2,7 @@ import { act, fireEvent, screen, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
+import type { Told } from '@/log/log-context';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
 import { drawAt } from './harness';
 import { spaceWhere } from './session';
@@ -9,13 +10,17 @@ import { translate } from './translations';
 
 /**
  * A stream camera's address, corrected where it stands, and the Erweitert
- * section under its card: whether the stream is pulled through a device in
- * the place, and how it is read.
+ * fold of its settings: whether the stream is pulled through a device in the
+ * place, and how it is read - written by the sheet's one Save, like everything
+ * else in it.
  *
  * The login is never served, so what is asserted is what goes on the wire: an
  * address sent alone, which the server reads as "keep the login", and a login
  * only where somebody typed one.
  */
+/** What the toast was handed once a save had landed. */
+const told: Told[] = [];
+
 vi.mock('@/api/client', () => ({
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
@@ -82,7 +87,7 @@ const answers = (path: string) => {
 };
 
 const draw = (camera: Camera, mayManage = true) =>
-  drawAt(<CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayManage} tell={() => {}} onClose={() => {}} />);
+  drawAt(<CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayManage} tell={one => told.push(one)} onClose={() => {}} />);
 
 /** Every read the card starts, answered and drawn. */
 const settle = async () => {
@@ -98,6 +103,7 @@ const save = async () => {
 beforeAll(() => translate());
 
 beforeEach(() => {
+  told.length = 0;
   state.devices = [fridge];
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.patch).mockReset();
@@ -150,34 +156,61 @@ describe('changing a stream´s address in place', () => {
   });
 });
 
-describe('Advanced, under a stream camera´s card', () => {
+describe('Advanced, in a stream camera´s settings', () => {
   const open = async () => {
     await settle();
     fireEvent.click(screen.getByText('Advanced'));
   };
 
-  it('pulls the stream through the fridge module standing there, on the tap', async () => {
+  /** Nothing in the sheet writes on the tap: one Save, one answer, and no toast over a sheet that is still open. */
+  it('pulls the stream through the fridge module standing there once it is saved, and says so with the way back', async () => {
     draw(stream());
     await open();
 
     const tunnel = screen.getByRole('switch', { name: 'Pull through the device' });
     expect(tunnel).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByText(/The cloud opens the stream itself, which only works for a camera reachable from the internet/)).toBeInTheDocument();
-    await act(async () => {
-      fireEvent.click(tunnel);
-    });
+    fireEvent.click(tunnel);
+
+    expect(tunnel).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText('The cloud pulls the stream from your network through Fridge module.')).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+    await save();
 
     expect(api.patch).toHaveBeenCalledWith('/cameras/camera-1', { tunnel: true, deviceId: 'fridge-1' });
+    expect(told.map(one => one.label)).toEqual(['Camera saved · Pull through the device']);
+    await act(async () => void (await told[0].undo?.()));
+    expect(api.patch).toHaveBeenLastCalledWith('/cameras/camera-1', { tunnel: false, deviceId: null });
+  });
+
+  it('leaves nothing to save once a switch is back where the camera has it', async () => {
+    draw(stream());
+    await open();
+    fireEvent.click(screen.getByRole('switch', { name: 'Pull through the device' }));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Pull through the device' }));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 
   it('reads a UDP stream over TCP once it is pulled through the device, which UDP does not pass', async () => {
     draw(stream({ transport: 'udp' }));
     await open();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('switch', { name: 'Pull through the device' }));
-    });
+    fireEvent.click(screen.getByRole('switch', { name: 'Pull through the device' }));
+    expect(within(screen.getByRole('group', { name: 'Transport' })).queryByRole('button', { name: 'UDP' })).not.toBeInTheDocument();
+    await save();
 
     expect(api.patch).toHaveBeenCalledWith('/cameras/camera-1', { tunnel: true, deviceId: 'fridge-1', transport: null });
+  });
+
+  it('keeps UDP for a stream that was turned to the device and back before it was saved', async () => {
+    draw(stream({ transport: 'udp' }));
+    await open();
+    fireEvent.click(screen.getByRole('switch', { name: 'Pull through the device' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Pull through the device' }));
+
+    expect(within(screen.getByRole('group', { name: 'Transport' })).getByRole('button', { name: 'UDP' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 
   it('says which device carries it, and lets a place with two choose', async () => {
@@ -186,23 +219,23 @@ describe('Advanced, under a stream camera´s card', () => {
     await open();
 
     expect(screen.getByText('The cloud pulls the stream from your network through Veg controller.')).toBeInTheDocument();
-    await act(async () => {
-      fireEvent.click(within(screen.getByRole('group', { name: 'Through which device?' })).getByRole('button', { name: 'Fridge module' }));
-    });
-    expect(api.patch).toHaveBeenLastCalledWith('/cameras/camera-1', { tunnel: true, deviceId: 'fridge-1' });
+    fireEvent.click(within(screen.getByRole('group', { name: 'Through which device?' })).getByRole('button', { name: 'Fridge module' }));
+    await save();
+
+    expect(api.patch).toHaveBeenLastCalledWith('/cameras/camera-1', { deviceId: 'fridge-1' });
   });
 
-  it('chooses how the stream is read on the tap, and offers UDP only where the cloud opens it itself', async () => {
+  it('chooses how the stream is read, and offers UDP only where the cloud opens it itself', async () => {
     draw(stream({ deviceId: 'fridge-1', tunnel: true, transport: 'tcp' }));
     await open();
 
     const transports = within(screen.getByRole('group', { name: 'Transport' }));
     expect(transports.queryByRole('button', { name: 'UDP' })).not.toBeInTheDocument();
-    await act(async () => {
-      fireEvent.click(transports.getByRole('button', { name: 'HTTPS' }));
-    });
+    fireEvent.click(transports.getByRole('button', { name: 'HTTPS' }));
+    await save();
 
     expect(api.patch).toHaveBeenCalledWith('/cameras/camera-1', { transport: 'https' });
+    expect(told.map(one => one.label)).toEqual(['Camera saved · Transport']);
   });
 
   it('offers UDP to a stream the cloud opens itself', async () => {

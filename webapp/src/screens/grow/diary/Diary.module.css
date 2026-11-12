@@ -26,6 +26,8 @@
   background: var(--card);
   border: var(--rule-solid);
   border-radius: var(--radius);
+  /* Brought into view by a link that names the day, it stands clear of the phone's header. */
+  scroll-margin-top: calc(var(--topbar-height) + env(safe-area-inset-top) + var(--space-3));
 }
 
 .dayPicture {

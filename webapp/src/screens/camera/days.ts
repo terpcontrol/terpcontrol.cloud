@@ -27,12 +27,6 @@ export const picturedDays = (pages: readonly GrowDiaryPage[] | undefined, camera
     )
     .sort((one, other) => one.dayNumber - other.dayNumber);
 
-/** The oldest day the pages read so far reach back to; null before the first page. */
-export const reachesBackTo = (pages: readonly GrowDiaryPage[] | undefined): number | null => {
-  const days = (pages ?? []).flatMap(page => page.items).flatMap(week => [week.dayFrom, week.dayTo]);
-  return days.length > 0 ? Math.min(...days) : null;
-};
-
 /** The first day of the grow this camera can have pictured: the day it was added on, or the grow's first. */
 export const firstDayOf = (camera: Pick<Camera, 'createdAt'>, grow: Pick<GrowListItem, 'startedAt' | 'phases' | 'summary'>): number =>
   growDayAt(growOriginOf(grow), camera.createdAt, grow.summary.zone);

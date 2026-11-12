@@ -32,6 +32,7 @@ export function DayCard({
   now,
   live,
   explain = false,
+  into,
   onPicture,
 }: {
   day: GrowDiaryDay;
@@ -44,6 +45,8 @@ export function DayCard({
   live: boolean;
   /** The first card that states a share, which says once for all of them what "on target" counts as. */
   explain?: boolean;
+  /** Handed the card of the day a link named, which is brought into view. */
+  into?: (card: HTMLElement | null) => void;
   onPicture: (picture: GrowPicture) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -59,7 +62,7 @@ export function DayCard({
   const alt = picture ? t(picture.entry ? 'grow.diary.photoAlt' : 'grow.diary.stillAlt', { day: day.dayNumber }) : '';
 
   return (
-    <article className={styles.day} aria-label={title}>
+    <article className={styles.day} aria-label={title} ref={into}>
       {picture && src ? (
         live && picture.cameraId && picture.entry === null && reader.cameras ? (
           <Link to={`/cameras/${picture.cameraId}`} className={styles.dayPicture}>
