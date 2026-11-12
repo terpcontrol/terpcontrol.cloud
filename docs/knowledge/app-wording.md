@@ -1,6 +1,6 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
-updated: 2026-11-12
+updated: 2026-11-13
 source: Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12)
 paths:
   - webapp/public/assets/i18n/**
@@ -67,7 +67,8 @@ string exists in English and German, with no English left in the German catalogu
   only once it is revoked or expired - the server refuses to delete a working one (409 `share_link_live`).
 - Shared texts say "das Gerät", not "der Controller". A device is called by its type alone unless the account has two
   of a kind, then with its id tail (`ui/naming.ts`). A new place gets a name a person would write, numbered past the
-  existing ones ("Zelt 2", "Kühlschrank 1", "Ort 1"), never the raw type key.
+  existing ones, the first without a number ("Zelt", "Zelt 2", "Kühlschrank"; the redesign session of 2026-11-12), never
+  the raw type key.
 - "Keimung · dunkel" and "Sämling · mit Licht" name the stage only where choosing it sets the climate (see
   [app-ux.md §5](app-ux.md#5-controls)).
 - **What reports is "online"** (the redesign session of 2026-11-12): on the pill ("online · vor 20 s"), a

@@ -349,9 +349,9 @@ describe('removing a place', () => {
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/spaces/tent'));
     // The place made for the device is named as a claim names one, and stands in the room the place stood in.
-    expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'tent', name: 'Tent 1', roomId: 'room' });
-    expect(api.put).toHaveBeenCalledWith('/spaces/made-Tent 1/devices/device-1');
-    expect(api.post).toHaveBeenCalledWith('/grows/grow-1/placements', expect.objectContaining({ spaceId: 'made-Tent 1' }));
+    expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'tent', name: 'Tent 2', roomId: 'room' });
+    expect(api.put).toHaveBeenCalledWith('/spaces/made-Tent 2/devices/device-1');
+    expect(api.post).toHaveBeenCalledWith('/grows/grow-1/placements', expect.objectContaining({ spaceId: 'made-Tent 2' }));
     expect(api.patch).not.toHaveBeenCalled();
     await waitFor(() => expect(told.map(one => one.label)).toEqual(['Tent removed']));
     expect(told[0].undo).toBeNull();

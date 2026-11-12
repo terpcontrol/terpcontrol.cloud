@@ -629,7 +629,6 @@ describe('the choice of place', () => {
 
   it.each([
     ['its Start', '/spaces/space-2'],
-    ['who is let into it', '/spaces/space-2/members'],
     ['a grow running there', '/grows/grow-2'],
     ['its camera', '/cameras/cam-2'],
     ['one of its devices', '/devices/device-2'],
@@ -677,19 +676,19 @@ describe('the choice of place', () => {
     expect(chosen()).toBe('space-1');
   });
 
-  it.each([
-    ['who is let into it', '/spaces/space-2/members'],
-    ['its camera', '/cameras/cam-2'],
-  ])('leads from a page that belongs to a place to the Start of the place chosen: %s', async (_what, from) => {
-    const router = open(from);
+  it.each([['its camera', '/cameras/cam-2']])(
+    'leads from a page that belongs to a place to the Start of the place chosen: %s',
+    async (_what, from) => {
+      const router = open(from);
 
-    await waitFor(() => expect(chosen()).toBe('space-2'));
-    await choose('Tent 2', /Fridge 1/);
+      await waitFor(() => expect(chosen()).toBe('space-2'));
+      await choose('Tent 2', /Fridge 1/);
 
-    await waitFor(() => expect(where(router)).toBe('/spaces/space-1'));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument();
-    expect(chosen()).toBe('space-1');
-  });
+      await waitFor(() => expect(where(router)).toBe('/spaces/space-1'));
+      expect(await screen.findByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument();
+      expect(chosen()).toBe('space-1');
+    },
+  );
 
   it('leads from a grow opened by its id to Grow of the place chosen', async () => {
     const router = open('/grows/grow-2');
@@ -902,8 +901,8 @@ describe('the place menu', () => {
 
     fireEvent.click(await screen.findByRole('link', { name: 'Edit place: Fridge 1' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Edit Fridge 1' })).toBeInTheDocument();
-    // Start stays marked: the page is the place's.
-    expect(marked()).toEqual(['Home']);
+    // One task with one way on and one way out: the page stands without the bar.
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'Blue Dream' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 

@@ -8,7 +8,9 @@ import type {
   SocketPage,
   Space,
 } from '@fg2/shared-types/v1';
+import { nameKey, numbered } from '@fg2/shared-types/v1-schemas/place-names.js';
 import type { Translate } from '@/i18n/i18n';
+import { pairsACam } from '@/screens/camera/add/pairers';
 import { alarmsReach, channelsLabel, reachedBy } from '@/screens/notifications/reach';
 
 /**
@@ -31,10 +33,7 @@ export interface Doing {
   germination?: Partial<GerminationChoices>;
 }
 
-/**
- * The write the step makes, from its own button or from the screen's: the
- * stage, and with germination the switches that were moved.
- */
+/** The write the step makes, from its own button or from the screen's: the stage, and with germination the switches that were moved. */
 export const presetBodyOf = (stage: GrowthStage, doing: Doing): PresetApplicationCreate =>
   stage === 'germination' && doing.germination && Object.keys(doing.germination).length > 0
     ? { stage, germinationChoices: doing.germination }
@@ -42,28 +41,44 @@ export const presetBodyOf = (stage: GrowthStage, doing: Doing): PresetApplicatio
 
 export const NOTHING_DOING: Doing = { chosen: null, applied: null };
 
+/** What is asked once a device is claimed, in the order it is asked. */
+export const ASKED = ['place', 'doing', 'hardware', 'notify', 'grow'] as const;
+export type Asked = (typeof ASKED)[number];
+
+/** The types that hold a climate by targets of their own; a fan, a socket and a lamp hang in the climate of one of these. */
+export const OWN_CLIMATE = ['controller', 'fridge'];
+
+/** Whether a device with targets of its own stands in the place beside this one. */
+export const climateIn = (devices: readonly Device[], spaceId: string | null, beside: string): boolean =>
+  devices.some(one => one.spaceId === spaceId && one.id !== beside && OWN_CLIMATE.includes(one.type));
+
 /**
- * What to call the place a claim has just made.
- *
- * A place is named after what it is and in the language the grower reads, so
- * the word comes out of the catalogue by the type of hardware standing in it
- * rather than being the type key itself - a home whose first card says
- * "controller" names a part and not a place, and says it in English whatever
- * the account is set to. The number is the first one none of their places
- * carries, so claiming a second controller gives "Tent 2" rather than a second
- * "Tent 1".
+ * The questions a claim will ask, decided once so that the count in the head
+ * holds: where it hangs where there is more than one answer, a climate only of
+ * a device that sets one, a camera of one that can carry it, how alarms arrive
+ * of an account they do not reach yet, and what grows unless it said no to the
+ * diary. An answer can end the flow early; none adds a question.
  */
-export const newPlaceName = (type: string, spaces: readonly Space[], t: Translate): string => {
-  const taken = new Set(spaces.map(one => one.name.trim().toLowerCase()));
-  let name = '';
+export const planOf = (device: Pick<Device, 'type'>, place: boolean, me: Me | undefined): Asked[] => {
+  const asked = { place, doing: OWN_CLIMATE.includes(device.type), hardware: pairsACam(device), notify: !me || !alarmsReach(me) };
 
-  for (let n = 1; n <= spaces.length + 1; n += 1) {
-    name = t(`claim.place.newName.${type}`, { n, defaultValue: t('claim.place.newName.other', { n }) });
-    if (!taken.has(name.toLowerCase())) break;
-  }
-
-  return name;
+  return ASKED.filter(step => (step === 'grow' ? me?.preferences.diary !== 'off' : asked[step]));
 };
+
+/** A sentence about where a device hangs, in the verb of its kind: a fan hangs, a socket is plugged in, and both say so every time. */
+export const hangWords = (t: Translate, form: 'title' | 'done' | 'joined', type: string, values?: Record<string, string>): string =>
+  t(`claim.air.${form}.${type}`, { ...values, defaultValue: t(`claim.air.${form}.other`, values) });
+
+/** What a place the app makes by itself for a device is: a fridge for a fridge module, a tent for everything else. Its page changes that. */
+export const newPlaceKind = (type: string): 'fridge' | 'tent' => (type === 'fridge' ? 'fridge' : 'tent');
+
+/**
+ * What to call such a place: the word for what it is, in the language the
+ * grower reads - the server has none - and the first of its kind without a
+ * number, "Zelt", then "Zelt 2".
+ */
+export const newPlaceName = (type: string, spaces: readonly Pick<Space, 'name'>[], t: Translate): string =>
+  numbered(t(`claim.place.newName.${newPlaceKind(type)}`), new Set(spaces.map(one => nameKey(one.name))));
 
 /** The place, and what kind of place it is. */
 export const placeSummary = (space: Space | null, t: Translate): string =>

@@ -1,6 +1,6 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
-updated: 2026-11-12
+updated: 2026-11-13
 source: round 6 of the navigation redesign - the pages of a place, where a device hangs (the redesign session of 2026-11-12, after Chris's decision 5 of 2026-11-11); Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
 paths:
   - webapp/src/**
@@ -225,15 +225,32 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   or fridge module the new one, because that is a second climate. The first device of an account is asked nothing;
   a flow opened from a place ("Gerät hierher holen") claims into that place and asks nothing; what hangs on a
   controller's smart socket is never claimed and never asked.
-  - The answer "in a place that exists" moves the device and ends the place its claim made, which held nothing; "a
-    new place" writes nothing. A name and a kind are not asked in the flow: the place is called "Zelt 2" and renamed
-    on "Ort bearbeiten".
-  - *A guest is offered nothing of the host's.* Only places the account owns are offered, also to a member who may
-    manage the host's place; and a `?space=` naming somebody else's place is ignored.
-  - *Adding a device leaves the bar* (`SetupShell`, `app/shell/AppShell.tsx`): a cross ("Hinzufügen abbrechen"),
-    "Lüfter hinzufügen · Schritt 2 von 5" over a bar, and nothing else beside the questions. The claimed device, the
-    open step and the place the claim made are in the address (`?device=&at=&made=`), so a locked phone picks the
-    flow up where it was, the question of where it hangs included. It ends by asking "Was wächst hier?".
+  - *The claim leaves no stray place* (the redesign session of 2026-11-12, after the round's walk): as soon as the
+    code is taken, a fan, a socket or a lamp is hung in the place the question's first answer names - the place the
+    flow was opened from, else the first of the account's own - and the place its claim made is ended, before the
+    question is drawn. The question then shows the answer that holds and changes it: another place, or "An einem
+    neuen Ort", which makes one and moves the device. A second controller or fridge module stays in the place its
+    claim made. A flow left at the question leaves the device somewhere sensible and no "Ort 1".
+  - *A device that joins a climate is done there.* A fan, a socket or a lamp hung beside a controller or a fridge
+    module is asked nothing more - no climate, no camera, no alarms, no grow: the flow ends on that place's Start
+    with a toast that names what hangs where ("Lüfter hängt jetzt in Zelt"). The step that sets a climate writes
+    the place's targets, so it is asked only of a controller or fridge module that is its place's first; the camera
+    step only of a device that can carry one; how alarms reach somebody only while nothing reaches the account.
+  - *A place the app names itself* is "Zelt", then "Zelt 2" - "Kühlschrank" for a fridge module - by the rule the
+    server numbers by (`numbered`), also for a first fan, socket or lamp. Name and kind are not asked in the flow;
+    they are edited on "Ort bearbeiten".
+  - *A guest is offered nothing of the host's.* Only places the account owns are offered, and the server refuses a
+    device in a place of another account whoever asks (ADR 0001).
+  - *Adding a device leaves the bar* (`handle: BARE` on the route, `app/shell/AppShell.tsx`, as editing and ending a
+    place do): a cross ("Hinzufügen abbrechen") and "Lüfter hinzufügen · Schritt 2 von 5" over a bar. **The count is
+    said once it is fixed**: before the code is taken the head says "Gerät hinzufügen" and no count; then the steps
+    that will be asked are worked out once and kept in the address (`?device=&ask=&at=&made=`), so a reload and an
+    answer that makes a later step unnecessary do not change it. **Each step after the code is a history entry**:
+    Back goes one step back, never to the code - it is spent - and from the first of them to the Start of the place
+    the device hangs in; the question's own "Zurück" is that Back. One verb per kind, in the question, the settled
+    step and the toast ("Wo steckt der Plantalytix Socket?" - "Wo er steckt"). What explains a step is behind its
+    help button; nothing stands under a title or under the button. An address that names a device the account
+    cannot read says so in one sentence over the code field.
 - **A place left empty is never removed by itself** (Chris, 2026-10-08): one with no device, camera or grow says so
   to its owner on its Start, with the way to "Ort entfernen" (`screens/space/EmptyPlace.tsx`), and the owner
   decides: an empty tent between two grows is a place somebody still means to use. The one exception is the place a

@@ -3,6 +3,7 @@ import { useRead } from './read';
 import type { Device, DeviceClaimCreate, DeviceClaimResult, Space } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { deviceQuery } from './devices';
+import { ApiError } from './problem';
 import { invalidate, useWrite } from './write';
 
 /**
@@ -59,32 +60,32 @@ export const useClaimedDevice = (deviceId: string | null) =>
  *
  * The space is named in the call rather than in the hook, because at the
  * instant a claim answers there is no space on the screen to bind one to. The
- * word is the app's to
- * choose and not the server's: a name has to be in the language the grower
- * reads, and the server has no language.
+ * word is the app's to choose and not the server's: a name has to be in the
+ * language the grower reads, and the server has no language.
  */
 export const useNameNewPlace = () =>
   useWrite(({ spaceId, name }: { spaceId: string; name: string }) => api.patch<Space>(`/spaces/${spaceId}`, { name }), claimChanged);
 
 /**
- * Moving the device into a place the account already has.
- *
- * It is the narrower of the two ways to say it: the route puts one device in
- * one space and answers nothing else, so a correction made here cannot carry a
- * name or a firmware channel with it by accident. Hardware that was plugged in
- * before anybody decided where it stands is the ordinary reason - a claim has
- * to end in some space, and the one it invents is a guess.
+ * Putting a device in one of the account's places, by the narrower of the two
+ * ways to say it: the route puts one device in one space and answers nothing
+ * else, so it cannot carry a name or a firmware channel with it by accident.
+ * The device is named in the call, because the first of these is written the
+ * moment a claim answers, before any screen stands on that device.
  */
-export const usePlaceDevice = (deviceId: string | null) =>
-  useWrite((spaceId: string) => api.put<Device>(`/spaces/${spaceId}/devices/${deviceId}`), deviceClaimed);
+export const usePlaceDevice = () =>
+  useWrite((to: { deviceId: string; spaceId: string }) => api.put<Device>(`/spaces/${to.spaceId}/devices/${to.deviceId}`), deviceClaimed);
 
 /**
  * Ending the place a claim made, once the device has been sent on to a place
  * the account already had. It held nothing else, so it goes the way a removed
  * place goes; what it buys is a Start that does not grow an empty "Zelt 2"
- * every time a fan is hung in the tent that is already there.
+ * every time a fan is hung in the tent that is already there. A place already
+ * gone is what was asked for: an address can name it for longer than it stood.
  */
-export const useEndInvented = () => useWrite((spaceId: string) => api.delete(`/spaces/${spaceId}`), claimChanged);
+const gone = (error: unknown) => (error instanceof ApiError && error.status === 404 ? undefined : Promise.reject(error));
+
+export const useEndInvented = () => useWrite((spaceId: string) => api.delete(`/spaces/${spaceId}`).catch(gone), claimChanged);
 
 /**
  * What a QR code on the box says. It may carry the code alone or a link that

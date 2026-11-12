@@ -1,6 +1,6 @@
 ---
 summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores; read it before an upgrade, a restore or a repair by hand
-updated: 2026-11-12
+updated: 2026-11-13
 source: Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); steps 026-028: the redesign session of 2026-11-12; agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/migrations/**

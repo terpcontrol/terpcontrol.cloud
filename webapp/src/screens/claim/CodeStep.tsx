@@ -10,6 +10,7 @@ import { claimCodeOf, useClaimDevice } from '@/api/claims';
 import { useDeviceFirmwares } from '@/api/devices';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { useQrScan } from '@/ui/barcode';
+import { Facts } from '@/ui/Facts';
 import { Refused } from '@/ui/PageState';
 import { QrScanner } from '@/ui/QrScanner';
 import ui from '@/ui/ui.module.css';
@@ -41,22 +42,28 @@ export function CodeStep({
   initialCode: string;
   /** The place the flow was opened from, which the device is claimed into. */
   into: Space | null;
-  onClaimed: (result: DeviceClaimResult) => void;
+  /** What follows a claim - where the device hangs, what will be asked - which the form waits for as it waits for the claim. */
+  onClaimed: (result: DeviceClaimResult) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const claim = useClaimDevice();
   const form = useForm<DeviceClaimCreate>({ defaultValues: { code: initialCode } });
+
+  const busy = form.formState.isSubmitting;
 
   // The refusal is the mutation's own and is drawn under the field, so a code
   // the server would not take leaves the form exactly as it was typed.
   const submit = form.handleSubmit(async body => {
     const code = claimCodeOf(body.code).trim();
     if (!code) return;
+    let result: DeviceClaimResult;
     try {
-      onClaimed(await claim.mutateAsync(into === null ? { code } : { code, spaceId: into.id }));
+      result = await claim.mutateAsync(into === null ? { code } : { code, spaceId: into.id });
     } catch {
       form.setFocus('code');
+      return;
     }
+    await onClaimed(result);
   });
 
   const { scan, note, scanner } = useQrScan(
@@ -87,7 +94,7 @@ export function CodeStep({
           autoComplete="off"
           enterKeyHint="go"
           spellCheck={false}
-          disabled={claim.isPending}
+          disabled={busy}
           {...form.register('code', { required: true })}
         />
         <button type="button" className={ui.fieldAction} onClick={scan}>
@@ -106,8 +113,8 @@ export function CodeStep({
 
       <Refused error={claim.error} />
 
-      <button type="submit" className={`${ui.button} ${ui.primary} ${styles.wide}`} disabled={claim.isPending}>
-        {claim.isPending ? t('claim.code.claiming') : t('claim.code.claim')}
+      <button type="submit" className={`${ui.button} ${ui.primary} ${styles.wide}`} disabled={busy}>
+        {busy ? t('claim.code.claiming') : t('claim.code.claim')}
       </button>
 
       {/* A camera of its own - an RTSP stream - has no claim code, so it has its own way in. */}
@@ -122,16 +129,11 @@ export function CodeStep({
   );
 }
 
-/** What the first step settled, in the device's own name and the tail of the id printed on it. */
+/** What the first step settled, in the device's own name: the two break between them, never after the dot. */
 export function ClaimedTitle({ device }: { device: Device }) {
   const { t } = useTranslation();
 
-  return (
-    <>
-      <span className={styles.claimedMark}>{t('claim.code.claimed')}</span> · {deviceName(device, t)} ·{' '}
-      <span className="mono">{device.id.slice(-4).toUpperCase()}</span>
-    </>
-  );
+  return <Facts facts={[<span className={styles.claimedMark}>{t('claim.code.claimed')}</span>, deviceName(device, t)]} />;
 }
 
 /**
@@ -155,7 +157,7 @@ export function ClaimedFacts({ device, sockets, now }: { device: Device; sockets
   const seen = device.state.lastSeenAt;
   const label = buildLabel(firmwares.data?.items.find(one => one.id === device.state.firmwareId));
 
-  if (!seen) return <span className={styles.waitingForIt}>{t('claim.code.neverHeard')}</span>;
+  if (!seen) return t('claim.code.neverHeard');
 
   return (
     <>

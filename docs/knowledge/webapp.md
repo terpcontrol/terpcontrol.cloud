@@ -1,6 +1,6 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
-updated: 2026-11-12
+updated: 2026-11-13
 source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12)
 paths:
   - webapp/**
@@ -52,7 +52,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   | `/devices/:deviceId/:page?`, `/devices/:deviceId/sockets/:socket` | a device's own page with `advanced`, `details` under it; one smart socket | Steuerung |
   | `/devices` | names nothing: the not-found page inside the shell | Steuerung |
   | `/cameras/add` | adding a camera (`?kind=rtsp` opens the page on its address form) | Steuerung |
-  | `/claim` | adding a device: **outside the bar**, in `SetupShell` (`app/shell/AppShell.tsx`), which keeps the toasts and the window's title and nothing else; `?space=` claims into a place, `?device=&at=&made=` picks a flow up | - |
+  | `/claim` | adding a device: **outside the bar** (`handle: BARE` on the route; `AppShell` then draws the page alone, with the toasts and the window's title), as `/spaces/:spaceId/edit` and `.../remove` are; `?space=` claims into a place, `?device=&ask=&at=&made=` picks a flow up | - |
   | `/cameras/:cameraId` | a camera | none |
   | `/alerts`, `/tasks`, `/me/...`, `/admin/...` | Meldungen and the task list its door opens, Ich, the fleet screens | none |
 

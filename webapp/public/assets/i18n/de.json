@@ -3152,11 +3152,9 @@
     "opened": "{{title}} · Schritt {{step}} von {{of}}",
     "next": "Weiter · {{what}}",
     "finish": "Fertig · Ort öffnen",
-    "later": "Die Vorgabe lässt sich später unter Steuerung ändern, Steckdosen und Cam dort bei den Geräten, Benachrichtigungen unter Ich.",
     "demo": "Die Demo darf alles ansehen und nichts ändern, also kann sie keine Hardware übernehmen. Melde dich mit deinem eigenen Konto an, um ein Gerät hinzuzufügen.",
     "code": {
       "title": "Den Code vom Display ablesen",
-      "text": "Der Controller zeigt einen kurzen Code; auf der Verpackung steht derselbe als QR-Code.",
       "field": "Claim-Code",
       "claim": "Übernehmen",
       "claiming": "Wird übernommen…",
@@ -3171,22 +3169,19 @@
       "camera": "Cam: {{name}}",
       "noCamera": "keine",
       "rtsp": "Eine Kamera ohne Controller (RTSP) hinzufügen",
-      "into": "Kommt nach {{name}}."
+      "into": "Kommt nach {{name}}.",
+      "notYours": "Dieses Gerät gehört nicht zu deinem Konto."
     },
     "place": {
-      "next": "wo hängt es?",
-      "title": "Wo es hängt",
       "newName": {
-        "controller": "Zelt {{n}}",
-        "fridge": "Kühlschrank {{n}}",
-        "other": "Ort {{n}}"
+        "tent": "Zelt",
+        "fridge": "Kühlschrank"
       },
       "unknown": "noch kein Ort"
     },
     "doing": {
       "next": "was macht es?",
       "title": "Was macht es gerade?",
-      "text": "Wähl eine Phase als Vorgabe oder „nur messen“ für reine Überwachung. Eine Vorgabe setzt das Klima.",
       "pick": "Was dort gerade läuft",
       "measure": "nur messen",
       "measureNote": "Es wird nichts an den Controller geschrieben. Er meldet weiter, der Verlauf füllt sich. Es sind keine Grenzwerte gesetzt — eine Phase hätte welche geschrieben; eigene legst du unter Steuerung › Alarme an.",
@@ -3207,25 +3202,19 @@
     "hardware": {
       "next": "Steckdosen und Cam?",
       "title": "Steckdosen und Cam",
-      "text": "Was das Gerät gefunden hat: die Steckdosen, die es schaltet, und die Cam, für die es antwortet. Beides hat Zeit.",
       "sockets": "Gemeldete Steckdosen",
       "noSockets": "noch keine",
       "notReported": "noch nicht gemeldet",
       "cam": "Cam",
-      "socketsAtTheDevice": "Eine Steckdose von Terp Control koppelst du am Gerät selbst – Knopf drücken, dann Smart Sockets –, und sie taucht in dieser Liste auf, sobald das Gerät sie meldet. Eine Tasmota-Steckdose koppelst du später unter Steuerung › dein Gerät › Steckdose koppeln per IP-Adresse.",
-      "pairTheCam": "Terp Cam koppeln",
-      "bothCanWait": "Beides hat Zeit: Das Gerät misst den Ort, an dem es steht, auch wenn nichts eingesteckt ist."
+      "pairTheCam": "Terp Cam koppeln"
     },
     "camOnly": {
       "next": "Cam?",
-      "title": "Cam",
-      "text": "Die Terp Cam, für die das Gerät antwortet. Das hat Zeit.",
-      "canWait": "Das hat Zeit: Das Gerät arbeitet auch ohne Cam."
+      "title": "Cam"
     },
     "notify": {
       "next": "Benachrichtigung",
       "title": "Wie erfährst du von Problemen?",
-      "text": "Geht das Gerät offline oder wird es zu warm, löst ein Alarm aus. Ohne eingerichteten Weg erreicht er dich nicht.",
       "reaches": "Kritische Alarme per {{channels}}",
       "none": "noch kein Weg eingerichtet"
     },
@@ -3233,29 +3222,46 @@
       "next": "was wächst?",
       "skip": "Jetzt nicht",
       "move": "Oder einen Grow hierher umziehen",
-      "title": "Was wächst hier?",
-      "text": "Mit einem Grow schreibt die App das Tagebuch mit. Das hat Zeit."
+      "title": "Was wächst hier?"
     },
-    "step": "{{device}} hinzufügen · Schritt {{step}} von {{of}}",
-    "stepUnknown": "Gerät hinzufügen · Schritt {{step}} von {{of}}",
+    "step": "Schritt {{step}} von {{of}}",
     "close": "Hinzufügen abbrechen",
     "backToStart": "Zurück zu Start",
     "air": {
       "title": {
         "fan": "Wo hängt der Lüfter?",
         "controller": "Wo hängt der Controller?",
-        "fridge": "Wo arbeitet das Kühlschrank­modul?",
+        "fridge": "Wo arbeitet das Kühlschrankmodul?",
         "plug": "Wo steckt der Plantalytix Socket?",
         "light": "Wo hängt das Licht?",
         "other": "Wo hängt das Gerät?"
+      },
+      "done": {
+        "fan": "Wo er hängt",
+        "controller": "Wo er hängt",
+        "fridge": "Wo es arbeitet",
+        "plug": "Wo er steckt",
+        "light": "Wo es hängt",
+        "other": "Wo es hängt"
+      },
+      "joined": {
+        "fan": "{{device}} hängt jetzt in {{place}}",
+        "plug": "{{device}} steckt jetzt in {{place}}",
+        "light": "{{device}} hängt jetzt in {{place}}",
+        "other": "{{device}} hängt jetzt in {{place}}"
       },
       "here": "In {{name}}",
       "hereNote": "Bei {{devices}}: ein Klima, eine Kamera, eine Wartung.",
       "hereEmpty": "Dort steht noch kein Gerät.",
       "new": "An einem neuen Ort",
-      "newNote": "Zum Beispiel ein zweites Zelt, mit eigenem Klima.",
+      "newNote": {
+        "controller": "Zum Beispiel ein zweites Zelt, mit eigenem Klima.",
+        "fridge": "Zum Beispiel ein zweiter Kühlschrank, mit eigenem Klima.",
+        "other": "Zum Beispiel ein Trockenzelt, in dem sonst kein Gerät steht."
+      },
       "back": "Zurück"
-    }
+    },
+    "adding": "{{device}} hinzufügen"
   },
   "admin": {
     "section": "Verwaltung",
@@ -4063,6 +4069,14 @@
     "streamChange": {
       "title": "Adresse ändern",
       "text": "Das Passwort, mit dem der Stream geöffnet wird, bleibt auf dem Server und wird nie zurückgeschickt. Änderst du die Adresse, bleiben Benutzer und Passwort, wie sie sind, wenn du sie leer lässt. Bilder, Filme und Premium bleiben bei dieser Kamera. Nach dem Speichern prüft „Jetzt ein Bild“, ob sie erreichbar ist."
+    },
+    "claimCode": {
+      "title": "Der Code",
+      "text": "Das Gerät zeigt einen kurzen Code auf seinem Display; auf der Verpackung steht derselbe als QR-Code. Er ist der ganze Nachweis, dass das Gerät bei dir steht."
+    },
+    "claimLater": {
+      "title": "Das hat Zeit",
+      "text": "Das Gerät arbeitet auch ohne Cam. Eine Cam koppelst du später bei den Geräten unter Steuerung; dort ändern sich auch die Vorgaben, Benachrichtigungen unter Ich."
     }
   },
   "place": {

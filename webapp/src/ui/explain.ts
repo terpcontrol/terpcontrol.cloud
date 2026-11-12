@@ -55,6 +55,8 @@ export const HELP_TOPICS = [
   'taskFor',
   'socketRoles',
   'socketAddress',
+  'claimCode',
+  'claimLater',
   'socketHold',
   'lightHold',
   'firmwareChannel',

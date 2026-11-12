@@ -15,6 +15,8 @@
    other. The gap between steps is the screen's, so the list reads as a list
    rather than as four cards. */
 .step {
+  --marker: 26px;
+
   display: flex;
   gap: var(--space-3);
   padding: 0 var(--space-4);
@@ -34,8 +36,8 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 26px;
-  height: 26px;
+  width: var(--marker);
+  height: var(--marker);
   border: var(--rule-width) solid var(--rule-strong);
   border-radius: 50%;
   font-size: var(--text-xs);
@@ -66,7 +68,15 @@
   padding-top: 2px;
 }
 
+/* The question, and in the corner the way to what it is about. */
+.stepHead {
+  display: flex;
+  align-items: baseline;
+}
+
 .stepTitle {
+  flex: 1;
+  min-width: 0;
   font-size: var(--text-lg);
   font-weight: var(--weight-heading);
   line-height: var(--line-tight);
@@ -84,10 +94,11 @@
   }
 }
 
-/* The open step's heading takes focus when a step settles so that a screen
-   reader starts at the question; it is not a control, and a ring round a
-   heading nobody tabbed to reads as a fault. */
-.stepTitle[tabindex='-1']:focus {
+/* The heading of the question takes focus when it opens so that a screen
+   reader starts there; it is not a control, and a ring round a heading nobody
+   tabbed to reads as a fault. */
+.stepTitle[tabindex='-1']:focus,
+.growTitle:focus {
   outline: none;
 }
 
@@ -109,28 +120,34 @@
   margin-top: var(--space-3);
 }
 
-/* A settled step's header is how it is corrected, and it is not a control to
-   look at: it is the title, tappable. */
+/* On the narrowest phones what a step asks takes the card's whole width: beside the marker's column the field
+   for a code is too short for its placeholder and the scan beside it. */
+@media (max-width: 359px) {
+  .stepFields {
+    margin-left: calc((var(--marker) + var(--space-3)) * -1);
+  }
+}
+
+/* A settled step's header is how it is corrected: the title, tappable across its line however short it is. It
+   reaches down over the line that says what the step settled, so it is a finger high beside its tick. */
 .reopen {
-  min-height: var(--control-height);
+  display: block;
+  width: 100%;
   background: none;
   border: 0;
-  padding: 0;
+  padding: 0 0 var(--space-5);
   color: inherit;
   font: inherit;
   text-align: left;
 }
 
-.claimedMark {
-  color: var(--green-ink);
+.stepHead:has(.reopen) + .stepText {
+  margin-top: calc(var(--space-5) * -1);
+  pointer-events: none;
 }
 
-/* A device that has never spoken: said plainly, never as a row of dashes, and
-   in the grey the rest of the app gives a thing that has reported nothing. The
-   step it sits under is settled, not wrong, so it does not wear the amber that
-   means stale liveness, a warning-severity alert or a refresh that failed. */
-.waitingForIt {
-  color: var(--muted);
+.claimedMark {
+  color: var(--green-ink);
 }
 
 /* What a preset did, once it has been applied. Sentences rather than figures,
@@ -159,14 +176,12 @@
   overflow-wrap: anywhere;
 }
 
-/* The question the server asks about the grow when there is none in the tent. */
 .wide {
   width: 100%;
 }
 
-/* A link out of a step is a link and not a bar across it: the column stretches
-   what it holds, and only the step's own action wants that width. */
-/* A way aside, a finger high where it is tapped, on as many lines as a narrow phone needs. */
+/* A way aside is a link and not a bar across the step, a finger high where it is tapped, on as many lines as a
+   narrow phone needs. */
 .aside {
   display: inline-flex;
   align-items: center;
@@ -186,10 +201,6 @@
   flex-direction: column;
   gap: var(--space-2);
   margin-top: var(--space-2);
-}
-
-.laterNote {
-  text-align: center;
 }
 
 .demoNote {
@@ -214,6 +225,8 @@
 }
 
 .legacy summary {
+  /* A finger high where it is tapped, on one line as on three. */
+  padding: var(--space-3) 0;
   cursor: pointer;
   color: var(--brand);
   font-weight: var(--weight-semibold);
@@ -299,7 +312,7 @@
   background: var(--brand);
 }
 
-/* Where it hangs: one card per answer, the one offered first outlined in green. */
+/* Where it hangs: one card per answer, the one that holds outlined in green. */
 .air {
   display: flex;
   flex-direction: column;
@@ -314,14 +327,10 @@
   text-align: left;
 }
 
-.air[data-first] {
+.air[aria-current] {
   border: 2px solid var(--green);
   /* The thicker edge takes the room the thinner one had. */
   padding: calc(var(--space-4) - 1px);
-}
-
-.air[aria-current] {
-  background: var(--green-wash);
 }
 
 .air:disabled {
@@ -334,7 +343,7 @@
   overflow-wrap: anywhere;
 }
 
-.air[data-first] .airTitle {
+.air[aria-current] .airTitle {
   color: var(--green-ink);
 }
 
@@ -350,10 +359,6 @@
   height: 150px;
   border-radius: var(--radius);
   object-fit: cover;
-}
-
-.growTitle:focus {
-  outline: none;
 }
 
 .growText {

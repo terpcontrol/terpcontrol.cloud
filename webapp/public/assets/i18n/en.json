@@ -3143,11 +3143,9 @@
     "opened": "{{title}} · step {{step}} of {{of}}",
     "next": "Next · {{what}}",
     "finish": "Done · open the place",
-    "later": "The preset can be changed later from Control, the sockets and the cam with the devices there, notifications from Me.",
     "demo": "The demo may look at everything and change nothing, so it cannot claim hardware. Sign in with your own account to add a device.",
     "code": {
       "title": "Read the code off the display",
-      "text": "The controller shows a short code, and the box carries the same one as a QR.",
       "field": "Claim code",
       "claim": "Claim it",
       "claiming": "Claiming…",
@@ -3162,22 +3160,19 @@
       "camera": "Cam: {{name}}",
       "noCamera": "none",
       "rtsp": "Add a camera without a controller (RTSP)",
-      "into": "Goes into {{name}}."
+      "into": "Goes into {{name}}.",
+      "notYours": "This device is not on your account."
     },
     "place": {
-      "next": "where does it hang?",
-      "title": "Where it hangs",
       "newName": {
-        "controller": "Tent {{n}}",
-        "fridge": "Fridge {{n}}",
-        "other": "Place {{n}}"
+        "tent": "Tent",
+        "fridge": "Fridge"
       },
       "unknown": "no place yet"
     },
     "doing": {
       "next": "what is it doing?",
       "title": "What is it doing right now?",
-      "text": "Pick a stage preset, or “just measure” for monitoring only. A preset sets the climate.",
       "pick": "What the place is doing",
       "measure": "just measure",
       "measureNote": "Nothing is written to the controller. It goes on reporting and the timeline fills. No thresholds are set — a stage would have written them, so add your own under Control › Alarms.",
@@ -3198,25 +3193,19 @@
     "hardware": {
       "next": "sockets and cam?",
       "title": "Sockets and cam",
-      "text": "What the device has found: the sockets it drives and the cam it answers for. Both can wait.",
       "sockets": "Reported sockets",
       "noSockets": "none yet",
       "notReported": "not reported yet",
       "cam": "Cam",
-      "socketsAtTheDevice": "A Terp Control socket is paired on the device itself – press the button, then Smart Sockets – and shows up in this list once the device reports it. A Tasmota socket you pair later under Control › your device › Pair a socket, by its IP address.",
-      "pairTheCam": "Pair a Terp Cam",
-      "bothCanWait": "Both can wait: the device measures the place it stands in even with nothing plugged into it."
+      "pairTheCam": "Pair a Terp Cam"
     },
     "camOnly": {
       "next": "cam?",
-      "title": "Cam",
-      "text": "The Terp Cam the device answers for. It can wait.",
-      "canWait": "It can wait: the device works without a cam too."
+      "title": "Cam"
     },
     "notify": {
       "next": "notifications",
       "title": "How will you hear about problems?",
-      "text": "When the device goes offline or it gets too warm, an alarm goes off. Without a way set up, it does not reach you.",
       "reaches": "Critical alarms by {{channels}}",
       "none": "no way set up yet"
     },
@@ -3224,11 +3213,9 @@
       "next": "what grows?",
       "skip": "Not now",
       "move": "Or move a grow here",
-      "title": "What grows here?",
-      "text": "With a grow the app keeps the diary. It can wait."
+      "title": "What grows here?"
     },
-    "step": "Add {{device}} · step {{step}} of {{of}}",
-    "stepUnknown": "Add a device · step {{step}} of {{of}}",
+    "step": "step {{step}} of {{of}}",
     "close": "Stop adding",
     "backToStart": "Back to Start",
     "air": {
@@ -3240,13 +3227,32 @@
         "light": "Where does the light hang?",
         "other": "Where does the device hang?"
       },
+      "done": {
+        "fan": "Where it hangs",
+        "controller": "Where it hangs",
+        "fridge": "Where it works",
+        "plug": "Where it is plugged in",
+        "light": "Where it hangs",
+        "other": "Where it hangs"
+      },
+      "joined": {
+        "fan": "{{device}} now hangs in {{place}}",
+        "plug": "{{device}} is now plugged in in {{place}}",
+        "light": "{{device}} now hangs in {{place}}",
+        "other": "{{device}} now hangs in {{place}}"
+      },
       "here": "In {{name}}",
       "hereNote": "With {{devices}}: one climate, one camera, one maintenance.",
       "hereEmpty": "No device stands there yet.",
       "new": "At a new place",
-      "newNote": "A second tent, say, with a climate of its own.",
+      "newNote": {
+        "controller": "A second tent, say, with a climate of its own.",
+        "fridge": "A second fridge, say, with a climate of its own.",
+        "other": "A drying tent, say, where no other device stands."
+      },
       "back": "Back"
-    }
+    },
+    "adding": "Add {{device}}"
   },
   "admin": {
     "section": "Admin",
@@ -4054,6 +4060,14 @@
     "streamChange": {
       "title": "Changing the address",
       "text": "The password the stream is opened with stays with the server and is never sent back here. When you change the address, user and password stay as they are if you leave them empty. Pictures, films and Premium stay with this camera. After saving, “Take a picture now” checks that it is reachable."
+    },
+    "claimCode": {
+      "title": "The code",
+      "text": "The device shows a short code on its display, and the box carries the same one as a QR code. It is the whole proof that the device stands with you."
+    },
+    "claimLater": {
+      "title": "It can wait",
+      "text": "The device works without a cam too. A cam is paired later with the devices under Control, where the presets change as well; notifications under Me."
     }
   },
   "place": {
