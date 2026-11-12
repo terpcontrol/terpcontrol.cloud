@@ -59,6 +59,15 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     same tent makes a second place and Start turns into the several-places layout.
   - The weight is live duplication, not dead code: 21 ideas (place chooser, rename sheet, maintenance, climate
     preset, light limit, ...) are each built in three to nine places, against one unused export.
+  - Decided on 2026-11-12, after a critic walked the new Start, and not built yet (each goes from this list into
+    [app-ux.md](knowledge/app-ux.md) when it is): a room has no Start of its own - its address leads to Start;
+    "Wartung · 15 Min" starts fifteen minutes with one tap, and the same spot then ends or extends it; "Was wächst
+    hier?" opens on the stage the place is on, not on germination; what setup itself switched on raises no "layout
+    changed" notice; a device that has never sent a value waits for its first values rather than being offline;
+    stale figures in the camera picture are dimmed and stamped; each reading in the picture opens its curve, the
+    rest of the picture the camera; declining the diary is answered with an undo; the head of a place's Start is
+    the place's name, also where it only holds a grow; from 900 px the desktop Start stays one column until two
+    fit, and with several places each card says when something is due there.
 
 - **Unit preferences are saved, not applied.** Me › Appearance stores °C/°F, g/oz and l/gal (`preferences.units`),
   but every figure is still drawn in °C, g and l, as the page's `unitsNote` tells the reader; only the Me screen's
