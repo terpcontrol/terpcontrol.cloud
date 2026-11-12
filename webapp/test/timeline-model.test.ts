@@ -66,8 +66,7 @@ const answer = (over: Partial<SpaceTimeline> = {}): SpaceTimeline => ({
       points: Array.from({ length: 24 }, (_, hour) => ({ measuredAt: at(hour + 1), value: 56.04, ...(hour === 12 ? { min: 54.2, max: 71.5 } : {}) })),
       targets: [],
     },
-    // Read over a week, a deficit is the mean of each window and carries no sample's extremes.
-    { metric: 'vpd', sampled: false, points: Array.from({ length: 24 }, (_, hour) => ({ measuredAt: at(hour + 1), value: 1.31 })), targets: [] },
+    { metric: 'vpd', points: Array.from({ length: 24 }, (_, hour) => ({ measuredAt: at(hour + 1), value: 1.31 })), targets: [] },
     { metric: 'co2', points: Array.from({ length: 24 }, (_, hour) => ({ measuredAt: at(hour + 1), value: 820 })), targets: [] },
   ],
   nights: [{ startsAt: at(6), endsAt: at(12) }],
@@ -219,10 +218,7 @@ describe('a panel', () => {
     expect(Math.max(...temperature.plot.bands.map(band => band.to))).toBe(lastHeard);
   });
 
-  it('says whether its low and high are of samples: a deficit over a week is of means, and its last reading is not one of them', () => {
-    const [temperature, , vpd] = drawn(answer()).panels;
-    expect([temperature.curves[0].sampled, vpd.curves[0].sampled]).toEqual([true, false]);
-
+  it('says the low and high of the window as the answer has them: the reading that closes the curve is "now" and no part of them', () => {
     const now = { values: [{ metric: 'vpd', value: 1.9, measuredAt: at(23.99), state: 'live' } as CardValue], silentSince: null };
     expect(drawn(answer(), null, { now }).panels[2].curves[0]).toMatchObject({ low: 1.31, high: 1.31 });
     // Where the points carry extremes they are what is read, and a point without any is its own.

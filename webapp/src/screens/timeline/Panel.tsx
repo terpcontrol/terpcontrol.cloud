@@ -111,12 +111,9 @@ export function Panel({
             <span className={styles.panelRange}>
               <Facts
                 facts={[
-                  // Where the points are means and carry no samples' extremes - a deficit over a week - the two ends are those of the means, and say so.
                   ...(first.low === null || first.high === null
                     ? []
-                    : first.sampled
-                      ? [t('timeline.lowAt', { value: first.written(first.low) }), t('timeline.highAt', { value: first.written(first.high) })]
-                      : [t('timeline.meansBetween', { low: first.written(first.low), high: first.written(first.high) })]),
+                    : [t('timeline.lowAt', { value: first.written(first.low) }), t('timeline.highAt', { value: first.written(first.high) })]),
                   ...(compared !== null && compared !== undefined ? [t('timeline.comparedAt', { value: first.written(compared) })] : []),
                 ]}
               />

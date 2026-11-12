@@ -4051,10 +4051,6 @@ export interface TimelinePanel {
   metric: Metric;
   points: SeriesPoint[];
   /**
-   * Whether the lowest and highest of the points are of samples: `min`/`max` were read for each window, or a window is one sample. False where they were not - a read that asked for none, and VPD over a window too wide to work out the deficit of every sample - so the points are means and nothing more.
-   */
-  sampled?: boolean;
-  /**
    * In order, each ending where the next begins; empty where nothing held a target over the window.
    */
   targets: TimelineTargets[];

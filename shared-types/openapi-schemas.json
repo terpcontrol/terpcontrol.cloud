@@ -12954,10 +12954,6 @@
           "$ref": "#/components/schemas/SeriesPoint"
         }
       },
-      "sampled": {
-        "description": "Whether the lowest and highest of the points are of samples: `min`/`max` were read for each window, or a window is one sample. False where they were not - a read that asked for none, and VPD over a window too wide to work out the deficit of every sample - so the points are means and nothing more.",
-        "type": "boolean"
-      },
       "targets": {
         "type": "array",
         "items": {

@@ -1,10 +1,11 @@
 import {
   computedValue,
+  deficitGrainFor,
   extremesByField,
-  extremesOfSamples,
   extremesQuery,
   fieldsFor,
   FluxRow,
+  grainsQuery,
   gridOf,
   latestByField,
   levelsByField,
@@ -12,13 +13,13 @@ import {
   liveQuery,
   OutputSwitching,
   readingsOf,
-  runningMostOf,
   runningSpansOf,
   samplesQuery,
   seriesQuery,
   stepFor,
   switchingGrainFor,
   switchingsQuery,
+  workedOutBy,
 } from '@modules/data/flux';
 import { DataService } from '@modules/data/data.service';
 import { DEFAULT_DEVICE_SETTINGS } from '@database/schemas/v1/devices.schema';
@@ -131,7 +132,7 @@ describe('the extremes of a window', () => {
     expect(query).not.toContain('aggregateWindow');
   });
 
-  it('tells the lowest and the highest of what each sample comes to, by the window the means are stamped with', () => {
+  it('tells the mean, the lowest and the highest of what each reading comes to, by the window the other means are stamped with', () => {
     const asked = { startsAt: new Date('2026-08-11T10:00:40Z'), endsAt: new Date('2026-08-11T10:07:10Z'), stepSeconds: 180 };
     const sample = (time: string, temperature: number, humidity: number) => [
       { _time: time, _field: 'temperature', _value: temperature },
@@ -156,16 +157,36 @@ describe('the extremes of a window', () => {
         readingsOf(field => ({ temperature, humidity })[field] ?? null),
         factors,
       );
-    const extremes = extremesOfSamples(rows, asked, at => computedValue('vpd', readingsOf(at), factors));
+    const extremes = workedOutBy(rows, asked, at => computedValue('vpd', readingsOf(at), factors));
 
     expect([...extremes.keys()].map(time => new Date(time).toISOString())).toEqual([
       '2026-08-11T10:03:00.000Z',
       '2026-08-11T10:06:00.000Z',
       '2026-08-11T10:07:10.000Z',
     ]);
-    expect(extremes.get(Date.parse('2026-08-11T10:03:00Z'))).toEqual({ min: vpd(19.4, 71.5), max: vpd(21, 55) });
-    expect(extremes.get(Date.parse('2026-08-11T10:06:00Z'))).toEqual({ min: vpd(21, 55), max: vpd(23, 50) });
-    expect(extremes.get(Date.parse('2026-08-11T10:07:10Z'))).toEqual({ min: vpd(21, 55), max: vpd(21, 55) });
+    const [low, mid, high] = [vpd(19.4, 71.5) as number, vpd(21, 55) as number, vpd(23, 50) as number];
+    expect(extremes.get(Date.parse('2026-08-11T10:03:00Z'))).toEqual({ mean: (mid + low) / 2, min: low, max: mid });
+    expect(extremes.get(Date.parse('2026-08-11T10:06:00Z'))).toEqual({ mean: (high + mid) / 2, min: mid, max: high });
+    expect(extremes.get(Date.parse('2026-08-11T10:07:10Z'))).toEqual({ mean: mid, min: mid, max: mid });
+  });
+
+  it('reads means over a grain where a window is too wide for its samples, and takes each grain at its own time', () => {
+    const query = grainsQuery(BUCKET, DEVICE, ['temperature', 'humidity'], window(60 * 24 * 30, 5400), 300);
+    expect(query).toContain('aggregateWindow(every: 300s, fn: mean, createEmpty: false)');
+    expect(query).toContain('keep(columns: ["_time", "_value", "_field"])');
+
+    // Five minutes up to a four-month grow; beyond, as many whole five minutes as keep the read within its limit.
+    const days = (count: number) => ({ startsAt: new Date(0), endsAt: new Date(count * 86_400_000) });
+    expect([30, 120, 200, 365].map(count => deficitGrainFor(days(count)))).toEqual([300, 300, 600, 900]);
+
+    // A grain is stamped at its end: the one stamped 10:05 is of 10:00 to 10:05 and belongs to the window that ends at 10:05.
+    const asked = { startsAt: new Date('2026-08-11T10:00:00Z'), endsAt: new Date('2026-08-11T10:10:00Z'), stepSeconds: 300 };
+    const grains = ['2026-08-11T10:05:00Z', '2026-08-11T10:10:00Z'].map(time => ({ _time: time, _field: 'temperature', _value: 20 }));
+    const times: number[] = [];
+    const worked = workedOutBy(grains, asked, (at, time) => (times.push(time), at('temperature')), 300);
+
+    expect([...worked.keys()].map(time => new Date(time).toISOString())).toEqual(['2026-08-11T10:05:00.000Z', '2026-08-11T10:10:00.000Z']);
+    expect(times.map(time => new Date(time).toISOString())).toEqual(['2026-08-11T10:02:30.000Z', '2026-08-11T10:07:30.000Z']);
   });
 });
 
@@ -361,116 +382,146 @@ describe('which half of the cycle a window was in', () => {
     expect(runningSpansOf(switchings)).toEqual([{ from: Date.parse(at(20)), to: Number.POSITIVE_INFINITY }]);
     expect(runningSpansOf([{ at: at(0), on: false }])).toEqual([]);
   });
-
-  it('calls a bucket lit only where the lamp ran for more than half of it', () => {
-    const spans = runningSpansOf(switchings);
-
-    // The bucket that ends at 10:29 is dark for two thirds of itself although
-    // the lamp is on when it closes - which is the bucket the averaged field
-    // used to call a day.
-    expect(runningMostOf(spans, Date.parse(at(0)), Date.parse(at(29)))).toBe(false);
-    expect(runningMostOf(spans, Date.parse(at(29)), Date.parse(at(58)))).toBe(true);
-    expect(runningMostOf(spans, Date.parse(at(10)), Date.parse(at(30)))).toBe(false);
-    expect(runningMostOf(spans, Date.parse(at(30)), Date.parse(at(30)))).toBe(false);
-  });
 });
 
 /**
  * VPD over a window, through the service that reads it.
  *
- * The store is stood in for: what is worth checking is that the deficit of a
- * bucket follows the lamp's own switchings rather than what its `out_light`
- * averaged to, because those two disagree on every bucket a lamp switched
- * inside - and the shading the same answer carries is drawn from the
- * switchings.
+ * The store is stood in for. What is checked is that a deficit is never
+ * worked out from the means of the window drawn: each reading by itself - a
+ * sample inside three days, the mean of five minutes beyond - judged day or
+ * night by its own lamp level, and the point their mean.
  */
 describe('the deficit of a window', () => {
   const DEVICE = 'device-1';
-  const STEP_SECONDS = 1800;
+  const MINUTE = 60_000;
   const startsAt = new Date('2026-01-20T10:00:00.000Z');
-  const endsAt = new Date('2026-01-20T11:00:00.000Z');
-  const buckets = [new Date('2026-01-20T10:30:00.000Z'), new Date('2026-01-20T11:00:00.000Z')];
+  const NIGHT = 1.27;
+  const DAY = 0.91;
 
-  /** The lamp comes on three minutes before the end of the second bucket, and nothing else changes all hour. */
-  const LIT_FROM = new Date('2026-01-20T10:57:00.000Z');
-
-  const rowsFor = (query: string): FluxRow[] => {
-    if (query.includes('difference(')) {
-      return [
-        { _time: startsAt.toISOString(), _field: 'out_light', _value: 0 },
-        { _time: LIT_FROM.toISOString(), _field: 'out_light', _value: 1 },
-      ];
-    }
-    if (query.includes('status_daily')) return [];
-
-    return buckets.flatMap(bucket => [
-      { _time: bucket.toISOString(), _field: 'temperature', _value: 25 },
-      { _time: bucket.toISOString(), _field: 'humidity', _value: 60 },
-      // The mean of a bucket the lamp ran three minutes of: enough to clear any
-      // threshold on the field, nowhere near enough to be a day.
-      { _time: bucket.toISOString(), _field: 'out_light', _value: bucket.getTime() === buckets[1].getTime() ? 1.64 : 0 },
+  /** One reading a minute for an hour of the same air; the lamp comes on at 10:57. */
+  const LIT_FROM = Date.parse('2026-01-20T10:57:00.000Z');
+  const readings = (everyMs: number, untilMs: number, light = (time: number) => (time >= LIT_FROM ? 100 : 0), from = startsAt.getTime()): FluxRow[] =>
+    Array.from({ length: Math.floor(untilMs / everyMs) }, (_, index) => from + index * everyMs + 2000).flatMap(time => [
+      { _time: new Date(time).toISOString(), _field: 'temperature', _value: 25 },
+      { _time: new Date(time).toISOString(), _field: 'humidity', _value: 60 },
+      { _time: new Date(time).toISOString(), _field: 'out_light', _value: light(time) },
     ]);
-  };
 
   /**
    * The service with the store stood in for. `read` is private, which is as it
    * should be - what a query comes back as is the store's business - so the
    * stub is put in from outside the type rather than by widening it.
    */
-  const reading = (rows: (query: string) => FluxRow[] = rowsFor): DataService => {
+  const reading = (rows: (query: string) => FluxRow[]): DataService & { asked: string[] } => {
     const devices = { findOne: () => ({ lean: () => Promise.resolve({ settings: FACTORS }) }) };
-    const data = new DataService(devices as never, { url: 'http://influx.invalid', token: 'x', org: 'org', bucket: BUCKET } as never);
-    (data as unknown as { read: (query: string) => Promise<FluxRow[]> }).read = query => Promise.resolve(rows(query));
+    const data = new DataService(
+      devices as never,
+      { url: 'http://influx.invalid', token: 'x', org: 'org', bucket: BUCKET } as never,
+    ) as DataService & {
+      asked: string[];
+    };
+    data.asked = [];
+    (data as unknown as { read: (query: string) => Promise<FluxRow[]> }).read = query => {
+      data.asked.push(query);
+      return Promise.resolve(rows(query));
+    };
 
     return data;
   };
+  /** The windows drawn, as the store answers their means: the air, and a lamp level that is a duty cycle. */
+  const means = (stamps: number[], light: number): FluxRow[] =>
+    stamps.flatMap(stamp => [
+      { _time: new Date(stamp).toISOString(), _field: 'temperature', _value: 25 },
+      { _time: new Date(stamp).toISOString(), _field: 'humidity', _value: 60 },
+      { _time: new Date(stamp).toISOString(), _field: 'out_light', _value: light },
+    ]);
+  const isRaw = (query: string) => !query.includes('aggregateWindow') && !query.includes('status_daily');
 
-  it('computes each bucket against the half of the cycle the lamp says it was in', async () => {
-    const answer = await reading().series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: STEP_SECONDS });
+  it('is the mean of its samples` deficit inside three days, each by its own lamp level, with the lowest and highest of them', async () => {
+    const endsAt = new Date(startsAt.getTime() + 60 * MINUTE);
+    const stamps = [30, 60].map(minutes => startsAt.getTime() + minutes * MINUTE);
+    const data = reading(query => (isRaw(query) ? readings(MINUTE, 60 * MINUTE) : query.includes('status_daily') ? [] : means(stamps, 5)));
+    const answer = await data.series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: 1800, extremes: true });
+    const [dark, switched] = answer.metrics[0].points;
 
-    // Both buckets are night: the lamp came on for the last three minutes of
-    // the second, which is a duty cycle and not a day. Read off the averaged
-    // field, the second answered 0.91 - a third low, under a night the same
-    // answer shades.
-    expect(answer.metrics[0].points.map(point => point.value)).toEqual([expect.closeTo(1.27, 2), expect.closeTo(1.27, 2)]);
+    // The first half hour is night throughout: one figure, and no extremes to tell from it.
+    expect(dark).toEqual({ measuredAt: new Date(stamps[0]).toISOString(), value: NIGHT });
+    // In the second the lamp came on for its last three minutes: 27 samples of night and 3 of day. The point is
+    // their mean - inside its own lowest and highest, which the deficit of the window's mean air never was.
+    expect(switched.value).toBeCloseTo((27 * NIGHT + 3 * DAY) / 30, 2);
+    expect(switched).toMatchObject({ min: DAY, max: NIGHT });
+    // No read of the lamp's switchings any more: a reading says its own half.
+    expect(data.asked.some(query => query.includes('difference('))).toBe(false);
   });
 
-  it('reads a bucket the lamp ran through as a day', async () => {
-    // Lit all hour, so the device reported its lamp above zero in both buckets.
-    const lit = reading(query =>
-      query.includes('difference(')
-        ? [{ _time: startsAt.toISOString(), _field: 'out_light', _value: 1 }]
-        : rowsFor(query).map(row => (row._field === 'out_light' ? { ...row, _value: 100 } : row)),
+  it('is worked out from means over five minutes beyond three days, each grain by its own time - not from the means of the windows drawn', async () => {
+    const days = 4;
+    // From noon, so the windows of six hours a chart of four days draws begin with it.
+    const from = Date.parse('2026-01-20T12:00:00.000Z');
+    const endsAt = new Date(from + days * 24 * 60 * MINUTE);
+    const stamps = Array.from({ length: days * 4 }, (_, index) => from + (index + 1) * 360 * MINUTE);
+    // The lamp burns the second half of each of them.
+    const lit = (time: number) => (Math.floor((time - from) / (180 * MINUTE)) % 2 === 1 ? 100 : 0);
+    const data = reading(query =>
+      query.includes('every: 300s')
+        ? readings(5 * MINUTE, days * 24 * 60 * MINUTE, lit, from).map(row => ({
+            ...row,
+            _time: new Date(Date.parse(row._time!) + 5 * MINUTE - 2000).toISOString(),
+          }))
+        : query.includes('status_daily') || isRaw(query)
+          ? []
+          : means(stamps, 50),
     );
+    const answer = await data.series(DEVICE, { metrics: ['vpd'], startsAt: new Date(from), endsAt, stepSeconds: 21_600, extremes: true });
 
-    const answer = await lit.series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: STEP_SECONDS });
-
-    expect(answer.metrics[0].points.map(point => point.value)).toEqual([expect.closeTo(0.91, 2), expect.closeTo(0.91, 2)]);
+    // Half of every window is night and half is day: its point is the mean of the two, its ends are the two.
+    // From the window's own means - 25 °C, 60 %, a lamp "at 50 %" - every point read as day, 0.91, with no night in it.
+    expect(new Set(answer.metrics[0].points.map(point => point.value))).toEqual(new Set([Number(((NIGHT + DAY) / 2).toFixed(2))]));
+    expect(answer.metrics[0].points[3]).toMatchObject({ min: DAY, max: NIGHT });
+    expect(data.asked.filter(query => query.includes('every: 300s'))).toHaveLength(1);
+    expect(data.asked.some(isRaw)).toBe(false);
   });
 
-  /**
-   * The switchings are found on a five-minute grain that counts the lamp on for
-   * all of it once any sample was lit, so they can say day over a bucket whose
-   * every sample the device reported dark. The sample's own word wins there.
-   */
-  it('reads a bucket the device reported dark as a night, whatever the switchings say', async () => {
-    const said = reading(query =>
-      query.includes('difference(') ? [{ _time: startsAt.toISOString(), _field: 'out_light', _value: 1 }] : rowsFor(query),
-    );
+  it('says no lowest and highest to a read that asked for none, and still the same deficit', async () => {
+    const endsAt = new Date(startsAt.getTime() + 60 * MINUTE);
+    const stamps = [30, 60].map(minutes => startsAt.getTime() + minutes * MINUTE);
+    const data = reading(query => (isRaw(query) ? readings(MINUTE, 60 * MINUTE) : query.includes('status_daily') ? [] : means(stamps, 5)));
+    const answer = await data.series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: 1800 });
 
-    const answer = await said.series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: STEP_SECONDS });
-
-    expect(answer.metrics[0].points.map(point => point.value)).toEqual([expect.closeTo(1.27, 2), expect.closeTo(0.91, 2)]);
+    expect(answer.metrics[0].points.map(point => Object.keys(point))).toEqual([
+      ['measuredAt', 'value'],
+      ['measuredAt', 'value'],
+    ]);
+    expect(answer.metrics[0].points[1].value).toBeCloseTo((27 * NIGHT + 3 * DAY) / 30, 2);
   });
 
-  it('falls back to the averaged field where the store knows of no switching at all', async () => {
-    // A day old enough to have been summarised away has no raw samples behind
-    // it and therefore no switchings, and its own averaged light is then the
-    // only thing left to read it by.
-    const quiet = reading(query => (query.includes('difference(') ? [] : rowsFor(query)));
+  it('uses a leaf temperature in a live reading only where that reading carries one', async () => {
+    const at = '2026-01-20T12:00:00.000Z';
+    const live = (leafAt: string) =>
+      reading(() => [
+        { _time: at, _field: 'temperature', _value: 25 },
+        { _time: at, _field: 'humidity', _value: 60 },
+        { _time: at, _field: 'out_light', _value: 0 },
+        { _time: leafAt, _field: 'leaf_temperature', _value: 21 },
+      ]).live(DEVICE);
 
-    const answer = await quiet.series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: STEP_SECONDS });
+    // The leaf sensor wrote with this reading: its temperature is the leaf's.
+    expect((await live(at)).metrics.vpd?.value).toBeCloseTo(0.59, 2);
+    // It last wrote ten seconds - or ten days - before: the newest of its field still, and no part of this reading.
+    expect((await live('2026-01-20T11:59:50.000Z')).metrics.vpd?.value).toBe(NIGHT);
+    expect((await live('2026-01-10T12:00:00.000Z')).metrics.vpd?.value).toBe(NIGHT);
+    // What the sensor last read is still answered as its own figure, with its own age.
+    expect((await live('2026-01-10T12:00:00.000Z')).metrics.leafTemperature?.value).toBe(21);
+  });
 
-    expect(answer.metrics[0].points.map(point => point.value)).toEqual([expect.closeTo(1.27, 2), expect.closeTo(0.91, 2)]);
+  it('has the mean of a day to go by where the store kept nothing else of it', async () => {
+    const endsAt = new Date(startsAt.getTime() + 60 * MINUTE);
+    const stamps = [30, 60].map(minutes => startsAt.getTime() + minutes * MINUTE);
+    // No raw reading is left: the window's own means, the lamp's among them, are all there is.
+    const kept = reading(query => (isRaw(query) || query.includes('status_daily') ? [] : means(stamps, 100)));
+    const answer = await kept.series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: 1800 });
+
+    expect(answer.metrics[0].points.map(point => point.value)).toEqual([DAY, DAY]);
   });
 });

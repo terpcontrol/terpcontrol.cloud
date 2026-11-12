@@ -177,7 +177,7 @@ export class TimelineService {
     const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant));
     const leading = ownOf(devices, series);
     const own = leading && leading.series.deviceId === steering?.id ? withPredecessors(leading, before, series) : leading;
-    const panels = panelsOf(own?.series ?? null, stretchesOf(grow, devices, window, at, aimed), metrics, true);
+    const panels = panelsOf(own?.series ?? null, stretchesOf(grow, devices, window, at, aimed), metrics);
     // What switched under the curve: the leading device's outputs, those of what is no climate of its own, and
     // those of the devices whose curve stands in front of it.
     const acting = new Set([...actingOn(devices, own?.series.deviceId ?? null).map(device => device.id), ...before.map(link => link.deviceId)]);

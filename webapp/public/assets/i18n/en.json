@@ -2134,7 +2134,6 @@
       "compare": "The comparison in the address is no longer there. Shown is the place alone."
     },
     "meanOver": "mean {{from}}–{{to}}",
-    "meansBetween": "means {{low}} to {{high}}",
     "every": {
       "s": "every {{n}} s",
       "min": "every {{n}} min",
@@ -3596,7 +3595,7 @@
     "about": "About {{title}}",
     "vpd": {
       "title": "VPD – vapour pressure deficit",
-      "text": "How strongly the air draws water from the leaves, in kPa, worked out from humidity and leaf temperature (by default 2 °C below the air by day). It has no target of its own: it follows from the temperature and humidity targets."
+      "text": "How strongly the air draws water from the leaves, in kPa, worked out from humidity and leaf temperature (by default 2 °C below the air by day). It has no target of its own: it follows from the temperature and humidity targets. Low and high are those of single readings up to three days, and of means over five minutes beyond."
     },
     "liveness": {
       "title": "Online and stale",
@@ -4030,7 +4029,7 @@
     },
     "nightBand": {
       "title": "Band, night and spread",
-      "text": "The green band is the target range, at night the night figures’ one. The grey stretches are the nights: the hours the light plan makes night – the light off, the night figures holding, no CO₂ dosed. The pale area around a curve reaches from the lowest to the highest reading of each point: a door that stood open for 40 seconds still shows in a day’s picture. The strips under a curve show when an output ran – the stronger, the longer within that stretch. For the hour after each switch – on a fridge, from the start of its dimming – and after every change of the targets, the light plan or the operating mode the band spans the figures from before and after: that is how long the climate is given to follow. Where nothing alternates – drying, germination, 24 or 0 h of light – nothing is grey, and the band is the one target that holds round the clock."
+      "text": "The green band is the target range, at night the night figures’ one. The grey stretches are the nights: the hours the light plan makes night – the light off, the night figures holding, no CO₂ dosed. The pale area around a curve reaches from the lowest to the highest reading of each point: a door that stood open for 40 seconds still shows in a day’s picture. For VPD over more than three days those are means over five minutes. The strips under a curve show when an output ran – the stronger, the longer within that stretch. For the hour after each switch – on a fridge, from the start of its dimming – and after every change of the targets, the light plan or the operating mode the band spans the figures from before and after: that is how long the climate is given to follow. Where nothing alternates – drying, germination, 24 or 0 h of light – nothing is grey, and the band is the one target that holds round the clock."
     },
     "dayShare": {
       "title": "On target",

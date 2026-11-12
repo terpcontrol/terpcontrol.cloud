@@ -76,7 +76,7 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
     panels: [
       { metric: 'temperature', points: points(25.2, { min: 19.4, max: 25.3 }), targets: [] },
       { metric: 'humidity', points: points(58, { min: 54.2, max: 71.5 }), targets: [] },
-      { metric: 'vpd', sampled: false, points: points(1.4), targets: [] },
+      { metric: 'vpd', points: points(1.4), targets: [] },
       { metric: 'co2', points: points(820), targets: [] },
     ],
     nights: [],
@@ -222,8 +222,7 @@ describe('Verlauf as it opens', () => {
     // As every screen writes a humidity: whole per cent.
     expect(panel('Humidity')).toHaveTextContent('Low 54 · High 72');
     expect(within(panel('Humidity')).getByText('58 %')).toBeInTheDocument();
-    // A deficit whose points carry no samples` extremes says its two ends are those of the means.
-    expect(panel('VPD')).toHaveTextContent('means 1.40 to 1.40');
+    expect(panel('VPD')).toHaveTextContent('Low 1.40 · High 1.40');
     expect(panel('VPD')).toBeInTheDocument();
     // CO₂ is measured and waits for its tick.
     expect(screen.queryByRole('region', { name: 'CO₂' })).not.toBeInTheDocument();

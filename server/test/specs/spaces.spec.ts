@@ -348,12 +348,62 @@ describe('applying a climate preset', () => {
     expect(point.min).toBeGreaterThan(0.7);
     expect(point.max).toBeLessThan(0.9);
 
-    // A week is too many samples to read one by one: it says no extremes of the deficit rather than false ones.
+    // A week is too many samples to read one by one: its deficit is worked out from means over five minutes -
+    // here one grain of both kinds of sample, whose own deficit is all the window has - and never from extremes.
     const week = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=7d&metrics=vpd&metrics=temperature`).expect(200)).body;
     const points = (metric: string) =>
       week.panels.find((panel: { metric: string }) => panel.metric === metric).points.filter((one: { value: number | null }) => one.value !== null);
-    expect(points('vpd')[0].min).toBeUndefined();
+    const grain = deficit((31.5 + 20.7) / 2, (21.5 + 18.9) / 2, (38 + 58.8) / 2);
+    expect(points('vpd')[0]).toEqual({ measuredAt: points('vpd')[0].measuredAt, value: grain });
     expect(points('temperature')[0]).toMatchObject({ min: 20.7, max: 31.5 });
+  });
+
+  // Read over a grow, a point is hours wide and no multiple of a day, so a window held a different share of
+  // day and night every time. Worked out from the window's own means with one leaf offset, the same climate
+  // read 0.92 to 1.2 kPa in one month and 1.0 to 1.1 in another - a bow-tie no tent ever drew.
+  it('reads the same deficit in August and in November from a climate that is the same every day', async () => {
+    const spaceId = await tentWithAController();
+    const deviceId = (await owner.client.get('/v1/devices').expect(200)).body.items.find((one: { spaceId: string }) => one.spaceId === spaceId).id;
+    const day = { temperature: 26, humidity: 60, out_light: 100 };
+    const night = { temperature: 21, humidity: 55, out_light: 0 };
+    const DAY = 86_400_000;
+    // Four days of each month, a reading a minute, the lamp on from 06:00 to 18:00 UTC.
+    const august = Math.floor((Date.now() - 100 * DAY) / DAY) * DAY;
+    const november = Math.floor((Date.now() - 10 * DAY) / DAY) * DAY;
+    const lit = (time: number) => time % DAY >= 6 * 3_600_000 && time % DAY < 18 * 3_600_000;
+    await seedMeasurements(
+      [august, november].flatMap(from =>
+        Array.from({ length: 4 * 1440 }, (_, minute) => {
+          const time = from + minute * 60_000 + 2000;
+          return { time, device_id: deviceId, fields: lit(time) ? day : night };
+        }),
+      ),
+    );
+
+    // The same four days, asked from different minutes of the hour so their windows fall differently on the day.
+    const read = async (from: number, shift: number) => {
+      const asked = `from=${new Date(from + shift).toISOString()}&to=${new Date(from + 4 * DAY).toISOString()}`;
+      const body = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=24h&${asked}&metrics=vpd`).expect(200)).body;
+      const points = body.panels[0].points.filter((one: { value: number | null }) => one.value !== null);
+      return {
+        step: body.stepSeconds as number,
+        low: Math.min(...points.map((one: { value: number; min?: number }) => one.min ?? one.value)),
+        high: Math.max(...points.map((one: { value: number; max?: number }) => one.max ?? one.value)),
+        values: points.map((one: { value: number }) => one.value) as number[],
+      };
+    };
+    const [summer, autumn] = [await read(august, 0), await read(november, 17 * 60_000)];
+
+    expect(summer.step).toBeGreaterThan(300);
+    // By day the leaf is two degrees under the air, by night it is the air's: two deficits, and nothing outside them.
+    const [byDay, byNight] = [deficit(26, 24, 60), deficit(21, 21, 55)];
+    expect({ low: summer.low, high: summer.high }).toEqual({ low: Math.min(byDay, byNight), high: Math.max(byDay, byNight) });
+    expect({ low: autumn.low, high: autumn.high }).toEqual({ low: summer.low, high: summer.high });
+    // Every point is a mean of grains of the one or the other, so it lies between the two - in both months.
+    for (const value of [...summer.values, ...autumn.values]) {
+      expect(value).toBeGreaterThanOrEqual(summer.low);
+      expect(value).toBeLessThanOrEqual(summer.high);
+    }
   });
 
   // A window named from forty seconds into a step begins with a window cut short. Judged over the whole step it

@@ -899,10 +899,11 @@ page the same day ("after the walk" below) - none of those is Chris's.
   hour and a half - and only while the device reports: silent by the offline rule, the head and the card read
   "letzter Wert · 16:17", the band, the night and the lamp's strip end there, on 30 Tage as on 24 Std. Start's
   two small curves name the lowest and highest sample of the day, as Verlauf's head does. **A figure of VPD is
-  a VPD that occurred**: its "Tief" and "Hoch" are of the deficit of single samples, which the server works out
-  for a window of three days at the most ([data.md](data.md#influxdb)); over a wider one the head says "Mittel
-  0,97 bis 1,24" - the two ends of the means, named as that - and draws no envelope. Whether three days is the
-  right line is open (the redesign session's, with the measured cost).
+  a VPD that occurred**, at every range ([data.md](data.md#influxdb)): its "Tief" and "Hoch" are of the deficit
+  of single samples up to three days and of means over five minutes beyond, which the help on VPD and on the
+  band says in one sentence; every range has a line, an envelope and "Tief · Hoch", and a point is the mean of
+  what it was worked out from, so the line does not leave its envelope (after the second walk, which found a
+  bow-tie over a grow and a "Mittel … bis …" where the first fix had stopped at three days).
 - **A place with several climates draws one**: its own, the device Steuerung leads with, and the head names it
   in a choice that leads to another; no curve is a mean of two devices, and the strips under it are its own
   outputs and those of what is no climate itself (after the walk).

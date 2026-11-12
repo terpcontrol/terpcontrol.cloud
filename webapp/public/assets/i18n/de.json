@@ -2143,7 +2143,6 @@
       "compare": "Der Vergleich aus der Adresse ist nicht mehr da. Gezeigt wird der Ort allein."
     },
     "meanOver": "Mittel {{from}}–{{to}}",
-    "meansBetween": "Mittel {{low}} bis {{high}}",
     "every": {
       "s": "alle {{n}} s",
       "min": "alle {{n}} Min",
@@ -3605,7 +3604,7 @@
     "about": "Hilfe zu {{title}}",
     "vpd": {
       "title": "VPD – Dampfdruckdefizit",
-      "text": "Wie stark die Luft den Blättern Wasser entzieht, in kPa – berechnet aus Luftfeuchte und Blatttemperatur (standardmäßig tagsüber 2 °C unter der Luft). Einen eigenen Zielwert hat es nicht: Es ergibt sich aus den Zielwerten für Temperatur und Feuchte."
+      "text": "Wie stark die Luft den Blättern Wasser entzieht, in kPa – berechnet aus Luftfeuchte und Blatttemperatur (standardmäßig tagsüber 2 °C unter der Luft). Einen eigenen Zielwert hat es nicht: Es ergibt sich aus den Zielwerten für Temperatur und Feuchte. Tief und Hoch sind bis zu drei Tagen die einzelner Messungen, darüber die von Mitteln über fünf Minuten."
     },
     "liveness": {
       "title": "Online und veraltet",
@@ -4039,7 +4038,7 @@
     },
     "nightBand": {
       "title": "Band, Nacht und Schwankung",
-      "text": "Das grüne Band ist der Zielbereich, nachts der der Nachtwerte. Grau hinterlegt sind die Nächte: die Stunden, in denen nach dem Lichtplan Nacht ist – das Licht aus, die Nachtwerte gelten, CO₂ wird nicht zugegeben. Die helle Fläche um eine Kurve reicht vom tiefsten bis zum höchsten Messwert jedes Punkts: Eine Tür, die 40 Sekunden offen stand, bleibt so auch im Tagesbild sichtbar. Die Streifen unter einer Kurve zeigen, wann ein Ausgang lief – je kräftiger, desto länger in diesem Abschnitt. In der Stunde nach jedem Wechsel – beim Kühlschrank ab Beginn des Dimmens – und nach jeder Änderung der Zielwerte, des Lichtplans oder der Betriebsart reicht das Band über die Werte davor und danach: So lange hat das Klima Zeit zu folgen. Wo nichts wechselt – Trocknung, Keimung, 24 oder 0 Std Licht –, ist nichts grau, und das Band ist das eine Ziel, das rund um die Uhr gilt."
+      "text": "Das grüne Band ist der Zielbereich, nachts der der Nachtwerte. Grau hinterlegt sind die Nächte: die Stunden, in denen nach dem Lichtplan Nacht ist – das Licht aus, die Nachtwerte gelten, CO₂ wird nicht zugegeben. Die helle Fläche um eine Kurve reicht vom tiefsten bis zum höchsten Messwert jedes Punkts: Eine Tür, die 40 Sekunden offen stand, bleibt so auch im Tagesbild sichtbar. Beim VPD sind das über mehr als drei Tage die Mittel über fünf Minuten. Die Streifen unter einer Kurve zeigen, wann ein Ausgang lief – je kräftiger, desto länger in diesem Abschnitt. In der Stunde nach jedem Wechsel – beim Kühlschrank ab Beginn des Dimmens – und nach jeder Änderung der Zielwerte, des Lichtplans oder der Betriebsart reicht das Band über die Werte davor und danach: So lange hat das Klima Zeit zu folgen. Wo nichts wechselt – Trocknung, Keimung, 24 oder 0 Std Licht –, ist nichts grau, und das Band ist das eine Ziel, das rund um die Uhr gilt."
     },
     "dayShare": {
       "title": "Im Ziel",

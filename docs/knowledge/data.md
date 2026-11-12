@@ -136,29 +136,26 @@ Pitfalls, each met at least once:
   sets): `aggregateWindow(min)` and `(max)` over the stored fields of the metrics asked for, in one script beside
   the mean, raw samples only - a day kept as its mean has none - and not at all at the five-second step, where a
   window is one sample. A window either end of which is a sentinel has no extremes.
-- **A figure of VPD is a VPD that occurred** (the redesign session of 2026-11-12, after its critic read a tent
-  between 20.7 and 31.5 °C and 38 and 58.8 % as a deficit of -0.53 to 1.64 kPa, of which no sample was below 0.4
-  or above 1.1). The coldest and the dampest sample of a window need not be the same one, so the extremes of a
-  value worked out from two readings cannot be built from the extremes of its inputs. They are the lowest and
-  highest of the deficit of every sample (`samplesQuery`, `extremesOfSamples`, each sample judged day or night as
-  a live reading is), read raw and worked out in the server, and only for a window of three days at the most
-  (`MAX_SAMPLED_SECONDS`): on the tent below a day costs 64 ms more, a week 476 ms, a month 2.2 s, and the same
-  in Flux - a pivot and the deficit of every row are not pushed down - 305 ms, 2 s, 8.5 s and 34 s for the four
-  months. A wider window answers no extremes of VPD; no envelope is better than a false one. Through the route,
-  the day's read went from 50 to 97 ms (medians of seven) and no other range changed. PPFD is one reading
-  times a factor, so its extremes are the reading's.
-- **A window cut short is judged over what it covers.** `aggregateWindow` cuts the first and the last window to
-  the range; which half of the day a window was in (`dayOfCycleIn`, a plug's `middleOf`) is asked of that
-  stretch (`coveredBy`), not of the whole step - or a window named from forty seconds into a step opens "mostly
-  dark" at noon and its first deficit takes the night's leaf offset.
-- **What the Timeline's read costs**, measured on a session stack (one controller, a sample every 5 s for 120
-  days, medians of seven runs on a developer machine, 2026-11-12; before -> after the extremes, VPD and the finer
-  switchings): a day 37 -> 50 ms (step 3 min), a week 75 -> 110 ms, a month 289 -> 353 ms, a four-month grow
-  1,168 -> 1,325 ms; twenty minutes at 5 s 35 ms, six hours at 45 s 51 ms. A long range is dominated by the
-  switchings, read at five minutes whatever the range (5,883 runs over the four months), not by the curves. An
-  asked step is where it gets heavy: a day asked at 5 s is widened to 18 s by the 5,000-window cap and answers
-  19,000 points, 1.9 MB before compression, in 330 ms - the cap was left where it is, and the page says the step
-  it was drawn at.
+- **A figure of VPD is a VPD that occurred, at every range** (the redesign session of 2026-11-12, after its
+  critic's two walks). It is never worked out from the means of the windows a chart draws, nor from the extremes
+  of its inputs: the coldest and the dampest sample of a window need not be the same one - a tent between 20.7
+  and 31.5 °C and 38 and 58.8 % read as -0.53 to 1.64 kPa, of which no sample was below 0.4 or above 1.1 - and
+  a window hours wide holds air of both halves of the day under one leaf offset, in a pattern that drifts
+  through the days: the same climate read 0.92 to 1.2 kPa in one month and 1.0 to 1.1 in another. Each reading
+  is worked out by itself (`workedOutBy`), judged day or night as a live reading is - by its own lamp level, a
+  fan's own flag, a plug's schedule or what the cameras saw at its time - and a point is the mean of its
+  readings, its low and high their lowest and highest, so a line cannot leave its own envelope. Up to three
+  days (`MAX_SAMPLED_SECONDS`) the readings are the samples, read raw (`samplesQuery`): on the tent below a day
+  costs 64 ms, a week would cost 476 ms and a month 2.2 s, and in Flux - a pivot and the deficit of every row
+  are not pushed down - five times that. Beyond three days they are means over five minutes, pushed down
+  (`grainsQuery`; `deficitGrainFor` widens the grain past four and a half months to keep the read within its
+  limit): 17 ms a week, 50 ms a month, 88 ms two months and 182 ms four, against 11, 26, 45 and 85 ms at
+  fifteen minutes - so five it is. A lamp switches inside two such grains a day. The switchings are no longer
+  read for the deficit at all. A day kept as its mean has that mean to go by. PPFD is one reading times a
+  factor, so its extremes are the reading's.
+- **A reading's VPD uses a leaf temperature only if that reading carries one** - a sample's own, a grain's own
+  mean - and `live()` takes the leaf only where it was written with the newest temperature: a leaf sensor that
+  was taken out is still the newest of its field for a month and bent "now".
 - **Building Flux:** queries are strings, so only values passing `SAFE_NAME`/`FIELD_NAME` and instants from a `Date` are
   interpolated, never request input (Chris, 2026-08-25; [server.md](server.md#security-decisions)).
 - **One device per query, by tag equality.** `r["device_id"] == "<id>"` is pushed down to the index; `contains(value:

@@ -188,25 +188,41 @@ export const extremesByField = (rows: (FluxRow & { result?: string })[]): Map<st
 };
 
 /**
- * How wide a window may be for the read below: three days of a device that
- * reports every five seconds are some fifty thousand samples.
+ * How wide a window may be for its deficit to be worked out sample by sample:
+ * three days of a device that reports every five seconds are some fifty
+ * thousand samples.
  *
- * Measured on a tent of 120 days at 5 s (medians, on a developer machine): a
- * day costs 64 ms on top of a read of 50 ms, a week 476 ms on top of 110 ms,
- * a month 2.2 s on top of 350 ms, and four months were not run for the memory
- * they take. The same in Flux - a pivot, the deficit of every row, `min` and
- * `max` by window - is not pushed down and cost five times that: 305 ms, 2 s,
- * 8.5 s and 34 s. So a wider window has no extremes of a value worked out
- * from two readings, which is better than extremes that never occurred.
+ * Measured on a tent of 120 days at 5 s (medians, on a developer machine):
+ * read raw and worked out in the server a day costs 64 ms, a week 476 ms and
+ * a month 2.2 s; the same in Flux - a pivot and the deficit of every row are
+ * not pushed down - 305 ms, 2 s, 8.5 s and 34 s for the four months. A wider
+ * window is therefore read as means over a grain (`grainsQuery`), which is
+ * pushed down: 17 ms a week, 50 ms a month, 182 ms the four months at five
+ * minutes.
  */
 export const MAX_SAMPLED_SECONDS = 3 * 24 * 60 * 60;
 
+/** The grain a wide window's deficit is worked out at: narrow enough that a change of the light cannot bend it. */
+const DEFICIT_GRAIN_SECONDS = 300;
+
+/** How many grains a read holds at the most, under the store's own limit per series (`MAX_POINTS`). */
+const MAX_GRAINS = 40000;
+
+/**
+ * The grain for a window: five minutes, and for a window of more than four and
+ * a half months as many whole five minutes as keep the read within its limit.
+ */
+export const deficitGrainFor = (window: TimeWindow): number => {
+  const seconds = (window.endsAt.getTime() - window.startsAt.getTime()) / 1000;
+  return Math.max(DEFICIT_GRAIN_SECONDS, Math.ceil(seconds / MAX_GRAINS / DEFICIT_GRAIN_SECONDS) * DEFICIT_GRAIN_SECONDS);
+};
+
 /**
  * Every raw sample of some fields over a window, as it was written: what a
- * value worked out from two readings needs before its lowest and highest can
- * be told. The deficit a tent held is the deficit of a temperature and a
- * humidity that met; the coldest and the dampest sample of three minutes need
- * not be the same one, and a deficit built from both is one that never was.
+ * value worked out from two readings needs. The deficit a tent held is the
+ * deficit of a temperature and a humidity that met; the coldest and the
+ * dampest sample of three minutes need not be the same one, and a deficit
+ * built from both is one that never was.
  */
 export const samplesQuery = (bucket: string, deviceId: string, fields: readonly string[], window: TimeWindow): string =>
   `${head(bucket, deviceId, rangeOf(window))}
@@ -214,46 +230,72 @@ export const samplesQuery = (bucket: string, deviceId: string, fields: readonly 
     |> keep(columns: ["_time", "_value", "_field"])`;
 
 /**
- * The lowest and the highest of what `valueOf` makes of each sample, by the
- * window the sample fell into, keyed by the instant that window is stamped
- * with. `aggregateWindow` cuts its windows on the step from the epoch, stamps
- * each at its end and cuts the last to the range, and so does this: the
- * extremes stand at the instants the means stand at.
+ * The same fields as means over a grain, for a window too wide to read sample
+ * by sample. A grain of five minutes lies in one half of the day or the other
+ * - a lamp switches inside two of them a day - so each is judged day or night
+ * by its own time. Worked out from the means of a window as wide as the chart
+ * draws - hours, over a grow - a deficit took one leaf offset for air of both
+ * halves, in a pattern that drifted through the days: the same climate read
+ * 0.92 to 1.2 kPa in one month and 1.0 to 1.1 in another.
  */
-export const extremesOfSamples = (
+export const grainsQuery = (bucket: string, deviceId: string, fields: readonly string[], window: TimeWindow, grainSeconds: number): string =>
+  `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${anyField(fields)})
+    |> aggregateWindow(every: ${Math.max(1, Math.trunc(grainSeconds))}s, fn: mean, createEmpty: false)
+    |> keep(columns: ["_time", "_value", "_field"])`;
+
+/** What a window's readings came to once each was worked out by itself: their mean, the lowest and the highest. */
+export interface WorkedOut extends Extremes {
+  mean: number;
+}
+
+/**
+ * What `valueOf` makes of each reading - a sample, or the mean of a grain -
+ * gathered by the window the reading fell into and keyed by the instant that
+ * window is stamped with. `aggregateWindow` cuts its windows on the step from
+ * the epoch, stamps each at its end and cuts the last to the range, and so
+ * does this: the figures stand at the instants the other means stand at.
+ *
+ * A grain is itself stamped at its end, so its own time is half of itself
+ * before that (`grainSeconds`); a sample's is its instant.
+ */
+export const workedOutBy = (
   rows: readonly FluxRow[],
   window: FluxWindow,
   valueOf: (at: (field: string) => number | null, time: number) => number | null,
-): Map<number, Extremes> => {
-  const samples = new Map<string, Record<string, number>>();
+  grainSeconds = 0,
+): Map<number, WorkedOut> => {
+  const readings = new Map<string, Record<string, number>>();
 
   for (const row of rows) {
     const value = finiteOrNull(row._value);
     if (!row._field || !row._time || value === null) continue;
-    const sample = samples.get(row._time) ?? {};
-    sample[row._field] = value;
-    samples.set(row._time, sample);
+    const reading = readings.get(row._time) ?? {};
+    reading[row._field] = value;
+    readings.set(row._time, reading);
   }
 
   const step = Math.max(1, Math.trunc(window.stepSeconds)) * 1000;
   const stop = window.endsAt.getTime();
-  const extremes = new Map<number, Extremes>();
+  const gathered = new Map<number, { sum: number; count: number } & Extremes>();
 
-  for (const [instant, sample] of samples) {
-    const time = Date.parse(instant);
-    const value = valueOf(field => sample[field] ?? null, time);
+  for (const [instant, reading] of readings) {
+    const time = Date.parse(instant) - grainSeconds * 500;
+    const value = valueOf(field => reading[field] ?? null, time);
     if (value === null || Number.isNaN(time)) continue;
 
     const stamped = Math.min(Math.floor(time / step) * step + step, stop);
-    const known = extremes.get(stamped);
-    if (!known) extremes.set(stamped, { min: value, max: value });
+    const known = gathered.get(stamped);
+    if (!known) gathered.set(stamped, { sum: value, count: 1, min: value, max: value });
     else {
+      known.sum += value;
+      known.count += 1;
       known.min = Math.min(known.min, value);
       known.max = Math.max(known.max, value);
     }
   }
 
-  return extremes;
+  return new Map([...gathered].map(([stamped, one]) => [stamped, { mean: one.sum / one.count, min: one.min, max: one.max }]));
 };
 
 /**
@@ -475,10 +517,6 @@ export const runningSpansOf = (switchings: readonly OutputSwitching[]): RunningS
 /** How long those stretches cover of one window, in milliseconds: what an output really ran for inside it. */
 export const runningFor = (spans: readonly RunningSpan[], from: number, to: number): number =>
   spans.reduce((sum, span) => sum + Math.max(0, Math.min(to, span.to) - Math.max(from, span.from)), 0);
-
-/** Whether those stretches cover more than half of one window, which is what makes a bucket a lit one or a dark one. */
-export const runningMostOf = (spans: readonly RunningSpan[], from: number, to: number): boolean =>
-  to > from && runningFor(spans, from, to) * 2 > to - from;
 
 /**
  * The days that have already been summarised, read back as they were stored.

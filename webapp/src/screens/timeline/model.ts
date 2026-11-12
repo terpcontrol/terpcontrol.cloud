@@ -210,11 +210,12 @@ export interface Curve {
   written: (value: number) => string;
   corner: (value: number) => string;
   points: PlotPoint[];
-  /** The lowest and the highest of the window, samples and not means where the answer has them. */
+  /**
+   * The lowest and the highest of the window: of single samples, and of the deficit over more than three days of
+   * its means over five minutes - never of the points drawn where the answer says more.
+   */
   low: number | null;
   high: number | null;
-  /** Whether those are of samples, as the answer says: false where the points are means and nothing more, as VPD's over a week. */
-  sampled: boolean;
   /** Where the device's last reading stands as the curve's last point, in a window that ends now; null elsewhere. */
   lastAt: number | null;
   line: PlotLine;
@@ -287,10 +288,9 @@ const metricCurve = (
     low: stretch.target.band.low,
     high: stretch.target.band.high,
   }));
-  // The answer says whether its lowest and highest are of samples; a deficit over more than a few days is of means.
-  // Among samples the last reading is one more; among means it is not one of them.
-  const sampled = panel.sampled !== false;
-  const { low, high } = extremesOf(sampled ? points : halfOf(means, data.nights, metric === 'vpd' ? half : 'all'));
+  // The lowest and the highest are the window's own, as the answer has them; the reading that closes the curve
+  // is "now" and no part of them.
+  const { low, high } = extremesOf(halfOf(means, data.nights, metric === 'vpd' ? half : 'all'));
   const colour = COLOUR[metric] ?? 'ink';
   // What is laid over is drawn against the same scale, so the scale holds it too.
   const laid = (compared?.data.panels.find(one => one.metric === metric)?.points ?? []).flatMap(point => (point.value === null ? [] : [point.value]));
@@ -312,7 +312,6 @@ const metricCurve = (
       points,
       low,
       high,
-      sampled,
       lastAt: closes ? lastAt : null,
       line: { key: metric, colour, shape: 'line', points, scale },
     },
@@ -347,7 +346,6 @@ export const measurementCurve = (
       points,
       low,
       high,
-      sampled: true,
       lastAt: null,
       line: { key: MEASUREMENT + definition.key, colour: 'ink', shape: 'points', points, scale },
     },

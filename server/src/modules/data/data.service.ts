@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { ConfigType } from '@nestjs/config';
 import { InfluxDB, Point, WriteApi } from '@influxdata/influxdb-client';
 import { DeviceLive, DeviceSeries, DeviceSettings, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
+import { METRIC_DECIMALS } from '@fg2/shared-types/v1-schemas';
 import { finiteOrNull } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { isDayAt, plugScheduleOf, utcSecondsOf, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { logger } from '@utils/logger';
@@ -32,11 +33,12 @@ import {
   dailySummariesOf,
   Extremes,
   extremesByField,
-  extremesOfSamples,
   extremesQuery,
+  deficitGrainFor,
   fieldsFor,
   FluxRow,
   FluxWindow,
+  grainsQuery,
   gridOf,
   instantsOf,
   latestByField,
@@ -51,9 +53,6 @@ import {
   pointsOf,
   rawSamplePredicate,
   readingsOf,
-  runningMostOf,
-  RunningSpan,
-  runningSpansOf,
   SAMPLE_MEASUREMENT,
   samplesQuery,
   seriesQuery,
@@ -66,6 +65,7 @@ import {
   TimeWindow,
   valveOpeningsQuery,
   vpdOf,
+  workedOutBy,
 } from './flux';
 
 /**
@@ -88,6 +88,8 @@ import {
  */
 /** 1 while an AIR fan's light sensor says it is day, 0 by night. No other device writes it. */
 const DAY_FIELD = 'day';
+
+const LEAF_FIELD = 'leaf_temperature';
 
 const DIAGNOSTIC_FIELDS = ['avg', 'p', 'i', 'd', 'rpm', DAY_FIELD, 'sensor_type'];
 
@@ -289,7 +291,13 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     }
 
     const isDay = self.reportsDay ? flag(latest, DAY_FIELD) : await this.plugDayAt(self, computedAt('vpd', latest));
-    const readings = readingsOf(field => latest.get(field)?.value ?? null, isDay);
+    // A reading's deficit uses a leaf temperature only if that reading carries one: a leaf sensor that was taken
+    // out, or wrote once days ago, is still the newest of its field and would bend "now" for a month.
+    const sampledAt = computedAt('vpd', latest)?.getTime() ?? null;
+    const readings = readingsOf(field => {
+      const one = latest.get(field);
+      return one && (field !== LEAF_FIELD || one.measuredAt.getTime() === sampledAt) ? one.value : null;
+    }, isDay);
     for (const name of ['vpd', 'ppfd'] as const) {
       const value = computedValue(name, readings, self.factors);
       if (value !== null) metrics[name] = metricValueOf(value, computedAt(name, latest));
@@ -341,38 +349,48 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     // the device to say it is one but not for the store.
     const self = fields.length ? this.selfOf(deviceId) : null;
     // A window as narrow as the device's own rhythm holds one sample, which is its own lowest and highest.
-    // The lamp's level is no reading: which half a window was in stays what its mean was judged by.
+    // The lamp's level is no reading, and neither is anything a deficit is worked out from: it has its own below.
     const measured =
       request.extremes && window.stepSeconds > MIN_STEP_SECONDS
-        ? fieldsFor(request.metrics, []).filter(field => field !== fieldOfOutputMetric('light'))
+        ? fieldsFor(
+            request.metrics.filter(name => name !== 'vpd'),
+            [],
+          )
         : [];
-    // What is worked out from two readings has the extremes of its samples or none (`samplesQuery`).
-    const sampled =
-      measured.length > 0 && request.metrics.includes('vpd') && window.endsAt.getTime() - window.startsAt.getTime() <= MAX_SAMPLED_SECONDS * 1000;
-    const [rows, summaries, device, lamp, plugDay, extremeRows, samples] = self
+    // The deficit is never worked out from the means of the windows drawn: each reading by itself, and then
+    // their mean. Up to three days the readings are the samples; beyond, means over a grain (`grainsQuery`).
+    const deficit = fields.length > 0 && request.metrics.includes('vpd');
+    const grainSeconds = window.endsAt.getTime() - window.startsAt.getTime() <= MAX_SAMPLED_SECONDS * 1000 ? 0 : deficitGrainFor(window);
+    const inputs = [...fieldsFor(['vpd'], []), DAY_FIELD];
+    const [rows, summaries, device, plugDay, extremeRows, readings] = self
       ? await Promise.all([
           this.read(seriesQuery(this.bucket, deviceId, fields, window)),
           this.read(summaryQuery(this.bucket, deviceId, fields, window)),
           self,
-          this.lampOf(deviceId, request.metrics, window, self),
-          request.metrics.includes('vpd') ? self.then(known => this.plugDayIn(known, window)) : null,
+          deficit ? self.then(known => this.plugDayIn(known, window)) : null,
           measured.length > 0 ? this.read(extremesQuery(this.bucket, deviceId, measured, window)) : ([] as FluxRow[]),
-          sampled ? this.read(samplesQuery(this.bucket, deviceId, [...fieldsFor(['vpd'], []), DAY_FIELD], window)) : ([] as FluxRow[]),
+          !deficit
+            ? ([] as FluxRow[])
+            : this.read(
+                grainSeconds === 0
+                  ? samplesQuery(this.bucket, deviceId, inputs, window)
+                  : grainsQuery(this.bucket, deviceId, inputs, window, grainSeconds),
+              ),
         ])
-      : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, [] as OutputSwitching[], null, [] as FluxRow[], [] as FluxRow[]];
+      : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, null, [] as FluxRow[], [] as FluxRow[]];
 
     const grid = gridOf([...summaries, ...rows]);
     const valueAt = (field: string, instant: string): number | null => grid.valuesByField.get(field)?.get(instant) ?? null;
-    const isDayAt = plugDay ? (instant: string) => plugDay(middleOf(coveredBy(instant, window))) : dayOfCycleIn(lamp, window);
     const extremes = extremesByField(extremeRows);
-    // The deficit of every sample, worked out as a live reading's is: a sample says itself which half it was taken in.
-    const occurred = extremesOfSamples(samples, window, (at, time) =>
-      vpdOf(readingsOf(at, device.reportsDay ? saidOf(at(DAY_FIELD)) : (plugDay?.(time) ?? null)), device.factors),
-    );
+    // Which half of the day a reading was taken in is the reading's own to say, as a live one's is: a fan by its
+    // flag, a plug by its schedule or what the cameras saw then, everything else by its own lamp level (`vpdOf`).
+    const halfOf = (at: (field: string) => number | null, time: number): boolean | null =>
+      device.reportsDay ? saidOf(at(DAY_FIELD)) : (plugDay?.(time) ?? null);
+    const worked = workedOutBy(readings, window, (at, time) => vpdOf(readingsOf(at, halfOf(at, time)), device.factors), grainSeconds);
     const extremesAt = (name: Metric, instant: string): Extremes | null => {
       const field = fieldOfMetric(name);
       if (field !== null) return extremes.get(field)?.get(instant) ?? null;
-      if (name === 'vpd') return occurred.get(Date.parse(instant)) ?? null;
+      if (name === 'vpd') return worked.get(Date.parse(instant)) ?? null;
 
       // What is worked out from one reading alone rises and falls with it, so its extremes are that reading's.
       const end = (which: keyof Extremes) =>
@@ -384,6 +402,21 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       const [min, max] = [end('min'), end('max')];
       return min === null || max === null ? null : { min, max };
     };
+    // A window no reading of the store's is left of - a day kept as its mean - has that mean to go by and no more.
+    const computedAtWindow = (name: Metric, instant: string): number | null => {
+      const known = name === 'vpd' ? worked.get(Date.parse(instant)) : undefined;
+      if (known) return rounded(known.mean, name);
+
+      const middle = Date.parse(instant) - window.stepSeconds * 500;
+      return computedValue(
+        name,
+        readingsOf(
+          input => valueAt(input, instant),
+          halfOf(() => null, middle),
+        ),
+        device.factors,
+      );
+    };
 
     return {
       deviceId,
@@ -392,14 +425,7 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       stepSeconds: window.stepSeconds,
       metrics: request.metrics.map(name => {
         const field = fieldOfMetric(name);
-        const at = (instant: string) =>
-          field === null
-            ? computedValue(
-                name,
-                readingsOf(input => valueAt(input, instant), isDayAt(instant)),
-                device.factors,
-              )
-            : valueAt(field, instant);
+        const at = (instant: string) => (field === null ? computedAtWindow(name, instant) : valueAt(field, instant));
         // A metric the device has no sensor for is answered as the empty series
         // it is, rather than as whatever the store kept before the sensor came
         // out - a panel is built from the points, and a chart of nothing is the
@@ -410,7 +436,7 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
           metric: name,
           points: grid.instants.map(instant => {
             const value = at(instant);
-            const range = value === null ? null : extremesAt(name, instant);
+            const range = value === null || !request.extremes ? null : extremesAt(name, instant);
             // Left out where the window held one figure and the mean is that figure; never bent towards the mean.
             return { measuredAt: instant, value, ...(range && (range.max > range.min || range.min !== value) ? range : {}) };
           }),
@@ -689,30 +715,6 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
   }
 
   /**
-   * When the lamp ran over this window, for the sake of the metrics that are
-   * computed per bucket rather than per sample.
-   *
-   * VPD is the only one so far: which half of the cycle a bucket belongs to
-   * cannot be read off what `out_light` averaged across it, and the switchings
-   * are the one thing in the store that says it. The read is the same
-   * five-minute-grain scan `history` makes of the outputs that were ticked, so
-   * a caller that ticked the light as well pays for one field twice; that is a
-   * scan of one field against a wrong figure on a panel the screen draws by
-   * default, and the alternative is to make the two reads wait for each other.
-   *
-   * An AIR fan has no lamp and says its half itself, so for a fan its `day` is
-   * read instead. It rides along in the same scan rather than waiting for the
-   * device to say it is a fan: no other device writes it, so it costs the
-   * others nothing.
-   */
-  private async lampOf(deviceId: string, metrics: readonly Metric[], window: TimeWindow, self: Promise<DeviceSelf>): Promise<OutputSwitching[]> {
-    if (!metrics.includes('vpd')) return [];
-    const [switchings, device] = await Promise.all([this.switchingsOf(deviceId, ['light'], window, [DAY_FIELD]), self]);
-
-    return switchings.get(device.reportsDay ? DAY_FIELD : fieldOfOutputMetric('light')) ?? [];
-  }
-
-  /**
    * The newest raw sample the device wrote inside the window, which is how far a
    * lane may be drawn. `last()` answers one row per field, so the latest of them
    * is the last thing the device said about anything - the question is about the
@@ -781,49 +783,6 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
 }
 
 /**
- * Which half of the cycle each bucket of a window belongs to: lit for more than
- * half of itself, or dark.
- *
- * `aggregateWindow` stamps a bucket at its end, so the bucket an instant names
- * is the step before it. Anything before the first switching is left unanswered
- * rather than guessed: the switchings are read from the raw samples, and a day
- * old enough to have been summarised away has none - its own averaged light is
- * then the only thing left to read it by, which is what a null falls back to.
- */
-const dayOfCycleIn = (lamp: readonly OutputSwitching[], window: FluxWindow): ((instant: string) => boolean | null) => {
-  const spans = runningSpansOf(lamp);
-  const knownFrom = lamp.length > 0 ? Date.parse(lamp[0].at) : null;
-
-  return instant => {
-    const covered = coveredBy(instant, window);
-
-    return knownFrom === null || covered.to <= knownFrom ? null : runningMostOf(spans, covered.from, covered.to);
-  };
-};
-
-/**
- * The stretch a stamped window really covers. `aggregateWindow` cuts the
- * windows on the step from the epoch and stamps each at its end, and it cuts
- * the first and the last to the range: a window that begins forty seconds into
- * a step holds the rest of that step and no more. Judged over the whole step,
- * such a first window was "mostly dark" at noon - nothing is known of the lamp
- * before the range began - and its deficit took the night's leaf offset.
- */
-const coveredBy = (instant: string, window: FluxWindow): RunningSpan => {
-  const step = window.stepSeconds * 1000;
-  const to = Date.parse(instant);
-
-  return { from: Math.max(window.startsAt.getTime(), Math.floor((to - 1) / step) * step), to };
-};
-
-/**
- * The middle of the stretch a window covers, which is where a plug's half is
- * read for it: the half that held at its middle is the one that held for most
- * of a window that holds one switch, as the lamp's is read (`dayOfCycleIn`).
- */
-const middleOf = (covered: RunningSpan): number => (covered.from + covered.to) / 2;
-
-/**
  * How old a computed value is: as old as the stalest reading it was built from.
  * A VPD from a fresh temperature and an hour-old humidity is an hour old.
  */
@@ -834,8 +793,11 @@ const computedAt = (name: 'vpd' | 'ppfd', latest: Map<string, { measuredAt: Date
   return instants.length === inputs.length ? new Date(Math.min(...instants.map(at => at.getTime()))) : null;
 };
 
-/** What a sample's own flag says, where the sample carries one. */
-const saidOf = (value: number | null): boolean | null => (value === null ? null : value > 0);
+/** What a reading's own flag says, where it carries one: a sample's is 0 or 1, a grain's the share of it that was day. */
+const saidOf = (value: number | null): boolean | null => (value === null ? null : value > 0.5);
+
+/** A computed figure as it goes out: what the sensors behind it can say, and no more. */
+const rounded = (value: number, name: Metric): number => Number(value.toFixed(METRIC_DECIMALS[name]));
 
 /** A field a device writes as 1 or 0, read back as the flag it is. Absent is null, not false. */
 const flag = (latest: Map<string, { value: number }>, field: string): boolean | null => {
