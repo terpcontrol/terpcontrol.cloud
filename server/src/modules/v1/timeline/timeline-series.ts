@@ -509,7 +509,7 @@ const pooled = (series: readonly DeviceSeries[], metric: Metric): SeriesPoint[] 
       // The lowest any of them read and the highest: two thermometers in one air do not average a door away.
       const min = rounded(Math.min(...points.map(point => point.min ?? (point.value as number))), metric);
       const max = rounded(Math.max(...points.map(point => point.max ?? (point.value as number))), metric);
-      return { measuredAt, value, ...(max > min ? { min: Math.min(min, value), max: Math.max(max, value) } : {}) };
+      return { measuredAt, value, ...(max > min || min !== value ? { min, max } : {}) };
     });
 
   const step = series[0]?.stepSeconds ?? 0;

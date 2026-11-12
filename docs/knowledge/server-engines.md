@@ -140,9 +140,9 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
 - **Every point of the Timeline carries the lowest and the highest sample of its window** (`min`, `max` on
   `SeriesPoint`; [data.md](data.md#influxdb) for the read): a mean flattens what was short. They are left out where
   a window held one sample or both are the same figure, pooled across the devices of a place as the lower low and
-  the higher high, and of VPD and PPFD they are the corners of the box their inputs moved in
-  (`computedExtremes`) - the true extremes lie inside and meet them where the inputs moved together, as with a
-  door open.
+  the higher high. Of VPD they are the lowest and highest deficit of the window's samples, for a window of three
+  days at the most and left out beyond ([data.md](data.md#influxdb)); they are never bent towards the mean, so a
+  panel's low and high are figures that occurred.
 - **A finely read line breaks after a short silence**: under a minute to the window a curve and a lane are cut
   after three windows without a sample, half a minute at least, where a wider read keeps the ten minutes after
   which a device counts as gone (`silenceOf`, `timeline-series.ts`) - a restart is what a zoom looks for.

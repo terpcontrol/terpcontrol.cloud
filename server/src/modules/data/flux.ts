@@ -188,6 +188,75 @@ export const extremesByField = (rows: (FluxRow & { result?: string })[]): Map<st
 };
 
 /**
+ * How wide a window may be for the read below: three days of a device that
+ * reports every five seconds are some fifty thousand samples.
+ *
+ * Measured on a tent of 120 days at 5 s (medians, on a developer machine): a
+ * day costs 64 ms on top of a read of 50 ms, a week 476 ms on top of 110 ms,
+ * a month 2.2 s on top of 350 ms, and four months were not run for the memory
+ * they take. The same in Flux - a pivot, the deficit of every row, `min` and
+ * `max` by window - is not pushed down and cost five times that: 305 ms, 2 s,
+ * 8.5 s and 34 s. So a wider window has no extremes of a value worked out
+ * from two readings, which is better than extremes that never occurred.
+ */
+export const MAX_SAMPLED_SECONDS = 3 * 24 * 60 * 60;
+
+/**
+ * Every raw sample of some fields over a window, as it was written: what a
+ * value worked out from two readings needs before its lowest and highest can
+ * be told. The deficit a tent held is the deficit of a temperature and a
+ * humidity that met; the coldest and the dampest sample of three minutes need
+ * not be the same one, and a deficit built from both is one that never was.
+ */
+export const samplesQuery = (bucket: string, deviceId: string, fields: readonly string[], window: TimeWindow): string =>
+  `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${anyField(fields)})
+    |> keep(columns: ["_time", "_value", "_field"])`;
+
+/**
+ * The lowest and the highest of what `valueOf` makes of each sample, by the
+ * window the sample fell into, keyed by the instant that window is stamped
+ * with. `aggregateWindow` cuts its windows on the step from the epoch, stamps
+ * each at its end and cuts the last to the range, and so does this: the
+ * extremes stand at the instants the means stand at.
+ */
+export const extremesOfSamples = (
+  rows: readonly FluxRow[],
+  window: FluxWindow,
+  valueOf: (at: (field: string) => number | null, time: number) => number | null,
+): Map<number, Extremes> => {
+  const samples = new Map<string, Record<string, number>>();
+
+  for (const row of rows) {
+    const value = finiteOrNull(row._value);
+    if (!row._field || !row._time || value === null) continue;
+    const sample = samples.get(row._time) ?? {};
+    sample[row._field] = value;
+    samples.set(row._time, sample);
+  }
+
+  const step = Math.max(1, Math.trunc(window.stepSeconds)) * 1000;
+  const stop = window.endsAt.getTime();
+  const extremes = new Map<number, Extremes>();
+
+  for (const [instant, sample] of samples) {
+    const time = Date.parse(instant);
+    const value = valueOf(field => sample[field] ?? null, time);
+    if (value === null || Number.isNaN(time)) continue;
+
+    const stamped = Math.min(Math.floor(time / step) * step + step, stop);
+    const known = extremes.get(stamped);
+    if (!known) extremes.set(stamped, { min: value, max: value });
+    else {
+      known.min = Math.min(known.min, value);
+      known.max = Math.max(known.max, value);
+    }
+  }
+
+  return extremes;
+};
+
+/**
  * How finely an output's switchings are looked for at the most, whatever the
  * width of the window.
  *
@@ -649,30 +718,6 @@ export const computedValue = (name: Metric, readings: Readings, factors: DeviceS
       // than from anything stored, and the device resource answers it.
       return null;
   }
-};
-
-/**
- * The least and the most a computed metric can have been over a window, from
- * the extremes of what it is computed from: every corner of the box its inputs
- * moved in. A deficit falls as the air gets damper and - under a leaf read off
- * the air - rises as it warms, so the true extremes lie inside the corners and
- * meet them where the inputs moved together, as they do when a door opens.
- * Null where an input has no extremes, or where both ends are the same figure.
- */
-export const computedExtremes = (name: Metric, low: Readings, high: Readings, factors: DeviceSettings): Extremes | null => {
-  const pick = (mask: number): Readings => ({
-    temperature: mask & 1 ? high.temperature : low.temperature,
-    humidity: mask & 2 ? high.humidity : low.humidity,
-    leafTemperature: mask & 4 ? high.leafTemperature : low.leafTemperature,
-    lux: mask & 1 ? high.lux : low.lux,
-    light: low.light,
-    isDay: low.isDay,
-  });
-  const corners = Array.from({ length: 8 }, (_, mask) => computedValue(name, pick(mask), factors)).filter((value): value is number => value !== null);
-  if (corners.length === 0) return null;
-
-  const [min, max] = [Math.min(...corners), Math.max(...corners)];
-  return max > min ? { min, max } : null;
 };
 
 /** Which fields a request has to read: the stored metrics themselves, and the inputs of the computed ones. */

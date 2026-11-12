@@ -26,13 +26,13 @@ import { DEFAULT_DEVICE_SETTINGS, StoredDevice } from '@database/schemas/v1/devi
 import { influxConfig } from '../../config/configuration';
 import { CAMERA_DAYLIGHT, CameraDaylight } from './camera-daylight.port';
 import {
-  computedExtremes,
   computedValue,
   DailySummary,
   dailyMeanQuery,
   dailySummariesOf,
   Extremes,
   extremesByField,
+  extremesOfSamples,
   extremesQuery,
   fieldsFor,
   FluxRow,
@@ -43,6 +43,7 @@ import {
   levelsByField,
   levelsQuery,
   liveQuery,
+  MAX_SAMPLED_SECONDS,
   MIN_STEP_SECONDS,
   newestSampleQuery,
   oldestSampleQuery,
@@ -51,8 +52,10 @@ import {
   rawSamplePredicate,
   readingsOf,
   runningMostOf,
+  RunningSpan,
   runningSpansOf,
   SAMPLE_MEASUREMENT,
+  samplesQuery,
   seriesQuery,
   stepFor,
   summaryQuery,
@@ -62,6 +65,7 @@ import {
   switchingsQuery,
   TimeWindow,
   valveOpeningsQuery,
+  vpdOf,
 } from './flux';
 
 /**
@@ -342,7 +346,10 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       request.extremes && window.stepSeconds > MIN_STEP_SECONDS
         ? fieldsFor(request.metrics, []).filter(field => field !== fieldOfOutputMetric('light'))
         : [];
-    const [rows, summaries, device, lamp, plugDay, extremeRows] = self
+    // What is worked out from two readings has the extremes of its samples or none (`samplesQuery`).
+    const sampled =
+      measured.length > 0 && request.metrics.includes('vpd') && window.endsAt.getTime() - window.startsAt.getTime() <= MAX_SAMPLED_SECONDS * 1000;
+    const [rows, summaries, device, lamp, plugDay, extremeRows, samples] = self
       ? await Promise.all([
           this.read(seriesQuery(this.bucket, deviceId, fields, window)),
           this.read(summaryQuery(this.bucket, deviceId, fields, window)),
@@ -350,20 +357,32 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
           this.lampOf(deviceId, request.metrics, window, self),
           request.metrics.includes('vpd') ? self.then(known => this.plugDayIn(known, window)) : null,
           measured.length > 0 ? this.read(extremesQuery(this.bucket, deviceId, measured, window)) : ([] as FluxRow[]),
+          sampled ? this.read(samplesQuery(this.bucket, deviceId, [...fieldsFor(['vpd'], []), DAY_FIELD], window)) : ([] as FluxRow[]),
         ])
-      : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, [] as OutputSwitching[], null, [] as FluxRow[]];
+      : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, [] as OutputSwitching[], null, [] as FluxRow[], [] as FluxRow[]];
 
     const grid = gridOf([...summaries, ...rows]);
     const valueAt = (field: string, instant: string): number | null => grid.valuesByField.get(field)?.get(instant) ?? null;
-    const isDayAt = plugDay ? (instant: string) => plugDay(middleOf(instant, window.stepSeconds)) : dayOfCycleIn(lamp, window);
+    const isDayAt = plugDay ? (instant: string) => plugDay(middleOf(coveredBy(instant, window))) : dayOfCycleIn(lamp, window);
     const extremes = extremesByField(extremeRows);
+    // The deficit of every sample, worked out as a live reading's is: a sample says itself which half it was taken in.
+    const occurred = extremesOfSamples(samples, window, (at, time) =>
+      vpdOf(readingsOf(at, device.reportsDay ? saidOf(at(DAY_FIELD)) : (plugDay?.(time) ?? null)), device.factors),
+    );
     const extremesAt = (name: Metric, instant: string): Extremes | null => {
       const field = fieldOfMetric(name);
       if (field !== null) return extremes.get(field)?.get(instant) ?? null;
+      if (name === 'vpd') return occurred.get(Date.parse(instant)) ?? null;
 
+      // What is worked out from one reading alone rises and falls with it, so its extremes are that reading's.
       const end = (which: keyof Extremes) =>
-        readingsOf(input => extremes.get(input)?.get(instant)?.[which] ?? valueAt(input, instant), isDayAt(instant));
-      return extremes.size > 0 ? computedExtremes(name, end('min'), end('max'), device.factors) : null;
+        computedValue(
+          name,
+          readingsOf(input => extremes.get(input)?.get(instant)?.[which] ?? null),
+          device.factors,
+        );
+      const [min, max] = [end('min'), end('max')];
+      return min === null || max === null ? null : { min, max };
     };
 
     return {
@@ -392,12 +411,8 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
           points: grid.instants.map(instant => {
             const value = at(instant);
             const range = value === null ? null : extremesAt(name, instant);
-            // A mean lies between its extremes; a corner worked out from rounded inputs is held to that.
-            return {
-              measuredAt: instant,
-              value,
-              ...(range && range.max > range.min ? { min: Math.min(range.min, value as number), max: Math.max(range.max, value as number) } : {}),
-            };
+            // Left out where the window held one figure and the mean is that figure; never bent towards the mean.
+            return { measuredAt: instant, value, ...(range && (range.max > range.min || range.min !== value) ? range : {}) };
           }),
         };
       }),
@@ -778,26 +793,35 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
 const dayOfCycleIn = (lamp: readonly OutputSwitching[], window: FluxWindow): ((instant: string) => boolean | null) => {
   const spans = runningSpansOf(lamp);
   const knownFrom = lamp.length > 0 ? Date.parse(lamp[0].at) : null;
-  const step = window.stepSeconds * 1000;
 
   return instant => {
-    const ends = Date.parse(instant);
+    const covered = coveredBy(instant, window);
 
-    return knownFrom === null || ends <= knownFrom ? null : runningMostOf(spans, ends - step, ends);
+    return knownFrom === null || covered.to <= knownFrom ? null : runningMostOf(spans, covered.from, covered.to);
   };
 };
 
 /**
- * The middle of the window an instant stamps, which is where a plug's half is
+ * The stretch a stamped window really covers. `aggregateWindow` cuts the
+ * windows on the step from the epoch and stamps each at its end, and it cuts
+ * the first and the last to the range: a window that begins forty seconds into
+ * a step holds the rest of that step and no more. Judged over the whole step,
+ * such a first window was "mostly dark" at noon - nothing is known of the lamp
+ * before the range began - and its deficit took the night's leaf offset.
+ */
+const coveredBy = (instant: string, window: FluxWindow): RunningSpan => {
+  const step = window.stepSeconds * 1000;
+  const to = Date.parse(instant);
+
+  return { from: Math.max(window.startsAt.getTime(), Math.floor((to - 1) / step) * step), to };
+};
+
+/**
+ * The middle of the stretch a window covers, which is where a plug's half is
  * read for it: the half that held at its middle is the one that held for most
  * of a window that holds one switch, as the lamp's is read (`dayOfCycleIn`).
- * `aggregateWindow` cuts the windows on the step from the epoch and stamps each
- * at its end.
  */
-const middleOf = (instant: string, stepSeconds: number): number => {
-  const step = stepSeconds * 1000;
-  return Math.floor((Date.parse(instant) - 1) / step) * step + step / 2;
-};
+const middleOf = (covered: RunningSpan): number => (covered.from + covered.to) / 2;
 
 /**
  * How old a computed value is: as old as the stalest reading it was built from.
@@ -809,6 +833,9 @@ const computedAt = (name: 'vpd' | 'ppfd', latest: Map<string, { measuredAt: Date
 
   return instants.length === inputs.length ? new Date(Math.min(...instants.map(at => at.getTime()))) : null;
 };
+
+/** What a sample's own flag says, where the sample carries one. */
+const saidOf = (value: number | null): boolean | null => (value === null ? null : value > 0);
 
 /** A field a device writes as 1 or 0, read back as the flag it is. Absent is null, not false. */
 const flag = (latest: Map<string, { value: number }>, field: string): boolean | null => {

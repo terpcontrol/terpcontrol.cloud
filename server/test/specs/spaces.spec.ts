@@ -2,6 +2,7 @@ import { createAccount, Session } from '../support/api';
 import { seedMeasurements } from '../support/control';
 import { provisionDevice } from '../support/device';
 import { joinSpace } from '../support/fixtures';
+import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 
 /**
  * A space over HTTP: the places somebody grows in, the room that groups them,
@@ -160,6 +161,9 @@ describe('what stands in a space', () => {
  */
 describe('applying a climate preset', () => {
   /** A tent with a controller in it that has said what it is running, which is what a preset is merged into. */
+  /** The deficit of one sample, as every VPD goes out. */
+  const deficit = (air: number, leaf: number, humidity: number): number => parseFloat(vapourPressureDeficit(air, leaf, humidity).toFixed(2));
+
   const tentWithAController = async (): Promise<string> => {
     const device = await provisionDevice(owner, 'controller');
     const spaceId = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId as string;
@@ -277,8 +281,8 @@ describe('applying a climate preset', () => {
     expect(spiked('humidity')).toMatchObject({ min: 55, max: 71.5 });
     expect(spiked('temperature')).toMatchObject({ min: 19.4, max: 21 });
     expect(spiked('humidity').value).toBeLessThan(60);
-    // What is worked out from them is bounded by the corners they moved between.
-    expect(spiked('vpd').min).toBeLessThan(spiked('vpd').value);
+    // The deficit the door let in is the deficit of the samples it was open in, cold and damp together.
+    expect(spiked('vpd')).toMatchObject({ min: deficit(19.4, 19.4, 71.5), max: deficit(21, 21, 55) });
 
     const from = new Date(door - 600_000).toISOString();
     const to = new Date(door + 600_000).toISOString();
@@ -293,6 +297,60 @@ describe('applying a climate preset', () => {
     expect(Date.parse(lane.spans[0].startsAt)).toBe(door + 30_000);
 
     await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=24h&from=${to}&to=${from}`).expect(400);
+  });
+
+  // The warmest sample of a window need not be its driest, nor the one with the warmest leaf. Read at three minutes
+  // to the point, a tent between 20.7 and 31.5 °C, 38 and 58.8 % and a leaf of 18.9 to 21.5 °C was answered a
+  // deficit of -0.53 to 1.64 kPa, built from extremes that never met; no sample of it was below 0.4 or above 1.1.
+  it('answers the lowest and the highest deficit that occurred, not one built from extremes that never met', async () => {
+    const spaceId = await tentWithAController();
+    const deviceId = (await owner.client.get('/v1/devices').expect(200)).body.items.find((one: { spaceId: string }) => one.spaceId === spaceId).id;
+    const window = Math.floor((Date.now() - 6 * 3600_000) / 180_000) * 180_000;
+    const warm = { temperature: 31.5, humidity: 38, leaf_temperature: 21.5 };
+    const cold = { temperature: 20.7, humidity: 58.8, leaf_temperature: 18.9 };
+    await seedMeasurements(
+      Array.from({ length: 36 }, (_, index) => ({ time: window + index * 5000 + 2000, device_id: deviceId, fields: index % 2 ? warm : cold })),
+    );
+
+    const day = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=24h&metrics=vpd`).expect(200)).body;
+    const point = day.panels[0].points.find((one: { value: number | null }) => one.value !== null);
+
+    expect(day.stepSeconds).toBe(180);
+    expect(point).toMatchObject({ min: deficit(20.7, 18.9, 58.8), max: deficit(31.5, 21.5, 38) });
+    expect(point.min).toBeGreaterThan(0.7);
+    expect(point.max).toBeLessThan(0.9);
+
+    // A week is too many samples to read one by one: it says no extremes of the deficit rather than false ones.
+    const week = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=7d&metrics=vpd&metrics=temperature`).expect(200)).body;
+    const points = (metric: string) =>
+      week.panels.find((panel: { metric: string }) => panel.metric === metric).points.filter((one: { value: number | null }) => one.value !== null);
+    expect(points('vpd')[0].min).toBeUndefined();
+    expect(points('temperature')[0]).toMatchObject({ min: 20.7, max: 31.5 });
+  });
+
+  // A window named from forty seconds into a step begins with a window cut short. Judged over the whole step it
+  // was "mostly dark" - nothing is known of the lamp before the window - and by day its deficit took the night's
+  // leaf offset: a first point a third too high, which the panel then gave as the window's highest.
+  it('works out the deficit of a first window cut short like every other, with the leaf offset of the day', async () => {
+    const spaceId = await tentWithAController();
+    const deviceId = (await owner.client.get('/v1/devices').expect(200)).body.items.find((one: { spaceId: string }) => one.spaceId === spaceId).id;
+    const from = Math.floor((Date.now() - 4 * 3600_000) / 15_000) * 15_000 + 10_000;
+    await seedMeasurements(
+      Array.from({ length: 1440 }, (_, index) => ({
+        time: from + index * 5000 + 2000,
+        device_id: deviceId,
+        fields: { temperature: 26, humidity: 60, out_light: 100 },
+      })),
+    );
+
+    const asked = `from=${new Date(from).toISOString()}&to=${new Date(from + 2 * 3600_000).toISOString()}`;
+    const read = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=24h&${asked}&metrics=vpd`).expect(200)).body;
+    const values = read.panels[0].points.filter((one: { value: number | null }) => one.value !== null).map((one: { value: number }) => one.value);
+
+    expect(read.stepSeconds).toBe(15);
+    expect(values.length).toBeGreaterThan(470);
+    // The lamp is on throughout, so the leaf is two degrees under the air throughout: 0.97 kPa, and never the air's own 1.34.
+    expect(new Set(values)).toEqual(new Set([deficit(26, 24, 60)]));
   });
 
   it('refuses a stage the contract does not have', async () => {

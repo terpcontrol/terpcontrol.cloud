@@ -1,7 +1,7 @@
 import {
-  computedExtremes,
   computedValue,
   extremesByField,
+  extremesOfSamples,
   extremesQuery,
   fieldsFor,
   FluxRow,
@@ -14,6 +14,7 @@ import {
   readingsOf,
   runningMostOf,
   runningSpansOf,
+  samplesQuery,
   seriesQuery,
   stepFor,
   switchingGrainFor,
@@ -122,19 +123,49 @@ describe('the extremes of a window', () => {
     expect(extremesByField(rows).get('co2')?.get(at)).toBeUndefined();
   });
 
-  it('bounds a computed metric by the corners its inputs moved between', () => {
-    const factors = { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 };
-    const at = (temperature: number, humidity: number) => readingsOf(field => ({ temperature, humidity })[field] ?? null, true);
-    const mean = computedValue('vpd', at(21, 58), factors) as number;
-    const range = computedExtremes('vpd', at(19.4, 55), at(21.3, 71.5), factors);
+  it('reads every raw sample of the fields a deficit is worked out from, and nothing else of them', () => {
+    const query = samplesQuery(BUCKET, DEVICE, ['temperature', 'humidity'], window(60 * 24, 180));
 
-    // Cold and damp is the least a deficit can be, warm and dry the most.
-    expect(range?.min).toBe(computedValue('vpd', at(19.4, 71.5), factors));
-    expect(range?.max).toBe(computedValue('vpd', at(21.3, 55), factors));
-    expect(range!.min).toBeLessThan(mean);
-    expect(range!.max).toBeGreaterThan(mean);
-    // Inputs that did not move leave nothing to say.
-    expect(computedExtremes('vpd', at(21, 58), at(21, 58), factors)).toBeNull();
+    expect(query).toContain('r["_field"] == "temperature" or r["_field"] == "humidity"');
+    expect(query).toContain('keep(columns: ["_time", "_value", "_field"])');
+    expect(query).not.toContain('aggregateWindow');
+  });
+
+  it('tells the lowest and the highest of what each sample comes to, by the window the means are stamped with', () => {
+    const asked = { startsAt: new Date('2026-08-11T10:00:40Z'), endsAt: new Date('2026-08-11T10:07:10Z'), stepSeconds: 180 };
+    const sample = (time: string, temperature: number, humidity: number) => [
+      { _time: time, _field: 'temperature', _value: temperature },
+      { _time: time, _field: 'humidity', _value: humidity },
+    ];
+    const rows = [
+      ...sample('2026-08-11T10:00:42Z', 21, 55),
+      // Cold and damp together, then warm and dry together: the coldest sample is never the driest.
+      ...sample('2026-08-11T10:02:57Z', 19.4, 71.5),
+      // On the grid, a sample opens the window after it, as `aggregateWindow` has it.
+      ...sample('2026-08-11T10:03:00Z', 23, 50),
+      ...sample('2026-08-11T10:05:59Z', 21, 55),
+      // The last window is cut to the range and stamped with its end.
+      ...sample('2026-08-11T10:07:02Z', 21, 55),
+      // Half a sample is no deficit.
+      { _time: '2026-08-11T10:07:07Z', _field: 'temperature', _value: 30 },
+    ];
+    const factors = { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 };
+    const vpd = (temperature: number, humidity: number) =>
+      computedValue(
+        'vpd',
+        readingsOf(field => ({ temperature, humidity })[field] ?? null),
+        factors,
+      );
+    const extremes = extremesOfSamples(rows, asked, at => computedValue('vpd', readingsOf(at), factors));
+
+    expect([...extremes.keys()].map(time => new Date(time).toISOString())).toEqual([
+      '2026-08-11T10:03:00.000Z',
+      '2026-08-11T10:06:00.000Z',
+      '2026-08-11T10:07:10.000Z',
+    ]);
+    expect(extremes.get(Date.parse('2026-08-11T10:03:00Z'))).toEqual({ min: vpd(19.4, 71.5), max: vpd(21, 55) });
+    expect(extremes.get(Date.parse('2026-08-11T10:06:00Z'))).toEqual({ min: vpd(21, 55), max: vpd(23, 50) });
+    expect(extremes.get(Date.parse('2026-08-11T10:07:10Z'))).toEqual({ min: vpd(21, 55), max: vpd(21, 55) });
   });
 });
 

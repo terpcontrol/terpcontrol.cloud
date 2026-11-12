@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
 updated: 2026-11-12
-source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs (the redesign session of 2026-11-12)
+source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12)
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -123,6 +123,20 @@ Pitfalls, each met at least once:
   sets): `aggregateWindow(min)` and `(max)` over the stored fields of the metrics asked for, in one script beside
   the mean, raw samples only - a day kept as its mean has none - and not at all at the five-second step, where a
   window is one sample. A window either end of which is a sentinel has no extremes.
+- **A figure of VPD is a VPD that occurred** (the redesign session of 2026-11-12, after its critic read a tent
+  between 20.7 and 31.5 °C and 38 and 58.8 % as a deficit of -0.53 to 1.64 kPa, of which no sample was below 0.4
+  or above 1.1). The coldest and the dampest sample of a window need not be the same one, so the extremes of a
+  value worked out from two readings cannot be built from the extremes of its inputs. They are the lowest and
+  highest of the deficit of every sample (`samplesQuery`, `extremesOfSamples`, each sample judged day or night as
+  a live reading is), read raw and worked out in the server, and only for a window of three days at the most
+  (`MAX_SAMPLED_SECONDS`): on the tent below a day costs 64 ms more, a week 476 ms, a month 2.2 s, and the same
+  in Flux - a pivot and the deficit of every row are not pushed down - 305 ms, 2 s, 8.5 s and 34 s for the four
+  months. A wider window answers no extremes of VPD; no envelope is better than a false one. PPFD is one reading
+  times a factor, so its extremes are the reading's.
+- **A window cut short is judged over what it covers.** `aggregateWindow` cuts the first and the last window to
+  the range; which half of the day a window was in (`dayOfCycleIn`, a plug's `middleOf`) is asked of that
+  stretch (`coveredBy`), not of the whole step - or a window named from forty seconds into a step opens "mostly
+  dark" at noon and its first deficit takes the night's leaf offset.
 - **What the Timeline's read costs**, measured on a session stack (one controller, a sample every 5 s for 120
   days, medians of seven runs on a developer machine, 2026-11-12; before -> after the extremes, VPD and the finer
   switchings): a day 37 -> 50 ms (step 3 min), a week 75 -> 110 ms, a month 289 -> 353 ms, a four-month grow
