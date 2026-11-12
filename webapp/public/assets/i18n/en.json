@@ -243,28 +243,18 @@
     "ticks_other": "ticks"
   },
   "devices": {
-    "sockets": "Smart sockets",
     "lightOutput": {
       "title": "Light output",
-      "forceFor": "Hold the light output for {{duration}}",
-      "holds": "holds {{duration}}",
-      "askedHold": "Asked, to hold for {{duration}}. The device reports back within half a minute.",
       "noLevel": "nothing reported",
-      "noLimit": "not stated",
-      "setTo": "Set to",
-      "running": "Running at",
-      "needsFirmware": "This build cannot be told to hold its light output.",
+      "needsFirmware": "This firmware cannot be told to hold its light output.",
       "neverHolds": "This kind of device cannot be told to hold its light output.",
-      "explained": "The device dims this output itself and ramps it through sunrise and sunset; the brightness is the most it gives. A smart socket with a light role has no level of its own — it follows this output on or off, unless it is being held. Hours of light count every hour the lamp is above zero, so dimming changes how bright the day is and not how long it is.",
-      "now": "now {{percent}} · {{age}} ago",
+      "now": "now {{percent}}",
       "holding": {
-        "on": "on until {{until}}",
-        "off": "off until {{until}}"
+        "on": "held on until {{until}}",
+        "off": "held off until {{until}}"
       },
-      "holdWaits": "Offline: holding the light on or off works again once the device is connected."
+      "holdWaits": "Offline: holding the light by hand works again once the device is online."
     },
-    "readingSockets": "Reading the socket tables…",
-    "socketsFailed": "One socket table could not be read; the rows that are here are the ones that answered.",
     "via": "via {{name}}",
     "noStill": "no picture yet",
     "ago": "{{age}} ago",
@@ -347,19 +337,14 @@
       "manual": "Manual"
     },
     "socket": {
-      "needsFirmware": "This build takes no override. Its sockets keep running exactly as they do; the switch arrives with the next controller firmware.",
+      "needsFirmware": "This firmware holds no socket by hand. That comes with a firmware update; until then the sockets switch as they are set.",
       "offline": "Offline · nothing is listening, so nothing is sent.",
-      "details": "Details of {{name}}, and how long to hold it",
       "slot": "Slot",
       "byRole": "addressed by its role",
       "address": "Address",
       "hardwareId": "Hardware id",
       "changed": "Last changed",
-      "holdFor": "Hold for",
-      "backToAuto": "Back to auto",
       "findIt": "Find it",
-      "asking": "Asking the device…",
-      "asked": "Asked. The device reports back within half a minute.",
       "notListening": "Nobody was listening: the device has not been heard from. Nothing was changed.",
       "askFailed": "That did not reach the device.",
       "timer": "on {{on}} every {{every}}",
@@ -368,18 +353,16 @@
       "quiet": "no answer · {{age}}",
       "ran_one": "ran {{count}}×",
       "ran_other": "ran {{count}}×",
-      "force": "Force {{name}}",
       "on": "on",
       "off": "off",
-      "auto": "auto",
       "runs": "Came on",
       "runsValue_one": "{{count}}× in the last 24 h",
       "runsValue_other": "{{count}}× in the last 24 h",
       "isPlug": "smart socket",
       "numbered": "{{name}} {{number}}",
-      "holdOnAria": "Switch {{name}} on for {{duration}}",
-      "holdOffAria": "Switch {{name}} off for {{duration}}",
-      "byItself": "Auto"
+      "byItself": "Auto",
+      "findLine": "switches it on for 2 seconds and off again",
+      "found": "{{name}} comes on for 2 seconds and goes off · the device puts the socket back within a minute"
     },
     "settings": {
       "open": "Rename or move",
@@ -395,7 +378,30 @@
       "moveToNew": "Create and move",
       "moving": "Moving …"
     },
-    "unnamed": "{{type}} · {{tag}}"
+    "unnamed": "{{type}} · {{tag}}",
+    "hold": {
+      "label": "Hold {{name}} by hand",
+      "for": {
+        "on": "Hold on for",
+        "off": "Hold off for"
+      },
+      "send": {
+        "on": "Switch {{name}} on for {{duration}}",
+        "off": "Switch {{name}} off for {{duration}}"
+      },
+      "asking": "switching …",
+      "silent": "The device did not confirm it.",
+      "told": {
+        "on": "{{name}} on · for {{duration}}",
+        "off": "{{name}} off · for {{duration}}",
+        "auto": "{{name}} back on auto"
+      },
+      "way": {
+        "auto": "Auto",
+        "on": "On",
+        "off": "Off"
+      }
+    }
   },
   "message-lost-connection-title": "Connection problem",
   "message-lost-connection-text": "The connection between your device and our sever was lost and has been reestablished. If this messages appeares regulary please check your wifi and internet connection",
@@ -3319,7 +3325,7 @@
       "noSockets": "none yet",
       "notReported": "not reported yet",
       "cam": "Cam",
-      "socketsAtTheDevice": "A Terp Control socket is paired on the device itself – press the button, then Smart Sockets – and shows up in this list once the device reports it. A Tasmota socket you pair later under Control › your device › Smart sockets, by its IP address.",
+      "socketsAtTheDevice": "A Terp Control socket is paired on the device itself – press the button, then Smart Sockets – and shows up in this list once the device reports it. A Tasmota socket you pair later under Control › your device › Pair a socket, by its IP address.",
       "pairTheCam": "Pair a Terp Cam",
       "bothCanWait": "Both can wait: the device measures the place it stands in even with nothing plugged into it."
     },
@@ -3852,19 +3858,15 @@
     },
     "socketRoles": {
       "title": "Socket roles",
-      "text": "Every smart socket is given a role at the device and switches with it: a heater socket with the heater, a light socket with the lamp, pump or timer by a cycle of its own, and a manual one only while you hold it. An exhaust runs from 0.8 °C over the target and stops just above it, a humidifier from 5 points of humidity under the target and stops at the target. The role is set when the socket is paired; it can be changed under Advanced in the socket."
+      "text": "Every smart socket is given a role at the device and switches with it: a heater socket with the heater, a light socket with the lamp, pump or timer by a cycle of its own, and a manual one only while you hold it. An exhaust runs from 0.8 °C over the target and stops just above it, a humidifier from 5 points of humidity under the target and stops at the target. The role is set when the socket is paired; it can be changed on the socket's page under “Address, role, credentials”."
     },
     "socketHold": {
-      "title": "Hold",
-      "text": "A tap on the switch holds the socket in the other state for an hour; here you can hold it for longer, up to 24 hours. The hold lives in the device's memory: a restart ends it, and Back to auto ends it early."
-    },
-    "findSocket": {
-      "title": "Find it",
-      "text": "Switches this socket on for two seconds and off again, so you can see which one it is. The controller puts it back as it should be within a minute – a lamp or a heater that was on may stay off until then."
+      "title": "Holding by hand",
+      "text": "On or Off holds the socket in that state for the time you choose, up to 24 hours; after that it switches by its role again. Auto ends it early, and so does a restart of the device. For another length, go to Auto first and choose again. A heater socket stays off all the same while the air is more than 5 °C above its target."
     },
     "lightHold": {
       "title": "Auto, on, off",
-      "text": "On keeps the lamp lit at its light limit, at night too; Off keeps it dark – for the time shown or until the device restarts. Day and night stay where the light plan puts them: the same targets hold, and CO₂ is still dosed by day only. The device does not report a hold back: what was last sent from here is marked until its time is up. Auto ends it."
+      "text": "On keeps the lamp lit at its light limit, at night too; Off keeps it dark – for the time you choose or until the device restarts. Auto ends it early. Day and night stay where the light plan puts them: the same targets hold, and CO₂ is still dosed by day only. A socket with a light role follows the light output unless it is held itself. The device does not report a hold back: what stands here is what this browser last sent, until its time is up."
     },
     "firmwareChannel": {
       "title": "Updates",
@@ -4175,6 +4177,10 @@
     "harvestWeights": {
       "title": "Weight",
       "text": "The dry weight only comes days later: both fields may stay empty and be filled in on the plant afterwards. A plant that really weighed something else is corrected on the plant itself."
+    },
+    "socketAddress": {
+      "title": "Pairing by IP",
+      "text": "This pairs a Tasmota socket – NOUS, Athom or a Shelly you flashed yourself – on the same Wi-Fi as the device, by its IP address or its name on the local network. Switching happens on the local network, from the device: the socket only has to be reachable for the device, not from the internet. User and password are only needed if the socket has a web password; when a socket is changed, empty fields keep what it has. A Terp Control socket is paired on the device itself: press the button, then Smart Sockets."
     }
   },
   "place": {
@@ -4532,22 +4538,16 @@
   },
   "socketForm": {
     "pair": {
-      "label": "Pair a socket by IP",
-      "another": "Pair another socket",
+      "label": "Pair a socket",
       "title": "Pair a socket by IP",
-      "intro": "For a Tasmota socket – NOUS, Athom or a Shelly you flashed yourself – on the same Wi-Fi as {{device}}. A Terp Control socket is paired on the device itself: press the button, then Smart Sockets.",
       "yes": "Pair",
-      "sent": "Sent. The socket appears in the list once {{device}} reports it, usually within half a minute."
+      "told": "Socket {{name}} paired · it shows up once the device reports it"
     },
-    "unheard": "{{device}} is not listening right now, so nothing changed. Try again once it is connected.",
+    "unheard": "{{device}} is not listening right now, so nothing changed. Try again once it is online.",
     "role": "Role",
     "address": "Address",
-    "addressHint": "IP address or name on the local network.",
     "username": "User",
     "password": "Password",
-    "credentialsHint": "Only needed if the socket has a web password.",
-    "credentialsKeep": "Leave empty to keep what the socket has.",
-    "reach": "Switching happens on the local network, from the device: the socket only has to be reachable for the device, not from the internet.",
     "cycle": {
       "label": "Timer",
       "on": "on for",
@@ -4568,23 +4568,23 @@
       "label": "Address, role, credentials",
       "title": "Change {{name}}",
       "yes": "Send",
-      "sent": "Sent. The list shows the change once {{device}} reports its sockets.",
-      "noAddress": "The device reports no address for this socket, so it can only be changed on the device itself."
+      "noAddress": "The device reports no address for this socket, so it can only be changed on the device itself.",
+      "told": "Socket {{name}} changed",
+      "labelTimed": "Timer, address, role"
     },
     "remove": {
       "label": "Remove the socket",
       "title": "Remove {{name}}?",
       "text": "The device forgets the socket ({{address}}) and resets it; it no longer switches along. A Terp Control socket is then paired again on the device, a Tasmota socket here by IP.",
       "yes": "Remove",
-      "sent": "Sent. The socket leaves the list once the device reports its sockets."
+      "told": "Socket {{name}} removed"
     },
     "timer": {
-      "label": "Timer",
-      "missing": "No timer set – without one the socket stays off.",
-      "change": "Change",
-      "set": "Set",
-      "save": "Send",
-      "value": "on for {{on}}, every {{every}}"
+      "missing": "No timer set – without one the socket stays off"
+    },
+    "credentials": {
+      "pair": "optional",
+      "edit": "unchanged"
     }
   },
   "ownPanel": {
@@ -5089,9 +5089,8 @@
       "none": "none paired",
       "paired_one": "{{count}} paired",
       "paired_other": "{{count}} paired",
-      "pair": "pair by IP",
-      "pairMore": "pair another",
-      "empty": "No smart socket paired yet."
+      "pairing": "one is being paired …",
+      "unread": "the sockets could not be read"
     },
     "details": {
       "line": "Device ID, type, build",
@@ -5100,7 +5099,7 @@
     "socket": {
       "title": "Socket {{name}}",
       "gone": "{{device}} no longer reports this socket.",
-      "removeWaits": "has to wait until the device is back online"
+      "waits": "has to wait until the device is back online"
     },
     "waitsForRestart": "Restart and update have to wait until the device is back online."
   },
@@ -5191,8 +5190,7 @@
       }
     },
     "outputs": {
-      "none": "Nothing standing here has outputs of its own.",
-      "unheard": "Offline · nobody is listening, so nothing is sent."
+      "none": "Nothing standing here has outputs of its own."
     },
     "device": {
       "online": "online",

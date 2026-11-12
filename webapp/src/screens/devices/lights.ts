@@ -1,6 +1,11 @@
+import type { DateTime } from 'luxon';
+import { useMemo, useSyncExternalStore } from 'react';
 import type { Device, DeviceCapabilities, DeviceConfiguration, SocketRole } from '@fg2/shared-types/v1';
 import { figureAt, finiteOrNull, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import type { OutputLevel } from '@/api/devices';
+import { isAhead } from '@/ui/age';
+import { readStored, writeStored } from '@/ui/stored';
+import type { Held } from './HandHold';
 
 /**
  * The two different things that light a tent, which one screen has to keep
@@ -49,19 +54,15 @@ const lightLimitOf = (configuration: DeviceConfiguration | null, type: Device['t
 /**
  * The controller's own light output, as its row is drawn from it.
  *
- * `level` is a reading and `limitPercent` a setting, and the row says both: a
- * lamp set to 60 % is dark at night all the same, and only the reading can tell
- * a grower which of the two the tent is in. The device acknowledges neither a
- * setting nor an override, so what it reports is the only thing here that is a
- * fact about the hardware.
+ * `level` is a reading: a lamp set to 60 % is dark at night all the same, and
+ * only the reading can tell a grower which of the two the tent is in. The
+ * device acknowledges neither a setting nor an override, so what it reports
+ * is the only thing here that is a fact about the hardware.
  */
 export interface LightOutput {
   deviceId: string;
   level: OutputLevel | null;
-  limitPercent: number | null;
-  /** What a new brightness is written into. Null where the device has never sent its settings, which is nothing to write back. */
-  configuration: DeviceConfiguration | null;
-  /** Which document shape the brightness is written in. */
+  /** The kind of device, which decides whether any build of it holds its light on command. */
   type: Device['type'];
   /** Whether the build announced that it holds its own light output on command. */
   takesOverride: boolean;
@@ -77,18 +78,56 @@ export interface LightOutput {
  * hardware, and a plug that one day gained a dimmed output would be missed.
  */
 export const lightOutputOf = (device: Device, capabilities: DeviceCapabilities, level: OutputLevel | null): LightOutput | null => {
-  const limitPercent = lightLimitOf(device.configuration, device.type);
-  if (!capabilities.lightOverride && limitPercent === null && level === null) return null;
+  if (!capabilities.lightOverride && lightLimitOf(device.configuration, device.type) === null && level === null) return null;
 
-  return {
-    deviceId: device.id,
-    level,
-    limitPercent,
-    configuration: device.configuration,
-    type: device.type,
-    takesOverride: capabilities.lightOverride,
-  };
+  return { deviceId: device.id, level, type: device.type, takesOverride: capabilities.lightOverride };
 };
 
 /** "40 %", and "0 %" rather than "off": a lamp at nothing is the output doing nothing, which is what the number says. */
 export const percentLabel = (percent: number): string => `${Math.round(percent)} %`;
+
+/**
+ * The hold of a light output last asked for from this browser, until its time
+ * is up. The device reports no hold of its own lamp back, so this is what was
+ * sent and never what the lamp does - and another browser knows nothing of it.
+ * Whoever says that a light is held by hand reads it here and nowhere else.
+ */
+const HOLD_KEY = (deviceId: string) => `terp.lightHold.${deviceId}`;
+
+/** What a browser that keeps nothing was told, for as long as the page lives. */
+const unkept = new Map<string, string>();
+const listeners = new Set<() => void>();
+
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+
+/** Keeps the hold a light output was just asked for, or forgets it once the output was handed back. */
+export const rememberLightHold = (deviceId: string, hold: Held | null) => {
+  const raw = hold ? JSON.stringify(hold) : null;
+  writeStored(HOLD_KEY(deviceId), raw);
+  if (raw === null || readStored(HOLD_KEY(deviceId)) === raw) unkept.delete(deviceId);
+  else unkept.set(deviceId, raw);
+  for (const listener of listeners) listener();
+};
+
+export const useLightHold = (deviceId: string, now: DateTime): Held | null => {
+  const raw = useSyncExternalStore(
+    subscribe,
+    () => readStored(HOLD_KEY(deviceId)) ?? unkept.get(deviceId) ?? null,
+    () => null,
+  );
+  const held = useMemo(() => heldIn(raw), [raw]);
+
+  return held && isAhead(held.until, now) ? held : null;
+};
+
+const heldIn = (raw: string | null): Held | null => {
+  try {
+    const { state, until } = (JSON.parse(raw ?? '{}') ?? {}) as Partial<Record<keyof Held, unknown>>;
+    return (state === 'on' || state === 'off') && typeof until === 'string' ? { state, until } : null;
+  } catch {
+    return null;
+  }
+};

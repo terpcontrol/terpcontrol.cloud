@@ -87,7 +87,7 @@
 }
 
 /* The switch is smaller than a finger; where it stands lends it the rest. */
-:is(.setting, .socketNow, .items) button[role='switch']::after {
+:is(.setting, .items) button[role='switch']::after {
   content: '';
   position: absolute;
   inset: -10px -4px;
@@ -199,52 +199,10 @@
   min-height: 44px;
 }
 
-/* --- one smart socket --- */
-
-/* What it is doing, and the switch that forces it the other way. */
-.socketNow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: 44px;
-}
-
+/* What a smart socket is doing, over the control that holds it by hand. */
 .socketState {
-  flex: 1 1 auto;
-  min-width: 0;
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
-}
-
-.threeWay button {
-  min-width: 3.25rem;
-  min-height: 44px;
-  text-transform: capitalize;
-}
-
-/* How long a hold lasts, and the other things a tap sends: chips a finger high. */
-.holds {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.holds > :global(.label),
-.holds > p {
-  flex: 1 1 100%;
-}
-
-.holds button:not([aria-expanded]) {
-  min-height: 44px;
-  padding-inline: var(--space-4);
-}
-
-/* The (i) stays beside the chip it explains, also where the chips wrap. */
-.withHelp {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
 }
 
 /* The way to this device's curves, a finger high like the rows under it. */

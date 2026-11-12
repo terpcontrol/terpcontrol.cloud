@@ -1,20 +1,21 @@
-/* The controller's own light output as a row of the outputs, and what a row
-   or a page of facts about hardware is drawn with: one fact per line, and the
-   receipt of a command under the control that sent it. */
+/* The controller's own light output as a card of the outputs, and what a page
+   of facts about hardware is drawn with: one fact per line. */
 
-.socket {
+.output {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
 }
 
-.socketHead {
+.outputHead {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  color: inherit;
 }
 
-.socketIcon {
+.outputIcon {
   flex: none;
   color: var(--label);
 }
@@ -24,7 +25,7 @@
   flex-direction: column;
   flex: 1;
   gap: 1px;
-  min-width: 6rem;
+  min-width: 0;
 }
 
 .rowTitle {
@@ -38,23 +39,9 @@
   font-size: var(--text-sm);
   line-height: 1.35;
   color: var(--muted);
-  overflow-wrap: anywhere;
 }
 
-.expand {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 44px;
-  height: 44px;
-  margin: -8px calc(var(--space-3) * -1) -8px 0;
-  background: none;
-  border: 0;
-  padding: 0;
-  color: var(--label);
-}
-
-/* What a row has to say once it is opened: one fact per line, label left. */
+/* One fact per line, label left. */
 .facts {
   display: flex;
   flex-direction: column;
@@ -81,61 +68,4 @@
   font-size: var(--text-sm);
   text-align: right;
   overflow-wrap: anywhere;
-}
-
-/* Auto, on, off: the app's one segmented control, the pressed one filled with
-   the brand. The words are one each, so capitalising them is sentence case.
-   Holding the light output on or off is three plain actions rather than a
-   control drawn in a position nobody checked: the device reports no override
-   of its own output, so none of them is ever drawn pressed. */
-.forceOption {
-  text-transform: capitalize;
-}
-
-.socketWhy {
-  margin-top: var(--space-2);
-  font-size: var(--text-sm);
-}
-
-/* The controller's own light output. It is a card of the same list, but it
-   carries a dimmer rather than a switch, so it is a line taller than a plug's
-   row and says so by having a rule under its head. */
-.dimmer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: var(--rule-solid);
-}
-
-/* How long ON and OFF hold the output for, beside the buttons that send it. The
-   duration is a mandatory part of the command - the server refuses a hold with
-   no end - so it belongs on the row and not only behind the chevron where it is
-   chosen. It is drawn as quietly as the rest of the row's second rank, because
-   it is the length of a hold and never the lamp's own reading. */
-.holdLength {
-  flex: none;
-  color: var(--muted);
-  font-size: var(--text-xs);
-}
-
-.socketPanel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-/* The time the light output is held for is chosen here rather than sent, so one
-   of its chips is always the one in force and has to look it. That is the
-   app's own pressed chip, the one the Timeline and the Charts draw, because a
-   chip carrying a choice should not change its manners between screens. A
-   socket's times need nothing more either: there a chip is a command, and
-   nothing is standing. */
-.holds {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
 }

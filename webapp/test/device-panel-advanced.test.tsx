@@ -111,18 +111,20 @@ const drawWith = async (device: Device) => {
   await screen.findAllByRole('link', { name: /Tent 1$/ });
 };
 
-/** The page of the device's sockets. */
-const drawSockets = async (sockets: Socket[] = []) => {
-  answer(controller(), sockets);
-  drawDevicePages('/devices/sim-controller-1/sockets');
-  await screen.findByRole('heading', { name: 'Smart sockets' });
+/** The sheet that pairs a socket, opened from its row on the device's page once the device's table is read. */
+const openPairing = async () => {
+  await drawWith(controller());
+  await waitFor(() => expect(screen.getByRole('button', { name: /^Pair a socket/ })).toHaveTextContent('none paired'));
+  fireEvent.click(screen.getByRole('button', { name: /^Pair a socket/ }));
+
+  return screen.findByRole('dialog', { name: 'Pair a socket by IP' });
 };
 
 /** The page of one socket, once it offers what its manager may do. */
 const drawSocket = async (one: Socket, capabilities = CAPABILITIES) => {
   answer(controller(), [one], capabilities);
   drawDevicePages(`/devices/sim-controller-1/sockets/${rowsOf([one])[0].key}`);
-  await screen.findByText('Hold for');
+  await screen.findByRole('button', { name: /address, role/i });
 };
 
 beforeAll(() => translate());
@@ -231,11 +233,8 @@ describe('giving a device up', () => {
 });
 
 describe('pairing a socket by its address', () => {
-  it('is offered on the page of the device´s sockets, and sends the role, the address and a pump’s timer', async () => {
-    await drawSockets();
-    fireEvent.click(await screen.findByRole('button', { name: '+ Pair a socket by IP' }));
-
-    const sheet = await screen.findByRole('dialog', { name: 'Pair a socket by IP' });
+  it('is offered on the device´s page, and sends the role, the address and a pump’s timer', async () => {
+    const sheet = await openPairing();
     // The roles the controller always had, the humidifier this build announces and the two timed ones; the others wait for a test in a real tent.
     expect(
       within(sheet)
@@ -254,14 +253,12 @@ describe('pairing a socket by its address', () => {
         timer: { onSeconds: 120, everySeconds: 21600 },
       }),
     );
-    expect(await within(sheet).findByText(/The socket appears in the list once Controller reports it/)).toBeInTheDocument();
+    // Sent to a device that was listening, the sheet has nothing left to ask.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('says what is wrong with an address and sends nothing', async () => {
-    await drawSockets();
-    fireEvent.click(await screen.findByRole('button', { name: '+ Pair a socket by IP' }));
-
-    const sheet = await screen.findByRole('dialog', { name: 'Pair a socket by IP' });
+    const sheet = await openPairing();
     fireEvent.click(within(sheet).getByRole('button', { name: 'Heater' }));
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'Address' }), { target: { value: 'my socket' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Pair' }));
@@ -269,21 +266,15 @@ describe('pairing a socket by its address', () => {
     expect(within(sheet).getByText('An address without spaces, 40 characters at most.')).toBeInTheDocument();
     expect(api.put).not.toHaveBeenCalled();
   });
-
-  it('stands under the list once the device has a socket, as the way to another', async () => {
-    await drawSockets([socket()]);
-
-    expect(await screen.findByRole('link', { name: /^Heater/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '+ Pair another socket' })).toBeInTheDocument();
-  });
 });
 
 describe('a socket’s timer, its address and its removal', () => {
   it('says a pump without a timer stays off, and sends the cycle it is given with its address and role', async () => {
     await drawSocket(socket({ role: 'pump' }));
 
-    expect(screen.getByText('No timer set – without one the socket stays off.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+    const change = screen.getByRole('button', { name: /^Timer, address, role/ });
+    expect(change).toHaveTextContent('No timer set – without one the socket stays off');
+    fireEvent.click(change);
     fireEvent.change(screen.getByRole('textbox', { name: 'How long on' }), { target: { value: '5' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Unit of “How often”' }), { target: { value: 'h' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'How often' }), { target: { value: '4' } });
@@ -302,19 +293,23 @@ describe('a socket’s timer, its address and its removal', () => {
   it('refuses a cycle that is on for as long as it repeats, and says so', async () => {
     await drawSocket(socket({ role: 'custom_timer', timer: { onSeconds: 60, everySeconds: 3600 } }));
 
-    expect(screen.getByText('on for 1 min, every 1 h')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    expect(screen.getByText('on 1 min every 1 h')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Timer, address, role' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'How long on' }), { target: { value: '60' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 
     expect(screen.getByText(/has to be on for less than its interval/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+    expect(api.put).not.toHaveBeenCalled();
   });
 
   it('says a build without timers cannot take one', async () => {
     await drawSocket(socket({ role: 'pump' }), { ...CAPABILITIES, socketTimer: false });
 
-    expect(screen.getByRole('button', { name: 'Set' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /^Timer, address, role/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
     expect(screen.getByText('This firmware has no timer. It comes with a firmware update.')).toBeInTheDocument();
+    expect(api.put).not.toHaveBeenCalled();
   });
 
   it('asks before it removes a socket, and sends the removal by its slot', async () => {

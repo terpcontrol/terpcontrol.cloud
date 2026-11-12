@@ -99,7 +99,7 @@ export const draftFor = (socket: { role: SocketRole; address: string; timer: Soc
 };
 
 /** The cycle a draft states, or null where it states none or one the firmware would refuse. */
-export const timerOf = (draft: Pick<SocketDraft, 'on' | 'every'>): SocketTimer | null => {
+const timerOf = (draft: Pick<SocketDraft, 'on' | 'every'>): SocketTimer | null => {
   const onSeconds = secondsOfSpan(draft.on);
   const everySeconds = secondsOfSpan(draft.every);
   return onSeconds && everySeconds && onSeconds < everySeconds && everySeconds <= SOCKET_HOLD_MAX_SECONDS ? { onSeconds, everySeconds } : null;

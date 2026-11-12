@@ -1,30 +1,30 @@
-import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation, useParams } from 'react-router';
-import type { Device, DeviceCapabilities, SocketOverrideState } from '@fg2/shared-types/v1';
-import { useSetOverride, useSocketTables, useTestSocket } from '@/api/devices';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import type { Device, DeviceCapabilities } from '@fg2/shared-types/v1';
+import { useSocketTables, useTestSocket } from '@/api/devices';
 import { useSpaceVerdicts } from '@/api/spaces';
 import { backOf, controlPath, devicePath, usePageOfPlace } from '@/app/places';
-import { ageLabel, durationLabel, sinceLabel } from '@/ui/age';
+import { useLog } from '@/log/log-context';
+import { ageLabel, sinceLabel } from '@/ui/age';
+import { Announce } from '@/ui/Announce';
 import { Facts as FactLine } from '@/ui/Facts';
-import { Help } from '@/ui/Help';
 import { LivenessPill } from '@/ui/LivenessPill';
 import { deviceTitle } from '@/ui/naming';
 import { PageHead } from '@/ui/PageHead';
-import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
+import { LoadFailed, NoLongerHere, Refused, Waiting } from '@/ui/PageState';
 import { Row, Rows } from '@/ui/Rows';
 import { enough, useMayWith } from '@/ui/session-access';
-import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 import { useDevice, useDeviceLiveness } from './device-read';
-import { Fact, Facts, Receipt } from './RowParts';
+import { HandHold } from './HandHold';
+import { Fact, Facts } from './RowParts';
 import { isTimed } from './socket-form';
-import { RemoveSocketSheet, SocketFormSheet, SocketTimerBlock } from './SocketSheets';
+import { RemoveSocketSheet, SocketFormSheet } from './SocketSheets';
 import { forcedOf, socketCycle, socketName, socketState } from './socket-words';
-import { DEFAULT_HOLD_SECONDS, HOLD_SECONDS, rowsOf, runsOf, TEST_SECONDS, type SocketRowModel } from './sockets';
+import { rowsOf, runsOf, TEST_SECONDS, type SocketRowModel } from './sockets';
 import styles from './DevicePage.module.css';
 
 /** The slot a socket's key names, so a socket whose role was changed is still found. */
@@ -39,17 +39,16 @@ const rowOf = (rows: SocketRowModel[], key: string): SocketRowModel | null => {
 };
 
 /**
- * One smart socket, on a page of its own: what it is doing, the switch that
- * forces it the other way, how long a hold lasts, the cycle of a timed role,
- * and what is rarely needed again - where it is reached, and removing it.
+ * One smart socket, on a page of its own: what it is doing, holding it on or
+ * off by hand, finding it in the tent, and what is rarely needed again - where
+ * it is reached, the cycle of a timed role, and removing it.
  *
- * A socket is a plug: it is on or it is off. A tap forces it the other way for
- * a while; a tap while something is forcing it hands it back to its role.
- * Nothing here pretends a command arrived: the page goes on showing what the
- * device last reported, and what the command answered is said underneath.
+ * What the socket is doing is the device's last report and nothing else: a
+ * command that went out is said as asked until the device reports it. A
+ * reader who may not manage the device reads the state alone.
  *
- * It leads back to where it was opened from - Steuerung, or the list of the
- * device's sockets.
+ * It leads back to where it was opened from - Steuerung or its outputs - and
+ * so does removing it.
  */
 export function SocketPage() {
   const { deviceId = '', socket = '' } = useParams();
@@ -81,6 +80,7 @@ function Socket({
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
+  const navigate = useNavigate();
   const { state } = useLocation();
   const mayManage = enough(useMayWith()(device), 'manage');
   const { heard, liveness, waiting, offline } = useDeviceLiveness(device, now);
@@ -88,7 +88,7 @@ function Socket({
   const [editing, setEditing] = useState(false);
   const [removing, setRemoving] = useState(false);
   const title = deviceTitle(device, t, among);
-  const back = backOf(state, device.spaceId ? controlPath(device.spaceId) : devicePath(device.id, 'sockets'));
+  const back = backOf(state, device.spaceId ? controlPath(device.spaceId) : devicePath(device.id));
 
   const head = (name: string) => (
     <PageHead title={name} back={{ to: back, label: t('device.back') }}>
@@ -107,10 +107,12 @@ function Socket({
   }
 
   const name = socketName(t, row);
+  const forced = forcedOf(row);
   // Why the device would not hear anything at all, and why this build holds nothing: the first stops strictly more.
-  const unheard = offline || waiting ? t('devices.socket.offline') : null;
-  const refusal = unheard ?? (capabilities.socketOverride ? null : t('devices.socket.needsFirmware'));
+  const unheard = offline || waiting;
+  const refusal = unheard ? t('devices.socket.offline') : capabilities.socketOverride ? null : t('devices.socket.needsFirmware');
   const runs = runsOf(verdicts.get(device.spaceId ?? ''), row.role);
+  const timed = isTimed(row.role);
 
   return (
     <section className={styles.page}>
@@ -128,14 +130,21 @@ function Socket({
         />
       </p>
 
-      <Switching row={row} name={name} deviceId={device.id} mayManage={mayManage} refusal={refusal} unheard={unheard} now={now} />
-
-      {/* What a pump or a timer of one's own repeats: without it the socket stays off. */}
-      {mayManage && isTimed(row.role) ? (
-        <div className={ui.card}>
-          <SocketTimerBlock deviceId={device.id} row={row} capabilities={capabilities} refusal={unheard} />
-        </div>
-      ) : null}
+      <div className={`${ui.card} ${styles.card}`}>
+        <span className={styles.socketState}>{socketState(t, row, now)}</span>
+        {!mayManage ? null : refusal ? (
+          <p className={ui.note}>{refusal}</p>
+        ) : (
+          <HandHold
+            name={name}
+            deviceId={device.id}
+            target={row.target}
+            held={forced && forced.state !== 'auto' ? { state: forced.state, until: forced.validUntil } : null}
+            help="socketHold"
+            now={now}
+          />
+        )}
+      </div>
 
       <div className={`${ui.card} ${styles.details}`}>
         <Facts>
@@ -151,12 +160,20 @@ function Socket({
 
       {mayManage ? (
         <Rows>
-          <Row title={t('socketForm.edit.label')} onOpen={() => setEditing(true)} />
+          {row.slot >= 0 ? <FindRow deviceId={device.id} slot={row.slot} name={name} unheard={unheard} /> : null}
+          {/* A pump or a timer of one's own without a cycle stays off, which the row that sets one says. */}
+          <Row
+            title={t(timed ? 'socketForm.edit.labelTimed' : 'socketForm.edit.label')}
+            line={timed && !row.timer ? t('socketForm.timer.missing') : unheard ? t('device.socket.waits') : null}
+            warn={timed && !row.timer}
+            waits={unheard}
+            onOpen={() => setEditing(true)}
+          />
           {row.slot >= 0 ? (
             <Row
               title={t('socketForm.remove.label')}
-              line={unheard ? t('device.socket.removeWaits') : null}
-              waits={unheard !== null}
+              line={unheard ? t('device.socket.waits') : null}
+              waits={unheard}
               onOpen={() => setRemoving(true)}
             />
           ) : null}
@@ -173,115 +190,50 @@ function Socket({
           onClose={() => setEditing(false)}
         />
       ) : null}
-      {removing ? <RemoveSocketSheet deviceId={device.id} row={row} name={name} onClose={() => setRemoving(false)} /> : null}
+      {removing ? (
+        <RemoveSocketSheet
+          deviceId={device.id}
+          row={row}
+          name={name}
+          onClose={() => setRemoving(false)}
+          onRemoved={() => void navigate(back, { replace: true })}
+        />
+      ) : null}
     </section>
   );
 }
 
 /**
- * What the socket is doing and the ways to force it: the switch, where the
- * device says what the socket is doing - the three-way where it does not,
- * because a switch would have to be drawn in a position nobody checked - the
- * lengths a hold can have, the way back to its role and the blink that finds
- * it. A reader who may not manage the device reads the state alone.
+ * "Finden": the socket comes on for two seconds and goes off again, which is
+ * how a person finds out which plug in the tent it is. A command every build
+ * takes, so only a device nobody hears makes it wait.
  */
-function Switching({
-  row,
-  name,
-  deviceId,
-  mayManage,
-  refusal,
-  unheard,
-  now,
-}: {
-  row: SocketRowModel;
-  name: string;
-  deviceId: string;
-  mayManage: boolean;
-  /** Why nothing can be held now, or null. */
-  refusal: string | null;
-  /** Why the device hears no command at all, or null: finding a socket is one every build takes. */
-  unheard: string | null;
-  now: DateTime;
-}) {
+function FindRow({ deviceId, slot, name, unheard }: { deviceId: string; slot: number; name: string; unheard: boolean }) {
   const { t } = useTranslation();
-  const override = useSetOverride();
+  const { tell } = useLog();
   const test = useTestSocket();
-  const forced = forcedOf(row);
-  const send = (state: SocketOverrideState, forSeconds: number) => override.mutate({ deviceId, target: row.target, state, forSeconds });
-  /** A tap means "the other way" - and, while something is forcing the socket, "let go". */
-  const flip = () => (forced ? send('auto', 0) : send(row.state === 'on' ? 'off' : 'on', DEFAULT_HOLD_SECONDS));
+  const missed = test.data?.deviceOnline === false ? t('devices.socket.notListening') : null;
+
+  const find = () => {
+    if (test.isPending) return;
+    test.mutate(
+      { deviceId, slot, forSeconds: TEST_SECONDS },
+      { onSuccess: ({ deviceOnline }) => deviceOnline && tell({ label: t('devices.socket.found', { name }), undo: null }) },
+    );
+  };
 
   return (
-    <div className={`${ui.card} ${styles.card}`}>
-      <div className={styles.socketNow}>
-        <span className={styles.socketState}>{socketState(t, row, now)}</span>
-        {!mayManage ? null : row.state === 'unknown' ? (
-          <span className={`${ui.segments} ${styles.threeWay}`} role="group" aria-label={t('devices.socket.force', { name })}>
-            {(['auto', 'on', 'off'] as const).map(state => (
-              <button
-                key={state}
-                type="button"
-                className={ui.segment}
-                aria-pressed={state === (forced ? forced.state : 'auto')}
-                disabled={refusal !== null}
-                onClick={() => send(state, state === 'auto' ? 0 : DEFAULT_HOLD_SECONDS)}
-              >
-                {t(`devices.socket.${state}`)}
-              </button>
-            ))}
-          </span>
-        ) : (
-          <Switch label={t('devices.socket.force', { name })} on={row.state === 'on'} disabled={refusal !== null} onChange={flip} />
-        )}
-      </div>
-      <Receipt result={override.data} error={override.error} pending={override.isPending} />
-
-      {mayManage ? (
-        <div className={styles.holds}>
-          <span className="label">
-            {t('devices.socket.holdFor')}
-            <Help topic="socketHold" />
-          </span>
-          {HOLD_SECONDS.map(seconds => (
-            <button
-              key={seconds}
-              type="button"
-              className={ui.chip}
-              disabled={refusal !== null}
-              aria-label={t(row.state === 'on' ? 'devices.socket.holdOffAria' : 'devices.socket.holdOnAria', {
-                name,
-                duration: durationLabel(seconds),
-              })}
-              onClick={() => send(row.state === 'on' ? 'off' : 'on', seconds)}
-            >
-              {durationLabel(seconds)}
-            </button>
-          ))}
-          {forced ? (
-            <button type="button" className={ui.chip} disabled={refusal !== null} onClick={() => send('auto', 0)}>
-              {t('devices.socket.backToAuto')}
-            </button>
-          ) : null}
-          {row.slot >= 0 ? (
-            // The (i) stays beside the chip it explains, also where the chips wrap.
-            <span className={styles.withHelp}>
-              <button
-                type="button"
-                className={ui.chip}
-                disabled={unheard !== null}
-                onClick={() => test.mutate({ deviceId, slot: row.slot, forSeconds: TEST_SECONDS })}
-              >
-                {t('devices.socket.findIt')}
-              </button>
-              <Help topic="findSocket" />
-            </span>
-          ) : null}
-          {/* Why the chips are grey, where the grey chips are. */}
-          {refusal ? <p className={ui.note}>{refusal}</p> : null}
-        </div>
-      ) : null}
-      <Receipt result={test.data} error={test.error} pending={test.isPending} />
-    </div>
+    <>
+      <Row
+        acts
+        title={t('devices.socket.findIt')}
+        line={t(unheard ? 'device.socket.waits' : 'devices.socket.findLine')}
+        waits={unheard}
+        onOpen={find}
+      />
+      <Refused error={test.error} fallback={t('devices.socket.askFailed')} className={styles.rowSays} />
+      {missed ? <p className={`${ui.note} ${styles.rowSays}`}>{missed}</p> : null}
+      <Announce text={missed} />
+    </>
   );
 }

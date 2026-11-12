@@ -1,11 +1,12 @@
-import type { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
+import { serverNow } from '@/api/clock';
 import type { Translate } from '@/i18n/i18n';
 import { ageLabel, durationLabel, leftLabel } from '@/ui/age';
 import type { SocketRowModel } from './sockets';
 
 /**
- * A smart socket in words, wherever one is named: on its own page, in the list
- * of a device's sockets and in the rows that lead to it.
+ * A smart socket in words, wherever one is named: on its own page and in the
+ * rows that lead to it.
  */
 
 /**
@@ -24,10 +25,17 @@ export const forcedOf = (row: SocketRowModel) => (row.override && row.override.s
  * whether its role switches it ("Auto") or a person holds it and for how much
  * longer. A socket that was answering and stopped says since when; one the
  * device says nothing about says that.
+ *
+ * What is left of a hold is read off the clock as it is drawn: a countdown
+ * rounds up, and against the page's beat - up to ten seconds old when a table
+ * arrives - four hours just asked for read "5 h".
  */
 export const socketState = (t: Translate, row: SocketRowModel, now: DateTime): string => {
   const forced = forcedOf(row);
-  if (forced) return t('devices.socket.forced', { state: t(`devices.socket.${forced.state}`), left: leftLabel(forced.validUntil, now) });
+  if (forced) {
+    const left = leftLabel(forced.validUntil, DateTime.max(now, serverNow()));
+    return t('devices.socket.forced', { state: t(`devices.socket.${forced.state}`), left });
+  }
   if (row.state === 'unknown') {
     return row.stateChangedAt ? t('devices.socket.quiet', { age: ageLabel(row.stateChangedAt, now) }) : t('devices.socket.unknownState');
   }

@@ -83,8 +83,8 @@ export const timelinePath = (spaceId: string, focus: string | null = null, at: s
 export const chartsPath = (spaceId: string, show: string | null = null): string =>
   withQuery('/charts', { space: spaceId, ...(show ? { show } : {}) });
 
-/** The pages below a device's own: its smart sockets, what few growers set, and what support asks for. */
-export const DEVICE_PAGES = ['sockets', 'advanced', 'details'] as const;
+/** The pages below a device's own: what few growers set, and what support asks for. */
+export const DEVICE_PAGES = ['advanced', 'details'] as const;
 export type DevicePageName = (typeof DEVICE_PAGES)[number];
 
 /** A device's own page, reached from its card under Steuerung. */
@@ -92,7 +92,7 @@ export const devicePath = (deviceId: string, page: DevicePageName | null = null)
   `/devices/${encodeURIComponent(deviceId)}${page ? `/${page}` : ''}`;
 
 /** One smart socket of a device, by the key its row is known by (`rowsOf`, `screens/devices/sockets.ts`). */
-export const socketPath = (deviceId: string, socket: string): string => `${devicePath(deviceId, 'sockets')}/${encodeURIComponent(socket)}`;
+export const socketPath = (deviceId: string, socket: string): string => `${devicePath(deviceId)}/sockets/${encodeURIComponent(socket)}`;
 
 export const cameraPath = (cameraId: string): string => `/cameras/${encodeURIComponent(cameraId)}`;
 

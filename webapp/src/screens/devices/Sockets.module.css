@@ -1,6 +1,6 @@
-/* Pairing a socket by its address and changing one: a short form in a sheet,
-   and the timer of a pump on the socket's page. The fields, chips and notes are the
-   app's own; only how they stand together is said here. */
+/* Pairing a socket by its address and changing one: a short form in a sheet.
+   The fields, chips and notes are the app's own; only how they stand together
+   is said here. */
 
 .form {
   display: flex;
@@ -56,30 +56,4 @@
 
 .spanUnit {
   width: auto;
-}
-
-/* The timer of a pump, in a card of the socket's page. */
-.block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.blockHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-/* The buttons of the timer, a finger high like every other on the socket's page. */
-.blockHead > button,
-.actions button {
-  min-height: 44px;
 }

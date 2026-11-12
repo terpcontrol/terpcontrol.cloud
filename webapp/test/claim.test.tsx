@@ -244,7 +244,7 @@ describe('adding a device', () => {
 
     expect(await screen.findByRole('link', { name: 'Pair a Terp Cam' })).toHaveAttribute('href', '/cameras/add');
     expect(screen.getByText(/A Terp Control socket is paired on the device itself – press the button, then Smart Sockets/)).toBeInTheDocument();
-    expect(screen.getByText(/A Tasmota socket you pair later under Control › your device › Smart sockets/)).toBeInTheDocument();
+    expect(screen.getByText(/A Tasmota socket you pair later under Control › your device › Pair a socket/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Devices tab/ })).not.toBeInTheDocument();
   });
 
