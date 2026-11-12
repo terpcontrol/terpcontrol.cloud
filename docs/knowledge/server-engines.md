@@ -149,7 +149,9 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   place are two climates, and their mean is a figure neither read. The answer names the device (`deviceId`,
   null to a reader from outside). The lanes are that device's and those of whatever else in the place is no
   climate of its own - a socket, a lamp, a fan (`actingOn`): another climate's compressor does not act on this
-  one's air. Every panel carries a line and its lowest and highest at every range; of VPD beyond three
+  one's air. A window without curves is dated by the last reading of the device its curves are of
+  (`lastReadingAt`), not of whichever device of the place spoke last. Every panel carries a line and its lowest
+  and highest at every range; of VPD beyond three
   days they are those of means over five minutes ([data.md](data.md#influxdb)), which the help says once.
 - **The state a window is found in holds from the window's start.** The switchings read stamps its opening
   state with the first grain a sample fell into, up to a grain after the window began; a night that began there

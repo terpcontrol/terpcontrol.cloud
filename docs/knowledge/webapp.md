@@ -139,9 +139,12 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   laid over, and a grow's own measurements come from `useMeasurementSeries`. What the place reads now comes from
   `useSpaceLive`, the read Start lays over its readings, under the same key: `panelsOf` closes each curve of a window that ends
   now with that reading, which is what "jetzt" is and why it agrees with Start. A read that fails for a new
-  window leaves `data` empty in TanStack Query - `keepPreviousData` holds only while pending - so `usePage`
-  keeps the last answer itself and hands it on with `failed`. A refusal that names a device or a grow the place
-  does not have (`device_not_here`, `grow_not_found`) drops that parameter and says so. A change of the view is a
+  window leaves `data` empty in TanStack Query - `keepPreviousData` holds only while pending - and, asked
+  again, goes back to "pending" with no error; so `usePage` keeps the last answer and which window was refused
+  with what itself, and hands them on as `failed` and `refusal` until a read succeeds. What an address names
+  is looked up first in what the account holds (`Vain`): a device it has not got and a grow that stands in no
+  place are said and dropped without asking; a device of the account that never stood in the place is told by
+  the server's refusal (`device_not_here`). A change of the view is a
   `setSearchParams` with `replace`, which React Router applies as a transition: what has to show at once - a tick
   in the sheet, the cursor under a thumb - is held in state beside it. `terp.curves` remembers the last ticks for
   an address that names none. The page a share link shows (`SharedTimeline`) is the same screen without the

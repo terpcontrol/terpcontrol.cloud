@@ -62,32 +62,32 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     begins; a failed window keeps the last picture; a grow's hand measurements have their curves on its page
     Messwerte; one figure for one thing; a marked way back to now; a place's own device and never a mean of two;
     an output's level drawn. The critic's second walk (2026-11-12) found VPD true up to three days and still
-    wrong beyond; decided by the redesign session, not built yet, and not Chris's word:
-      - Beyond three days VPD is worked out from pushed-down means over five minutes (up to fifteen if the
-        grow's read is too dear), each judged day or night by its own time; a drawn point is the mean of those,
-        its low and high their lowest and highest. Every range has line, envelope and "Tief · Hoch" again and
-        "Mittel … bis …" goes; the help says once what low and high are there. Today a window that straddles a
-        light change gets a deficit the tent never had, and a grow of the same climate every day draws a bow-tie.
-      - A reading's VPD uses a leaf temperature only if that reading carries one, the live reading included
-        (question 4 below is answered by it); inside three days a point is the mean of its samples' VPD.
+    wrong beyond; what it found is built as the redesign session decided it - decided by the redesign session,
+    not Chris's word:
+      - Beyond three days VPD is worked out from pushed-down means over five minutes, each judged day or night
+        by its own time; a drawn point is the mean of those, its low and high their lowest and highest. Every
+        range has line, envelope and "Tief · Hoch" again and "Mittel … bis …" is gone; the help says once what
+        low and high are there. Five minutes hold for a four-month grow (182 ms on a tent of 120 days at 5 s),
+        so fifteen was not needed ([data.md](knowledge/data.md#influxdb)).
+      - A reading's VPD uses a leaf temperature only if that reading carries one, the live reading included;
+        inside three days a point is the mean of its samples' VPD.
       - A silent device's "letzter Wert" is its last reading on every range, never the last window's mean; the
         "jetzt" card's outputs are the live levels.
-      - Humidity on Verlauf is read to a tenth (cursor, Tief/Hoch, CSV), Start's tiles stay whole - against
-        question 3 below, until Chris says otherwise.
+      - Humidity on Verlauf is read to a tenth (cursor, Tief/Hoch, table), Start's tiles stay whole - against
+        what the first fix pass did, until Chris says otherwise (question 2 below).
       - A place with two climates is about one device on every page: "Zum letzten Wert", a share link's tiles
         and Steuerung's pill are of the device whose curves are drawn.
-      - A failed window's notice goes when a read succeeds; a rule made by one tap is named like a preset's.
+      - A failed window's notice stays through a retry and goes when a read succeeds; what an address names in
+        vain is told without a refused read; a rule made by one tap is named like a stage's.
+    Not built of that walk: a place whose history is part sparse, part dense - fifteen-minute samples before a
+    device that now reports every five seconds - still draws its band and night in stripes over the sparse
+    part, because one rhythm is taken for the whole window (`silenceOf`, `timeline-series.ts`).
     Open, for Chris:
-      1. Where the line for the true extremes of VPD is drawn: three days costs a day's read 47 ms more; a week
-         would cost half a second and a month over two ([data.md](knowledge/data.md#influxdb)). Storing the
-         deficit with each sample would make every range cheap, and is a new stored field.
-      2. No free panning (the old Ctrl-drag, a two-finger pan), and the four things that went with "Graphen": a
-         range typed as two dates, renaming a saved view, the four kinds a line was filtered by, and - now
-         answered by Messwerte - the charts of a grow without a place.
-      3. Humidity is written in whole per cent on Verlauf as everywhere, where the picture reads it to a tenth
-         in a panel's head.
-      4. A live reading works out VPD from the newest of every field within 30 days, so a leaf sensor that was
-         taken out keeps bending "jetzt" for a month (`DataService.live`); seen on test data, not fixed.
+      1. No free panning (the old Ctrl-drag, a two-finger pan), and the three things that went with "Graphen":
+         a range typed as two dates, renaming a saved view, the four kinds a line was filtered by.
+      2. Humidity to a tenth on Verlauf and whole on Start: two figures for one reading, on purpose.
+      3. A rule made by one tap before this is stored under its translated name and stays so; no migration
+         renames it.
   - Settled on 2026-11-12 (round 6): a claim no longer offers "ein neuer Ort" first to every device. A device asks
     once where it hangs, the place that exists first for a fan, a socket or a lamp
     ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)).

@@ -893,11 +893,15 @@ page the same day ("after the walk" below) - none of those is Chris's.
   was invisible in a day's picture. "Tief" and "Hoch" are those samples, not the means. Zoomed to 130 points or
   fewer each point is a dot on its line, and a reading with a silence on either side is a dot at any zoom.
 - **One figure for one thing** (after the walk). A reading is written here as every screen writes it
-  (`figure()`), so Start's tile, a day card and a panel's head agree to the last digit - humidity in whole per
-  cent, not to the tenth the first build chose. "Jetzt" is the device's last reading, the one Start and
-  Steuerung show (`useSpaceLive`), drawn as the curve's last point on every range - not the mean of a month's last
-  hour and a half - and only while the device reports: silent by the offline rule, the head and the card read
-  "letzter Wert · 16:17", the band, the night and the lamp's strip end there, on 30 Tage as on 24 Std. Start's
+  (`figure()`), with one exception the second walk decided: **a humidity is read to a tenth on Verlauf** - the
+  cursor's card, "Tief" and "Hoch", the table - as the picture has it and the sensor delivers it ("Hoch 75"
+  stood over a highest sample of 74,6), while Start's tile rounds the same reading to whole per cent. The first
+  fix pass had made it whole and asked Chris; the session's word stands until he says otherwise. "Jetzt" is the
+  device's last reading, the one Start and Steuerung show (`useSpaceLive`), drawn as the curve's last point on
+  every range - not the mean of a month's last hour and a half - and only while the device reports: silent by
+  the offline rule, the head and the card read "letzter Wert · 16:17", the band, the night and the lamp's strip
+  end there, on 30 Tage as on 24 Std. The mean of the window that reading fell into gives way to it, whichever
+  half of the window it fell in, and at rest the card says each output's live level, not a window's mean. Start's
   two small curves name the lowest and highest sample of the day, as Verlauf's head does. **A figure of VPD is
   a VPD that occurred**, at every range ([data.md](data.md#influxdb)): its "Tief" and "Hoch" are of the deficit
   of single samples up to three days and of means over five minutes beyond, which the help on VPD and on the
@@ -914,8 +918,9 @@ page the same day ("after the walk" below) - none of those is Chris's.
   strip is tinted by the share of it the output ran, which keeps what Chris asked of the lanes on 2026-10-12 - a
   compressor cycling all week reads as how often it ran, not as one solid bar. How hard it ran is said at the
   cursor ("Licht 65 %"), and drawn: an output driven at a level - a dimmed lamp, a fan's speed, the heater's
-  demand - fills its strip to that level, so a sunrise is a ramp; one that only switches fills it whole (after
-  the walk; the old charts drew outputs as curves). Past the last thing heard a strip is blank, which is not
+  demand - is a filled shape: over each slice the level it ran at by the share of the slice it ran, so a sunrise
+  is a ramp and a heater's demand no row of ticks; one that only switches is tinted by its share (after the
+  walks; the old charts drew outputs as curves). Past the last thing heard a strip is blank, which is not
   "off". The picture puts a
   strip's name left of it; it stands over the strip instead, because a strip that starts a name's width to the
   right no longer lines up with the curve above.
@@ -938,8 +943,9 @@ page the same day ("after the walk" below) - none of those is Chris's.
   on, over the grow, from the read that page already has, drawn by Verlauf's plot (`measurementCurve`,
   `plotOption`); the words there no longer promise "Graphen", and neither does any other screen.
 - **The table holds every curve drawn** with the lowest and highest of each window beside its mean, and every
-  output as the state it held, at the step on screen - with semicolons and decimal commas where the reader's
-  figures have commas, so a spreadsheet there reads columns.
+  output as the state it held - one with a level in per cent ("Licht (%)") -, at the step on screen: with
+  semicolons and decimal commas where the reader's figures have commas, a byte-order mark, one number of
+  decimals to a column, no row in which nothing is said, and a deficit's column named as worked out.
 - **The diary of the window is told as the diary tells it** (`DiaryLine`): oldest first, as the curves run, a run
   of the same device line folded - standing at its first, "3× bis 01:03" -, an alarm by its rule. A line's
   stamp sets the cursor on its moment; its words
@@ -955,7 +961,11 @@ page the same day ("after the walk" below) - none of those is Chris's.
   rests the cursor on its last reading and says that it is the last, and the band and the night end with it.
   **A window whose read fails keeps the last picture** (after the walk): the chips, the arrows and "Anpassen"
   stay, a notice says that this window could not be loaded and whether the server answered or there is no
-  connection (`refusalText`), and its retry says that it is trying.
+  connection (`refusalText`), and its retry says that it is trying. The notice stays through a retry and goes
+  when a read succeeds; while it stands nothing else moves - the label names the window that is drawn, and
+  its figures stay. A first load that fails says one sentence and offers no zoom on a plot that is not there.
+  What an address names in vain - a device the account has not got, a grow in no place - is told from what the
+  account already holds, without asking the server a question it can only refuse (after the second walk).
 - **A reader from outside is shown the tent and not the hardware**: through a place's link the curves, the band,
   the night and the strips; no alarm, no line of a device, no grow to choose, no camera page, no view, no link,
   no note - the server answers none of it and the page offers none.
