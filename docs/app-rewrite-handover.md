@@ -103,11 +103,32 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
   - A line of the diary opens Verlauf on its moment however old; today one from more than 30 days back opens the
     grow's whole stretch, the only window that holds it, because Verlauf's windows all end now (round 5: Verlauf's
     address carries its window).
-  - Where the run stands (2026-11-12, the session stopped at the account's token limit). Built, walked by a
-    critic and fixed: the frame, Start, the grow pages. Built and not walked by a critic: round 4. A second walk of
-    Start and the grow pages found one blocker and eight larger points; what was decided about them is not built
-    and comes first when the run goes on. Then, one round after another, each followed by its critic
-    ([development-workflow.md](knowledge/development-workflow.md), Long runs and rounds): the critic for round 4,
+  - Round 4's walk by the critic (2026-11-12): two blockers and ten larger points. Decided by the redesign
+    session, not built yet, and not Chris's word:
+    - A socket is switched by saying which way: the socket page takes Ausgänge's control (Auto, An, Aus, then
+      how long), shows what was asked at once and sends nothing twice. Its duration chips flipped the state
+      without naming it.
+    - Offline is true on every panel that writes a setting - Plantalytix Socket, LIGHT, AIR fan, Erweitert - by
+      one save path with the controller's answer; an offline plug answered "ans Gerät geschickt". Regulation
+      switched off while offline is a stored setting like any other, and the cards stay until it is taken.
+    - One way to change a setting: a sheet with "Speichern" for a figure, a write on tap for a switch, each
+      answered by a toast. The draft bar and the forms of `screens/control/devices/` go; Erweitert's fields open
+      the same sheet.
+    - Moving a device is asked (the sheet says what goes with it) and answered with undo; one tap moved it.
+    - Germination and drying are chosen as a climate preset only ([ADR 0007](adr/0007-germination-in-the-dark.md):
+      the stage decides the work mode); Betriebsart offers what no preset sets.
+    - A sub-page of Steuerung leads with the place's own device, the others unfold, a device with nothing there
+      is not listed; choosing another place keeps the sub-page. A second device's page links to its part of each.
+    - An output held by hand is said wherever its state is said, Start included. A paused plan is continued in
+      one place, the plan page.
+    - Came back or comes back: muting a triggered alarm rule for an hour; the manual update channel with a build
+      to pick is to be shown on a stack that has builds.
+    - Left for round 5: a moment's camera picture in Verlauf's cursor, reached from the camera page.
+  - Where the run stands (2026-11-12). Built, walked by a critic and fixed: the frame, Start, the grow pages.
+    Round 4 is built and walked, its fixes decided (above) and not built. The second walk of Start and the grow
+    pages found one blocker - a device's alarms reached outside readers, closed - and eight larger points, which
+    are being built. Then, one round after another, each followed by its critic
+    ([development-workflow.md](knowledge/development-workflow.md), Long runs and rounds):
     Verlauf as one page with the server's finer step, place and room with the data model's migration steps, Ich
     and Meldungen, and the clearing up (unused code, one wording pass, these documents, the line counts against
     74,461 in `webapp/src` and 33,865 in `webapp/test` when the run began). The briefs of the rounds, the list of
