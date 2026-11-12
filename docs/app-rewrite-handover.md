@@ -82,6 +82,19 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     Not built of that walk: a place whose history is part sparse, part dense - fifteen-minute samples before a
     device that now reports every five seconds - still draws its band and night in stripes over the sparse
     part, because one rhythm is taken for the whole window (`silenceOf`, `timeline-series.ts`).
+    The third walk (2026-11-13) checked VPD against the raw samples of a 120-day tent: no line outside its
+    envelope on any range, the same climate reads the same from July to November, and the whole read costs what
+    it did (about 0.9 s for 120 days). It left one major and eleven minors; decided by the redesign session, not
+    built yet, and not Chris's word:
+      - No `at` in the address means the card rests on "jetzt"; a cursor is what the address says and nothing
+        else remembers it. (Tapping "Verlauf" in the bar with a cursor set blanked a live tent's card.)
+      - Beyond three days every step is a whole number of five minutes, so a point holds whole grains; no finer
+        step is offered there, and VPD's head says its "Tief · Hoch" are of five-minute means. Temperature and
+        humidity keep the samples' extremes on every range.
+      - A grain uses a leaf temperature only where leaf readings cover it as the air readings do.
+      - A night belongs to the device that stood there: the lamp is read from each device over its own stay.
+      - The table is one row per drawn point with each output's mean level; "x % der Zeit an" is of the time
+        the device reported; at rest every reader, a share link's too, sees the last reading's figures.
     Open, for Chris:
       1. No free panning (the old Ctrl-drag, a two-finger pan), and the three things that went with "Graphen":
          a range typed as two dates, renaming a saved view, the four kinds a line was filtered by.
