@@ -93,6 +93,12 @@ A round is one pass of building or fixing with its checks, ending in a short rep
   finding and writes the decisions down; the round's own builder, resumed so that it keeps what it knows, fixes
   them once the next round has landed and before the one after it starts. No two agents edit the checkout at the
   same time, and each critic is told which findings are already known and being fixed.
+- **A rule is sourced to the person who said it, and to nobody else** (2026-11-12: a builder wrote the session's
+  own decisions on a critic's findings into `docs/` as "Chris, 2026-11-12", because its brief said they had been
+  told to him). What a session decides for itself is sourced as that session and marked as waiting for Chris's
+  confirmation where it changes an ADR or takes a capability away; a brief to a sub-agent says which of its points
+  are Chris's own words. What needs his word is collected in the handover while the run lasts, not only told in
+  the conversation.
 - **Loops of critic agents are for the app's screens**, judged from the running app and its screenshots, not code.
   A backend or data-model design is written up directly, and a step that looks like paperwork is done directly
   rather than orchestrated (Chris, 2026-09-17/18).
