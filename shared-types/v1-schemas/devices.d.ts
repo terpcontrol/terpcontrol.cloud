@@ -2601,6 +2601,8 @@ export declare const metricSeries: z.ZodObject<{
     points: z.ZodArray<z.ZodObject<{
         measuredAt: z.ZodISODateTime;
         value: z.ZodNullable<z.ZodNumber>;
+        min: z.ZodOptional<z.ZodNumber>;
+        max: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const outputSeries: z.ZodObject<{
@@ -2618,6 +2620,8 @@ export declare const outputSeries: z.ZodObject<{
     points: z.ZodArray<z.ZodObject<{
         measuredAt: z.ZodISODateTime;
         value: z.ZodNullable<z.ZodNumber>;
+        min: z.ZodOptional<z.ZodNumber>;
+        max: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
@@ -2671,6 +2675,8 @@ export declare const deviceSeries: z.ZodObject<{
         points: z.ZodArray<z.ZodObject<{
             measuredAt: z.ZodISODateTime;
             value: z.ZodNullable<z.ZodNumber>;
+            min: z.ZodOptional<z.ZodNumber>;
+            max: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     outputs: z.ZodArray<z.ZodObject<{
@@ -2688,6 +2694,8 @@ export declare const deviceSeries: z.ZodObject<{
         points: z.ZodArray<z.ZodObject<{
             measuredAt: z.ZodISODateTime;
             value: z.ZodNullable<z.ZodNumber>;
+            min: z.ZodOptional<z.ZodNumber>;
+            max: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;

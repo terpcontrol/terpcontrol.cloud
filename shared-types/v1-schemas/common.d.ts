@@ -240,10 +240,16 @@ export declare const metricValue: z.ZodObject<{
  *
  * It sits here rather than with the device routes because a device's series and
  * the panels of the timeline are the same points read over different windows.
+ *
+ * A mean hides what was short: a door open for forty seconds moves a
+ * three-minute mean by a fraction of what it moved the air. So the Timeline's
+ * points say the lowest and the highest sample of their window beside it.
  */
 export declare const seriesPoint: z.ZodObject<{
     measuredAt: z.ZodISODateTime;
     value: z.ZodNullable<z.ZodNumber>;
+    min: z.ZodOptional<z.ZodNumber>;
+    max: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>;
 /**
  * `terpcam_controller` is the Terp Cam a device pairs at its display and answers

@@ -3,7 +3,7 @@ import { growDayAt, growDayUpTo, growOriginOf, spineOf } from '@fg2/shared-types
 import { Grant } from '@common/v1/access.types';
 import { notFound } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
-import { stepFor as storeStepFor } from '@modules/data/flux';
+import { MIN_STEP_SECONDS, stepFor as storeStepFor } from '@modules/data/flux';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
@@ -21,18 +21,18 @@ import { TargetStretch } from './timeline-series';
  * which grow before it will answer either.
  *
  * The step follows from the width of the window rather than from the rate the
- * device reported at, so every range is read with the same number of windows and
- * a grow costs what a day costs. That is also what makes a long range coarse in
- * one respect that matters: at hours to the window a light output is the mean of
- * a dozen switchings, so the night shading of a whole grow says which part of a
- * day was mostly dark and nothing finer.
+ * device reported at, so every range is read with about the same number of
+ * windows and a grow costs what a day costs. That is also what makes a long
+ * range coarse in one respect that matters: at hours to the window a light
+ * output is the mean of a dozen switchings, so the night shading of a whole
+ * grow says which part of a day was mostly dark and nothing finer.
  */
 
-/** How many windows a panel is drawn with, whatever the range. More than a phone has pixels, few enough to be one read. */
+/** How many windows a panel is drawn with at the most, whatever the range. More than a phone has pixels, few enough to be one read. */
 const PANEL_WINDOWS = 480;
 
-/** No device reports faster than this, so a narrower window would only interpolate. */
-const MIN_STEP_SECONDS = 60;
+/** Under a minute a step is a whole number of the five seconds a device reports at, so no window holds one sample and the next two. */
+const SAMPLE_SECONDS = MIN_STEP_SECONDS;
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -69,12 +69,14 @@ export const windowOf = (
   zone: string | null,
   asOf: Date,
   askedStep?: number,
+  /** A window named outright - stepped back to, zoomed into - which the range then only says the grow of. */
+  named?: { startsAt: Date; endsAt: Date },
 ): TimelineWindow => {
   const granted = grant.range.endsAt;
   const at = granted && granted < asOf ? granted : asOf;
 
   return narrowedTo(
-    grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at),
+    named ?? (grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at)),
     grant,
     grow,
     zone,
@@ -153,13 +155,17 @@ const stretchOf = (range: 'phase' | 'grow', grow: GrowDocument, at: Date): { sta
   return { startsAt: phase?.startedAt ?? growOriginOf(grow), endsAt: horizon };
 };
 
-const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
-  // A step somebody chose - the charts page offers five seconds to a week - is
-  // held to the store's own rule for one.
+/**
+ * The step a window is read at: down to the five seconds a device reports at,
+ * so twenty minutes are every sample and an hour every second one, and a day
+ * three minutes. A step somebody chose is held to the store's own rule for one.
+ */
+export const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
   if (asked && asked > 0) return storeStepFor(startsAt, endsAt, asked);
 
   const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
-  return Math.max(MIN_STEP_SECONDS, Math.ceil(seconds / PANEL_WINDOWS));
+  const even = Math.ceil(seconds / PANEL_WINDOWS);
+  return even >= 60 ? even : Math.max(SAMPLE_SECONDS, Math.ceil(even / SAMPLE_SECONDS) * SAMPLE_SECONDS);
 };
 
 /**

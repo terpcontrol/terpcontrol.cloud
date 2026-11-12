@@ -26,10 +26,14 @@ import { DEFAULT_DEVICE_SETTINGS, StoredDevice } from '@database/schemas/v1/devi
 import { influxConfig } from '../../config/configuration';
 import { CAMERA_DAYLIGHT, CameraDaylight } from './camera-daylight.port';
 import {
+  computedExtremes,
   computedValue,
   DailySummary,
   dailyMeanQuery,
   dailySummariesOf,
+  Extremes,
+  extremesByField,
+  extremesQuery,
   fieldsFor,
   FluxRow,
   FluxWindow,
@@ -39,6 +43,7 @@ import {
   levelsByField,
   levelsQuery,
   liveQuery,
+  MIN_STEP_SECONDS,
   newestSampleQuery,
   oldestSampleQuery,
   OutputSwitching,
@@ -51,6 +56,7 @@ import {
   seriesQuery,
   stepFor,
   summaryQuery,
+  switchingGrainFor,
   SUMMARY_MEASUREMENT,
   switchingsByField,
   switchingsQuery,
@@ -146,6 +152,11 @@ export interface SeriesRequest {
   endsAt: Date;
   /** Left out, the server picks a step from the range; too narrow a one for the range is widened. */
   stepSeconds?: number;
+  /**
+   * Whether each window's lowest and highest sample are read beside its mean
+   * (`extremesQuery`): two scans more, which only a chart that draws them asks for.
+   */
+  extremes?: boolean;
 }
 
 /** One output over a window, as something that switches rather than as something that averages. */
@@ -325,19 +336,35 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     // own because only VPD asks for it, and so is a plug's day, which waits for
     // the device to say it is one but not for the store.
     const self = fields.length ? this.selfOf(deviceId) : null;
-    const [rows, summaries, device, lamp, plugDay] = self
+    // A window as narrow as the device's own rhythm holds one sample, which is its own lowest and highest.
+    // The lamp's level is no reading: which half a window was in stays what its mean was judged by.
+    const measured =
+      request.extremes && window.stepSeconds > MIN_STEP_SECONDS
+        ? fieldsFor(request.metrics, []).filter(field => field !== fieldOfOutputMetric('light'))
+        : [];
+    const [rows, summaries, device, lamp, plugDay, extremeRows] = self
       ? await Promise.all([
           this.read(seriesQuery(this.bucket, deviceId, fields, window)),
           this.read(summaryQuery(this.bucket, deviceId, fields, window)),
           self,
           this.lampOf(deviceId, request.metrics, window, self),
           request.metrics.includes('vpd') ? self.then(known => this.plugDayIn(known, window)) : null,
+          measured.length > 0 ? this.read(extremesQuery(this.bucket, deviceId, measured, window)) : ([] as FluxRow[]),
         ])
-      : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, [] as OutputSwitching[], null];
+      : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, [] as OutputSwitching[], null, [] as FluxRow[]];
 
     const grid = gridOf([...summaries, ...rows]);
     const valueAt = (field: string, instant: string): number | null => grid.valuesByField.get(field)?.get(instant) ?? null;
     const isDayAt = plugDay ? (instant: string) => plugDay(middleOf(instant, window.stepSeconds)) : dayOfCycleIn(lamp, window);
+    const extremes = extremesByField(extremeRows);
+    const extremesAt = (name: Metric, instant: string): Extremes | null => {
+      const field = fieldOfMetric(name);
+      if (field !== null) return extremes.get(field)?.get(instant) ?? null;
+
+      const end = (which: keyof Extremes) =>
+        readingsOf(input => extremes.get(input)?.get(instant)?.[which] ?? valueAt(input, instant), isDayAt(instant));
+      return extremes.size > 0 ? computedExtremes(name, end('min'), end('max'), device.factors) : null;
+    };
 
     return {
       deviceId,
@@ -358,7 +385,21 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
         // it is, rather than as whatever the store kept before the sensor came
         // out - a panel is built from the points, and a chart of nothing is the
         // honest one.
-        return { metric: name, points: pointsOf(grid.instants, reportsNoSensor(device.hardware, name) ? () => null : at) };
+        if (reportsNoSensor(device.hardware, name)) return { metric: name, points: pointsOf(grid.instants, () => null) };
+
+        return {
+          metric: name,
+          points: grid.instants.map(instant => {
+            const value = at(instant);
+            const range = value === null ? null : extremesAt(name, instant);
+            // A mean lies between its extremes; a corner worked out from rounded inputs is held to that.
+            return {
+              measuredAt: instant,
+              value,
+              ...(range && range.max > range.min ? { min: Math.min(range.min, value as number), max: Math.max(range.max, value as number) } : {}),
+            };
+          }),
+        };
       }),
       outputs: outputs.map(name => ({
         output: name,
@@ -384,7 +425,7 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     const stepSeconds = stepFor(request.startsAt, request.endsAt, request.stepSeconds);
     const [series, switchings, lastSampleAt, levelled] = await Promise.all([
       this.series(deviceId, request),
-      this.switchingsOf(deviceId, outputs, request, extra),
+      this.switchingsOf(deviceId, outputs, request, extra, switchingGrainFor(stepSeconds)),
       this.newestSampleIn(deviceId, outputs, request),
       levels ? this.levelsOf(deviceId, outputs, { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds }) : null,
     ]);
@@ -677,11 +718,12 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     outputs: readonly OutputMetric[],
     window: TimeWindow,
     extra: readonly string[] = [],
+    grainSeconds?: number,
   ): Promise<Map<string, OutputSwitching[]>> {
     if (outputs.length === 0 || window.endsAt <= window.startsAt) return new Map();
 
     const fields = [...new Set([...outputs.map(fieldOfOutputMetric), ...extra])];
-    return switchingsByField(await this.read(switchingsQuery(this.bucket, deviceId, fields, window)));
+    return switchingsByField(await this.read(switchingsQuery(this.bucket, deviceId, fields, window, grainSeconds)));
   }
 
   /** A device's own VPD offsets, lux factor and hardware report, and a plug's day; the defaults for a device that is no longer there. */

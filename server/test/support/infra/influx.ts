@@ -59,26 +59,48 @@ const csvValue = (value: number | null): string => {
   return Number.isFinite(value) ? String(value) : '';
 };
 
+/**
+ * The one script that is two reads under names of their own: each window's
+ * lowest and its highest (`extremesQuery`). Every other script is answered as
+ * one result, as it always was.
+ */
+const EXTREMES = /\|>\s*yield\(name:\s*"(min|max)"\)/g;
+
 const toAnnotatedCsv = (query: string, store: InfluxStore, now: number): string => {
-  const parsed = parseFlux(query);
-  const { rows, start, stop } = runQuery(store.points, parsed, now);
+  const names = [...query.matchAll(EXTREMES)].map(match => match[1]);
+  const reads = names.length === 2 ? query.split(EXTREMES).filter(part => part.includes('from(bucket:')) : [query];
 
-  const lines = [
-    '#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,double,string,string,string,string',
-    '#group,false,false,true,true,false,false,true,true,true,true',
-    '#default,_result,,,,,,,,,',
-    ',result,table,_start,_stop,_time,_value,_field,_measurement,device_id,user_id',
-  ];
+  return reads
+    .map((read, index) => {
+      const { rows, start, stop } = runQuery(store.points, parseFlux(read), now);
+      const lines = [
+        '#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,double,string,string,string,string',
+        '#group,false,false,true,true,false,false,true,true,true,true',
+        `#default,${names.length === 2 ? names[index] : '_result'},,,,,,,,,`,
+        ',result,table,_start,_stop,_time,_value,_field,_measurement,device_id,user_id',
+      ];
 
-  for (const row of rows) {
-    lines.push(
-      ['', '', '0', rfc3339(start), rfc3339(stop), rfc3339(row.time), csvValue(row.value), row.field, row.measurement, row.deviceId, row.userId].join(
-        ',',
-      ),
-    );
-  }
+      for (const row of rows) {
+        lines.push(
+          [
+            '',
+            '',
+            '0',
+            rfc3339(start),
+            rfc3339(stop),
+            rfc3339(row.time),
+            csvValue(row.value),
+            row.field,
+            row.measurement,
+            row.deviceId,
+            row.userId,
+          ].join(','),
+        );
+      }
 
-  return lines.join('\r\n') + '\r\n\r\n';
+      return lines.join('\r\n') + '\r\n\r\n';
+    })
+    .join('');
 };
 
 const readBody = (req: IncomingMessage): Promise<string> =>

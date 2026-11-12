@@ -4761,6 +4761,8 @@ export declare const timelinePanel: z.ZodObject<{
     points: z.ZodArray<z.ZodObject<{
         measuredAt: z.ZodISODateTime;
         value: z.ZodNullable<z.ZodNumber>;
+        min: z.ZodOptional<z.ZodNumber>;
+        max: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>>;
     targets: z.ZodArray<z.ZodObject<{
         startsAt: z.ZodISODateTime;
@@ -4818,6 +4820,8 @@ export declare const timelineOutputLevel: z.ZodObject<{
     points: z.ZodArray<z.ZodObject<{
         measuredAt: z.ZodISODateTime;
         value: z.ZodNullable<z.ZodNumber>;
+        min: z.ZodOptional<z.ZodNumber>;
+        max: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /** One output over the window, as the lanes under the panels draw it: when it was on, and how hard it ran. */
@@ -4848,6 +4852,8 @@ export declare const timelineOutputLane: z.ZodObject<{
         points: z.ZodArray<z.ZodObject<{
             measuredAt: z.ZodISODateTime;
             value: z.ZodNullable<z.ZodNumber>;
+            min: z.ZodOptional<z.ZodNumber>;
+            max: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
@@ -4967,6 +4973,8 @@ export declare const spaceTimeline: z.ZodObject<{
         points: z.ZodArray<z.ZodObject<{
             measuredAt: z.ZodISODateTime;
             value: z.ZodNullable<z.ZodNumber>;
+            min: z.ZodOptional<z.ZodNumber>;
+            max: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
         targets: z.ZodArray<z.ZodObject<{
             startsAt: z.ZodISODateTime;
@@ -5067,6 +5075,8 @@ export declare const spaceTimeline: z.ZodObject<{
             points: z.ZodArray<z.ZodObject<{
                 measuredAt: z.ZodISODateTime;
                 value: z.ZodNullable<z.ZodNumber>;
+                min: z.ZodOptional<z.ZodNumber>;
+                max: z.ZodOptional<z.ZodNumber>;
             }, z.core.$strip>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
@@ -6516,6 +6526,8 @@ export declare const growSeries: z.ZodObject<{
         points: z.ZodArray<z.ZodObject<{
             measuredAt: z.ZodISODateTime;
             value: z.ZodNullable<z.ZodNumber>;
+            min: z.ZodOptional<z.ZodNumber>;
+            max: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
         targets: z.ZodArray<z.ZodObject<{
             startsAt: z.ZodISODateTime;
@@ -6581,6 +6593,8 @@ export declare const growSeries: z.ZodObject<{
             points: z.ZodArray<z.ZodObject<{
                 measuredAt: z.ZodISODateTime;
                 value: z.ZodNullable<z.ZodNumber>;
+                min: z.ZodOptional<z.ZodNumber>;
+                max: z.ZodOptional<z.ZodNumber>;
             }, z.core.$strip>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
@@ -6640,6 +6654,8 @@ export declare const spaceSeries: z.ZodObject<{
         points: z.ZodArray<z.ZodObject<{
             measuredAt: z.ZodISODateTime;
             value: z.ZodNullable<z.ZodNumber>;
+            min: z.ZodOptional<z.ZodNumber>;
+            max: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
         targets: z.ZodArray<z.ZodObject<{
             startsAt: z.ZodISODateTime;
@@ -6705,6 +6721,8 @@ export declare const spaceSeries: z.ZodObject<{
             points: z.ZodArray<z.ZodObject<{
                 measuredAt: z.ZodISODateTime;
                 value: z.ZodNullable<z.ZodNumber>;
+                min: z.ZodOptional<z.ZodNumber>;
+                max: z.ZodOptional<z.ZodNumber>;
             }, z.core.$strip>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;

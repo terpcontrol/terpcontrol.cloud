@@ -250,6 +250,51 @@ describe('applying a climate preset', () => {
     expect(bands[1].endsAt).toBe(timeline.endsAt);
   });
 
+  // A door open for forty seconds: at three minutes to the point the mean hardly moves, so the answer says the
+  // lowest and the highest sample of each window beside it - and zoomed in, every sample is a point of its own.
+  it('reads the Timeline with each window´s lowest and highest, and a window named outright at every sample', async () => {
+    const spaceId = await tentWithAController();
+    const deviceId = (await owner.client.get('/v1/devices').expect(200)).body.items.find((one: { spaceId: string }) => one.spaceId === spaceId).id;
+    const door = Math.floor((Date.now() - 6 * 3600_000) / 180_000) * 180_000 + 60_000;
+    await seedMeasurements(
+      Array.from({ length: 240 }, (_, index) => {
+        // Two seconds past each fifth, as a device's clock is never on the grid.
+        const time = door - 600_000 + index * 5000 + 2000;
+        const open = time >= door && time < door + 40_000;
+        return {
+          time,
+          device_id: deviceId,
+          fields: { temperature: open ? 19.4 : 21, humidity: open ? 71.5 : 55, out_dehumidifier: time >= door + 30_000 ? 1 : 0 },
+        };
+      }),
+    );
+
+    const day = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=24h&metrics=temperature&metrics=humidity&metrics=vpd`).expect(200))
+      .body;
+    const spiked = (metric: string) =>
+      day.panels.find((panel: { metric: string }) => panel.metric === metric).points.find((point: { max?: number }) => point.max !== undefined);
+    expect(day.stepSeconds).toBe(180);
+    expect(spiked('humidity')).toMatchObject({ min: 55, max: 71.5 });
+    expect(spiked('temperature')).toMatchObject({ min: 19.4, max: 21 });
+    expect(spiked('humidity').value).toBeLessThan(60);
+    // What is worked out from them is bounded by the corners they moved between.
+    expect(spiked('vpd').min).toBeLessThan(spiked('vpd').value);
+
+    const from = new Date(door - 600_000).toISOString();
+    const to = new Date(door + 600_000).toISOString();
+    const zoom = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=24h&from=${from}&to=${to}&metrics=humidity`).expect(200)).body;
+    expect(zoom).toMatchObject({ startsAt: from, endsAt: to, stepSeconds: 5 });
+    const points = zoom.panels[0].points.filter((point: { value: number | null }) => point.value !== null);
+    expect(points.filter((point: { value: number }) => point.value === 71.5)).toHaveLength(8);
+    // One sample to the window: it is its own lowest and highest, and says neither.
+    expect(points.every((point: { min?: number }) => point.min === undefined)).toBe(true);
+    // The dehumidifier came on thirty seconds into it, and the lane says so to the grain of the step.
+    const lane = zoom.outputs.find((one: { output: string }) => one.output === 'dehumidifier');
+    expect(Date.parse(lane.spans[0].startsAt)).toBe(door + 30_000);
+
+    await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=24h&from=${to}&to=${from}`).expect(400);
+  });
+
   it('refuses a stage the contract does not have', async () => {
     const spaceId = await tentWithAController();
     const refused = await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'harvesting' }).expect(400);

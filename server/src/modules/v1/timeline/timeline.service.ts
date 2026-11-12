@@ -123,7 +123,8 @@ export class TimelineService {
     // here inside it, not whatever moved in after the window closed.
     const known = stood.filter(one => stoodDuring(one, spaceId, grant.range));
     const grow = this.growFor(asked, known, spaceId, storyEndsAt(grant.range, now));
-    const window = windowOf(asked.range, grant, grow, grow ? await zoneOfOwner(this.users, grow.ownerId) : null, at);
+    const window = windowOf(asked.range, grant, grow, grow ? await zoneOfOwner(this.users, grow.ownerId) : null, at, asked.stepSeconds, asked.window);
+    const metrics = asked.metrics ?? PANEL_METRICS;
     const growIds = known.filter(one => stoodDuring(one, spaceId, window)).map(one => one.id);
 
     const [series, alerts, recorded, cameras, aimed] = await Promise.all([
@@ -133,7 +134,9 @@ export class TimelineService {
             device.id,
             {
               ...spanOf(window),
-              metrics: PANEL_METRICS,
+              metrics,
+              // The lowest and the highest of every window, which a panel draws behind its mean.
+              extremes: true,
               // Every output in the same read: a lane is whatever the device
               // reported rather than whatever was asked for. The levels come
               // along, because a lane draws how hard its output ran as well as when.
@@ -170,6 +173,7 @@ export class TimelineService {
     const panels = panelsOf(
       series.map(one => one.series),
       stretchesOf(grow, devices, window, at, aimed),
+      metrics,
     );
 
     return {
@@ -312,6 +316,11 @@ interface TimelineQuery {
   growId?: string;
   /** The instant the window ends at; now, unless somebody scrubbed back. */
   at?: Date;
+  /** Both ends of a window named outright, which then is the window whatever the range. */
+  window?: { startsAt: Date; endsAt: Date };
+  stepSeconds?: number;
+  /** The panels asked for; the Timeline's own where none are named. */
+  metrics?: readonly Metric[];
   deviceId?: string;
 }
 

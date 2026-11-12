@@ -347,6 +347,14 @@ export interface MetricValue {
 export interface SeriesPoint {
   measuredAt: string;
   value: number | null;
+  /**
+   * The lowest sample of the window, on a read that asks for the extremes (the Timeline). Left out where the window held one sample, where lowest and highest are the same figure, and for a day kept as its mean. Of a computed metric it is the least its inputs allow: the corner of the box they moved in.
+   */
+  min?: number;
+  /**
+   * The highest sample of the window, answered and left out as `min` is.
+   */
+  max?: number;
 }
 
 export interface GrowOrSpaceRef {

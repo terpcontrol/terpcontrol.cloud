@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
 updated: 2026-11-12
-source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included
+source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack)
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -129,10 +129,27 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   grow days (`growOriginOf`/`growDayAt` in `feeding.ts`, the stage spans in `grow-days.ts`, both in shared-types) -
   and clients do not re-derive them. Comparing two grows by day of grow is client arithmetic on the `originAt` a grow
   series answers.
-- Timeline and chart series read 480 windows per range, never finer than 60 s, so every range costs the same; an asked
-  `stepSeconds` is honoured down to 5 s until a read would pass 5000 windows (`timeline-window.ts`, which leaves an
-  asked step to the store's `stepFor` in `modules/data/flux.ts`). The rail caps machine lines (system, plan) apart
-  from people's lines, so they cannot push the diary out.
+- **The Timeline is read at the five seconds a device reports in, as far as that fits** (the redesign session of
+  2026-11-12, after Chris's verdict that the curves had lost precision): at most 480 windows per range, so forty
+  minutes and less are every sample, an hour every second one, a day three minutes; under a minute the step is a
+  whole number of five seconds, so no window holds one sample and the next two. An asked `stepSeconds` is
+  honoured down to 5 s until a read would pass 5000 windows (`stepFor`, `timeline-window.ts`, which leaves an
+  asked step to the store's `stepFor` in `modules/data/flux.ts`). `GET /v1/spaces/{id}/timeline` takes a window
+  named outright (`from` + `to`; `range` then only says which grow its bands and days are of), that step, and the
+  panels to answer (`metrics`; VPD and PPFD only where asked, since VPD costs the lamp's switchings).
+- **Every point of the Timeline carries the lowest and the highest sample of its window** (`min`, `max` on
+  `SeriesPoint`; [data.md](data.md#influxdb) for the read): a mean flattens what was short. They are left out where
+  a window held one sample or both are the same figure, pooled across the devices of a place as the lower low and
+  the higher high, and of VPD and PPFD they are the corners of the box their inputs moved in
+  (`computedExtremes`) - the true extremes lie inside and meet them where the inputs moved together, as with a
+  door open.
+- **A finely read line breaks after a short silence**: under a minute to the window a curve and a lane are cut
+  after three windows without a sample, half a minute at least, where a wider read keeps the ten minutes after
+  which a device counts as gone (`silenceOf`, `timeline-series.ts`) - a restart is what a zoom looks for.
+- The rail caps machine lines (system, plan) apart from people's lines, so they cannot push the diary out. A
+  reader from outside - a share link, a public page - is answered no alarm, no device id, no grow of the place
+  and only what people wrote, whichever window, step or panel the request names: the cut is a condition of the
+  queries (`writtenFor`, `isOutsider`), not a filter over what a parameter selects.
 - A VPD's leaf offset follows the half the device was in; a smart plug, having no lamp, takes its own schedule, else
   the colour of its space's camera stills, else the night ([data.md](data.md#influxdb), ADR 0006).
 - The 24-hour climate verdict (`overview.service.ts`) reads 2-minute means (`VERDICT_STEP_SECONDS`): an excursion

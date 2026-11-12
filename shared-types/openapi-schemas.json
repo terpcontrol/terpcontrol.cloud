@@ -247,6 +247,14 @@
           "number",
           "null"
         ]
+      },
+      "min": {
+        "description": "The lowest sample of the window, on a read that asks for the extremes (the Timeline). Left out where the window held one sample, where lowest and highest are the same figure, and for a day kept as its mean. Of a computed metric it is the least its inputs allow: the corner of the box they moved in.",
+        "type": "number"
+      },
+      "max": {
+        "description": "The highest sample of the window, answered and left out as `min` is.",
+        "type": "number"
       }
     },
     "required": [

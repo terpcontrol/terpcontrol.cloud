@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
 updated: 2026-11-12
-source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs (the redesign session of 2026-11-12)
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -116,8 +116,21 @@ Pitfalls, each met at least once:
 - **Written, not served:** the controller diagnostics `avg`, `p`, `i`, `d`, `rpm`, `day`, `sensor_type`.
 - **Reads** (`DataService`): a series is `aggregateWindow(mean)` over `status` and `status_daily`, empty windows kept -
   at most 1,000 windows unasked, an asked step honoured down to 5 s up to 5,000 windows, at most 50,000 points.
-  `/live` is one `last()` over 30 days. `history()` adds each output's switchings at a 5-minute grain, because a mean
-  turns a lamp into a duty cycle.
+  `/live` is one `last()` over 30 days. `history()` adds each output's switchings, because a mean turns a lamp
+  into a duty cycle: at a grain of five minutes at the most, and at the window's own step where that is finer
+  (`switchingGrainFor`), so a zoom shows the second a dehumidifier came on and a compressor's four-minute rest.
+- **The extremes of a window** (`extremesQuery`, asked with `SeriesRequest.extremes`, which only the Timeline
+  sets): `aggregateWindow(min)` and `(max)` over the stored fields of the metrics asked for, in one script beside
+  the mean, raw samples only - a day kept as its mean has none - and not at all at the five-second step, where a
+  window is one sample. A window either end of which is a sentinel has no extremes.
+- **What the Timeline's read costs**, measured on a session stack (one controller, a sample every 5 s for 120
+  days, medians of seven runs on a developer machine, 2026-11-12; before -> after the extremes, VPD and the finer
+  switchings): a day 37 -> 50 ms (step 3 min), a week 75 -> 110 ms, a month 289 -> 353 ms, a four-month grow
+  1,168 -> 1,325 ms; twenty minutes at 5 s 35 ms, six hours at 45 s 51 ms. A long range is dominated by the
+  switchings, read at five minutes whatever the range (5,883 runs over the four months), not by the curves. An
+  asked step is where it gets heavy: a day asked at 5 s is widened to 18 s by the 5,000-window cap and answers
+  19,000 points, 1.9 MB before compression, in 330 ms - the cap was left where it is, and the page says the step
+  it was drawn at.
 - **Building Flux:** queries are strings, so only values passing `SAFE_NAME`/`FIELD_NAME` and instants from a `Date` are
   interpolated, never request input (Chris, 2026-08-25; [server.md](server.md#security-decisions)).
 - **One device per query, by tag equality.** `r["device_id"] == "<id>"` is pushed down to the index; `contains(value:

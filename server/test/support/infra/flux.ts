@@ -29,7 +29,7 @@ export interface ParsedFlux {
   timeAtStart: boolean;
 }
 
-export type AggregateFn = 'mean' | 'max' | 'sum';
+export type AggregateFn = 'mean' | 'max' | 'min' | 'sum';
 
 /** The `limit(n:)` the server's own queries carry, so a wide range with a small
  * interval cannot build an unbounded list here either. */
@@ -98,6 +98,8 @@ const aggregate = (values: number[], fn: AggregateFn): number | null => {
   switch (fn) {
     case 'max':
       return Math.max(...values);
+    case 'min':
+      return Math.min(...values);
     case 'sum':
       return values.reduce((a, b) => a + b, 0);
     default:

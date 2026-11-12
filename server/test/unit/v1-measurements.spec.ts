@@ -1,5 +1,8 @@
 import {
+  computedExtremes,
   computedValue,
+  extremesByField,
+  extremesQuery,
   fieldsFor,
   FluxRow,
   gridOf,
@@ -13,6 +16,7 @@ import {
   runningSpansOf,
   seriesQuery,
   stepFor,
+  switchingGrainFor,
   switchingsQuery,
 } from '@modules/data/flux';
 import { DataService } from '@modules/data/data.service';
@@ -80,6 +84,57 @@ describe('the switchings query', () => {
     expect(query).toContain('r["_field"] != "out_co2" or (r["_value"] >= 0.0 and r["_value"] != 4294967295.0)');
     expect(excluded).toBeGreaterThan(-1);
     expect(excluded).toBeLessThan(reduced);
+  });
+});
+
+describe('the grain the switchings are read at', () => {
+  it('is the step of a window read finely, and never coarser than five minutes nor finer than a device reports', () => {
+    expect([5, 60, 180, 300, 5400, undefined].map(switchingGrainFor)).toEqual([5, 60, 180, 300, 300, 300]);
+    expect(switchingGrainFor(1)).toBe(5);
+    expect(switchingsQuery(BUCKET, DEVICE, ['out_heater'], window(20, 0), switchingGrainFor(5))).toContain('aggregateWindow(every: 5s, fn: max');
+    expect(switchingsQuery(BUCKET, DEVICE, ['out_heater'], window(20, 0))).toContain('aggregateWindow(every: 300s, fn: max');
+  });
+});
+
+describe('the extremes of a window', () => {
+  it('reads each window´s lowest and highest in one script, without creating the empty ones', () => {
+    const query = extremesQuery(BUCKET, DEVICE, ['temperature', 'humidity'], window(60 * 24, 180));
+
+    expect(query).toContain('aggregateWindow(every: 180s, fn: min, createEmpty: false)');
+    expect(query).toContain('aggregateWindow(every: 180s, fn: max, createEmpty: false)');
+    expect(query).toContain('yield(name: "min")');
+    expect(query).toContain('yield(name: "max")');
+  });
+
+  it('gathers them by field and window, and leaves out a window a sentinel stands in', () => {
+    const at = '2026-06-10T12:00:00.000Z';
+    const rows = [
+      { result: 'min', _field: 'humidity', _time: at, _value: 54.9 },
+      { result: 'max', _field: 'humidity', _time: at, _value: 71.5 },
+      // Points once tagged with an owner answer a second table: the lower low stands.
+      { result: 'min', _field: 'humidity', _time: at, _value: 53.2 },
+      // "No sensor" is not a reading, so that window has no lowest.
+      { result: 'min', _field: 'co2', _time: at, _value: 0 },
+      { result: 'max', _field: 'co2', _time: at, _value: 640 },
+    ];
+
+    expect(extremesByField(rows).get('humidity')?.get(at)).toEqual({ min: 53.2, max: 71.5 });
+    expect(extremesByField(rows).get('co2')?.get(at)).toBeUndefined();
+  });
+
+  it('bounds a computed metric by the corners its inputs moved between', () => {
+    const factors = { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 };
+    const at = (temperature: number, humidity: number) => readingsOf(field => ({ temperature, humidity })[field] ?? null, true);
+    const mean = computedValue('vpd', at(21, 58), factors) as number;
+    const range = computedExtremes('vpd', at(19.4, 55), at(21.3, 71.5), factors);
+
+    // Cold and damp is the least a deficit can be, warm and dry the most.
+    expect(range?.min).toBe(computedValue('vpd', at(19.4, 71.5), factors));
+    expect(range?.max).toBe(computedValue('vpd', at(21.3, 55), factors));
+    expect(range!.min).toBeLessThan(mean);
+    expect(range!.max).toBeGreaterThan(mean);
+    // Inputs that did not move leave nothing to say.
+    expect(computedExtremes('vpd', at(21, 58), at(21, 58), factors)).toBeNull();
   });
 });
 

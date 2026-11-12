@@ -246,8 +246,25 @@ export const metricValue = named(
  *
  * It sits here rather than with the device routes because a device's series and
  * the panels of the timeline are the same points read over different windows.
+ *
+ * A mean hides what was short: a door open for forty seconds moves a
+ * three-minute mean by a fraction of what it moved the air. So the Timeline's
+ * points say the lowest and the highest sample of their window beside it.
  */
-export const seriesPoint = named('SeriesPoint', z.object({ measuredAt: instant(), value: z.number().nullable() }));
+export const seriesPoint = named(
+  'SeriesPoint',
+  z.object({
+    measuredAt: instant(),
+    value: z.number().nullable(),
+    min: z
+      .number()
+      .optional()
+      .describe(
+        'The lowest sample of the window, on a read that asks for the extremes (the Timeline). Left out where the window held one sample, where lowest and highest are the same figure, and for a day kept as its mean. Of a computed metric it is the least its inputs allow: the corner of the box they moved in.',
+      ),
+    max: z.number().optional().describe('The highest sample of the window, answered and left out as `min` is.'),
+  }),
+);
 
 /**
  * `terpcam_controller` is the Terp Cam a device pairs at its display and answers

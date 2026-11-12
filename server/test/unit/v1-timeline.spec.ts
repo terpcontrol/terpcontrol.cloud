@@ -5,7 +5,7 @@ import { AccessContext, Grant } from '@common/v1/access.types';
 import { DataService, DeviceHistory, SeriesRequest } from '@modules/data/data.service';
 import { FluxRow, switchingsByField } from '@modules/data/flux';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
-import { lanesOf, nightsOf } from '@modules/v1/timeline/timeline-series';
+import { lanesOf, nightsOf, panelsOf } from '@modules/v1/timeline/timeline-series';
 import { TimelineService } from '@modules/v1/timeline/timeline.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { session, visitor } from './support/callers';
@@ -90,6 +90,7 @@ const controllerReport = (at: Date): Reading | null => {
     // digits of which one is a measurement.
     temperature: lit ? 24.799999999999997 : 20.049999999999997,
     humidity: lit ? 55 : 62,
+    vpd: lit ? 1.31 : 0.89,
     co2: lit ? 910 : 430,
     leafTemperature: lit ? 22.9 : 19.8,
     lux: lit ? 41_250 : 0,
@@ -147,11 +148,7 @@ const build = (): TimelineService => {
 };
 
 /** Exactly what the route does: the guard decides, and the answer is built from what it decided. */
-const readAs = async (
-  ctx: AccessContext,
-  asked: { range: TimelineRange; growId?: string; at?: Date; deviceId?: string } = { range: '24h' },
-  spaceId = TENT,
-) => {
+const readAs = async (ctx: AccessContext, asked: Parameters<TimelineService['read']>[2] = { range: '24h' }, spaceId = TENT) => {
   const grant: Grant = await access.require(ctx, subjectRef('space', spaceId), 'view');
   return timeline.read(grant, spaceId, asked, NOW);
 };
@@ -423,6 +420,40 @@ describe('the window a range chip names', () => {
     expect(page).toMatchObject({ startsAt: '2026-06-07T12:00:00.000Z', endsAt: '2026-06-08T12:00:00.000Z', dayFrom: 31, dayTo: 32 });
   });
 
+  it('takes a window named outright - stepped back to, zoomed into - and still counts the grow´s days across it', async () => {
+    const window = { startsAt: new Date('2026-06-08T03:00:00.000Z'), endsAt: new Date('2026-06-08T03:20:00.000Z') };
+    const page = await readAs(session(OWNER), { range: 'grow', growId: GROW, window });
+
+    expect(page).toMatchObject({
+      range: 'grow',
+      startsAt: window.startsAt.toISOString(),
+      endsAt: window.endsAt.toISOString(),
+      dayFrom: 32,
+      dayTo: 32,
+    });
+    // Twenty minutes are read at every sample a device sends.
+    expect(page.stepSeconds).toBe(5);
+    expect(page.panels[0].points).toHaveLength(240);
+  });
+
+  it('reads at the five seconds a device reports in for as long as that fits, and never between two samples', async () => {
+    const wide = (minutes: number) => ({ startsAt: new Date(NOW.getTime() - minutes * 60_000), endsAt: NOW });
+    const stepOf = async (minutes: number) => (await readAs(session(OWNER), { range: '24h', window: wide(minutes) })).stepSeconds;
+
+    expect([await stepOf(5), await stepOf(40), await stepOf(60), await stepOf(90), await stepOf(6 * 60), await stepOf(8 * 60)]).toEqual([
+      5, 5, 10, 15, 45, 60,
+    ]);
+    // A step somebody chose is kept, down to the same five seconds.
+    expect((await readAs(session(OWNER), { range: '24h', window: wide(60), stepSeconds: 1 })).stepSeconds).toBe(5);
+    expect((await readAs(session(OWNER), { range: '24h', stepSeconds: 600 })).stepSeconds).toBe(600);
+  });
+
+  it('asks the store for each window´s lowest and highest beside its mean', async () => {
+    await readAs(session(OWNER));
+
+    expect(reads.every(read => read.extremes === true)).toBe(true);
+  });
+
   it('takes its bands from the grow standing here now and not from one that has moved out', async () => {
     await db.grows.updateOne({ id: GROW }, { $set: { 'placements.0.endedAt': new Date('2026-06-10T06:00:00.000Z') } });
     const page = await readAs(session(OWNER));
@@ -453,10 +484,37 @@ describe('the window a range chip names', () => {
 });
 
 describe('the stacked panels', () => {
-  it('stacks temperature, humidity and CO2 and not VPD, which belongs to the charting view', async () => {
+  it('stacks temperature, humidity and CO2 for a caller that names no panels', async () => {
     const page = await readAs(session(OWNER));
 
     expect(page.panels.map(panel => panel.metric)).toEqual(['temperature', 'humidity', 'co2']);
+  });
+
+  it('answers the panels a caller names, VPD among them, in the order it named them', async () => {
+    sensed = ['temperature', 'humidity', 'vpd'];
+    const page = await readAs(session(OWNER), { range: '24h', metrics: ['vpd', 'temperature', 'co2'] });
+
+    expect(page.panels.map(panel => panel.metric)).toEqual(['vpd', 'temperature']);
+    expect(reads.at(-1)?.metrics).toEqual(['vpd', 'temperature', 'co2']);
+  });
+
+  it('says the lowest and the highest any device of the place read in a window, around the mean of them', () => {
+    const at = '2026-06-10T11:57:00.000Z';
+    const one = (deviceId: string, point: { value: number; min?: number; max?: number }): DeviceSeries => ({
+      deviceId,
+      startsAt: '2026-06-10T11:00:00.000Z',
+      endsAt: NOW.toISOString(),
+      stepSeconds: DAY_STEP_SECONDS,
+      metrics: [{ metric: 'humidity', points: [{ measuredAt: at, ...point }] }],
+      outputs: [],
+    });
+
+    // A door open for forty seconds: one sensor saw 71.5 %, the three-minute means barely moved.
+    const [panel] = panelsOf([one('a', { value: 56.04, min: 54.96, max: 71.52 }), one('b', { value: 57 })], [], ['humidity']);
+    expect(panel.points).toEqual([{ measuredAt: at, value: 56.5, min: 55, max: 71.5 }]);
+
+    // A window of one sample has no extremes to tell from its value.
+    expect(panelsOf([one('a', { value: 56 })], [], ['humidity'])[0].points).toEqual([{ measuredAt: at, value: 56 }]);
   });
 
   it('stacks the leaf and the light under them where a canopy sensor measures them, with no band to miss', async () => {
@@ -1054,6 +1112,47 @@ describe('who may read it', () => {
     expect(JSON.stringify(theirs)).not.toMatch(/alert-open|entry-alarm/);
     // Whoever keeps the tent reads the alarm, as a line and on its lane.
     expect(mine.events.map(line => line.id)).toContain('entry-alarm');
+  });
+
+  it('keeps a link inside its own window and its own cut when it names a window and a step outright', async () => {
+    await db.entries.create([
+      entry({
+        id: 'entry-restart',
+        kind: 'system',
+        source: 'device',
+        authorId: null,
+        spaceId: TENT,
+        deviceId: CONTROLLER,
+        occurredAt: new Date('2026-06-09T10:00:00.000Z'),
+        message: { key: 'message-device-restarted', params: [] },
+        values: { kind: 'system' },
+      }),
+      entry({ id: 'entry-inside', growId: GROW, occurredAt: new Date('2026-06-09T11:00:00.000Z') }),
+      entry({ id: 'entry-after', growId: GROW, occurredAt: new Date('2026-06-10T09:00:00.000Z') }),
+    ]);
+    const token = await linkFor({});
+    const asked = {
+      range: '24h' as const,
+      window: { startsAt: new Date('2026-06-09T06:00:00.000Z'), endsAt: new Date('2026-06-10T12:00:00.000Z') },
+      stepSeconds: 60,
+      metrics: ['temperature', 'vpd'] as Metric[],
+    };
+
+    const theirs = await readAs(visitor(token), asked);
+
+    // The window ends where the link's does, whatever was named.
+    expect(theirs).toMatchObject({ startsAt: '2026-06-09T06:00:00.000Z', endsAt: '2026-06-10T00:00:00.000Z', stepSeconds: 60 });
+    expect(theirs.events.map(line => line.id)).toContain('entry-inside');
+    expect(theirs.events.map(line => line.id)).not.toContain('entry-after');
+    expect(theirs.events.every(line => line.source === 'human')).toBe(true);
+    expect(theirs.alarms).toEqual([]);
+    expect(theirs.machineEvents).toEqual({ shown: 0, total: 0 });
+    expect(theirs.deviceIds).toBeNull();
+    expect(theirs.outputs.every(lane => lane.deviceId === null)).toBe(true);
+    expect(theirs.grows).toEqual([]);
+    expect(JSON.stringify(theirs)).not.toMatch(/entry-restart|device-controller|alert-/);
+    // Whoever keeps the tent reads the restart in the same window.
+    expect((await readAs(session(OWNER), asked)).events.map(line => line.id)).toContain('entry-restart');
   });
 
   it('clamps every range to the link´s own window, however wide a range was asked for', async () => {

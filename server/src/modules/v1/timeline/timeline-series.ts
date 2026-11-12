@@ -36,12 +36,11 @@ import { cyclesOf, type CycleStretch } from '../phase/target-record';
  */
 
 /**
- * The panels the timeline stacks, in the order it stacks them: the three a
- * controller steers, then the leaf and the light a canopy sensor measures,
- * which the cockpit has a tile for and the tile opens the Timeline on. VPD is
- * deliberately not among them: it is a computed number that wants its own axis
- * and its leaf offset explained, and it belongs to the charting view; nor is
- * PPFD, which is the lux panel over again times a factor.
+ * The panels a caller that names none is answered, in the order they stack:
+ * the three a controller steers, then the leaf and the light a canopy sensor
+ * measures. VPD and PPFD are computed, cost the lamp's switchings to tell a
+ * leaf by day from one at night, and are answered to whoever asks for them -
+ * the Timeline's page does.
  */
 export const PANEL_METRICS: readonly Metric[] = ['temperature', 'humidity', 'co2', 'leafTemperature', 'lux'];
 
@@ -69,8 +68,7 @@ export interface TargetStretch {
  * theirs carry no band.
  *
  * Which metrics are stacked is the timeline's own unless a caller says
- * otherwise. The Charts view says otherwise: it draws whatever was ticked,
- * VPD included, and there is no second way of turning points into a panel.
+ * otherwise, and there is no second way of turning points into a panel.
  *
  * Several controllers in one tent are several thermometers in the same air, so
  * the windows they share are averaged into one line rather than drawn as two -
@@ -337,14 +335,25 @@ const SILENT_AFTER = 4;
 /**
  * How long a device may say nothing before a run stops being carried across it.
  *
- * Not one number. Firmware reports every half minute, a backfilled history every
- * hour, and a whole grow is read in windows wider than either, so what counts as
- * a silence is measured against the rhythm this device actually kept over this
- * window - and never falls below the threshold the rest of the app calls a
- * device gone by.
+ * Not one number. Firmware reports every five seconds, a backfilled history
+ * every hour, and a whole grow is read in windows wider than either, so what
+ * counts as a silence is measured against the rhythm this device actually kept
+ * over this window. Read at a minute or more to the window it never falls
+ * below the threshold the rest of the app calls a device gone by. Read finer -
+ * somebody zoomed in - a restart of a minute is the very thing looked for, and
+ * the line breaks after three windows without a sample, half a minute at least.
  */
 const silenceOf = (points: readonly SeriesPoint[], stepSeconds: number): number =>
-  Math.max(VALUE_AGE.staleSeconds * 1000, SILENT_AFTER * usualGapOf(points, stepSeconds));
+  Math.max(
+    stepSeconds < FINE_STEP_SECONDS ? Math.max(FINE_SILENCE_MS, 3 * stepSeconds * 1000) : VALUE_AGE.staleSeconds * 1000,
+    SILENT_AFTER * usualGapOf(points, stepSeconds),
+  );
+
+/** Below this step a window is somebody looking closely. */
+const FINE_STEP_SECONDS = 60;
+
+/** The least silence that breaks a line read that closely: longer than a slow sample, shorter than a restart. */
+const FINE_SILENCE_MS = 30_000;
 
 /** The gap between two readings this device usually leaves in this window. */
 const usualGapOf = (points: readonly SeriesPoint[], stepSeconds: number): number => {
@@ -484,18 +493,24 @@ const millis = (instant: string): number => new Date(instant).getTime();
  * lanes under it break at.
  */
 const pooled = (series: readonly DeviceSeries[], metric: Metric): SeriesPoint[] => {
-  const readings = new Map<string, number[]>();
+  const readings = new Map<string, SeriesPoint[]>();
 
   for (const one of series) {
     for (const point of one.metrics.find(row => row.metric === metric)?.points ?? []) {
       if (point.value === null) continue;
-      readings.set(point.measuredAt, [...(readings.get(point.measuredAt) ?? []), point.value]);
+      readings.set(point.measuredAt, [...(readings.get(point.measuredAt) ?? []), point]);
     }
   }
 
   const heard = [...readings.entries()]
     .sort(([one], [other]) => one.localeCompare(other))
-    .map(([measuredAt, values]) => ({ measuredAt, value: rounded(mean(values), metric) }));
+    .map(([measuredAt, points]) => {
+      const value = rounded(mean(points.map(point => point.value as number)), metric);
+      // The lowest any of them read and the highest: two thermometers in one air do not average a door away.
+      const min = rounded(Math.min(...points.map(point => point.min ?? (point.value as number))), metric);
+      const max = rounded(Math.max(...points.map(point => point.max ?? (point.value as number))), metric);
+      return { measuredAt, value, ...(max > min ? { min: Math.min(min, value), max: Math.max(max, value) } : {}) };
+    });
 
   const step = series[0]?.stepSeconds ?? 0;
   const silence = silenceOf(heard, step);

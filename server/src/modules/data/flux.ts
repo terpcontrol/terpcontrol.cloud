@@ -46,14 +46,14 @@ const FIELD_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_WINDOWS = 1000;
 
 /**
- * And where it names one: somebody looking closely - a day at twenty seconds,
- * which is what the charts page offers - is drawn the points they asked for, up
- * to this many, and only a step finer than that is widened.
+ * And where it names one: somebody looking closely - a day at a minute to the
+ * point - is drawn the points they asked for, up to this many, and only a step
+ * finer than that is widened.
  */
 const MAX_ASKED_WINDOWS = 5000;
 
 /** The narrowest step there is, picked or asked for: what a device reports at. */
-const MIN_STEP_SECONDS = 5;
+export const MIN_STEP_SECONDS = 5;
 
 /** No range answers more points than this per series, whatever the caller asked for. */
 const MAX_POINTS = 50000;
@@ -126,23 +126,92 @@ export const seriesQuery = (bucket: string, deviceId: string, fields: readonly s
   `${head(bucket, deviceId, rangeOf(window))}
     |> filter(fn: (r) => ${anyField(fields)})${aggregate(window)}`;
 
+/** The two answers `extremesQuery` yields. */
+const EXTREME_RESULT = { min: 'min', max: 'max' } as const;
+
 /**
- * How finely an output's switchings are looked for, at every width of window.
+ * The lowest and the highest sample of every window of a series, beside the
+ * mean `seriesQuery` answers: what a mean flattens - a door open for forty
+ * seconds, a humidifier's burst - is what somebody opens a chart to find.
  *
- * It is a fixed grain and not the display step on purpose. An output is a state
- * and not a measurement: averaging it says what share of a window it ran for,
- * which at hours to the window is a duty cycle and never a cycle - an 18/6 lamp
- * read at eleven hours to the window never falls low enough to be called off,
- * and a whole season of nights disappears. So the store is asked for the
+ * Two more scans of the same fields, pushed down like the mean, and only of
+ * raw samples: a day kept as its mean has no extremes left. Empty windows are
+ * not created, since the mean's grid already carries them.
+ */
+export const extremesQuery = (bucket: string, deviceId: string, fields: readonly string[], window: FluxWindow): string =>
+  Object.values(EXTREME_RESULT)
+    .map(
+      fn => `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${anyField(fields)})${aggregate(window, fn, false)}
+    |> yield(name: "${fn}")`,
+    )
+    .join('\n');
+
+/** The lowest and the highest of one window of one field. */
+export interface Extremes {
+  min: number;
+  max: number;
+}
+
+/**
+ * The rows of that read, by field and instant. A device whose points were once
+ * tagged with an owner answers one table per tag, so two rows can name the
+ * same window: the lower low and the higher high stand. A window either end of
+ * which is a sentinel has no extremes - "no sensor" is not a reading, and the
+ * true low behind it cannot be told.
+ */
+export const extremesByField = (rows: (FluxRow & { result?: string })[]): Map<string, Map<string, Extremes>> => {
+  const byField = new Map<string, Map<string, Partial<Extremes> & { void?: true }>>();
+
+  for (const row of rows) {
+    const value = finiteOrNull(row._value);
+    if (!row._field || !row._time || value === null) continue;
+    const windows = byField.get(row._field) ?? new Map<string, Partial<Extremes> & { void?: true }>();
+    const known = windows.get(row._time) ?? {};
+    if (isSentinel(row._field, value)) known.void = true;
+    else if (row.result === EXTREME_RESULT.min) known.min = Math.min(known.min ?? value, value);
+    else known.max = Math.max(known.max ?? value, value);
+    windows.set(row._time, known);
+    byField.set(row._field, windows);
+  }
+
+  return new Map(
+    [...byField].map(([field, windows]) => [
+      field,
+      new Map(
+        [...windows].flatMap(([instant, one]) =>
+          one.void || one.min === undefined || one.max === undefined ? [] : [[instant, { min: one.min, max: one.max }] as [string, Extremes]],
+        ),
+      ),
+    ]),
+  );
+};
+
+/**
+ * How finely an output's switchings are looked for at the most, whatever the
+ * width of the window.
+ *
+ * It is a grain of its own and not simply the display step. An output is a
+ * state and not a measurement: averaging it says what share of a window it ran
+ * for, which at hours to the window is a duty cycle and never a cycle - an 18/6
+ * lamp read at eleven hours to the window never falls low enough to be called
+ * off, and a whole season of nights disappears. So the store is asked for the
  * switchings themselves, and a grow answers the same lamp a day answers.
  *
- * Five minutes is finer than any run a grower can see or act on, and it is what
- * keeps the read cheap: a duty-cycled PID crosses zero hundreds of thousands of
- * times a season, and `max` over the grain collapses that chatter in the store
- * rather than in this process. A run is therefore never reported shorter than it
- * was, and may be reported up to one grain longer at either end.
+ * Five minutes is what keeps a long read cheap: a duty-cycled PID crosses zero
+ * hundreds of thousands of times a season, and `max` over the grain collapses
+ * that chatter in the store rather than in this process. A window read at a
+ * finer step than that is read at the step (`switchingGrainFor`): somebody who
+ * zoomed into twenty minutes is looking for the second a dehumidifier came on,
+ * and a compressor's rest of four minutes never showed at five. A run is never
+ * reported shorter than it was, and may be reported up to one grain longer at
+ * either end.
  */
 const SWITCHING_GRAIN_SECONDS = 300;
+
+/** The grain a window's switchings are read at: its own step, between what a device reports at and the five minutes above. */
+export const switchingGrainFor = (stepSeconds: number | undefined): number =>
+  Math.min(SWITCHING_GRAIN_SECONDS, Math.max(MIN_STEP_SECONDS, Math.trunc(stepSeconds ?? SWITCHING_GRAIN_SECONDS)));
 
 /**
  * A safety net, not a page size. Every output of a real 218-day season answers
@@ -266,11 +335,17 @@ export interface OutputSwitching {
  * stop InfluxDB pushing the aggregate down into the storage engine, which is the
  * difference between half a second and half a minute over a season.
  */
-export const switchingsQuery = (bucket: string, deviceId: string, fields: readonly string[], window: TimeWindow): string =>
+export const switchingsQuery = (
+  bucket: string,
+  deviceId: string,
+  fields: readonly string[],
+  window: TimeWindow,
+  grainSeconds = SWITCHING_GRAIN_SECONDS,
+): string =>
   `runs = ${head(bucket, deviceId, rangeOf(window))}
     |> filter(fn: (r) => ${anyField(fields)})
     |> filter(fn: (r) => ${NOT_A_SENTINEL})
-    |> aggregateWindow(every: ${SWITCHING_GRAIN_SECONDS}s, fn: max, createEmpty: false, timeSrc: "_start")
+    |> aggregateWindow(every: ${grainSeconds}s, fn: max, createEmpty: false, timeSrc: "_start")
     |> map(fn: (r) => ({ r with _value: if r._value > 0.0 then 1.0 else 0.0 }))
 runs |> first() |> yield(name: "${SWITCHING_RESULT.opening}")
 runs
@@ -574,6 +649,30 @@ export const computedValue = (name: Metric, readings: Readings, factors: DeviceS
       // than from anything stored, and the device resource answers it.
       return null;
   }
+};
+
+/**
+ * The least and the most a computed metric can have been over a window, from
+ * the extremes of what it is computed from: every corner of the box its inputs
+ * moved in. A deficit falls as the air gets damper and - under a leaf read off
+ * the air - rises as it warms, so the true extremes lie inside the corners and
+ * meet them where the inputs moved together, as they do when a door opens.
+ * Null where an input has no extremes, or where both ends are the same figure.
+ */
+export const computedExtremes = (name: Metric, low: Readings, high: Readings, factors: DeviceSettings): Extremes | null => {
+  const pick = (mask: number): Readings => ({
+    temperature: mask & 1 ? high.temperature : low.temperature,
+    humidity: mask & 2 ? high.humidity : low.humidity,
+    leafTemperature: mask & 4 ? high.leafTemperature : low.leafTemperature,
+    lux: mask & 1 ? high.lux : low.lux,
+    light: low.light,
+    isDay: low.isDay,
+  });
+  const corners = Array.from({ length: 8 }, (_, mask) => computedValue(name, pick(mask), factors)).filter((value): value is number => value !== null);
+  if (corners.length === 0) return null;
+
+  const [min, max] = [Math.min(...corners), Math.max(...corners)];
+  return max > min ? { min, max } : null;
 };
 
 /** Which fields a request has to read: the stored metrics themselves, and the inputs of the computed ones. */
