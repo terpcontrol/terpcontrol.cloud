@@ -19,7 +19,7 @@ import { spacesDuring } from '../grow/grow-places';
 import { Redaction } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { DayDevice, dayClimateOf } from './day-climate';
-import { DIARY_KINDS, serialiseDiaryEntry, writtenFor } from './diary-entries';
+import { DIARY_KINDS, TOLD_OF_MACHINES, serialiseDiaryEntry, toldOf, writtenFor } from './diary-entries';
 import { DayStill, WeekFilm, stillsOfDays, weekFilmsOf } from './diary-pictures';
 import { DiaryDay, DiaryWeek, dateStartOf, diaryWeeksOf, headlinePhaseAt, horizonOf, middayOf, weeksAfter } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
@@ -57,15 +57,6 @@ export const diaryQuery = pageQuery.extend({
 
 /** A safety net, not a page size: a runaway alarm or a device restarting in a loop must not become a read of everything. */
 const MAX_ENTRIES_PER_PAGE = 2000;
-
-/**
- * The two lines a device writes when somebody puts it into maintenance, at the
- * device or from the app. They are a person's doing and are told as one
- * stretch (`maintenanceRuns`). Whatever else a device logs about itself - a
- * restart, a sensor drifting, a socket it lost - is its own record and stays
- * with the device and in Verlauf.
- */
-const MAINTENANCE_LINES = ['message-maintenance-mode-activated', 'message-maintenance-mode-activated-remote'];
 
 /** How many lines from before the grow began the last page carries. They are a slip of the date, not a diary of their own. */
 const MAX_EARLIER = 200;
@@ -152,7 +143,7 @@ export class GrowDiaryService {
       page.items.filter((_week, index) => stretches[index] !== null).map((week, index) => [week.weekNumber, recorded[index]] as const),
     );
 
-    const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, maintenance: maintenanceRuns(maintenance), stills, films };
+    const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, maintenance, stills, films };
     const weeks = page.items.map(week =>
       this.weekOf(
         week,
@@ -216,6 +207,7 @@ export class GrowDiaryService {
       ? dayClimateOf(
           devices.filter(device => here.includes(device.spaceId)),
           life,
+          world.grow.endedAt === null && day.endsAt > world.horizon,
         )
       : { climate: null, events: [] };
     // What the devices did, and how well they kept to their targets, is for the people who keep the place: a page
@@ -250,12 +242,7 @@ export class GrowDiaryService {
    * grow sharing the tent is that grow's. Beside them the lines that say
    * maintenance went on and off, which are told as stretches and not as lines.
    */
-  private async linesIn(
-    grow: GrowDocument,
-    grant: Grant,
-    span: Span,
-    spaceIds: string[],
-  ): Promise<{ lines: EntryDocument[]; maintenance: EntryDocument[] }> {
+  private async linesIn(grow: GrowDocument, grant: Grant, span: Span, spaceIds: string[]): Promise<{ lines: EntryDocument[]; maintenance: Span[] }> {
     const during = { occurredAt: { $gte: span.startsAt, $lt: span.endsAt } };
     const [diary, machines] = await Promise.all([
       this.entries
@@ -267,10 +254,7 @@ export class GrowDiaryService {
         ? Promise.resolve([])
         : this.entries
             .find({
-              $and: [
-                { spaceId: { $in: spaceIds }, growId: { $in: [null, grow.id] }, ...during },
-                { $or: [{ kind: 'plan' }, { kind: 'system', 'message.key': { $in: MAINTENANCE_LINES } }] },
-              ],
+              $and: [{ spaceId: { $in: spaceIds }, growId: { $in: [null, grow.id] }, ...during }, TOLD_OF_MACHINES],
             })
             .sort({ occurredAt: -1, id: -1 })
             .limit(MAX_ENTRIES_PER_PAGE)
@@ -285,12 +269,7 @@ export class GrowDiaryService {
       ),
     );
 
-    return {
-      lines: [...diary, ...there.filter(entry => entry.kind === 'plan')].sort(
-        (one, other) => other.occurredAt.getTime() - one.occurredAt.getTime() || other.id.localeCompare(one.id),
-      ),
-      maintenance: there.filter(entry => entry.kind !== 'plan'),
-    };
+    return toldOf([...diary, ...there]);
   }
 
   /** What was written to the grow for a moment before the date it began on, newest first, inside the reader's window. */
@@ -343,33 +322,5 @@ const endOf = (film: WeekFilm, horizon: Date): Date => laterOf(film.endsAt ?? fi
 const middleOf = (film: WeekFilm, horizon: Date): Date => new Date((film.capturedAt.getTime() + endOf(film, horizon).getTime()) / 2);
 
 const within = (span: Span, at: Date): boolean => at >= span.startsAt && at < span.endsAt;
-
-/**
- * When the devices of a place were in maintenance, from the lines that say it
- * went on - for so many minutes - and off again. Every device of the place
- * writes its own, so runs that touch are one; a run nobody ended is over when
- * its minutes are.
- */
-export const maintenanceRuns = (lines: readonly EntryDocument[]): Span[] => {
-  const runs: Span[] = [];
-  let open = null as Span | null;
-
-  for (const line of [...lines].sort((one, other) => one.occurredAt.getTime() - other.occurredAt.getTime())) {
-    const minutes = Number(line.message?.params[0] ?? 0);
-    if (open && line.occurredAt > open.endsAt) {
-      runs.push(open);
-      open = null;
-    }
-    if (minutes > 0) {
-      const until = new Date(line.occurredAt.getTime() + minutes * 60_000);
-      open = { startsAt: open?.startsAt ?? line.occurredAt, endsAt: open ? laterOf(open.endsAt, until, true) : until };
-    } else if (open) {
-      runs.push({ startsAt: open.startsAt, endsAt: line.occurredAt });
-      open = null;
-    }
-  }
-
-  return open ? [...runs, open] : runs;
-};
 
 const limitOf = (limit?: number): number => (!limit || limit < 1 ? DEFAULT_WEEKS : Math.min(Math.trunc(limit), MAX_WEEKS));

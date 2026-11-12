@@ -15,11 +15,11 @@ import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { AddPlace } from './AddPlace';
-import { livenessOf, sortedByAttention } from './attention';
+import { judgedAt, livenessOf } from './attention';
 import { useCardStatus } from './card-status';
 import { toneOf } from './place';
 import { readingFacts, readingsOf } from './readings';
-import { groupedByRoom } from './rooms';
+import { startOrder } from './rooms';
 import { DemoBanner, GuestLine } from './states';
 import { dueNow, useWaitingSteps, type Due } from './due';
 import { Today } from './Today';
@@ -52,7 +52,7 @@ export function Places({
   const diary = useDiaryLayer();
   const devices = useDevices(places.some(place => place.deviceIds.length > 0)).data?.items;
   const spaces = useSpaces().data?.items ?? [];
-  const groups = groupedByRoom(sortedByAttention(places), spaces);
+  const groups = startOrder(places, spaces);
   const demo = user?.isDemo === true;
   const spaceOf = (card: Place): Space | undefined => spaces.find(one => one.id === card.spaceId);
   // Somebody else's place says whose it is and what the reader may do there.
@@ -74,7 +74,11 @@ export function Places({
   const steps = useWaitingSteps(demo ? [] : named, now);
   const dueIn = (spaceId: string): number =>
     reminders.filter(one => one.spaceId === spaceId).length + steps.filter(step => step.place.spaceId === spaceId).length;
-  const card = (one: Place) => <PlaceCard key={one.spaceId} card={one} devices={devices} now={now} diary={diary} due={dueIn(one.spaceId)} />;
+  // A refresh that fails ages the page, not the devices: each place is judged as the last answer left it.
+  const judged = judgedAt(now, failedAt);
+  const card = (one: Place) => (
+    <PlaceCard key={one.spaceId} card={one} devices={devices} now={now} judged={judged} diary={diary} due={dueIn(one.spaceId)} />
+  );
 
   return (
     <section className={styles.page}>
@@ -135,10 +139,25 @@ const PILL: Partial<Record<ReturnType<typeof toneOf>, string>> = { good: 'start.
  * and what grows there - beside the camera's newest picture where there is
  * one. It says what the place's Start says, from the same arithmetic.
  */
-function PlaceCard({ card, devices, now, diary, due }: { card: Place; devices: Device[] | undefined; now: DateTime; diary: boolean; due: number }) {
+function PlaceCard({
+  card,
+  devices,
+  now,
+  judged,
+  diary,
+  due,
+}: {
+  card: Place;
+  devices: Device[] | undefined;
+  now: DateTime;
+  /** The instant the place's state is judged at, which is the last answer's while a refresh fails. */
+  judged: DateTime;
+  diary: boolean;
+  due: number;
+}) {
   const { t } = useTranslation();
   const zone = useZone();
-  const { here, device, values, status, said } = useCardStatus(card, devices, now);
+  const { here, device, values, status, said } = useCardStatus(card, devices, judged);
   const live = useDeviceLive(device?.id ?? null).data;
   const lamp = here.find(one => one.type === 'light' && one.id !== device?.id) ?? null;
   const lampLive = useDeviceLive(lamp?.id ?? null).data;
@@ -183,7 +202,7 @@ function PlaceCard({ card, devices, now, diary, due }: { card: Place; devices: D
           </span>
         )}
         {figures.length > 0 ? (
-          <span className={styles.placeFigures} {...ageAttribute(livenessOf(card, now) === 'offline' ? 'offline' : 'live')}>
+          <span className={styles.placeFigures} {...ageAttribute(livenessOf(card, judged) === 'offline' ? 'offline' : 'live')}>
             <Facts facts={figures} />
           </span>
         ) : null}

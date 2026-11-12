@@ -1191,10 +1191,9 @@
     "noFixedPlace": "Kein fester Ort",
     "stoodIn": "stand in {{name}}",
     "rename": {
-      "title": "Grow umbenennen",
+      "title": "Name und Art",
       "name": "Name",
-      "note": "Es ändert sich nur der Name. Tagebuch, Phasen und Wochen bleiben, wie sie sind, und ein öffentliches Tagebuch behält die Adresse, die es beim Anlegen des Grows bekommen hat.",
-      "save": "Namen speichern"
+      "save": "Speichern"
     },
     "noPlants": "Keine Pflanzen erfasst",
     "plantStatus": {
@@ -1203,8 +1202,6 @@
       "ended": "beendet"
     },
     "noScheme": "Kein Düngeschema",
-    "noSchemeNote": "Dieser Grow folgt keinem Schema. Wähle eines als Ausgangspunkt oder dünge von Hand und schreibe auf, was du gibst.",
-    "noSchemeNoteEnded": "Dieser Grow wurde nach keinem Schema gedüngt.",
     "edited": "bearbeitet",
     "strength": "Stärke {{percent}} %",
     "report": {
@@ -1244,7 +1241,7 @@
         "move": "Umziehen",
         "split": "Aufteilen",
         "harvest": "Ernten",
-        "rename": "Umbenennen"
+        "rename": "Name und Art"
       },
       "when": "Am",
       "cancel": "Abbrechen",
@@ -1263,10 +1260,8 @@
         "stageLabel": "Stadium",
         "presetLabel": "Klima-Preset",
         "noPreset": "Nur Stadium",
-        "note": "Die Phase zählt die Tage und Wochen des Grows – danach richten sich Düngeplan und Diagramme.",
-        "recordNote": "Dieser Grow ist vorbei. Eine hier nachgetragene Phase repariert, was er durchlaufen hat - ein nie gesetztes Stadium oder eines, das nach einer Rücknahme wieder aufgebaut wird - und bewegt nichts weiter.",
-        "alreadyThere": "Der Grow steht bereits in dieser Phase. Sie erneut zu setzen schreibt nichts und hinterlässt keine zweite Zeile im Tagebuch.",
-        "alreadyThereEnded": "Der Grow ist in dieser Phase zu Ende gegangen. Sie erneut nachzutragen schreibt nichts und hinterlässt keine zweite Zeile im Tagebuch.",
+        "alreadyThere": "Der Grow steht bereits in dieser Phase: Es wird nichts geschrieben.",
+        "alreadyThereEnded": "Der Grow ist in dieser Phase zu Ende gegangen: Es wird nichts geschrieben.",
         "submit": "{{stage}} setzen",
         "submitEnded": "{{stage}} nachtragen",
         "history": "Bisherige Phasen",
@@ -1317,10 +1312,9 @@
       "harvest": {
         "title": "Ernte",
         "nothingStanding": "Alle Pflanzen dieses Grows sind bereits geerntet.",
-        "noPlantsRecorded": "In diesem Grow sind keine Pflanzen erfasst, hier lässt sich also nichts ernten. Ein aus der alten App übernommener Grow wurde nie Pflanze für Pflanze aufgeschrieben.",
+        "noPlantsRecorded": "In diesem Grow sind keine Pflanzen erfasst.",
         "alreadyEnded": "Er ist am {{date}} beendet worden.",
         "endInstead": "Der Tag, an dem er herunterkam",
-        "endNote": "Es wird nichts geerntet und kein Gewicht geschrieben: Festgehalten wird der Tag, an dem der Grow herunterkam, und sein Tageszähler bleibt dort stehen.",
         "endTheGrow": "Grow beenden",
         "whatComesDown": "Was geerntet wird",
         "standing_one": "{{count}} steht noch",
@@ -1331,19 +1325,17 @@
         "wet": "Nass",
         "dry": "Trocken",
         "pickSomething": "Mindestens eine Pflanze auswählen.",
-        "weightsOptional": "Das Trockengewicht kommt erst Tage später, also dürfen beide Felder leer bleiben und später an der Pflanze nachgetragen werden.",
         "eachWet_one": "{{total}} g nass, auf der einen Pflanze.",
         "eachWet_other": "{{total}} g nass auf {{count}} Pflanzen verteilt · etwa {{each}} g je Pflanze.",
         "eachDry_one": "{{total}} g trocken, auf der einen Pflanze.",
         "eachDry_other": "{{total}} g trocken auf {{count}} Pflanzen verteilt · etwa {{each}} g je Pflanze.",
-        "endsTheGrow": "Das sind die letzten stehenden Pflanzen: Der Grow endet am {{date}}, und sein Tageszähler bleibt dort stehen.",
+        "endsTheGrow": "Der Grow endet am {{date}}.",
         "submit_one": "{{count}} Pflanze ernten",
         "submit_other": "{{count}} Pflanzen ernten",
         "submitAndEnd_one": "Letzte Pflanze ernten und Grow beenden",
         "submitAndEnd_other": "Letzte {{count}} Pflanzen ernten und Grow beenden",
         "whatWasWritten": "Was geschrieben wurde",
         "alreadyDown": "Bereits geerntet",
-        "correctOnThePlant": "Eine Pflanze, die wirklich anders gewogen hat, wird an der Pflanze selbst korrigiert.",
         "noWeight": "kein Gewicht",
         "ended": "{{name}} ist beendet · hier ist sein Bericht"
       },
@@ -1366,66 +1358,17 @@
     },
     "new": {
       "title": "Neuer Grow",
-      "name": "Name",
       "firstName": "Erster Grow",
       "plants": "Pflanzen",
-      "plantsAside": "eine Anzahl genügt; Namen helfen später beim Vergleichen",
-      "strain": "Sorte",
       "unnamedStrain": "Ohne Namen",
-      "more": "Eine mehr",
-      "fewer": "Eine weniger",
-      "removeStrain": "Diese Sorte entfernen",
-      "addStrain": "+ Sorte hinzufügen",
       "type": "Art",
-      "typeAside": "Autoflower überspringen den 12/12-Umschlag und werden leichter gedüngt",
       "photoperiod": "Photoperiode",
       "autoflower": "Autoflower",
       "where": "Wo",
-      "whereAside": "Preset und Kameras des Orts folgen dem Grow",
-      "devicesUnread": "Was an diesen Plätzen steht, konnte nicht gelesen werden; kein Chip nennt daher seine Hardware.",
-      "cam": "Cam",
-      "newSpace": "Neuer Ort",
-      "spaceName": "Name des Orts",
-      "spaceKind": "Art des Orts",
-      "kind": {
-        "tent": "Zelt",
-        "fridge": "Kühlschrank",
-        "balcony": "Balkon",
-        "other": "Anderer Ort"
-      },
-      "makeSpace": "Ort anlegen",
-      "makingSpace": "Wird angelegt …",
-      "startingAt": "Startet bei",
-      "startingAside": "Samen zeigen sich meist in 2–5 Tagen",
-      "today": "heute",
-      "earlier": "Früheres Datum …",
       "startedOn": "Gestartet am",
-      "feeding": "Düngung",
-      "feedingAside": "ein Ausgangspunkt, keine Vorschrift; jede Woche änderbar",
-      "ownScheme": "Keins / eigenes",
-      "noSchemes": "Dieser Build bringt keine Düngeschemata mit; der Grow wird von Hand gedüngt oder nach einem eigenen Schema.",
       "schemeUnreadable": "Dieses Schema war nicht lesbar, der Grow kann damit nicht gestartet werden.",
-      "schemesUnread": "Die Düngeschemata konnten nicht gelesen werden, hier lässt sich also keins wählen.",
-      "tells": {
-        "occupied": "In {{place}} wächst bereits {{grow}}.",
-        "occupiedSteered": "In {{place}} wächst bereits {{grow}}: Das Klima dort geht jetzt auf das Preset für {{stage}}, und ein laufender Plan pausiert.",
-        "occupiedKeepsLight": "In {{place}} wächst bereits {{grow}}, und dort bleibt das Licht an: Die Keimung wird nur eingetragen. Sollen die Samen dort im Dunkeln keimen, stellst du unter Steuerung „Keimung · dunkel“ ein – dann bekommt aber auch {{grow}} kein Licht.",
-        "preset": "Die Zielwerte in {{place}} gehen damit auf das Klima für {{stage}}.",
-        "presetDark": "{{place}} geht damit auf {{stage}}: Licht aus, kein CO₂, eine Temperatur rund um die Uhr – bis der Grow in den Sämling geht.",
-        "noController": "In {{place}} steuert nichts ein Klima, die Phase wird also nur festgehalten und nirgendwohin geschrieben.",
-        "hardwareUnknown": "Was in {{place}} steht, ist nicht bekannt, dort wird also kein Klima geschrieben; die Phasen werden trotzdem festgehalten.",
-        "nowhere": "Kein Ort, also wird nichts gesteuert; die Phasen werden trotzdem festgehalten.",
-        "auto": "Wird das Klima dieses Orts später auf ein Preset gestellt, geht der Grow in dessen Phase mit; solche Phasen sind mit „auto“ markiert.",
-        "autoflower": "Autoflower: Die Presets bleiben bei 18–20 Std Licht, und das Schema läuft mit halber Stärke.",
-        "autoflowerAlone": "Autoflower: Die Presets bleiben bei 18–20 Std Licht, statt auf 12/12 umzuschlagen."
-      },
-      "submit": "Grow starten · Tag {{day}}",
       "starting": "Grow wird gestartet …",
-      "notReady": "Das gewählte Schema ist noch nicht gelesen, der Grow kann damit noch nicht gestartet werden.",
-      "placeFirst": "Leg den Ort zuerst an oder wähle einen der Chips.",
-      "growStands": "Der Grow ist angelegt und steht, wo er hingestellt wurde; nur seine erste Phase fehlt. Ein neuer Versuch schreibt genau die.",
-      "climateLeft": "Der Grow und seine erste Phase stehen; nur das Klima des Platzes wurde nicht geschrieben.",
-      "readOnly": "Die Demo darf sich einen Grow ansehen, keinen starten."
+      "startAndSet": "Starten und Klima auf {{climate}} stellen"
     },
     "measurements": {
       "title": "Messwerte",
@@ -1494,7 +1437,6 @@
         "newOne": "+ neu",
         "value": "{{name}} · {{unit}}",
         "last": "zuletzt {{value}}",
-        "ago": "vor {{age}}",
         "never": "noch nichts gemessen",
         "otherPlant": "{{plant}} war {{value}}",
         "keypad": "Ziffern",
@@ -1561,7 +1503,6 @@
       "perLitre": "pro l",
       "cellLabel": "{{product}}, Woche {{week}}",
       "thisWeekLine": "Woche {{week}} ist diese Woche.",
-      "flipLine": "Die Umstellung auf Blüte ist Woche {{week}}, dort beginnen die Blüte-Spalten.",
       "howLine": "Auf eine Zelle tippen, um sie zu ändern; eine Zeile ist ein Produkt, „+ Produkt“ fügt ein eigenes hinzu.",
       "addProduct": "+ Produkt",
       "productName": "Produkt",
@@ -1578,7 +1519,6 @@
       "saving": "Wird gespeichert …",
       "discard": "Verwerfen",
       "chartCaption": "Die Tabelle des Herstellers ist ein Ausgangspunkt, keine Vorschrift.",
-      "honesty": "Änderungen an diesem Raster betreffen nur, was diese Pflanzen bekommen. Ein Schema im eigenen Regal ist eine Kopie: Wird es später bearbeitet, bleibt jeder laufende Grow genau so gedüngt wie bisher.",
       "sheet": {
         "title": "Düngeschema",
         "follows": "Dieser Grow folgt",
@@ -1599,7 +1539,6 @@
       "waterEc": "Wasser-EC",
       "ecTarget": "EC-Ziel",
       "ecUnit": "mS/cm",
-      "ecCaption": "Die EC-Werte sind das, was dein Messgerät mit diesem Wasser anzeigen sollte (Tabellenwert + Wasser-EC).",
       "movedUnder": "anderswo geändert",
       "keepMine": "Meines behalten",
       "takeTheirs": "Deren übernehmen"
@@ -1624,8 +1563,6 @@
     "diary": {
       "today": "Heute",
       "yesterday": "Gestern",
-      "lightOn": "Licht an",
-      "lightOff": "Licht aus",
       "above": "{{metric}} {{span}} zu hoch",
       "below": "{{metric}} {{span}} zu niedrig",
       "aboveOften": "{{metric}} {{count}}× zu hoch · zusammen {{span}}",
@@ -1653,7 +1590,12 @@
       "outside": "{{metric}} {{span}} außerhalb",
       "outsideOften": "{{metric}} {{count}}× außerhalb · zusammen {{span}}",
       "alarmOver": "behoben",
-      "earlier": "Vor dem Start"
+      "earlier": "Vor dem Start",
+      "lightOffAt": "Licht aus um {{at}}",
+      "lightOnAt": "Licht an um {{at}}",
+      "lightOnSince": "Licht an seit {{at}}",
+      "lightAgainAt": "wieder an um {{at}}",
+      "lightAgainSince": "wieder an seit {{at}}"
     },
     "pictures": {
       "makeEntry": "Als Eintrag ins Tagebuch",
@@ -2130,10 +2072,7 @@
     "water": "Wasser",
     "less": "Weniger Wasser",
     "more": "Mehr Wasser",
-    "feedWeek": "Düngen · Schema-Woche {{week}}",
     "stopsAfter": "abgesetzt nach Schema-Woche {{week}}",
-    "noScheme": "Hier gibt es kein Düngeschema · was in die Kanne kommt, entscheidest du",
-    "mixOrder": "In dieser Reihenfolge mischen · pH zuletzt · die Werte des Schemas sind ein Anhaltspunkt, keine Regel",
     "measurements": "Messwerte",
     "notePlaceholder": "Was ist passiert?",
     "trainingPlaceholder": "Was hast du gemacht?",
@@ -2188,7 +2127,7 @@
       "climateNow": "Im Tagebuch beginnt die Phase zum gewählten Zeitpunkt. Das Klima stellt sich trotzdem erst jetzt um.",
       "fromPicture": "Zeitpunkt aus dem ersten Foto übernommen",
       "edit": "Ändern",
-      "before": "Der Grow hat am {{date}} begonnen. Davor hat er keinen Tag, unter dem ein Eintrag stehen könnte.",
+      "before": "Der Grow hat erst am {{date}} begonnen.",
       "moveStart": "Start auf den {{date}} vorverlegen",
       "moveRefused": "Der Start ließ sich nicht verlegen."
     },
@@ -2196,7 +2135,13 @@
     "noConnection": "Keine Verbindung · wird gesendet, sobald sie wieder da ist",
     "targetsSet": "Zielwerte gesetzt",
     "waterLitres": "Wasser in Litern",
-    "lastTime": "Zuletzt {{ago}} · {{litres}} l"
+    "lastTime": "Zuletzt {{ago}} · {{litres}} l",
+    "plantLabel": "Welche Pflanze",
+    "schemeWeek": "Schema-Woche {{week}}",
+    "litresNoNumber": "Das ist keine Zahl.",
+    "litresTooMuch": "Höchstens {{max}} l.",
+    "corrected": "Eintrag berichtigt",
+    "takenBack": "Eintrag widerrufen"
   },
   "timeline": {
     "rangeLabel": "Zeitraum",
@@ -3768,7 +3713,7 @@
     },
     "stage": {
       "title": "Stadium und Phase",
-      "text": "Das Stadium sagt, wo die Pflanzen stehen, von der Keimung bis zur Reifung. Keimung heißt überall dasselbe: Samen keimen im Dunkeln, und mit ihrem Klima geht das Gerät dunkel; der Sämling ist das erste Stadium mit Licht. Wer eines betritt, schreibt eine Phase in den Grow: ihr Startdatum, eine Tagebuchzeile und die Alarmregeln des Stadiums für die Geräte, bei denen die Pflanzen stehen (die Reifung hat keine). Nur eine Keimung, die ohne ihr Klima neben einem Gerät mit Licht eingetragen wird, lässt dessen Alarme, wie sie sind."
+      "text": "Das Stadium sagt, wo die Pflanzen stehen, von der Keimung bis zur Reifung. Keimung heißt überall dasselbe: Samen keimen im Dunkeln, und mit ihrem Klima geht das Gerät dunkel; der Sämling ist das erste Stadium mit Licht. Wer eines betritt, schreibt eine Phase in den Grow: ihr Startdatum, eine Tagebuchzeile und die Alarmregeln des Stadiums für die Geräte, bei denen die Pflanzen stehen (die Reifung hat keine). Nur eine Keimung, die ohne ihr Klima neben einem Gerät mit Licht eingetragen wird, lässt dessen Alarme, wie sie sind. Die Phase zählt die Tage und Wochen des Grows – danach richten sich Düngeplan und Diagramme. An einem beendeten Grow repariert eine nachgetragene Phase, was er durchlaufen hat, und bewegt nichts weiter."
     },
     "stepPreset": {
       "title": "Ein Preset im Schritt",
@@ -3812,7 +3757,7 @@
     },
     "phasePreset": {
       "title": "Zielwerte mit der Phase",
-      "text": "„Lassen, wie sie sind“ trägt nur die Phase ein: Licht, Temperatur und Feuchte bleiben, wie sie unter Steuerung stehen. Wählst du ein Klima, stellt es die Zielwerte der Geräte dort sofort um – bei Blüte zum Beispiel das Licht auf 12 Stunden, bei „Keimung · dunkel“ das Licht ganz aus. Eine Keimung, die nur eingetragen wird, lässt neben einem Gerät mit Licht auch die Alarme, wie sie sind. Aus der Keimung heraus bringt jede andere Phase das Licht zurück. „Auto“ ist für Autoflowers, die lange Tage behalten."
+      "text": "„Lassen, wie sie sind“ trägt nur die Phase ein: Licht, Temperatur und Feuchte bleiben, wie sie unter Steuerung stehen. Wählst du ein Klima, stellt es die Zielwerte der Geräte dort sofort um – bei Blüte zum Beispiel das Licht auf 12 Stunden, bei „Keimung · dunkel“ das Licht ganz aus. Eine Keimung, die nur eingetragen wird, lässt neben einem Gerät mit Licht auch die Alarme, wie sie sind. Aus der Keimung heraus bringt jede andere Phase das Licht zurück. „Auto“ ist für Autoflowers, die lange Tage behalten. Ein neues Klima ersetzt die Zielwerte unter Steuerung; wann das Licht angeht, bleibt. Die Trocknung hält die Nachtwerte rund um die Uhr, ohne Licht und ohne CO₂. Die Alarme „Zu warm“, „Zu kalt“ und „Zu feucht“ richten sich nach der Phase; in der Keimung ruht „Zu feucht“, solange du es nicht einschaltest."
     },
     "phaseCorrection": {
       "title": "Korrigieren oder zurückziehen",
@@ -3820,7 +3765,7 @@
     },
     "autoflower": {
       "title": "Photoperiodisch oder Autoflower",
-      "text": "Eine photoperiodische Pflanze blüht, sobald das Licht auf 12/12 geht; ein Autoflower blüht nach Alter und behält lange Tage. Das wird hier einmal gewählt: Ein Grow, der in Veg oder Blüte startet, bekommt das Auto-Klima, und ein Fütterungsschema läuft mit halber Stärke ohne Umstellung."
+      "text": "Eine photoperiodische Pflanze blüht, sobald das Licht auf 12/12 geht; ein Autoflower blüht nach Alter und behält lange Tage. Für Autoflowers gibt es unter Steuerung und bei jeder Phase das Auto-Klima, und ein Düngeschema, das danach gewählt wird, läuft mit halber Stärke ohne Umstellung."
     },
     "growEnds": {
       "title": "Den Grow beenden",
@@ -4226,7 +4171,19 @@
     },
     "dayShare": {
       "title": "Im Ziel",
-      "text": "Der Teil des Tages, an dem Temperatur und Feuchte nah genug an ihren Zielwerten waren: bis ±1 °C und ±5 %. Die Stunde nach jedem Wechsel zwischen Tag und Nacht zählt mit."
+      "text": "Der Teil des Tages, an dem Temperatur und Feuchte am Ziel lagen: auf ±1 °C und ±5 %."
+    },
+    "mixing": {
+      "title": "Mischen",
+      "text": "In dieser Reihenfolge ins Wasser geben, den pH zuletzt einstellen. Die Werte des Schemas sind ein Anhaltspunkt, keine Regel."
+    },
+    "feedGrid": {
+      "title": "Das Raster",
+      "text": "Auf eine Zelle tippen, um sie zu ändern; eine Zeile ist ein Produkt, „+ Produkt“ fügt ein eigenes hinzu. Die Blüte-Spalten beginnen in der Woche der Umstellung. EC-Werte sind das, was dein Messgerät mit diesem Wasser anzeigen sollte (Tabellenwert + Wasser-EC). Die Tabelle des Herstellers ist ein Ausgangspunkt, keine Vorschrift. Änderungen an diesem Raster betreffen nur, was diese Pflanzen bekommen. Ein Schema im eigenen Regal ist eine Kopie: Wird es später bearbeitet, bleibt jeder laufende Grow genau so gedüngt wie bisher."
+    },
+    "harvestWeights": {
+      "title": "Gewicht",
+      "text": "Das Trockengewicht kommt erst Tage später: Beide Felder dürfen leer bleiben und später an der Pflanze nachgetragen werden. Eine Pflanze, die wirklich anders gewogen hat, wird an der Pflanze selbst korrigiert."
     }
   },
   "place": {
@@ -4252,24 +4209,11 @@
   "climatePick": {
     "label": "Zielwerte",
     "keep": "Lassen, wie sie sind",
-    "keeps": "Bleiben: {{figures}}.",
-    "sets": "Neu: {{figures}} – ersetzt die Zielwerte unter Steuerung; wann das Licht angeht, bleibt.",
+    "keeps": "Bleiben: {{figures}}",
+    "sets": "Neu: {{figures}}",
     "figures": "{{light}} · Tag {{day}} °C · Nacht {{night}} °C · {{humidity}} %",
     "dark": "Licht aus · {{day}} °C · {{humidity}} %",
-    "dries": "Das Gerät geht in die Trocknung: kein Licht und kein CO₂.",
-    "endsDrying": "Die Trocknung endet, das Gerät hält wieder Tag und Nacht.",
-    "alarms": "Die Alarme „Zu warm“, „Zu kalt“ und „Zu feucht“ richten sich nach der Phase.",
-    "alarmsGermination": "„Zu warm“ und „Zu kalt“ richten sich nach der Keimung, „Zu feucht“ steht auf über {{line}} %: {{humid}}",
-    "humidWarns": "Er warnt auch in der Keimung.",
-    "humidRests": "Er ruht, bis die Keimung endet.",
-    "alarmsKept": "Die Alarme bleiben, wie sie sind: Sie gehören zu dem Klima, das das Gerät weiter hält.",
-    "noClimate": "{{stage}} hat kein eigenes Klima – die Zielwerte bleiben, wie sie sind.",
-    "keepsDrying": "Die Trocknung hält die bisherigen Nachtwerte rund um die Uhr: {{temperature}} °C · {{humidity}} % – ohne Licht und ohne CO₂.",
-    "setsDark": "Neu: {{figures}} – ersetzt die Zielwerte unter Steuerung.",
-    "setsGermination": "Neu: Keimung · dunkel – Licht aus, kein CO₂, rund um die Uhr {{temperature}} °C und {{humidity}} % Luftfeuchte, die nur ein Befeuchter hält. Tag und Licht bleiben für den Sämling.",
-    "keepsGermination": "Bleibt: Keimung · dunkel bei {{temperature}} °C.",
-    "staysLit": "Das Licht bleibt an: Dunkel wird es erst mit „Keimung · dunkel“.",
-    "endsGermination": "Die Keimung endet: Das Gerät hält wieder Tag und Nacht, mit Licht und CO₂."
+    "noClimate": "{{stage}} hat kein eigenes Klima – die Zielwerte bleiben, wie sie sind."
   },
   "germinationChoices": {
     "label": "In der Keimung",

@@ -11,7 +11,7 @@ import { SplitSheet } from '@/screens/grow/SplitSheet';
 import { PhaseSheet } from '@/screens/grow/PhaseSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
 import { deviceWith } from './fixtures';
-import { drawAt, json } from './harness';
+import { drawAt, json, reading } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -117,7 +117,7 @@ describe('the grow´s menu', () => {
     drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn />);
     open();
 
-    expect(offered()).toEqual(['Phase', 'Share', 'Measurements', 'Move', 'Split', 'Harvest', 'Rename', 'Tips for this stage']);
+    expect(offered()).toEqual(['Phase', 'Share', 'Measurements', 'Move', 'Split', 'Harvest', 'Name and kind', 'Tips for this stage']);
     expect(screen.getByRole('link', { name: 'Measurements' })).toHaveAttribute('href', `/grows/${grow.id}/measurements`);
   });
 
@@ -153,10 +153,10 @@ describe('renaming a grow', () => {
     drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn={false} />);
     fireEvent.click(screen.getByRole('button', { name: `More about ${grow.name}` }));
 
-    expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Name and kind' })).toBeInTheDocument();
   });
 
-  it('sends the trimmed name and nothing else, because a rename moves nothing that was recorded', async () => {
+  it('sends the trimmed name and the kind of plant, and nothing else: a rename moves nothing that was recorded', async () => {
     const asked: { method: string; path: string; body: unknown }[] = [];
     vi.stubGlobal(
       'fetch',
@@ -172,19 +172,38 @@ describe('renaming a grow', () => {
 
     drawAt(<RenameSheet grow={grow} onClose={() => {}} />);
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '  Spring run, Amnesia  ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save the name' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     const wrote = () => asked.filter(call => call.method !== 'GET');
     await waitFor(() => expect(wrote()).toHaveLength(1));
     expect(wrote()[0].method).toBe('PATCH');
     expect(wrote()[0].path).toBe('/v1/grows/grow-1');
-    expect(wrote()[0].body).toEqual({ name: 'Spring run, Amnesia' });
+    expect(wrote()[0].body).toEqual({ name: 'Spring run, Amnesia', type: grow.type });
+  });
+
+  /** The form a grow is started with asks only what cannot wait, so the kind of plant is said here. */
+  it('says which kind of plant the grow is, which the form that started it did not ask', async () => {
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'PATCH') sent.push(JSON.parse(String(init.body)));
+        return json(grow);
+      }),
+    );
+
+    drawAt(<RenameSheet grow={grow} onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Photoperiod' })).toHaveAttribute('aria-pressed', String(grow.type === 'photoperiod'));
+    fireEvent.click(screen.getByRole('button', { name: 'Autoflower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(sent).toEqual([{ name: grow.name, type: 'autoflower' }]));
   });
 
   it('will not save an empty name, nor the one the grow already has', () => {
     drawAt(<RenameSheet grow={grow} onClose={() => {}} />);
 
-    const save = screen.getByRole('button', { name: 'Save the name' });
+    const save = screen.getByRole('button', { name: 'Save' });
     expect(save).toBeDisabled();
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '   ' } });
@@ -259,7 +278,8 @@ describe('the harvest sheet', () => {
   it('says the grow ends before the last plants come down, and on which day', () => {
     drawHarvest(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
 
-    expect(screen.getByText(/These are the last plants standing/)).toHaveTextContent('its day counter stops there');
+    // One line that says what the tap ends, and the rest behind its help: nothing is explained above the button.
+    expect(screen.getByText(/^The grow ends on \d+ \w+ \d{4}\.$/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /end the grow/ })).toBeInTheDocument();
   });
 
@@ -328,7 +348,7 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
     expect(wrote()[0].path).toBe('/v1/grows/grow-1');
     expect(Object.keys(wrote()[0].body as object)).toEqual(['endedAt']);
     // The grow is over: the toast says so, and that what is on screen now is its report.
-    expect(await screen.findByText('Spring run has ended · this is its report')).toBeInTheDocument();
+    expect(await screen.findByText(reading('Spring run has ended · this is its report'))).toBeInTheDocument();
   });
 
   it('says when a grow that is already over ended, rather than offering to end it a second time', () => {
@@ -407,7 +427,7 @@ describe('the move sheet of a grow that has ended', () => {
     const offered = within(document.getElementById(menu.getAttribute('aria-controls')!)!)
       .getAllByRole('button')
       .map(button => button.textContent);
-    expect(offered).toEqual(['Phase', 'Move', 'Rename']);
+    expect(offered).toEqual(['Phase', 'Move', 'Name and kind']);
   });
 
   /** "No fixed place" is a place a grow can be in, and a running grow that is in it says so. */
@@ -441,7 +461,6 @@ describe('the phase sheet over a grow that has ended', () => {
     drawAt(<PhaseSheet grow={finished} onClose={() => {}} />);
 
     expect(screen.getByRole('button', { name: 'Record Drying' })).toBeEnabled();
-    expect(screen.getByText(/This grow is over/)).toBeInTheDocument();
     // Not today: a phase filed a month after the plants came down would be a
     // stage the grow never stood in.
     expect(screen.getByLabelText('On')).toHaveValue('2026-09-18');
@@ -507,7 +526,7 @@ describe('the climate beside a phase', () => {
     expect(within(choices).getByRole('button', { name: 'Late flower' })).toBeInTheDocument();
     expect(within(choices).getByRole('button', { name: 'Auto · Flower' })).toBeInTheDocument();
     // Eighteen hours from six in the morning: said as the window it makes, which ends at midnight.
-    expect(screen.getByText(/Stay: Light on 06:00–00:00 · 18 h · day 26 °C · night 22 °C · 62 %/)).toBeInTheDocument();
+    expect(screen.getByText(reading('Stay: Light on 06:00–00:00 · 18 h · day 26 °C · night 22 °C · 62 %'))).toBeInTheDocument();
   });
 
   it('puts the tent on the stage´s own climate with the phase when that is chosen, and says what it sets', async () => {
@@ -524,7 +543,7 @@ describe('the climate beside a phase', () => {
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
     // A preset moves how long the light is on, never when it comes on: twelve hours from the device's six.
-    expect(screen.getByText(/New: Light on 06:00–18:00 · 12 h · day 25 °C · night 20 °C · 50 % – replaces the targets/)).toBeInTheDocument();
+    expect(screen.getByText(reading('New: Light on 06:00–18:00 · 12 h · day 25 °C · night 20 °C · 50 %'))).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
 
     await waitFor(() => expect(asked.filter(call => call.method === 'POST')).toHaveLength(1));
@@ -541,13 +560,12 @@ describe('the climate beside a phase', () => {
     drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
-    expect(
-      screen.getByText(/^Drying holds the night figures as they are, round the clock: 22 °C · 58 % – no light and no CO₂\./),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/Light on 06:00/)).not.toBeInTheDocument();
+    // The stage dries whatever is chosen: the night's figures round the clock, in the dark.
+    expect(screen.getByText(reading('New: light off · 22 °C · 58 %'))).toBeInTheDocument();
+    expect(screen.queryByText(reading(/Light on 06:00/))).not.toBeInTheDocument();
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Drying' }));
-    expect(screen.getByText(/^New: light off · 18 °C · 58 % – replaces the targets under Control\. The device starts drying/)).toBeInTheDocument();
+    expect(screen.getByText(reading('New: light off · 18 °C · 58 %'))).toBeInTheDocument();
   });
 
   /**
@@ -570,18 +588,11 @@ describe('the climate beside a phase', () => {
     // The stage chip records the stage and is called by it; the one choice that darkens is the climate beside it.
     expect(screen.queryAllByRole('button', { name: 'Germination · dark' })).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
-    expect(
-      screen.getByText(
-        /^Stay: Light on 06:00–00:00 · 18 h · .* The light stays on: only “Germination · dark” makes it dark\. The alarms stay as they are: they belong to the climate the device goes on holding\.$/,
-      ),
-    ).toBeInTheDocument();
+    // Only recorded, the light stays as it is.
+    expect(screen.getByText(reading(/^Stay: Light on 06:00–00:00 · 18 h · /))).toBeInTheDocument();
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Germination · dark' }));
-    expect(
-      screen.getByText(
-        /^New: Germination · dark – light off, no CO₂, 24 °C and 75 % humidity round the clock, the humidity held by a humidifier alone\..* The alarms Too hot and Too cold follow germination; Too humid is set to above 90 %: It rests until germination ends\.$/,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText(reading('New: light off · 24 °C · 75 %'))).toBeInTheDocument();
     // What germination does about the humidity is asked beside its climate: the alarm, and no humidifier where none is paired.
     const choices = screen.getByRole('group', { name: 'During germination' });
     expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toHaveAttribute('aria-checked', 'false');
@@ -626,7 +637,6 @@ describe('the climate beside a phase', () => {
     fireEvent.click(humidifier);
     fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
     expect(within(choices).getByText('The humidifier rests until germination ends.')).toBeInTheDocument();
-    expect(screen.getByText(/Too humid is set to above 90 %: It warns during germination too\.$/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Enter Germination' }));
 
     await waitFor(() => expect(asked.filter(call => call.method === 'POST')).toHaveLength(1));
@@ -658,15 +668,12 @@ describe('the climate beside a phase', () => {
 
     const choices = screen.getByRole('group', { name: 'Targets' });
     expect(within(choices).getByRole('button', { name: 'Seedling · with light' })).toHaveAttribute('aria-pressed', 'true');
-    expect(
-      screen.getByText(
-        /^New: Light on 06:00–00:00 · 18 h · day 24 °C · night 21 °C · 70 % – .* Germination ends: the device holds day and night again/,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText(reading('New: Light on 06:00–00:00 · 18 h · day 24 °C · night 21 °C · 70 %'))).toBeInTheDocument();
 
     // Left as they are, the night germination wrote over comes back with the light.
     fireEvent.click(within(choices).getByRole('button', { name: 'Leave as they are' }));
-    expect(screen.getByText(/^Stay: Light on 06:00–00:00 · 18 h · day 26 °C · night 19 °C · 62 %\. Germination ends/)).toBeInTheDocument();
+    // Germination ends either way, so what the device holds is new either way.
+    expect(screen.getByText(reading('New: Light on 06:00–00:00 · 18 h · day 26 °C · night 19 °C · 62 %'))).toBeInTheDocument();
   });
 
   it('is not asked where nothing standing there states a climate', () => {

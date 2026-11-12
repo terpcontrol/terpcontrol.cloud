@@ -12,7 +12,9 @@ import { about, lineLabel, occurredAt } from '@/log/lines';
 import { useLog, type LogTarget } from '@/log/log-context';
 import { Moment } from '@/log/Moment';
 import { Sheet } from '@/ui/Sheet';
-import { ageLabel } from '@/ui/age';
+import { spokenAgo } from '@/ui/age';
+import { Facts } from '@/ui/Facts';
+import { factsOf } from '@/ui/fact-text';
 import { serverNow } from '@/api/clock';
 import { decimalMark, looseFigure, typedFigure } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
@@ -160,7 +162,7 @@ export function MeasureSheet({ target, at: given = null, onBack, onClose }: Meas
     }
   };
 
-  if (definitions.length === 0) return <NothingToMeasure target={target} onClose={onClose} />;
+  if (definitions.length === 0) return <NothingToMeasure target={target} onBack={onBack} onClose={onClose} />;
 
   // A round is plant after plant of something measured per plant; a reading of the room has no next plant.
   const roundOfPlants = plantId !== null && standing.length > 1 && definition?.perPlant === true;
@@ -211,7 +213,9 @@ export function MeasureSheet({ target, at: given = null, onBack, onClose }: Meas
             </span>
           </div>
 
-          <p className={`mono ${styles.hint}`}>{hintOf(t, definition, last, plantId, standing, draft, now)}</p>
+          <p className={`mono ${styles.hint}`}>
+            <Facts facts={factsOf(hintOf(t, definition, last, plantId, standing, draft, now))} />
+          </p>
 
           <div className={styles.keypad} role="group" aria-label={t('grow.measurements.measure.keypad')}>
             {KEYS.map(digit => (
@@ -251,14 +255,14 @@ export function MeasureSheet({ target, at: given = null, onBack, onClose }: Meas
  * that rather than a sentence about a grow, and offers the thing that would
  * actually help: starting one.
  */
-function NothingToMeasure({ target, onClose }: MeasureSheetProps) {
+function NothingToMeasure({ target, onBack, onClose }: MeasureSheetProps) {
   const { t } = useTranslation();
   const away = target.growId
     ? { to: `/grows/${target.growId}/measurements`, label: t('grow.measurements.measure.setUp') }
     : { to: `/grows/new?space=${target.spaceId}`, label: t('grow.measurements.measure.startGrow') };
 
   return (
-    <Sheet title={t('grow.measurements.measure.title')} onClose={onClose}>
+    <Sheet title={t('grow.measurements.measure.title')} onBack={onBack} onClose={onClose}>
       <p className={ui.note}>{t(target.growId ? 'grow.measurements.measure.nothingYet' : 'grow.measurements.measure.noGrow')}</p>
       {target.growId || target.spaceId ? (
         <Link className={`${ui.button} ${styles.away}`} to={away.to} onClick={onClose}>
@@ -331,7 +335,8 @@ const hintOf = (
 
   return [
     mine ? t('grow.measurements.measure.last', { value: withUnit(mine.value, definition.unit) }) : t('grow.measurements.measure.never'),
-    mine ? t('grow.measurements.measure.ago', { age: ageLabel(mine.at, now) }) : '',
+    // In words: "vor 1 Tag" says a day where "vor 1 T" asks to be worked out.
+    mine ? spokenAgo(mine.at, now) : '',
     moved === null || moved === 0 ? '' : `${moved > 0 ? '+' : ''}${looseFigure(moved)}`,
     t('grow.measurements.target', { band: band ?? t('grow.measurements.noTarget') }),
     other?.reading ? t('grow.measurements.measure.otherPlant', { plant: other.plant.label, value: looseFigure(other.reading.value) }) : '',

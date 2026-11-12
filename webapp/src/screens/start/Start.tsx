@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { fetchedAt } from '@/api/clock';
 import { useHome } from '@/api/home';
+import { failingSince } from '@/api/read';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { isPlace } from '@/app/places';
@@ -34,7 +35,7 @@ export function Start() {
   const answer = home.data;
   const places = answer.spaces.filter(isPlace);
   const loose = answer.spaces.filter(card => !isPlace(card) && card.grow !== null);
-  const failedAt = home.isError ? home.dataUpdatedAt : null;
+  const failedAt = failingSince(home);
 
   if (places.length + loose.length === 0) return <EmptyStart />;
   if (places.length === 1 && loose.length === 0) return <PlaceStart spaceId={places[0].spaceId} />;

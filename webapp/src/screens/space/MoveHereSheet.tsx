@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import { useMoveGrowHere } from '@/api/lifecycle';
-import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
+import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
@@ -37,7 +37,7 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
   const [at, setAt] = useState(() => serverNow().toJSDate());
   const [starting, setStarting] = useState(false);
 
-  if (starting) return <NewGrowSheet spaceId={spaceId} onClose={onClose} />;
+  if (starting) return <StartGrowSheet spaceId={spaceId} name={spaceName} onClose={onClose} />;
 
   return (
     <Sheet title={t('space.moveHereTitle', { name: spaceName })} onClose={onClose}>

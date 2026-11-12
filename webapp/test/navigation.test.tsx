@@ -79,6 +79,7 @@ const card = (spaceId: string, name: string): HomeSpaceCard => ({
   trend: null,
   grow: server.growing && spaceId === 'space-1' ? GROWING : null,
   entries: [],
+  events: [],
   latestStill: null,
   dueTasks: [],
   openAlerts:
@@ -114,6 +115,7 @@ const overviewOf = (spaceId: string, name: string): SpaceOverview =>
     grows: [],
     cameras: [],
     entries: [],
+    events: [],
     readingNames: [],
     people: [],
   }) as unknown as SpaceOverview;
@@ -253,6 +255,8 @@ const server = {
   room: false,
   /** The place an alert is open in, which Start then lists first. */
   alerting: null as string | null,
+  /** The grows the lists answer: every one of the account, which a place then asks for its own of. */
+  grows: [] as GrowListItem[],
   youMay: 'own' as AccessNeed,
   me: meOf(false, { diary: false, places: false }),
   sent: [] as { method: string; path: string; body: unknown }[],
@@ -266,7 +270,7 @@ const home = (): HomeAnswer => ({
 });
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-  const { pathname } = new URL(String(input), 'http://localhost');
+  const { pathname, searchParams } = new URL(String(input), 'http://localhost');
   const path = pathname.replace(/^\/v1/, '');
   const method = init?.method ?? 'GET';
   const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : null;
@@ -281,6 +285,15 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (path === '/home') return json(home());
   // The shelf of schemes the app ships, which the page of every grow says a line about.
   if (pathname === '/assets/schemes/index.json') return json({ schemes: [] });
+  if (path === '/grows') {
+    const spaceId = searchParams.get('spaceId');
+    const ended = searchParams.get('including') === 'ended';
+    const items = server.grows.filter(
+      one =>
+        (spaceId === null || one.placements.some(placement => placement.spaceId === spaceId)) && (spaceId === null || ended || one.endedAt === null),
+    );
+    return json({ items, nextCursor: null });
+  }
   const byId = /^\/grows\/([^/]+)$/.exec(path);
   if (byId && GROWS[byId[1]]) return json(GROWS[byId[1]]);
   if (path === '/cameras/cam-2') return json(camera);
@@ -343,6 +356,7 @@ beforeEach(() => {
   server.cameras = 0;
   server.targets = false;
   server.growing = false;
+  server.grows = [];
   server.room = false;
   server.alerting = null;
   server.youMay = 'own';
@@ -763,8 +777,27 @@ describe('Grow, the bar´s item', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Start a grow' }));
 
     // Started here, the grow is drawn here: the address stays Grow's.
-    expect(await screen.findByRole('dialog', { name: 'New grow' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: /^What grows in / })).toBeInTheDocument();
     expect(where(router)).toBe('/grow?space=space-2');
+  });
+
+  it('says after a harvest that the grow has ended and leads to its report, and offers a move only where a grow could come from', async () => {
+    server.places = TWO;
+    server.grows = [growOver];
+    open('/grow?space=space-2');
+
+    expect(await screen.findByRole('link', { name: 'Last year has ended · this is its report ›' })).toHaveAttribute('href', '/grows/grow-9/report');
+    // Nothing runs anywhere else, so there is no grow to move here.
+    expect(screen.getByRole('button', { name: 'Start a grow' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Move a grow here' })).not.toBeInTheDocument();
+  });
+
+  it('offers to move a grow into the chosen place where one runs somewhere else', async () => {
+    server.places = TWO;
+    server.grows = [grow];
+    open('/grow?space=space-2');
+
+    expect(await screen.findByRole('button', { name: 'Move a grow here' })).toBeInTheDocument();
   });
 });
 

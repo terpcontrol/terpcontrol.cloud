@@ -318,6 +318,14 @@ describe('when a line says it happened', () => {
       code: 'occurred_in_the_future',
     });
   });
+
+  it('records a line stamped by a clock a little ahead as now: a read that ends at now holds it at once', async () => {
+    const ahead = new Date(Date.now() + 2_000).toISOString();
+
+    const entry = await entries.create(session(OWNER), { kind: 'note', growId: GROW, occurredAt: ahead, values: { kind: 'note' } });
+
+    expect(Date.parse(entry.occurredAt)).toBeLessThanOrEqual(Date.now());
+  });
 });
 
 describe('a feed, which is the one with arithmetic in it', () => {

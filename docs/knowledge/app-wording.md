@@ -105,7 +105,14 @@ string exists in English and German, with no English left in the German catalogu
 - One date shape per language, decided only in `ui/zone.ts`: "19. Sep 2026" in German, "19 Sep 2026" in English, never
   the US "Oct 23, 2026". Times and day boundaries are in the account's zone (Ich › Darstellung).
 - German units: T for days, Std, Min, and Uhr after a time of day ("06–24 Uhr"); English d, h, min. Spans the server
-  writes ("5 d 10 h") are rewritten into the reader's units.
+  writes ("5 d 10 h") are rewritten into the reader's units. The symbol stands beside a figure in a tile or a pill;
+  **in a line of words the day is written out** - "Tag 23" in front of a line of the report, "vor 1 Tag" under a
+  measurement (`spokenAgo`, `ui/age.ts`) - because "T 23" and "vor 1 T" ask to be worked out (the redesign session
+  of 2026-11-12).
+- **No figure stands on a line without what it counts** (the redesign session of 2026-11-12): a figure is bound to
+  its unit (`unbroken`, `ui/fact-text.ts`), and a sentence made of facts with "·" between them is set as those
+  facts (`Facts`, `factsOf`), so it breaks between two of them and "3 l" or "1 Bild" stays whole - a toast, the
+  line under a field, a chapter of the report, the count of a line's pictures.
 - Not localised: CSV cells, ids, ISO instants, the `yyyy-MM-dd` of a date field, firmware versions.
 - Unit preferences (°F, oz, gal) are stored with the account but not applied yet; Ich › Darstellung says so.
 

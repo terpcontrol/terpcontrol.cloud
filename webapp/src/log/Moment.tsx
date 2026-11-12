@@ -57,10 +57,17 @@ export function Moment({
   const [place, setPlace] = useState<CSSProperties>({ visibility: 'hidden' });
   const [day, setDay] = useState('');
   const [time, setTime] = useState('');
+  const [moving, setMoving] = useState<'busy' | 'refused' | null>(null);
 
   // A line nobody dated is "now", and stays now while the sheet is open.
   const shown = at ?? now.toJSDate();
   const label = momentLabel(t, shown, now, zone);
+  const today = dayOf(serverNow().toJSDate(), zone);
+  const chosen = momentAt(day, time, zone);
+  const ahead = chosen !== null && chosen.getTime() > serverNow().toMillis();
+  const before = chosen !== null && begins !== null && chosen < begins.at;
+  /** What the pop-up says beside its fields, which is what makes it taller. */
+  const notices = `${ahead}${before}${moving}`;
 
   // Placed against the window rather than inside the sheet, whose edge would
   // cut it off: under the moment where the sheet has room for it, over it
@@ -74,15 +81,18 @@ export function Moment({
       if (!button || !sheet) return;
       const floor = sheet.getBoundingClientRect().bottom - parseFloat(getComputedStyle(sheet).paddingBottom);
       const below = button.bottom + GAP + height <= floor;
+      // Never past the window's edge either way: what it says about a grow's start makes it taller than a short screen has room for under the moment.
+      const lowest = document.documentElement.clientHeight - GAP - height;
       setPlace({
         right: Math.max(GAP, document.documentElement.clientWidth - button.right),
-        top: below ? button.bottom + GAP : Math.max(GAP, button.top - GAP - height),
+        top: Math.max(GAP, Math.min(below ? button.bottom + GAP : button.top - GAP - height, lowest)),
       });
     };
     placeIt();
     window.addEventListener('resize', placeIt);
     return () => window.removeEventListener('resize', placeIt);
-  }, [open]);
+    // Placed again when what it says changes its height.
+  }, [open, notices]);
 
   useEffect(() => {
     if (!open) return;
@@ -103,11 +113,6 @@ export function Moment({
     close();
   };
 
-  const today = dayOf(serverNow().toJSDate(), zone);
-  const chosen = momentAt(day, time, zone);
-  const ahead = chosen !== null && chosen.getTime() > serverNow().toMillis();
-  const before = chosen !== null && begins !== null && chosen < begins.at;
-  const [moving, setMoving] = useState<'busy' | 'refused' | null>(null);
   const moveStart = () => {
     if (!chosen || !begins?.move) return;
     setMoving('busy');

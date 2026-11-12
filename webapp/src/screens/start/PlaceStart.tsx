@@ -35,7 +35,7 @@ import { MaintenanceControl } from '@/screens/devices/Maintenance';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { EmptyPlace } from '@/screens/space/EmptyPlace';
 import { AddPlace } from './AddPlace';
-import { livenessOf, measuredAtOf, silenceOf } from './attention';
+import { judgedAt, livenessThrough, measuredAtOf, silenceOf } from './attention';
 import { DayCurves } from './DayCurves';
 import { Latest } from './Latest';
 import { DeviceOffer, GrowOffer } from './Offers';
@@ -129,9 +129,11 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const layer = useDiaryLayer() && (me.data !== undefined || demo);
   const diary = visiting ? overview.grows.length > 0 : layer;
   const grow = diary ? (overview.grows[0] ?? null) : null;
-  const liveness = livenessOf({ values, deviceIds: overview.deviceIds }, now);
+  // A refresh that fails ages the page, not the device: the place is judged as the last answer left it.
+  const judged = judgedAt(now, failedAt);
+  const liveness = livenessThrough({ values, deviceIds: overview.deviceIds }, now, failedAt);
   // No value at all is a device still waiting for its first one - or, where it was heard long ago, one silent since then.
-  const silence = silenceOf(values, here, now);
+  const silence = silenceOf(values, here, judged);
   const silentSince = silence && !silence.waiting ? silence.since : null;
   const waiting = liveness === 'offline' && values.length === 0 && silentSince === null;
   const offline = liveness === 'offline' && !waiting;
@@ -148,7 +150,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
       humidifierHold,
       silentSince,
     },
-    now,
+    judged,
   );
   const camera = newestCamera(overview);
   // A diary kept by hand, with nothing here that measures or watches: the grow is the page.
@@ -247,6 +249,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           )}
           <Latest
             entries={overview.entries}
+            events={overview.events}
             people={overview.people}
             readingNames={overview.readingNames}
             on={{ label: overview.name, spaceId }}

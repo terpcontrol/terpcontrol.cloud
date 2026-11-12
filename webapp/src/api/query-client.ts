@@ -20,3 +20,8 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// The connection is back: every read on screen is asked again at once, so the notice that a refresh failed goes with
+// the failure rather than at the screen's next beat. React Query resumes what it paused itself; a read that failed
+// while the browser still believed it was online is not among those.
+if (typeof window !== 'undefined') window.addEventListener('online', () => void queryClient.refetchQueries({ type: 'active' }));

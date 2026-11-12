@@ -1,74 +1,99 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import type { GrowthStage } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useGrows } from '@/api/grows';
+import { useSpaces } from '@/api/spaces';
+import { GROW } from '@/app/places';
+import { usePlaceStage } from '@/screens/start/stage';
 import { DAY_MS, dayOf, momentOn } from '@/ui/days';
 import { Refused } from '@/ui/PageState';
+import { stageChoiceName } from '@/ui/presets';
+import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
-import { growBody, START_STAGES, suggestedName } from './new-grow';
+import { usePlaceController } from '../phase-climate';
+import { growPlaces } from '../placement';
+import { growBody, growIn, recordsOnly, START_STAGES, suggestedName } from './new-grow';
 import { useStartGrow } from './start-grow';
 import styles from './NewGrow.module.css';
 
 type Since = 'today' | 'week' | 'date';
 
+/** "No fixed place" in the list of places. */
+const NOWHERE = '';
+
 /**
- * "Was wächst hier?" - the four answers a diary needs to begin in a place that
- * already stands: what it is, since when, how many, and the phase it is in.
- * Everything else the full sheet asks has an answer that can wait - a feeding
- * scheme, the strains by name - and is changed on the grow's own page.
+ * "Was wächst hier?" - the one form a grow is started with, behind every
+ * "Grow starten" and "+ Neuer Grow": what it is, since when, how many, where
+ * - asked only where the caller names no place - and the phase it is in.
+ * Everything else has an answer that can wait and is changed on the grow's own
+ * page: a feeding scheme, the strains by name, an autoflower.
  *
- * It records the grow and its phase and nothing more: the place's climate is
- * what its device was set to, here as before, and Steuerung is where it is
- * changed. So the stages are named plainly, and nothing in a running tent
- * moves because somebody said what is growing in it.
+ * It opens on the stage the place is on - read off its device (`usePlaceStage`),
+ * or the one a step earlier in the same sitting put it on (`stage`) - and waits
+ * for that answer rather than choosing before it. Where nothing says, it opens
+ * on growth: a tent that already regulates rarely holds seeds.
  *
- * It opens on the stage the place is on (`stage`) and follows it until one is
- * picked - the caller reads it off the device, which may answer after the
- * form is drawn. Where nothing says, it opens on growth: a tent that already
- * regulates rarely holds seeds, and a form that opened on germination wrote
- * "Keimung" over many a flowering tent whose grower only typed a name.
+ * A stage the form only opened on is recorded and moves nothing. A stage the
+ * grower chose puts the place's controller on its climate, and then the button
+ * says so - except seeds beside plants already growing there, whose darkness
+ * is not theirs (`recordsOnly`).
  */
 export function WhatGrows({
-  spaceId,
-  stage: given = null,
+  spaceId: fixed = null,
+  stage: given,
   onStarting,
   onStarted,
   submitClass,
 }: {
-  spaceId: string;
-  /** The stage the place is on, which is the one the plants are most likely in; null or absent where nothing says. */
+  /** The place the form was opened for; null where it asks. */
+  spaceId?: string | null;
+  /** The stage the place was put on a moment ago, which its device may not say yet. */
   stage?: GrowthStage | null;
   /** The form was sent: from here on the grow may exist, whatever the page around the form reads next. */
   onStarting?: () => void;
-  onStarted: (growId: string) => void;
+  onStarted: (growId: string, spaceId: string | null) => void;
   submitClass?: string;
 }) {
   const { t } = useTranslation();
   const zone = useZone();
   const grows = useGrows();
-  const { start, busy, refused } = useStartGrow(spaceId);
+  const spaces = useSpaces(fixed === null);
+  const { start, busy, refused } = useStartGrow();
   const [name, setName] = useState('');
   const [since, setSince] = useState<Since>('today');
   const [date, setDate] = useState(() => serverNow().toJSDate());
   const [count, setCount] = useState(1);
   const [picked, setStage] = useState<GrowthStage | null>(null);
-  const stage: GrowthStage = picked ?? (given && START_STAGES.includes(given) ? given : 'vegetative');
+  const [where, setWhere] = useState<string | null>(null);
+
+  const places = growPlaces(spaces.data?.items ?? []);
+  const running = grows.data?.items ?? [];
+  // Asked for, the first free place stands chosen: defaulting into a flowering tent would put a second grow in it.
+  const spaceId = fixed ?? (where === null ? (places.find(one => growIn(running, one.id) === null)?.id ?? null) : where || null);
+  const onPlace = usePlaceStage(spaceId);
+  const on = given ?? onPlace;
+  const controller = usePlaceController(spaceId);
+  const opened: GrowthStage | null = on === undefined ? null : on && START_STAGES.includes(on) ? on : 'vegetative';
+  const stage = picked ?? opened;
+  const climate = picked !== null && picked !== on && controller !== null && !recordsOnly(picked, spaceId ? growIn(running, spaceId) : null);
 
   const submit = async () => {
+    // Not before the place has said which stage it is on: what is chosen is told apart from it.
+    if (stage === null || opened === null) return;
     const now = serverNow().toJSDate();
     const startedAt = since === 'today' ? now : since === 'week' ? new Date(now.getTime() - 7 * DAY_MS) : date;
     const typed = name.trim();
     const body = growBody(
-      { name: typed, plants: [{ key: '1', strain: typed, count }], type: 'photoperiod', spaceId, stage, startedAt, schemeId: null },
-      typed || suggestedName(grows.data?.items ?? [], spaceId, t('grow.new.firstName')),
-      null,
-      t('grow.new.unnamedStrain'),
+      { name: typed || suggestedName(running, spaceId, t('grow.new.firstName')), strain: typed || t('grow.new.unnamedStrain'), count },
+      spaceId,
+      startedAt,
     );
     onStarting?.();
     try {
-      onStarted(await start({ body, stage, startedAt }));
+      onStarted(await start({ body, stage, startedAt, climate }), spaceId);
     } catch {
       // The refusal is drawn under the fields; what already stands is not written again on the next tap.
     }
@@ -119,6 +144,19 @@ export function WhatGrows({
           />
         </label>
       ) : null}
+      {fixed === null && places.length > 0 ? (
+        <label className={styles.field}>
+          {t('grow.new.where')}
+          <select className={ui.input} value={spaceId ?? NOWHERE} onChange={event => setWhere(event.target.value)}>
+            {places.map(one => (
+              <option key={one.id} value={one.id}>
+                {one.name}
+              </option>
+            ))}
+            <option value={NOWHERE}>{t('grow.noFixedPlace')}</option>
+          </select>
+        </label>
+      ) : null}
       <div className={`${ui.segments} ${ui.segmentsFill}`} role="group" aria-label={t('home.entryKind.phase')}>
         {START_STAGES.map(one => (
           <button key={one} type="button" className={ui.segment} aria-pressed={stage === one} onClick={() => setStage(one)}>
@@ -127,9 +165,53 @@ export function WhatGrows({
         ))}
       </div>
       <Refused error={refused} />
-      <button type="submit" className={submitClass ?? `${ui.button} ${ui.primary}`} disabled={busy || grows.isPending}>
-        {busy ? t('grow.new.starting') : t('home.invite.startGrow')}
+      <button
+        type="submit"
+        className={submitClass ?? `${ui.button} ${ui.primary}`}
+        disabled={busy || grows.isPending || opened === null || (fixed === null && spaces.isPending)}
+      >
+        {busy
+          ? t('grow.new.starting')
+          : climate && stage
+            ? t('grow.new.startAndSet', { climate: stageChoiceName(t, stage) })
+            : t('home.invite.startGrow')}
       </button>
     </form>
+  );
+}
+
+/**
+ * The form as a sheet over the page it was asked on. A grow started in a
+ * place is drawn by Grow, which is where the sheet lets go to; one standing in
+ * none has only its own page.
+ */
+export function StartGrowSheet({
+  spaceId = null,
+  name = null,
+  replace = false,
+  onClose,
+}: {
+  spaceId?: string | null;
+  /** What the place is called, where the sheet was opened for one. */
+  name?: string | null;
+  /** True where the sheet is the address itself, so the grow's page takes its place rather than stacking on it. */
+  replace?: boolean;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+
+  return (
+    <Sheet title={spaceId && name ? t('start.grow.title', { name }) : t('grow.new.title')} noEntry={replace} onClose={onClose}>
+      <div className={ui.sheetBody}>
+        <WhatGrows
+          spaceId={spaceId}
+          onStarted={(growId, where) => {
+            if (!replace) onClose();
+            void navigate(where ? `${GROW}?${new URLSearchParams({ space: where }).toString()}` : `/grows/${growId}`, { replace });
+          }}
+        />
+      </div>
+    </Sheet>
   );
 }

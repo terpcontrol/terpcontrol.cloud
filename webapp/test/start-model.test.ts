@@ -1,10 +1,12 @@
 import { DateTime } from 'luxon';
 import { describe, expect, it } from 'vitest';
 import type { SpaceOverview } from '@fg2/shared-types/v1';
-import { livenessOf, sortedByAttention } from '@/screens/start/attention';
+import { firstChoice, type PlaceCard } from '@/app/places';
+import { fetchedAt } from '@/api/clock';
+import { livenessOf, livenessThrough, sortedByAttention } from '@/screens/start/attention';
 import { holdVerdictOf, judgedPanel, statusOf } from '@/screens/start/place';
-import { groupedByRoom } from '@/screens/start/rooms';
-import { ago, cardOf, setpoints, values } from './place-wire';
+import { groupedByRoom, startOrder } from '@/screens/start/rooms';
+import { ago, cardOf, growOf, setpoints, values } from './place-wire';
 import { spaceWhere } from './session';
 
 /**
@@ -185,6 +187,57 @@ describe('which place needs a person first', () => {
   });
 });
 
+/**
+ * The place a browser that has chosen none is shown must be one Start shows
+ * near its top: Grow opened on an empty balcony under a header naming it, while
+ * Start led with the tent in flower.
+ */
+describe('the place Grow, Verlauf and Steuerung open on before one is chosen', () => {
+  const place = (over: Parameters<typeof cardOf>[0]) => cardOf({ grow: null, deviceIds: [], ...over }) as PlaceCard;
+  const running = growOf() as never;
+  const cellar = [spaceWhere('own', { id: 'room', name: 'Cellar', kind: 'room' })];
+  const alert = {
+    alertId: 'a',
+    kind: 'threshold' as const,
+    severity: 'warning' as const,
+    startedAt: ago(5),
+    value: 31,
+    metric: 'temperature' as const,
+    name: 'Too warm',
+  };
+
+  it('is the first in the order Start lists them that has a running grow', () => {
+    const places = [
+      place({ spaceId: 'balcony', name: 'Balcony' }),
+      place({ spaceId: 'fridge', name: 'Fridge', deviceIds: ['device-2'] }),
+      place({ spaceId: 'tent', name: 'Tent', grow: running }),
+      place({ spaceId: 'second', name: 'Second tent', grow: running, deviceIds: ['device-1'] }),
+    ];
+
+    expect(firstChoice(places, [])?.name).toBe('Tent');
+  });
+
+  it('follows Start´s order and not the home´s: a room stands where its most urgent place does', () => {
+    const places = [
+      place({ spaceId: 'a', name: 'Balcony grow', grow: running }),
+      place({ spaceId: 'b', name: 'Cellar tent', roomId: 'room', grow: running }),
+      place({ spaceId: 'c', name: 'Cellar fridge', roomId: 'room', deviceIds: ['device-1'], openAlerts: [alert] }),
+    ];
+
+    // The fridge's alarm lifts its room to the top, and the tent beside it is the first there that grows.
+    expect(startOrder(places, cellar).flatMap(group => group.cards.map(card => card.name))).toEqual(['Cellar fridge', 'Cellar tent', 'Balcony grow']);
+    expect(firstChoice(places, cellar)?.name).toBe('Cellar tent');
+  });
+
+  it('is the first with a device where nothing grows, and the first of all where nothing regulates either', () => {
+    const empty = [place({ spaceId: 'a', name: 'Balcony' }), place({ spaceId: 'b', name: 'Shelf' })];
+
+    expect(firstChoice([...empty, place({ spaceId: 'c', name: 'Fridge', deviceIds: ['device-1'] })], [])?.name).toBe('Fridge');
+    expect(firstChoice(empty, [])?.name).toBe('Balcony');
+    expect(firstChoice([], [])).toBeNull();
+  });
+});
+
 describe('how alive a place is', () => {
   it('is the best of its values, offline for a device that has said nothing, and nothing at all without a device', () => {
     const live = values();
@@ -202,5 +255,20 @@ describe('how alive a place is', () => {
     expect(livenessOf({ values: drawn, deviceIds: ['device-1'] }, DateTime.now())).toBe('live');
     expect(livenessOf({ values: drawn, deviceIds: ['device-1'] }, DateTime.now().plus({ minutes: 5 }))).toBe('stale');
     expect(livenessOf({ values: drawn, deviceIds: ['device-1'] }, DateTime.now().plus({ minutes: 30 }))).toBe('offline');
+  });
+
+  /** The page ages because this browser could not ask - which the notice beside it says - and not because a device fell silent. */
+  it('does not call a device offline for a refresh that failed: what was heard at the last answer is stale, and no more', () => {
+    const card = { values: values(), deviceIds: ['device-1'] };
+    const later = DateTime.now().plus({ minutes: 30 });
+    const failedAt = Date.now();
+
+    expect(livenessThrough(card, later, null)).toBe('offline');
+    expect(livenessThrough(card, later, failedAt)).toBe('stale');
+    // A reading still fresh is not called old because one refresh failed.
+    expect(livenessThrough(card, DateTime.now().plus({ seconds: 30 }), failedAt)).toBe('live');
+    // A device that was silent before the refresh failed is still silent.
+    expect(livenessThrough({ values: values(30), deviceIds: ['device-1'] }, later, failedAt)).toBe('offline');
+    expect(DateTime.fromISO(fetchedAt(failedAt)).toMillis()).toBeLessThan(later.toMillis());
   });
 });

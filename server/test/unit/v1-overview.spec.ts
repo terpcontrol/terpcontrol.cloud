@@ -558,6 +558,47 @@ describe('the day´s pictures', () => {
   });
 });
 
+describe('what was last written', () => {
+  const machine = (id: string, at: string, over: Partial<EntryDocument>): EntryDocument =>
+    entry({ id, source: 'device', authorId: null, spaceId: TENT, deviceId: CONTROLLER, occurredAt: new Date(at), ...over });
+  const maintenance = (id: string, at: string, minutes: number): EntryDocument =>
+    machine(id, at, {
+      kind: 'system',
+      message: { key: 'message-maintenance-mode-activated', params: [String(minutes)] },
+      values: { kind: 'system' },
+    });
+
+  it('is the tail of the diary: the lines a day of it would show, and maintenance as the one stretch it was', async () => {
+    await db.entries.create([
+      maintenance('maintenance-on', '2026-06-10T08:00:00.000Z', 30),
+      maintenance('maintenance-off', '2026-06-10T08:10:00.000Z', 0),
+      machine('rebooted', '2026-06-10T09:00:00.000Z', {
+        kind: 'system',
+        message: { key: 'message-device-booted', params: [] },
+        values: { kind: 'system' },
+      }),
+      machine('plan-step', '2026-06-10T10:00:00.000Z', {
+        kind: 'plan',
+        source: 'plan',
+        deviceId: null,
+        values: { kind: 'plan', planId: 'plan-1', stepIndex: 1, transition: null },
+      }),
+    ]);
+
+    const page = await readAs(session(OWNER));
+
+    // The plan's step is a line; the restart is the device's own record; maintenance is no line at all.
+    expect(page.entries.map(line => line.id)).toEqual(['plan-step', 'entry-space', 'entry-new', 'entry-old']);
+    expect(page.events).toEqual([{ kind: 'maintenance', at: '2026-06-10T08:00:00.000Z', endedAt: '2026-06-10T08:10:00.000Z' }]);
+  });
+
+  it('leaves a maintenance still on without an end', async () => {
+    await db.entries.create(maintenance('maintenance-on', '2026-06-10T11:50:00.000Z', 30));
+
+    expect((await readAs(session(OWNER))).events).toEqual([{ kind: 'maintenance', at: '2026-06-10T11:50:00.000Z', endedAt: null }]);
+  });
+});
+
 describe('who may read it', () => {
   const linkFor = async (over: Record<string, unknown>): Promise<string> => {
     await db.shareLinks.create({
@@ -615,8 +656,11 @@ describe('who may read it', () => {
 
     expect(theirs.entries.map(line => line.id)).toEqual(['entry-old']);
     expect(JSON.stringify(theirs.entries)).not.toMatch(/alarm|alert-1|booted/);
-    // Whoever keeps the tent reads them.
-    expect((await readAs(session(OWNER))).entries.map(line => line.id)).toEqual(expect.arrayContaining(['entry-alarm', 'entry-rebooted']));
+    expect(theirs.events).toEqual([]);
+    // Whoever keeps the tent reads the alarm; what a device logs about itself is no line of a diary for them either.
+    const keepers = (await readAs(session(OWNER))).entries.map(line => line.id);
+    expect(keepers).toContain('entry-alarm');
+    expect(keepers).not.toContain('entry-rebooted');
   });
 
   it('answers a link only what its window covers', async () => {

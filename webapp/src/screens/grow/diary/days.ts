@@ -109,15 +109,11 @@ export interface DayLine {
  * hundred times a night. So a climate that swung all night is a sentence and
  * not a column.
  */
-export const dayLines = (t: Translate, i18n: I18n, day: GrowDiaryDay, zone: string | null): DayLine[] => {
+export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entries' | 'events' | 'endsAt'>, zone: string | null): DayLine[] => {
   const alarms = alarmLines(i18n, day.entries);
-  const written: DayLine[] = foldRepeats(day.entries.filter(entry => !alarms.told.has(entry.id))).map(({ entry, count, since }) => ({
-    key: entry.id,
-    at: entry.occurredAt,
-    own: byAPerson(entry),
-    routine: false,
-    what: { kind: 'entry', entry, count, since },
-  }));
+  const written = foldRepeats(day.entries.filter(entry => !alarms.told.has(entry.id))).map(({ entry, count, since }) =>
+    writtenLine(entry, count, since),
+  );
   const said = (key: string, at: string, words: string, over: Partial<DayLine> = {}, metric: Metric | null = null): DayLine => ({
     key,
     at,
@@ -142,15 +138,22 @@ export const dayLines = (t: Translate, i18n: I18n, day: GrowDiaryDay, zone: stri
       : [],
   );
 
-  // The lamp's day as one line: the hours it burned, or that it is on where it has not gone off yet.
-  const on = day.events.find(event => event.kind === 'light' && event.on);
-  const off = [...day.events].reverse().find(event => event.kind === 'light' && !event.on);
-  const lamp =
+  // The lamp's day as one line that says only what happened: the stretch it burned, a switching without its other
+  // end as that switching, and a lamp that came on last as on since then - only where it is known to be lit still.
+  const lights = day.events.filter(event => event.kind === 'light');
+  const off = lights.find(event => !event.on);
+  const on = off ? lights.find(event => event.on && event.at < off.at) : undefined;
+  const open = lights[lights.length - 1]?.on ? lights[lights.length - 1] : undefined;
+  const closed =
     on && off
-      ? [said('light', on.at, t('grow.diary.light', { from: clock(on.at, zone), to: clock(off.at, zone) }), { routine: true })]
-      : on || off
-        ? [said('light', (on ?? off)!.at, t(on ? 'grow.diary.lightOn' : 'grow.diary.lightOff'), { routine: true })]
-        : [];
+      ? t('grow.diary.light', { from: clock(on.at, zone), to: clock(off.at, zone) })
+      : off
+        ? t('grow.diary.lightOffAt', { at: clock(off.at, zone) })
+        : null;
+  // After a stretch that ended the lamp is on "again", and the line does not name it twice.
+  const lit = open ? t(`grow.diary.light${closed ? 'Again' : 'On'}${open.still ? 'Since' : 'At'}`, { at: clock(open.at, zone) }) : null;
+  const first = on ?? off ?? open;
+  const lamp = first ? [said('light', (open ?? first).at, [closed, lit].filter(Boolean).join(' · '), { routine: true })] : [];
 
   const excursions = day.events.filter(event => event.kind === 'excursion');
   const outside = [...new Set(excursions.map(event => event.metric))].map(metric => {
@@ -169,6 +172,15 @@ export const dayLines = (t: Translate, i18n: I18n, day: GrowDiaryDay, zone: stri
   return [...written, ...alarms.lines, ...maintenance, ...lamp, ...outside].sort((one, other) => other.at.localeCompare(one.at));
 };
 
+/** An entry as a line of the diary, standing for `count` of its kind since `since` where a list folded them. */
+export const writtenLine = (entry: Entry, count = 1, since = entry.occurredAt): DayLine => ({
+  key: entry.id,
+  at: entry.occurredAt,
+  own: byAPerson(entry),
+  routine: false,
+  what: { kind: 'entry', entry, count, since },
+});
+
 /** How many lines of their own a card shows before it folds, and how many lines it shows at least. */
 const OWN_SHOWN = 6;
 export const LINES_SHOWN = 4;
@@ -184,7 +196,9 @@ export const shownLines = (lines: DayLine[]): DayLine[] => {
   const devices = lines.filter(line => !line.own);
   const filled = [...devices.filter(line => !line.routine), ...devices.filter(line => line.routine)].slice(0, Math.max(0, LINES_SHOWN - own.length));
 
-  return lines.filter(line => own.includes(line) || filled.includes(line));
+  const shown = lines.filter(line => own.includes(line) || filled.includes(line));
+  // One line more is shown rather than folded behind a button as tall as itself.
+  return lines.length - shown.length === 1 ? lines : shown;
 };
 
 /** Whether somebody did what a line says: a person wrote it, or confirmed the plan's step it records. */

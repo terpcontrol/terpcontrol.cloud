@@ -8,6 +8,12 @@
   margin-bottom: var(--space-3);
 }
 
+/* A finger high, as every choice in a sheet is: the plant, the measurement, and the way to a new one. */
+.chips > * {
+  height: auto;
+  min-height: var(--control-height);
+}
+
 /* A chosen chip is the app's own pressed chip, filled with the brand; the ink
    fill this sheet had was the old look's. */
 

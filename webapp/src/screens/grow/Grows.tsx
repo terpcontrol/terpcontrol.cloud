@@ -20,7 +20,7 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, useZone, zoned } from '@/ui/zone';
-import { NewGrowSheet } from './new/NewGrowSheet';
+import { StartGrowSheet } from './new/WhatGrows';
 import styles from './Grows.module.css';
 
 /**
@@ -123,7 +123,7 @@ export function Grows() {
       {/* The demo looks at somebody else's grow and has no shelf, links or follows of its own. */}
       {user && !user.isDemo ? <Beside /> : null}
 
-      {starting ? <NewGrowSheet onClose={() => setStarting(false)} /> : null}
+      {starting ? <StartGrowSheet onClose={() => setStarting(false)} /> : null}
     </section>
   );
 }

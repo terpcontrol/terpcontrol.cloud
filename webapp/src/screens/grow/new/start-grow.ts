@@ -1,68 +1,51 @@
 import { DateTime } from 'luxon';
 import { useState } from 'react';
-import type { GrowCreate, GrowthStage, PresetApplicationCreate } from '@fg2/shared-types/v1';
+import type { GrowCreate, GrowthStage } from '@fg2/shared-types/v1';
 import { useCreateGrow } from '@/api/grows';
 import { useChooseDiary, useDiaryDeclined } from '@/api/layers';
-import { useAddPhase, useApplyPreset } from '@/api/lifecycle';
+import { useAddPhase } from '@/api/lifecycle';
 import { instantOf } from '@/ui/age';
 
 /**
- * Starting a grow is two writes and sometimes a third: the grow exists from
- * the moment it is sown, its day counter runs from its first phase, and the
- * climate of the place it stands in is written where the form asks for that.
- * Each step is skipped once it has succeeded, so a refusal is retried rather
- * than repeated - a second tap after a refused phase does not make a second
- * grow. `made` says what already stands.
+ * Starting a grow is two writes: the grow exists from the moment it is sown,
+ * and its day counter runs from its first phase - which, where the form asks
+ * for that, puts the place on the stage's climate as it is written. Each step
+ * is skipped once it has succeeded, so a refusal is retried rather than
+ * repeated: a second tap after a refused phase does not make a second grow.
  */
-export const useStartGrow = (spaceId: string | null) => {
+export const useStartGrow = () => {
   const createGrow = useCreateGrow();
   const startingPhase = useAddPhase();
-  const applyPreset = useApplyPreset(spaceId ?? '');
   const declined = useDiaryDeclined();
   const chooseDiary = useChooseDiary();
-  const [made, setMade] = useState<{ growId: string | null; phaseDone: boolean; climateDone: boolean }>({
-    growId: null,
-    phaseDone: false,
-    climateDone: false,
-  });
+  const [made, setMade] = useState<string | null>(null);
 
   const start = async ({
     body,
     stage,
-    preset = null,
     startedAt,
-    climate = null,
+    climate,
   }: {
     body: GrowCreate;
     stage: GrowthStage;
-    preset?: string | null;
     startedAt: Date;
-    /** The preset application that puts the place on the stage's climate; null where the grow is only recorded. */
-    climate?: PresetApplicationCreate | null;
+    /** Whether the controllers of the place are put on the stage's climate; a stage that is only recorded moves nothing. */
+    climate: boolean;
   }): Promise<string> => {
-    let growId = made.growId;
+    let growId = made;
     if (growId === null) {
       growId = (await createGrow.mutateAsync(body)).id;
-      setMade(state => ({ ...state, growId }));
+      setMade(growId);
       // A grow lives in the diary: starting one switches it back on for an account that had switched it off. Where
       // that is refused the grow stands all the same, and Ich › Darstellung switches the diary.
       if (declined) await chooseDiary.mutateAsync('on').catch(() => undefined);
     }
-    if (!made.phaseDone) {
-      await startingPhase.mutateAsync({ growId, body: { stage, preset, startedAt: instantOf(DateTime.fromJSDate(startedAt)) } });
-      setMade(state => ({ ...state, phaseDone: true }));
-    }
-    if (climate && !made.climateDone) {
-      await applyPreset.mutateAsync(climate);
-      setMade(state => ({ ...state, climateDone: true }));
-    }
+    await startingPhase.mutateAsync({
+      growId,
+      body: { stage, preset: null, ...(climate ? { climate: true } : {}), startedAt: instantOf(DateTime.fromJSDate(startedAt)) },
+    });
     return growId;
   };
 
-  return {
-    start,
-    made,
-    busy: createGrow.isPending || startingPhase.isPending || applyPreset.isPending,
-    refused: createGrow.error ?? startingPhase.error ?? applyPreset.error,
-  };
+  return { start, busy: createGrow.isPending || startingPhase.isPending, refused: createGrow.error ?? startingPhase.error };
 };

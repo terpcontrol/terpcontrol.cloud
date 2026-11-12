@@ -8,17 +8,22 @@ import { exportFilename, useAskExport, useDownloadExport } from '@/api/exports';
 import { useGrowReport } from '@/api/grows';
 import { isBuilding, useMedia } from '@/api/media';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
-import { EntryRow } from '@/ui/EntryRow';
 import { useCorrecting } from '@/log/corrections';
 import { durationFigure } from '@/ui/age';
 import { dayNightFigure, decimalFigure, fileSize } from '@/ui/figures';
 import { growDayOf } from '@/ui/entries';
+import { Facts } from '@/ui/Facts';
 import { Term } from '@/ui/Help';
+import { Lines } from '@/ui/Lines';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { useShape } from '@/app/shell/shape';
 import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { stageLabel } from '@/ui/presets';
+import { useNow } from '@/ui/useNow';
+import { DAY_IN_YEAR, useZone, zoned } from '@/ui/zone';
+import { writtenLine } from './diary/days';
+import { DiaryLine } from './diary/DiaryLine';
 import { placeName } from './placement';
 import styles from './Report.module.css';
 
@@ -199,6 +204,8 @@ function Chapter({
   explainBand: boolean;
 }) {
   const { t } = useTranslation();
+  const zone = useZone();
+  const now = useNow();
   const correcting = useCorrecting();
   const cover = chapter.coverMediaId ? mediaUrl(chapter.coverMediaId, THUMBNAIL_WIDTH.cover * 2) : null;
   const temperature = chapter.climate.find(row => row.metric === 'temperature');
@@ -210,54 +217,66 @@ function Chapter({
       <span className={styles.cover}>{cover ? <img src={cover} alt="" loading="lazy" /> : <Leaf size={22} strokeWidth={1.5} aria-hidden />}</span>
       <div className={styles.chapterText}>
         <h2 className={styles.chapterTitle}>{stageLabel(t, chapter.stage, chapter.preset)}</h2>
-        <p className={`mono ${styles.chapterMeta}`}>
-          {chapter.dayTo === null
-            ? t('grow.report.dayFromToToday', { from: chapter.dayFrom })
-            : t('grow.dayRange', { from: chapter.dayFrom, to: chapter.dayTo })}
-          {` · ${t('grow.days', { count: chapter.dayCount })}`}
-          {where ? ` · ${where}` : ''}
-        </p>
+        <Facts
+          className={`mono ${styles.chapterMeta}`}
+          facts={[
+            chapter.dayTo === null
+              ? t('grow.report.dayFromToToday', { from: chapter.dayFrom })
+              : t('grow.dayRange', { from: chapter.dayFrom, to: chapter.dayTo }),
+            t('grow.days', { count: chapter.dayCount }),
+            where,
+          ]}
+        />
         {/* The same three figures a week card of this grow carries, in the same
             order - the temperatures, the humidity and the hours of light - and
             then how much of the chapter sat inside its own band. The light was
             the one the report left out, though the server had measured it for
             the day and night split this line is already drawn from. */}
         {temperature ? (
-          <p className={`mono ${styles.chapterMeta}`}>
-            {`${dayNightFigure(temperature, 1)} °C`}
-            {humidity?.averageValue !== null && humidity !== undefined ? ` · ${decimalFigure(humidity.averageValue, 0)} %` : ''}
-            {chapter.lightHours !== null ? ` · ${durationFigure(decimalFigure(chapter.lightHours, 0), 'h')}` : ''}
-            {chapter.inBandPercent !== null ? (
-              <>
-                {' · '}
-                {explainBand ? (
-                  <Term topic="band">{t('space.inBand', { percent: Math.round(chapter.inBandPercent) })}</Term>
-                ) : (
-                  t('space.inBand', { percent: Math.round(chapter.inBandPercent) })
-                )}
-              </>
-            ) : null}
-          </p>
+          <Facts
+            className={`mono ${styles.chapterMeta}`}
+            facts={[
+              `${dayNightFigure(temperature, 1)} °C`,
+              humidity?.averageValue !== null && humidity !== undefined ? `${decimalFigure(humidity.averageValue, 0)} %` : null,
+              chapter.lightHours !== null ? durationFigure(decimalFigure(chapter.lightHours, 0), 'h') : null,
+              chapter.inBandPercent === null ? null : explainBand ? (
+                <Term topic="band">{t('space.inBand', { percent: Math.round(chapter.inBandPercent) })}</Term>
+              ) : (
+                t('space.inBand', { percent: Math.round(chapter.inBandPercent) })
+              ),
+            ]}
+          />
         ) : null}
-        <p className={`mono ${styles.chapterMeta}`}>
-          {t('grow.report.waterCount', { count: chapter.waterCount })} · {t('grow.report.feedCount', { count: chapter.feedCount })}
-        </p>
-        {chapter.training.length > 0 ? (
-          <ul className={styles.training}>
-            {chapter.training.map(entry => (
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                people={people}
-                picture={mediaUrl}
-                measurements={grow.measurements}
-                day={growDayOf(grow, entry.occurredAt)}
-                onOpen={correcting(entry, { label: grow.name, dayNumber: growDayOf(grow, entry.occurredAt), ...growStanding(grow) })}
-              />
-            ))}
-          </ul>
-        ) : null}
+        <Facts
+          className={`mono ${styles.chapterMeta}`}
+          facts={[t('grow.report.waterCount', { count: chapter.waterCount }), t('grow.report.feedCount', { count: chapter.feedCount })]}
+        />
       </div>
+      {/* Under the cover and the story, across the card: a line of training has the card's width to be read in. */}
+      {chapter.training.length > 0 ? (
+        <div className={styles.training}>
+          <Lines>
+            {chapter.training.map(entry => {
+              const day = growDayOf(grow, entry.occurredAt);
+              return (
+                <DiaryLine
+                  key={entry.id}
+                  line={writtenLine(entry)}
+                  stamp={[day === null ? null : t('home.card.dayN', { day }), zoned(entry.occurredAt, zone).toFormat(DAY_IN_YEAR)]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  zone={zone}
+                  now={now}
+                  people={people}
+                  measurements={grow.measurements}
+                  byline
+                  onOpen={correcting(entry, { label: grow.name, dayNumber: day, ...growStanding(grow) })}
+                />
+              );
+            })}
+          </Lines>
+        </div>
+      ) : null}
     </article>
   );
 }

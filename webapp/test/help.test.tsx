@@ -1,8 +1,10 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { useState } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { useFocusRescue } from '@/ui/focus-rescue';
 import { Sheet } from '@/ui/Sheet';
 import { Help, Term } from '@/ui/Help';
 import { anchorOf, HELP_TOPICS, placeBubble } from '@/ui/explain';
@@ -80,6 +82,33 @@ describe('the (i) beside a control', () => {
     expect(screen.getByRole('tooltip')).toBeInTheDocument();
 
     act(() => screen.getByRole('button', { name: 'next' }).focus());
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  /** The control that had the focus went, and the page put the focus on the nearest one left: nobody went there. */
+  it('stays shut when the focus was placed on it by the page rather than brought by somebody', async () => {
+    function Declining() {
+      useFocusRescue();
+      const [offered, setOffered] = useState(true);
+      return (
+        <section>
+          {offered ? (
+            <div>
+              <button type="button" onClick={() => setOffered(false)}>
+                No thanks
+              </button>
+            </div>
+          ) : null}
+          <Help topic="vpd" />
+        </section>
+      );
+    }
+    render(<Declining />);
+    const no = screen.getByRole('button', { name: 'No thanks' });
+    no.focus();
+    fireEvent.click(no);
+
+    await waitFor(() => expect(info()).toHaveFocus());
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 

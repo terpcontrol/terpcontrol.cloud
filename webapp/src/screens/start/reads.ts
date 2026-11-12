@@ -1,4 +1,5 @@
 import type { Device, SpaceOverview } from '@fg2/shared-types/v1';
+import { failingSince } from '@/api/read';
 import { useSpaceLive, useSpaceOverview } from '@/api/spaces';
 import { useHumidifier } from '@/screens/control/germination/germination-choices';
 import { humidifierHoldOf, type HumidifierHold } from '@/screens/start/place';
@@ -34,7 +35,7 @@ export const usePlace = (spaceId: string) => {
           }),
         }
       : overview.data;
-  const staleAt = Math.min(overview.isError ? overview.dataUpdatedAt : Infinity, live.isError ? live.dataUpdatedAt : Infinity);
+  const staleAt = Math.min(failingSince(overview) ?? Infinity, failingSince(live) ?? Infinity);
 
   return { read: overview, current, failedAt: Number.isFinite(staleAt) ? staleAt : null };
 };

@@ -244,13 +244,13 @@ describe('Start of one place with a camera and a grow', () => {
     expect(await screen.findByRole('button', { name: 'Confirm: Late flower' })).toBeInTheDocument();
   });
 
-  it('names the last three things that happened in a line each, a run of the same machine line once, and leads to the diary', async () => {
+  it('names the last three things that happened as the diary says them - maintenance as one line - and leads to the diary', async () => {
     onePlace(
       overviewOf({
         grows: [growOf()],
+        // The tail of the diary as the server answers it: its lines, and when maintenance was on.
+        events: [{ kind: 'maintenance', at: ago(22), endedAt: ago(20) }],
         entries: [
-          reboot('entry-1', 20),
-          reboot('entry-2', 25),
           entry('entry-3', { kind: 'water', text: null, growId: 'grow-1', values: { kind: 'water' } as never, occurredAt: ago(120) }),
           entry('entry-4', { text: 'Looks good', occurredAt: ago(26 * 60), mediaIds: ['photo-1', 'photo-2'] }),
           entry('entry-5', { text: 'Older still', occurredAt: ago(50 * 60) }),
@@ -263,8 +263,9 @@ describe('Start of one place with a camera and a grow', () => {
     const latest = (await screen.findByRole('heading', { name: 'Latest' })).closest('section')!;
     const lines = within(latest).getAllByRole('listitem');
     expect(lines).toHaveLength(3);
-    await waitFor(() => expect(lines[0]).toHaveTextContent(`${hhmm(ago(20))}System: Device rebooted · 2× since ${hhmm(ago(25))}`));
-    expect(lines[1]).toHaveTextContent(`${hhmm(ago(120))}Watered: You watered`);
+    // On and off are one line, and a person's: it carries no mark of a device.
+    expect(lines[0].textContent?.replace(/\u00a0/g, ' ')).toBe(`${hhmm(ago(22))}Maintenance · 2 min`);
+    await waitFor(() => expect(lines[1]).toHaveTextContent(`${hhmm(ago(120))}Watered: You watered`));
     expect(lines[2]).toHaveTextContent('yesterdayNote: Looks good · 2 pictures');
     expect(within(latest).getByRole('link', { name: 'Whole diary ›' })).toHaveAttribute('href', '/grow');
   });

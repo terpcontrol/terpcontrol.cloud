@@ -150,14 +150,13 @@ describe('the feeding tab', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
-  it('says of a grow that is over what it was fed, and still offers the grid, which is its record', () => {
+  it('still offers a grow that is over the grid, which is its record, and explains nothing above the button', () => {
     // The grid a finished grow carries is what it really got: its report and
     // its export read it, so filling one in afterwards is a repair rather than
     // advice about a grow that is still going.
     draw({ ...growOn(null), endedAt: '2026-08-24T15:31:56.000Z' });
 
-    expect(screen.getByText(/This grow was fed no scheme/)).toBeInTheDocument();
-    expect(screen.queryByText(/This grow is fed no scheme/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/fed no scheme|follows no scheme/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Choose a scheme' })).toBeInTheDocument();
   });
 
@@ -183,8 +182,9 @@ describe('the feeding tab', () => {
     // A week the row is not dosed in is "not this week" rather than nothing at all.
     expect(screen.getByRole('button', { name: 'Bio·Grow, week 5' })).toHaveTextContent('–');
 
-    expect(screen.getByText(/Week 5 is this week/)).toHaveTextContent('The flip to flower is week 4');
-    expect(screen.getByText(/A scheme kept on your own shelf is a copy/)).toBeInTheDocument();
+    // Which week it is, and behind it how the grid is read: nothing is explained above the buttons.
+    expect(screen.getByRole('button', { name: 'Week 5 is this week.' })).toHaveAccessibleDescription(/A scheme on your own shelf is a copy/);
+    expect(screen.queryByText(/The flip to flower is week 4/)).not.toBeInTheDocument();
   });
 
   it('marks no week as this week on a grow that has ended, because its last week is not this one', async () => {
@@ -195,8 +195,8 @@ describe('the feeding tab', () => {
 
     expect(screen.queryByText(/is this week/)).not.toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'w5' })).not.toHaveAttribute('data-current', 'true');
-    // What the grid is for is still said: the flip and how to fill it in.
-    expect(screen.getByText(/The flip to flower is week 4/)).toBeInTheDocument();
+    // How the grid is read and filled in is still a tap away.
+    expect(screen.getByRole('button', { name: /The grid/ })).toBeInTheDocument();
   });
 
   it('sends the whole grid with the one figure changed, and nothing else moved', async () => {
@@ -287,18 +287,16 @@ describe('the feeding tab', () => {
         .map(cell => cell.textContent),
     ).toEqual(['0.8', '1.2', '1.2', '1.6', '1.8', '\u2013']);
     expect(within(row).queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.getByText(/EC values are what your meter should read/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Water EC' }), { target: { value: '0.9' } });
     expect(within(screen.getByRole('row', { name: /EC target/ })).getAllByRole('cell')[0]).toHaveTextContent('1.3');
   });
 
-  it('leaves the EC row and its caption out where the chart publishes none', async () => {
+  it('leaves the EC row out where the chart publishes none', async () => {
     const plain = GRID.map(week => ({ ...week, ecTarget: null }));
     await drawn(growOn({ ...SCHEME, grid: plain }));
 
     expect(screen.queryByRole('row', { name: /EC target/ })).not.toBeInTheDocument();
-    expect(screen.queryByText(/EC values are what your meter should read/)).not.toBeInTheDocument();
   });
 
   /**

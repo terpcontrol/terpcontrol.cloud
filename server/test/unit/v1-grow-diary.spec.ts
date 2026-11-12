@@ -54,6 +54,9 @@ let readWindows: { deviceId: string; startsAt: Date; endsAt: Date }[];
 /** The hours of the Berlin clock the lamp is lit between: six in the morning to six in the evening unless a test says otherwise. */
 let lamp: { from: number; until: number };
 
+/** From when on the device wrote nothing; null is a device that reports to the end of every read. */
+let silentFrom: Date | null;
+
 const lit = (at: number): boolean => {
   const hour = new Date(at + HOUR_MS).getUTCHours();
   return hour >= lamp.from && hour < lamp.until;
@@ -102,7 +105,7 @@ const fakeData = {
           index === 0 || lit(startsAt) !== lit(windows[index - 1]) ? [{ at: new Date(startsAt).toISOString(), on: lit(startsAt) }] : [],
         ),
       })),
-      lastSampleAt: request.endsAt.toISOString(),
+      lastSampleAt: (silentFrom && silentFrom < request.endsAt ? silentFrom : request.endsAt).toISOString(),
     };
   },
 } as unknown as DataService;
@@ -292,6 +295,7 @@ beforeEach(async () => {
   await db.reset();
   readWindows = [];
   lamp = { from: 6, until: 18 };
+  silentFrom = null;
   measured = at => ({ temperature: lit(at.getTime()) ? 25 : 20, humidity: 55 });
   access = accessOn(db);
   diary = new GrowDiaryService(
@@ -474,11 +478,29 @@ describe('what the devices did', () => {
     const page = await read();
 
     expect(dayOf(page, 10).events.filter(event => event.kind === 'light')).toEqual([
-      { kind: 'light', at: berlin(11, '06:00').toISOString(), on: true },
-      { kind: 'light', at: berlin(11, '18:00').toISOString(), on: false },
+      { kind: 'light', at: berlin(11, '06:00').toISOString(), on: true, still: false },
+      { kind: 'light', at: berlin(11, '18:00').toISOString(), on: false, still: false },
     ]);
-    // Today the lamp has come on and not gone off yet.
-    expect(dayOf(page, 11).events).toEqual([{ kind: 'light', at: berlin(12, '06:00').toISOString(), on: true }]);
+    // Today the lamp has come on and not gone off yet: it is still lit.
+    expect(dayOf(page, 11).events).toEqual([{ kind: 'light', at: berlin(12, '06:00').toISOString(), on: true, still: true }]);
+  });
+
+  it('gives a lit stretch that has not ended no end', async () => {
+    // Lit from six in the evening to midnight: a date opens with the lamp going off and closes with it on.
+    lamp = { from: 18, until: 24 };
+
+    // The off of the morning is no end of the evening's stretch, and a day that is over says nothing of now.
+    expect(dayOf(await read(), 10).events.filter(event => event.kind === 'light')).toEqual([
+      { kind: 'light', at: berlin(11, '00:00').toISOString(), on: false, still: false },
+      { kind: 'light', at: berlin(11, '18:00').toISOString(), on: true, still: false },
+    ]);
+  });
+
+  it('says nothing of the lamp for the time after its device fell silent', async () => {
+    silentFrom = berlin(12, '07:00');
+
+    // It came on at six. Whether it is lit three hours after the last word of the device, nobody knows.
+    expect(dayOf(await read(), 11).events).toEqual([{ kind: 'light', at: berlin(12, '06:00').toISOString(), on: true, still: false }]);
   });
 
   it('is a lamp coming on at midnight too, on the day a week of the diary begins', async () => {
@@ -486,8 +508,8 @@ describe('what the devices did', () => {
 
     // The eighth date opens the second week, and with it a read of the store of its own.
     expect(dayOf(await read(), 8).events).toEqual([
-      { kind: 'light', at: berlin(9, '00:00').toISOString(), on: true },
-      { kind: 'light', at: berlin(9, '12:00').toISOString(), on: false },
+      { kind: 'light', at: berlin(9, '00:00').toISOString(), on: true, still: false },
+      { kind: 'light', at: berlin(9, '12:00').toISOString(), on: false, still: false },
     ]);
   });
 

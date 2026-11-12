@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { LogProvider } from '@/log/LogProvider';
@@ -15,7 +15,7 @@ import { growStanding } from '@/ui/session-access';
 import { GrowHead } from '@/screens/grow/GrowPage';
 import { Pictures } from '@/screens/grow/pictures/Pictures';
 import { Report } from '@/screens/grow/Report';
-import { drawAt, json } from './harness';
+import { drawAt, json, reading } from './harness';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
 import { catalogue, translate } from './translations';
 
@@ -273,16 +273,27 @@ describe('the report tab', () => {
           inBandPercent: 91,
           waterCount: 1,
           feedCount: 2,
-          training: [],
+          training: [
+            entry({
+              id: 'trained',
+              kind: 'training',
+              text: 'Lower shoots defoliated',
+              authorId: 'user-1',
+              occurredAt: at(2, 9),
+              values: { kind: 'training' },
+            }),
+          ],
         },
       ],
     };
     drawReport();
 
-    // Read as the line reads: "in band" is a term of its own, so the figures span more than one element.
-    const line = (_: string, element: Element | null) =>
-      element?.tagName === 'P' && /26.4 \/ 20.8 °C · 60 % · 12 h · 91 % in band/.test(element.textContent ?? '');
-    expect(await screen.findByText(line)).toBeInTheDocument();
+    // Read as the line reads: the figures are facts side by side, each whole, and "in band" is a term of its own.
+    expect(await screen.findByText(reading('26.4 / 20.8 °C · 60 % · 12 h · 91 % in band'))).toBeInTheDocument();
+    // What was trained is a line of the diary, as a day's card draws it: the day in words, its date, and what was done.
+    const trained = screen.getByRole('listitem');
+    expect(trained.textContent?.replace(/\u00a0/g, ' ')).toMatch(/^Day \d+ · \d+ \w+Training: Lower shoots defoliated/);
+    expect(within(trained).getByRole('button', { name: /Lower shoots defoliated/ })).toBeInTheDocument();
   });
 
   it('asks for the zip and says where the job has got to, with nothing to download until there is', async () => {
@@ -494,9 +505,9 @@ describe('a day of the diary', () => {
     drawDay(
       day(1, {
         events: [
-          { kind: 'light', at: at(1, 6), on: true },
+          { kind: 'light', at: at(1, 6), on: true, still: false },
           { kind: 'maintenance', at: at(1, 7), endedAt: DateTime.fromISO(at(1, 7)).plus({ minutes: 2 }).toISO()! },
-          { kind: 'light', at: at(1, 18), on: false },
+          { kind: 'light', at: at(1, 18), on: false, still: false },
         ],
         entries: [entry({ id: 'own', authorId: 'user-1', occurredAt: at(1, 8) })],
       }),
@@ -512,10 +523,27 @@ describe('a day of the diary', () => {
     expect(lines).toHaveLength(3);
   });
 
-  it('says the lamp is on while it has not gone off yet', () => {
-    drawDay(day(0, { events: [{ kind: 'light', at: at(0, 6), on: true }] }), true);
+  it('gives a lamp that has not gone off no end: on since then while it is known to burn, and only that it came on otherwise', () => {
+    drawDay(day(0, { events: [{ kind: 'light', at: at(0, 6), on: true, still: true }] }), true);
+    expect(linesOf()).toEqual(['06:00Light on since 06:00by itself']);
+    cleanup();
 
-    expect(linesOf()).toEqual(['06:00Light onby itself']);
+    // A day that is over, or a device that fell silent: nobody says what the lamp did after it came on.
+    drawDay(day(1, { events: [{ kind: 'light', at: at(1, 18), on: true, still: false }] }));
+    expect(linesOf()).toEqual(['18:00Light on at 18:00by itself']);
+  });
+
+  it('does not take a lamp going off in the morning for the end of the evening it came on in', () => {
+    drawDay(
+      day(1, {
+        events: [
+          { kind: 'light', at: at(1, 0), on: false, still: false },
+          { kind: 'light', at: at(1, 18), on: true, still: false },
+        ],
+      }),
+    );
+
+    expect(linesOf()).toEqual(['18:00Light off at 00:00 · on again at 18:00by itself']);
   });
 
   it('says a reading that left its targets as one line however often and on whichever side, and leads to the curve of that moment', () => {
@@ -591,7 +619,7 @@ describe('a day of the diary', () => {
 
   it('never folds the grower´s own lines behind a device´s: six of their own, then the fold', () => {
     const own = [1, 2, 3, 4, 5, 6, 7, 8].map(n => note(`n${n}`, 6 + n));
-    drawDay(day(1, { entries: own.reverse(), events: [{ kind: 'light', at: at(1, 6), on: true }, out(20, 22)] }));
+    drawDay(day(1, { entries: own.reverse(), events: [{ kind: 'light', at: at(1, 6), on: true, still: false }, out(20, 22)] }));
 
     expect(linesOf().every(line => /Note n/.test(line))).toBe(true);
     expect(screen.getAllByRole('listitem')).toHaveLength(6);
@@ -607,8 +635,8 @@ describe('a day of the diary', () => {
       day(1, {
         entries: [note('a', 9), note('b', 8)],
         events: [
-          { kind: 'light', at: at(1, 6), on: true },
-          { kind: 'light', at: at(1, 18), on: false },
+          { kind: 'light', at: at(1, 6), on: true, still: false },
+          { kind: 'light', at: at(1, 18), on: false, still: false },
           out(20, 22),
           { ...out(21, 5), metric: 'temperature' as const },
         ],
@@ -617,8 +645,12 @@ describe('a day of the diary', () => {
     );
 
     expect(lines).toHaveLength(5);
-    // Two of their own, and two of the three device lines: the readings outside their targets, not the lamp.
-    expect(shownLines(lines).map(line => line.key)).toEqual(['outside-temperature', 'outside-humidity', 'a', 'b']);
+    // One line more than fits is shown rather than folded behind a button as tall as itself.
+    expect(shownLines(lines)).toHaveLength(5);
+    // With more behind the fold: two of their own, and two of the device lines - the readings outside their
+    // targets before the lamp.
+    const more = [...lines, { ...lines[0], key: 'outside-co2' }];
+    expect(shownLines(more).map(line => line.key)).toEqual(['outside-temperature', 'outside-humidity', 'a', 'b']);
   });
 
   it('leads from today´s picture to the camera, and opens the picture of a day that is over', () => {

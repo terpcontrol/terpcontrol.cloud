@@ -24,9 +24,11 @@
   color: var(--muted);
 }
 
-/* A chapter: its cover at the left, its story beside it. */
+/* A chapter: its cover at the left, its story beside it, and what was trained across the card under both. */
 .chapter {
-  display: flex;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-content: start;
   gap: var(--space-3);
   padding: var(--space-4);
   background: var(--card);
@@ -37,8 +39,6 @@
 .cover {
   display: grid;
   place-items: center;
-  flex-shrink: 0;
-  width: 72px;
   height: 72px;
   overflow: hidden;
   border-radius: var(--radius);
@@ -54,7 +54,6 @@
 
 .chapterText {
   display: flex;
-  flex: 1;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
@@ -71,9 +70,7 @@
 }
 
 .training {
-  margin: var(--space-2) 0 0;
-  padding: 0;
-  list-style: none;
+  grid-column: 1 / -1;
   border-top: var(--rule-solid);
 }
 

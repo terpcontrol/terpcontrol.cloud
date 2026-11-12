@@ -26,6 +26,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
+import { CLOCK_SKEW_MS, heldToNow } from '@common/v1/client-clock';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { badRequest, conflict, notFound, unprocessable } from '@common/v1/problem';
@@ -271,17 +272,41 @@ export class GrowsService {
 
   public async update(id: string, body: GrowUpdate, hide: Redaction): Promise<GrowListItem> {
     if (body.measurements !== undefined) await this.checkMeasurements(id, body.measurements);
-    if (body.startedAt !== undefined || body.endedAt !== undefined) requireSpan(await this.require(id), body);
+    const span = body.startedAt !== undefined || body.endedAt !== undefined ? requireSpan(await this.require(id), body) : null;
 
     const changes: Record<string, unknown> = {};
     for (const [field, value] of Object.entries(body)) {
-      if (value !== undefined) changes[field] = field === 'startedAt' || field === 'endedAt' ? instantOrNull(value) : value;
+      if (value !== undefined && field !== 'startedAt' && field !== 'endedAt') changes[field] = value;
     }
+    if (span && body.startedAt !== undefined) Object.assign(changes, await this.moveStart(span.grow, span.startedAt));
+    if (span && body.endedAt !== undefined) changes.endedAt = span.endedAt;
 
     const changed = await this.grows.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<GrowDocument>();
     if (!changed) throw notFound('grow_not_found', 'There is no grow with that id.');
 
     return serialiseGrow(changed, await this.plantsOf(id), hide, await this.zoneOf(changed));
+  }
+
+  /**
+   * A grow's start moved, and what stood on it moved with it: the first phase
+   * and the placement a grow is made with begin at the instant the grow does,
+   * and a start put a week earlier would otherwise leave a week with no stage
+   * and no place - a diary whose days count from the new start under a report
+   * whose first chapter begins at the old one. The phase goes through its own
+   * correction, which takes its diary line along. A phase or a placement that
+   * began later than the grow is a fact of its own and stays.
+   */
+  private async moveStart(grow: GrowDocument, startedAt: Date): Promise<{ startedAt: Date; placements?: PlacementDocument[] }> {
+    const stood = (at: Date): boolean => at.getTime() === grow.startedAt.getTime();
+    if (stood(startedAt)) return { startedAt };
+
+    for (const phase of grow.phases.filter(one => stood(one.startedAt))) await this.phases.correctPhase(grow.id, phase.id, { startedAt });
+
+    const fits = (placement: PlacementDocument): boolean =>
+      stood(placement.startedAt) && (placement.endedAt === null || placement.endedAt > startedAt);
+    return grow.placements.some(fits)
+      ? { startedAt, placements: grow.placements.map(placement => (fits(placement) ? { ...placement, startedAt } : placement)) }
+      : { startedAt };
   }
 
   /**
@@ -454,7 +479,14 @@ export class GrowsService {
    */
   public async addPhase(growId: string, body: PhaseCreate, setBy: string | null, hide: Redaction): Promise<Phase> {
     const grow = await this.require(growId);
-    requireStillRunning(grow, body.startedAt ? new Date(body.startedAt) : new Date(), 'startedAt');
+    const asked = body.startedAt ? heldToNow(new Date(body.startedAt)) : new Date();
+    // The form that starts a grow writes the grow and then its first phase, both as "now", and each is held to this
+    // clock's now as it arrives: a moment apart. They are one instant - the start and the first phase move with each
+    // other by standing on it (`moveStart`, `startCarriedBy`) - so a first phase that follows its grow by no more
+    // than a clock may differ begins with the grow.
+    const startedAt =
+      grow.phases.length === 0 && asked >= grow.startedAt && asked.getTime() - grow.startedAt.getTime() <= CLOCK_SKEW_MS ? grow.startedAt : asked;
+    requireStillRunning(grow, startedAt, 'startedAt');
     const plantIds = await this.scopeOf(grow, body.plantIds ?? null);
 
     const phase = await this.enterPhase(
@@ -464,7 +496,7 @@ export class GrowsService {
         preset: body.preset ?? null,
         climate: body.climate === true,
         plantIds: body.plantIds ?? null,
-        startedAt: body.startedAt ? new Date(body.startedAt) : undefined,
+        startedAt,
         germinationChoices: body.germinationChoices,
       },
       spaceOf(grow, plantIds),
@@ -555,7 +587,7 @@ export class GrowsService {
    */
   public async addPlacement(ctx: AccessContext, growId: string, body: PlacementCreate, authorId: string | null, hide: Redaction): Promise<Placement> {
     const grow = await this.require(growId);
-    const startedAt = body.startedAt ? new Date(body.startedAt) : new Date();
+    const startedAt = body.startedAt ? heldToNow(new Date(body.startedAt)) : new Date();
     requireStillRunning(grow, startedAt, 'startedAt');
     await this.scopeOf(grow, body.plantIds ?? null);
     await this.requireSpaceFor(ctx, body.spaceId);
@@ -722,7 +754,7 @@ export class GrowsService {
     }
     if (cut.length === 0) throw conflict('nothing_to_harvest', 'Every plant of this grow has already come down.');
 
-    const harvestedAt = body.harvestedAt ? new Date(body.harvestedAt) : new Date();
+    const harvestedAt = body.harvestedAt ? heldToNow(new Date(body.harvestedAt)) : new Date();
     requireStillRunning(grow, harvestedAt, 'harvestedAt');
     const wet = shareOut(body.wetWeightG ?? null, cut.length);
     const dry = shareOut(body.dryWeightG ?? null, cut.length);
@@ -777,7 +809,7 @@ export class GrowsService {
       ]);
     }
 
-    const startedAt = body.startedAt ? new Date(body.startedAt) : new Date();
+    const startedAt = body.startedAt ? heldToNow(new Date(body.startedAt)) : new Date();
     requireStillRunning(grow, startedAt, 'startedAt');
     await this.requireSpaceFor(ctx, body.spaceId);
 
@@ -839,11 +871,6 @@ const slugify = (name: string): string =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 60);
 
-const instantOrNull = (value: unknown): Date | null => (typeof value === 'string' ? new Date(value) : null);
-
-/** How far a client's clock may run ahead of this one before "now" from it is "later". */
-const CLOCK_SKEW_MS = 60_000;
-
 /**
  * Nothing can happen to a grow after it ended. A phase, a move, a split or a
  * harvest dated later than its end would be a story that goes on past its own
@@ -867,7 +894,7 @@ const requireStillRunning = (grow: GrowDocument, at: Date, field: string): void 
 };
 
 const notInTheFuture = (at: Date, field: 'startedAt' | 'endedAt'): Date => {
-  if (at.getTime() <= Date.now() + CLOCK_SKEW_MS) return at;
+  if (at.getTime() <= Date.now() + CLOCK_SKEW_MS) return heldToNow(at);
 
   throw badRequest(
     field === 'startedAt' ? 'started_in_the_future' : 'ended_in_the_future',
@@ -882,7 +909,7 @@ const notInTheFuture = (at: Date, field: 'startedAt' | 'endedAt'): Date => {
  * start is a grow of minus ten days - the placements and the share links
  * already refuse a span that runs backwards, and so does the grow they belong to.
  */
-const requireSpan = (grow: GrowDocument, body: GrowUpdate): void => {
+const requireSpan = (grow: GrowDocument, body: GrowUpdate): { grow: GrowDocument; startedAt: Date; endedAt: Date | null } => {
   const startedAt = body.startedAt ? notInTheFuture(new Date(body.startedAt), 'startedAt') : grow.startedAt;
   const endedAt = body.endedAt === undefined ? grow.endedAt : body.endedAt === null ? null : notInTheFuture(new Date(body.endedAt), 'endedAt');
 
@@ -891,6 +918,8 @@ const requireSpan = (grow: GrowDocument, body: GrowUpdate): void => {
       { field: body.endedAt === undefined ? 'startedAt' : 'endedAt', code: 'before_start', detail: endedAt.toISOString() },
     ]);
   }
+
+  return { grow, startedAt, endedAt };
 };
 
 /**

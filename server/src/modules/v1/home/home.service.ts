@@ -4,6 +4,7 @@ import { FilterQuery, Model } from 'mongoose';
 import type { AccountLayers, CardTrend, DueTask, FollowedGrowCard, HomeAnswer, HomeSpaceCard, LatestStill, SeriesPoint } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
 import { serialiseEntry } from '@common/v1/entries';
+import { clampRange } from '@common/v1/range';
 import { zonesOfOwners } from '@common/v1/owner-zone';
 import { peopleNamed } from '@common/v1/people';
 import { MODEL_V1 } from '@database/models';
@@ -22,7 +23,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { demoEntry } from '@utils/demo';
 import { layersOf } from '../account/diary-layer';
-import { diaryMovedAt } from '../diary/diary-entries';
+import { diaryMovedAt, diaryTail } from '../diary/diary-entries';
 import { completionsOf, dueTasksOf, remindersAbout } from '../diary/due-tasks';
 import { spacesNow } from '../grow/grow-places';
 import { growCardOf, redactionOf, serialisePublicCard } from '../grow/grow-serialiser';
@@ -53,6 +54,9 @@ import { alertsRaisedIn, openAlertReader } from './open-alerts';
 
 /** How many lines of the diary a card shows: the newest, and enough to see who has been in. */
 const ENTRIES_PER_CARD = 3;
+
+/** A card is only ever read by the people who keep the place, or by the demo tour in their stead: nothing of the diary is held back. */
+const KEEPER = { grantee: 'owner' } as const;
 
 /** The sparkline: a day of temperature in half-hour windows, which is coarse enough for a stamp and fine enough to see the night. */
 const TREND_METRIC = 'temperature';
@@ -175,7 +179,11 @@ export class HomeService {
       cards.map(async ({ space, grow }): Promise<HomeSpaceCard> => {
         const here = space ? devices.filter(device => device.spaceId === space.id).map(device => device.id) : [];
         const eyes = space ? cameras.filter(camera => camera.spaceId === space.id).map(camera => camera.id) : [];
-        const [entries, still] = await Promise.all([this.newestEntries(space?.id ?? null, grow?.id ?? null), this.latestStill(eyes)]);
+        const [tail, still] = await Promise.all([
+          // The grow's diary where there is a grow; the place's own lines - an alarm's, the plan's - where there is none.
+          diaryTail(this.entries, grow ? { growId: grow.id } : { spaceId: space!.id }, KEEPER, clampRange(undefined), ENTRIES_PER_CARD, now),
+          this.latestStill(eyes),
+        ]);
         const inSpace = readings.filter(reading => here.includes(reading.deviceId));
         const climates = space
           ? climateDevicesOf(
@@ -204,7 +212,8 @@ export class HomeService {
               )
             : null,
           // The tour reads a stranger's tent, whose device lines quote URLs.
-          entries: entries.map(entry => (ctx.isDemo ? demoEntry(serialiseEntry(entry)) : serialiseEntry(entry))),
+          entries: tail.lines.map(entry => (ctx.isDemo ? demoEntry(serialiseEntry(entry)) : serialiseEntry(entry))),
+          events: tail.events,
           latestStill: still,
           dueTasks: tasks.filter(task => isAbout(task, space?.id ?? null, grow?.id ?? null)),
           openAlerts: alerts
@@ -237,15 +246,6 @@ export class HomeService {
       memberships: this.memberships,
       spaces: this.spaces,
     });
-  }
-
-  /** The grow's diary where there is a grow; the space's own lines - a device's, an alarm's - where there is none. */
-  private newestEntries(spaceId: string | null, growId: string | null): Promise<EntryDocument[]> {
-    return this.entries
-      .find(growId ? { growId } : { spaceId })
-      .sort({ occurredAt: -1, _id: -1 })
-      .limit(ENTRIES_PER_CARD)
-      .lean<EntryDocument[]>();
   }
 
   /**

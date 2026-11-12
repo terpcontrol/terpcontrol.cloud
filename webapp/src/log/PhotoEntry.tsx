@@ -148,6 +148,11 @@ export function PhotoEntry({
         />
       }
       onClose={onClose}
+      actions={
+        <button type="button" className={`${ui.button} ${ui.primary}`} onClick={save} disabled={pictures.length === 0}>
+          {filed.dayNumber === null ? t('log.save') : t('log.saveDay', { day: filed.dayNumber })}
+        </button>
+      }
     >
       {pictures.length === 0 ? (
         <div className={styles.picture}>
@@ -230,10 +235,6 @@ export function PhotoEntry({
       </div>
 
       <input className={ui.input} value={note} placeholder={t('log.noteOptional')} onChange={event => setNote(event.target.value)} />
-
-      <button type="button" className={`${ui.button} ${ui.primary} ${styles.save}`} onClick={save} disabled={pictures.length === 0}>
-        {filed.dayNumber === null ? t('log.save') : t('log.saveDay', { day: filed.dayNumber })}
-      </button>
     </Sheet>
   );
 }

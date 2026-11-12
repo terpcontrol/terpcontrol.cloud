@@ -404,6 +404,7 @@ describe('a tent behind a link', () => {
     grows: [],
     cameras: [],
     entries: [],
+    events: [],
     readingNames: [],
     dueTasks: [],
     openAlerts: [],

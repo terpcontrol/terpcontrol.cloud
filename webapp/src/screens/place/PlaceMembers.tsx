@@ -42,6 +42,8 @@ export function PlaceMembers() {
         )}
         <h1 className={styles.title}>
           {t('place.members.title')}
+          {/* The window is named after this heading: its two parts are two words there too. */}
+          <span className={ui.visuallyHidden}> · </span>
           <span className={styles.titleNote}>{space.name}</span>
         </h1>
       </header>

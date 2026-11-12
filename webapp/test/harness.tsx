@@ -26,3 +26,16 @@ export const NOT_FOUND = { status: 404, code: 'not_found', title: 'Not found', d
 
 /** What the app's one live region (`ui/live-region.ts`) last said. */
 export const announced = () => document.querySelector<HTMLElement>('[data-announcer]');
+
+const plain = (node: Element | null | undefined): string => node?.textContent?.replace(/\u00a0/g, ' ') ?? '';
+
+/**
+ * Matches the innermost element whose whole text reads `line`, however the
+ * text is set: facts side by side are an element each, and a figure is bound
+ * to its unit by a space that is not a space.
+ */
+export const reading = (line: string | RegExp) => {
+  const says = (node: Element | null | undefined): boolean => (typeof line === 'string' ? plain(node) === line : line.test(plain(node)));
+
+  return (_: string, node: Element | null): boolean => says(node) && ![...(node?.children ?? [])].some(says);
+};

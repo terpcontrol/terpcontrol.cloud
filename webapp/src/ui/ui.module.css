@@ -714,7 +714,9 @@
   overflow: hidden;
 }
 
-.segment:hover:not(:disabled) {
+/* No heavier than the chosen option's own rule below, which therefore keeps its ink under a pointer - and under
+   the hover a phone leaves on what was tapped last. */
+.segment:hover:where(:not(:disabled)) {
   color: var(--ink);
 }
 

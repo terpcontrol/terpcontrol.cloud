@@ -1,9 +1,10 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import type { HomeSpaceCard, Placement } from '@fg2/shared-types/v1';
+import type { HomeSpaceCard, Placement, Space } from '@fg2/shared-types/v1';
 import { useHome, useHomeShape } from '@/api/home';
 import { useSession } from '@/api/session';
-import { sortedByAttention } from '@/screens/start/attention';
+import { useSpaces } from '@/api/spaces';
+import { startOrder } from '@/screens/start/rooms';
 import { isVisiting, standsIn } from '@/ui/session-access';
 import { readStored, writeStored } from '@/ui/stored';
 
@@ -179,27 +180,23 @@ export const usePageOfGrow = (grow: { endedAt: string | null; placements: Placem
 
 /**
  * The place a browser that has chosen none is shown, the same for Grow,
- * Verlauf and Steuerung: in Start's order - the place that needs a person
- * first - the first where a grow runs beside a device, else the first where a
- * grow runs, else the first with a device, else the first. So Grow does not
- * open on an empty balcony while a tent is in flower, and Steuerung not on a
- * balcony with nothing to steer.
+ * Verlauf and Steuerung: in the order Start lists the places (`startOrder`)
+ * the first where a grow runs, else the first with a device, else the first.
+ * So Grow does not open on an empty balcony while a tent is in flower, and the
+ * place the header names is one Start shows near its top.
  */
-const firstChoice = (places: PlaceCard[]): PlaceCard | null => {
-  const ordered = sortedByAttention(places);
-  const steered = (place: PlaceCard) => (place.deviceIds ?? []).length > 0;
-  return (
-    ordered.find(place => place.grow !== null && steered(place)) ??
-    ordered.find(place => place.grow !== null) ??
-    ordered.find(steered) ??
-    ordered[0] ??
-    null
-  );
+export const firstChoice = (places: PlaceCard[], spaces: readonly Space[]): PlaceCard | null => {
+  const ordered = startOrder(places, spaces).flatMap(group => group.cards);
+  return ordered.find(place => place.grow !== null) ?? ordered.find(place => (place.deviceIds ?? []).length > 0) ?? ordered[0] ?? null;
 };
 
-/** The place the pages about one place show: the one the address names, else the chosen one, else the first choice. */
-const placeShown = (places: PlaceCard[], asked: string | null, chosen: string | null): PlaceCard | null =>
-  places.find(place => place.spaceId === asked) ?? places.find(place => place.spaceId === chosen) ?? firstChoice(places);
+/**
+ * The place the pages about one place show: the one the address names, else
+ * the chosen one, else the first choice - which waits for the rooms the order
+ * is made with (`spaces`) rather than choosing by half of it.
+ */
+const placeShown = (places: PlaceCard[], asked: string | null, chosen: string | null, spaces: readonly Space[] | undefined): PlaceCard | null =>
+  places.find(place => place.spaceId === asked) ?? places.find(place => place.spaceId === chosen) ?? (spaces ? firstChoice(places, spaces) : null);
 
 /**
  * The place shown among `places`, as `placeShown` picks it, and how another
@@ -229,7 +226,9 @@ export const usePlaceChoice = (places: PlaceCard[] | undefined) => {
   const belongs = useSyncExternalStore(subscribe, pagePlace, pagePlace) !== null;
   const item = itemOf(pathname, search);
   const asked = item ? params.get('space') : null;
-  const here = placeShown(places ?? [], asked, chosen);
+  const spaces = useSpaces(user !== null);
+  // Rooms that could not be read group nothing; the places are still there to choose from.
+  const here = placeShown(places ?? [], asked, chosen, spaces.data?.items ?? (spaces.isError ? [] : undefined));
   const own = places?.map(place => place.spaceId);
   const visiting = asked && isVisiting(user, asked, own) ? asked : null;
   const stray = asked !== null && own !== undefined && !own.includes(asked) && !visiting;

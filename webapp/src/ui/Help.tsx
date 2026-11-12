@@ -3,6 +3,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type 
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { anchorOf, placeBubble, type HelpTopic } from './explain';
+import { focusIsRescued } from './focus-rescue';
 import styles from './Help.module.css';
 
 /**
@@ -143,7 +144,8 @@ function useExplanation(topic: HelpTopic) {
       pressing.current = false;
     },
     onFocus: () => {
-      if (!pressing.current && !returning.current) show();
+      // Opened for somebody who tabbed here; a focus the page placed itself opens nothing.
+      if (!pressing.current && !returning.current && !focusIsRescued()) show();
     },
     onBlur: (event: FocusEvent) => {
       if (!(event.relatedTarget instanceof Node && bubble.current?.contains(event.relatedTarget))) close();

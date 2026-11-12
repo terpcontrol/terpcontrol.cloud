@@ -150,16 +150,49 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   stored nowhere, and is the one read every diary is drawn from - the grow page, the public page, a share link:
   a few weeks a page, each day a date of that calendar (`grow-calendar.ts`). Per day: the lit still nearest midday
   (`diary-pictures.ts`; the day still running takes the newest lit one and no dark one), the means of temperature
-  and humidity, the share inside the targets, and what happened that is nobody's line: the lamp's first on and
-  last off, the stretches outside the band, and maintenance somebody switched - the lines a device writes when it
-  goes on and off, of every device of the place, told as one stretch (`maintenanceRuns`). Then the lines: the
-  grow's own - what people wrote and the alarms raised where it stood, which name the grow - and for the people
-  who keep the place the plan's steps there (found by place and kept by placement). **What else a device logs
-  about itself is not diary**: restarts, a sensor deviating, a changed setting stay in the device's record and in
-  Verlauf. A reader from outside is answered no events, no plan lines and no share - how the day was and what was
-  done to the plants. The last page carries what was written to the grow for a moment before the date it began on
-  (`earlier`), which has no day. A week's film is the one whose middle falls into the week, named by its days
-  there, and none shorter than two seconds.
+  and humidity, the share inside the targets, and what happened that is nobody's line: the lamp, the stretches
+  outside the band, and maintenance somebody switched - the lines a device writes when it goes on and off, of
+  every device of the place, told as one stretch (`maintenanceRuns`). Then the lines: the grow's own - what people
+  wrote and the alarms raised where it stood, which name the grow - and for the people who keep the place the
+  plan's steps there (found by place and kept by placement). **What else a device logs about itself is not
+  diary**: restarts, a sensor deviating, a changed setting stay in the device's record and in Verlauf. The last
+  page carries what was written to the grow for a moment before the date it began on (`earlier`), which has no
+  day. A week's film is the one whose middle falls into the week, named by its days there, and none shorter than
+  two seconds.
+- **Which entries are diary is said once** (`modules/v1/diary/diary-entries.ts`; the redesign session of
+  2026-11-12): the diary kinds, the plan's steps, and maintenance going on and off, parted into lines and
+  stretches by `toldOf`. A day of the grow's diary reads through it, and so does **the diary's tail**
+  (`diaryTail`): the newest lines of a place and of the grows standing in it, which the place's overview and the
+  home card answer as `entries` with the maintenance stretches among them as `events` - Start's "Zuletzt". One
+  query, three entries read for each line answered, because a maintenance is two lines of every device there.
+  Lamp and stretches outside the band are a day's and cost a read of the store, so the tail has none.
+- **Nothing of a device reaches a reader from outside** (`writtenFor` in `diary-entries.ts`): on a public page and
+  through a link onto a grow or a place every read of entries - the diary, its lines from before the start, the
+  report's lines and totals, the list of entries and an entry by its id, a shared place's newest lines, the rail
+  of Verlauf - is answered what people wrote and nothing an alarm, a device or the plan did, as a condition of the
+  query so that pages and totals count what is served. Such a reader is answered no events of a day, no alarms on
+  Verlauf and no share either. An alarm line carried its alert's and its rule's id, and says when a tent stood
+  outside its limits: until 2026-11-12 the diary handed those to anybody with the address.
+- **The lamp of a day says only what happened** (`lightOf` in `day-climate.ts`; the redesign session of
+  2026-11-12): when it came on and when it last went off - a lamp switched five times while somebody worked in
+  the tent is one stretch - and, where it came on again after that, that switching too. A stretch that has not
+  ended has no end. `still` is true only of the day still running whose device has reported within the ten
+  minutes that call a device online (`isOffline`): after a device fell silent nobody knows whether the lamp burns.
+- **An instant from a client's clock is recorded no later than the server's now** (`heldToNow`,
+  `common/v1/client-clock.ts`; the redesign session of 2026-11-12). A browser knows the server's time to about a
+  second, so a line or a phase written "now" was as often stamped a moment ahead - and missing from every read
+  that ends at now, a place's newest lines and the grow as it stands, until that moment had passed: Start showed
+  neither the entry just written nor the phase a new grow was started in. Entries, a grow's start and end, a
+  phase, a move, a split and a harvest go through it; further ahead than the minute of skew is refused as before.
+  The form that starts a grow writes the grow and then its first phase, each held to the now it arrives at, a
+  moment apart - so a first phase that follows its grow by no more than that minute begins with the grow
+  (`addPhase`): the two are one instant, which is what lets them move with each other.
+- **A grow's start moved takes with it what stood on it** (`GrowsService.moveStart`; the redesign session of
+  2026-11-12): the first phase - through its own correction, which moves its diary line - and the placement the
+  grow was made with. A start put a week earlier left a week with no stage and no place, the days counting from
+  the new start under a report whose first chapter began at the old one. A phase or a placement that began later
+  than the grow is a fact of its own and stays. The mirror of `startCarriedBy` in the phase writer, which moves
+  the start with a first phase that is corrected.
 - **A day's share is the 24-hour verdict asked of one date** (`day-climate.ts` calls `verdictOf`) over 5-minute
   means, judged by the target record alone: a day before the record's first row has no share (the verdict's own
   fallback, the first row standing for everything before it, is not used here), a day whose record begins inside it

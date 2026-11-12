@@ -5,6 +5,7 @@ import type { Entry, EntryCreate, EntryUpdate } from '@fg2/shared-types/v1';
 import { MAINTENANCE_VISIT_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Need } from '@common/v1/access.types';
+import { CLOCK_SKEW_MS, heldToNow } from '@common/v1/client-clock';
 import { serialiseEntry } from '@common/v1/entries';
 import { zoneOfOwner } from '@common/v1/owner-zone';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
@@ -38,14 +39,6 @@ import { MAINTENANCE_STARTER, MaintenancePort } from './maintenance.port';
  * a line a device wrote are the same document and the timeline reads as one
  * thing.
  */
-
-/**
- * How far ahead an entry may be dated. A backdated entry is ordinary - the
- * person is writing down this morning's watering - but a future one would sit at
- * the top of every timeline until the day it named, and the only way it gets
- * written is a mistyped year or a phone whose clock is wrong.
- */
-const CLOCK_SKEW_MS = 60_000;
 
 /**
  * How far ahead a watering or a feed written by hand still counts as the task
@@ -234,8 +227,14 @@ const authorOf = (ctx: AccessContext): string => {
   return ctx.userId;
 };
 
+/**
+ * When a line happened. A backdated entry is ordinary - the person is writing
+ * down this morning's watering - but a future one would sit at the top of every
+ * timeline until the day it named, and the only way it gets written is a
+ * mistyped year or a phone whose clock is wrong.
+ */
 const momentOf = (occurredAt: string | undefined): Date => {
-  const at = occurredAt ? new Date(occurredAt) : new Date();
+  const at = heldToNow(occurredAt ? new Date(occurredAt) : new Date());
 
   if (at.getTime() > Date.now() + CLOCK_SKEW_MS) {
     throw badRequest('occurred_in_the_future', 'An entry records something that has happened; it can be backdated but not postdated.', [

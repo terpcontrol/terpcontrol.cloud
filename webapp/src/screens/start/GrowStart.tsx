@@ -56,7 +56,14 @@ export function GrowStart({ card, answer, failedAt }: { card: HomeSpaceCard; ans
       ) : null}
       <PhaseLine grow={grow} to={GROW} />
       <Today due={card.dueTasks.map(task => ({ task, spaceId: null, place: grow.name, grow }))} places={[]} now={now} />
-      <Latest entries={card.entries} people={answer.people} on={{ label: grow.name, spaceId: null, ownerId: user?.id ?? null }} diary now={now} />
+      <Latest
+        entries={card.entries}
+        events={card.events}
+        people={answer.people}
+        on={{ label: grow.name, spaceId: null, ownerId: user?.id ?? null }}
+        diary
+        now={now}
+      />
       {me.data && me.data.preferences.deviceOfferDeclined !== true ? <DeviceOffer /> : null}
       <AddPlace />
     </section>

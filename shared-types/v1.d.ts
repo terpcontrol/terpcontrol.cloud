@@ -248,15 +248,15 @@ export type ChartViewSpan =
 
 export type ChartViewLayout = 'stacked' | 'overlay' | 'day_of_grow';
 
-export type VerdictRating = 'good' | 'watch' | 'poor';
-
-export type TimelineRange = '24h' | '7d' | '30d' | 'phase' | 'grow';
-
 export type GrowDayEvent =
   | {
       kind: 'light';
       at: string;
       on: boolean;
+      /**
+       * Whether the lamp is lit as this is read: it came on, nothing switched it off, the day is the one still running and its device still reports. False says only that it switched - of the time after, nothing.
+       */
+      still: boolean;
     }
   | {
       kind: 'excursion';
@@ -286,6 +286,10 @@ export type GrowDayEvent =
        */
       endedAt: string | null;
     };
+
+export type VerdictRating = 'good' | 'watch' | 'poor';
+
+export type TimelineRange = '24h' | '7d' | '30d' | 'phase' | 'grow';
 
 export type GrowSeriesRange = '24h' | '7d' | 'phase' | 'grow' | 'custom';
 
@@ -3652,9 +3656,13 @@ export interface HomeSpaceCard {
   trend: CardTrend | null;
   grow: GrowCard | null;
   /**
-   * The grow’s newest entries, newest first.
+   * The newest lines of the grow’s diary - of the place’s where no grow stands - newest first, by the rules a day of the diary goes by.
    */
   entries: Entry[];
+  /**
+   * When maintenance was on among those lines, each stretch once. Nothing of lamp or climate: that is a day’s.
+   */
+  events: GrowDayEvent[];
   latestStill: LatestStill | null;
   dueTasks: DueTask[];
   openAlerts: OpenAlert[];
@@ -3887,9 +3895,13 @@ export interface SpaceOverview {
   grows: OverviewGrow[];
   cameras: OverviewCamera[];
   /**
-   * The newest lines of this space and of the grows standing in it, newest first.
+   * The newest lines of this space and of the grows standing in it, newest first, by the rules a day of the diary goes by: what people wrote, the alarms and the plan’s steps - not what else a device logs about itself. A reader from outside is answered what people wrote.
    */
   entries: Entry[];
+  /**
+   * When maintenance was on among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s.
+   */
+  events: GrowDayEvent[];
   /**
    * What the grows those lines belong to call their measurements, so a reading is named rather than keyed.
    */

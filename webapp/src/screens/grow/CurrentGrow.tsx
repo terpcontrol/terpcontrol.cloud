@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
+import { useGrowsEverIn } from '@/api/grows';
 import { useSpaceOverview } from '@/api/spaces';
 import { GROW, ALL_GROWS, useCurrentPlace } from '@/app/places';
 import { Visited, VisitingTitle } from '@/screens/place/PlaceTitle';
@@ -8,9 +9,10 @@ import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { MoveHereSheet } from '../space/MoveHereSheet';
+import { useMovableGrows } from '../space/movable-grows';
 import { GrowScreen } from './GrowPage';
 import { growTabOf, type GrowTab } from './grow-tabs';
-import { NewGrowSheet } from './new/NewGrowSheet';
+import { StartGrowSheet } from './new/WhatGrows';
 import styles from './GrowPage.module.css';
 
 /**
@@ -79,23 +81,33 @@ function VisitedGrow({ spaceId, tab }: { spaceId: string; tab: GrowTab }) {
 
 /**
  * Nothing grows here: the ways to change that, to somebody who may - a grow started, or one moved into the chosen
- * place. An account whose grows stand in no place has no place to move one into, and is offered the start alone.
+ * place where there is one to move. An account whose grows stand in no place has no place to move one into, and is
+ * offered the start alone. Where a grow has come down here, the page says so and leads to its report.
  */
 function NothingGrows({ place }: { place: { spaceId: string; name: string } | null }) {
   const { t } = useTranslation();
   const mayManage = useMayManage(place?.spaceId);
   const [moving, setMoving] = useState(false);
   const [starting, setStarting] = useState(false);
+  const movable = useMovableGrows(place?.spaceId ?? '').items;
+  // The grow that came down here last: after a harvest this page is where its place leads, and its report is a tap away.
+  const last = useGrowsEverIn(place?.spaceId ?? null).data?.items.find(grow => grow.endedAt !== null);
 
   return (
     <div className={styles.nothingGrows}>
       <p className={ui.note}>{t('home.invite.noGrow')}</p>
+      {last ? (
+        <Link to={`${ALL_GROWS}/${last.id}/report`} className={ui.headLink}>
+          {t('grow.lifecycle.harvest.ended', { name: last.name })} ›
+        </Link>
+      ) : null}
       {mayManage ? (
         <p className={styles.growActions}>
           <button type="button" className={ui.button} onClick={() => setStarting(true)}>
             {t('home.invite.startGrow')}
           </button>
-          {place ? (
+          {/* Only where a grow could come from: one running in another place, or in none. */}
+          {place && movable.length > 0 ? (
             <button type="button" className={ui.button} onClick={() => setMoving(true)}>
               {t('home.invite.moveGrow')}
             </button>
@@ -103,8 +115,7 @@ function NothingGrows({ place }: { place: { spaceId: string; name: string } | nu
         </p>
       ) : null}
       {moving && place ? <MoveHereSheet spaceId={place.spaceId} spaceName={place.name} onClose={() => setMoving(false)} /> : null}
-      {/* Started here, the grow is drawn here: the sheet opens over Grow and Grow is what it comes back to. */}
-      {starting ? <NewGrowSheet spaceId={place?.spaceId ?? null} landOn={GROW} onClose={() => setStarting(false)} /> : null}
+      {starting ? <StartGrowSheet spaceId={place?.spaceId} name={place?.name} onClose={() => setStarting(false)} /> : null}
     </div>
   );
 }

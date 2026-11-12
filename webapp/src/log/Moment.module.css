@@ -29,6 +29,18 @@
   color: var(--muted);
 }
 
+/* On the narrowest phones the moment leaves the sheet's title its room: closer set, and without the pencil. */
+@media (max-width: 359px) {
+  .button {
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  .button svg {
+    display: none;
+  }
+}
+
 .button:hover,
 .button[aria-expanded='true'] {
   border-color: var(--brand);
@@ -75,6 +87,8 @@
   flex-direction: column;
   gap: var(--space-3);
   width: 240px;
+  max-height: calc(100dvh - var(--space-2));
+  overflow-y: auto;
   padding: var(--space-3);
   background: var(--card);
   border: var(--rule-solid);

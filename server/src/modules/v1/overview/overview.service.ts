@@ -24,7 +24,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { setpointsOf } from '../device/setpoints';
 import { climateOf, recordOf, settlingsOf } from '../phase/target-record';
-import { readingNamesOf, serialiseDiaryEntry, writtenFor } from '../diary/diary-entries';
+import { diaryTail, readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
 import { completionsOf, dueTasksOf, reminderOfTask, remindersAbout } from '../diary/due-tasks';
 import { standingIn } from '../grow/grow-places';
 import { Redaction, growCardOf, growUpTo, redactionOf, summaryOf } from '../grow/grow-serialiser';
@@ -159,17 +159,13 @@ export class OverviewService {
     const steering = climates[0] ?? null;
     const window = seenOf({ startsAt: new Date(until.getTime() - VERDICT_HOURS * 3600 * 1000), endsAt: until }, range);
 
-    const [plants, reminders, entries, stills, lit, hide, zone, settling, verdicts] = await Promise.all([
+    const [plants, reminders, tail, stills, lit, hide, zone, settling, verdicts] = await Promise.all([
       this.plants
         .find({ growId: { $in: growIds } })
         .sort({ createdAt: 1, _id: 1 })
         .lean<PlantDocument[]>(),
       this.reminders.find(remindersAbout([spaceId], growIds)).lean<ReminderDocument[]>(),
-      this.entries
-        .find({ $and: [{ $or: [{ spaceId }, { growId: { $in: growIds } }] }, withinRange('occurredAt', range), writtenFor(grant)] })
-        .sort({ occurredAt: -1, _id: -1 })
-        .limit(ENTRIES_ON_THE_PAGE)
-        .lean<EntryDocument[]>(),
+      diaryTail(this.entries, { $or: [{ spaceId }, { growId: { $in: growIds } }] }, grant, range, ENTRIES_ON_THE_PAGE, until),
       this.stillsToday(cameras, owner?.preferences.timezone ?? null, range, until),
       this.litStills(cameras, range, until),
       ownerRedactions(
@@ -206,7 +202,7 @@ export class OverviewService {
     // hiding, and a photo line names the camera a link may not have been made
     // to carry.
     const lines = redactionOf(grant.redacted, owner?.privacy);
-    const told = entries.map(entry => serialiseDiaryEntry(entry, lines, grant));
+    const told = tail.lines.map(entry => serialiseDiaryEntry(entry, lines, grant));
 
     return {
       spaceId: space.id,
@@ -242,6 +238,7 @@ export class OverviewService {
       ),
       cameras: cameras.map(camera => cameraHere(camera, stills.get(camera.id) ?? [], lit.get(camera.id) ?? null, closed)),
       entries: told,
+      events: tail.events,
       readingNames: readingNamesOf(grows),
       dueTasks,
       openAlerts: forKeepers ? alerts.map(openAlertOf) : [],

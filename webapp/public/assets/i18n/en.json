@@ -1182,10 +1182,9 @@
     "noFixedPlace": "No fixed place",
     "stoodIn": "stood in {{name}}",
     "rename": {
-      "title": "Rename the grow",
+      "title": "Name and kind",
       "name": "Name",
-      "note": "Only the name changes. The diary, the phases and the weeks stay as they are, and a public diary keeps the address it was given when the grow was made.",
-      "save": "Save the name"
+      "save": "Save"
     },
     "noPlants": "No plants recorded",
     "plantStatus": {
@@ -1194,8 +1193,6 @@
       "ended": "ended"
     },
     "noScheme": "No feeding scheme",
-    "noSchemeNote": "This grow is fed no scheme. Choose one to start from, or feed it by hand and log what you give.",
-    "noSchemeNoteEnded": "This grow was fed no scheme.",
     "edited": "edited",
     "strength": "strength {{percent}} %",
     "report": {
@@ -1235,7 +1232,7 @@
         "move": "Move",
         "split": "Split",
         "harvest": "Harvest",
-        "rename": "Rename"
+        "rename": "Name and kind"
       },
       "when": "On",
       "cancel": "Cancel",
@@ -1254,10 +1251,8 @@
         "stageLabel": "Stage",
         "presetLabel": "Climate preset",
         "noPreset": "Stage only",
-        "note": "The phase counts the grow's days and weeks – the feeding plan and the charts go by it.",
-        "recordNote": "This grow is over. A phase added here repairs what it says it went through - a stage that was never entered, or one rebuilt after a withdrawal - and moves nothing on.",
-        "alreadyThere": "The grow already stands in this phase. Entering it again writes nothing and leaves no second line in the diary.",
-        "alreadyThereEnded": "The grow finished in this phase. Recording it again writes nothing and leaves no second line in the diary.",
+        "alreadyThere": "The grow is already in this phase: nothing is written.",
+        "alreadyThereEnded": "The grow ended in this phase: nothing is written.",
         "submit": "Enter {{stage}}",
         "submitEnded": "Record {{stage}}",
         "history": "Phases so far",
@@ -1308,10 +1303,9 @@
       "harvest": {
         "title": "Harvest",
         "nothingStanding": "Every plant of this grow has already come down.",
-        "noPlantsRecorded": "No plants are recorded in this grow, so there is nothing here to cut down. A grow brought over from the old app was never written down plant by plant.",
+        "noPlantsRecorded": "No plants are recorded in this grow.",
         "alreadyEnded": "It ended on {{date}}.",
         "endInstead": "The day it came down",
-        "endNote": "Nothing is cut down and no weight is written: this records the day the grow came down, and its day counter stops there.",
         "endTheGrow": "End the grow",
         "whatComesDown": "What comes down",
         "standing_one": "{{count}} still standing",
@@ -1322,19 +1316,17 @@
         "wet": "Wet",
         "dry": "Dry",
         "pickSomething": "Pick at least one plant.",
-        "weightsOptional": "A dry weight is typed in days later, so both may be left empty and filled in on the plant afterwards.",
         "eachWet_one": "{{total}} g wet, on the one plant.",
         "eachWet_other": "{{total}} g wet shared over {{count}} plants · about {{each}} g each.",
         "eachDry_one": "{{total}} g dry, on the one plant.",
         "eachDry_other": "{{total}} g dry shared over {{count}} plants · about {{each}} g each.",
-        "endsTheGrow": "These are the last plants standing: the grow ends on {{date}}, and its day counter stops there.",
+        "endsTheGrow": "The grow ends on {{date}}.",
         "submit_one": "Harvest {{count}} plant",
         "submit_other": "Harvest {{count}} plants",
         "submitAndEnd_one": "Harvest the last plant and end the grow",
         "submitAndEnd_other": "Harvest the last {{count}} plants and end the grow",
         "whatWasWritten": "What was written",
         "alreadyDown": "Already down",
-        "correctOnThePlant": "A plant that really weighed something else is corrected on the plant itself.",
         "noWeight": "no weight",
         "ended": "{{name}} has ended · this is its report"
       },
@@ -1357,66 +1349,17 @@
     },
     "new": {
       "title": "New grow",
-      "name": "Name",
       "firstName": "First grow",
       "plants": "Plants",
-      "plantsAside": "a count is enough; names help you compare later",
-      "strain": "Strain",
       "unnamedStrain": "Unnamed",
-      "more": "One more",
-      "fewer": "One fewer",
-      "removeStrain": "Remove this strain",
-      "addStrain": "+ Add a strain",
       "type": "Type",
-      "typeAside": "autoflowers skip the 12/12 flip and feed lighter",
       "photoperiod": "Photoperiod",
       "autoflower": "Autoflower",
       "where": "Where",
-      "whereAside": "the place's preset and cams follow the grow",
-      "devicesUnread": "What stands in these places could not be read, so no chip names its hardware.",
-      "cam": "Cam",
-      "newSpace": "New place",
-      "spaceName": "Name of the place",
-      "spaceKind": "Kind of place",
-      "kind": {
-        "tent": "Tent",
-        "fridge": "Fridge",
-        "balcony": "Balcony",
-        "other": "Other place"
-      },
-      "makeSpace": "Make the place",
-      "makingSpace": "Making the place …",
-      "startingAt": "Starting at",
-      "startingAside": "seeds usually show in 2–5 days",
-      "today": "today",
-      "earlier": "Earlier date …",
       "startedOn": "Started on",
-      "feeding": "Feeding",
-      "feedingAside": "a starting point, not a rule; edit any week",
-      "ownScheme": "None / my own",
-      "noSchemes": "This build ships no feeding schemes, so the grow is fed by hand or by one of your own.",
       "schemeUnreadable": "That scheme could not be read, so the grow cannot be started on it.",
-      "schemesUnread": "The feeding schemes could not be read, so none can be chosen here.",
-      "tells": {
-        "occupied": "{{grow}} is already growing in {{place}}.",
-        "occupiedSteered": "{{grow}} is already growing in {{place}}: its climate goes to the {{stage}} preset now, and a plan running there pauses.",
-        "occupiedKeepsLight": "{{grow}} is already growing in {{place}}, so the light there stays on: the germination is only recorded. If the seeds are to sprout there in the dark, choose “Germination · dark” under Control – though {{grow}} then gets no light either.",
-        "preset": "The targets in {{place}} go onto the {{stage}} climate with it.",
-        "presetDark": "{{place}} goes onto {{stage}} with it: light off, no CO₂, one temperature round the clock – until the grow moves on to seedling.",
-        "noController": "Nothing in {{place}} steers a climate, so the stage is recorded and nothing is written to anything.",
-        "hardwareUnknown": "What stands in {{place}} is not known, so no climate is written there; the stages are recorded all the same.",
-        "nowhere": "No place, so nothing is steered; the stages are recorded all the same.",
-        "auto": "If this place's climate is later put on a preset, the grow moves into its phase with it; such phases are marked “auto”.",
-        "autoflower": "Autoflower: the presets keep 18–20 h of light, and the scheme runs at half strength.",
-        "autoflowerAlone": "Autoflower: the presets keep 18–20 h of light instead of flipping to 12/12."
-      },
-      "submit": "Start the grow · Day {{day}}",
       "starting": "Starting the grow …",
-      "notReady": "The chosen scheme has not been read yet, so the grow cannot be started on it.",
-      "placeFirst": "Make the place first, or pick one of the chips.",
-      "growStands": "The grow is made and stands where it was put; only its first stage is missing. Trying again writes just that.",
-      "climateLeft": "The grow and its first stage stand; only the place's climate was not written.",
-      "readOnly": "The demo may look at a grow, not start one."
+      "startAndSet": "Start and set the climate to {{climate}}"
     },
     "measurements": {
       "title": "Measurements",
@@ -1485,7 +1428,6 @@
         "newOne": "+ new",
         "value": "{{name}} · {{unit}}",
         "last": "last {{value}}",
-        "ago": "{{age}} ago",
         "never": "nothing measured yet",
         "otherPlant": "{{plant}} was {{value}}",
         "keypad": "Digits",
@@ -1552,7 +1494,6 @@
       "perLitre": "per l",
       "cellLabel": "{{product}}, week {{week}}",
       "thisWeekLine": "Week {{week}} is this week.",
-      "flipLine": "The flip to flower is week {{week}}, so the bloom columns start there.",
       "howLine": "Tap a cell to edit; a row is a product, and “+ product” adds one of your own.",
       "addProduct": "+ product",
       "productName": "Product",
@@ -1569,7 +1510,6 @@
       "saving": "Saving…",
       "discard": "Discard",
       "chartCaption": "The manufacturer's chart is a starting point, not a rule.",
-      "honesty": "Editing this grid changes what these plants are fed and nothing else. A scheme kept on your own shelf is a copy: editing it later leaves every grow already running exactly as it is fed.",
       "sheet": {
         "title": "Feeding scheme",
         "follows": "This grow follows",
@@ -1590,7 +1530,6 @@
       "waterEc": "Water EC",
       "ecTarget": "EC target",
       "ecUnit": "mS/cm",
-      "ecCaption": "EC values are what your meter should read with this water (chart value + water EC).",
       "movedUnder": "changed elsewhere",
       "keepMine": "Keep mine",
       "takeTheirs": "Take theirs"
@@ -1615,8 +1554,6 @@
     "diary": {
       "today": "Today",
       "yesterday": "Yesterday",
-      "lightOn": "Light on",
-      "lightOff": "Light off",
       "above": "{{metric}} too high for {{span}}",
       "below": "{{metric}} too low for {{span}}",
       "aboveOften": "{{metric}} too high {{count}}× · {{span}} in all",
@@ -1644,7 +1581,12 @@
       "outside": "{{metric}} off target for {{span}}",
       "outsideOften": "{{metric}} off target {{count}}× · {{span}} in all",
       "alarmOver": "over",
-      "earlier": "Before the start"
+      "earlier": "Before the start",
+      "lightOffAt": "Light off at {{at}}",
+      "lightOnAt": "Light on at {{at}}",
+      "lightOnSince": "Light on since {{at}}",
+      "lightAgainAt": "on again at {{at}}",
+      "lightAgainSince": "on again since {{at}}"
     },
     "pictures": {
       "makeEntry": "Add to the diary as an entry",
@@ -2121,10 +2063,7 @@
     "water": "Water",
     "less": "Less water",
     "more": "More water",
-    "feedWeek": "Feed · scheme week {{week}}",
     "stopsAfter": "stopped after scheme week {{week}}",
-    "noScheme": "No feeding scheme here · what goes in the can is yours",
-    "mixOrder": "Mix in this order · pH last · scheme values are a starting point, not a rule",
     "measurements": "Measurements",
     "notePlaceholder": "What happened?",
     "trainingPlaceholder": "What did you do?",
@@ -2179,7 +2118,7 @@
       "climateNow": "In the diary the phase starts at the chosen moment. The climate still changes only now.",
       "fromPicture": "Taken from the first picture",
       "edit": "Change",
-      "before": "The grow began on {{date}}. Before that it has no day an entry could stand under.",
+      "before": "The grow only began on {{date}}.",
       "moveStart": "Move the start to {{date}}",
       "moveRefused": "The start could not be moved."
     },
@@ -2187,7 +2126,13 @@
     "noConnection": "No connection · it is sent as soon as there is one",
     "targetsSet": "targets set",
     "waterLitres": "Water in litres",
-    "lastTime": "Last time {{ago}} · {{litres}} L"
+    "lastTime": "Last time {{ago}} · {{litres}} L",
+    "plantLabel": "Which plant",
+    "schemeWeek": "Scheme week {{week}}",
+    "litresNoNumber": "That is not a number.",
+    "litresTooMuch": "At most {{max}} L.",
+    "corrected": "Line corrected",
+    "takenBack": "Line taken back"
   },
   "timeline": {
     "rangeLabel": "Range",
@@ -3759,7 +3704,7 @@
     },
     "stage": {
       "title": "Stage and phase",
-      "text": "The stage is where the plants are, from germination to curing. Germination means the same everywhere: seeds sprouting in the dark, and with its climate the device goes dark; seedling is the first stage with light. Entering one writes a phase on the grow: the date it began, a diary line, and the stage's alarm rules on the devices where the plants stand (curing has none). Only a germination recorded without its climate beside a device with its light on leaves that device's alarms as they are."
+      "text": "The stage is where the plants are, from germination to curing. Germination means the same everywhere: seeds sprouting in the dark, and with its climate the device goes dark; seedling is the first stage with light. Entering one writes a phase on the grow: the date it began, a diary line, and the stage's alarm rules on the devices where the plants stand (curing has none). Only a germination recorded without its climate beside a device with its light on leaves that device's alarms as they are. The phase counts the grow’s days and weeks – the feeding plan and the charts go by it. On a grow that is over, a phase added afterwards repairs what it went through and moves nothing else."
     },
     "stepPreset": {
       "title": "A preset in a step",
@@ -3803,7 +3748,7 @@
     },
     "phasePreset": {
       "title": "Targets with the phase",
-      "text": "Leave as they are records only the phase: light, temperature and humidity stay as they are under Control. Choosing a climate switches the targets of the devices there right away – for Flower, for instance, the light goes to 12 hours, for “Germination · dark” the light goes off. A germination that is only recorded beside a device with its light on leaves the alarms as they are too. Out of germination, any other phase brings the light back. Auto is for autoflowers, which keep long days."
+      "text": "Leave as they are records only the phase: light, temperature and humidity stay as they are under Control. Choosing a climate switches the targets of the devices there right away – for Flower, for instance, the light goes to 12 hours, for “Germination · dark” the light goes off. A germination that is only recorded beside a device with its light on leaves the alarms as they are too. Out of germination, any other phase brings the light back. Auto is for autoflowers, which keep long days. A new climate replaces the targets under Control; when the light comes on stays as it is. Drying holds the night figures round the clock, with no light and no CO₂. The alarms Too hot, Too cold and Too humid follow the phase; in germination Too humid rests unless you switch it on."
     },
     "phaseCorrection": {
       "title": "Correct or withdraw",
@@ -3811,7 +3756,7 @@
     },
     "autoflower": {
       "title": "Photoperiod or autoflower",
-      "text": "A photoperiod plant flowers once the light goes to 12/12; an autoflower flowers by age and keeps long days. It is chosen here once: a grow started in Veg or Flower gets the Auto climate, and a feeding scheme runs at half strength with no flip week."
+      "text": "A photoperiod plant flowers once the light goes to 12/12; an autoflower flowers by age and keeps long days. For autoflowers there is the Auto climate under Control and with every phase, and a feeding scheme chosen afterwards runs at half strength with no flip."
     },
     "growEnds": {
       "title": "Ending the grow",
@@ -4217,7 +4162,19 @@
     },
     "dayShare": {
       "title": "On target",
-      "text": "The part of the day temperature and humidity were close enough to their targets: within ±1 °C and ±5 %. The hour after every switch between day and night counts as on target."
+      "text": "The part of the day temperature and humidity were on target: within ±1 °C and ±5 %."
+    },
+    "mixing": {
+      "title": "Mixing",
+      "text": "Add them to the water in this order and set the pH last. The scheme’s figures are a guide, not a rule."
+    },
+    "feedGrid": {
+      "title": "The grid",
+      "text": "Tap a cell to change it; a row is a product, and “+ Product” adds one of your own. The flower columns begin in the week of the flip. EC figures are what your meter should read with this water (chart value + water EC). The manufacturer’s chart is a starting point, not a rule. Changes to this grid only affect what these plants get. A scheme on your own shelf is a copy: edited later, every running grow stays fed exactly as before."
+    },
+    "harvestWeights": {
+      "title": "Weight",
+      "text": "The dry weight only comes days later: both fields may stay empty and be filled in on the plant afterwards. A plant that really weighed something else is corrected on the plant itself."
     }
   },
   "place": {
@@ -4243,24 +4200,11 @@
   "climatePick": {
     "label": "Targets",
     "keep": "Leave as they are",
-    "keeps": "Stay: {{figures}}.",
-    "sets": "New: {{figures}} – replaces the targets under Control; when the light comes on stays as it is.",
+    "keeps": "Stay: {{figures}}",
+    "sets": "New: {{figures}}",
     "figures": "{{light}} · day {{day}} °C · night {{night}} °C · {{humidity}} %",
     "dark": "light off · {{day}} °C · {{humidity}} %",
-    "dries": "The device starts drying: no light and no CO₂.",
-    "endsDrying": "Drying ends, and the device holds day and night again.",
-    "alarms": "The alarms Too hot, Too cold and Too humid follow the phase.",
-    "alarmsGermination": "The alarms Too hot and Too cold follow germination; Too humid is set to above {{line}} %: {{humid}}",
-    "humidWarns": "It warns during germination too.",
-    "humidRests": "It rests until germination ends.",
-    "alarmsKept": "The alarms stay as they are: they belong to the climate the device goes on holding.",
-    "noClimate": "{{stage}} has no climate of its own – the targets stay as they are.",
-    "keepsDrying": "Drying holds the night figures as they are, round the clock: {{temperature}} °C · {{humidity}} % – no light and no CO₂.",
-    "setsDark": "New: {{figures}} – replaces the targets under Control.",
-    "setsGermination": "New: Germination · dark – light off, no CO₂, {{temperature}} °C and {{humidity}} % humidity round the clock, the humidity held by a humidifier alone. The day and the light stay for the seedling.",
-    "keepsGermination": "Stays: Germination · dark at {{temperature}} °C.",
-    "staysLit": "The light stays on: only “Germination · dark” makes it dark.",
-    "endsGermination": "Germination ends: the device holds day and night again, with light and CO₂."
+    "noClimate": "{{stage}} has no climate of its own – the targets stay as they are."
   },
   "germinationChoices": {
     "label": "During germination",

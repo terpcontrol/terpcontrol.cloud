@@ -96,7 +96,6 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           {/* A grow that is over is a record being repaired, and a record moves no tent. */}
           {ended ? null : <ClimatePick stage={stage} spaceId={standsIn(grow)} value={pick} onChange={setPick} />}
 
-          <p className={ui.note}>{t(ended ? 'grow.lifecycle.phase.recordNote' : 'grow.lifecycle.phase.note')}</p>
           {standsThere ? (
             <p className={ui.note}>{t(ended ? 'grow.lifecycle.phase.alreadyThereEnded' : 'grow.lifecycle.phase.alreadyThere')}</p>
           ) : null}

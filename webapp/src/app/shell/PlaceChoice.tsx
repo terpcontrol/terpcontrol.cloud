@@ -11,10 +11,9 @@ import { useDiaryLayer } from '@/api/layers';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { isAboutPlace, isPlace, usePlaceChoice, type PlaceCard } from '@/app/places';
-import { sortedByAttention } from '@/screens/start/attention';
 import { useCardStatus } from '@/screens/start/card-status';
 import { toneOf } from '@/screens/start/place';
-import { groupedByRoom } from '@/screens/start/rooms';
+import { startOrder } from '@/screens/start/rooms';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { Sheet } from '@/ui/Sheet';
 import { Dot } from '@/ui/Spoken';
@@ -90,7 +89,7 @@ function PlaceSheet({ chosen, onChoose, onClose }: { chosen: string; onChoose: (
   const diary = useDiaryLayer();
   const places = (home.data?.spaces ?? []).filter(isPlace);
   const devices = useDevices(places.some(place => place.deviceIds.length > 0));
-  const groups = groupedByRoom(sortedByAttention(places), spaces.data?.items ?? []);
+  const groups = startOrder(places, spaces.data?.items ?? []);
   const row = (card: PlaceCard, apart = false) => (
     <PlaceRow
       key={card.spaceId}

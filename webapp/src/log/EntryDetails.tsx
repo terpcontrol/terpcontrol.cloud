@@ -20,11 +20,14 @@ import { useGrow } from '@/api/grows';
 import { useHome } from '@/api/home';
 import type { Translate } from '@/i18n/i18n';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
-import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
+import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
 import { ClimatePick } from '@/screens/grow/ClimatePick';
 import { assetTitle } from '@/screens/grow/scheme';
 import { climateRequest, defaultPick, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
+import { Facts } from '@/ui/Facts';
+import { factsOf, unbroken } from '@/ui/fact-text';
 import { looseFigure, typedFigure } from '@/ui/figures';
+import { Help } from '@/ui/Help';
 import { useMayManage } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
@@ -62,6 +65,9 @@ const WATER_KEY = 'water_l';
 const FIELDS_SHOWN = 3;
 
 const LITRE_STEP = 0.5;
+
+/** More water than any tent takes at once: a figure beyond it is a slip of the finger, and is refused rather than written. */
+const MAX_LITRES = 1000;
 
 interface DetailsProps {
   kind: TileKind;
@@ -107,6 +113,9 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
   const [litres, setLitres] = useState<number | null>(entry ? litresOf(entry) : opensOn);
   // What stands in the field while it is typed in: "4," is not a figure yet and must not be put right under the finger.
   const [typedLitres, setTypedLitres] = useState<string | null>(null);
+  // Refused with a word rather than dropped: what was typed is no number, or more water than a tent takes at once.
+  const notANumber = typedLitres !== null && typedLitres.trim() !== '' && typedFigure(typedLitres) === null;
+  const refusedLitres = notANumber ? 'log.litresNoNumber' : litres !== null && litres > MAX_LITRES ? 'log.litresTooMuch' : null;
   const begins = useGrowBegins(grow, target);
   const [readings, setReadings] = useState<Record<string, string>>(() => typed(readingsOf(entry)));
   const [shown, setShown] = useState<string[]>(() => firstFields(definitions, readingsOf(entry)));
@@ -195,6 +204,8 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
       await correctEntry(entry.id, body);
       diaryChanged(client);
       onClose();
+      // The sheet is gone and the line may be days up the page: the toast says it was taken.
+      tell({ label: t('log.corrected'), undo: null });
     } catch {
       setSaving(false);
       setFailed('save');
@@ -215,6 +226,7 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
       await takeEntryBack(entry.id);
       diaryChanged(client);
       onClose();
+      tell({ label: t('log.takenBack'), undo: null });
     } catch {
       setSaving(false);
       setFailed('back');
@@ -243,14 +255,13 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
     setLitres(next(litres, by));
   };
 
-  // Starting a grow answers the question this sheet could not: one sheet at a
-  // time, in place, the way a preset that finds nothing growing opens the same
-  // one.
-  if (startingGrow) return <NewGrowSheet spaceId={target.spaceId ?? target.standsIn} onClose={onClose} />;
+  // Starting a grow answers the question this sheet could not: one sheet at a time, in place.
+  if (startingGrow) return <StartGrowSheet spaceId={target.spaceId ?? target.standsIn} name={target.label} onClose={onClose} />;
 
   return (
     <Sheet
-      title={title(t, kind, step?.week ?? null)}
+      // A line about stepping in is no longer written here, but one written before is still corrected here, under the name the diary gives it.
+      title={kind === 'visit' ? t('home.entryKind.visit') : t(`log.tile.${kind}`)}
       corner={<Moment at={said} onChange={setDated} begins={begins} />}
       onBack={onBack}
       onClose={onClose}
@@ -260,14 +271,23 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
           type="button"
           className={`${ui.button} ${ui.primary}`}
           onClick={save}
-          disabled={saving || nothingSaid || (kind === 'phase' && !stage)}
+          disabled={saving || nothingSaid || (showsWater && refusedLitres !== null) || (kind === 'phase' && !stage)}
         >
           {saveLabel(t, kind, entry, filed, step !== null)}
         </button>
       }
     >
-      {/* Which grid the doses come from sits with what the line is about: the corner is the moment's. */}
-      <p className={`mono ${styles.subject}`}>{[lineLabel(t, kind, filed), kind === 'feed' ? schemeLine(grow) : ''].filter(Boolean).join(' · ')}</p>
+      {/* Which grid the doses come from, and which week of it, sits with what the line is about: the corner is the moment's. */}
+      <p className={`mono ${styles.subject}`}>
+        <Facts
+          facts={[
+            ...factsOf(lineLabel(t, kind, filed)),
+            ...(kind === 'feed' ? factsOf(schemeLine(grow)) : []),
+            kind === 'feed' && step ? t('log.schemeWeek', { week: step.week }) : null,
+          ]}
+        />
+        {kind === 'feed' && step ? <Help topic="mixing" /> : null}
+      </p>
 
       {showsWater ? (
         <div className={`${ui.card} ${styles.waterRow}`}>
@@ -286,7 +306,7 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
                 const value = typedFigure(event.target.value);
                 setLitres(value !== null && value > 0 ? value : null);
               }}
-              onBlur={() => setTypedLitres(null)}
+              onBlur={() => notANumber || setTypedLitres(null)}
             />
             {t('log.litres', { litres: '' }).trim()}
           </label>
@@ -296,43 +316,49 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
         </div>
       ) : null}
 
-      {/* What the field opened on is the last can, and when that was says how far to trust it. */}
-      {showsWater && !entry && last ? (
-        <p className={`mono ${styles.lastTime}`}>
-          {t('log.lastTime', {
-            ago: DateTime.fromISO(last.at).toRelative({ base: serverNow(), locale: i18n.language }) ?? '',
-            litres: looseFigure(last.litres),
-          })}
+      {showsWater && refusedLitres ? (
+        <p className={ui.problem} role="alert">
+          {unbroken(t(refusedLitres, { max: MAX_LITRES }))}
         </p>
       ) : null}
 
-      {kind === 'feed' ? (
+      {/* What the field opened on is the last can, and when that was says how far to trust it. */}
+      {showsWater && !entry && last ? (
+        <p className={`mono ${styles.lastTime}`}>
+          <Facts
+            facts={factsOf(
+              t('log.lastTime', {
+                ago: DateTime.fromISO(last.at).toRelative({ base: serverNow(), locale: i18n.language }) ?? '',
+                litres: looseFigure(last.litres),
+              }),
+            )}
+          />
+        </p>
+      ) : null}
+
+      {/* A grow fed by no scheme has no doses to list, and nothing is said in their place. */}
+      {kind === 'feed' && step ? (
         <div className={`${ui.card} ${styles.doses}`}>
-          {step ? (
-            step.amounts.map(amount => {
-              const dose = doses.find(one => one.productKey === amount.productKey);
-              const from = amount.value === null ? startsAfter(grow, amount.productKey, step.week) : null;
-              const until = amount.value === null && from === null ? stoppedAfter(grow, amount.productKey) : null;
-              return (
-                <div key={amount.productKey} className={styles.dose} data-off={amount.value === null}>
-                  <span className={styles.doseName}>{amount.name}</span>
-                  <span className={`mono ${styles.doseRate}`}>
-                    {amount.value === null
-                      ? from !== null
-                        ? t('log.startsIn', { week: from })
-                        : until === null || until >= step.week
-                          ? ''
-                          : t('log.stopsAfter', { week: until })
-                      : `${amount.value} ${amount.unit}`}
-                  </span>
-                  <span className={`figure ${styles.doseAmount}`}>{dose ? `${looseFigure(dose.amount)} ${dose.unit}` : '—'}</span>
-                </div>
-              );
-            })
-          ) : (
-            <p className={ui.note}>{t('log.noScheme')}</p>
-          )}
-          {step ? <p className={`${ui.note} ${styles.mixNote}`}>{t('log.mixOrder')}</p> : null}
+          {step.amounts.map(amount => {
+            const dose = doses.find(one => one.productKey === amount.productKey);
+            const from = amount.value === null ? startsAfter(grow, amount.productKey, step.week) : null;
+            const until = amount.value === null && from === null ? stoppedAfter(grow, amount.productKey) : null;
+            return (
+              <div key={amount.productKey} className={styles.dose} data-off={amount.value === null}>
+                <span className={styles.doseName}>{amount.name}</span>
+                <span className={`mono ${styles.doseRate}`}>
+                  {amount.value === null
+                    ? from !== null
+                      ? t('log.startsIn', { week: from })
+                      : until === null || until >= step.week
+                        ? ''
+                        : t('log.stopsAfter', { week: until })
+                    : `${amount.value} ${amount.unit}`}
+                </span>
+                <span className={`figure ${styles.doseAmount}`}>{dose ? `${looseFigure(dose.amount)} ${dose.unit}` : '—'}</span>
+              </div>
+            );
+          })}
         </div>
       ) : null}
 
@@ -490,10 +516,6 @@ function Stages({
     </Choices>
   );
 }
-
-/** A line about stepping in is no longer written here, but one written before is still corrected here, under the name the diary gives it. */
-const title = (t: Translate, kind: TileKind, week: number | null): string =>
-  kind === 'feed' && week !== null ? t('log.feedWeek', { week }) : kind === 'visit' ? t('home.entryKind.visit') : t(`log.tile.${kind}`);
 
 /** "Biobizz · Light·Mix": which grid the doses come from, in the words the grow stores it under. */
 const schemeLine = (grow: GrowListItem | undefined): string => {

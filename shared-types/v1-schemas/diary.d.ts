@@ -2422,6 +2422,40 @@ export declare const growCard: z.ZodObject<{
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
+ * Something that happened and is nobody's diary line: the lamp switching and a
+ * stretch the climate spent outside what the devices were aiming at, which a
+ * device did by itself, and maintenance, which a person switched - on and off
+ * are one event. Lamp and stretches are read from the measurements on every
+ * read of a day and stored nowhere, so a day that has left the store's raw
+ * samples has none. A reader from outside is answered none of them.
+ */
+export declare const growDayEvent: z.ZodDiscriminatedUnion<[z.ZodObject<{
+    kind: z.ZodLiteral<"light">;
+    at: z.ZodISODateTime;
+    on: z.ZodBoolean;
+    still: z.ZodBoolean;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"excursion">;
+    at: z.ZodISODateTime;
+    endedAt: z.ZodNullable<z.ZodISODateTime>;
+    metric: z.ZodEnum<{
+        offline: "offline";
+        co2: "co2";
+        temperature: "temperature";
+        humidity: "humidity";
+        leafTemperature: "leafTemperature";
+        lux: "lux";
+        vpd: "vpd";
+        ppfd: "ppfd";
+    }>;
+    above: z.ZodBoolean;
+    extremeValue: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"maintenance">;
+    at: z.ZodISODateTime;
+    endedAt: z.ZodNullable<z.ZodISODateTime>;
+}, z.core.$strip>], "kind">;
+/**
  * One space, with everything the home screen shows about it - or, where the
  * ids are null, one open grow that stands in no space at all. A grow is
  * first-class without a place, so "no fixed place" is a card rather than a
@@ -2770,6 +2804,32 @@ export declare const homeSpaceCard: z.ZodObject<{
         mediaIds: z.ZodArray<z.ZodString>;
         undoUntil: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>>;
+    events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
+        kind: z.ZodLiteral<"light">;
+        at: z.ZodISODateTime;
+        on: z.ZodBoolean;
+        still: z.ZodBoolean;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"excursion">;
+        at: z.ZodISODateTime;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        above: z.ZodBoolean;
+        extremeValue: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"maintenance">;
+        at: z.ZodISODateTime;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>], "kind">>;
     latestStill: z.ZodNullable<z.ZodObject<{
         mediaId: z.ZodString;
         cameraId: z.ZodString;
@@ -3129,6 +3189,32 @@ export declare const homeAnswer: z.ZodObject<{
             mediaIds: z.ZodArray<z.ZodString>;
             undoUntil: z.ZodNullable<z.ZodISODateTime>;
         }, z.core.$strip>>;
+        events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
+            kind: z.ZodLiteral<"light">;
+            at: z.ZodISODateTime;
+            on: z.ZodBoolean;
+            still: z.ZodBoolean;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"excursion">;
+            at: z.ZodISODateTime;
+            endedAt: z.ZodNullable<z.ZodISODateTime>;
+            metric: z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>;
+            above: z.ZodBoolean;
+            extremeValue: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"maintenance">;
+            at: z.ZodISODateTime;
+            endedAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>], "kind">>;
         latestStill: z.ZodNullable<z.ZodObject<{
             mediaId: z.ZodString;
             cameraId: z.ZodString;
@@ -4291,6 +4377,32 @@ export declare const spaceOverview: z.ZodObject<{
         mediaIds: z.ZodArray<z.ZodString>;
         undoUntil: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>>;
+    events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
+        kind: z.ZodLiteral<"light">;
+        at: z.ZodISODateTime;
+        on: z.ZodBoolean;
+        still: z.ZodBoolean;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"excursion">;
+        at: z.ZodISODateTime;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        above: z.ZodBoolean;
+        extremeValue: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"maintenance">;
+        at: z.ZodISODateTime;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>], "kind">>;
     readingNames: z.ZodArray<z.ZodObject<{
         growId: z.ZodString;
         readings: z.ZodArray<z.ZodObject<{
@@ -5138,40 +5250,6 @@ export declare const weekClimate: z.ZodObject<{
     nightAverage: z.ZodNullable<z.ZodNumber>;
 }, z.core.$strip>;
 /**
- * Something that happened on one day and is nobody's diary line: the lamp
- * switching and a stretch the climate spent outside what the devices were
- * aiming at, which a device did by itself, and maintenance, which a person
- * switched - on and off are one event. Lamp and stretches are read from the
- * measurements on every read and stored nowhere, so a day that has left the
- * store's raw samples has none. A reader from outside is answered none of
- * them.
- */
-export declare const growDayEvent: z.ZodDiscriminatedUnion<[z.ZodObject<{
-    kind: z.ZodLiteral<"light">;
-    at: z.ZodISODateTime;
-    on: z.ZodBoolean;
-}, z.core.$strip>, z.ZodObject<{
-    kind: z.ZodLiteral<"excursion">;
-    at: z.ZodISODateTime;
-    endedAt: z.ZodNullable<z.ZodISODateTime>;
-    metric: z.ZodEnum<{
-        offline: "offline";
-        co2: "co2";
-        temperature: "temperature";
-        humidity: "humidity";
-        leafTemperature: "leafTemperature";
-        lux: "lux";
-        vpd: "vpd";
-        ppfd: "ppfd";
-    }>;
-    above: z.ZodBoolean;
-    extremeValue: z.ZodNullable<z.ZodNumber>;
-}, z.core.$strip>, z.ZodObject<{
-    kind: z.ZodLiteral<"maintenance">;
-    at: z.ZodISODateTime;
-    endedAt: z.ZodNullable<z.ZodISODateTime>;
-}, z.core.$strip>], "kind">;
-/**
  * How one day was kept: the means of what was measured where the grow stood,
  * and the share of the day inside what the devices were aiming at.
  *
@@ -5212,6 +5290,7 @@ export declare const growDiaryDay: z.ZodObject<{
         kind: z.ZodLiteral<"light">;
         at: z.ZodISODateTime;
         on: z.ZodBoolean;
+        still: z.ZodBoolean;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"excursion">;
         at: z.ZodISODateTime;
@@ -5401,6 +5480,7 @@ export declare const growDiaryWeek: z.ZodObject<{
             kind: z.ZodLiteral<"light">;
             at: z.ZodISODateTime;
             on: z.ZodBoolean;
+            still: z.ZodBoolean;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"excursion">;
             at: z.ZodISODateTime;
@@ -5592,6 +5672,7 @@ export declare const growDiaryPage: z.ZodObject<{
                 kind: z.ZodLiteral<"light">;
                 at: z.ZodISODateTime;
                 on: z.ZodBoolean;
+                still: z.ZodBoolean;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"excursion">;
                 at: z.ZodISODateTime;
@@ -6738,6 +6819,7 @@ export declare const publicGrowPage: z.ZodObject<{
                 kind: z.ZodLiteral<"light">;
                 at: z.ZodISODateTime;
                 on: z.ZodBoolean;
+                still: z.ZodBoolean;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"excursion">;
                 at: z.ZodISODateTime;
@@ -6945,6 +7027,7 @@ export declare const publicWeekPage: z.ZodObject<{
                 kind: z.ZodLiteral<"light">;
                 at: z.ZodISODateTime;
                 on: z.ZodBoolean;
+                still: z.ZodBoolean;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"excursion">;
                 at: z.ZodISODateTime;
@@ -7206,6 +7289,7 @@ export declare const sharedGrow: z.ZodObject<{
                     kind: z.ZodLiteral<"light">;
                     at: z.ZodISODateTime;
                     on: z.ZodBoolean;
+                    still: z.ZodBoolean;
                 }, z.core.$strip>, z.ZodObject<{
                     kind: z.ZodLiteral<"excursion">;
                     at: z.ZodISODateTime;
@@ -7930,6 +8014,32 @@ export declare const sharedSpace: z.ZodObject<{
             mediaIds: z.ZodArray<z.ZodString>;
             undoUntil: z.ZodNullable<z.ZodISODateTime>;
         }, z.core.$strip>>;
+        events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
+            kind: z.ZodLiteral<"light">;
+            at: z.ZodISODateTime;
+            on: z.ZodBoolean;
+            still: z.ZodBoolean;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"excursion">;
+            at: z.ZodISODateTime;
+            endedAt: z.ZodNullable<z.ZodISODateTime>;
+            metric: z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>;
+            above: z.ZodBoolean;
+            extremeValue: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"maintenance">;
+            at: z.ZodISODateTime;
+            endedAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>], "kind">>;
         readingNames: z.ZodArray<z.ZodObject<{
             growId: z.ZodString;
             readings: z.ZodArray<z.ZodObject<{
@@ -8072,6 +8182,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     kind: z.ZodLiteral<"light">;
                     at: z.ZodISODateTime;
                     on: z.ZodBoolean;
+                    still: z.ZodBoolean;
                 }, z.core.$strip>, z.ZodObject<{
                     kind: z.ZodLiteral<"excursion">;
                     at: z.ZodISODateTime;
@@ -8790,6 +8901,32 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             mediaIds: z.ZodArray<z.ZodString>;
             undoUntil: z.ZodNullable<z.ZodISODateTime>;
         }, z.core.$strip>>;
+        events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
+            kind: z.ZodLiteral<"light">;
+            at: z.ZodISODateTime;
+            on: z.ZodBoolean;
+            still: z.ZodBoolean;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"excursion">;
+            at: z.ZodISODateTime;
+            endedAt: z.ZodNullable<z.ZodISODateTime>;
+            metric: z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>;
+            above: z.ZodBoolean;
+            extremeValue: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"maintenance">;
+            at: z.ZodISODateTime;
+            endedAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>], "kind">>;
         readingNames: z.ZodArray<z.ZodObject<{
             growId: z.ZodString;
             readings: z.ZodArray<z.ZodObject<{
@@ -8949,6 +9086,7 @@ export declare const sharedResolution: z.ZodObject<{
                         kind: z.ZodLiteral<"light">;
                         at: z.ZodISODateTime;
                         on: z.ZodBoolean;
+                        still: z.ZodBoolean;
                     }, z.core.$strip>, z.ZodObject<{
                         kind: z.ZodLiteral<"excursion">;
                         at: z.ZodISODateTime;
@@ -9667,6 +9805,32 @@ export declare const sharedResolution: z.ZodObject<{
                 mediaIds: z.ZodArray<z.ZodString>;
                 undoUntil: z.ZodNullable<z.ZodISODateTime>;
             }, z.core.$strip>>;
+            events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
+                kind: z.ZodLiteral<"light">;
+                at: z.ZodISODateTime;
+                on: z.ZodBoolean;
+                still: z.ZodBoolean;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"excursion">;
+                at: z.ZodISODateTime;
+                endedAt: z.ZodNullable<z.ZodISODateTime>;
+                metric: z.ZodEnum<{
+                    offline: "offline";
+                    co2: "co2";
+                    temperature: "temperature";
+                    humidity: "humidity";
+                    leafTemperature: "leafTemperature";
+                    lux: "lux";
+                    vpd: "vpd";
+                    ppfd: "ppfd";
+                }>;
+                above: z.ZodBoolean;
+                extremeValue: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"maintenance">;
+                at: z.ZodISODateTime;
+                endedAt: z.ZodNullable<z.ZodISODateTime>;
+            }, z.core.$strip>], "kind">>;
             readingNames: z.ZodArray<z.ZodObject<{
                 growId: z.ZodString;
                 readings: z.ZodArray<z.ZodObject<{

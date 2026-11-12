@@ -4,11 +4,11 @@ import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
 import { growSchemeLabel, schemeVersionLabel, useOwnSchemes, useScheme, useSchemes } from '@/api/schemes';
-import { Help } from '@/ui/Help';
+import { Help, Term } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { sameScheme, useSchemeEdit } from './scheme/edit-store';
-import { hasEcTargets, withFlipWeek } from './scheme/grid';
+import { withFlipWeek } from './scheme/grid';
 import { GridEditor } from './scheme/GridEditor';
 import { SchemeSheet } from './scheme/SchemeSheet';
 import styles from './scheme/Scheme.module.css';
@@ -118,16 +118,6 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
       <div className={styles.page}>
         <section className={`${ui.cardDashed} ${styles.none}`}>
           <span className="label">{t('grow.noScheme')}</span>
-          {/* A finished grow is not being fed anything, so it is told what it
-              was fed and why the grid is still worth filling in, rather than
-              being advised how to start. The action itself stays: the grid is
-              what every week card of this grow states it was fed, here and on
-              a shared link, and filling in what a grow really got is a
-              legitimate repair of that long afterwards. It reaches no further
-              than those cards - the report carries nothing week-level and the
-              export writes only the scheme it was fed by - so the note must
-              not promise those two. */}
-          <p className={ui.note}>{t(grow.endedAt ? 'grow.noSchemeNoteEnded' : 'grow.noSchemeNote')}</p>
         </section>
         {mayManage ? (
           <div className={styles.chips}>
@@ -286,19 +276,13 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
         }
         onEdit={editGrid}
       >
+        {/* Which week it is, and behind it how the grid is read and changed: nothing is explained above the buttons. */}
         <p className={styles.note}>
-          {currentWeek !== null ? `${t('grow.scheme.thisWeekLine', { week: currentWeek })} ` : ''}
-          {draft.flipWeek !== null ? `${t('grow.scheme.flipLine', { week: draft.flipWeek })} ` : ''}
-          {mayManage ? t('grow.scheme.howLine') : null}
+          {currentWeek !== null ? <Term topic="feedGrid">{t('grow.scheme.thisWeekLine', { week: currentWeek })}</Term> : <Help topic="feedGrid" />}
         </p>
       </GridEditor>
 
       {unsaved}
-
-      <p className={styles.caption}>
-        {hasEcTargets(draft.grid) ? `${t('grow.scheme.ecCaption')} ` : ''}
-        {t('grow.scheme.chartCaption')} {t('grow.scheme.honesty')}
-      </p>
 
       {sheet}
     </div>

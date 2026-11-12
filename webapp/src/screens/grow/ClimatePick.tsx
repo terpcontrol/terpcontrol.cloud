@@ -1,9 +1,11 @@
 import type { GrowthStage } from '@fg2/shared-types/v1';
-import { climatePreset, GERMINATION_TOO_HUMID, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { climatePreset, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import type { Translate } from '@/i18n/i18n';
 import { germinates } from '@/ui/climate-hardware';
+import { Facts } from '@/ui/Facts';
+import { factsOf } from '@/ui/fact-text';
 import { climateChoiceName, presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -35,11 +37,12 @@ interface Figures {
  * hours, and there were four ways to say "now flower" that did four different
  * things: the diary's phase moved the stage and left the light at eighteen
  * hours without a word. So wherever a phase is entered, the climate is the
- * question beside it: leave the targets as they are (and say what they are), or
- * put the tent on one of the climates of the stage - the very names the chips
- * under Steuerung carry, from the same list - and say what that sets. Nothing
- * is chosen for the grower: leaving them is where it starts, and its line says
- * the light stays where it is.
+ * question beside it: leave the targets as they are, or put the tent on one of
+ * the climates of the stage - the very names the chips under Steuerung carry,
+ * from the same list. Under the choice stands what the devices then hold, in
+ * figures and no sentence: what the choices mean, and what a stage does to the
+ * alarms, is behind the help beside the label. Nothing is chosen for the
+ * grower: leaving them is where it starts.
  *
  * It is not asked where nothing could take a climate: a grow standing nowhere,
  * a place with no controller, or a stage that has none.
@@ -52,7 +55,7 @@ interface Figures {
  * (`defaultPick`).
  *
  * Where "Keimung · dunkel" is chosen, what germination does about the humidity
- * is asked under the note, as everywhere germination is set: what the device
+ * is asked under the figures, as everywhere germination is set: what the device
  * keeps stands until a switch is moved here, and only what was moved is sent.
  */
 export function ClimatePick({
@@ -87,26 +90,18 @@ export function ClimatePick({
   // What comes back where germination ends without a climate: the targets from before it, the night it wrote over included.
   const back = endsGermination ? { ...now, nightTemperature: controller.control?.afterGermination?.nightTemperature ?? now.nightTemperature } : now;
 
-  const line = (): string => {
-    if (chosen && stage === 'germination')
-      return t('climatePick.setsGermination', {
-        temperature: targetFigure(chosen.nightTemperature, 'temperature'),
-        humidity: targetFigure(chosen.nightHumidity, 'humidity'),
-      });
-    if (chosen) return t(darkOf(chosen, preset) ? 'climatePick.setsDark' : 'climatePick.sets', { figures: summary(t, chosen, preset, offset) });
-    // Drying keeps no day and no light: what stays is the night it holds round the clock.
-    if (startsDrying) {
-      return t('climatePick.keepsDrying', {
-        temperature: targetFigure(now.nightTemperature, 'temperature'),
-        humidity: targetFigure(now.nightHumidity, 'humidity'),
-      });
-    }
-    if (stage === 'germination' && germinates(controller)) {
-      return t('climatePick.keepsGermination', { temperature: targetFigure(now.nightTemperature, 'temperature') });
-    }
-    const keeps = t('climatePick.keeps', { figures: summary(t, back, null, offset) });
-    return stage === 'germination' ? `${keeps} ${t('climatePick.staysLit')}` : keeps;
+  const dark = (temperature: number, humidity: number): string =>
+    t('climatePick.dark', { day: targetFigure(temperature, 'temperature'), humidity: targetFigure(humidity, 'humidity') });
+  // What the devices hold once the phase is written, in figures. Drying is dark whatever is chosen here; germination
+  // darkens only with its climate and stays dark where the device already germinates; any other stage brings the
+  // light back to a device that does.
+  const after = (): string => {
+    if (chosen && stage === 'germination') return dark(chosen.nightTemperature, chosen.nightHumidity);
+    if (chosen) return summary(t, chosen, preset, offset);
+    if (startsDrying || (stage === 'germination' && germinates(controller))) return dark(now.nightTemperature, now.nightHumidity);
+    return summary(t, back, null, offset);
   };
+  const moves = chosen !== null || startsDrying || endsGermination || (stage !== 'drying' && controller.control?.drying === true);
 
   return (
     <Block label={t('climatePick.label')} help="phasePreset">
@@ -124,13 +119,9 @@ export function ClimatePick({
           </Choice>
         ))}
       </Choices>
+      {/* The answer in figures, and nothing explained: what the choices mean is behind the help beside the label. */}
       <p className={ui.note} role="status">
-        {line()} {/* The stage decides the drying spell whatever is chosen here: entering drying dries, leaving it ends it. */}
-        {startsDrying && chosen ? `${t('climatePick.dries')} ` : null}
-        {stage !== 'drying' && controller.control?.drying ? `${t('climatePick.endsDrying')} ` : null}
-        {/* Any other stage ends germination, and the light comes back. */}
-        {endsGermination ? `${t('climatePick.endsGermination')} ` : null}
-        {alarmsLine(t, stage, value.climate || germinates(controller), choices.warnTooHumid)}
+        <Facts facts={factsOf(t(moves ? 'climatePick.sets' : 'climatePick.keeps', { figures: after() }))} />
       </p>
       {/* The climate that puts the device into germination asks what it does about the humidity. */}
       {stage === 'germination' && value.climate ? (
@@ -144,23 +135,6 @@ export function ClimatePick({
     </Block>
   );
 }
-
-/**
- * What the phase does to the alarms its stage binds. Germination watches the
- * one temperature it holds in the dark, and its "too humid" line rests unless
- * the grower asked to be warned; entered without its climate beside a device
- * that keeps its light, it leaves the alarms that light is watched by, as the
- * server does.
- */
-const alarmsLine = (t: Translate, stage: GrowthStage, dark: boolean, warns: boolean): string =>
-  stage !== 'germination'
-    ? t('climatePick.alarms')
-    : dark
-      ? t('climatePick.alarmsGermination', {
-          line: GERMINATION_TOO_HUMID,
-          humid: t(warns ? 'climatePick.humidWarns' : 'climatePick.humidRests'),
-        })
-      : t('climatePick.alarmsKept');
 
 /** A climate kept dark: a drying room's, which leaves the light alone, or one with the lamp at nothing. */
 const darkOf = (figures: Figures, preset: ClimatePreset | null): boolean => preset?.lightHours === null || figures.lightLimit === 0;

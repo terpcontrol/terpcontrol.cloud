@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Entry } from '@fg2/shared-types/v1';
+import { Facts } from '@/ui/Facts';
+import { factsOf } from '@/ui/fact-text';
 import type { LogRequest, LogTarget, TileKind } from './log-context';
 import styles from './Toasts.module.css';
 
@@ -95,13 +97,17 @@ function Toast({ line, onUndo, onRetry, onDismiss, onDetails }: Omit<ToastsProps
 
   return (
     <div className={styles.toast}>
-      <span className={styles.label}>
-        {line.label}
-        {/* A watering written by hand closes the watering task that was due, and says so. */}
-        {line.details && line.entry?.taskId ? ` · ${t('log.taskClosed')}` : null}
-        {/* Without it a long upload looks like a toast that forgot to go. */}
-        {line.state === 'saving' && line.progress && !line.undoing ? ` · ${t('log.uploaded', line.progress)}` : null}
-      </span>
+      {/* Set as facts, so no figure of the line stands on a row of its own without its unit. */}
+      <Facts
+        className={styles.label}
+        facts={[
+          ...factsOf(line.label),
+          // A watering written by hand closes the watering task that was due, and says so.
+          line.details && line.entry?.taskId ? t('log.taskClosed') : null,
+          // Without it a long upload looks like a toast that forgot to go.
+          line.state === 'saving' && line.progress && !line.undoing ? t('log.uploaded', line.progress) : null,
+        ]}
+      />
       {line.undoing ? (
         <span className={`mono ${styles.quiet}`}>{t('log.takingBack')}</span>
       ) : (

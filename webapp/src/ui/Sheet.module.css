@@ -83,6 +83,17 @@ div.scrim {
   color: var(--ink);
 }
 
+/* On the narrowest phones a title of one word still stands whole beside what shares its row. */
+@media (max-width: 359px) {
+  .header {
+    gap: var(--space-2);
+  }
+
+  .title {
+    font-size: var(--text-lg);
+  }
+}
+
 .note {
   display: block;
   margin-top: 2px;

@@ -62,6 +62,7 @@ const place = (minutesOld: number): SpaceOverview =>
     grows: [],
     cameras: [],
     entries: [],
+    events: [],
     readingNames: [],
     dueTasks: [],
     openAlerts: [],

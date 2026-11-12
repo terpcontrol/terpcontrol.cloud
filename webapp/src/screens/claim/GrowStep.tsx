@@ -11,7 +11,6 @@ import { WhatGrows } from '@/screens/grow/new/WhatGrows';
 import { MoveHereSheet } from '@/screens/space/MoveHereSheet';
 import { useMovableGrows } from '@/screens/space/movable-grows';
 import { shownStill } from '@/screens/start/place';
-import { usePlaceStage } from '@/screens/start/stage';
 import styles from './Claim.module.css';
 
 /**
@@ -26,7 +25,8 @@ import styles from './Claim.module.css';
  *
  * The form opens on the stage the place is on - the one a step earlier put it
  * on, or, when the flow is picked up again later, the one its device's
- * settings say. A grow started here brings the diary into the bar, which the
+ * settings say, which the form reads and waits for (`WhatGrows`). A grow
+ * started here brings the diary into the bar, which the
  * shell would announce as a change of layout; setup did it and says so first
  * (`expectLayout`), so nothing announces what the grower just chose.
  */
@@ -56,7 +56,6 @@ export function GrowStep({
   const still = overview?.cameras.map(shownStill).find(one => one !== null) ?? null;
   const movable = useMovableGrows(space.id);
   const [moving, setMoving] = useState(false);
-  const onDevice = usePlaceStage(space.id);
 
   const started = useRef(false);
 
@@ -97,7 +96,7 @@ export function GrowStep({
       <p className={styles.growText}>{t(still ? 'start.grow.textPictured' : 'start.grow.text')}</p>
       <WhatGrows
         spaceId={space.id}
-        stage={stage ?? onDevice ?? null}
+        stage={stage ?? undefined}
         onStarting={onStarting}
         onStarted={() => {
           started.current = true;

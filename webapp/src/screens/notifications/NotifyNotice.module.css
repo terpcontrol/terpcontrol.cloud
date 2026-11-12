@@ -53,11 +53,25 @@
 
 .button {
   height: var(--action-height);
+  min-height: var(--control-height);
 }
 
 .later {
   flex: none;
   font-size: var(--text-sm);
+}
+
+/* A finger high where they are tapped, without the notice growing by it: each reaches into the air of its own row. */
+.later,
+.address a {
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  justify-content: center;
+  margin-block: -12px;
+}
+
+.address a {
+  margin-block: -15px;
 }
 
 @media (max-width: 599px) {
@@ -130,7 +144,7 @@
 }
 
 .offer[data-compact] .button {
-  height: 32px;
+  height: var(--control-height);
   font-size: var(--text-sm);
 }
 

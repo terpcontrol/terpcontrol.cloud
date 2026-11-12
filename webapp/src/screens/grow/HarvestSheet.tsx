@@ -84,6 +84,8 @@ export function HarvestSheet({
     dryWeightG: typedFigure(dry),
   };
 
+  const share = shareNote(t, cut.length, body.wetWeightG, body.dryWeightG);
+
   return (
     <Sheet title={t('grow.lifecycle.harvest.title', { name: grow.name })} onClose={onClose}>
       <div className={ui.sheetBody}>
@@ -109,12 +111,17 @@ export function HarvestSheet({
         )}
 
         {standing.length === 0 ? null : (
-          <Block label={t('grow.lifecycle.harvest.weights')} aside={<span className="mono">{t('grow.lifecycle.harvest.grams')}</span>}>
+          <Block
+            label={t('grow.lifecycle.harvest.weights')}
+            help="harvestWeights"
+            aside={<span className="mono">{t('grow.lifecycle.harvest.grams')}</span>}
+          >
             <div className={styles.weights}>
               <Weight label={t('grow.lifecycle.harvest.wet')} value={wet} onChange={setWet} />
               <Weight label={t('grow.lifecycle.harvest.dry')} value={dry} onChange={setDry} />
             </div>
-            <p className={ui.note}>{shareNote(t, cut.length, body.wetWeightG, body.dryWeightG)}</p>
+            {/* What a typed weight comes to per plant; that both may stay empty is behind the help. */}
+            {share ? <p className={ui.note}>{share}</p> : null}
           </Block>
         )}
 
@@ -182,7 +189,6 @@ export function HarvestSheet({
                 </li>
               ))}
             </ul>
-            <p className={ui.note}>{t('grow.lifecycle.harvest.correctOnThePlant')}</p>
           </Block>
         )}
       </div>
@@ -219,9 +225,8 @@ function NothingPlanted({ grow, onClose }: { grow: GrowListItem; onClose: () => 
       {grow.endedAt !== null ? (
         <p className={ui.note}>{t('grow.lifecycle.harvest.alreadyEnded', { date: calendarDay(grow.endedAt, zone) })}</p>
       ) : (
-        <Block label={t('grow.lifecycle.harvest.endInstead')}>
+        <Block label={t('grow.lifecycle.harvest.endInstead')} help="growEnds">
           <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />
-          <p className={ui.note}>{t('grow.lifecycle.harvest.endNote')}</p>
           <Refused error={update.error} />
           <button
             type="button"
@@ -255,7 +260,7 @@ function Weight({ label, value, onChange }: { label: string; value: string; onCh
 /** "300 g wet over 3 plants · 100 g each": what the server will do with the total, before it does it. */
 const shareNote = (t: Translate, count: number, wet: number | null, dry: number | null): string => {
   if (count === 0) return t('grow.lifecycle.harvest.pickSomething');
-  if (wet === null && dry === null) return t('grow.lifecycle.harvest.weightsOptional');
+  if (wet === null && dry === null) return '';
 
   const each = (total: number) => looseFigure(Math.round((total / count) * 100) / 100);
   const parts = [

@@ -70,6 +70,8 @@ function Blocking({ unsaved, onAsking }: { unsaved: ReadonlyMap<string, Unsaved>
   return (
     <Sheet
       title={t('targets.leave.title')}
+      // The question a navigation held back asks: Back is the router's while it is open.
+      noEntry
       onClose={stay}
       actions={
         <>

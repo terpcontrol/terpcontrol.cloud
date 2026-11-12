@@ -445,6 +445,11 @@ a.status {
   gap: var(--space-2);
 }
 
+/* An odd tile at the end takes the row: a place that reads three things has no hole beside the third. */
+.tiles > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .tile {
   position: relative;
   display: flex;

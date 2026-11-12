@@ -1,16 +1,9 @@
 import { useNavigate, useNavigationType, useSearchParams } from 'react-router';
-import type { GrowthStage } from '@fg2/shared-types/v1';
 import { useMayManage } from '@/ui/session-access';
 import { Start } from '@/screens/start/Start';
-import { START_STAGES } from './new-grow';
-import { NewGrowSheet } from './NewGrowSheet';
-
-/** The stage the address asks for, kept to the ones a grow can begin in so that a stale link opens the sheet on its own default instead of a chip none of them offers. */
-const stageIn = (params: URLSearchParams): GrowthStage | null => {
-  const asked = params.get('stage');
-
-  return asked !== null && START_STAGES.includes(asked as GrowthStage) ? (asked as GrowthStage) : null;
-};
+import { useSpaces } from '@/api/spaces';
+import { growPlaces } from '../placement';
+import { StartGrowSheet } from './WhatGrows';
 
 /**
  * `/grows/new` as an address, for everything that cannot call the sheet
@@ -22,15 +15,10 @@ const stageIn = (params: URLSearchParams): GrowthStage | null => {
  * inside the app, closing it is one step back; opened cold, it is the home that
  * was already there.
  *
- * `?space=` carries the place it was opened for - the tent a controller was
- * just claimed into, the card the invitation sat on - because a prop is the one
- * thing an address cannot be given. The sheet decides for itself whether that
- * id still names a place, which is the point: a bookmark outlives a tent.
- *
- * `?stage=` carries the stage that place was just put on. It both opens the
- * draft on that stage and tells the sheet the climate has already been written,
- * so that following the link out of a preset does not write the same targets a
- * second time - or, worse, write germination over what was just applied.
+ * `?space=` carries the place it was opened for, because a prop is the one
+ * thing an address cannot be given. An id that names no place the account may
+ * start a grow in - a bookmark outlives a tent - is left out, and the form
+ * asks where.
  *
  * The address is as open as any other; what may be written through it is not,
  * so a session that may only look is given the home and no sheet.
@@ -41,12 +29,14 @@ export function NewGrowRoute() {
   const mayManage = useMayManage();
   const [search] = useSearchParams();
 
+  const places = growPlaces(useSpaces().data?.items ?? []);
+  const place = places.find(one => one.id === search.get('space')) ?? null;
   const close = () => void (arrival === 'PUSH' ? navigate(-1) : navigate('/', { replace: true }));
 
   return (
     <>
       <Start />
-      {mayManage ? <NewGrowSheet spaceId={search.get('space')} stage={stageIn(search)} replace onClose={close} /> : null}
+      {mayManage ? <StartGrowSheet key={place?.id} spaceId={place?.id} name={place?.name} replace onClose={close} /> : null}
     </>
   );
 }

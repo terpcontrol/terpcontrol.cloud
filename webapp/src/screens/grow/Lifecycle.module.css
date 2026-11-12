@@ -127,3 +127,8 @@
 .weightInput:focus {
   outline: none;
 }
+
+/* A finger tall, as every choice in a sheet is. */
+.kinds > button {
+  height: var(--control-height);
+}

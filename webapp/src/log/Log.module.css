@@ -2,14 +2,20 @@
    fields the details ask for. Dense, because a phone in a tent has one thumb. */
 
 /* What a line can be about: pills a thumb finds, wrapping rather than running off the sheet. */
+/* What the line is about: the places in one row and the chosen place's plants in a row of their own, each
+   scrolling sideways where it is longer than the sheet is wide. */
 .targets {
-  display: flex;
-  flex-wrap: wrap;
+  --veil-colour: var(--card);
+
   gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.targets:last-of-type {
   margin-bottom: var(--space-4);
 }
 
-/* A finger high, and a long name cut with an ellipsis rather than pushing the row out of the sheet. */
+/* A finger high, and a name longer than the sheet cut with an ellipsis. */
 .targets > button {
   display: block;
   max-width: 100%;
@@ -23,15 +29,17 @@
   white-space: nowrap;
 }
 
+/* Four to a row, and the tiles of a last row that is short share its width: a row has no hole. */
 .tiles {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin-bottom: var(--space-4);
 }
 
 .tile {
   display: flex;
+  flex: 1 1 calc((100% - 3 * var(--space-2)) / 4);
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -45,7 +53,7 @@
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
   text-align: center;
-  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 /* The instant before the tiles know what their view opens on. */
@@ -65,9 +73,17 @@
 
 /* What the details are about: the same line the toast will say. */
 .subject {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   margin-bottom: var(--space-3);
   font-size: var(--text-xs);
   color: var(--muted);
+}
+
+/* The facts take the line; a help button beside them keeps its own width at the line's end. */
+.subject > :first-child {
+  flex: 1;
 }
 
 .waterRow {
@@ -153,10 +169,6 @@
   text-align: right;
 }
 
-.mixNote {
-  margin-top: var(--space-2);
-  font-size: var(--text-xs);
-}
 
 .fields {
   display: grid;

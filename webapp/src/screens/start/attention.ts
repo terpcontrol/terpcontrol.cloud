@@ -1,5 +1,6 @@
-import type { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
 import type { CardValue, HomeSpaceCard, Severity, ValueState } from '@fg2/shared-types/v1';
+import { fetchedAt } from '@/api/clock';
 import { deviceLiveness, LIVENESS_RANK, valueAge } from '@/ui/age';
 
 /**
@@ -29,6 +30,21 @@ export const livenessOf = (card: { values: CardValue[]; deviceIds: string[] | nu
     const state = valueAge(value, now);
     return LIVENESS_RANK[state] < LIVENESS_RANK[best] ? state : best;
   }, 'offline');
+};
+
+/**
+ * The instant a place is judged at. While its refresh is failing (`failedAt`,
+ * on this browser's clock) that is the moment of the last answer: the readings
+ * go on aging on screen for the app's own reason, and a device heard then is
+ * not called offline because this browser lost its connection. The notice
+ * beside it says that the page could not be refreshed, and since when.
+ */
+export const judgedAt = (now: DateTime, failedAt: number | null): DateTime => (failedAt === null ? now : DateTime.fromISO(fetchedAt(failedAt)));
+
+/** A place's liveness through a failing refresh: its readings age as ever, but what was heard at the last answer goes no further than stale. */
+export const livenessThrough = (card: Parameters<typeof livenessOf>[0], now: DateTime, failedAt: number | null): Liveness => {
+  const aged = livenessOf(card, now);
+  return failedAt !== null && aged === 'offline' && livenessOf(card, judgedAt(now, failedAt)) !== 'offline' ? 'stale' : aged;
 };
 
 /**

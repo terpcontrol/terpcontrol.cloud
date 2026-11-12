@@ -2,6 +2,7 @@ import { ChevronLeft, X } from 'lucide-react';
 import { useRef, type PointerEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useModalFocus } from '@/ui/modal-focus';
+import { useBackCloses } from '@/ui/sheet-back';
 import styles from './Sheet.module.css';
 
 /**
@@ -11,8 +12,8 @@ import styles from './Sheet.module.css';
  *
  * On a phone it comes up from the bottom edge, within a thumb's reach, and its
  * handle pulls it away again; from the desktop breakpoint it is the same panel
- * in the middle of the window. Escape and the backdrop close it, and the focus
- * goes back where it came from. The page behind it does not scroll meanwhile
+ * in the middle of the window. Escape, the backdrop and the browser's Back
+ * close it (`sheet-back.ts`), and the focus goes back where it came from. The page behind it does not scroll meanwhile
  * (`[data-scrim]` in global.css).
  *
  * While it is open the focus stays inside it: it is a modal, so Tab off either
@@ -38,6 +39,7 @@ export function Sheet({
   children,
   actions,
   onBack,
+  noEntry = false,
   onClose,
 }: {
   title: string;
@@ -52,10 +54,16 @@ export function Sheet({
   actions?: ReactNode;
   /** The way back to what this sheet was chosen from, where it was: the tiles a diary line's detail was picked on. */
   onBack?: (() => void) | null;
+  /**
+   * True where Back is not the sheet's to take: it is an address of its own, which Back leaves, or it is the
+   * question a navigation held back asks, which stands on the step the router is taking back.
+   */
+  noEntry?: boolean;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const panel = useModalFocus<HTMLDivElement>(onClose);
+  useBackCloses(onClose, !noEntry);
   // A tap on the backdrop closes on its release, once the browser has taken the
   // focus off the sheet: closed on the press, the focus handed back to what
   // opened the sheet was lost to the page again. A press that began inside the

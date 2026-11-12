@@ -1,4 +1,5 @@
 import type { HomeSpaceCard, Space } from '@fg2/shared-types/v1';
+import { sortedByAttention } from './attention';
 
 /** A run of Start's cards: the places of one room under its name, or a place that stands in none. */
 export interface CardGroup<T> {
@@ -39,3 +40,12 @@ export const groupedByRoom = <T extends HomeSpaceCard>(cards: readonly T[], spac
   }
   return groups;
 };
+
+/**
+ * The order Start lists the places in, and the one order there is: the place
+ * that needs a person first, each room where its most urgent place stands.
+ * The header's list is in it, and a browser that has chosen no place is shown
+ * the first in it that suits (`firstChoice`).
+ */
+export const startOrder = <T extends HomeSpaceCard>(cards: T[], spaces: readonly Space[]): CardGroup<T>[] =>
+  groupedByRoom(sortedByAttention(cards), spaces);

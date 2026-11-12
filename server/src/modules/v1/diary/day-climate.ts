@@ -1,5 +1,6 @@
 import type { DeviceSeries, GrowDayClimate, GrowDayEvent, Metric, SeriesPoint } from '@fg2/shared-types/v1';
 import { Span } from '@common/v1/range';
+import { isOffline } from '@common/v1/value-age';
 import { DeviceHistory } from '@modules/data/data.service';
 import type { RecordedClimate } from '../device/held-targets';
 import { verdictOf } from '../overview/climate-verdict';
@@ -30,7 +31,12 @@ const MIN_JUDGED_SECONDS = 3600;
 
 const AVERAGED: readonly Metric[] = ['temperature', 'humidity'];
 
-export const dayClimateOf = (devices: readonly DayDevice[], day: Span): { climate: GrowDayClimate | null; events: GrowDayEvent[] } => {
+/** `running` says the day has not ended: it is read up to now, and what is still on then is on. */
+export const dayClimateOf = (
+  devices: readonly DayDevice[],
+  day: Span,
+  running = false,
+): { climate: GrowDayClimate | null; events: GrowDayEvent[] } => {
   const from = day.startsAt.getTime();
   const to = day.endsAt.getTime();
   const slices = devices.map(device => ({ ...device, series: sliceOf(device.history.series, from, to) }));
@@ -56,7 +62,7 @@ export const dayClimateOf = (devices: readonly DayDevice[], day: Span): { climat
   const total = judged.reduce((sum, one) => sum + one.seconds, 0);
 
   const events: GrowDayEvent[] = [
-    ...lightOf(devices, from, to),
+    ...lightOf(devices, from, to, running),
     ...verdicts.flatMap(verdict =>
       verdict.metrics.flatMap(row =>
         row.excursions.map(excursion => ({
@@ -86,24 +92,36 @@ export const dayClimateOf = (devices: readonly DayDevice[], day: Span): { climat
 };
 
 /**
- * When the lamp came on and when it went off: the first of the one and the
- * last of the other, so a lamp somebody switched five times while working in
- * the tent is still two lines. The devices of one place switch one lamp, so
- * the first that reports one speaks for it. The row a read opens with is the
- * state it found, not a switching.
+ * What the lamp did, as far as it is known: when it came on and when it last
+ * went off - the first of the one and the last of the other, so a lamp
+ * somebody switched five times while working in the tent is still one stretch
+ * - and, where it came on again after that and nothing switched it off, that
+ * switching too. A stretch that has not ended has no end, and only the day
+ * still running, with its device still reporting, says the lamp is `still`
+ * lit: after a device fell silent nobody knows.
+ *
+ * The devices of one place switch one lamp, so the first that reports one
+ * speaks for it. The row a read opens with is the state it found, not a
+ * switching.
  */
-const lightOf = (devices: readonly DayDevice[], from: number, to: number): GrowDayEvent[] => {
-  const switchings = devices
-    .map(device => device.history.outputs.find(output => output.output === 'light')?.switchings ?? [])
-    .find(rows => rows.length > 0);
-  const inDay = (switchings ?? []).slice(1).filter(switching => {
+const lightOf = (devices: readonly DayDevice[], from: number, to: number, running: boolean): GrowDayEvent[] => {
+  const lamp = devices.find(device => (device.history.outputs.find(output => output.output === 'light')?.switchings ?? []).length > 0);
+  const inDay = (lamp?.history.outputs.find(output => output.output === 'light')?.switchings ?? []).slice(1).filter(switching => {
     const at = Date.parse(switching.at);
     return at >= from && at < to;
   });
-  const on = inDay.find(switching => switching.on);
-  const off = [...inDay].reverse().find(switching => !switching.on);
+  const last = inDay[inDay.length - 1];
+  if (!lamp || !last) return [];
 
-  return [on, off].flatMap(switching => (switching ? [{ kind: 'light' as const, at: switching.at, on: switching.on }] : []));
+  const off = [...inDay].reverse().find(switching => !switching.on);
+  const on = off ? inDay.find(switching => switching.on && switching.at < off.at) : undefined;
+  const open = last.on ? last : undefined;
+  // Reporting by the one rule that calls a device offline.
+  const still = running && lamp.history.lastSampleAt !== null && !isOffline(new Date(lamp.history.lastSampleAt), new Date(to));
+
+  return [on, off, open].flatMap(switching =>
+    switching ? [{ kind: 'light' as const, at: switching.at, on: switching.on, still: switching === open && still }] : [],
+  );
 };
 
 /** The windows of a series that end inside a stretch: a point is stamped at the end of its window. */

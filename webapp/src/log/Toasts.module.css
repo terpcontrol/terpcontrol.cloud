@@ -46,12 +46,17 @@
 
 .label {
   flex: 1;
+  min-width: 0;
   font-size: var(--text-sm);
   line-height: var(--line-tight);
 }
 
+/* A finger high and wide, its words where they were: the room it takes above and below is the toast's own padding. */
 .action {
   flex: none;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  margin-block: calc(var(--space-3) * -1);
   background: none;
   border: 0;
   padding: 0;

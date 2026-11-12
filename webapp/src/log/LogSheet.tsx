@@ -119,28 +119,24 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
               {t('log.notHere')}
             </p>
           ) : null}
+          {/* The places in one row, and under it the plants of the chosen one: which place, then whether the line
+              is about one plant of it. Pressed rather than linked, so the sheet stays where it is. */}
           {choosable || missed ? (
-            <div className={styles.targets} role="group" aria-label={t('log.targetLabel')}>
-              {/* The grow first, then its plants, then the other places: the
-                  chips a thumb can reach are the ones about where you are.
-                  Pressed rather than linked, so the sheet stays where it is. */}
-              {place ? (
-                <Choice chosen={place.key === target?.key} onChoose={() => choose(place, false)}>
-                  {several ? placeChip(home, place) : place.label}
+            <div className={`${ui.scrollRow} ${styles.targets}`} role="group" aria-label={t('log.targetLabel')}>
+              {places.map(one => (
+                <Choice key={one.key} chosen={one.key === place?.key} onChoose={() => choose(one, false)}>
+                  {several ? placeChip(home, one) : one.label}
                 </Choice>
-              ) : null}
+              ))}
+            </div>
+          ) : null}
+          {narrower.length > 0 ? (
+            <div className={`${ui.scrollRow} ${styles.targets}`} role="group" aria-label={t('log.plantLabel')}>
               {narrower.map(one => (
                 <Choice key={one.key} chosen={one.key === target?.key} onChoose={() => choose(one, true)}>
                   {one.label}
                 </Choice>
               ))}
-              {places
-                .filter(one => one.key !== place?.key)
-                .map(one => (
-                  <Choice key={one.key} chosen={false} onChoose={() => choose(one, false)}>
-                    {several ? placeChip(home, one) : one.label}
-                  </Choice>
-                ))}
             </div>
           ) : null}
 

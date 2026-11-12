@@ -94,10 +94,8 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
       the sheets, the pending marks and three sub-pages cost what the list saved. What could still go: the panels
       that are forms with their own Save and leave question (a socket's switching, a LIGHT's window, a fan's
       speeds, a fridge's fans; `screens/control/devices/`, `Guarded` in `OwnSettings.tsx`) are a second way to
-      change a setting beside the sheets; Start's and Ich's door rows are not yet `ui/Rows`. The first choice of
-      place now prefers a place where a grow runs beside a device (`firstChoice`, `app/places.ts`), without a
-      test of its own. Switching control on stands on Steuerung, where the climate would be, and on the device's
-      page; off only on the device's page. Maintenance, a restart and an update stand on the device's card and on
+      change a setting beside the sheets; Start's and Ich's door rows are not yet `ui/Rows`. Switching control on
+      stands on Steuerung, where the climate would be, and on the device's page; off only on the device's page. Maintenance, a restart and an update stand on the device's card and on
       its page alike, against "every setting has one place" read strictly - they are done to the hardware, not
       settings; Chris's to confirm. The session's critic has not walked this round yet.
   - A line of the diary opens Verlauf on its moment however old; today one from more than 30 days back opens the
@@ -126,8 +124,9 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     - Left for round 5: a moment's camera picture in Verlauf's cursor, reached from the camera page.
   - Where the run stands (2026-11-12). Built, walked by a critic and fixed: the frame, Start, the grow pages.
     Round 4 is built and walked, its fixes decided (above) and not built. The second walk of Start and the grow
-    pages found one blocker - a device's alarms reached outside readers, closed - and eight larger points, which
-    are being built. Then, one round after another, each followed by its critic
+    pages found one blocker - a device's alarms reached outside readers, closed - and eight larger points, built:
+    their rules stand in [app-ux.md](knowledge/app-ux.md) and
+    [server-engines.md](knowledge/server-engines.md#read-models), each marked as the redesign session's. Then, one round after another, each followed by its critic
     ([development-workflow.md](knowledge/development-workflow.md), Long runs and rounds):
     Verlauf as one page with the server's finer step, place and room with the data model's migration steps, Ich
     and Meldungen, and the clearing up (unused code, one wording pass, these documents, the line counts against

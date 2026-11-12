@@ -1,18 +1,15 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { Entry, GrowDiaryDay, Person } from '@fg2/shared-types/v1';
+import type { GrowDiaryDay, Person } from '@fg2/shared-types/v1';
 import { THUMBNAIL_WIDTH } from '@/api/session';
-import { warningOf } from '@/ui/entries';
-import { EntryWords } from '@/ui/EntryRow';
-import { Facts } from '@/ui/Facts';
 import { Term } from '@/ui/Help';
-import { sinceLabel } from '@/ui/age';
-import { Line, Lines } from '@/ui/Lines';
+import { Lines } from '@/ui/Lines';
 import { useKept } from '@/ui/kept';
 import ui from '@/ui/ui.module.css';
 import { clock } from '@/ui/zone';
 import { climateLine, dayLines, dayTitle, headPicture, picturesOfLine, shareOf, shownLines, type DiaryReader, type GrowPicture } from './days';
+import { DiaryLine } from './DiaryLine';
 import styles from './Diary.module.css';
 
 /**
@@ -60,7 +57,6 @@ export function DayCard({
   const lines = dayLines(t, i18n, day, zone);
   const shown = all ? lines : shownLines(lines);
   const alt = picture ? t(picture.entry ? 'grow.diary.photoAlt' : 'grow.diary.stillAlt', { day: day.dayNumber }) : '';
-  const byItself = t('grow.diary.byItself');
 
   return (
     <article className={styles.day} aria-label={title}>
@@ -98,57 +94,23 @@ export function DayCard({
         <div className={styles.dayLines}>
           <Lines>
             {shown.map(line => {
-              const mark = line.own ? null : byItself;
-              const stamp = clock(line.at, zone);
-              const { what } = line;
-              if (what.kind === 'said') {
-                return (
-                  <Line key={line.key} stamp={stamp} mark={mark} to={what.metric ? reader.curveOf(what.metric, line.at) : null}>
-                    {what.words}
-                  </Line>
-                );
-              }
-              if (what.kind === 'alarm') {
-                return (
-                  <Line key={line.key} stamp={stamp} mark={mark} severity={what.over ? null : warningOf(what.entry)}>
-                    <span className={ui.visuallyHidden}>{`${t('home.entryKind.alarm')}: `}</span>
-                    <Facts
-                      facts={[
-                        what.rule,
-                        what.count > 1 ? t('home.entryRepeats', { count: what.count, since: sinceLabel(what.since, now, zone) }) : null,
-                        what.over ? t('grow.diary.alarmOver') : null,
-                      ]}
-                    />
-                    {what.limit ? <small>{what.limit}</small> : null}
-                  </Line>
-                );
-              }
-
-              const { entry } = what;
-              const pictures = picturesOfLine(day, entry);
-              const correct = reader.correct(entry, day.dayNumber);
+              const entry = line.what.kind === 'entry' ? line.what.entry : null;
+              const pictures = entry ? picturesOfLine(day, entry) : [];
+              const correct = entry ? reader.correct(entry, day.dayNumber) : undefined;
               return (
-                <Line
+                <DiaryLine
                   key={line.key}
-                  stamp={stamp}
-                  mark={mark}
-                  severity={warningOf(entry)}
+                  line={line}
+                  stamp={clock(line.at, zone)}
+                  zone={zone}
+                  now={now}
+                  people={people}
+                  measurements={reader.readingNames}
+                  byline={reader.byline}
+                  to={line.what.kind === 'said' && line.what.metric ? reader.curveOf(line.what.metric, line.at) : null}
                   onOpen={correct ?? (pictures[0] ? () => onPicture(pictures[0]) : null)}
                   opens={correct ? undefined : t('grow.diary.openPicture')}
-                >
-                  <span className={ui.visuallyHidden}>{`${t(`home.entryKind.${entry.kind}`)}: `}</span>
-                  <EntryWords
-                    entry={entry}
-                    people={people}
-                    measurements={reader.readingNames}
-                    now={now}
-                    zone={zone}
-                    byline={reader.byline}
-                    repeats={what}
-                    brief
-                  />
-                  {pictureCount(entry, t)}
-                </Line>
+                />
               );
             })}
           </Lines>
@@ -164,7 +126,3 @@ export function DayCard({
     </article>
   );
 }
-
-/** "· 2 Bilder" behind a line that carries pictures. */
-const pictureCount = (entry: Entry, t: ReturnType<typeof useTranslation>['t']): string | null =>
-  entry.mediaIds.length > 0 ? ` · ${t('start.latest.pictures', { count: entry.mediaIds.length })}` : null;

@@ -40,9 +40,107 @@ describe('the focus of a control that goes away', () => {
   });
 });
 
+/** A card that is taken away, between a control in front of it and one after it. */
+function Declining() {
+  useFocusRescue();
+  const [offered, setOffered] = useState(true);
+  return (
+    <section>
+      <button type="button">First on the page</button>
+      <p>Readings</p>
+      {offered ? (
+        <div>
+          <button type="button" onClick={() => setOffered(false)}>
+            No thanks
+          </button>
+        </div>
+      ) : null}
+      <a href="/add">Add a place</a>
+    </section>
+  );
+}
+
+describe('the focus of a card that is taken away', () => {
+  it('stays where the card stood - on the control after it - rather than going to the top of the page', async () => {
+    render(<Declining />);
+    const no = screen.getByRole('button', { name: 'No thanks' });
+    no.focus();
+    fireEvent.click(no);
+
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Add a place' })).toHaveFocus());
+  });
+});
+
 describe('a sheet', () => {
   // The sheet names its close button from the catalogue.
   beforeAll(() => translate());
+
+  /**
+   * On a phone Back is how anything opened is put away, and a Back that took
+   * the page with the sheet took the reader out of the app from Start.
+   */
+  describe('and the browser´s Back', () => {
+    const back = async () => {
+      await act(async () => {
+        window.history.back();
+        await new Promise(resolve => window.addEventListener('popstate', resolve, { once: true }));
+      });
+    };
+
+    function Page({ noEntry = false }: { noEntry?: boolean }) {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            Ask
+          </button>
+          {open ? (
+            <Sheet title="Question" noEntry={noEntry} onClose={() => setOpen(false)}>
+              <p>Inside</p>
+            </Sheet>
+          ) : null}
+        </>
+      );
+    }
+
+    it('closes the sheet and leaves the page where it is', async () => {
+      render(<Page />);
+      const entries = window.history.length;
+      fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+      // The open sheet stands on an entry of its own.
+      expect(window.history.length).toBe(entries + 1);
+
+      await back();
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Ask' })).toBeInTheDocument();
+    });
+
+    it('gathers one entry however many sheets a page opens and closes without it', async () => {
+      render(<Page />);
+      const open = () => fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+      const close = () => act(() => void fireEvent.keyDown(document, { key: 'Escape' }));
+
+      open();
+      const entries = window.history.length;
+      close();
+      open();
+      close();
+      open();
+
+      expect(window.history.length).toBe(entries);
+      await back();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('takes no entry for a sheet that is an address of its own, or the question a held-back navigation asks', () => {
+      render(<Page noEntry />);
+      const entries = window.history.length;
+      fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+
+      expect(window.history.length).toBe(entries);
+    });
+  });
 
   it('makes the page behind it unreachable while it is open, and gives it back as it closes', () => {
     function Page() {

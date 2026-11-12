@@ -623,6 +623,77 @@ describe('correcting a phase', () => {
   });
 });
 
+describe('moving a grow´s start', () => {
+  const A_WEEK_EARLIER = new Date(STARTED_AT.getTime() - 7 * 86_400_000);
+
+  it('moves the first phase and its line with it, so the report´s first chapter begins where the days do', async () => {
+    const grow = await started();
+    const first = await grows.addPhase(grow.id, { stage: 'vegetative', startedAt: STARTED_AT.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    await grows.update(grow.id, { startedAt: A_WEEK_EARLIER.toISOString() }, NOTHING_HIDDEN);
+
+    const stored = await grows.require(grow.id);
+    expect(stored.startedAt).toEqual(A_WEEK_EARLIER);
+    expect(stored.phases.map(phase => phase.startedAt)).toEqual([A_WEEK_EARLIER]);
+    expect((await phaseLineOf(grow.id, first.id))?.occurredAt).toEqual(A_WEEK_EARLIER);
+    // The grow stood where it stands from its first day on, too.
+    expect(stored.placements.map(placement => placement.startedAt)).toEqual([A_WEEK_EARLIER]);
+    expect(serialiseGrow(stored, await plantsOfGrow(grow.id), NOTHING_HIDDEN, null, TEN_DAYS_LATER).summary).toMatchObject({
+      dayNumber: 18,
+      phaseDay: 18,
+    });
+  });
+
+  it('leaves a phase that began later where it is', async () => {
+    const grow = await started();
+    const later = new Date(STARTED_AT.getTime() + 3 * 86_400_000);
+    await grows.addPhase(grow.id, { stage: 'vegetative', startedAt: later.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    await grows.update(grow.id, { startedAt: A_WEEK_EARLIER.toISOString() }, NOTHING_HIDDEN);
+
+    expect((await grows.require(grow.id)).phases.map(phase => phase.startedAt)).toEqual([later]);
+  });
+});
+
+describe('a grow´s first phase, written a moment after the grow', () => {
+  it('begins with the grow, so the two stand on one instant and move with each other', async () => {
+    const made = await grows.create(session(OWNER), {
+      name: 'Just sown',
+      type: 'photoperiod',
+      spaceId: TENT,
+      plants: [{ strain: 'Amnesia', count: 1 }],
+    });
+
+    const first = await grows.addPhase(made.id, { stage: 'vegetative', startedAt: new Date(Date.now() + 500).toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    expect(first.startedAt).toBe(made.startedAt);
+    // A week earlier, as the moment's pop-up moves a start: the phase goes with it.
+    const earlier = new Date(Date.parse(made.startedAt) - 7 * 86_400_000);
+    await grows.update(made.id, { startedAt: earlier.toISOString() }, NOTHING_HIDDEN);
+    expect((await grows.require(made.id)).phases.map(phase => phase.startedAt)).toEqual([earlier]);
+  });
+
+  it('keeps its own instant where it is entered later than a clock may differ', async () => {
+    const grow = await started();
+    const later = new Date(STARTED_AT.getTime() + 2 * 3600 * 1000);
+
+    const first = await grows.addPhase(grow.id, { stage: 'vegetative', startedAt: later.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    expect(first.startedAt).toBe(later.toISOString());
+  });
+});
+
+describe('an instant from a clock a little ahead', () => {
+  it('is recorded as now, so that a read ending at now holds what was just written', async () => {
+    const grow = await started();
+    const ahead = new Date(Date.now() + 5_000);
+
+    const entered = await grows.addPhase(grow.id, { stage: 'flowering', startedAt: ahead.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    expect(Date.parse(entered.startedAt)).toBeLessThanOrEqual(Date.now());
+  });
+});
+
 describe('taking a phase back', () => {
   it('removes the line that announced it', async () => {
     const grow = await started();

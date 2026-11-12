@@ -1,16 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { useAccountMe, useUpdateMe } from '@/api/account';
 import { useChooseDiary } from '@/api/layers';
 import { useSetPresetPrompt } from '@/api/spaces';
-import { GROW } from '@/app/places';
 import { useLog } from '@/log/log-context';
 import { Refused } from '@/ui/PageState';
-import { Sheet } from '@/ui/Sheet';
-import ui from '@/ui/ui.module.css';
-import { WhatGrows } from '@/screens/grow/new/WhatGrows';
-import { usePlaceStage } from './stage';
+import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
 import styles from './Start.module.css';
 
 /**
@@ -23,16 +19,14 @@ import styles from './Start.module.css';
  * The card is gone with the tap, so a toast answers it: that the diary stays
  * off and where it is switched on, with the way to take the tap back.
  *
- * "Grow starten" opens the short form on the stage the place is on.
+ * "Grow starten" opens the one form a grow is started with.
  */
 export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: string; diary: boolean }) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const account = useChooseDiary();
   const place = useSetPresetPrompt(spaceId);
   const me = useAccountMe();
   const { tell } = useLog();
-  const stage = usePlaceStage(spaceId);
   const [asking, setAsking] = useState(false);
   const busy = account.isPending || place.isPending;
 
@@ -68,13 +62,7 @@ export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: str
         </button>
       </div>
       <Refused error={account.error ?? place.error} />
-      {asking ? (
-        <Sheet title={t('start.grow.title', { name })} onClose={() => setAsking(false)}>
-          <div className={ui.sheetBody}>
-            <WhatGrows spaceId={spaceId} stage={stage} onStarted={() => void navigate(GROW)} />
-          </div>
-        </Sheet>
-      ) : null}
+      {asking ? <StartGrowSheet spaceId={spaceId} name={name} onClose={() => setAsking(false)} /> : null}
     </section>
   );
 }

@@ -1,8 +1,9 @@
 import { FilterQuery, Model } from 'mongoose';
-import type { Entry, EntryKind, EntryReading, GrowReadingNames } from '@fg2/shared-types/v1';
+import type { Entry, EntryKind, EntryReading, GrowDayEvent, GrowReadingNames } from '@fg2/shared-types/v1';
 import { entryKind } from '@fg2/shared-types/v1-schemas';
-import { Grant, isOutsider } from '@common/v1/access.types';
+import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { serialiseEntry } from '@common/v1/entries';
+import { Span, withinRange } from '@common/v1/range';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { demoEntry } from '@utils/demo';
@@ -113,6 +114,98 @@ export const diaryMovedAt = async (entries: Model<EntryDocument>, growIds: strin
  * pages, the nets and the counts are of what is served.
  */
 export const writtenFor = (grant: Pick<Grant, 'grantee'>): FilterQuery<EntryDocument> => (isOutsider(grant) ? { source: 'human' } : {});
+
+/**
+ * The two lines a device writes when somebody puts it into maintenance, at the
+ * device or from the app. They are a person's doing and are told as one
+ * stretch (`maintenanceRuns`). Whatever else a device logs about itself - a
+ * restart, a sensor drifting, a socket it lost - is its own record and stays
+ * with the device and in Verlauf.
+ */
+const MAINTENANCE_LINES = ['message-maintenance-mode-activated', 'message-maintenance-mode-activated-remote'];
+
+/**
+ * What a place's machines wrote that a diary tells all the same: the plan's
+ * steps, which stand as the lines they are, and maintenance going on and off.
+ */
+const MACHINE_LINES: FilterQuery<EntryDocument>[] = [{ kind: 'plan' }, { kind: 'system', 'message.key': { $in: MAINTENANCE_LINES } }];
+export const TOLD_OF_MACHINES: FilterQuery<EntryDocument> = { $or: MACHINE_LINES };
+
+/**
+ * When the devices of a place were in maintenance, from the lines that say it
+ * went on - for so many minutes - and off again. Every device of the place
+ * writes its own, so runs that touch are one; a run nobody ended is over when
+ * its minutes are.
+ */
+export const maintenanceRuns = (lines: readonly EntryDocument[]): Span[] => {
+  const runs: Span[] = [];
+  let open = null as Span | null;
+
+  for (const line of [...lines].sort((one, other) => one.occurredAt.getTime() - other.occurredAt.getTime())) {
+    const minutes = Number(line.message?.params[0] ?? 0);
+    if (open && line.occurredAt > open.endsAt) {
+      runs.push(open);
+      open = null;
+    }
+    if (minutes > 0) {
+      const until = new Date(line.occurredAt.getTime() + minutes * 60_000);
+      open = { startsAt: open?.startsAt ?? line.occurredAt, endsAt: open && open.endsAt > until ? open.endsAt : until };
+    } else if (open) {
+      runs.push({ startsAt: open.startsAt, endsAt: line.occurredAt });
+      open = null;
+    }
+  }
+
+  return open ? [...runs, open] : runs;
+};
+
+/**
+ * Entries read by the diary's rules, as a diary tells them: the lines, newest
+ * first, and when maintenance was on - the one thing of them that is a stretch
+ * and not a line.
+ */
+export const toldOf = (entries: readonly EntryDocument[]): { lines: EntryDocument[]; maintenance: Span[] } => ({
+  lines: entries
+    .filter(entry => entry.kind !== 'system')
+    .sort((one, other) => other.occurredAt.getTime() - one.occurredAt.getTime() || other.id.localeCompare(one.id)),
+  maintenance: maintenanceRuns(entries.filter(entry => entry.kind === 'system')),
+});
+
+/** How many entries the tail reads for each line it answers: a maintenance is two lines of every device of the place. */
+const READ_PER_LINE = 3;
+
+/**
+ * The newest of a diary, which is what "Zuletzt" on Start shows of a place and
+ * of the grows standing in it (`about`): the same lines by the same rules as
+ * a day of the grow's diary - what people wrote, the alarms, the plan's steps -
+ * and maintenance as the stretch it was. One read, newest first.
+ */
+export const diaryTail = async (
+  entries: Model<EntryDocument>,
+  about: FilterQuery<EntryDocument>,
+  grant: Pick<Grant, 'grantee'>,
+  range: AccessRange,
+  limit: number,
+  now: Date,
+): Promise<{ lines: EntryDocument[]; events: GrowDayEvent[] }> => {
+  const told = toldOf(
+    await entries
+      .find({ $and: [about, { $or: [{ kind: { $in: DIARY_KINDS } }, ...MACHINE_LINES] }, withinRange('occurredAt', range), writtenFor(grant)] })
+      .sort({ occurredAt: -1, _id: -1 })
+      .limit(limit * READ_PER_LINE)
+      .lean<EntryDocument[]>(),
+  );
+  const lines = told.lines.slice(0, limit);
+  // Where the lines fill the list, a maintenance from before the oldest of them is not among the newest either.
+  const since = lines.length === limit ? lines[lines.length - 1].occurredAt : null;
+
+  return {
+    lines,
+    events: told.maintenance
+      .filter(run => since === null || run.startsAt >= since)
+      .map(run => ({ kind: 'maintenance' as const, at: run.startsAt.toISOString(), endedAt: run.endsAt > now ? null : run.endsAt.toISOString() })),
+  };
+};
 
 /** The kinds that carry readings of the grow's own measurements. */
 export const READING_KINDS = ['water', 'feed', 'measurement'] as const;

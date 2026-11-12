@@ -1,36 +1,15 @@
 import { DateTime } from 'luxon';
-import { growDayAt } from '@fg2/shared-types/v1-schemas/feeding.js';
-import type { GrowCreate, GrowListItem, GrowScheme, GrowthStage, GrowType, PlantBatch } from '@fg2/shared-types/v1';
+import type { GrowCreate, GrowListItem, GrowthStage } from '@fg2/shared-types/v1';
 import { instantOf } from '@/ui/age';
-import { presetsOf } from '@/ui/presets';
 
 /**
- * What the new-grow sheet is deciding, and the arithmetic behind the sentences
- * it prints. None of it touches the network, so what the sheet promises can be
- * read - and tested - without a grow being started to find out.
+ * What the form that starts a grow decides before it writes. None of it
+ * touches the network, so what the form promises can be read - and tested -
+ * without a grow being started to find out.
  */
 
 /** The stages a grow can begin in: what is left of the botanical six once the two at the end are gone. */
 export const START_STAGES: GrowthStage[] = ['germination', 'seedling', 'vegetative', 'flowering'];
-
-export interface PlantRow {
-  /** Its own, because two rows of the same strain are two rows and a name is not an identity. */
-  key: string;
-  strain: string;
-  count: number;
-}
-
-export interface Draft {
-  name: string;
-  plants: PlantRow[];
-  type: GrowType;
-  /** Where the plants go; null is "no fixed place", which is a place a grow can be in. */
-  spaceId: string | null;
-  stage: GrowthStage;
-  startedAt: Date;
-  /** The shipped scheme this grow is fed by, or null for none and one of the grower's own. */
-  schemeId: string | null;
-}
 
 const NUMBERED = /^(.*?)\s*#(\d+)$/;
 
@@ -83,37 +62,18 @@ export const growIn = (grows: GrowListItem[], spaceId: string): GrowListItem | n
     .sort(newestFirst)[0] ?? null;
 
 /**
- * The day the grow will read as once it exists: 1 today, and one more for
- * every midnight back the start was put, on the calendar of whoever starts it
- * - who will be its owner. It is the contract's own `growDayAt` and not an
- * arithmetic of its own, so the button promises the day the grow then shows.
+ * The grow as it is created: one strain and how many of it, in a place or in
+ * none. A count is enough - a plant's label is made from its strain, so one
+ * nobody named goes across under a stand-in name rather than being refused.
+ * The kind of plant and what it is fed are the grow page's to change.
  */
-export const dayNumber = (startedAt: Date, now: DateTime, zone: string | null): number => growDayAt(startedAt, now.toJSDate(), zone);
-
-/**
- * The preset the grow's own kind puts on the stage. Nobody is asked for it: an
- * autoflower never gets the 12/12 flip, so the two stages that would flip it
- * are refined by the preset that does not, and the stages before them are the
- * same for either kind of plant.
- */
-export const presetFor = (type: GrowType, stage: GrowthStage): string | null =>
-  type === 'autoflower' && presetsOf(stage).includes('autoflower') ? 'autoflower' : null;
-
-/**
- * The strains as the contract counts them. A row that was never named is still
- * a plant - the sheet's own hint says a count is enough - so it goes across
- * under a stand-in name rather than being dropped: a plant's label is made from
- * its strain, and a plant with an empty one is refused on the way in.
- */
-const plantsOf = (rows: PlantRow[], unnamed: string): PlantBatch[] => rows.map(row => ({ strain: row.strain.trim() || unnamed, count: row.count }));
-
-export const growBody = (draft: Draft, name: string, scheme: GrowScheme | null, unnamed: string): GrowCreate => ({
-  name,
-  type: draft.type,
-  startedAt: instantOf(DateTime.fromJSDate(draft.startedAt)),
-  spaceId: draft.spaceId,
-  plants: plantsOf(draft.plants, unnamed),
-  scheme,
+export const growBody = (plants: { name: string; strain: string; count: number }, spaceId: string | null, startedAt: Date): GrowCreate => ({
+  name: plants.name,
+  type: 'photoperiod',
+  startedAt: instantOf(DateTime.fromJSDate(startedAt)),
+  spaceId,
+  plants: [{ strain: plants.strain, count: plants.count }],
+  scheme: null,
 });
 
 /**
@@ -124,64 +84,3 @@ export const growBody = (draft: Draft, name: string, scheme: GrowScheme | null, 
  * there are in view.
  */
 export const recordsOnly = (stage: GrowthStage, standing: unknown): boolean => stage === 'germination' && standing !== null;
-
-interface Told {
-  key: string;
-  values?: Record<string, string>;
-  /** A line about something the tap would disturb, which is said beside the button as well rather than left below the fold. */
-  warns?: boolean;
-}
-
-/** The chosen place, as the sentences under the chips need to know it. */
-interface TellPlace {
-  name: string;
-  /** Whether a device steers a climate here; null where the hardware could not be read, which is a state and not "nothing". */
-  steered: boolean | null;
-  /** The name of the grow already standing here, which a second one would join. */
-  standing: string | null;
-  /** True where this sheet writes the place's climate itself, which is what pauses a plan running there. */
-  writesClimate: boolean;
-}
-
-/**
- * What the choices come to, in the order the board prints them: what is already
- * growing where the plants are going, which place is put on which preset now,
- * what the tag on the phases that follow means, and what an autoflower changes
- * about both. Sentences, because what a preset changes is easier to read than
- * to tabulate.
- */
-export const tells = (draft: Draft, place: TellPlace | null, stageName: string): Told[] => {
-  const told: Told[] = [];
-
-  if (place === null) told.push({ key: 'grow.new.tells.nowhere' });
-  else {
-    // A germination beside plants that are already growing leaves their light on, and says so in the one line.
-    const keepsLight = place.steered === true && recordsOnly(draft.stage, place.standing);
-    if (place.standing !== null) {
-      told.push({
-        key: keepsLight ? 'grow.new.tells.occupiedKeepsLight' : place.writesClimate ? 'grow.new.tells.occupiedSteered' : 'grow.new.tells.occupied',
-        values: { grow: place.standing, place: place.name, stage: stageName },
-        warns: true,
-      });
-    }
-    if (place.steered === null) told.push({ key: 'grow.new.tells.hardwareUnknown', values: { place: place.name } });
-    else if (!place.steered) told.push({ key: 'grow.new.tells.noController', values: { place: place.name } });
-    // The first line that warns is said beside the button: starting the grow
-    // changes the targets, and the sentence that says so used to scroll away
-    // below the fold on a phone while the button stayed in view. Germination
-    // is dark, which is worth more than the climate's name. Where the seeds
-    // only join a grow, the line about that grow has said what happens.
-    else if (!keepsLight) {
-      told.push({
-        key: draft.stage === 'germination' ? 'grow.new.tells.presetDark' : 'grow.new.tells.preset',
-        values: { place: place.name, stage: stageName },
-        warns: true,
-      });
-    }
-  }
-
-  if (place !== null) told.push({ key: 'grow.new.tells.auto' });
-  if (draft.type === 'autoflower') told.push({ key: draft.schemeId === null ? 'grow.new.tells.autoflowerAlone' : 'grow.new.tells.autoflower' });
-
-  return told;
-};

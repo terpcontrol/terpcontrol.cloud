@@ -72,19 +72,6 @@ interface EntryRowProps {
   /** The grow's own measurements, which is where a reading's name and unit are; without them a reading shows its key. */
   measurements?: readonly ReadingName[];
   /**
-   * The grow's day this line falls on, for the surfaces that draw a stretch of
-   * a grow rather than a stretch of the calendar - a week card, a report
-   * chapter, the same card on a public diary.
-   *
-   * It is the day rather than the weekday because a grow's week is seven of the
-   * grow's own days and those begin when the grow did: a card that runs from
-   * Monday afternoon to the Monday after holds two Mondays and nothing tells
-   * them apart, and a report chapter of forty days holds six of each. The day
-   * number is unique inside every one of them, and it is what the tiles above
-   * the rows are named after.
-   */
-  day?: number | null;
-  /**
    * The moment the list is read at, for rows that sit under no heading naming
    * the week they are of. A tent's latest lines and a mark opened on the rail
    * reach as far back as the tent has been quiet, so there the stamp follows how
@@ -144,7 +131,6 @@ export function EntryRow({
   entry,
   people,
   measurements = [],
-  day = null,
   now,
   byline = true,
   picture = (mediaId, width) => mediaUrl(mediaId, width),
@@ -174,17 +160,7 @@ export function EntryRow({
 
   return (
     <li className={styles.row} data-severity={entry.severity ?? undefined}>
-      {/* Under a day of the grow the stamp names the date as well as the hour.
-          One of the grow's days begins when the grow did rather than at
-          midnight, so it straddles two dates and holds both sides of one - a
-          card whose day 1 ran from half past three in the afternoon put
-          "D 1 · 08:10" directly above "D 1 · 15:31" in a list that is newest
-          first, and the two lines read as though the list had them the wrong
-          way round. The date is what tells them apart, and nothing else on
-          either row carries it. */}
-      <span className={day === null ? `mono ${styles.stamp}` : `mono ${styles.stamp} ${styles.dayStamp}`}>
-        {day === null ? at.toFormat(now ? stampOf(at, nowThere(now, zone)) : CLOCK) : `${t('grow.dayShort', { day })} · ${at.toFormat(DATED_CLOCK)}`}
-      </span>
+      <span className={`mono ${styles.stamp}`}>{at.toFormat(now ? stampOf(at, nowThere(now, zone)) : CLOCK)}</span>
       {/* What kind of line it is, as words: an aria-label on a plain span is not read by every screen reader. */}
       <span className={styles.kind}>
         <Icon size={13} strokeWidth={1.75} aria-hidden />
@@ -255,7 +231,12 @@ export function EntryWords({
   zone,
   repeats = null,
   brief = false,
-}: Pick<EntryRowProps, 'entry' | 'people' | 'measurements' | 'now' | 'byline' | 'repeats' | 'brief'> & { zone: string | null }) {
+  pictures = false,
+}: Pick<EntryRowProps, 'entry' | 'people' | 'measurements' | 'now' | 'byline' | 'repeats' | 'brief'> & {
+  zone: string | null;
+  /** Whether the line counts the pictures it carries, where the surface does not draw them: "· 2 Bilder", one fact like the rest. */
+  pictures?: boolean;
+}) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
   const readings = 'readings' in entry.values ? entry.values.readings : [];
@@ -300,6 +281,7 @@ export function EntryWords({
         </span>
       );
     }),
+    pictures && entry.mediaIds.length > 0 ? t('start.latest.pictures', { count: entry.mediaIds.length }) : null,
   ];
 
   return (

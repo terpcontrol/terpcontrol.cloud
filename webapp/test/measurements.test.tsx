@@ -7,7 +7,7 @@ import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { Measurements } from '@/screens/grow/measurements/Measurements';
-import { drawAt } from './harness';
+import { drawAt, reading } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
@@ -363,7 +363,7 @@ describe('the Measure sheet', () => {
     await openMeasure();
 
     // What was measured last time, and for the plant beside it.
-    expect(screen.getByText(/last 58 cm/)).toHaveTextContent('Amnesia 2 was 54');
+    expect(screen.getByText(reading(/^last 58 cm · .* · Amnesia 2 was 54$/))).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '6' }));
     fireEvent.click(screen.getByRole('button', { name: '2' }));

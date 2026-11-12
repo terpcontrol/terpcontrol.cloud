@@ -1,14 +1,14 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { Entry, GrowReadingNames, Person } from '@fg2/shared-types/v1';
+import type { Entry, GrowDayEvent, GrowReadingNames, Person } from '@fg2/shared-types/v1';
 import { GROW } from '@/app/places';
 import { useCorrecting } from '@/log/corrections';
+import { dayLines } from '@/screens/grow/diary/days';
+import { DiaryLine } from '@/screens/grow/diary/DiaryLine';
 import { dayStamp } from '@/ui/age';
-import { foldRepeats, readingNamesOf, warningOf } from '@/ui/entries';
-import { EntryWords } from '@/ui/EntryRow';
-import { Line, Lines } from '@/ui/Lines';
-import ui from '@/ui/ui.module.css';
+import { readingNamesOf } from '@/ui/entries';
+import { Lines } from '@/ui/Lines';
 import { useZone } from '@/ui/zone';
 import styles from './Start.module.css';
 
@@ -16,14 +16,15 @@ import styles from './Start.module.css';
 const LATEST = 3;
 
 /**
- * "Zuletzt": the newest things that happened here, each in one plain line -
- * what a person wrote and what the devices did, a run of the same machine line
- * counted rather than stacked. Amber is kept for what needs a person
- * (`warningOf`). A line somebody may correct opens its sheet. With a diary,
- * the card leads to all of it.
+ * "Zuletzt": the tail of the diary - the newest lines as a day's card would
+ * say them (`dayLines`), read by the same rules on the server: what a person
+ * wrote, an alarm as its rule, a step of the plan, maintenance as one line.
+ * A line somebody may correct opens its sheet. With a diary, the card leads to
+ * all of it.
  */
 export function Latest({
   entries,
+  events,
   people,
   readingNames = [],
   on,
@@ -32,6 +33,7 @@ export function Latest({
   now,
 }: {
   entries: Entry[];
+  events: GrowDayEvent[];
   people: Person[];
   readingNames?: GrowReadingNames[];
   /** What the lines were written about, for the sheet that corrects one. */
@@ -41,12 +43,12 @@ export function Latest({
   byline?: boolean;
   now: DateTime;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const zone = useZone();
   const correcting = useCorrecting();
-  const folded = foldRepeats(entries).slice(0, LATEST);
+  const lines = dayLines(t, i18n, { entries, events, endsAt: now.toISO() ?? '' }, zone).slice(0, LATEST);
   // A place where nothing has happened yet has no card saying so: the page under it is short enough.
-  if (folded.length === 0) return null;
+  if (lines.length === 0) return null;
 
   return (
     <section className={styles.card} aria-labelledby="start-latest">
@@ -54,22 +56,22 @@ export function Latest({
         {t('start.latest.title')}
       </h2>
       <Lines>
-        {folded.map(({ entry, count, since }) => (
-          <Line key={entry.id} stamp={dayStamp(entry.occurredAt, now, zone)} severity={warningOf(entry)} onOpen={correcting(entry, on)}>
-            <span className={ui.visuallyHidden}>{`${t(`home.entryKind.${entry.kind}`)}: `}</span>
-            <EntryWords
-              entry={entry}
-              people={people}
-              measurements={readingNamesOf(readingNames, entry.growId)}
-              now={now}
+        {lines.map(line => {
+          const entry = line.what.kind === 'entry' ? line.what.entry : null;
+          return (
+            <DiaryLine
+              key={line.key}
+              line={line}
+              stamp={dayStamp(line.at, now, zone)}
               zone={zone}
+              now={now}
+              people={people}
+              measurements={entry ? readingNamesOf(readingNames, entry.growId) : []}
               byline={byline}
-              repeats={{ count, since }}
-              brief
+              onOpen={entry ? correcting(entry, on) : null}
             />
-            {entry.mediaIds.length > 0 ? ` · ${t('start.latest.pictures', { count: entry.mediaIds.length })}` : null}
-          </Line>
-        ))}
+          );
+        })}
       </Lines>
       {diary ? (
         <Link to={GROW} className={styles.more}>

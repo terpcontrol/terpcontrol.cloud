@@ -4,7 +4,7 @@ import type { AccessNeed, Device, Entry, GrowListItem, HomeAnswer, PlantPage } f
 import { api } from '@/api/client';
 import { LogProvider } from '@/log/LogProvider';
 import { useLog } from '@/log/log-context';
-import { drawAt } from './harness';
+import { drawAt, reading } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
@@ -61,6 +61,7 @@ const home: HomeAnswer = {
         stageGroups: [],
       },
       entries: [],
+      events: [],
       latestStill: null,
       dueTasks: [],
       openAlerts: [],
@@ -201,9 +202,22 @@ const told = { undo: vi.fn<() => Promise<unknown>>(), changed: vi.fn() };
 
 /** The sheet is opened the way the tab bar opens it, and a task ticked off the way a due card ticks it. */
 function OpenLog() {
-  const { openSheet, complete, tell } = useLog();
+  const { openSheet, openDetails, complete, tell } = useLog();
   return (
     <>
+      {/* What a line of the diary opens when somebody who may correct it taps it. */}
+      <button
+        type="button"
+        onClick={() =>
+          openDetails(
+            'water',
+            { key: 'grow:grow-1', label: 'Spring run', growId: 'grow-1', spaceId: null, plantIds: [], dayNumber: 34, standsIn: 'space-1' },
+            lastWater,
+          )
+        }
+      >
+        correct
+      </button>
       {/* What an offer declined on Start says once its card is gone, and what a plan step confirmed there reads again. */}
       <button type="button" onClick={() => tell({ label: 'The diary stays off.', undo: told.undo })}>
         tell
@@ -362,7 +376,7 @@ describe('the log sheet', () => {
     expect(api.post).not.toHaveBeenCalled();
     // The last can stands in a field that can be typed over, and says when it was poured.
     expect(within(details).getByRole('textbox', { name: 'Water in litres' })).toHaveValue('2');
-    expect(within(details).getByText(/^Last time .* · 2 L$/)).toBeInTheDocument();
+    expect(within(details).getByText(reading(/^Last time .* · 2 L$/))).toBeInTheDocument();
     // When it happened stands in the corner from the start, and a line nobody dated is now.
     expect(within(details).getByRole('button', { name: /^Change when: today · \d\d:\d\d$/ })).toBeInTheDocument();
 
@@ -380,12 +394,12 @@ describe('the log sheet', () => {
 
     // The sheet is out of the way before anything is sent, and what was written is on screen.
     expect(screen.queryByRole('dialog', { name: 'Log' })).not.toBeInTheDocument();
-    const toast = await screen.findByText('Watered · Spring run · Day 34');
+    const toast = await screen.findByText(reading('Watered · Spring run · Day 34'));
     expect(toast).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/entries/entry-new'));
-    await waitFor(() => expect(screen.queryByText('Watered · Spring run · Day 34')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(reading('Watered · Spring run · Day 34'))).not.toBeInTheDocument());
   });
 
   it('says when a line did not save and offers it again rather than pretending', async () => {
@@ -398,14 +412,16 @@ describe('the log sheet', () => {
 
     vi.mocked(api.post).mockResolvedValue(written as never);
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByText('Watered · Spring run · Day 34')).toBeInTheDocument();
+    expect(await screen.findByText(reading('Watered · Spring run · Day 34'))).toBeInTheDocument();
   });
 
   it('opens a feed on a tap, where the doses follow the water and the line is logged as planned', async () => {
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: /^Feed/ }));
 
-    const details = await screen.findByRole('dialog', { name: 'Feed · scheme week 5' });
+    // The title is the kind of line; which week of which grid the doses are read from stands with what the line is about.
+    const details = await screen.findByRole('dialog', { name: 'Feed' });
+    expect(within(details).getByText(reading(/· Scheme week 5$/))).toBeInTheDocument();
     expect(within(details).getByRole('textbox', { name: 'Water in litres' })).toHaveValue('4');
     expect(within(details).getByText('8 ml')).toBeInTheDocument();
     expect(within(details).getByText('4 ml')).toBeInTheDocument();
@@ -432,7 +448,7 @@ describe('the log sheet', () => {
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: /^Feed/ }));
 
-    const details = await screen.findByRole('dialog', { name: 'Feed · scheme week 5' });
+    const details = await screen.findByRole('dialog', { name: 'Feed' });
     // The moment in the corner opens a pop-up with the day and the time; nothing after now is taken.
     fireEvent.click(within(details).getByRole('button', { name: /^Change when/ }));
     const day = within(details).getByLabelText('Date');
@@ -442,7 +458,8 @@ describe('the log sheet', () => {
     expect(within(details).getByRole('button', { name: /^Change when: 11 Sep \d\d:\d\d$/ })).toBeInTheDocument();
 
     // A week back is a week earlier in the grid, and the sheet says so before anything is written.
-    const lastWeek = await screen.findByRole('dialog', { name: 'Feed · scheme week 4' });
+    const lastWeek = screen.getByRole('dialog', { name: 'Feed' });
+    expect(await within(lastWeek).findByText(reading(/· Scheme week 4$/))).toBeInTheDocument();
     expect(within(lastWeek).getByText('8 ml')).toBeInTheDocument();
     expect(within(lastWeek).queryByText('4 ml')).not.toBeInTheDocument();
 
@@ -518,14 +535,14 @@ describe('the log sheet', () => {
     expect(api.post).toHaveBeenCalledWith('/tasks/task-1/completions', {});
 
     answered(written);
-    await waitFor(() => expect(screen.getByText('Watered · Spring run')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(reading('Watered · Spring run'))).toBeInTheDocument());
   });
 
   it('reads again what a tick changed beyond the diary, once it has landed', async () => {
     draw();
     fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
 
-    expect(await screen.findByText('Step confirmed · Late flower')).toBeInTheDocument();
+    expect(await screen.findByText(reading('Step confirmed · Late flower'))).toBeInTheDocument();
     await waitFor(() => expect(told.changed).toHaveBeenCalledTimes(1));
     // A plan moved on is not taken back by deleting its diary line.
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
@@ -691,12 +708,6 @@ describe('the log sheet', () => {
     vi.mocked(api.get).mockImplementation((path: string) =>
       Promise.resolve(path === '/home' ? { ...home, spaces: [...home.spaces, emptyPlace] } : answers(path)),
     );
-    // The feeding schemes ship as assets rather than as a resource, so the sheet fetches them.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ schemes: [] }) })),
-    );
-
     draw();
     fireEvent.click(screen.getByRole('button', { name: 'open phase there' }));
 
@@ -705,12 +716,9 @@ describe('the log sheet', () => {
 
     fireEvent.click(await within(phase).findByRole('button', { name: 'Start a grow in Place 2' }));
 
-    // The new-grow sheet takes this one's place, already pointed at the place asked about.
-    expect(await screen.findByRole('button', { name: /^Place 2/ })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('dialog', { name: 'New grow' })).toBeInTheDocument();
+    // The form a grow is started with takes this one's place, already about the place asked about.
+    expect(await screen.findByRole('dialog', { name: 'What grows in Place 2?' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Phase' })).not.toBeInTheDocument();
-
-    vi.unstubAllGlobals();
   });
 
   /**
@@ -762,6 +770,30 @@ describe('the log sheet', () => {
     expect(within(sheet).getByRole('button', { name: 'Balcony' })).toHaveAttribute('aria-pressed', 'false');
   });
 
+  it('sets the places in one row and the chosen place´s plants in a row of their own', async () => {
+    const balcony = { ...home.spaces[0], spaceId: 'space-2', name: 'Balcony', deviceIds: [], grow: null };
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      Promise.resolve(path === '/home' ? { ...home, spaces: [...home.spaces, balcony] } : answers(path)),
+    );
+    await openSheet();
+    const sheet = screen.getByRole('dialog', { name: 'Log' });
+    const named = (group: HTMLElement) =>
+      within(group)
+        .getAllByRole('button')
+        .map(chip => chip.textContent);
+
+    const places = within(sheet).getByRole('group', { name: 'What the line is about' });
+    expect(named(places)).toEqual(['Tent 1 · Spring run', 'Balcony']);
+    const ofThePlace = within(sheet).getByRole('group', { name: 'Which plant' });
+    expect(named(ofThePlace)).toEqual(plants.items.filter(plant => plant.status === 'active').map(plant => plant.label));
+
+    // A plant narrows the line and leaves its place chosen; the other place has no plants to offer.
+    fireEvent.click(within(ofThePlace).getByRole('button', { name: 'Gelato 1' }));
+    expect(within(places).getByRole('button', { name: 'Tent 1 · Spring run' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(within(places).getByRole('button', { name: 'Balcony' }));
+    expect(within(sheet).queryByRole('group', { name: 'Which plant' })).not.toBeInTheDocument();
+  });
+
   it('leads from a kind´s view back to the tiles it was chosen on', async () => {
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: /^Note/ }));
@@ -797,6 +829,63 @@ describe('the log sheet', () => {
     expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
   });
 
+  it('refuses litres that are no number, and more water than a tent takes, with a word', async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
+
+    const details = await screen.findByRole('dialog', { name: 'Water' });
+    const litres = within(details).getByRole('textbox', { name: 'Water in litres' });
+    fireEvent.change(litres, { target: { value: 'abc' } });
+    // What was typed stays in the field, the reason stands under it, and nothing can be saved.
+    fireEvent.blur(litres);
+    expect(litres).toHaveValue('abc');
+    expect(within(details).getByRole('alert')).toHaveTextContent('That is not a number.');
+    expect(within(details).getByRole('button', { name: /^Save/ })).toBeDisabled();
+
+    fireEvent.change(litres, { target: { value: '99999' } });
+    expect(
+      within(details)
+        .getByRole('alert')
+        .textContent?.replace(/\u00a0/g, ' '),
+    ).toBe('At most 1000 L.');
+    expect(within(details).getByRole('button', { name: /^Save/ })).toBeDisabled();
+
+    fireEvent.change(litres, { target: { value: '3' } });
+    expect(within(details).queryByRole('alert')).not.toBeInTheDocument();
+    expect(within(details).getByRole('button', { name: /^Save/ })).toBeEnabled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('answers a correction and a line taken back with a toast, once the sheet is gone', async () => {
+    vi.mocked(api.patch).mockResolvedValue(lastWater as never);
+    vi.mocked(api.delete).mockResolvedValue(undefined as never);
+    draw();
+
+    fireEvent.click(screen.getByRole('button', { name: 'correct' }));
+    const correction = await screen.findByRole('dialog', { name: 'Water' });
+    fireEvent.change(within(correction).getByRole('textbox', { name: 'Water in litres' }), { target: { value: '3' } });
+    fireEvent.click(within(correction).getByRole('button', { name: 'Save the correction' }));
+    expect(await screen.findByText(reading('Line corrected'))).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'correct' }));
+    const again = await screen.findByRole('dialog', { name: 'Water' });
+    fireEvent.click(within(again).getByRole('button', { name: 'Take this line back' }));
+    fireEvent.click(within(again).getByRole('button', { name: 'Take it back' }));
+    expect(await screen.findByText(reading('Line taken back'))).toBeInTheDocument();
+    expect(api.delete).toHaveBeenCalledWith(`/entries/${lastWater.id}`);
+  });
+
+  it('says nothing about a scheme where the grow is fed by none', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/grows/grow-1' ? { ...grow, scheme: null } : answers(path)));
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Feed/ }));
+
+    const details = await screen.findByRole('dialog', { name: 'Feed' });
+    expect(within(details).getByRole('textbox', { name: 'Water in litres' })).toBeInTheDocument();
+    expect(within(details).queryByText(/scheme/i)).not.toBeInTheDocument();
+  });
+
   it('offers no moment from before the grow began, says when it began, and moves the start for whoever may', async () => {
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: /^Note/ }));
@@ -806,7 +895,7 @@ describe('the log sheet', () => {
     // The grow began 34 days ago, on 15 August.
     fireEvent.change(within(note).getByLabelText('Date'), { target: { value: '2026-08-10' } });
 
-    expect(within(note).getByRole('status')).toHaveTextContent('The grow began on 15 Aug 2026.');
+    expect(within(note).getByRole('status')).toHaveTextContent('The grow only began on 15 Aug 2026.');
     expect(within(note).getByRole('button', { name: 'Apply' })).toBeDisabled();
 
     vi.mocked(api.patch).mockResolvedValue(grow as never);
@@ -847,7 +936,7 @@ describe('the log sheet', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Phase/ }));
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Phase' })).getByRole('button', { name: /^Save/ }));
 
-    expect(await screen.findByText(/^Entered Drying · Spring run/)).toBeInTheDocument();
+    expect(await screen.findByText(reading(/^Entered Drying · Spring run/))).toBeInTheDocument();
   });
 
   it('writes a line about one plant when a plant is the target', async () => {

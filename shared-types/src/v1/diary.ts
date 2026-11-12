@@ -1199,6 +1199,43 @@ export const growCard = named(
 );
 
 /**
+ * Something that happened and is nobody's diary line: the lamp switching and a
+ * stretch the climate spent outside what the devices were aiming at, which a
+ * device did by itself, and maintenance, which a person switched - on and off
+ * are one event. Lamp and stretches are read from the measurements on every
+ * read of a day and stored nowhere, so a day that has left the store's raw
+ * samples has none. A reader from outside is answered none of them.
+ */
+export const growDayEvent = named(
+  'GrowDayEvent',
+  z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('light'),
+      at: instant(),
+      on: z.boolean(),
+      still: z
+        .boolean()
+        .describe(
+          'Whether the lamp is lit as this is read: it came on, nothing switched it off, the day is the one still running and its device still reports. False says only that it switched - of the time after, nothing.',
+        ),
+    }),
+    z.object({
+      kind: z.literal('excursion'),
+      at: instant().describe('When the reading left its band, or the start of the day where it was already outside.'),
+      endedAt: instant().nullable().describe('Null for a run still going when the day, or the reading of it, ended.'),
+      metric: metric,
+      above: z.boolean().describe('Which edge it left over: true is above the band.'),
+      extremeValue: z.number().nullable(),
+    }),
+    z.object({
+      kind: z.literal('maintenance'),
+      at: instant().describe('When somebody put the devices of the place into maintenance, or the start of the day where they already were.'),
+      endedAt: instant().nullable().describe('Null while it is still on, or where the day ended first.'),
+    }),
+  ]),
+);
+
+/**
  * One space, with everything the home screen shows about it - or, where the
  * ids are null, one open grow that stands in no space at all. A grow is
  * first-class without a place, so "no fixed place" is a card rather than a
@@ -1235,7 +1272,10 @@ export const homeSpaceCard = named(
       .describe('Each device here that holds a climate of its own, in the order the place lists its devices; empty where none does. An AIR fan counts only where nothing else holds targets: it follows the tent’s controller.'),
     trend: cardTrend.nullable().describe('The last 24 hours of temperature, from the first device in the space that has any.'),
     grow: growCard.nullable(),
-    entries: z.array(entry).describe('The grow’s newest entries, newest first.'),
+    entries: z
+      .array(entry)
+      .describe('The newest lines of the grow’s diary - of the place’s where no grow stands - newest first, by the rules a day of the diary goes by.'),
+    events: z.array(growDayEvent).describe('When maintenance was on among those lines, each stretch once. Nothing of lamp or climate: that is a day’s.'),
     latestStill: latestStill.nullable(),
     dueTasks: z.array(dueTask),
     openAlerts: z.array(openAlert),
@@ -1465,7 +1505,14 @@ export const spaceOverview = named(
       ),
     grows: z.array(overviewGrow).describe('Every grow with open plants here, newest first.'),
     cameras: z.array(overviewCamera),
-    entries: z.array(entry).describe('The newest lines of this space and of the grows standing in it, newest first.'),
+    entries: z
+      .array(entry)
+      .describe(
+        'The newest lines of this space and of the grows standing in it, newest first, by the rules a day of the diary goes by: what people wrote, the alarms and the plan’s steps - not what else a device logs about itself. A reader from outside is answered what people wrote.',
+      ),
+    events: z
+      .array(growDayEvent)
+      .describe('When maintenance was on among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s.'),
     readingNames: z.array(growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
     dueTasks: z.array(overviewTask),
     openAlerts: z.array(openAlert),
@@ -1812,39 +1859,6 @@ export const weekClimate = named(
     dayAverage: z.number().nullable().describe('The mean over the windows in which the light was on.'),
     nightAverage: z.number().nullable(),
   }),
-);
-
-/**
- * Something that happened on one day and is nobody's diary line: the lamp
- * switching and a stretch the climate spent outside what the devices were
- * aiming at, which a device did by itself, and maintenance, which a person
- * switched - on and off are one event. Lamp and stretches are read from the
- * measurements on every read and stored nowhere, so a day that has left the
- * store's raw samples has none. A reader from outside is answered none of
- * them.
- */
-export const growDayEvent = named(
-  'GrowDayEvent',
-  z.discriminatedUnion('kind', [
-    z.object({
-      kind: z.literal('light'),
-      at: instant(),
-      on: z.boolean(),
-    }),
-    z.object({
-      kind: z.literal('excursion'),
-      at: instant().describe('When the reading left its band, or the start of the day where it was already outside.'),
-      endedAt: instant().nullable().describe('Null for a run still going when the day, or the reading of it, ended.'),
-      metric: metric,
-      above: z.boolean().describe('Which edge it left over: true is above the band.'),
-      extremeValue: z.number().nullable(),
-    }),
-    z.object({
-      kind: z.literal('maintenance'),
-      at: instant().describe('When somebody put the devices of the place into maintenance, or the start of the day where they already were.'),
-      endedAt: instant().nullable().describe('Null while it is still on, or where the day ended first.'),
-    }),
-  ]),
 );
 
 /**
