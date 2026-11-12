@@ -133,10 +133,26 @@ export function Timeline({ spaceId, title, place = null }: TimelineProps) {
 function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
   const { t } = useTranslation();
   const { user } = useSession();
-  const page = usePage(spaceId, null);
+  const devices = useDevices();
+  // What the address names is looked up in what the account already holds before the place is asked about it: a
+  // device the account has not got, a grow that stands in no place or in another, are told from here, and the
+  // server is not asked a question it can only refuse.
+  const [params] = useSearchParams();
+  const named = { deviceId: params.get('device'), growId: params.get('grow') };
+  const namedGrow = useGrow(named.growId);
+  const vain: Vain | 'checking' | null =
+    named.deviceId && !devices.data
+      ? 'checking'
+      : named.deviceId && !devices.data?.items.some(one => one.id === named.deviceId)
+        ? { what: 'device', id: named.deviceId }
+        : named.growId && namedGrow.isPending
+          ? 'checking'
+          : named.growId && namedGrow.data && !namedGrow.data.placements.some(one => one.spaceId === spaceId)
+            ? { what: 'grow', id: named.growId }
+            : null;
+  const page = usePage(spaceId, null, vain);
   const visiting = useVisiting(spaceId);
   const home = useHome();
-  const devices = useDevices();
   const spaces = useSpaces();
   const correcting = useCorrecting();
   const { openDetails } = useLog();
@@ -241,7 +257,13 @@ export function SharedTimeline({
 }
 
 /** The view the address names, the answer to it, and the one way the view is changed. */
-const usePage = (spaceId: string, share: string | null) => {
+/** What an address names and the place does not have. */
+interface Vain {
+  what: 'device' | 'grow';
+  id: string;
+}
+
+const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' | null = null) => {
   const [params, setParams] = useSearchParams();
   const now = useNow();
   const view = useMemo(() => viewOf(params), [params]);
@@ -253,7 +275,8 @@ const usePage = (spaceId: string, share: string | null) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `asked` is new every render; its ends are what it is
     [view, asked?.from, asked?.to, asked?.live, share],
   );
-  const timeline = useTimeline(spaceId, ask);
+  // Held back while what the address names is looked up, and for good where it names something in vain.
+  const timeline = useTimeline(spaceId, vain === null ? ask : null);
   const change = (over: Partial<View>) => {
     if (over.show && share === null) writeStored(CURVES_KEY, JSON.stringify(over.show));
     setParams(withParams(params, viewParams(over)), { replace: true });
@@ -285,14 +308,17 @@ const usePage = (spaceId: string, share: string | null) => {
   const failed = refusal?.asking === asking && fresh === null;
 
   // A device or a grow the address names and the place does not have: the place's own Verlauf, and a sentence.
-  const [dropped, setDropped] = useState<{ what: 'device' | 'grow'; id: string } | null>(null);
+  const [dropped, setDropped] = useState<Vain | null>(null);
   const refused = failed && refusal.error instanceof ApiError ? refusal.error.problem.code : null;
-  const gone =
-    refused === 'device_not_here' && view.deviceId
-      ? ({ what: 'device', id: view.deviceId } as const)
-      : refused === 'grow_not_found' && view.growId
-        ? ({ what: 'grow', id: view.growId } as const)
-        : null;
+  // Known beforehand, or - a device of the account that never stood here - by the server's refusal.
+  const gone: Vain | null =
+    vain !== null && vain !== 'checking'
+      ? vain
+      : refused === 'device_not_here' && view.deviceId
+        ? { what: 'device', id: view.deviceId }
+        : refused === 'grow_not_found' && view.growId
+          ? { what: 'grow', id: view.growId }
+          : null;
   if (gone && gone.id !== dropped?.id) setDropped(gone);
   useEffect(() => {
     if (gone?.what === 'device') change({ deviceId: null });

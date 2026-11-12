@@ -159,7 +159,13 @@ const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
       ? json({ status: 500, code: 'unexpected', title: 'Broken', detail: '', errors: [] }, 500)
       : json(answerTo(url.searchParams, server.over));
   }
-  if (path === '/grows/grow-1') return json({ id: 'grow-1', name: 'Amnesia', measurements: [], placements: [], endedAt: null, ownerId: 'user-1' });
+  if (path === '/grows/grow-1') {
+    const placements = [{ id: 'placement-1', spaceId: 'space-1', startedAt: ago(28 * 24), endedAt: null, plantIds: null }];
+    return json({ id: 'grow-1', name: 'Amnesia', measurements: [], placements, endedAt: null, ownerId: 'user-1' });
+  }
+  // A grow of the account that stands in no place: nothing of a climate to draw, and its page Messwerte for the rest.
+  if (path === '/grows/grow-loose')
+    return json({ id: 'grow-loose', name: 'Windowsill', measurements: [], placements: [], endedAt: null, ownerId: 'user-1' });
   if (path === '/chart-views' && method === 'POST') {
     const view = { id: `view-${server.views.length + 1}`, ...(JSON.parse(String(init?.body)) as { name: string; definition: unknown }) };
     server.views.push(view);
@@ -446,6 +452,23 @@ describe('a window that is not what the address asked for', () => {
     expect(await screen.findByText(/The device in the address does not stand in this place/)).toBeInTheDocument();
     expect(await settled()).toBeInTheDocument();
     expect(address().searchParams.has('device')).toBe(false);
+  });
+
+  it('asks the server nothing it can only refuse: an unknown device and a grow without a place are told from what the account holds', async () => {
+    draw('/timeline?device=device-nobody-has');
+    expect(await screen.findByText(/The device in the address does not stand in this place/)).toBeInTheDocument();
+    await settled();
+    expect(server.asked.every(query => !query.has('deviceId'))).toBe(true);
+  });
+
+  it('sends a grow that stands in no place to its page of measurements, without asking for its curves here', async () => {
+    draw('/timeline?grow=grow-loose');
+
+    expect(await screen.findByText(/“Windowsill” has no place and so no climate curves/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Measurements/ })).toHaveAttribute('href', '/grows/grow-loose/measurements');
+    await settled();
+    expect(server.asked.every(query => !query.has('growId'))).toBe(true);
+    expect(address().searchParams.has('grow')).toBe(false);
   });
 
   it('lights no chip for a stretch of a grow the address names no grow for: it is the last day that is drawn', async () => {
