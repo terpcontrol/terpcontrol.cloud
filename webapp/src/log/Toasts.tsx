@@ -1,9 +1,12 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { Entry } from '@fg2/shared-types/v1';
 import { Facts } from '@/ui/Facts';
 import { factsOf } from '@/ui/fact-text';
+import { ANNOUNCER } from '@/ui/live-region';
 import type { LogRequest, LogTarget, TileKind } from './log-context';
+import { besideSheet } from './toast-room';
 import styles from './Toasts.module.css';
 
 /**
@@ -11,8 +14,7 @@ import styles from './Toasts.module.css';
  * appears the moment a tile is tapped, before anything has been sent, so it is
  * also the place where a write that never landed is admitted to.
  *
- * There are never more than two (`toast-room.ts`), and none stands on a sheet's
- * buttons: while a sheet is open they stand above its button row.
+ * There are never more than two, and none lies on an open sheet (`toast-room.ts`).
  */
 
 export interface LoggedLine {
@@ -52,57 +54,90 @@ interface ToastsProps {
   onDetails: (line: LoggedLine) => void;
 }
 
-/** The room a toast keeps above what it stands over. */
-const GAP = 8;
+/**
+ * The element the toasts are drawn into, which is put where they stand. It is
+ * a live region a sheet must not silence: what was just written is said, and
+ * taken back, while one is open.
+ */
+const hostOf = (): HTMLElement => {
+  const host = document.createElement('div');
+  host.className = styles.toasts;
+  host.setAttribute('role', 'status');
+  host.setAttribute('aria-live', 'polite');
+  host.setAttribute(ANNOUNCER, '');
+  return host;
+};
 
 /**
- * Where the toasts stand while a sheet is open: above its button row, and
- * above the sheet itself where it has none, so no toast lies on a control of
- * the sheet. It follows sheets opening and closing for as long as a toast is
- * shown, and is written straight onto the element - no render waits on it.
+ * The top sheet's box as it stands without toasts in its foot: the room they
+ * take there is its body's again, as far as the body has more to show.
  */
-const useOverSheet = (shown: boolean) => {
-  const toasts = useRef<HTMLDivElement>(null);
+const boxOf = (sheet: HTMLElement, foot: HTMLElement): { top: number; bottom: number } => {
+  const body = foot.previousElementSibling;
+  const grown = Math.max(0, foot.offsetHeight - (body ? body.scrollHeight - body.clientHeight : 0));
+  const top = sheet.offsetTop + (getComputedStyle(sheet.parentElement!).alignItems === 'center' ? grown / 2 : grown);
+
+  return { top, bottom: top + sheet.offsetHeight - grown };
+};
+
+/**
+ * Puts the toasts where they stand now and answers the sheet they stand by.
+ * At the page's foot; while a sheet is open beside its box, or in its foot
+ * above the button row (`besideSheet`), where they are part of the sheet: its
+ * body gives them the room and scrolls. A sheet is measured where it comes to
+ * rest, not where its rise or a pull has it.
+ */
+const stand = (host: HTMLElement): HTMLElement | null => {
+  if (!host.isConnected) document.body.append(host);
+  const sheet = [...document.querySelectorAll<HTMLElement>('[data-scrim] [role="dialog"]')].at(-1) ?? null;
+  const foot = sheet?.querySelector<HTMLElement>(':scope > [data-toasts]') ?? null;
+  const where =
+    sheet && foot
+      ? besideSheet(boxOf(sheet, foot), host.offsetHeight, window.innerHeight, parseFloat(getComputedStyle(sheet.parentElement!).paddingTop) || 0)
+      : null;
+  const home = where === 'foot' ? foot! : document.body;
+
+  if (host.parentElement !== home) home.append(host);
+  host.toggleAttribute('data-in-sheet', where === 'foot');
+  host.style.cssText = !where || where === 'foot' ? '' : 'top' in where ? `top: ${where.top}px; bottom: auto` : `bottom: ${where.bottom}px`;
+  return sheet;
+};
+
+/** Follows sheets opening, closing and changing their box for as long as a toast is shown; no render waits on it. */
+const useStanding = (shown: boolean): HTMLElement => {
+  const [host] = useState(hostOf);
 
   useLayoutEffect(() => {
-    const element = toasts.current;
-    if (!shown || !element) return undefined;
+    if (!shown) return undefined;
 
+    let beside: HTMLElement | null = null;
+    const box = new ResizeObserver(() => stand(host));
     const place = () => {
-      const sheet = [...document.querySelectorAll('[data-scrim] [role="dialog"]')].at(-1);
-      const edge = sheet?.querySelector(':scope > footer') ?? sheet;
-      // Never off the top of the window: a sheet that fills it keeps the toast inside the screen.
-      const from = edge ? Math.min(window.innerHeight - edge.getBoundingClientRect().top + GAP, window.innerHeight - 96) : null;
-      if (from === null) element.style.removeProperty('bottom');
-      else element.style.setProperty('bottom', `${Math.round(from)}px`);
-      element.toggleAttribute('data-over-sheet', from !== null);
+      const sheet = stand(host);
+      if (sheet === beside) return;
+      box.disconnect();
+      if (sheet) box.observe(sheet);
+      beside = sheet;
     };
     place();
-    const observer = new MutationObserver(place);
-    observer.observe(document.body, { childList: true, subtree: true });
+    const page = new MutationObserver(place);
+    page.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('resize', place);
-    // A sheet rises into its place: where its buttons stand is known once it has arrived.
-    document.addEventListener('animationend', place, true);
     return () => {
-      observer.disconnect();
+      page.disconnect();
+      box.disconnect();
       window.removeEventListener('resize', place);
-      document.removeEventListener('animationend', place, true);
+      host.remove();
     };
-  }, [shown]);
+  }, [shown, host]);
 
-  return toasts;
+  return host;
 };
 
 export function Toasts({ lines, onUndo, onRetry, onDismiss, onDetails }: ToastsProps) {
-  const toasts = useOverSheet(lines.length > 0);
-  if (lines.length === 0) return null;
-
-  return (
-    <div ref={toasts} className={styles.toasts} role="status" aria-live="polite">
-      {lines.map(line => (
-        <Toast key={line.key} line={line} onUndo={onUndo} onRetry={onRetry} onDismiss={onDismiss} onDetails={onDetails} />
-      ))}
-    </div>
+  return createPortal(
+    lines.map(line => <Toast key={line.key} line={line} onUndo={onUndo} onRetry={onRetry} onDismiss={onDismiss} onDetails={onDetails} />),
+    useStanding(lines.length > 0),
   );
 }
 

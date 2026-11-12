@@ -6,7 +6,6 @@ import type { Device, DeviceConfiguration, PendingSettings } from '@fg2/shared-t
 import type { Told } from '@/log/log-context';
 import { FridgeFansPanel } from '@/screens/control/devices/FridgeFansPanel';
 import { fanSummaryOf, ownFactOf, ownStatusOf, plugSummaryOf } from '@/screens/control/devices/own-summary';
-import { OwnOutputs } from '@/screens/control/devices/OwnOutputs';
 import { PlugPanel } from '@/screens/control/devices/PlugPanel';
 import { OwnSettings } from '@/screens/control/OwnSettings';
 import { climateDeviceOf, lightWindowOf, rangeVerdictOf, switchRangeOf } from '@/screens/start/place';
@@ -323,14 +322,6 @@ describe('an AIR fan', () => {
     type('Highest speed at night', 20);
     expect(within(sheet()).getByText('The highest speed cannot be below the lowest.')).toBeInTheDocument();
     expect(within(sheet()).getByRole('button', { name: 'Save' })).toBeDisabled();
-  });
-
-  /** Every setting has one place: among the outputs the fan's speed is said, and the row leads to where it is set. */
-  it('is said among the outputs with the way to its control, and set there no second time', () => {
-    drawAt(<OwnOutputs device={device('fan-1', 'fan', FAN)} mayManage />);
-
-    expect(screen.getByRole('link', { name: /^Fan/ })).toHaveTextContent('Fixed · By day 70 % · At night 40 %');
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('says a speed stored for a silent fan as stored, with the speed the fan still holds', async () => {

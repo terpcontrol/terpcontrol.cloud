@@ -39,7 +39,7 @@ import {
 } from './plan-clock';
 import { draftOf, emptyDraft, type PlanDraft } from './plan-edit';
 import { offersReadyPlans } from './ready-plans';
-import { followsGermination, stepLengthLabel, stepMeta } from './plan-labels';
+import { followsGermination, pauseReasonOf, stepLengthLabel, stepMeta, usePauseReasons } from './plan-labels';
 import styles from './Control.module.css';
 
 /**
@@ -57,6 +57,7 @@ import styles from './Control.module.css';
 export function PlanPanel({ device, mayManage, landing }: { device: Device; mayManage: boolean; landing: ClimateLanding }) {
   const { t } = useTranslation();
   const plan = useDevicePlan(device.id);
+  usePauseReasons([plan.data]);
   const all = useDevices();
   // The beat re-renders the panel, and the reading is taken at the render: a
   // clock read up to a beat before the answer arrived puts a plan that was just
@@ -283,7 +284,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
       </p>
 
       {plan.state.status === 'paused' && plan.state.pauseReason ? (
-        <p className={ui.note}>{t('space.control.pausedFor', { reason: plan.state.pauseReason })}</p>
+        <p className={ui.note}>{t('space.control.pausedFor', { reason: pauseReasonOf(t, plan.state.pauseReason) })}</p>
       ) : null}
 
       {/* What the device last heard from the plan. A going plan without `lastAppliedAt` owes its step - the engine

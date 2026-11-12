@@ -147,12 +147,12 @@ describe('the work mode', () => {
   });
 
   it('says in its row what runs and what else the page offers, or that the preset set it', () => {
-    expect(modeLine(t, device())).toEqual({ text: 'Standard · also Greenhouse, Energy saving', warn: false });
-    expect(modeLine(t, device('fridge', { control: { ...CONTROL, mode: 'greenhouse' } }))).toMatchObject({
+    expect(modeLine(t, device(), DateTime.now(), null)).toEqual({ text: 'Standard · also Greenhouse, Energy saving', warn: false });
+    expect(modeLine(t, device('fridge', { control: { ...CONTROL, mode: 'greenhouse' } }), DateTime.now(), null)).toMatchObject({
       text: 'Greenhouse · also Standard, Energy saving',
       warn: true,
     });
-    expect(modeLine(t, device('fridge', { control: { ...CONTROL, drying: true } }))).toEqual({
+    expect(modeLine(t, device('fridge', { control: { ...CONTROL, drying: true } }), DateTime.now(), null)).toEqual({
       text: 'Drying · set by the climate preset',
       warn: true,
     });

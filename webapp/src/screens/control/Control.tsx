@@ -33,7 +33,8 @@ import { OutputsPage } from './Outputs';
 import { OwnSettings } from './OwnSettings';
 import { PageRows } from './PageRows';
 import { PlanPanel } from './PlanPanel';
-import { planLine, standOf } from './rows';
+import { usePauseReasons } from './plan-labels';
+import { followsPlan, planLine, standOf } from './rows';
 import styles from './Control.module.css';
 
 const isSub = (value: string | null): value is ControlPage => (CONTROL_PAGES as readonly string[]).includes(value ?? '');
@@ -127,6 +128,8 @@ export function Control({
     );
   }
 
+  // A device that has never been heard is waiting for its first values, not offline.
+  const silentSince = spoke !== null && deviceLiveness(spoke, now) === 'offline' ? sinceLabel(spoke, now, zone) : null;
   // The page names its place once: beside the title where the account has several, else over the two columns.
   const over = several
     ? { climate: t('control.climate'), devices: t('control.devices') }
@@ -138,7 +141,12 @@ export function Control({
         <h2 className={styles.label} data-wide>
           {over.climate}
         </h2>
-        <Offline device={lead} spoke={spoke} now={now} />
+        {/* Its climate device gone quiet: since when, that everything can be set all the same, and a tap away what to try. */}
+        {silentSince ? (
+          <OfflineBox title={t('offline.title', { device: deviceName(lead, t), time: silentSince })} deviceLink={devicePath(lead.id)}>
+            {t('control.offline.text', { time: silentSince })}
+          </OfflineBox>
+        ) : null}
         <OwnSettings device={lead} />
         <PageRows spaceId={spaceId} devices={ordered} now={now} />
         {reader}
@@ -182,14 +190,16 @@ const stateOf = (t: Translate, lead: Device, devices: Device[], spoke: string | 
 
 /**
  * The grow plan, device by device: a plan belongs to a device, since what a
- * step writes is that device's document. Only a device a plan could write a
- * climate into, or one that carries a plan all the same, is listed.
+ * step writes is that device's document. Only a device that could follow a
+ * plan as it runs (`followsPlan`), or one that carries a plan all the same,
+ * is listed.
  */
 function PlanPage({ spaceId, devices, mayManage, now }: { spaceId: string; devices: Device[]; mayManage: boolean; now: DateTime }) {
   const { t } = useTranslation();
   const plans = useDevicePlans(devices.map(device => device.id));
+  usePauseReasons(plans.plans);
   const of = (device: Device) => plans.plans.filter(plan => plan.deviceId === device.id);
-  const planned = devices.filter(device => climateLanding(device) !== 'nowhere' || of(device).length > 0);
+  const planned = devices.filter(device => followsPlan(device) || of(device).length > 0);
 
   if (planned.length === 0) {
     return plans.isPending ? (
@@ -202,26 +212,8 @@ function PlanPage({ spaceId, devices, mayManage, now }: { spaceId: string; devic
   }
 
   return (
-    <ByDevice devices={planned} line={device => planLine(t, of(device), now)}>
+    <ByDevice devices={planned} line={device => planLine(t, of(device), now, device.control?.running !== false)}>
       {device => <PlanPanel device={device} mayManage={mayManage} landing={climateLanding(device)} />}
     </ByDevice>
-  );
-}
-
-/**
- * A place whose climate device has gone quiet: since when, that everything
- * can be set all the same, and behind one tap what to try.
- */
-function Offline({ device, spoke, now }: { device: Device; spoke: string | null; now: DateTime }) {
-  const { t } = useTranslation();
-  const zone = useZone();
-  // A device that has never been heard is waiting for its first values, not offline.
-  if (spoke === null || deviceLiveness(spoke, now) !== 'offline') return null;
-  const time = sinceLabel(spoke, now, zone);
-
-  return (
-    <OfflineBox title={t('offline.title', { device: deviceName(device, t), time })} deviceLink={devicePath(device.id)}>
-      {t('control.offline.text', { time })}
-    </OfflineBox>
   );
 }

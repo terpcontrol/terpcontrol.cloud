@@ -84,3 +84,9 @@
     padding-right: var(--space-5);
   }
 }
+
+/* In a sheet's foot (`ui/Sheet.tsx`) the toasts are part of the sheet: as wide as it, above its button row. */
+.toasts[data-in-sheet] {
+  position: static;
+  padding: var(--space-3) 0 0;
+}

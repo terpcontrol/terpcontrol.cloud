@@ -218,11 +218,17 @@
   white-space: nowrap;
 }
 
-/* On the narrowest phone three columns leave a figure less room than its usual size takes. */
+/* Three columns leave "1000 ppm" less room than its usual size takes: a figure keeps air in its box on a narrow phone. */
+@media (max-width: 379px) {
+  .figure {
+    font-size: var(--text-md);
+  }
+}
+
 @media (max-width: 359px) {
   .figure {
     padding: 0 var(--space-1);
-    font-size: var(--text-md);
+    font-size: var(--text-sm);
   }
 }
 
@@ -265,15 +271,16 @@ button.figure:hover {
   color: var(--muted);
 }
 
-/* The term that explains itself, a finger high without making its line taller. */
-.vpd button {
-  position: relative;
+/* The term that explains itself is a finger high: its box reaches into the air over and under its line, which stays
+   as tall as it was - and the row of facts, which cuts what leaves it, is cut that much further out. */
+.card .vpd {
+  clip-path: inset(-12px -6px -12px var(--dot));
 }
 
-.vpd button::after {
-  content: '';
-  position: absolute;
-  inset: -12px 0;
+.vpd button {
+  display: inline-block;
+  margin-block: -12px;
+  padding-block: 12px;
 }
 
 .note {

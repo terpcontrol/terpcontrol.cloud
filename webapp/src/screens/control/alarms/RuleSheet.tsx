@@ -143,7 +143,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
             server titles with it, which every screen then contradicts. The field
             goes, the way the watch and the bounds already do for this rule. */}
         {rule?.origin === 'always' ? null : (
-          <Block label={t('alarms.sheet.name')}>
+          <Block label={t('alarms.sheet.name')} help={rule?.origin === 'preset' ? 'presetRules' : undefined}>
             <input
               className={ui.input}
               value={draft.name}
@@ -152,7 +152,6 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
               autoComplete="off"
               onChange={event => change({ name: event.target.value })}
             />
-            {rule?.origin === 'preset' ? <p className={ui.note}>{t('alarms.sheet.presetNote')}</p> : null}
           </Block>
         )}
 
@@ -207,9 +206,8 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
           </Block>
         ) : null}
 
-        <Block label={t('alarms.sheet.for')}>
+        <Block label={t('alarms.sheet.for')} help="alarmFor">
           <Minutes label={t('alarms.sheet.for')} value={draft.forMinutes} onChange={forMinutes => change({ forMinutes })} />
-          <p className={ui.note}>{t(forNote(draft))}</p>
         </Block>
 
         <Block label={t('alarms.sheet.severity')} help="severity">
@@ -266,13 +264,12 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
 }
 
 /** How often the rule says itself again while it lasts. */
-function Repeat({ draft, onChange, help }: { draft: RuleDraft; onChange: (over: Partial<RuleDraft>) => void; help?: 'alarmRepeat' }) {
+function Repeat({ draft, onChange }: { draft: RuleDraft; onChange: (over: Partial<RuleDraft>) => void }) {
   const { t } = useTranslation();
 
   return (
-    <Block label={t('alarms.sheet.repeat')} help={help}>
+    <Block label={t('alarms.sheet.repeat')} help="alarmRepeat">
       <Minutes label={t('alarms.sheet.repeatEvery')} value={draft.repeatMinutes} onChange={repeatMinutes => onChange({ repeatMinutes })} />
-      <p className={ui.note}>{t(draft.tellBy === 'email' ? 'alarms.sheet.repeatNoteEmail' : 'alarms.sheet.repeatNote')}</p>
     </Block>
   );
 }
@@ -306,7 +303,7 @@ function RuleAdvanced({ draft, onChange }: { draft: RuleDraft; onChange: (over: 
       {open ? (
         <div className={ui.sheetBody}>
           {webhook ? <TemplateFields draft={draft} onChange={onChange} /> : null}
-          {quiet ? <Repeat draft={draft} onChange={onChange} help="alarmRepeat" /> : null}
+          {quiet ? <Repeat draft={draft} onChange={onChange} /> : null}
         </div>
       ) : null}
     </details>
@@ -387,13 +384,6 @@ function TemplateFields({ draft, onChange }: { draft: RuleDraft; onChange: (over
     </Block>
   );
 }
-
-/** What "for how long" means, which differs for an output that is only ever on, and for the ten minutes the health loop already waits. */
-const forNote = (draft: RuleDraft): string => {
-  if (watchesOffline(draft.watch)) return 'alarms.sheet.forOfflineNote';
-
-  return draft.watch.kind === 'output_running' ? 'alarms.sheet.forRunningNote' : 'alarms.sheet.forNote';
-};
 
 /**
  * Where a rule delivered by the account's settings would actually go. Nothing

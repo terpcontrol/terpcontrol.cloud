@@ -1,13 +1,26 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Camera, Device, DeviceCapabilities, DeviceConfiguration, PlanTransition, Socket } from '@fg2/shared-types/v1';
+import type {
+  AccessNeed,
+  Camera,
+  Device,
+  DeviceCapabilities,
+  DeviceConfiguration,
+  DeviceFirmware,
+  PendingSettings,
+  PlanTransition,
+  Socket,
+} from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import type { Told } from '@/log/log-context';
 import { cameraFreshness } from '@/screens/devices/cameras';
+import { UpdateButton } from '@/screens/devices/DeviceActions';
+import { buildDay } from '@/screens/devices/firmware-builds';
 import { drawDevicePages } from './device-pages';
 import { deviceWith } from './fixtures';
+import { drawAt } from './harness';
 import { spaceWhere, THE_HOST } from './session';
 import { translate } from './translations';
 
@@ -115,6 +128,8 @@ const wire = {
   youMay: 'own' as AccessNeed,
   builds: (() => Promise.resolve({ items: [], nextCursor: null })) as () => Promise<unknown>,
   verdict: undefined as unknown,
+  /** What a silent device has not been handed, as its live read says it. */
+  pending: null as PendingSettings | null,
 };
 
 const answer = () =>
@@ -128,7 +143,8 @@ const answer = () =>
     if (path.endsWith('/sockets')) return Promise.resolve({ items: wire.sockets, nextCursor: null, capabilities: wire.capabilities }) as never;
     if (path.endsWith('/firmwares')) return wire.builds() as never;
     if (path.endsWith('/co2-report')) return Promise.resolve({ cylinders: [], openingsPerGram: null, restGrams: null }) as never;
-    if (path.endsWith('/live')) return Promise.resolve({ deviceId: 'device-1', metrics: {}, outputs: {}, setpoints: null, pending: null }) as never;
+    if (path.endsWith('/live'))
+      return Promise.resolve({ deviceId: 'device-1', metrics: {}, outputs: {}, setpoints: null, pending: wire.pending }) as never;
 
     return Promise.resolve({ items: [], nextCursor: null }) as never;
   });
@@ -162,6 +178,7 @@ beforeEach(() => {
     youMay: 'own',
     builds: () => Promise.resolve({ items: [], nextCursor: null }),
     verdict: undefined,
+    pending: null,
   });
   localStorage.clear();
   for (const call of [api.post, api.patch, api.put, api.delete]) vi.mocked(call).mockReset();
@@ -433,6 +450,50 @@ describe('a device on its own page', () => {
       ]);
     });
 
+    /**
+     * "Newer firmware of 15 Sep" beside a build "from 15 Sep" told nobody which is which: builds of one day carry
+     * their hour, which stands where the year stood while the year is this one.
+     */
+    it('tells two builds of one day apart by their hour, on the card, on the update it offers and in the list', async () => {
+      // Twenty minutes apart at an hour that is midnight in no zone, so the two share their day wherever this runs.
+      const [first, second] = [
+        { ...BUILD, createdAt: '2026-09-15T13:35:00.000Z' },
+        { ...NEWER, createdAt: '2026-09-15T13:55:00.000Z' },
+      ];
+      wire.devices = [controller({ classId: 'class-1', firmware: { channel: 'manual', targetId: null }, state: { firmwareId: first.id } })];
+      builds(first, second);
+      await draw();
+
+      // The card's two lines, each with the hour that tells it from the other.
+      const WHEN = /1[56] Sep \d\d:\d\d/;
+      const [running] = (await screen.findByText(new RegExp(`^from ${WHEN.source}$`))).textContent!.match(WHEN)!;
+      const [offered] = screen.getByText(new RegExp(`^Newer firmware of ${WHEN.source} is available$`)).textContent!.match(WHEN)!;
+      expect(offered).not.toBe(running);
+      const list = screen.getByRole('combobox', { name: 'Firmware version' });
+      await waitFor(() => expect(within(list).getAllByRole('option')).toHaveLength(3));
+      expect(
+        within(list)
+          .getAllByRole('option')
+          .map(option => option.textContent),
+      ).toEqual(['Pick a build …', `e4f5a6b · ${offered} · current Stable`, `a1b2c3d · ${running} · running · was stable`]);
+      // Two builds of one day of another year keep that year, and a build alone on its day is named by the day.
+      const [early, late, alone] = ['2025-03-03T10:02:00.000Z', '2025-03-03T16:30:00.000Z', '2025-03-04T16:30:00.000Z'].map((createdAt, at) => ({
+        ...BUILD,
+        id: `fw-${at}`,
+        createdAt,
+      })) as DeviceFirmware[];
+      expect([early, late, alone].map(one => buildDay(one, [early, late, alone], 'UTC'))).toEqual([
+        '3 Mar 2025 10:02',
+        '3 Mar 2025 16:30',
+        '4 Mar 2025',
+      ]);
+      cleanup();
+
+      // Steuerung's card offers the same build under its own button, which names it the same way.
+      drawAt(<UpdateButton device={wire.devices[0]} offline={false} />);
+      expect(await screen.findByRole('button', { name: `Update of ${offered}` })).toBeInTheDocument();
+    });
+
     it('says a newer build comes by itself to a device that follows its channel, and offers no button for it', async () => {
       wire.devices = [controller({ classId: 'class-1', firmware: { channel: 'stable', targetId: null }, state: { firmwareId: BUILD.id } })];
       builds(BUILD, NEWER);
@@ -642,6 +703,41 @@ describe('a device on its own page', () => {
       await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { control: true } }));
       await waitFor(() => expect(said()).toEqual(['Control on · saved']));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    /**
+     * Switched off while nobody heard it, the device goes on regulating: off is a setting it has not been handed,
+     * and the page says so in Steuerung's words - not that control is off, which is what the device will do later.
+     */
+    it('says control switched off for a silent device as stored and not with the device yet, in its head and in its row', async () => {
+      const silent = { ...regulating({ running: false }), state: { ...regulating().state, lastSeenAt: NOW.minus({ minutes: 25 }).toISO()! } };
+      wire.devices = [silent];
+      wire.pending = {
+        since: silent.state.lastSeenAt!,
+        settings: [{ field: 'workmode', held: 'small', savedAt: NOW.minus({ minutes: 9 }).toISO()! }],
+      };
+      await draw('/devices/device-1', 'Fridge module');
+
+      const stored = /Control off saved at \d\d:\d\d, not with the device yet$/;
+      const head = await screen.findByText(stored, { selector: 'p strong' });
+      expect(head.closest('p')).toHaveTextContent(/^in Tent 1 · Control off saved at/);
+      const row = screen.getByRole('button', { name: /^Switch control on/ });
+      expect(within(row).getByText(stored)).toHaveAttribute('data-tone', 'warn');
+      expect(screen.queryByText('Control off')).not.toBeInTheDocument();
+    });
+
+    /** Off that the device was there to hear, or has been handed since, is what it does: said plainly, and on waits for it. */
+    it('says plainly that control is off once nothing of it is waiting for the device', async () => {
+      wire.devices = [{ ...regulating({ running: false }), state: { ...regulating().state, lastSeenAt: NOW.minus({ minutes: 25 }).toISO()! } }];
+      wire.pending = {
+        since: NOW.minus({ minutes: 25 }).toISO()!,
+        settings: [{ field: 'day.temperature', held: 24, savedAt: NOW.minus({ minutes: 9 }).toISO()! }],
+      };
+      await draw('/devices/device-1', 'Fridge module');
+
+      expect(screen.getByText('Control off')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Switch control on/ })).toHaveTextContent('Applies once the device is back online');
+      expect(screen.queryByText(/not with the device yet/)).not.toBeInTheDocument();
     });
 
     it('says a fridge that germinates in the dark regulates, and in which mode', async () => {

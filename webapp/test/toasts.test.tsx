@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { useLog } from '@/log/log-context';
 import { LogProvider } from '@/log/LogProvider';
-import { withRoom } from '@/log/toast-room';
+import { besideSheet, withRoom } from '@/log/toast-room';
 import type { LoggedLine } from '@/log/Toasts';
 import { Sheet } from '@/ui/Sheet';
 import { drawAt } from './harness';
@@ -11,7 +11,7 @@ import { translate } from './translations';
 /**
  * The toasts as a page meets them: an answer to every write, but never a pile
  * of them. There are at most two, a control that is used again answers in the
- * toast it already has, and no toast lies on the buttons of a sheet.
+ * toast it already has, and no toast lies on an open sheet.
  */
 
 beforeAll(() => translate());
@@ -108,42 +108,84 @@ describe('the toasts on a page', () => {
     await waitFor(() => expect(shown()).toEqual(['one', 'Light limit 90 %']));
   });
 
-  it('stands above the button row of a sheet that is open, and back at the page´s foot once it has closed', async () => {
-    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      return {
-        top: this.tagName === 'FOOTER' ? 700 : 300,
-        bottom: 800,
-        left: 0,
-        right: 390,
-        width: 390,
-        height: 100,
-        x: 0,
-        y: 0,
-        toJSON: () => ({}),
-      };
+  /** jsdom lays nothing out: the boxes a phone 600 high would measure, the toasts 108 high, the sheet's body with more to show. */
+  const laidOut = (sheet: { top: number; high: number }) => {
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    const HIGH: [string, (element: HTMLElement) => number][] = [
+      ['[role="dialog"]', () => sheet.high],
+      ['[role="status"]', () => 108],
+      ['[data-toasts]', foot => foot.childElementCount * 120],
+    ];
+    const high = (element: HTMLElement) => HIGH.find(([what]) => element.matches(what))?.[1](element) ?? 0;
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.matches('[role="dialog"]') ? sheet.top : 0;
     });
-    const sheet = (open: boolean) => (
-      <LogProvider>
-        <Probe />
-        {open ? (
-          <Sheet title="A figure" actions={<button type="button">Save</button>} onClose={() => {}}>
-            <p>One figure.</p>
-          </Sheet>
-        ) : null}
-      </LogProvider>
-    );
-    const drawn = drawAt(sheet(true));
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return high(this);
+    });
+    vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockReturnValue(900);
+  };
+
+  const withSheet = (open: boolean) => (
+    <LogProvider>
+      <Probe />
+      {open ? (
+        <Sheet title="A figure" actions={<button type="button">Save</button>} onClose={() => {}}>
+          <p>One figure.</p>
+        </Sheet>
+      ) : null}
+    </LogProvider>
+  );
+
+  it('stands in the foot of a sheet that leaves no room beside it, above the button row, and back at the page´s foot once it has closed', async () => {
+    laidOut({ top: 72, high: 528 });
+    const drawn = drawAt(withSheet(true));
 
     fireEvent.click(screen.getByRole('button', { name: 'one', hidden: true }));
     const toasts = await waitFor(() => document.querySelector<HTMLElement>('[role="status"][aria-live]')!);
 
-    // 800 high, the button row begins at 700: the toasts end a step above it.
-    expect(toasts).toHaveAttribute('data-over-sheet');
-    expect(toasts.style.bottom).toBe('108px');
+    const sheet = screen.getByRole('dialog');
+    await waitFor(() => expect(toasts).toHaveAttribute('data-in-sheet'));
+    // Part of the sheet, between what it asks and its buttons: nothing of it is covered, and Tab reaches the toast.
+    expect(toasts.parentElement).toBe(sheet.querySelector('[data-toasts]'));
+    expect(toasts.parentElement!.previousElementSibling).toContainElement(screen.getByText('One figure.'));
+    expect(toasts.parentElement!.nextElementSibling).toBe(sheet.querySelector('footer'));
+    expect(toasts.getAttribute('style') ?? '').toBe('');
 
-    await act(async () => drawn.rerender(sheet(false)));
-    await waitFor(() => expect(toasts).not.toHaveAttribute('data-over-sheet'));
-    expect(toasts.style.bottom).toBe('');
+    await act(async () => drawn.rerender(withSheet(false)));
+    await waitFor(() => expect(toasts).not.toHaveAttribute('data-in-sheet'));
+    expect(toasts.parentElement).toBe(document.body);
+    expect(shown()).toEqual(['one']);
+  });
+
+  it('stands over a sheet the window has room above, outside its box', async () => {
+    laidOut({ top: 359, high: 241 });
+    drawAt(withSheet(true));
+
+    fireEvent.click(screen.getByRole('button', { name: 'one', hidden: true }));
+    const toasts = await waitFor(() => document.querySelector<HTMLElement>('[role="status"][aria-live]')!);
+
+    // The sheet begins at 359 of 600: the toasts end a step above it.
+    await waitFor(() => expect(toasts.style.bottom).toBe('249px'));
+    expect(toasts.parentElement).toBe(document.body);
+    expect(screen.getByRole('dialog')).not.toContainElement(toasts);
+  });
+});
+
+describe('where the toasts stand while a sheet is open', () => {
+  it('is under the sheet on a desktop, where the window has the room', () => {
+    expect(besideSheet({ top: 281, bottom: 519 }, 96, 800, 24)).toEqual({ top: 527 });
+  });
+
+  it('is over the sheet on a phone, whose sheet stands on the bottom edge', () => {
+    expect(besideSheet({ top: 359, bottom: 600 }, 108, 600)).toEqual({ bottom: 249 });
+    // One toast still fits over a sheet as high as a sheet gets on a short phone; two do not.
+    expect(besideSheet({ top: 72, bottom: 600 }, 44, 600)).toEqual({ bottom: 536 });
+    expect(besideSheet({ top: 72, bottom: 600 }, 108, 600)).toBe('foot');
+  });
+
+  it('is the sheet´s foot where neither side has the room, and never the room the window keeps free above a sheet', () => {
+    expect(besideSheet({ top: 56, bottom: 744 }, 96, 800, 24)).toBe('foot');
+    expect(besideSheet({ top: 100, bottom: 844 }, 44, 844, 59)).toBe('foot');
   });
 });

@@ -224,7 +224,6 @@
       "runs": "Came on",
       "runsValue_one": "{{count}}× in the last 24 h",
       "runsValue_other": "{{count}}× in the last 24 h",
-      "isPlug": "smart socket",
       "numbered": "{{name}} {{number}}",
       "byItself": "Auto",
       "findLine": "switches it on for 2 seconds and off again",
@@ -460,7 +459,8 @@
         "space": "Place",
         "grow": "Grow",
         "camera": "Camera",
-        "device": "Device"
+        "device": "Device",
+        "socket": "Socket"
       }
     },
     "crashed": {
@@ -520,7 +520,7 @@
       "noReading": "–",
       "inBand": "in band",
       "noTarget": "no target",
-      "auto": "auto",
+      "auto": "by itself",
       "noPhase": "No phase yet",
       "plants_one": "{{count}} plant",
       "plants_other": "{{count}} plants",
@@ -553,8 +553,8 @@
       "you": "you",
       "youLead": "You",
       "device": "device",
-      "plan": "auto",
-      "preset": "auto",
+      "plan": "by itself",
+      "preset": "by itself",
       "alarm": "alarm",
       "someone": "someone"
     },
@@ -1143,8 +1143,8 @@
         "oldestFirst": "oldest first",
         "noneYet": "No phase has been entered yet.",
         "source": {
-          "preset": "auto · preset",
-          "plan": "auto · plan",
+          "preset": "by itself · preset",
+          "plan": "by itself · plan",
           "human": "by hand"
         },
         "correct": "Correct",
@@ -2205,7 +2205,6 @@
     "carrierOffline": "This camera is read through the device ({{device}}). No pictures arrive until it is back online.",
     "connectedVia": "Connected via",
     "reachedAt": "Camera ID",
-    "addressNote": "The password the stream is opened with stays with the server and is never sent back here.",
     "name": "Name",
     "looksAt": "Looks at",
     "looksAtHint": "canopy, side view …",
@@ -2272,7 +2271,6 @@
     "weekFilmByMail": "The week film every Monday by e-mail",
     "address": "Address",
     "changeAddress": "Change the address",
-    "addressChangeNote": "Left empty, user and password stay as they are. Pictures, films and Premium stay with this camera. After saving, “Take a picture now” checks that it is reachable.",
     "rtspThrough": "RTSP via {{device}}",
     "rtspDirect": "RTSP, opened by the cloud",
     "username": "User",
@@ -2604,13 +2602,13 @@
       "presetOf": "From the climate preset {{name}}",
       "presetNone": "From the climate preset",
       "presetAside": "thresholds move with the stage",
-      "always": "Always on",
+      "always": "Built in",
       "device": "From the device",
       "human": "Written here"
     },
     "origin": {
       "preset": "climate preset",
-      "always": "always",
+      "always": "built in",
       "device": "device",
       "human": "custom"
     },
@@ -2675,7 +2673,6 @@
       "title": "Edit the alarm",
       "name": "Name",
       "nameHint": "Too warm",
-      "presetNote": "The stage wrote this rule. The next stage writes its thresholds again, so what is changed here holds until then.",
       "watch": "Watch",
       "how": "What about it",
       "level": "its level",
@@ -2688,8 +2685,6 @@
       "ticksNote": "How often the valve opened since the last reading, counted rather than measured — not a level.",
       "noBound": "Give it a line to cross: above, below, or both.",
       "for": "For how long",
-      "forNote": "How long the reading has to stay past the line before the alarm is raised. 0 raises it at once.",
-      "forRunningNote": "How long the output has to run without a pause before that is an alarm rather than a cycle.",
       "minutes": "min",
       "severity": "Severity",
       "tellBy": "Tell me by",
@@ -2715,14 +2710,11 @@
       "tunnelNote": "For a target on the local network, which the device can reach and the cloud cannot.",
       "repeat": "Repeat",
       "repeatEvery": "every",
-      "repeatNote": "While it lasts, every so many minutes; 0 says it once.",
-      "repeatNoteEmail": "While it lasts, every so many minutes, but an e-mail no more often than every five; 0 sends it once.",
       "save": "Save the alarm",
       "delete": "Delete the alarm",
       "deleteAsk": "The rule is gone for good. An alert it has already raised stays in the inbox.",
       "deleteYes": "Delete it",
       "offlineWatch": "This one watches whether the device reports at all, which is not something that can be pointed elsewhere.",
-      "forOfflineNote": "On top of the ten minutes after which a device counts as offline.",
       "template": "Service for the webhook",
       "templateFill": "Fill in the fields",
       "templateFilled": "The URL, method and messages above are filled in. Check them and save the rule.",
@@ -2929,9 +2921,7 @@
       "zeroLimit": "Light limit 0 %: the lamp stays dark, but the day still holds – with the day figures and with CO₂.",
       "keptNight": "Night figures – hold again as soon as there is a night",
       "keptDay": "Day figures – hold again as soon as there is a day",
-      "keptLight": "light limit {{percent}} %",
-      "germinationBack": "Where germination ends without a new climate, the night temperature from before holds again: {{temperature}}.",
-      "germinationBackHumidity": "Where germination ends without a new climate, the night from before holds again: {{temperature}} · {{humidity}}."
+      "keptLight": "light limit {{percent}} %"
     },
     "fans": "Fans",
     "stepLess": "{{name}}: less",
@@ -3597,7 +3587,6 @@
     }
   },
   "alarmLine": {
-    "deviceOffline": "Device offline",
     "outputOn": "{{output}} on",
     "outputOff": "{{output}} off",
     "worst": "worst {{value}}",
@@ -3686,7 +3675,7 @@
       "text": "“Veg week 2” is the second week the grow has stood in veg. How far the grow is overall is said by the day: day 1 is the day it began. In the diary a week is named by its days and carries the stage most of that week lay in."
     },
     "autoTag": {
-      "title": "auto",
+      "title": "by itself",
       "text": "This phase was set by a grow plan or a climate preset, which wrote the targets here along with it – it was not recorded as a stage alone. It has nothing to do with autoflowers."
     },
     "phasePreset": {
@@ -3997,7 +3986,7 @@
     },
     "alarmRepeat": {
       "title": "Repeat",
-      "text": "While the alarm lasts, it is said again every so many minutes - for a warning or a notice just as for a critical alarm. That helps above all a webhook that switches something at home: if one call is lost, the next one comes. 0 says it once."
+      "text": "While the alarm lasts, it is said again every so many minutes - for a warning or a notice just as for a critical alarm. That helps above all a webhook that switches something at home: if one call is lost, the next one comes. 0 says it once. An e-mail comes no more often than every five minutes."
     },
     "webhookTemplate": {
       "title": "Service for the webhook",
@@ -4090,6 +4079,14 @@
     "deviceMove": {
       "title": "Moving",
       "text": "From the move on the device's readings count for the new place; what it measured so far stays with the old one. The camera that runs through the device, its sockets and its alarms move with it. A grow does not: you move that on the grow's page. A new place is made in the room the device stands in now."
+    },
+    "alarmFor": {
+      "title": "For how long",
+      "text": "How long the reading has to stay past the line before the alarm is raised; 0 raises it at once. For an output watched for running at all: how long it has to run without a pause before that is an alarm rather than a cycle. For “Device offline” the time comes on top of the ten minutes after which a device counts as offline."
+    },
+    "streamChange": {
+      "title": "Changing the address",
+      "text": "The password the stream is opened with stays with the server and is never sent back here. When you change the address, user and password stay as they are if you leave them empty. Pictures, films and Premium stay with this camera. After saving, “Take a picture now” checks that it is reachable."
     }
   },
   "place": {
@@ -4920,7 +4917,16 @@
       "take": "Apply",
       "taken": "Climate preset {{name}}",
       "same": "These are this climate preset’s figures already.",
-      "sets": "What the climate preset changes"
+      "sets": "What the climate preset changes",
+      "end": {
+        "drying": "End drying",
+        "germination": "End germination"
+      },
+      "ended": {
+        "drying": "Drying ended",
+        "germination": "Germination ended"
+      },
+      "returns": "What holds again afterwards"
     },
     "figure": {
       "change": "Change {{name}}, {{value}}",
@@ -4940,21 +4946,21 @@
       "figure": "{{name}}: {{value}} saved {{saved}}. The device still holds {{held}} until it is back online.",
       "window": "{{name}}: {{value}} saved {{saved}}. The device still runs {{held}} until it is back online.",
       "unknown": "{{name}}: {{value}} saved {{saved}}. The device takes it over once it is back online.",
-      "behind": "saved {{saved}}, not with the device yet",
       "more_one": "{{count}} more setting saved, not with the device yet",
       "more_other": "{{count}} more settings saved, not with the device yet",
       "several": "{{number}} settings saved {{saved}}, not with the device yet",
       "one": "{{name}}: {{value}} · the device still holds {{held}}",
       "oneUnknown": "{{name}}: {{value}}",
       "off": "Control off saved {{saved}}, not with the device yet: {{device}} goes on regulating until it is back online.",
-      "modeOff": "Control off"
+      "modeOff": "Control off",
+      "stored": "{{what}} saved {{saved}}, not with the device yet"
     },
     "offline": {
       "text": "You can set everything all the same. The device takes it over once it reports again, and until then regulates with what it held at {{time}}."
     },
     "state": {
-      "on": "Regulating",
-      "off": "Not regulating",
+      "on": "Control on",
+      "off": "Control off",
       "drying": "Drying",
       "germination": "Germination",
       "maintenance": "Maintenance until {{until}}"
@@ -4968,25 +4974,28 @@
       "alarmRaised": "“{{name}}” has raised",
       "alarmsRaised_one": "{{count}} has raised",
       "alarmsRaised_other": "{{count}} have raised",
-      "planOff": "off · you set the targets by hand",
+      "planOff": "off",
       "planAtRest": "“{{name}}” · {{status}}",
       "light": "Light",
-      "fans": "Fans",
       "allAuto": "all on auto",
-      "modeAlso": "{{mode}} · also {{others}}",
       "mode": {
         "standard": "Standard",
         "greenhouse": "Greenhouse",
         "energySaving": "Energy saving"
       },
-      "planPaused": "{{step}} paused"
+      "planPaused": "{{step}} paused",
+      "alarmsOnOf": "{{on}} of {{total}} rules on",
+      "alarmOff": "“{{name}}” off",
+      "byHand": "you set the targets by hand",
+      "fan": "Fan",
+      "also": "also {{others}}"
     },
     "outputs": {
       "none": "Nothing standing here has outputs of its own."
     },
     "device": {
       "late": "online · last heard {{age}} ago",
-      "firmware": "Firmware of {{day}}",
+      "firmware": "Firmware from {{day}}",
       "all": "Everything about {{name}}"
     },
     "camera": {
@@ -5011,7 +5020,8 @@
       "none": "Nothing standing here takes targets from a plan."
     },
     "mode": {
-      "none": "There is no operating mode to choose here: germination and drying come with the climate preset."
+      "none": "There is no operating mode to choose here.",
+      "byPreset": "Germination and drying come with the climate preset."
     }
   }
 }

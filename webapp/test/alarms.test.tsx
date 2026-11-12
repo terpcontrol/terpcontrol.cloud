@@ -244,8 +244,10 @@ describe('the alarm rules page', () => {
     expect(await screen.findByText('From the climate preset Flower')).toBeInTheDocument();
     expect(screen.getByText('thresholds move with the stage')).toBeInTheDocument();
 
-    const labels = screen.getAllByText(/^(From the climate preset Flower|Always on|From the device|Written here)$/).map(label => label.textContent);
-    expect(labels).toEqual(['From the climate preset Flower', 'Always on', 'From the device', 'Written here']);
+    // The cloud's own rule can be switched off like any other, so its head does not call it always on.
+    const labels = screen.getAllByText(/^(From the climate preset Flower|Built in|From the device|Written here)$/).map(label => label.textContent);
+    expect(labels).toEqual(['From the climate preset Flower', 'Built in', 'From the device', 'Written here']);
+    expect(screen.queryByText(/always/i)).not.toBeInTheDocument();
   });
 
   it('writes the bound and the meta line of a preset rule, an always rule and a rule with its own webhook', async () => {
@@ -256,7 +258,7 @@ describe('the alarm rules page', () => {
     expect(within(hot).getByText('climate preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
 
     const offline = await card('Device offline');
-    expect(within(offline).getByText('always · for 10 min · critical · goes to you by push + Telegram · repeats every 30 min')).toBeInTheDocument();
+    expect(within(offline).getByText('built in · for 10 min · critical · goes to you by push + Telegram · repeats every 30 min')).toBeInTheDocument();
 
     const running = await card('Dehumidifier running non-stop');
     expect(within(running).getByText('longer than 2 h')).toBeInTheDocument();
@@ -285,7 +287,7 @@ describe('the alarm rules page', () => {
 
     const until = mutedUntil.setZone('Europe/Berlin').toFormat('HH:mm');
     const offline = await card('Device offline');
-    expect(within(offline).getByText(`always · for 10 min · critical · your channels muted until ${until}`)).toBeInTheDocument();
+    expect(within(offline).getByText(`built in · for 10 min · critical · your channels muted until ${until}`)).toBeInTheDocument();
     expect(offline.textContent).not.toMatch(/goes to you|repeats every/);
 
     // Its own webhook is not the account's channel, and is not held back with them.
@@ -343,7 +345,7 @@ describe('the alarm rules page', () => {
 
     expect(await screen.findByText('Alarms do not reach you')).toBeInTheDocument();
     const offline = await card('Device offline');
-    expect(within(offline).getByText('always · for 10 min · critical')).toBeInTheDocument();
+    expect(within(offline).getByText('built in · for 10 min · critical')).toBeInTheDocument();
     expect(within(offline).queryByRole('link', { name: 'does not reach you · set up ›' })).not.toBeInTheDocument();
   });
 
@@ -1023,7 +1025,10 @@ describe('the rule sheet', () => {
     // reader's language, so a name typed here changed nothing any screen drew.
     expect(within(sheet).queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();
     expect(within(sheet).getByText(/watches whether the device reports at all/)).toBeInTheDocument();
-    expect(within(sheet).getByText(/On top of the ten minutes/)).toBeInTheDocument();
+    // What the wait means stands behind the help beside it, not as a sentence under the field.
+    expect(within(sheet).queryByText(/On top of the ten minutes/)).not.toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'About For how long' }));
+    expect(screen.getByText(/comes on top of the ten minutes/)).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 
@@ -1146,7 +1151,10 @@ describe('the rule sheet', () => {
 
     expect(within(sheet).getByRole('textbox', { name: 'Name' })).toHaveValue('Too hot');
     expect(within(sheet).getByLabelText(/^above/)).toHaveValue(30);
-    expect(within(sheet).getByText(/The next stage writes its thresholds again/)).toBeInTheDocument();
+    // That the next stage moves the rule's lines stands behind the help beside its name.
+    expect(within(sheet).queryByText(/The next stage/)).not.toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'About Rules from the stage' }));
+    expect(screen.getAllByText(/The next stage moves their lines and waits/)).not.toHaveLength(0);
     expect(within(sheet).getByRole('button', { name: 'Delete the alarm' })).toBeInTheDocument();
 
     fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '31' } });

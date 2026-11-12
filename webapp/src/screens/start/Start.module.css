@@ -19,8 +19,10 @@
   min-height: var(--control-height);
 }
 
+/* A name is as wide as the screen at most: a word longer than that breaks inside it. */
 .head h1 {
   flex: 1 1 auto;
+  min-width: 0;
   overflow-wrap: break-word;
 }
 

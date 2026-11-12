@@ -27,6 +27,9 @@ const UNDO_MS = 5000;
 /** How long a toast that says what was done stays: it is a sentence to read, not a line to recognise. */
 const TOLD_MS = 8000;
 
+/** A toast as it is first shown: nothing failed, nothing taken back, no entry yet. */
+const UNANSWERED = { failure: null, reason: null, undoing: false, entry: null, progress: null };
+
 interface Details {
   kind: TileKind;
   target: LogTarget;
@@ -106,6 +109,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
     (request: LogRequest) => {
       const key = nextKey.current++;
       const line: LoggedLine = {
+        ...UNANSWERED,
         key,
         label: request.label,
         send: request.send,
@@ -113,13 +117,8 @@ export function LogProvider({ children }: { children: ReactNode }) {
         revert: null,
         details: request.details ?? null,
         state: 'saving',
-        failure: null,
-        reason: null,
-        undoing: false,
-        entry: null,
         undoable: request.undoable ?? true,
         undoUntil: null,
-        progress: null,
       };
       setLines(current => withRoom(current, line));
       setOpening(null);
@@ -203,6 +202,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
       const key = nextKey.current++;
       setLines(current =>
         withRoom(current, {
+          ...UNANSWERED,
           key,
           label,
           send: () => Promise.reject(new Error('nothing to send')),
@@ -210,13 +210,8 @@ export function LogProvider({ children }: { children: ReactNode }) {
           from,
           details: null,
           state: 'saved',
-          failure: null,
-          reason: null,
-          undoing: false,
-          entry: null,
           undoable: back !== null,
           undoUntil: Date.now() + TOLD_MS,
-          progress: null,
         }),
       );
     }, []),

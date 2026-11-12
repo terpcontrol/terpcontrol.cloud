@@ -222,13 +222,13 @@ export function CameraSettings({
                 ) : (
                   <Said facts={reached} />
                 )}
-                {camera.kind === 'rtsp' ? (
-                  <span className={`${ui.note} ${styles.settingNote}`}>{t(readdressing ? 'camera.addressChangeNote' : 'camera.addressNote')}</span>
-                ) : null}
                 {camera.kind === 'rtsp' && mayManage ? (
-                  <button type="button" className={`mono ${styles.textLink}`} onClick={readdressing ? keepAddress : () => setReaddressing(true)}>
-                    {t(readdressing ? 'camera.keepAddress' : 'camera.changeAddress')} ›
-                  </button>
+                  <span className={styles.changeAddress}>
+                    <button type="button" className={`mono ${styles.textLink}`} onClick={readdressing ? keepAddress : () => setReaddressing(true)}>
+                      {t(readdressing ? 'camera.keepAddress' : 'camera.changeAddress')} ›
+                    </button>
+                    <Help topic="streamChange" />
+                  </span>
                 ) : null}
               </span>
             </Row>

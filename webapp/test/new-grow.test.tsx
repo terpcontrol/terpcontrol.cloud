@@ -62,10 +62,19 @@ const standing = {
   summary: { locations: [{ spaceId: 'space-1' }] },
 } as unknown as GrowListItem;
 
-const stack = { spaces: [tent, balcony] as Space[], grows: [spring] as GrowListItem[], devices: [controller] as Device[], sockets: [] as string[] };
+const stack = {
+  spaces: [tent, balcony] as Space[],
+  grows: [spring] as GrowListItem[],
+  devices: [controller] as Device[],
+  sockets: [] as string[],
+  /** The device the server names as the place's climate; none named is the first standing there. */
+  climate: null as string | null,
+};
 
 const answers = (path: string): unknown => {
   if (path === '/devices/device-1/sockets') return { items: stack.sockets.map((role, slot) => ({ slot, role })), nextCursor: null };
+  if (/^\/devices\/[^/]+\/sockets$/.test(path)) return { items: [], nextCursor: null };
+  if (/^\/spaces\/[^/]+\/overview$/.test(path)) return { climates: stack.climate ? [{ deviceId: stack.climate }] : [] };
   if (path === '/spaces') return { items: stack.spaces, nextCursor: null };
   if (path === '/grows') return { items: stack.grows, nextCursor: null };
   if (path === '/devices') return { items: stack.devices, nextCursor: null };
@@ -93,6 +102,7 @@ beforeEach(() => {
   stack.grows = [spring];
   stack.devices = [controller];
   stack.sockets = [];
+  stack.climate = null;
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.post).mockResolvedValue({ id: 'grow-new' } as never);
 });
@@ -154,11 +164,12 @@ describe('the form a grow is started with', () => {
     expect(vi.mocked(api.post).mock.calls.map(call => call[0])).toEqual(['/grows', '/grows/grow-new/phases']);
   });
 
+  // The stage's name stands whole on the button: no line of it ends on the dot.
   it('puts the place on a stage the grower chose, and the button says so before the tap', async () => {
     await drawLoaded('space-1');
 
     fireEvent.click(stage('Seedling'));
-    fireEvent.click(screen.getByRole('button', { name: 'Start and set the climate to Seedling · with light' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start and set the climate to Seedling\u00a0·\u00a0with\u00a0light' }));
 
     await waitFor(() => expect(sent('/grows/grow-new/phases')).toMatchObject({ stage: 'seedling', preset: null, climate: true }));
   });
@@ -194,7 +205,7 @@ describe('the form a grow is started with', () => {
     const choices = screen.getByRole('group', { name: 'During germination' });
     expect(await within(choices).findByText('The humidifier holds 75 % – it never makes it wetter than that.')).toBeInTheDocument();
     fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Start and set the climate to Germination · dark' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start and set the climate to Germination\u00a0·\u00a0dark' }));
 
     await waitFor(() =>
       expect(sent('/grows/grow-new/phases')).toMatchObject({ stage: 'germination', climate: true, germinationChoices: { warnTooHumid: true } }),
@@ -207,10 +218,34 @@ describe('the form a grow is started with', () => {
     fireEvent.click(stage('Germination'));
     expect(screen.getByRole('switch', { name: 'Warn when it gets too humid' })).toBeInTheDocument();
     expect(screen.queryByRole('switch', { name: 'Hold the humidity with the humidifier' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Start and set the climate to Germination · dark' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start and set the climate to Germination\u00a0·\u00a0dark' }));
 
     await waitFor(() => expect(sent('/grows/grow-new/phases')).toMatchObject({ stage: 'germination', climate: true }));
     expect(sent('/grows/grow-new/phases')).not.toHaveProperty('germinationChoices');
+  });
+
+  it('asks both choices of the device the climate preset is taken on, also where another controller stands in the place before it', async () => {
+    stack.devices = [fridge({ id: 'device-0', type: 'controller' }), controller];
+    stack.sockets = ['humidifier'];
+    stack.climate = 'device-1';
+    await drawLoaded('space-1');
+
+    fireEvent.click(stage('Germination'));
+    const choices = screen.getByRole('group', { name: 'During germination' });
+    expect(await within(choices).findByRole('switch', { name: 'Hold the humidity with the humidifier' })).toBeInTheDocument();
+    expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toBeInTheDocument();
+  });
+
+  it('keeps its button in the sheet´s foot, where it stands while the questions scroll, and starts the grow from there', async () => {
+    await drawLoaded('space-1');
+
+    const sheet = screen.getByRole('dialog');
+    const start = within(sheet).getByRole('button', { name: 'Start a grow' });
+    expect(sheet.querySelector('footer')).toContainElement(start);
+    expect(sheet.querySelector('form')).not.toContainElement(start);
+    fireEvent.click(start);
+
+    await waitFor(() => expect(sent('/grows/grow-new/phases')).toBeDefined());
   });
 
   it('asks nothing about germination where the stage is only recorded', async () => {

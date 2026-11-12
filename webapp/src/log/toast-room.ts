@@ -24,3 +24,20 @@ export const withRoom = (lines: LoggedLine[], line: LoggedLine): LoggedLine[] =>
 
   return [...others.filter(one => !going.has(one.key)), line];
 };
+
+/** The room a toast keeps from the box it stands by and from the window's edge. */
+const GAP = 8;
+
+type Box = { top: number; bottom: number };
+
+/**
+ * Where the toasts stand while a sheet is open, so that none lies on it: under
+ * its box where the window has the room, else over it - `top` or `bottom` of
+ * the window - and where neither has it, in the sheet's `foot`. `sheet` is the
+ * box as it stands without toasts in it, `tall` their height, `clear` what
+ * the window keeps free above a sheet.
+ */
+export const besideSheet = (sheet: Box, tall: number, high: number, clear = 0): Pick<Box, 'top'> | Pick<Box, 'bottom'> | 'foot' => {
+  if (high - sheet.bottom >= tall + 2 * GAP) return { top: sheet.bottom + GAP };
+  return sheet.top - clear >= tall + 2 * GAP ? { bottom: high - sheet.top + GAP } : 'foot';
+};

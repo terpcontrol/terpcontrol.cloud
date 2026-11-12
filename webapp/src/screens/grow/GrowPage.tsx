@@ -100,8 +100,8 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
   );
 }
 
-/** An address that names no grow this account can open: said under the page's own heading, with the way to the grows it can. */
-function NoSuchGrow() {
+/** Grow where no grow is drawn: the page's own heading with the way to every grow, over what it says instead. */
+export function NoGrow({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
 
   return (
@@ -116,11 +116,22 @@ function NoSuchGrow() {
           </div>
         </div>
       </header>
+      {children}
+    </section>
+  );
+}
+
+/** An address that names no grow this account can open says so, with the two causes that can have. */
+function NoSuchGrow() {
+  const { t } = useTranslation();
+
+  return (
+    <NoGrow>
       <p className={ui.problem} role="alert">
         {t('shell.gone.grow')}
       </p>
       <p className={ui.note}>{t('shell.gone.why')}</p>
-    </section>
+    </NoGrow>
   );
 }
 

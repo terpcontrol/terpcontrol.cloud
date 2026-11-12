@@ -93,12 +93,13 @@ function Socket({
     </PageHead>
   );
 
-  // A socket that left the table - removed, or its device handed over - has no page; the way back is the head's.
+  // A socket that left the table - removed, or its device handed over - has no page: what the address was about, and the way on to its device.
   if (!row) {
     return (
       <section className={styles.page}>
-        {head(t('devices.socket.isPlug'))}
+        {head(t('shell.gone.title.socket'))}
         <p className={ui.note}>{t('device.socket.gone', { device: title })}</p>
+        <Row alone to={devicePath(device.id)} title={t('control.device.all', { name: title })} />
       </section>
     );
   }
@@ -143,7 +144,7 @@ function Socket({
         )}
       </div>
 
-      <div className={`${ui.card} ${styles.details}`}>
+      <div className={ui.card}>
         <Facts>
           <Fact label={t('devices.socket.slot')} value={row.slot < 0 ? t('devices.socket.byRole') : String(row.slot + 1)} />
           {row.address ? <Fact label={t('devices.socket.address')} value={row.address} /> : null}

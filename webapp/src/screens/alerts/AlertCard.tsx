@@ -5,9 +5,10 @@ import { Link } from 'react-router';
 import { controlPath, devicePath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useRemoveAlert } from '@/api/alerts';
+import { ruleTitle } from '@/i18n/alarm-line';
 import type { Translate } from '@/i18n/i18n';
 import { maintenanceQuiet } from '@/ui/maintenance';
-import { repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
+import { repeatsEvery, unitOf } from '@/screens/control/alarms/rules';
 import { SilenceChip } from '@/screens/control/alarms/Silence';
 import { useSilence } from '@/screens/control/alarms/use-silence';
 import { ageAttribute, isAhead, offlineLabel, silentSince, sinceLabel, spanLabel } from '@/ui/age';
@@ -322,14 +323,10 @@ const metaOf = (
 /**
  * What the rule is called, in the words the alarm rules page calls it by. A
  * rule no longer in hand leaves the name the episode wrote down when it
- * opened - the plain stored name, since a title is made from what the rule is
- * today.
+ * opened, read as every stored name is.
  */
-const ruleName = (t: Translate, alert: Alert, rule: AlarmRule | null): string | null => {
-  if (!rule) return alert.watched?.name ?? null;
-
-  return ruleTitle(t, rule);
-};
+const ruleName = (t: Translate, alert: Alert, rule: AlarmRule | null): string | null =>
+  rule ? ruleTitle(t, rule) : alert.watched ? ruleTitle(t, { name: alert.watched.name }) : null;
 
 /**
  * The Timeline of the place, opened on what the episode was about and when it

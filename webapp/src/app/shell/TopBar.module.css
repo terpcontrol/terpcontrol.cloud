@@ -32,8 +32,15 @@
 
 /* Beside the name of a chosen place the logo gives way to its mark - the
    shield, which is the logo's first 204 of 196 px in height - so that the name
-   has the room. */
+   has the room. The link stays a finger wide: it reaches out to the screen's edge. */
 .bar:has([data-place-chip]) .wordmark {
+  width: var(--control-height);
+  margin-left: calc(var(--space-4) * -1);
+  padding-left: var(--space-4);
+}
+
+.bar:has([data-place-chip]) .wordmark > * {
+  flex: none;
   width: calc(var(--logo-height) * 204 / 196);
   overflow: hidden;
 }

@@ -1,5 +1,5 @@
 import type { Device, GerminationChoices, GrowthStage, PhaseCreate } from '@fg2/shared-types/v1';
-import { useDevices } from '@/api/devices';
+import { useLead } from '@/screens/control/lead';
 import { germinates, statesTargets } from '@/ui/climate-hardware';
 import { writesClimate } from '@/ui/presets';
 
@@ -26,12 +26,17 @@ export const climateRequest = (pick: PhaseClimate, stage: GrowthStage): Pick<Pha
   return { preset: pick.preset, climate: true, ...(choices ? { germinationChoices: choices } : {}) };
 };
 
-/** The device standing in a place that holds targets a climate could be written to, or null. */
+/**
+ * The device standing in a place that holds targets a climate could be written
+ * to, or null: the place's climate as Steuerung reads it (`useLead`), so a form
+ * that sets a climate asks about the device the climate preset is taken on -
+ * its humidifier socket, what it does in germination. Until the place has said
+ * which that is, the first device there that states targets.
+ */
 export const usePlaceController = (spaceId: string | null): Device | null => {
-  const devices = useDevices();
-  return spaceId === null
-    ? null
-    : (devices.data?.items.find(device => device.spaceId === spaceId && device.configuration && statesTargets(device.configuration)) ?? null);
+  const { devices, lead } = useLead(spaceId);
+  const holds = (device: Device | null): device is Device => !!device?.configuration && statesTargets(device.configuration);
+  return spaceId === null ? null : holds(lead) ? lead : (devices.items.find(holds) ?? null);
 };
 
 /**

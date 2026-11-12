@@ -435,11 +435,16 @@ describe('a smart socket on its own page', () => {
     expect(await screen.findByRole('button', { name: /^Timer, address, role/ })).toHaveTextContent('No timer set – without one the socket stays off');
   });
 
-  it('says a socket the device no longer reports is gone, with the way back', async () => {
-    await drawSocket(null);
+  /** An address that names no socket of the device is a page all the same: a heading, which titles the window, and a way on. */
+  it('says a socket the device no longer reports is gone, under a heading, with the way back and the way on to its device', async () => {
+    await drawSocket(null, '/devices/device-1/sockets/x');
 
+    expect(screen.getByRole('heading', { level: 1, name: 'Socket' })).toBeInTheDocument();
     expect(await screen.findByText('Controller no longer reports this socket.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/control?space=space-1');
+    expect(screen.getByRole('link', { name: 'Everything about Controller' })).toHaveAttribute('href', '/devices/device-1');
+    // Nothing of a socket is offered where there is none.
+    expect(screen.queryByRole('button', { name: /address, role|Find|Auto/i })).not.toBeInTheDocument();
   });
 
   describe('removing it', () => {

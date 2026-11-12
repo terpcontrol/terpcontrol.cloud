@@ -16,6 +16,12 @@
   color: var(--muted);
 }
 
+/* What is stored and not yet with the device, in the ink a row's line says it in. */
+.facts strong {
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+}
+
 .facts a {
   position: relative;
   color: inherit;
@@ -23,11 +29,18 @@
   text-underline-offset: 2px;
 }
 
-/* A finger high without making the line taller. */
+/* A finger high and wide without making the line taller: the row of facts cuts what leaves its box, so it takes
+   the room the link reaches into. */
+.facts > span {
+  margin-block: calc(-1 * var(--space-3));
+  padding-block: var(--space-3);
+}
+
 .facts a::after {
   content: '';
   position: absolute;
-  inset: -12px 0;
+  inset: calc(-1 * var(--space-3)) 0;
+  min-width: var(--control-height);
 }
 
 .card {
@@ -115,16 +128,9 @@
   min-width: 0;
 }
 
-.pick > button {
+.pick > button,
+.copy button {
   min-height: 44px;
-}
-
-/* An install waits for a device that is heard, as the update beside the build does. */
-.pick > button[aria-disabled='true'] {
-  background: var(--card-2);
-  border-color: transparent;
-  color: color-mix(in srgb, var(--muted) 55%, var(--card-2));
-  cursor: default;
 }
 
 /* "Update vom 3. Nov." - the one filled button of a card. */
@@ -140,34 +146,31 @@
   font-weight: var(--weight-semibold);
 }
 
-.update[aria-disabled='true'] {
+/* An update and an install wait for a device that is heard. */
+:is(.update, .pick > button)[aria-disabled='true'] {
   background: var(--card-2);
+  border-color: transparent;
   color: color-mix(in srgb, var(--muted) 55%, var(--card-2));
   cursor: default;
 }
 
-/* Maintenance and restart side by side while both names fit a line each; a
-   window that is standing takes the row for itself, with the restart under it. */
+/* Maintenance and restart side by side while both names fit a line each: each is as wide as its name at least,
+   and they share what is left - from one basis above a button's own padding, so they come out alike where there
+   is room. A window that is standing takes the row for itself, as does the sentence on why both wait. */
 .actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: var(--space-2);
+  align-items: flex-start;
 }
 
-.actionPair {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-  gap: var(--space-2);
-  align-items: start;
+.actions > * {
+  flex: 1 1 var(--control-height);
 }
 
-.actionPair:is([data-parked], [data-single]) {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.actionPair button {
-  width: 100%;
-  white-space: nowrap;
+.actions > p,
+.actions:has(> * > [role='group']) > * {
+  flex-basis: 100%;
 }
 
 /* What a row answered, under it. */
@@ -190,23 +193,12 @@
   min-height: 44px;
 }
 
-/* Facts as the first thing of a card need no rule over them. */
-.details > dl {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: 0;
-}
-
 .copy {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
-}
-
-.copy button {
-  min-height: 44px;
 }
 
 /* What a smart socket is doing, over the control that holds it by hand. */

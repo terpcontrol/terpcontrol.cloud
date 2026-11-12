@@ -122,6 +122,8 @@ export function Sheet({
           </button>
         </header>
         <div className={styles.body}>{children}</div>
+        {/* Where a toast stands while the window has no room for it beside the sheet (`log/Toasts.tsx`). */}
+        <div className={styles.toasts} data-toasts />
         {actions ? <footer className={styles.actions}>{actions}</footer> : null}
       </div>
     </div>

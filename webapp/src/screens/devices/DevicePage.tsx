@@ -3,13 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import type { Device, SocketPage as SocketTable } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
-import { useDeviceFirmwares, useSocketTables } from '@/api/devices';
+import { useDeviceLive, useSocketTables } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { controlPath, DEVICE_PAGES, devicePath, placePath, timelinePath, usePageOfPlace, type DevicePageName } from '@/app/places';
+import { controlPath, devicePath, placePath, timelinePath, usePageOfPlace } from '@/app/places';
+import { pendingByPath } from '@/screens/control/climate/figures';
 import { OwnSettings } from '@/screens/control/OwnSettings';
 import { PageRows } from '@/screens/control/PageRows';
 import { useLeads } from '@/screens/control/lead';
+import { notTaken, offNotTaken } from '@/screens/control/rows';
 import advancedStyles from '@/ui/advanced/Advanced.module.css';
 import type { DeviceContext } from '@/ui/advanced/item';
 import { itemsFor } from '@/ui/advanced/registry';
@@ -33,14 +35,13 @@ import { DeviceActions } from './DeviceActions';
 import { useDevice, useDeviceLiveness } from './device-read';
 import { DeviceSettingsSheet } from './DeviceSettingsSheet';
 import { FirmwareCard } from './Firmware';
+import { useFirmware } from './firmware-builds';
 import { ReleaseSheet } from './Release';
 import { Fact, Facts } from './RowParts';
 import { PairSocketRow } from './SocketSheets';
 import styles from './DevicePage.module.css';
 
 export { SocketPage } from './SocketPage';
-
-const isPage = (value: string | null): value is DevicePageName => (DEVICE_PAGES as readonly string[]).includes(value ?? '');
 
 /**
  * What an Erweitert item is filed under in the line of its row, by its id. An
@@ -84,12 +85,11 @@ export function DevicePage() {
   if (found.gone) return <NoLongerHere what="device" />;
   if (found.isPending) return <Waiting lines={5} />;
   if (!found.device) return <LoadFailed retry={found.refetch} />;
-  if (page !== null && !isPage(page)) return <Navigate to={devicePath(deviceId)} replace />;
 
   return <DeviceScreen key={deviceId} device={found.device} among={found.among} page={page} />;
 }
 
-function DeviceScreen({ device, among, page }: { device: Device; among: Device[] | undefined; page: DevicePageName | null }) {
+function DeviceScreen({ device, among, page }: { device: Device; among: Device[] | undefined; page: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
@@ -104,6 +104,7 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
   const tables = useSocketTables(hosts ? [device.id] : []);
   const table = tables.tables.get(device.id);
   const spaces = useSpaces();
+  const live = useDeviceLive(device.id);
   const [naming, setNaming] = useState(false);
   const [releasing, setReleasing] = useState(false);
   useKeptScroll(!spaces.isPending && page === null);
@@ -137,10 +138,14 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
       </Under>
     );
   }
-  // A page this device has not got is the device's own.
+  // A page this device has not got, or no device has, is the device's own.
   if (page !== null) return <Navigate to={devicePath(device.id)} replace />;
 
   const dark = darkReasonOf(device);
+  const regulation = dark ? `${t('climateControl.label')} ${t(`climateControl.state.${dark}`)}` : null;
+  // Switched off while nobody heard it, the device goes on regulating: off is what is stored, said as Steuerung says it.
+  const off = offNotTaken(device, pendingByPath(live.data?.pending));
+  const stored = regulation && off ? notTaken(t, regulation, off.savedAt, now, zone) : null;
   const groups = GROUP_ORDER.filter(group => advanced.some(item => GROUPS[item.id] === group)).map(group => t(`device.advanced.${group}`));
 
   return (
@@ -165,7 +170,7 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
                 {t('device.in', { place: place.name })}
               </Link>
             ) : null,
-            dark ? `${t('climateControl.label')} ${t(`climateControl.state.${dark}`)}` : null,
+            stored ? <strong key="stored">{stored}</strong> : regulation,
           ]}
         />
       </p>
@@ -202,7 +207,7 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
         ) : null}
         {advanced.length > 0 ? <Row title={t('advanced.title')} line={groups.join(', ') || null} to={devicePath(device.id, 'advanced')} /> : null}
         <Row title={t('devices.panel.technical')} line={t('device.details.line')} to={devicePath(device.id, 'details')} />
-        {mayManage ? <ControlRow device={device} offline={offline || waiting} /> : null}
+        {mayManage ? <ControlRow device={device} offline={offline || waiting} stored={stored} /> : null}
         {mayOwn && !device.isDemo ? <Row title={t('release.label')} line={null} onOpen={() => setReleasing(true)} /> : null}
       </Rows>
 
@@ -236,10 +241,8 @@ function Under({ device, name, title, children }: { device: Device; name: string
  */
 function Technical({ device, table }: { device: Device; table: SocketTable | undefined }) {
   const { t } = useTranslation();
-  const firmwares = useDeviceFirmwares(device.id, true);
-  const build = firmwares.data?.items.find(one => one.id === device.state.firmwareId);
-  const owedId = device.firmware.targetId && device.firmware.targetId !== device.state.firmwareId ? device.firmware.targetId : null;
-  const owed = owedId ? (buildLabel(firmwares.data?.items.find(one => one.id === owedId)) ?? t('devices.update.newBuild')) : null;
+  const firmware = useFirmware(device);
+  const owed = firmware.owedId ? (buildLabel(firmware.owed ?? undefined) ?? t('devices.update.newBuild')) : null;
   const can = table
     ? [
         table.capabilities.socketOverride ? t('devices.can.override') : null,
@@ -249,7 +252,7 @@ function Technical({ device, table }: { device: Device; table: SocketTable | und
     : null;
 
   return (
-    <div className={`${ui.card} ${styles.details}`}>
+    <div className={ui.card}>
       <Facts>
         <Fact
           label={t('devices.fact.id')}
@@ -263,7 +266,7 @@ function Technical({ device, table }: { device: Device; table: SocketTable | und
         {device.serialNumber !== null ? <Fact label={t('devices.fact.serial')} value={String(device.serialNumber)} /> : null}
         {/* Through the catalogue, like every other place that prints a type: it is a contract key and not a word. */}
         <Fact label={t('devices.fact.type')} value={typeName(device.type, t)} />
-        <Fact label={t('devices.fact.build')} value={buildLabel(build) ?? '—'} />
+        <Fact label={t('devices.fact.build')} value={buildLabel(firmware.running ?? undefined) ?? '—'} />
         {owed ? <Fact label={t('devices.fact.owed')} value={owed} /> : null}
         {can ? <Fact label={t('devices.fact.can')} value={can.length > 0 ? <FactLine facts={can} /> : t('devices.can.nothing')} /> : null}
       </Facts>

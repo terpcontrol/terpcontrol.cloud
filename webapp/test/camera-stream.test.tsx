@@ -118,7 +118,11 @@ describe('changing a stream´s address in place', () => {
     // Started from the address as it stands, which is the part a router changes.
     const address = screen.getByRole('textbox', { name: 'Address' });
     expect(address).toHaveValue('rtsp://192.168.1.40:554/stream1');
-    expect(screen.getByText(/Left empty, user and password stay as they are/)).toBeInTheDocument();
+    // What a change keeps is behind the help beside the link, not a paragraph under the fields.
+    expect(screen.getByRole('button', { name: 'About Changing the address' })).toHaveAccessibleDescription(
+      /stays with the server and is never sent back.*user and password stay as they are if you leave them empty/,
+    );
+    expect(screen.getByRole('dialog').querySelector('li p, li [class*="note"]')).toBeNull();
 
     fireEvent.change(address, { target: { value: 'rtsp://192.168.1.41:554/stream1' } });
     await save();

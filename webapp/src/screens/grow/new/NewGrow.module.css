@@ -34,7 +34,7 @@
 }
 
 /* The button says what it sets where the stage was chosen, which takes two lines on a narrow phone. */
-.whatGrows > button[type='submit'] {
+button.start[type='submit'] {
   height: auto;
   min-height: var(--control-height);
   padding-block: var(--space-2);

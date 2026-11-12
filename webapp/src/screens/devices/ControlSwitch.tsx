@@ -27,9 +27,9 @@ import styles from './Maintenance.module.css';
  *
  * A device that is not answering is still switched: both ways are answered as
  * every setting of a device is (`useSaved`), and taking off back also resumes
- * the plan it paused.
+ * the plan it paused; `stored` says off it has not been handed, as the head does.
  */
-export function ControlRow({ device, offline }: { device: Device; offline: boolean }) {
+export function ControlRow({ device, offline, stored }: { device: Device; offline: boolean; stored: string | null }) {
   const { t } = useTranslation();
   const saved = useSaved(device);
   const on = useSwitchOn(device);
@@ -49,7 +49,8 @@ export function ControlRow({ device, offline }: { device: Device; offline: boole
         <Row
           acts
           title={t(on.pending ? 'climateControl.switching' : 'climateControl.onAction')}
-          line={t(offline ? 'climateControl.onDoesLater' : on.resumes ? 'climateControl.onDoesPlan' : 'climateControl.onDoes')}
+          line={stored ?? t(offline ? 'climateControl.onDoesLater' : on.resumes ? 'climateControl.onDoesPlan' : 'climateControl.onDoes')}
+          warn={stored !== null}
           onOpen={() => (on.pending ? undefined : void switchOn())}
         />
       )}

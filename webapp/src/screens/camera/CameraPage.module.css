@@ -241,6 +241,12 @@
   color: var(--brand);
 }
 
+/* Changing a stream's address, and beside it what a change keeps. */
+.changeAddress {
+  display: flex;
+  align-items: center;
+}
+
 /* A film in the list is its row, not a card inside the list's card. */
 .sheet .film {
   background: none;

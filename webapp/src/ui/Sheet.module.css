@@ -141,6 +141,11 @@ div.scrim {
   overscroll-behavior: contain;
 }
 
+/* The toasts' place in the sheet's foot: the body gives it the room. */
+.toasts {
+  flex: none;
+}
+
 /* What the sheet is for, on the bottom edge of the panel with a rule between
    it and the questions, so that the Save is on screen however long they run. */
 .actions {

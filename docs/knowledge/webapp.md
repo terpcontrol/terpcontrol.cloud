@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-12
-source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12)
+source: Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12)
 paths:
   - webapp/**
 ---
@@ -24,7 +24,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 | `src/api/` | one module per resource with its TanStack Query hooks and query factories; plumbing: `client.ts`, `session.ts`, `clock.ts`, `read.ts`, `write.ts`, `pages.ts`, `problem.ts`, `config.ts`, `query-client.ts` |
 | `src/ui/` | shared primitives (`Sheet`, `Menu`, `Lines`, `Rows`, `PageHead`, `OfflineHelp`, `Switch`, `Asking`, `BackLink`, `Help.tsx`, `advanced/`) and one-place helpers (`zone.ts`, `days.ts`, `wall-clock.ts`, `age.ts`, `figures.ts`, `units.ts`, `naming.ts`, `stored.ts`, `session-access.ts`, `refusal.ts`) |
 | `src/log/` | the entry sheet, its send queue and undo toasts, `corrections.ts`, the moment a line is dated to (`Moment.tsx`, EXIF in `taken-at.ts`) |
-| `src/charts/`, `src/i18n/` | ECharts binding, a plot as data, the gestures of a plot, the time axis; i18next setup and device-message resolver |
+| `src/charts/`, `src/i18n/` | ECharts binding, a plot as data, the gestures of a plot, the time axis; i18next setup, the device-message resolver and what an alarm rule is called (`ruleTitle`, `alarm-line.ts`) |
 | `src/theme/`, `src/styles/`, `src/sw.ts` | `tokens.css`, `ThemeProvider`, `global.css`; the service worker |
 | `public/` | manifest, icons, catalogues `assets/i18n/`, feeding schemes `assets/schemes/` |
 | `test/`, `test/live/` | Vitest suites; the live ones need a running stack |
@@ -373,9 +373,16 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   taken - with the caller's own way back; nothing is sent for it. `from` names the control where it may be used
   again at once, and its next toast takes the last one's place: `<device>:<setting>` through the save path's
   `say`, `firmware-<device>`, `maintenance-<devices>`, `device-<device>` (rename and move), `plan-<device>`,
-  `rule-<rule>`, `silence-<rule>`. `log/toast-room.ts` keeps the toasts to two; `Toasts.tsx` stands them above
-  the button row of an open sheet (`[data-scrim] [role=dialog] > footer`, measured, placed again on
-  `animationend`). `complete(taskId, label, { changed })` reads again
+  `rule-<rule>`, `silence-<rule>`. `log/toast-room.ts` keeps the toasts to two and says where they stand while a
+  sheet is open (`besideSheet`: under its box, over it, or in its foot). `Toasts.tsx` draws them through a
+  portal into an element of its own and puts that element there: on `<body>`, fixed, or into the place every
+  sheet keeps for it between its body and its button row (`[data-toasts]`, `ui/Sheet.tsx`), where the sheet's
+  flex column gives it the room. It measures the top sheet (`[data-scrim] [role=dialog]`) by `offsetTop` and
+  `offsetHeight`, which a transform does not move, so neither the sheet's rise nor a pull misplaces a toast; the
+  room toasts already take in the foot is counted back out, or the answer would flip between foot and outside.
+  It follows the page with a `MutationObserver` and the sheet's box with a `ResizeObserver` only while a toast
+  is shown. The element carries the live region's mark (`ANNOUNCER`, `ui/live-region.ts`), so a sheet opening
+  does not make a toast inert. `complete(taskId, label, { changed })` reads again
   what a tick changed beyond the diary - `planMoved` (`src/api/plans.ts`) for a plan step, whose plan and device
   reads would otherwise say the step that was left until their next beat.
 - Copy through `useCopied()` (`src/ui/clipboard.ts`): it falls back to `execCommand` where `navigator.clipboard` is
@@ -408,7 +415,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   works a leave out from (`test/scrub.test.tsx`).
 - `test/toast.tsx` (`Toast`) is the seam for a screen that answers through `tell`: Alarme, the plan panel, an
   alert's card and the device pages need it, or `LogProvider`. `test/toasts.test.tsx` holds the toasts' limit and
-  their place over a sheet.
+  their place beside a sheet; jsdom lays nothing out, so it hands the sheet its `offsetTop` and `offsetHeight`.
+  In every other suite a sheet measures nothing high and the toasts stay on `<body>`, outside the dialog.
 - A memory router keeps no entries on the window's history, so in it every page is one opened by its address and
   the head's arrow leads to its parent. `test/back-arrow.test.tsx` draws in a browser router on jsdom's history
   instead, stubs `window.scrollTo` (jsdom has none and says so on the console) and disposes its routers after

@@ -74,6 +74,20 @@
   white-space: nowrap;
 }
 
+/* The way to the day's curves is a finger high where it is tapped, without its line growing: it reaches up over the title. */
+@media (max-width: 899px) {
+  a.dayClimate {
+    position: relative;
+    align-self: flex-start;
+  }
+
+  a.dayClimate::after {
+    position: absolute;
+    inset: -21px 0 -3px;
+    content: '';
+  }
+}
+
 .dayShare {
   font-family: var(--font-figure);
   font-size: var(--text-sm);

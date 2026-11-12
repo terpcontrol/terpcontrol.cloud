@@ -1,7 +1,46 @@
 import type { i18n as I18n } from 'i18next';
-import type { Metric } from '@fg2/shared-types/v1';
+import type { AlarmRule, AlarmWatch, Metric } from '@fg2/shared-types/v1';
 import { OFFLINE_RULE_NAME } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { figureWithUnit, targetWithUnit, UNIT } from '@/ui/units';
+import type { Translate } from './i18n';
+
+/**
+ * What a preset's rules are called, by what each watches. The catalogue has
+ * one name per band rather than per preset, because a stage writes the same
+ * four rules whichever preset it stands on.
+ */
+const PRESET_TITLE: Record<string, string> = {
+  'temperature-upper': 'tooHot',
+  'temperature-lower': 'tooCold',
+  'humidity-upper': 'tooHumid',
+  'co2-upper': 'co2High',
+};
+
+/** The names the server stores those four under, which is all an open alert or a line of the diary says of its rule. */
+const STORED_TITLE: Record<string, string> = { 'Too hot': 'tooHot', 'Too cold': 'tooCold', 'Too humid': 'tooHumid', 'CO₂ too high': 'co2High' };
+
+const presetTitle = (watch: AlarmWatch): string | null => {
+  if (watch.kind !== 'reading') return null;
+  const side = watch.upper !== null ? 'upper' : watch.lower !== null ? 'lower' : null;
+
+  return side ? (PRESET_TITLE[`${watch.metric}-${side}`] ?? null) : null;
+};
+
+/**
+ * What a rule is called, wherever it is named: Steuerung › Alarme, Meldungen,
+ * Start, a line of the diary. A name the server wrote is English wherever it
+ * was written, so the two kinds of rule nobody here named - the one the cloud
+ * keeps for every device and the four a stage applies - are titled in the
+ * language the page is in: from what the rule watches, and where only the
+ * name it is stored under is in hand, from that name. A rule somebody wrote,
+ * by hand or through the firmware, keeps the name it was given.
+ */
+export const ruleTitle = (t: Translate, { name, origin, watch }: Pick<AlarmRule, 'name'> & Partial<Pick<AlarmRule, 'origin' | 'watch'>>): string => {
+  if (origin === 'always' || (!origin && name === OFFLINE_RULE_NAME)) return t('alarms.offlineRule');
+  const title = origin === 'preset' && watch ? presetTitle(watch) : origin ? null : STORED_TITLE[name];
+
+  return title ? t(`alarms.presetRule.${title}`) : name;
+};
 
 /**
  * An alarm's diary line, in the reader's language.
@@ -58,7 +97,7 @@ const numberOf = (text: string | undefined): number | null => {
 
 const isReading = (watched: string): watched is Metric => watched in UNIT;
 
-const ruleName = (i18n: I18n, name: string): string => (name === OFFLINE_RULE_NAME ? i18n.t('alarmLine.deviceOffline') : name);
+const ruleName = (i18n: I18n, name: string): string => ruleTitle((key, options) => i18n.t(key, options ?? {}), { name });
 
 const thresholdLine = (i18n: I18n, param: string, triggered: boolean): AlarmLine | null => {
   const match = THRESHOLD.exec(param);

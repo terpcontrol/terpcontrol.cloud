@@ -169,9 +169,10 @@ function Watch({
   const reaches = reachesBackTo(pages);
   const reading = useReadBackTo(diary, asked);
   const stops = pictured.map(one => one.dayNumber);
-  // An address can name any day: one the grow has not reached is today, as today itself is.
-  const day =
-    asked === null || (lastDay !== null && asked >= lastDay) ? null : (pictured.find(one => one.dayNumber === nearestTo(stops, asked)) ?? null);
+  // An address can name any day: one the grow has not reached is today, as today itself is, and the address is told so.
+  const beyond = asked !== null && lastDay !== null && asked >= lastDay;
+  if (beyond) setAsked(null);
+  const day = asked === null || beyond ? null : (pictured.find(one => one.dayNumber === nearestTo(stops, asked)) ?? null);
   const firstDay = grow && lastDay !== null ? firstDayOf(camera, grow) : null;
   const sliding = lastDay !== null && firstDay !== null && firstDay < lastDay && pictured.length > 0;
   const move = (to: number) => {

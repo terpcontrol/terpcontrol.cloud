@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import type { GerminationChoices as Choices, GrowthStage } from '@fg2/shared-types/v1';
@@ -11,6 +11,7 @@ import { GerminationChoices } from '@/screens/control/germination/GerminationCho
 import { choicesOf, useHumidifier } from '@/screens/control/germination/germination-choices';
 import { usePlaceStage } from '@/screens/start/stage';
 import { DAY_MS, dayOf, momentOn } from '@/ui/days';
+import { unbroken } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
 import { stageChoiceName } from '@/ui/presets';
 import { Sheet } from '@/ui/Sheet';
@@ -44,7 +45,11 @@ const NOWHERE = '';
  * says so - except seeds beside plants already growing there, whose darkness
  * is not theirs (`recordsOnly`). Where that climate is germination's, the form
  * asks what germination does about the humidity, as every way of setting
- * germination does; only what was moved is sent.
+ * germination does - of the device the climate preset is taken on
+ * (`usePlaceController`) - and only what was moved is sent.
+ *
+ * Drawn on a page the button ends the form; as a `sheet` it is the sheet's
+ * foot, which stands while the questions scroll.
  */
 export function WhatGrows({
   spaceId: fixed = null,
@@ -52,6 +57,7 @@ export function WhatGrows({
   onStarting,
   onStarted,
   submitClass,
+  sheet,
 }: {
   /** The place the form was opened for; null where it asks. */
   spaceId?: string | null;
@@ -61,8 +67,11 @@ export function WhatGrows({
   onStarting?: () => void;
   onStarted: (growId: string, spaceId: string | null) => void;
   submitClass?: string;
+  /** The sheet the form is asked on, where it is one. */
+  sheet?: Omit<ComponentProps<typeof Sheet>, 'children' | 'actions'>;
 }) {
   const { t } = useTranslation();
+  const form = useId();
   const zone = useZone();
   const grows = useGrows();
   const spaces = useSpaces(fixed === null);
@@ -109,8 +118,27 @@ export function WhatGrows({
     }
   };
 
-  return (
+  const button = (
+    <>
+      <Refused error={refused} />
+      <button
+        type="submit"
+        form={form}
+        className={`${submitClass ?? `${ui.button} ${ui.primary}`} ${styles.start}`}
+        disabled={busy || grows.isPending || opened === null || (fixed === null && spaces.isPending)}
+      >
+        {busy
+          ? t('grow.new.starting')
+          : climate && stage
+            ? t('grow.new.startAndSet', { climate: unbroken(stageChoiceName(t, stage)) })
+            : t('home.invite.startGrow')}
+      </button>
+    </>
+  );
+
+  const questions = (
     <form
+      id={form}
       className={styles.whatGrows}
       onSubmit={event => {
         event.preventDefault();
@@ -183,19 +211,16 @@ export function WhatGrows({
           disabled={busy}
         />
       ) : null}
-      <Refused error={refused} />
-      <button
-        type="submit"
-        className={submitClass ?? `${ui.button} ${ui.primary}`}
-        disabled={busy || grows.isPending || opened === null || (fixed === null && spaces.isPending)}
-      >
-        {busy
-          ? t('grow.new.starting')
-          : climate && stage
-            ? t('grow.new.startAndSet', { climate: stageChoiceName(t, stage) })
-            : t('home.invite.startGrow')}
-      </button>
+      {sheet ? null : button}
     </form>
+  );
+
+  return sheet ? (
+    <Sheet {...sheet} actions={button}>
+      <div className={ui.sheetBody}>{questions}</div>
+    </Sheet>
+  ) : (
+    questions
   );
 }
 
@@ -221,16 +246,13 @@ export function StartGrowSheet({
   const navigate = useNavigate();
 
   return (
-    <Sheet title={spaceId && name ? t('start.grow.title', { name }) : t('grow.new.title')} noEntry={replace} onClose={onClose}>
-      <div className={ui.sheetBody}>
-        <WhatGrows
-          spaceId={spaceId}
-          onStarted={(growId, where) => {
-            if (!replace) onClose();
-            void navigate(where ? `${GROW}?${new URLSearchParams({ space: where }).toString()}` : `/grows/${growId}`, { replace });
-          }}
-        />
-      </div>
-    </Sheet>
+    <WhatGrows
+      spaceId={spaceId}
+      sheet={{ title: spaceId && name ? t('start.grow.title', { name }) : t('grow.new.title'), noEntry: replace, onClose }}
+      onStarted={(growId, where) => {
+        if (!replace) onClose();
+        void navigate(where ? `${GROW}?${new URLSearchParams({ space: where }).toString()}` : `/grows/${growId}`, { replace });
+      }}
+    />
   );
 }

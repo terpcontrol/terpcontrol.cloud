@@ -25,7 +25,11 @@
   color: var(--muted);
 }
 
-/* The word in a pill that explains itself, lent a finger's room around it. */
+/* The word in a pill that explains itself, lent a finger's room around it; the pill's row is a finger high for it. */
+.head > span {
+  margin-block: 10px;
+}
+
 .head span > button {
   position: relative;
 }

@@ -1,15 +1,12 @@
-import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
-import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
-import { parkedQuiet, parksAnything } from '@/ui/maintenance';
+import { parksAnything } from '@/ui/maintenance';
 import { deviceTitle } from '@/ui/naming';
 import { enough, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { calendarDay, useZone } from '@/ui/zone';
 import { useFirmware } from './firmware-builds';
 import { PinSheet } from './FirmwarePin';
 import { MaintenanceControl, RebootSheet } from './Maintenance';
@@ -33,21 +30,18 @@ export function DeviceActions({ device, offline }: { device: Device; offline: bo
   if (!mayManage) return null;
 
   const parks = parksAnything(device);
-  const parked = parks && parkedQuiet([device], DateTime.max(now, serverNow())) !== null;
 
   return (
     <div className={styles.actions}>
-      <div className={styles.actionPair} data-parked={parked || undefined} data-single={!parks || undefined}>
-        {parks ? <MaintenanceControl devices={[device]} now={now} disabled={offline} /> : null}
-        <button
-          type="button"
-          className={maintenance.controlStart}
-          aria-disabled={offline || undefined}
-          onClick={() => (offline ? undefined : setRestarting(true))}
-        >
-          {t('devices.reboot.action')}
-        </button>
-      </div>
+      {parks ? <MaintenanceControl devices={[device]} now={now} disabled={offline} /> : null}
+      <button
+        type="button"
+        className={maintenance.controlStart}
+        aria-disabled={offline || undefined}
+        onClick={() => (offline ? undefined : setRestarting(true))}
+      >
+        {t('devices.reboot.action')}
+      </button>
       {/* A sentence about a device names only what that device does: a plug has no maintenance to wait for. */}
       {offline ? <p className={ui.note}>{t(parks ? 'device.waitsForDevice' : 'device.waitsForRestart')}</p> : null}
       {restarting ? <RebootSheet device={device} name={deviceTitle(device, t, devices.data?.items)} onClose={() => setRestarting(false)} /> : null}
@@ -64,17 +58,16 @@ export function DeviceActions({ device, offline }: { device: Device; offline: bo
  */
 export function UpdateButton({ device, offline, label }: { device: Device; offline: boolean; label?: string }) {
   const { t } = useTranslation();
-  const zone = useZone();
   const mayManage = enough(useMayWith()(device), 'manage');
   const could = mayManage && !device.isDemo && device.classId !== null && device.firmware.channel === 'manual';
-  const { offered } = useFirmware(device, could);
+  const { offered, madeOn } = useFirmware(device, could);
   const [asking, setAsking] = useState(false);
   if (!could || !offered) return null;
 
   return (
     <>
       <button type="button" className={styles.update} aria-disabled={offline || undefined} onClick={() => (offline ? undefined : setAsking(true))}>
-        {label ?? t('device.firmware.updateTo', { day: calendarDay(offered.createdAt, zone) })}
+        {label ?? t('device.firmware.updateTo', { day: madeOn(offered) })}
       </button>
       {asking ? <PinSheet device={device} build={offered} onClose={() => setAsking(false)} /> : null}
     </>

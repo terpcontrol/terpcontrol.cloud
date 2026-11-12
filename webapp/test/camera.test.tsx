@@ -889,6 +889,14 @@ describe('the days under the picture', () => {
     await waitFor(() => expect(window.location.search).toBe(''));
   });
 
+  it('shows today for a day the grow has not reached, and takes that day out of the address', async () => {
+    drawPage().unmount();
+    drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...older }} />, { at: '/cameras/camera-1?day=400' });
+
+    await waitFor(() => expect(slider()).toHaveValue('35'));
+    await waitFor(() => expect(window.location.search).toBe(''));
+  });
+
   /**
    * A sheet stands on a history entry of its own, so Back out of one lands on
    * the page's first entry, whose address has not heard of the day: it is told

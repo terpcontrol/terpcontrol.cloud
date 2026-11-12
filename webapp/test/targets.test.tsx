@@ -564,6 +564,115 @@ describe('the climate under Steuerung', () => {
       expect(body.configuration.night).toEqual(CONFIGURATION.night);
       await waitFor(() => expect(said()).toBe('During germination · saved'));
     });
+
+    /**
+     * A spell is ended where it was begun. Ending it is the server's own return - the mode it ran before, and the
+     * figures the spell wrote over - so the sheet names those figures before the tap, and nothing takes it back.
+     */
+    it('ends a drying spell by itself: says what holds again, writes that it no longer dries and offers no undo', async () => {
+      const afterDrying = { dayTemperature: 26, dayHumidity: 60, nightTemperature: 21, nightHumidity: 55, co2: 900, lightLimit: 100 };
+      await drawn(device({ type: 'fridge', control: { ...CONTROL, drying: true, afterDrying } }));
+
+      tap(/^Climate preset/);
+      const sheet = screen.getByRole('dialog');
+      expect(within(sheet).queryByRole('button', { name: 'End germination' })).not.toBeInTheDocument();
+      fireEvent.click(within(sheet).getByRole('button', { name: 'End drying' }));
+      expect(within(sheet).getByRole('button', { name: 'End drying' })).toHaveAttribute('aria-pressed', 'true');
+      const back = within(sheet).getByRole('list', { name: 'What holds again afterwards' });
+      expect(within(back).getByText('Day temperature').parentElement).toHaveTextContent('25.0 °C → 26.0 °C');
+      expect(within(back).getByText('Light limit').parentElement).toHaveTextContent('80 % → 100 %');
+      // A figure the spell left where it was is not listed.
+      expect(within(back).queryByText('Day humidity')).not.toBeInTheDocument();
+      expect(within(sheet).getByText(/Applying ends drying/)).toBeInTheDocument();
+      expect(sent('PATCH')).toHaveLength(0);
+
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Apply' }));
+      await waitFor(() => expect(sent('PATCH')).toHaveLength(1));
+      expect(sent('PATCH')[0]).toMatchObject({ path: '/devices/device-1/configuration', body: { set: { drying: false } } });
+      expect(sent('PUT')).toHaveLength(0);
+      await waitFor(() => expect(said()).toBe('Drying ended · saved'));
+      expect(told[0].undo).toBeNull();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+
+    it('ends a germination by itself with the standard mode, and pauses a plan that would begin it again', async () => {
+      wire.plan = plan('running');
+      const afterGermination = { dayTemperature: null, dayHumidity: null, nightTemperature: 18, nightHumidity: 50, co2: null, lightLimit: null };
+      await drawn(device({ type: 'fridge', control: { ...CONTROL, mode: 'germination', afterGermination } }));
+
+      tap(/^Climate preset/);
+      const sheet = screen.getByRole('dialog');
+      fireEvent.click(within(sheet).getByRole('button', { name: 'End germination' }));
+      const back = within(sheet).getByRole('list', { name: 'What holds again afterwards' });
+      expect(within(back).getByText('Night temperature').parentElement).toHaveTextContent('20.0 °C → 18.0 °C');
+      expect(within(sheet).getByText(/Applying ends germination/)).toBeInTheDocument();
+      expect(within(sheet).getByText(/This pauses the plan “Autoflower, 12 weeks”/)).toBeInTheDocument();
+      // What germination does about the humidity is no question for one that ends.
+      expect(within(sheet).queryByRole('switch')).not.toBeInTheDocument();
+
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Apply' }));
+      await waitFor(() => expect(sent('PATCH')).toHaveLength(1));
+      expect(sent('POST')[0].body).toEqual({ kind: 'pause', reason: 'Targets set by hand' });
+      expect(sent('PATCH')[0].body).toEqual({ set: { mode: 'standard' } });
+      await waitFor(() => expect(said()).toBe('Germination ended · saved'));
+    });
+
+    it('offers to end nothing while no spell runs', async () => {
+      await drawn(device({ type: 'fridge', control: CONTROL }));
+
+      tap('Climate preset');
+      expect(within(screen.getByRole('dialog')).queryByRole('button', { name: /^End / })).not.toBeInTheDocument();
+    });
+
+    /** Germination begun by a preset is one write to take back: the document from before, and the dark ended. */
+    it('takes a preset into germination back with the document from before', async () => {
+      await drawn(device({ type: 'fridge', control: CONTROL }));
+
+      tap('Climate preset');
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Germination · dark' }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Apply' }));
+      await waitFor(() => expect(told).toHaveLength(1));
+      expect(sent('PUT')[0].body).toMatchObject({ germination: true, configuration: { night: { temperature: 24, humidity: 75 } } });
+
+      await told[0].undo!();
+      expect(sent('PUT')).toHaveLength(2);
+      expect(sent('PUT')[1].body).toMatchObject({ germination: false, configuration: { night: CONFIGURATION.night, day: CONFIGURATION.day } });
+    });
+
+    /** Out of germination the way back is two writes: the document from before with the night germination had kept, then germination with its own night and choices. */
+    it('takes a preset out of germination back so that it keeps the same night again', async () => {
+      const afterGermination = { dayTemperature: null, dayHumidity: null, nightTemperature: 18, nightHumidity: 50, co2: null, lightLimit: null };
+      const germinating = device({ type: 'fridge', control: { ...CONTROL, mode: 'germination', afterGermination } });
+      await drawn(germinating);
+
+      tap(/^Climate preset/);
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Flower' }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Apply' }));
+      await waitFor(() => expect(told).toHaveLength(1));
+      expect(sent('PUT')[0].body).toMatchObject({ germination: false });
+
+      await told[0].undo!();
+      const [, night, again] = sent('PUT').map(call => call.body as { configuration: DeviceConfiguration; germination?: boolean });
+      // In the dark the server keeps the day it finds, so the day from before is written while the device is in the light.
+      expect(night.configuration).toMatchObject({ day: CONFIGURATION.day, night: { temperature: 18, humidity: 50 }, co2: CONFIGURATION.co2 });
+      expect(night.germination).toBeUndefined();
+      expect(again).toMatchObject({ germination: true, germinationChoices: { warnTooHumid: false }, configuration: CONFIGURATION });
+    });
+
+    it('offers no way back from a germination whose humidifier rested: its band is not kept across the two writes', async () => {
+      wire.sockets = ['humidifier'];
+      const choices = { warnTooHumid: false, humidifierHolds: false };
+      await drawn(device({ type: 'fridge', control: { ...CONTROL, mode: 'germination', germinationChoices: choices } }));
+
+      tap(/^Climate preset/);
+      const sheet = screen.getByRole('dialog');
+      await within(sheet).findByRole('switch', { name: 'Hold the humidity with the humidifier' });
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Flower' }));
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Apply' }));
+
+      await waitFor(() => expect(told).toHaveLength(1));
+      expect(told[0].undo).toBeNull();
+    });
   });
 
   describe('a device that is not heard', () => {

@@ -9,7 +9,7 @@ import type { Told } from '@/log/log-context';
 import { Control } from '@/screens/control/Control';
 import { PlanEditor } from '@/screens/control/PlanEditor';
 import { PlanPanel } from '@/screens/control/PlanPanel';
-import { alarmsLine, modeLine, outputsLine, outputsOf, pendingBehind, planLine } from '@/screens/control/rows';
+import { alarmsLine, followsPlan, modeLine, notTaken, offNotTaken, outputsLine, outputsOf, planLine } from '@/screens/control/rows';
 import { elapsedMs, leftMs, movesOf, throughStep } from '@/screens/control/plan-clock';
 import {
   asWritableBy,
@@ -27,7 +27,7 @@ import { climateLanding } from '@/ui/climate-hardware';
 import { deviceWith } from './fixtures';
 import { drawAt } from './harness';
 import { Toast } from './toast';
-import { translate } from './translations';
+import { catalogue, translate } from './translations';
 
 /**
  * What the Control tab promises before anything is sent, and what it offers at
@@ -389,6 +389,27 @@ describe('what Steuerung opens on, and the rows under the climate', () => {
     expect(planLine(t, [paused], NOW)).toEqual({ text: 'Veg paused · Targets set by hand', warn: true });
   });
 
+  /** The server stores the reason as words, in the language of whoever paused: the app's own are read back by them. */
+  it('says a pause reason the app wrote in the reader´s language, and any other as it was stored', async () => {
+    const t = i18next.t.bind(i18next);
+    const paused = (pauseReason: string) => plan({}, { status: 'paused', stepStartedAt: null, pauseReason });
+    // An English session holds no German catalogue: until it is fetched the words stand as stored.
+    expect(planLine(t, [paused('Zielwerte von Hand gesetzt')], NOW).text).toBe('Veg paused · Zielwerte von Hand gesetzt');
+
+    const german = await catalogue('de');
+    const fetched = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(german) }));
+    vi.stubGlobal('fetch', fetched);
+    state.plan = paused('Zielwerte von Hand gesetzt');
+    draw();
+
+    expect(await screen.findByText('Paused: Targets set by hand')).toBeInTheDocument();
+    expect(fetched).toHaveBeenCalledWith('/assets/i18n/de.json');
+    expect(planLine(t, [paused('Die Regelung wurde ausgeschaltet.')], NOW).text).toBe('Veg paused · Control was switched off.');
+    expect(planLine(t, [paused('Urlaub bis Montag')], NOW).text).toBe('Veg paused · Urlaub bis Montag');
+    vi.unstubAllGlobals();
+    i18next.removeResourceBundle('de', 'translation');
+  });
+
   it('draws the plan page behind its row, titled by itself, with the way back to Steuerung', async () => {
     noPlan();
     drawTab('plan');
@@ -477,16 +498,16 @@ describe('Steuerung of a place with several devices', () => {
     state.devices = [silent, plug()];
     drawTab(null, '/control', here(['device-1', 'device-2']));
 
-    const pill = (await screen.findByText('Regulating')).closest('[data-tone]');
+    const pill = (await screen.findByText('Control on')).closest('[data-tone]');
     expect(pill).toHaveAttribute('data-tone', 'warn');
-    expect(pill).toHaveTextContent('Regulating · as of 10:00');
+    expect(pill).toHaveTextContent('Control on · as of 10:00');
   });
 
   it('says a heard lead regulates, and dates a place led by a device with no regulation of its own', async () => {
     state.devices = [{ ...device(), control: regulating }];
     const live = drawTab(null, '/control', here(['device-1']));
 
-    const pill = await screen.findByText('Regulating');
+    const pill = await screen.findByText('Control on');
     expect(pill.closest('[data-tone]')).toBeNull();
     live.unmount();
 
@@ -528,8 +549,96 @@ describe('Steuerung of a place with several devices', () => {
     state.devices = [{ ...device(), control: regulating }];
     drawTab('mode');
 
-    expect(await screen.findByText(/There is no operating mode to choose here:/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/There is no operating mode to choose here\. Germination and drying come with the climate preset\./),
+    ).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Back to Control' }).at(-1)).toHaveAttribute('href', '/control?space=space-1');
+  });
+
+  it('says nothing of germination on the empty mode page of a place whose hardware has no work mode', async () => {
+    state.devices = [plug()];
+    drawTab('mode');
+
+    expect(await screen.findByText(/There is no operating mode to choose here\./)).toBeInTheDocument();
+    expect(screen.queryByText(/Germination/)).not.toBeInTheDocument();
+  });
+
+  /** A fan's card is everything it has: no plan while it follows no target, and no row to a page that says the card again. */
+  it('offers a fan place only what the fan has in the mode it runs', async () => {
+    state.plan = null;
+    state.planError = new ApiError({ status: 404, code: 'plan_not_found', title: 'Not found', detail: 'No plan.', errors: [] });
+    const fan = (mode: number): Device =>
+      ({
+        ...device(),
+        id: 'device-2',
+        type: 'fan',
+        name: null,
+        control: null,
+        configuration: { mode, day: { temperature: 25, humidity: 60, fixed_speed: 70 }, night: { temperature: 21, humidity: 55, fixed_speed: 40 } },
+      }) as Device;
+    state.devices = [fan(0)];
+    const fixed = drawTab();
+
+    expect((await screen.findAllByRole('region', { name: 'Fan' }))[0]).toHaveTextContent('Fixed');
+    expect(screen.getByRole('link', { name: /^Alarms/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Grow plan/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Outputs/ })).not.toBeInTheDocument();
+    fixed.unmount();
+
+    // Following the temperature it holds targets, which a plan could set.
+    state.devices = [fan(1)];
+    const following = drawTab();
+    expect(await screen.findByRole('link', { name: /^Grow plan/ })).toHaveTextContent('off · you set the targets by hand');
+    expect(screen.queryByRole('link', { name: /^Outputs/ })).not.toBeInTheDocument();
+    following.unmount();
+
+    // The page reached by its address says so rather than repeating the card.
+    drawTab('outputs');
+    expect(await screen.findByText(/Nothing standing here has outputs of its own/)).toBeInTheDocument();
+  });
+
+  it('says the fan of a further device among the outputs, which lead to its page', async () => {
+    const fan = {
+      ...device(),
+      id: 'device-2',
+      type: 'fan',
+      name: null,
+      control: null,
+      configuration: { mode: 0, day: { fixed_speed: 70 }, night: { fixed_speed: 40 } },
+    } as Device;
+    state.devices = [device(), fan];
+    drawTab();
+
+    expect(await screen.findByRole('link', { name: /^Outputs/ })).toHaveTextContent('Fan: Fixed · By day 70 % · At night 40 %');
+  });
+
+  /** Every setting has one place: among the outputs a further fan's speed is said, and its row leads to where it is set. */
+  it('says a further fan´s speed on the outputs page, with the way to its own page and no control of its own', async () => {
+    const fan = {
+      ...device(),
+      id: 'device-2',
+      type: 'fan',
+      name: null,
+      control: null,
+      configuration: { mode: 0, day: { fixed_speed: 70 }, night: { fixed_speed: 40 } },
+    } as Device;
+    state.devices = [device(), fan];
+    drawTab('outputs');
+
+    const row = await screen.findByRole('link', { name: /^Fan/ });
+    expect(row).toHaveTextContent('Fixed · By day 70 % · At night 40 %');
+    expect(row).toHaveAttribute('href', '/devices/device-2');
+  });
+
+  it('does not say that the targets are set by hand of a device whose control is off', async () => {
+    state.plan = null;
+    state.planError = new ApiError({ status: 404, code: 'plan_not_found', title: 'Not found', detail: 'No plan.', errors: [] });
+    state.devices = [{ ...device(), control: { ...regulating!, running: false } }];
+    drawTab();
+
+    const row = await screen.findByRole('link', { name: /^Grow plan/ });
+    expect(row).toHaveTextContent(/off$/);
+    expect(row).not.toHaveTextContent(/by hand/);
   });
 });
 
@@ -618,13 +727,23 @@ describe('what a row says about the page behind it', () => {
       capabilities: { socketOverride: true, socketTimer: true, lightOverride: false, roles: [], pulseSeconds: {} },
     }) as SocketPage;
 
-  it('counts the alarm rules that are on and names the one that has raised', () => {
-    expect(alarmsLine(t, [rule({}), rule({ id: 'b' }), rule({ id: 'c', enabled: false })])).toEqual({ text: '2 rules · all quiet' });
+  /** A place read as "1 rule · all quiet" while six of its seven rules were off, the offline rule among them. */
+  it('counts the alarm rules that are on against those there are, and says in amber that the offline rule is off', () => {
+    expect(alarmsLine(t, [rule({}), rule({ id: 'b' })])).toEqual({ text: '2 rules · all quiet', warn: false });
+    expect(alarmsLine(t, [rule({}), rule({ id: 'b' }), rule({ id: 'c', enabled: false })])).toEqual({
+      text: '2 of 3 rules on · all quiet',
+      warn: false,
+    });
     expect(alarmsLine(t, [rule({}), rule({ id: 'b', name: 'Too humid', state: { triggered: true } })])).toEqual({
       text: '2 rules · “Too humid” has raised',
       warn: true,
     });
-    expect(alarmsLine(t, [rule({ enabled: false })])).toEqual({ text: 'no rule on' });
+    expect(alarmsLine(t, [rule({}), rule({ id: 'b', enabled: false }), rule({ id: 'c', origin: 'always', enabled: false })])).toEqual({
+      text: '1 of 3 rules on · all quiet · “Device offline” off',
+      warn: true,
+    });
+    expect(alarmsLine(t, [rule({ enabled: false })])).toEqual({ text: 'no rule on', warn: false });
+    expect(alarmsLine(t, [rule({ origin: 'always', enabled: false })])).toEqual({ text: 'no rule on', warn: true });
   });
 
   /** Only a smart socket reports a hold: "all on auto" is claimed of a list made of sockets, and never of a lamp. */
@@ -659,7 +778,67 @@ describe('what a row says about the page behind it', () => {
     const fan = { ...device(), type: 'fan', configuration: { mode: 0, day: { fixed_speed: 70 }, night: { fixed_speed: 40 } } } as unknown as Device;
     const line = outputsLine(t, [outputsOf(fan, sockets(), null)], NOW, null).text;
 
-    expect(line).toBe('Fans: Fixed · By day 70 % · At night 40 %');
+    expect(line).toBe('Fan: Fixed · By day 70 % · At night 40 %');
+  });
+
+  /**
+   * The one rule of a line that sums up a device. A fan silent since 13:54 whose mode was changed at 16:07 read "as of
+   * 13:54 · Fan: By temperature": a setting dated to a moment at which the device held another.
+   */
+  it('dates what a silent device reported and says a setting it has not been handed as stored, never as of then', () => {
+    const saved = NOW.minus({ minutes: 20 }).toISO()!;
+    const fan = {
+      ...device(),
+      type: 'fan',
+      name: null,
+      configuration: { mode: 1, day: { max_speed: 100 }, night: { max_speed: 60 } },
+    } as unknown as Device;
+    const waits = new Map([['mode', { field: 'mode', held: 0, savedAt: saved }]]);
+    expect(outputsLine(t, [outputsOf(fan, sockets(), null)], NOW, null, 'as of 09:54', new Map(), waits)).toEqual({
+      text: 'Fan: By temperature saved at 11:40, not with the device yet',
+      warn: true,
+    });
+    // Handed to the device before it fell silent, the setting is what is stored and carries no date either.
+    expect(outputsLine(t, [outputsOf(fan, sockets(), null)], NOW, null, 'as of 09:54').text).toBe('Fan: By temperature');
+
+    // A fridge's lamp is a report and stands as of then; its fans are settings, and the one stored since is said as that.
+    const fridge = {
+      ...device(),
+      type: 'fridge',
+      configuration: { day: { temperature: 25 }, fans: { external: 50, internal: 60 } },
+    } as unknown as Device;
+    const level = { percent: 100, measuredAt: NOW.minus({ hours: 2 }).toISO()!, state: 'offline' as const };
+    const pending = new Map([['fans.external', { field: 'fans.external', held: 40, savedAt: saved }]]);
+    expect(outputsLine(t, [outputsOf(fridge, sockets(), level)], NOW, null, 'as of 09:54', new Map(), pending)).toEqual({
+      text: 'as of 09:54 · Light 100 % · Clip fan 50 % saved at 11:40, not with the device yet · Inner fans, at least 60 %',
+      warn: true,
+    });
+    // Only the place's own device is read for what it has not taken: a further device's settings stand as stored.
+    expect(
+      outputsLine(t, [outputsOf(device(), sockets(), level), outputsOf(fan, sockets(), null)], NOW, null, 'as of 09:54', new Map(), waits).text,
+    ).toBe('as of 09:54 · Light 100 % · Fan: By temperature');
+    expect(notTaken(t, 'Control off', saved, NOW, null)).toBe('Control off saved at 11:40, not with the device yet');
+  });
+
+  /** The fan's card is its speed: where the card stands, Ausgänge has nothing more to say of it. */
+  it('counts an AIR fan´s speed among the outputs only where its card does not stand', () => {
+    const fan = { ...device(), type: 'fan', configuration: { mode: 0, day: { fixed_speed: 70 }, night: { fixed_speed: 40 } } } as unknown as Device;
+    expect(outputsOf(fan, sockets(), null).speed).toBe(true);
+    expect(outputsOf(fan, sockets(), null, true).speed).toBe(false);
+  });
+
+  it('offers a plan only to a device that could follow one as it runs', () => {
+    const fan = (mode: number) =>
+      ({ ...device(), type: 'fan', control: null, configuration: { mode, day: { temperature: 25, humidity: 60 } } }) as unknown as Device;
+    expect(followsPlan(device())).toBe(true);
+    expect(followsPlan(fan(1))).toBe(true);
+    expect(followsPlan(fan(0))).toBe(false);
+    expect(followsPlan({ ...device(), type: 'plug', configuration: { mode: 2 } } as unknown as Device)).toBe(false);
+  });
+
+  it('says of no plan that the targets are set by hand only while something holds targets', () => {
+    expect(planLine(t, [], NOW)).toEqual({ text: 'off · you set the targets by hand' });
+    expect(planLine(t, [], NOW, false)).toEqual({ text: 'off' });
   });
 
   it('leads a further device´s outputs with its name, unless its one output is called the same', () => {
@@ -672,23 +851,34 @@ describe('what a row says about the page behind it', () => {
     ).toBe('Light 100 % · Second controller: Light 100 % · Light 100 %');
   });
 
-  /** A setting that lives behind a row and has not reached a silent device is said in that row's line. */
-  it('finds the setting a silent device has not been handed behind the row it lives under', () => {
-    const settings = [
-      { field: 'day.temperature', held: 25, savedAt: NOW.toISO()! },
-      { field: 'workmode', held: 'small', savedAt: NOW.toISO()! },
-      { field: 'fans.internal', held: 60, savedAt: NOW.toISO()! },
-    ];
-
-    expect(pendingBehind(settings, 'mode')?.field).toBe('workmode');
-    expect(pendingBehind(settings, 'outputs')?.field).toBe('fans.internal');
-    expect(pendingBehind([settings[0]], 'mode')).toBeNull();
-  });
-
   it('says the mode that runs and what else its page offers', () => {
     const fridge = { ...device(), type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } } as Device;
-    expect(modeLine(t, fridge)).toEqual({ text: 'Standard · also Greenhouse, Energy saving', warn: false });
-    expect(modeLine(t, { ...fridge, control: { ...fridge.control!, drying: true } }).warn).toBe(true);
+    expect(modeLine(t, fridge, NOW, null)).toEqual({ text: 'Standard · also Greenhouse, Energy saving', warn: false });
+    expect(modeLine(t, { ...fridge, control: { ...fridge.control!, drying: true } }, NOW, null)).toEqual({
+      text: 'Drying · set by the climate preset',
+      warn: true,
+    });
+  });
+
+  /** A mode, the energy saving and control off are one key of the document: each is said as what was stored. */
+  it('says a mode a silent device has not been handed as stored, in the row it lives behind', () => {
+    const control = { running: true, drying: false, mode: 'greenhouse', energySaving: false };
+    const fridge = { ...device(), type: 'fridge', control } as unknown as Device;
+    const held = (was: string) => new Map([['workmode', { field: 'workmode', held: was, savedAt: NOW.minus({ minutes: 20 }).toISO()! }]]);
+
+    expect(modeLine(t, fridge, NOW, null, held('small'))).toEqual({
+      text: 'Greenhouse saved at 11:40, not with the device yet · also Standard, Energy saving',
+      warn: true,
+    });
+    expect(modeLine(t, { ...fridge, control: { ...control, mode: 'standard', running: false } } as Device, NOW, null, held('small')).text).toBe(
+      'Standard · also Greenhouse, Energy saving · Control off saved at 11:40, not with the device yet',
+    );
+    expect(modeLine(t, { ...fridge, control: { ...control, mode: 'standard', energySaving: true } } as Device, NOW, null, held('small')).text).toBe(
+      'Standard · also Greenhouse, Energy saving · Energy saving on saved at 11:40, not with the device yet',
+    );
+    expect(offNotTaken({ ...fridge, control: { ...control, running: false } } as Device, held('small'))?.held).toBe('small');
+    expect(offNotTaken({ ...fridge, control: { ...control, running: false } } as Device, held('off'))).toBeNull();
+    expect(offNotTaken(fridge, held('small'))).toBeNull();
   });
 });
 

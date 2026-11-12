@@ -2,13 +2,12 @@ import { CalendarRange } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceConfiguration, GerminationChoices as ChoiceValues } from '@fg2/shared-types/v1';
-import { useDeviceLive, useHeardAt, useLiveReads, useSaveConfiguration } from '@/api/devices';
+import { useConfigure, useDeviceLive, useHeardAt, useLiveReads, useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { useSpaceOverview } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { offlineLabel } from '@/ui/age';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
-import { unbroken } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -34,13 +33,13 @@ import {
   type Shape,
 } from '../targets/day-night';
 import { ControlOff } from '../Mode';
+import { offNotTaken } from '../rows';
 import { scheduleTitle } from '../targets/schedule-words';
 import { draftOf, equalsPreset, leafOffset, presetOf, vpdOf, withDraft, type LightSchedule, type TargetsDraft } from '../targets/targets-draft';
 import {
   FIGURES,
   figureName,
   figureText,
-  MODE_PATHS,
   pendingByPath,
   pendingFigure,
   pendingMode,
@@ -85,6 +84,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
   const plan = useDevicePlan(read.id);
   const liveRead = useDeviceLive(read.id);
   const save = useSaveConfiguration();
+  const configure = useConfigure(read.id);
   const saved = useSaved(read);
   const move = usePlanTransition(read.id);
   const humidifier = useHumidifier(read);
@@ -95,10 +95,9 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
   const grow = useSpaceOverview(read.spaceId ?? '', read.spaceId !== null).data?.grows?.[0] ?? null;
 
   const pending = pendingByPath(liveRead.data?.pending);
-  const modeHeld = pending.get(MODE_PATHS[0]);
   // Switched off while it was not heard, a device goes on holding what it was last handed: the cards stay as it runs them.
-  const stillRuns = read.control?.running === false && modeHeld !== undefined && modeHeld.held !== 'off';
-  const device: Device = stillRuns && read.control ? { ...read, control: { ...read.control, running: true } } : read;
+  const off = offNotTaken(read, pending);
+  const device: Device = off && read.control ? { ...read, control: { ...read.control, running: true } } : read;
   const offset = offsetOf(now, zone);
   const isOffline = saved.offline;
   const offline = isOffline ? offlineLabel(spoke, now, zone, true) : null;
@@ -122,7 +121,8 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
   const step = runningStep(plan.data);
   const owned = ownedBy(step);
   const planName = plan.data?.name ?? '';
-  const busy = save.isPending || move.isPending;
+  const busy = save.isPending || move.isPending || configure.isPending;
+  const refused = save.error ?? move.error ?? configure.error;
 
   /** Whether writing `next` puts back by hand what the running plan's step writes, so the plan has to pause first. */
   const pausesFor = (next: TargetsDraft, chip: ClimateChoice | null = null, choices?: ChoiceValues): boolean => {
@@ -157,22 +157,60 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
         germination,
         germinationChoices: after.regime === 'germination' && choices ? choicesSaid(choices, humidifier) : undefined,
       });
-      // A spell that began or ended moved more than figures - the mode, what is kept for after it - and is not one write to take back.
-      const whole = dryingChange === null && germinationChange === null && choices === undefined;
-      saved.say(
-        label,
-        whole
-          ? async () => {
-              const back = { ...draftOf(answer.configuration), ...Object.fromEntries(moved.map(field => [field, baseline[field]])) };
-              await save.mutateAsync({ deviceId: device.id, configuration: withDraft(answer.configuration, back, climateOnly) });
-              if (pauses) await move.mutateAsync({ kind: 'resume' });
-            }
-          : null,
-        chip ? 'preset' : moved.join(' '),
-      );
+      const resume = async () => {
+        if (pauses) await move.mutateAsync({ kind: 'resume' });
+      };
+      const put = (figures: Partial<TargetsDraft>, extra: { germination?: boolean } = {}) =>
+        save.mutateAsync({
+          deviceId: device.id,
+          configuration: withDraft(answer.configuration, { ...draftOf(answer.configuration), ...figures }, climateOnly),
+          ...extra,
+        });
+      const before = Object.fromEntries(moved.map(field => [field, baseline[field]]));
+      const night = device.control?.afterGermination;
+      // What one tap takes back. A drying spell keeps and returns more than figures. Germination begun is ended by
+      // the document from before. One ended is begun again in two writes, since the dark keeps the day it finds and
+      // the night it replaces: the document from before in the light, with the night germination had kept, then
+      // germination with its own. A humidifier's rested band is not kept across that, so there is no way back then.
+      const undo =
+        dryingChange !== null || (germinationChange === null && choices !== undefined)
+          ? null
+          : germinationChange === 'starts'
+            ? () => put(before, { germination: false }).then(resume)
+            : germinationChange === null
+              ? () => put(before).then(resume)
+              : humidifier && !storedChoices.humidifierHolds
+                ? null
+                : async () => {
+                    const kept = {
+                      nightTemperature: night?.nightTemperature ?? baseline.nightTemperature,
+                      nightHumidity: night?.nightHumidity ?? baseline.nightHumidity,
+                    };
+                    await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, { ...baseline, ...kept }, climateOnly) });
+                    await save.mutateAsync({
+                      deviceId: device.id,
+                      configuration: stored,
+                      germination: true,
+                      germinationChoices: choicesSaid(storedChoices, humidifier),
+                    });
+                    await resume();
+                  };
+      saved.say(label, undo, chip ? 'preset' : moved.join(' '));
       return true;
     } catch {
       // Said under the control that asked, from the write that was refused.
+      return false;
+    }
+  };
+
+  /** Ends a drying spell or a germination with no new climate: the server puts back what the spell wrote over, and a running plan would begin it again. */
+  const endSpell = async (spell: 'drying' | 'germination'): Promise<boolean> => {
+    try {
+      if (status === 'running') await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
+      await configure.mutateAsync(spell === 'drying' ? { drying: false } : { mode: 'standard' });
+      saved.say(t(`control.preset.ended.${spell}`), null, 'preset');
+      return true;
+    } catch {
       return false;
     }
   };
@@ -199,7 +237,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
     ...(hasDay(regime) && hasCo2 ? [{ key: 'co2', label: t('targets.table.co2'), fields: { day: 'co2', night: null } }] : []),
   ] as { key: string; label: string; fields: Record<Half, FigureField | null> }[];
   const shown = rows.flatMap(row => halves.flatMap(half => (row.fields[half] ? [row.fields[half]] : [])));
-  const mode = stillRuns ? null : pendingMode(t, device, pending);
+  const mode = off ? null : pendingMode(t, device, pending);
   const waiting: PendingItem[] = [
     // A mode stored for a silent device changes what this card shows, while the device still runs the mode it had.
     ...(mode ? [mode] : []),
@@ -221,7 +259,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
   return (
     <>
       <RefreshFailed failedAt={plan.isError && plan.data ? plan.dataUpdatedAt : null} now={now} />
-      {stillRuns && modeHeld ? <ControlOff device={read} mayManage={mayManage} storedAt={modeHeld.savedAt} /> : null}
+      {off ? <ControlOff device={read} mayManage={mayManage} storedAt={off.savedAt} /> : null}
 
       {regime === 'sensor' ? null : (
         <LightCard
@@ -238,7 +276,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           plan={status === 'running' ? { name: planName, sets: planScheduleOf(step, baseline) } : null}
           mayManage={mayManage}
           busy={busy}
-          error={save.error ?? move.error}
+          error={refused}
           pauses={next => (pausesFor(next) ? planName : null)}
           onTimes={next => write({ next, label: scheduleTitle(t, next, offset) })}
           onLimit={value =>
@@ -315,7 +353,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
             <CalendarRange size={13} strokeWidth={2} className={styles.planMark} aria-hidden /> {t('targets.planTable.legend', { name: planName })}
           </p>
         ) : null}
-        <Kept device={device} shape={shape} baseline={baseline} hasCo2={hasCo2} />
+        <Kept shape={shape} baseline={baseline} hasCo2={hasCo2} />
         <PendingNote items={waiting} />
       </section>
 
@@ -328,7 +366,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           baseline={baseline}
           pauses={next => (pausesFor(next) ? planName : null)}
           busy={busy}
-          error={save.error ?? move.error}
+          error={refused}
           onSave={next => write({ next, label: `${figureName(t, open.field, regime)} ${figureText(open.field, next[open.field])}` })}
           onClose={() => setOpen(null)}
         />
@@ -342,9 +380,11 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           humidifier={humidifier}
           chosen={preset}
           pauses={(next, chip, choices) => (pausesFor(next, chip, choices) ? planName : null)}
+          runs={status === 'running' ? planName : null}
           busy={busy}
-          error={save.error ?? move.error}
+          error={refused}
           onSave={(next, chip, choices, label) => write({ next, chip, choices, label })}
+          onEnd={endSpell}
           onClose={() => setOpen(null)}
         />
       ) : null}
@@ -416,25 +456,19 @@ function FigureSheet({
 
 /**
  * What the grid leaves out, said under it: the half a regime of one column
- * keeps for later - the night at 24 hours of light, the day at none - and what
- * germination gives back to the night when it ends.
+ * keeps for later - the night at 24 hours of light, the day at none. What a
+ * spell gives back when it ends is said where it is ended, in the preset sheet.
  */
-function Kept({ device, shape, baseline, hasCo2 }: { device: Device; shape: Shape; baseline: TargetsDraft; hasCo2: boolean }) {
+function Kept({ shape, baseline, hasCo2 }: { shape: Shape; baseline: TargetsDraft; hasCo2: boolean }) {
   const { t } = useTranslation();
-  const regime = shape.regime;
   const pair = (temperature: number, humidity: number) =>
     [targetWithUnit(temperature, 'temperature'), holdsHumidity(shape) ? targetWithUnit(humidity, 'humidity') : null].filter(
       (part): part is string => part !== null,
     );
-  const after = regime === 'germination' ? (device.control?.afterGermination ?? null) : null;
-  const before = after?.nightTemperature ?? null;
-  const humidityBefore = after?.nightHumidity ?? null;
-  const backHumidity = humidityBefore !== null && humidityBefore !== baseline.nightHumidity ? humidityBefore : null;
-  const back = (before !== null && before !== baseline.nightTemperature) || backHumidity !== null ? (before ?? baseline.nightTemperature) : null;
   const kept =
-    regime === 'always'
+    shape.regime === 'always'
       ? { summary: t('targets.table.keptNight'), parts: pair(baseline.nightTemperature, baseline.nightHumidity) }
-      : regime === 'never'
+      : shape.regime === 'never'
         ? {
             summary: t('targets.table.keptDay'),
             parts: [
@@ -445,27 +479,11 @@ function Kept({ device, shape, baseline, hasCo2 }: { device: Device; shape: Shap
           }
         : null;
 
-  return (
-    <>
-      {back !== null ? (
-        <p className={styles.note}>
-          {unbroken(
-            backHumidity !== null
-              ? t('targets.table.germinationBackHumidity', {
-                  temperature: targetWithUnit(back, 'temperature'),
-                  humidity: targetWithUnit(backHumidity, 'humidity'),
-                })
-              : t('targets.table.germinationBack', { temperature: targetWithUnit(back, 'temperature') }),
-          )}
-        </p>
-      ) : null}
-      {kept ? (
-        <p className={styles.note}>
-          {kept.summary}: <Facts facts={kept.parts} />
-        </p>
-      ) : null}
-    </>
-  );
+  return kept ? (
+    <p className={styles.note}>
+      {kept.summary}: <Facts facts={kept.parts} />
+    </p>
+  ) : null;
 }
 
 /** What a column is called: the half of the day, or what the device holds round the clock instead. */

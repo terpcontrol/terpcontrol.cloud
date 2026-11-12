@@ -4,7 +4,7 @@ import type { ActuatorRuns, ClimateVerdict, Device } from '@fg2/shared-types/v1'
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { useLiveReads, useSocketTables } from '@/api/devices';
 import { useSpaceOverview } from '@/api/spaces';
-import { controlPath, leadingBackTo, socketPath } from '@/app/places';
+import { controlPath, devicePath, leadingBackTo, socketPath } from '@/app/places';
 import { lightOutputOf, useLightHolds } from '@/screens/devices/lights';
 import { LightOutputRow } from '@/screens/devices/LightOutputRow';
 import { socketName, socketState } from '@/screens/devices/socket-words';
@@ -15,14 +15,15 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 import { ByDevice, NothingHere } from './ByDevice';
-import { OwnOutputs } from './devices/OwnOutputs';
+import { FridgeFansPanel } from './devices/FridgeFansPanel';
+import { fanFactsOf } from './devices/own-summary';
 import { hasOutputs, outputsLine, outputsOf, standOf } from './rows';
 
 /**
  * Ausgänge: what the place's devices drive beside holding the climate - a
- * lamp with its hold, a fridge's fans, an AIR fan's speed - and the smart
- * sockets, each a row that says its state, as of when once the device has
- * gone quiet, and leads to the socket's page.
+ * lamp with its hold, a fridge's fans, the speed of an AIR fan that is not
+ * the place's own device - and the smart sockets, each a row that says its
+ * state, as of when once the device has gone quiet, and leads to its page.
  */
 export function OutputsPage({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
   const { t } = useTranslation();
@@ -34,7 +35,10 @@ export function OutputsPage({ spaceId, devices, mayManage }: { spaceId: string; 
   const reads = useLiveReads(ids);
   const verdict = useSpaceOverview(spaceId).data?.verdict;
   const held = useLightHolds(ids, now);
-  const all = devices.map(device => outputsOf(device, tables.tables.get(device.id), reads.levels.get(device.id) ?? null)).filter(hasOutputs);
+  // The place's own device comes first, and its card stands on Steuerung: a fan leading the place is not said here again.
+  const all = devices
+    .map((device, index) => outputsOf(device, tables.tables.get(device.id), reads.levels.get(device.id) ?? null, index === 0))
+    .filter(hasOutputs);
   const stood = (device: Device) => standOf(t, heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null), now, zone);
 
   if (tables.isPending && all.length === 0) return <Waiting lines={3} />;
@@ -61,7 +65,8 @@ export function OutputsPage({ spaceId, devices, mayManage }: { spaceId: string; 
       }
     >
       {device => {
-        const sockets = all.find(one => one.device.id === device.id)?.sockets ?? [];
+        const own = all.find(one => one.device.id === device.id);
+        const sockets = own?.sockets ?? [];
         const table = tables.tables.get(device.id);
         const light = table ? lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null) : null;
         const stand = stood(device);
@@ -73,7 +78,13 @@ export function OutputsPage({ spaceId, devices, mayManage }: { spaceId: string; 
                 <LightOutputRow output={light} offline={stand !== null} mayManage={mayManage} runs={runsOf(verdict, 'light')} now={now} />
               </ul>
             ) : null}
-            <OwnOutputs device={device} mayManage={mayManage} />
+            {own?.fans ? <FridgeFansPanel device={device} mayManage={mayManage} /> : null}
+            {/* A fan standing beside the place's own device: its speed is said here and set on its page. */}
+            {own?.speed ? (
+              <Rows>
+                <Row to={devicePath(device.id)} title={t('fanSettings.title')} line={<Facts facts={fanFactsOf(t, device)} />} />
+              </Rows>
+            ) : null}
             {sockets.length > 0 ? (
               <Rows>
                 {sockets.map(row => (

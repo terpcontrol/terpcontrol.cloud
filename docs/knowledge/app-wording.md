@@ -1,7 +1,7 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
 updated: 2026-11-12
-source: Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk)
+source: Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12)
 paths:
   - webapp/public/assets/i18n/**
   - webapp/src/ui/figures.ts
@@ -77,9 +77,13 @@ string exists in English and German, with no English left in the German catalogu
   its sheet, the group the alarm rules a stage wrote stand under ("Aus dem Klima-Preset Blüte") and their tag
   say "Klima-Preset". "Vorlage" is a saved plan - and a ready-made measurement on a grow's Messwerte page -, and
   the ready-made form of a webhook is "Dienst für den Webhook" (`alarms.sheet.template`, `help.webhookTemplate`).
-- English: the page is "Control" and so is the regulation (`climateControl.*`), so Steuerung's pill reads
-  "Regulating" / "Not regulating" rather than "Control · Control on". An output held by hand is "held on", never
-  "forced on" (`devices.socket.forced`). A device's page says "in {{place}}", and its sheet's block is "Place".
+- English: the page is "Control" and so is the regulation (`climateControl.*`) in every string, the pill
+  included: "Control on" / "Control off" (`control.state.*`; the redesign session of 2026-11-12 after its critic's
+  second walk - "Regulating" was a second word for it). An output held by hand is "held on", never "forced on"
+  (`devices.socket.forced`). A device's page says "in {{place}}", and its sheet's block is "Place". One AIR fan
+  is "Fan", and a build is "Firmware from <day>" on the card as on the device's page.
+- The cloud's own alarm rule is grouped and tagged "Eingebaut" / "built in": it can be switched off, so it is
+  not "immer an" (the redesign session of 2026-11-12).
 - A place with nothing to steer and an account with no place read one sentence at Steuerung's address: "Hier gibt
   es noch nichts zu steuern: Zielwerte und Alarme kommen mit dem ersten Gerät." (`place.control.nothing`).
 - Superseded names: "Pflegemodus" (Chris, 2025-11-07, the old app) and the rewrite's "Reingehen" / "Alarme aus"
@@ -105,9 +109,19 @@ string exists in English and German, with no English left in the German catalogu
   `shared-types/src/v1/grow-days.ts`); a phase's own days divided by seven give another week. A week of the diary is
   named by its days and carries the stage most of it lay in; a feeding scheme's own week is always "Schema-Woche".
 - What a device or the plan did without a person is marked "von allein" (English "by itself") - not what somebody
-  switched, such as maintenance ("Wartung · 2 Min"); a share of a day inside its targets reads "96 % der Zeit im
+  switched, such as maintenance ("Wartung · 2 Min") -, in a diary line, as the author of an entry a plan or a
+  preset wrote and as the tag on a phase they set in the grow's head: "auto" was a second word for it and reads
+  as autoflower (the redesign session of 2026-11-12); a share of a day inside its targets reads "96 % der Zeit im
   Ziel". An alarm is named by its rule, and the edge it crossed is said in words - "Luftfeuchte über 60 %",
-  "unter 20 °C" (`i18n/alarm-line.ts`): "›" only ever means that something opens.
+  "unter 20 °C" (`i18n/alarm-line.ts`): "›" only ever means that something opens. **A rule has one name in the
+  reader's language wherever it is named** (the redesign session of 2026-11-12, after its critic read "Too hot"
+  on a German Start beside "Zu warm" under Alarme): the four rules a stage applies - Zu warm, Zu kalt, Zu
+  feucht, CO₂ zu hoch - and the cloud's "Gerät offline" are named by one function (`ruleTitle`,
+  `i18n/alarm-line.ts`) on Steuerung › Alarme, Meldungen, in Start's sentence, "Zuletzt" and a line of the
+  diary. The server stores them under English names and composes its lines with them
+  ([server-engines.md](server-engines.md)); nothing stored is changed - a stored name is read as the rule it
+  names, so a rule somebody called exactly "Too hot" reads as the stage's wherever only its line is in hand. A
+  rule a person or the firmware named keeps its name.
 - Films: Tagesfilm, Wochenfilm, Film der Phase, Film des Grows, Eigener Film.
 
 ## Numbers, dates and units

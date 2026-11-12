@@ -1,6 +1,7 @@
 import { Power } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
+import { workModesOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { controlPath, devicePath } from '@/app/places';
 import { Announce } from '@/ui/Announce';
 import { Help } from '@/ui/Help';
@@ -28,19 +29,22 @@ import own from './devices/Own.module.css';
 
 export function ModePage({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
   const { t } = useTranslation();
+  const now = useNow();
+  const zone = useZone();
   const moded = devices.filter(hasMode);
 
-  // A tent controller has no mode to choose: what is left to say is where its stage's mode is set.
+  // A tent controller has no mode to choose: what is left to say is where its stage's mode is set. A socket, a lamp and a fan have none at all.
   if (moded.length === 0) {
     return (
       <NothingHere to={controlPath(spaceId)} where={t('control.back')}>
         {t('control.mode.none')}
+        {devices.some(device => workModesOf(device.type).length > 0) ? ` ${t('control.mode.byPreset')}` : null}
       </NothingHere>
     );
   }
 
   return (
-    <ByDevice devices={moded} line={device => modeLine(t, device)}>
+    <ByDevice devices={moded} line={device => modeLine(t, device, now, zone)}>
       {device => <DeviceMode device={device} mayManage={mayManage} />}
     </ByDevice>
   );

@@ -10,7 +10,7 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import { useMovableGrows } from '../space/movable-grows';
-import { GrowScreen } from './GrowPage';
+import { GrowScreen, NoGrow } from './GrowPage';
 import { growTabOf, type GrowTab } from './grow-tabs';
 import { StartGrowSheet } from './new/WhatGrows';
 import styles from './GrowPage.module.css';
@@ -23,7 +23,6 @@ import styles from './GrowPage.module.css';
  * one - and leads to every grow the account has had.
  */
 export function CurrentGrow() {
-  const { t } = useTranslation();
   const { tab: segment } = useParams();
   const { home, places, here, visiting } = useCurrentPlace();
   const tab = growTabOf(segment);
@@ -44,21 +43,11 @@ export function CurrentGrow() {
   if (growId) return <GrowScreen key={growId} growId={growId} tab={tab} current />;
 
   return (
-    <section className={styles.page}>
-      <header className={styles.head}>
-        <div className={styles.title}>
-          <h1>{t('shell.tabs.grow')}</h1>
-          <div className={styles.actions}>
-            <Link to={ALL_GROWS} className={styles.pill}>
-              {t('grow.all.pill')}
-            </Link>
-          </div>
-        </div>
-      </header>
+    <NoGrow>
       <div className={ui.card}>
         <NothingGrows place={here} />
       </div>
-    </section>
+    </NoGrow>
   );
 }
 

@@ -56,44 +56,8 @@ export const repeatsEvery = (rule: AlarmRule): number => Math.max(rule.repeatSec
 /** The always-on watch: the health loop decides it, so it has no line to cross and cannot be pointed at anything else. */
 export const watchesOffline = (watch: AlarmWatch | RuleDraft['watch']): boolean => watch.kind === 'reading' && watch.metric === 'offline';
 
-/**
- * What a preset's rules are called, by what each watches. The catalogue has
- * one name per band rather than per preset, because a stage writes the same
- * four rules whichever preset it stands on.
- */
-const PRESET_TITLE: Record<string, string> = {
-  'temperature-upper': 'tooHot',
-  'temperature-lower': 'tooCold',
-  'humidity-upper': 'tooHumid',
-  'co2-upper': 'co2High',
-};
-
-const presetTitle = (watch: AlarmWatch): string | null => {
-  if (watch.kind !== 'reading') return null;
-  const side = watch.upper !== null ? 'upper' : watch.lower !== null ? 'lower' : null;
-
-  return side ? (PRESET_TITLE[`${watch.metric}-${side}`] ?? null) : null;
-};
-
-/**
- * What a rule is called on the card. A name the server wrote is English
- * wherever it was written, so the two kinds of rule nobody here named - the
- * one the cloud keeps for every device and the four a stage applies - are
- * titled from what they watch instead, in the language the page is in. A rule
- * somebody wrote, by hand or through the firmware, keeps the name it was given.
- *
- * The cloud's own rule is "Gerät offline" wherever it is shown, and the sheet
- * offers no field for a name no screen reads.
- */
-export const ruleTitle = (t: Translate, rule: AlarmRule): string => {
-  if (rule.origin === 'always') return t('alarms.offlineRule');
-  if (rule.origin === 'preset') {
-    const title = presetTitle(rule.watch);
-    if (title) return t(`alarms.presetRule.${title}`);
-  }
-
-  return rule.name;
-};
+/** What a rule is called, here and wherever else it is named. */
+export { ruleTitle } from '@/i18n/alarm-line';
 
 /**
  * The outputs each kind of hardware drives, from the list of what every type

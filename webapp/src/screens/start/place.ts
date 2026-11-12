@@ -16,6 +16,7 @@ import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-prese
 import { switchPointName, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { roundTheClock, utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { STEERED, TARGET_BAND, type Steered } from '@fg2/shared-types/v1-schemas/steering.js';
+import { ruleTitle } from '@/i18n/alarm-line';
 import type { Translate } from '@/i18n/i18n';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
@@ -407,8 +408,11 @@ export const statusText = (t: Translate, status: Status, now: DateTime, zone: st
       });
       return status.since ? `${words} · ${t('start.status.since', { time: sinceLabel(status.since, now, zone) })}` : words;
     }
-    case 'alert':
-      return `${alertLabel(t, status.alert, now, zone)} · ${t('start.status.since', { time: sinceLabel(status.alert.startedAt, now, zone) })}`;
+    case 'alert': {
+      // The rule by the name every page calls it, which is not the English one the server stores.
+      const alert = { ...status.alert, name: status.alert.name && ruleTitle(t, { name: status.alert.name }) };
+      return `${alertLabel(t, alert, now, zone)} · ${t('start.status.since', { time: sinceLabel(alert.startedAt, now, zone) })}`;
+    }
     case 'maintenance':
       return status.quiet.parked
         ? t('start.status.maintenance', { until: clock(status.quiet.until, zone) })

@@ -224,7 +224,6 @@
       "runs": "Lief",
       "runsValue_one": "{{count}}× in den letzten 24 Std",
       "runsValue_other": "{{count}}× in den letzten 24 Std",
-      "isPlug": "smarte Steckdose",
       "numbered": "{{name}} {{number}}",
       "byItself": "Auto",
       "findLine": "schaltet sie 2 Sekunden an und wieder aus",
@@ -460,7 +459,8 @@
         "space": "Ort",
         "grow": "Grow",
         "camera": "Kamera",
-        "device": "Gerät"
+        "device": "Gerät",
+        "socket": "Steckdose"
       }
     },
     "crashed": {
@@ -520,7 +520,7 @@
       "noReading": "–",
       "inBand": "im Ziel",
       "noTarget": "kein Ziel",
-      "auto": "auto",
+      "auto": "von allein",
       "noPhase": "Noch keine Phase",
       "plants_one": "{{count}} Pflanze",
       "plants_other": "{{count}} Pflanzen",
@@ -553,8 +553,8 @@
       "you": "du",
       "youLead": "Du",
       "device": "Gerät",
-      "plan": "auto",
-      "preset": "auto",
+      "plan": "von allein",
+      "preset": "von allein",
       "alarm": "Alarm",
       "someone": "jemand"
     },
@@ -1152,8 +1152,8 @@
         "oldestFirst": "älteste zuerst",
         "noneYet": "Es wurde noch keine Phase gesetzt.",
         "source": {
-          "preset": "auto · Preset",
-          "plan": "auto · Plan",
+          "preset": "von allein · Preset",
+          "plan": "von allein · Plan",
           "human": "von Hand"
         },
         "correct": "Korrigieren",
@@ -2214,7 +2214,6 @@
     "carrierOffline": "Diese Kamera läuft über das Gerät ({{device}}). Bis es wieder online ist, kommen keine Bilder.",
     "connectedVia": "Verbunden über",
     "reachedAt": "Kamera-ID",
-    "addressNote": "Das Passwort, mit dem der Stream geöffnet wird, bleibt auf dem Server und wird nie zurückgeschickt.",
     "name": "Name",
     "looksAt": "Zeigt auf",
     "looksAtHint": "Kronendach, Seitenansicht …",
@@ -2281,7 +2280,6 @@
     "weekFilmByMail": "Wochenfilm jeden Montag per E-Mail",
     "address": "Adresse",
     "changeAddress": "Adresse ändern",
-    "addressChangeNote": "Leer gelassen bleiben Benutzer und Passwort, wie sie sind. Bilder, Filme und Premium bleiben bei dieser Kamera. Nach dem Speichern prüft „Jetzt ein Bild“, ob sie erreichbar ist.",
     "rtspThrough": "RTSP über {{device}}",
     "rtspDirect": "RTSP, direkt aus der Cloud",
     "username": "Benutzer",
@@ -2613,13 +2611,13 @@
       "presetOf": "Aus dem Klima-Preset {{name}}",
       "presetNone": "Aus dem Klima-Preset",
       "presetAside": "Schwellen wandern mit dem Stadium",
-      "always": "Immer an",
+      "always": "Eingebaut",
       "device": "Vom Gerät",
       "human": "Hier angelegt"
     },
     "origin": {
       "preset": "Klima-Preset",
-      "always": "immer",
+      "always": "eingebaut",
       "device": "Gerät",
       "human": "eigen"
     },
@@ -2684,7 +2682,6 @@
       "title": "Alarm bearbeiten",
       "name": "Name",
       "nameHint": "Zu warm",
-      "presetNote": "Diese Regel hat das Stadium geschrieben. Das nächste Stadium schreibt ihre Schwellen neu, was du hier änderst, gilt also bis dahin.",
       "watch": "Beobachten",
       "how": "Was daran",
       "level": "seine Stufe",
@@ -2697,8 +2694,6 @@
       "ticksNote": "Wie oft das Ventil seit der letzten Messung geöffnet hat, gezählt statt gemessen — kein Pegel.",
       "noBound": "Gib ihm eine Grenze: über, unter oder beides.",
       "for": "Wie lange",
-      "forNote": "Wie lange der Wert hinter der Grenze bleiben muss, bevor der Alarm ausgelöst wird. 0 löst sofort aus.",
-      "forRunningNote": "Wie lange der Ausgang ohne Pause laufen muss, bevor das ein Alarm ist und kein Zyklus.",
       "minutes": "min",
       "severity": "Stufe",
       "tellBy": "Sag mir Bescheid per",
@@ -2724,14 +2719,11 @@
       "tunnelNote": "Für ein Ziel im lokalen Netz, das das Gerät erreicht und die Cloud nicht.",
       "repeat": "Wiederholen",
       "repeatEvery": "alle",
-      "repeatNote": "Solange es anhält, alle so viele Minuten; 0 sagt es einmal.",
-      "repeatNoteEmail": "Solange es anhält, alle so viele Minuten, eine E-Mail aber höchstens alle fünf; 0 schickt sie einmal.",
       "save": "Alarm speichern",
       "delete": "Alarm löschen",
       "deleteAsk": "Die Regel ist endgültig weg. Ein Alarm, den sie schon ausgelöst hat, bleibt im Posteingang.",
       "deleteYes": "Löschen",
       "offlineWatch": "Diese Regel beobachtet, ob das Gerät überhaupt meldet; darauf lässt sich nichts anderes richten.",
-      "forOfflineNote": "Zusätzlich zu den zehn Minuten, nach denen ein Gerät als offline gilt.",
       "template": "Dienst für den Webhook",
       "templateFill": "Felder ausfüllen",
       "templateFilled": "URL, Methode und Nachrichten oben sind ausgefüllt. Prüf sie und speichere die Regel.",
@@ -2938,9 +2930,7 @@
       "zeroLimit": "Lichtgrenze 0 %: Die Lampe bleibt dunkel, der Tag gilt aber weiter – mit den Tageswerten und mit CO₂.",
       "keptNight": "Nachtwerte – gelten wieder, sobald es eine Nacht gibt",
       "keptDay": "Tageswerte – gelten wieder, sobald es einen Tag gibt",
-      "keptLight": "Lichtgrenze {{percent}} %",
-      "germinationBack": "Endet die Keimung ohne neues Klima, gilt wieder die Nachttemperatur von vorher: {{temperature}}.",
-      "germinationBackHumidity": "Endet die Keimung ohne neues Klima, gilt wieder die Nacht von vorher: {{temperature}} · {{humidity}}."
+      "keptLight": "Lichtgrenze {{percent}} %"
     },
     "fans": "Lüfter",
     "stepLess": "{{name}}: weniger",
@@ -3606,7 +3596,6 @@
     }
   },
   "alarmLine": {
-    "deviceOffline": "Gerät offline",
     "outputOn": "{{output}} an",
     "outputOff": "{{output}} aus",
     "worst": "Extremwert {{value}}",
@@ -3695,7 +3684,7 @@
       "text": "„Veg Woche 2“ ist die zweite Woche, die der Grow in Veg steht. Wie weit der Grow insgesamt ist, sagt der Tag: Tag 1 ist der Tag, an dem er begann. Im Tagebuch heißt eine Woche nach ihren Tagen und trägt die Phase, in der der größte Teil der Woche lag."
     },
     "autoTag": {
-      "title": "auto",
+      "title": "von allein",
       "text": "Diese Phase kam von einem Grow-Plan oder einem Klima-Preset, das dabei auch die Zielwerte vor Ort geschrieben hat – sie wurde nicht als bloßes Stadium eingetragen. Mit Autoflowers hat das nichts zu tun."
     },
     "phasePreset": {
@@ -4006,7 +3995,7 @@
     },
     "alarmRepeat": {
       "title": "Wiederholen",
-      "text": "Solange der Alarm anhält, kommt er alle so viele Minuten erneut - bei einer Warnung oder einem Hinweis genauso wie bei einem kritischen Alarm. Das hilft vor allem einem Webhook, der zu Hause etwas schaltet: Geht ein Aufruf verloren, kommt der nächste. 0 sagt es einmal."
+      "text": "Solange der Alarm anhält, kommt er alle so viele Minuten erneut - bei einer Warnung oder einem Hinweis genauso wie bei einem kritischen Alarm. Das hilft vor allem einem Webhook, der zu Hause etwas schaltet: Geht ein Aufruf verloren, kommt der nächste. 0 sagt es einmal. Eine E-Mail kommt höchstens alle fünf Minuten."
     },
     "webhookTemplate": {
       "title": "Dienst für den Webhook",
@@ -4099,6 +4088,14 @@
     "deviceMove": {
       "title": "Umziehen",
       "text": "Ab dem Umzug zählen die Messwerte des Geräts zum neuen Ort; was es bisher gemessen hat, bleibt beim alten. Die Kamera, die über das Gerät läuft, seine Steckdosen und seine Alarme ziehen mit. Ein Grow zieht nicht mit: Den verlegst du auf der Seite des Grows. Ein neuer Ort entsteht in dem Raum, in dem das Gerät bisher steht."
+    },
+    "alarmFor": {
+      "title": "Wie lange",
+      "text": "Wie lange der Wert hinter der Grenze bleiben muss, bevor der Alarm ausgelöst wird; 0 löst sofort aus. Bei einem Ausgang, der daraufhin beobachtet wird, ob er überhaupt läuft: wie lange er ohne Pause laufen muss, bevor das ein Alarm ist und kein Zyklus. Bei „Gerät offline“ kommt die Zeit zu den zehn Minuten hinzu, nach denen ein Gerät als offline gilt."
+    },
+    "streamChange": {
+      "title": "Adresse ändern",
+      "text": "Das Passwort, mit dem der Stream geöffnet wird, bleibt auf dem Server und wird nie zurückgeschickt. Änderst du die Adresse, bleiben Benutzer und Passwort, wie sie sind, wenn du sie leer lässt. Bilder, Filme und Premium bleiben bei dieser Kamera. Nach dem Speichern prüft „Jetzt ein Bild“, ob sie erreichbar ist."
     }
   },
   "place": {
@@ -4929,7 +4926,16 @@
       "take": "Übernehmen",
       "taken": "Klima-Preset {{name}}",
       "same": "Das sind schon die Werte dieses Klima-Presets.",
-      "sets": "Was das Klima-Preset ändert"
+      "sets": "Was das Klima-Preset ändert",
+      "end": {
+        "drying": "Trocknung beenden",
+        "germination": "Keimung beenden"
+      },
+      "ended": {
+        "drying": "Trocknung beendet",
+        "germination": "Keimung beendet"
+      },
+      "returns": "Was danach wieder gilt"
     },
     "figure": {
       "change": "{{name}} ändern, {{value}}",
@@ -4949,14 +4955,14 @@
       "figure": "{{name}}: {{value}} gespeichert {{saved}}. Am Gerät gelten noch {{held}}, bis es wieder online ist.",
       "window": "{{name}}: {{value}} gespeichert {{saved}}. Am Gerät gilt noch {{held}}, bis es wieder online ist.",
       "unknown": "{{name}}: {{value}} gespeichert {{saved}}. Das Gerät übernimmt es, sobald es wieder online ist.",
-      "behind": "gespeichert {{saved}}, noch nicht am Gerät",
       "more_one": "{{count}} weitere Einstellung gespeichert, noch nicht am Gerät",
       "more_other": "{{count}} weitere Einstellungen gespeichert, noch nicht am Gerät",
       "several": "{{number}} Werte gespeichert {{saved}}, noch nicht am Gerät",
       "one": "{{name}}: {{value}} · am Gerät noch {{held}}",
       "oneUnknown": "{{name}}: {{value}}",
       "off": "Regelung aus gespeichert {{saved}}, noch nicht am Gerät: {{device}} regelt weiter, bis es wieder online ist.",
-      "modeOff": "Regelung aus"
+      "modeOff": "Regelung aus",
+      "stored": "{{what}} gespeichert {{saved}}, noch nicht am Gerät"
     },
     "offline": {
       "text": "Du kannst trotzdem alles einstellen. Das Gerät übernimmt es, sobald es sich wieder meldet, und regelt bis dahin mit dem Stand von {{time}}."
@@ -4977,18 +4983,21 @@
       "alarmRaised": "„{{name}}“ hat ausgelöst",
       "alarmsRaised_one": "{{count}} hat ausgelöst",
       "alarmsRaised_other": "{{count}} haben ausgelöst",
-      "planOff": "aus · Zielwerte stellst du von Hand",
+      "planOff": "aus",
       "planAtRest": "„{{name}}“ · {{status}}",
       "light": "Licht",
-      "fans": "Lüfter",
       "allAuto": "alle Auto",
-      "modeAlso": "{{mode}} · auch {{others}}",
       "mode": {
         "standard": "Standard",
         "greenhouse": "Gewächshaus",
         "energySaving": "Energiesparen"
       },
-      "planPaused": "{{step}} pausiert"
+      "planPaused": "{{step}} pausiert",
+      "alarmsOnOf": "{{on}} von {{total}} Regeln an",
+      "alarmOff": "„{{name}}“ aus",
+      "byHand": "Zielwerte stellst du von Hand",
+      "fan": "Lüfter",
+      "also": "auch {{others}}"
     },
     "outputs": {
       "none": "Was hier steht, hat keine eigenen Ausgänge."
@@ -5020,7 +5029,8 @@
       "none": "Hier steht kein Gerät, dem ein Plan Zielwerte stellen kann."
     },
     "mode": {
-      "none": "Hier gibt es keine Betriebsart zu wählen: Keimung und Trocknung kommen mit dem Klima-Preset."
+      "none": "Hier gibt es keine Betriebsart zu wählen.",
+      "byPreset": "Keimung und Trocknung kommen mit dem Klima-Preset."
     }
   }
 }

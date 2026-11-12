@@ -90,6 +90,17 @@
   overflow-wrap: anywhere;
 }
 
+/* The way to the place is a finger high where it is tapped, without its line growing by it. */
+.where a {
+  position: relative;
+}
+
+.where a::after {
+  position: absolute;
+  inset: -14px -8px;
+  content: '';
+}
+
 .public {
   display: inline-flex;
   align-items: center;

@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceFirmware, FirmwareChannel } from '@fg2/shared-types/v1';
 import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas/firmware-channels.js';
-import { useDeviceFirmwares, useUpdateDevice } from '@/api/devices';
+import { useUpdateDevice } from '@/api/devices';
 import { useLog } from '@/log/log-context';
 import { ageLabel } from '@/ui/age';
 import { Help } from '@/ui/Help';
@@ -10,7 +10,6 @@ import { Refused } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { calendarDay, useZone } from '@/ui/zone';
 import { UpdateButton } from './DeviceActions';
 import { buildName, useFirmware } from './firmware-builds';
 import { PinSheet } from './FirmwarePin';
@@ -20,18 +19,16 @@ import styles from './DevicePage.module.css';
  * A device's firmware, on its own page: what it runs, what it owes or is
  * offered, and where its updates come from.
  *
- * The build is named by the day it was made, the one thing about it a grower
- * can compare. One switch says whether the device updates itself: on, it
- * follows a release channel chosen beside it; off (the channel `manual`), it
- * stays on its build until one is installed here, which asks first, because
- * the device restarts with it.
+ * The build is named by when it was made (`buildDay`). One switch says whether
+ * the device updates itself: on, it follows a release channel chosen beside
+ * it; off (the channel `manual`), it stays on its build until one is installed
+ * here, which asks first, because the device restarts with it.
  *
  * No control is disabled while its change is on its way: the focus stays on
  * the one that was used, and a second change waits.
  */
 export function FirmwareCard({ device, offline, mayManage }: { device: Device; offline: boolean; mayManage: boolean }) {
   const { t } = useTranslation();
-  const zone = useZone();
   const now = useNow();
   const { tell } = useLog();
   const firmware = useFirmware(device);
@@ -42,7 +39,7 @@ export function FirmwareCard({ device, offline, mayManage }: { device: Device; o
   const maySet = mayManage && !device.isDemo;
 
   const runs = firmware.running ? (
-    t('devices.panel.firmwareFrom', { day: calendarDay(firmware.running.createdAt, zone) })
+    t('devices.panel.firmwareFrom', { day: firmware.madeOn(firmware.running) })
   ) : firmware.isPending ? (
     t('home.waiting')
   ) : firmware.isError ? (
@@ -63,9 +60,9 @@ export function FirmwareCard({ device, offline, mayManage }: { device: Device; o
       ? t('devices.panel.updateFailed', { ago: t('devices.ago', { age: ageLabel(device.state.updateFailedAt, now) }) })
       : t('devices.panel.updateOwed')
     : firmware.offered
-      ? t('device.firmware.there', { day: calendarDay(firmware.offered.createdAt, zone) })
+      ? t('device.firmware.there', { day: firmware.madeOn(firmware.offered) })
       : firmware.coming
-        ? t('device.firmware.coming', { day: calendarDay(firmware.coming.createdAt, zone) })
+        ? t('device.firmware.coming', { day: firmware.madeOn(firmware.coming) })
         : null;
 
   // `firmware` is written whole, so the pinned build goes back as it was: a channel chosen tells the device to install nothing.
@@ -123,7 +120,7 @@ export function FirmwareCard({ device, offline, mayManage }: { device: Device; o
             </label>
           ) : null}
           <Refused error={update.error} />
-          {!auto && device.classId !== null ? <VersionPick device={device} offline={offline} /> : null}
+          {!auto && device.classId !== null ? <VersionPick device={device} offline={offline} firmware={firmware} /> : null}
         </>
       ) : (
         <p className={ui.note}>{t(`devices.panel.channel.${device.firmware.channel}`)}</p>
@@ -137,22 +134,17 @@ export function FirmwareCard({ device, offline, mayManage }: { device: Device; o
  * its list offers. Installing is an update like any other: it waits for a
  * device that is not heard.
  */
-function VersionPick({ device, offline }: { device: Device; offline: boolean }) {
+function VersionPick({ device, offline, firmware }: { device: Device; offline: boolean; firmware: ReturnType<typeof useFirmware> }) {
   const { t } = useTranslation();
-  const zone = useZone();
-  const firmwares = useDeviceFirmwares(device.id, true);
   const [picked, setPicked] = useState('');
   const [asking, setAsking] = useState(false);
-  const builds = [...(firmwares.data?.items ?? [])].sort((one, other) => other.createdAt.localeCompare(one.createdAt));
+  const builds = [...firmware.builds].sort((one, other) => other.createdAt.localeCompare(one.createdAt));
   const build = builds.find(one => one.id === picked) ?? null;
-  // Two builds stamped alike are told apart by their ids, as the old list did.
-  const stamped = new Map<string, number>();
-  for (const one of builds) stamped.set(buildName(one), (stamped.get(buildName(one)) ?? 0) + 1);
-
+  // Two builds stamped alike are told apart by when they were made: the day, and the hour where they share it.
   const label = (one: DeviceFirmware) =>
     [
-      (stamped.get(buildName(one)) ?? 0) > 1 ? `${buildName(one)} (${one.id.slice(0, 8)})` : buildName(one),
-      calendarDay(one.createdAt, zone),
+      buildName(one),
+      firmware.madeOn(one),
       one.id === device.state.firmwareId ? t('firmwarePin.running') : null,
       one.channels.length > 0
         ? t('firmwarePin.current', { channels: one.channels.map(channel => t(`updateChannel.${channel}`)).join(', ') })
@@ -164,7 +156,7 @@ function VersionPick({ device, offline }: { device: Device; offline: boolean }) 
       .join(' · ');
 
   // A class without a single build has nothing to pick from, and says so without a list to open.
-  if (firmwares.data && builds.length === 0) return <p className={ui.note}>{t('firmwarePin.none')}</p>;
+  if (!firmware.isPending && !firmware.isError && builds.length === 0) return <p className={ui.note}>{t('firmwarePin.none')}</p>;
 
   return (
     <>
@@ -181,7 +173,7 @@ function VersionPick({ device, offline }: { device: Device; offline: boolean }) 
             disabled={builds.length === 0}
             onChange={event => setPicked(event.target.value)}
           >
-            <option value="">{t(firmwares.isPending ? 'home.waiting' : builds.length === 0 ? 'firmwarePin.none' : 'firmwarePin.pick')}</option>
+            <option value="">{t(firmware.isPending ? 'home.waiting' : builds.length === 0 ? 'firmwarePin.none' : 'firmwarePin.pick')}</option>
             {builds.map(one => (
               <option key={one.id} value={one.id}>
                 {label(one)}
@@ -199,7 +191,7 @@ function VersionPick({ device, offline }: { device: Device; offline: boolean }) 
           </button>
         </span>
       </div>
-      {firmwares.isError ? <p className={ui.note}>{t('devices.buildUnread')}</p> : null}
+      {firmware.isError ? <p className={ui.note}>{t('devices.buildUnread')}</p> : null}
       {asking && build ? <PinSheet device={device} build={build} onClose={() => setAsking(false)} /> : null}
     </>
   );
