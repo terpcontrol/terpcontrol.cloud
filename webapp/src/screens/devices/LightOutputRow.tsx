@@ -101,15 +101,15 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
     <li className={`${ui.card} ${styles.socket}`}>
       <div className={styles.socketHead}>
         <Lightbulb className={styles.socketIcon} size={18} strokeWidth={1.75} aria-hidden />
+        {/* What the lamp runs at is the row's line, dated and dimmed with its age like any reading. */}
         <div className={styles.rowText}>
           <span className={styles.rowTitle}>{t('devices.lightOutput.title')}</span>
-          <span className={styles.rowNote}>{t('devices.lightOutput.is')}</span>
+          <span className={`mono ${styles.rowNote}`} data-age={freshness}>
+            {measured
+              ? t('devices.lightOutput.now', { percent: percentLabel(measured.percent), age: ageLabel(measured.measuredAt, now) })
+              : t('devices.lightOutput.noLevel')}
+          </span>
         </div>
-        <span className={`mono ${styles.socketState}`} data-age={freshness}>
-          {measured
-            ? t('devices.lightOutput.now', { percent: percentLabel(measured.percent), age: ageLabel(measured.measuredAt, now) })
-            : t('devices.lightOutput.noLevel')}
-        </span>
         <Expand open={open} label={t('devices.socket.details', { name: t('devices.lightOutput.title') })} onToggle={() => setOpen(!open)} />
       </div>
 

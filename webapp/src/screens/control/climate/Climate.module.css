@@ -96,25 +96,6 @@
   margin-left: auto;
 }
 
-.nudgeButton {
-  display: grid;
-  place-items: center;
-  width: var(--control-height);
-  height: var(--control-height);
-  background: var(--card);
-  border: var(--rule-width) solid var(--rule-strong);
-  border-radius: var(--radius);
-  color: var(--ink);
-}
-
-.nudgeButton:hover:not([aria-disabled='true']) {
-  background: var(--card-2);
-}
-
-.nudgeButton[aria-disabled='true'] {
-  opacity: 0.4;
-}
-
 .nudgeFigure {
   min-width: 4ch;
   font-family: var(--font-figure);
@@ -122,14 +103,6 @@
   font-weight: var(--weight-bold);
   text-align: center;
   white-space: nowrap;
-}
-
-.nudgeFigure[data-resting] {
-  color: var(--brand);
-}
-
-.nudgeFigure[data-pending] {
-  color: var(--warning);
 }
 
 /* On a wide desktop the light is one row: when it burns, the button that changes it, and its limit. */
@@ -276,6 +249,17 @@ button.figure:hover {
   font-family: var(--font-figure);
   font-size: var(--text-sm);
   color: var(--muted);
+}
+
+/* The term that explains itself, a finger high without making its line taller. */
+.vpd button {
+  position: relative;
+}
+
+.vpd button::after {
+  content: '';
+  position: absolute;
+  inset: -12px 0;
 }
 
 .note {

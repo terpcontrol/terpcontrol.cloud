@@ -1,4 +1,4 @@
-import { CalendarRange, Minus, Plus } from 'lucide-react';
+import { CalendarRange } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceConfiguration, GerminationChoices as ChoiceValues } from '@fg2/shared-types/v1';
@@ -7,7 +7,6 @@ import { isMissing, useDevicePlan, usePlanTransition, useStopPlan } from '@/api/
 import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
 import { deviceLiveness, offlineLabel } from '@/ui/age';
-import { Announce } from '@/ui/Announce';
 import { Asking } from '@/ui/Asking';
 import { figureOf, hasCo2Sensor } from '@/ui/climate-hardware';
 import { factsOf, unbroken } from '@/ui/fact-text';
@@ -39,6 +38,7 @@ import {
 } from '../targets/day-night';
 import { ControlOff } from '../Mode';
 import { scheduleTitle, windowWords } from '../targets/schedule-words';
+import { Stepper } from '../targets/Stepper';
 import { draftOf, equalsPreset, leafOffset, presetOf, vpdOf, withDraft, type LightSchedule, type TargetsDraft } from '../targets/targets-draft';
 import { FigureSheet } from './FigureSheet';
 import {
@@ -276,29 +276,20 @@ export function Climate({ device, stored, mayManage }: { device: Device; stored:
                 {owned.has('lightLimit') ? <PlanMark /> : null}
               </span>
               {mayManage ? (
-                <span className={styles.nudge} role="group" aria-label={t('targets.aria.lightLimit')}>
-                  <button
-                    type="button"
-                    className={styles.nudgeButton}
-                    aria-label={t('control.light.lower')}
-                    aria-disabled={limit.value <= FIGURES.lightLimit.min || undefined}
-                    onClick={() => limit.set(Math.max(FIGURES.lightLimit.min, limit.value - FIGURES.lightLimit.step))}
-                  >
-                    <Minus size={18} strokeWidth={2} aria-hidden />
-                  </button>
-                  <span className={styles.nudgeFigure} data-pending={limitHeld !== undefined || undefined} data-resting={limit.resting || undefined}>
-                    {figureText('lightLimit', limit.value)}
-                  </span>
-                  <button
-                    type="button"
-                    className={styles.nudgeButton}
-                    aria-label={t('control.light.raise')}
-                    aria-disabled={limit.value >= FIGURES.lightLimit.max || undefined}
-                    onClick={() => limit.set(Math.min(FIGURES.lightLimit.max, limit.value + FIGURES.lightLimit.step))}
-                  >
-                    <Plus size={18} strokeWidth={2} aria-hidden />
-                  </button>
-                  <Announce text={limit.resting ? `${t('targets.aria.lightLimit')} ${figureText('lightLimit', limit.value)}` : null} />
+                <span className={styles.nudge}>
+                  <Stepper
+                    name={t('targets.aria.lightLimit')}
+                    value={limit.value}
+                    min={FIGURES.lightLimit.min}
+                    max={FIGURES.lightLimit.max}
+                    step={FIGURES.lightLimit.step}
+                    decimals={FIGURES.lightLimit.decimals}
+                    unit={t('targets.unit.percent')}
+                    less={t('control.light.lower')}
+                    more={t('control.light.raise')}
+                    changed={limitHeld !== undefined || limit.resting}
+                    onChange={limit.set}
+                  />
                 </span>
               ) : (
                 <span className={styles.nudgeFigure}>{figureText('lightLimit', baseline.lightLimit)}</span>

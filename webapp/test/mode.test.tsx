@@ -178,11 +178,15 @@ describe('the ways back to the standard day and night', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { control: true } }));
   });
 
-  /** A control the reader may not use is absent or said as a fact, and the page says once whose it is. */
+  /** A control the reader may not use is absent: the mode is a fact, and no choice is drawn that they could not make. */
   it('offers a session that may only look nothing that writes', () => {
-    draw(device('fridge', { control: { ...CONTROL, running: false } }), false);
-
+    const { unmount } = draw(device('fridge', { control: { ...CONTROL, running: false } }), false);
     expect(screen.queryByRole('button', { name: 'Switch control on' })).not.toBeInTheDocument();
-    expect(screen.getByText('This session may look and not set.')).toBeInTheDocument();
+    unmount();
+
+    draw(device('fridge', { control: { ...CONTROL, energySaving: true } }), false);
+    expect(screen.getByText('Standard · Energy saving')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 });

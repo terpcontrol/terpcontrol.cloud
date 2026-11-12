@@ -246,7 +246,6 @@
     "sockets": "Smarte Steckdosen",
     "lightOutput": {
       "title": "Lichtausgang",
-      "is": "eigener Ausgang des Geräts · dimmbar",
       "forceFor": "Lichtausgang {{duration}} lang halten",
       "holds": "hält {{duration}}",
       "askedHold": "Gesendet: {{duration}} lang halten. Das Gerät meldet sich innerhalb einer halben Minute zurück.",

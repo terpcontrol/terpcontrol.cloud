@@ -276,7 +276,7 @@ describe('the climate under Steuerung', () => {
     expect(screen.getByText('On at 06:00 · 12 h')).toBeInTheDocument();
     expect(screen.getAllByText('off at 18:00')[0]).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Change times' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Light limit' })).toHaveTextContent('80 %');
+    expect(screen.getByRole('spinbutton', { name: 'Light limit' })).toHaveValue('80');
     expect(screen.getAllByRole('columnheader').map(head => head.textContent)).toEqual(['', 'Dayby the schedule', 'Night']);
     expect(figure('Day temperature')).toHaveTextContent('25 °C');
     expect(figure('Night temperature')).toHaveTextContent('20 °C');
@@ -284,8 +284,8 @@ describe('the climate under Steuerung', () => {
     expect(figure('Night humidity')).toHaveTextContent('55 %');
     expect(figure('CO₂ target')).toHaveTextContent('800 ppm');
     expect(screen.getByText('no CO₂')).toBeInTheDocument();
-    // Nothing on the page is a draft: no save bar, no field to type into until a sheet is open.
-    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
+    // Nothing on the page is a draft: no save bar, and the one figure stepped in place is the light limit.
+    expect(screen.getAllByRole('spinbutton')).toHaveLength(1);
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
   });
 
@@ -360,7 +360,7 @@ describe('the climate under Steuerung', () => {
 
     tap('Lower the light limit');
     tap('Lower the light limit');
-    expect(screen.getByRole('group', { name: 'Light limit' })).toHaveTextContent('70 %');
+    expect(screen.getByRole('spinbutton', { name: 'Light limit' })).toHaveValue('70');
     expect(sent('PUT')).toHaveLength(0);
 
     await act(async () => {
@@ -601,7 +601,7 @@ describe('the climate under Steuerung', () => {
       expect(screen.getByText('Light off · drying')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Change times' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: /^Change Temperature while drying, 20 °C/ })).toBeInTheDocument();
-      expect(screen.queryByRole('group', { name: 'Light limit' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('spinbutton', { name: 'Light limit' })).not.toBeInTheDocument();
     });
 
     it('holds no humidity in greenhouse mode', async () => {

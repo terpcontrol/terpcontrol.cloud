@@ -246,7 +246,6 @@
     "sockets": "Smart sockets",
     "lightOutput": {
       "title": "Light output",
-      "is": "the device's own output · dimmable",
       "forceFor": "Hold the light output for {{duration}}",
       "holds": "holds {{duration}}",
       "askedHold": "Asked, to hold for {{duration}}. The device reports back within half a minute.",

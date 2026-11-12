@@ -41,19 +41,6 @@
   overflow-wrap: anywhere;
 }
 
-/* What the lamp is doing gives way before its name does. */
-.socketState {
-  flex: 0 1 auto;
-  max-width: 55%;
-  min-width: 0;
-  overflow: hidden;
-  font-size: var(--text-sm);
-  color: var(--muted);
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .expand {
   display: grid;
   place-items: center;

@@ -87,7 +87,6 @@ export function OutputsPage({ spaceId, devices, mayManage }: { spaceId: string; 
           })
         }
       </Guarded>
-      {mayManage ? null : <p className={ui.note}>{t('targets.readOnly')}</p>}
     </div>
   );
 }

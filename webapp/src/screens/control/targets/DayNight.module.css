@@ -246,7 +246,8 @@
   grid-template-columns: minmax(36px, 44px) minmax(3rem, 1fr) minmax(36px, 44px);
   width: 100%;
   max-width: 10rem;
-  height: var(--control-height);
+  /* The buttons inside the border are a finger high. */
+  height: calc(var(--control-height) + 2 * var(--rule-width));
   background: var(--card);
   border: var(--rule-width) solid var(--rule-strong);
   border-radius: var(--radius-sm);

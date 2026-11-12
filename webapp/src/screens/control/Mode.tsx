@@ -46,7 +46,6 @@ export function ModePage({ devices, mayManage }: { devices: Device[]; mayManage:
           <DeviceMode device={device} mayManage={mayManage} />
         </section>
       ))}
-      {mayManage ? null : <p className={ui.note}>{t('targets.readOnly')}</p>}
     </div>
   );
 }
@@ -79,6 +78,17 @@ function DeviceMode({ device, mayManage }: { device: Device; mayManage: boolean 
 
   if (!control) return null;
   if (!control.running) return <ControlOff device={device} mayManage={mayManage} />;
+  // Whoever may not steer the place reads which mode holds, and is drawn no choice they could not make.
+  if (!mayManage) {
+    return (
+      <p className={styles.card}>
+        <span className="label">{t('operatingMode.label')}</span>
+        {[t(`operatingMode.${control.drying ? 'drying' : control.mode}`), control.energySaving ? t('energySaving.label') : null]
+          .filter(Boolean)
+          .join(' · ')}
+      </p>
+    );
+  }
 
   return (
     <>
@@ -88,11 +98,9 @@ function DeviceMode({ device, mayManage }: { device: Device; mayManage: boolean 
             {t('climateControl.dryingNote')}
             <Help topic="drying" />
           </p>
-          {mayManage ? (
-            <button type="button" className={ui.button} onClick={() => setEnding(control.afterDrying ?? null)}>
-              {t('climateControl.endDryingAsk')}
-            </button>
-          ) : null}
+          <button type="button" className={ui.button} onClick={() => setEnding(control.afterDrying ?? null)}>
+            {t('climateControl.endDryingAsk')}
+          </button>
         </div>
       ) : null}
       <div className={styles.card}>
@@ -101,7 +109,6 @@ function DeviceMode({ device, mayManage }: { device: Device; mayManage: boolean 
           name="mode"
           label={t('operatingMode.label')}
           help="advanced.operatingMode"
-          disabled={!mayManage}
           options={modes.map(mode => ({ value: mode, label: t(`operatingMode.${mode}`), note: t(`operatingMode.${mode}Note`, figures) }))}
           ask={mode =>
             mode === 'standard'
@@ -117,7 +124,7 @@ function DeviceMode({ device, mayManage }: { device: Device; mayManage: boolean 
                 }
           }
         />
-        {germinates(device) ? <Choosing device={device} mayManage={mayManage} humidifier={humidifier} /> : null}
+        {germinates(device) ? <Choosing device={device} humidifier={humidifier} /> : null}
       </div>
       {/* Energy saving belongs to a day and night of the standard mode, which neither a drying spell nor germination is. */}
       {device.type === 'fridge' && control.mode === 'standard' && !control.drying ? (
@@ -128,7 +135,6 @@ function DeviceMode({ device, mayManage }: { device: Device; mayManage: boolean 
             name="energySaving"
             label={t('energySaving.label')}
             help="energySaving"
-            disabled={!mayManage}
             note={on => t(on ? 'energySaving.onNote' : 'energySaving.offNote')}
           />
         </div>
@@ -168,7 +174,7 @@ export function ControlOff({ device, mayManage }: { device: Device; mayManage: b
 }
 
 /** The two choices of germination, each written on the tap through the settings by name. */
-function Choosing({ device, mayManage, humidifier }: { device: Device; mayManage: boolean; humidifier: boolean }) {
+function Choosing({ device, humidifier }: { device: Device; humidifier: boolean }) {
   const configure = useConfigure(device.id);
   const asked = configure.isPending ? configure.variables : undefined;
   const stored = choicesOf(device);
@@ -184,7 +190,7 @@ function Choosing({ device, mayManage, humidifier }: { device: Device; mayManage
         value={shown}
         humidifier={humidifier}
         humidity={humidity}
-        disabled={!mayManage || configure.isPending}
+        disabled={configure.isPending}
         onChange={change =>
           configure.mutate({
             ...(change.warnTooHumid !== undefined ? { germinationWarnTooHumid: change.warnTooHumid } : {}),
