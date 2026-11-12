@@ -61,9 +61,31 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     preset, light limit, ...) are each built in three to nine places, against one unused export.
   - The grow page's diary left two things open (2026-11-12). Its days are dates on the owner's calendar while the
     counter beside the grow's name (`growDayAt`) counts 24 hours from the hour the grow began, so until that hour
-    today's card is one ahead of the head ([app-wording.md](knowledge/app-wording.md), Grow time); which of the two
-    counts is not decided. And the public page and the share link still draw week cards
-    (`GET /v1/grows/{id}/weeks`, `ui/WeekCardParts`), which go once they draw the day cards too.
+    today's card is one ahead of the head ([app-wording.md](knowledge/app-wording.md), Grow time). Decided on
+    2026-11-12 and not built yet: the calendar's count rules everywhere - day 1 is the date the grow began on. And
+    the public page and the share link still draw week cards (`GET /v1/grows/{id}/weeks`, `ui/WeekCardParts`),
+    which go once they draw the day cards too.
+  - Decided on 2026-11-12, after a critic walked the grow pages, and not built yet (each goes from this list into
+    [app-ux.md](knowledge/app-ux.md) when it is):
+    - A day card never folds a grower's own line behind a device's line. "von allein" marks only what a device or
+      a plan did without a person; maintenance somebody switched is a person's line. A device's support log
+      (restarts, a sensor deviating) is not the diary - from devices it carries the light, stretches outside the
+      band, alarms and plan steps, the light of a past day as one line.
+    - The entry sheet offers no moment before the grow began for an entry to that grow; the diary still shows what
+      a database holds from before the start, as a last group without day numbers.
+    - Coming back from what a line opened, the opened weeks, the loaded pages and the scroll position are as they
+      were. A tab replaces the history entry: a page is one step of Back.
+    - Harvesting the last plant lands on the ended grow's report. Starting a grow switches the diary on.
+    - "Alle Grows" lists every grow the session can open, a guest's shared one and the demo's included. The grow
+      page has one head on both of its addresses - the pill "Alle Grows", no arrow - and the doors Düngepläne,
+      Freigabelinks and Abonniert move under `/grows/`.
+    - With nothing chosen yet, the place is the first in Start's order that has a running grow, else the first with
+      a device, else the first.
+    - The entry sheet's targets are the grow and then its plants; a place is a target only where the account has
+      several places or the place has no grow.
+    - The grow page is one column until its day card and its right column both fit, as Start is.
+    - A line of the diary opens Verlauf on its moment however old; today one from more than 30 days back lands on
+      the wrong date, because Verlauf's windows all end now.
 
 - **Unit preferences are saved, not applied.** Me › Appearance stores °C/°F, g/oz and l/gal (`preferences.units`),
   but every figure is still drawn in °C, g and l, as the page's `unitsNote` tells the reader; only the Me screen's
