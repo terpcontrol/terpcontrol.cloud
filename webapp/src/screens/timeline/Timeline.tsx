@@ -803,7 +803,7 @@ function Screen({
             curves.length + strips.length > 0
               ? () =>
                   saveFile(
-                    new Blob([csvFor(t, panels, shown.outputs || shown.light ? strips : [], window.from, window.to, zone, decimalMark() === ',')], {
+                    new Blob([csvFor(t, panels, shown.outputs || shown.light ? strips : [], { ...window, stepMs }, zone, decimalMark() === ',')], {
                       type: 'text/csv;charset=utf-8',
                     }),
                     `${slug(data.name) || 'verlauf'}-${zonedAt(window.from, zone).toFormat('yyyy-MM-dd')}.csv`,

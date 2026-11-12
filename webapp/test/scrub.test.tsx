@@ -110,6 +110,25 @@ describe('a thumb on a plot', () => {
     expect(did.at(-1)).toBe('place 0.30');
   });
 
+  it('never sets the cursor while a second finger rests beside the plot - on the panel`s head, on the card above', () => {
+    const beside = (type: string, id: number) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX: 40, clientY: 300 });
+      Object.assign(event, { pointerId: id, pointerType: 'touch' });
+      fireEvent(document.body, event);
+    };
+    beside('pointerdown', 7);
+    touch('pointerdown', 1, 50);
+    touch('pointermove', 1, 120);
+    touch('pointerup', 1, 120);
+    expect(did).toEqual([]);
+
+    // Once every finger has lifted, a tap is a tap again.
+    beside('pointerup', 7);
+    touch('pointerdown', 2, 60);
+    touch('pointerup', 2, 60);
+    expect(did.at(-1)).toBe('place 0.30');
+  });
+
   it('zooms out past both ends when two fingers are drawn together', () => {
     touch('pointerdown', 1, 20);
     touch('pointerdown', 2, 180);

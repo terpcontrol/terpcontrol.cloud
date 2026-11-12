@@ -178,9 +178,9 @@ describe('a panel', () => {
     expect(temperature.curves[0].points[0][0]).toBe(FROM + 0.5 * HOUR);
   });
 
-  it('writes a reading as every screen writes it: Start`s tile and this head are one figure', () => {
+  it('reads a humidity to the tenth the sensor delivers, and every other reading as every screen writes it', () => {
     const [temperature, humidity, vpd] = drawn(answer()).panels;
-    expect([temperature.curves[0].written(24.84), humidity.curves[0].written(56.04), vpd.curves[0].written(1.306)]).toEqual(['24.8', '56', '1.31']);
+    expect([temperature.curves[0].written(24.84), humidity.curves[0].written(74.6), vpd.curves[0].written(1.306)]).toEqual(['24.8', '74.6', '1.31']);
   });
 
   it('stands a single sample at its own time, to the second, and a mean in the middle of its window', () => {
@@ -475,15 +475,32 @@ describe('the picture a plot comes to', () => {
 describe('the table', () => {
   it('holds every curve drawn with its lowest and highest, and every output as the state it held', () => {
     const { panels, strips } = drawn(answer(), ['temperature', 'outputs']);
-    const [head, ...rows] = csvFor(t, panels, strips, FROM, FROM + 24 * HOUR, 'UTC', false).split('\n');
+    const table = csvFor(t, panels, strips, { from: FROM, to: FROM + 24 * HOUR, stepMs: HOUR }, 'UTC', false);
+    const [head, ...rows] = table.slice(1).split('\n');
 
+    // The mark a spreadsheet reads the encoding by, so "°C" arrives as that.
+    expect(table.charCodeAt(0)).toBe(0xfeff);
+    // An output with a level is written as that level in per cent; one that only switches as the state it held.
     expect(head).toBe(
-      '"Time","Temperature (°C)","Temperature · low (°C)","Temperature · high (°C)","Light (on/off)","Heater (on/off)","Dehumidifier (on/off)","Fan (on/off)"',
+      '"Time","Temperature (°C)","Temperature · low (°C)","Temperature · high (°C)","Light (%)","Heater (%)","Dehumidifier (on/off)","Fan (on/off)"',
     );
-    // The window of the door: the mean, and what it flattened.
-    expect(rows.find(row => row.startsWith('2026-11-12T03:00:00'))).toBe('2026-11-12T03:00:00.000Z,24.8,19.4,25.3,1,0,0,1');
+    // The window of the door: the mean, and what it flattened - every figure of a column with the same decimals.
+    expect(rows.find(row => row.startsWith('2026-11-12T03:00:00'))).toBe('2026-11-12T03:00:00.000Z,24.8,19.4,25.3,65,0,0,1');
+    // The hour the heater ran at 60 %.
+    expect(rows.find(row => row.startsWith('2026-11-11T22:00:00'))).toContain(',60,');
     // Past the last thing heard of the lamp its column is empty rather than "off".
     expect(rows.at(-1)).toBe('2026-11-12T14:00:00.000Z,24.8,24.8,24.8,,0,0,1');
+    // No instant at which nothing is said is a row.
+    expect(rows.every(row => /[^,]/.test(row.slice(row.indexOf(',') + 1)))).toBe(true);
+  });
+
+  it('says of the deficit`s column that it is worked out', () => {
+    const { panels } = drawn(answer(), ['vpd']);
+    expect(
+      csvFor(t, panels, [], { from: FROM, to: FROM + 24 * HOUR, stepMs: HOUR }, 'UTC', false)
+        .slice(1)
+        .split('\n')[0],
+    ).toBe('"Time","VPD, worked out from temperature and humidity (kPa)"');
   });
 
   it('is written with semicolons and decimal commas where figures are written with a comma, so a spreadsheet there reads columns', () => {
@@ -497,7 +514,7 @@ describe('the table', () => {
       true,
     );
 
-    expect(table.split('\n')).toEqual(['"Zeit";"Temperatur (°C)";"Licht"', '2026-11-11T14:30:00.000Z;24,8;1']);
+    expect(table.slice(1).split('\n')).toEqual(['"Zeit";"Temperatur (°C)";"Licht"', '2026-11-11T14:30:00.000Z;24,8;1']);
   });
 });
 

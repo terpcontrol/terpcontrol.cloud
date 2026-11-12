@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /** A stretch of the plot, as fractions of its width; a pinch outwards reaches past 0 and 1. */
 export interface Selection {
@@ -70,8 +70,42 @@ export const useScrub = ({
     dragging.current = false;
     mark(null);
   };
-  /** How many fingers are still on the glass; the map above is emptied when the first one lifts. */
-  const down = useRef(0);
+  /**
+   * The fingers on the glass, wherever they are: a second one beside the plot - on a panel's head, on the card
+   * above it - makes the gesture two-fingered as much as one on the plot does, and the plot alone never hears of it.
+   */
+  const fingers = useRef(new Set<number>());
+  const leave = useRef(onLeave);
+  useEffect(() => {
+    leave.current = onLeave;
+  });
+  useEffect(() => {
+    const down = (event: PointerEvent) => {
+      if (event.pointerType === 'mouse') return;
+      fingers.current.add(event.pointerId);
+      if (fingers.current.size > 1 && !pinching.current) {
+        pinching.current = true;
+        // The first finger may have been moving the cursor already: it goes back to where it stood, and the
+        // pinch begins where the fingers on the plot are now.
+        dragging.current = false;
+        for (const each of touches.current.values()) each.start = each.now;
+        if (touches.current.size > 0) leave.current();
+      }
+    };
+    // After the plot's own handlers, which still have to know that the finger lifting was one of two.
+    const up = (event: PointerEvent) => {
+      fingers.current.delete(event.pointerId);
+      if (fingers.current.size === 0) pinching.current = false;
+    };
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+  }, []);
 
   return {
     selection,
@@ -84,16 +118,7 @@ export const useScrub = ({
           mouseFrom.current = fraction;
           onCursor(fraction);
         } else {
-          down.current += 1;
           touches.current.set(event.pointerId, { start: fraction, now: fraction, x: event.clientX });
-          if (touches.current.size > 1 && !pinching.current) {
-            // The first finger may have been moving the cursor already: it goes back to where it stood, and the
-            // pinch begins where both fingers are now.
-            pinching.current = true;
-            dragging.current = false;
-            for (const each of touches.current.values()) each.start = each.now;
-            onLeave();
-          }
         }
       },
       onPointerMove: event => {
@@ -128,15 +153,11 @@ export const useScrub = ({
         // The second finger of a pinch lifts after the first has ended it, and sets nothing down.
         const own = mouseFrom.current !== null || touches.current.has(event.pointerId);
         end();
-        if (event.pointerType !== 'mouse') down.current = Math.max(0, down.current - 1);
-        if (down.current === 0) pinching.current = false;
         if (marked && (pinch ? Math.abs(marked.to - marked.from - 1) > LEAST_PINCH : marked.to - marked.from >= LEAST_SELECTION)) onZoom(marked);
         else if (!pinch && own && fraction !== null) onPlace(fraction);
       },
       onPointerCancel: () => {
         end();
-        down.current = 0;
-        pinching.current = false;
         onLeave();
       },
       onPointerLeave: event => {

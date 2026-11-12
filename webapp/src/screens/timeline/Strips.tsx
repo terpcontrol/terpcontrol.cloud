@@ -78,10 +78,12 @@ function StripRow({ strip, from, to, stepMs, cursor, focused }: Omit<StripsProps
               key={block.from}
               className={styles.stripRan}
               x={block.from}
-              y={1 - block.level}
+              // An output with a level is a filled shape: how hard it ran over the slice, the level by the share of
+              // the slice it ran - a heater's demand, not a row of ticks. One that only switches is tinted by its share.
+              y={levels ? 1 - block.level * block.ran : 0}
               width={block.to - block.from}
-              height={block.level}
-              opacity={0.35 + 0.65 * block.ran}
+              height={levels ? block.level * block.ran : 1}
+              opacity={levels ? 1 : 0.35 + 0.65 * block.ran}
             />
           ))}
         </svg>

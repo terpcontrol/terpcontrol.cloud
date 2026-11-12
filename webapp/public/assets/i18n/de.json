@@ -2149,7 +2149,9 @@
       "h": "alle {{n}} Std",
       "d_one": "jeden Tag",
       "d_other": "alle {{n}} Tage"
-    }
+    },
+    "csvVpd": "VPD, berechnet aus Temperatur und Luftfeuchte",
+    "csvLevel": "{{output}} (%)"
   },
   "camera": {
     "lastError": "Letzter Versuch fehlgeschlagen: {{reason}}",

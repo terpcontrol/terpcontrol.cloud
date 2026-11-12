@@ -226,14 +226,14 @@ describe('Verlauf as it opens', () => {
     // The lowest and highest sample of the window, not of its means: the door that stood open shows.
     expect(panel('Temperature')).toHaveTextContent('Low 19.4 · High 25.3');
     expect(within(panel('Temperature')).getByText('25.2 °C')).toBeInTheDocument();
-    // As every screen writes a humidity: whole per cent.
-    expect(panel('Humidity')).toHaveTextContent('Low 54 · High 72');
-    expect(within(panel('Humidity')).getByText('58 %')).toBeInTheDocument();
+    // A humidity is read to the tenth here: a highest sample of 71.5 is not "72".
+    expect(panel('Humidity')).toHaveTextContent('Low 54.2 · High 71.5');
+    expect(within(panel('Humidity')).getByText('58.0 %')).toBeInTheDocument();
     expect(panel('VPD')).toHaveTextContent('Low 1.40 · High 1.40');
     expect(panel('VPD')).toBeInTheDocument();
     // CO₂ is measured and waits for its tick.
     expect(screen.queryByRole('region', { name: 'CO₂' })).not.toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /Humidity between 54 and 72 %/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Humidity between 54.2 and 71.5 %/ })).toBeInTheDocument();
   });
 
   it('asks for the last 24 hours by their name, with every panel a place can have', async () => {
@@ -284,7 +284,7 @@ describe('Verlauf as it opens', () => {
     expect(within(card).getByRole('img', { name: /at the cursor/ })).toHaveAttribute('src', '/media/still-new');
     expect(within(card).getByRole('link')).toHaveAttribute('href', '/cameras/camera-1');
     expect(card).toHaveTextContent(/Cursor · now, \d\d:\d\d/);
-    expect(card).toHaveTextContent('25.2 °C · 58 % · 1.40 kPa');
+    expect(card).toHaveTextContent('25.2 °C · 58.0 % · 1.40 kPa');
     // The zoom stands with the card, which stays in sight while the page scrolls.
     expect(within(card).getByRole('button', { name: 'Zoom in' })).toBeInTheDocument();
     expect(card).toHaveTextContent('Light 65 % · Heater off · Dehumidifier off');
@@ -389,7 +389,7 @@ describe('what the place reads now', () => {
     await waitFor(() => expect(within(panel('Temperature')).getByText('26.7 °C')).toBeInTheDocument());
     const card = screen.getByRole('region', { name: 'Cursor' });
     expect(card).toHaveTextContent(/Cursor · now, \d\d:\d\d/);
-    expect(card).toHaveTextContent('26.7 °C · 61 % · 1.52 kPa');
+    expect(card).toHaveTextContent('26.7 °C · 61.4 % · 1.52 kPa');
   });
 
   it('is "last reading" with its own time once the device has stopped reporting by the offline rule, on a month as on a day', async () => {

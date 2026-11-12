@@ -13,7 +13,7 @@ import { csvOf, niceScale, type CsvColumn, type Plot, type PlotLine, type PlotPo
 import type { ChartToken } from '@/charts/tokens';
 import type { Translate } from '@/i18n/i18n';
 import { outputWord } from '@/ui/climate-hardware';
-import { looseFigure } from '@/ui/figures';
+import { decimalFigure, looseFigure } from '@/ui/figures';
 import { figure, targetFigure, UNIT } from '@/ui/units';
 import type { VpdHalf } from './view';
 import { alarmsOf, at, spans, stretchesOf } from './window';
@@ -37,6 +37,9 @@ const COLOUR: Partial<Record<Metric, ChartToken>> = {
   lux: 'warning',
   ppfd: 'warning',
 };
+
+/** The decimals a curve's figures are written with in the table: what its sensor delivers. */
+const DECIMALS: Partial<Record<Metric, number>> = { temperature: 1, humidity: 1, vpd: 2, leafTemperature: 1 };
 
 /** How finely a panel's scale is rounded outwards: a curve keeps most of the plot's height instead of a round figure's air. */
 const SCALE_STEPS = 8;
@@ -218,6 +221,8 @@ export interface Curve {
   colour: ChartToken;
   /** The figure as it is written beside this curve: a metric to its decimals, a grower's own reading as it was taken. */
   written: (value: number) => string;
+  /** How many decimals the table writes every figure of this curve with; none for a reading written as it was taken. */
+  decimals?: number;
   corner: (value: number) => string;
   points: PlotPoint[];
   /**
@@ -324,8 +329,11 @@ const metricCurve = (
       name: t(`timeline.metric.${metric}`, { defaultValue: metric }),
       unit: UNIT[metric] ?? '',
       colour,
-      // As every screen writes this reading: Start's tile, a day card and this head are one figure.
-      written: value => figure(value, metric),
+      // A humidity is read to the tenth here, as the sensor delivers it and the old charts did: "Hoch 75" over a
+      // highest sample of 74,6 is wrong, and a dehumidifier's swing of a per cent is what is looked for. Start's
+      // tile rounds the same reading to whole per cent.
+      written: value => (metric === 'humidity' ? decimalFigure(value, 1) : figure(value, metric)),
+      decimals: DECIMALS[metric] ?? 0,
       corner: value => targetFigure(value, metric),
       points,
       low,
@@ -515,45 +523,76 @@ export const csvFor = (
   t: Translate,
   panels: readonly PanelModel[],
   strips: readonly Strip[],
-  from: number,
-  to: number,
+  window: { from: number; to: number; stepMs: number },
   zone: string | null,
   decimalComma: boolean,
 ): string => {
+  const { from, to, stepMs } = window;
+  // A deficit is worked out, not measured, and its column says so.
+  const named = (curve: Curve) => (curve.key === 'vpd' ? t('timeline.csvVpd') : curve.name);
   const titled = (curve: Curve, what: string | null = null) =>
-    [curve.name, what].filter(Boolean).join(' · ') + (curve.unit ? ` (${curve.unit})` : '');
+    [named(curve), what].filter(Boolean).join(' · ') + (curve.unit ? ` (${curve.unit})` : '');
   const curves = panels.flatMap(panel => panel.curves);
+  // A level is written at the instants the curves' points stand at, so it adds no rows of its own; with no curve
+  // drawn, at the windows the store cuts on the step.
+  const before = drawnBefore(stepMs / 1000);
+  const drawn = [...new Set(curves.flatMap(curve => (curve.line.shape === 'line' ? curve.points.map(point => point[0] + before) : [])))];
+  const stamps =
+    drawn.length > 0
+      ? drawn.sort((one, other) => one - other)
+      : Array.from({ length: Math.max(0, Math.ceil((to - from) / stepMs)) }, (_, index) =>
+          Math.min(to, (Math.floor(from / stepMs) + index + 1) * stepMs),
+        );
   const columns: CsvColumn[] = [
     ...curves.flatMap(curve => {
       const spread = curve.points.some(point => point[2] !== undefined);
+      const column = (label: string, points: [number, number | null][]): CsvColumn => ({ label, points, decimals: curve.decimals });
       return [
-        { label: titled(curve), points: curve.points.map(([time, value]) => [time, value] as [number, number | null]) },
+        column(
+          titled(curve),
+          curve.points.map(([time, value]) => [time, value]),
+        ),
         ...(spread
           ? [
-              {
-                label: titled(curve, t('timeline.low')),
-                points: curve.points.map(([time, value, min]) => [time, value === null ? null : (min ?? value)] as [number, number | null]),
-              },
-              {
-                label: titled(curve, t('timeline.high')),
-                points: curve.points.map(([time, value, , max]) => [time, value === null ? null : (max ?? value)] as [number, number | null]),
-              },
+              column(
+                titled(curve, t('timeline.low')),
+                curve.points.map(([time, value, min]) => [time, value === null ? null : (min ?? value)]),
+              ),
+              column(
+                titled(curve, t('timeline.high')),
+                curve.points.map(([time, value, , max]) => [time, value === null ? null : (max ?? value)]),
+              ),
             ]
           : []),
       ];
     }),
-    ...strips.map(strip => ({
-      label: t('timeline.csvOutput', { output: strip.name }),
-      holds: true,
-      points: [
-        [from, 0] as [number, number | null],
-        ...strip.runs.flatMap(run => [
-          [Math.max(from, run.from), 1] as [number, number | null],
-          ...(run.to < strip.heardUntil ? [[run.to, 0] as [number, number | null]] : []),
-        ]),
-        ...(strip.heardUntil < to ? [[strip.heardUntil + 1, null] as [number, number | null]] : []),
-      ],
-    })),
+    ...strips.map((strip): CsvColumn =>
+      strip.levels.length > 0
+        ? {
+            // How hard it ran over each window, in per cent of full output: the level it ran at, by the share of the window it ran.
+            label: t('timeline.csvLevel', { output: strip.name }),
+            decimals: 0,
+            points: stamps.flatMap(stamp => {
+              const [start, end] = [Math.max(from, stamp - stepMs), Math.min(stamp, strip.heardUntil)];
+              if (end <= start) return [];
+              const ran = strip.runs.reduce((sum, run) => sum + Math.max(0, Math.min(run.to, end) - Math.max(run.from, start)), 0) / (end - start);
+              const level = strip.levels.find(([at]) => at >= stamp)?.[1] ?? 0;
+              return [[stamp - before, ran > 0 ? level * ran : 0] as [number, number | null]];
+            }),
+          }
+        : {
+            label: t('timeline.csvOutput', { output: strip.name }),
+            holds: true,
+            points: [
+              [from, 0] as [number, number | null],
+              ...strip.runs.flatMap(run => [
+                [Math.max(from, run.from), 1] as [number, number | null],
+                ...(run.to < strip.heardUntil ? [[run.to, 0] as [number, number | null]] : []),
+              ]),
+              ...(strip.heardUntil < to ? [[strip.heardUntil + 1, null] as [number, number | null]] : []),
+            ],
+          },
+    ),
   ];
 
   return csvOf(columns, zone, t('timeline.csvTime'), decimalComma);

@@ -66,10 +66,11 @@ export const cursorStamp = (time: number, window: Span, stepSeconds: number, zon
 export const meanStamp = (t: Translate, middle: number, window: Span, stepSeconds: number, zone: string | null): string => {
   const [from, to] = [middle - stepSeconds * 500, middle + stepSeconds * 500];
   const sameDay = zonedAt(from, zone).hasSame(zonedAt(to, zone), 'day');
-  const clock = stepSeconds % 60 === 0 ? CLOCK : `${CLOCK}:ss`;
+  // Seconds on both ends or on neither: where the stretch is whole minutes, its ends are.
+  const fine = stepSeconds % 60 === 0 ? 60 : 1;
   return t('timeline.meanOver', {
-    from: cursorStamp(from, window, stepSeconds, zone),
-    to: sameDay ? zonedAt(to, zone).toFormat(clock) : cursorStamp(to, window, stepSeconds, zone),
+    from: cursorStamp(from, window, fine, zone),
+    to: sameDay ? zonedAt(to, zone).toFormat(fine === 1 ? `${CLOCK}:ss` : CLOCK) : cursorStamp(to, window, fine, zone),
   });
 };
 

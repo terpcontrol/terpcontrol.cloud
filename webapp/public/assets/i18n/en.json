@@ -2140,7 +2140,9 @@
       "h": "every {{n}} h",
       "d_one": "every day",
       "d_other": "every {{n}} days"
-    }
+    },
+    "csvVpd": "VPD, worked out from temperature and humidity",
+    "csvLevel": "{{output}} (%)"
   },
   "camera": {
     "lastError": "Last try failed: {{reason}}",

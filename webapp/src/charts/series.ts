@@ -204,6 +204,8 @@ const niceStep = (rough: number): number => {
 export interface CsvColumn {
   label: string;
   points: readonly [number, number | null][];
+  /** How many decimals every figure of the column is written with; left out, each as it was measured. */
+  decimals?: number;
   /** Set for a state that stands until it changes, which is what makes it readable across the rows it has no instant of its own at. */
   holds?: boolean;
 }
@@ -211,12 +213,23 @@ export interface CsvColumn {
 export const csvOf = (columns: readonly CsvColumn[], zone: string | null, timeHead = 'time', decimalComma = false): string => {
   const times = [...new Set(columns.flatMap(column => column.points.map(([time]) => time)))].sort((one, other) => one - other);
   // Where figures are written with a comma a spreadsheet reads the file with semicolons between them.
-  const cell = (value: number | null): string => (value === null ? '' : decimalComma ? String(value).replace('.', ',') : String(value));
+  const cell = (value: number | null, decimals?: number): string => {
+    if (value === null) return '';
+    const written = decimals === undefined ? String(value) : value.toFixed(decimals);
+    return decimalComma ? written.replace('.', ',') : written;
+  };
   const between = decimalComma ? ';' : ',';
-  const cells = columns.map(column => (column.holds ? carried(column.points, times) : measured(column.points, times)).map(cell));
-  const rows = times.map((time, row) => [zonedAt(time, zone).toISO() ?? '', ...cells.map(column => column[row])].join(between));
+  const cells = columns.map(column =>
+    (column.holds ? carried(column.points, times) : measured(column.points, times)).map(value => cell(value, column.decimals)),
+  );
+  const rows = times
+    .map((time, row) => ({ time, cells: cells.map(column => column[row]) }))
+    // An instant at which no column says anything - the break a silence leaves in a curve - is no row.
+    .filter(row => row.cells.some(one => one !== ''))
+    .map(row => [zonedAt(row.time, zone).toISO() ?? '', ...row.cells].join(between));
 
-  return [[timeHead, ...columns.map(column => column.label)].map(quoted).join(between), ...rows].join('\n');
+  // The mark a spreadsheet reads the file's encoding by: without it "°C" and "CO₂" arrive as two wrong letters each.
+  return `\uFEFF${[[timeHead, ...columns.map(column => column.label)].map(quoted).join(between), ...rows].join('\n')}`;
 };
 
 /** A column's own instants and nothing else: where it measured nothing, it says nothing. */

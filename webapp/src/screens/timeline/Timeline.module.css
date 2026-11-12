@@ -286,11 +286,12 @@
   object-fit: cover;
 }
 
+/* Its words stand over the play button's corner, not under it. */
 .noFrame {
   display: grid;
-  place-items: center;
+  place-items: start center;
   height: 100%;
-  padding: var(--space-1);
+  padding: var(--space-2) var(--space-1) 44px;
   font-size: var(--text-2xs);
   color: var(--muted);
   text-align: center;
@@ -379,6 +380,8 @@
 /* The (i) beside a name, lent a finger's room around it. */
 .panelHead h2 button {
   position: relative;
+  /* Over the figures beside it, so the room lent to it is its own to the last pixel. */
+  z-index: 1;
 }
 
 .panelHead h2 button::after {
