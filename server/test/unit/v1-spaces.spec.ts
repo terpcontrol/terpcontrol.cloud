@@ -645,6 +645,17 @@ describe('what stands in it', () => {
     expect(placements[0]).toMatchObject({ spaceId: OTHER_SPACE, startedAt: new Date('2026-01-03T00:00:00.000Z'), endedAt: null });
   });
 
+  it('refuses a device of another account, however much its owner may manage the place', async () => {
+    // The manager of the room may steer every tent in it; hardware of their own does not stand in the host's tent.
+    await db.devices.create({ id: 'device-of-the-manager', type: 'fan', ownerId: MANAGER, spaceId: null, placements: [] });
+
+    const problem = await refusal(() => spaces.placeDevice(SPACE, 'device-of-the-manager', false));
+
+    expect(problem.problem).toMatchObject({ status: 409, code: 'place_of_another_account' });
+    expect(problem.problem.detail).toBe('A device stands only in a place of the account it belongs to.');
+    expect(await db.devices.findOne({ id: 'device-of-the-manager' }).lean()).toMatchObject({ spaceId: null, placements: [] });
+  });
+
   it('refuses to put a device into a room', async () => {
     expect((await refusal(() => spaces.placeDevice(ROOM, DEVICE, false))).problem.code).toBe('room_by_itself');
   });

@@ -205,6 +205,15 @@ describe('editing a place', () => {
     expect(api.patch).not.toHaveBeenCalled();
   });
 
+  it('offers a member who manages the place no device to bring: a device stands only in a place of its owner', async () => {
+    state.spaces = [spaceWhere('manage', { id: 'tent', name: 'Tent' }), FRIDGE];
+    state.devices = [device({ ownerId: 'user-host' }), device({ id: 'device-2', type: 'fan', name: 'fan', spaceId: 'fridge' })];
+    draw('/spaces/tent/edit');
+
+    expect(await screen.findByRole('link', { name: /Controller/ })).toBeInTheDocument();
+    expect(screen.queryByText('+ Bring a device here')).not.toBeInTheDocument();
+  });
+
   it('leads straight to adding a device where none stands anywhere else', async () => {
     draw('/spaces/tent/edit');
 

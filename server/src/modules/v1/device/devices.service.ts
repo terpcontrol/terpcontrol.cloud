@@ -97,8 +97,8 @@ export class DevicesService {
 
   /** Only what a client may write. What the device is, who owns it and everything under `state` are not patched. */
   public async update(id: string, body: DeviceUpdate): Promise<StoredDevice> {
-    if (body.spaceId) await this.refuseARoom(body.spaceId);
-    const before = await this.devices.findOne({ id }, { firmware: 1, state: 1, spaceId: 1 }).lean<StoredDevice | null>();
+    const before = await this.devices.findOne({ id }, { firmware: 1, state: 1, spaceId: 1, ownerId: 1 }).lean<StoredDevice | null>();
+    if (body.spaceId && before && body.spaceId !== before.spaceId) await this.requireAPlaceOf(before.ownerId, body.spaceId);
     // Where it stands is the placement writer's, below.
     const changes = Object.fromEntries(Object.entries(body).filter(([key, value]) => value !== undefined && key !== 'spaceId'));
     // Pinning a build by hand is telling a device to install one, exactly as
@@ -137,11 +137,29 @@ export class DevicesService {
     return placed;
   }
 
-  /** A device stands in a place, and the place in a room: a room is a field of its places and holds nothing itself. */
-  private async refuseARoom(spaceId: string): Promise<void> {
-    if (await this.spaces.exists({ id: spaceId, kind: 'room' })) {
+  /**
+   * Where a device may be put: in a place of the account it belongs to, and
+   * never in a room. A member who may manage a host's place manages what stands
+   * in it; hardware of their own standing there would be read, moved and ended
+   * with a place that is not theirs - the host's "Ort entfernen" would decide
+   * about a device the host does not own, and the member's device would vanish
+   * from every list of their own places. A room is a field of its places and
+   * holds nothing itself.
+   */
+  private async requireAPlaceOf(ownerId: string | null, spaceId: string): Promise<void> {
+    const space = await this.spaces.findOne({ id: spaceId }, { kind: 1, ownerId: 1 }).lean<Pick<SpaceDocument, 'kind' | 'ownerId'> | null>();
+    if (space?.kind === 'room') {
       throw conflict('room_by_itself', 'A room is a field of the places standing in it.', [
         { field: 'spaceId', code: 'not_allowed', detail: 'A device stands in a place, and the place in a room.' },
+      ]);
+    }
+    if (space && space.ownerId !== ownerId) {
+      throw conflict('place_of_another_account', 'A device stands only in a place of the account it belongs to.', [
+        {
+          field: 'spaceId',
+          code: 'not_allowed',
+          detail: 'Put it in a place of its owner, or let its owner give it up so that the other account can add it.',
+        },
       ]);
     }
   }
@@ -198,7 +216,8 @@ export class DevicesService {
     const name = given ?? device.type;
     // Putting a device into a space that exists is managing that space.
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
-    if (body.spaceId) await this.refuseARoom(body.spaceId);
+    // The claimer is about to own the device, and a device stands only in a place of its owner.
+    if (body.spaceId) await this.requireAPlaceOf(ownerId, body.spaceId);
 
     // The device is taken first, and taken atomically: two people reading one
     // display cannot both end up owning it, and nothing is created for a claim

@@ -70,6 +70,32 @@ describe('claiming a device', () => {
     await owner.client.post('/v1/devices/claims').send({ code, spaceId: tent.id }).expect(201);
   });
 
+  /**
+   * A member who may manage a host's place steers what stands in it. Hardware of their own does not stand there:
+   * the host would end, move and give away a device that is not theirs, and it would be on no Start of its owner.
+   */
+  it('refuses a device in a place of another account, by a claim and by a move, with a sentence', async () => {
+    const host = await createAccount('devices-host');
+    const tent = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'The host´s tent' }).expect(201)).body;
+    const invite = (await host.client.post(`/v1/spaces/${tent.id}/invites`).send({ role: 'can_manage' }).expect(201)).body;
+    await owner.client.post(`/v1/invites/${invite.code}/acceptances`).expect(201);
+
+    const fan = await registerDevice('fan');
+    const code = await claimCodeOf(fan.deviceId);
+    const claimed = await owner.client.post('/v1/devices/claims').send({ code, spaceId: tent.id }).expect(409);
+    expect(claimed.body).toMatchObject({ code: 'place_of_another_account', detail: 'A device stands only in a place of the account it belongs to.' });
+
+    // The code is not spent by the refusal: the device is claimed into a place of its owner's, and stays there.
+    const own = (await owner.client.post('/v1/devices/claims').send({ code }).expect(201)).body.device;
+    expect((await owner.client.patch(`/v1/devices/${fan.deviceId}`).send({ spaceId: tent.id }).expect(409)).body.code).toBe(
+      'place_of_another_account',
+    );
+    expect((await owner.client.put(`/v1/spaces/${tent.id}/devices/${fan.deviceId}`).expect(409)).body.code).toBe('place_of_another_account');
+    expect((await owner.client.get(`/v1/devices/${fan.deviceId}`).expect(200)).body.spaceId).toBe(own.spaceId);
+    // Renaming it where it stands is still its owner's.
+    await owner.client.patch(`/v1/devices/${fan.deviceId}`).send({ name: 'My fan' }).expect(200);
+  });
+
   it('tells the owner of a device that they already added it', async () => {
     const device = await provisionDevice(owner);
 

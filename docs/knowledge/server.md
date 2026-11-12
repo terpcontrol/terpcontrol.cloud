@@ -128,6 +128,11 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   `SpacesService.endRoomIfEmpty` ends a room once no place that has not ended stands in it and nobody is a member of
   it. It is called wherever one of the two can become true: a place leaves a room, ends or is archived, a membership
   is removed, an account is deleted. A new path that takes a place out of a room or removes a membership calls it too.
+- **A device stands only in a place of its owner** (the redesign session of 2026-11-12, awaiting Chris's
+  confirmation with the ADR's amendment): `DevicesService.requireAPlaceOf` refuses a claim or a move into a place of
+  another account (409 `place_of_another_account`) and into a room (409 `room_by_itself`), for every caller - a
+  member who may manage the place and an administrator included. Every write of where a device stands goes through
+  it, because they all go through `DevicesService.update` or `claim`.
 - **A second name is refused with a sentence:** 409 `name_taken`, whose `detail` names the place or room that has it
   ("Another place is already called "Zelt"."), from `POST`/`PATCH /spaces` and from bringing an archived place back;
   a blank name is 422 `name_required`. A claim is never refused for a name: the place it makes counts on ("Zelt 2").

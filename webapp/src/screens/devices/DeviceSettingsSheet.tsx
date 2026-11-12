@@ -5,6 +5,7 @@ import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js
 import { useCameras } from '@/api/cameras';
 import { useDevices, useSocketTables, useUpdateDevice } from '@/api/devices';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
+import { useSession } from '@/api/session';
 import { useLog } from '@/log/log-context';
 import { Facts } from '@/ui/Facts';
 import { cameraTitle, deviceTitle, givenName, placeKindOf } from '@/ui/naming';
@@ -37,6 +38,7 @@ const NEW = 'new';
 export function DeviceSettingsSheet({ device, to = null, onClose }: { device: Device; to?: string | null; onClose: () => void }) {
   const { t } = useTranslation();
   const { tell } = useLog();
+  const { user } = useSession();
   const write = useUpdateDevice(device.id);
   const create = useCreateSpace();
   const spaces = useSpaces();
@@ -59,7 +61,10 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
   const here = listed.find(space => space.id === device.spaceId) ?? null;
   // Only a room this account can see is one a new place can be made in.
   const roomId = here?.roomId && listed.some(space => space.id === here.roomId) ? here.roomId : null;
-  const moving = chosen !== null && chosen !== device.spaceId;
+  // A device stands only in a place of its owner, so only its owner is asked where: somebody who manages the
+  // place it stands in renames it and no more.
+  const mine = user !== null && device.ownerId === user.id;
+  const moving = mine && chosen !== null && chosen !== device.spaceId;
   const busy = write.isPending || create.isPending;
 
   const along = [
@@ -127,38 +132,42 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
           />
         </Block>
 
-        <Block label={t('devices.settings.place')} help="deviceMove">
-          <div className={styles.places}>
-            <Choices label={t('devices.settings.place')}>
-              {placesFor(listed).map(space => (
-                <Choice key={space.id} chosen={space.id === (chosen ?? device.spaceId)} disabled={busy} onChoose={() => setChosen(space.id)}>
-                  {space.name}
+        {mine ? (
+          <Block label={t('devices.settings.place')} help="deviceMove">
+            <div className={styles.places}>
+              <Choices label={t('devices.settings.place')}>
+                {placesFor(listed)
+                  .filter(space => space.ownerId === device.ownerId)
+                  .map(space => (
+                    <Choice key={space.id} chosen={space.id === (chosen ?? device.spaceId)} disabled={busy} onChoose={() => setChosen(space.id)}>
+                      {space.name}
+                    </Choice>
+                  ))}
+                <Choice chosen={chosen === NEW} disabled={busy} onChoose={() => setChosen(NEW)}>
+                  + {t('devices.settings.newPlace')}
                 </Choice>
-              ))}
-              <Choice chosen={chosen === NEW} disabled={busy} onChoose={() => setChosen(NEW)}>
-                + {t('devices.settings.newPlace')}
-              </Choice>
-            </Choices>
-          </div>
-          {chosen === NEW ? (
-            <input
-              className={ui.input}
-              value={placeName}
-              aria-label={t('devices.settings.newPlaceName')}
-              placeholder={t('devices.settings.newPlaceName')}
-              autoComplete="off"
-              onChange={event => {
-                setPlaceName(event.target.value);
-                setMade(null);
-              }}
-            />
-          ) : null}
-          {moving && along.length > 0 ? (
-            <p className={styles.along}>
-              <Facts facts={[`${t('devices.settings.with')} ${along[0]}`, ...along.slice(1)]} />
-            </p>
-          ) : null}
-        </Block>
+              </Choices>
+            </div>
+            {chosen === NEW ? (
+              <input
+                className={ui.input}
+                value={placeName}
+                aria-label={t('devices.settings.newPlaceName')}
+                placeholder={t('devices.settings.newPlaceName')}
+                autoComplete="off"
+                onChange={event => {
+                  setPlaceName(event.target.value);
+                  setMade(null);
+                }}
+              />
+            ) : null}
+            {moving && along.length > 0 ? (
+              <p className={styles.along}>
+                <Facts facts={[`${t('devices.settings.with')} ${along[0]}`, ...along.slice(1)]} />
+              </p>
+            ) : null}
+          </Block>
+        ) : null}
 
         <Refused error={create.error ?? write.error} />
       </div>

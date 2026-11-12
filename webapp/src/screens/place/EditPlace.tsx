@@ -15,7 +15,7 @@ import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, NoLongerHere, Refused, Waiting } from '@/ui/PageState';
 import { usePlaceDevices } from '@/ui/place-devices';
 import { Row, Rows } from '@/ui/Rows';
-import { enough, useMayIn, useMayManage, useMayWith } from '@/ui/session-access';
+import { useMayIn, useMayManage } from '@/ui/session-access';
 import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import styles from './Place.module.css';
@@ -271,8 +271,9 @@ function DevicesHere({ space }: { space: Space }) {
   const every = useDevices().data?.items;
   const cameras = useCameras(space.id).data?.items.filter(camera => camera.removedAt === null) ?? [];
   const spaces = useSpaces().data?.items ?? [];
-  const mayWith = useMayWith();
-  const elsewhere = (every ?? []).filter(device => device.spaceId !== space.id && enough(mayWith(device), 'manage'));
+  // A device stands only in a place of its owner: only the owner of the place brings one, and only one of their own.
+  const owns = useMayIn(space.id, 'own');
+  const elsewhere = (every ?? []).filter(device => device.spaceId !== space.id && device.ownerId === space.ownerId);
   const [bringing, setBringing] = useState(false);
   const [moving, setMoving] = useState<Device | null>(null);
   const claim = `/claim?space=${encodeURIComponent(space.id)}`;
@@ -299,7 +300,7 @@ function DevicesHere({ space }: { space: Space }) {
             to={cameraPath(camera.id)}
           />
         ))}
-        {elsewhere.length > 0 ? (
+        {!owns ? null : elsewhere.length > 0 ? (
           <button type="button" className={styles.add} onClick={() => setBringing(true)}>
             + {t('place.edit.bring')}
           </button>

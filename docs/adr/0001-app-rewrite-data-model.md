@@ -358,6 +358,14 @@ like a place.
      Where another device held the place until the new one was put in - a controller replaced - that device's days
      stay its own, and the new one's begin when it came. (It is also what keeps a simulated device's backfilled
      history readable: the simulator claims first and writes three weeks of readings behind the claim.)
+   - **A device stands only in a place of its owner** (decided after the round's walk, 2026-11-12: a member who
+     managed a host's place had hung a fan of their own in it, and the host's "Ort entfernen" then decided about
+     hardware that was not the host's while the fan was on no Start of its owner). A claim, a move
+     (`PATCH /devices/{id}`) and `PUT /spaces/{id}/devices/{deviceId}` refuse a place of another account with 409
+     `place_of_another_account` and a sentence, whatever the caller may manage there; the refused claim does not
+     spend its code. It narrows the access rule for these three writes only: `manage` on a place still steers what
+     stands in it. No migration step moves anything: the old cloud had no memberships, so a database from it holds
+     no such device, and the one test stack looked at held none either.
    - **A stay of less than five minutes is a mistake put right, not a stay**: a move away from a place the device
      came to less than five minutes ago drops that placement, and where the device goes back to the place it had
      left, the placement there is opened again as if nothing had happened. The move sheet's "undo" is that case; five

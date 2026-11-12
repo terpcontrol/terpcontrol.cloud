@@ -5,7 +5,7 @@ import type { AccessNeed, Camera, Device, Socket, Space } from '@fg2/shared-type
 import { api } from '@/api/client';
 import type { Told } from '@/log/log-context';
 import { drawDevicePages } from './device-pages';
-import { spaceWhere, THE_HOST } from './session';
+import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
 /**
@@ -43,7 +43,7 @@ const THE_PLUG = {
   id: 'device-1',
   type: 'plug',
   name: null,
-  ownerId: THE_HOST,
+  ownerId: YOU,
   spaceId: 'space-1',
   configuration: null,
   firmware: { channel: 'manual', targetId: null },
@@ -117,7 +117,8 @@ describe('naming a device and moving it', () => {
 
   /** What may be done is the device's answer and not the screen's: the same reader owns one tent and only writes lines in the next. */
   it('offers it to nobody who may only write lines where the device stands', async () => {
-    await drawTab('log');
+    answer([{ ...THE_PLUG, ownerId: THE_HOST }], [spaceWhere('log'), ELSEWHERE]);
+    await drawPage('Plantalytix Socket');
 
     expect(screen.queryByRole('button', RENAME)).not.toBeInTheDocument();
   });
@@ -191,6 +192,21 @@ describe('naming a device and moving it', () => {
     // Taken back, it stands where it stood.
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1', { spaceId: 'space-1' });
+  });
+
+  /** A device stands only in a place of its owner, so somebody who manages the host's place is not asked where it stands. */
+  it('offers somebody who manages another´s device its name and no place to move it to', async () => {
+    answer([{ ...THE_PLUG, ownerId: THE_HOST }], [spaceWhere('manage'), ELSEWHERE]);
+    await drawPage('Plantalytix Socket');
+    const sheet = await openSheet();
+
+    expect(sheet.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
+    expect(sheet.queryByRole('button', { name: 'Fridge 1' })).not.toBeInTheDocument();
+    expect(sheet.queryByRole('button', { name: /New place/ })).not.toBeInTheDocument();
+    fireEvent.change(sheet.getByRole('textbox', { name: 'Name' }), { target: { value: 'Humidifier plug' } });
+    fireEvent.click(sheet.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1', { name: 'Humidifier plug' }));
   });
 
   it('leaves a device where it is when the chip of its own place is tapped again', async () => {
