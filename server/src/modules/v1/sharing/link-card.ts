@@ -83,7 +83,14 @@ const wrap = (text: string, size: number, lines: number): string[] => {
  * diary shown to somebody, and a German diary's card said "A grow diary by".
  * The stages are the app's names for them (`home.stage` in its catalogues).
  */
-const WORDS = {
+interface CardWords {
+  day: (day: number) => string;
+  diaryBy: (handle: string | null) => string;
+  diaries: (count: number) => string;
+  stage: Record<GrowthStage, string>;
+}
+
+const WORDS: Record<'de' | 'en', CardWords> = {
   de: {
     day: (day: number) => `Tag ${day}`,
     diaryBy: (handle: string | null) => (handle ? `Ein Grow-Tagebuch von @${handle}` : 'Ein Grow-Tagebuch'),
@@ -102,7 +109,7 @@ const WORDS = {
       count === 0 ? 'No public grow diaries yet.' : count === 1 ? 'One public grow diary.' : `${count} public grow diaries.`,
     stage: { germination: 'Germination', seedling: 'Seedling', vegetative: 'Veg', flowering: 'Flower', drying: 'Drying', curing: 'Curing' },
   },
-} as const satisfies Record<string, { stage: Record<GrowthStage, string> } & Record<string, unknown>>;
+};
 
 /** The words of a language the app speaks, English for any other. */
 export const cardWords = (language: string | null | undefined) => (language?.startsWith('de') ? WORDS.de : WORDS.en);
