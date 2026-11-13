@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import type { MetricValue, ValueState } from '@fg2/shared-types/v1';
 import { valueStateOfAge } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { serverNow } from '@/api/clock';
-import { CLOCK, DATED_CLOCK, DAY_IN_YEAR, nowThere, zoned } from './zone';
+import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY, DAY_IN_YEAR, nowThere, zoned } from './zone';
 
 /**
  * Every value on a screen carries its age: this puts that age into words, says
@@ -108,23 +108,26 @@ export const silentSince = (alert: { startedAt: string; value: number | null }):
 /**
  * The hour of an instant, where the account is: "10:19" today, and with its
  * day on any other, because a bare hour from yesterday reads as one still to
- * come and a mute that ends tomorrow as one already past.
+ * come and a mute that ends tomorrow as one already past - and with its year
+ * where that is not this one.
  */
 export const sinceLabel = (instant: string, now: DateTime, zone: string | null): string => {
   const at = zoned(instant, zone);
-  return at.hasSame(nowThere(now, zone), 'day') ? at.toFormat(CLOCK) : at.toFormat(DATED_CLOCK);
+  const today = nowThere(now, zone);
+  return at.toFormat(at.hasSame(today, 'day') ? CLOCK : at.hasSame(today, 'year') ? DATED_CLOCK : DATED_CLOCK_WITH_YEAR);
 };
 
 /**
  * When a line of a summary happened, in one short word: the hour today,
- * "gestern", the weekday while that weekday means one day, the date beyond.
+ * "gestern", the weekday while that weekday means one day, the date beyond -
+ * with its year where the line is from an earlier one.
  */
 export const dayStamp = (instant: string, now: DateTime, zone: string | null): string => {
   const at = zoned(instant, zone);
   const days = Math.floor(nowThere(now, zone).startOf('day').diff(at.startOf('day'), 'days').days);
   if (days <= 0) return at.toFormat(CLOCK);
   if (days === 1) return i18next.t('age.yesterday');
-  return at.toFormat(days < 7 ? 'cccc' : DAY_IN_YEAR);
+  return at.toFormat(days < 7 ? 'cccc' : at.hasSame(nowThere(now, zone), 'year') ? DAY_IN_YEAR : DAY);
 };
 
 /**

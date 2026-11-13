@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Metric, ReadingName } from '@fg2/shared-types/v1';
+import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Metric, Plant, ReadingName } from '@fg2/shared-types/v1';
 import type { i18n as I18n } from 'i18next';
 import { alarmLineParts } from '@/i18n/alarm-line';
 import type { Translate } from '@/i18n/i18n';
@@ -33,6 +33,10 @@ export interface DiaryReader {
   cameras: boolean;
   /** Whether a line says who wrote it: not where the reader is answered no authors - a page anybody may open, the demo. */
   byline: boolean;
+  /** The grow's plants by name, where the reader is answered them: a line about some of them names those. */
+  plants: readonly Pick<Plant, 'id' | 'growId' | 'label'>[];
+  /** Whether a line draws the pictures it carries: for a reader from outside, who is shown the diary. A member's line counts them. */
+  thumbnails: boolean;
   /** The sheet that corrects a line, where this reader may correct it. */
   correct: (entry: Entry, dayNumber: number | null) => (() => void) | undefined;
   /** The curve of a reading at a moment of the diary, where the reader has one to open. */
@@ -107,8 +111,8 @@ export interface DayLine {
 /**
  * The lines of a day, newest first.
  *
- * What people did stands as they wrote it, and maintenance somebody switched
- * as one line for on and off together. What the devices did by themselves is
+ * What people did stands as they wrote it, and maintenance or regulation off
+ * somebody switched as one line for on and off together. What the devices did by themselves is
  * said once each: the lamp as the hours it burned, a reading outside its
  * targets as one line however often it left them, an alarm as its rule with
  * how often it fired - a reading hovering at its threshold fires and clears a
@@ -130,15 +134,16 @@ export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entr
     what: { kind: 'said', words, metric, ...(moment ? { moment: true as const } : {}) },
   });
 
+  // Maintenance and regulation switched off, each one line for on and off together - somebody's, as a line written is.
   const maintenance = day.events.flatMap(event =>
-    event.kind === 'maintenance'
+    event.kind === 'maintenance' || event.kind === 'controlOff'
       ? [
           said(
-            `maintenance-${event.at}`,
+            `${event.kind}-${event.at}`,
             event.at,
             event.endedAt
-              ? t('grow.diary.maintenance', { span: spanLabel((Date.parse(event.endedAt) - Date.parse(event.at)) / 1000) })
-              : t('grow.diary.maintenanceOn'),
+              ? t(`grow.diary.${event.kind}`, { span: spanLabel((Date.parse(event.endedAt) - Date.parse(event.at)) / 1000) })
+              : t(`grow.diary.${event.kind}On`),
             { own: true },
           ),
         ]
@@ -200,18 +205,27 @@ export const writtenLine = (entry: Entry, count = 1, since = entry.occurredAt): 
 const OWN_SHOWN = 6;
 const LINES_SHOWN = 4;
 
+/** An alarm that stands open: what the day's card never folds away. */
+const openAlarm = (line: DayLine): boolean => line.what.kind === 'alarm' && !line.what.over;
+
+/** How many of these lines are an alarm's: what the row that unfolds a card says it hides. */
+export const alarmsIn = (lines: DayLine[]): number => lines.filter(line => line.what.kind === 'alarm').length;
+
 /**
  * The lines a card draws before the rest is asked for. The grower's own lines
- * come first and are never folded behind a device's; what the devices did
- * fills what is left of four lines, what is out of the ordinary - a reading
- * outside its targets, an alarm, a step of the plan - before the lamp.
+ * come first and are never folded behind a device's, and an alarm that stands
+ * open is never folded at all; what else the devices did fills what is left
+ * of four lines, what is out of the ordinary - a reading outside its targets,
+ * an alarm that is over, a step of the plan - before the lamp.
  */
 export const shownLines = (lines: DayLine[]): DayLine[] => {
   const own = lines.filter(line => line.own).slice(0, OWN_SHOWN);
-  const devices = lines.filter(line => !line.own);
-  const filled = [...devices.filter(line => !line.routine), ...devices.filter(line => line.routine)].slice(0, Math.max(0, LINES_SHOWN - own.length));
+  const open = lines.filter(openAlarm);
+  const devices = lines.filter(line => !line.own && !openAlarm(line));
+  const room = Math.max(0, LINES_SHOWN - own.length - open.length);
+  const filled = [...devices.filter(line => !line.routine), ...devices.filter(line => line.routine)].slice(0, room);
 
-  const shown = lines.filter(line => own.includes(line) || filled.includes(line));
+  const shown = lines.filter(line => own.includes(line) || open.includes(line) || filled.includes(line));
   // One line more is shown rather than folded behind a button as tall as itself.
   return lines.length - shown.length === 1 ? lines : shown;
 };
@@ -225,8 +239,8 @@ const CLEARED = 'message-alarm-resolved';
 /**
  * A day's alarms as one line per rule: its newest firing, how often it fired
  * and since when. A rule that fired once keeps the line that says it is over;
- * one that fired again and again says how often, which says that as well.
- * `told` is every entry these lines stand for.
+ * one that fired again and again says how often, and that it is over once its
+ * newest line is the clearing. `told` is every entry these lines stand for.
  */
 const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set<string> } => {
   const read = entries.flatMap(entry => {
@@ -246,8 +260,10 @@ const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set
     one => one.parts.rule,
     one => one.entry.occurredAt,
   ).filter(run => run.count > 1);
+  // Newest first: a rule whose newest line is its clearing is over, however often it fired before.
+  const overNow = (rule: string) => read.find(one => one.parts.rule === rule)?.fired === false;
   const lines = [
-    ...often.map(run => line(run.newest, run.count, run.since, false)),
+    ...often.map(run => line(run.newest, run.count, run.since, overNow(run.newest.parts.rule))),
     ...read.filter(one => !often.some(run => run.newest.parts.rule === one.parts.rule)).map(one => line(one, 1, one.entry.occurredAt, !one.fired)),
   ];
 

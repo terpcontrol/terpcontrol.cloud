@@ -3,12 +3,24 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowDiaryDay, Person } from '@fg2/shared-types/v1';
 import { THUMBNAIL_WIDTH } from '@/api/session';
+import { Facts } from '@/ui/Facts';
 import { Term } from '@/ui/Help';
 import { Lines } from '@/ui/Lines';
 import { useKept } from '@/ui/kept';
 import ui from '@/ui/ui.module.css';
 import { clock } from '@/ui/zone';
-import { climateLine, dayLines, dayTitle, headPicture, picturesOfLine, shareOf, shownLines, type DiaryReader, type GrowPicture } from './days';
+import {
+  alarmsIn,
+  climateLine,
+  dayLines,
+  dayTitle,
+  headPicture,
+  picturesOfLine,
+  shareOf,
+  shownLines,
+  type DiaryReader,
+  type GrowPicture,
+} from './days';
 import { DiaryLine } from './DiaryLine';
 import styles from './Diary.module.css';
 
@@ -21,8 +33,10 @@ import styles from './Diary.module.css';
  * A day nobody photographed has no picture and no frame for one: its words
  * take the card's width. A share is drawn only where the server states one.
  * A line somebody may correct opens its sheet, one that carries pictures
- * opens them, and a stretch outside the targets leads to the curve of that
- * moment - for a reader the diary gives those ways to (`reader`).
+ * opens them from their count - or shows them, to a reader from outside -
+ * and a stretch outside the targets leads to the curve of that moment, for a
+ * reader the diary gives those ways to (`reader`). What a card folds away it
+ * counts, and says how much of it was an alarm.
  */
 export function DayCard({
   day,
@@ -59,6 +73,7 @@ export function DayCard({
   const share = shareOf(day);
   const lines = dayLines(t, i18n, day, zone);
   const shown = all ? lines : shownLines(lines);
+  const folded = lines.filter(line => !shown.includes(line));
   const alt = picture ? t(picture.entry ? 'grow.diary.photoAlt' : 'grow.diary.stillAlt', { day: day.dayNumber }) : '';
 
   return (
@@ -98,8 +113,8 @@ export function DayCard({
           <Lines>
             {shown.map(line => {
               const entry = line.what.kind === 'entry' ? line.what.entry : null;
-              const pictures = entry ? picturesOfLine(day, entry) : [];
-              const correct = entry ? reader.correct(entry, day.dayNumber) : undefined;
+              // The pictures this reader is given: a link narrowed to a window refuses the ones outside it, one by one.
+              const pictures = (entry ? picturesOfLine(day, entry) : []).filter(one => reader.picture(one.mediaId) !== null);
               return (
                 <DiaryLine
                   key={line.key}
@@ -111,15 +126,22 @@ export function DayCard({
                   measurements={reader.readingNames}
                   byline={reader.byline}
                   to={line.what.kind === 'said' && (line.what.metric || line.what.moment) ? reader.curveOf(line.what.metric, line.at) : null}
-                  onOpen={correct ?? (pictures[0] ? () => onPicture(pictures[0]) : null)}
-                  opens={correct ? undefined : t('grow.diary.openPicture')}
+                  onOpen={entry ? reader.correct(entry, day.dayNumber) : null}
+                  plants={reader.plants}
+                  onPictures={pictures.length > 0 ? index => onPicture(pictures[index]) : null}
+                  thumbnails={reader.thumbnails ? pictures.map(one => reader.picture(one.mediaId, THUMBNAIL_WIDTH.still) ?? '') : undefined}
                 />
               );
             })}
           </Lines>
-          {lines.length > shown.length ? (
+          {folded.length > 0 ? (
             <button type="button" className={styles.more} onClick={() => setAll(true)}>
-              {t('grow.moreEntries', { count: lines.length - shown.length })}
+              <Facts
+                facts={[
+                  t('grow.moreEntries', { count: folded.length }),
+                  alarmsIn(folded) > 0 ? t('grow.diary.alarmsAmong', { count: alarmsIn(folded) }) : null,
+                ]}
+              />
             </button>
           ) : null}
         </div>

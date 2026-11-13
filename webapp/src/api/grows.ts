@@ -11,6 +11,7 @@ import type {
   GrowUpdate,
   MyGrowCard,
   Plant,
+  PlantCreate,
   PlantPage,
   PlantUpdate,
 } from '@fg2/shared-types/v1';
@@ -215,3 +216,15 @@ export const useUpdatePlant = (growId: string) =>
     ({ plantId, body }: { plantId: string; body: PlantUpdate }) => api.patch<Plant>(`/plants/${plantId}`, body),
     client => void invalidate(client, ['grow', growId, 'plants'], ['home']),
   );
+
+/**
+ * A plant put in after the start - what replaces a dead one, a cutting that came later - and a plant taken out
+ * again, which the server also takes out of every phase and placement that named it. Either changes what the
+ * grow's summary counts, so everything that draws the grow is read again. A grow goes with its plants and its
+ * share links.
+ */
+export const useAddPlant = (growId: string) => useWrite((body: PlantCreate) => api.post<Plant>(`/grows/${growId}/plants`, body), growChanged);
+
+export const useRemovePlant = () => useWrite((plantId: string) => api.delete(`/plants/${plantId}`), growChanged);
+
+export const useRemoveGrow = () => useWrite((growId: string) => api.delete(`/grows/${growId}`), growChanged);

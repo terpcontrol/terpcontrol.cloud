@@ -4,11 +4,12 @@ import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Person } from '@fg2/shared-types/v1';
-import { useGrowDiary } from '@/api/grows';
+import { useGrowDiary, useGrowPlants } from '@/api/grows';
 import { itemsOf } from '@/api/pages';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { timelinePath } from '@/app/places';
 import { useCorrecting } from '@/log/corrections';
+import { sinceLabel } from '@/ui/age';
 import { EntryWords } from '@/ui/EntryWords';
 import { Facts } from '@/ui/Facts';
 import { MINUTE_MS } from '@/ui/days';
@@ -17,7 +18,7 @@ import { Line, Lines } from '@/ui/Lines';
 import { LoadFailed, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
-import { DATED_CLOCK, useZone, zoned } from '@/ui/zone';
+import { useZone } from '@/ui/zone';
 import { PictureShow } from '../pictures/PictureShow';
 import { dayWindow } from '@/screens/timeline/view';
 import { DayCard } from './DayCard';
@@ -43,6 +44,7 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
   const { t } = useTranslation();
   const zone = useZone();
   const diary = useGrowDiary(grow.id);
+  const plants = useGrowPlants(grow.id);
   const { user } = useSession();
   const correcting = useCorrecting();
   const [viewing, setViewing] = useState<GrowPicture | null>(null);
@@ -68,6 +70,8 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
     cameras: true,
     // The demo is answered no authors, so its lines say what was done and name nobody.
     byline: user?.isDemo !== true,
+    plants: plants.data?.items ?? [],
+    thumbnails: false,
     correct: (entry, dayNumber) => correcting(entry, { label: grow.name, dayNumber, ...growStanding(grow) }),
     curveOf: (metric, at) => {
       const spaceId = placeAt(grow, at);
@@ -229,7 +233,8 @@ export function Days({
         </WeekRow>
       ))}
       {more ? (
-        <button type="button" className={ui.button} disabled={more.pending} onClick={more.load}>
+        // Not disabled while it asks: that would drop the focus, and the rescue's ring then read as a button of its own.
+        <button type="button" className={ui.button} aria-disabled={more.pending || undefined} onClick={() => more.pending || more.load()}>
           {more.pending ? t('home.waiting') : t('grow.earlierWeeks')}
         </button>
       ) : null}
@@ -241,7 +246,7 @@ export function Days({
           <div className={styles.dayLines}>
             <Lines>
               {earlier.map(entry => (
-                <Line key={entry.id} stamp={zoned(entry.occurredAt, reader.zone).toFormat(DATED_CLOCK)} onOpen={reader.correct(entry, null)}>
+                <Line key={entry.id} stamp={sinceLabel(entry.occurredAt, now, reader.zone)} onOpen={reader.correct(entry, null)}>
                   <EntryWords
                     entry={entry}
                     people={people}
@@ -250,6 +255,7 @@ export function Days({
                     zone={reader.zone}
                     byline={reader.byline}
                     brief
+                    plants={reader.plants}
                   />
                 </Line>
               ))}

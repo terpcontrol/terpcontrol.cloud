@@ -86,6 +86,23 @@ a.text {
   color: var(--muted);
 }
 
+/* The pictures a line carries, counted: the way to them, a finger high like the words beside it. */
+.pictures {
+  flex: none;
+  min-height: var(--control-height);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* What the devices did in a row is marked once, at the head of the run: a pill on every line said nothing new. */
+.line[data-marked] + .line[data-marked] .mark {
+  display: none;
+}
+
 /* What a device did by itself, said at the end of its line. */
 .mark {
   flex: none;

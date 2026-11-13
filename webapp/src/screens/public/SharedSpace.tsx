@@ -48,7 +48,7 @@ export function SharedSpace({
   banner?: ReactNode;
 }) {
   const { t, i18n } = useTranslation();
-  const [viewing, setViewing] = useState<string[] | null>(null);
+  const [viewing, setViewing] = useState<{ pictures: string[]; from: number } | null>(null);
   // A place with two climates is about one of them on every page: the tiles, the pill and the curves under them
   // are the place's own device's, which the server names first.
   const values = space.climates[0]?.values ?? space.values;
@@ -64,7 +64,7 @@ export function SharedSpace({
           <h1 className={styles.title}>{space.name}</h1>
           <LivenessPill liveness={liveness} measuredAt={measuredAtOf(values)} now={now} explain />
         </div>
-        <p className={`mono ${styles.facts}`}>
+        <p className={styles.facts}>
           {[t(`publicPage.spaceKind.${space.kind}`), space.grows.map(grow => grow.name).join(', ')].filter(Boolean).join(' · ')}
         </p>
       </header>
@@ -89,7 +89,7 @@ export function SharedSpace({
       )}
 
       {space.verdict.inBandFraction !== null ? (
-        <p className={`mono ${styles.verdict}`} data-rating={space.verdict.rating ?? undefined}>
+        <p className={styles.verdict} data-rating={space.verdict.rating ?? undefined}>
           {t('space.climate24h')} · <Term topic="verdict">{t('space.inBand', { percent: Math.round(space.verdict.inBandFraction * 100) })}</Term>
         </p>
       ) : null}
@@ -114,7 +114,7 @@ export function SharedSpace({
           {space.grows.map(grow => (
             <li key={grow.growId} className={styles.growRow}>
               <span className={`name ${ui.cut}`}>{grow.name}</span>
-              <span className={`mono ${styles.cardMeta}`}>
+              <span className={styles.cardMeta}>
                 {[
                   growDay(t, grow),
                   grow.stage ? t(`home.stage.${grow.stage}`) : null,
@@ -137,9 +137,10 @@ export function SharedSpace({
           <Lines>
             {/* The lines as Start says them, in the browser's zone: a share link answers what the lines and the
                 pictures are, and not where the grower who wrote them keeps their clock. A line that carries
-                pictures counts them and is the way to them. */}
+                pictures shows them: the diary is what a link shows off. */}
             {dayLines(t, i18n, { entries: space.entries, events: space.events, endsAt: now.toISO() ?? '' }, null).map(line => {
               const entry = line.what.kind === 'entry' ? line.what.entry : null;
+              const mediaIds = entry?.mediaIds ?? [];
               return (
                 <DiaryLine
                   key={line.key}
@@ -150,15 +151,16 @@ export function SharedSpace({
                   people={[]}
                   measurements={entry ? readingNamesOf(space.readingNames, entry.growId) : []}
                   byline={false}
-                  onOpen={entry?.mediaIds.length ? () => setViewing(entry.mediaIds.map(mediaId => picture(mediaId, PUBLIC_WIDTH.cover))) : null}
-                  opens={t('grow.diary.openPicture')}
+                  plants={space.plants}
+                  onPictures={from => setViewing({ pictures: mediaIds.map(mediaId => picture(mediaId, PUBLIC_WIDTH.cover)), from })}
+                  thumbnails={mediaIds.map(mediaId => picture(mediaId, PUBLIC_WIDTH.dayTile))}
                 />
               );
             })}
           </Lines>
         )}
       </section>
-      {viewing ? <PictureViewer pictures={viewing} from={0} onClose={() => setViewing(null)} /> : null}
+      {viewing ? <PictureViewer pictures={viewing.pictures} from={viewing.from} onClose={() => setViewing(null)} /> : null}
     </article>
   );
 }
@@ -181,9 +183,9 @@ function Tile({ value, setpoint, now }: { value: CardValue; setpoint: number | n
     <div className={`${ui.card} ${styles.tile}`} {...ageAttribute(valueAge(value, now))}>
       <div className={styles.tileFigure}>
         <span className="figure">{value.value === null ? t('home.card.noReading') : figure(value.value, value.metric)}</span>
-        <span className={`mono ${styles.tileUnit}`}>{UNIT[value.metric] ?? value.metric}</span>
+        <span className={styles.tileUnit}>{UNIT[value.metric] ?? value.metric}</span>
       </div>
-      <div className={`mono ${styles.tileTarget}`}>
+      <div className={styles.tileTarget}>
         <span>{t(`home.metric.${value.metric}`, { defaultValue: value.metric })}</span>
         <span>{setpoint === null ? t('home.card.noTarget') : `→ ${targetFigure(setpoint, value.metric)}`}</span>
       </div>
@@ -215,9 +217,9 @@ function WindowClimate({ verdict }: { verdict: ClimateVerdict }) {
           <div key={row.metric} className={`${ui.card} ${styles.tile}`}>
             <div className={styles.tileFigure}>
               <span className="figure">{figure(row.averageValue ?? 0, row.metric)}</span>
-              <span className={`mono ${styles.tileUnit}`}>{UNIT[row.metric] ?? row.metric}</span>
+              <span className={styles.tileUnit}>{UNIT[row.metric] ?? row.metric}</span>
             </div>
-            <div className={`mono ${styles.tileTarget}`}>
+            <div className={styles.tileTarget}>
               <span>{t(`home.metric.${row.metric}`, { defaultValue: row.metric })}</span>
               {row.minValue !== null && row.maxValue !== null ? (
                 <span>{t('publicPage.windowClimate.range', { low: figure(row.minValue, row.metric), high: figure(row.maxValue, row.metric) })}</span>
@@ -249,7 +251,7 @@ function Stills({ camera, picture, now }: { camera: OverviewCamera; picture: Pic
               alt={t('space.stillAlt', { name: camera.name, time: clock(still.capturedAt, null) })}
               className={styles.stillFrame}
             />
-            <span className={`mono ${styles.stillTime}`}>{clock(still.capturedAt, null)}</span>
+            <span className={styles.stillTime}>{clock(still.capturedAt, null)}</span>
           </li>
         ))}
       </ul>

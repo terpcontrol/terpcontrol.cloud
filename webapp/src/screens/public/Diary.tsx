@@ -13,6 +13,7 @@ import { Photo } from '@/ui/Photo';
 import { PictureViewer } from '@/ui/PictureViewer';
 import { calendarDay, DAY } from '@/ui/zone';
 import { stageLabel } from '@/ui/presets';
+import { looseFigure } from '@/ui/figures';
 import styles from './Public.module.css';
 import { windowIsCurrent } from './window';
 
@@ -56,6 +57,9 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
     picture,
     cameras: false,
     byline: false,
+    // By name, where the grower shows how many there are: a line about some of them says which.
+    plants: page.plants,
+    thumbnails: true,
     correct: () => undefined,
     curveOf: () => null,
     curvesOf: () => null,
@@ -100,7 +104,7 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
       {page.filmMediaId ? (
         <figure className={styles.film}>
           <video src={picture(page.filmMediaId)} controls preload="metadata" playsInline />
-          <figcaption className={`mono ${styles.filmCaption}`}>{t('publicPage.film')}</figcaption>
+          <figcaption className={styles.filmCaption}>{t('publicPage.film')}</figcaption>
         </figure>
       ) : null}
 
@@ -184,7 +188,7 @@ function Facts({ page }: { page: PublicGrowPage }) {
       : t('publicPage.since', { from: from.toFormat(DAY) }),
   ].filter((part): part is string => Boolean(part));
 
-  return <p className={`mono ${styles.facts}`}>{parts.join(' · ')}</p>;
+  return <p className={styles.facts}>{parts.join(' · ')}</p>;
 }
 
 /** The same five figures the owner's own Report tab counts, so a diary reads alike from both sides. */
@@ -194,11 +198,11 @@ function Totals({ page }: { page: PublicGrowPage }) {
 
   return (
     <dl className={`${ui.strip} ${ui.stripEven} ${styles.totals}`}>
-      {page.dayNumber !== null ? <Total value={page.dayNumber} label={t('grow.report.days')} /> : null}
-      <Total value={totals.entryCount} label={t('grow.report.entries')} />
-      <Total value={totals.waterCount} label={t('grow.report.waters')} />
-      <Total value={totals.feedCount} label={t('grow.report.feeds')} />
-      <Total value={totals.photoCount} label={t('grow.report.photos')} />
+      {page.dayNumber !== null ? <Total value={page.dayNumber} label={t('grow.report.days', { count: page.dayNumber })} /> : null}
+      <Total value={totals.entryCount} label={t('grow.report.entries', { count: totals.entryCount })} />
+      <Total value={totals.waterCount} label={t('grow.report.waters', { count: totals.waterCount })} />
+      <Total value={totals.feedCount} label={t('grow.report.feeds', { count: totals.feedCount })} />
+      <Total value={totals.photoCount} label={t('grow.report.photos', { count: totals.photoCount })} />
     </dl>
   );
 }
@@ -220,12 +224,12 @@ function Total({ value, label }: { value: number; label: string }) {
 function Harvest({ harvest }: { harvest: GrowHarvest }) {
   const { t } = useTranslation();
   const weights = [
-    harvest.wetWeightG !== null ? t('grow.report.wet', { grams: harvest.wetWeightG }) : null,
-    harvest.dryWeightG !== null ? t('grow.report.dry', { grams: harvest.dryWeightG }) : null,
+    harvest.wetWeightG !== null ? t('grow.report.wet', { grams: looseFigure(harvest.wetWeightG) }) : null,
+    harvest.dryWeightG !== null ? t('grow.report.dry', { grams: looseFigure(harvest.dryWeightG) }) : null,
   ].filter((part): part is string => part !== null);
 
   return (
-    <p className={`mono ${styles.harvest}`}>
+    <p className={styles.harvest}>
       {t('grow.report.harvest')}
       {harvest.harvestedAt ? ` · ${calendarDay(harvest.harvestedAt, null)}` : ''}
       {weights.length > 0 ? ` · ${weights.join(' · ')}` : ''}

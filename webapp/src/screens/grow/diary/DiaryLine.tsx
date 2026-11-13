@@ -1,6 +1,6 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
-import type { Person, ReadingName } from '@fg2/shared-types/v1';
+import type { Person, Plant, ReadingName } from '@fg2/shared-types/v1';
 import { sinceLabel } from '@/ui/age';
 import { warningOf } from '@/ui/entries';
 import { EntryWords } from '@/ui/EntryWords';
@@ -13,7 +13,10 @@ import type { DayLine } from './days';
  * One line of the diary as it is drawn wherever the diary is read - on a day's
  * card and under "Zuletzt" on Start: what somebody did as they wrote it, and
  * what the devices did by themselves marked as that. An alarm is its rule,
- * how often it fired and the edge it crossed.
+ * how often it fired and the edge it crossed. A line that carries pictures
+ * counts them as the way to them where the list has one (`onPictures`) - or
+ * draws them, for a reader of a share link (`thumbnails`) - and only counts
+ * them where it has none.
  */
 export function DiaryLine({
   line,
@@ -29,6 +32,9 @@ export function DiaryLine({
   onStamp = null,
   stampDoes,
   forwards = false,
+  plants,
+  onPictures = null,
+  thumbnails,
 }: {
   line: DayLine;
   /** When it happened, as the list it stands in says moments. */
@@ -49,6 +55,12 @@ export function DiaryLine({
   stampDoes?: string;
   /** The list was folded oldest first: a line stands at the first of its run, and the other end of it is until when it went on. */
   forwards?: boolean;
+  /** The plants of the grows these lines belong to, so a line about some of them names those. */
+  plants?: readonly Pick<Plant, 'id' | 'growId' | 'label'>[];
+  /** What opens the line's pictures, by their place among them. */
+  onPictures?: ((index: number) => void) | null;
+  /** The addresses of the line's pictures, where they are drawn in the line. */
+  thumbnails?: string[];
 }) {
   const { t } = useTranslation();
   const mark = line.own ? null : t('grow.diary.byItself');
@@ -82,8 +94,18 @@ export function DiaryLine({
   }
 
   const { entry } = what;
+  const carried = onPictures && entry.mediaIds.length > 0 ? { count: entry.mediaIds.length, onOpen: onPictures, thumbnails } : null;
   return (
-    <Line stamp={stamp} mark={mark} severity={warningOf(entry)} onOpen={onOpen} opens={opens} onStamp={onStamp} stampDoes={stampDoes}>
+    <Line
+      stamp={stamp}
+      mark={mark}
+      severity={warningOf(entry)}
+      onOpen={onOpen}
+      opens={opens}
+      onStamp={onStamp}
+      stampDoes={stampDoes}
+      pictures={carried}
+    >
       <EntryWords
         entry={entry}
         people={people}
@@ -93,7 +115,8 @@ export function DiaryLine({
         byline={byline}
         repeats={forwards ? { ...what, until: what.since } : what}
         brief
-        pictures
+        pictures={carried === null}
+        plants={plants}
       />
     </Line>
   );

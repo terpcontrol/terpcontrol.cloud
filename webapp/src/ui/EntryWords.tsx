@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
+import type { Entry, Person, Plant, ReadingName } from '@fg2/shared-types/v1';
 import { useSession } from '@/api/session';
 import { entryDetail } from '@/i18n/device-message';
 import { sinceLabel } from './age';
@@ -30,6 +30,7 @@ export function EntryWords({
   repeats = null,
   brief = false,
   pictures = false,
+  plants = [],
 }: {
   entry: Entry;
   people: Person[];
@@ -56,8 +57,10 @@ export function EntryWords({
    * detail, which is the rule and the reading and the whole of what it says.
    */
   brief?: boolean;
-  /** Whether the line counts the pictures it carries: "· 2 Bilder", one fact like the rest, and the line is the way to them. */
+  /** Whether the line counts the pictures it carries, "· 2 Bilder", one fact like the rest: where the list gives no way to them. */
   pictures?: boolean;
+  /** The plants of the grow the line belongs to, where the surface is answered them: a line about some of them names those. */
+  plants?: readonly Pick<Plant, 'id' | 'growId' | 'label'>[];
 }) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
@@ -67,6 +70,7 @@ export function EntryWords({
   const doneBy = byline && entry.source === 'human' ? doneByOf(t, i18n, entry, byYou) : null;
   const named = byline && entry.source === 'human' && (doneBy !== null || !byYou);
   const amount = amountOf(t, entry);
+  const about = plantsOf(entry, plants);
   // The line as facts side by side: who did what, how much of it, how often, each reading. No line of it ends on
   // the dot between two, and no figure leaves its unit or its label.
   const facts: ReactNode[] = [
@@ -85,13 +89,10 @@ export function EntryWords({
       {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
       <span className={styles.headline}>{doneBy ?? headlineOf(t, i18n, entry)}</span>
     </span>,
-    ...(amount ? factsOf(amount) : []).map(part => (
-      <span key={part} className="mono">
-        {unbroken(part)}
-      </span>
-    )),
+    about,
+    ...(amount ? factsOf(amount) : []).map(part => <span key={part}>{unbroken(part)}</span>),
     repeats && repeats.count > 1 ? (
-      <span key="repeats" className="mono">
+      <span key="repeats">
         {/* A list that runs forwards stands a folded line at its first and says until when it went on. */}
         {repeats.until
           ? t('home.entryRepeatsUntil', { count: repeats.count, until: sinceOf(repeats.until, now, zone) })
@@ -101,7 +102,7 @@ export function EntryWords({
     ...readings.map(reading => {
       const definition = measurements.find(one => one.key === reading.key) ?? ownReading(t, reading.key);
       return (
-        <span key={`${reading.key}-${reading.plantId ?? ''}`} className={`mono ${styles.readings}`}>
+        <span key={`${reading.key}-${reading.plantId ?? ''}`} className={styles.readings}>
           {definition?.name ?? reading.key} {unbroken(`${looseFigure(reading.value)}${definition?.unit ? ` ${definition.unit}` : ''}`)}
         </span>
       );
@@ -121,6 +122,18 @@ export function EntryWords({
     </>
   );
 }
+
+/**
+ * Which plants a line is about, where it is about some of its grow's and not
+ * all: "B2", "A1, C3". A grow of one plant has nothing to tell apart, and a
+ * line about every plant is a line about the grow.
+ */
+const plantsOf = (entry: Pick<Entry, 'growId' | 'plantIds'>, plants: readonly Pick<Plant, 'id' | 'growId' | 'label'>[]): string | null => {
+  const ofGrow = plants.filter(plant => plant.growId === entry.growId);
+  const named = ofGrow.filter(plant => entry.plantIds.includes(plant.id));
+
+  return named.length > 0 && named.length < ofGrow.length ? named.map(plant => plant.label).join(', ') : null;
+};
 
 /** When the first of a folded run was written: the hour where that was today, the date as well where it was not. */
 const sinceOf = (since: string, now: DateTime | undefined, zone: string | null): string =>

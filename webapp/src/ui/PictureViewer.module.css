@@ -135,3 +135,40 @@ div.scrim {
     height: 100%;
   }
 }
+
+/* A line's pictures in the line itself: under its words, small enough that the row is still a row. */
+.strip {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+}
+
+.small {
+  display: block;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+.smallFrame {
+  display: block;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border: var(--rule-solid);
+  border-radius: var(--radius-xs);
+}
+
+/* "+13" says the rest are there, and is the way to them: as high as the pictures beside it. */
+.rest {
+  min-width: var(--control-height);
+  height: 56px;
+  padding: 0 var(--space-2);
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font-size: var(--text-sm);
+}

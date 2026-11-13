@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useModalFocus } from './modal-focus';
 import { Photo } from './Photo';
+import ui from './ui.module.css';
 import styles from './PictureViewer.module.css';
 
 interface PictureViewerProps {
@@ -60,7 +61,7 @@ export function PictureViewer({ pictures, captions, from, actions, onClose }: Pi
     <div className={styles.scrim} onPointerDown={event => event.target === event.currentTarget && onClose()}>
       <div className={styles.viewer} ref={panel} role="dialog" aria-modal="true" aria-label={caption} tabIndex={-1}>
         <header className={styles.header}>
-          <span className={`mono ${styles.counter}`}>{caption}</span>
+          <span className={styles.counter}>{caption}</span>
           <button type="button" className={styles.close} onClick={onClose} aria-label={t('log.close')}>
             <X size={18} strokeWidth={1.75} aria-hidden />
           </button>
@@ -91,5 +92,35 @@ export function PictureViewer({ pictures, captions, from, actions, onClose }: Pi
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** How many pictures a strip draws before it says how many more there are: a line that carries seventeen stays a line. */
+const STRIP_PICTURES = 4;
+
+/**
+ * The pictures of one line, small, where a surface shows them in the line
+ * itself: a share link, which is the diary shown to somebody, and the sheet
+ * that corrects a line. Each opens the viewer on itself, and "+13" on the
+ * first the strip had no room for. They are numbered, because a screen reader
+ * meeting four pictures in a row has no other way to tell one from the next.
+ */
+export function PictureStrip({ pictures, count = pictures.length, onOpen }: { pictures: string[]; count?: number; onOpen: (index: number) => void }) {
+  const { t } = useTranslation();
+
+  return (
+    <span className={styles.strip}>
+      {pictures.slice(0, STRIP_PICTURES).map((src, index) => (
+        <button key={src} type="button" className={styles.small} onClick={() => onOpen(index)}>
+          <Photo className={styles.smallFrame} src={src} alt={t('home.entryPhotos.alt', { n: index + 1, count })} />
+        </button>
+      ))}
+      {pictures.length > STRIP_PICTURES ? (
+        <button type="button" className={styles.rest} onClick={() => onOpen(STRIP_PICTURES)}>
+          {`+${pictures.length - STRIP_PICTURES}`}
+          <span className={ui.visuallyHidden}>{`, ${t('grow.diary.openPicture')}`}</span>
+        </button>
+      ) : null}
+    </span>
   );
 }

@@ -126,11 +126,15 @@ describe('what a diary line says', () => {
         <Words entry={entryOf({ kind: 'move', values: { ...move, from: 'Zelt Eins', to: 'Zelt 1' } })} people={[]} />
         <Words entry={entryOf({ id: 'entry-2', kind: 'move', values: { ...move, spaceId: null, from: 'Zelt 1', to: null } })} people={[]} />
         <Words entry={entryOf({ id: 'entry-3', kind: 'move', values: move })} people={[]} />
+        <Words entry={entryOf({ id: 'entry-4', kind: 'move', values: { ...move, from: null, to: 'Zweitzelt' } })} people={[]} />
       </ul>,
     );
 
     expect(screen.getByText(/moved it from Zelt Eins to Zelt 1/)).toBeInTheDocument();
-    expect(screen.getByText(/moved it from Zelt 1 to no fixed place/)).toBeInTheDocument();
+    // No fixed place is no place to name: put into a tent from none, taken out of one into none.
+    expect(screen.getByText(/took it out of Zelt 1$/)).toBeInTheDocument();
+    expect(screen.getByText(/put it in Zweitzelt$/)).toBeInTheDocument();
+    expect(screen.queryByText(/no fixed place/)).not.toBeInTheDocument();
     // A line written before a move named its places says what it always said.
     expect(screen.getByText(/moved it$/)).toBeInTheDocument();
   });
@@ -285,5 +289,33 @@ describe('who a line is by', () => {
     expect(row({ kind: 'feed', values: { kind: 'feed', litres: 5, schemeWeek: 5, doses: [], readings: [] } })).toHaveTextContent(
       'You fed · 5 L · scheme week 5',
     );
+  });
+});
+
+/** A line about one plant of three said "Du hast gegossen · 1,5 L" where the toast had said "Gegossen · B2". */
+describe('a line about some of a grow´s plants', () => {
+  const plants = [
+    { id: 'a1', growId: 'grow-1', label: 'A1' },
+    { id: 'b2', growId: 'grow-1', label: 'B2' },
+    { id: 'c3', growId: 'grow-1', label: 'C3' },
+    { id: 'x1', growId: 'grow-2', label: 'X1' },
+  ];
+  const water = (plantIds: string[]) => entryOf({ kind: 'water', plantIds, values: { kind: 'water', litres: 1.5 } as Entry['values'] });
+
+  it('names them where the grow has more than one, and says nothing of plants where it is about all or none', () => {
+    const { container, rerender } = render(<Words entry={water(['b2'])} people={[]} measurements={[]} plants={plants} />);
+    expect(container.textContent).toMatch(/B2/);
+    expect(container.textContent).not.toMatch(/A1|C3|X1/);
+
+    rerender(<Words entry={water(['a1', 'c3'])} people={[]} measurements={[]} plants={plants} />);
+    expect(container.textContent).toMatch(/A1, C3/);
+
+    rerender(<Words entry={water(['a1', 'b2', 'c3'])} people={[]} measurements={[]} plants={plants} />);
+    expect(container.textContent).not.toMatch(/A1|B2|C3/);
+
+    // A grow of one plant has nothing to tell apart.
+    rerender(<Words entry={water(['x1'])} people={[]} measurements={[]} plants={plants} />);
+    expect(container.textContent).not.toMatch(/X1/);
+    cleanup();
   });
 });

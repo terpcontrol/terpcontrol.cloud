@@ -456,6 +456,8 @@ describe('a day of the diary', () => {
       curvesOf: () => null,
       cameras,
       byline: session.user.user?.isDemo !== true,
+      plants: [],
+      thumbnails: false,
       correct: (line, dayNumber) => correcting(line, { label: grow.name, dayNumber, ...growStanding(grow) }),
       curveOf: (metric, moment) => `/timeline?space=space-1${metric ? `&focus=${metric}` : ''}&at=${moment}`,
     };
@@ -717,9 +719,10 @@ describe('a day of the diary', () => {
     drawDay(day(1, { entries: [...once, ...storm, entry({ id: 'own', authorId: 'user-1', occurredAt: at(1, 1) })] }));
 
     const lines = linesOf();
-    // The rule that fired three times is one line; the one that fired once keeps the line that says it is over; the watering stays in sight.
+    // The rule that fired three times is one line, which says it is over because its newest line is the clearing - as
+    // Alerts has it under "Resolved"; the one that fired once keeps the line that says it is over; the watering stays in sight.
     expect(lines).toHaveLength(4);
-    expect(lines.filter(line => /Too humid/.test(line))).toEqual([expect.stringMatching(/Too humid · 3× since 17 Sep 02:00Humidity above 60 %/)]);
+    expect(lines.filter(line => /Too humid/.test(line))).toEqual([expect.stringMatching(/Too humid · 3× since 17 Sep 02:00 · over/)]);
     expect(lines.filter(line => /Too dry/.test(line))).toEqual([
       expect.stringMatching(/Too dry · over/),
       expect.stringMatching(/Too dryHumidity above 60 %/),

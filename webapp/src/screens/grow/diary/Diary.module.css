@@ -52,7 +52,6 @@
 }
 
 .dayClimate {
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
   color: var(--muted);
   white-space: nowrap;
@@ -80,7 +79,6 @@ a.dayClimate::after,
 }
 
 .dayShare {
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   color: var(--warning);

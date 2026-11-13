@@ -108,11 +108,14 @@ export const headlineOf = (t: Translate, i18n: I18n, entry: Entry): string => {
 export const doneByOf = (t: Translate, i18n: I18n, entry: Entry, byYou: boolean): string | null => {
   if (entry.source !== 'human' || entry.values.kind === 'phase' || entry.values.kind === 'harvest' || entryHeadline(i18n, entry)) return null;
 
-  // A move says from where to where, where its line was told: a place that has since been removed is in no list.
-  if (entry.values.kind === 'move' && entry.values.from !== undefined && entry.values.to !== undefined) {
-    const nowhere = t('home.entryDone.nowhere');
-    const places = { from: entry.values.from ?? nowhere, to: entry.values.to ?? nowhere };
-    return t('home.entryDone.moveFromTo', { context: byYou ? 'you' : undefined, ...places });
+  // A move says from where to where, where its line was told: a place that has since been removed is in no list. No
+  // fixed place is no place to name - a grow put into a tent from none, or from no one place, was put there, and one
+  // taken out was taken out.
+  const values = entry.values;
+  const from = values.kind === 'move' ? (values.from ?? null) : null;
+  if (values.kind === 'move' && values.to !== undefined && (from !== null || values.to !== null)) {
+    const form = from === null ? 'moveTo' : values.to === null ? 'moveOut' : 'moveFromTo';
+    return t(`home.entryDone.${form}`, { context: byYou ? 'you' : undefined, from, to: values.to });
   }
 
   // A camera's still somebody made a line of was kept, not taken: nobody held a phone up.
