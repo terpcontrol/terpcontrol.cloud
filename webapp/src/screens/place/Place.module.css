@@ -85,17 +85,18 @@
   overflow-wrap: anywhere;
 }
 
-/* Ending the place is said in amber and stands apart at the foot: it leads to a page that asks first. */
+/* Ending the place stands apart at the foot and leads to a page that asks first: outlined in the alarm's red, as
+   every way to a step that cannot be taken back is; only the question's yes is filled. Amber is for what is wrong. */
 .remove {
   display: grid;
   place-items: center;
   min-height: 48px;
   margin-top: var(--space-4);
   padding: var(--space-2) var(--space-4);
-  background: var(--warning-wash);
-  border: var(--rule-width) solid var(--warning-edge);
+  background: var(--card);
+  border: var(--rule-width) solid var(--alarm);
   border-radius: var(--radius);
-  color: var(--warning);
+  color: var(--alarm);
   font-weight: var(--weight-medium);
   text-align: center;
   overflow-wrap: anywhere;

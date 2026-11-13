@@ -222,7 +222,9 @@ function Row({ row, now }: { row: FleetRow; now: DateTime }) {
         {row.name ? <span className={styles.rowName}> · {row.name}</span> : null}
       </td>
       <td>{typeLabel(row.type, t)}</td>
-      <td>{row.ownerHandle ? `@${row.ownerHandle}` : row.ownerId ? <span className="mono">{row.ownerId}</span> : t('admin.fleet.unclaimed')}</td>
+      <td className={styles.owner}>
+        {row.ownerHandle ? `@${row.ownerHandle}` : row.ownerId ? <span className="mono">{row.ownerId}</span> : t('admin.fleet.unclaimed')}
+      </td>
       {/* A build is a uuid and is never compared with another, so it is drawn
           as the opaque fact it is - under the name it was registered with where
           this install has one. */}

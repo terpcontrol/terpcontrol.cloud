@@ -7,7 +7,7 @@ import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { matchesHandle, typedHandle } from '@/ui/handle';
 import { Refused } from '@/ui/PageState';
-import { AdminHead, AdminNotLoaded } from './parts';
+import { AdminHead, AdminNotLoaded, OutOfTheRow } from './parts';
 import { HandleField } from '@/ui/SheetParts';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
@@ -170,8 +170,10 @@ function AccountRow({ account, isMe, lastAdmin }: { account: User; isMe: boolean
             {t('admin.users.delete')}
           </button>
         </span>
-        {open === 'change' ? <ChangeSheet account={account} isMe={isMe} lastAdmin={lastAdmin} onClose={() => setOpen(null)} /> : null}
-        {open === 'delete' ? <DeleteSheet account={account} isMe={isMe} onClose={() => setOpen(null)} /> : null}
+        <OutOfTheRow>
+          {open === 'change' ? <ChangeSheet account={account} isMe={isMe} lastAdmin={lastAdmin} onClose={() => setOpen(null)} /> : null}
+          {open === 'delete' ? <DeleteSheet account={account} isMe={isMe} onClose={() => setOpen(null)} /> : null}
+        </OutOfTheRow>
       </td>
     </tr>
   );
@@ -213,15 +215,17 @@ function CreateSheet({ onClose }: { onClose: () => void }) {
         </button>
       }
     >
-      <p className={styles.sheetBody}>{t('admin.users.createBody')}</p>
-      <Field label={t('admin.users.column.address')} type="email" value={email} onType={setEmail} />
-      <Field label={t('admin.users.column.handle')} value={handle} onType={setHandle} />
-      <Field label={t('admin.users.password')} type="password" autoComplete="new-password" value={password} onType={setPassword} />
-      <label className={ui.wrapRow}>
-        <input type="checkbox" checked={isAdmin} onChange={event => setIsAdmin(event.target.checked)} />
-        <span>{t('admin.users.makeAdmin')}</span>
-      </label>
-      <Refused error={create.error} />
+      <div className={styles.form}>
+        <p className={styles.sheetBody}>{t('admin.users.createBody')}</p>
+        <Field label={t('admin.users.column.address')} type="email" value={email} onType={setEmail} />
+        <Field label={t('admin.users.column.handle')} value={handle} onType={setHandle} />
+        <Field label={t('admin.users.password')} type="password" autoComplete="new-password" value={password} onType={setPassword} />
+        <label className={`${ui.wrapRow} ${styles.check}`}>
+          <input type="checkbox" checked={isAdmin} onChange={event => setIsAdmin(event.target.checked)} />
+          <span>{t('admin.users.makeAdmin')}</span>
+        </label>
+        <Refused error={create.error} />
+      </div>
     </Sheet>
   );
 }
@@ -281,7 +285,7 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
             <button type="button" className={ui.button} disabled={change.isPending} onClick={() => setAsking(false)}>
               {t('admin.users.confirmNo')}
             </button>
-            <button type="button" className={`${ui.button} ${ui.danger}`} disabled={change.isPending} onClick={save}>
+            <button type="button" className={`${ui.button} ${ui.dangerFilled}`} disabled={change.isPending} onClick={save}>
               {t('admin.users.confirmMine')}
             </button>
           </>
@@ -313,37 +317,39 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
         </button>
       }
     >
-      <p className={styles.sheetBody}>{isMe ? t('admin.users.changeMine') : t('admin.users.changeSomebody', { handle: account.handle })}</p>
+      <div className={styles.form}>
+        <p className={styles.sheetBody}>{isMe ? t('admin.users.changeMine') : t('admin.users.changeSomebody', { handle: account.handle })}</p>
 
-      <Field label={t('admin.users.column.address')} type="email" value={email} onType={setEmail} />
-      <Field label={t('admin.users.column.handle')} value={handle} onType={setHandle} />
-      <Field
-        label={t('admin.users.newPassword')}
-        type="password"
-        autoComplete="new-password"
-        placeholder={t('admin.users.unchanged')}
-        value={password}
-        onType={setPassword}
-      />
-      <label className={ui.wrapRow}>
-        <input type="checkbox" checked={isActive} disabled={lastAdmin} onChange={event => setIsActive(event.target.checked)} />
-        <span>{t('admin.users.isActive')}</span>
-      </label>
-      <label className={ui.wrapRow}>
-        <input type="checkbox" checked={isAdmin} disabled={lastAdmin} onChange={event => setIsAdmin(event.target.checked)} />
-        <span>{t('admin.users.makeAdmin')}</span>
-      </label>
-      {lastAdmin ? <p className={`${ui.note} ${styles.consequence}`}>{t('admin.users.lastAdmin')}</p> : null}
-      {losing.map(line => (
-        <p key={line} className={`${ui.note} ${styles.consequence}`}>
-          {line}
-        </p>
-      ))}
+        <Field label={t('admin.users.column.address')} type="email" value={email} onType={setEmail} />
+        <Field label={t('admin.users.column.handle')} value={handle} onType={setHandle} />
+        <Field
+          label={t('admin.users.newPassword')}
+          type="password"
+          autoComplete="new-password"
+          placeholder={t('admin.users.unchanged')}
+          value={password}
+          onType={setPassword}
+        />
+        <label className={`${ui.wrapRow} ${styles.check}`}>
+          <input type="checkbox" checked={isActive} disabled={lastAdmin} onChange={event => setIsActive(event.target.checked)} />
+          <span>{t('admin.users.isActive')}</span>
+        </label>
+        <label className={`${ui.wrapRow} ${styles.check}`}>
+          <input type="checkbox" checked={isAdmin} disabled={lastAdmin} onChange={event => setIsAdmin(event.target.checked)} />
+          <span>{t('admin.users.makeAdmin')}</span>
+        </label>
+        {lastAdmin ? <p className={`${ui.note} ${styles.consequence}`}>{t('admin.users.lastAdmin')}</p> : null}
+        {losing.map(line => (
+          <p key={line} className={`${ui.note} ${styles.consequence}`}>
+            {line}
+          </p>
+        ))}
 
-      {/* The code is serialised to an administrator alone, and handing it over is how such an account is activated. */}
-      {account.activationCode ? <p className={styles.consequence}>{t('admin.users.activationCode', { code: account.activationCode })}</p> : null}
+        {/* The code is serialised to an administrator alone, and handing it over is how such an account is activated. */}
+        {account.activationCode ? <p className={styles.consequence}>{t('admin.users.activationCode', { code: account.activationCode })}</p> : null}
 
-      <Refused error={change.error} />
+        <Refused error={change.error} />
+      </div>
     </Sheet>
   );
 }
@@ -375,7 +381,7 @@ function DeleteSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
       actions={
         <button
           type="button"
-          className={`${ui.button} ${ui.danger}`}
+          className={`${ui.button} ${ui.dangerFilled}`}
           disabled={!sure || remove.isPending}
           onClick={() => remove.mutate(account.id, { onSuccess: onClose })}
         >

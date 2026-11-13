@@ -123,7 +123,7 @@ export function Row({
 /**
  * A chip that is a menu: the native select, keeping its keyboard and the
  * platform's own picker, giving up only its arrow and its padding. The options
- * are the caller's, because a menu of units and a menu of languages have
+ * are the caller's, because a menu of languages and a menu of days have
  * nothing in common but the shape.
  */
 export function Menu({

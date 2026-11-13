@@ -5,8 +5,9 @@ import { useInvites } from '@/api/invites';
 import { useRemoveMember } from '@/api/members';
 import { leaveUnderSheet, walkOut } from '@/app/places';
 import { useLog } from '@/log/log-context';
-import { Sheet } from '@/ui/Sheet';
+import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
+import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import { isLive } from './invites';
 import styles from './Members.module.css';
@@ -41,7 +42,8 @@ export type Leaving = {
  * came in on, and one link is one key that may have gone to several people.
  * So the sheet says it before the tap, and says it only where it is true: the
  * code has to be one still out and live, and nothing is revoked when somebody
- * walks out of their own accord.
+ * walks out of their own accord. Each is one sentence; what follows from them
+ * stands behind the help beside them.
  *
  * The answer is a toast, without a way back: it names who no longer sees
  * what, and the link that stopped with them. Whoever left is taken to Start -
@@ -75,7 +77,7 @@ export function RemoveSheet({ leaving, now, onClose }: { leaving: Leaving; now: 
       actions={
         <button
           type="button"
-          className={`${ui.button} ${ui.primary}`}
+          className={`${ui.button} ${ui.dangerFilled}`}
           disabled={remove.isPending || remove.isSuccess}
           onClick={() =>
             remove.mutate(
@@ -95,8 +97,11 @@ export function RemoveSheet({ leaving, now, onClose }: { leaving: Leaving; now: 
         </button>
       }
     >
-      <p className={styles.sheetBody}>{t(`space.members.${what}.${room ? 'bodyKeepsRoom' : ofRoom ? 'bodyRoom' : 'body'}`, { name, place, room })}</p>
-      {stopping ? <p className={styles.sheetBody}>{t('space.members.remove.alsoTheLink', { code: stopping })}</p> : null}
+      <p className={styles.sheetBody}>
+        {t(`space.members.${what}.${room ? 'bodyKeepsRoom' : ofRoom ? 'bodyRoom' : 'body'}`, { name, place, room })}
+        {stopping ? ` ${t('space.members.remove.alsoTheLink', { code: stopping })}` : null}
+        {isYou ? null : <Help topic="removeMember" />}
+      </p>
       <Refused error={remove.error} />
     </Sheet>
   );

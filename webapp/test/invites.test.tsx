@@ -212,7 +212,8 @@ describe('the links a tent has out', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Show AAAAAAAA as a code and a QR' }));
 
     const sheet = screen.getByRole('dialog', { name: 'Invite' });
-    fireEvent.click(within(sheet).getByRole('tab', { name: 'Code' }));
+    // "Code · QR" opens on the code, not on the link.
+    expect(within(sheet).getByRole('tab', { name: 'Code' })).toHaveAttribute('aria-selected', 'true');
     expect(within(sheet).getByText('AAAAAAAA')).toBeInTheDocument();
     expect(within(sheet).getByText(/They type it at .*\/join$/)).toBeInTheDocument();
 

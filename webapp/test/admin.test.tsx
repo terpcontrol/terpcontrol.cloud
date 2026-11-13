@@ -445,7 +445,7 @@ describe('the fleet table', () => {
     expect(within(rows.find(row => within(row).queryByText('tc-mine'))!).getByText('6 · 1')).toBeInTheDocument();
     // Somebody else's controller: the account's camera list cannot count its cams, so the cell says nothing rather than zero.
     expect(within(rows.find(row => within(row).queryByText('tc-7f3a'))!).getByText('6 · —')).toBeInTheDocument();
-    expect(screen.getByText(/cams and the camera rows are the ones this account can see/)).toBeInTheDocument();
+    expect(screen.getByText(/cameras and the camera rows are the ones this account can see/)).toBeInTheDocument();
     // Every camera read asks for the biggest page there is, and the second hands the cursor back.
     const cameraReads = server.asked.filter(path => path.startsWith('/cameras'));
     expect(cameraReads.length).toBeGreaterThanOrEqual(2);
@@ -825,6 +825,10 @@ describe('the accounts', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));
     expect(await screen.findByText(/This is somebody else’s account: @mo/)).toBeInTheDocument();
+    // Drawn outside the table: inside the row's pinned cell the cells of the rows after it stood over its scrim.
+    const sheet = screen.getByRole('dialog');
+    expect(sheet.closest('table')).toBeNull();
+    expect(within(sheet).getByLabelText('May run this install').closest('label')?.className).toMatch(/check/);
 
     fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'a new one' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -948,6 +952,7 @@ describe("the administrator's own row", () => {
     // letter, so the handle counts however it is cased.
     fireEvent.change(screen.getByLabelText('Type mo to confirm'), { target: { value: 'Mo' } });
     expect(screen.getByRole('button', { name: 'Delete the account' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Delete the account' }).className).toMatch(/dangerFilled/);
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
     fireEvent.click(within(rows[1]).getByRole('button', { name: 'Delete' }));

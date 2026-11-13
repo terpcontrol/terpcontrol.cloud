@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { fetchedAt } from '@/api/clock';
 import { ageLabel, deviceLiveness } from '@/ui/age';
@@ -10,6 +11,14 @@ import { Tabs } from '@/ui/Tabs';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import styles from './Admin.module.css';
+
+/**
+ * A sheet opened from a table's row, drawn at the end of the document: the row's
+ * last cell is pinned (`position: sticky`), which makes it a stacking context of
+ * its own, so a sheet inside it lay under the pinned cells of every row after it,
+ * which stayed bright over the scrim.
+ */
+export const OutOfTheRow = ({ children }: { children: ReactNode }) => createPortal(children, document.body);
 
 /** The four screens of whoever runs the install, in the order their tabs stand in. */
 const SCREENS = ['fleet', 'firmware', 'users', 'demo'] as const;

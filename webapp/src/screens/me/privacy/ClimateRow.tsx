@@ -103,7 +103,7 @@ function ClimateSheet({ days, now, onClose, onKeep }: { days: number; now: DateT
       aside={keep}
       onClose={onClose}
       actions={
-        <button type="button" className={ui.dangerOutline} onClick={onKeep}>
+        <button type="button" className={`${ui.button} ${ui.dangerFilled}`} onClick={onKeep}>
           {t('me.privacy.climate.ask.yes', { keep })}
         </button>
       }

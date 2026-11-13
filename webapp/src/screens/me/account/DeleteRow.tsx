@@ -62,7 +62,7 @@ function DeleteSheet({ handle, onClose }: { handle: string; onClose: () => void 
       actions={
         <button
           type="button"
-          className={ui.dangerOutline}
+          className={`${ui.button} ${ui.dangerFilled}`}
           disabled={!sure || remove.isPending}
           onClick={() => void remove.mutateAsync().then(gone, () => undefined)}
         >

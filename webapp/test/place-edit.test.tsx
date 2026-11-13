@@ -165,12 +165,30 @@ describe('editing a place', () => {
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/tent', { name: 'Flower tent', kind: 'other', roomName: 'Cellar' }));
     await waitFor(() => expect(told).toHaveLength(1));
-    expect(told[0].label).toBe('Tent is now called Flower tent · Kind: Other place · Room: Cellar');
+    expect(told[0].label).toBe('Tent is now called Flower tent · Kind: Other · Room: Cellar');
 
     // Taken back by the room's name: the room it left may have ended with its last place. The toast is handed what is back.
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/spaces/tent', { name: 'Tent', kind: 'tent', roomName: 'Grow room' });
     expect(told).toMatchObject([{ undone: 'Flower tent is now called Tent · Kind: Tent · Room: Grow room' }]);
+  });
+
+  it('is titled as what it does, with the name in its field, and offers the seven kinds of a place', async () => {
+    draw('/spaces/tent/edit');
+
+    // A long name made the title six lines of the page's largest type: it stands in its field.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Edit place' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('Tent');
+    expect(
+      within(screen.getByRole('combobox', { name: 'Kind' }))
+        .getAllByRole('option')
+        .map(option => option.textContent),
+    ).toEqual(['Tent', 'Fridge', 'Balcony', 'Drying box', 'Greenhouse', 'Room', 'Other']);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Kind' }), { target: { value: 'dry_box' } });
+    fireEvent.click(await saveReady());
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/tent', { kind: 'dry_box' }));
+    await waitFor(() => expect(told[0].label).toBe('Tent · Kind: Drying box'));
   });
 
   /** A place's name stands by itself in a sentence: before the kind, and only where the toast has not just said it. */
@@ -727,7 +745,11 @@ describe('removing a place', () => {
     expect(screen.getByText('Curves and pictures up to today stay with the grow Spring run.')).toBeInTheDocument();
 
     fireEvent.change(plants, { target: { value: 'with:device-1' } });
+    // One danger style: the way to the question is outlined in the alarm's red, the yes in it filled.
+    expect(screen.getByRole('button', { name: 'Remove Tent' }).className).toMatch(/danger/);
+    expect(screen.getByRole('button', { name: 'Remove Tent' }).className).not.toMatch(/dangerFilled/);
     const sheet = await ask();
+    expect(within(sheet).getByRole('button', { name: 'Remove Tent' }).className).toMatch(/dangerFilled/);
     expect(linesOf(sheet)).toEqual([
       'Tent controller gets a new place: Tent 2',
       'Fan stays with Tent controller',
@@ -1079,10 +1101,12 @@ describe('removing a place', () => {
     expect(linesOf(await ask())).toEqual(['Fan gets a new place: Tent 2', 'Spring run is ended']);
   });
 
-  it('is the owner´s', async () => {
+  it('is the owner´s, and asks nobody else´s session who is let in', async () => {
     state.spaces = [spaceWhere('manage', { id: 'tent', name: 'Tent' }), FRIDGE];
     draw('/spaces/tent/remove');
     await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent('/spaces/tent/edit'));
+    // The members route is the owner's: asked by the demo, it answered 404 into the console.
+    expect(vi.mocked(api.get).mock.calls.map(([path]) => path)).not.toContain('/spaces/tent/members');
   });
 
   it('says why the last place cannot be removed, with the way back', async () => {
@@ -1091,7 +1115,7 @@ describe('removing a place', () => {
 
     expect(await screen.findByText('Tent is your only place, so it cannot be removed.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Remove Tent' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Back to “Edit Tent”' }).map(link => link.getAttribute('href'))).toContain('/spaces/tent/edit');
+    expect(screen.getAllByRole('link', { name: 'Back to “Edit place”' }).map(link => link.getAttribute('href'))).toContain('/spaces/tent/edit');
     expect(screen.queryByRole('button', { name: 'Remove Tent' })).not.toBeInTheDocument();
     expect(screen.getByTestId('address')).toHaveTextContent('/spaces/tent/remove');
   });

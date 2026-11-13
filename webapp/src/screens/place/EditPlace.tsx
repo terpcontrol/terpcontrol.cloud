@@ -196,7 +196,8 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
     <section className={`${ui.stack3} ${ui.page} ${styles.reading} ${styles.editing}`}>
       <PageHead
         back={{ to: placePath(space.id), label: t('place.backTo', { name: space.name }) }}
-        title={t('place.edit.title', { name: space.name })}
+        // The name stands in its field below: a long one made the title six lines of the page's largest type.
+        title={t('place.edit.title')}
       >
         <button type="submit" form="place-edit" className={`${ui.button} ${ui.primary} ${styles.save}`} disabled={!ready}>
           {save.isPending ? t('place.edit.saving') : t('place.edit.save')}

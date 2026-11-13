@@ -203,7 +203,7 @@ describe('an install that enforces Premium', () => {
   it('reads the sentence under a camera from its grant rather than from its dates', async () => {
     await drawLoaded();
 
-    expect(card('Terp Cam 1').getByText('included with the cam · 12 months · renews only if you say so')).toBeInTheDocument();
+    expect(card('Terp Cam 1').getByText('included with the Terp Cam · 12 months · renews only if you say so')).toBeInTheDocument();
     expect(card('Old cam').getByText('carried over at the migration · 12 months from that day · renews only if you say so')).toBeInTheDocument();
     expect(card('Tapo C200').getByText('bought for this camera · renews only if you say so')).toBeInTheDocument();
   });

@@ -15,7 +15,7 @@ import { itemsOf, useFollowCursor } from '@/api/pages';
 import { NameSheet } from '@/ui/NameSheet';
 import { Sheet } from '@/ui/Sheet';
 import { NothingHere, Refused } from '@/ui/PageState';
-import { AdminHead, AdminNotLoaded, Label } from './parts';
+import { AdminHead, AdminNotLoaded, Label, OutOfTheRow } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, useZone, zoned } from '@/ui/zone';
@@ -222,9 +222,11 @@ function BuildRow({ build, classes, fleet }: { build: Firmware; classes: DeviceC
         </span>
         {pointers.length > 0 ? <span className={styles.consequence}>{t('admin.firmware.inUse')}</span> : null}
 
-        {open === 'upload' ? <UploadSheet build={build} onClose={() => setOpen(null)} /> : null}
-        {open === 'rename' ? <RenameSheet build={build} onClose={() => setOpen(null)} /> : null}
-        {open === 'delete' ? <DeleteSheet build={build} onClose={() => setOpen(null)} /> : null}
+        <OutOfTheRow>
+          {open === 'upload' ? <UploadSheet build={build} onClose={() => setOpen(null)} /> : null}
+          {open === 'rename' ? <RenameSheet build={build} onClose={() => setOpen(null)} /> : null}
+          {open === 'delete' ? <DeleteSheet build={build} onClose={() => setOpen(null)} /> : null}
+        </OutOfTheRow>
       </td>
     </tr>
   );
@@ -313,7 +315,7 @@ function DeleteSheet({ build, onClose }: { build: Firmware; onClose: () => void 
       actions={
         <button
           type="button"
-          className={`${ui.button} ${ui.danger}`}
+          className={`${ui.button} ${ui.dangerFilled}`}
           disabled={remove.isPending}
           onClick={() => remove.mutate(build.id, { onSuccess: onClose })}
         >

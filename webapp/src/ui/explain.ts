@@ -95,6 +95,7 @@ export const HELP_TOPICS = [
   'passwordChange',
   'installApp',
   'memberRole',
+  'removeMember',
   'invite',
   'diaryLayer',
   'follow',

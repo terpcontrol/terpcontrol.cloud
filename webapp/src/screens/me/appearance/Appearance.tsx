@@ -1,40 +1,27 @@
 import { useTranslation } from 'react-i18next';
-import type { UnitPreference } from '@fg2/shared-types/v1';
-import { useSession } from '@/api/session';
 import { LANGUAGES, setLanguage, type Language } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
 import { useTheme, type ThemeChoice } from '@/theme/theme-context';
-import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { languageName } from '../doors';
-import { AccountRead, MePage, Menu, Row } from '../parts';
-import { useSaveAccount } from '../save';
+import { MePage, Menu, Row } from '../parts';
 import { InstallRow } from './InstallRow';
 
 const THEMES: ThemeChoice[] = ['system', 'light', 'dark'];
 
-/** The three questions the contract asks about units, in the order the page asks them, each with its two answers. */
-const UNITS: { kind: keyof UnitPreference; choices: string[] }[] = [
-  { kind: 'temperature', choices: ['celsius', 'fahrenheit'] },
-  { kind: 'weight', choices: ['grams', 'ounces'] },
-  { kind: 'volume', choices: ['liters', 'gallons'] },
-];
-
 /**
- * Ich › Darstellung: the theme, the language, the app on the home screen, and
- * the units; each line says where its setting holds.
+ * Ich › Darstellung: the theme, the language and the app on the home screen;
+ * each line says where its setting holds.
  *
  * The theme is this browser's alone. The language chosen here is this
  * browser's and is told to the account, which a browser nobody chose one in
  * follows (`followAccount`); the change is answered by the toast, in the
- * language it changed to. The units are the account's and go to `PATCH /me`
- * as the one preference changed - stored, and not yet what the views show,
- * which their line says. The demo has no account and is shown the two
- * settings it can change.
+ * language it changed to. Units are not offered: the account stores a choice
+ * of °F, ounces and gallons, but no view converts, so a choice that changed
+ * nothing on screen is not drawn until one does.
  */
 export function Appearance() {
   const { t, i18n } = useTranslation();
-  const { user } = useSession();
   const { tell } = useLog();
   const { choice, setChoice } = useTheme();
   const language = (i18n.resolvedLanguage ?? i18n.language) as Language;
@@ -72,53 +59,6 @@ export function Appearance() {
       </Row>
 
       <InstallRow />
-
-      {user?.isDemo === true ? null : <Units />}
     </MePage>
-  );
-}
-
-/** The units, each a menu of its two answers, held still while a change is on its way. */
-function Units() {
-  const { t } = useTranslation();
-  const { save, error } = useSaveAccount();
-
-  return (
-    <AccountRead lines={3}>
-      {(account, held) => {
-        const units = account.preferences.units;
-
-        return (
-          <>
-            <span className="label">{t('me.appearance.units')}</span>
-            <p className={ui.note}>{t('me.appearance.unitsLine')}</p>
-            {UNITS.map(({ kind, choices }) => (
-              <Row key={kind} title={t(`me.appearance.${kind}`)} line={null}>
-                <Menu
-                  name={t(`me.appearance.${kind}`)}
-                  value={units[kind]}
-                  disabled={held}
-                  onChange={value => {
-                    const said = (unit: string) =>
-                      t('me.saved.setting', { what: t(`me.appearance.${kind}`), value: t(`me.appearance.unit.${unit}`) });
-                    save({ preferences: { units: { ...units, [kind]: value } } }, said(value), {
-                      to: now => ({ preferences: { units: { ...now.preferences.units, [kind]: units[kind] } } }),
-                      undone: said(units[kind]),
-                    });
-                  }}
-                >
-                  {choices.map(unit => (
-                    <option key={unit} value={unit}>
-                      {t(`me.appearance.unit.${unit}`)}
-                    </option>
-                  ))}
-                </Menu>
-              </Row>
-            ))}
-            <Refused error={error} />
-          </>
-        );
-      }}
-    </AccountRead>
   );
 }

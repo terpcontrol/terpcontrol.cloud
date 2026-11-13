@@ -63,9 +63,10 @@ export function RemovePlace() {
   const devices = useDevices();
   const cameras = useCameras();
   const grows = useSpaceGrows(spaceId || null);
-  const members = useMembers(spaceId);
-  const reminders = useReminders();
   const owns = useMayIn(spaceId, 'own');
+  // Who is let in is the owner's to read; anybody else is sent on below without asking.
+  const members = useMembers(spaceId, owns);
+  const reminders = useReminders();
 
   if (spaces.isPending) return <Waiting lines={5} />;
   // Asked before anything else is read: a place that has ended, or never was, has nothing to try again for.
@@ -80,7 +81,7 @@ export function RemovePlace() {
   }
 
   const places = placesOf(spaces.data.items, space.ownerId);
-  const back = { to: editPath(space.id), label: t('place.remove.back', { name: space.name }) };
+  const back = { to: editPath(space.id), label: t('place.remove.back') };
   const running = grows.data.items.filter(grow => grow.endedAt === null).map(grow => ({ id: grow.id, name: grow.name, day: grow.summary.dayNumber }));
 
   return (
@@ -283,9 +284,11 @@ function Removing({ space, places: listed, every, here, alive, letIn, reminders 
       ) : null}
 
       <div className={styles.foot}>
+        {/* It opens the question, outlined as every way to a step that cannot be taken back; only the yes is filled - and a
+            second try, which asks nothing again, is that yes. */}
         <button
           type="button"
-          className={`${ui.button} ${ui.dangerFilled} ${styles.end}`}
+          className={`${ui.button} ${again ? ui.dangerFilled : ui.danger} ${styles.end}`}
           disabled={!ready}
           onClick={again ? remove : () => setAsking(true)}
         >

@@ -174,8 +174,20 @@
 
 /* An id and a name in one cell: the id is the fact, the name is what somebody
    called it, so the id leads and is mono. */
+/* The device's id stays one line; its serial and its name wrap under it, so the
+   column takes what an id needs and leaves the others in view at 1280. */
 .idCell {
+  width: 15rem;
+}
+
+.idCell > :first-child {
   white-space: nowrap;
+}
+
+/* A handle may be forty letters long: it wraps rather than pushing three columns out of the card. */
+.owner {
+  width: 11rem;
+  overflow-wrap: anywhere;
 }
 
 .rowName {
@@ -288,6 +300,21 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+}
+
+/* An account's sheet: each label a gap clear of the field above it. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* A box to tick is as big as the words beside it ask for, not the browser's 13 px. */
+.check input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--green-fill);
 }
 
 .fields {

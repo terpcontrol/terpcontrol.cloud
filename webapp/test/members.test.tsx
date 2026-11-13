@@ -368,13 +368,18 @@ describe('who sees a place, as its owner', () => {
     expect(told).toHaveLength(0);
   });
 
-  it('asks before taking somebody out, says that what they wrote stays, and answers without a way back', async () => {
+  it('asks before taking somebody out in one sentence, in the danger style, and answers without a way back', async () => {
     const rows = await drawnPeople();
 
     fireEvent.click(within(rows[1]).getByRole('button', { name: 'Blue Dream tent: take lea out' }));
     const sheet = screen.getByRole('dialog', { name: 'Blue Dream tent: take @lea out?' });
-    expect(within(sheet).getByText(/goes on carrying their name/)).toBeInTheDocument();
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Take them out' }));
+    expect(within(sheet).getByText('They lose this place; what they wrote here stays.')).toBeInTheDocument();
+    // What follows from it stands behind the help, not in a paragraph over the button.
+    expect(within(sheet).getByRole('button', { name: /Taking somebody out/ })).toBeInTheDocument();
+    const yes = within(sheet).getByRole('button', { name: 'Take them out' });
+    expect(yes.className).toMatch(/dangerFilled/);
+    expect(yes.className).not.toMatch(/primary/);
+    fireEvent.click(yes);
 
     await waitFor(() => expect(told).toHaveLength(1));
     expect(wrote()).toMatchObject({ method: 'DELETE', path: '/spaces/space-1/members/user-2' });
@@ -423,8 +428,7 @@ describe('who sees a place, as its owner', () => {
 
     fireEvent.click(within(rows[1]).getByRole('button', { name: 'Blue Dream tent: take lea out' }));
     const sheet = screen.getByRole('dialog');
-    expect(await within(sheet).findByText(/came in on the link K7QZ4M2P/)).toBeInTheDocument();
-    expect(within(sheet).getByText(/Whoever is already in stays in/)).toBeInTheDocument();
+    expect(await within(sheet).findByText(/The link K7QZ4M2P they came in on stops working/)).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Take them out' }));
 
@@ -439,8 +443,8 @@ describe('who sees a place, as its owner', () => {
 
     fireEvent.click(within(rows[1]).getByRole('button', { name: 'Blue Dream tent: take lea out' }));
 
-    expect(screen.getByText(/goes on carrying their name/)).toBeInTheDocument();
-    expect(screen.queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
+    expect(screen.getByText(/what they wrote here stays/)).toBeInTheDocument();
+    expect(within(screen.getByRole('dialog')).queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
   });
 
   it('says nothing about a link for somebody who was added by hand', async () => {

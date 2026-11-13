@@ -71,7 +71,8 @@ export function InviteSheet({
         }
       >
         <div className={styles.sheetBody}>
-          <Made invite={made} />
+          {/* A code already out was opened by "Code · QR", so it opens on the code; one just made on its link. */}
+          <Made invite={made} first={shown ? 'code' : 'link'} />
         </div>
       </Sheet>
     );
@@ -125,9 +126,9 @@ export function InviteSheet({
 }
 
 /** The code the server answered, three ways, and under it what it grants - from the answer. */
-function Made({ invite }: { invite: Invite }) {
+function Made({ invite, first }: { invite: Invite; first: Way }) {
   const { t } = useTranslation();
-  const [way, setWay] = useState<Way>('link');
+  const [way, setWay] = useState<Way>(first);
   const address = inviteAddress(invite.code);
 
   return (

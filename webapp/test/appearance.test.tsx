@@ -13,15 +13,10 @@ import { translate } from './translations';
 
 /**
  * Me › Appearance: the theme is the browser's, the language the browser's
- * choice, the units go to the account - and each line says where it holds.
- *
- * The units are the thing to check on the wire: `PATCH /me` keeps every
- * preference a body leaves out, so one menu moved sends that one preference
- * and nothing it might send back stale - the units whole, as they are one -
- * and the toast that answers it takes back that one unit and no other. The
- * theme and the language are checked to land where they live - one attribute
- * on <html>, one key in local storage - and nowhere near a request of this
- * page: the account hears the language from the shell.
+ * choice - and each line says where it holds. Both are checked to land where
+ * they live - one attribute on <html>, one key in local storage - and nowhere
+ * near a request of this page: the account hears the language from the shell.
+ * Units are not offered while no view converts them.
  */
 
 const session = vi.hoisted(() => ({ demo: false }));
@@ -101,51 +96,19 @@ describe('the theme', () => {
 });
 
 describe('the units', () => {
-  it('draws what the account states, in symbols, under their own label', async () => {
+  it('are not offered while no view converts them, and nothing about them is sent', () => {
     draw();
 
-    expect(await screen.findByRole('combobox', { name: 'Temperature' })).toHaveValue('celsius');
-    expect(screen.getByRole('combobox', { name: 'Weight' })).toHaveValue('grams');
-    expect(screen.getByRole('combobox', { name: 'Volume' })).toHaveValue('liters');
-    expect(screen.getByRole('option', { name: '°F' })).toBeInTheDocument();
-    expect(screen.getByText('Units')).toBeInTheDocument();
-    // What the choice does not do yet is said on the page, not behind a button.
-    expect(screen.getByText('The screens show °C, grams and litres for now.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'About Units' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Units')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Temperature' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: '°F' })).not.toBeInTheDocument();
+    expect(server.asked.filter(call => call.includes('/v1/me'))).toEqual([]);
   });
 
-  it('sends the units with one changed and nothing else, so no other preference is turned back', async () => {
-    draw();
-
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Temperature' }), { target: { value: 'fahrenheit' } });
-
-    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Temperature: °F']));
-    expect(server.patched).toEqual([{ preferences: { units: { temperature: 'fahrenheit', weight: 'grams', volume: 'liters' } } }]);
-  });
-
-  it('takes one unit back into the units as they stand by then, so a unit changed in between stays', async () => {
-    draw();
-
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Temperature' }), { target: { value: 'fahrenheit' } });
-    await waitFor(() => expect(told).toHaveLength(1));
-    // The menus hold still while a write is on its way.
-    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Weight' })).toBeEnabled());
-    fireEvent.change(screen.getByRole('combobox', { name: 'Weight' }), { target: { value: 'ounces' } });
-    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Temperature: °F', 'Weight: oz']));
-
-    await told[0].undo!();
-
-    expect(server.patched[2]).toEqual({ preferences: { units: { temperature: 'celsius', weight: 'ounces', volume: 'liters' } } });
-    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Temperature' })).toHaveValue('celsius'));
-    expect(screen.getByRole('combobox', { name: 'Weight' })).toHaveValue('ounces');
-  });
-
-  it('are not offered to the demo, which keeps the settings of this browser', () => {
+  it('leave the demo the settings of this browser', () => {
     session.demo = true;
     draw();
 
-    expect(screen.queryByRole('combobox', { name: 'Temperature' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Units')).not.toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'System' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Language' })).toBeInTheDocument();
     expect(server.asked.filter(call => call.includes('/v1/'))).toEqual([]);

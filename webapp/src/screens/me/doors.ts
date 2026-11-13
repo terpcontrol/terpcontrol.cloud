@@ -82,7 +82,7 @@ export const notificationsLine = (t: Translate, me: Me, now: DateTime, language:
   ]);
 };
 
-/** "Deutsch · hell": the language and the theme - what the views show; the units are stored and not shown yet, so they are not said. */
+/** "Deutsch · hell": the language and the theme. */
 export const appearanceLine = (t: Translate, theme: ThemeChoice, language: string): string =>
   joined([languageName(t, language), t(`me.door.theme.${theme}`)]);
 

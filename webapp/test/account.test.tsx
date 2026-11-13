@@ -473,7 +473,7 @@ describe('taking everything away', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
 
-    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB · built 3 h ago/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB · built 3\sh ago/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Build the zip' })).toBeEnabled();
   });
 
@@ -491,7 +491,7 @@ describe('taking everything away', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
 
-    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB · built 40 min ago/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB · built 40\smin ago/ })).toBeInTheDocument();
   });
 
   /**
@@ -544,6 +544,9 @@ describe('taking everything away', () => {
     expect(server.deleted).toBe(0);
 
     fireEvent.change(screen.getByLabelText('Type you to confirm'), { target: { value: 'you' } });
+    // Armed by the handle, in the one danger style: filled in the alarm's red, never an outline.
+    expect(confirm).toBeEnabled();
+    expect(confirm.className).toMatch(/dangerFilled/);
     fireEvent.click(confirm);
     await waitFor(() => expect(server.deleted).toBe(1));
   });
