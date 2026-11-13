@@ -22,6 +22,8 @@ interface CursorCardProps {
   /** The cameras with pictures in the window; none leaves the card its words. */
   cameras: SpaceTimeline['cameras'];
   cursor: number;
+  /** Nobody set the cursor: it rests on the last thing heard, which is no place to play on from. */
+  resting: boolean;
   onCursor: (time: number) => void;
   /** Where a picture comes from - a link's for somebody reading through one - and whether its camera's page can be opened. */
   picture?: (mediaId: string, width?: number) => string | null;
@@ -35,14 +37,14 @@ interface CursorCardProps {
  * thumb cannot be read: the camera's picture of that moment, the instant, a
  * figure per curve and what the outputs did.
  */
-export function CursorCard({ stamp, readings, outputs, cameras, cursor, onCursor, picture = mediaUrl, linked, zoom }: CursorCardProps) {
+export function CursorCard({ stamp, readings, outputs, cameras, cursor, resting, onCursor, picture = mediaUrl, linked, zoom }: CursorCardProps) {
   const { t } = useTranslation();
   const called = useCameraCalled();
   const [chosen, setChosen] = useState(0);
   const camera = cameras[Math.min(chosen, cameras.length - 1)];
   const frame = frameNear(camera, cursor);
   const source = frame ? picture(frame.mediaId, THUMBNAIL_WIDTH.frame) : null;
-  const playing = usePlay(camera?.frames ?? [], cursor, onCursor);
+  const playing = usePlay(camera?.frames ?? [], cursor, resting, onCursor);
   const image = source ? (
     <img src={source} alt={t('timeline.frameAlt', { name: called(camera.name) })} />
   ) : (
@@ -84,8 +86,12 @@ export function CursorCard({ stamp, readings, outputs, cameras, cursor, onCursor
   );
 }
 
-/** Play walks the pictures from where the cursor stands and stops at the last one. */
-const usePlay = (frames: readonly { capturedAt: string }[], cursor: number, onCursor: (time: number) => void) => {
+/**
+ * Play walks the pictures from the cursor the address carries and stops at the last one. Rest is no such cursor:
+ * it stands on the last reading, and a picture taken after that reading was the only one "after it" - so from
+ * rest, as from past the last picture, the window plays from its first.
+ */
+const usePlay = (frames: readonly { capturedAt: string }[], cursor: number, resting: boolean, onCursor: (time: number) => void) => {
   const [on, setOn] = useState(false);
 
   useEffect(() => {
@@ -100,7 +106,7 @@ const usePlay = (frames: readonly { capturedAt: string }[], cursor: number, onCu
 
   const start = () => {
     if (frames.length === 0) return;
-    if (!frames.some(frame => at(frame.capturedAt) > cursor)) onCursor(at(frames[0].capturedAt));
+    if (resting || !frames.some(frame => at(frame.capturedAt) > cursor)) onCursor(at(frames[0].capturedAt));
     setOn(true);
   };
 

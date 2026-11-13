@@ -636,6 +636,7 @@ function Screen({
       outputs={outputsAt}
       cameras={cameras}
       cursor={cursor}
+      resting={view.at === null}
       onCursor={setCursor}
       picture={picture}
       linked={own !== null}

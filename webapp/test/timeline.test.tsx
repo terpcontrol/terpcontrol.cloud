@@ -379,6 +379,32 @@ describe('Verlauf as it opens', () => {
     expect(card).not.toHaveTextContent('last reading');
   });
 
+  // Rest stands on the last reading. A picture taken after that reading was the only one "after the cursor", and
+  // play stopped on it at once - six loads of eight on a tent that reports every thirty seconds.
+  it('plays the window from its first picture where no cursor was set, also with a picture newer than the reading', async () => {
+    server.reading = { ...reads(), measuredAt: iso(NOW - 90_000) };
+    draw();
+    await settled();
+
+    fireEvent.click(within(screen.getByRole('region', { name: 'Cursor' })).getByRole('button', { name: 'Play the window' }));
+    // The first picture of the window, two hours into it - not the newest, which lies after the reading.
+    await waitFor(() => expect(Math.abs(Date.parse(address().searchParams.get('at') ?? '') - (NOW - 22 * HOUR))).toBeLessThan(60_000));
+    expect(within(screen.getByRole('region', { name: 'Cursor' })).getByRole('button', { name: 'Stop' })).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Cursor' })).getByRole('img', { name: /at the cursor/ })).toHaveAttribute(
+      'src',
+      '/media/still-old',
+    );
+  });
+
+  it('plays on from a cursor the address carries', async () => {
+    draw(`/timeline?at=${iso(NOW - 10 * HOUR)}`);
+    await settled();
+
+    fireEvent.click(within(screen.getByRole('region', { name: 'Cursor' })).getByRole('button', { name: 'Play the window' }));
+    // The next picture after it is the newest one, a minute before now.
+    await waitFor(() => expect(Date.parse(address().searchParams.get('at') ?? '')).toBeGreaterThan(NOW - HOUR));
+  });
+
   it('lists what was written in the window, oldest first, a device`s line marked as its own', async () => {
     draw();
     await settled();
