@@ -95,13 +95,15 @@ export function Alerts() {
   const ruleOf = (alert: Alert) => (alert.ruleId ? (rules.rules.get(alert.ruleId) ?? null) : null);
   // A reading that came and went all morning is one row: one rule's sentence about the same device on the same day.
   const day = (alert: Alert) => zoned(alert.resolvedAt ?? alert.startedAt, zoneOf(me.data)).toISODate();
-  const kind = (alert: Alert) => [day(alert), alert.spaceId, alert.deviceId, alert.ruleId, titleOf(t, alert, ruleOf(alert), names, null)].join('|');
-  const kinds = new Map(ended.map(alert => [alert.id, kind(alert)]));
+  const said = new Map(ended.map(alert => [alert.id, titleOf(t, alert, ruleOf(alert), names, null)]));
+  const kinds = new Map(ended.map(alert => [alert.id, [day(alert), alert.spaceId, alert.deviceId, alert.ruleId, said.get(alert.id)].join('|')]));
   const kindOf = (alert: Alert) => kinds.get(alert.id)!;
   // What is over is paged by when it ended, so the oldest row read may stand in a day that goes on behind it. A
   // row of that day is not whole yet: it is held back, and read on, rather than counted or deleted by a part.
   const cutDay = resolved.hasNextPage && ended.length > 0 ? day(ended[ended.length - 1]) : null;
   const folds = foldSame(ended, kindOf, beganAt);
+  // Rows of two rules that read the same are told apart by the rules' names, which a row otherwise leaves to its sheet.
+  const sharesWords = (row: Alert) => folds.some(({ newest }) => newest.ruleId !== row.ruleId && said.get(newest.id) === said.get(row.id));
   const over = folds.slice(0, shown).filter(row => day(row.newest) !== cutDay);
   const cut = over.length < Math.min(shown, folds.length) && !resolved.isError;
   const readOn = cut && !resolved.isFetchingNextPage;
@@ -210,6 +212,7 @@ export function Alerts() {
                 {...card(newest)}
                 fold={ended.filter(alert => kindOf(alert) === kindOf(newest)).map(alert => alert.id)}
                 since={since}
+                ruled={sharesWords(newest)}
                 elsewhere={inUse?.length !== 1 || !placeOf(newest)}
                 again={openAgain(newest, standing)}
               />

@@ -420,8 +420,24 @@ describe('the inbox', () => {
 
     await waitFor(() =>
       expect(overRows()).toEqual([
-        ['Humidity too high', `${stamp(NOW.minus({ minutes: 10 }))} · 2× since ${clock(NOW.minus({ minutes: 34 }))}`],
-        ['Humidity too high', `${stamp(NOW.minus({ minutes: 20 }))} · 2× since ${clock(NOW.minus({ minutes: 44 }))}`],
+        ['Humidity too high', `Humidity high at night · ${stamp(NOW.minus({ minutes: 10 }))} · 2× since ${clock(NOW.minus({ minutes: 34 }))}`],
+        ['Humidity too high', `Humidity high · ${stamp(NOW.minus({ minutes: 20 }))} · 2× since ${clock(NOW.minus({ minutes: 44 }))}`],
+      ]),
+    );
+  });
+
+  /** A rule's name is its owner's word for it and stands in the sheet; a row carries it only to be told from another. */
+  it('names the rule on a row only where another rule´s row reads the same', async () => {
+    const ended = (id: string, over: Partial<Alert>, minutes: number) =>
+      alert({ id, startedAt: iso(NOW.minus({ minutes: minutes + 4 })), resolvedAt: iso(NOW.minus({ minutes })), ...over });
+    server.alerts = [ended('high', {}, 10), ended('low', { ruleId: 'rule-2', value: 30, extremeValue: 28 }, 20)];
+    server.rules = [rule(), rule({ id: 'rule-2', name: 'Humidity low', watch: { kind: 'reading', metric: 'humidity', upper: null, lower: 40 } })];
+    draw();
+
+    await waitFor(() =>
+      expect(overRows()).toEqual([
+        ['Humidity too high for 4 min', stamp(NOW.minus({ minutes: 10 }))],
+        ['Humidity too low for 4 min', stamp(NOW.minus({ minutes: 20 }))],
       ]),
     );
   });

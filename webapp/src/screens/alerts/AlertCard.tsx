@@ -82,18 +82,20 @@ export function AlertCard({ heardAt = null, ...props }: AlertProps & { heardAt?:
  * ended, and opens the whole of it - how far it went, which rule, and the two
  * things left to do with it: look at the curves of that hour, or delete it.
  * Episodes of one kind on one day are one row (`fold`, their ids, and
- * `since`), which opens the newest and deletes them all. The row says where
- * (`elsewhere`) unless that is the reader's only place; `again` is the same
- * thing standing open once more, of which nothing is said to be back in range.
+ * `since`), which opens the newest and deletes them all. The row names its
+ * rule (`ruled`) where another rule's row reads the same, and says
+ * where (`elsewhere`) unless that is the reader's only place; `again` is the
+ * same thing standing open once more, of which nothing is said to be back in range.
  */
-export function ResolvedRow(props: AlertProps & { fold: string[]; since: string; elsewhere: boolean; again: boolean }) {
+export function ResolvedRow(props: AlertProps & { fold: string[]; since: string; ruled: boolean; elsewhere: boolean; again: boolean }) {
   const { t } = useTranslation();
-  const { alert, rule, names, me, now, fold, since, elsewhere } = props;
+  const { alert, rule, names, me, now, fold, since, ruled, elsewhere } = props;
   const [open, setOpen] = useKept(`whole-${alert.id}`, false);
   const zone = zoneOf(me);
   const title = titleOf(t, alert, rule, names, spanOf(t, alert));
   const count = fold.length;
   const line = [
+    ruled ? ruleName(t, alert, rule) : null,
     elsewhere ? alert.spaceName : null,
     dayStamp(alert.resolvedAt ?? alert.startedAt, now, zone),
     count > 1 ? t('home.entryRepeats', { count, since: sinceLabel(since, now, zone) }) : null,
