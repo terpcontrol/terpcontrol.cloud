@@ -114,6 +114,8 @@ export function Panel({
                   ...(first.low === null || first.high === null
                     ? []
                     : [t('timeline.lowAt', { value: first.written(first.low) }), t('timeline.highAt', { value: first.written(first.high) })]),
+                  // Said beside the figures, so a low that rises when the window widens by a minute contradicts nothing.
+                  ...(first.of ? [first.of] : []),
                   ...(compared !== null && compared !== undefined ? [t('timeline.comparedAt', { value: first.written(compared) })] : []),
                 ]}
               />

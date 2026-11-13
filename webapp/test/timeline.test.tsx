@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
-import { useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, CardValue, SpaceTimeline } from '@fg2/shared-types/v1';
 import { LogContext, type Told } from '@/log/log-context';
@@ -72,6 +72,7 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
     stepSeconds: Math.round(step / 1000),
     deviceIds: ['device-1'],
     deviceId: 'device-1',
+    reading: server.reading,
     lastReadingAt: null,
     panels: [
       { metric: 'temperature', points: points(25.2, { min: 19.4, max: 25.3 }), targets: [] },
@@ -129,8 +130,8 @@ const server = {
   asked: [] as URLSearchParams[],
   /** Every path read, in order. */
   askedFor: [] as string[],
-  /** What the place reads now, as Start is answered it; none answers no live read at all. */
-  values: null as CardValue[] | null,
+  /** The drawn device's last reading, as the answer carries it for every reader; none where nothing is drawn of a device. */
+  reading: null as SpaceTimeline['reading'],
   views: [] as { id: string; name: string; definition: unknown }[],
   wrote: [] as string[],
   /** Whether the account has a second place with a controller of its own standing in it. */
@@ -161,7 +162,6 @@ const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
     });
   }
   if (path === '/me') return json(meWith({ preferences: { ...meWith().preferences, timezone: 'UTC' } }));
-  if (path === '/spaces/space-1/live' && server.values) return json({ spaceId: 'space-1', values: server.values, setpoints: [], devices: [] });
   if (path === '/spaces/space-1/timeline' || (second && path === '/spaces/space-2/timeline')) {
     server.asked.push(url.searchParams);
     if (server.holds) {
@@ -204,6 +204,10 @@ const draw = (at = '/timeline', page: ReactNode = <Timeline />) => {
     <LogContext value={log}>
       {page}
       <Address />
+      {/* The bar's item: the page's own address with nothing in it. */}
+      <Link to="/timeline" data-testid="bar">
+        Verlauf
+      </Link>
     </LogContext>,
     { at },
   );
@@ -234,7 +238,7 @@ beforeEach(() => {
     holds: false,
     asked: [],
     askedFor: [],
-    values: null,
+    reading: null,
     views: [],
     wrote: [],
     elsewhere: false,
@@ -421,11 +425,23 @@ describe('the view in the address', () => {
 });
 
 describe('what the place reads now', () => {
-  const reading = (metric: CardValue['metric'], value: number, minutesAgo: number): CardValue =>
-    ({ metric, value, measuredAt: iso(NOW - minutesAgo * 60_000), state: minutesAgo > 10 ? 'offline' : 'live' }) as CardValue;
+  const value = (metric: CardValue['metric'], figure: number, minutesAgo: number): CardValue =>
+    ({ metric, value: figure, measuredAt: iso(NOW - minutesAgo * 60_000), state: minutesAgo > 10 ? 'offline' : 'live' }) as CardValue;
+  const read = (minutesAgo: number, values: CardValue[], outputs: NonNullable<SpaceTimeline['reading']>['outputs'] = []) => ({
+    measuredAt: iso(NOW - minutesAgo * 60_000),
+    values,
+    outputs,
+  });
 
-  it('is the device`s last reading as Start says it, in the head of each panel and in the card - not the mean of the last window', async () => {
-    server.values = [reading('temperature', 26.7, 0.1), reading('humidity', 61.4, 0.1), reading('vpd', 1.52, 0.1)];
+  it('is the device`s last reading as the answer carries it, in the head of each panel and in the card - not the mean of the last window', async () => {
+    server.reading = read(
+      0.1,
+      [value('temperature', 26.7, 0.1), value('humidity', 61.4, 0.1), value('vpd', 1.52, 0.1)],
+      [
+        { output: 'light', on: true, level: 40 },
+        { output: 'dehumidifier', on: true, level: null },
+      ],
+    );
     draw('/timeline?range=30d');
     await settled();
 
@@ -433,10 +449,28 @@ describe('what the place reads now', () => {
     const card = screen.getByRole('region', { name: 'Cursor' });
     expect(card).toHaveTextContent(/Cursor · now, \d\d:\d\d/);
     expect(card).toHaveTextContent('26.7 °C · 61.4 % · 1.52 kPa');
+    // The outputs are that reading's too: the lamp at 40 %, not the 65 % the window's mean came to.
+    expect(card).toHaveTextContent('Light 40 % · Heater off · Dehumidifier on');
+  });
+
+  it('is the same for somebody reading through a link: one instant, one set of figures', async () => {
+    server.reading = read(0.1, [value('temperature', 26.7, 0.1)], [{ output: 'light', on: true, level: 40 }]);
+    server.over = { deviceIds: null, events: [], machineEvents: { shown: 0, total: 0 }, grows: [], growId: null };
+    draw(
+      '/shared/token-1',
+      <SharedTimeline spaceId="space-1" shared={{ token: 'token-1', picture: id => `/shared-media/${id}` }} title={<h2>Timeline</h2>} />,
+    );
+    await settled();
+
+    const card = screen.getByRole('region', { name: 'Cursor' });
+    expect(card).toHaveTextContent('26.7 °C');
+    expect(card).toHaveTextContent('Light 40 %');
+    // Nothing of a device is asked beside the answer.
+    expect(server.askedFor.filter(path => path.endsWith('/live'))).toEqual([]);
   });
 
   it('is "last reading" with its own time once the device has stopped reporting by the offline rule, on a month as on a day', async () => {
-    server.values = [reading('temperature', 24.1, 95), reading('humidity', 55, 95)];
+    server.reading = read(95, [value('temperature', 24.1, 95), value('humidity', 55, 95)]);
     // The curve's last mean closes two hours ago; nothing was measured after the device went quiet.
     const points = [4, 3, 2].map(hours => ({ measuredAt: ago(hours), value: 25.2 }));
     server.over = { panels: [{ metric: 'temperature', points, targets: [] }], outputs: [], cameras: [] };
@@ -447,6 +481,32 @@ describe('what the place reads now', () => {
     await waitFor(() => expect(card).toHaveTextContent(/Cursor · last reading · /));
     expect(card).not.toHaveTextContent('now');
     expect(within(panel('Temperature')).getByText('24.1 °C')).toBeInTheDocument();
+  });
+});
+
+describe('the cursor', () => {
+  it('is what the address says and nothing else: with no `at` the card rests on now, whatever was set down before', async () => {
+    draw();
+    await settled();
+    tap('Temperature', 0.25);
+    await waitFor(() => expect(address().searchParams.has('at')).toBe(true));
+    expect(screen.getByRole('region', { name: 'Cursor' })).not.toHaveTextContent('now');
+
+    // "Verlauf" in the bar: the same page with no cursor in its address.
+    fireEvent.click(screen.getByTestId('bar'));
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Cursor' })).toHaveTextContent(/Cursor · now, \d\d:\d\d/));
+    expect(screen.getByRole('region', { name: 'Cursor' })).toHaveTextContent('25.2 °C');
+  });
+
+  it('names the arrows as a person says it: by the chip`s own words, and a stretch of a grow as the stretch before', async () => {
+    draw('/timeline?range=7d');
+    await settled();
+    expect(screen.getByRole('button', { name: '7 d earlier' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '7 d later' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grow' }));
+    expect(await screen.findByRole('button', { name: 'The stretch before' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'The stretch after' })).toBeInTheDocument();
   });
 });
 
@@ -582,6 +642,18 @@ describe('the sheet "Adjust"', () => {
     fireEvent.click(within(sheet).getByRole('checkbox', { name: 'Device messages' }));
 
     await waitFor(() => expect(within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem')).toHaveLength(1));
+  });
+
+  it('offers no step under five minutes for a window wider than three days', async () => {
+    draw(`/timeline?from=${ago(8 * 24)}&to=${ago(24)}`);
+    await settled();
+    fireEvent.click(screen.getByRole('button', { name: 'Adjust' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Adjust' });
+    const steps = within(within(sheet).getByRole('combobox', { name: /Point spacing/ }))
+      .getAllByRole('option')
+      .map(option => option.textContent);
+
+    expect(steps).toEqual(['Automatic', '10 min', '1 h']);
   });
 
   it('asks the server for a step somebody chose', async () => {
@@ -733,7 +805,7 @@ describe('a place read through a link', () => {
   const shared = () =>
     draw(
       '/shared/token-1',
-      <SharedTimeline spaceId="space-1" shared={{ token: 'token-1', picture: id => `/shared-media/${id}` }} title={<h2>Timeline</h2>} values={[]} />,
+      <SharedTimeline spaceId="space-1" shared={{ token: 'token-1', picture: id => `/shared-media/${id}` }} title={<h2>Timeline</h2>} />,
     );
 
   it('reads with the link`s token, draws the curves and the strips, and keeps nothing of the account', async () => {
@@ -782,7 +854,7 @@ describe('a place read through a link', () => {
     server.over = { deviceIds: null, events: [watered], machineEvents: { shown: 0, total: 0 }, grows: [], growId: null };
     draw(
       `/shared/token-1?at=${ago(3)}`,
-      <SharedTimeline spaceId="space-1" shared={{ token: 'token-1', picture: id => `/shared-media/${id}` }} title={<h2>Timeline</h2>} values={[]} />,
+      <SharedTimeline spaceId="space-1" shared={{ token: 'token-1', picture: id => `/shared-media/${id}` }} title={<h2>Timeline</h2>} />,
     );
     await settled();
 

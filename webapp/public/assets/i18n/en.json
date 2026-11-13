@@ -2055,7 +2055,6 @@
     "toLast": "Go to the last reading",
     "noneTicked": "No curve is ticked. Choose what is drawn under “Adjust”.",
     "mouseHint": "Drag to choose a stretch, Ctrl + wheel zooms.",
-    "csvOutput": "{{output}} (on/off)",
     "csvTime": "Time",
     "diary": {
       "title": "Diary in this window",
@@ -2127,7 +2126,12 @@
       "d_other": "every {{n}} days"
     },
     "csvVpd": "VPD, worked out from temperature and humidity",
-    "csvLevel": "{{output}} (%)"
+    "csvLevel": "{{output}} (%)",
+    "ofMeans": "of {{minutes}}-min means",
+    "stretchBefore": "The stretch before",
+    "stretchAfter": "The stretch after",
+    "lightFrom": "from {{from}}",
+    "lightUntil": "until {{to}}"
   },
   "camera": {
     "lastError": "Last try failed: {{reason}}",

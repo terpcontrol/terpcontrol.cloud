@@ -60,11 +60,12 @@ const csvValue = (value: number | null): string => {
 };
 
 /**
- * The one script that is two reads under names of their own: each window's
- * lowest and its highest (`extremesQuery`). Every other script is answered as
- * one result, as it always was.
+ * The scripts that are two reads under names of their own: each window's
+ * lowest and its highest (`extremesQuery`), a grain's means and how many
+ * readings it held (`grainsQuery`). Every other script is answered as one
+ * result, as it always was.
  */
-const EXTREMES = /\|>\s*yield\(name:\s*"(min|max)"\)/g;
+const EXTREMES = /\|>\s*yield\(name:\s*"(min|max|mean|count)"\)/g;
 
 const toAnnotatedCsv = (query: string, store: InfluxStore, now: number): string => {
   const names = [...query.matchAll(EXTREMES)].map(match => match[1]);

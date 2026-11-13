@@ -43,6 +43,15 @@ const WIDEST = WIDTHS[WIDTHS.length - 1];
 /** The steps "Abstand der Punkte" offers beside the automatic one, in seconds. */
 export const STEPS = [5, 60, 600, 3600];
 
+/**
+ * From this width on the server works VPD out from means over a grain and draws every step as whole grains: no
+ * step finer than a grain is offered there, and VPD's low and high are those of the grains' means.
+ */
+export const GRAINED_FROM_MS = 3 * DAY_MS;
+
+/** The grain of a window that wide, in minutes: five, and more only past four and a half months (the server's `deficitGrainFor`). */
+export const grainMinutes = (span: Span): number => Math.max(5, Math.ceil((span.to - span.from) / 1000 / 40_000 / 300) * 5);
+
 export const VPD_HALVES = ['all', 'day', 'night'] as const;
 export type VpdHalf = (typeof VPD_HALVES)[number];
 

@@ -4070,6 +4070,16 @@ export interface TimelineTargets {
   settling?: boolean;
 }
 
+export interface TimelineReading {
+  measuredAt: string;
+  values: CardValue[];
+  outputs: {
+    output: OutputMetric;
+    on: boolean;
+    level: number | null;
+  }[];
+}
+
 export interface TimelinePanel {
   metric: Metric;
   points: SeriesPoint[];
@@ -4098,6 +4108,10 @@ export interface TimelineOutputLane {
    * How far anything is known about this output: the last instant the device was heard from inside the window, or the window's own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.
    */
   heardUntil: string;
+  /**
+   * For how long the device was heard about this output inside the window, which is what a share of the time it ran is a share of.
+   */
+  heardSeconds?: number;
   /**
    * Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.
    */
@@ -4187,6 +4201,10 @@ export interface SpaceTimeline {
    */
   deviceId: string | null;
   panels: TimelinePanel[];
+  /**
+   * What the device the panels are of last read, whenever that was: the figures a screen shows as "now" - or as the last reading of a device gone quiet - for every reader alike. Null where no device standing here is drawn.
+   */
+  reading: TimelineReading | null;
   /**
    * When a device standing here last measured one of the panels' metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.
    */

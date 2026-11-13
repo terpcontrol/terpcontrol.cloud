@@ -1,27 +1,16 @@
 import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
-import { hashKey } from '@tanstack/react-query';
+import { hashKey, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
-import type {
-  CardValue,
-  ChartView,
-  DeviceLive,
-  Entry,
-  GrowListItem,
-  GrowSeriesPoint,
-  MeasurementDefinition,
-  ShareLink,
-  Space,
-  SpaceTimeline,
-} from '@fg2/shared-types/v1';
-import { useDeviceLive, useDevices } from '@/api/devices';
+import type { ChartView, Entry, GrowListItem, GrowSeriesPoint, MeasurementDefinition, ShareLink, Space, SpaceTimeline } from '@fg2/shared-types/v1';
+import { useDevices } from '@/api/devices';
 import { useGrow, useMeasurementSeries } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { ApiError } from '@/api/problem';
 import type { Picture } from '@/api/public';
 import { useSession } from '@/api/session';
-import { useSpaceLive, useSpaces } from '@/api/spaces';
+import { useSpaces } from '@/api/spaces';
 import { rangeNeedsGrow, timelineKey, useTimeline } from '@/api/timeline';
 import { isPlace, SHARE_LINKS } from '@/app/places';
 import { useScrub, type Selection } from '@/charts/scrub';
@@ -61,7 +50,6 @@ import {
   shareOf,
   shownOf,
   stateAt,
-  stateNow,
   stripsOf,
   type Compared,
   type Strip,
@@ -74,6 +62,7 @@ import {
   chipOf,
   dayHolding,
   definitionOf,
+  GRAINED_FROM_MS,
   isRolling,
   nextWidth,
   RANGES,
@@ -148,7 +137,7 @@ function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
         ? { what: 'device', id: named.deviceId }
         : named.growId && namedGrow.isPending
           ? 'checking'
-          : named.growId && namedGrow.data && !namedGrow.data.placements.some(one => one.spaceId === spaceId)
+          : named.growId && (namedGrow.isError || (namedGrow.data && !namedGrow.data.placements.some(one => one.spaceId === spaceId)))
             ? { what: 'grow', id: named.growId }
             : null;
   const page = usePage(spaceId, null, vain);
@@ -168,10 +157,8 @@ function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
     'grow',
     charted.map(definition => definition.key),
   );
-  // The read Start lays over its readings every half minute: one `last()`, under the same key.
-  const reads = useSpaceLive(spaceId, true).data;
-  const deviceLive = useDeviceLive(vain === null ? (page.view.deviceId ?? page.data?.deviceId ?? null) : null).data;
-  const lost = useGrow(page.dropped?.what === 'grow' ? page.dropped.id : null).data;
+  // What was read of the grow while the address still named it; it is not asked again for the sentence about it.
+  const lost = useQueryClient().getQueryData<GrowListItem>(['grow', page.dropped?.what === 'grow' ? page.dropped.id : null]);
   const card = (home.data?.spaces ?? []).filter(isPlace).find(one => one.spaceId === spaceId);
   const climates = (card?.climates ?? []).flatMap(climate => (climate.deviceId ? [climate.deviceId] : []));
   const target = targetsOf(home.data).find(one => one.standsIn === spaceId || one.spaceId === spaceId) ?? null;
@@ -221,19 +208,7 @@ function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
     byline: user?.isDemo !== true,
   };
 
-  // What the device drawn reads now, as Start says it: the climate asked for, else the place's own.
-  const drawn = reads?.devices.find(one => one.deviceId === (page.view.deviceId ?? data?.deviceId));
-  return (
-    <Screen
-      page={page}
-      spaceId={spaceId}
-      title={title}
-      place={placeName}
-      own={own}
-      values={drawn?.values ?? reads?.values ?? null}
-      outputs={deviceLive?.outputs ?? null}
-    />
-  );
+  return <Screen page={page} spaceId={spaceId} title={title} place={placeName} own={own} />;
 }
 
 /**
@@ -241,20 +216,9 @@ function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
  * week or month through the link's own window, with nothing of the account
  * behind it - no grow to name, no line to correct, no view to keep.
  */
-export function SharedTimeline({
-  spaceId,
-  shared,
-  title,
-  values,
-}: {
-  spaceId: string;
-  shared: { token: string; picture: Picture };
-  title: React.ReactNode;
-  /** What the place reads now, as the page above says it. */
-  values: CardValue[];
-}) {
+export function SharedTimeline({ spaceId, shared, title }: { spaceId: string; shared: { token: string; picture: Picture }; title: React.ReactNode }) {
   const page = usePage(spaceId, shared.token);
-  return <Screen page={page} spaceId={spaceId} title={title} place={null} own={null} picture={shared.picture} values={values} />;
+  return <Screen page={page} spaceId={spaceId} title={title} place={null} own={null} picture={shared.picture} />;
 }
 
 /** The view the address names, the answer to it, and the one way the view is changed. */
@@ -344,24 +308,22 @@ function Screen({
   place,
   own,
   picture,
-  values,
-  outputs = null,
-}: TimelineProps & {
-  page: ReturnType<typeof usePage>;
-  own: Own | null;
-  picture?: Picture;
-  values: CardValue[] | null;
-  /** What the drawn device's outputs are doing as it last said, where the reader may ask the device. */
-  outputs?: DeviceLive['outputs'] | null;
-}) {
+}: TimelineProps & { page: ReturnType<typeof usePage>; own: Own | null; picture?: Picture }) {
   const { t } = useTranslation();
   const zone = useZone();
   const wide = useWideWindow();
   const { view, asked, timeline, data, failed, refusal, change, now, clock } = page;
   // Where the cursor is being moved to before the address says so: under a mouse or a dragging thumb for as long as it
   // moves, and once set down until the address has followed - `before` is the cursor the address held then.
-  const [scrub, setScrub] = useState<{ time: number; before?: number | null } | null>(null);
-  const setScrubbed = (time: number | null) => setScrub(time === null ? null : { time });
+  // The cursor is what the address says, and nothing else remembers it. Only while a mouse or a dragging thumb
+  // moves it - and from the moment it is set down until the address has followed - it is held here; whenever
+  // the address's own cursor changes, that is the cursor: "Verlauf" in the bar leaves none behind.
+  const [scrubbed, setScrubbed] = useState<number | null>(null);
+  const [addressed, setAddressed] = useState(view.at);
+  if (addressed !== view.at) {
+    setAddressed(view.at);
+    setScrubbed(null);
+  }
   const [adjusting, setAdjusting] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [link, setLink] = useState<ShareLink | null>(null);
@@ -393,12 +355,19 @@ function Screen({
   // Whether the window drawn ends now: the one asked for does, or it is a grow's own stretch that reaches the clock.
   // The picture kept under a window that would not load is still the one it was: it ended now, and reads so.
   const live = asked && !failed ? asked.live : window !== null && window.to >= clock - 2 * LIVE_BEAT_MS;
-  // "Jetzt" is the device's last reading, as Start and Steuerung say it, and only while the device reports: by the
-  // offline rule it is "letzter Wert" with its own time, on every range.
-  const heard = live ? (values ?? []).filter(value => value.value !== null && value.measuredAt !== null) : [];
-  const lastHeard = heard.length > 0 ? Math.max(...heard.map(value => at(value.measuredAt as string))) : null;
-  const silent = heard.length > 0 && heard.every(value => valueAge(value, now) === 'offline');
-  const reads = useMemo(() => (live && values ? { values, silentSince: silent ? lastHeard : null } : null), [live, values, silent, lastHeard]);
+  // "Jetzt" is the device's last reading, which the answer carries for every reader alike, and only while the
+  // device reports: by the offline rule it is "letzter Wert" with its own time, on every range. It closes the
+  // curves of any window that holds it - also one a pinch left standing over a tent gone quiet.
+  const reading = data?.reading ?? null;
+  const lastHeard =
+    reading && window && at(reading.measuredAt) >= window.from && at(reading.measuredAt) <= window.to + 2 * LIVE_BEAT_MS
+      ? at(reading.measuredAt)
+      : null;
+  const silent = reading !== null && reading.values.every(value => valueAge(value, now) === 'offline');
+  const reads = useMemo(
+    () => (reading && lastHeard !== null ? { values: reading.values, silentSince: silent ? lastHeard : null } : null),
+    [reading, silent, lastHeard],
+  );
 
   const measured = own?.measured;
   const model = useMemo(() => {
@@ -431,9 +400,8 @@ function Screen({
     target.scrollIntoView?.({ block: 'center' });
   }, [view.focus, model]);
 
-  const quiet = !data || !live ? null : values ? (silent ? lastHeard : null) : quietSince(data);
+  const quiet = !data ? null : reading ? (silent ? lastHeard : null) : live ? quietSince(data) : null;
   const rest = quiet ?? window?.to ?? clock;
-  const scrubbed = scrub && (scrub.before === undefined || scrub.before === view.at) ? scrub.time : null;
   const cursor = window ? Math.min(window.to, Math.max(window.from, scrubbed ?? view.at ?? rest)) : rest;
   const toTime = (fraction: number) => (window ? window.from + fraction * (window.to - window.from) : clock);
 
@@ -441,7 +409,7 @@ function Screen({
     onCursor: fraction => setScrubbed(toTime(fraction)),
     // The address follows a moment later, so the cursor stays where it was set down rather than springing back first.
     onPlace: fraction => {
-      setScrub({ time: toTime(fraction), before: view.at });
+      setScrubbed(toTime(fraction));
       change({ at: toTime(fraction) });
     },
     onLeave: () => setScrubbed(null),
@@ -468,6 +436,12 @@ function Screen({
   const width = named ? named.to - named.from : 0;
   const growId = view.growId ?? data?.growId ?? null;
   const chip = chipOf(view, asked);
+  // An arrow is named as a person says it: "7 Tage früher" by the chip's own words, and for a stretch of a grow,
+  // whose width is nobody's unit, the stretch before and after.
+  const stepName = (direction: -1 | 1): string =>
+    chip !== null && !isRolling(chip)
+      ? t(direction < 0 ? 'timeline.stretchBefore' : 'timeline.stretchAfter')
+      : t(direction < 0 ? 'timeline.earlier' : 'timeline.later', { span: chip ? t(`timeline.range.${chip}`) : durationLabel(width / 1000) });
   const ranges = RANGES.filter(range => isRolling(range) || (own !== null && growId !== null));
   // Said only where points are drawn: a window nothing was measured in has no step to speak of.
   const stepDrawn = data && data.stepSeconds > 0 && data.panels.length > 0 && !failed ? data.stepSeconds : null;
@@ -536,13 +510,7 @@ function Screen({
         ))}
       </div>
       <div className={styles.nav} role="group" aria-label={t('timeline.navLabel')}>
-        <button
-          type="button"
-          className={styles.navButton}
-          disabled={!named}
-          aria-label={t('timeline.earlier', { span: durationLabel(width / 1000) })}
-          onClick={() => step(-1)}
-        >
+        <button type="button" className={styles.navButton} disabled={!named} aria-label={stepName(-1)} onClick={() => step(-1)}>
           <ChevronLeft size={20} strokeWidth={2} aria-hidden />
         </button>
         <span className={styles.window}>
@@ -562,13 +530,7 @@ function Screen({
               .join(' · ')}
           </small>
         </span>
-        <button
-          type="button"
-          className={styles.navButton}
-          disabled={!named || named.live}
-          aria-label={t('timeline.later', { span: durationLabel(width / 1000) })}
-          onClick={() => step(1)}
-        >
+        <button type="button" className={styles.navButton} disabled={!named || named.live} aria-label={stepName(1)} onClick={() => step(1)}>
           <ChevronRight size={20} strokeWidth={2} aria-hidden />
         </button>
         {/* The marked way back, wherever the arrows and the zoom led. */}
@@ -629,6 +591,7 @@ function Screen({
           first?.point && data.stepSeconds > SAMPLE_SECONDS && first.point[0] !== first.curve.lastAt
           ? meanStamp(t, first.point[0], window, data.stepSeconds, zone)
           : cursorStamp(stood, window, data.stepSeconds, zone);
+  const onReading = read.some(one => one.point !== null && one.curve.lastAt !== null && one.point[0] === one.curve.lastAt);
   // The room beside every plot is as wide as the longest figure a scale writes there, and the same for all of
   // them: the plots stand on one time axis down the page.
   const gutter =
@@ -637,10 +600,12 @@ function Screen({
   const shared = new Set(curves.map(curve => curve.unit).filter((unit, index, all) => unit !== '' && all.indexOf(unit) !== index));
   const outputsAt = (shown.light || shown.outputs ? strips : [])
     .filter(strip => (strip.output === 'light' ? shown.light : shown.outputs))
-    // At rest the card says what the device last said - its live levels, as Start does - and no mean of a window.
+    // On the device's last reading - at rest, or with the cursor set on that point - the card says what each output
+    // was doing then, as the reading has it, and no mean of a window.
     .map(strip =>
-      outputWords(t, strip, (resting && live ? stateNow(strip.output, outputs?.[strip.output]?.value) : null) ?? stateAt(strip, cursor, stepMs)),
+      outputWords(t, strip, (onReading ? reading?.outputs.find(one => one.output === strip.output) : null) ?? stateAt(strip, cursor, stepMs)),
     );
+
   const cameras = data.cameras.filter(camera => camera.frames.length > 0);
   const ends = axisEnds(t, window, live, zone);
   const nothing = data.panels.length === 0 && data.outputs.length === 0;
@@ -782,6 +747,7 @@ function Screen({
           shown={shown}
           change={change}
           stepDrawn={data.stepSeconds}
+          grained={window.to - window.from > GRAINED_FROM_MS}
           comparable={own?.comparable ?? []}
           views={
             own?.keeps
@@ -902,34 +868,37 @@ const outputWords = (t: Translate, strip: Strip, state: ReturnType<typeof stateA
  * on; and how bright it last ran.
  */
 const lightWords = (t: Translate, light: Strip, window: { from: number; to: number }, live: boolean, zone: string | null): string => {
-  const run = light.runs.at(-1);
-  // How bright it ran while it last ran: the middle of its levels, which a ramp at either end does not move.
-  const levels = light.levels
-    .filter(([end]) => !run || (end > run.from && end <= run.to + 1))
-    .map(([, value]) => value)
-    .sort((one, other) => one - other);
-  const level = levels.length > 0 ? levels[Math.floor(levels.length / 2)] : null;
   const clock = (time: number) => zonedAt(time, zone).toFormat('HH:mm');
+  // How bright a stretch ran: the middle of its levels, which a ramp at either end does not move.
+  const levelOf = (run: { from: number; to: number }): string | null => {
+    const levels = light.levels
+      .filter(([end]) => end > run.from && end <= run.to + 1)
+      .map(([, value]) => value)
+      .sort((one, other) => one - other);
+    return levels.length > 0 ? `${levels[Math.floor(levels.length / 2)]}\u00a0%` : null;
+  };
   const share = shareOf(light, window.from, window.to);
-  // Every lit stretch of the window by the clock, where they are few enough to read: a window that begins in one
-  // evening's light and ends in the next has two, and naming the last alone hid the first.
+  // Every lit stretch of the window by the clock, each with its own level, where they are few enough to read. One
+  // the window cuts is named by the end it has: "bis 12:00" did not come on at the window's first minute.
   const lit = light.runs.filter(one => one.to > window.from && one.from < window.to);
-  const when =
-    lit.length === 0 || lit.length > 3 || window.to - window.from > 36 * 3600_000
-      ? share === null
-        ? null
-        : share === 0
-          ? t('timeline.off')
-          : t('timeline.lightShare', { share: Math.round(share * 100) })
-      : lit
-          .map(one =>
-            one.to >= window.to && live
-              ? t('timeline.lightSince', { from: clock(Math.max(one.from, window.from)) })
-              : t('timeline.lightSpan', { from: clock(Math.max(one.from, window.from)), to: clock(Math.min(one.to, window.to)) }),
-          )
-          .join(', ');
+  if (lit.length === 0 || lit.length > 3 || window.to - window.from > 36 * 3600_000) {
+    const all = lit.length > 0 ? levelOf({ from: window.from, to: window.to }) : null;
+    return [share === null ? null : share === 0 ? t('timeline.off') : t('timeline.lightShare', { share: Math.round(share * 100) }), all]
+      .filter(Boolean)
+      .join(' · ');
+  }
 
-  return [when, level === null ? null : `${level}\u00a0%`].filter(Boolean).join(' · ');
+  return lit
+    .map(one => {
+      const [began, ended] = [one.from > window.from, one.to < window.to];
+      const when = !ended
+        ? t(live ? 'timeline.lightSince' : 'timeline.lightFrom', { from: began ? clock(one.from) : clock(window.from) })
+        : began
+          ? t('timeline.lightSpan', { from: clock(one.from), to: clock(one.to) })
+          : t('timeline.lightUntil', { to: clock(one.to) });
+      return [when, levelOf(one)].filter(Boolean).join(' · ');
+    })
+    .join(', ');
 };
 
 /** A file name a grower finds again: the place's name without what a file system trips on. */

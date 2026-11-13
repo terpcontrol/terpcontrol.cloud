@@ -3,7 +3,7 @@ import { growDayAt, growDayUpTo, growOriginOf, spineOf } from '@fg2/shared-types
 import { Grant } from '@common/v1/access.types';
 import { clampRange } from '@common/v1/range';
 import type { DeviceHistory } from '@modules/data/data.service';
-import { MIN_STEP_SECONDS, stepFor as storeStepFor } from '@modules/data/flux';
+import { MAX_SAMPLED_SECONDS, MIN_STEP_SECONDS, deficitGrainFor, stepFor as storeStepFor } from '@modules/data/flux';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
@@ -164,10 +164,17 @@ const stretchOf = (range: 'phase' | 'grow', grow: GrowDocument, at: Date): { sta
  * three minutes. A step somebody chose is held to the store's own rule for one.
  */
 export const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
-  if (asked && asked > 0) return storeStepFor(startsAt, endsAt, asked);
-
   const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
-  const even = Math.ceil(seconds / PANEL_WINDOWS);
+  const even = asked && asked > 0 ? storeStepFor(startsAt, endsAt, asked) : Math.ceil(seconds / PANEL_WINDOWS);
+  // Beyond three days the deficit is worked out from means over a grain of five minutes (`grainsQuery`), so a
+  // step is a whole number of grains there: a point then holds whole grains and is the mean of what is drawn.
+  // At 541 s a point held one grain or two and was off by up to 0.09 kPa; a step asked finer is widened to one.
+  if (seconds > MAX_SAMPLED_SECONDS) {
+    const grain = deficitGrainFor({ startsAt, endsAt });
+    return Math.ceil(even / grain) * grain;
+  }
+  if (asked && asked > 0) return even;
+
   return even >= 60 ? even : Math.max(SAMPLE_SECONDS, Math.ceil(even / SAMPLE_SECONDS) * SAMPLE_SECONDS);
 };
 

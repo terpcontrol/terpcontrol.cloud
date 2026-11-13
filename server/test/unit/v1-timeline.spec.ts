@@ -6,7 +6,7 @@ import { movedTo } from '@common/v1/device-placements';
 import { DataService, DeviceHistory, SeriesRequest } from '@modules/data/data.service';
 import { FluxRow, switchingsByField } from '@modules/data/flux';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
-import { lanesOf, nightsOf, panelsOf } from '@modules/v1/timeline/timeline-series';
+import { lanesOf, nightsOf, panelsOf, readingOf } from '@modules/v1/timeline/timeline-series';
 import { TimelineService } from '@modules/v1/timeline/timeline.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { session, visitor } from './support/callers';
@@ -443,6 +443,51 @@ describe('the window a range chip names', () => {
     expect(page.panels[0].points).toHaveLength(240);
   });
 
+  it('reads a window wider than three days at a whole number of five minutes, asked for or not', async () => {
+    const wide = (days: number) => ({ startsAt: new Date(NOW.getTime() - days * 24 * 3600_000), endsAt: NOW });
+    const stepOf = async (days: number, stepSeconds?: number) =>
+      (await readAs(session(OWNER), { range: '24h', window: wide(days), stepSeconds })).stepSeconds;
+
+    // Three days and six hours are 541 s to the point by their 480 windows: two grains of five minutes instead.
+    expect([await stepOf(3.25), await stepOf(7), await stepOf(30)]).toEqual([600, 1500, 5400]);
+    // A minute asked over a week is five; an hour asked stays an hour.
+    expect([await stepOf(7, 60), await stepOf(7, 3600)]).toEqual([300, 3600]);
+    // Inside three days nothing changes: a step somebody chose is kept.
+    expect(await stepOf(2, 60)).toBe(60);
+  });
+
+  it('answers the last reading of the device its curves are of, for every reader the same', async () => {
+    lastReading = {
+      temperature: { value: 24.7, measuredAt: '2026-06-10T11:59:55.000Z', state: 'live' },
+      humidity: { value: 53.4, measuredAt: '2026-06-10T11:59:55.000Z', state: 'live' },
+    };
+    const owner = (await readAs(session(OWNER))).reading;
+
+    expect(owner).toMatchObject({ measuredAt: '2026-06-10T11:59:55.000Z', outputs: [] });
+    expect(owner!.values.map(one => [one.metric, one.value])).toEqual([
+      ['temperature', 24.7],
+      ['humidity', 53.4],
+    ]);
+    // A level in per cent where the output has one, on or off where it only switches.
+    expect(
+      readingOf(
+        {
+          metrics: lastReading,
+          outputs: {
+            light: { value: 65, measuredAt: 'x', state: 'live' },
+            heater: { value: 0.62, measuredAt: 'x', state: 'live' },
+            dehumidifier: { value: 0, measuredAt: 'x', state: 'live' },
+          },
+        } as never,
+        ['temperature'],
+      )?.outputs,
+    ).toEqual([
+      { output: 'light', on: true, level: 65 },
+      { output: 'heater', on: true, level: 62 },
+      { output: 'dehumidifier', on: false, level: null },
+    ]);
+  });
+
   it('ends a window named into the future now, where the measuring ends', async () => {
     const today = { startsAt: new Date(NOW.getTime() - 6 * 3600_000), endsAt: new Date(NOW.getTime() + 18 * 3600_000) };
     const page = await readAs(session(OWNER), { range: '24h', window: today });
@@ -704,11 +749,11 @@ describe('one climate of several', () => {
     reports = { [CONTROLLER]: () => null, [FRIDGE_MODULE]: () => null };
     liveAsked = [];
     await readAs(session(OWNER), { range: '24h' });
-    expect(liveAsked).toEqual([CONTROLLER]);
+    expect(new Set(liveAsked)).toEqual(new Set([CONTROLLER]));
 
     liveAsked = [];
     await readAs(session(OWNER), { range: '24h', deviceId: FRIDGE_MODULE });
-    expect(liveAsked).toEqual([FRIDGE_MODULE]);
+    expect(new Set(liveAsked)).toEqual(new Set([FRIDGE_MODULE]));
   });
 
   it('shows the camera of the controller it is paired to beside that climate only', async () => {
@@ -893,6 +938,7 @@ describe('the night, the lanes and the alarms', () => {
       spans: [{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: '2026-06-10T06:00:00.000Z' }],
       // Still reporting, so everything up to the edge of the window is known.
       heardUntil: '2026-06-10T12:00:00.000Z',
+      heardSeconds: 86400,
     });
     // Reported and never on: a lane of its own, with nothing in it.
     expect(page.outputs.find(lane => lane.output === 'dehumidifier')?.spans).toEqual([]);
@@ -1382,7 +1428,7 @@ describe('the night and the lanes over a window wider than the cycle', () => {
 
   it('draws the lamp´s lane as the stretches it ran for, at the same resolution', () => {
     expect(lanesOf([history()], WINDOW)).toEqual([
-      { output: 'light', deviceId: CONTROLLER, spans: stretches(true), heardUntil: CLOSES.toISOString() },
+      { output: 'light', deviceId: CONTROLLER, spans: stretches(true), heardUntil: CLOSES.toISOString(), heardSeconds: expect.any(Number) },
     ]);
   });
 
@@ -1522,6 +1568,7 @@ describe('the same lamp run at every range', () => {
         deviceId: CONTROLLER,
         spans: [{ startsAt: LIT_FROM.toISOString(), endsAt: CLOSES.toISOString() }],
         heardUntil: CLOSES.toISOString(),
+        heardSeconds: expect.any(Number),
       },
     ]);
   });
@@ -1592,6 +1639,8 @@ describe('a lane of a tent that has gone quiet', () => {
         deviceId: CONTROLLER,
         spans: [{ startsAt: LIT_FROM.toISOString(), endsAt: LAST_SAMPLE.toISOString() }],
         heardUntil: LAST_SAMPLE.toISOString(),
+        // Heard from the start of the window to the last sample, which is what a share of the time is of.
+        heardSeconds: Math.round((LAST_SAMPLE.getTime() - OPENS.getTime()) / 1000),
       },
     ]);
   });
@@ -1614,6 +1663,37 @@ describe('a lane of a tent that has gone quiet', () => {
 
     expect(lanesOf([quiet], WINDOW)[0].heardUntil).toBe(morning.toISOString());
     expect(lanesOf([quiet], WINDOW)[0].spans.at(-1)!.endsAt).toBe(morning.toISOString());
+  });
+
+  it('reads the lamp of each device over its own stay, so the nights before a change of the measuring device are drawn', () => {
+    // The device before held the first half of the window and was dark throughout; the one after it the second, lit.
+    const half = new Date((OPENS.getTime() + CLOSES.getTime()) / 2);
+    const stay = (deviceId: string, from: Date, to: Date, on: boolean): DeviceHistory => ({
+      series: {
+        deviceId,
+        startsAt: from.toISOString(),
+        endsAt: to.toISOString(),
+        stepSeconds: STEP_SECONDS,
+        metrics: [],
+        outputs: [
+          {
+            output: 'light' as const,
+            points: Array.from({ length: Math.floor((to.getTime() - from.getTime()) / (STEP_SECONDS * 1000)) }, (_, index) => ({
+              measuredAt: new Date(from.getTime() + (index + 1) * STEP_SECONDS * 1000).toISOString(),
+              value: on ? 60 : 0,
+            })),
+          },
+        ],
+      },
+      outputs: [{ output: 'light' as const, switchings: [{ at: from.toISOString(), on }] }],
+      lastSampleAt: new Date(to.getTime() - 5000).toISOString(),
+    });
+    const nights = nightsOf([stay('new', half, CLOSES, true), stay('old', OPENS, half, false)], WINDOW);
+
+    expect(nights).toHaveLength(1);
+    expect(nights[0].startsAt).toBe(OPENS.toISOString());
+    // The first device's night ends where its stay does, give or take the last window it was heard in.
+    expect(Math.abs(Date.parse(nights[0].endsAt) - half.getTime())).toBeLessThanOrEqual(STEP_SECONDS * 1000);
   });
 
   it('begins the state a window is found in where the window begins, not at the first grain a sample fell into', () => {

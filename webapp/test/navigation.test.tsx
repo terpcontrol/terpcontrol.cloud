@@ -133,6 +133,7 @@ const timeline = (spaceId: string, name: string): SpaceTimeline => ({
   stepSeconds: 180,
   deviceIds: null,
   deviceId: null,
+  reading: null,
   panels: [{ metric: 'temperature', points: [{ measuredAt: ago(60), value: 25 }], targets: [] }],
   lastReadingAt: ago(60),
   nights: [],

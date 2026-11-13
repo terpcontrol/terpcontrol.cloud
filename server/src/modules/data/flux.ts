@@ -238,11 +238,44 @@ export const samplesQuery = (bucket: string, deviceId: string, fields: readonly 
  * halves, in a pattern that drifted through the days: the same climate read
  * 0.92 to 1.2 kPa in one month and 1.0 to 1.1 in another.
  */
-export const grainsQuery = (bucket: string, deviceId: string, fields: readonly string[], window: TimeWindow, grainSeconds: number): string =>
-  `${head(bucket, deviceId, rangeOf(window))}
-    |> filter(fn: (r) => ${anyField(fields)})
-    |> aggregateWindow(every: ${Math.max(1, Math.trunc(grainSeconds))}s, fn: mean, createEmpty: false)
+export const grainsQuery = (
+  bucket: string,
+  deviceId: string,
+  fields: readonly string[],
+  window: TimeWindow,
+  grainSeconds: number,
+  /** Two fields whose readings are counted grain by grain, for `coveredGrains`. */
+  counted: readonly string[] = [],
+): string => {
+  const read = (names: readonly string[], fn: string) => `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${anyField(names)})
+    |> aggregateWindow(every: ${Math.max(1, Math.trunc(grainSeconds))}s, fn: ${fn}, createEmpty: false)
     |> keep(columns: ["_time", "_value", "_field"])`;
+
+  return counted.length === 0
+    ? read(fields, 'mean')
+    : `${read(fields, 'mean')}
+    |> yield(name: "mean")
+${read(counted, 'count')}
+    |> yield(name: "${GRAIN_COUNT}")`;
+};
+
+/** The answer of `grainsQuery` that says how many readings a grain held. */
+const GRAIN_COUNT = 'count';
+
+/**
+ * The grains' means without what does not cover its grain: a mean of `field` is kept only where the grain
+ * held at least half as many readings of it as of `beside`. A leaf sensor that wrote once in five minutes is
+ * no leaf temperature of those five minutes, and one stray reading bent the deficit of a whole grain.
+ */
+export const coveredGrains = (rows: readonly (FluxRow & { result?: string })[], field: string, beside: string): FluxRow[] => {
+  const counts = new Map<string, number>();
+  for (const row of rows)
+    if (row.result === GRAIN_COUNT && row._time && row._field) counts.set(`${row._field}@${row._time}`, finiteOrNull(row._value) ?? 0);
+  const of = (name: string, time: string) => counts.get(`${name}@${time}`) ?? 0;
+
+  return rows.filter(row => row.result !== GRAIN_COUNT && !(row._field === field && row._time && of(field, row._time) * 2 < of(beside, row._time)));
+};
 
 /** What a window's readings came to once each was worked out by itself: their mean, the lowest and the highest. */
 export interface WorkedOut extends Extremes {

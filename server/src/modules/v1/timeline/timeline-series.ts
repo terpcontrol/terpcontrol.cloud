@@ -1,5 +1,6 @@
 import type {
   CameraStill,
+  DeviceLive,
   DeviceSeries,
   GrowthStage,
   Metric,
@@ -9,6 +10,7 @@ import type {
   SpaceTimeline,
   TimelineOutputLane,
   TimelinePanel,
+  TimelineReading,
   TimelineSpan,
   TimelineTarget,
   TimelineTargets,
@@ -208,8 +210,12 @@ const asTimelineSpans = (spans: readonly Span[]): TimelineSpan[] =>
  * shading it twice.
  */
 const lampNightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow): TimelineSpan[] => {
-  const lit = histories.find(one => outputIn(one, 'light').switchings.length > 0);
-  if (lit) return spansOf(outputIn(lit, 'light'), false, lit.series, window, heardAt(lit));
+  // Each device is read over its own stay, so a lamp is too: the nights before a change of the measuring device
+  // are those the device before it reported, and no two of them speak for the same hour.
+  const lit = histories.filter(one => outputIn(one, 'light').switchings.length > 0);
+  if (lit.length > 0) {
+    return asTimelineSpans(lit.flatMap(one => spansOf(outputIn(one, 'light'), false, one.series, stayOf(one, window), heardAt(one)).map(spanOf)));
+  }
 
   // A place with no lamp at all - an AIR fan on its own - is shaded by the night the fan says it runs,
   // as far as its own output was heard. The old charts drew that as a line of its own.
@@ -254,6 +260,7 @@ export const lanesOf = (
               ...(fridges.has(one.series.deviceId) ? { fridge: true as const } : {}),
               spans: spansOf(output, true, one.series, window, heardAt(one)),
               heardUntil: heardUntilOf(output, one.series, window, heardAt(one)),
+              heardSeconds: heardSecondsOf(output, one.series, window, heardAt(one)),
               ...levelOf(output),
             },
           ]
@@ -288,6 +295,28 @@ export const chartPartsOf = (read: {
   };
 };
 
+/**
+ * A device's last reading as the Timeline answers it: the metrics asked for, the instant of the newest of
+ * them, and each output as on or off with its level in per cent where it has one (`OUTPUT_LEVEL`).
+ */
+export const readingOf = (live: Pick<DeviceLive, 'metrics' | 'outputs'>, metrics: readonly Metric[]): TimelineReading | null => {
+  const values = metrics.flatMap(metric => {
+    const one = live.metrics[metric];
+    return one && one.value !== null && one.measuredAt !== null ? [{ metric, ...one }] : [];
+  });
+  if (values.length === 0) return null;
+
+  return {
+    measuredAt: values.map(one => one.measuredAt as string).reduce((newest, one) => (one > newest ? one : newest)),
+    values,
+    outputs: (Object.entries(live.outputs) as [OutputMetric, DeviceLive['outputs'][OutputMetric]][]).flatMap(([output, one]) => {
+      if (!one || one.value === null) return [];
+      const kind = OUTPUT_LEVEL[output];
+      return [{ output, on: one.value > 0, level: kind?.unit === 'percent' ? Math.round(Math.min(100, one.value * kind.scale)) : null }];
+    }),
+  };
+};
+
 /** The devices of a read that are fridge modules, which is what names a lane's compressor. */
 const fridgesOf = (devices: readonly { id: string; type: string }[]): ReadonlySet<string> =>
   new Set(devices.filter(device => device.type === 'fridge').map(device => device.id));
@@ -316,6 +345,18 @@ const heardUntilOf = (output: OutputHistory, series: DeviceSeries, window: Serie
 
   return new Date(heard[heard.length - 1]?.to ?? window.startsAt.getTime()).toISOString();
 };
+
+/** For how long the device was heard about one output inside the window: what "on for x % of the time" is a share of. */
+const heardSecondsOf = (output: OutputHistory, series: DeviceSeries, window: SeriesWindow, sampled: number | null): number => {
+  const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
+  return Math.round(heardStretches(points, window, series.stepSeconds, sampled).reduce((sum, stretch) => sum + stretch.to - stretch.from, 0) / 1000);
+};
+
+/** The part of the window a device's read covers: its stay. */
+const stayOf = (history: DeviceHistory, window: SeriesWindow): SeriesWindow => ({
+  startsAt: new Date(Math.max(window.startsAt.getTime(), millis(history.series.startsAt))),
+  endsAt: new Date(Math.min(window.endsAt.getTime(), millis(history.series.endsAt))),
+});
 
 /** When the device last wrote anything inside this window, as an instant the arithmetic can use, or nothing where the read could not say. */
 const heardAt = (history: DeviceHistory): number | null => (history.lastSampleAt === null ? null : millis(history.lastSampleAt));

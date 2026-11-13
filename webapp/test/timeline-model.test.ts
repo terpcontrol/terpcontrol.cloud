@@ -16,7 +16,6 @@ import {
   shownOf,
   slicesOf,
   stateAt,
-  stateNow,
   stripsOf,
   type Shown,
 } from '@/screens/timeline/model';
@@ -55,6 +54,7 @@ const answer = (over: Partial<SpaceTimeline> = {}): SpaceTimeline => ({
   stepSeconds: 3600,
   deviceIds: ['device-1'],
   deviceId: 'device-1',
+  reading: null,
   lastReadingAt: null,
   panels: [
     {
@@ -228,14 +228,6 @@ describe('a panel', () => {
     expect(drawn(answer(), null, { now: older }).panels[0].curves[0].lastAt).toBeNull();
   });
 
-  it('says what an output is doing as the device last said it: its live level in per cent, on or off where it only switches', () => {
-    expect(stateNow('light', 65)).toEqual({ on: true, level: 65 });
-    expect(stateNow('heater', 0.62)).toEqual({ on: true, level: 62 });
-    expect(stateNow('dehumidifier', 1)).toEqual({ on: true, level: null });
-    expect(stateNow('light', 0)).toEqual({ on: false, level: 0 });
-    expect(stateNow('fan', null)).toBeNull();
-  });
-
   it('ends the band and the night where the device stopped reporting by the offline rule, at its last reading', () => {
     const lastHeard = FROM + 16.3 * HOUR;
     const now = {
@@ -245,6 +237,13 @@ describe('a panel', () => {
     const [temperature] = drawn(answer(), null, { now }).panels;
 
     expect(Math.max(...temperature.plot.bands.map(band => band.to))).toBe(lastHeard);
+  });
+
+  it('says beside a deficit`s low and high what they are of beyond three days: means over five minutes', () => {
+    const week = answer({ startsAt: at(-144), endsAt: at(24) });
+    expect(drawn(week).panels.map(panel => panel.curves[0].of)).toEqual([undefined, undefined, 'of 5-min means']);
+    // Inside three days they are of samples, as temperature's and humidity's are on every range.
+    expect(drawn(answer()).panels[2].curves[0].of).toBeUndefined();
   });
 
   it('says the low and high of the window as the answer has them: the reading that closes the curve is "now" and no part of them', () => {
@@ -381,6 +380,20 @@ describe('the strips', () => {
     ).toBeNull();
   });
 
+  it('says "on x % of the time" of the time the device reported, not of the window', () => {
+    // Heard for six hours of the day, lit for three of them: half, not an eighth.
+    const light = { output: 'light' as const, name: 'Light', runs: [{ from: FROM, to: FROM + 3 * HOUR }], heardUntil: FROM + 6 * HOUR, levels: [] };
+    expect(shareOf({ ...light, heardMs: 6 * HOUR }, FROM, FROM + 24 * HOUR)).toBe(0.5);
+    // An answer that does not say for how long falls back to the window up to the last thing heard.
+    expect(shareOf({ ...light, heardMs: null }, FROM, FROM + 24 * HOUR)).toBe(0.5);
+    // A device that came eighteen hours into the day and was lit ever since was on all of the time it reported.
+    const late = { ...light, runs: [{ from: FROM + 18 * HOUR, to: FROM + 24 * HOUR }], heardUntil: FROM + 24 * HOUR };
+    expect(shareOf({ ...late, heardMs: 6 * HOUR }, FROM, FROM + 24 * HOUR)).toBe(1);
+    expect(
+      stripsOf(t, answer({ outputs: [{ output: 'light', deviceId: null, spans: [], heardUntil: at(24), heardSeconds: 21_600 }] }))[0].heardMs,
+    ).toBe(6 * HOUR);
+  });
+
   it('reads an output at the cursor: its level where it says one, on or off, nothing past the last thing heard', () => {
     const [light, heater] = stripsOf(t, answer());
 
@@ -402,6 +415,20 @@ describe('the cursor', () => {
   it('reads the point nearest to it, which is where its dot sits on the line', () => {
     expect(nearestPoint(points, 1400, 1500)).toEqual([1000, 20]);
     expect(nearestPoint(points, 1600, 1500)).toEqual([2000, 21]);
+  });
+
+  it('reads the nearer point anywhere on a line between two points, however far apart an hourly history leaves them', () => {
+    const hourly = [
+      [0, 20],
+      [HOUR, 22],
+      [HOUR + 1, null],
+      [3 * HOUR, 25],
+    ] as const;
+    // Twenty minutes from the one and forty from the other, with three minutes of reach: on the line, so the nearer.
+    expect(nearestPoint(hourly, 20 * 60_000, 270_000)).toEqual([0, 20]);
+    expect(nearestPoint(hourly, 45 * 60_000, 270_000)).toEqual([HOUR, 22]);
+    // Across the break no line is drawn, and nothing is read.
+    expect(nearestPoint(hourly, 2 * HOUR, 270_000)).toBeNull();
   });
 
   it('reads nothing across a silence', () => {
@@ -481,18 +508,34 @@ describe('the table', () => {
 
     // The mark a spreadsheet reads the encoding by, so "°C" arrives as that.
     expect(table.charCodeAt(0)).toBe(0xfeff);
-    // An output with a level is written as that level in per cent; one that only switches as the state it held.
+    // Every output as how hard it ran over each point's window, in per cent: a level by the share of the window it
+    // ran, and for one that only switches that share.
     expect(head).toBe(
-      '"Time","Temperature (°C)","Temperature · low (°C)","Temperature · high (°C)","Light (%)","Heater (%)","Dehumidifier (on/off)","Fan (on/off)"',
+      '"Time","Temperature (°C)","Temperature · low (°C)","Temperature · high (°C)","Light (%)","Heater (%)","Dehumidifier (%)","Fan (%)"',
     );
-    // The window of the door: the mean, and what it flattened - every figure of a column with the same decimals.
-    expect(rows.find(row => row.startsWith('2026-11-12T03:00:00'))).toBe('2026-11-12T03:00:00.000Z,24.8,19.4,25.3,65,0,0,1');
+    // One row per drawn point and no other: a switching adds none.
+    expect(rows).toHaveLength(24);
+    // The window of the door: the mean, what it flattened, the lamp at 65 %, the dehumidifier on for nine minutes of the hour.
+    expect(rows.find(row => row.startsWith('2026-11-12T03:00:00'))).toBe('2026-11-12T03:00:00.000Z,24.8,19.4,25.3,65,0,15,100');
     // The hour the heater ran at 60 %.
     expect(rows.find(row => row.startsWith('2026-11-11T22:00:00'))).toContain(',60,');
-    // Past the last thing heard of the lamp its column is empty rather than "off".
-    expect(rows.at(-1)).toBe('2026-11-12T14:00:00.000Z,24.8,24.8,24.8,,0,0,1');
-    // No instant at which nothing is said is a row.
-    expect(rows.every(row => /[^,]/.test(row.slice(row.indexOf(',') + 1)))).toBe(true);
+    // Past the last thing heard of the lamp its cell is empty rather than "0".
+    expect(rows.at(-1)).toBe('2026-11-12T14:00:00.000Z,24.8,24.8,24.8,,0,0,100');
+  });
+
+  it('writes no row after the last reading: an output nobody measured is not "0" there', () => {
+    // The curve ends at 20:30; the strips are answered to the window's end.
+    const quiet = answer({
+      panels: [{ metric: 'temperature', points: [1, 2, 3, 4, 5, 6].map(hour => ({ measuredAt: at(hour), value: 24.8 })), targets: [] }],
+    });
+    const { panels, strips } = drawn(quiet, ['temperature', 'outputs', 'light']);
+    const rows = csvFor(t, panels, strips, { from: FROM, to: FROM + 24 * HOUR, stepMs: HOUR }, 'UTC', false)
+      .slice(1)
+      .split('\n')
+      .slice(1);
+
+    expect(rows).toHaveLength(6);
+    expect(rows.at(-1)!.startsWith('2026-11-11T20:00:00')).toBe(true);
   });
 
   it('says of the deficit`s column that it is worked out', () => {
@@ -508,14 +551,14 @@ describe('the table', () => {
     const table = csvOf(
       [
         { label: 'Temperatur (°C)', points: [[FROM, 24.8]] },
-        { label: 'Licht', holds: true, points: [[FROM, 1]] },
+        { label: 'Licht (%)', decimals: 0, points: [[FROM, 100]] },
       ],
       'UTC',
       'Zeit',
       true,
     );
 
-    expect(table.slice(1).split('\n')).toEqual(['"Zeit";"Temperatur (°C)";"Licht"', '2026-11-11T14:30:00.000Z;24,8;1']);
+    expect(table.slice(1).split('\n')).toEqual(['"Zeit";"Temperatur (°C)";"Licht (%)"', '2026-11-11T14:30:00.000Z;24,8;100']);
   });
 });
 
@@ -539,6 +582,10 @@ describe('how the page says when', () => {
     expect(meanStamp(t, Date.parse('2026-11-12T03:10:30Z'), window, 180, 'UTC')).toBe('mean 03:09–03:12');
     // Finer than a minute, the stretch is told to the second.
     expect(meanStamp(t, Date.parse('2026-11-12T03:10:22.500Z'), window, 45, 'UTC')).toBe('mean 03:10:00–03:10:45');
+  });
+
+  it('says a step in seconds below two minutes and in whole minutes from there', () => {
+    expect([90, 150, 600].map(step => stepWords(t, step))).toEqual(['every 90 s', 'every 3 min', 'every 10 min']);
   });
 
   it('says how far apart the points are in the unit that fits', () => {

@@ -1694,6 +1694,20 @@ export const timelineTargets = named(
  * than a panel of nulls, which is what "the CO2 panel only when there is a
  * sensor" means.
  */
+/**
+ * A device's last reading, as one instant: what it measured and what each of
+ * its outputs was doing then. A level is a share of full output in per cent
+ * where the output has one, and null for one that only switches.
+ */
+export const timelineReading = named(
+  'TimelineReading',
+  z.object({
+    measuredAt: instant(),
+    values: z.array(cardValue),
+    outputs: z.array(z.object({ output: outputMetric, on: z.boolean(), level: z.number().int().nullable() })),
+  }),
+);
+
 export const timelinePanel = named(
   'TimelinePanel',
   z.object({
@@ -1737,6 +1751,11 @@ export const timelineOutputLane = named(
     heardUntil: instant().describe(
       'How far anything is known about this output: the last instant the device was heard from inside the window, or the window\'s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.',
     ),
+    heardSeconds: z
+      .number()
+      .int()
+      .optional()
+      .describe('For how long the device was heard about this output inside the window, which is what a share of the time it ran is a share of.'),
     fridge: z
       .literal(true)
       .optional()
@@ -1845,6 +1864,11 @@ export const spaceTimeline = named(
         'The device the panels are read from: the one asked for, else the place’s own climate - one device, never a mean of several. Null on a shared or public read, and where no device here measured.',
       ),
     panels: z.array(timelinePanel),
+    reading: timelineReading
+      .nullable()
+      .describe(
+        'What the device the panels are of last read, whenever that was: the figures a screen shows as "now" - or as the last reading of a device gone quiet - for every reader alike. Null where no device standing here is drawn.',
+      ),
     lastReadingAt: instant()
       .nullable()
       .describe(

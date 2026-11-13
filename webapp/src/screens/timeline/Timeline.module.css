@@ -787,9 +787,10 @@
     flex-wrap: wrap;
   }
 
+  /* High enough for "Kein Bild um diese Zeit" to stand over the play button's corner here too. */
   .frame {
     width: 72px;
-    height: 72px;
+    height: 96px;
   }
 
   .zoom {

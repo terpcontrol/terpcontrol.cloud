@@ -28,6 +28,7 @@ import { influxConfig } from '../../config/configuration';
 import { CAMERA_DAYLIGHT, CameraDaylight } from './camera-daylight.port';
 import {
   computedValue,
+  coveredGrains,
   DailySummary,
   dailyMeanQuery,
   dailySummariesOf,
@@ -90,6 +91,8 @@ import {
 const DAY_FIELD = 'day';
 
 const LEAF_FIELD = 'leaf_temperature';
+
+const TEMPERATURE_FIELD = 'temperature';
 
 const DIAGNOSTIC_FIELDS = ['avg', 'p', 'i', 'd', 'rpm', DAY_FIELD, 'sensor_type'];
 
@@ -374,7 +377,7 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
             : this.read(
                 grainSeconds === 0
                   ? samplesQuery(this.bucket, deviceId, inputs, window)
-                  : grainsQuery(this.bucket, deviceId, inputs, window, grainSeconds),
+                  : grainsQuery(this.bucket, deviceId, inputs, window, grainSeconds, [LEAF_FIELD, TEMPERATURE_FIELD]),
               ),
         ])
       : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, null, [] as FluxRow[], [] as FluxRow[]];
@@ -386,7 +389,9 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     // flag, a plug by its schedule or what the cameras saw then, everything else by its own lamp level (`vpdOf`).
     const halfOf = (at: (field: string) => number | null, time: number): boolean | null =>
       device.reportsDay ? saidOf(at(DAY_FIELD)) : (plugDay?.(time) ?? null);
-    const worked = workedOutBy(readings, window, (at, time) => vpdOf(readingsOf(at, halfOf(at, time)), device.factors), grainSeconds);
+    // A grain's leaf temperature counts only where leaf readings cover the grain as the air's do.
+    const covered = grainSeconds === 0 ? readings : coveredGrains(readings, LEAF_FIELD, TEMPERATURE_FIELD);
+    const worked = workedOutBy(covered, window, (at, time) => vpdOf(readingsOf(at, halfOf(at, time)), device.factors), grainSeconds);
     const extremesAt = (name: Metric, instant: string): Extremes | null => {
       const field = fieldOfMetric(name);
       if (field !== null) return extremes.get(field)?.get(instant) ?? null;

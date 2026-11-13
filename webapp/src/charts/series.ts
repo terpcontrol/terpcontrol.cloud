@@ -188,14 +188,11 @@ const niceStep = (rough: number): number => {
 /**
  * What is on the screen, as a table.
  *
- * A curve is bucketed and an output switches when the tent switched it, so
- * there is no grid the two share: the rows are every instant any column has
- * something to say at. What a column puts in a row it has no instant at
- * depends on what it is. A mean of a window is a measurement, and there was
- * none at that instant, so the cell is empty rather than invented. A state is
- * not: an output that came on at 06:00:13 was still on at 07:00, and saying so
- * is reading the record - without it the file a grower opens to read
- * temperature against light held the two in no row at all.
+ * One row per instant a column says something at, which is one row per point
+ * drawn: a caller writes an output as how hard it ran over each point's window,
+ * at the points' own instants, so a switching adds no row of its own - a
+ * grow's file held 4440 rows of nothing but a switch state among 4921. Where a
+ * column measured nothing at an instant its cell is empty rather than invented.
  *
  * The time column is written where the account is, which is the zone every
  * clock time on the screen is read in: an hour written in the wrong zone looks
@@ -206,8 +203,6 @@ export interface CsvColumn {
   points: readonly [number, number | null][];
   /** How many decimals every figure of the column is written with; left out, each as it was measured. */
   decimals?: number;
-  /** Set for a state that stands until it changes, which is what makes it readable across the rows it has no instant of its own at. */
-  holds?: boolean;
 }
 
 export const csvOf = (columns: readonly CsvColumn[], zone: string | null, timeHead = 'time', decimalComma = false): string => {
@@ -219,9 +214,7 @@ export const csvOf = (columns: readonly CsvColumn[], zone: string | null, timeHe
     return decimalComma ? written.replace('.', ',') : written;
   };
   const between = decimalComma ? ';' : ',';
-  const cells = columns.map(column =>
-    (column.holds ? carried(column.points, times) : measured(column.points, times)).map(value => cell(value, column.decimals)),
-  );
+  const cells = columns.map(column => measured(column.points, times).map(value => cell(value, column.decimals)));
   const rows = times
     .map((time, row) => ({ time, cells: cells.map(column => column[row]) }))
     // An instant at which no column says anything - the break a silence leaves in a curve - is no row.
@@ -237,28 +230,6 @@ const measured = (points: readonly [number, number | null][], times: readonly nu
   const byTime = new Map(points.map(([time, value]) => [time, value]));
 
   return times.map(time => byTime.get(time) ?? null);
-};
-
-/**
- * A state carried into the rows between its switchings: the last thing it was
- * said to be doing, which is what it was doing. Before anything was heard about
- * it at all there is nothing to carry, and a break in the wave - where the
- * device went quiet - carries a nothing forward exactly as it should.
- */
-const carried = (points: readonly [number, number | null][], times: readonly number[]): (number | null)[] => {
-  let next = 0;
-  let last: number | null = null;
-  let heard = false;
-
-  return times.map(time => {
-    while (next < points.length && points[next][0] <= time) {
-      last = points[next][1];
-      heard = true;
-      next += 1;
-    }
-
-    return heard ? last : null;
-  });
 };
 
 /** A name a grower gave a measurement may hold a comma, so every heading is quoted and its own quotes doubled. */

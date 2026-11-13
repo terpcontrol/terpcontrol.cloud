@@ -83,16 +83,15 @@ export const axisEnds = (t: Translate, window: Span, live: boolean, zone: string
 
 /** "alle 3 Min", "alle 4,5 Std", "alle 2,3 Tage": how far apart the points drawn are, in the unit that fits. */
 export const stepWords = (t: Translate, stepSeconds: number): string => {
-  const [unit, size] =
-    stepSeconds < 60
-      ? (['s', 1] as const)
+  // In seconds below two minutes, in whole minutes from there to the hour: "alle 90 s", "alle 3 Min".
+  const [unit, size, tenths] =
+    stepSeconds < 120
+      ? (['s', 1, 1] as const)
       : stepSeconds < 3600
-        ? (['min', 60] as const)
+        ? (['min', 60, 1] as const)
         : stepSeconds < 86400
-          ? (['h', 3600] as const)
-          : (['d', 86400] as const);
-  return t(`timeline.every.${unit}`, {
-    count: Math.round((stepSeconds / size) * 10) / 10,
-    n: looseFigure(Math.round((stepSeconds / size) * 10) / 10),
-  });
+          ? (['h', 3600, 10] as const)
+          : (['d', 86400, 10] as const);
+  const count = Math.round((stepSeconds / size) * tenths) / tenths;
+  return t(`timeline.every.${unit}`, { count, n: looseFigure(count) });
 };

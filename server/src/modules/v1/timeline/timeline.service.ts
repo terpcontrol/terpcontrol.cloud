@@ -25,7 +25,7 @@ import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
 import { lastReadingOf } from './last-reading';
-import { PANEL_METRICS, chartPartsOf, panelsOf } from './timeline-series';
+import { PANEL_METRICS, chartPartsOf, panelsOf, readingOf } from './timeline-series';
 import { changesOf, fromHandover, narrowedToDevice, predecessorsOf, recordAcross, withPredecessors } from './place-history';
 import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
@@ -175,6 +175,8 @@ export class TimelineService {
     const panels = panelsOf(own?.series ?? null, stretchesOf(grow, devices, window, at, aimed), metrics);
     // What switched under the curve: the leading device's outputs, those of what is no climate of its own, and
     // those of the devices whose curve stands in front of it.
+    // The device that speaks for the place now: the one the curves are of, while it still stands here.
+    const drawn = devices.find(device => device.id === (own?.series.deviceId ?? steering?.id) && device.spaceId === spaceId) ?? null;
     const acting = new Set([...actingOn(devices, own?.series.deviceId ?? null).map(device => device.id), ...before.map(link => link.deviceId)]);
 
     return {
@@ -199,6 +201,8 @@ export class TimelineService {
       // Which device the curves are of is the hardware in the tent, and a reader from outside is shown the tent.
       deviceId: isOutsider(grant) ? null : (own?.series.deviceId ?? null),
       panels,
+      // One `last()` more per read: "now" is then the same figures for the owner, a member and a link's reader.
+      reading: drawn ? readingOf(await this.data.live(drawn.id), metrics) : null,
       lastReadingAt:
         panels.length > 0
           ? null

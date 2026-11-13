@@ -27,6 +27,8 @@ interface AdjustProps {
   change: (over: Partial<View>) => void;
   /** The step the curves are drawn at, which one asked for may have been widened to. */
   stepDrawn: number;
+  /** Whether the window is wider than three days, where no step is finer than five minutes. */
+  grained: boolean;
   comparable: Comparable[];
   /** Keeping the view in the account, where the session has one: the definition to keep, and what applying one does. */
   views: { definition: ChartViewDefinition; apply: (view: ChartView) => void } | null;
@@ -42,7 +44,7 @@ interface AdjustProps {
  * everything the page itself has no room for, in one sheet. Each tick is in
  * the address at once, so the curves behind the sheet follow it.
  */
-export function Adjust({ view, offered, shown, change, stepDrawn, comparable, views, day, onShare, onCsv, onClose }: AdjustProps) {
+export function Adjust({ view, offered, shown, change, stepDrawn, grained, comparable, views, day, onShare, onCsv, onClose }: AdjustProps) {
   const { t } = useTranslation();
   const [pane, setPane] = useState<'main' | 'compare' | 'views'>('main');
   // Asked only where a view can be kept: a reader through a link has no account to keep one in.
@@ -166,7 +168,8 @@ export function Adjust({ view, offered, shown, change, stepDrawn, comparable, vi
                 onChange={event => change({ stepSeconds: event.target.value === '' ? null : Number(event.target.value) })}
               >
                 <option value="">{t('timeline.adjust.stepAuto')}</option>
-                {[...new Set([...STEPS, ...(view.stepSeconds ? [view.stepSeconds] : [])])]
+                {/* Beyond three days a step is whole grains of five minutes: nothing finer is offered there. */}
+                {[...new Set([...STEPS.filter(step => !grained || step >= 300), ...(view.stepSeconds ? [view.stepSeconds] : [])])]
                   .sort((one, other) => one - other)
                   .map(step => (
                     <option key={step} value={step}>

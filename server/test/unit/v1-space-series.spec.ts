@@ -122,10 +122,11 @@ describe('a place charted without a grow', () => {
 
   it('keeps a step somebody chose and decides one from the width where nobody did', async () => {
     expect((await readAs(session(OWNER), { ...window(24), stepSeconds: 20, metrics: ['temperature'] })).stepSeconds).toBe(20);
-    expect((await readAs(session(OWNER), { ...window(24 * 365), stepSeconds: 60, metrics: ['temperature'] })).stepSeconds).toBe(6308);
+    // A year is widened to 6308 s by its five thousand windows, and then to whole grains - fifteen minutes each over a year.
+    expect((await readAs(session(OWNER), { ...window(24 * 365), stepSeconds: 60, metrics: ['temperature'] })).stepSeconds).toBe(7200);
     // An hour is every second sample a device sends; under forty minutes it is every one.
     expect((await readAs(session(OWNER), { ...window(1), metrics: ['temperature'] })).stepSeconds).toBe(10);
-    expect(reads.map(read => read.stepSeconds)).toEqual([20, 6308, 10]);
+    expect(reads.map(read => read.stepSeconds)).toEqual([20, 7200, 10]);
   });
 
   it('reads a week back as well as the last day: the window ends where it was asked to', async () => {

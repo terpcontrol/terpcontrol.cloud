@@ -223,7 +223,8 @@ describe('the step and the pictures', () => {
 
     expect(day.stepSeconds).toBe(20);
     expect(fine.stepSeconds).toBe(18);
-    expect(chosen.stepSeconds).toBe(121);
+    // Beyond three days a step is a whole number of five minutes, which is the grain the deficit is worked out at.
+    expect(chosen.stepSeconds).toBe(300);
     expect((await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] })).stepSeconds).toBe(180);
   });
 

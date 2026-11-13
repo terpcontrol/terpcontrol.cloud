@@ -12988,6 +12988,58 @@
       "night"
     ]
   },
+  "TimelineReading": {
+    "type": "object",
+    "properties": {
+      "measuredAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "values": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CardValue"
+        }
+      },
+      "outputs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "output": {
+              "$ref": "#/components/schemas/OutputMetric"
+            },
+            "on": {
+              "type": "boolean"
+            },
+            "level": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "output",
+            "on",
+            "level"
+          ]
+        }
+      }
+    },
+    "required": [
+      "measuredAt",
+      "values",
+      "outputs"
+    ]
+  },
   "TimelinePanel": {
     "type": "object",
     "properties": {
@@ -13066,6 +13118,12 @@
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
         "description": "How far anything is known about this output: the last instant the device was heard from inside the window, or the window's own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge."
+      },
+      "heardSeconds": {
+        "description": "For how long the device was heard about this output inside the window, which is what a share of the time it ran is a share of.",
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
       },
       "fridge": {
         "description": "Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.",
@@ -13331,6 +13389,17 @@
           "$ref": "#/components/schemas/TimelinePanel"
         }
       },
+      "reading": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/TimelineReading"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What the device the panels are of last read, whenever that was: the figures a screen shows as \"now\" - or as the last reading of a device gone quiet - for every reader alike. Null where no device standing here is drawn."
+      },
       "lastReadingAt": {
         "anyOf": [
           {
@@ -13458,6 +13527,7 @@
       "deviceIds",
       "deviceId",
       "panels",
+      "reading",
       "lastReadingAt",
       "nights",
       "alarms",

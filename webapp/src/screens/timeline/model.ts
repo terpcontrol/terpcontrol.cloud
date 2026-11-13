@@ -15,7 +15,7 @@ import type { Translate } from '@/i18n/i18n';
 import { outputWord } from '@/ui/climate-hardware';
 import { decimalFigure, looseFigure } from '@/ui/figures';
 import { figure, targetFigure, UNIT } from '@/ui/units';
-import type { VpdHalf } from './view';
+import { GRAINED_FROM_MS, grainMinutes, type VpdHalf } from './view';
 import { alarmsOf, at, spans, stretchesOf } from './window';
 
 /**
@@ -107,6 +107,8 @@ export interface Strip {
   runs: PlotSpan[];
   /** How far anything is known about it; past that the strip is blank rather than "off". */
   heardUntil: number;
+  /** For how long it was heard of inside the window, where the answer says. */
+  heardMs: number | null;
   /** How hard it ran, window by window, where a device says so: a share of full output in per cent. */
   levels: [number, number][];
 }
@@ -143,6 +145,7 @@ export const stripsOf = (t: Translate, data: SpaceTimeline): Strip[] =>
       name: outputTitle(t, output, lanes),
       runs: joined(lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) })))),
       heardUntil: Math.max(...lanes.map(lane => at(lane.heardUntil))),
+      heardMs: lanes.every(lane => lane.heardSeconds !== undefined) ? Math.max(...lanes.map(lane => (lane.heardSeconds as number) * 1000)) : null,
       levels: [...levels].sort(([one], [other]) => one - other),
     };
   });
@@ -187,16 +190,6 @@ export const levelsOf = (strip: Pick<Strip, 'levels'>, from: number, to: number,
   });
 };
 
-/** What a device's live figure of an output has to be multiplied by to be per cent: the server's `OUTPUT_LEVEL`, for the outputs that have a level. */
-const LIVE_PERCENT: Partial<Record<OutputMetric, number>> = { light: 1, fan: 1, heater: 100, fanInternal: 100, fanExternal: 100, fanBackwall: 100 };
-
-/** What an output is doing as the device last said it: the live figure, and no mean of a window. Null where the device said nothing of it. */
-export const stateNow = (output: OutputMetric, value: number | null | undefined): { on: boolean; level: number | null } | null => {
-  if (value == null) return null;
-  const scale = LIVE_PERCENT[output];
-  return { on: value > 0, level: scale === undefined ? null : Math.round(Math.min(100, value * scale)) };
-};
-
 /** What an output did at one instant: running or not, how hard where it says, and null where nobody heard of it. */
 export const stateAt = (strip: Strip, time: number, stepMs: number): { on: boolean; level: number | null } | null => {
   if (time > strip.heardUntil) return null;
@@ -208,7 +201,9 @@ export const stateAt = (strip: Strip, time: number, stepMs: number): { on: boole
 
 /** The share of the heard part of the window an output ran for, or null where nothing was heard. */
 export const shareOf = (strip: Strip, from: number, to: number): number | null => {
-  const heard = Math.min(to, strip.heardUntil) - from;
+  // Of the time the device reported, as the answer counts it - not of the window, in which it may have come late or
+  // been silent for days.
+  const heard = strip.heardMs ?? Math.min(to, strip.heardUntil) - from;
   if (heard <= 0) return null;
   return strip.runs.reduce((sum, run) => sum + Math.max(0, Math.min(run.to, to) - Math.max(run.from, from)), 0) / heard;
 };
@@ -231,6 +226,8 @@ export interface Curve {
    */
   low: number | null;
   high: number | null;
+  /** What the low and the high are of, where they are not of samples: a deficit's over more than three days. */
+  of?: string;
   /** Where the device's last reading stands as the curve's last point, in a window that ends now; null elsewhere. */
   lastAt: number | null;
   line: PlotLine;
@@ -334,6 +331,9 @@ const metricCurve = (
       // tile rounds the same reading to whole per cent.
       written: value => (metric === 'humidity' ? decimalFigure(value, 1) : figure(value, metric)),
       decimals: DECIMALS[metric] ?? 0,
+      ...(metric === 'vpd' && at(data.endsAt) - from > GRAINED_FROM_MS
+        ? { of: t('timeline.ofMeans', { minutes: grainMinutes({ from, to: at(data.endsAt) }) }) }
+        : {}),
       corner: value => targetFigure(value, metric),
       points,
       low,
@@ -491,15 +491,23 @@ export const panelsOf = (
   return { panels, rest };
 };
 
-/** The point nearest the cursor, within a step and a half of it: what was measured there, and null across a silence. */
+/**
+ * The point nearest the cursor: what was measured there, and null across a silence. Within a step and a half of
+ * it - or anywhere on the line between two points, as an hourly history draws it: where a line is drawn there is a
+ * nearer end to read.
+ */
 export const nearestPoint = (points: readonly PlotPoint[], time: number, reach: number): PlotPoint | null => {
   let found: PlotPoint | null = null;
-  for (const point of points) {
+  let joined = false;
+  for (const [index, point] of points.entries()) {
     if (point[1] === null) continue;
     if (found === null || Math.abs(point[0] - time) < Math.abs(found[0] - time)) found = point;
-    else if (point[0] > time) break;
+    // The stretch from the point before to this one holds the cursor and no break.
+    const before = points[index - 1];
+    if (before && before[1] !== null && before[0] <= time && time <= point[0]) joined = true;
+    if (point[0] > time) break;
   }
-  return found && Math.abs(found[0] - time) <= reach ? found : null;
+  return found && (joined || Math.abs(found[0] - time) <= reach) ? found : null;
 };
 
 /** How near the cursor a point has to stand to be read at it. */
@@ -536,7 +544,11 @@ export const csvFor = (
   // A level is written at the instants the curves' points stand at, so it adds no rows of its own; with no curve
   // drawn, at the windows the store cuts on the step.
   const before = drawnBefore(stepMs / 1000);
-  const drawn = [...new Set(curves.flatMap(curve => (curve.line.shape === 'line' ? curve.points.map(point => point[0] + before) : [])))];
+  const drawn = [
+    ...new Set(
+      curves.flatMap(curve => (curve.line.shape === 'line' ? curve.points.flatMap(point => (point[1] === null ? [] : [point[0] + before])) : [])),
+    ),
+  ];
   const stamps =
     drawn.length > 0
       ? drawn.sort((one, other) => one - other)
@@ -566,33 +578,20 @@ export const csvFor = (
           : []),
       ];
     }),
-    ...strips.map((strip): CsvColumn =>
-      strip.levels.length > 0
-        ? {
-            // How hard it ran over each window, in per cent of full output: the level it ran at, by the share of the window it ran.
-            label: t('timeline.csvLevel', { output: strip.name }),
-            decimals: 0,
-            points: stamps.flatMap(stamp => {
-              const [start, end] = [Math.max(from, stamp - stepMs), Math.min(stamp, strip.heardUntil)];
-              if (end <= start) return [];
-              const ran = strip.runs.reduce((sum, run) => sum + Math.max(0, Math.min(run.to, end) - Math.max(run.from, start)), 0) / (end - start);
-              const level = strip.levels.find(([at]) => at >= stamp)?.[1] ?? 0;
-              return [[stamp - before, ran > 0 ? level * ran : 0] as [number, number | null]];
-            }),
-          }
-        : {
-            label: t('timeline.csvOutput', { output: strip.name }),
-            holds: true,
-            points: [
-              [from, 0] as [number, number | null],
-              ...strip.runs.flatMap(run => [
-                [Math.max(from, run.from), 1] as [number, number | null],
-                ...(run.to < strip.heardUntil ? [[run.to, 0] as [number, number | null]] : []),
-              ]),
-              ...(strip.heardUntil < to ? [[strip.heardUntil + 1, null] as [number, number | null]] : []),
-            ],
-          },
-    ),
+    // Every output at the same instants, as how hard it ran over that point's window in per cent of full output:
+    // its level by the share of the window it ran, and for one that only switches that share. Nothing where
+    // the device was not heard, so no row after the last reading says 0 for an output nobody measured.
+    ...strips.map((strip): CsvColumn => ({
+      label: t('timeline.csvLevel', { output: strip.name }),
+      decimals: 0,
+      points: stamps.flatMap(stamp => {
+        const [start, end] = [Math.max(from, stamp - stepMs), Math.min(stamp, strip.heardUntil)];
+        if (end <= start) return [];
+        const ran = strip.runs.reduce((sum, run) => sum + Math.max(0, Math.min(run.to, end) - Math.max(run.from, start)), 0) / (end - start);
+        const level = strip.levels.length > 0 ? (strip.levels.find(([at]) => at >= stamp)?.[1] ?? 0) : 100;
+        return [[stamp - before, ran > 0 ? level * ran : 0] as [number, number | null]];
+      }),
+    })),
   ];
 
   return csvOf(columns, zone, t('timeline.csvTime'), decimalComma);

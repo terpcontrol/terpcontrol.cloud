@@ -4782,6 +4782,48 @@ export declare const timelineTargets: z.ZodObject<{
  * than a panel of nulls, which is what "the CO2 panel only when there is a
  * sensor" means.
  */
+/**
+ * A device's last reading, as one instant: what it measured and what each of
+ * its outputs was doing then. A level is a share of full output in per cent
+ * where the output has one, and null for one that only switches.
+ */
+export declare const timelineReading: z.ZodObject<{
+    measuredAt: z.ZodISODateTime;
+    values: z.ZodArray<z.ZodObject<{
+        value: z.ZodNullable<z.ZodNumber>;
+        measuredAt: z.ZodNullable<z.ZodISODateTime>;
+        state: z.ZodEnum<{
+            offline: "offline";
+            live: "live";
+            stale: "stale";
+        }>;
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+    }, z.core.$strip>>;
+    outputs: z.ZodArray<z.ZodObject<{
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+        on: z.ZodBoolean;
+        level: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
 export declare const timelinePanel: z.ZodObject<{
     metric: z.ZodEnum<{
         offline: "offline";
@@ -4878,6 +4920,7 @@ export declare const timelineOutputLane: z.ZodObject<{
         endsAt: z.ZodISODateTime;
     }, z.core.$strip>>;
     heardUntil: z.ZodISODateTime;
+    heardSeconds: z.ZodOptional<z.ZodNumber>;
     fridge: z.ZodOptional<z.ZodLiteral<true>>;
     level: z.ZodOptional<z.ZodObject<{
         unit: z.ZodEnum<{
@@ -5048,6 +5091,43 @@ export declare const spaceTimeline: z.ZodObject<{
             settling: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    reading: z.ZodNullable<z.ZodObject<{
+        measuredAt: z.ZodISODateTime;
+        values: z.ZodArray<z.ZodObject<{
+            value: z.ZodNullable<z.ZodNumber>;
+            measuredAt: z.ZodNullable<z.ZodISODateTime>;
+            state: z.ZodEnum<{
+                offline: "offline";
+                live: "live";
+                stale: "stale";
+            }>;
+            metric: z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>;
+        }, z.core.$strip>>;
+        outputs: z.ZodArray<z.ZodObject<{
+            output: z.ZodEnum<{
+                dehumidifier: "dehumidifier";
+                heater: "heater";
+                light: "light";
+                co2: "co2";
+                fan: "fan";
+                relais: "relais";
+                fanInternal: "fanInternal";
+                fanExternal: "fanExternal";
+                fanBackwall: "fanBackwall";
+            }>;
+            on: z.ZodBoolean;
+            level: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
     lastReadingAt: z.ZodNullable<z.ZodISODateTime>;
     nights: z.ZodArray<z.ZodObject<{
         startsAt: z.ZodISODateTime;
@@ -5102,6 +5182,7 @@ export declare const spaceTimeline: z.ZodObject<{
             endsAt: z.ZodISODateTime;
         }, z.core.$strip>>;
         heardUntil: z.ZodISODateTime;
+        heardSeconds: z.ZodOptional<z.ZodNumber>;
         fridge: z.ZodOptional<z.ZodLiteral<true>>;
         level: z.ZodOptional<z.ZodObject<{
             unit: z.ZodEnum<{
@@ -6655,6 +6736,7 @@ export declare const growSeries: z.ZodObject<{
             endsAt: z.ZodISODateTime;
         }, z.core.$strip>>;
         heardUntil: z.ZodISODateTime;
+        heardSeconds: z.ZodOptional<z.ZodNumber>;
         fridge: z.ZodOptional<z.ZodLiteral<true>>;
         level: z.ZodOptional<z.ZodObject<{
             unit: z.ZodEnum<{
@@ -6783,6 +6865,7 @@ export declare const spaceSeries: z.ZodObject<{
             endsAt: z.ZodISODateTime;
         }, z.core.$strip>>;
         heardUntil: z.ZodISODateTime;
+        heardSeconds: z.ZodOptional<z.ZodNumber>;
         fridge: z.ZodOptional<z.ZodLiteral<true>>;
         level: z.ZodOptional<z.ZodObject<{
             unit: z.ZodEnum<{

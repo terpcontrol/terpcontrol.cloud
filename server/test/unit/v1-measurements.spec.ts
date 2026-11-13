@@ -1,5 +1,6 @@
 import {
   computedValue,
+  coveredGrains,
   deficitGrainFor,
   extremesByField,
   extremesQuery,
@@ -168,6 +169,33 @@ describe('the extremes of a window', () => {
     expect(extremes.get(Date.parse('2026-08-11T10:03:00Z'))).toEqual({ mean: (mid + low) / 2, min: low, max: mid });
     expect(extremes.get(Date.parse('2026-08-11T10:06:00Z'))).toEqual({ mean: (high + mid) / 2, min: mid, max: high });
     expect(extremes.get(Date.parse('2026-08-11T10:07:10Z'))).toEqual({ mean: mid, min: mid, max: mid });
+  });
+
+  it('uses a grain`s leaf temperature only where leaf readings cover the grain as the air`s do', () => {
+    const query = grainsQuery(BUCKET, DEVICE, ['temperature', 'humidity', 'leaf_temperature'], window(60 * 24 * 30, 5400), 300, [
+      'leaf_temperature',
+      'temperature',
+    ]);
+    expect(query).toContain('fn: count, createEmpty: false');
+    expect(query).toContain('yield(name: "mean")');
+    expect(query).toContain('yield(name: "count")');
+
+    const grain = (time: string, leafReadings: number) => [
+      { result: 'mean', _time: time, _field: 'temperature', _value: 25 },
+      { result: 'mean', _time: time, _field: 'leaf_temperature', _value: 21 },
+      { result: 'count', _time: time, _field: 'temperature', _value: 60 },
+      ...(leafReadings > 0 ? [{ result: 'count', _time: time, _field: 'leaf_temperature', _value: leafReadings }] : []),
+    ];
+    const kept = coveredGrains(
+      [...grain('2026-08-11T10:05:00Z', 60), ...grain('2026-08-11T10:10:00Z', 30), ...grain('2026-08-11T10:15:00Z', 1)],
+      'leaf_temperature',
+      'temperature',
+    );
+
+    // Sixty of sixty and thirty of sixty cover their grain; one stray reading in five minutes bends nothing.
+    expect(kept.filter(row => row._field === 'leaf_temperature').map(row => row._time)).toEqual(['2026-08-11T10:05:00Z', '2026-08-11T10:10:00Z']);
+    expect(kept.filter(row => row._field === 'temperature')).toHaveLength(3);
+    expect(kept.every(row => (row as { result?: string }).result === 'mean')).toBe(true);
   });
 
   it('reads means over a grain where a window is too wide for its samples, and takes each grain at its own time', () => {

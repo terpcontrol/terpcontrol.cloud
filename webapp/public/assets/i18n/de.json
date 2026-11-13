@@ -2065,7 +2065,6 @@
     "toLast": "Zum letzten Wert",
     "noneTicked": "Keine Kurve gewählt. Unter „Anpassen“ wählst du, was gezeichnet wird.",
     "mouseHint": "Ziehen wählt einen Ausschnitt, Strg + Mausrad zoomt.",
-    "csvOutput": "{{output}} (an/aus)",
     "csvTime": "Zeit",
     "diary": {
       "title": "Tagebuch in diesem Zeitraum",
@@ -2137,7 +2136,12 @@
       "d_other": "alle {{n}} Tage"
     },
     "csvVpd": "VPD, berechnet aus Temperatur und Luftfeuchte",
-    "csvLevel": "{{output}} (%)"
+    "csvLevel": "{{output}} (%)",
+    "ofMeans": "aus {{minutes}}-Min-Mitteln",
+    "stretchBefore": "Zeitraum davor",
+    "stretchAfter": "Zeitraum danach",
+    "lightFrom": "ab {{from}}",
+    "lightUntil": "bis {{to}}"
   },
   "camera": {
     "lastError": "Letzter Versuch fehlgeschlagen: {{reason}}",

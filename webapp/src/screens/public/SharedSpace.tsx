@@ -101,7 +101,6 @@ export function SharedSpace({
           spaceId={space.spaceId}
           shared={{ token, picture }}
           title={<h2>{t('publicPage.timeline')}</h2>}
-          values={values}
         />
       </section>
 
