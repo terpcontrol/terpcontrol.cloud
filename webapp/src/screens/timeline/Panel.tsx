@@ -139,7 +139,10 @@ export function Panel(props: PanelProps) {
           <span key={end} className={end === 'high' ? styles.scaleHigh : styles.scaleLow} aria-hidden>
             {panel.curves.map(curve => (
               <span key={curve.key} style={alone ? undefined : inked(curve)}>
-                {curve.corner(curve.line.scale[end])}
+                {/* A scale so narrow that both ends are written alike says the figure once. */}
+                {end === 'low' && curve.corner(curve.line.scale.low) === curve.corner(curve.line.scale.high)
+                  ? null
+                  : curve.corner(curve.line.scale[end])}
               </span>
             ))}
           </span>

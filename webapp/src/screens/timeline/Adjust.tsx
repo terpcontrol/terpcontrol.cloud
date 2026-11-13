@@ -54,12 +54,11 @@ export function Adjust({ view, offered, shown, change, stepDrawn, grained, compa
   const curves = offered.metrics.length + offered.measurements.length > 0;
 
   // The sheet's own copy of what is ticked: the address follows a moment later, and a tick shows at once.
-  const [keys, setKeys] = useState(() => view.show ?? [...new Set([...keysOf(shown), ...DEFAULT_SHOW])]);
+  const [keys, setKeys] = useState(() => [...new Set([...keysOf(shown), ...(view.show ?? DEFAULT_SHOW)])]);
   const [one, setOne] = useState(view.one);
   const tick = (key: string) => {
     const next = keys.includes(key) ? keys.filter(other => other !== key) : [...keys, key];
-    // Nothing ticked is what a place starts with, in the sheet as in the address.
-    setKeys(next.length > 0 ? next : DEFAULT_SHOW);
+    setKeys(next);
     change({ show: next });
   };
   const ticks = [
@@ -70,6 +69,9 @@ export function Adjust({ view, offered, shown, change, stepDrawn, grained, compa
     { key: 'diary', name: t('timeline.adjust.diary') },
     ...(offered.machine ? [{ key: 'machine', name: t('timeline.adjust.machine') }] : []),
   ];
+  // The last curve ticked stays ticked: a page of no curve is no answer, and an address that names none draws the first ones.
+  const drawn = ticks.slice(0, offered.metrics.length + offered.measurements.length).filter(each => keys.includes(each.key));
+  const last = drawn.length === 1 ? drawn[0].key : null;
 
   if (pane === 'compare') {
     return (
@@ -115,11 +117,12 @@ export function Adjust({ view, offered, shown, change, stepDrawn, grained, compa
           <legend>{t('timeline.adjust.curves')}</legend>
           {ticks.map(each => (
             <label key={each.key}>
-              <input type="checkbox" checked={keys.includes(each.key)} onChange={() => tick(each.key)} />
+              <input type="checkbox" checked={keys.includes(each.key)} disabled={each.key === last} onChange={() => tick(each.key)} />
               {each.name}
             </label>
           ))}
         </fieldset>
+        {last ? <small className={ui.note}>{t('timeline.adjust.lastCurve')}</small> : null}
 
         {curves ? (
           <label className={styles.oneRow}>

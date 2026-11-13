@@ -2060,7 +2060,6 @@
     "waiting": "Wartet auf erste Werte: Sobald das Gerät misst, stehen hier seine Kurven.",
     "noDevice": "Hier misst kein Gerät, also gibt es keine Kurven.",
     "toLast": "Zum letzten Wert",
-    "noneTicked": "Keine Kurve gewählt. Unter „Anpassen“ wählst du, was gezeichnet wird.",
     "mouseHint": "Ziehen wählt einen Ausschnitt, Strg + Mausrad zoomt.",
     "csvTime": "Zeit",
     "diary": {
@@ -2106,7 +2105,8 @@
       "viewSaving": "Wird gesichert …",
       "day": "Zu einem Tag springen",
       "viewSaved": "Ansicht „{{name}}“ gesichert",
-      "viewDeleted": "Ansicht „{{name}}“ gelöscht"
+      "viewDeleted": "Ansicht „{{name}}“ gelöscht",
+      "lastCurve": "Eine Kurve bleibt immer gewählt."
     },
     "shared": {
       "title": "Link zum Teilen",

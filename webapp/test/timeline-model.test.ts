@@ -15,6 +15,7 @@ import {
   readAt,
   restOf,
   overTime,
+  silenceAt,
   singleAt,
   shownOf,
   stripsOf,
@@ -448,19 +449,70 @@ describe('the strips', () => {
     expect(overTime(blocksOf({ points: uneven }, FROM, FROM + 120 * HOUR, HOUR), block => block.share)).toBeCloseTo(72 / 120, 6);
   });
 
-  it('draws a device slower than the step as one strip, and breaks it only where it fell silent by its own rhythm', () => {
-    // A sample every 25 minutes, drawn at ten: one point in two or three windows, each of one sample.
+  it('draws a device slower than the step as one strip, and cuts it only where the answer says the device had been silent', () => {
+    // A sample every 25 minutes, drawn at ten: one point in two or three windows. What a silence is the server
+    // decides, by the device's own rhythm, and a point says so (`resumed`): the page works out none of its own.
     const step = 600_000;
     const stamps = Array.from({ length: 40 }, (_, index) => FROM + Math.ceil(((index + 1) * 1500_000) / step) * step);
     const strip = { points: stamps.map(end => [end, 1, 1, 65] as const) };
-    expect(blocksOf(strip, FROM, stamps.at(-1)!, step)).toHaveLength(1);
-    // The same history, then live samples that fill every window: the history is still whole.
-    const live = Array.from({ length: 60 }, (_, index) => [stamps.at(-1)! + (index + 1) * step, 20, 20, 65] as const);
-    expect(blocksOf({ points: [...strip.points, ...live] }, FROM, live.at(-1)![0], step)).toHaveLength(1);
-    // Three hours without a word are a silence of that device, and one missed report is not.
-    const gone = strip.points.filter(([end]) => end < FROM + 6 * HOUR || end > FROM + 9 * HOUR);
-    expect(blocksOf({ points: gone }, FROM, stamps.at(-1)!, step)).toHaveLength(2);
-    expect(blocksOf({ points: strip.points.filter((_, index) => index !== 20) }, FROM, stamps.at(-1)!, step)).toHaveLength(1);
+    expect(blocksOf(strip, FROM, stamps.at(-1)!, step)).toEqual([{ from: 0, to: 1, share: 1, level: 65 }]);
+    // Back after a silence, a point stands for its own window, and the strip is blank before it.
+    const gone = strip.points.map((point, index) => (index === 20 ? ([...point, true] as const) : point));
+    const [before, after] = blocksOf({ points: gone }, FROM, stamps.at(-1)!, step);
+    expect([before.to, after.from].map(share => FROM + share * (stamps.at(-1)! - FROM))).toEqual([stamps[19], stamps[20] - step]);
+    // So does the first point of a device that was not heard when the window began.
+    expect(blocksOf({ points: [[stamps[3], 1, 1, 65, true] as const] }, FROM, stamps.at(-1)!, step)[0].from).toBeCloseTo(
+      (stamps[3] - step - FROM) / (stamps.at(-1)! - FROM),
+      9,
+    );
+  });
+
+  it('says one sample as what it was, and a lamp`s times to the second where the step is under a minute', () => {
+    const lane = (points: NonNullable<SpaceTimeline['outputs'][number]['points']>, spans: SpaceTimeline['outputs'][number]['spans'] = []) => ({
+      output: 'light' as const,
+      deviceId: null,
+      spans,
+      heardUntil: at(24),
+      points,
+    });
+    // One sample is no share of any time: never "on 100 % of the time".
+    expect(stripsOf(t, answer({ outputs: [lane([{ measuredAt: at(12), heard: 1, on: 1, level: 70, resumed: true }])] }))[0].said).toEqual([
+      '70\u00a0%',
+    ]);
+    expect(stripsOf(t, answer({ outputs: [lane([{ measuredAt: at(12), heard: 1, on: 0, level: 0, resumed: true }])] }))[0].said).toEqual(['off']);
+    // A zoom of twenty minutes at five seconds: the stretch ends at 14:39:55, and says so as the card would.
+    const fine = answer({
+      startsAt: at(0),
+      endsAt: new Date(FROM + 1200_000).toISOString(),
+      stepSeconds: 5,
+      outputs: [
+        lane(
+          Array.from({ length: 240 }, (_, index) => ({
+            measuredAt: new Date(FROM + (index + 1) * 5000).toISOString(),
+            heard: 1,
+            on: index < 119 ? 1 : 0,
+            level: index < 119 ? 70 : 0,
+          })),
+          [{ startsAt: at(0), endsAt: new Date(FROM + 595_000).toISOString() }],
+        ),
+      ],
+    });
+    expect(stripsOf(t, fine, { zone: 'UTC', live: false, quietAt: null })[0].said![0]).toBe('until 14:39:55');
+  });
+
+  it('names the silence a cursor stands in by the ends the answer gives it, and none where it is no wider than two steps', () => {
+    const quiet = answer({
+      silences: [
+        { startsAt: at(0), endsAt: at(3) },
+        { startsAt: at(8), endsAt: at(12.5) },
+        { startsAt: at(20), endsAt: at(21.5) },
+      ],
+    });
+    expect(silenceAt(quiet, FROM + 9 * HOUR)).toEqual([FROM + 8 * HOUR, FROM + 12.5 * HOUR]);
+    // One that begins with the window was not seen to begin.
+    expect(silenceAt(quiet, FROM + HOUR)).toEqual([null, FROM + 3 * HOUR]);
+    // Outside any, at the very edge of one, and inside one an hour and a half wide at an hour a point: none.
+    expect([FROM + 5 * HOUR, FROM + 8 * HOUR, FROM + 20.5 * HOUR].map(time => silenceAt(quiet, time))).toEqual([null, null, null]);
   });
 
   it('counts two devices that drive the same output together', () => {
@@ -471,7 +523,7 @@ describe('the strips', () => {
       heardUntil: at(24),
       points: [{ measuredAt: at(1), heard, on, level }],
     });
-    expect(stripsOf(t, answer({ outputs: [lane(12, 12, 60), lane(4, 0, 0)] }))[0].points).toEqual([[FROM + HOUR, 16, 12, 45]]);
+    expect(stripsOf(t, answer({ outputs: [lane(12, 12, 60), lane(4, 0, 0)] }))[0].points).toEqual([[FROM + HOUR, 16, 12, 45, false]]);
   });
 
   it('reads an output over the point the cursor falls into: its mean level, the share it ran, nothing where nobody heard', () => {
@@ -596,10 +648,11 @@ describe('the cursor', () => {
     // Thirty-seven seconds of a window of three minutes: its middle is 18.5 s in, written as 19.
     expect(drawn(cut, ['temperature']).panels[0].curves[0].points.at(-1)![0]).toBe(FROM + HOUR + 19_000);
 
-    // With a silence before it nothing says where in the window the device came back: the point stands at its
-    // close - a whole second, and not half a step before the first sample it holds.
+    // With a silence that ends in it, the window is what was heard of it: from the first sample after the silence,
+    // which the answer names, to its close - never half a step before the first sample it holds.
     const back = answer({
       stepSeconds: 5400,
+      silences: [{ startsAt: at(1.5), endsAt: new Date(FROM + 22 * HOUR + 33_000).toISOString() }],
       panels: [
         {
           metric: 'temperature',
@@ -612,7 +665,13 @@ describe('the cursor', () => {
         },
       ],
     });
-    expect(drawn(back, ['temperature']).panels[0].curves[0].points.at(-1)![0]).toBe(FROM + 22 * HOUR + 53_000);
+    expect(drawn(back, ['temperature']).panels[0].curves[0].points.at(-1)![0]).toBe(FROM + 22 * HOUR + 43_000);
+    // So it stands before the reading that closes the curve, and the table has a row for it as for every point.
+    const reading: CardValue = { metric: 'temperature', value: 24.3, measuredAt: new Date(FROM + 22 * HOUR + 52_000).toISOString(), state: 'live' };
+    const closed = drawn({ ...back, endsAt: new Date(FROM + 22 * HOUR + 53_423).toISOString() }, ['temperature'], {
+      now: { values: [reading], silentSince: null },
+    });
+    expect(closed.panels[0].curves[0].points.slice(-2).map(point => point[0])).toEqual([FROM + 22 * HOUR + 43_000, FROM + 22 * HOUR + 52_000]);
   });
 
   it('reads the point nearest to it, which is where its dot sits on the line', () => {

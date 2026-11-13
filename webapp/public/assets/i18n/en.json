@@ -2050,7 +2050,6 @@
     "waiting": "Waiting for first values: the curves appear here once the device measures.",
     "noDevice": "No device measures here, so there are no curves.",
     "toLast": "Go to the last reading",
-    "noneTicked": "No curve is ticked. Choose what is drawn under “Adjust”.",
     "mouseHint": "Drag to choose a stretch, Ctrl + wheel zooms.",
     "csvTime": "Time",
     "diary": {
@@ -2096,7 +2095,8 @@
       "viewSaving": "Saving…",
       "day": "Jump to a day",
       "viewSaved": "View “{{name}}” saved",
-      "viewDeleted": "View “{{name}}” deleted"
+      "viewDeleted": "View “{{name}}” deleted",
+      "lastCurve": "One curve always stays ticked."
     },
     "shared": {
       "title": "Link to share",

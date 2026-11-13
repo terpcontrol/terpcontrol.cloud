@@ -637,8 +637,15 @@ describe('what the place reads now', () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }));
     const hour = (index: number) => iso(NOW - (24 - index) * HOUR);
     const hours = Array.from({ length: 24 }, (_, index) => index + 1);
+    // A point after hours nothing was heard in says so, as the server's lanes do.
     const points = (heard: number[], lit: (index: number) => boolean) =>
-      heard.map(index => ({ measuredAt: hour(index), heard: 12, on: lit(index) ? 12 : 0, level: lit(index) ? 65 : 0 }));
+      heard.map(index => ({
+        measuredAt: hour(index),
+        heard: 12,
+        on: lit(index) ? 12 : 0,
+        level: lit(index) ? 65 : 0,
+        resumed: !heard.includes(index - 1) && index > 1,
+      }));
     const lamp = (spans: [number, number][], heard: number[], lit: (index: number) => boolean) => ({
       output: 'light' as const,
       deviceId: 'device-1',
@@ -685,7 +692,7 @@ describe('what the place reads now', () => {
       deviceId: 'device-1',
       spans: spans.map(([from, to]) => ({ startsAt: hour(from), endsAt: hour(to) })),
       heardUntil: hour(24),
-      points: heard.map(index => ({ measuredAt: hour(index), heard: 12, on: 12, level })),
+      points: heard.map(index => ({ measuredAt: hour(index), heard: 12, on: 12, level, resumed: !heard.includes(index - 1) && index > 1 })),
     });
     const later = Array.from({ length: 24 }, (_, index) => index + 1).filter(index => index > 18);
 
@@ -701,7 +708,13 @@ describe('what the place reads now', () => {
       outputs: [
         {
           ...lamp([[18, 22]], later),
-          points: later.map(index => ({ measuredAt: hour(index), heard: 12, on: index <= 22 ? 12 : 0, level: index <= 22 ? 65 : 0 })),
+          points: later.map(index => ({
+            measuredAt: hour(index),
+            heard: 12,
+            on: index <= 22 ? 12 : 0,
+            level: index <= 22 ? 65 : 0,
+            resumed: index === 19,
+          })),
         },
       ],
     };
@@ -836,7 +849,12 @@ describe('the cursor', () => {
         ...one,
         points: one.points.flatMap((point, index) => (quiet(index) ? (index === 10 ? [{ ...point, value: null }] : []) : [point])),
       })),
-      outputs: whole.outputs.map(one => ({ ...one, points: one.points!.filter((_, index) => !quiet(index)) })),
+      outputs: whole.outputs.map(one => ({
+        ...one,
+        points: one.points!.filter((_, index) => !quiet(index)).map((point, index) => ({ ...point, resumed: index === 10 })),
+      })),
+      // The answer names the silence by its samples: the last before it, the first after it.
+      silences: [{ startsAt: iso(NOW - 14 * HOUR - 5000), endsAt: iso(NOW - 8 * HOUR + 20_000) }],
     };
     draw(`/timeline?at=${iso(NOW - 11.5 * HOUR)}`);
     await settled();
@@ -844,7 +862,8 @@ describe('the cursor', () => {
     const card = screen.getByRole('region', { name: 'Cursor' });
     // One row says it, the other between which two readings: the card's two rows, and no third.
     await waitFor(() => expect(within(card).getByText('no reading')).toBeInTheDocument());
-    expect(within(card).getByText(/^\d\d:\d\d to \d\d:\d\d$/)).toBeInTheDocument();
+    const clock = (time: number) => new Date(time).toISOString().slice(11, 16);
+    expect(within(card).getByText(`${clock(NOW - 14 * HOUR - 5000)} to ${clock(NOW - 8 * HOUR + 20_000)}`)).toBeInTheDocument();
     // No wall of named dashes, and no output said as unknown five times.
     expect(card).not.toHaveTextContent('—');
     // What the rows say at rest lies unseen under them and holds their height.
@@ -876,12 +895,52 @@ describe('the cursor', () => {
     expect(address().searchParams.has('from')).toBe(true);
   });
 
-  it('draws the curves a place starts with for an address that names an empty set of them', async () => {
-    draw('/timeline?show=');
+  it.each(['show=', 'show=diary,machine', 'show=nonsense'])(
+    'draws the curves a place starts with for an address that names none: %s',
+    async asked => {
+      draw(`/timeline?${asked}`);
+      await settled();
+
+      // One answer to "no curve": the first ones, and never a page that says none is chosen under a bare card.
+      expect(screen.getByRole('region', { name: 'Humidity' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Cursor' })).toHaveTextContent('25.2 °C · 58.0 % · 1.40 kPa');
+      expect(screen.queryByText(/No curve/)).not.toBeInTheDocument();
+    },
+  );
+
+  it('reads no neighbour`s mean inside a silence the answer names, however near its edge the cursor stands', async () => {
+    const whole = answerTo(new URLSearchParams());
+    server.over = {
+      panels: whole.panels.map(one => ({
+        ...one,
+        points: one.points.flatMap((point, index) => (index >= 10 && index < 16 ? (index === 10 ? [{ ...point, value: null }] : []) : [point])),
+      })),
+      silences: [{ startsAt: iso(NOW - 14 * HOUR), endsAt: iso(NOW - 8 * HOUR) }],
+    };
+    // Twenty minutes into six silent hours: the point before is nearer than a step and a half.
+    draw(`/timeline?at=${iso(NOW - 14 * HOUR + 20 * 60_000)}`);
     await settled();
 
-    expect(screen.getByRole('region', { name: 'Humidity' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Cursor' })).toHaveTextContent('25.2 °C · 58.0 % · 1.40 kPa');
+    const card = screen.getByRole('region', { name: 'Cursor' });
+    await waitFor(() => expect(within(card).getByText('no reading')).toBeInTheDocument());
+    expect(card).not.toHaveTextContent('mean');
+    expect(within(panel('Temperature')).getByText('—')).toBeInTheDocument();
+  });
+
+  it('writes the figure of a scale so narrow that both its ends read alike once', async () => {
+    const whole = answerTo(new URLSearchParams());
+    server.over = {
+      // One sample of a device heard once, and no reading to close its curve.
+      reading: null,
+      panels: whole.panels.map(one =>
+        one.metric === 'humidity' ? { ...one, points: one.points.slice(-1).map(point => ({ measuredAt: point.measuredAt, value: 50 })) } : one,
+      ),
+    };
+    draw();
+    await settled();
+
+    const ends = [...panel('Humidity').querySelectorAll('span[aria-hidden] > span')].map(end => end.textContent);
+    expect(ends.filter(Boolean)).toEqual(['50']);
   });
 
   it('drops a cursor the address sets in the future, and rests where it would without one', async () => {
@@ -995,6 +1054,20 @@ describe('the sheet "Adjust"', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Adjust' }));
     return screen.findByRole('dialog', { name: 'Adjust' });
   };
+
+  it('keeps the last curve ticked: its box cannot be unticked, and the sheet says so', async () => {
+    draw('/timeline?show=temperature,diary');
+    await settled();
+    fireEvent.click(screen.getByRole('button', { name: 'Adjust' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Adjust' });
+
+    expect(within(sheet).getByRole('checkbox', { name: 'Temperature' })).toBeDisabled();
+    expect(within(sheet).getByText('One curve always stays ticked.')).toBeInTheDocument();
+    // With a second one ticked either may go again.
+    fireEvent.click(within(sheet).getByRole('checkbox', { name: 'Humidity' }));
+    expect(within(sheet).getByRole('checkbox', { name: 'Temperature' })).toBeEnabled();
+    expect(within(sheet).queryByText('One curve always stays ticked.')).not.toBeInTheDocument();
+  });
 
   it('ticks a curve the place has into the picture and the address, and remembers it for the next visit', async () => {
     const sheet = await adjust();

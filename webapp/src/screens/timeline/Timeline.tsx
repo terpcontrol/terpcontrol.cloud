@@ -565,13 +565,16 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
   // One point under a cursor, for the card and every head (`readAt`): a value from an older instant says when, and
   // on the reading each output is what the reading says - else what that point's samples came to.
   const cardAt = (time: number) => {
-    const { at: stood, onReading, points } = readAt(curves, time, curve => reachOf(data, curve), heardAs);
+    // In a silence the answer names nothing is read: the cursor snaps to no neighbour's mean. Rest on the reading is none.
+    const quiet = time === heardAs?.at ? null : silenceAt(data, time);
+    const { at: stood, onReading, points } = readAt(curves, time, curve => (quiet ? 0 : reachOf(data, curve)), heardAs);
     const read = points.map(one => {
       const figure = one.value === null ? '—' : `${one.curve.written(one.value)}\u00a0${one.curve.unit}`.trim();
       return { ...one, written: one.saidAt === null ? figure : `${figure} · ${timed(one.saidAt)}` };
     });
-    const figures = ticked.map(strip => (onReading ? (said.get(strip.output) ?? null) : figureAt(strip, stood ?? time, stepMs)));
+    const figures = ticked.map(strip => (onReading ? (said.get(strip.output) ?? null) : quiet ? null : figureAt(strip, stood ?? time, stepMs)));
     return {
+      quiet,
       stood,
       onReading,
       read,
@@ -588,8 +591,8 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
   // What the card and the heads say at rest holds their room, whatever the cursor reads.
   const calm = resting ? under : cardAt(rest);
   const read = under.read.map((one, index) => ({ ...one, rest: calm.read[index].written }));
-  // A silence is said once, with its ends, and not as a row of dashes: in the card's two rows, or in its one.
-  const [since, until] = under.silent ? silenceAt(curves, strips, cursor, stepMs).map(time => time && timed(time)) : [];
+  // A silence is said once, with the ends its samples have, and not as a row of dashes: in the card's two rows, or in its one.
+  const [since, until] = (under.quiet ?? []).map(time => time && cursorStamp(time, window, data.stepSeconds, zone));
   const quiet = since || until ? [t(`timeline.silence.${since ? (until ? 'between' : 'since') : 'until'}`, { from: since, to: until })] : [];
   const two = calm.outputs.length > 0;
   const rows = under.silent ? { readings: [t('timeline.silence.none'), ...(two ? [] : quiet)], outputs: two ? quiet : [] } : under;
@@ -684,8 +687,6 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
               // The moment alone: the view gives it its own day around it, and never a window past now.
               toLast={time => change({ range: '24h', fixed: null, last: null, at: time })}
             />
-          ) : panels.length === 0 && curves.length === 0 && data.panels.length > 0 ? (
-            <p className={`${ui.cardDashed} ${ui.note}`}>{t('timeline.noneTicked')}</p>
           ) : null}
           {panels.map((panel, index) => (
             <Panel
