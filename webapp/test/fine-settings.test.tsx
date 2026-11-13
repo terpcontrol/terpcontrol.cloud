@@ -197,7 +197,15 @@ describe('the fine settings themselves', () => {
         },
       ],
       nextCursor: null,
-      capabilities: { socketOverride: true, socketTimer: true, lightOverride: true, roles: ['humidifier' as const], pulseSeconds: {} },
+      capabilities: {
+        socketOverride: true,
+        socketTimer: true,
+        lightOverride: true,
+        lightHold: false,
+        roles: ['humidifier' as const],
+        pulseSeconds: {},
+      },
+      lightHold: null,
     };
     drawAt(<Mode device={germinating} mayManage offline={false} sockets={humidifier} />);
 

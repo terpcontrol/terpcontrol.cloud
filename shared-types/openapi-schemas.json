@@ -3135,6 +3135,10 @@
         "type": "boolean",
         "description": "Whether the controller's own light output takes an override."
       },
+      "lightHold": {
+        "type": "boolean",
+        "description": "Whether the build reports the override holding its own light output, which `lightHold` on the page then carries."
+      },
       "roles": {
         "type": "array",
         "items": {
@@ -3158,8 +3162,33 @@
       "socketOverride",
       "socketTimer",
       "lightOverride",
+      "lightHold",
       "roles",
       "pulseSeconds"
+    ]
+  },
+  "LightHold": {
+    "type": "object",
+    "properties": {
+      "override": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/SocketOverride"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "reportedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      }
+    },
+    "required": [
+      "override",
+      "reportedAt"
     ]
   },
   "SocketPage": {
@@ -3180,12 +3209,24 @@
       },
       "capabilities": {
         "$ref": "#/components/schemas/DeviceCapabilities"
+      },
+      "lightHold": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/LightHold"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null where the build does not report it (`capabilities.lightHold`) or has not yet."
       }
     },
     "required": [
       "items",
       "nextCursor",
-      "capabilities"
+      "capabilities",
+      "lightHold"
     ]
   },
   "RebootCommand": {

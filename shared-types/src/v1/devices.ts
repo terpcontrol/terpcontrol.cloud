@@ -533,6 +533,7 @@ export const deviceCapabilities = named(
     socketOverride: z.boolean(),
     socketTimer: z.boolean(),
     lightOverride: z.boolean().describe("Whether the controller's own light output takes an override."),
+    lightHold: z.boolean().describe('Whether the build reports the override holding its own light output, which `lightHold` on the page then carries.'),
     roles: z.array(socketRole).describe('The roles this build knows; a role outside it is never sent.'),
     // The failsafe the device programs into each socket: how long after the
     // last command a socket switches itself off, so a controller that goes
@@ -543,8 +544,22 @@ export const deviceCapabilities = named(
   }),
 );
 
+/**
+ * The override holding the device's own light output, as its last report said.
+ * `override` is null when nothing holds it; `reportedAt` is when the device
+ * said so, which is what tells a screen whether a hold it sent since is already
+ * in this answer.
+ */
+export const lightHold = named('LightHold', z.object({ override: socketOverride.nullable(), reportedAt: instant() }));
+
 /** The list carries the capabilities, because a socket row is drawn from both. */
-export const socketPage = named('SocketPage', page(socket).extend({ capabilities: deviceCapabilities }));
+export const socketPage = named(
+  'SocketPage',
+  page(socket).extend({
+    capabilities: deviceCapabilities,
+    lightHold: lightHold.nullable().describe('Null where the build does not report it (`capabilities.lightHold`) or has not yet.'),
+  }),
+);
 
 /* ----------------------------------------------------------------- commands */
 

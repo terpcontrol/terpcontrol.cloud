@@ -103,6 +103,7 @@ const CAPABILITIES: DeviceCapabilities = {
   socketOverride: true,
   socketTimer: true,
   lightOverride: true,
+  lightHold: false,
   roles: ['heater', 'light', 'pump'],
   pulseSeconds: { heater: 300, light: 1800 },
 };
@@ -402,7 +403,7 @@ describe("the controller's own light output", () => {
     ]);
   });
 
-  it('marks the hold it sent, and until when, since the device reports none back', () => {
+  it('marks the hold it sent, and until when, where the device reports none back', () => {
     drawOutput();
 
     expect(screen.getByRole('button', { name: 'auto' })).toHaveAttribute('aria-pressed', 'true');
@@ -415,6 +416,33 @@ describe("the controller's own light output", () => {
     fireEvent.click(screen.getByRole('button', { name: 'auto' }));
     expect(screen.getByRole('button', { name: 'auto' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('holds 1 h')).toBeInTheDocument();
+  });
+
+  it('marks the hold the device reports, in a browser that sent none', () => {
+    const reported = { override: { state: 'off' as const, validUntil: NOW.plus({ minutes: 30 }).toISO()! }, reportedAt: NOW.toISO()! };
+    const output = lightOutputOf(device({ lights: LIGHTS }), { ...CAPABILITIES, lightHold: true }, null, reported)!;
+    drawAt(<LightOutputRow output={output} unheard={null} mayManage runs={null} now={NOW} />);
+
+    expect(screen.getByRole('button', { name: 'off' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/^off until \d\d:\d\d$/)).toBeInTheDocument();
+  });
+
+  it('marks a hold sent from here until the device has reported since', () => {
+    const reported = { override: null, reportedAt: NOW.toISO()! };
+    const output = lightOutputOf(device({ lights: LIGHTS }), { ...CAPABILITIES, lightHold: true }, null, reported)!;
+    drawAt(<LightOutputRow output={output} unheard={null} mayManage runs={null} now={NOW} />);
+
+    expect(screen.getByRole('button', { name: 'auto' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'on' }));
+
+    // The report on the page is from before the send, so it does not undo the button just pressed.
+    expect(screen.getByRole('button', { name: 'on' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('reads no hold where the build does not announce that it reports one', () => {
+    const reported = { override: { state: 'on' as const, validUntil: NOW.plus({ minutes: 30 }).toISO()! }, reportedAt: NOW.toISO()! };
+
+    expect(lightOutputOf(device({ lights: LIGHTS }), CAPABILITIES, null, reported)?.reportedHold).toBeNull();
   });
 
   it('leaves the light limit of a device that states targets to Steuerung, where it is saved with them', () => {

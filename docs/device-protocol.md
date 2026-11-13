@@ -546,7 +546,8 @@ over it would serialise into truncated JSON and the server would drop the whole 
 | `sockets_n` | how many rows the table holds | controller, fridge | `wifi.cpp:2784` |
 | `socket_list<k>` | up to three `role\|id\|ip\|state\|override-or-timer` entries | controller, fridge | `wifi.cpp:2786-2800` |
 | `socket_roles` | csv of the roles this build accepts | controller, fridge, at init | `wifi.cpp:2843` |
-| `caps` | csv of what it accepts beyond the frozen commands | controller, fridge, at init | `wifi.cpp:2844` |
+| `caps` | csv of what it accepts beyond the frozen commands | controller, fridge, at init | `wifi.cpp:2881` |
+| `light_hold` | `on@<seconds>` / `off@<seconds>`: the override holding the module's own light output and the seconds it has left, or `none` | controller, fridge announcing `light_hold`, with every socket table | `lightHoldValue`, `wifi.cpp:2785-2802` |
 | `socket_pulse` | `role:seconds`: the failsafe each role's socket is given | controller, fridge, at init | `wifi.cpp:2845` |
 | `webcam_did` | the camera's device id, or `none` | at boot, on pairing, on disconnect | `wifi.cpp:2870`, `:1375`, `:1398` |
 | `webcam_ip` | where the camera last answered, or `none` | at boot, on discovery, on disconnect | `wifi.cpp:2876`, `terpcam.cpp:188`, `wifi.cpp:1400` |
@@ -577,6 +578,7 @@ Server-side handling beyond storage (`hardware-report.service.ts`):
 | `claimcode_auth` | `'on'` makes `POST /device/claimcode` require the device password |
 | `firmware_version` | the build is reported to the rollout and stored as `devices.state.firmwareId` |
 | `sockets_n` | superseded `socket_list<k>` chunks from a larger table are unset |
+| `light_hold` | stamps `devices.state.lightHoldReportedAt`, which its seconds are read against; read at all only while `caps` names `light_hold` |
 | `socket_list<k>` | a row whose state left the one the last report gave stamps `devices.state.socketStateChangedAt.<slot>`, falling silent included; a row that had no state yet stamps nothing, so a build that starts reporting the column does not read as every socket having just moved |
 | `webcam_did` | the camera the device pairs is reconciled into a row of `cameras`; `none` also resets the device's `cameraSecret` |
 | `webcam_pwd` | the camera's `secret`, which the cloud logs in with over the relay; an empty value means "the default". Kept on the device row as well, because pairing reports it before the id that makes the camera row |
@@ -599,6 +601,7 @@ The full table cannot travel as one value, so it is reported as a count followed
 (`reportSocketsHardwareInfo`, `wifi.cpp:2771-2801`):
 
 ```
+hardware-info:light_hold=on@3540
 hardware-info:sockets=heater,light,pump
 hardware-info:socket_ips=heater@192.0.2.60,light@192.0.2.61,pump@192.0.2.63
 hardware-info:sockets_n=4
@@ -607,7 +610,8 @@ hardware-info:socket_list1=pump|4C7525A1B2C6|192.0.2.63|off|timer=30/900
 ```
 
 Four sockets: a heater that is on, a second heater the module could not reach and so says nothing about, a light
-an override is holding off for another two minutes, and a pump on a timer.
+an override is holding off for another two minutes, and a pump on a timer. Ahead of them, the module's own light
+output is held on for another 59 minutes.
 
 Rules a reader has to follow:
 
@@ -635,13 +639,21 @@ Rules a reader has to follow:
   left out of the table.
 - `sockets` and `socket_ips` are the older, lossy summary: one entry per role. They stay because readers that
   predate the table understand them.
-- A whole report is re-sent on boot, on every change of the table (`wifi.cpp:2771`, called from
-  `wifiInitAuxCloudReporting` `:2856` and from each mutation at `:600,606,2560,2965,3075,3410`), and **when a row's
-  state or override changes, at most once per 30 s** (`SMART_SOCKET_REPORT_MIN_INTERVAL`, `wifi.cpp:63`,
-  `reportSocketStateChanges`, `:2806-2819`). Without that last rule a socket that stopped answering would keep the
-  state of the boot report forever; with no limit, an output oscillating around its threshold would fill the log queue
-  with tables. The seconds an override has left are deliberately not part of what counts as a change — they tick down
-  every second.
+- A whole report is re-sent on boot, on every change of the table (`reportSocketsHardwareInfo`, called from
+  `wifiInitAuxCloudReporting` and from each mutation), **when a row's state or override changes, or the light
+  output's hold does, at most once per 30 s** (`SMART_SOCKET_REPORT_MIN_INTERVAL`, `wifi.cpp:63`,
+  `reportSocketStateChanges`), and **on the next pass after every `socket_override` the module accepted**, whatever
+  the spacing (`socket_report_due`). Without the state rule a socket that stopped answering would keep the state of
+  the boot report forever; with no limit, an output oscillating around its threshold would fill the log queue with
+  tables. The seconds an override has left are deliberately not part of what counts as a change — they tick down
+  every second — which is why a command is a reason of its own: a hold sent again with another length changes
+  nothing else, and whoever sent it is waiting to see it taken. Builds before `light_hold` re-send only on a change.
+- `light_hold` travels with every table, first, so it is as fresh as the rows: `on@<seconds>` or `off@<seconds>`
+  while an override holds the module's own light output, `none` while none does — after a reboot always, the hold
+  living in RAM. It is spelled like a row's override column without the name, and read the same way, against the
+  instant it arrived (`state.lightHoldReportedAt`). A build reports it once it announces `light_hold` in `caps`, and
+  the server reads it only then: `caps` is sent again at every boot, so a device put back on an older build stops
+  announcing it, while the `light_hold` the newer one last sent stays in the stored report.
 
 How the report is spelled — `MAX_SOCKETS = 32`, `SOCKETS_PER_REPORT_CHUNK = 3`, `socketListKey`,
 `socketChunkCount` — is declared once in `shared-types/src/v1/socket-report.ts`, and the server and the simulator
@@ -1007,9 +1019,11 @@ because somebody is waiting with a finger on a switch.
 `{ "action": "socket_override", "output": "light", … }` holds the module's own light output instead of a socket:
 the light runs at the configured `lights.limit` while the override says on, and at nothing while it says off
 (`controller.cpp:951-957`, `fridge.cpp:1075-1081`). The light sockets follow the output, so they are held with it.
-This is the `light_override` capability, and it is the only output that takes one. The device reports no hold on
-its light output back - the socket rows carry only their own overrides - so a screen that shows one remembers
-what it sent until it runs out.
+This is the `light_override` capability, and it is the only output that takes one. A build that also announces
+`light_hold` reports the hold back as `hardware-info:light_hold` ([6.3](#63-the-socket-table-chunked-and-reassembled)),
+and the API serves it as the socket page's `lightHold`, so every screen shows it. A build that announces only
+`light_override` reports nothing of it, and a screen that shows a hold there remembers what it sent until it runs
+out.
 
 The light's level and its hold are two different mechanisms. The level is the configuration key `lights.limit`,
 stored and delivered on the next connect, so it reaches builds that announced nothing and devices that are
@@ -1298,7 +1312,7 @@ pass spends at most 2 s on sockets, and the pre-OTA flush at most 20 s (`wifi.cp
 | `protections` | that a plug enforces the `limits.*` protections of its document; the app greys them out for a plug that does not say so |
 | `sockets`, `sockets_n`, `socket_list<k>` | that this build reports a socket table, and what is in it |
 | `socket_roles` | every role this build accepts, the empty "unassigned" one aside |
-| `caps` | what it accepts beyond the frozen commands: `socket_override`, `socket_timer`, `light_override` |
+| `caps` | what it accepts beyond the frozen commands: `socket_override`, `socket_timer`, `light_override`; and `light_hold`, that it reports the hold on its own light output as `light_hold` |
 | `socket_pulse` | the failsafe seconds each role's socket is programmed with at pairing |
 | `webcam_did`, `webcam_uid`, `webcam_pwd`, `webcam_ip`, `webcam_url` | that a camera is paired, and how to reach it |
 

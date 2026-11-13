@@ -4007,7 +4007,7 @@
     },
     "lightHold": {
       "title": "Auto, on, off",
-      "text": "On keeps the lamp lit at its light limit, at night too; Off keeps it dark – for the time shown or until the device restarts. Day and night stay where the light plan puts them: the same targets hold, and CO₂ is still dosed by day only. The device does not report a hold back: what was last sent from here is marked until its time is up. Auto ends it."
+      "text": "On keeps the lamp lit at its light limit, at night too; Off keeps it dark – for the time shown or until the device restarts. Day and night stay where the light plan puts them: the same targets hold, and CO₂ is still dosed by day only. A newer build reports the hold back, and every browser shows it; with an older one, what was last sent from here is marked until its time is up. Auto ends it."
     },
     "firmwareChannel": {
       "title": "Updates",

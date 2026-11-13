@@ -38,6 +38,7 @@ const CAPABILITIES: DeviceCapabilities = {
   socketOverride: true,
   socketTimer: true,
   lightOverride: false,
+  lightHold: false,
   roles: ['heater', 'dehumidifier', 'co2', 'light', 'secondary_light', 'pump', 'custom_timer', 'humidifier'],
   pulseSeconds: {},
 };
@@ -85,7 +86,7 @@ const drawWith = async (device: Device, sockets: Socket[] = []) => {
     if (path === '/devices') return Promise.resolve({ items: [device], nextCursor: null }) as never;
     if (path === '/spaces') return Promise.resolve({ items: [spaceWhere('own')], nextCursor: null }) as never;
     if (path.endsWith('/sockets'))
-      return Promise.resolve({ items: sockets, nextCursor: null, capabilities: CAPABILITIES } satisfies SocketPage) as never;
+      return Promise.resolve({ items: sockets, nextCursor: null, capabilities: CAPABILITIES, lightHold: null } satisfies SocketPage) as never;
     if (path.endsWith('/firmwares')) return Promise.resolve({ items: BUILDS, nextCursor: null }) as never;
     return Promise.resolve({ items: [], nextCursor: null }) as never;
   });
