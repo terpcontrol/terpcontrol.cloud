@@ -4258,9 +4258,8 @@
     },
     "offAction": "Switch control off",
     "onAction": "Switch control on",
-    "onDoes": "Holds the targets again",
-    "onDoesPlan": "Holds the targets again, and the plan goes on",
-    "onDoesLater": "Applies once the device is back online",
+    "onDoesPlan": "The plan then goes on.",
+    "onDoesLater": "That applies once the device is back online.",
     "switching": "Sending …",
     "title": "Switch control off?",
     "stops": {
@@ -4272,7 +4271,6 @@
     "back": "Back on: here, or by saving targets or applying a preset.",
     "yes": "Switch off",
     "pauseReason": "Control was switched off.",
-    "offTitle": "Control off.",
     "offLine": {
       "fridge": "The device only measures: heater, compressor, light and CO₂ are off, and it holds no targets. Switch control on for it to hold them again.",
       "controller": "The device only measures: heater, dehumidifier, light and CO₂ are off, and it holds no targets. Switch control on for it to hold them again.",
@@ -4833,7 +4831,6 @@
       "germination": "Germination",
       "light": "Light",
       "none": "No targets yet.",
-      "controlOff": "Control off: the device holds no targets right now.",
       "awaiting": "Waiting for the device’s settings.",
       "roundTheClock": "Round the clock"
     },

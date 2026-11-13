@@ -832,6 +832,17 @@ describe('the states of Start', () => {
     expect(screen.queryByRole('button', { name: /^Maintenance/ })).not.toBeInTheDocument();
   });
 
+  /** Regulation switched off is said once as a sentence, over the readings; the card of targets under it names the state and does not repeat it. */
+  it('says once that control is off and that no targets are held, and names the state where the targets would stand', async () => {
+    server.devices = [fridge({ control: { running: false, drying: false, mode: 'standard', energySaving: false } as never })];
+    onePlace(overviewOf({ setpoints: [], targets: null }));
+    draw();
+
+    expect(await screen.findByText(/^Control off: the device holds no targets/)).toBeInTheDocument();
+    expect(screen.getByText('Control off')).toBeInTheDocument();
+    expect(screen.queryByText(/holds no targets right now/)).not.toBeInTheDocument();
+  });
+
   it('says a device heard long ago, whose values have left the live read, is offline since it was last heard', async () => {
     server.devices = [fridge({ state: { lastSeenAt: ago(40 * 1440), hardware: {}, maintenanceUntil: null } as never })];
     onePlace(overviewOf({ values: [] }));

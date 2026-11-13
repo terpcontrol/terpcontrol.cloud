@@ -6,55 +6,32 @@ import { useConfigure } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { useSaved } from '@/screens/control/climate/saved';
 import { Sheet } from '@/ui/Sheet';
-import { Refused } from '@/ui/PageState';
 import { Row } from '@/ui/Rows';
 import { SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { useSwitchOn } from './switch-on';
-import rows from './DevicePage.module.css';
 import styles from './Maintenance.module.css';
 
 /**
- * Regelung ein/aus: the whole of a fridge's or a controller's climate control,
- * switched off for an empty cabinet, a clean or the weeks between two grows,
- * and on again. A row of the device's own page, the one place it is switched
- * off; Steuerung says that it is off and switches it back on.
+ * Regelung ausschalten: the whole of a fridge's or a controller's climate
+ * control, switched off for an empty cabinet, a clean or the weeks between two
+ * grows. A row of the device's own page, the one place it is switched off;
+ * where it is off, the page says so and switches it back on as Steuerung does
+ * (`ControlOff`).
  *
  * Off is asked first, because it stops the heater, the cooling, the light and
  * the CO2 at once and they stay stopped. A running plan is paused with it -
  * its next step would switch the control back on, as saving the targets or
- * applying a preset does. On is one tap.
- *
- * A device that is not answering is still switched: both ways are answered as
- * every setting of a device is (`useSaved`), and taking off back also resumes
- * the plan it paused; `stored` says off it has not been handed, as the head does.
+ * applying a preset does. A device that is not answering is still switched,
+ * and answered as every setting of a device is (`useSaved`).
  */
-export function ControlRow({ device, offline, stored }: { device: Device; offline: boolean; stored: string | null }) {
+export function ControlRow({ device }: { device: Device }) {
   const { t } = useTranslation();
-  const saved = useSaved(device);
-  const on = useSwitchOn(device);
   const [asking, setAsking] = useState(false);
-  const control = device.control;
-  if (!control) return null;
-
-  const switchOn = async () => {
-    if (await on.switchOn()) saved.say(`${t('climateControl.label')} ${t('climateControl.state.on')}`, null, 'control');
-  };
+  if (!device.control?.running) return null;
 
   return (
     <>
-      {control.running ? (
-        <Row title={t('climateControl.offAction')} onOpen={() => setAsking(true)} />
-      ) : (
-        <Row
-          acts
-          title={t(on.pending ? 'climateControl.switching' : 'climateControl.onAction')}
-          line={stored ?? t(offline ? 'climateControl.onDoesLater' : on.resumes ? 'climateControl.onDoesPlan' : 'climateControl.onDoes')}
-          warn={stored !== null}
-          onOpen={() => (on.pending ? undefined : void switchOn())}
-        />
-      )}
-      {!control.running && on.error ? <Refused error={on.error} className={rows.rowSays} /> : null}
+      <Row title={t('climateControl.offAction')} onOpen={() => setAsking(true)} />
       {asking ? <ControlOffSheet device={device} onClose={() => setAsking(false)} /> : null}
     </>
   );

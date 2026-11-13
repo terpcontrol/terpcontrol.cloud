@@ -123,11 +123,7 @@ export function Targets({
     ) : (
       <span>
         {t(
-          darkReasonOf(device) === 'off'
-            ? 'start.targets.controlOff'
-            : device && awaitingClimate(device)
-              ? 'start.targets.awaiting'
-              : 'start.targets.none',
+          darkReasonOf(device) === 'off' ? 'control.state.off' : device && awaitingClimate(device) ? 'start.targets.awaiting' : 'start.targets.none',
         )}
       </span>
     );

@@ -4268,9 +4268,8 @@
     },
     "offAction": "Regelung ausschalten",
     "onAction": "Regelung einschalten",
-    "onDoes": "Hält wieder die Zielwerte",
-    "onDoesPlan": "Hält wieder die Zielwerte, der Plan läuft weiter",
-    "onDoesLater": "Gilt, sobald das Gerät wieder online ist",
+    "onDoesPlan": "Der Plan läuft dann weiter.",
+    "onDoesLater": "Das gilt, sobald das Gerät wieder online ist.",
     "switching": "Wird gesendet …",
     "title": "Regelung ausschalten?",
     "stops": {
@@ -4282,7 +4281,6 @@
     "back": "Wieder an: hier, oder indem du Zielwerte speicherst oder ein Preset anwendest.",
     "yes": "Ausschalten",
     "pauseReason": "Die Regelung wurde ausgeschaltet.",
-    "offTitle": "Regelung aus.",
     "offLine": {
       "fridge": "Das Gerät misst nur noch: Heizung, Kompressor, Licht und CO₂ stehen still, Zielwerte hält es keine. Schalte die Regelung ein, damit es sie wieder hält.",
       "controller": "Das Gerät misst nur noch: Heizung, Entfeuchter, Licht und CO₂ stehen still, Zielwerte hält es keine. Schalte die Regelung ein, damit es sie wieder hält.",
@@ -4843,7 +4841,6 @@
       "germination": "Keimung",
       "light": "Licht",
       "none": "Noch keine Zielwerte.",
-      "controlOff": "Regelung aus: Das Gerät hält gerade keine Zielwerte.",
       "awaiting": "Wartet auf die Einstellungen des Geräts.",
       "roundTheClock": "Rund um die Uhr"
     },

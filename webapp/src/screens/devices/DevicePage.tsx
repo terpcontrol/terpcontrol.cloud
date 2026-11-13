@@ -8,6 +8,7 @@ import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { controlPath, devicePath, placePath, timelinePath, usePageOfPlace } from '@/app/places';
 import { pendingByPath } from '@/screens/control/climate/figures';
+import { ControlOff } from '@/screens/control/Mode';
 import { OwnSettings } from '@/screens/control/OwnSettings';
 import { PageRows } from '@/screens/control/PageRows';
 import { useLeads } from '@/screens/control/lead';
@@ -189,6 +190,8 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
       {/* A device that has sent nothing yet could hear neither a window nor a restart. */}
       {waiting ? null : <DeviceActions device={device} offline={offline} />}
 
+      {/* The device a place's climate is: Steuerung says that it is off and switches it on, and so does its own page. */}
+      {leads && mayManage && device.control?.running === false ? <ControlOff device={device} mayManage storedAt={off?.savedAt} /> : null}
       {leads ? null : (
         <>
           <OwnSettings device={device} />
@@ -207,7 +210,7 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
         ) : null}
         {advanced.length > 0 ? <Row title={t('advanced.title')} line={groups.join(', ') || null} to={devicePath(device.id, 'advanced')} /> : null}
         <Row title={t('devices.panel.technical')} line={t('device.details.line')} to={devicePath(device.id, 'details')} />
-        {mayManage ? <ControlRow device={device} offline={offline || waiting} stored={stored} /> : null}
+        {mayManage ? <ControlRow device={device} /> : null}
         {mayOwn && !device.isDemo ? <Row title={t('release.label')} line={null} onOpen={() => setReleasing(true)} /> : null}
       </Rows>
 

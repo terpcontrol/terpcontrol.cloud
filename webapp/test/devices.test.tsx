@@ -715,18 +715,36 @@ describe('a device on its own page', () => {
       await draw('/devices/device-1', 'Fridge module');
 
       expect(screen.getByText('Control off')).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: /^Switch control on/ }));
+      // One control switches it on, the one Steuerung has: no second row for it among the device's rows.
+      expect(screen.getByText('Control off.').closest('p')).toHaveTextContent(
+        /The device only measures: .* Switch control on for it to hold them again\./,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Switch control on' }));
 
       await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { control: true } }));
       await waitFor(() => expect(said()).toEqual(['Control on · saved']));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
+    /** What the row under the device's rows said of the tap, the one control says: the plan the switch paused goes on with it. */
+    it('says that the plan paused with the switch goes on, and sets it going', async () => {
+      planState.status = 'paused';
+      planState.pauseReason = 'Control was switched off.';
+      wire.devices = [regulating({ running: false })];
+      vi.mocked(api.patch).mockResolvedValue(regulating() as never);
+      await draw('/devices/device-1', 'Fridge module');
+
+      expect(screen.getByText('Control off.').closest('p')).toHaveTextContent(/The plan then goes on\.$/);
+      fireEvent.click(screen.getByRole('button', { name: 'Switch control on' }));
+
+      await waitFor(() => expect(moves).toEqual([{ kind: 'resume' }]));
+    });
+
     /**
      * Switched off while nobody heard it, the device goes on regulating: off is a setting it has not been handed,
      * and the page says so in Steuerung's words - not that control is off, which is what the device will do later.
      */
-    it('says control switched off for a silent device as stored and not with the device yet, in its head and in its row', async () => {
+    it('says control switched off for a silent device as stored and not with the device yet, in its head and over the switch', async () => {
       const silent = { ...regulating({ running: false }), state: { ...regulating().state, lastSeenAt: NOW.minus({ minutes: 25 }).toISO()! } };
       wire.devices = [silent];
       wire.pending = {
@@ -738,8 +756,11 @@ describe('a device on its own page', () => {
       const stored = /Control off saved at \d\d:\d\d, not with the device yet$/;
       const head = await screen.findByText(stored, { selector: 'p strong' });
       expect(head.closest('p')).toHaveTextContent(/^Tent 1 · Control off saved at/);
-      const row = screen.getByRole('button', { name: /^Switch control on/ });
-      expect(within(row).getByText(stored)).toHaveAttribute('data-tone', 'warn');
+      // The block Steuerung draws for it: since when it is stored, that the device goes on, and the one tap.
+      const block = screen.getByRole('button', { name: 'Switch control on' }).closest('[data-tone="warn"]') as HTMLElement;
+      expect(block).toHaveTextContent(
+        /Control off saved at \d\d:\d\d, not with the device yet: Fridge module goes on controlling until it is back online\./,
+      );
       expect(screen.queryByText('Control off')).not.toBeInTheDocument();
     });
 
@@ -753,7 +774,9 @@ describe('a device on its own page', () => {
       await draw('/devices/device-1', 'Fridge module');
 
       expect(screen.getByText('Control off')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /^Switch control on/ })).toHaveTextContent('Applies once the device is back online');
+      expect(screen.getByRole('button', { name: 'Switch control on' }).closest('[data-tone="warn"]')).toHaveTextContent(
+        'That applies once the device is back online.',
+      );
       expect(screen.queryByText(/not with the device yet/)).not.toBeInTheDocument();
     });
 

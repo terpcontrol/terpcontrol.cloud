@@ -14,7 +14,7 @@ import { useZone } from '@/ui/zone';
 import { useSwitchOn } from '../devices/switch-on';
 import { pendingMode, savedWords } from './climate/figures';
 import { ByDevice, NothingHere } from './ByDevice';
-import { useSaved, useSettings } from './climate/saved';
+import { useSettings } from './climate/saved';
 import { ChoiceSetting, SettingLine, SettingsBlock, SwitchSetting } from './devices/Settings';
 import { useLeads } from './lead';
 import { hasMode, modeLine, modesOf } from './rows';
@@ -107,8 +107,10 @@ function DeviceMode({ device, mayManage }: { device: Device; mayManage: boolean 
 }
 
 /**
- * A device whose control is switched off, said where its climate would stand,
- * with the one tap that switches it on; off is switched on the device's page.
+ * A device whose control is switched off, said where its climate would stand -
+ * on Steuerung, and on the page of a device that leads a place - with the one
+ * tap that switches it on and what that brings back; off is switched on the
+ * device's page.
  *
  * Switched off while the device was not heard (`storedAt`), off is a setting
  * it has not been handed like any other: the sentence says since when it is
@@ -119,11 +121,7 @@ export function ControlOff({ device, mayManage, storedAt = null }: { device: Dev
   const now = useNow();
   const zone = useZone();
   const on = useSwitchOn(device);
-  const saved = useSaved(device);
   const kind = device.type === 'fridge' || device.type === 'controller' ? device.type : 'other';
-  const switchOn = async () => {
-    if (await on.switchOn()) saved.say(`${t('climateControl.label')} ${t('climateControl.state.on')}`);
-  };
 
   return (
     <div className={styles.state} data-tone="warn" role={storedAt ? 'status' : undefined}>
@@ -132,13 +130,15 @@ export function ControlOff({ device, mayManage, storedAt = null }: { device: Dev
           t('control.pending.off', { saved: savedWords(t, storedAt, now, zone), device: deviceName(device, t) })
         ) : (
           <>
-            <strong>{t('climateControl.offTitle')}</strong> {t(mayManage ? `climateControl.offLine.${kind}` : 'climateControl.offLineRead')}
+            <strong>{t('control.state.off')}.</strong> {t(mayManage ? `climateControl.offLine.${kind}` : 'climateControl.offLineRead')}
+            {mayManage && on.resumes ? ` ${t('climateControl.onDoesPlan')}` : null}
+            {mayManage && on.later ? ` ${t('climateControl.onDoesLater')}` : null}
           </>
         )}
         <Help topic="climateControl" />
       </p>
       {mayManage ? (
-        <button type="button" className={`${ui.button} ${storedAt ? '' : ui.primary}`} disabled={on.pending} onClick={() => void switchOn()}>
+        <button type="button" className={`${ui.button} ${storedAt ? '' : ui.primary}`} disabled={on.pending} onClick={() => void on.switchOn()}>
           <Power size={16} strokeWidth={1.75} aria-hidden />
           {t(on.pending ? 'climateControl.switching' : 'climateControl.onAction')}
         </button>
