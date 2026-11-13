@@ -70,7 +70,7 @@ export function LightSheet({
         </button>
       }
     >
-      <div className={styles.sheet}>
+      <div className={ui.stack3}>
         <LightPlan
           device={device}
           shape={shapeOf(device, draft)}

@@ -21,6 +21,7 @@ import { Dot } from '@/ui/Spoken';
 import { useNow } from '@/ui/useNow';
 import { useShape } from './shape';
 import styles from './PlaceChoice.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * The one choice of place, which holds for Grow, Verlauf and Steuerung: a chip
@@ -108,10 +109,10 @@ function PlaceSheet({ chosen, onChoose, onClose }: { chosen: string; onChoose: (
     <Sheet title={t('shell.place.title')} note={t('shell.place.holds')} onClose={onClose}>
       {home.isPending ? <Waiting lines={3} /> : null}
       {home.isError && !home.data ? <LoadFailed retry={() => void home.refetch()} /> : null}
-      <div className={styles.places}>
+      <div className={ui.stack2}>
         {groups.map((group, index) =>
           group.room ? (
-            <section key={group.room.id} className={styles.room} aria-label={group.room.name}>
+            <section key={group.room.id} className={`${ui.stack2} ${styles.room}`} aria-label={group.room.name}>
               <h3 className={styles.roomName}>{group.room.name}</h3>
               {group.cards.map(card => row(card))}
             </section>

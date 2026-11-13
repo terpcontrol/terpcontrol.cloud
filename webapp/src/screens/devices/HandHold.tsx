@@ -104,7 +104,7 @@ export function HandHold({ name, deviceId, target, held, standing = null, help, 
         : standing;
 
   return (
-    <div className={styles.hold}>
+    <div className={ui.stack2}>
       <div className={`${ui.segments} ${styles.ways}`} role="group" aria-label={t('devices.hold.label', { name })}>
         {WAYS.map(way => (
           <button

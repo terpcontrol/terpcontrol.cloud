@@ -64,7 +64,7 @@ export function SettingsBlock({
   return title || label ? (
     <section className={climate.card} aria-label={title ?? label}>
       {title ? (
-        <h2 className={climate.title}>
+        <h2 className={`${ui.cardHeading} ${climate.title}`}>
           {title}
           {help ? <Help topic={help} /> : null}
         </h2>
@@ -269,7 +269,7 @@ export function ChoiceSheet({
         </button>
       }
     >
-      <div className={climate.sheet}>
+      <div className={ui.stack3}>
         <Choices label={title}>
           {options.map(option => (
             <Choice key={option.value} chosen={option.value === (picked ?? chosen)} disabled={busy} onChoose={() => setPicked(option.value)}>

@@ -21,14 +21,6 @@
   color: var(--muted);
 }
 
-.schemeText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-
 .schemeTitle {
   font-weight: var(--weight-semibold);
 }
@@ -37,12 +29,6 @@
   font-size: var(--text-sm);
   color: var(--muted);
   overflow-wrap: anywhere;
-}
-
-.sheetBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
 }
 
 .meta {

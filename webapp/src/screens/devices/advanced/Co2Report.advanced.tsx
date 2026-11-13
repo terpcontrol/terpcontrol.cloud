@@ -109,7 +109,7 @@ function Co2Report({ device, mayManage }: DeviceContext) {
 
   return (
     <SettingRow label={t('co2Report.title')} help="advanced.co2Report" wide>
-      <div className={styles.card}>
+      <div className={`${ui.stack2} ${styles.card}`}>
         {body()}
         {mayManage && report.data ? (
           adding ? (
@@ -136,7 +136,7 @@ function RefillForm({ spaceId, deviceId, hadOne, onDone }: { spaceId: string; de
   const restFits = rest.trim() === '' || (number(rest) >= 0 && number(rest) <= 100_000);
 
   return (
-    <div className={styles.form}>
+    <div className={ui.stack2}>
       <label className={styles.field}>
         <span className={styles.fieldLabel}>{t('co2Report.filled')}</span>
         <input
@@ -164,7 +164,7 @@ function RefillForm({ spaceId, deviceId, hadOne, onDone }: { spaceId: string; de
       ) : null}
       {hadOne ? <p className={ui.note}>{t('co2Report.leftOverNote')}</p> : null}
       <Refused error={write.error} />
-      <div className={styles.actions}>
+      <div className={ui.wrap}>
         <button
           type="button"
           className={`${ui.button} ${ui.primary}`}

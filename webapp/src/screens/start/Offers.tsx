@@ -8,6 +8,7 @@ import { useLog } from '@/log/log-context';
 import { Refused } from '@/ui/PageState';
 import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
 import styles from './Start.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * "Was wächst hier?" - the diary, offered where a device regulates and
@@ -48,7 +49,7 @@ export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: str
   };
 
   return (
-    <section className={styles.card} aria-labelledby="start-grow-offer">
+    <section className={`${ui.panel} ${styles.card}`} aria-labelledby="start-grow-offer">
       <h2 className={styles.offerTitle} id="start-grow-offer">
         {t('start.grow.here')}
       </h2>
@@ -73,7 +74,7 @@ export function DeviceOffer() {
   const decline = useUpdateMe();
 
   return (
-    <section className={styles.card} aria-labelledby="start-device-offer">
+    <section className={`${ui.panel} ${styles.card}`} aria-labelledby="start-device-offer">
       <h2 className={styles.offerTitle} id="start-device-offer">
         {t('start.device.title')}
       </h2>

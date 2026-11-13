@@ -103,7 +103,7 @@ const originLabel = (t: Translate, scheme: Scheme, shipped: SchemeSummary[]): st
 function SchemeRow({ title, line, onOpen }: { title: string; line: string; onOpen: () => void }) {
   return (
     <button type="button" className={`${ui.card} ${ui.joined} ${styles.schemeRow}`} onClick={onOpen}>
-      <span className={styles.schemeText}>
+      <span className={ui.textColumn}>
         <span className={styles.schemeTitle}>{title}</span>
         <span className={`mono ${styles.schemeLine}`}>{line}</span>
       </span>
@@ -133,7 +133,7 @@ function AssetSheet({ id, onClose }: { id: string; onClose: () => void }) {
       ) : !asset.data ? (
         <p className={ui.problem}>{t('grow.new.schemeUnreadable')}</p>
       ) : (
-        <div className={styles.sheetBody}>
+        <div className={ui.stack3}>
           <p className={`mono ${styles.meta}`}>
             {joined([
               asset.data.manufacturer,
@@ -205,7 +205,7 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
         </>
       }
     >
-      <div className={styles.sheetBody}>
+      <div className={ui.stack3}>
         <label className={parts.field}>
           <span className="label">{t('me.schemes.name')}</span>
           <input className={ui.input} value={name} autoComplete="off" onChange={event => setName(event.target.value)} />

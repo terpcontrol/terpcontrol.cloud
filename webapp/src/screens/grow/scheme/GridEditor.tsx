@@ -75,7 +75,7 @@ export function GridEditor({ grid, currentWeek, mayEdit, waterEc, reset, onEdit,
 
       {mayEdit ? (
         <>
-          <div className={styles.chips}>
+          <div className={ui.wrap}>
             <button type="button" className={ui.chip} onClick={() => setAdding(value => !value)}>
               {t('grow.scheme.addProduct')}
             </button>

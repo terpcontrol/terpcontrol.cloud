@@ -94,6 +94,15 @@
   padding-inline: var(--space-4);
 }
 
+/* A toast never stays over the row it is about: while one stands at the window's foot the page under it is longer
+   by the room of one that names two changes, so the control it answers can move clear of it (`clearOf`, `Toasts.tsx`)
+   and every other row can be scrolled clear. */
+:root:has(.toasts:not([data-in-sheet])) main::after {
+  display: block;
+  height: calc(var(--space-8) + var(--space-7));
+  content: '';
+}
+
 /* In a sheet's foot (`ui/Sheet.tsx`) the toasts are part of the sheet: as wide as it, above its button row. */
 .toasts[data-in-sheet] {
   position: static;

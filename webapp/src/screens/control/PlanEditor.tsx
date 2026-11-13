@@ -156,9 +156,9 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
           <ol className={ui.group}>
             {draft.steps.map((step, index) => (
               <li key={step.key} className={styles.editStep}>
-                <div className={styles.editHead}>
+                <div className={`${ui.row3} ${styles.editHead}`}>
                   <span className={`mono ${styles.stepIndex}`}>{index + 1}</span>
-                  <span className={styles.stepText}>
+                  <span className={`${ui.textColumn} ${styles.stepText}`}>
                     <span className={styles.stepTitle}>{step.name}</span>
                     <span className={`mono ${styles.stepNote}`}>
                       {stepMeta(t, step, offsetOf(now, zone), followsGermination(draft.steps, index, draft.loop))}
@@ -459,7 +459,7 @@ export function DurationField({
   const { t } = useTranslation();
 
   return (
-    <div className={styles.duration}>
+    <div className={ui.wrapRow}>
       <input
         className={`${ui.input} ${styles.number}`}
         type="number"

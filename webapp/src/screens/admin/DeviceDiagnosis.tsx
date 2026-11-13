@@ -54,7 +54,7 @@ export function DeviceDiagnosis() {
   const seen = one.state.lastSeenAt;
 
   return (
-    <section className={styles.page}>
+    <section className={ui.stack4}>
       {head}
 
       <div className={styles.facts}>
@@ -76,7 +76,7 @@ export function DeviceDiagnosis() {
       </div>
 
       {one.spaceId ? (
-        <div className={styles.row}>
+        <div className={ui.wrapRow}>
           <Link className={ui.button} to={timelinePath(one.spaceId)}>
             {t('admin.diagnosis.timeline')}
           </Link>

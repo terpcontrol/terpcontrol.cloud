@@ -17,6 +17,7 @@ import { holdsHumidity, storedShapeOf } from '@/screens/control/targets/day-nigh
 import { lightWindowOf, setpointOf, type HumidifierHold } from './place';
 import { planLineOf } from './plan-line';
 import styles from './Start.module.css';
+import ui from '@/ui/ui.module.css';
 
 const halfOf = (row: CardSetpoint[], withCo2: boolean, withHumidity: boolean): string[] =>
   (['temperature', ...(withHumidity ? ['humidity'] : []), ...(withCo2 ? ['co2'] : [])] as Metric[]).flatMap(metric => {
@@ -134,8 +135,8 @@ export function Targets({
   if (!mayManage) {
     const light = lightLine(t, device, now, zone);
     return (
-      <section className={styles.card} aria-labelledby="start-targets">
-        <h2 className={styles.cardTitle} id="start-targets">
+      <section className={`${ui.panel} ${styles.card}`} aria-labelledby="start-targets">
+        <h2 className={`${ui.cardHeading} ${styles.cardTitle}`} id="start-targets">
           {title}
         </h2>
         <span className="mono">{line}</span>

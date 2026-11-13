@@ -127,7 +127,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           {ordered.length === 0 ? (
             <p className={ui.note}>{t('grow.lifecycle.phase.noneYet')}</p>
           ) : (
-            <ul className={styles.rows}>
+            <ul className={ui.list}>
               {ordered.map(phase => (
                 <PhaseRow
                   key={phase.id}
@@ -217,7 +217,7 @@ function PhaseRow({
 
   return (
     <li className={styles.row}>
-      <div className={styles.rowHead}>
+      <div className={ui.headRow}>
         <span className={styles.rowTitle}>{label(t, phase.stage, phase.preset)}</span>
         <span className={`mono ${styles.rowMeta}`}>
           {calendarDay(phase.startedAt, zone)} · {t(`grow.lifecycle.phase.source.${phase.source}`)}
@@ -225,7 +225,7 @@ function PhaseRow({
       </div>
 
       {open === null ? (
-        <div className={styles.rowActions}>
+        <div className={ui.wrap}>
           <button type="button" className={ui.chip} onClick={() => onOpen('correct')}>
             {t('grow.lifecycle.phase.correct')}
           </button>

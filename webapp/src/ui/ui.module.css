@@ -542,13 +542,6 @@
   border-radius: var(--radius);
 }
 
-/* The yes to such a question beside the way back. */
-.askingActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
 /* Read aloud but not drawn. */
 .visuallyHidden {
   position: absolute;
@@ -928,4 +921,123 @@
 .switch[aria-checked='true'] .knob {
   background: var(--card);
   transform: translateX(18px);
+}
+
+/* How things stand to one another, said once for every screen. They come last
+   in this file, so one of them laid on an element beside a shape from above
+   decides where both speak; a screen's own class adds only what is its own.
+
+   One under the other, by the room between them. */
+.stack1,
+.stack2,
+.stack3,
+.stack4,
+.list,
+.textColumn,
+.panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.stack1 {
+  gap: var(--space-1);
+}
+
+.stack2,
+.list {
+  gap: var(--space-2);
+}
+
+.stack3 {
+  gap: var(--space-3);
+}
+
+.stack4 {
+  gap: var(--space-4);
+}
+
+/* A list that is a column of its own rows, without the browser's bullets and indent. */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The words of a row beside its picture or its control: a name over its line, cut rather than pushing the control out. */
+.textColumn {
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Side by side: chips and buttons that wrap (`wrapRow` centres them on their line), and what stays on one line. */
+.wrap,
+.wrapRow,
+.row2,
+.row3,
+.headRow {
+  display: flex;
+}
+
+.wrap,
+.wrapRow {
+  flex-wrap: wrap;
+}
+
+.wrapRow,
+.row2,
+.row3 {
+  align-items: center;
+}
+
+.wrap,
+.wrapRow,
+.row2 {
+  gap: var(--space-2);
+}
+
+.row3,
+.headRow {
+  gap: var(--space-3);
+}
+
+/* A heading with what belongs at its other end, on one baseline. */
+.headRow {
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+/* Two fields that are one answer, side by side on a phone too. */
+.halves {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+/* The card Start and the diary are built from, and the small heading inside it. */
+.panel {
+  gap: 10px;
+  padding: 14px var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.cardHeading {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
+  color: var(--label);
+}
+
+/* The small outlined button in the brand colour: a card's one action. */
+.pill {
+  min-height: var(--control-height);
+  padding: 0 14px;
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }

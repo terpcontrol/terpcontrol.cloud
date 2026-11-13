@@ -259,7 +259,7 @@ function Watch({
         </div>
       ) : null}
 
-      <div className={styles.look}>
+      <div className={`${ui.stack3} ${styles.look}`}>
         <div className={`${ui.mat} ${styles.frame}`} data-age={old ? 'offline' : undefined}>
           {picture ? (
             <img
@@ -313,7 +313,7 @@ function Watch({
         ) : null}
       </div>
 
-      <div className={styles.act}>
+      <div className={`${ui.stack3} ${styles.act}`}>
         <Films
           camera={camera}
           grow={filmed}

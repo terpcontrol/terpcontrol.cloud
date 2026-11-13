@@ -22,12 +22,6 @@
 
 /* --- maintenance as one control: the tap that starts it, and the row it turns into --- */
 
-.control {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .controlStart {
   min-height: 48px;
   padding: 0 var(--space-4);

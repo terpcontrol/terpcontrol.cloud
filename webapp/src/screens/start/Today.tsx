@@ -10,6 +10,7 @@ import { useZone } from '@/ui/zone';
 import { dueLabel, tickedLabel } from '@/screens/tasks/tasks';
 import { useDue, type Due } from './due';
 import styles from './Start.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * "Heute": what is due for the reader today or overdue, each with the one tap
@@ -24,8 +25,8 @@ export function Today({ spaceId, now }: { spaceId?: string; now: DateTime }) {
   if (rows.length === 0) return null;
 
   return (
-    <section className={styles.card} aria-labelledby="start-today">
-      <h2 className={styles.cardTitle} id="start-today">
+    <section className={`${ui.panel} ${styles.card}`} aria-labelledby="start-today">
+      <h2 className={`${ui.cardHeading} ${styles.cardTitle}`} id="start-today">
         {t('start.today.title')}
       </h2>
       <DueList rows={rows} across={!spaceId && due.across} now={now} />
@@ -93,7 +94,7 @@ function Row({ task, spaceId, where, growId, across, now }: Due & { across: bool
           />
         </div>
       ) : (
-        <button type="button" className={styles.dueAction} aria-label={`${verb}: ${task.label}`} onClick={act}>
+        <button type="button" className={`${ui.pill} ${styles.dueAction}`} aria-label={`${verb}: ${task.label}`} onClick={act}>
           {verb}
         </button>
       )}

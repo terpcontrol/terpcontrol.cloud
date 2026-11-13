@@ -126,7 +126,7 @@ export function PresetSheet({
         </button>
       }
     >
-      <div className={styles.sheet}>
+      <div className={ui.stack3}>
         <Choices label={t('targets.presets')}>
           {CLIMATE_CHOICES.map(chip => (
             <Choice

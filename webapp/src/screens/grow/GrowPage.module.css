@@ -52,14 +52,6 @@
   display: inline-flex;
   flex: none;
   align-items: center;
-  min-height: var(--control-height);
-  padding: 0 14px;
-  background: var(--card);
-  border: var(--rule-width) solid var(--rule-strong);
-  border-radius: var(--radius-pill);
-  color: var(--brand);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
   white-space: nowrap;
 }
 

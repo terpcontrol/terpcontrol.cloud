@@ -53,6 +53,7 @@ import { PresetSheet } from './PresetSheet';
 import { useSaved } from './saved';
 import { FigureButton, ValueSheet } from './ValueSheet';
 import styles from './Climate.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * What one device holds a place at: its light, and the targets by day and by
@@ -288,7 +289,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
 
       <section className={styles.card} aria-labelledby={`targets-${device.id}`}>
         <div className={styles.line}>
-          <h2 className={styles.title} id={`targets-${device.id}`}>
+          <h2 className={`${ui.cardHeading} ${styles.title}`} id={`targets-${device.id}`}>
             {t('targets.title')}
           </h2>
           {mayManage ? (

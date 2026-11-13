@@ -20,7 +20,7 @@ export function LayoutNotice({ news, onClose }: { news: LayoutNews; onClose: () 
   return (
     <section className={styles.notice} role="status" aria-label={t('shell.layout.label')}>
       <Sparkles size={16} strokeWidth={2} aria-hidden className={styles.icon} />
-      <div className={styles.text}>
+      <div className={`${ui.stack2} ${styles.text}`}>
         {news.before ? <p>{t(wide ? 'shell.layout.before.wide' : 'shell.layout.before.phone', { items })}</p> : null}
         {news.diary ? <p>{t('shell.layout.diary')}</p> : null}
         {news.places ? <p>{t('shell.layout.places', { count: news.count })}</p> : null}

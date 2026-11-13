@@ -130,7 +130,7 @@ export function EmailAlarmsOffer({
   const { mailOn, error, pending } = useWriteNotifications(me);
 
   return (
-    <div className={styles.offer} data-compact={compact || undefined}>
+    <div className={`${ui.stack1} ${styles.offer}`} data-compact={compact || undefined}>
       <div className={styles.actions}>
         <button type="button" className={`${ui.button} ${styles.button}`} disabled={pending} onClick={() => mailOn(rows, onDone)}>
           <Mail size={16} strokeWidth={1.75} aria-hidden />

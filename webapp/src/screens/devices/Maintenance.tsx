@@ -61,7 +61,7 @@ export function MaintenanceControl({ devices, now, id, disabled = false }: { dev
   const left = secondsTo(running?.until ?? null);
 
   return (
-    <div className={styles.control} id={id} tabIndex={id ? -1 : undefined}>
+    <div className={ui.stack2} id={id} tabIndex={id ? -1 : undefined}>
       {running ? (
         <div className={styles.controlRunning} role="group" aria-label={t('maintenance.title')}>
           <span className={styles.controlSays}>

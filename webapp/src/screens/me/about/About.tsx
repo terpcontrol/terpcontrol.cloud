@@ -22,7 +22,7 @@ export function About() {
       <Row title={t('me.about.app')} line={<span className="mono">{versionLine(t, APP_VERSION, BUILD_MODE)}</span>} />
       <Row title={t('me.about.server')} line={<span className="mono">{API_URL}</span>} />
       {CUSTOM_LINKS_HTML ? (
-        <section className={`${ui.card} ${styles.links}`}>
+        <section className={`${ui.card} ${ui.stack2}`}>
           <span className="label">{t('me.about.links')}</span>
           <div className={styles.linksBody} dangerouslySetInnerHTML={{ __html: CUSTOM_LINKS_HTML }} />
         </section>

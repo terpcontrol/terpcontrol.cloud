@@ -26,6 +26,7 @@ import { DemoBanner, GuestLine } from './states';
 import { duePlaces, useDue } from './due';
 import { Today } from './Today';
 import styles from './Start.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * Start with several places: one card per place under the room it stands in,
@@ -78,17 +79,21 @@ export function Places({
       </div>
       <RefreshFailed failedAt={failedAt} now={now} />
 
-      <div className={styles.columns}>
-        <div className={`${styles.column} ${styles.places}`}>
+      <div className={`${ui.stack3} ${styles.columns}`}>
+        <div className={`${ui.stack3} ${styles.column} ${styles.places}`}>
           {groups.map((group, index) => {
             const guest = foreign(group.cards[0]);
             if (group.room || guest) {
               return (
-                <section key={group.room?.id ?? group.cards[0].spaceId} className={styles.room} aria-label={group.room?.name ?? group.cards[0].name}>
+                <section
+                  key={group.room?.id ?? group.cards[0].spaceId}
+                  className={`${ui.stack3} ${styles.room}`}
+                  aria-label={group.room?.name ?? group.cards[0].name}
+                >
                   {guest ? (
                     <GuestLine space={guest} people={answer.people} room={group.room?.name} />
                   ) : (
-                    <h2 className={styles.kicker}>{group.room?.name}</h2>
+                    <h2 className={ui.cardHeading}>{group.room?.name}</h2>
                   )}
                   {group.cards.map(card)}
                 </section>
@@ -97,8 +102,8 @@ export function Places({
             // A place in no room that follows a room's cards would read as one more of them, so it is said to stand in none.
             const afterRoom = index > 0 && groups[index - 1].room !== null;
             return afterRoom ? (
-              <section key={group.cards[0].spaceId} className={styles.room} aria-label={t('start.noRoom')}>
-                <h2 className={styles.kicker}>{t('start.noRoom')}</h2>
+              <section key={group.cards[0].spaceId} className={`${ui.stack3} ${styles.room}`} aria-label={t('start.noRoom')}>
+                <h2 className={ui.cardHeading}>{t('start.noRoom')}</h2>
                 {card(group.cards[0])}
               </section>
             ) : (
@@ -110,7 +115,7 @@ export function Places({
           ))}
         </div>
 
-        <div className={styles.column}>
+        <div className={`${ui.stack3} ${styles.column}`}>
           {/* It says itself whether anything here can call on the account - a device, a camera, a reminder. */}
           <NotifyNotice later />
           <Today now={now} />

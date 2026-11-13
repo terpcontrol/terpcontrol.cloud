@@ -110,7 +110,7 @@ export function NoGrow({ children }: { children: ReactNode }) {
         <div className={styles.title}>
           <h1>{t('shell.tabs.grow')}</h1>
           <div className={styles.actions}>
-            <Link to={ALL_GROWS} className={styles.pill}>
+            <Link to={ALL_GROWS} className={`${ui.pill} ${styles.pill}`}>
               {t('grow.all.pill')}
             </Link>
           </div>
@@ -163,7 +163,7 @@ export function GrowHead({ grow, spaces, children = null }: { grow: GrowListItem
         <h1>{grow.name}</h1>
         <div className={styles.actions}>
           {children}
-          <Link to={ALL_GROWS} className={styles.pill}>
+          <Link to={ALL_GROWS} className={`${ui.pill} ${styles.pill}`}>
             {t('grow.all.pill')}
           </Link>
         </div>

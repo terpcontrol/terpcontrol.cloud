@@ -65,7 +65,7 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
     <article className={styles.diary}>
       {banner}
 
-      <header className={styles.hero}>
+      <header className={ui.stack3}>
         <Photo
           src={cover}
           alt={t('publicPage.coverAlt', { name: page.name })}
@@ -107,7 +107,7 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
       <Totals page={page} />
       {page.harvest ? <Harvest harvest={page.harvest} /> : null}
 
-      <section className={styles.weeks} aria-label={t('publicPage.weeks')}>
+      <section className={ui.stack3} aria-label={t('publicPage.weeks')}>
         {weeks.length === 0 ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('publicPage.nothingInWindow')}</p> : null}
         {weeks.length > 0 ? (
           <Days

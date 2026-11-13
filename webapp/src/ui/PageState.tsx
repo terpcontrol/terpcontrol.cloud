@@ -88,7 +88,7 @@ export function Waiting({ lines = 3 }: { lines?: number }) {
   const { t } = useTranslation();
 
   return (
-    <div className={`${ui.card} ${styles.waiting}`} aria-busy="true">
+    <div className={`${ui.card} ${ui.stack3}`} aria-busy="true">
       <span className={`mono ${styles.waitingNote}`}>{t('home.waiting')}</span>
       {Array.from({ length: lines }, (_, index) => (
         <span key={index} className={styles.waitingLine} style={{ width: `${70 - index * 15}%` }} />

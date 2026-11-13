@@ -261,7 +261,7 @@ function Removing({ space, places: listed, every, here, alive, letIn, reminders 
   return (
     <>
       {rows.length > 0 ? (
-        <section className={styles.block} aria-labelledby="place-holds">
+        <section className={`${ui.stack2} ${styles.block}`} aria-labelledby="place-holds">
           <h2 id="place-holds" className={styles.blockTitle}>
             {t('place.remove.holds')}
           </h2>

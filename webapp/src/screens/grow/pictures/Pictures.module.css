@@ -94,14 +94,6 @@
 
 .add {
   align-self: flex-start;
-  min-height: var(--control-height);
-  padding: 0 14px;
-  background: var(--card);
-  border: var(--rule-width) solid var(--rule-strong);
-  border-radius: var(--radius-pill);
-  color: var(--brand);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
 }
 
 @media (min-width: 900px) {

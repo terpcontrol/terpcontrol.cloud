@@ -205,7 +205,7 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
       {/* Its own form: the people below have fields of their own, and one form does not stand in another. */}
       <form
         id="place-edit"
-        className={styles.fields}
+        className={ui.stack3}
         noValidate
         onSubmit={event => {
           event.preventDefault();
@@ -292,7 +292,7 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
 
       <DevicesHere space={space} />
 
-      <section className={styles.block} aria-labelledby="place-people">
+      <section className={`${ui.stack2} ${styles.block}`} aria-labelledby="place-people">
         <h2 className={styles.blockTitle}>
           <span id="place-people">{t('place.edit.people', { name: space.name })}</span>
           <Help topic="memberRole" />
@@ -356,7 +356,7 @@ function DevicesHere({ space }: { space: Space }) {
   if (!owns && here.length === 0 && cameras.length === 0) return null;
 
   return (
-    <section className={styles.block} aria-labelledby="place-devices">
+    <section className={`${ui.stack2} ${styles.block}`} aria-labelledby="place-devices">
       <h2 id="place-devices" className={styles.blockTitle}>
         {t('place.edit.devices')}
       </h2>

@@ -12,13 +12,6 @@
   border-radius: var(--radius);
 }
 
-.title {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0;
-  color: var(--label);
-}
-
 /* What stands, and at the row's end what changes it. */
 .line {
   display: flex;
@@ -356,12 +349,6 @@ button.figure:hover {
 }
 
 /* --- the sheets --- */
-
-.sheet {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
 
 .derived {
   margin: 0;

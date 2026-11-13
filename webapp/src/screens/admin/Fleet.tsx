@@ -90,7 +90,7 @@ export function Fleet() {
   const online = fleet.data.classes.reduce((total, one) => total + one.online, 0);
 
   return (
-    <section className={styles.page}>
+    <section className={ui.stack4}>
       <AdminHead title={t('admin.fleet.title')} readAt={fleet.dataUpdatedAt}>
         <span className={`mono ${styles.counts}`}>
           {`${t('admin.count.devices', { count: counted })} · ${t('admin.count.online', { count: online })}`}
@@ -136,7 +136,7 @@ export function Fleet() {
       {/* The total under the table is the install's device count, said as
           that, because the rows above it also hold the standalone cameras and
           no route counts those on their own. */}
-      <div className={styles.row}>
+      <div className={ui.wrapRow}>
         <span className={`mono ${styles.consequence}`}>
           {t('admin.fleet.showing', { shown: shown.length, loaded: rows.length, devices: t('admin.count.devices', { count: counted }) })}
           {` · ${t('admin.fleet.camerasOwn')}`}
@@ -170,7 +170,7 @@ function Filters({ filter, onChange, types }: { filter: FleetFilter; onChange: (
   const { t } = useTranslation();
 
   return (
-    <div className={styles.chips}>
+    <div className={ui.wrapRow}>
       <select
         className={`${ui.chip} ${ui.menu}`}
         aria-label={t('admin.fleet.filter.type')}

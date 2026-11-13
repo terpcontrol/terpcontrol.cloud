@@ -15,7 +15,7 @@ import styles from './Start.module.css';
 export function StartWaiting() {
   const { t } = useTranslation();
   const card = (
-    <div className={styles.card}>
+    <div className={`${ui.panel} ${styles.card}`}>
       <span className={styles.wait} style={{ width: 60, height: 14 }} />
       <span className={styles.wait} style={{ width: '70%', height: 16 }} />
       <span className={styles.wait} style={{ width: '50%', height: 16 }} />
@@ -27,13 +27,13 @@ export function StartWaiting() {
       <div className={styles.head}>
         <span className={styles.wait} style={{ width: 96, height: 26 }} />
       </div>
-      <div className={styles.columns}>
-        <div className={styles.column}>
+      <div className={`${ui.stack3} ${styles.columns}`}>
+        <div className={`${ui.stack3} ${styles.column}`}>
           <span className={`${styles.wait} ${styles.waitPicture}`} />
           <span className={styles.wait} style={{ width: 150, height: 18 }} />
           <span className={styles.wait} style={{ height: 6 }} />
         </div>
-        <div className={styles.column}>
+        <div className={`${ui.stack3} ${styles.column}`}>
           {card}
           {card}
         </div>
@@ -119,8 +119,8 @@ export function GuestLine({ space, people, room = null, to = null }: { space: Sp
   );
 
   return (
-    <div className={styles.guest}>
-      <h2 className={styles.kicker}>
+    <div className={`${ui.row2} ${styles.guest}`}>
+      <h2 className={ui.cardHeading}>
         {to ? (
           <Link to={to} className={styles.guestSaid}>
             {said}

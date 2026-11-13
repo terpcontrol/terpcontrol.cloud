@@ -122,7 +122,7 @@ export function Pictures({ grow, now }: { grow: GrowListItem; now: DateTime }) {
       {mayLog ? (
         <button
           type="button"
-          className={styles.add}
+          className={`${ui.pill} ${styles.add}`}
           onClick={() =>
             openDetails('photo', {
               key: `grow:${grow.id}`,

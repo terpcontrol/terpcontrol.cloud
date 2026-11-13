@@ -64,7 +64,7 @@ export function Users() {
   const wholeListLoaded = !people.hasNextPage;
 
   return (
-    <section className={styles.page}>
+    <section className={ui.stack4}>
       <AdminHead title={t('admin.users.title')} readAt={people.dataUpdatedAt}>
         <span className={`mono ${styles.counts}`}>
           {[
@@ -73,7 +73,7 @@ export function Users() {
             t('admin.count.notActivated', { count: all.filter(one => !one.isActive).length }),
           ].join(' · ')}
         </span>
-        <span className={styles.chips}>
+        <span className={ui.wrapRow}>
           <input
             className={`mono ${ui.input} ${styles.search}`}
             type="search"
@@ -125,7 +125,7 @@ export function Users() {
         </table>
       </div>
 
-      <div className={styles.row}>
+      <div className={ui.wrapRow}>
         <span className={`mono ${styles.consequence}`}>{t('admin.users.showing', { shown: shown.length, loaded: all.length })}</span>
         {people.hasNextPage ? (
           <button type="button" className={ui.chip} onClick={() => void people.fetchNextPage()} disabled={people.isFetchingNextPage}>
@@ -162,7 +162,7 @@ function AccountRow({ account, isMe, lastAdmin }: { account: User; isMe: boolean
           know and buying nothing. */}
       <td className="mono">{calendarDay(account.createdAt, zone)}</td>
       <td>
-        <span className={styles.actions}>
+        <span className={`${ui.wrap} ${styles.actions}`}>
           <button type="button" className={ui.chip} onClick={() => setOpen('change')}>
             {t('admin.users.change')}
           </button>
@@ -217,7 +217,7 @@ function CreateSheet({ onClose }: { onClose: () => void }) {
       <Field label={t('admin.users.column.address')} type="email" value={email} onType={setEmail} />
       <Field label={t('admin.users.column.handle')} value={handle} onType={setHandle} />
       <Field label={t('admin.users.password')} type="password" autoComplete="new-password" value={password} onType={setPassword} />
-      <label className={styles.row}>
+      <label className={ui.wrapRow}>
         <input type="checkbox" checked={isAdmin} onChange={event => setIsAdmin(event.target.checked)} />
         <span>{t('admin.users.makeAdmin')}</span>
       </label>
@@ -325,11 +325,11 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
         value={password}
         onType={setPassword}
       />
-      <label className={styles.row}>
+      <label className={ui.wrapRow}>
         <input type="checkbox" checked={isActive} disabled={lastAdmin} onChange={event => setIsActive(event.target.checked)} />
         <span>{t('admin.users.isActive')}</span>
       </label>
-      <label className={styles.row}>
+      <label className={ui.wrapRow}>
         <input type="checkbox" checked={isAdmin} disabled={lastAdmin} onChange={event => setIsAdmin(event.target.checked)} />
         <span>{t('admin.users.makeAdmin')}</span>
       </label>

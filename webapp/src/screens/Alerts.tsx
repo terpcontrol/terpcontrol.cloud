@@ -149,9 +149,9 @@ export function Alerts() {
       ) : null}
 
       {standing.length + updates.length > 0 ? (
-        <section className={styles.section} aria-labelledby="alerts-open">
+        <section className={`${ui.stack2} ${styles.section}`} aria-labelledby="alerts-open">
           <h2 id="alerts-open">{t('alerts.open')}</h2>
-          <ul className={styles.list}>
+          <ul className={ui.list}>
             {standing.map(alert => (
               <AlertCard key={alert.id} {...card(alert)} heardAt={heardOf(alert, silent)} />
             ))}
@@ -174,7 +174,7 @@ export function Alerts() {
 
       {/* The list of tasks is the diary's; a step of the grow plan waits here without one. */}
       {due.kept || due.rows.length > 0 ? (
-        <section className={styles.section} aria-labelledby="alerts-tasks">
+        <section className={`${ui.stack2} ${styles.section}`} aria-labelledby="alerts-tasks">
           <h2 id="alerts-tasks">{t('tasks.title')}</h2>
           <div className={styles.card}>
             {due.rows.length > 0 ? <DueList rows={due.rows} across={due.across} now={now} /> : null}
@@ -189,7 +189,7 @@ export function Alerts() {
 
       {resolved.isPending ? <Waiting lines={2} /> : null}
       {over.length > 0 ? (
-        <section className={styles.section} aria-labelledby="alerts-over">
+        <section className={`${ui.stack2} ${styles.section}`} aria-labelledby="alerts-over">
           <h2 id="alerts-over">{t('alerts.over')}</h2>
           <Rows>
             {over.slice(0, shown).map(({ newest, since }) => (
@@ -258,7 +258,7 @@ function Mute({ account, now }: { account: Me; now: DateTime }) {
   return (
     <>
       <div className={styles.muting}>
-        <button type="button" className={styles.mute} disabled={pending} onClick={toggle}>
+        <button type="button" className={`${ui.pill} ${styles.mute}`} disabled={pending} onClick={toggle}>
           {t(until ? 'alerts.unmute' : 'alerts.mute')}
         </button>
         <Help topic="muteAll" />

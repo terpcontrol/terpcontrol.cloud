@@ -145,7 +145,7 @@ export function Moment({
       <button
         ref={toggle}
         type="button"
-        className={row ? styles.change : `mono ${styles.button}`}
+        className={row ? `${ui.pill} ${styles.change}` : `mono ${styles.button}`}
         aria-expanded={open}
         aria-controls={id}
         aria-label={t('log.moment.change', { when: label })}
@@ -168,7 +168,7 @@ export function Moment({
       </button>
       {open ? (
         <div ref={popover} className={styles.popover} style={place} id={id} role="group" aria-label={t('log.moment.title')}>
-          <label className={styles.field}>
+          <label className={ui.stack1}>
             <span className="label">{t('log.moment.day')}</span>
             <input
               ref={first}
@@ -179,7 +179,7 @@ export function Moment({
               onChange={event => event.target.value && setDay(event.target.value)}
             />
           </label>
-          <label className={styles.field}>
+          <label className={ui.stack1}>
             <span className="label">{t('log.moment.time')}</span>
             <input
               className={`mono ${ui.input}`}

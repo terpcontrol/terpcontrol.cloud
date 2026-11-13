@@ -119,7 +119,7 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
         </>
       }
     >
-      <div className={styles.composer}>
+      <div className={`${ui.stack4} ${styles.composer}`}>
         <div className={`${ui.mat} ${styles.preview}`}>
           {preview ? (
             <img src={mediaUrl(preview, THUMBNAIL_WIDTH.frame) ?? undefined} alt="" />

@@ -11,6 +11,7 @@ import { extremesOf } from '@/screens/timeline/model';
 import { at, stretchesOf } from '@/screens/timeline/window';
 import { judgedPanel } from './place';
 import styles from './Start.module.css';
+import ui from '@/ui/ui.module.css';
 
 /** The same read Verlauf opens on, so the page behind this card is already in hand. */
 const LAST_DAY = { range: '24h' as const };
@@ -33,7 +34,7 @@ export function DayCurves({ spaceId, targets }: { spaceId: string; targets: Over
 
   return (
     <Link to={timelinePath(spaceId)} className={styles.day}>
-      <span className={styles.cardTitle}>{t('start.day')}</span>
+      <span className={`${ui.cardHeading} ${styles.cardTitle}`}>{t('start.day')}</span>
       <Curve timeline={timeline} targets={targets} metric="temperature" />
       <Curve timeline={timeline} targets={targets} metric="humidity" />
       <ChevronRight size={20} strokeWidth={2} className={styles.chevron} aria-hidden />

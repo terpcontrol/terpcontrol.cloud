@@ -40,7 +40,7 @@ export function ContinuePlan({ device }: { device: Device }) {
   return (
     <>
       <SettingRow label={t('continuePlan.label')} help="advanced.continuePlan" wide alone>
-        <div className={styles.row}>
+        <div className={ui.wrapRow}>
           <select
             className={`${ui.input} ${styles.select}`}
             value={pick}

@@ -14,6 +14,7 @@ import { Photo } from '@/ui/Photo';
 import { followedMeta } from './followed';
 import { PublicShell, PublicUnread } from './PublicShell';
 import styles from './Public.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * `/@{handle}`: everything one person has published.
@@ -102,7 +103,7 @@ function DiaryCard({ grow, now, own }: { grow: FollowedGrowCard; now: DateTime; 
     <li className={styles.card}>
       <Link to={`/g/${grow.slug}`} className={styles.cardLink}>
         <Photo src={cover} alt="" className={styles.cardCover} fallback={<Leaf size={22} strokeWidth={1.5} aria-hidden />} />
-        <span className={styles.cardText}>
+        <span className={`${ui.textColumn} ${styles.cardText}`}>
           <span className={`name ${styles.cardTitle}`}>{grow.name}</span>
           <span className={`mono ${styles.cardMeta}`}>{followedMeta(t, grow, now, null)}</span>
         </span>

@@ -84,7 +84,7 @@ export function Measurements() {
 
   return (
     <section className={styles.page}>
-      <header className={styles.head}>
+      <header className={ui.row2}>
         <BackLink to={`/grows/${growId}`} label={t('grow.measurements.back')} />
         <h1>{t('grow.measurements.title')}</h1>
         <span className={`mono ${styles.growName}`}>{grow.data.name}</span>
@@ -132,7 +132,7 @@ export function Measurements() {
             <span className="label">{t('grow.measurements.templates')}</span>
             <span className={`mono ${styles.aside}`}>{t('grow.measurements.tapToAdd')}</span>
           </header>
-          <div className={styles.templates} role="group" aria-label={t('grow.measurements.templates')}>
+          <div className={ui.wrap} role="group" aria-label={t('grow.measurements.templates')}>
             {TEMPLATES.map(template => {
               const here = definitions.some(definition => definition.key === template.key);
               return (

@@ -173,7 +173,7 @@ export function NewLinkSheet({
           <Block label={t('me.shareLinks.sheet.cams')}>
             <div className={styles.switchRow}>
               {/* The words switch it as well as the switch does. */}
-              <div className={styles.switchText} onClick={() => setCams(!cams)}>
+              <div className={ui.textColumn} onClick={() => setCams(!cams)}>
                 <span>{t('sharing.cameras')}</span>
                 <span className={ui.note}>{t('sharing.camerasNote')}</span>
               </div>

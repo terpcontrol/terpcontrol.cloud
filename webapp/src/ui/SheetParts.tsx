@@ -23,7 +23,7 @@ import styles from './SheetParts.module.css';
 /** A row of chips, one of which is the answer. Wraps, because a row of plants is as long as the grow is. */
 export function Choices({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className={styles.choices} role="group" aria-label={label}>
+    <div className={`${ui.wrap} ${styles.choices}`} role="group" aria-label={label}>
       {children}
     </div>
   );
@@ -103,8 +103,8 @@ export function Block({
   children: ReactNode;
 }) {
   return (
-    <section className={styles.block}>
-      <header className={styles.blockHeader}>
+    <section className={ui.stack2}>
+      <header className={ui.headRow}>
         <span className="label">
           {label}
           {help ? <Help topic={help} /> : null}

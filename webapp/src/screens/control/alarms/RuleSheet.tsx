@@ -189,7 +189,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
 
         {wantsBound(draft) ? (
           <Block label={t('alarms.sheet.bounds')}>
-            <div className={styles.bounds}>
+            <div className={ui.halves}>
               <BoundField label={t('alarms.sheet.above')} unit={unit} value={draft.upper} missing={noBound} onChange={upper => change({ upper })} />
               <BoundField label={t('alarms.sheet.below')} unit={unit} value={draft.lower} missing={noBound} onChange={lower => change({ lower })} />
             </div>
@@ -464,7 +464,7 @@ function Minutes({ label, value, onChange }: { label: string; value: number; onC
   const { t } = useTranslation();
 
   return (
-    <div className={styles.duration}>
+    <div className={ui.row2}>
       <input
         className={`${ui.input} ${control.number}`}
         type="number"

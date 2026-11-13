@@ -49,13 +49,6 @@
   margin: 0;
 }
 
-.fact {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
 /* The name of a fact keeps its line, (i) and all; a long value wraps instead. */
 .fact > dt {
   flex: none;

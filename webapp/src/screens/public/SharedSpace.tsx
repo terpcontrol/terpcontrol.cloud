@@ -55,7 +55,7 @@ export function SharedSpace({
     <article className={styles.diary}>
       {banner}
 
-      <header className={styles.hero}>
+      <header className={ui.stack3}>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{space.name}</h1>
           <LivenessPill liveness={liveness} measuredAt={measuredAtOf(values)} now={now} explain />
@@ -106,7 +106,7 @@ export function SharedSpace({
       </section>
 
       {space.grows.length > 0 ? (
-        <ul className={styles.growRows} aria-label={t('space.growingHere')}>
+        <ul className={ui.list} aria-label={t('space.growingHere')}>
           {space.grows.map(grow => (
             <li key={grow.growId} className={styles.growRow}>
               <span className={`name ${styles.cardTitle}`}>{grow.name}</span>
@@ -125,7 +125,7 @@ export function SharedSpace({
         </ul>
       ) : null}
 
-      <section className={styles.weeks} aria-label={t('start.latest.title')}>
+      <section className={ui.stack3} aria-label={t('start.latest.title')}>
         <span className="label">{t('start.latest.title')}</span>
         {space.entries.length === 0 ? (
           <p className={styles.quiet}>{t('grow.diary.empty')}</p>
@@ -198,7 +198,7 @@ function WindowClimate({ verdict }: { verdict: ClimateVerdict }) {
   if (heard.length === 0) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('publicPage.windowClimate.none')}</p>;
 
   return (
-    <section className={styles.stills}>
+    <section className={ui.stack2}>
       <span className="label">{t('publicPage.windowClimate.title', { from: at(verdict.startsAt), to: at(verdict.endsAt) })}</span>
       <div className={styles.tiles}>
         {heard.map(row => (
@@ -226,7 +226,7 @@ function Stills({ camera, picture, now }: { camera: OverviewCamera; picture: Pic
   if (camera.stills.length === 0) return null;
 
   return (
-    <section className={styles.stills}>
+    <section className={ui.stack2}>
       <span className="label">
         {camera.name}
         {camera.lastStillAt ? ` · ${t('space.lastStill', { age: ageLabel(camera.lastStillAt, now) })}` : ''}

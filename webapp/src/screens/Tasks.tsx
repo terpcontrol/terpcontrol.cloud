@@ -222,8 +222,8 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
         if (members.length === 0) return null;
 
         return (
-          <section key={group} className={styles.group} aria-label={t(`tasks.group.${group}`)}>
-            <header className={styles.groupHead}>
+          <section key={group} className={`${ui.stack2} ${styles.group}`} aria-label={t(`tasks.group.${group}`)}>
+            <header className={ui.headRow}>
               <span className="label">{t(`tasks.group.${group}`)}</span>
               {group === 'today' ? <span className={`mono ${styles.groupAside}`}>{dateLabel(nowThere(now, zone), i18n.language)}</span> : null}
             </header>
@@ -251,8 +251,8 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
       })}
 
       {ticked.length > 0 ? (
-        <section className={styles.group} aria-label={t('tasks.group.done')}>
-          <header className={styles.groupHead}>
+        <section className={`${ui.stack2} ${styles.group}`} aria-label={t('tasks.group.done')}>
+          <header className={ui.headRow}>
             <span className="label">{t('tasks.group.done')}</span>
             <span className={`mono ${styles.groupAside}`}>
               {dayLabel(t, ticked[0].completion?.occurredAt ?? now.toISO()!, now, i18n.language, zone)}
@@ -269,8 +269,8 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
       {/* The rhythms themselves, and not only their turns inside the week the list looks over:
           one that comes round every thirty days can be read, corrected and stopped in between. */}
       {rhythms.length > 0 ? (
-        <section className={styles.group} aria-label={t('tasks.group.rhythms')}>
-          <header className={styles.groupHead}>
+        <section className={`${ui.stack2} ${styles.group}`} aria-label={t('tasks.group.rhythms')}>
+          <header className={ui.headRow}>
             <span className="label">
               {t('tasks.group.rhythms')}
               <Help topic="rhythms" />

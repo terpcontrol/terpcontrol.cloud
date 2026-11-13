@@ -188,7 +188,7 @@ function PasswordRow({ held }: { held: boolean }) {
               </Fragment>
             ))}
             {mismatch ? <p className={ui.problem}>{t('me.account.password.mismatch')}</p> : null}
-            <div className={parts.actions}>
+            <div className={ui.wrap}>
               <button type="submit" className={`${ui.button} ${ui.primary}`} disabled={!ready}>
                 {change.isPending ? t('me.account.password.saving') : t('me.account.password.save')}
               </button>
@@ -248,11 +248,11 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
   const rest = rows.length > shown.length || sessions.hasNextPage;
 
   return (
-    <section className={`${ui.card} ${styles.sessions}`}>
+    <section className={`${ui.card} ${ui.stack3} ${styles.sessions}`}>
       <ul className={styles.sessionList}>
         {shown.map(row => (
           <li key={row.id} className={styles.session}>
-            <div className={styles.sessionText}>
+            <div className={ui.textColumn}>
               <span className={styles.sessionDevice}>{deviceLabel(row.userAgent) ?? t('me.account.sessions.unknownDevice')}</span>
               <Facts
                 className={`mono ${styles.sessionMeta}`}

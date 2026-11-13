@@ -52,6 +52,7 @@ import { DemoBanner, GuestLine, StartFailed, StartWaiting } from './states';
 import { Targets } from './Targets';
 import { Today } from './Today';
 import styles from './Start.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * Start of one place, read for what it is opened with: how the plants look,
@@ -204,8 +205,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
         </OfflineBox>
       ) : null}
 
-      <div className={styles.columns}>
-        <div className={styles.column}>
+      <div className={`${ui.stack3} ${styles.columns}`}>
+        <div className={`${ui.stack3} ${styles.column}`}>
           {camera ? (
             <CameraHead
               camera={camera}
@@ -248,7 +249,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           {wide && hasDevice && !byHand ? <DayCurves spaceId={spaceId} targets={targets} /> : null}
         </div>
 
-        <div className={styles.column}>
+        <div className={`${ui.stack3} ${styles.column}`}>
           {/* It says itself whether anything here can call on the account - a device, a camera, a reminder. */}
           {visiting ? null : <NotifyNotice later />}
           {/* What is due is the reader's own list, and support reading a customer's place is not shown its own work there. */}

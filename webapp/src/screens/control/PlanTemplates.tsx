@@ -97,7 +97,7 @@ export function StartFromTemplateSheet({
 
         {ready ? (
           <Block label={t('readyPlans.label')} help="readyPlans">
-            <ul className={styles.templates}>
+            <ul className={ui.list}>
               {READY_PLANS.map(plan => (
                 <li key={plan.id}>
                   <button type="button" className={`${ui.card} ${styles.template}`} onClick={() => onChosen(readyDraft(t, plan, notify))}>
@@ -119,7 +119,7 @@ export function StartFromTemplateSheet({
         ) : null}
         {ready && items.length > 0 ? <span className="label">{t('readyPlans.saved')}</span> : null}
 
-        <ul className={styles.templates}>
+        <ul className={ui.list}>
           {items.map(template => (
             <li key={template.id}>
               <button

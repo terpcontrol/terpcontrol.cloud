@@ -170,7 +170,7 @@ export function ClassRollout({
 
       <label className={styles.field}>
         <span className="label">{t('admin.firmware.stage')}</span>
-        <span className={styles.row}>
+        <span className={ui.wrapRow}>
           <input
             className={styles.slider}
             type="range"
@@ -216,7 +216,7 @@ export function ClassRollout({
         </label>
       </div>
 
-      <div className={styles.row}>
+      <div className={ui.wrapRow}>
         <button
           type="button"
           className={`${ui.chip} ${draft.paused ? styles.paused : ''}`}

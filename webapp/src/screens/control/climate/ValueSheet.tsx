@@ -134,7 +134,7 @@ export function ValueSheet({
         </>
       }
     >
-      <div className={styles.sheet}>
+      <div className={ui.stack3}>
         <div className={figures.length > 1 ? fields.fields : undefined}>
           {figures.map(figure => {
             const name = figures.length > 1 ? `${title}: ${figure.label}` : figure.label;
@@ -169,7 +169,7 @@ export function ValueSheet({
             );
 
             return figures.length > 1 ? (
-              <div key={figure.key} className={fields.field}>
+              <div key={figure.key} className={`${ui.stack1} ${fields.field}`}>
                 <span className={fields.fieldLabel}>{figure.label}</span>
                 {stepper}
               </div>

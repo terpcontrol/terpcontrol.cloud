@@ -79,7 +79,7 @@ export function Films({
   const younger = span !== null && (span.span === 'phase' || span.span === 'grow') && begun !== null && camera.createdAt > begun;
 
   return (
-    <section className={styles.films} aria-label={t('camera.timelapses')}>
+    <section className={`${ui.stack3} ${styles.films}`} aria-label={t('camera.timelapses')}>
       {offered.length > 0 ? (
         <div className={`${ui.scrollRow} ${styles.spans}`} role="group" aria-label={t('camera.film.which')}>
           {offered.map(one => (
@@ -152,7 +152,7 @@ export function FilmsSheet({ camera, me, mayOwn, onClose }: { camera: Camera; me
 
   return (
     <Sheet title={t('camera.allFilms')} corner={<Help topic="timelapses" />} onClose={onClose}>
-      <div className={styles.sheet}>
+      <div className={`${ui.stack3} ${styles.sheet}`}>
         <ul className={ui.group} aria-label={t('camera.allFilms')}>
           {made.map(film => (
             <li key={film.id}>

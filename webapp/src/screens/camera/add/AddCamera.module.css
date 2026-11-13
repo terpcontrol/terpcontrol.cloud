@@ -10,21 +10,9 @@
   padding-top: var(--space-2);
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 /* The two ways in are chosen with a finger. */
 .page > [role='group'] > button {
   height: var(--control-height);
-}
-
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
 }
 
 /* What to do, in the order it is done. The number is drawn rather than
@@ -68,15 +56,6 @@
   font-size: var(--text-sm);
   line-height: var(--line-body);
   color: var(--muted);
-}
-
-.founds {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .found {
@@ -162,18 +141,6 @@
   border-top: var(--rule-solid);
 }
 
-.block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.blockHead {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 /* A label that explains itself is a finger high where it is tapped, into the air above and below its line. */
 .blockHead :global(.label) > button {
   position: relative;
@@ -191,13 +158,6 @@
   color: var(--muted);
 }
 
-/* The login under the address: two halves of one line, side by side even on a phone. */
-.login {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-}
-
 .login > input {
   min-width: 0;
 }
@@ -206,12 +166,6 @@
    rather than a bar across a panel that is otherwise all explanation. */
 .way {
   align-self: flex-start;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
 }
 
 .actions .grow {

@@ -54,9 +54,9 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   return (
     <Sheet title={t('sharing.title', { name: grow.name })} onClose={onClose}>
       <div className={styles.body}>
-        <section className={styles.block}>
+        <section className={ui.stack3}>
           <div className={styles.switchRow}>
-            <div className={styles.switchText}>
+            <div className={ui.textColumn}>
               <span className={styles.blockTitle}>
                 {t('sharing.publicPage')}
                 <Help topic="publicPage" />
@@ -76,7 +76,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           {/* The camera's pictures are the most private thing a public page carries, so whether it does is said and switched here, as a link's is. */}
           {isPublic && cameras ? (
             <div className={styles.switchRow}>
-              <div className={styles.switchText}>
+              <div className={ui.textColumn}>
                 <span>{t('sharing.cameras')}</span>
                 <span className={ui.note}>{t('sharing.publicCamerasNote')}</span>
               </div>
@@ -90,7 +90,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           ) : null}
 
           {isPublic ? (
-            <div className={styles.addressRow}>
+            <div className={ui.row2}>
               <code className={`mono ${styles.address}`}>{appUrl(`/g/${grow.slug}`)}</code>
               <CopyButton value={appUrl(`/g/${grow.slug}`)} label={t('sharing.copyAddress')} />
             </div>
@@ -99,9 +99,9 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           {update.error ? <Refused error={update.error} /> : null}
         </section>
 
-        <section className={styles.block}>
+        <section className={ui.stack3}>
           <div className={styles.switchRow}>
-            <div className={styles.switchText}>
+            <div className={ui.textColumn}>
               <span className={styles.blockTitle}>
                 {t('sharing.links')}
                 <Help topic="linkActions" />
@@ -143,7 +143,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           {links.isPending ? <p className={ui.note}>{t('home.waiting')}</p> : null}
           {!links.isPending && mine.length === 0 && !drafting ? <p className={ui.note}>{t('sharing.noLinks')}</p> : null}
 
-          <ul className={styles.links}>
+          <ul className={ui.list}>
             {mine.map(link => (
               <LinkRow key={link.id} link={link} now={now} />
             ))}
@@ -168,7 +168,7 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
 
   return (
     <li className={styles.link} data-dead={dead}>
-      <div className={styles.addressRow}>
+      <div className={ui.row2}>
         <code className={`mono ${styles.address}`}>{address}</code>
         {dead ? null : <CopyButton value={address} label={t('sharing.copyLink')} />}
       </div>
@@ -202,7 +202,7 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
           }
         />
       ) : (
-        <div className={styles.linkActions}>
+        <div className={ui.wrap}>
           {dead ? null : (
             <button type="button" className={ui.chip} onClick={() => setChanging(true)}>
               {t('sharing.change')}
@@ -274,7 +274,7 @@ function Editor({
 
       {cameras ? (
         <div className={styles.switchRow}>
-          <div className={styles.switchText}>
+          <div className={ui.textColumn}>
             <span>{t('sharing.cameras')}</span>
             <span className={ui.note}>{t('sharing.camerasNote')}</span>
           </div>
@@ -284,7 +284,7 @@ function Editor({
 
       {error ? <Refused error={error} /> : null}
 
-      <div className={styles.linkActions}>
+      <div className={ui.wrap}>
         <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy} onClick={() => onSubmit(draft)}>
           {busy ? t('sharing.saving') : submitLabel}
         </button>
@@ -313,7 +313,7 @@ function Field({
   const id = useId();
 
   return (
-    <label className={styles.field} htmlFor={id}>
+    <label className={`${ui.stack1} ${styles.field}`} htmlFor={id}>
       <span className="label">
         {label}
         {help ? <Help topic={help} /> : null}

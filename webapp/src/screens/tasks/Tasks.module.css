@@ -15,21 +15,8 @@
   min-width: var(--control-height);
 }
 
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .group + .group {
   margin-top: var(--space-2);
-}
-
-.groupHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
 }
 
 .groupAside {
@@ -44,12 +31,6 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
 }
 
 /* What was ticked off is turned down: still there, still dated, its title in
@@ -97,14 +78,6 @@ button.circle:hover {
 .circle[data-filled='true'] {
   background: var(--green-fill);
   border-color: var(--green-fill);
-}
-
-.text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 /* Both lines wrap rather than being cut: a task whose name does not fit is
@@ -185,13 +158,6 @@ button.none {
   color: var(--muted);
 }
 
-.rhythm {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 /* A figure or a day with its name inside the field on the left: drawn as the
    app's field - the inset surface, the strong edge, the small radius - so it
    sits beside the name field above it as one of the same kind rather than as a
@@ -238,12 +204,6 @@ button.none {
 .fieldInput::-webkit-calendar-picker-indicator {
   opacity: 0.6;
   cursor: pointer;
-}
-
-.asking {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 /* Where the circle would have led: one quiet line, indented to the text column

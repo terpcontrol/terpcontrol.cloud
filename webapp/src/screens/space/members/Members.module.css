@@ -3,12 +3,6 @@
    the card and the invitation's sheet keep their own module,
    `Invite.module.css`. */
 
-.tab {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 /* The card's last row, which opens the ways in under the card. */
 .invite {
   display: flex;
@@ -59,11 +53,9 @@
 /* A chip that is a menu. The native select keeps the keyboard and the
    platform's own picker; only its own arrow and padding are given up. The
    caret is drawn 8 to 16 px in from the edge, so the padding has to reach past
-   it or the widest option's last letter sits against the triangle. Scrolled
-   into view it keeps the room of the toast that answers it (`.setup`). */
+   it or the widest option's last letter sits against the triangle. */
 .roleSelect {
   height: var(--control-height);
-  scroll-margin-bottom: calc(var(--space-8) + var(--space-7));
   appearance: none;
   padding-right: var(--space-5);
   background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%);

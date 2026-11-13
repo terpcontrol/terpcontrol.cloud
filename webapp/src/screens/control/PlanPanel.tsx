@@ -92,7 +92,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
 
   if (plan.isPending) {
     return (
-      <section className={styles.panel}>
+      <section className={ui.stack3}>
         <Waiting lines={3} />
       </section>
     );
@@ -102,7 +102,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   // failure, and it is the one state this screen is offering to change.
   if (!plan.data) {
     return (
-      <section className={styles.panel}>
+      <section className={ui.stack3}>
         {isMissing(plan.error) ? (
           <div className={`${ui.cardDashed} ${styles.none}`}>
             <p className={styles.noneWhat}>
@@ -121,7 +121,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
               </p>
             ) : null}
             {mayManage && landing === 'document' ? (
-              <div className={styles.actions}>
+              <div className={ui.wrap}>
                 {/* A fridge starts where a beginner starts: from one of the two ready plans. */}
                 {ready ? (
                   <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => setPicking(true)}>
@@ -153,7 +153,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   }
 
   return (
-    <section className={styles.panel}>
+    <section className={ui.stack3}>
       <RefreshFailed failedAt={plan.isError ? plan.dataUpdatedAt : null} now={now} />
 
       {/* Why this plan writes nothing: which of the two reasons it is, since only one of them is anybody's to change. */}
@@ -163,7 +163,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
         </p>
       )}
 
-      <div className={`${ui.card} ${styles.plan}`}>
+      <div className={`${ui.card} ${ui.stack2}`}>
         <Standing plan={plan.data} device={device} now={now} />
         {mayManage ? <Moves plan={plan.data} device={device} now={now} onRefresh={() => void plan.refetch()} /> : null}
       </div>
@@ -172,7 +172,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
       {mayManage && landing === 'document' ? <ContinuePlan device={device} /> : null}
 
       {mayManage ? (
-        <div className={styles.actions}>
+        <div className={ui.wrap}>
           <button type="button" className={ui.button} onClick={() => setEditing(draftOf(plan.data))}>
             {t('space.control.edit')}
           </button>
@@ -215,7 +215,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
 
   return (
     <>
-      <header className={styles.head}>
+      <header className={ui.headRow}>
         <h2 className={styles.planName}>
           {plan.name}
           <Help topic="plan" />
@@ -341,7 +341,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
 
   return (
     <div className={styles.moves}>
-      <div className={styles.actions}>
+      <div className={ui.wrap}>
         {can.confirm ? (
           <button
             type="button"
@@ -490,7 +490,7 @@ function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
         return (
           <li key={step.id} className={styles.step} data-current={active ? (how === 'running' ? 'now' : 'held') : undefined}>
             <span className={`mono ${styles.stepIndex}`}>{index + 1}</span>
-            <span className={styles.stepText}>
+            <span className={`${ui.textColumn} ${styles.stepText}`}>
               <span className={styles.stepTitle}>{step.name}</span>
               <span className={`mono ${styles.stepNote}`}>{stepMeta(t, step, offset, followsGermination(plan.steps, index, plan.loop))}</span>
             </span>

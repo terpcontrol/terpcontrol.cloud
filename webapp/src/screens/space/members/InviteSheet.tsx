@@ -131,7 +131,7 @@ function Made({ invite }: { invite: Invite }) {
   const address = inviteAddress(invite.code);
 
   return (
-    <div className={styles.made}>
+    <div className={`${ui.stack2} ${styles.made}`}>
       <div className={`${ui.segments} ${ui.segmentsFill}`} role="tablist" aria-label={t('space.members.sheet.waysLabel')}>
         {WAYS.map(one => (
           <button
@@ -151,7 +151,7 @@ function Made({ invite }: { invite: Invite }) {
 
       <div id="invite-way-panel" role="tabpanel" aria-labelledby={`invite-way-${way}`} className={`${ui.card} ${styles.pane}`}>
         {way === 'link' ? (
-          <div className={styles.addressRow}>
+          <div className={`${ui.row2} ${styles.addressRow}`}>
             <code className={`mono ${styles.address}`}>{shownAddress(invite.code)}</code>
             <CopyButton value={address} label={t('space.members.copyLink')} />
           </div>

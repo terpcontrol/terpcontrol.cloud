@@ -204,7 +204,7 @@ function LinkCard({ link, title, parts, dead, onOpen }: { link: ShareLink; title
   const { t } = useTranslation();
 
   return (
-    <li className={`${ui.card} ${styles.card}`} data-dead={dead ? '' : undefined}>
+    <li className={`${ui.card} ${ui.row3} ${styles.card}`} data-dead={dead ? '' : undefined}>
       <button type="button" className={styles.cardText} onClick={onOpen}>
         <span className={styles.cardTitle}>{title}</span>
         <span className={`mono ${styles.cardLine}`}>

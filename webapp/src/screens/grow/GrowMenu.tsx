@@ -63,12 +63,12 @@ export function GrowMenu({
   return (
     <>
       {mayManage ? (
-        <button type="button" className={`${styles.pill} ${styles.wideOnly}`} onClick={() => setOpen('phase')}>
+        <button type="button" className={`${ui.pill} ${styles.pill} ${styles.wideOnly}`} onClick={() => setOpen('phase')}>
           {t('grow.lifecycle.actions.phase')}
         </button>
       ) : null}
       {mayOwn ? (
-        <button type="button" className={`${styles.pill} ${styles.wideOnly}`} onClick={() => setOpen('share')}>
+        <button type="button" className={`${ui.pill} ${styles.pill} ${styles.wideOnly}`} onClick={() => setOpen('share')}>
           {t('sharing.share')}
         </button>
       ) : null}

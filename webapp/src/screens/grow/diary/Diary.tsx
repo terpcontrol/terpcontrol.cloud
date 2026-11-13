@@ -52,7 +52,7 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
 
   if (diary.isPending) {
     return (
-      <div className={styles.days}>
+      <div className={`${ui.stack3} ${styles.days}`}>
         <Waiting lines={4} />
         <Waiting lines={3} />
       </div>
@@ -87,7 +87,7 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
 
   return (
     <div className={styles.diary}>
-      <div className={styles.days}>
+      <div className={`${ui.stack3} ${styles.days}`}>
         <RefreshFailed failedAt={diary.isError ? diary.dataUpdatedAt : null} now={now} />
         <Days
           weeks={weeks}
@@ -105,7 +105,7 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
       {pictures.length > 0 || film ? (
         <aside className={styles.aside}>
           {pictures.length > 0 ? (
-            <section className={styles.recent} aria-labelledby="grow-recent-pictures">
+            <section className={ui.panel} aria-labelledby="grow-recent-pictures">
               <div className={styles.recentHead}>
                 <h2 id="grow-recent-pictures">{t('grow.diary.recentPictures')}</h2>
                 <Link to={picturesTo} replace>
@@ -293,7 +293,7 @@ function WeekRow({
   ].filter(Boolean);
 
   return (
-    <section className={styles.week}>
+    <section className={`${ui.stack3} ${styles.week}`}>
       <button type="button" className={styles.row} aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className={styles.rowText}>
           <Facts facts={[from === to ? t('home.card.dayN', { day: from }) : t('grow.diary.days', { from, to }), stageOfWeek(t, week)]} />

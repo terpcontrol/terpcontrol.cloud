@@ -2,24 +2,12 @@
    rule is, and the fields. The card, the chip, the switch and the field are
    the app's own, so nothing here restates a surface or a colour. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
 /* A device's groups are sections of the page, a section's step apart; a
    group's own cards stay close under its label. */
 .device {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-}
-
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 /* The label and, for the stage's group, what it means. On a phone the two do
@@ -71,13 +59,6 @@
   border: 0;
   color: var(--ink);
   text-align: left;
-}
-
-.top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 /* A rule that stands triggered right now. */
@@ -176,18 +157,6 @@
   color: var(--muted);
   font-size: var(--text-sm);
   text-align: center;
-}
-
-.bounds {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-}
-
-.duration {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 .textarea {

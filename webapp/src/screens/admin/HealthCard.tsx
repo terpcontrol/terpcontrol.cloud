@@ -58,7 +58,7 @@ export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devic
     <section className={styles.card}>
       <div className={styles.cardHead}>
         <span className="label">{t('admin.health.title')}</span>
-        <span className={styles.actions}>
+        <span className={`${ui.wrap} ${styles.actions}`}>
           {/* A dozen counts gathered over a second are not "now", and the
               answer says when it was taken; so does the card. */}
           {answer ? <span className={`mono ${styles.consequence}`}>{t('admin.health.asOf', { age: ageLabel(answer.collectedAt, now) })}</span> : null}
@@ -86,7 +86,7 @@ export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devic
       ) : stats.isPending ? (
         <span className={`mono ${styles.figure} ${styles.waitingFigure}`}>{t('home.waiting')}</span>
       ) : (
-        <div className={styles.row}>
+        <div className={ui.wrapRow}>
           <p className={ui.problem} role="alert">
             {stats.error instanceof ApiError && stats.error.status === 404 ? t('admin.health.statsMissing') : t('admin.health.statsFailed')}
           </p>

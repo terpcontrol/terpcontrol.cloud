@@ -17,9 +17,6 @@
 .act,
 .films,
 .sheet {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -442,12 +439,6 @@
 }
 
 /* --------------------------------------------------------------- composer */
-
-.composer {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
 
 .dates,
 .dates label {

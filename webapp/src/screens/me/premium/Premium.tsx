@@ -171,8 +171,8 @@ function CameraCard({
   const offered = enforced && premium.extendUrl !== null && camera.entitlement.renewalVisible;
 
   return (
-    <li className={`${ui.card} ${styles.camera}`}>
-      <div className={styles.cameraHead}>
+    <li className={`${ui.card} ${ui.stack1}`}>
+      <div className={ui.headRow}>
         <span className={styles.cameraName}>
           <Link to={`/cameras/${camera.id}`}>{name}</Link>
           <Facts
@@ -239,7 +239,7 @@ function Covers({ free }: { free: PremiumFree | null }) {
 
   return (
     <section className={styles.covers}>
-      <header className={styles.coversHead}>
+      <header className={ui.headRow}>
         <span className="label">
           {t('me.premium.covers')}
           <Help topic="premiumCamera" />

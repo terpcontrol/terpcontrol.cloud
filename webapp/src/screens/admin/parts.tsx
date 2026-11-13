@@ -67,7 +67,7 @@ export function Label({ text, help }: { text: string; help: HelpTopic }) {
 /** An admin screen with nothing to show yet: its head over the waiting block, or over the way to try again once the read has failed. */
 export function AdminNotLoaded({ head, lines = 4, retry }: { head: ReactNode; lines?: number; retry?: () => void }) {
   return (
-    <section className={styles.page}>
+    <section className={ui.stack4}>
       {head}
       {retry ? <LoadFailed retry={retry} /> : <Waiting lines={lines} />}
     </section>

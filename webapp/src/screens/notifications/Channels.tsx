@@ -68,7 +68,7 @@ function EditActions({ save, onCancel }: { save: boolean; onCancel: () => void }
   const { t } = useTranslation();
 
   return (
-    <div className={parts.actions}>
+    <div className={ui.wrap}>
       <button type="submit" className={`${ui.button} ${ui.primary}`} disabled={!save}>
         {t('notifications.save')}
       </button>

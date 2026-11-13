@@ -50,7 +50,7 @@ export function RolloutCard({
     <section className={styles.card}>
       <div className={styles.cardHead}>
         <Label text={t('admin.rollout.title')} help="rolloutStages" />
-        <span className={styles.actions}>
+        <span className={`${ui.wrap} ${styles.actions}`}>
           <Link className={ui.chip} to="/admin/firmware">
             {t('admin.rollout.upload')}
           </Link>
@@ -104,7 +104,7 @@ export function RolloutCard({
                   })}
             </p>
 
-            <div className={styles.row}>
+            <div className={ui.wrapRow}>
               <button
                 type="button"
                 className={`${ui.chip} ${paused ? '' : styles.paused}`}

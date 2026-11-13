@@ -116,11 +116,11 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
   if (!draft) {
     return (
       <div className={styles.page}>
-        <section className={`${ui.cardDashed} ${styles.none}`}>
+        <section className={ui.cardDashed}>
           <span className="label">{t('grow.noScheme')}</span>
         </section>
         {mayManage ? (
-          <div className={styles.chips}>
+          <div className={ui.wrap}>
             <button type="button" className={ui.button} onClick={() => setChoosing(true)}>
               {t('grow.scheme.choose')}
             </button>

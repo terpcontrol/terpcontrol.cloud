@@ -160,7 +160,7 @@ export function PlantPage() {
       )}
 
       {mayManage ? (
-        <div className={styles.actions} role="group" aria-label={t('grow.plant.actionsLabel')}>
+        <div className={`${ui.wrap} ${styles.actions}`} role="group" aria-label={t('grow.plant.actionsLabel')}>
           <button type="button" className={ui.button} onClick={() => setSheet('move')}>
             <Move size={13} strokeWidth={1.75} aria-hidden />
             {t('grow.plant.move')}

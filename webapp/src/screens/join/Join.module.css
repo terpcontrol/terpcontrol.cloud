@@ -2,21 +2,9 @@
    is the shell's centred column, as it is on every other public page, so the
    card and the button sit on the same axis as the line under the rule. */
 
-.invitation {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .by {
   font-size: var(--text-md);
   color: var(--muted);
-}
-
-.terms {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 .term {

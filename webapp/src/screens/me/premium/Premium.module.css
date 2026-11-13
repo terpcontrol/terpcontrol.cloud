@@ -5,20 +5,6 @@
 
 /* ---------------------------------------------------------------- cameras */
 
-.camera {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.cameraHead,
-.coversHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
 .cameraName {
   display: inline-flex;
   flex-wrap: wrap;

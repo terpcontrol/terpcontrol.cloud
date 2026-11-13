@@ -36,7 +36,7 @@ export function Asking({
         {note}
       </p>
       {children}
-      <div className={ui.askingActions}>
+      <div className={ui.wrap}>
         <button type="button" className={`${ui.button} ${danger ? ui.dangerFilled : ui.primary}`} disabled={busy} onClick={onYes}>
           {yes}
         </button>

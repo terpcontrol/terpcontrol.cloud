@@ -170,8 +170,8 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
     <>
       <RefreshFailed failedAt={spaces.isError ? spaces.dataUpdatedAt : null} now={now} />
 
-      <section className={styles.block}>
-        <header className={styles.blockHead}>
+      <section className={ui.stack2}>
+        <header className={`${ui.row2} ${styles.blockHead}`}>
           <span className="label">
             <Term topic="rtsp">{t('cameras.add.rtsp.label')}</Term>
           </span>
@@ -179,8 +179,8 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         <p className={styles.text}>{premiumLine(t, me.data?.premium)}</p>
       </section>
 
-      <section className={styles.block}>
-        <div className={styles.blockHead}>
+      <section className={ui.stack2}>
+        <div className={`${ui.row2} ${styles.blockHead}`}>
           <label className="label" htmlFor="rtsp-url">
             {t('cameras.add.rtsp.address')}
           </label>
@@ -199,7 +199,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         {hasLogin(url) ? (
           <p className={styles.text}>{t('cameras.add.rtsp.loginInAddress')}</p>
         ) : (
-          <div className={styles.login}>
+          <div className={`${ui.halves} ${styles.login}`}>
             <input
               className={ui.input}
               value={username}
@@ -235,7 +235,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         ) : null}
       </section>
 
-      <section className={styles.block}>
+      <section className={ui.stack2}>
         <span className="label">{t('cameras.add.rtsp.where')}</span>
         {places.length === 0 ? (
           <NewPlace onMade={space => putIn(space.id)} />
@@ -251,7 +251,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
       </section>
 
       {carriers.length > 1 ? (
-        <section className={styles.block}>
+        <section className={ui.stack2}>
           <span className="label">{t('camera.stream.throughWhich')}</span>
           <Choices label={t('camera.stream.throughWhich')}>
             {carriers.map(device => (
@@ -263,7 +263,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         </section>
       ) : null}
 
-      <section className={styles.block}>
+      <section className={ui.stack2}>
         <label className="label" htmlFor="rtsp-name">
           {t('cameras.add.rtsp.name')}
         </label>
@@ -286,7 +286,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
       <Refused error={create.error ?? amend.error ?? (gaveUp(capture.error) ? null : capture.error) ?? drop.error} />
 
       {made ? (
-        <section className={styles.block} role="status">
+        <section className={ui.stack2} role="status">
           <p className={styles.text}>{madeLine(t, placeOf(spaces.data.items, made.spaceId))}</p>
           <button type="button" className={`${ui.button} ${styles.way}`} disabled={working} onClick={remove}>
             {drop.isPending ? t('cameras.add.rtsp.removing') : t('cameras.add.rtsp.remove')}
@@ -302,7 +302,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         </p>
       ) : null}
 
-      <div className={styles.actions}>
+      <div className={`${ui.wrap} ${styles.actions}`}>
         <button type="button" className={ui.button} disabled={!ready || working} aria-describedby={missing ? REASON : undefined} onClick={test}>
           {capture.isPending ? t('cameras.add.rtsp.testing') : t('cameras.add.rtsp.test')}
         </button>
@@ -324,7 +324,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
       ) : null}
 
       {capture.data ? (
-        <section className={styles.block} role="status">
+        <section className={ui.stack2} role="status">
           {capture.data.still ? (
             <>
               {shot ? <img className={styles.shot} src={shot} alt={t('cameras.add.rtsp.shotAlt')} /> : null}
@@ -367,7 +367,7 @@ function NewPlace({ onMade }: { onMade: (space: Space) => void }) {
   const [kind, setKind] = useState<SpaceKind>('tent');
 
   return (
-    <section className={`${ui.cardDashed} ${styles.block}`}>
+    <section className={`${ui.cardDashed} ${ui.stack2}`}>
       <p className={ui.note}>{t('cameras.add.rtsp.nowhere')}</p>
       <input
         className={ui.input}

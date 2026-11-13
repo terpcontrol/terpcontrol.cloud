@@ -80,14 +80,14 @@ function Invitation({ preview, code, signedIn, isDemo }: { preview: InvitePrevie
   }, [takeUp, signedIn, isDemo, acceptInvite, code, navigate]);
 
   return (
-    <section className={styles.invitation}>
+    <section className={ui.stack3}>
       <span className="label">{t('space.members.join.label')}</span>
       <h1>{t('space.members.join.title', { name })}</h1>
       <p className={styles.by}>
         {preview.invitedByHandle ? t('space.members.join.by', { handle: preview.invitedByHandle }) : t('space.members.join.bySomebody')}
       </p>
 
-      <div className={`${ui.card} ${styles.terms}`}>
+      <div className={`${ui.card} ${ui.stack2}`}>
         <p className={styles.term}>{t(`space.members.join.asRole.${preview.role ?? 'can_log'}`)}</p>
         <p className={styles.term}>{t('space.members.join.sees', { name })}</p>
         <p className={styles.term}>{t('space.members.join.doesNotSee')}</p>
@@ -141,7 +141,7 @@ function CodeEntry() {
   useWindowTitle(t('space.members.join.code.title'));
 
   return (
-    <section className={styles.invitation}>
+    <section className={ui.stack3}>
       <span className="label">{t('space.members.join.label')}</span>
       <h1>{t('space.members.join.code.title')}</h1>
       <p className={styles.by}>{t('space.members.join.code.body')}</p>

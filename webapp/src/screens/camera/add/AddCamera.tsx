@@ -29,7 +29,7 @@ export function AddCamera() {
 
   return (
     <section className={styles.page}>
-      <header className={styles.header}>
+      <header className={ui.row2}>
         <BackLink to="/control" label={t('shell.tabs.control')} />
         <h1>{t('cameras.add.title')}</h1>
       </header>
@@ -74,7 +74,7 @@ function Ways() {
         ))}
       </div>
 
-      <section className={styles.panel} aria-label={t(`cameras.add.tab.${kind}`)}>
+      <section className={ui.stack4} aria-label={t(`cameras.add.tab.${kind}`)}>
         {kind === 'terpcam' ? <PairTerpCam pairers={pairers} opened={opened} /> : <RtspCamera devices={devices.data.items} />}
       </section>
     </>

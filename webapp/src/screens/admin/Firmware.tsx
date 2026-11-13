@@ -59,7 +59,7 @@ export function FirmwareScreen() {
   const known = classes.data.items;
 
   return (
-    <section className={styles.page}>
+    <section className={ui.stack4}>
       {header}
 
       <section className={styles.card}>
@@ -142,7 +142,7 @@ function Register({ classes }: { classes: DeviceClass[] }) {
         </label>
       </div>
 
-      <div className={styles.row}>
+      <div className={ui.wrapRow}>
         <button
           type="button"
           className={`${ui.button} ${ui.primary}`}
@@ -199,7 +199,7 @@ function BuildRow({ build, classes, fleet }: { build: Firmware; classes: DeviceC
           : '—'}
       </td>
       <td>
-        <span className={styles.actions}>
+        <span className={`${ui.wrap} ${styles.actions}`}>
           <button type="button" className={ui.chip} onClick={() => setOpen('upload')}>
             {t('admin.firmware.upload')}
           </button>

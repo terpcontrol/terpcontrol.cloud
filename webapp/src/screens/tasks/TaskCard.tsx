@@ -62,7 +62,7 @@ export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEd
 
   return (
     <li className={`${ui.card} ${styles.card}`}>
-      <div className={styles.row}>
+      <div className={ui.row3}>
         {onDone ? (
           <button
             type="button"
@@ -74,7 +74,7 @@ export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEd
         ) : (
           <span className={styles.circle} aria-hidden />
         )}
-        <span className={styles.text}>
+        <span className={ui.textColumn}>
           <span className={styles.cardTitle}>{title}</span>
           <Facts className={`mono ${styles.meta}`} facts={metaLine(t, task, name, reminder, now, zone)} />
         </span>
@@ -140,9 +140,9 @@ export function DoneCard({ task, name, by, me, now }: { task: Task; name: string
 
   return (
     <li className={`${ui.card} ${styles.card}`} data-done="true">
-      <div className={styles.row}>
+      <div className={ui.row3}>
         <span className={styles.circle} data-filled="true" aria-hidden />
-        <span className={styles.text}>
+        <span className={ui.textColumn}>
           <span className={styles.cardTitle}>{titleOf(t, task)}</span>
           <Facts className={`mono ${styles.meta}`} facts={[who, name, at]} />
         </span>
@@ -187,8 +187,8 @@ export function RhythmCard({
 
   return (
     <li className={`${ui.card} ${styles.card}`}>
-      <div className={styles.row}>
-        <span className={styles.text}>
+      <div className={ui.row3}>
+        <span className={ui.textColumn}>
           <span className={styles.cardTitle}>{reminder.label}</span>
           <Facts className={`mono ${styles.meta}`} facts={parts} />
         </span>

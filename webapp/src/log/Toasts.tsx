@@ -135,10 +135,35 @@ const useStanding = (shown: boolean): HTMLElement => {
   return host;
 };
 
+/** What a person touched last: the control a toast that follows is most likely about. */
+let touched: Element | null = null;
+if (typeof document !== 'undefined') document.addEventListener('pointerdown', event => (touched = event.target as Element | null), true);
+
+/**
+ * Moves the control a toast answers clear of it: what holds the focus or was touched last, where the toasts at the
+ * window's foot lie over it. The page keeps the room for that while a toast is shown (`Toasts.module.css`); what
+ * stands in a sheet or does not scroll with the page - the bar, a toast - is left where it is.
+ */
+const clearOf = (host: HTMLElement) => {
+  if (host.hasAttribute('data-in-sheet')) return;
+  const toasts = host.getBoundingClientRect();
+  for (const used of [document.activeElement, touched]) {
+    if (!used?.isConnected || used === document.body || used.closest(`[role="dialog"], nav, .${styles.toasts}`)) continue;
+    const { top, bottom } = used.getBoundingClientRect();
+    if (bottom > toasts.top && top < toasts.bottom) return window.scrollBy({ top: bottom - toasts.top + 8 });
+  }
+};
+
 export function Toasts({ lines, onUndo, onRetry, onDismiss, onDetails }: ToastsProps) {
+  const host = useStanding(lines.length > 0);
+  const newest = lines.at(-1)?.key;
+  useEffect(() => {
+    if (newest !== undefined) clearOf(host);
+  }, [newest, host]);
+
   return createPortal(
     lines.map(line => <Toast key={line.key} line={line} onUndo={onUndo} onRetry={onRetry} onDismiss={onDismiss} onDetails={onDetails} />),
-    useStanding(lines.length > 0),
+    host,
   );
 }
 

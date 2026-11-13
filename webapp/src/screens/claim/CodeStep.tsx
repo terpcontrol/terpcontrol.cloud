@@ -85,7 +85,7 @@ export function CodeStep({
 
   return (
     <form
-      className={styles.claimForm}
+      className={ui.stack3}
       onSubmit={event => {
         event.preventDefault();
         void submit();

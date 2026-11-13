@@ -54,7 +54,7 @@ export function Demo() {
   const shownGrows = (grows.data?.items ?? []).filter(grow => grow.isDemo);
 
   return (
-    <section className={styles.page}>
+    <section className={ui.stack4}>
       {header}
 
       {shownDevices.length === 0 && shownSpaces.length === 0 && shownGrows.length === 0 ? (
@@ -71,7 +71,7 @@ export function Demo() {
             const liveness = deviceLiveness(device.state.lastSeenAt, now);
 
             return (
-              <li key={device.id} className={styles.row}>
+              <li key={device.id} className={ui.wrapRow}>
                 <span className="mono">{device.id}</span>
                 <span>{deviceName(device, t)}</span>
                 <Liveness state={liveness}>
@@ -96,7 +96,7 @@ export function Demo() {
         </div>
         <ul className={styles.lines}>
           {shownSpaces.map(space => (
-            <li key={space.id} className={styles.row}>
+            <li key={space.id} className={ui.wrapRow}>
               <Link className="mono" to={placePath(space.id)}>
                 {space.name}
               </Link>
@@ -113,7 +113,7 @@ export function Demo() {
         </div>
         <ul className={styles.lines}>
           {shownGrows.map(grow => (
-            <li key={grow.id} className={styles.row}>
+            <li key={grow.id} className={ui.wrapRow}>
               <Link to={`/grows/${grow.id}`}>{grow.name}</Link>
               <span className={`mono ${styles.consequence}`}>
                 {grow.summary.dayNumber !== null ? t('home.card.dayN', { day: grow.summary.dayNumber }) : t('admin.demo.notStarted')}
@@ -131,7 +131,7 @@ export function Demo() {
         </div>
         <ul className={styles.lines}>
           {shownCameras.map(camera => (
-            <li key={camera.id} className={styles.row}>
+            <li key={camera.id} className={ui.wrapRow}>
               <Link className="mono" to={`/cameras/${camera.id}`}>
                 {camera.name}
               </Link>

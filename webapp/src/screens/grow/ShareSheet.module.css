@@ -8,12 +8,6 @@
   padding: var(--space-4) 0 var(--space-2);
 }
 
-.block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .blockTitle {
   font-weight: var(--weight-semibold);
 }
@@ -22,20 +16,6 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-}
-
-.switchText {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.addressRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 /* The address in full, and still selectable: a browser that refuses the
@@ -50,15 +30,6 @@
   background: var(--card-2);
   font-size: var(--text-xs);
   white-space: nowrap;
-}
-
-.links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .link {
@@ -85,12 +56,6 @@
   color: var(--muted);
 }
 
-.linkActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
 .editor {
   display: flex;
   flex-direction: column;
@@ -107,9 +72,6 @@
 }
 
 .field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
   min-width: 0;
 }
 

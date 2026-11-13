@@ -1,10 +1,3 @@
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 /* As wide as a step's name needs, never wider than the phone. */
 .select {
   flex: 1 1 12rem;

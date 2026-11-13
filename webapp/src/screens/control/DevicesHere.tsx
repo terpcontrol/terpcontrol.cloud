@@ -64,7 +64,7 @@ export function DevicesHere({
   const spokeAt = (device: Device) => heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
 
   return (
-    <div className={styles.standing}>
+    <div className={ui.stack3}>
       {devices.map(device => (
         <DeviceCard
           key={device.id}

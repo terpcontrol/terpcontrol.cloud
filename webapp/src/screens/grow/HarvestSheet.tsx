@@ -116,7 +116,7 @@ export function HarvestSheet({
             help="harvestWeights"
             aside={<span className="mono">{t('grow.lifecycle.harvest.grams')}</span>}
           >
-            <div className={styles.weights}>
+            <div className={ui.halves}>
               <Weight label={t('grow.lifecycle.harvest.wet')} value={wet} onChange={setWet} />
               <Weight label={t('grow.lifecycle.harvest.dry')} value={dry} onChange={setDry} />
             </div>
@@ -162,10 +162,10 @@ export function HarvestSheet({
 
         {done ? (
           <Block label={t('grow.lifecycle.harvest.whatWasWritten')}>
-            <ul className={styles.rows}>
+            <ul className={ui.list}>
               {done.plants.map(plant => (
                 <li key={plant.id} className={styles.row}>
-                  <div className={styles.rowHead}>
+                  <div className={ui.headRow}>
                     <span className={styles.rowTitle}>{plant.label}</span>
                     <span className={`mono ${styles.rowMeta}`}>{weightLine(t, plant)}</span>
                   </div>
@@ -177,10 +177,10 @@ export function HarvestSheet({
 
         {alreadyDown.length === 0 ? null : (
           <Block label={t('grow.lifecycle.harvest.alreadyDown')}>
-            <ul className={styles.rows}>
+            <ul className={ui.list}>
               {alreadyDown.map(plant => (
                 <li key={plant.id} className={styles.row} data-dim>
-                  <div className={styles.rowHead}>
+                  <div className={ui.headRow}>
                     <span className={styles.rowTitle}>{plant.label}</span>
                     <span className={`mono ${styles.rowMeta}`}>
                       {plant.harvest ? calendarDay(plant.harvest.harvestedAt, zone) : ''} · {weightLine(t, plant)}

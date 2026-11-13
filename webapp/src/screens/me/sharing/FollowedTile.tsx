@@ -9,6 +9,7 @@ import { Photo } from '@/ui/Photo';
 import { useTranslation } from 'react-i18next';
 import { useZone } from '@/ui/zone';
 import styles from './FollowedTile.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * One followed grow: the public page it came from, under its owner's handle,
@@ -26,7 +27,7 @@ export function FollowedTile({ grow, now }: { grow: FollowedGrowCard; now: DateT
 
   return (
     <li className={styles.tile}>
-      <Link to={`/g/${grow.slug}`} className={styles.tileLink}>
+      <Link to={`/g/${grow.slug}`} className={`${ui.stack1} ${styles.tileLink}`}>
         <Photo src={cover} alt="" className={styles.tileCover} fallback={<Leaf size={22} strokeWidth={1.5} aria-hidden />} />
         <span className={styles.tileTitle}>
           @{grow.handle} · {grow.name}

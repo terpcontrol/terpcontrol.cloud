@@ -11,6 +11,7 @@ import { readingNamesOf } from '@/ui/entries';
 import { Lines } from '@/ui/Lines';
 import { useZone } from '@/ui/zone';
 import styles from './Start.module.css';
+import ui from '@/ui/ui.module.css';
 
 /** How many of the newest lines Start names; the diary and Verlauf have the rest. */
 const LATEST = 3;
@@ -51,8 +52,8 @@ export function Latest({
   if (lines.length === 0) return null;
 
   return (
-    <section className={styles.card} aria-labelledby="start-latest">
-      <h2 className={styles.cardTitle} id="start-latest">
+    <section className={`${ui.panel} ${styles.card}`} aria-labelledby="start-latest">
+      <h2 className={`${ui.cardHeading} ${styles.cardTitle}`} id="start-latest">
         {t('start.latest.title')}
       </h2>
       <Lines>

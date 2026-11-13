@@ -21,6 +21,7 @@ import { FIGURES, figureText, pendingFigure, pendingWindow, type PendingItem } f
 import { LightSheet } from './LightSheet';
 import { PendingNote } from './Pending';
 import styles from './Climate.module.css';
+import ui from '@/ui/ui.module.css';
 
 /** How long a stepped figure rests before it is sent: the first step of a series would already pause a running plan. */
 const REST_MS = 1500;
@@ -113,7 +114,7 @@ export function LightCard({
 
   return (
     <section className={`${styles.card} ${styles.light}`} aria-labelledby={`light-${device.id}`}>
-      <h2 className={styles.title} id={`light-${device.id}`}>
+      <h2 className={`${ui.cardHeading} ${styles.title}`} id={`light-${device.id}`}>
         {t('control.light.title')}
       </h2>
       {held ? (

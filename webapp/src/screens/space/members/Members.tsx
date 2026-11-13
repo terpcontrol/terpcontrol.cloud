@@ -65,7 +65,7 @@ export function Members({ spaceId, name, roomId }: { spaceId: string; name: stri
   const invitesId = `${spaceId}-invite`;
 
   return (
-    <section className={styles.tab}>
+    <section className={ui.stack3}>
       <RefreshFailed failedAt={members.isError ? members.dataUpdatedAt : null} now={now} />
 
       <Rows>

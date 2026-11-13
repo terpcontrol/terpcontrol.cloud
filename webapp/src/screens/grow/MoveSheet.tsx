@@ -108,7 +108,7 @@ export function MoveSheet({
         )}
 
         <Block label={t('grow.lifecycle.move.history')} aside={<span className="mono">{t('grow.lifecycle.move.newestFirst')}</span>}>
-          <ul className={styles.rows}>
+          <ul className={ui.list}>
             {placements.map(placement => (
               <PlacementRow
                 key={placement.id}
@@ -151,7 +151,7 @@ function PlacementRow({
 
   return (
     <li className={styles.row} data-dim={placement.endedAt !== null}>
-      <div className={styles.rowHead}>
+      <div className={ui.headRow}>
         <span className={styles.rowTitle}>{placeName(t, spaces, placement.spaceId)}</span>
         <span className={`mono ${styles.rowMeta}`}>
           {day(placement.startedAt)} → {placement.endedAt ? day(placement.endedAt) : t('grow.lifecycle.move.stillThere')}
@@ -160,7 +160,7 @@ function PlacementRow({
       </div>
 
       {open === null ? (
-        <div className={styles.rowActions}>
+        <div className={ui.wrap}>
           <button type="button" className={ui.chip} onClick={() => onOpen('correct')}>
             {t('grow.lifecycle.move.correct')}
           </button>

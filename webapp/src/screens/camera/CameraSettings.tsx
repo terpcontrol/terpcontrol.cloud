@@ -171,7 +171,7 @@ export function CameraSettings({
         ) : undefined
       }
     >
-      <div className={styles.sheet}>
+      <div className={`${ui.stack3} ${styles.sheet}`}>
         <ul className={ui.group}>
           <Row label={t('camera.connectedVia')}>
             <Said facts={[connection(t, camera, through), place === through ? null : place]} />

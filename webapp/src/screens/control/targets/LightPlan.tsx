@@ -9,6 +9,7 @@ import { scheduleTitle, windowWords } from './schedule-words';
 import { ClockStepper, Stepper } from './Stepper';
 import type { LightSchedule, TargetsDraft } from './targets-draft';
 import styles from './DayNight.module.css';
+import ui from '@/ui/ui.module.css';
 
 interface LightPlanProps {
   device: Device;
@@ -102,7 +103,7 @@ export function LightPlan(props: LightPlanProps) {
         {/* Light round the clock, or none, has no time it comes on: the hour is
             kept for the day a photoperiod is set again, and said under the plan. */}
         {words.always || words.never ? null : (
-          <div className={styles.field}>
+          <div className={`${ui.stack1} ${styles.field}`}>
             <span className={styles.fieldLabel}>
               {t('targets.plan.lightsOn')}
               {mark('lightsOn')}
@@ -120,7 +121,7 @@ export function LightPlan(props: LightPlanProps) {
             />
           </div>
         )}
-        <div className={styles.field}>
+        <div className={`${ui.stack1} ${styles.field}`}>
           <span className={styles.fieldLabel}>
             {t('targets.plan.hours')}
             {mark('lightHours')}

@@ -61,7 +61,7 @@ export function InviteBlock({ id, place, room, open }: { id: string; place: Targ
         <Help topic="invite" />
       </span>
       {live.length > 0 ? (
-        <ul className={styles.links}>
+        <ul className={ui.list}>
           {live.map(invite => (
             <LinkRow
               key={invite.id}
@@ -117,8 +117,8 @@ function LinkRow({ invite, into, apart, onShow }: { invite: Invite; into: string
   const told = () => tell({ label: stopped, undo: null });
 
   return (
-    <li className={`${ui.card} ${styles.link}`} aria-label={code}>
-      <div className={styles.addressRow}>
+    <li className={`${ui.card} ${ui.stack2}`} aria-label={code}>
+      <div className={`${ui.row2} ${styles.addressRow}`}>
         <code className={`mono ${styles.address}`}>{shownAddress(code)}</code>
         <CopyButton value={inviteAddress(code)} label={t('space.members.copyLink')} />
       </div>

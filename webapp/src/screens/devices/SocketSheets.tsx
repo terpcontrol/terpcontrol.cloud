@@ -161,7 +161,7 @@ export function SocketFormSheet({
 
         <RolePick roles={roles} chosen={draft.role} disabled={roles.length === 0} onChoose={role => setDraft({ ...draft, role })} />
 
-        <label className={styles.field}>
+        <label className={`${ui.stack1} ${styles.field}`}>
           <span className="label">
             {t('socketForm.address')}
             <Help topic="socketAddress" />
@@ -181,7 +181,7 @@ export function SocketFormSheet({
         </label>
 
         <div className={styles.pair}>
-          <label className={styles.field}>
+          <label className={`${ui.stack1} ${styles.field}`}>
             <span className="label">{t('socketForm.username')}</span>
             <input
               className={ui.input}
@@ -193,7 +193,7 @@ export function SocketFormSheet({
               onChange={event => setDraft({ ...draft, username: event.target.value })}
             />
           </label>
-          <label className={styles.field}>
+          <label className={`${ui.stack1} ${styles.field}`}>
             <span className="label">{t('socketForm.password')}</span>
             <input
               className={ui.input}
@@ -207,7 +207,7 @@ export function SocketFormSheet({
         </div>
 
         {draft.role && isTimed(draft.role) ? (
-          <div className={styles.field}>
+          <div className={`${ui.stack1} ${styles.field}`}>
             <span className="label">
               {t('socketForm.cycle.label')}
               <Help topic="socketTimer" />
@@ -241,7 +241,7 @@ function RolePick({
   const { t } = useTranslation();
 
   return (
-    <div className={styles.field}>
+    <div className={`${ui.stack1} ${styles.field}`}>
       <span className="label">
         {t('socketForm.role')}
         <Help topic="socketRoles" />

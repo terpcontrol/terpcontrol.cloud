@@ -61,9 +61,6 @@
 
 .columns,
 .column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -131,12 +128,6 @@
 
 /* --- whose place it is, for somebody let into it --- */
 
-.guest {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .guest > :first-child {
   flex: 1;
   min-width: 0;
@@ -151,13 +142,6 @@
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
   white-space: nowrap;
-}
-
-.kicker {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0;
-  color: var(--label);
 }
 
 /* Whose place it is, on one line: the room and the owner each in a box of
@@ -633,23 +617,6 @@ a.tileLabel::after {
 
 /* --- a card with a small heading: Heute, Zuletzt, Zielwerte --- */
 
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px var(--space-4);
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-}
-
-.cardTitle {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0;
-  color: var(--label);
-}
-
 .offerTitle {
   font-size: var(--text-lg);
   letter-spacing: 0;
@@ -690,14 +657,6 @@ a.tileLabel::after {
 
 .dueAction {
   flex: none;
-  min-height: var(--control-height);
-  padding: 0 14px;
-  background: var(--card);
-  border: var(--rule-width) solid var(--rule-strong);
-  border-radius: var(--radius-pill);
-  color: var(--brand);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
 }
 
 .dueAsk {
@@ -858,12 +817,6 @@ a.tileLabel::after {
 }
 
 /* --- several places: a card each, under the room it stands in --- */
-
-.room {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
 
 /* A room's heading opens a group of its own: more room above it than between two cards. */
 .places > .room:not(:first-child),

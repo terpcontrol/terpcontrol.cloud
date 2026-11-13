@@ -67,7 +67,7 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
   const reachesNoOne = me.data !== undefined && !(['critical', 'warning'] as const).some(severity => severityReaches(me.data!, severity));
 
   return (
-    <div className={styles.page}>
+    <div className={ui.stack4}>
       {reachesNoOne && watched.length > 0 ? <NotifyNotice /> : null}
 
       {watched.length === 0 && held.isPending ? (
@@ -181,7 +181,7 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, now 
       <InMaintenance device={device} me={me} mayManage={mayManage} now={now} />
 
       {groups.map(group => (
-        <div key={group.origin} className={styles.group}>
+        <div key={group.origin} className={ui.stack2}>
           <header className={styles.groupHead}>
             <span className="label">
               {group.origin === 'preset'
@@ -408,7 +408,7 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
 
   const summary = (
     <>
-      <span className={styles.top}>
+      <span className={ui.wrapRow}>
         {rule.state.triggered ? <span className={styles.dot} role="img" aria-label={t('alarms.triggered')} /> : null}
         <span className={styles.name}>{title}</span>
         {watching ? <span className={styles.watching}>{watching}</span> : null}
