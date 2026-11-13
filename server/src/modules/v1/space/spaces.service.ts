@@ -7,6 +7,7 @@ import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound, unprocessable } from '@common/v1/problem';
+import { refuseEnded } from '@common/v1/rooms';
 import { namedLike, refuseTakenName } from '@common/v1/space-names';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -78,9 +79,17 @@ export class SpacesService {
   /** An ended room takes nothing - no name, no place, no person: it was a field of places that are gone, and is on no screen. */
   public async requireOpen(id: string): Promise<SpaceDocument> {
     const space = await this.require(id);
-    if (space.kind !== 'room' || space.archivedAt === null) return space;
+    if (space.kind === 'room') refuseEnded(space);
 
-    throw conflict('room_ended', 'A room exists only while a place stands in it, and this one ended with its last place.');
+    return space;
+  }
+
+  /** The space somebody is let into - by an invitation, as a member, with a link: an ended place refuses them as an ended room does. */
+  public async requireStanding(id: string): Promise<SpaceDocument> {
+    const space = await this.require(id);
+    refuseEnded(space);
+
+    return space;
   }
 
   /**

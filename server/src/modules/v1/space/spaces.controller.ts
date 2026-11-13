@@ -131,9 +131,10 @@ export class SpacesController {
     return this.spaces.remove(id);
   }
 
+  // Putting a place away and bringing it back write the instant a removal writes, so they are the owner's as that is.
   @Put(':id/archive')
   @UseGuards(AuthGuard, AccessGuard)
-  @Requires('manage', 'space')
+  @Requires('own', 'space')
   @ApiOperation({ summary: 'Put a space away without ending it' })
   @V1Answer(spaceShape)
   public archive(@Caller() ctx: AccessContext, @Param('id') id: string): Promise<Space> {
@@ -142,7 +143,7 @@ export class SpacesController {
 
   @Delete(':id/archive')
   @UseGuards(AuthGuard, AccessGuard)
-  @Requires('manage', 'space')
+  @Requires('own', 'space')
   @ApiOperation({ summary: 'Take a space back out of the archive' })
   @V1Answer(spaceShape)
   public unarchive(@Caller() ctx: AccessContext, @Param('id') id: string): Promise<Space> {

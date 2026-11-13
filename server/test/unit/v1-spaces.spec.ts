@@ -1173,8 +1173,8 @@ describe('who may do what', () => {
     expect(await allowedRoutes(admin())).toEqual(EVERY_ROUTE);
   });
 
-  /** What is the owner's stays the owner's: ending the place, saying which room it stands in, and taking a device out of every place. */
-  const THE_OWNERS = ['regroup', 'name its room', 'delete', 'take a device out'];
+  /** What is the owner's stays the owner's: ending the place or putting it away, saying which room it stands in, and taking a device out of every place. */
+  const THE_OWNERS = ['archive', 'unarchive', 'regroup', 'name its room', 'delete', 'take a device out'];
 
   it('lets a manager do everything but what is the owner´s', async () => {
     expect(await allowedRoutes(session(MANAGER))).toEqual(EVERY_ROUTE.filter(name => !THE_OWNERS.includes(name)));
@@ -1211,8 +1211,8 @@ describe('who may do what', () => {
     expect(needs).toEqual([
       { name: 'read', need: 'view', subject: 'space', param: 'id' },
       { name: 'update', need: 'manage', subject: 'space', param: 'id' },
-      { name: 'archive', need: 'manage', subject: 'space', param: 'id' },
-      { name: 'unarchive', need: 'manage', subject: 'space', param: 'id' },
+      { name: 'archive', need: 'own', subject: 'space', param: 'id' },
+      { name: 'unarchive', need: 'own', subject: 'space', param: 'id' },
       { name: 'regroup', need: 'manage', subject: 'space', param: 'id' },
       { name: 'name its room', need: 'manage', subject: 'space', param: 'id' },
       { name: 'delete', need: 'own', subject: 'space', param: 'id' },

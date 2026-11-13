@@ -103,8 +103,8 @@ export class ShareLinksService {
   public async create(ctx: AccessContext, body: ShareLinkCreate): Promise<ShareLink> {
     const createdBy = accountOf(ctx);
     await this.access.require(ctx, subjectRef(body.subject.type, body.subject.id), 'own');
-    // An ended room takes nothing, a key to it included.
-    if (body.subject.type === 'space') await this.places.requireOpen(body.subject.id);
+    // An ended room or place takes nothing, a key to it included.
+    if (body.subject.type === 'space') await this.places.requireStanding(body.subject.id);
 
     const range = dateRange(body.range ?? { startsAt: null, endsAt: null });
     const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;

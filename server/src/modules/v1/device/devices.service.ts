@@ -11,7 +11,7 @@ import { startedNow } from '@common/v1/firmware-instruction';
 import { movedTo } from '@common/v1/device-placements';
 import { conflict, notFound, unprocessable } from '@common/v1/problem';
 import { freeNameFor } from '@common/v1/space-names';
-import { withSpacesInside } from '@common/v1/rooms';
+import { refuseEnded, withSpacesInside } from '@common/v1/rooms';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
@@ -171,7 +171,7 @@ export class DevicesService {
         },
       ]);
     }
-    if (space && space.archivedAt !== null) throw conflict('space_archived', 'That place has ended, and nothing is put into an ended place.');
+    if (space) refuseEnded(space);
   }
 
   /**
@@ -225,7 +225,7 @@ export class DevicesService {
     // somebody does when a half-finished claim was interrupted, so it is worth
     // its own refusal: "belongs to somebody" reads as broken hardware when the
     // somebody is the person holding it.
-    if (device.ownerId === ownerId) throw conflict('device_already_yours', 'You have already added this device. It is on your Devices list.');
+    if (device.ownerId === ownerId) throw conflict('device_already_yours', 'You have already added this device. It is under Control.');
     if (device.ownerId !== null) throw conflict('device_claimed', 'That device already belongs to somebody.');
 
     const given = body.name ?? device.name ?? null;

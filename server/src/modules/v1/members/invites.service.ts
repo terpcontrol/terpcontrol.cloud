@@ -69,7 +69,7 @@ export class InvitesService {
    */
   public async create(ctx: AccessContext, spaceId: string, body: InviteCreate): Promise<Invite> {
     const createdBy = accountOf(ctx);
-    await this.spacesService.requireOpen(spaceId);
+    await this.spacesService.requireStanding(spaceId);
 
     const invite: InviteDocument = {
       id: uuidv4(),

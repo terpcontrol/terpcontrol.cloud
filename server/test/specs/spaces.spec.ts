@@ -1,7 +1,7 @@
 import { anonymous, createAccount, Session } from '../support/api';
 import { seedMeasurements } from '../support/control';
 import { provisionDevice } from '../support/device';
-import { joinSpace, seedRow } from '../support/fixtures';
+import { joinSpace, seedRow, setRow } from '../support/fixtures';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 
 /**
@@ -231,6 +231,28 @@ describe('what stands in a space', () => {
   });
 
   /**
+   * An ended place is on no screen, as an ended room is: whoever was let into
+   * it now could not be seen or sent away again, so its owner is refused each
+   * way in - whether the place was removed or put away.
+   */
+  it.each([
+    ['removed', (id: string) => owner.client.delete(`/v1/spaces/${id}`).expect(204)],
+    ['put away', (id: string) => owner.client.put(`/v1/spaces/${id}/archive`).expect(200)],
+  ])('refuses a place that was %s an invite, a member and a share link', async (how, end) => {
+    const id = await makeSpace(owner, { kind: 'tent', name: `A tent that was ${how}` });
+    await end(id);
+    const ended = { status: 409, code: 'space_archived', detail: 'That place has ended, and nothing is put into an ended place.' };
+
+    expect((await owner.client.post(`/v1/spaces/${id}/invites`).send({ role: 'can_log' }).expect(409)).body).toMatchObject(ended);
+    expect((await owner.client.post(`/v1/spaces/${id}/members`).send({ handle: stranger.handle, role: 'can_log' }).expect(409)).body).toMatchObject(
+      ended,
+    );
+    const link = { kind: 'view', subject: { type: 'space', id } };
+    expect((await owner.client.post('/v1/share-links').send(link).expect(409)).body).toMatchObject(ended);
+    await stranger.client.get(`/v1/spaces/${id}`).expect(404);
+  });
+
+  /**
    * What is the owner's stays the owner's: a guest who may manage a place
    * steers what stands in it and renames it, but does not take a device out of
    * every place - it would be on no screen but its owner's - and does not say
@@ -252,6 +274,12 @@ describe('what stands in a space', () => {
     }
     expect((await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId).toBe(tent.id);
     expect((await owner.client.get(`/v1/spaces/${tent.id}`).expect(200)).body.roomId).toBe(tent.roomId);
+    // Putting the place away writes what a removal writes, and bringing it back undoes one: neither is a manager's.
+    expect((await manager.client.put(`/v1/spaces/${tent.id}/archive`).expect(403)).body.code).toBe('insufficient_access');
+    expect((await owner.client.get(`/v1/spaces/${tent.id}`).expect(200)).body.archivedAt).toBeNull();
+    await setRow('spaces', { id: tent.id }, { archivedAt: new Date() });
+    expect((await manager.client.delete(`/v1/spaces/${tent.id}/archive`).expect(403)).body.code).toBe('insufficient_access');
+    expect((await owner.client.delete(`/v1/spaces/${tent.id}/archive`).expect(200)).body.archivedAt).toBeNull();
     // Its name and kind are still the manager's to change.
     await manager.client.patch(`/v1/spaces/${tent.id}`).send({ name: 'The well managed tent', kind: 'fridge' }).expect(200);
 
