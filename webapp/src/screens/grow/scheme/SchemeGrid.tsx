@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SchemeWeek } from '@fg2/shared-types/v1';
-import { dashFigure, looseFigure, typedFigure } from '@/ui/figures';
+import { dashFigure, looseFigure, typedFigure, unitShown } from '@/ui/figures';
 import { ecTargetAt, hasEcTargets, productsOf, type Product } from './grid';
+import ui from '@/ui/ui.module.css';
 import styles from './Scheme.module.css';
 
 interface SchemeGridProps {
@@ -35,10 +36,16 @@ interface SchemeGridProps {
  * The last row is the chart's EC target rather than a dose, and it is the one
  * row nobody types into: it is the doses and the water read back as a figure a
  * meter can be held against, so it is changed by changing one of those.
+ *
+ * What a cell cannot read - a word, a dose below nothing - is refused with a
+ * sentence under the grid naming the cell, and the cell keeps what it had:
+ * dropped silently, "abc" looked like a week nobody doses.
  */
 export function SchemeGrid({ grid, currentWeek, mayEdit, waterEc, picked, onPick, onChange }: SchemeGridProps) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState<{ week: number; productKey: string } | null>(null);
+  const [refused, setRefused] = useState<{ label: string; why: Refusal } | null>(null);
+  const refusal = useId();
   const current = useRef<HTMLTableCellElement>(null);
 
   useEffect(() => {
@@ -51,99 +58,115 @@ export function SchemeGrid({ grid, currentWeek, mayEdit, waterEc, picked, onPick
   const corner = commonUnit(products) ?? t('grow.scheme.perLitre');
 
   return (
-    <div className={styles.tableWrap}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th className={styles.corner} scope="col">
-              {corner}
-            </th>
-            {grid.map(week => (
-              <th
-                key={week.week}
-                className={styles.weekHead}
-                scope="col"
-                data-current={week.week === currentWeek}
-                ref={week.week === currentWeek ? current : null}
-              >
-                {t('grow.scheme.weekShort', { week: week.week })}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {products.map(product => (
-            <tr key={product.productKey}>
-              <th className={styles.rowHead} scope="row" data-picked={picked === product.productKey}>
-                {mayEdit ? (
-                  <button
-                    type="button"
-                    className={`${styles.cellButton} ${styles.rowName}`}
-                    onClick={() => onPick(picked === product.productKey ? null : product.productKey)}
-                  >
-                    {product.name}
-                  </button>
-                ) : (
-                  <span className={styles.rowName}>{product.name}</span>
-                )}
-                {product.unit !== corner ? <span className={styles.rowUnit}>{product.unit}</span> : null}
-              </th>
-              {grid.map(week => {
-                const value = week.amounts.find(amount => amount.productKey === product.productKey)?.value ?? null;
-                const label = t('grow.scheme.cellLabel', { product: product.name, week: week.week });
-                const open = editing?.week === week.week && editing.productKey === product.productKey;
-
-                return (
-                  <td key={week.week} className={styles.cell} data-current={week.week === currentWeek}>
-                    {open ? (
-                      <CellInput
-                        label={label}
-                        value={value}
-                        onDone={next => {
-                          if (next !== value) onChange(week.week, product, next);
-                          setEditing(null);
-                        }}
-                        onCancel={() => setEditing(null)}
-                      />
-                    ) : mayEdit ? (
-                      <button
-                        type="button"
-                        className={styles.cellButton}
-                        aria-label={label}
-                        onClick={() => setEditing({ week: week.week, productKey: product.productKey })}
-                      >
-                        {figure(value)}
-                      </button>
-                    ) : (
-                      <span className={value === null ? styles.empty : undefined}>{figure(value)}</span>
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-          {hasEcTargets(grid) ? (
+    <>
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
             <tr>
-              <th className={styles.rowHead} scope="row">
-                <span className={styles.rowName}>{t('grow.scheme.ecTarget')}</span>
-                <span className={styles.rowUnit}>{t('grow.scheme.ecUnit')}</span>
+              <th className={styles.corner} scope="col">
+                {unitShown(corner)}
               </th>
-              {grid.map(week => {
-                const target = ecTargetAt(week, waterEc);
-
-                return (
-                  <td key={week.week} className={styles.cell} data-current={week.week === currentWeek}>
-                    <span className={target === null ? styles.empty : undefined}>{dashFigure(target, 1)}</span>
-                  </td>
-                );
-              })}
+              {grid.map(week => (
+                <th
+                  key={week.week}
+                  className={styles.weekHead}
+                  scope="col"
+                  data-current={week.week === currentWeek}
+                  ref={week.week === currentWeek ? current : null}
+                >
+                  {t('grow.scheme.weekShort', { week: week.week })}
+                </th>
+              ))}
             </tr>
-          ) : null}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {products.map(product => (
+              <tr key={product.productKey}>
+                <th className={styles.rowHead} scope="row" data-picked={picked === product.productKey}>
+                  {mayEdit ? (
+                    <button
+                      type="button"
+                      className={`${styles.cellButton} ${styles.rowName}`}
+                      onClick={() => onPick(picked === product.productKey ? null : product.productKey)}
+                    >
+                      {product.name}
+                    </button>
+                  ) : (
+                    <span className={styles.rowName}>{product.name}</span>
+                  )}
+                  {product.unit !== corner ? <span className={styles.rowUnit}>{unitShown(product.unit)}</span> : null}
+                </th>
+                {grid.map(week => {
+                  const value = week.amounts.find(amount => amount.productKey === product.productKey)?.value ?? null;
+                  const label = t('grow.scheme.cellLabel', { product: product.name, week: week.week });
+                  const open = editing?.week === week.week && editing.productKey === product.productKey;
+
+                  return (
+                    <td key={week.week} className={styles.cell} data-current={week.week === currentWeek}>
+                      {open ? (
+                        <CellInput
+                          label={label}
+                          value={value}
+                          refusal={refused?.label === label ? refusal : null}
+                          onDone={next => {
+                            if (next !== value) onChange(week.week, product, next);
+                            setEditing(null);
+                            setRefused(null);
+                          }}
+                          onRefused={(why, left) => {
+                            setRefused({ label, why });
+                            if (left) setEditing(null);
+                          }}
+                          onCancel={() => setEditing(null)}
+                        />
+                      ) : mayEdit ? (
+                        <button
+                          type="button"
+                          className={styles.cellButton}
+                          aria-label={label}
+                          onClick={() => setEditing({ week: week.week, productKey: product.productKey })}
+                        >
+                          {figure(value)}
+                        </button>
+                      ) : (
+                        <span className={value === null ? styles.empty : undefined}>{figure(value)}</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+            {hasEcTargets(grid) ? (
+              <tr>
+                <th className={styles.rowHead} scope="row">
+                  <span className={styles.rowName}>{t('grow.scheme.ecTarget')}</span>
+                  <span className={styles.rowUnit}>{t('grow.scheme.ecUnit')}</span>
+                </th>
+                {grid.map(week => {
+                  const target = ecTargetAt(week, waterEc);
+
+                  return (
+                    <td key={week.week} className={styles.cell} data-current={week.week === currentWeek}>
+                      <span className={target === null ? styles.empty : undefined}>{dashFigure(target, 1)}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+      {refused ? (
+        <p id={refusal} className={ui.problem} role="alert">
+          {t(`grow.scheme.refused.${refused.why}`, { cell: refused.label })}
+        </p>
+      ) : null}
+    </>
   );
 }
+
+/** Why a cell refused what was typed into it. */
+type Refusal = 'number' | 'negative';
 
 /** The unit the most rows are measured in, or nothing at all where there are no rows. */
 const commonUnit = (products: Product[]): string | null => {
@@ -158,39 +181,50 @@ const figure = (value: number | null): string => (value === null ? '–' : loose
 /**
  * One cell, open. It commits when the cursor leaves it, so that tapping the
  * next cell records the one just typed rather than throwing it away; Escape is
- * the way to change nothing, and anything that is not a number is that too.
+ * the way to change nothing. What is not a dose is refused: Enter leaves the
+ * cell open on it, and leaving it closes the cell on what it had (`left`).
  */
 function CellInput({
   label,
   value,
+  refusal,
   onDone,
+  onRefused,
   onCancel,
 }: {
   label: string;
   value: number | null;
+  /** The sentence that refuses this cell's figure, where it stands. */
+  refusal: string | null;
   onDone: (value: number | null) => void;
+  onRefused: (why: Refusal, left: boolean) => void;
   onCancel: () => void;
 }) {
   const [text, setText] = useState(value === null ? '' : looseFigure(value));
 
-  const commit = () => {
+  const commit = (left: boolean) => {
     const trimmed = text.trim();
     if (trimmed === '') return onDone(null);
     const next = typedFigure(trimmed);
-    return next !== null && next >= 0 ? onDone(next) : onCancel();
+    if (next === null) return onRefused('number', left);
+    return next >= 0 ? onDone(next) : onRefused('negative', left);
   };
 
   return (
     <input
       className={styles.cellInput}
       aria-label={label}
+      aria-invalid={refusal !== null || undefined}
+      aria-describedby={refusal ?? undefined}
       inputMode="decimal"
+      // A field is twenty characters wide by itself, which widened the week's whole column the moment a cell opened.
+      size={4}
       autoFocus
       value={text}
       onChange={event => setText(event.target.value)}
-      onBlur={commit}
+      onBlur={() => commit(true)}
       onKeyDown={event => {
-        if (event.key === 'Enter') commit();
+        if (event.key === 'Enter') commit(false);
         if (event.key === 'Escape') onCancel();
       }}
     />

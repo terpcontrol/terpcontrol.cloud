@@ -73,9 +73,11 @@ button.circle:hover {
   border-color: var(--green-ink);
 }
 
+/* Done, in the soft green of something gone well: the brand's green is the one action a screen has, and a column of
+   done tasks filled with it was the loudest thing on the page. */
 .circle[data-filled='true'] {
-  background: var(--green-fill);
-  border-color: var(--green-fill);
+  background: var(--green-wash);
+  border-color: var(--green);
 }
 
 /* Both lines wrap rather than being cut: a task whose name does not fit is
@@ -131,15 +133,6 @@ button.circle:hover {
 }
 
 button.none {
-  cursor: pointer;
-}
-
-/* The dashed row that opens the sheet: a button in the shape of the lesser card. */
-.add {
-  width: 100%;
-  font-size: var(--text-sm);
-  color: var(--muted);
-  text-align: center;
   cursor: pointer;
 }
 

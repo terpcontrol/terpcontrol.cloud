@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import type { GrowListItem, HarvestResult, Plant } from '@fg2/shared-types/v1';
@@ -85,6 +85,14 @@ export function HarvestSheet({
   };
 
   const share = shareNote(t, cut.length, body.wetWeightG, body.dryWeightG);
+  // A weight the sheet cannot read is said by its field's name and holds the harvest back: sent as nothing, "abc" was a
+  // weight lost without a word.
+  const refusals = [
+    { label: t('grow.lifecycle.harvest.wet'), why: weightRefusal(wet) },
+    { label: t('grow.lifecycle.harvest.dry'), why: weightRefusal(dry) },
+  ];
+  const refused = refusals.find(one => one.why !== null) ?? null;
+  const refusal = useId();
 
   return (
     <Sheet title={t('grow.lifecycle.harvest.title', { name: grow.name })} onClose={onClose}>
@@ -94,10 +102,7 @@ export function HarvestSheet({
         ) : standing.length === 0 ? (
           <p className={ui.note}>{t('grow.lifecycle.harvest.nothingStanding')}</p>
         ) : (
-          <Block
-            label={t('grow.lifecycle.harvest.whatComesDown')}
-            aside={<span className="mono">{t('grow.lifecycle.harvest.standing', { count: standing.length })}</span>}
-          >
+          <Block label={t('grow.lifecycle.harvest.whatComesDown')} aside={t('grow.lifecycle.harvest.standing', { count: standing.length })}>
             <PlantPicker
               plants={plants}
               chosen={chosen}
@@ -111,15 +116,16 @@ export function HarvestSheet({
         )}
 
         {standing.length === 0 ? null : (
-          <Block
-            label={t('grow.lifecycle.harvest.weights')}
-            help="harvestWeights"
-            aside={<span className="mono">{t('grow.lifecycle.harvest.grams')}</span>}
-          >
+          <Block label={t('grow.lifecycle.harvest.weights')} help="harvestWeights" aside={t('grow.lifecycle.harvest.grams')}>
             <div className={ui.halves}>
-              <Weight label={t('grow.lifecycle.harvest.wet')} value={wet} onChange={setWet} />
-              <Weight label={t('grow.lifecycle.harvest.dry')} value={dry} onChange={setDry} />
+              <Weight label={refusals[0].label} value={wet} onChange={setWet} refusal={refusals[0].why ? refusal : null} />
+              <Weight label={refusals[1].label} value={dry} onChange={setDry} refusal={refusals[1].why ? refusal : null} />
             </div>
+            {refused ? (
+              <p id={refusal} className={ui.problem} role="alert">
+                {t(refused.why === 'number' ? 'log.readingNoNumber' : 'grow.lifecycle.harvest.belowZero', { name: refused.label })}
+              </p>
+            ) : null}
             {/* What a typed weight comes to per plant; that both may stay empty is behind the help. */}
             {share ? <p className={ui.note}>{share}</p> : null}
           </Block>
@@ -138,7 +144,8 @@ export function HarvestSheet({
           <button
             type="button"
             className={`${ui.button} ${ui.primary} ${styles.submit}`}
-            disabled={harvest.isPending || cut.length === 0}
+            disabled={harvest.isPending || cut.length === 0 || refused !== null}
+            aria-describedby={refused ? refusal : undefined}
             onClick={() =>
               harvest.mutate(body, {
                 onSuccess: result => {
@@ -167,7 +174,7 @@ export function HarvestSheet({
                 <li key={plant.id} className={styles.row}>
                   <div className={ui.headRow}>
                     <span className={styles.rowTitle}>{plant.label}</span>
-                    <span className={`mono ${styles.rowMeta}`}>{weightLine(t, plant)}</span>
+                    <span className={styles.rowMeta}>{weightLine(t, plant)}</span>
                   </div>
                 </li>
               ))}
@@ -182,7 +189,7 @@ export function HarvestSheet({
                 <li key={plant.id} className={styles.row} data-dim>
                   <div className={ui.headRow}>
                     <span className={styles.rowTitle}>{plant.label}</span>
-                    <span className={`mono ${styles.rowMeta}`}>
+                    <span className={styles.rowMeta}>
                       {plant.harvest ? calendarDay(plant.harvest.harvestedAt, zone) : ''} · {weightLine(t, plant)}
                     </span>
                   </div>
@@ -242,7 +249,18 @@ function NothingPlanted({ grow, onClose }: { grow: GrowListItem; onClose: () => 
   );
 }
 
-function Weight({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function Weight({
+  label,
+  value,
+  onChange,
+  refusal,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  /** The sentence that refuses what was typed here, where there is one. */
+  refusal: string | null;
+}) {
   return (
     <label className={`${ui.card} ${styles.weight}`}>
       <span className={styles.weightLabel}>{label}</span>
@@ -250,12 +268,21 @@ function Weight({ label, value, onChange }: { label: string; value: string; onCh
         className={`figure ${styles.weightInput}`}
         inputMode="decimal"
         placeholder="—"
+        aria-invalid={refusal !== null || undefined}
+        aria-describedby={refusal ?? undefined}
         value={value}
         onChange={event => onChange(event.target.value)}
       />
     </label>
   );
 }
+
+/** Why a typed weight cannot be sent, or null where it can: nothing typed is no weight, which is allowed. */
+const weightRefusal = (typed: string): 'number' | 'negative' | null => {
+  if (typed.trim() === '') return null;
+  const value = typedFigure(typed);
+  return value === null ? 'number' : value < 0 ? 'negative' : null;
+};
 
 /** "300 g wet over 3 plants · 100 g each": what the server will do with the total, before it does it. */
 const shareNote = (t: Translate, count: number, wet: number | null, dry: number | null): string => {

@@ -251,7 +251,7 @@ describe('the groups', () => {
     expect(screen.getByText(reading('every 3 days · Spring run · 2 L · today'))).toBeInTheDocument();
     // The kind reads as the lowercase word the rest of the line is written in,
     // and a custom reminder, whose label already says everything, names none.
-    expect(screen.getByText(reading('every 30 days · Tent 1 · chore · tomorrow'))).toBeInTheDocument();
+    expect(screen.getByText(reading('every 30 days · Tent 1 · Chore · tomorrow'))).toBeInTheDocument();
     expect(screen.getByText(reading('grow plan · Tent 1 · in 2 d'))).toBeInTheDocument();
     expect(screen.getByText(reading('every 3 days · Spring run · 2 L · 2 days overdue'))).toBeInTheDocument();
     expect(screen.getByText(reading('you · Spring run · yesterday 19:40'))).toBeInTheDocument();
@@ -357,7 +357,7 @@ describe('the rhythms', () => {
     await drawLoaded();
 
     const row = section('Rhythms').getByText('Check the inline filter').closest('li')!;
-    expect(within(row).getByText(reading('every 90 days · Tent 1 · chore'))).toBeInTheDocument();
+    expect(within(row).getByText(reading('every 90 days · Tent 1 · Chore'))).toBeInTheDocument();
     // Nothing is due of it, so it is on the screen once and only here.
     expect(screen.getAllByText('Check the inline filter')).toHaveLength(1);
 
@@ -369,7 +369,7 @@ describe('the rhythms', () => {
     state.rhythms = [reminder({ id: 'rem-8', label: 'Repot', everyDays: null, onceAt: daysFromNow(40), defaults: null })];
     await drawLoaded();
 
-    expect(section('Rhythms').getByText(reading(/^once on 26 Oct 2026 · Spring run · water$/))).toBeInTheDocument();
+    expect(section('Rhythms').getByText(reading(/^once on 26 Oct 2026 · Spring run · Water$/))).toBeInTheDocument();
   });
 
   it('is still there on a week with nothing due at all, which is the week a rhythm disappeared in', async () => {
@@ -432,8 +432,8 @@ describe('a one-off rhythm read from behind the account', () => {
     // A week from the account's own today, and the day a week from it. Read on
     // the reader's calendar the line said "29 Sep 2026" beside the same card's
     // "in 7 d", which is one reminder on two days in one glance.
-    expect(section('This week').getByText(reading(/^once · Spring run · chore · in 7 d$/))).toBeInTheDocument();
-    expect(section('Rhythms').getByText(reading(/^once on 30 Sep 2026 · Spring run · chore$/))).toBeInTheDocument();
+    expect(section('This week').getByText(reading(/^once · Spring run · Chore · in 7 d$/))).toBeInTheDocument();
+    expect(section('Rhythms').getByText(reading(/^once on 30 Sep 2026 · Spring run · Chore$/))).toBeInTheDocument();
   });
 
   it('is asked before it is deleted without a rhythm being named, since it has none', async () => {
@@ -595,6 +595,31 @@ describe('a reminder', () => {
       }),
     );
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New reminder' })).not.toBeInTheDocument());
+  });
+
+  /** A reminder to water could not be saved until "Water" was typed a second time, and the greyed Save said nothing. */
+  it('is called by its kind unless it is named, and says beside Save what Save still waits for', async () => {
+    await drawLoaded();
+    fireEvent.click(screen.getByRole('button', { name: '+ Reminder' }));
+    const sheet = screen.getByRole('dialog', { name: 'New reminder' });
+    const save = within(sheet).getByRole('button', { name: 'Save' });
+
+    // Watering is the kind it opens on, and names it: what is missing is what it is about.
+    expect(within(sheet).getByRole('textbox', { name: 'What to do' })).toHaveAttribute('placeholder', 'Water');
+    expect(save).toBeDisabled();
+    expect(save).toHaveAccessibleDescription('To save, choose what it is about: a grow or a place.');
+
+    // A chore names nothing, so then the name is what is missing.
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Chore' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Tent 1' }));
+    expect(save).toHaveAccessibleDescription('To save, say what is to be done.');
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Water' }));
+    expect(save).toBeEnabled();
+    expect(within(sheet).queryByText(/^To save/)).not.toBeInTheDocument();
+    fireEvent.click(save);
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/reminders', expect.objectContaining({ kind: 'water', label: 'Water' })));
   });
 
   it('answers a new one with a toast that names it, and Undo deletes it again', async () => {

@@ -189,7 +189,8 @@ describe('the feeding tab', () => {
     expect(screen.getByRole('columnheader', { name: 'w1' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'w5' })).toHaveAttribute('data-current', 'true');
     expect(screen.getByRole('rowheader', { name: /Bio·Grow/ })).toBeInTheDocument();
-    expect(screen.getByRole('rowheader', { name: /Cal·Mag/ })).toHaveTextContent('g/l');
+    // The litre is drawn a capital: the face's small "l" reads as an "I". The stored unit stays "g/l".
+    expect(screen.getByRole('rowheader', { name: /Cal·Mag/ })).toHaveTextContent('g/L');
     expect(screen.getByRole('button', { name: 'Bio·Bloom, week 5' })).toHaveTextContent('2');
     // A week the row is not dosed in is "not this week" rather than nothing at all.
     expect(screen.getByRole('button', { name: 'Bio·Grow, week 5' })).toHaveTextContent('–');
@@ -266,7 +267,8 @@ describe('the feeding tab', () => {
   });
 
   /** A scheme chosen is drawn at once and feeds nothing until it is saved: the bar that says so comes with it, without a reload. */
-  it('says a scheme just chosen is not saved, with the two ways out, and saves it from there', async () => {
+  /** A scheme chosen is one decision with a button of its own: written at once, answered with the way back. */
+  it('saves a scheme as it is chosen, answers with its name and offers the grow as it stood', async () => {
     draw(growOn(null));
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose a scheme' }));
@@ -274,15 +276,10 @@ describe('the feeding tab', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Switch to this scheme' })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: 'Switch to this scheme' }));
 
-    expect(await screen.findByRole('table')).toBeInTheDocument();
-    expect(screen.getByText('not saved')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Discard' })).toBeInTheDocument();
-    expect(patched()).toHaveLength(0);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(told).toHaveLength(1));
+    expect(patched()).toHaveLength(1);
     // Taking it back leaves the grow as it stood: on no scheme.
-    expect(told[0]).toMatchObject({ label: 'Feeding scheme saved', undone: 'Grow without a feeding scheme' });
+    expect(told[0]).toMatchObject({ label: expect.stringMatching(/^Feeding scheme: Biobizz/), undone: 'Grow without a feeding scheme' });
     expect(screen.queryByText('not saved')).not.toBeInTheDocument();
   });
 
@@ -297,6 +294,33 @@ describe('the feeding tab', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('This grow already measures that.');
     expect(screen.getByRole('button', { name: 'Bio·Grow, week 1' })).toHaveTextContent('2');
+  });
+
+  /** "abc" in a cell became a week nobody doses, without a word: what is not a dose is refused, naming the cell. */
+  it('refuses a dose it cannot read, names the cell, and keeps what the cell had', async () => {
+    await drawn();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bio·Grow, week 1' }));
+    const cell = screen.getByLabelText('Bio·Grow, week 1');
+    fireEvent.change(cell, { target: { value: 'abc' } });
+    fireEvent.keyDown(cell, { key: 'Enter' });
+
+    // Enter leaves the cell open on what was typed, the sentence under the grid says why.
+    expect(screen.getByRole('alert')).toHaveTextContent('Bio·Grow, week 1: that is not a number. The cell stays as it was.');
+    expect(screen.getByLabelText('Bio·Grow, week 1')).toHaveAttribute('aria-invalid', 'true');
+
+    // Leaving it closes it on what it had, and the sentence stays.
+    fireEvent.change(cell, { target: { value: '-2' } });
+    fireEvent.blur(cell);
+    expect(screen.getByRole('alert')).toHaveTextContent('Bio·Grow, week 1: a dose is 0 or more.');
+    expect(screen.getByRole('button', { name: 'Bio·Grow, week 1' })).toHaveTextContent(/^1$/);
+    expect(screen.queryByText('not saved')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bio·Grow, week 1' }));
+    fireEvent.change(screen.getByLabelText('Bio·Grow, week 1'), { target: { value: '1,5' } });
+    fireEvent.blur(screen.getByLabelText('Bio·Grow, week 1'));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Bio·Grow, week 1' })).toHaveTextContent('1.5');
   });
 
   it('adds a product to every week at once, and takes one away again', async () => {

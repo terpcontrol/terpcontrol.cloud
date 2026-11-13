@@ -94,7 +94,7 @@ export function Measurements() {
       <header className={ui.row2}>
         <BackLink to={`/grows/${growId}`} label={t('grow.measurements.back')} />
         <h1>{t('grow.measurements.title')}</h1>
-        <span className={`mono ${styles.growName}`}>{grow.data.name}</span>
+        <span className={styles.growName}>{grow.data.name}</span>
       </header>
 
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
@@ -110,7 +110,7 @@ export function Measurements() {
 
       <header className={styles.sectionHead}>
         <span className="label">{t('grow.measurements.yours')}</span>
-        <span className={`mono ${styles.aside}`}>{t('grow.measurements.chartHint')}</span>
+        <span className={styles.aside}>{t('grow.measurements.chartHint')}</span>
       </header>
 
       {definitions.length === 0 ? (
@@ -137,7 +137,7 @@ export function Measurements() {
         <>
           <header className={styles.sectionHead}>
             <span className="label">{t('grow.measurements.templates')}</span>
-            <span className={`mono ${styles.aside}`}>{t('grow.measurements.tapToAdd')}</span>
+            <span className={styles.aside}>{t('grow.measurements.tapToAdd')}</span>
           </header>
           <div className={`${ui.wrap} ${styles.templates}`} role="group" aria-label={t('grow.measurements.templates')}>
             {TEMPLATES.map(template => {
@@ -217,9 +217,9 @@ function Card({ definition, mayManage, onEdit, onFlip, points, stretch }: CardPr
       >
         <span className={styles.name}>
           {definition.name}
-          {definition.unit ? <span className={`mono ${styles.unit}`}> · {definition.unit}</span> : null}
+          {definition.unit ? <span className={styles.unit}> · {definition.unit}</span> : null}
         </span>
-        <span className={`mono ${styles.facts}`}>{facts.join(' · ')}</span>
+        <span className={styles.facts}>{facts.join(' · ')}</span>
       </button>
       {/* Held rather than hidden for a session that may only look: which
           measurements a grow draws is part of reading it. */}
@@ -274,7 +274,7 @@ function Curve({ definition, points, stretch }: Pick<CardProps, 'definition' | '
         <span>{zonedAt(stretch.from, zone).toFormat(DAY_IN_YEAR)}</span>
         <span>{stretch.ended ? zonedAt(stretch.to, zone).toFormat(DAY_IN_YEAR) : t('grow.diary.today')}</span>
       </p>
-      <figcaption className="mono">
+      <figcaption>
         {curve.points.length === 1
           ? t('grow.measurements.curve.one', { last: written(last) })
           : t('grow.measurements.curve.span', { low: curve.written(curve.low), high: curve.written(curve.high), last: written(last) })}

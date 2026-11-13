@@ -55,7 +55,6 @@
   border: 0;
   padding: 0;
   color: var(--ink);
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
 }
 
@@ -73,7 +72,6 @@
 .waterKind {
   flex: none;
   color: var(--muted);
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
 }
 
@@ -93,7 +91,6 @@
   border-collapse: collapse;
   width: max-content;
   min-width: 100%;
-  font-family: var(--font-figure);
   font-size: var(--text-xs);
 }
 
@@ -102,9 +99,14 @@
 .rowHead,
 .cell {
   border-bottom: var(--rule-solid);
-  padding: var(--space-2) var(--space-1);
+  padding: var(--space-1);
   text-align: center;
   white-space: nowrap;
+}
+
+/* The doses stand under one another week by week: digits of one width. A week's head ("W1") and a product's name stand
+   alone, in the face's own. */
+.cell {
   font-family: var(--font-figure);
 }
 
@@ -180,8 +182,11 @@
   color: var(--green-ink);
 }
 
+/* A finger's target, as every repeated action is: a week's cell is tapped more than anything else in the grid. */
 .cellButton {
   width: 100%;
+  min-width: var(--action-height);
+  min-height: var(--action-height);
   background: none;
   border: 0;
   padding: var(--space-1) var(--space-2);
@@ -197,6 +202,7 @@
 .cellInput {
   width: 100%;
   min-width: 44px;
+  min-height: var(--action-height);
   background: var(--card);
   border: 1.5px solid var(--brand);
   border-radius: var(--radius-xs);
@@ -260,7 +266,6 @@
   border: var(--rule-solid);
   border-radius: var(--radius);
   color: var(--ink);
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
 }
 

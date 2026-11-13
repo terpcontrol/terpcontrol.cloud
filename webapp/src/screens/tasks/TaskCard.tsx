@@ -76,7 +76,7 @@ export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEd
         )}
         <span className={ui.textColumn}>
           <span className={styles.cardTitle}>{title}</span>
-          <Facts className={`mono ${styles.meta}`} facts={metaLine(t, task, name, reminder, now, zone)} />
+          <Facts className={styles.meta} facts={metaLine(t, task, name, reminder, now, zone)} />
         </span>
         {onEdit ? (
           <button type="button" className={`${ui.chip} ${styles.edit}`} onClick={onEdit}>
@@ -144,7 +144,7 @@ export function DoneCard({ task, name, by, me, now }: { task: Task; name: string
         <span className={styles.circle} data-filled="true" aria-hidden />
         <span className={ui.textColumn}>
           <span className={styles.cardTitle}>{titleOf(t, task)}</span>
-          <Facts className={`mono ${styles.meta}`} facts={[who, name, at]} />
+          <Facts className={styles.meta} facts={[who, name, at]} />
         </span>
         <Assignee task={task} me={me} />
       </div>
@@ -182,7 +182,7 @@ export function RhythmCard({
   const parts = [
     reminder.everyDays ? t('tasks.every', { count: reminder.everyDays }) : t('tasks.onceOn', { date: onceLabel(reminder.onceAt!, language, zone) }),
     name,
-    reminder.kind === 'custom' ? null : t(`tasks.kindMeta.${reminder.kind}`),
+    kindAside(t, reminder.kind, reminder.label),
   ];
 
   return (
@@ -190,7 +190,7 @@ export function RhythmCard({
       <div className={ui.row3}>
         <span className={ui.textColumn}>
           <span className={styles.cardTitle}>{reminder.label}</span>
-          <Facts className={`mono ${styles.meta}`} facts={parts} />
+          <Facts className={styles.meta} facts={parts} />
         </span>
         {onEdit ? (
           <button type="button" className={`${ui.chip} ${styles.edit}`} onClick={onEdit}>
@@ -214,7 +214,7 @@ function Assignee({ task, me }: { task: Task; me: SessionUser | null }) {
 
   if (me && task.assigneeId === me.id) {
     return (
-      <span className={`mono ${styles.avatar}`} role="img" aria-label={t('tasks.assignedToYou')}>
+      <span className={styles.avatar} role="img" aria-label={t('tasks.assignedToYou')}>
         {initials(me.handle)}
       </span>
     );
@@ -235,7 +235,18 @@ function Assignee({ task, me }: { task: Task; me: SessionUser | null }) {
  */
 const titleOf = (t: Translate, task: Task): string => (task.source === 'plan_step' ? t('tasks.planStepTitle', { label: task.label }) : task.label);
 
-/** "every 3 d · Spring run · water · 2 L · today", or "grow plan · Tent 1 · in 2 d": where the task came from, which place it is about, then when it is due. */
+/**
+ * The kind beside a reminder's or a task's name, by the name the sheet gives it ("Gießen"): only where there is one
+ * to name - "custom" is what a reminder is called when its label says everything - and not where the label says it
+ * already, which "Gießen · … · gießen" did twice.
+ */
+const kindAside = (t: Translate, kind: Task['kind'], label: string): string | null => {
+  if (kind === 'custom') return null;
+  const word = t(`tasks.kind.${kind}`);
+  return label.toLowerCase().includes(word.toLowerCase()) ? null : word;
+};
+
+/** "every 3 d · Spring run · Water · 2 L · today", or "grow plan · Tent 1 · in 2 d": where the task came from, which place it is about, then when it is due. */
 const metaLine = (t: Translate, task: Task, name: string | null, reminder: Reminder | null, now: DateTime, zone: string | null): string[] => {
   const parts: string[] = [];
 
@@ -245,11 +256,8 @@ const metaLine = (t: Translate, task: Task, name: string | null, reminder: Remin
   } else {
     if (reminder) parts.push(reminder.everyDays ? t('tasks.every', { count: reminder.everyDays }) : t('tasks.once'));
     if (name) parts.push(name);
-    // A category of its own only where there is one to name: "custom" is what a
-    // reminder is called when its label already says everything about it.
-    // Nor where the label says it already: "Gießen · … · gießen" said it twice.
-    const kind = task.kind === 'custom' ? null : t(`tasks.kindMeta.${task.kind}`);
-    if (kind && !task.label.toLowerCase().includes(kind.toLowerCase())) parts.push(kind);
+    const kind = kindAside(t, task.kind, task.label);
+    if (kind) parts.push(kind);
     const litres = litresOf(task.defaults);
     if (litres !== null) parts.push(t('log.litres', { litres: looseFigure(litres) }));
   }

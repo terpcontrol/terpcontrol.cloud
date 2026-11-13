@@ -10,7 +10,7 @@ import { isBuilding, useMedia } from '@/api/media';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { useCorrecting } from '@/log/corrections';
 import { durationFigure } from '@/ui/age';
-import { dayNightFigure, decimalFigure, fileSize } from '@/ui/figures';
+import { dayNightFigure, decimalFigure, fileSize, looseFigure } from '@/ui/figures';
 import { growDayOf } from '@/ui/entries';
 import { Facts } from '@/ui/Facts';
 import { Term } from '@/ui/Help';
@@ -66,18 +66,23 @@ export function Report({
       <RefreshFailed failedAt={report.isError ? report.dataUpdatedAt : null} now={now} />
 
       <dl className={`${ui.strip} ${ui.stripEven} ${styles.totals}`}>
-        <Total value={report.data.dayCount} label={t('grow.report.days')} />
-        <Total value={totals.entryCount} label={t('grow.report.entries')} />
-        <Total value={totals.waterCount} label={t('grow.report.waters')} />
-        <Total value={totals.feedCount} label={t('grow.report.feeds')} />
-        <Total value={totals.photoCount} label={t('grow.report.photos')} to={totals.photoCount > 0 ? picturesTo : undefined} />
+        {/* Each label counts its own figure: "1 day", not "1 days". */}
+        <Total value={report.data.dayCount} label={t('grow.report.days', { count: report.data.dayCount })} />
+        <Total value={totals.entryCount} label={t('grow.report.entries', { count: totals.entryCount })} />
+        <Total value={totals.waterCount} label={t('grow.report.waters', { count: totals.waterCount })} />
+        <Total value={totals.feedCount} label={t('grow.report.feeds', { count: totals.feedCount })} />
+        <Total
+          value={totals.photoCount}
+          label={t('grow.report.photos', { count: totals.photoCount })}
+          to={totals.photoCount > 0 ? picturesTo : undefined}
+        />
       </dl>
 
       {harvest ? (
-        <p className={`mono ${styles.harvest}`}>
+        <p className={styles.harvest}>
           {t('grow.report.harvest')}
-          {harvest.wetWeightG !== null ? ` · ${t('grow.report.wet', { grams: harvest.wetWeightG })}` : ''}
-          {harvest.dryWeightG !== null ? ` · ${t('grow.report.dry', { grams: harvest.dryWeightG })}` : ''}
+          {harvest.wetWeightG !== null ? ` · ${t('grow.report.wet', { grams: looseFigure(harvest.wetWeightG) })}` : ''}
+          {harvest.dryWeightG !== null ? ` · ${t('grow.report.dry', { grams: looseFigure(harvest.dryWeightG) })}` : ''}
         </p>
       ) : null}
 
@@ -129,7 +134,7 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
         {/* The climate is in it only where a device measured one. */}
         <p className={ui.note}>{t(steering ? 'grow.report.export.note' : 'grow.report.export.noteNoClimate')}</p>
         {status === 'queued' || status === 'rendering' ? (
-          <p className={`mono ${styles.exportStatus}`} role="status">
+          <p className={styles.exportStatus} role="status">
             {t(`grow.report.export.${status}`)}
           </p>
         ) : null}
@@ -220,7 +225,7 @@ function Chapter({
       <div className={styles.chapterText}>
         <h2 className={styles.chapterTitle}>{stageLabel(t, chapter.stage, chapter.preset)}</h2>
         <Facts
-          className={`mono ${styles.chapterMeta}`}
+          className={styles.chapterMeta}
           facts={[
             chapter.dayTo === null
               ? t('grow.report.dayFromToToday', { from: chapter.dayFrom })
@@ -236,7 +241,7 @@ function Chapter({
             the day and night split this line is already drawn from. */}
         {temperature ? (
           <Facts
-            className={`mono ${styles.chapterMeta}`}
+            className={styles.chapterMeta}
             facts={[
               `${dayNightFigure(temperature, 1)} °C`,
               humidity?.averageValue !== null && humidity !== undefined ? `${decimalFigure(humidity.averageValue, 0)} %` : null,
@@ -250,7 +255,7 @@ function Chapter({
           />
         ) : null}
         <Facts
-          className={`mono ${styles.chapterMeta}`}
+          className={styles.chapterMeta}
           facts={[t('grow.report.waterCount', { count: chapter.waterCount }), t('grow.report.feedCount', { count: chapter.feedCount })]}
         />
       </div>

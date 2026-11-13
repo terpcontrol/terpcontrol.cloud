@@ -104,7 +104,7 @@ export function MeasurementSheet({ grow, definition, readings, onClose }: Measur
             onChange={event => change({ name: event.target.value })}
           />
           <input
-            className={`mono ${ui.input}`}
+            className={ui.input}
             value={draft.unit}
             placeholder={t('grow.measurements.sheet.unitPlaceholder')}
             aria-label={t('grow.measurements.sheet.unit')}

@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { figure, targetFigure } from '@/ui/units';
-import { decimalFigure, looseFigure, typedFigure } from '@/ui/figures';
+import { decimalFigure, looseFigure, typedFigure, unitShown } from '@/ui/figures';
 
 /**
  * A reading is written in the reader's language, not in the one the code was
@@ -59,6 +59,19 @@ describe('a figure in the reader´s language', () => {
  * any other reason to know what language it is being read in. Asking for it as
  * an argument is what left the app patching call sites one at a time.
  */
+/** The face's small "l" reads as a capital "I": a litre is drawn "L", while the scheme's stored unit stays as published. */
+describe('the litre as it is drawn', () => {
+  it('is a capital L alone and per litre, and leaves every other letter alone', () => {
+    expect(unitShown('l')).toBe('L');
+    expect(unitShown('ml/l')).toBe('ml/L');
+    expect(unitShown('g/l')).toBe('g/L');
+    expect(unitShown('ml')).toBe('ml');
+    expect(unitShown('cl')).toBe('cl');
+    expect(unitShown('L')).toBe('L');
+    expect(unitShown('lux')).toBe('lux');
+  });
+});
+
 describe('which language that is', () => {
   const was = i18next.language;
 

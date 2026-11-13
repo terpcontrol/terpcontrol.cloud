@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Route, Routes } from 'react-router';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
@@ -451,6 +451,19 @@ describe('the Measure sheet', () => {
 
     fireEvent.keyDown(document, { key: 'Backspace' });
     expect(screen.getByRole('status')).toHaveTextContent('82.');
+  });
+
+  /** The key said "," and the figure said "1.85": a German reader sees the comma the key carries, in the field and on its chip. */
+  it('writes what is typed with the reader´s decimal mark, in the figure and on the chip', async () => {
+    await translate(['en', 'de'], 'de');
+    onTestFinished(() => translate());
+    draw(<MeasureSheet target={target} onClose={() => {}} />);
+    await screen.findByRole('button', { name: /Height/ });
+
+    for (const key of ['1', ',', '8', '5']) fireEvent.click(screen.getByRole('button', { name: key }));
+    expect(screen.getByRole('status')).toHaveTextContent('1,85');
+    expect(screen.getByRole('button', { name: /Height/ })).toHaveTextContent('1,85');
+    expect(screen.getByRole('status')).not.toHaveTextContent('1.85');
   });
 
   it('says a reading belongs to a grow where there is none, and offers to start one', async () => {

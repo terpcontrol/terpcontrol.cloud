@@ -112,8 +112,12 @@
 }
 
 /* A count that opens what it counts: underlined like a link, in the figure's own size. */
+/* A finger's target round a figure of one or two digits, without moving the strip: the margin takes back the padding. */
 .totalOpen {
-  padding: 0;
+  display: inline-block;
+  min-width: var(--action-height);
+  padding: 5px var(--space-3);
+  margin: -5px calc(-1 * var(--space-3));
   background: none;
   border: 0;
   font: inherit;

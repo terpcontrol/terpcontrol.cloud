@@ -217,7 +217,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
           <section key={group} className={`${ui.stack2} ${styles.group}`} aria-label={t(`tasks.group.${group}`)}>
             <header className={ui.headRow}>
               <span className="label">{t(`tasks.group.${group}`)}</span>
-              {group === 'today' ? <span className={`mono ${styles.groupAside}`}>{dateLabel(nowThere(now, zone), i18n.language)}</span> : null}
+              {group === 'today' ? <span className={styles.groupAside}>{dateLabel(nowThere(now, zone), i18n.language)}</span> : null}
             </header>
             <ul className={ui.group}>
               {members.map(task => {
@@ -246,9 +246,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
         <section className={`${ui.stack2} ${styles.group}`} aria-label={t('tasks.group.done')}>
           <header className={ui.headRow}>
             <span className="label">{t('tasks.group.done')}</span>
-            <span className={`mono ${styles.groupAside}`}>
-              {dayLabel(t, ticked[0].completion?.occurredAt ?? now.toISO()!, now, i18n.language, zone)}
-            </span>
+            <span className={styles.groupAside}>{dayLabel(t, ticked[0].completion?.occurredAt ?? now.toISO()!, now, i18n.language, zone)}</span>
           </header>
           <ul className={ui.group}>
             {ticked.map(task => (
@@ -267,7 +265,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
               {t('tasks.group.rhythms')}
               <Help topic="rhythms" />
             </span>
-            <span className={`mono ${styles.groupAside}`}>{t('tasks.rhythmsAside')}</span>
+            <span className={styles.groupAside}>{t('tasks.rhythmsAside')}</span>
           </header>
           <ul className={ui.group}>
             {rhythms.map(reminder => (
@@ -286,7 +284,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
       {/* A rhythm has to hang on a grow or a place this account manages; with
           none of either there is nothing the sheet could write. */}
       {mayManage && (reminderGrows.length > 0 || reminderSpaces.length > 0) ? (
-        <button type="button" className={`${ui.cardDashed} ${styles.add}`} onClick={() => setEditing({ reminder: null })}>
+        <button type="button" className={ui.button} onClick={() => setEditing({ reminder: null })}>
           {t('tasks.add')}
         </button>
       ) : null}

@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus } from 'lucide-react';
 import { DateTime } from 'luxon';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   Entry,
@@ -18,6 +18,7 @@ import { correctEntry, diaryChanged, startPhase, takeEntryBack, useRecentEntries
 import { api } from '@/api/client';
 import { useGrow } from '@/api/grows';
 import { useHome } from '@/api/home';
+import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import type { Translate } from '@/i18n/i18n';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
@@ -27,8 +28,9 @@ import { climateRequest, defaultPick, KEEP_CLIMATE, usePlaceController, type Pha
 import { Facts } from '@/ui/Facts';
 import { factsOf, unbroken } from '@/ui/fact-text';
 import { Asking } from '@/ui/Asking';
-import { looseFigure, typedFigure } from '@/ui/figures';
+import { looseFigure, typedFigure, unitShown } from '@/ui/figures';
 import { Help } from '@/ui/Help';
+import { PictureStrip, PictureViewer } from '@/ui/PictureViewer';
 import { useMayManage } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
@@ -114,9 +116,17 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
   const [litres, setLitres] = useState<number | null>(entry ? litresOf(entry) : opensOn);
   // What stands in the field while it is typed in: "4," is not a figure yet and must not be put right under the finger.
   const [typedLitres, setTypedLitres] = useState<string | null>(null);
-  // Refused with a word rather than dropped: what was typed is no number, or more water than a tent takes at once.
-  const notANumber = typedLitres !== null && typedLitres.trim() !== '' && typedFigure(typedLitres) === null;
-  const refusedLitres = notANumber ? 'log.litresNoNumber' : litres !== null && litres > MAX_LITRES ? 'log.litresTooMuch' : null;
+  // Refused with a word rather than dropped: what was typed is no number, no amount at all, or more water than a
+  // tent takes at once. What is refused stays in the field as it was typed.
+  const typedValue = typedLitres !== null && typedLitres.trim() !== '' ? typedFigure(typedLitres) : undefined;
+  const refusedLitres =
+    typedValue === null
+      ? 'log.litresNoNumber'
+      : typedValue !== undefined && typedValue <= 0
+        ? 'log.litresBelow'
+        : (litres ?? 0) > MAX_LITRES
+          ? 'log.litresTooMuch'
+          : null;
   const begins = useGrowBegins(grow, target);
   const [readings, setReadings] = useState<Record<string, string>>(() => typed(readingsOf(entry)));
   const [shown, setShown] = useState<string[]>(() => firstFields(definitions, readingsOf(entry)));
@@ -131,6 +141,9 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
   const placeController = usePlaceController(target.spaceId ?? target.standsIn);
   const climate = picked ?? (stage ? defaultPick(stage, placeController) : KEEP_CLIMATE);
   const [saving, setSaving] = useState(false);
+  /** The corner's pop-up stands open on a moment it refuses: nothing is saved under a moment nobody chose. */
+  const [refusedMoment, setRefusedMoment] = useState(false);
+  const [viewing, setViewing] = useState<number | null>(null);
   /** Which of the two writes went wrong, so the line under the button says the right thing. */
   const [failed, setFailed] = useState<'save' | 'back' | null>(null);
   const [askingBack, setAskingBack] = useState(false);
@@ -146,6 +159,13 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
   // A note is its words: one without any says nothing and is not written.
   const nothingSaid = kind === 'note' && text.trim() === '';
   const doses = dosesOf(grow, litres, at);
+  // A reading that was typed and is no number is said to be none, by its name: left out silently it was a figure lost.
+  const unread = showsReadings ? shown.find(key => (readings[key] ?? '').trim() !== '' && typedFigure(readings[key]) === null) : undefined;
+  const unreadName = unread === undefined ? null : (definitions.find(one => one.key === unread)?.name ?? unread);
+  // The sentence that refuses a figure describes its field and the Save it holds back, so a screen reader hears why.
+  const refusal = useId();
+  const refused = (showsWater && refusedLitres !== null) || unread !== undefined;
+  const pictures = (entry?.mediaIds ?? []).flatMap(mediaId => mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) ?? []);
 
   const values = (): EntryValuesDraft => {
     const taken = readingsFrom(readings, shown, definitions, target);
@@ -265,7 +285,7 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
     <Sheet
       // A line about stepping in is no longer written here, but one written before is still corrected here, under the name the diary gives it.
       title={kind === 'visit' ? t('home.entryKind.visit') : t(`log.tile.${kind}`)}
-      corner={<Moment at={said} onChange={setDated} begins={begins} />}
+      corner={<Moment at={said} onChange={setDated} begins={begins} onRefused={setRefusedMoment} />}
       onBack={onBack}
       onClose={onClose}
       // Kept on the sheet's bottom edge, so it is in view with the keyboard up.
@@ -274,14 +294,15 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
           type="button"
           className={`${ui.button} ${ui.primary}`}
           onClick={save}
-          disabled={saving || nothingSaid || (showsWater && refusedLitres !== null) || (kind === 'phase' && !stage)}
+          disabled={saving || refusedMoment || nothingSaid || refused || (kind === 'phase' && !stage)}
+          aria-describedby={refused ? refusal : undefined}
         >
           {saveLabel(t, kind, entry, filed, step !== null)}
         </button>
       }
     >
       {/* Which grid the doses come from, and which week of it, sits with what the line is about: the corner is the moment's. */}
-      <p className={`mono ${styles.subject}`}>
+      <p className={styles.subject}>
         <Facts
           facts={[
             ...factsOf(lineLabel(t, kind, filed)),
@@ -298,10 +319,12 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
           <button type="button" className={styles.step} onClick={() => stepBy(-LITRE_STEP)} aria-label={t('log.less')}>
             <Minus size={16} strokeWidth={2} aria-hidden />
           </button>
-          <label className={`figure ${styles.waterFigure}`}>
+          <label className={`figure mono ${styles.waterFigure}`}>
             <input
               inputMode="decimal"
               aria-label={t('log.waterLitres')}
+              aria-invalid={refusedLitres !== null || undefined}
+              aria-describedby={refusedLitres ? refusal : undefined}
               value={typedLitres ?? (litres === null ? '' : looseFigure(litres))}
               placeholder="—"
               onChange={event => {
@@ -309,7 +332,7 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
                 const value = typedFigure(event.target.value);
                 setLitres(value !== null && value > 0 ? value : null);
               }}
-              onBlur={() => notANumber || setTypedLitres(null)}
+              onBlur={() => refusedLitres === null && setTypedLitres(null)}
             />
             {t('log.litres', { litres: '' }).trim()}
           </label>
@@ -320,14 +343,14 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
       ) : null}
 
       {showsWater && refusedLitres ? (
-        <p className={ui.problem} role="alert">
+        <p id={refusal} className={ui.problem} role="alert">
           {unbroken(t(refusedLitres, { max: MAX_LITRES }))}
         </p>
       ) : null}
 
       {/* What the field opened on is the last can, and when that was says how far to trust it. */}
       {showsWater && !entry && last ? (
-        <p className={`mono ${styles.lastTime}`}>
+        <p className={styles.lastTime}>
           <Facts
             facts={factsOf(
               t('log.lastTime', {
@@ -356,9 +379,9 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
                       : until === null || until >= step.week
                         ? ''
                         : t('log.stopsAfter', { week: until })
-                    : `${amount.value} ${amount.unit}`}
+                    : `${looseFigure(amount.value)} ${unitShown(amount.unit)}`}
                 </span>
-                <span className={`figure ${styles.doseAmount}`}>{dose ? `${looseFigure(dose.amount)} ${dose.unit}` : '—'}</span>
+                <span className={`figure mono ${styles.doseAmount}`}>{dose ? `${looseFigure(dose.amount)} ${dose.unit}` : '—'}</span>
               </div>
             );
           })}
@@ -376,6 +399,8 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
                   <input
                     className={`figure ${styles.fieldInput}`}
                     inputMode="decimal"
+                    aria-invalid={key === unread || undefined}
+                    aria-describedby={key === unread && !refusedLitres ? refusal : undefined}
                     value={readings[key] ?? ''}
                     placeholder={definition?.unit || undefined}
                     onChange={event => setReadings(current => ({ ...current, [key]: event.target.value }))}
@@ -384,8 +409,14 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
               );
             })}
           </div>
+          {/* Left out silently, a figure typed into the wrong field was a reading lost: the first one that is no number is named. */}
+          {unreadName !== null && !refusedLitres ? (
+            <p id={refusal} className={ui.problem} role="alert">
+              {t('log.readingNoNumber', { name: unreadName })}
+            </p>
+          ) : null}
           {definitions.length > shown.length ? (
-            <p className={`mono ${styles.more}`}>
+            <p className={styles.more}>
               <span className="label">{t('log.measurements')}</span>
               {definitions
                 .filter(definition => !shown.includes(definition.key))
@@ -397,6 +428,14 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
             </p>
           ) : null}
         </>
+      ) : null}
+
+      {/* The pictures a line carries are corrected nowhere, but they are what the line is about: shown, and opened. */}
+      {pictures.length > 0 ? (
+        <div className={ui.stack1}>
+          <span className="label">{t('log.pictures')}</span>
+          <PictureStrip pictures={pictures} onOpen={setViewing} />
+        </div>
       ) : null}
 
       {showsText ? (
@@ -455,6 +494,7 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
           )}
         </div>
       ) : null}
+      {viewing !== null ? <PictureViewer pictures={pictures} from={viewing} onClose={() => setViewing(null)} /> : null}
     </Sheet>
   );
 }

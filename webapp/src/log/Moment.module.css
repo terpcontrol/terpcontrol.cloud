@@ -62,7 +62,6 @@
 
 .answer {
   display: block;
-  font-family: var(--font-figure);
   color: var(--muted);
 }
 

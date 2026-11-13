@@ -184,7 +184,8 @@ export function MeasureSheet({ target, at: given = null, onBack, onClose }: Meas
 
       <div className={styles.chips} role="group" aria-label={t('grow.measurements.measure.whatLabel')}>
         {offered.map(one => {
-          const shown = typed[slotOf(one.key, one.perPlant ? plantId : null)] || figureOf(last.get(slotOf(one.key, one.perPlant ? plantId : null)));
+          const typedHere = typed[slotOf(one.key, one.perPlant ? plantId : null)];
+          const shown = typedHere ? writtenDraft(typedHere) : figureOf(last.get(slotOf(one.key, one.perPlant ? plantId : null)));
           return (
             <Choice key={one.key} chosen={one.key === definition?.key} onChoose={() => setKey(one.key)}>
               {one.name}
@@ -206,14 +207,14 @@ export function MeasureSheet({ target, at: given = null, onBack, onClose }: Meas
           <div className={`${ui.card} ${styles.field}`} role="group" aria-label={fieldLabel(t, definition)}>
             <span className={styles.fieldName}>
               {definition.name}
-              {definition.unit ? <span className={`mono ${styles.fieldUnit}`}> · {definition.unit}</span> : null}
+              {definition.unit ? <span className={styles.fieldUnit}> · {definition.unit}</span> : null}
             </span>
             <span className={`figure ${styles.fieldValue}`} role="status">
-              {draft || '—'}
+              {draft ? writtenDraft(draft) : '—'}
             </span>
           </div>
 
-          <p className={`mono ${styles.hint}`}>
+          <p className={styles.hint}>
             <Facts facts={factsOf(hintOf(t, definition, last, plantId, standing, draft, now))} />
           </p>
 
@@ -289,6 +290,9 @@ const readingsOf = (typed: Record<string, string>, definitions: MeasurementDefin
   });
 
 const figureOf = (reading: { value: number } | undefined): string => (reading ? looseFigure(reading.value) : '');
+
+/** What is being typed, with the mark the reader's language writes - the key said ",", so the figure does too. */
+const writtenDraft = (draft: string): string => draft.replace('.', decimalMark());
 
 /** What the field is called, so the figure in it can be read as the figure it is. */
 const fieldLabel = (t: Translate, definition: MeasurementDefinition): string =>

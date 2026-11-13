@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowOrSpaceRef, Reminder, ReminderCreate, ReminderKind, Space } from '@fg2/shared-types/v1';
 import { Link } from 'react-router';
@@ -95,15 +95,21 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
   const onceOn = draft.onceOn ?? dayOf(dueOn(reminder), zone);
   const change = (over: Partial<Draft>) => setDraft(current => ({ ...current, ...over }));
   const busy = create.isPending || update.isPending || remove.isPending;
-  const complete = draft.label.trim().length > 0 && draft.subject !== null && (draft.rhythm === 'every' ? draft.everyDays >= 1 : onceOn !== '');
   const asksForCan = draft.kind === 'water' || draft.kind === 'feed';
+  // A reminder to water is called "Gießen" until somebody calls it something else: typing the kind's name a second
+  // time was what Save waited for. A chore and one's own kind name nothing a reminder could be called.
+  const kindName = asksForCan ? t(`tasks.kind.${draft.kind}`) : null;
+  const named = draft.label.trim() || kindName || '';
+  // What Save still waits for, said beside it rather than left to a button that does not answer.
+  const missing = named === '' ? 'label' : draft.subject === null ? 'subject' : draft.rhythm === 'once' && onceOn === '' ? 'day' : null;
+  const missingId = useId();
 
   const told = (what: 'created' | 'changed' | 'deleted', label: string, back: Back | { undo: null } = { undo: null }) => {
     tell({ label: t(`tasks.told.${what}`, { label }), ...back });
     onClose();
   };
   const save = () => {
-    const body = bodyOf(draft, onceOn, userId, reminder?.assigneeId ?? null, zone);
+    const body = bodyOf({ ...draft, label: named }, onceOn, userId, reminder?.assigneeId ?? null, zone);
     if (!reminder)
       return create.mutate(body, {
         onSuccess: made => told('created', made.label, { undo: () => remove.mutateAsync(made.id), undone: t('log.noMore', { what: made.label }) }),
@@ -117,13 +123,35 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
   };
 
   return (
-    <Sheet title={t(reminder ? 'tasks.sheet.editTitle' : 'tasks.sheet.newTitle')} onClose={onClose}>
+    <Sheet
+      title={t(reminder ? 'tasks.sheet.editTitle' : 'tasks.sheet.newTitle')}
+      onClose={onClose}
+      // In the sheet's foot, in view however far the questions scroll, with what it still waits for above it.
+      actions={
+        <>
+          {missing ? (
+            <p id={missingId} className={ui.note}>
+              {t(`tasks.sheet.missing.${missing}`)}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className={`${ui.button} ${ui.primary} ${styles.submit}`}
+            disabled={busy || missing !== null}
+            aria-describedby={missing ? missingId : undefined}
+            onClick={save}
+          >
+            {create.isPending || update.isPending ? t('tasks.sheet.saving') : t('tasks.sheet.save')}
+          </button>
+        </>
+      }
+    >
       <div className={ui.sheetBody}>
         <Block label={t('tasks.sheet.what')}>
           <input
             className={ui.input}
             value={draft.label}
-            placeholder={t('tasks.sheet.labelPlaceholder')}
+            placeholder={kindName ?? t('tasks.sheet.labelPlaceholder')}
             aria-label={t('tasks.sheet.label')}
             autoComplete="off"
             onChange={event => change({ label: event.target.value })}
@@ -139,7 +167,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
             <label className={`${ui.card} ${styles.field}`}>
               <span className={styles.fieldLabel}>{t('tasks.sheet.litres')}</span>
               <input
-                className={`mono ${styles.fieldInput} ${styles.number}`}
+                className={`${styles.fieldInput} ${styles.number}`}
                 type="number"
                 min={0}
                 step={0.5}
@@ -150,7 +178,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
           ) : null}
         </Block>
 
-        <Block label={t('tasks.sheet.about')} aside={<span className="mono">{t('tasks.sheet.aboutFixed')}</span>}>
+        <Block label={t('tasks.sheet.about')} aside={t('tasks.sheet.aboutFixed')}>
           {grows.length === 0 && spaces.length === 0 ? <p className={ui.note}>{t('tasks.sheet.nowhere')}</p> : null}
           <Group
             label={t('tasks.sheet.grows')}
@@ -185,7 +213,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
             <label className={`${ui.card} ${styles.field}`}>
               <span className={styles.fieldLabel}>{t('tasks.sheet.everyDays')}</span>
               <input
-                className={`mono ${styles.fieldInput} ${styles.number}`}
+                className={`${styles.fieldInput} ${styles.number}`}
                 type="number"
                 min={1}
                 step={1}
@@ -200,7 +228,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
             <label className={`${ui.card} ${styles.field}`}>
               <span className={styles.fieldLabel}>{t('tasks.sheet.onceOn')}</span>
               <input
-                className={`mono ${styles.fieldInput}`}
+                className={styles.fieldInput}
                 type="date"
                 min={dayOf(serverNow().toJSDate(), zone)}
                 value={onceOn}
@@ -230,10 +258,6 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
         </Block>
 
         <Refused error={create.error ?? update.error} />
-
-        <button type="button" className={`${ui.button} ${ui.primary} ${styles.submit}`} disabled={busy || !complete} onClick={save}>
-          {create.isPending || update.isPending ? t('tasks.sheet.saving') : t('tasks.sheet.save')}
-        </button>
 
         {reminder ? (
           <div className={ui.stack2}>

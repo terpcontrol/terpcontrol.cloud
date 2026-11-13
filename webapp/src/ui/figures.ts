@@ -53,6 +53,14 @@ export const dayNightFigure = (row: WeekClimate | undefined, decimals: number): 
     ? `${dashFigure(row.dayAverage, decimals)} / ${dashFigure(row.nightAverage, decimals)}`
     : dashFigure(row?.averageValue ?? null, decimals);
 
+/**
+ * A unit as it is drawn: the litre is a capital "L", alone and in "ml/L" - the
+ * face's small "l" reads as a capital "I" and, beside a field, as a text
+ * cursor. A scheme stores its unit as it was published ("ml/l"), and that is
+ * never converted; only what is shown is.
+ */
+export const unitShown = (unit: string): string => unit.replace(/(^|[^\p{L}])l(?!\p{L})/gu, '$1L');
+
 /** Spaces that do not break, so a narrow line breaks between two figures and never inside one - between a number and its unit. */
 export const unbroken = (text: string): string => text.replace(/ /g, '\u00a0');
 

@@ -17,7 +17,10 @@ import styles from './Moment.module.css';
  * than behind a long press: "heute · 14:32" is what a line left alone says, and
  * a tap on it - or on the pencil beside it - opens a small pop-up with the day
  * and the time. The line is about something that has happened, so nothing after
- * now is accepted; changing only the day keeps the time that was there.
+ * now is accepted; changing only the day keeps the time that was there. A
+ * moment the pop-up refuses is answered there - with another, with now, or by
+ * closing it - before anything else on the sheet is: a tap beside it does not
+ * put the question away.
  *
  * `row` is the same control where the moment is asked before the kind of
  * line: a row across the sheet, the question and its answer left and "Ändern"
@@ -34,6 +37,7 @@ export function Moment({
   onChange,
   row = false,
   begins = null,
+  onRefused,
 }: {
   at: Date | null;
   onChange: (at: Date) => void;
@@ -44,6 +48,12 @@ export function Moment({
    * there, for somebody who may.
    */
   begins?: MomentBegins | null;
+  /**
+   * Told while the pop-up stands open on a moment it refuses - one still to
+   * come, one before the grow began: the sheet around it does not save then,
+   * since its line would be filed under a moment nobody chose.
+   */
+  onRefused?: (refused: boolean) => void;
 }) {
   const { t } = useTranslation();
   const now = useNow();
@@ -68,6 +78,8 @@ export function Moment({
   const before = chosen !== null && begins !== null && chosen < begins.at;
   /** What the pop-up says beside its fields, which is what makes it taller. */
   const notices = `${ahead}${before}${moving}`;
+  const refused = open && (ahead || before);
+  useEffect(() => onRefused?.(refused), [refused, onRefused]);
 
   // Placed against the window rather than inside the sheet, whose edge would
   // cut it off: under the moment where the sheet has room for it, over it
@@ -98,11 +110,11 @@ export function Moment({
     if (!open) return;
     first.current?.focus();
     const away = (event: PointerEvent) => {
-      if (!frame.current?.contains(event.target as Node)) setOpen(false);
+      if (!refused && !frame.current?.contains(event.target as Node)) setOpen(false);
     };
     document.addEventListener('pointerdown', away);
     return () => document.removeEventListener('pointerdown', away);
-  }, [open]);
+  }, [open, refused]);
 
   const close = () => {
     setOpen(false);
@@ -145,7 +157,7 @@ export function Moment({
       <button
         ref={toggle}
         type="button"
-        className={row ? `${ui.pill} ${styles.change}` : `mono ${styles.button}`}
+        className={row ? `${ui.pill} ${styles.change}` : styles.button}
         aria-expanded={open}
         aria-controls={id}
         aria-label={t('log.moment.change', { when: label })}
@@ -172,7 +184,7 @@ export function Moment({
             <span className="label">{t('log.moment.day')}</span>
             <input
               ref={first}
-              className={`mono ${ui.input}`}
+              className={ui.input}
               type="date"
               max={today}
               value={day}
@@ -182,7 +194,7 @@ export function Moment({
           <label className={ui.stack1}>
             <span className="label">{t('log.moment.time')}</span>
             <input
-              className={`mono ${ui.input}`}
+              className={ui.input}
               type="time"
               max={day === today ? clockOf(serverNow().toJSDate(), zone) : undefined}
               value={time}

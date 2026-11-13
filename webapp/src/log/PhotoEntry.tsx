@@ -196,7 +196,7 @@ export function PhotoEntry({
         </div>
       )}
 
-      {fromPicture ? <p className={`mono ${styles.subject}`}>{t('log.moment.fromPicture')}</p> : null}
+      {fromPicture ? <p className={styles.subject}>{t('log.moment.fromPicture')}</p> : null}
 
       {/* No capture attribute: it would open the camera straight away and leave no way to the pictures already taken. */}
       <input

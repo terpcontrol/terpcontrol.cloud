@@ -64,7 +64,7 @@ export function SchemeSheet({ grow, shipped, own, grid, onSwitch, onClose }: Sch
   return (
     <Sheet title={t('grow.scheme.sheet.title')} onClose={onClose}>
       <div className={ui.stack4}>
-        <Block label={t('grow.scheme.sheet.follows')} aside={<span className="mono">{t('grow.scheme.sheet.replaces')}</span>}>
+        <Block label={t('grow.scheme.sheet.follows')} aside={t('grow.scheme.sheet.replaces')}>
           <Choices label={t('grow.scheme.sheet.follows')}>
             {shipped.map(summary => (
               <Choice key={summary.id} chosen={choice === summary.id} onChoose={() => setChoice(summary.id)}>

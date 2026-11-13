@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Device, Entry, GrowListItem, HomeAnswer, PlantPage } from '@fg2/shared-types/v1';
@@ -872,10 +874,56 @@ describe('the log sheet', () => {
     ).toBe('At most 1000 L.');
     expect(within(details).getByRole('button', { name: /^Save/ })).toBeDisabled();
 
+    // No amount at all is refused as well: "-3" once saved a watering of nothing.
+    fireEvent.change(litres, { target: { value: '-3' } });
+    expect(
+      within(details)
+        .getByRole('alert')
+        .textContent?.replace(/\u00a0/g, ' '),
+    ).toBe('More than 0 L.');
+    expect(litres).toHaveAttribute('aria-invalid', 'true');
+    expect(litres).toHaveAccessibleDescription(/^More.than.0.L\.$/);
+    expect(within(details).getByRole('button', { name: /^Save/ })).toHaveAccessibleDescription(/^More.than.0.L\.$/);
+
     fireEvent.change(litres, { target: { value: '3' } });
     expect(within(details).queryByRole('alert')).not.toBeInTheDocument();
+    expect(litres).not.toHaveAttribute('aria-invalid');
     expect(within(details).getByRole('button', { name: /^Save/ })).toBeEnabled();
     expect(api.post).not.toHaveBeenCalled();
+  });
+
+  /** A reading that is no number was left out without a word: a figure lost. It is named, and holds the line back. */
+  it('refuses a reading it cannot read, by its name, and saves nothing until it is put right', async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
+
+    const details = await screen.findByRole('dialog', { name: 'Water' });
+    const field = within(details).getByRole('textbox', { name: 'pH' });
+    fireEvent.change(field, { target: { value: 'six' } });
+
+    expect(within(details).getByRole('alert')).toHaveTextContent('pH: that is not a number.');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(field).toHaveAccessibleDescription('pH: that is not a number.');
+    const save = within(details).getByRole('button', { name: /^Save/ });
+    expect(save).toBeDisabled();
+    expect(save).toHaveAccessibleDescription('pH: that is not a number.');
+
+    fireEvent.change(field, { target: { value: '6,2' } });
+    expect(within(details).queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(within(details).getByRole('button', { name: /^Save/ }));
+    expect(api.post).toHaveBeenCalledWith(
+      '/entries',
+      expect.objectContaining({ values: expect.objectContaining({ readings: [expect.objectContaining({ key: 'ph', value: 6.2 })] }) }),
+    );
+  });
+
+  /** One grid of equal cells: jsdom lays nothing out, so the rule is read from the sheet's stylesheet. */
+  it('draws the tiles as one grid of four equal columns, so a row that is not full is not stretched', () => {
+    const css = readFileSync(resolve(__dirname, '../src/log/Log.module.css'), 'utf8');
+    const tiles = /\.tiles \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(tiles).toMatch(/display: grid;/);
+    expect(tiles).toMatch(/grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
+    expect(/\.tile \{([^}]*)\}/.exec(css)?.[1]).not.toMatch(/flex:/);
   });
 
   it('answers a correction and a line taken back with a toast, once the sheet is gone', async () => {
@@ -919,6 +967,12 @@ describe('the log sheet', () => {
 
     expect(within(note).getByRole('status')).toHaveTextContent('The grow only began on 15 Aug 2026.');
     expect(within(note).getByRole('button', { name: 'Apply' })).toBeDisabled();
+    // While the pop-up stands on a moment it refuses, the sheet saves nothing: the note was filed under now.
+    fireEvent.change(within(note).getByRole('textbox'), { target: { value: 'Topped' } });
+    expect(within(note).getByRole('button', { name: /^Save/ })).toBeDisabled();
+    // A tap beside it does not put the question away either.
+    fireEvent.pointerDown(within(note).getByRole('textbox'));
+    expect(within(note).getByLabelText('Date')).toBeInTheDocument();
 
     vi.mocked(api.patch).mockResolvedValue(grow as never);
     fireEvent.click(within(note).getByRole('button', { name: 'Move the start to 10 Aug 2026' }));
@@ -926,6 +980,11 @@ describe('the log sheet', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/grows/grow-1', { startedAt: expect.stringMatching(/^2026-08-(09|10)T/) }));
     // The moment is taken once the grow reaches back to it.
     expect(await within(note).findByRole('button', { name: /^Change when: 10 Aug \d\d:\d\d$/ })).toBeInTheDocument();
+
+    // The start moved is answered with the day it is now, and the start it had is one write away.
+    expect(await screen.findByText(reading(/^Start: (9|10) Aug 2026/))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(api.patch).toHaveBeenLastCalledWith('/grows/grow-1', { startedAt: grow.startedAt }));
   });
 
   it('says there is no connection, keeps the moment the line was written at, and sends it by itself once the connection is back', async () => {

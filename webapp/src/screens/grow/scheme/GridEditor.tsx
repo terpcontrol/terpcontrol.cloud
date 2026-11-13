@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SchemeWeek } from '@fg2/shared-types/v1';
+import { unitShown } from '@/ui/figures';
 import ui from '@/ui/ui.module.css';
 import {
   flowerWeeks,
@@ -140,7 +141,7 @@ function AddProduct({ taken, onAdd }: { taken: Product[]; onAdd: (product: Produ
       <select className={styles.newProductUnit} aria-label={t('grow.scheme.unit')} value={unit} onChange={event => setUnit(event.target.value)}>
         {UNITS.map(one => (
           <option key={one} value={one}>
-            {one}
+            {unitShown(one)}
           </option>
         ))}
       </select>
