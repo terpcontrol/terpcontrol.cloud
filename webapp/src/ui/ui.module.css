@@ -494,11 +494,22 @@
   color: var(--alarm);
 }
 
-/* The yes to a question asked before such a step. */
-.dangerFilled {
-  background: var(--alarm);
-  border-color: var(--alarm);
-  color: var(--on-green);
+/* The yes to a question asked before such a step - removing a member or a
+   place, switching regulation off, deleting an alarm or the account: one danger
+   style, filled in the alarm's red under white words, never the brand green. */
+.dangerFilled,
+.dangerFilled:hover:not(:disabled) {
+  background: var(--alarm-fill);
+  border-color: var(--alarm-fill);
+  color: var(--on-alarm);
+}
+
+/* Not armed yet - a handle still to be typed: as a primary that cannot be pressed. */
+.dangerFilled:disabled {
+  background: var(--card-2);
+  border-color: var(--rule);
+  color: color-mix(in srgb, var(--muted) 55%, var(--card-2));
+  opacity: 1;
 }
 
 /* A sheet's own answer that cannot be taken back - removing a socket, releasing

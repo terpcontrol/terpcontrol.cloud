@@ -99,6 +99,10 @@
      only - the one strong colour a screen has. */
   --green-fill: #3e8024;
   --on-green: #ffffff;
+  /* The yes to a step that cannot be taken back, filled: the light mode's brick
+     red under white words in both modes (6.4:1), as the primary's green is. */
+  --alarm-fill: #a03f40;
+  --on-alarm: #ffffff;
 
   /* A quiet action - a card's Photo, Note, Alarms off - is a filled tint
      rather than an outline, so a row of them sits under the readings instead
@@ -328,6 +332,8 @@
     --green-wash: #243221;
     --green-fill: #3e8024;
     --on-green: #ffffff;
+    --alarm-fill: #a03f40;
+    --on-alarm: #ffffff;
 
     --tint: #24282e;
     --tint-hover: #2a2e35;
@@ -396,6 +402,8 @@
     --green-wash: #243221;
     --green-fill: #3e8024;
     --on-green: #ffffff;
+    --alarm-fill: #a03f40;
+    --on-alarm: #ffffff;
 
     --tint: #24282e;
     --tint-hover: #2a2e35;
