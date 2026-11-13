@@ -822,8 +822,13 @@
   }
 }
 
-/* Two columns once both fit: the panels keep their room, the cursor's card and the diary stand beside them. */
+/* Two columns once both fit: the panels, and beside them the cursor's card and the diary on a third of a page
+   that is wider here than a page of text - a diary line of four to six rows stood beside room nobody used. */
 @media (min-width: 1200px) {
+  .screen {
+    max-width: calc(var(--page-width) + 200px);
+  }
+
   .stage {
     flex-direction: row;
     align-items: flex-start;
@@ -840,7 +845,7 @@
     top: var(--space-5);
     display: flex;
     flex: none;
-    width: 300px;
+    width: clamp(300px, 32%, 440px);
   }
 
   .beside > * {
@@ -879,9 +884,10 @@
   }
 }
 
-/* The head in one row where it fits: the title, the ranges, the window between its buttons, and "Anpassen" last.
-   Nothing in it shrinks out of sight - with several places and a device to choose it takes a second row. */
-@media (min-width: 1280px) {
+/* The head in one row where it fits, from where the page has two columns: the title, the ranges, the window between
+   its buttons, and "Anpassen" last. Nothing in it shrinks out of sight - with several places and a device to choose,
+   or on the narrowest such window, it takes a second row. */
+@media (min-width: 1200px) {
   .title {
     flex: 0 1 auto;
   }

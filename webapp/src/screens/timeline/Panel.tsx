@@ -148,20 +148,15 @@ export function Panel({
               .join(', '),
           })}
         />
-        <span className={styles.scaleHigh} aria-hidden>
-          {panel.curves.map(curve => (
-            <span key={curve.key} data-colour={alone ? undefined : curve.colour}>
-              {curve.corner(curve.line.scale.high)}
-            </span>
-          ))}
-        </span>
-        <span className={styles.scaleLow} aria-hidden>
-          {panel.curves.map(curve => (
-            <span key={curve.key} data-colour={alone ? undefined : curve.colour}>
-              {curve.corner(curve.line.scale.low)}
-            </span>
-          ))}
-        </span>
+        {(['high', 'low'] as const).map(end => (
+          <span key={end} className={end === 'high' ? styles.scaleHigh : styles.scaleLow} aria-hidden>
+            {panel.curves.map(curve => (
+              <span key={curve.key} data-colour={alone ? undefined : curve.colour}>
+                {curve.corner(curve.line.scale[end])}
+              </span>
+            ))}
+          </span>
+        ))}
         <div
           className={styles.overlay}
           ref={overlay}

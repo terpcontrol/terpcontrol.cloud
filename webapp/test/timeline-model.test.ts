@@ -12,7 +12,7 @@ import {
   nearestPoint,
   offeredOf,
   panelsOf,
-  quietSince,
+  readAt,
   restOf,
   shareOf,
   shownOf,
@@ -268,9 +268,10 @@ describe('a panel', () => {
     expect(drawn(answer()).panels[2].curves[0].of).toBeUndefined();
   });
 
-  it('says the low and high of the window as the answer has them: the reading that closes the curve is "now" and no part of them', () => {
+  it('says the low and high of the window as the answer has them, and the reading that closes the curve with them', () => {
+    // Beyond three days a deficit's low and high are of five-minute means, and "Tief 0,90" stood over a reading of 0,79.
     const now = { values: [{ metric: 'vpd', value: 1.9, measuredAt: at(23.99), state: 'live' } as CardValue], silentSince: null };
-    expect(drawn(answer(), null, { now }).panels[2].curves[0]).toMatchObject({ low: 1.31, high: 1.31 });
+    expect(drawn(answer(), null, { now }).panels[2].curves[0]).toMatchObject({ low: 1.31, high: 1.9 });
     // Where the points carry extremes they are what is read, and a point without any is its own.
     expect(
       extremesOf([
@@ -294,13 +295,24 @@ describe('a panel', () => {
     expect(humidity.plot.alarms).toEqual([{ from: FROM + 12 * HOUR, to: FROM + 24 * HOUR }]);
   });
 
-  it('stops the band and the night where the place fell silent: nothing is known after that', () => {
+  it('draws a target only where its curve was heard: not after the place fell silent, not in a silence, not before the first reading', () => {
     const silent = answer();
     silent.panels = silent.panels.map(panel => ({ ...panel, points: [...panel.points.slice(0, 8), { measuredAt: at(8.001), value: null }] }));
-    const [temperature] = drawn(silent).panels;
+    expect(drawn(silent).panels[0].plot.bands.at(-1)!.to).toBe(FROM + 8 * HOUR);
 
-    expect(temperature.plot.bands.at(-1)!.to).toBe(FROM + 8 * HOUR);
-    expect(temperature.plot.nights).toEqual([{ from: FROM + 6 * HOUR, to: FROM + 8 * HOUR }]);
+    // Heard from the third hour, silent from the eighth to the twentieth, and then to the window's end.
+    const gapped = answer();
+    gapped.panels = gapped.panels.map(panel => ({
+      ...panel,
+      points: [...panel.points.slice(3, 8), { measuredAt: at(8.001), value: null }, ...panel.points.slice(20)],
+    }));
+    const heard = drawn(gapped).panels[0].plot.bands.map(band => [(band.from - FROM) / HOUR, (band.to - FROM) / HOUR]);
+    // The point of the fourth hour stands for the hour before it; the night cuts the first stretch at six.
+    expect(heard).toEqual([
+      [3, 6],
+      [6, 8],
+      [20, 24],
+    ]);
   });
 
   it('puts all curves into one picture, each against its own scale, without a band to misread', () => {
@@ -452,24 +464,70 @@ describe('the cursor', () => {
     [9000, 25],
   ] as const;
 
-  it('rests on the last thing that was heard: the device`s reading, else the last drawn point, else the window`s end', () => {
+  it('rests on the last thing that was heard: the device`s reading whatever is ticked, else the last drawn point, else the window`s end', () => {
     const TO = FROM + 24 * HOUR;
+    const curvesOf = (one: ReturnType<typeof drawn>) => one.panels.flatMap(panel => panel.curves);
     const reading: CardValue = { metric: 'temperature', value: 20.5, measuredAt: at(23.9), state: 'stale' };
     const now = { values: [reading], silentSince: FROM + 23.9 * HOUR };
 
-    // A window that holds the reading ends its curves on it, six minutes old or six seconds.
+    // A window that holds the reading rests on it, six minutes old or six seconds - also with no curve ticked.
     const live = drawn(answer(), ['temperature'], { now });
-    expect(restOf(live.panels, live.strips, TO, HOUR)).toBe(FROM + 23.9 * HOUR);
+    expect(restOf(curvesOf(live), live.strips, TO, HOUR, FROM + 23.9 * HOUR)).toBe(FROM + 23.9 * HOUR);
+    const bare = drawn(answer(), ['outputs', 'light'], { now });
+    expect(restOf(curvesOf(bare), bare.strips, TO, HOUR, FROM + 23.9 * HOUR)).toBe(FROM + 23.9 * HOUR);
     // One that ended in the past rests on its last point, drawn in the middle of the hour it is the mean of.
     const past = drawn(answer(), ['temperature']);
-    expect(restOf(past.panels, past.strips, TO, HOUR)).toBe(FROM + 23.5 * HOUR);
+    expect(restOf(curvesOf(past), past.strips, TO, HOUR, null)).toBe(FROM + 23.5 * HOUR);
     // A curve that broke off earlier rests where it broke off, not at the end of the window.
     const broke = answer({ panels: [{ metric: 'temperature', points: [1, 2, 3].map(hour => ({ measuredAt: at(hour), value: 24 })), targets: [] }] });
-    expect(restOf(drawn(broke, ['temperature']).panels, [], TO, HOUR)).toBe(FROM + 2.5 * HOUR);
+    expect(restOf(curvesOf(drawn(broke, ['temperature'])), [], TO, HOUR, null)).toBe(FROM + 2.5 * HOUR);
     // Outputs alone: where the last of them was heard - the lamp fell silent at 20:00, the others did not.
     const outputs = drawn(answer({ panels: [] }), ['outputs', 'light']);
-    expect(restOf(outputs.panels, outputs.strips, TO, HOUR)).toBe(FROM + 23.5 * HOUR);
-    expect(restOf([], [], TO, HOUR)).toBe(TO);
+    expect(restOf([], outputs.strips, TO, HOUR, null)).toBe(FROM + 23.5 * HOUR);
+    expect(restOf([], [], TO, HOUR, null)).toBe(TO);
+  });
+
+  it('reads one point for every curve: the figures under one stamp are of the same instant, and a curve without one says so', () => {
+    // The leaf sensor is sparse: it has the hours 1 to 12 and 20, the air every hour but a silence from 13 to 16.
+    const sparse = answer({
+      panels: [
+        {
+          metric: 'temperature',
+          points: [
+            ...[10, 11, 12].map(hour => ({ measuredAt: at(hour), value: 24 })),
+            { measuredAt: at(12.001), value: null },
+            { measuredAt: at(17), value: 25 },
+          ],
+          targets: [],
+        },
+        {
+          metric: 'leafTemperature',
+          points: [
+            { measuredAt: at(12), value: 22 },
+            { measuredAt: at(17), value: 23 },
+            { measuredAt: at(20), value: 23.5 },
+          ],
+          targets: [],
+        },
+      ],
+    });
+    const curves = drawn(sparse, ['temperature', 'leafTemperature']).panels.flatMap(panel => panel.curves);
+    const reach = () => 1.5 * HOUR;
+    const figures = (cursor: number, readingAt: number | null = null) => {
+      const read = readAt(curves, cursor, reach, readingAt);
+      return [read.at === null ? null : (read.at - FROM) / HOUR, ...read.points.map(one => one.point?.[1] ?? null)];
+    };
+
+    // Just inside the silence the nearest point is the last before it, and both figures are that point's.
+    expect(figures(FROM + 12.2 * HOUR)).toEqual([11.5, 24, 22]);
+    // Deep in it the leaf's line still runs from 12:00 to 17:00, and its nearer end is read - with the air's of the same hour.
+    expect(figures(FROM + 15.5 * HOUR)).toEqual([16.5, 25, 23]);
+    // Where only one curve has a point, the other is named with a dash - not with a figure of another hour.
+    expect(figures(FROM + 19.6 * HOUR)).toEqual([19.5, null, 23.5]);
+    // Nothing near: nothing is read.
+    expect(readAt(curves.slice(0, 1), FROM + 14.5 * HOUR, reach, null)).toMatchObject({ at: null, onReading: false });
+    // At rest on a reading no curve is ticked for, the reading is still what is read.
+    expect(readAt([], FROM + 23.9 * HOUR, reach, FROM + 23.9 * HOUR)).toEqual({ at: FROM + 23.9 * HOUR, onReading: true, points: [] });
   });
 
   it('reads the point nearest to it, which is where its dot sits on the line', () => {
@@ -493,24 +551,6 @@ describe('the cursor', () => {
 
   it('reads nothing across a silence', () => {
     expect(nearestPoint(points, 5500, 1500)).toBeNull();
-  });
-
-  it('rests on the last point drawn where the place has gone quiet', () => {
-    const quiet = answer({
-      panels: [
-        {
-          metric: 'temperature',
-          points: [
-            { measuredAt: at(3), value: 24 },
-            { measuredAt: at(3.001), value: null },
-          ],
-          targets: [],
-        },
-      ],
-    });
-
-    expect(quietSince(quiet)).toBe(FROM + 2.5 * HOUR);
-    expect(quietSince(answer())).toBeNull();
   });
 });
 

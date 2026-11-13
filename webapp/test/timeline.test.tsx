@@ -320,9 +320,11 @@ describe('Verlauf as it opens', () => {
     draw();
     await settled();
 
-    expect(within(panel('Temperature')).getByRole('img', { name: 'Heater: on 0 % of the time' })).toBeInTheDocument();
-    expect(within(panel('Humidity')).getByRole('img', { name: 'Dehumidifier: on 2 % of the time' })).toBeInTheDocument();
-    expect(within(panel('VPD')).getByRole('img', { name: 'Light: on 100 % of the time' })).toBeInTheDocument();
+    // The share of the time it ran stands beside each output's name, on the screen - and the lamp's stretches by
+    // the clock beside the rail as on a phone.
+    expect(within(panel('Temperature')).getByText('Heater · on 0 % of the time')).toBeInTheDocument();
+    expect(within(panel('Humidity')).getByText('Dehumidifier · on 2 % of the time')).toBeInTheDocument();
+    expect(within(panel('VPD')).getByText(/^Light · on since \d\d:\d\d · 65 % · on 100 % of the time$/)).toBeInTheDocument();
   });
 
   it('gives the lamp a card of its own on a phone, with when it burned and how bright', async () => {
@@ -331,9 +333,8 @@ describe('Verlauf as it opens', () => {
     await settled();
 
     const card = screen.getByRole('heading', { name: 'Light' }).closest('section')!;
-    expect(within(card).getByRole('img', { name: 'Light: on 100 % of the time' })).toBeInTheDocument();
-    expect(card).toHaveTextContent(/on since \d\d:\d\d · 65 %/);
-    expect(within(panel('VPD')).queryByRole('img', { name: /Light/ })).not.toBeInTheDocument();
+    expect(within(card).getByText(/^Light · on since \d\d:\d\d · 65 % · on 100 % of the time$/)).toBeInTheDocument();
+    expect(within(panel('VPD')).queryByText(/^Light/)).not.toBeInTheDocument();
   });
 
   it('reads the cursor in a card that stays put: the newest picture, now, a figure per curve, each output', async () => {
@@ -347,8 +348,8 @@ describe('Verlauf as it opens', () => {
     expect(card).toHaveTextContent('25.2 °C · 58.0 % · 1.40 kPa');
     // The zoom stands with the card, which stays in sight while the page scrolls.
     expect(within(card).getByRole('button', { name: 'Zoom in' })).toBeInTheDocument();
-    // One form per output: one driven at a level reads in per cent, also at 0; a switch reads on or off.
-    expect(card).toHaveTextContent('Light 65 % · Heater 0 % · Dehumidifier off');
+    // One form per output: one driven at a level reads in per cent and "off" at none, as on Start; a switch on or off.
+    expect(card).toHaveTextContent('Light 65 % · Heater off · Dehumidifier off');
   });
 
   it('names a lamp`s stretch that ended in a silence by its last reading, and one that was switched off by when', async () => {
@@ -538,7 +539,8 @@ describe('what the place reads now', () => {
     expect(card).toHaveTextContent(/Cursor · now, \d\d:\d\d/);
     expect(card).toHaveTextContent('26.7 °C · 61.4 % · 1.52 kPa');
     // The outputs are that reading's too: the lamp at 40 %, not the 65 % the window's mean came to.
-    expect(card).toHaveTextContent('Light 40 % · Heater 0 % · Dehumidifier on');
+    // An output the reading did not hear is a dash - not a window's mean under the reading's stamp.
+    expect(card).toHaveTextContent('Light 40 % · Heater — · Dehumidifier on');
   });
 
   it('is the same for somebody reading through a link: one instant, one set of figures', async () => {
@@ -578,11 +580,33 @@ describe('what the place reads now', () => {
       await waitFor(() => expect(card).toHaveTextContent(/Cursor · last reading · /));
       expect(card).not.toHaveTextContent('now');
       expect(card).toHaveTextContent('20.5 °C · 55.9 % · 1.03 kPa');
-      expect(card).toHaveTextContent('Light 0 % · Heater 46 % · Dehumidifier off');
+      expect(card).toHaveTextContent('Light off · Heater 46 % · Dehumidifier off');
       expect(within(panel('Temperature')).getByText('20.5 °C')).toBeInTheDocument();
       expect(within(panel('Humidity')).getByText('55.9 %')).toBeInTheDocument();
     },
   );
+
+  it('is the reading at rest whatever is ticked: with no curve drawn the card still says "now" and the reading`s outputs', async () => {
+    draw('/timeline?show=light,outputs');
+
+    const card = await screen.findByRole('region', { name: 'Cursor' });
+    await waitFor(() => expect(card).toHaveTextContent(/Cursor · now, \d\d:\d\d/));
+    expect(card).toHaveTextContent('Light 65 % · Heater off · Dehumidifier off');
+  });
+
+  it('says "on since" only of a lamp heard now: under a stale reading its stretch ends at that reading', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    const fresh = draw();
+    await settled();
+    expect(screen.getByText(/^Light · on since \d\d:\d\d · 65 %/)).toBeInTheDocument();
+    fresh.unmount();
+
+    server.reading = read(6, [value('temperature', 20.5, 6)], [{ output: 'light', on: true, level: 65 }]);
+    draw();
+    await settled();
+    await waitFor(() => expect(screen.getByText(/^Light · until last reading \d\d:\d\d · 65 %/)).toBeInTheDocument());
+    expect(screen.queryByText(/on since/)).not.toBeInTheDocument();
+  });
 
   it('rests a window that ended in the past on its last drawn point: never a blank card over a curve', async () => {
     const [from, to] = [iso(NOW - 30 * HOUR), iso(NOW - 6 * HOUR)];
@@ -594,7 +618,7 @@ describe('what the place reads now', () => {
     await waitFor(() => expect(card).toHaveTextContent(/Cursor · mean \d\d:\d\d–\d\d:\d\d/));
     expect(card).toHaveTextContent('25.2 °C · 58.0 % · 1.40 kPa');
     // What the outputs did over that point, counted from its samples.
-    expect(card).toHaveTextContent('Light 65 % · Heater 0 % · Dehumidifier off');
+    expect(card).toHaveTextContent('Light 65 % · Heater off · Dehumidifier off');
     expect(within(panel('Temperature')).getByText('25.2 °C')).toBeInTheDocument();
   });
 
@@ -975,7 +999,7 @@ describe('a place read through a link', () => {
     await settled();
 
     expect(server.asked[0].get('share')).toBe('token-1');
-    expect(within(panel('Humidity')).getByRole('img', { name: /Dehumidifier/ })).toBeInTheDocument();
+    expect(within(panel('Humidity')).getByText(/^Dehumidifier · /)).toBeInTheDocument();
     // The picture comes through the link and leads nowhere: the reader has no camera page to open.
     const card = screen.getByRole('region', { name: 'Cursor' });
     expect(within(card).getByRole('img', { name: /at the cursor/ })).toHaveAttribute('src', '/shared-media/still-new');

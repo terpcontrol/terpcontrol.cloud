@@ -22,7 +22,6 @@ interface CursorCardProps {
   /** The cameras with pictures in the window; none leaves the card its words. */
   cameras: SpaceTimeline['cameras'];
   cursor: number;
-  /** Nobody set the cursor: it rests on the last thing heard, which is no place to play on from. */
   resting: boolean;
   onCursor: (time: number) => void;
   /** Where a picture comes from - a link's for somebody reading through one - and whether its camera's page can be opened. */
@@ -87,9 +86,8 @@ export function CursorCard({ stamp, readings, outputs, cameras, cursor, resting,
 }
 
 /**
- * Play walks the pictures from the cursor the address carries and stops at the last one. Rest is no such cursor:
- * it stands on the last reading, and a picture taken after that reading was the only one "after it" - so from
- * rest, as from past the last picture, the window plays from its first.
+ * Play walks the pictures from the cursor the address carries and stops at the last one. Rest is no such cursor -
+ * it stands on the last reading, and a picture newer than that was the only one "after it": the window plays from its first.
  */
 const usePlay = (frames: readonly { capturedAt: string }[], cursor: number, resting: boolean, onCursor: (time: number) => void) => {
   const [on, setOn] = useState(false);

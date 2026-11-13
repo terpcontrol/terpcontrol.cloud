@@ -102,7 +102,7 @@ const labelOf = (time: DateTime, step: Step, span: number, dayInYear: string): s
     // Midnight is the day turning over, which is what the line is there to show.
     return span <= BY_CLOCK ? time.toFormat('ccc') : dayLabel(time, span, dayInYear);
   }
-  if (step.unit === 'day') return step.count === 1 ? dayLabel(time, span, dayInYear) : time.toFormat(dayInYear);
+  if (step.unit === 'day') return dayLabel(time, span, dayInYear);
   if (step.unit === 'month') return time.month === 1 ? time.toFormat('yyyy') : time.toFormat('LLL');
 
   return time.toFormat('yyyy');

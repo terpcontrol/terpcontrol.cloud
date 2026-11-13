@@ -27,7 +27,8 @@ describe('the gridlines of a chart over time', () => {
 
   it('counts a week by its days on a wide plot and by every other date on a narrow one', () => {
     expect(labels('2026-09-25T14:52', '2026-10-02T14:52', 8)).toEqual(['Sa 26.', 'So 27.', 'Mo 28.', 'Di 29.', 'Mi 30.', 'Do 1.', 'Fr 2.']);
-    expect(labels('2026-09-25T14:52', '2026-10-02T14:52', 4)).toEqual(['26. Sep', '28. Sep', '30. Sep', '2. Okt']);
+    // Every other day on a phone, named as the wide plot and both ends of the axis name a day.
+    expect(labels('2026-09-25T14:52', '2026-10-02T14:52', 4)).toEqual(['Sa 26.', 'Mo 28.', 'Mi 30.', 'Fr 2.']);
   });
 
   it('falls on the account´s midnight, whatever zone the browser is in', () => {
@@ -54,10 +55,10 @@ describe('the gridlines of a chart over time', () => {
    * row of their own the dates need only their own width: every other day of a
    * week, and every Monday of a month.
    */
-  it('dates a week and a month on a phone, on a row of their own', () => {
+  it('names a week`s days and dates a month on a phone, on a row of their own', () => {
     const phone = ticksFor(248, TICK_ROOM_PX);
 
-    expect(labels('2026-09-25T16:04', '2026-10-02T16:04', phone)).toEqual(['26. Sep', '28. Sep', '30. Sep', '2. Okt']);
+    expect(labels('2026-09-25T16:04', '2026-10-02T16:04', phone)).toEqual(['Sa 26.', 'Mo 28.', 'Mi 30.', 'Fr 2.']);
     expect(labels('2026-09-02T16:04', '2026-10-02T16:04', phone)).toEqual(['7. Sep', '14. Sep', '21. Sep', '28. Sep']);
   });
 

@@ -9,12 +9,15 @@ import type {
   TimelineSpan,
 } from '@fg2/shared-types/v1';
 import { TIMELINE_METRICS } from '@/api/timeline';
+import { BY_CLOCK } from '@/charts/ticks';
 import { csvOf, niceScale, type CsvColumn, type Plot, type PlotLine, type PlotPoint, type PlotSpan } from '@/charts/series';
 import type { ChartToken } from '@/charts/tokens';
 import type { Translate } from '@/i18n/i18n';
 import { outputWord } from '@/ui/climate-hardware';
 import { decimalFigure, looseFigure } from '@/ui/figures';
+import { VALUE_AGE } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { figure, targetFigure, UNIT } from '@/ui/units';
+import { CLOCK, zonedAt } from '@/ui/zone';
 import { GRAINED_FROM_MS, grainMinutes, type VpdHalf } from './view';
 import { alarmsOf, at, spans, stretchesOf } from './window';
 
@@ -102,17 +105,13 @@ export const shownOf = (keys: string[] | null, offered: Offered, focus: string |
 /** One drawn point of an output: the instant its window closes at, its samples, those it ran in, and its mean level in per cent where it has one. */
 export type StripPoint = readonly [end: number, heard: number, on: number, level: number | null];
 
-/**
- * One output across the devices that drive it. Everything said about it is counted from `points`, the samples of
- * each drawn window; `runs` say only when, for the lamp's stretches by the clock - a run is rounded out to the
- * grain it was found at, and no figure is taken from one.
- */
+/** One output across the devices that drive it. Everything said about it is counted from `points`, the samples of each drawn window. */
 export interface Strip {
   output: OutputMetric;
   name: string;
-  /** When any of them ran, joined, in order. */
-  runs: PlotSpan[];
   points: StripPoint[];
+  /** What stands beside its name: the share of the time it ran, and for the lamp its stretches by the clock; null where nothing was heard. */
+  said: string | null;
 }
 
 /** What an output did over one drawn point or at one reading: the share of the samples it ran in, and its level in per cent where it has one. */
@@ -122,41 +121,88 @@ export type OutputFigure = { share: number; level: number | null };
 const outputTitle = (t: Translate, output: OutputMetric, lanes: readonly TimelineOutputLane[]): string =>
   t(`timeline.output.${outputWord(output, lanes.length > 0 && lanes.every(lane => lane.fridge === true))}`, { defaultValue: output });
 
-const joined = (runs: readonly PlotSpan[]): PlotSpan[] =>
-  [...runs]
-    .sort((one, other) => one.from - other.from)
-    .reduce<PlotSpan[]>((kept, run) => {
-      const last = kept.at(-1);
-      if (last && run.from <= last.to) last.to = Math.max(last.to, run.to);
-      else kept.push({ ...run });
-      return kept;
-    }, []);
-
 /** The order the strips stand in and are read out in: the lamp first, then what a grower steers by. */
 const ORDER: OutputMetric[] = ['light', 'heater', 'dehumidifier', 'co2', 'fan', 'fanInternal', 'fanExternal', 'fanBackwall', 'relais'];
 
-export const stripsOf = (t: Translate, data: SpaceTimeline): Strip[] =>
+/** Where the lamp's words are read by: the account's zone, whether the window ends now, and the reading's instant once it is stale. */
+type Said = { zone: string | null; live: boolean; quietAt: number | null };
+
+export const stripsOf = (t: Translate, data: SpaceTimeline, said: Said = { zone: null, live: false, quietAt: null }): Strip[] =>
   ORDER.filter(output => data.outputs.some(lane => lane.output === output)).map(output => {
     const lanes = data.outputs.filter(lane => lane.output === output);
     // Two devices that drive the same output are counted together: the samples of both, and the mean of them all.
     const points = new Map<number, [heard: number, on: number, level: number | null]>();
-    for (const point of lanes.flatMap(lane => lane.points ?? [])) {
-      const [heard, on, level] = points.get(at(point.measuredAt)) ?? [0, 0, null];
-      const sum = (level ?? 0) * heard + (point.level ?? 0) * point.heard;
-      points.set(at(point.measuredAt), [
-        heard + point.heard,
-        on + point.on,
-        level === null && point.level === null ? null : sum / (heard + point.heard),
+    for (const { measuredAt, heard, on, level } of lanes.flatMap(lane => lane.points ?? [])) {
+      const [known, ran, mean] = points.get(at(measuredAt)) ?? [0, 0, level];
+      points.set(at(measuredAt), [
+        known + heard,
+        ran + on,
+        mean === null || level === null ? null : (mean * known + level * heard) / (known + heard),
       ]);
     }
 
-    return {
+    const strip = {
       output,
       name: outputTitle(t, output, lanes),
-      runs: joined(lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) })))),
       points: [...points].sort(([one], [other]) => one - other).map(([end, [heard, on, level]]) => [end, heard, on, level] as const),
     };
+    const share = shareOf(strip);
+    const ran = share === null ? null : t('timeline.lightShare', { share: Math.round(share * 100) });
+    // The spans say only when, for the lamp's stretches by the clock: no figure is taken from a run.
+    const runs = lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) })));
+    return { ...strip, said: output === 'light' && ran !== null ? lightWords(t, { ...strip, runs }, data, ran, said) : ran };
   });
+
+/** How far apart two points of a strip may stand and still be one stretch: a step, and four of its own gaps for a device slower than that. */
+const bridgeOf = (points: readonly StripPoint[], stepMs: number): number => {
+  const gaps = points.slice(1).map((point, index) => point[0] - points[index][0]);
+  const usual = [...gaps].sort((one, other) => one - other)[Math.floor(gaps.length * 0.75)] ?? stepMs;
+  return usual > stepMs ? 4 * usual : stepMs;
+};
+
+/**
+ * The lamp over the window in a few words: its lit stretches by the clock where the window is read by the clock
+ * and they are few, how bright it ran, and the share of its samples it was on in. A stretch is named by the end it
+ * has: one the window cuts did not come on at its first minute ("bis 12:00"), and one that ended because the
+ * device fell silent - nothing was heard after it, or the reading it runs up to is stale - ended at its last
+ * reading, at any second ("06:00 bis letzter Wert 07:53"); "an seit 06:00" is said only of a lamp heard now.
+ */
+const lightWords = (
+  t: Translate,
+  light: Pick<Strip, 'points'> & { runs: PlotSpan[] },
+  data: SpaceTimeline,
+  ran: string,
+  { zone, live, quietAt }: Said,
+): string => {
+  const [from, to, stepMs] = [at(data.startsAt), at(data.endsAt), Math.max(data.stepSeconds, 1) * 1000];
+  const clock = (time: number) => zonedAt(time, zone).toFormat(CLOCK);
+  // How bright a stretch ran while it was lit: the middle of its points' levels, which a ramp at either end does not move.
+  const levelOf = (run: PlotSpan): string | null => {
+    const lit = light.points.filter(([end, , on]) => end > run.from && end <= run.to + stepMs && on > 0);
+    const levels = lit.map(([, heard, on, level]) => Math.round(((level ?? 0) * heard) / on)).sort((one, other) => one - other);
+    return levels.length > 0 ? `${levels[levels.length >> 1]}\u00a0%` : null;
+  };
+  const lit = light.runs.filter(one => one.to > from && one.from < to).sort((one, other) => one.from - other.from);
+  if (lit.length === 0 || lit.length > 3 || to - from > BY_CLOCK)
+    return [ran, lit.length > 0 ? levelOf({ from, to }) : null].filter(Boolean).join(' · ');
+
+  const bridge = bridgeOf(light.points, stepMs);
+  const stretches = lit.map(one => {
+    const [began, stale] = [one.from > from, quietAt !== null && one.to >= quietAt - stepMs];
+    const ended = one.to < to || stale;
+    // Heard a step after the stretch ended: the lamp was switched off, by its device or by one that took the place over.
+    const after = Math.min(one.to + stepMs, to - 1);
+    const quiet = stale || (ended && !light.points.some(([end]) => end - bridge <= after && after < end)) ? 'Quiet' : '';
+    const until = clock(stale ? (quietAt as number) : one.to);
+    const when = !ended
+      ? t(live ? 'timeline.lightSince' : 'timeline.lightFrom', { from: clock(began ? one.from : from) })
+      : began
+        ? t(`timeline.lightSpan${quiet}`, { from: clock(one.from), to: until })
+        : t(`timeline.lightUntil${quiet}`, { to: until });
+    return [when, levelOf(one)].filter(Boolean).join(' · ');
+  });
+  return [stretches.join(', '), ran].join(' · ');
+};
 
 /**
  * What an output did over the drawn point an instant falls into - a point closes its window, and stands for the
@@ -184,9 +230,12 @@ export const blocksOf = (strip: Pick<Strip, 'points'>, from: number, to: number,
   const width = to - from;
   if (width <= 0) return [];
 
+  // A device that reports more slowly than it is drawn leaves points apart: each stands for the stretch since the
+  // one before it, as its curve is a line across the same gaps. A last point cut short begins where that one closed.
+  const bridge = bridgeOf(strip.points, stepMs);
   return strip.points.reduce<StripBlock[]>((kept, [end, heard, on, level], index) => {
-    // The last point of a window that ends now is cut short, and begins where the one before it closed.
-    const starts = Math.max(from, end - stepMs, strip.points[index - 1]?.[0] ?? from);
+    const before = strip.points[index - 1]?.[0] ?? from;
+    const starts = Math.max(from, bridge > stepMs && end - before <= bridge ? before : end - stepMs, before);
     const block = { from: (starts - from) / width, to: (Math.min(to, end) - from) / width, share: on / heard, level };
     const last = kept.at(-1);
     if (block.to <= block.from) return kept;
@@ -208,10 +257,7 @@ export interface Curve {
   decimals?: number;
   corner: (value: number) => string;
   points: PlotPoint[];
-  /**
-   * The lowest and the highest of the window: of single samples, and of the deficit over more than three days of
-   * its means over five minutes - never of the points drawn where the answer says more.
-   */
+  /** The lowest and the highest of the window: of single samples, and of a deficit beyond three days of its five-minute means. */
   low: number | null;
   high: number | null;
   /** What the low and the high are of, where they are not of samples: a deficit's over more than three days. */
@@ -242,15 +288,28 @@ export const drawnBefore = (stepSeconds: number): number => (stepSeconds <= SAMP
 export const SAMPLE_SECONDS = 5;
 
 /**
- * Each point where it belongs: a mean at the middle of the window it was taken over, a single sample at the
- * start of the five seconds it was written in - its own time, to the second.
+ * Each point where it belongs: a mean at the middle of the window it was taken over - of what is left of it, where
+ * a stretch ends between two steps and its last window is cut short -, a single sample at its own time, to the second.
  */
-const pointsOf = (points: SpaceTimeline['panels'][number]['points'], before: number): PlotPoint[] =>
-  points.map(point =>
-    point.min !== undefined && point.max !== undefined
-      ? ([at(point.measuredAt) - before, point.value, point.min, point.max] as const)
-      : ([at(point.measuredAt) - before, point.value] as const),
-  );
+const pointsOf = (points: SpaceTimeline['panels'][number]['points'], stepSeconds: number): PlotPoint[] =>
+  points.map((point, index) => {
+    const [stamp, before] = [at(point.measuredAt), points[index - 1]];
+    const cut = before && before.value !== null && point.value !== null && stamp - at(before.measuredAt) < stepSeconds * 1000;
+    const time = cut && stepSeconds > SAMPLE_SECONDS ? (stamp + at(before.measuredAt)) / 2 : stamp - drawnBefore(stepSeconds);
+    return point.min !== undefined && point.max !== undefined ? ([time, point.value, point.min, point.max] as const) : ([time, point.value] as const);
+  });
+
+/** The stretches a curve was heard over: from the window its first point after a silence stands for to its last point's stamp, or to `until`. */
+const heardOf = (points: SpaceTimeline['panels'][number]['points'], stepMs: number, until: number | null): PlotSpan[] => {
+  const runs: PlotSpan[] = [];
+  points.forEach((point, index) => {
+    if (point.value === null) return;
+    if (points[index - 1]?.value != null) runs[runs.length - 1].to = at(point.measuredAt);
+    else runs.push({ from: at(point.measuredAt) - stepMs, to: at(point.measuredAt) });
+  });
+  if (until !== null && runs.length > 0) runs[runs.length - 1].to = until;
+  return runs;
+};
 
 /** The lowest and the highest of a curve: of its samples where the points carry them, else of the points themselves. */
 export const extremesOf = (points: readonly (readonly [number, number | null, number?, number?])[]): { low: number | null; high: number | null } => {
@@ -276,12 +335,10 @@ const metricCurve = (
   if (!panel) return null;
 
   const from = at(data.startsAt);
-  const means = pointsOf(panel.points, drawnBefore(data.stepSeconds));
-  // The device's last reading closes the curve of a window that ends now: "jetzt" is that reading, on every range,
-  // and not the mean of the last hour and a half of a month.
+  const means = pointsOf(panel.points, data.stepSeconds);
+  // The device's last reading closes the curve: "jetzt" is that reading, not the mean of a month's last hour and a half.
   const lastAt = last?.value != null && last.measuredAt ? at(last.measuredAt) : null;
-  // The mean of the window that reading fell into gives way to it, whichever half of the window it fell in: a
-  // device that stopped at 16:17 ends on what it read at 16:17, not on the mean of the hour and a half around it.
+  // The mean of the window that reading fell into gives way to it: a device that stopped at 16:17 ends on that reading.
   const own = drawnBefore(data.stepSeconds);
   const before =
     lastAt === null || lastAt > at(data.endsAt) + LATE_MS || lastAt < from
@@ -289,16 +346,20 @@ const metricCurve = (
       : means.filter(point => point[1] === null || point[0] < lastAt || point[0] - lastAt > own);
   // A curve with means newer than the reading is ahead of it, and ends on its own.
   const closes = before !== null && !before.some(point => point[1] !== null && point[0] > (lastAt as number));
-  const points = halfOf(closes ? [...before, [lastAt as number, last?.value ?? null] as const] : means, data.nights, metric === 'vpd' ? half : 'all');
-  const bands = stretchesOf(panel, data.nights, from, heardUntil, data.transitions ?? NO_SPANS).map(stretch => ({
-    from: stretch.from,
-    to: stretch.to,
-    low: stretch.target.band.low,
-    high: stretch.target.band.high,
-  }));
-  // The lowest and the highest are the window's own, as the answer has them; the reading that closes the curve
-  // is "now" and no part of them.
-  const { low, high } = extremesOf(halfOf(means, data.nights, metric === 'vpd' ? half : 'all'));
+  const halved = (list: PlotPoint[]) => halfOf(list, data.nights, metric === 'vpd' ? half : 'all');
+  const closing = [lastAt as number, last?.value ?? null] as const;
+  const points = halved(closes ? [...before, closing] : means);
+  // A target is drawn only where the curve was heard: not through a silence, not before the first reading, and on
+  // to the window's end only under a reading that closes the curve.
+  const heard = heardOf(panel.points, data.stepSeconds * 1000, closes ? heardUntil : null);
+  const bands = stretchesOf(panel, data.nights, from, heardUntil, data.transitions ?? NO_SPANS).flatMap(stretch =>
+    heard.flatMap(run => {
+      const [start, end] = [Math.max(stretch.from, run.from), Math.min(stretch.to, run.to)];
+      return end > start ? [{ from: start, to: end, low: stretch.target.band.low, high: stretch.target.band.high }] : [];
+    }),
+  );
+  // The lowest and the highest are the window's, as the answer has them, with the reading: "Tief 0,90" over 0,79 is none.
+  const { low, high } = extremesOf(halved(closes ? [...means, closing] : means));
   const colour = COLOUR[metric] ?? 'ink';
   // What is laid over is drawn against the same scale, so the scale holds it too.
   const laid = (compared?.data.panels.find(one => one.metric === metric)?.points ?? []).flatMap(point => (point.value === null ? [] : [point.value]));
@@ -314,9 +375,8 @@ const metricCurve = (
       name: t(`timeline.metric.${metric}`, { defaultValue: metric }),
       unit: UNIT[metric] ?? '',
       colour,
-      // A humidity is read to the tenth here, as the sensor delivers it and the old charts did: "Hoch 75" over a
-      // highest sample of 74,6 is wrong, and a dehumidifier's swing of a per cent is what is looked for. Start's
-      // tile rounds the same reading to whole per cent.
+      // A humidity is read to the tenth here, as the sensor delivers it: "Hoch 75" over a highest sample of 74,6
+      // is wrong, and a dehumidifier's swing of a per cent is what is looked for. Start rounds it to whole per cent.
       written: value => (metric === 'humidity' ? decimalFigure(value, 1) : figure(value, metric)),
       decimals: DECIMALS[metric] ?? 0,
       ...(metric === 'vpd' && at(data.endsAt) - from > GRAINED_FROM_MS
@@ -394,10 +454,7 @@ interface PanelsInput {
   vpdHalf: VpdHalf;
   measured: readonly { definition: MeasurementDefinition; points: readonly GrowSeriesPoint[] }[];
   compared: Compared | null;
-  /**
-   * What the device drawn reads now, as Start says it, where the window ends now: each curve's last point. With
-   * `silentSince`, the instant of its last reading where it has stopped reporting by the offline rule.
-   */
+  /** The device's last reading where the window holds it: each curve's last point. `silentSince` is its instant once it is stale. */
   now: { values: readonly CardValue[]; silentSince: number | null } | null;
   /** Where the strips with no curve of their own stand: under the last panel, or in a card of their own. */
   restUnderLast: boolean;
@@ -415,10 +472,9 @@ export const panelsOf = (
   input: PanelsInput,
 ): { panels: PanelModel[]; rest: Strip[] } => {
   const [from, to] = [at(data.startsAt), at(data.endsAt)];
-  // After the last thing heard nothing is known, the light schedule included: the band and the night stop there, so
-  // the stretch after it is the blank it is rather than a day that went on.
-  const quiet = input.now?.silentSince ?? quietSince(data);
-  const heardUntil = quiet === null ? to : Math.min(to, quiet + (input.now?.silentSince != null ? 0 : drawnBefore(data.stepSeconds)));
+  // After a reading gone stale nothing is known: the band and the night stop at it. The answer shades no night
+  // nobody reported in, and a band keeps to where its curve was heard.
+  const heardUntil = Math.min(to, input.now?.silentSince ?? to);
   const nights = data.nights
     .map(night => ({ from: at(night.startsAt), to: Math.min(at(night.endsAt), heardUntil) }))
     .filter(night => night.to > night.from);
@@ -437,42 +493,35 @@ export const panelsOf = (
   const placed = new Set(drawn.flatMap(one => stripsFor(one.metric)).map(strip => strip.output));
   const rest = strips.filter(strip => (strip.output === 'light' ? input.shown.light : input.shown.outputs && !placed.has(strip.output)));
 
-  const panels: PanelModel[] =
+  const panel = (key: string, metric: Metric | null, of: typeof drawn, own: Strip[]): PanelModel => ({
+    key,
+    metric,
+    curves: of.map(one => one.curve),
+    plot: {
+      from,
+      to,
+      nights,
+      // Several scales share one picture, so no band is drawn there: it would be read against the wrong one.
+      bands: of.length === 1 ? of[0].bands : [],
+      alarms: (of.length === 1 && metric ? alarmsOf(data.alarms, metric) : []).map(alarm => ({
+        from: at(alarm.startedAt),
+        to: alarm.endedAt ? at(alarm.endedAt) : to,
+      })),
+      lines: of.flatMap(one => [one.curve.line, ...comparedLine(one.curve, input.compared)]),
+    },
+    strips: own,
+  });
+  const panels =
     input.one && drawn.length > 1
       ? [
-          {
-            key: 'one',
-            metric: null,
-            curves: drawn.map(one => one.curve),
-            // Several scales share the picture, so no band is drawn: it would be read against the wrong one.
-            plot: {
-              from,
-              to,
-              nights,
-              bands: [],
-              alarms: [],
-              lines: drawn.flatMap(one => [one.curve.line, ...comparedLine(one.curve, input.compared)]),
-            },
-            strips: strips.filter(strip => placed.has(strip.output)),
-          },
+          panel(
+            'one',
+            null,
+            drawn,
+            strips.filter(strip => placed.has(strip.output)),
+          ),
         ]
-      : drawn.map(one => ({
-          key: one.curve.key,
-          metric: one.metric,
-          curves: [one.curve],
-          plot: {
-            from,
-            to,
-            nights,
-            bands: one.bands,
-            alarms: (one.metric ? alarmsOf(data.alarms, one.metric) : []).map(alarm => ({
-              from: at(alarm.startedAt),
-              to: alarm.endedAt ? at(alarm.endedAt) : to,
-            })),
-            lines: [one.curve.line, ...comparedLine(one.curve, input.compared)],
-          },
-          strips: stripsFor(one.metric),
-        }));
+      : drawn.map(one => panel(one.curve.key, one.metric, [one], stripsFor(one.metric)));
 
   const last = panels.at(-1);
   if (input.restUnderLast && last) return { panels: [...panels.slice(0, -1), { ...last, strips: [...last.strips, ...rest] }], rest: [] };
@@ -503,25 +552,42 @@ export const reachOf = (data: Pick<SpaceTimeline, 'stepSeconds' | 'startsAt' | '
   curve.line.shape === 'points' ? (at(data.endsAt) - at(data.startsAt)) / 100 : Math.max(data.stepSeconds, 1) * 1500;
 
 /**
- * Where the cursor rests while nobody set it, which is what the card and every head then say: the last thing that
- * was heard. The device's last reading where the window holds it - the curves end on it -, else the window's last
- * drawn point: left at the window's end it stood past the reach of that point, and the card read "—" over a curve.
+ * Where the cursor rests while nobody set it: on the last thing heard, which the card and every head then say. The
+ * device's last reading where the window holds it, whatever is ticked, else the window's last drawn point - for a
+ * place of outputs alone the last of their points, where a curve's would be drawn.
  */
-export const restOf = (panels: readonly PanelModel[], strips: readonly Strip[], to: number, stepMs: number): number => {
-  const curves = panels.flatMap(panel => panel.curves).filter(curve => curve.line.shape === 'line');
-  const drawn = curves.flatMap(curve => curve.points.findLast(point => point[1] !== null)?.[0] ?? []);
-  // A place of outputs alone rests where the last of them was heard: on its point, as a curve's would be drawn.
+export const restOf = (curves: readonly Curve[], strips: readonly Strip[], to: number, stepMs: number, readingAt: number | null): number => {
+  const drawn = curves.flatMap(curve => (curve.line.shape === 'line' ? (curve.points.findLast(point => point[1] !== null)?.[0] ?? []) : []));
   const heard = strips.flatMap(strip => strip.points.at(-1)?.[0] ?? []).map(end => end - drawnBefore(stepMs / 1000));
-  const last = drawn.length > 0 ? Math.max(...drawn) : heard.length > 0 ? Math.max(...heard) : to;
-  return curves.find(curve => curve.lastAt !== null)?.lastAt ?? last;
+  return readingAt ?? (drawn.length > 0 ? Math.max(...drawn) : heard.length > 0 ? Math.max(...heard) : to);
 };
 
-/** When the place last measured, where it has been quiet since; null while it is still heard. */
-export const quietSince = (data: SpaceTimeline): number | null => {
-  if (data.panels.length === 0 || !data.panels.every(panel => panel.points.at(-1)?.value === null)) return null;
-  const heard = data.panels.flatMap(panel => panel.points.filter(point => point.value !== null).map(point => at(point.measuredAt)));
-  // Where its last point is drawn.
-  return heard.length === 0 ? null : Math.max(...heard) - drawnBefore(data.stepSeconds);
+/**
+ * What the cursor reads: one point - `at`, null where none stands near - which every figure and every output under
+ * one stamp is of: the nearest on any line drawn. A curve without a figure there has null, which the card names
+ * with a dash - not, as before, with the figure of another point. On the device's last reading each curve reads
+ * its closing point, unless the reading says that value from an older instant. A grow's own measurements are
+ * single readings, and are read by their own reach.
+ */
+export const readAt = (curves: readonly Curve[], cursor: number, reach: (curve: Curve) => number, readingAt: number | null) => {
+  const lines = curves.filter(curve => curve.line.shape === 'line');
+  const near = lines.flatMap(curve => nearestPoint(curve.points, cursor, reach(curve))?.[0] ?? []);
+  const stood = cursor === readingAt ? readingAt : (near.sort((one, other) => Math.abs(one - cursor) - Math.abs(other - cursor))[0] ?? null);
+  const onReading = stood !== null && (stood === readingAt || lines.some(curve => curve.lastAt === stood));
+  const closing = (curve: Curve) =>
+    onReading && curve.lastAt !== null && Math.abs(curve.lastAt - (stood as number)) < VALUE_AGE.liveSeconds * 1000 ? curve.lastAt : stood;
+
+  return {
+    at: stood,
+    onReading,
+    points: curves.map(curve => ({
+      curve,
+      point:
+        curve.line.shape === 'line'
+          ? (curve.points.findLast(point => point[0] === closing(curve) && point[1] !== null) ?? null)
+          : nearestPoint(curve.points, cursor, reach(curve)),
+    })),
+  };
 };
 
 /**
@@ -556,25 +622,15 @@ export const csvFor = (
   );
   const columns: CsvColumn[] = [
     ...curves.flatMap(curve => {
+      const column = (what: string | null, of: (point: PlotPoint) => number | undefined): CsvColumn => ({
+        label: titled(curve, what),
+        decimals: curve.decimals,
+        points: curve.points.map(point => [point[0], point[1] === null ? null : (of(point) ?? point[1])]),
+      });
       const spread = curve.points.some(point => point[2] !== undefined);
-      const column = (label: string, points: [number, number | null][]): CsvColumn => ({ label, points, decimals: curve.decimals });
       return [
-        column(
-          titled(curve),
-          curve.points.map(([time, value]) => [time, value]),
-        ),
-        ...(spread
-          ? [
-              column(
-                titled(curve, t('timeline.low')),
-                curve.points.map(([time, value, min]) => [time, value === null ? null : (min ?? value)]),
-              ),
-              column(
-                titled(curve, t('timeline.high')),
-                curve.points.map(([time, value, , max]) => [time, value === null ? null : (max ?? value)]),
-              ),
-            ]
-          : []),
+        column(null, () => undefined),
+        ...(spread ? [column(t('timeline.low'), point => point[2]), column(t('timeline.high'), point => point[3])] : []),
       ];
     }),
     // Every output at the same instants, counted from the samples of that point's window: its mean level in per cent
