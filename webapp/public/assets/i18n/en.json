@@ -5087,7 +5087,6 @@
       "none": "Nothing here has outputs of its own."
     },
     "device": {
-      "late": "online · last heard {{age}} ago",
       "firmware": "Firmware from {{day}}",
       "all": "Everything about {{name}}"
     },

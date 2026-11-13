@@ -5097,7 +5097,6 @@
       "none": "Was hier steht, hat keine eigenen Ausgänge."
     },
     "device": {
-      "late": "online · zuletzt vor {{age}}",
       "firmware": "Firmware vom {{day}}",
       "all": "{{name}}: alles Weitere"
     },

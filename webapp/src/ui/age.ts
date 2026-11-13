@@ -139,6 +139,16 @@ export const offlineLabel = (since: string | null, now: DateTime, zone: string |
   return start ? words.charAt(0).toLocaleUpperCase() + words.slice(1) : words;
 };
 
+/**
+ * How a place or a device is heard, in the two halves every surface says it with: the state's word, and how long -
+ * "vor 20 s" of the newest thing said, "seit 42 Min" of a silence. The pill draws them, a device's card says them
+ * as facts of its line.
+ */
+export const livenessWords = (liveness: ValueState, at: string | null, now: DateTime): [string, string | null] => [
+  i18next.t(`home.reading.${liveness}`),
+  at ? i18next.t(liveness === 'offline' ? 'liveness.since' : 'liveness.ago', { age: ageLabel(at, now) }) : null,
+];
+
 /** How much of a hold is left, which is a countdown and is rounded as one. */
 export const leftLabel = (until: string, now: DateTime): string => countdownLabel((DateTime.fromISO(until).toMillis() - now.toMillis()) / 1000);
 

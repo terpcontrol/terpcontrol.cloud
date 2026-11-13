@@ -15,7 +15,7 @@ import { DeviceActions, UpdateButton } from '@/screens/devices/DeviceActions';
 import { useFirmware } from '@/screens/devices/firmware-builds';
 import { socketName, socketState } from '@/screens/devices/socket-words';
 import { rowsOf } from '@/screens/devices/sockets';
-import { ageLabel, deviceLiveness, offlineLabel, sinceLabel } from '@/ui/age';
+import { deviceLiveness, livenessWords, sinceLabel } from '@/ui/age';
 import { Facts } from '@/ui/Facts';
 import { camerasCalled } from '@/ui/camera-name';
 import { cameraTitle, deviceName, deviceTitle } from '@/ui/naming';
@@ -151,13 +151,9 @@ function DeviceCard({
   const title = deviceTitle(device, t, among);
   const { running, madeOn } = useFirmware(device, leads);
   const firmware = running ? t('control.device.firmware', { day: madeOn(running) }) : null;
-  const says = waiting
-    ? t('liveness.waiting')
-    : offline
-      ? offlineLabel(spokeAt, now, zone)
-      : liveness === 'stale'
-        ? t('control.device.late', { age: ageLabel(spokeAt, now) })
-        : t('home.reading.live');
+  // The pill's words; a device that is heard says no age, which would only count the seconds on every card.
+  const [word, age] = livenessWords(liveness, spokeAt, now);
+  const says = waiting ? [t('liveness.waiting')] : [word, liveness === 'live' ? null : age];
   // What a device that is not the place's climate is set to, which its own page changes.
   const own = leads ? null : ownFactOf(t, device, offsetOf(now, zone));
   const elsewhere = unsaid(pending, leads);
@@ -165,7 +161,7 @@ function DeviceCard({
   return (
     <section className={styles.device} aria-label={title} data-short={!leads || undefined}>
       <div className={styles.deviceHead}>
-        <RowText title={title} line={<Facts facts={[says, firmware, own ? `${own.label}: ${own.value}` : null]} />} warn={offline && !waiting} />
+        <RowText title={title} line={<Facts facts={[...says, firmware, own ? `${own.label}: ${own.value}` : null]} />} warn={offline && !waiting} />
         {leads && mayManage ? <UpdateButton device={device} offline={offline} /> : null}
       </div>
       {/* Maintenance, a restart and an update of a further device are on its own page, so the list stays short. */}

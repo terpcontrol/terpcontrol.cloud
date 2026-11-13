@@ -489,6 +489,20 @@ describe('Steuerung of a place with several devices', () => {
     expect(lead.compareDocumentPosition(short) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  /** How a device is heard is said one way: the card's line has the words of the pill on its page, not some of its own. */
+  it('says a device heard late and one gone silent in the pill´s words', async () => {
+    state.devices = [
+      device(),
+      { ...plug(), state: { ...device().state, lastSeenAt: NOW.minus({ minutes: 4 }).toISO()! } },
+      { ...second(), state: { ...device().state, lastSeenAt: NOW.minus({ minutes: 25 }).toISO()! } },
+    ];
+    drawTab();
+
+    expect(await screen.findByRole('region', { name: 'Blue Dream tent' })).toHaveTextContent(/^Blue Dream tentonline(?! ·)/);
+    expect(screen.getByRole('region', { name: 'Pump socket' })).toHaveTextContent('stale · 4 min ago');
+    expect(screen.getByRole('region', { name: 'Second controller' })).toHaveTextContent('offline · for 25 min');
+  });
+
   /** The tag printed on a cam tells two apart and nothing else: the place's only one is "Terp Cam", as in "Ort bearbeiten". */
   it('calls the place´s only camera by no tag, and tags two that nobody named', async () => {
     const paired = (id: string, did: string) => ({

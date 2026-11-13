@@ -1,7 +1,7 @@
 import { type DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Liveness } from '@/screens/start/attention';
-import { ageLabel, spokenAgo } from '@/ui/age';
+import { livenessWords, spokenAgo } from '@/ui/age';
 import { Term } from '@/ui/Help';
 import { Spoken } from '@/ui/Spoken';
 import ui from '@/ui/ui.module.css';
@@ -41,16 +41,13 @@ export function LivenessPill({
       </span>
     );
   }
-  const word = t(`home.reading.${liveness}`);
-  const age = liveness === 'offline' ? 'liveness.since' : 'liveness.ago';
+  const [word, age] = livenessWords(liveness, measuredAt, now);
 
   return (
     <span className={ui.live} data-liveness={liveness}>
       {explain ? <Term topic="liveness">{word}</Term> : word}
       {measuredAt ? ' ' : null}
-      {measuredAt ? (
-        <Spoken said={`, ${t('spoken.newest', { ago: spokenAgo(measuredAt, now) })}`}>{`· ${t(age, { age: ageLabel(measuredAt, now) })}`}</Spoken>
-      ) : null}
+      {measuredAt ? <Spoken said={`, ${t('spoken.newest', { ago: spokenAgo(measuredAt, now) })}`}>{`· ${age}`}</Spoken> : null}
     </span>
   );
 }
