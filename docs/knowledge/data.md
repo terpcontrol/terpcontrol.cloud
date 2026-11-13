@@ -135,6 +135,12 @@ Pitfalls, each met at least once:
   Within three days the lamp and an AIR's `day` are a read of their own at five seconds, so a lamp's stretch
   is its samples' on every zoom: 25 ms over a day and 67 ms over three at a sample every 5 s, beside the other
   reads.
+- **Each drawn window's first and last sample** (`edgesQuery`, `edgesByWindow`; the redesign session of
+  2026-11-13 after the fifth walk; what it is for: [server-engines.md](server-engines.md#read-models)): two
+  `aggregateWindow` with the selectors `first` and `last` and `timeSrc: "_time"`, which keeps a selector's own
+  instant where a window is otherwise stamped at its stop. Of one field - a sample carries all of them -,
+  chosen once the series says which the device was heard in, so the read follows the series': 11 ms on a
+  day and on a week, 40 ms on 120 days (18 and 43 ms for the two selectors apart).
 - **An output's samples are counted per drawn window** (`countsQuery`, `figuresOf`; rule B of the redesign
   session, 2026-11-13; what it is for: [server-engines.md](server-engines.md#read-models)): one
   script with two `aggregateWindow(count)` beside the series' means - every sample of every output, and the

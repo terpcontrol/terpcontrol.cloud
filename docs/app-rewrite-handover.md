@@ -130,16 +130,27 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     device with different schedules).
     The fifth walk (2026-11-13) found the server's part holding at every range - the outputs' figures, the
     split grain, the lamp's times, silences, each lamp over its own stay, the cost (0.93 s at most) - and one
-    major and seven minors in the web app; decided by the redesign session, not built yet, and not Chris's
-    word:
+    major and seven minors in the web app. What the redesign session decided about them - not Chris's word -
+    is built (2026-11-13; rules in [app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night)). The web
+    app's part was seen in a browser against the real route; the server's - exact edges of what was heard,
+    what a reading holds - in tests and against the store, since the stack's server is older:
       - "Zeitraum abspielen" from rest plays the window from its first picture. (Rest is the reading's instant
         now, so a picture newer than the reading stopped play at once.)
-      - At rest the card is the reading whatever is ticked, and one card is one point: near a silence the
-        outputs follow the point the curves snapped to.
-      - A lamp's stretch that ends because the device fell silent says "bis letzter Wert …" with the reading's
-        own time; an output at level 0 is "aus", as on Start; "x % der Zeit an" is written in each output's
-        lane, and the lamp's line is on a desktop too.
-      - No target band where nobody reported; at 30 Tage on a desktop the diary column takes the room there is.
+      - One card is one point (`readAt`): every figure and every output under one stamp are of the same
+        instant, near a silence and with a sparse curve too; at rest that point is the reading whatever is
+        ticked, also for a place of outputs alone.
+      - A lamp's stretch that ends because the device fell silent says "bis letzter Wert …" with the last
+        sample's own time at every step (the read now asks each window's first and last sample); "an seit"
+        only under a fresh reading; an output at level 0 is "aus", as on Start; "x % der Zeit an" is written
+        in each output's lane, and the lamp's line is that label on a desktop too.
+      - No target band where nobody reported; beside the rail the diary takes a third of a page that is 200 px
+        wider from 1200 px on, and its mark never lies over its words.
+      - The trifles: what was heard begins with a device's first sample; a phone's week names every tick one
+        way; VPD's "Tief · Hoch" take the reading in; a cut window stands at its own middle, in the table
+        too; a device reporting every five minutes has a continuous lane; an output the reading did not hear
+        is "—".
+    Not built of that walk: nothing of its list. Its reading of "the table's last drawn point is stamped like
+    the others" is the builder's: the point stands at the middle of what is left of its cut window.
     Open, for Chris:
       1. No free panning (the old Ctrl-drag, a two-finger pan), and the three things that went with "Graphen":
          a range typed as two dates, renaming a saved view, the four kinds a line was filtered by.

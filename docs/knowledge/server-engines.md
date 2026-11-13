@@ -180,9 +180,18 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   contract; nothing reads them. The read behind it: [data.md](data.md#influxdb).
 - **Within three days a lamp's stretch is its samples'** (`history()`, the same session): its switchings, and
   an AIR's own day, are read at five seconds, so "07:02 bis 19:02" is the same on every zoom and the night
-  begins where the stretch ends; beyond three days both are to five minutes. A stretch of what was heard
-  begins with the window its first point stands for (`heardStretches`): a device back at 16:00 after a
-  silence has its first three-minute point at 16:03, and its lamp was lit from 16:00.
+  begins where the stretch ends; beyond three days both are to five minutes.
+- **What was heard begins and ends with its samples** (`heardStretches`, `edgesQuery`; the redesign session of
+  2026-11-13 after the fifth walk). A window says that something was heard in it, not when: a lamp lit
+  across a silence ended "17:00" at an hour to the point for a last sample at 16:18, and a device's first
+  reading began a step early. The timeline's read asks each drawn window's first and last sample by their
+  own instants ([data.md](data.md#influxdb)), and a stretch - a lane's span, a night - begins with the first
+  of its first window and ends with the last of its last, the same at every step. A read without them
+  (`/spaces/{id}/series` counts no samples) keeps the window its first point stands for and its last stamp.
+- **A reading is of one instant** (`readingOf`, the same session): the answer's `reading` carries an output
+  only if it was heard within the two minutes a reading stays fresh before the reading's own instant - a
+  valve that stopped being reported is not "aus" now - and a place of outputs alone has one too, of the one
+  such device standing in it: no values, its outputs, their instant.
 - **The state a window is found in holds from the window's start.** The switchings read stamps its opening
   state with the first grain a sample fell into, up to a grain after the window began; a night that began there
   left a sliver of day in a window of darkness (`stateStretches`). **A lane runs to the window's end only while
