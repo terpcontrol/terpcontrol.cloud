@@ -32,6 +32,8 @@ import {
   DailySummary,
   dailyMeanQuery,
   dailySummariesOf,
+  edgesByWindow,
+  edgesQuery,
   Extremes,
   extremesByField,
   extremesQuery,
@@ -57,6 +59,7 @@ import {
   OutputSwitching,
   pointsOf,
   rawSamplePredicate,
+  SampleEdges,
   readingsOf,
   SAMPLE_MEASUREMENT,
   samplesInQuery,
@@ -210,6 +213,11 @@ export interface DeviceHistory {
    * stretch nothing was heard across.
    */
   lastSampleAt: string | null;
+  /**
+   * When the first and the last sample of each drawn window were written, by the instant the window is stamped
+   * with: where a stretch of what was heard begins and ends. Only where the read counted the outputs' samples.
+   */
+  edges?: ReadonlyMap<number, SampleEdges>;
   /**
    * When an AIR fan said it ran its day and when its night, as the switchings
    * of the `day` it reports beside its readings. Only a read that asked about the
@@ -508,6 +516,14 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       figures ? this.countsOf(deviceId, outputs, { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds }) : null,
     ]);
     const switchings = new Map([...coarse, ...sampled]);
+    // Of one field the device was heard in - a sample carries all of them -, once the series says which that is.
+    const stored = [
+      ...series.outputs.map(row => ({ field: fieldOfOutputMetric(row.output) as string | null, points: row.points })),
+      ...series.metrics.map(row => ({ field: fieldOfMetric(row.metric), points: row.points })),
+    ];
+    const field = stored.find(row => row.field !== null && row.points.some(point => point.value !== null))?.field ?? null;
+    const window = { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds };
+    const edges = figures && field ? edgesByWindow(await this.read(edgesQuery(this.bucket, deviceId, field, window)), window) : null;
     const days = switchings.get(DAY_FIELD) ?? [];
 
     return {
@@ -526,6 +542,7 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
           : {}),
       })),
       lastSampleAt,
+      ...(edges ? { edges } : {}),
       ...(days.length > 0 ? { days } : {}),
     };
   }

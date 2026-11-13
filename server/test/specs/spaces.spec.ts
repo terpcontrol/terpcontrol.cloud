@@ -579,6 +579,35 @@ describe('applying a climate preset', () => {
     expect(day.nights.map(night => night.endsAt)).toContain(stretch[0].startsAt);
   });
 
+  // A window says that something was heard in it, not when: a lamp lit across a silence ended "17:00" at an hour to
+  // the point for a last sample at 16:18, and came back at the edge of whatever step it was read at.
+  it('ends a stretch at the last sample before a silence and begins the next at the first after it, at every step', async () => {
+    const spaceId = await tentWithAController();
+    const deviceId = (await owner.client.get('/v1/devices').expect(200)).body.items.find((one: { spaceId: string }) => one.spaceId === spaceId).id;
+    const base = Math.floor((Date.now() - 12 * 3600_000) / 300_000) * 300_000;
+    // Lit throughout, a sample every thirty seconds for eight hours - but for the four between the 78th and the 318th minute.
+    const times = Array.from({ length: 960 }, (_, index) => base + index * 30_000 + 12_000).filter(
+      time => time < base + 78 * 60_000 || time >= base + 318 * 60_000,
+    );
+    await seedMeasurements(times.map(time => ({ time, device_id: deviceId, fields: { temperature: 24, humidity: 55, out_light: 70 } })));
+    const [fell, back] = [times.filter(time => time < base + 78 * 60_000).at(-1)!, times.find(time => time >= base + 318 * 60_000)!];
+
+    const lit = async (range: string) => {
+      const body = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=${range}&metrics=temperature`).expect(200)).body;
+      return (body.outputs.find((one: { output: string }) => one.output === 'light').spans as { startsAt: string; endsAt: string }[]).map(span => [
+        Date.parse(span.startsAt),
+        Date.parse(span.endsAt),
+      ]);
+    };
+    const stretches = [
+      [times[0], fell],
+      [back, times.at(-1)!],
+    ];
+
+    expect(await lit('24h')).toEqual(stretches);
+    expect(await lit('7d')).toEqual(stretches);
+  });
+
   // Read over a grow, a point is hours wide and no multiple of a day, so a window held a different share of
   // day and night every time. Worked out from the window's own means with one leaf offset, the same climate
   // read 0.92 to 1.2 kPa in one month and 1.0 to 1.1 in another - a bow-tie no tent ever drew.

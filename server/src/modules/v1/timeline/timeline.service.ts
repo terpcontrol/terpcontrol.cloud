@@ -176,8 +176,12 @@ export class TimelineService {
     // What switched under the curve: the leading device's outputs, those of what is no climate of its own, and
     // those of the devices whose curve stands in front of it.
     // The device that speaks for the place now: the one the curves are of, while it still stands here.
-    const drawn = devices.find(device => device.id === (own?.series.deviceId ?? steering?.id) && device.spaceId === spaceId) ?? null;
     const acting = new Set([...actingOn(devices, own?.series.deviceId ?? null).map(device => device.id), ...before.map(link => link.deviceId)]);
+    // Where no climate stands here, the one device whose outputs are drawn speaks: a socket alone has a reading too.
+    const alone = devices.filter(device => acting.has(device.id) && device.spaceId === spaceId);
+    const drawn =
+      devices.find(device => device.id === (own?.series.deviceId ?? steering?.id) && device.spaceId === spaceId) ??
+      (alone.length === 1 ? alone[0] : null);
 
     return {
       spaceId: space.id,

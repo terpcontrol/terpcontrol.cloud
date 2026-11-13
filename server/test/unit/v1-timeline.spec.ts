@@ -486,6 +486,27 @@ describe('the window a range chip names', () => {
       { output: 'heater', on: true, level: 62 },
       { output: 'dehumidifier', on: false, level: null },
     ]);
+
+    // An output last heard of longer before the reading than a reading stays fresh is no part of it.
+    const at = (secondsBefore: number) => new Date(Date.parse('2026-06-10T11:59:55.000Z') - secondsBefore * 1000).toISOString();
+    const said = (value: number, secondsBefore: number) => ({ value, measuredAt: at(secondsBefore), state: 'live' });
+    expect(
+      readingOf({ metrics: lastReading, outputs: { light: said(65, 0), heater: said(0.4, 90), co2: said(0, 7 * 86_400) } } as never, ['temperature'])
+        ?.outputs,
+    ).toEqual([
+      { output: 'light', on: true, level: 65 },
+      { output: 'heater', on: true, level: 40 },
+    ]);
+    // A place of outputs alone has a reading too: what its outputs last said, and when.
+    expect(readingOf({ metrics: {}, outputs: { relais: said(1, 30), fan: said(45, 0) } } as never, ['temperature'])).toEqual({
+      measuredAt: at(0),
+      values: [],
+      outputs: [
+        { output: 'relais', on: true, level: null },
+        { output: 'fan', on: true, level: 45 },
+      ],
+    });
+    expect(readingOf({ metrics: {}, outputs: {} } as never, ['temperature'])).toBeNull();
   });
 
   it('ends a window named into the future now, where the measuring ends', async () => {
@@ -1672,6 +1693,33 @@ describe('a lane of a tent that has gone quiet', () => {
 
     expect(lanesOf([quiet], WINDOW)[0].heardUntil).toBe(morning.toISOString());
     expect(lanesOf([quiet], WINDOW)[0].spans.at(-1)!.endsAt).toBe(morning.toISOString());
+  });
+
+  it('ends and begins a stretch with the samples where the read says when they were written, whatever the step', () => {
+    // Silent from 07:17:30 to 12:42:10: its windows before and after are stamped up to a step from either.
+    const [fell, back] = [new Date('2026-09-19T07:17:30.000Z').getTime(), new Date('2026-09-19T12:42:10.000Z').getTime()];
+    const step = STEP_SECONDS * 1000;
+    const stampOf = (time: number) => OPENS.getTime() + Math.ceil((time - OPENS.getTime()) / step) * step;
+    const heard = history(CLOSES.toISOString());
+    const points = heard.series.outputs[0].points.map(point => {
+      const closes = new Date(point.measuredAt).getTime();
+      return { ...point, value: closes >= stampOf(fell) + step && closes < stampOf(back) ? null : 60 };
+    });
+    const read: DeviceHistory = {
+      ...heard,
+      series: { ...heard.series, outputs: [{ output: 'light', points }] },
+      edges: new Map([
+        [stampOf(fell), { first: stampOf(fell) - step + 5000, last: fell }],
+        [stampOf(back), { first: back, last: stampOf(back) - 5000 }],
+      ]),
+    };
+
+    const spans = lanesOf([read], WINDOW)[0].spans;
+    expect(spans.map(span => span.endsAt)[0]).toBe(new Date(fell).toISOString());
+    expect(spans.map(span => span.startsAt)[1]).toBe(new Date(back).toISOString());
+    // Without them a stretch ends on its last window's stamp and begins with the window its first point stands for.
+    const coarse = lanesOf([{ ...read, edges: undefined }], WINDOW)[0].spans;
+    expect([coarse[0].endsAt, coarse[1].startsAt]).toEqual([new Date(stampOf(fell)).toISOString(), new Date(stampOf(back) - step).toISOString()]);
   });
 
   it('reads the lamp of each device over its own stay, so the nights before a change of the measuring device are drawn', () => {

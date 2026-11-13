@@ -11,6 +11,8 @@ import {
   latestByField,
   countsByField,
   countsQuery,
+  edgesByWindow,
+  edgesQuery,
   switchedGrains,
   liveQuery,
   OutputSwitching,
@@ -248,6 +250,30 @@ describe('the grains a change of day and night fell into', () => {
     // A measured leaf needs no offset, and the half decides nothing else.
     expect(stretches([...grain(5, 0), ...grain(10, 60, 23.1)])).toEqual([]);
     expect(stretches([...grain(5, 100), ...grain(10, 100)])).toEqual([]);
+  });
+});
+
+describe('each window`s first and last sample', () => {
+  it('are asked for by their own instants, of one field', () => {
+    const query = edgesQuery(BUCKET, DEVICE, 'temperature', window(60 * 24, 180));
+    const [first, last] = query.split('yield(name: "first")');
+
+    expect(first).toContain('r["_field"] == "temperature"');
+    expect(first).toContain('aggregateWindow(every: 180s, fn: first, createEmpty: false, timeSrc: "_time")');
+    expect(last).toContain('aggregateWindow(every: 180s, fn: last, createEmpty: false, timeSrc: "_time")');
+    expect(last).toContain('yield(name: "last")');
+    expect(() => edgesQuery(BUCKET, DEVICE, 'x" or r["device_id"] == "other', window(60, 60))).toThrow();
+  });
+
+  it('are gathered by the instant their window is stamped with, the last window cut where the read ends', () => {
+    const read = { startsAt: new Date('2026-01-20T10:00:00Z'), endsAt: new Date('2026-01-20T10:10:00Z'), stepSeconds: 180 };
+    const rows = ['10:00:02', '10:02:32', '10:03:02', '10:09:32'].map(time => ({ _time: `2026-01-20T${time}Z`, _field: 'temperature' }));
+
+    expect([...edgesByWindow(rows, read)].map(([stamp, one]) => [new Date(stamp).toISOString().slice(11, 19), one.last - one.first])).toEqual([
+      ['10:03:00', 150_000],
+      ['10:06:00', 0],
+      ['10:10:00', 0],
+    ]);
   });
 });
 

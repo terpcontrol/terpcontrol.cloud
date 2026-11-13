@@ -305,22 +305,30 @@ export const chartPartsOf = (read: {
 
 /**
  * A device's last reading as the Timeline answers it: the metrics asked for, the instant of the newest of
- * them, and each output as on or off with its level in per cent where it has one (`OUTPUT_LEVEL`).
+ * them, and each output it said then as on or off with its level in per cent where it has one (`OUTPUT_LEVEL`).
  */
 export const readingOf = (live: Pick<DeviceLive, 'metrics' | 'outputs'>, metrics: readonly Metric[]): TimelineReading | null => {
   const values = metrics.flatMap(metric => {
     const one = live.metrics[metric];
     return one && one.value !== null && one.measuredAt !== null ? [{ metric, ...one }] : [];
   });
-  if (values.length === 0) return null;
+  const outputs = (Object.entries(live.outputs) as [OutputMetric, DeviceLive['outputs'][OutputMetric]][]).flatMap(([output, one]) =>
+    one && one.value !== null && one.measuredAt !== null ? [{ output, value: one.value, measuredAt: one.measuredAt }] : [],
+  );
+  // A place of outputs alone - a socket, a fan - has a reading too: what its outputs last said, and when.
+  const heard = (values.length > 0 ? values : outputs).map(one => one.measuredAt as string);
+  if (heard.length === 0) return null;
+  const measuredAt = heard.reduce((newest, one) => (one > newest ? one : newest));
 
   return {
-    measuredAt: values.map(one => one.measuredAt as string).reduce((newest, one) => (one > newest ? one : newest)),
+    measuredAt,
     values,
-    outputs: (Object.entries(live.outputs) as [OutputMetric, DeviceLive['outputs'][OutputMetric]][]).flatMap(([output, one]) => {
-      if (!one || one.value === null) return [];
+    // An output last heard of before this reading - longer before it than a reading stays fresh - is no part of it:
+    // a valve that stopped being reported last week is not "aus" now.
+    outputs: outputs.flatMap(({ output, value, measuredAt: saidAt }) => {
+      if (millis(measuredAt) - millis(saidAt) > VALUE_AGE.liveSeconds * 1000) return [];
       const kind = OUTPUT_LEVEL[output];
-      return [{ output, on: one.value > 0, level: kind?.unit === 'percent' ? Math.round(Math.min(100, one.value * kind.scale)) : null }];
+      return [{ output, on: value > 0, level: kind?.unit === 'percent' ? Math.round(Math.min(100, value * kind.scale)) : null }];
     }),
   };
 };
@@ -349,7 +357,7 @@ const pointsOfOutput = (output: OutputHistory): Pick<TimelineOutputLane, 'points
 };
 
 /** The last instant the device was heard about one output, which is the window's own end while it is still reporting. */
-const heardUntilOf = (output: OutputHistory, series: DeviceSeries, window: SeriesWindow, sampled: number | null): string => {
+const heardUntilOf = (output: OutputHistory, series: DeviceSeries, window: SeriesWindow, sampled: Sampled): string => {
   const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
   const heard = heardStretches(points, readOf(series, window), series.stepSeconds, sampled);
 
@@ -362,8 +370,17 @@ const stayOf = (history: DeviceHistory, window: SeriesWindow): SeriesWindow => (
   endsAt: new Date(Math.min(window.endsAt.getTime(), millis(history.series.endsAt))),
 });
 
+/** What a read says of when a device's samples were written: its newest inside the window, and each drawn window's first and last. */
+interface Sampled {
+  newest: number | null;
+  edges?: DeviceHistory['edges'];
+}
+
 /** When the device last wrote anything inside this window, as an instant the arithmetic can use, or nothing where the read could not say. */
-const heardAt = (history: DeviceHistory): number | null => (history.lastSampleAt === null ? null : millis(history.lastSampleAt));
+const heardAt = (history: DeviceHistory): Sampled => ({
+  newest: history.lastSampleAt === null ? null : millis(history.lastSampleAt),
+  edges: history.edges,
+});
 
 /** What one device said about one output, or nothing where it was not asked about it or never reported it. */
 const outputIn = (history: DeviceHistory, output: OutputMetric): OutputHistory =>
@@ -449,7 +466,7 @@ const usualGapOf = (points: readonly SeriesPoint[], stepSeconds: number): number
  * not at the edge of the window - a device that has said nothing for three days
  * is not three days of "off".
  */
-const spansOf = (output: OutputHistory, on: boolean, series: DeviceSeries, window: SeriesWindow, sampled: number | null): TimelineSpan[] => {
+const spansOf = (output: OutputHistory, on: boolean, series: DeviceSeries, window: SeriesWindow, sampled: Sampled): TimelineSpan[] => {
   const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
 
   return overlapping(stateStretches(output.switchings, on), heardStretches(points, readOf(series, window), series.stepSeconds, sampled)).map(
@@ -508,7 +525,12 @@ const stateStretches = (switchings: readonly OutputSwitching[], on: boolean): St
  * the edge it already had: the closing stretch is snapped to the end of the
  * window, so a live tent has no gap at the right-hand edge of its own chart.
  */
-const heardStretches = (points: readonly SeriesPoint[], window: SeriesWindow, stepSeconds: number, sampled: number | null): Stretch[] => {
+const heardStretches = (
+  points: readonly SeriesPoint[],
+  window: SeriesWindow,
+  stepSeconds: number,
+  { newest: sampled, edges }: Sampled,
+): Stretch[] => {
   const heard = points.flatMap(point => (point.value === null ? [] : [millis(point.measuredAt)]));
   if (heard.length === 0) return [];
 
@@ -522,7 +544,11 @@ const heardStretches = (points: readonly SeriesPoint[], window: SeriesWindow, st
 
   for (const [index, stretch] of stretches.entries()) {
     const after = index === 0 ? window.startsAt.getTime() : stretches[index - 1].to + 1;
-    stretch.from = Math.max(stretch.from - stepSeconds * 1000, after, window.startsAt.getTime());
+    // Where the read says when the samples of a window were written, a stretch begins with the first of its first
+    // window and ends with the last of its last: at one instant, however wide the windows are.
+    const [first, last] = [edges?.get(stretch.from)?.first, edges?.get(stretch.to)?.last];
+    stretch.from = Math.max(first ?? stretch.from - stepSeconds * 1000, after, window.startsAt.getTime());
+    stretch.to = Math.max(stretch.from, last ?? stretch.to);
   }
 
   const opens = stretches[0];

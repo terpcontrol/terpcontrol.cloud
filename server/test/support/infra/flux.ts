@@ -29,9 +29,11 @@ export interface ParsedFlux {
   timeAtStart: boolean;
   /** A filter that keeps only the samples above zero, which is how the samples an output ran in are counted. */
   aboveZero: boolean;
+  /** `timeSrc: "_time"` leaves a selector's row at its own instant: when a window's first or last sample was written. */
+  timeOfSample: boolean;
 }
 
-export type AggregateFn = 'mean' | 'max' | 'min' | 'sum' | 'count';
+export type AggregateFn = 'mean' | 'max' | 'min' | 'sum' | 'count' | 'first' | 'last';
 
 /** The `limit(n:)` the server's own queries carry, so a wide range with a small
  * interval cannot build an unbounded list here either. */
@@ -94,6 +96,7 @@ export const parseFlux = (query: string): ParsedFlux => ({
   switchings: /\|>\s*difference\(/.test(query),
   timeAtStart: /timeSrc:\s*"_start"/.test(query),
   aboveZero: /filter\(fn: \(r\) => r\._value > 0\.0\)/.test(query),
+  timeOfSample: /timeSrc:\s*"_time"/.test(query),
 });
 
 const aggregate = (values: number[], fn: AggregateFn): number | null => {
@@ -107,6 +110,10 @@ const aggregate = (values: number[], fn: AggregateFn): number | null => {
       return values.reduce((a, b) => a + b, 0);
     case 'count':
       return values.length;
+    case 'first':
+      return values[0];
+    case 'last':
+      return values[values.length - 1];
     default:
       return values.reduce((a, b) => a + b, 0) / values.length;
   }
@@ -170,6 +177,7 @@ const fieldRows = (matching: InfluxPoint[], field: string, parsed: ParsedFlux, s
   }
 
   const buckets = new Map<number, number[]>();
+  const sampled = new Map<number, number[]>();
   for (const point of written) {
     // Windows cover (windowStart, windowStop], so a point exactly on a boundary
     // belongs to the window that ends there.
@@ -180,6 +188,7 @@ const fieldRows = (matching: InfluxPoint[], field: string, parsed: ParsedFlux, s
       buckets.set(windowStop, bucket);
     }
     bucket.push(point.fields[field]);
+    sampled.set(windowStop, [...(sampled.get(windowStop) ?? []), point.time]);
   }
 
   const rows: ResultRow[] = [];
@@ -187,7 +196,11 @@ const fieldRows = (matching: InfluxPoint[], field: string, parsed: ParsedFlux, s
   const firstWindow = Math.floor(start / every) * every + every;
   // Influx truncates the final window to the end of the range, and `timeSrc`
   // decides which end of a window a row is stamped at.
-  const stamp = (windowStop: number): number => (parsed.timeAtStart ? Math.max(start, windowStop - every) : Math.min(windowStop, stop));
+  const stamp = (windowStop: number): number => {
+    const times = sampled.get(windowStop) ?? [];
+    if (parsed.timeOfSample && times.length > 0) return parsed.fn === 'first' ? Math.min(...times) : Math.max(...times);
+    return parsed.timeAtStart ? Math.max(start, windowStop - every) : Math.min(windowStop, stop);
+  };
 
   if (parsed.createEmpty) {
     for (let windowStop = firstWindow; rows.length < MAX_ROWS; windowStop += every) {
