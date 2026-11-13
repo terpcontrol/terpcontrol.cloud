@@ -153,7 +153,10 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     more modern while staying with the brand ([ADR 0002](adr/0002-app-rewrite-frontend-stack.md#the-look-the-brand)).
     It comes after the navigation rounds and before the last fix pass. Chris is shown visual proposals first and
     chooses; nothing of the look is changed before that, and ADR 0002's section on the look is amended with what
-    he chose, in the same commits as `src/theme/tokens.css`.
+    he chose, in the same commits as `src/theme/tokens.css`. His word on the first three proposals (2026-11-13),
+    which holds for whatever is built: the colours must be tuned to each other and softer - a palette, not
+    brand colours beside signal colours -, and the type must not be bold everywhere: hierarchy from size and
+    ink, fine weights where the size carries them, and still easy to read.
   - Where rounds 6 and 7 meet, state of 2026-11-13 (the redesign session). Both rounds' fix passes were walked
     together on the session's stack: both lists are built and the server's rules for place and room hold under
     direct attack, with one gap (an ended room still took a share link). No blocker, three majors and ten
