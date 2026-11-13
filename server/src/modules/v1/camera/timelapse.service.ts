@@ -557,7 +557,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="56">
       <rect width="100%" height="100%" rx="10" fill="${PANEL}" fill-opacity="0.55"/>
       <text x="180" y="28" text-anchor="middle" dominant-baseline="central"
-            font-family="${TEXT_FAMILY}" font-size="26" font-weight="600" fill="${INK}">terpcontrol.com</text>
+            font-family="${TEXT_FAMILY}" font-size="26" font-weight="500" fill="${INK}">terpcontrol.com</text>
     </svg>`;
 
     await writeFile(path, await sharp(Buffer.from(svg)).png().toBuffer());

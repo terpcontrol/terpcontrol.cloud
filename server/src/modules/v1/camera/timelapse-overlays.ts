@@ -11,9 +11,9 @@ import { TimelapseContext } from './timelapse-context.service';
  * counter, the curve and the caption are one overlay per frame rather than
  * three filters, so a film of a week is one composite per frame.
  *
- * The type is the app's: Inter for words and figures, and Inter bold for the
- * day counter, which is a grow's own "where are we" and is set the way the app
- * sets a week's heading. librsvg finds a face through fontconfig, and only as a
+ * The type is the app's: Albert Sans for words and figures, and its medium for
+ * the day counter and a reading, which are what a frame is read for - nothing
+ * in the app is set bolder. librsvg finds a face through fontconfig, and only as a
  * TrueType or OpenType file - the WOFF and WOFF2 the web packages ship are not
  * read - so the image unpacks the @fontsource faces into .ttf files when it is
  * built and points FONTCONFIG_FILE at them (scripts/install-fonts.mjs). Run
@@ -26,15 +26,15 @@ import { TimelapseContext } from './timelapse-context.service';
  * the card a shared link is drawn as, which is the same trick: an SVG layer
  * composited onto a picture by sharp. A picture is seen through a plate at
  * night-time strength whatever mode the viewer's app is in, so the plate is the
- * navy of the dark theme and the lines are its signal colours.
+ * ground of the dark theme and the lines are its signal colours.
  */
-export const INK = '#f1f4fa';
-export const MUTED = '#b9c4dc';
-export const PANEL = 'rgb(20,38,74)';
-const TEMPERATURE = '#ffa166';
-const HUMIDITY = '#5fd4cf';
+export const INK = '#e9e8e3';
+export const MUTED = '#adaba3';
+export const PANEL = 'rgb(20,22,26)';
+const TEMPERATURE = '#e8a587';
+const HUMIDITY = '#8ac1d7';
 
-export const TEXT_FAMILY = 'Inter, DejaVu Sans, sans-serif';
+export const TEXT_FAMILY = 'Albert Sans, DejaVu Sans, sans-serif';
 
 /** How far either side of a diary line its caption is shown. */
 const CAPTION_WINDOW_MS = 30 * 60 * 1000;
@@ -131,7 +131,7 @@ const dayBadge = (frame: OverlayFrame, context: TimelapseContext): string | null
   return `<g>
     <rect x="${pad}" y="${pad}" width="${width}" height="${height}" rx="${Math.round(size / 3)}" fill="${PANEL}" fill-opacity="0.58"/>
     <text x="${pad + width / 2}" y="${pad + height / 2}" text-anchor="middle" dominant-baseline="central"
-          font-family="${TEXT_FAMILY}" font-size="${size}" font-weight="700" fill="${INK}">${DAY_WORD[context.language ?? 'en'] ?? DAY_WORD.en} ${day}</text>
+          font-family="${TEXT_FAMILY}" font-size="${size}" font-weight="500" fill="${INK}">${DAY_WORD[context.language ?? 'en'] ?? DAY_WORD.en} ${day}</text>
   </g>`;
 };
 
@@ -201,7 +201,7 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
         ? []
         : [
             `<text x="${left + 8 + index * size * 5}" y="${top + size}" font-family="${TEXT_FAMILY}" font-size="${size}"
-                   font-weight="700" fill="${line.colour}">${line.reading}</text>`,
+                   font-weight="500" fill="${line.colour}">${line.reading}</text>`,
           ],
     )
     .join('');

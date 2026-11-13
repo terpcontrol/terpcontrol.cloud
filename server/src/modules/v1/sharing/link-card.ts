@@ -102,7 +102,7 @@ const textLayer = (card: LinkCard, hasCover: boolean): string => {
     .map(
       (line, index) =>
         `<text x="${MARGIN}" y="${titleTop + (index + 1) * (TITLE_SIZE + 10)}" font-family="${TEXT_FAMILY}" font-size="${TITLE_SIZE}"
-               font-weight="600" fill="${INK}">${escapeXml(line)}</text>`,
+               font-weight="500" fill="${INK}">${escapeXml(line)}</text>`,
     )
     .join('');
 
