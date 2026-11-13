@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
 updated: 2026-11-13
-source: Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13
+source: Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - server/**
   - shared-types/**
@@ -139,14 +139,21 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   write the `archivedAt` a removal writes, and with `manage` a guest who steers a place could put the host's
   place away. Whether the routes stay at all is Chris's to say.
 - **An ended room takes nothing, and neither does an ended place.** One helper says both refusals
-  (`refuseEnded`, `common/v1/rooms.ts`): 409 `room_ended` for a room, 409 `space_archived` for a place.
-  `SpacesService.requireOpen` refuses an ended room in `PATCH /spaces/{id}` and as the `roomId` of
-  `POST`/`PATCH /spaces`; `SpacesService.requireStanding` refuses any ended space - room or place - in
-  `POST /spaces/{id}/invites`, `POST /spaces/{id}/members` and `POST /share-links` with it as the subject (the
-  place's part: the redesign session of 2026-11-13, awaiting Chris's confirmation), and the device move and the
-  claim refuse an ended place through the same helper. "Ended" is `archivedAt` set, so it holds for a place that
-  was removed and for one put away - the data cannot tell them apart. An ended place can still be renamed
-  through `PATCH`. Redeeming a code cut for an ended room stays the 404 `invite_not_found` every dead code gets,
+  (`refuseEnded`, `common/v1/rooms.ts`; `refuseEndedId` where only the id is in hand): 409 `room_ended` for a
+  room, 409 `space_archived` for a place. `SpacesService.requireStanding` refuses any ended space - room or
+  place - in `PATCH /spaces/{id}` (the whole request: name, kind, room, retention and preset prompt),
+  `POST /spaces/{id}/invites`, `POST /spaces/{id}/members` and `POST /share-links` with it as the subject;
+  `requireRoom` refuses an ended room as the `roomId` of `POST`/`PATCH /spaces`. A reminder on an ended place
+  (`POST /reminders`), a grow started in it, moved to it, split off into it or corrected into it (`POST /grows`,
+  `POST /grows/{id}/placements`, `POST /grows/{id}/splits`, `PATCH /grows/{id}/placements/{pid}`), the device
+  move and the claim refuse through the same helper. The place's part is the redesign session's of 2026-11-13,
+  the wider refusals after its critic's walk of the clearing-up round, all awaiting Chris's confirmation.
+  "Ended" is `archivedAt` set, so it holds for a place that was removed and for one put away - the data cannot
+  tell them apart; bringing a place back and removing one are unaffected. **Left as it is**, with the question
+  what "put away" means ([handover](../app-rewrite-handover.md#open-for-chris)): a put-away place's old share
+  link stays readable, its guests go on reading it and its old invitation is alive again once it is brought
+  back; and a camera put into an ended place, a diary line or a picture on it and a preset application still
+  go through. Redeeming a code cut for an ended room stays the 404 `invite_not_found` every dead code gets,
   because that route is reachable by anybody with an account.
 - **What is the owner's stays the owner's.** Beside ending a place, only its owner (or an administrator) says
   which room it stands in - `roomName`, or a `roomId` other than the one it has, `null` included, in

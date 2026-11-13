@@ -1,7 +1,7 @@
 ---
 summary: The /v1 data model, the API conventions and routes, the access rule, the frozen device protocol and the migration from the old database - read before changing a collection, a route, a migration step or anything a device touches
 updated: 2026-11-13
-source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, awaiting his confirmation; an ended place's refusals, the archive routes' `own` and alerts by `resolvedAt`: the redesign session's clearing-up round of 2026-11-13, awaiting his confirmation
+source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, awaiting his confirmation; an ended place's refusals, the archive routes' `own` and alerts by `resolvedAt`: the redesign session's clearing-up round of 2026-11-13, awaiting his confirmation; the wider refusal of an ended place (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - server/src/database/**
   - server/src/migrations/**
@@ -494,6 +494,12 @@ can be refused by itself):
   a place that has ended answer 409 `space_archived`, the code a device put there already got; one helper says
   both kinds (`refuseEnded`). Until then its owner could still let somebody into a place that is on no screen.
   "Ended" is `archivedAt` set, which a removal and the archive route both write.
+  After the critic's walk of that round the same holds for the rest of what a place can be given: a reminder on
+  it, a grow started in it, moved to it, split off into it or corrected into it, and any change of the place
+  itself (`PATCH /spaces/{id}` is refused whole). Not changed, and part of the question what "put away" means:
+  a put-away place's old share link stays readable, its guests go on reading it, its old invitation is alive
+  again once it is brought back; a camera, a diary line and a preset application on an ended place still go
+  through.
 - **Putting a place away and bringing it back are its owner's** (`PUT`/`DELETE /spaces/{id}/archive` ask `own`,
   no longer `manage`): they write the instant a removal writes, and a guest who steers a place could put the
   host's place away. The web app calls neither route, and whether "put away" stays an act of its own beside

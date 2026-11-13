@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
 updated: 2026-11-13
-source: a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13
+source: a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13; the report's count of entries (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -224,7 +224,10 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   much shorter than that is averaged away. How a switch between day and night is judged: ADR 0006.
 - A week's light hours are lit time over heard time, refused below a day heard; a report judges each phase against
   the band snapshotted for it, never today's targets; photo totals count the pictures of matched entries, because
-  migrated pictures hang on notes.
+  migrated pictures hang on notes. **A report's `entryCount` is the grower's own entries** (`source: 'human'`,
+  `totalsOf` in `report.service.ts`; the redesign session of 2026-11-13, after its critic's walk of the
+  clearing-up round): an alarm's line is the diary's to tell and no entry, and the owner reads the figure a
+  share link reads.
 - **A grow's day is a date on its owner's calendar** (the redesign session of 2026-11-12, not yet confirmed by
   Chris; [app-wording.md](app-wording.md), Grow time): `growDayAt(origin, at, zone)` counts dates, day 1 the date
   the grow began on. Whoever counts reads the owner's zone first (`zoneOfOwner`, `zonesOfOwners` in
@@ -253,8 +256,8 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   Lamp and stretches outside the band are a day's and cost a read of the store, so the tail has none.
 - **Nothing of a device reaches a reader from outside** (`writtenFor` in `diary-entries.ts`): on a public page and
   through a link onto a grow or a place every read of entries - the diary, its lines from before the start, the
-  report's lines and totals, the list of entries and an entry by its id, a shared place's newest lines, the rail
-  of Verlauf - is answered what people wrote and nothing an alarm, a device or the plan did, as a condition of the
+  report's lines and totals, the list of entries and an entry by its id, a shared place's newest lines, the
+  diary lines of Verlauf - is answered what people wrote and nothing an alarm, a device or the plan did, as a condition of the
   query so that pages and totals count what is served. Such a reader is answered no events of a day, no alarms on
   Verlauf and no share either. An alarm line carried its alert's and its rule's id, and says when a tent stood
   outside its limits: until 2026-11-12 the diary handed those to anybody with the address.

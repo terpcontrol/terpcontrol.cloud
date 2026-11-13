@@ -1,7 +1,7 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
 updated: 2026-11-13
-source: Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12); the one wording pass over both catalogues - phase, Meldung and Alarm, Start and Home, typography (the redesign session of 2026-11-13)
+source: Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12); the one wording pass over both catalogues - phase, Meldung and Alarm, Start and Home, typography (the redesign session of 2026-11-13); hinzufügen for adding a device, abgeben, löschen against widerrufen and the English its critic read as translated (the same session after its critic's walk; "Gerät hinzufügen" is the word of the prototype Chris accepted on 2026-11-12); the one form of an undo's answer (the same walk)
 paths:
   - webapp/public/assets/i18n/**
   - webapp/src/ui/figures.ts
@@ -48,7 +48,8 @@ string exists in English and German, with no English left in the German catalogu
 | where the plants are, from germination to curing | phase | Phase (never Stadium) |
 | the page behind the bell, and a card on it | Alerts; alert | Meldungen; Meldung (never Posteingang, inbox) |
 | what is set up under Steuerung › Alarme | alarm | Alarm |
-| adding a device with its code | claim | übernehmen (never beanspruchen) |
+| adding a device with its code | add | hinzufügen (never übernehmen or beanspruchen; English never "claim") |
+| letting a device go; removing an entry for good | give up; delete | abgeben; löschen ("Widerrufen" / "Undo" is the toast's way back only) |
 | writing into the diary; what is written | log; entry | eintragen; Eintrag (never loggen) |
 | readings where the targets are | on target | im Ziel ("in band" / "im Zielband" only for the share of a day) |
 | the account | account | Konto, also in sign-in and activation |
@@ -120,6 +121,30 @@ string exists in English and German, with no English left in the German catalogu
 - **Page names are names in both languages**: Start, Grow, Eintrag, Verlauf, Steuerung, Meldungen, Ich - Home,
   Grow, Log, Timeline, Control, Alerts, Me, capitalised in a sentence too ("on Home", "in the Timeline"), and a
   way through them is written with "›" ("Ich › Konto"), as a way through somebody else's app is.
+- **Adding a device is "Gerät hinzufügen"** - the page, the button under the code ("Hinzufügen"), what a device
+  is afterwards ("Hinzugefügt"), what somebody else may do with one given up ("kann von jemand anderem
+  hinzugefügt werden"), and an operator's "noch von niemandem hinzugefügt". It is the word of the prototype Chris
+  accepted on 2026-11-12; the wording pass had written "übernehmen", which the redesign session corrected on
+  2026-11-13 after its critic's walk. English says "add" throughout and "claim" nowhere on screen (the code is
+  "the code on the display"); the code and the contract keep `claim`. "Übernehmen" stays for what it means
+  elsewhere: applying a preset or a choice, a device taking a setting.
+- **Giving a device up** asks "Gerät abgeben?", answers yes with "Abgeben" and says "… ist abgegeben und kann
+  von jemand anderem hinzugefügt werden" - one verb, no "entfernen". **Deleting an entry** is "Eintrag löschen"
+  with "Löschen": "Widerrufen" is the word of an undo and of nothing that is final (the same session).
+- **An undo's answer has one form and says what holds now**: "Widerrufen · <what holds again>", English
+  "Undone · …" (`undoneLabel`, `webapp/src/log/lines.ts`; the same session) - never the thing undone behind a
+  colon, which is the opposite of what holds ("Widerrufen: Alarm … aus" of an alarm that is on again). A
+  setting names its value again ("Widerrufen · Sprache: Deutsch"); an entry taken back is "nicht mehr im
+  Tagebuch" (`log.gone`), a task unticked "Aufgabe wieder offen" (`log.reopened`), a thing just made "… gibt es
+  nicht mehr" (`log.noMore`), a phase begun "wieder die Phase davor" (`log.phaseBefore`), and where the earlier
+  words are not at hand "… wie zuvor" (`log.asBefore`). A save to an offline device keeps its suffix on both
+  ("· gespeichert, noch nicht am Gerät"). An undo that fails says "Das ließ sich nicht widerrufen"; an entry's
+  delete that fails has its own sentence.
+- English, from the same walk: what applies at a time "applies" or is "in effect now" - a device "holds" its
+  targets, figures do not "hold"; whoever may change a place "manages" it, as the role "can manage" says, and
+  nobody "steers"; a grow or a device "is in" a place; a setting made while a device is offline "reaches the
+  device" later; the rolling films are the daily, weekly and monthly film, one of one's own a custom film; a
+  report counts waterings and feedings; the plan's questions are "plan questions".
 - Superseded names: "Pflegemodus" (Chris, 2025-11-07, the old app) and the rewrite's "Reingehen" / "Alarme aus"
   became "Wartung" (2026-10-04); "Bereich" (2026-09-23) became "Ort" (Chris, 2026-10-01), and English "space" became
   "place" (2026-10-04).
@@ -142,7 +167,8 @@ string exists in English and German, with no English left in the German catalogu
 - The stage is counted in weeks ("Blüte, Woche 3") as the server counts them (`stageWeek`, from `stageWeekOf` in
   `shared-types/src/v1/grow-days.ts`); a phase's own days divided by seven give another week. A week of the diary is
   named by its days and carries the stage most of it lay in; a feeding scheme's own week is always "Schema-Woche".
-- What a device or the plan did without a person is marked "von allein" (English "by itself") - not what somebody
+- What a device or the plan did without a person is marked "von allein" (English "automatic" as a tag; "by
+  itself" read translated there and stays only inside a sentence - the redesign session of 2026-11-13) - not what somebody
   switched, such as maintenance ("Wartung · 2 Min") -, in a diary line, as the author of an entry a plan or a
   preset wrote and as the tag on a phase they set in the grow's head: "auto" was a second word for it and reads
   as autoflower (the redesign session of 2026-11-12); a share of a day inside its targets reads "96 % der Zeit im
