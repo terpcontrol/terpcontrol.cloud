@@ -1,7 +1,7 @@
 ---
-summary: Which libraries the React web app is built from and why, its session and API client, its service worker, and the brand look its design tokens carry - read before adding a dependency, changing the build, the service worker, the fonts or a token
+summary: Which libraries the React web app is built from and why, its session and API client, its service worker, and the look its design tokens carry - read before adding a dependency, changing the build, the service worker, the fonts or a token
 updated: 2026-11-13
-source: Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen 2026-11-13); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
+source: Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen and the green kept for the one action 2026-11-13); the redesign session of 2026-11-13 (Nebel's values); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
 paths:
   - webapp/package.json
   - webapp/vite.config.ts
@@ -15,8 +15,9 @@ paths:
 # ADR 0002: The libraries the rewritten web app is built from
 
 - **Status:** accepted on 2026-09-18. The choices below are what `webapp/` is scaffolded on. Amended on
-  2026-09-24: the look the libraries carry is the company's brand, recorded under
-  [The look](#the-look-the-brand); it supersedes "Greenhouse", which had replaced "Instrument". Also amended on
+  2026-09-24: the look the libraries carry is the company's brand; it superseded "Greenhouse", which had replaced
+  "Instrument". Amended on 2026-11-13: the look is "Nebel", recorded under [The look](#the-look-nebel), which
+  supersedes the brand look. Also amended on
   2026-09-18 (the app runs the contract's schema-free modules, see [Types](#types-only-from-fg2shared-typesv1)),
   2026-09-22 (the service worker is written by hand, for Web Push) and 2026-09-25 (the tabular digits come from a
   face of their own). Built and merged with #104 on 2026-10-04.
@@ -33,8 +34,8 @@ with no persona or mode selection; and **every value carries an age** and is dim
 old. Two more come from outside the screens: the app must be **installable as a progressive web app**, because a
 native store build may follow, and it **consumes the contract's types directly**, so no shape is written down
 twice. The look was first "Instrument" - IBM Plex Sans, JetBrains Mono for every figure, 8 px corners, 1 px rules
-and no shadows - then "Greenhouse", a warm organic look with serif titles, and is now the company's own brand as
-terpcontrol.com sets it, described [below](#the-look-the-brand).
+and no shadows - then "Greenhouse", a warm organic look with serif titles, then the company's own brand as
+terpcontrol.com sets it, and is now "Nebel", described [below](#the-look-nebel).
 
 A library is worth a dependency here when it does something the platform does not, and cheap enough that a phone
 on a bad connection does not pay for it. That is the test each choice below had to pass.
@@ -157,156 +158,148 @@ Fonts are self-hosted through `@fontsource-variable`, with the axes the look use
 latin-ext cuts precached. Google Fonts would be a third-party request on every load, which an installed app cannot
 rely on and which tells somebody else who opened the app.
 
-### The look: the brand
+### The look: "Nebel"
 
-**Being replaced by "Nebel"** (Chris, 2026-11-13). Chris asked for a look that still follows the brand but is more
-modern, softer and finer - colours tuned to one another rather than set side by side, and type that is not bold
-everywhere - and chose the direction "Nebel" from three proposals: Albert Sans in light weights, a warm paper in
-place of the cool white, navy as the ink, a soft green for "in band". The one primary action keeps the brand
-green, as he decided the same day when the proposal had made it navy. It lands with the rewrite of this section, in
-the same commits as `tokens.css`; until then the values below are what the app wears.
+The app wears "Nebel" (Chris, 2026-11-13): a warm paper under navy ink, one light sans, and the brand's green for
+the one primary action. `webapp/src/theme/tokens.css` is where every value below is written; this section says
+what they are and why, and the two change together. The page's structure - the frame, the wide layouts, the shared
+layer in `webapp/src/ui` - is not part of the look and did not change with it.
 
-The app wears the company's own brand, as terpcontrol.com sets it: its colours, its plain sans and its radii.
-`webapp/src/theme/tokens.css` is where every value below is written; this section says what they are and why, and
-the two change together. The page's structure - the frame, the wide layouts, the two-column Home, the shared
-layer in `webapp/src/ui` (groups, joined rows, the one segmented control, figure strips, the page title's edge,
-age said by ink rather than opacity) - is not part of the look and did not change with it.
+**It supersedes the brand look**, which this section recorded from 2026-09-24: Inter in bold titles and semibold
+figures, the site's cool white and blue-grey, its brand blue for whatever is selected and tracked capitals over
+every section. Chris found its type heavy - bold everywhere, nothing fine - and its colours neither soft nor in
+tune with one another, and asked for a look that still follows the brand but is more modern. From three proposals
+he chose this one, and decided the same day that the one primary action keeps the brand green where the proposal
+had made it navy. What stays from the looks before: no serif anywhere (Chris, 2026-09-24), no monospaced face on
+figures, and the brand's own logo and green. What his choice overrules: the warm paper, which the brand look had
+ruled out, and following the site's palette value for value. The values other than the direction itself - the
+signal colours, the lamp's, the weights, the radii - were worked out by the redesign session of 2026-11-13 and
+are open to him.
 
-**It supersedes "Greenhouse"**, the warm organic look this section recorded before: Fraunces serif titles and
-wordmark over Nunito Sans, oat paper and warm charcoal, a forest green for the brand. A panel of agent judges had
-picked it; the owner rejected it for two reasons (Chris, 2026-09-24), and both are now rules. A serif is for
-special occasions only, and the app has none: no name, title, heading or figure is set in a serif anywhere. And
-the app follows the brand's colours rather than a palette of its own, so a grower who comes from the website finds
-the same blue, the same green and the same logo in the app. "Instrument", the look before Greenhouse (IBM Plex
-Sans, JetBrains Mono on every figure), stays retired for the reasons it was retired: a monospaced face on every
-string, one weight, grey on grey.
+**Face.** One family, OFL, self-hosted: **Albert Sans Variable** (`@fontsource-variable/albert-sans`, the weight
+axis). It has no tabular figures - its "1" is half as wide as its "0" - so a column of readings would not line up
+and a live figure would push its unit about as it changes. `webapp/scripts/tabular-digits.py` therefore cuts
+digits of one width out of it: 0-9 only, each centred on the width of its weight's "0", as three static faces of
+about 1.3 KB (`src/theme/albert-sans-tabular-digits-{300,400,500}.woff2`) - static, because recentring moves an
+outline differently at every weight. `--font-figure` names that face ahead of Albert Sans: digits are a digit
+wide, everything else keeps its own width. The server draws its overlays in the same family:
+`server/scripts/install-fonts.mjs` unpacks `@fontsource/albert-sans` at 400 and 500 into the image for librsvg.
 
-**Face.** One family, OFL, self-hosted: **Inter Variable** (`@fontsource-variable/inter`, the weight and
-optical-size axes, `opsz.css`). The site sets its text in the system's sans and names Inter in that stack;
-self-hosting Inter gives the app that look on every platform, where the bare stack would be San Francisco on a
-Mac, Segoe on Windows and Roboto on Android. A column of readings lines up without a second, monospaced face,
-because the digits are tabular. *Amended 2026-09-25:* not by `font-variant-numeric: tabular-nums` on `body`, as
-this said first - in Inter that feature also widens the hyphen, the stops, the colon, the brackets and the space,
-so a caption came out with a hyphen a digit wide. `webapp/scripts/tabular-digits.py` cuts Inter's own tabular
-digits (0-9 only, both axes kept) into a 6 KB face, `src/theme/inter-tabular-digits.woff2`, and `--font-figure`
-names it ahead of Inter: digits are a digit wide, everything else is Inter at its own width. The optical-size axis
-cuts a 12 px caption open and a 32 px title tight without anybody asking. The server draws its overlays in the
-same face: `server/scripts/install-fonts.mjs` unpacks `@fontsource/inter` at 400, 600 and 700 into the image for
-librsvg.
+**Hierarchy** comes from size and a lighter weight, never from a second family and never from bold. There are
+three weights: 300 for a page's title and for figures, 400 for text and for a thing's name, 500 (`--weight-medium`)
+for what is stressed - a button's words, a value in a row, a chosen tab. Nothing is set heavier. A page's title is
+300, closed up by -0.025 em, in `--heading`; a name and a section's heading (`h2`, `.name`) are 400 at -0.01 em in
+the same ink. In a region dimmed by age the heading ink steps down with the rest of the ink.
 
-**Hierarchy** comes from weight and size, as the site's headings do, never from a second family. A page's title
-is 700, closed up by -0.02 em, in `--heading` (the dark brand blue in light mode, white in dark); a thing's name
-and a section's heading (`h2`, `.name`, a sheet's title, a week's heading) are 650 at -0.01 em in the same ink;
-section labels are the small tracked capitals below; body is 400, medium 500, semibold 600, bold 700, figures
-600. In a region dimmed by age the heading ink steps down with the rest of the ink.
+**Scale** (px): 11.5 for the caption under a bar's icon and the smallest note; 12.5 / 13.5 / 15 / 17 / 22 for text
+(`--text-xs` to `--text-xl`, 15 is body); names on cards 17 on a phone and 18 on a desktop; page titles 30 and
+36; the big card figure 30 and 34 - light, so that temperature, humidity and VPD with their units still fit one
+line of a 390 px phone card. Body line height is 1.5, tight lines 1.2.
 
-**Scale** (px): 11.5 for section labels only; 12 / 13.5 / 15 / 17 / 22 for text (`--text-xs` to `--text-xl`,
-15 is body); names on cards 17 on a phone and 18 on a desktop; page titles 26 and 32; the big card figure 25 and
-28 - sized so that temperature, humidity and VPD with their units fit one line of a 390 px phone card. Body line
-height is 1.5, tight lines 1.2.
+**Section labels** are small, regular and in sentence case: 12.5 px in the label colour. Nothing in the app is set
+in capitals. A `header` whose first child is a `.label`, or a label straight inside a `section`, stands on a
+hairline rule.
 
-**Section labels** are the one thing set in capitals: 11.5 px, bold, tracked 0.08 em, in the label colour. A
-`header` whose first child is a `.label`, or a label straight inside a `section`, stands on a hairline rule.
+**Palette.** The colours are tuned to one another rather than set side by side, and each was worked out in OKLCH
+(lightness, strength, hue) before it was written down in hex, which a chart's canvas reads:
 
-**Palette.** Brand blue is navigation, links, focus and whatever is selected; brand green is the one primary
-action and "good" - live, in band, a grow's stage; everything else is the site's cool white and blue-grey with
-dark ink. The brand green is a surface colour: as text on white it reaches only 3.3:1, so green words take the
-site's text green, and on dark the site's pale green. The signal colours are kept apart from both brand colours
-and from each other, because a chart is read against them: humidity is a teal, never the brand's blue, and CO₂ a
-violet that leans to magenta rather than to the blue. Every text colour clears WCAG AA on the page, the card and
-the inset surface of its own mode, measured over every route in both modes at 1440 and 390 px and in German: the
-lowest is the primary button's white on `#3e8024`, 4.86:1 (the site's own primary), and everything else is 5.3:1
-or more.
+- **Surfaces are one hue** (a warm grey, hue 95, strength under 0.01): the page, a card a breath lighter, an inset
+  surface a breath darker, the rules darker again. In dark mode they are a near-black with a breath of the navy
+  (hue 262), and the ink is the paper.
+- **Ink and whatever is chosen are one navy** (hue 262): text, headings, links, the focus ring, and the wash and
+  ring of a chosen chip or segment - the same marks in both modes, so a row of choices is quiet.
+- **Green is the brand's.** The one primary action is filled with the brand green `#3e8024` under white words in
+  both modes (4.9:1), the one strong colour a screen has. The soft greens for "good" - live, in band, how far a
+  grow has come - sit on that green's hue (140) at a lower strength, so the two are one family; as text the soft
+  green takes `--green-ink`.
+- **Signals share one lightness and nearly one strength and differ by hue**: temperature a terracotta (hue 45),
+  humidity a sea blue (225), CO₂ a mauve (320), a warning an ochre (78), an alarm a brick red (22) - at about
+  0.53 for the curves and 0.50 for the two that are mostly words in light mode, 0.78 in dark. No curve shouts
+  over another, and each still reads as text.
+- **The lamp has its own light**, a soft straw (`--lamp`), on a timeline lane and behind a lit day: until this look
+  it borrowed the warning's colour, and a lamp that is on is not a warning.
+
+Every text colour clears WCAG AA on the page, the card and the inset surface of its own mode, computed for each
+pair: the lowest are the three curve colours read as text on the inset surface, 4.5:1, and the secondary ink,
+5.2:1; the soft green as a surface is 3.4:1 on a card.
 
 | Token | Light | Dark | Used for |
 | --- | --- | --- | --- |
-| `--bg` | `#f5f7fb` | `#14264a` | the page: the site's subtle grey / its navy |
-| `--card` | `#ffffff` | `#1a2f58` | cards, sheets |
-| `--card-2` | `#eef2f8` | `#213a69` | inset surfaces, fields, quiet actions |
-| `--rule` | `#e3e7ef` | `#2c4677` | hairlines (the site's border) |
-| `--rule-strong` | `#cbd3e1` | `#4a6598` | a field's edge, a dashed outline |
-| `--control-edge` | `#7a849a` | `#8193bd` | an off switch's edge, 3:1 on a card |
-| `--ink` | `#1a1d29` | `#f1f4fa` | text |
-| `--muted` | `#5a6275` | `#b9c4dc` | secondary text |
-| `--label` | `#586074` | `#aab7d3` | labels, captions |
-| `--heading` | `#1f3a6e` | `#ffffff` | titles and names |
-| `--brand` | `#2d4b95` | `#b8d4ff` | the rail's current item, links, focus, a secondary button's words |
-| `--on-brand` | `#ffffff` | `#14264a` | text on the brand |
-| `--brand-wash` | `#e8eef9` | `#2a4a86` | behind whatever is selected |
-| `--selected` / `--selected-edge` | `#2d4b95` / same | `#2a4a86` / `#b8d4ff` | a chosen chip or segment: fill and ring |
-| `--on-selected` | `#ffffff` | `#ffffff` | text on a choice |
-| `--bar-current` | `#2d4b95` | `#ffffff` | the current item of the phone's bar, which only its colour marks: in dark mode the pale blue is too near the muted ink beside it |
-| `--green` | `#50a030` | `#6fbe4a` | live dots, in-band marks, reached segments |
-| `--green-ink` | `#35701f` | `#c2eca0` | green text |
-| `--green-wash` | `#eaf4e4` | `#244a45` | behind a green word: live, a stage, the current step |
-| `--green-fill` | `#3e8024` | `#3e8024` | the primary action's fill, under white words only |
-| `--on-green` | `#ffffff` | `#ffffff` | text on the fill |
-| `--temperature` | `#b93f0b` | `#ffa166` | orange |
-| `--humidity` | `#08737f` | `#5fd4cf` | teal |
-| `--co2` | `#8a3aa8` | `#dca5f5` | violet |
-| `--warning` | `#855800` | `#f2c35a` | amber, for what is actually wrong |
-| `--alarm` | `#b8213d` | `#ff8b9a` | crimson |
-| `--warning-wash` / `--warning-edge` | `#fff6db` / `#e8b53d` | `--card-2` / `#f2c35a` | a warning's ground and edge |
-| `--alarm-wash` / `--alarm-edge` | `#fdecef` / `#eba2ae` | `--card-2` / `#ff8b9a` | an alarm's ground and edge |
-| `--output` | `#4870c0` | `#8fb0ea` | what an output did: lanes, output lines |
+| `--bg` | `#f6f4f0` | `#14161a` | the page |
+| `--card` | `#fdfcfa` | `#1d1f24` | cards, sheets |
+| `--card-2` | `#f0eee9` | `#24282e` | inset surfaces, fields, quiet actions |
+| `--rule` | `#e4e3dd` | `#2d3037` | hairlines |
+| `--rule-strong` | `#d3d1ca` | `#44484f` | a field's edge, a dashed outline |
+| `--control-edge` | `#7a818d` | `#808693` | an off switch's edge, 3:1 on a card |
+| `--ink` | `#212938` | `#e9e8e3` | text |
+| `--muted` / `--label` | `#5d646f` | `#adaba3` | secondary text, labels, captions |
+| `--heading` | `#192437` | `#f3f2ee` | titles and names |
+| `--brand` | `#395487` | `#afc5ec` | the current item, links, focus, a secondary button's words |
+| `--on-brand` | `#fbfaf7` | `#161b24` | text on the navy |
+| `--brand-wash` | `#e4ecf9` | `#242e40` | behind whatever is selected |
+| `--selected` / `--selected-edge` | the wash / `#90a5cb` | `#242e40` / `#6d81a5` | a chosen chip or segment: fill and ring |
+| `--on-selected` | the ink | `#f3f2ee` | text on a choice |
+| `--green` | `#65955a` | `#95c78a` | live dots, in-band marks, reached segments, a grow's progress |
+| `--green-ink` | `#34582c` | `#acd9a2` | green text |
+| `--green-wash` | `#e3f2e0` | `#243221` | behind a green word: live, a stage, the current step |
+| `--green-fill` / `--on-green` | `#3e8024` / `#ffffff` | the same | the primary action's fill and its words |
+| `--temperature` | `#a25834` | `#e8a587` | terracotta |
+| `--humidity` | `#33738b` | `#8ac1d7` | sea blue |
+| `--co2` | `#865d8f` | `#cda8d6` | mauve |
+| `--warning` | `#7f5c1d` | `#dfc07f` | ochre, for what is actually wrong |
+| `--alarm` | `#a03f40` | `#ea9794` | brick red |
+| `--warning-wash` / `--warning-edge` | `#f9f0da` / `#dfc07f` | `--card-2` / `#b89a5a` | a warning's ground and edge |
+| `--alarm-wash` / `--alarm-edge` | `#fceae8` / `#ecb4b1` | `--card-2` / `#c87976` | an alarm's ground and edge |
+| `--output` | `#6981ab` | `#90a5cb` | what an output did: lanes, output lines |
+| `--lamp` | `#dcbc74` | `#dfc07f` | the lamp's light on a lane and a lit day |
 
-Two rules came out of checking the first brand pass against the site. **No signal is mixed into a surface**:
-amber or red laid into white or navy with `color-mix` came out beige, tan, khaki and mauve - the rejected warm
-paper under another name - so a warning's ground and edge are written out, and in dark mode a warning stands on
-the lifted navy and lets its amber edge and ink say the rest. A finished alert keeps its stripe in the strong rule
-rather than a signal at half strength. And **an output running is not a warning**: the lanes and output lines take
-the light brand blue. Selection in dark mode is a navy fill with a pale-blue ring and white words, because the site
-keeps its pale blue for links; a pressed series chip there carries its line's colour as a mark rather than as a
-pastel fill. Sliders and an on switch take the surface green, since the primary's darker fill came to 2.7:1 on the
-dark card, under the 3:1 a control needs.
+Rules that hold from the looks before: **a warning's ground and edge are written out**, not mixed from the signal
+into a surface, and in dark mode a warning stands on the lifted surface and lets its edge and ink say the rest;
+**an output running is not a warning**, so lanes and output lines take the light navy; sliders and an on switch
+take the soft surface green. A pressed series chip is filled with its line's colour in light mode and is the
+chosen wash with a mark of the line's colour in dark mode.
 
-The primary fill is the site's `#3e8024` in both modes, as the site's dark call-to-action panel uses it. The
-desktop rail is a card's surface with a rule down its right edge, its items in ink and the current one in the brand
-blue on the brand's wash - the same marks the phone's bar uses (2026-11-12, with the navigation redesign; until
-then it was the site's navy in both modes). Captions over photographs sit on smoked navy (`--overlay`, `rgb(12 24 48 / 72%)`, text
-`#f5f8ff`) in both modes, because the picture does not change with the theme; a button over a photograph is
-solid (`--overlay-solid`, `#111f3d`). The toast is the dark brand blue in light mode and a raised navy in dark.
-The sign-in and sign-up cards stand on the site's spotlight (`--spotlight`: the radial navy with its green light)
-in both modes, so the first screen is the site's first impression.
+Captions over photographs sit on smoked glass (`--overlay`, text `--on-overlay`) in both modes, because the
+picture does not change with the theme; a button over a photograph is solid (`--overlay-solid`). The toast is the
+deep navy in light mode and a raised surface in dark. The page has no glow. The sign-in and sign-up cards stand on
+`--spotlight` - the navy at its deepest with the brand green's light in one corner - in both modes.
 
 **The logo** is the brand's own, `public/assets/brand/logo.png`, in the rail, the phone's top bar, the sign-in
 and sign-up cards, the public pages' bar and the error page, in place of a typeset name. On a dark surface it is
 `logo-reverse.png`, which is derived from the colour logo by `webapp/scripts/derive-logo.mjs` rather than
 retouched: per pixel, how much of the logo's blue it holds becomes white, how much of its green keeps its own
-colour, and the logo's white drops out so the dark ground shows through the knockouts - the treatment the site's
-dark sections give the brand (white type, the green kept). A `Logo` component draws both and `--logo-colour` /
-`--logo-reverse` say which one shows, so it follows the theme. The favicon and
-the installed app's icons are the logo's shield.
+colour, and the logo's white drops out so the dark ground shows through the knockouts. A `Logo` component draws
+both and `--logo-colour` / `--logo-reverse` say which one shows, so it follows the theme. The favicon and the
+installed app's icons are the logo's shield.
 
 **Charts** take every colour from these tokens through `src/charts/tokens.ts`: a line in its signal colour (VPD
-and hand-written readings in ink, outputs in `--output`), the target band `--band` (the brand green at 14 %; on
-navy a yellower green at 22 %, which the brand green turned slate teal beside the humidity line), the
-nights `--night` as a faint wash of the dark blue (black-navy in dark mode), halved over a long range so a month
-of nights does not read as a barcode, and three faint rules across each plot in `--grid`. A series chip is filled
-with its line's colour when it is on, and the pinned reading draws a short stroke in each line's colour before
-its name, so the chips and the header are the legend (in dark mode the chip is the navy choice with a mark of
-the line's colour). The server's timelapse overlays and share-link cards use
-the dark palette's ink, muted ink, navy plate and signal colours.
+and hand-written readings in ink, outputs in `--output`), the target band `--band` (the soft green at 16 %), the
+nights `--night` as a faint wash of the ink (black in dark mode), halved over a long range so a month of nights
+does not read as a barcode, and three faint rules across each plot in `--grid`. A series chip and the pinned
+reading's stroke are the legend. The server's timelapse overlays and share-link cards use the dark palette's ink,
+muted ink, ground and signal colours, in Albert Sans at 400 and 500.
 
-**Shape.** The site's three radii: 6 px for a control (a button, a field), 12 px for a card and a rail item, 20 px
-for a large panel; 4 px for the option inside a segmented track. Every button is 6 px, the small action chips
-(Measurements, Share, Silence 1 h, Save view) and the native menus included; a chip that is a choice - a range, a
-place, a series, anything pressed or not - stays a pill, as do tags, the live pill and badges, as the site keeps
-pills for badges and filters. 1 px rules; under a card in light mode the site's low two-layer shadow
-tinted with the dark blue (`0 1px 2px rgb(31 58 110 / 6%), 0 1px 3px rgb(31 58 110 / 4%)`), raised things its
-larger one; in dark mode an inset top highlight and a deep drop shadow. A field is 44 px tall, a card's repeated
-action 36, a chip 30. The one primary action on a screen is filled green; the quieter actions a card repeats
-(Photo, Note, Alarms off) are a filled tint with no outline; everything else is the site's ghost button - white,
-its words in the brand blue, an edge that turns blue under the pointer.
+**Icons** are drawn with a fine line: every lucide icon at a stroke of 1.5 (`svg.lucide` in `global.css`), as the
+type is light.
+
+**Shape.** Three soft radii: 12 px for a control (a button, a field), 18 px for a card and a rail item, 24 px for
+a large panel; 8 px for the option inside a segmented track. A chip that is a choice, a tag, the live pill and a
+badge are pills. 1 px rules; under a card in light mode a low, wide shadow in the paper's own hue
+(`0 1px 2px rgb(49 46 34 / 5%), 0 12px 28px -18px rgb(49 46 34 / 20%)`), raised things a larger one; in dark mode
+a card has no shadow and a raised thing a deep one. A field is 44 px tall, a card's repeated action 36, a chip 30.
+The one primary action on a screen is filled green; the quieter actions a card repeats (Photo, Note, Alarms off)
+are a filled tint with no outline; everything else is a ghost button - the card's surface, its words in the navy,
+a hairline edge.
 
 **Spacing.** A 4 px unit: 4, 8, 12, 16, 24 and 36 inside a page, 48 and 64 between the sections of a long one;
 a card's padding is 16 on a phone and 20 from 900 px.
 
 **Layout.** Phone first, with a frosted top bar and tab bar; from 900 px the rail replaces both and each
-screen is centred in the space it leaves. Three widths: 560 px for a form or sheet, 760 px for a reading column
-(settings, lists, Me, Tasks, Alerts), and 1180 px for a page that uses the screen - Home (two columns of cards
-from 1200 px, the two of a row stretched to one height with their actions at the foot), a space's overview, its
-Timeline, a grow's weeks and feeding chart, Charts, and a camera.
+screen is centred in the space it leaves. The rail is a card's surface with a rule down its right edge, its items
+in ink and the current one in the navy on its wash - the same marks the phone's bar uses. Three widths: 560 px for
+a form or sheet, 760 px for a reading column (settings, lists, Me, Tasks, Alerts), and 1180 px for a page that
+uses the screen - Home (two columns of cards from 1200 px, the two of a row stretched to one height with their
+actions at the foot), a space's overview, its Timeline, a grow's weeks and feeding chart, and a camera.
 
 ### Icons: lucide-react
 

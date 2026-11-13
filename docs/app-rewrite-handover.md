@@ -105,12 +105,12 @@ second list below is that session's decision, not Chris's word, until he confirm
   rule a walk decided got a test. What stays apart, each with its reason, is in the list of open points below
   ("Left by the clearing-up round"); what exists once is listed in
   [webapp.md](knowledge/webapp.md).
-- **The look "Nebel" is chosen and built, not yet on this branch** (Chris, 2026-11-13: the type was bold
+- **The look "Nebel" is chosen and built** (Chris, 2026-11-13: the type was bold
   everywhere and nothing fine, the colours neither soft nor in tune; from three proposals he chose "Nebel", and
   decided the same day that the one primary action keeps the brand green where the proposal had made it navy).
-  It is built on a local branch of the session and lands after Verlauf's eighth list, with the rewrite of
-  [ADR 0002's section on the look](adr/0002-app-rewrite-frontend-stack.md#the-look-the-brand) in the same
-  commits as `webapp/src/theme/tokens.css`. What the redesign session worked out for it, open to Chris:
+  [ADR 0002's section on the look](adr/0002-app-rewrite-frontend-stack.md#the-look-nebel) says what it is and
+  changes together with `webapp/src/theme/tokens.css`. What the redesign session worked out for it, open to
+  Chris:
   - Albert Sans in three weights and no bold - light for titles and figures, regular, medium for what is
     stressed; the two heavier weight tokens go. Section labels are small and in sentence case; nothing is in
     capitals. Icons are drawn at a stroke of 1.5.

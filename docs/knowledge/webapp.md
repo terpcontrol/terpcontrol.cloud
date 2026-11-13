@@ -9,7 +9,7 @@ paths:
 
 `webapp/` is the React app that replaced the Angular/Ionic one (#104, merged 2026-10-04). This is how it is built
 and what to know before changing it. Times, dates, numbers and translations have their own document,
-[webapp-time-and-language.md](webapp-time-and-language.md). Elsewhere: the library choices and the brand look in
+[webapp-time-and-language.md](webapp-time-and-language.md). Elsewhere: the library choices and the look in
 [ADR 0002](../adr/0002-app-rewrite-frontend-stack.md); how the app must behave and look in [app-ux.md](app-ux.md),
 its words in [app-wording.md](app-wording.md); running it in README "Development" and `CLAUDE.md`; the API in
 [server.md](server.md); tests in general in [testing.md](testing.md), CI in [ci-and-release.md](ci-and-release.md);
@@ -426,8 +426,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - While a sheet is open the page behind it does not scroll: `html:has([data-scrim])` in `src/styles/global.css`,
   the attribute being the sheet's backdrop (`ui/Sheet.tsx`). The place sheet is portalled to `<body>`, because the
   header it is opened from is a layer of its own under the tab bar.
-- `src/theme/inter-tabular-digits.woff2`, the digits-only face behind `--font-figure`, is cut by
-  `scripts/tabular-digits.py`; run it again after upgrading `@fontsource-variable/inter`. `logo-reverse.png` is
+- `src/theme/albert-sans-tabular-digits-{300,400,500}.woff2`, the digits-only faces behind `--font-figure`, are
+  cut by `scripts/tabular-digits.py` (needs `fonttools` and `brotli`); run it again after upgrading
+  `@fontsource-variable/albert-sans`. `logo-reverse.png` is
   derived from the colour logo by `scripts/derive-logo.mjs`.
 - An Erweitert item is a file `*.advanced.tsx` exporting `items` built with
   `advancedItem({ scope, id, order, shows, Item })`, found by `import.meta.glob` in `src/ui/advanced/registry.ts`.
