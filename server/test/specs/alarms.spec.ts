@@ -135,6 +135,35 @@ describe('the rules watching a device', () => {
     await owner.client.patch(`/v1/alarm-rules/${rule.id}`).send({ enabled: true }).expect(404);
   });
 
+  it('refuses limits that leave no reading quiet, on writing a rule and on changing one', async () => {
+    const contradiction = { kind: 'reading', metric: 'humidity', upper: 70, lower: 80 };
+    const refused = await owner.client
+      .post(`/v1/devices/${device}/alarm-rules`)
+      .send(aRule({ watch: contradiction }))
+      .expect(422);
+    expect(refused.body).toMatchObject({ code: 'limits_contradict' });
+    expect(refused.body.errors).toEqual([
+      {
+        field: 'watch.lower',
+        code: 'not_below_upper',
+        detail: 'It would ring below 80 and above 70, which is every value: the lower limit lies below the upper one.',
+      },
+    ]);
+
+    const rule = await createRule(owner, device, aRule({ watch: { kind: 'reading', metric: 'humidity', upper: 80, lower: 70 } }));
+    expect((await owner.client.patch(`/v1/alarm-rules/${rule.id}`).send({ watch: contradiction }).expect(422)).body.code).toBe('limits_contradict');
+    const equal = { kind: 'output_level', output: 'heater', upper: 0.5, lower: 0.5 };
+    expect((await owner.client.patch(`/v1/alarm-rules/${rule.id}`).send({ watch: equal }).expect(422)).body.code).toBe('limits_contradict');
+    expect(
+      (await owner.client.get(`/v1/devices/${device}/alarm-rules`).expect(200)).body.items.find((one: { id: string }) => one.id === rule.id).watch,
+    ).toEqual({
+      kind: 'reading',
+      metric: 'humidity',
+      upper: 80,
+      lower: 70,
+    });
+  });
+
   it('keeps watching while it is silenced, and says so again when the silence is lifted', async () => {
     const rule = await createRule(owner, device, aRule());
 

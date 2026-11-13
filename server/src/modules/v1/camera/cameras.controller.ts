@@ -32,7 +32,7 @@ import { CameraPollerService } from './camera-poller.service';
 import { TestCapturesService } from './test-captures.service';
 import { MediaService } from './media.service';
 import { TimelapseService } from './timelapse.service';
-import { changesTheStream } from './stream-url';
+import { changesTheStream, isStreamAddress } from './stream-url';
 import { V1Answer } from '../answer-shape';
 import { SHARED_READ_OPERATION } from '../../../openapi';
 import { accountOf } from '../caller';
@@ -104,8 +104,8 @@ export class CamerasController {
   /**
    * Creating a camera is managing the place it stands in, so the space it is put
    * in - or, for one a controller answers for, that controller - is what the
-   * decision is made about. Whether an address answers is found out by the first
-   * capture and never here.
+   * decision is made about. An address that is no stream's is refused; whether
+   * one answers is found out by the first capture and never here.
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -121,6 +121,7 @@ export class CamerasController {
       throw badRequest('not_yet', 'Pairing a standalone Terp Cam is coming: a Terp Cam is reached through the device it is paired at.');
     }
 
+    if (body.kind === 'rtsp') refuseNoStreamAddress(body.url);
     const deviceId = body.deviceId ?? null;
     if (deviceId) await this.access.require(ctx, subjectRef('device', deviceId), 'manage');
     if (body.kind === 'rtsp' && body.tunnel) {
@@ -191,8 +192,8 @@ export class CamerasController {
 
     // Moving a camera is managing two places, and the guard above has only
     // decided about the one it stands in. An ended place takes none - which is
-    // asked of a move alone, so a camera still standing in a place that was
-    // put away keeps its settings changeable.
+    // asked of a move alone, so a camera still standing in a place that has
+    // ended keeps its settings changeable.
     if (body.spaceId) {
       await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
       if (body.spaceId !== current.spaceId) await refuseEndedId(this.spaces, body.spaceId);
@@ -200,6 +201,7 @@ export class CamerasController {
     if (current.kind !== 'rtsp' && (namesAStream(body) || body.deviceId !== undefined)) {
       throw unprocessable('not_a_stream', 'This camera is a Terp Cam, which the cloud reaches by its own id rather than at a stream address.');
     }
+    if (body.url !== undefined) refuseNoStreamAddress(body.url);
     // Naming somebody else's device would pull a stream through hardware they
     // never offered, so moving a camera onto one is managing that one too.
     if (body.deviceId) await this.access.require(ctx, subjectRef('device', body.deviceId), 'manage');
@@ -408,6 +410,14 @@ const settingsOf = (body: CameraCreate): CameraUpdate => ({
   logErrors: body.logErrors,
   staleWarning: body.staleWarning,
 });
+
+/** An address a stream cannot be opened at is refused before anything is written (`isStreamAddress`). */
+const refuseNoStreamAddress = (url: string): void => {
+  if (isStreamAddress(url)) return;
+  throw unprocessable('not_a_stream_address', 'A stream is opened at an address that begins with rtsp:// or rtsps:// and names a host.', [
+    { field: 'url', code: 'not_a_stream_address', detail: 'Write the address as rtsp://host/path or rtsps://host/path.' },
+  ]);
+};
 
 /** The fields only an RTSP camera has; a Terp Cam is reached by its own id. */
 const namesAStream = (body: CameraUpdate): boolean =>

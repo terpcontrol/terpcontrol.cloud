@@ -1,5 +1,6 @@
 import { anonymous, createAccount, loginAsAdmin, Session, unique } from '../support/api';
-import { claimCodeOf, DeviceSimulator, provisionDevice, registerDevice, settle, startSimulator } from '../support/device';
+import { claimCodeOf, DeviceSimulator, DeviceType, provisionDevice, registerDevice, settle, startSimulator } from '../support/device';
+import { setRow } from '../support/fixtures';
 
 /**
  * A device from the moment it enrols to the moment somebody gives it up: who it
@@ -103,7 +104,6 @@ describe('claiming a device', () => {
     expect((await owner.client.patch(`/v1/devices/${fan.deviceId}`).send({ spaceId: tent.id }).expect(409)).body.code).toBe(
       'place_of_another_account',
     );
-    expect((await owner.client.put(`/v1/spaces/${tent.id}/devices/${fan.deviceId}`).expect(409)).body.code).toBe('place_of_another_account');
     expect((await owner.client.get(`/v1/devices/${fan.deviceId}`).expect(200)).body.spaceId).toBe(own.spaceId);
     // Renaming it where it stands is still its owner's.
     await owner.client.patch(`/v1/devices/${fan.deviceId}`).send({ name: 'My fan' }).expect(200);
@@ -159,6 +159,49 @@ describe('claiming a device', () => {
     const claimed = (await owner.client.post('/v1/devices/claims').send({ code }).expect(201)).body;
     expect(claimed.spaceCreated).toBe(true);
     expect((await owner.client.patch(`/v1/devices/${plug.deviceId}`).send({ spaceId: ended.id }).expect(409)).body.code).toBe('space_archived');
+  });
+
+  /**
+   * Two devices standing in one place carry different names, as places do: a
+   * toast, an alarm and Steuerung name a device. A claim is never refused for
+   * one - it counts on -, a rename and a move are.
+   */
+  it('refuses a second device of one name in a place, by a rename and by a move, and counts a claim´s name on', async () => {
+    const tent = (
+      await owner.client
+        .post('/v1/spaces')
+        .send({ kind: 'tent', name: unique('Tent of names') })
+        .expect(201)
+    ).body;
+    const claimInto = async (type: DeviceType, body: Record<string, unknown>) => {
+      const device = await registerDevice(type);
+      return (
+        await owner.client
+          .post('/v1/devices/claims')
+          .send({ code: await claimCodeOf(device.deviceId), ...body })
+          .expect(201)
+      ).body.device;
+    };
+
+    const fan = await claimInto('fan', { joinSpaceId: tent.id, name: 'Abluft' });
+    const plug = await claimInto('plug', { joinSpaceId: tent.id, name: 'Abluft' });
+    expect(plug.name).toBe('Abluft 2');
+
+    const renamed = await owner.client.patch(`/v1/devices/${plug.id}`).send({ name: ' ABLUFT ' }).expect(409);
+    expect(renamed.body).toMatchObject({ code: 'name_taken', detail: 'Another device here is already called "Abluft".' });
+    expect(renamed.body.errors).toEqual([{ field: 'name', code: 'taken', detail: 'Names are unique among the devices of one place.' }]);
+
+    const elsewhere = await claimInto('fan', { name: 'Abluft' });
+    const moved = await owner.client.patch(`/v1/devices/${elsewhere.id}`).send({ spaceId: tent.id }).expect(409);
+    expect(moved.body).toMatchObject({ code: 'name_taken', errors: [{ field: 'spaceId', code: 'taken' }] });
+    expect((await owner.client.get(`/v1/devices/${elsewhere.id}`).expect(200)).body.spaceId).not.toBe(tent.id);
+
+    // Moved and renamed in one write, it fits; a device named only by its type is told apart by the app, not refused.
+    await owner.client.patch(`/v1/devices/${elsewhere.id}`).send({ spaceId: tent.id, name: 'Umluft' }).expect(200);
+    const unnamed = await claimInto('fan', { joinSpaceId: tent.id });
+    await claimInto('fan', { joinSpaceId: tent.id });
+    expect(unnamed.name).toBe('fan');
+    expect(fan.name).toBe('Abluft');
   });
 
   it('tells the owner of a device that they already added it', async () => {
@@ -330,6 +373,52 @@ describe('what reaches the hardware', () => {
       .send({ name: 'Figures', isPublic: false, steps: [step] })
       .expect(400);
     expect(template.body.errors.map((error: { field: string }) => error.field)).toEqual(['steps.0.settings.night.temperature']);
+  });
+
+  /**
+   * A target typed outside the range a person may set it in is refused, never
+   * moved into it: 99 °C was written as 35 °C. A figure the device already holds
+   * outside it - its own menu's, an older app's - is kept while it is not changed.
+   */
+  it('refuses a target outside the range it is set in, by hand and in a plan step, and writes nothing', async () => {
+    const configuration = { day: { temperature: 24, humidity: 60 }, night: { temperature: 20, humidity: 95 }, co2: { target: 0 } };
+    await setRow('devices', { id: device.deviceId }, { configuration });
+    simulator.clear();
+
+    const refused = await owner.client
+      .put(`/v1/devices/${device.deviceId}/configuration`)
+      .send({ configuration: { ...configuration, day: { temperature: 99, humidity: 60 }, night: { temperature: 3, humidity: 95 } } })
+      .expect(400);
+    expect(refused.body.errors).toEqual([
+      { field: 'configuration.day.temperature', code: 'too_big', detail: 'This target is set from 15 to 35.' },
+      { field: 'configuration.night.temperature', code: 'too_small', detail: 'This target is set from 15 to 35.' },
+    ]);
+    await settle();
+    expect(simulator.messagesOn('configuration')).toEqual([]);
+    expect((await owner.client.get(`/v1/devices/${device.deviceId}/configuration`).expect(200)).body.configuration).toEqual(configuration);
+
+    // The night's 95 % and the CO2 target of 0 were there before and are not the save's to answer for.
+    await owner.client
+      .put(`/v1/devices/${device.deviceId}/configuration`)
+      .send({ configuration: { ...configuration, day: { temperature: 35, humidity: 60 } } })
+      .expect(200);
+
+    const step = {
+      name: 'Too warm',
+      stage: 'vegetative',
+      duration: { value: 1, unit: 'weeks' },
+      settings: { day: { temperature: 36 }, co2: { target: 1600 } },
+      waitForConfirmation: false,
+      confirmationMessage: null,
+    };
+    const plan = await owner.client
+      .put(`/v1/devices/${device.deviceId}/plan`)
+      .send({ templateId: null, name: 'Ranges', loop: false, notify: { mode: 'off', email: null, writeEntries: false }, steps: [step] })
+      .expect(400);
+    expect(plan.body.errors).toEqual([
+      { field: 'steps.0.settings.co2.target', code: 'too_big', detail: 'This target is set from 400 to 1500.' },
+      { field: 'steps.0.settings.day.temperature', code: 'too_big', detail: 'This target is set from 15 to 35.' },
+    ]);
   });
 
   it('changes a setting by name, decides the work mode from it, and holds a fridge to what the server tunes itself', async () => {

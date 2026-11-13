@@ -524,8 +524,9 @@ exports.standaloneCameraCreate = (0, common_js_1.named)('StandaloneCameraCreate'
     did: zod_1.z.string(),
 }));
 /**
- * Any other camera, by the address of its stream. Creating one is never refused:
- * whether the address answers is found out by the first capture, not here.
+ * Any other camera, by the address of its stream: `rtsp://` or `rtsps://` with a
+ * host, anything else is refused (422 `not_a_stream_address`). Whether the
+ * address answers is found out by the first capture, not here.
  *
  * `url` carries the credentials the stream is opened with, which is why it is
  * spelled out rather than picked off `Camera`: the resource answers the same URL

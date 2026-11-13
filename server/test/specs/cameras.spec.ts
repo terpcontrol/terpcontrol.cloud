@@ -141,6 +141,21 @@ describe('adding a camera', () => {
     expect(openedAt('apart-from-the-address')).toBe('rtsp://cam:p%40ss@10.0.0.70:554/apart-from-the-address');
   });
 
+  it('refuses an address no stream is opened at, and adds nothing', async () => {
+    const before = (await owner.client.get(`/v1/cameras?spaceId=${tent}`).expect(200)).body.items.length;
+
+    for (const url of ['quatsch', 'http://10.0.0.30/stream1', 'rtsp://', 'rtsp:///stream1']) {
+      const refused = await owner.client.post('/v1/cameras').send(rtsp({ url })).expect(422);
+      expect(refused.body).toMatchObject({ code: 'not_a_stream_address', errors: [{ field: 'url', code: 'not_a_stream_address' }] });
+    }
+    expect((await owner.client.get(`/v1/cameras?spaceId=${tent}`).expect(200)).body.items).toHaveLength(before);
+
+    // rtsps:// is a stream too, and a changed address is held to the same.
+    const id = await addCamera(rtsp({ url: 'rtsps://10.0.0.33:322/stream1' }));
+    expect((await owner.client.patch(`/v1/cameras/${id}`).send({ url: 'quatsch' }).expect(422)).body.code).toBe('not_a_stream_address');
+    expect((await owner.client.get(`/v1/cameras/${id}`).expect(200)).body.url).toBe('rtsps://10.0.0.33:322/stream1');
+  });
+
   it('will not put a camera nowhere, nor into somebody else´s tent', async () => {
     const nowhere = await owner.client.post('/v1/cameras').send({ kind: 'rtsp', name: 'Nowhere', url: 'rtsp://10.0.0.31/s' }).expect(400);
     expect(nowhere.body.code).toBe('nowhere_to_put_it');

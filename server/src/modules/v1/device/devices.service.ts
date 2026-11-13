@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { AdminDeviceCreate, Device, DeviceClaimCreate, DeviceClaimResult, DeviceUpdate, SpaceKind } from '@fg2/shared-types/v1';
-import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas';
+import { OWN_CLIMATE_TYPES, nameKey, numbered } from '@fg2/shared-types/v1-schemas';
 import { AccessContext } from '@common/v1/access.types';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
@@ -101,8 +101,11 @@ export class DevicesService {
 
   /** Only what a client may write. What the device is, who owns it and everything under `state` are not patched. */
   public async update(id: string, body: DeviceUpdate): Promise<StoredDevice> {
-    const before = await this.devices.findOne({ id }, { firmware: 1, state: 1, spaceId: 1, ownerId: 1 }).lean<StoredDevice | null>();
+    const before = await this.devices
+      .findOne({ id }, { firmware: 1, state: 1, spaceId: 1, ownerId: 1, name: 1, type: 1 })
+      .lean<StoredDevice | null>();
     if (body.spaceId && before && body.spaceId !== before.spaceId) await this.requireAPlaceOf(before.ownerId, body.spaceId);
+    if (before) await this.refuseTakenName(before, body);
     // Where it stands is the placement writer's, below.
     const changes = Object.fromEntries(Object.entries(body).filter(([key, value]) => value !== undefined && key !== 'spaceId'));
     // Pinning a build by hand is telling a device to install one, exactly as
@@ -124,6 +127,39 @@ export class DevicesService {
     if (changed.isDemo && before?.spaceId !== changed.spaceId) await this.demoMoved(before?.spaceId ?? null, changed.spaceId);
 
     return changed;
+  }
+
+  /**
+   * Two devices standing in one place carry different names, as an account's
+   * places do: a toast, an alarm and Steuerung name a device, and "Abluft" twice
+   * says nothing. Compared as a person reads them (`nameKey`). A device known
+   * only by its type is named by the app, which tells two of a kind apart, and
+   * takes no part; nor does a duplicate stored before this, until it is renamed
+   * or moved.
+   */
+  private async refuseTakenName(before: StoredDevice, body: DeviceUpdate): Promise<void> {
+    const name = body.name === undefined ? before.name : body.name;
+    const spaceId = body.spaceId === undefined ? before.spaceId : body.spaceId;
+    const changed = (body.name !== undefined && body.name !== before.name) || (body.spaceId !== undefined && body.spaceId !== before.spaceId);
+    if (!changed || !spaceId || !name || name === before.type) return;
+
+    const taken = (await this.namesIn(spaceId, before.id)).get(nameKey(name));
+    if (!taken) return;
+
+    throw conflict('name_taken', `Another device here is already called "${taken}".`, [
+      {
+        field: body.name !== undefined && body.name !== before.name ? 'name' : 'spaceId',
+        code: 'taken',
+        detail: 'Names are unique among the devices of one place.',
+      },
+    ]);
+  }
+
+  /** The names the other devices of a place carry, by the key a person reads them by; one named by its type has none. */
+  private async namesIn(spaceId: string, exceptId: string): Promise<Map<string, string>> {
+    const here = await this.devices.find({ spaceId, id: { $ne: exceptId } }, { name: 1, type: 1 }).lean<Pick<StoredDevice, 'name' | 'type'>[]>();
+
+    return new Map(here.flatMap(other => (other.name && other.name !== other.type ? [[nameKey(other.name), other.name] as const] : [])));
   }
 
   /**
@@ -229,12 +265,14 @@ export class DevicesService {
     if (device.ownerId !== null) throw conflict('device_claimed', 'That device already belongs to somebody.');
 
     const given = body.name ?? device.name ?? null;
-    const name = given ?? device.type;
     const named = body.spaceId ?? (OWN_CLIMATE_TYPES.includes(device.type) ? undefined : body.joinSpaceId);
     // Putting a device into a space that exists is managing that space.
     if (named) await this.access.require(ctx, subjectRef('space', named), 'manage');
     // The claimer is about to own the device, and a device stands only in a place of its owner.
     if (named) await this.requireAPlaceOf(ownerId, named);
+    // A claim is never refused for a name: a second "Abluft" in the place is "Abluft 2".
+    const name =
+      given === null ? device.type : named && given !== device.type ? numbered(given, new Set((await this.namesIn(named, device.id)).keys())) : given;
 
     // The device is taken first, and taken atomically: two people reading one
     // display cannot both end up owning it, and nothing is created for a claim

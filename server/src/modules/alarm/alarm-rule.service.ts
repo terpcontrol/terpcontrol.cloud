@@ -8,7 +8,7 @@ import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CursorPage, findPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
-import { conflict, notFound } from '@common/v1/problem';
+import { conflict, notFound, unprocessable } from '@common/v1/problem';
 import { watchedName } from './alarm.watch';
 
 /**
@@ -46,6 +46,7 @@ export class AlarmRuleService {
   }
 
   public async create(deviceId: string, body: AlarmRuleCreate): Promise<StoredAlarmRule> {
+    refuseContradiction(body.watch);
     const rule: StoredAlarmRule = {
       ...body,
       id: uuidv4(),
@@ -77,6 +78,7 @@ export class AlarmRuleService {
     if (rule.origin === 'always' && body.watch !== undefined && !watchesTheSame(body.watch, rule.watch)) {
       throw conflict('always_rule_metric', 'The rule the cloud keeps for this device watches whether it is there. Disable it instead.');
     }
+    if (body.watch !== undefined) refuseContradiction(body.watch);
 
     const switchedOff = body.enabled === false && rule.enabled;
     const changed = await this.change(rule, body);
@@ -145,3 +147,21 @@ export class AlarmRuleService {
  */
 const watchesTheSame = (watch: AlarmWatch, current: AlarmWatch): boolean =>
   watch.kind === current.kind && watchedName(watch) === watchedName(current);
+
+/**
+ * A rule rings above `upper` and below `lower`, so it is quiet only between
+ * them: one whose lower limit is not below its upper one - over 70 and under 80
+ * - is quiet at no value and rings at every reading. It is refused rather than
+ * saved, as a figure nobody could reach.
+ */
+const refuseContradiction = (watch: AlarmWatch): void => {
+  if (watch.kind === 'output_running' || watch.upper === null || watch.lower === null || watch.lower < watch.upper) return;
+
+  throw unprocessable('limits_contradict', 'A rule is quiet only between its two limits, and these leave no room between them.', [
+    {
+      field: 'watch.lower',
+      code: 'not_below_upper',
+      detail: `It would ring below ${watch.lower} and above ${watch.upper}, which is every value: the lower limit lies below the upper one.`,
+    },
+  ]);
+};

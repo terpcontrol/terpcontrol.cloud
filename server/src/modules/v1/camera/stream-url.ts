@@ -26,9 +26,20 @@ export const changesTheStream = (change: StreamChange): boolean =>
   change.url !== undefined || change.username !== undefined || change.password !== undefined;
 
 /**
+ * Whether an address is one a stream is opened at: `rtsp://` or `rtsps://`,
+ * naming a host. "quatsch" made a camera that could never show a picture, so
+ * anything else is refused before a camera is added or its address changed;
+ * whether the host answers is the first capture's to find out.
+ */
+export const isStreamAddress = (url: string): boolean => {
+  const address = parsed(url.trim());
+  return address !== null && (address.protocol === 'rtsp:' || address.protocol === 'rtsps:') && address.hostname !== '';
+};
+
+/**
  * The URL a stream is opened at once `change` is applied to `stored`. An
- * address that is not a URL is kept exactly as it was sent: there is nothing
- * to write a login into, and the first capture is what says it is wrong.
+ * address that is not a URL - one stored before addresses were checked - is
+ * kept exactly as it was: there is nothing to write a login into.
  */
 export const streamUrl = (stored: string | null, change: StreamChange): string | null => {
   const named = change.url ?? stored;

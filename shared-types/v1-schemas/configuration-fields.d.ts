@@ -125,6 +125,24 @@ export declare const MOST_TIMER_WINDOWS = 8;
  */
 export declare const FAN_MODES: readonly ["fixed", "temperature", "humidity", "both"];
 export declare const CONFIGURATION_FIELDS: Readonly<Record<string, ConfigurationFields>>;
+/** Where a figure may be set, and the step it is set in. */
+export interface FigureRange {
+    min: number;
+    max: number;
+    step: number;
+}
+/** The targets a person sets by hand, by their place in the document. */
+export type TargetPath = 'day.temperature' | 'night.temperature' | 'day.humidity' | 'night.humidity' | 'co2.target' | 'lights.limit';
+/**
+ * The targets a person sets - on Steuerung, in a plan step, in the claim - each
+ * with the range it may be set in, by every device that holds them. A figure
+ * outside it is refused, on the field and by the server, and never moved into
+ * it: what is written to a device is what was typed. The firmware reads wider
+ * ranges (0 to 40 °C); a figure a device already holds outside these - set by
+ * its own menu or an older app - is kept until somebody changes it, and what
+ * the server writes itself (a climate preset, a drying spell) lies inside them.
+ */
+export declare const TARGET_RANGES: Readonly<Record<TargetPath, FigureRange>>;
 /** The fields a type of device offers; none for a type this table does not know. */
 export declare const configurationFieldsOf: (type: string) => ConfigurationFields;
 type Document = Readonly<Record<string, unknown>> | null | undefined;
