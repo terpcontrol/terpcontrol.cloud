@@ -174,6 +174,17 @@
   gap: var(--space-2);
 }
 
+/* A label that explains itself is a finger high where it is tapped, into the air above and below its line. */
+.blockHead :global(.label) > button {
+  position: relative;
+}
+
+.blockHead :global(.label) > button::after {
+  content: '';
+  position: absolute;
+  inset: -15px 0;
+}
+
 .text {
   font-size: var(--text-sm);
   line-height: var(--line-body);

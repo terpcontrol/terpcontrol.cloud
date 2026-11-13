@@ -148,7 +148,7 @@ export function NewLinkSheet({
             <p className={`${ui.note} ${styles.sentence}`}>{t('me.shareLinks.sheet.viewNote')}</p>
           ) : blocked ? (
             <p className={`${ui.note} ${styles.sentence}`}>
-              {t('me.shareLinks.sheet.needsPublic', { name: grow?.name })} <Link to="/me/public">{t('me.public.title')}</Link>
+              {t('me.shareLinks.sheet.needsPublic', { name: grow?.name })} <Link to="/me/privacy">{t('me.privacy.title')}</Link>
             </p>
           ) : (
             <p className={`${ui.note} ${styles.sentence}`}>{t('me.shareLinks.sheet.untilPrivate')}</p>

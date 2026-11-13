@@ -41,8 +41,17 @@
 /* The camera's own name is a name, in the heading blue; what kind it is and
    where stay in their muted ink after it. */
 .cameraName > a {
+  position: relative;
   font-weight: var(--weight-heading);
   color: var(--heading);
+}
+
+/* The way to the camera is a finger high, into the card's own air. */
+.cameraName > a::after {
+  content: '';
+  position: absolute;
+  inset: -12px 0;
+  min-width: var(--control-height);
 }
 
 /* The kind and the tent, which together are what tells two cameras with one

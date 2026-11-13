@@ -40,7 +40,7 @@ export const useStartGrow = () => {
       growId = (await createGrow.mutateAsync(body)).id;
       setMade(growId);
       // A grow lives in the diary: starting one switches it back on for an account that had switched it off. Where
-      // that is refused the grow stands all the same, and Ich › Darstellung switches the diary.
+      // that is refused the grow stands all the same, and Ich › Grow-Tagebuch switches the diary.
       if (declined) await chooseDiary.mutateAsync('on').catch(() => undefined);
     }
     await startingPhase.mutateAsync({

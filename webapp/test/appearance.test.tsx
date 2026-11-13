@@ -2,11 +2,13 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate } from '@fg2/shared-types/v1';
+import type { Told } from '@/log/log-context';
 import { Appearance } from '@/screens/me/appearance/Appearance';
 import { THEME_STORAGE_KEY } from '@/theme/theme-context';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { drawAt, json, NOT_FOUND } from './harness';
 import { meWith } from './session';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
@@ -15,7 +17,8 @@ import { translate } from './translations';
  *
  * The units are the thing to check on the wire: `PATCH /me` keeps every
  * preference a body leaves out, so one menu moved sends that one preference
- * and nothing it might send back stale - the units whole, as they are one. The
+ * and nothing it might send back stale - the units whole, as they are one -
+ * and the toast that answers it takes back that one unit and no other. The
  * theme and the language are checked to land where they have always lived -
  * one attribute on <html>, one key in local storage - and nowhere near a
  * request.
@@ -48,10 +51,14 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json(NOT_FOUND, 404);
 });
 
+const told: Told[] = [];
+
 const draw = () =>
   drawAt(
     <ThemeProvider>
-      <Appearance />
+      <Toast told={told}>
+        <Appearance />
+      </Toast>
     </ThemeProvider>,
     { at: '/me/appearance' },
   );
@@ -61,6 +68,7 @@ beforeAll(() => translate());
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
   session.demo = false;
+  told.length = 0;
   server.me = meWith();
   server.patched = [];
   server.asked = [];
@@ -88,13 +96,15 @@ describe('the theme', () => {
 });
 
 describe('the units', () => {
-  it('draws what the account states, in symbols', async () => {
+  it('draws what the account states, in symbols, under their own label', async () => {
     draw();
 
     expect(await screen.findByRole('combobox', { name: 'Temperature' })).toHaveValue('celsius');
     expect(screen.getByRole('combobox', { name: 'Weight' })).toHaveValue('grams');
     expect(screen.getByRole('combobox', { name: 'Volume' })).toHaveValue('liters');
     expect(screen.getByRole('option', { name: '°F' })).toBeInTheDocument();
+    expect(screen.getByText('Units')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'About Units' })).toHaveAccessibleDescription(/kept with your account/);
   });
 
   it('sends the units with one changed and nothing else, so no other preference is turned back', async () => {
@@ -102,78 +112,36 @@ describe('the units', () => {
 
     fireEvent.change(await screen.findByRole('combobox', { name: 'Temperature' }), { target: { value: 'fahrenheit' } });
 
-    await waitFor(() => expect(server.patched).toHaveLength(1));
-    expect(server.patched[0]).toEqual({ preferences: { units: { temperature: 'fahrenheit', weight: 'grams', volume: 'liters' } } });
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Temperature: °F']));
+    expect(server.patched).toEqual([{ preferences: { units: { temperature: 'fahrenheit', weight: 'grams', volume: 'liters' } } }]);
   });
 
-  it('are not offered to the demo, which is told why instead', () => {
+  it('takes one unit back into the units as they stand by then, so a unit changed in between stays', async () => {
+    draw();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Temperature' }), { target: { value: 'fahrenheit' } });
+    await waitFor(() => expect(told).toHaveLength(1));
+    // The menus hold still while a write is on its way.
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Weight' })).toBeEnabled());
+    fireEvent.change(screen.getByRole('combobox', { name: 'Weight' }), { target: { value: 'ounces' } });
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Temperature: °F', 'Weight: oz']));
+
+    await told[0].undo!();
+
+    expect(server.patched[2]).toEqual({ preferences: { units: { temperature: 'celsius', weight: 'ounces', volume: 'liters' } } });
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Temperature' })).toHaveValue('celsius'));
+    expect(screen.getByRole('combobox', { name: 'Weight' })).toHaveValue('ounces');
+  });
+
+  it('are not offered to the demo, which keeps the settings of this browser', () => {
     session.demo = true;
     draw();
 
     expect(screen.queryByRole('combobox', { name: 'Temperature' })).not.toBeInTheDocument();
-    expect(screen.getByText('The demo has no account of its own, so there is nothing of it to change.')).toBeInTheDocument();
+    expect(screen.queryByText('Units')).not.toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'System' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Language' })).toBeInTheDocument();
     expect(server.asked.filter(call => call.includes('/v1/'))).toEqual([]);
-  });
-});
-
-/**
- * Whether the grow diary is offered is the account's too, so every device
- * agrees, and the answer can be taken back here once it was given on Start.
- * "Automatic" is no answer at all: the account's use decides.
- */
-describe('the grow diary', () => {
-  it('reads "automatic" where nobody has answered, and sends the answer alone', async () => {
-    draw();
-
-    const diary = await screen.findByRole('combobox', { name: 'Grow diary' });
-    expect(diary).toHaveValue('auto');
-    fireEvent.change(diary, { target: { value: 'off' } });
-
-    await waitFor(() => expect(server.patched).toHaveLength(1));
-    expect(server.patched[0]).toEqual({ preferences: { diary: 'off' } });
-  });
-
-  it('hands the question back to the account´s use when "automatic" is chosen again', async () => {
-    server.me = { ...meWith(), preferences: { ...meWith().preferences, diary: 'off' } };
-    draw();
-
-    const diary = await screen.findByRole('combobox', { name: 'Grow diary' });
-    expect(diary).toHaveValue('off');
-    fireEvent.change(diary, { target: { value: 'auto' } });
-
-    await waitFor(() => expect(server.patched).toHaveLength(1));
-    expect(server.patched[0].preferences?.diary).toBeNull();
-  });
-});
-
-describe('the time zone', () => {
-  it('draws the zone the account keeps and offers this device its own', async () => {
-    server.me = { ...meWith(), preferences: { ...meWith().preferences, timezone: 'UTC' } };
-    draw();
-
-    const menu = await screen.findByRole('combobox', { name: 'Time zone' });
-    expect(menu).toHaveValue('UTC');
-    expect(screen.getByText(/quiet hours and every clock time the app draws are read in it/)).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Europe/Berlin' })).toBeInTheDocument();
-  });
-
-  it('keeps UTC on offer, which the browser does not list and the migration left every account on', async () => {
-    draw();
-
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Time zone' }), { target: { value: 'Asia/Tokyo' } });
-    await waitFor(() => expect(server.patched).toHaveLength(1));
-
-    expect(await screen.findByRole('option', { name: 'UTC' })).toBeInTheDocument();
-  });
-
-  it('sends the zone alone, so the units are not turned back', async () => {
-    draw();
-
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Time zone' }), { target: { value: 'America/New_York' } });
-
-    await waitFor(() => expect(server.patched).toHaveLength(1));
-    expect(server.patched[0]).toEqual({ preferences: { timezone: 'America/New_York' } });
   });
 });
 

@@ -1,5 +1,5 @@
 import { type DateTime } from 'luxon';
-import { Fragment, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath, devicePath, timelinePath } from '@/app/places';
@@ -11,12 +11,15 @@ import { maintenanceQuiet } from '@/ui/maintenance';
 import { repeatsEvery, unitOf } from '@/screens/control/alarms/rules';
 import { SilenceChip } from '@/screens/control/alarms/Silence';
 import { useSilence } from '@/screens/control/alarms/use-silence';
-import { ageAttribute, isAhead, offlineLabel, silentSince, sinceLabel, spanLabel } from '@/ui/age';
+import { useLog } from '@/log/log-context';
+import { ageLabel, isAhead, sinceLabel, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { Asking } from '@/ui/Asking';
+import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
-import ui from '@/ui/ui.module.css';
+import { Row } from '@/ui/Rows';
+import { Sheet } from '@/ui/Sheet';
 import { OfflineSteps } from '@/ui/OfflineHelp';
 import { figure, targetFigure } from '@/ui/units';
 import { beganAt, crossedBound, deliveryOf, lastedLabel } from './inbox';
@@ -25,7 +28,7 @@ import { looseFigure, unbroken } from '@/ui/figures';
 import styles from './Alerts.module.css';
 import { deviceName } from '@/ui/naming';
 
-interface AlertCardProps {
+interface AlertProps {
   alert: Alert;
   /** The rule that raised it, where it still exists; null for a health-loop alert and for a rule since removed. */
   rule: AlarmRule | null;
@@ -34,68 +37,100 @@ interface AlertCardProps {
   me: Me | undefined;
   mayManage: boolean;
   now: DateTime;
-  /** The first card that offers Silence, which says once what silencing is. */
-  explainSilence?: boolean;
 }
 
 /**
- * One event, graded by its severity on the left edge and drawn from the
- * server's instants alone. The first line says where and what, the second which
- * rule, how bad, when and for how long; a resolved card keeps both, dimmed and
- * dated, because a night the tent ran hot is still worth reading in the morning.
+ * Something that is wrong now: what, in a sentence; since when, where and how
+ * far out; then which rule raised it, how bad, and whether anybody was told.
+ * The severity is the card's left edge and a word of the last line, because a
+ * colour is not a word. Everything is drawn from the server's instants alone.
  *
- * What can be done about it sits on the card: while it is open, silence the
- * rule, open the timeline it happened in, or edit the rule; once it is over, open the timeline or delete it. Nothing here claims a device heard a command;
- * what the server answered is said underneath.
+ * What can be done about it sits on the card: the curves it happened in, for
+ * everybody who sees the place, and for whoever manages it an hour of silence
+ * for the rule and the way to the rule. Maintenance is not started from
+ * here: it is the place's, on Start and with the device under Steuerung.
  */
-export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilence }: AlertCardProps) {
+export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilence }: AlertProps & { explainSilence?: boolean }) {
   const { t } = useTranslation();
-  const open = alert.resolvedAt === null;
   const device = (alert.deviceId && names.devices.get(alert.deviceId)) || null;
-  const { label, figure: reading } = whatOf(t, alert, rule, device, now, zoneOf(me));
-  const parts = [...placeOf(t, alert, names, device), { text: label, known: true }];
   const severity = t(`alerts.severity.${alert.severity}`);
+  const title = titleOf(t, alert, rule, names, now);
+  const [steps, setSteps] = useState(false);
 
   return (
-    <li
-      className={open ? `${ui.card} ${styles.card}` : `${ui.card} ${ui.joined} ${styles.card}`}
-      data-severity={alert.severity}
-      aria-label={[severity, ...parts.map(part => part.text), reading].filter(Boolean).join(' · ')}
-      {...(open ? {} : ageAttribute('stale'))}
-    >
-      <div className={styles.lines}>
-        <p className={styles.what}>
-          {parts.map((part, index) => (
-            <Fragment key={index}>
-              {index > 0 ? ' · ' : null}
-              {part.known ? part.text : <span className={styles.unnamed}>{part.text}</span>}
-            </Fragment>
-          ))}
-          {reading ? (
-            <>
-              {' '}
-              <span className="mono">{reading}</span>
-            </>
-          ) : null}
-        </p>
-        <p className={`mono ${styles.meta}`}>{metaOf(t, alert, rule, device, me, now, severity)}</p>
-        {/* A device gone quiet cannot be told anything from here, so what is
-            offered is what to try in front of it - and, as on the place's own
-            page, the way to the device itself, opened, with since when it has
-            been quiet. */}
-        {open && alert.kind === 'offline' ? (
-          <div className={styles.steps}>
-            <OfflineSteps devicesLink={alert.deviceId ? devicePath(alert.deviceId) : null} />
-          </div>
-        ) : null}
-      </div>
-
-      {open && mayManage ? (
-        <OpenChips alert={alert} rule={rule} now={now} explainSilence={explainSilence} />
-      ) : !open ? (
-        <ClosedChips alert={alert} rule={rule} mayManage={mayManage} />
+    <li className={styles.card} data-severity={alert.severity} aria-label={`${severity} · ${title}`}>
+      <Said alert={alert} rule={rule} names={names} me={me} now={now} title={title} />
+      {/* A device gone quiet cannot be told anything from here, so what is offered is what to try in front of it. */}
+      {alert.kind === 'offline' ? (
+        <>
+          <button type="button" className={styles.more} aria-expanded={steps} onClick={() => setSteps(!steps)}>
+            {t('offline.help')} ›
+          </button>
+          {steps ? <OfflineSteps /> : null}
+        </>
       ) : null}
+      <Actions
+        alert={alert}
+        rule={rule}
+        device={device}
+        mayManage={mayManage}
+        now={now}
+        explainSilence={explainSilence}
+        unheard={deliveryOf(alert, rule, me) === 'unheard'}
+      />
     </li>
+  );
+}
+
+/**
+ * Something that is over: a row that says what it was and how long ago, and
+ * opens the whole of it - when, where, which rule, and the two things left to
+ * do with it: look at the curves of that hour, or delete it. A night the tent
+ * ran hot is still worth reading in the morning, so nothing is dropped for
+ * being old.
+ */
+export function ResolvedRow(props: AlertProps) {
+  const { t } = useTranslation();
+  const { alert, rule, names, now } = props;
+  const [open, setOpen] = useState(false);
+  const title = titleOf(t, alert, rule, names, now);
+
+  return (
+    <>
+      <Row title={title} line={t('alerts.ago', { age: ageLabel(alert.resolvedAt, now) })} onOpen={() => setOpen(true)} />
+      {open ? (
+        <Sheet title={title} onClose={() => setOpen(false)}>
+          <div className={styles.whole}>
+            <Said {...props} title={null} />
+            <Actions {...props} device={null} onRemoved={() => setOpen(false)} />
+          </div>
+        </Sheet>
+      ) : null}
+    </>
+  );
+}
+
+/** What a card and a resolved alert's sheet say: the title, the line under it, and the line of the rule. */
+function Said({ alert, rule, names, me, now, title }: Omit<AlertProps, 'mayManage'> & { title: string | null }) {
+  const { t } = useTranslation();
+  const device = (alert.deviceId && names.devices.get(alert.deviceId)) || null;
+  const zone = zoneOf(me);
+  const parts: Part[] = [
+    { text: whenOf(t, alert, now, zone), known: true },
+    ...placeOf(t, alert, names, device),
+    ...[stateOf(t, alert, rule)].flatMap(text => (text ? [{ text, known: true }] : [])),
+  ];
+
+  return (
+    <div className={styles.said}>
+      {title ? <p className={styles.title}>{title}</p> : null}
+      <p className={styles.line}>
+        <Facts facts={parts.map(part => (part.known ? part.text : <span className={styles.unnamed}>{part.text}</span>))} />
+      </p>
+      <p className={styles.meta}>
+        <Facts facts={metaOf(t, alert, rule, device, me, now)} />
+      </p>
+    </div>
   );
 }
 
@@ -116,20 +151,21 @@ const nameOrId = (name: string | undefined, id: string, names: AlertNames): Part
   name !== undefined ? { text: name, known: true } : names.pending ? null : { text: id, known: false };
 
 /**
- * Where it happened: the space, and under it the device where the space holds
+ * Where it happened: the space, and with it the device where the space holds
  * more than one and naming it is the only way to tell two cards apart. An alert
- * that names no space is placed by the device or the camera it came from.
+ * that names no space is placed by the device it came from; a camera and a
+ * device gone quiet are named by the title.
  */
 const placeOf = (t: Translate, alert: Alert, names: AlertNames, device: Device | null): Part[] => {
   if (alert.spaceId) {
     const space = nameOrId(names.spaces.get(alert.spaceId), alert.spaceId, names);
-    const crowded = (names.devicesInSpace.get(alert.spaceId) ?? 0) > 1;
+    // The title of a device gone quiet names it already.
+    const crowded = alert.kind !== 'offline' && (names.devicesInSpace.get(alert.spaceId) ?? 0) > 1;
 
     return [space, device && crowded ? { text: deviceName(device, t), known: true } : null].filter(part => part !== null);
   }
-  if (alert.deviceId)
+  if (alert.deviceId && alert.kind !== 'offline')
     return [device ? { text: deviceName(device, t), known: true } : nameOrId(undefined, alert.deviceId, names)].filter(part => part !== null);
-  if (alert.cameraId) return [nameOrId(names.cameras.get(alert.cameraId), alert.cameraId, names)].filter(part => part !== null);
 
   return [];
 };
@@ -142,49 +178,64 @@ const metricName = (t: Translate, metric: Metric): string =>
 
 const outputName = (t: Translate, output: OutputMetric): string => t(`alerts.output.${output}`, { defaultValue: output });
 
-/** What the card says, and the figures in it apart from it, because a figure is set in mono wherever it is drawn. */
-interface What {
-  label: string;
-  figure: string | null;
-}
+/** How long an episode that is over stood, for its title; nothing while it is open - an open one is dated, so its words hold still while they are read. */
+const spanOf = (alert: Alert, now: DateTime): string | null => (alert.resolvedAt ? lastedLabel(alert, now) : null);
 
 /**
- * The event in as few words as the board allows: the reading and the edge it
- * crossed where the rule is still there to say what it watched, the bare kind
- * where it is not.
- *
- * An offline alert is dated from when the device was last heard rather than
- * from the alert's start: what a reader wants to know is how long the tent
- * has gone unwatched, not how long ago the cloud noticed. Last heard is not
- * last sample, and the words say so - a device reports its presence and its
- * readings on different beats. Both instants are the server's, and so is the
- * now they are taken from.
- *
- * A camera alert is dated the same way: the staleness is on the alert itself,
- * so the last picture is that many seconds before it was raised, and the date
- * is written beside the hour whenever it is not today's.
+ * The event in one sentence: "Luftfeuchte zu hoch" while it stands and
+ * "Luftfeuchte 22 Min zu hoch" once it is over; a device gone quiet and a
+ * camera without pictures by their names. Which way a reading left its band
+ * is said where the episode's own band - or, without one, the rule as it
+ * stands - names the edge it crossed; otherwise the rule's name stands in.
  */
-const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Device | null, now: DateTime, zone: string | null): What => {
-  switch (alert.kind) {
-    case 'offline': {
-      if (alert.resolvedAt) return { label: t('alerts.what.wasOffline'), figure: null };
-      const quietSince = alert.value !== null ? silentSince(alert) : device?.state.lastSeenAt || alert.startedAt;
-      return { label: offlineLabel(quietSince, now, zone), figure: null };
-    }
-    case 'camera_stale': {
-      // The alert carries how long the camera had been dark when it was raised, so
-      // the picture it was dark since is that many seconds before the raise - also
-      // for a resolved alert, whose camera now holds the still that ended the gap.
-      const quiet = alert.value ?? alert.extremeValue;
-      const since = quiet === null ? alert.startedAt : (zoned(alert.startedAt, zone).minus({ seconds: quiet }).toISO() ?? alert.startedAt);
+const titleOf = (t: Translate, alert: Alert, rule: AlarmRule | null, names: AlertNames, now: DateTime): string => {
+  const span = spanOf(alert, now);
+  // A reading or an output is a lower-case word in a language that has them; the sentence starts with it.
+  const said = (key: string, what: string) =>
+    t(`alerts.title.${key}${span ? 'Was' : ''}`, { what: what.charAt(0).toLocaleUpperCase() + what.slice(1), span });
 
-      return { label: t('alerts.what.cameraSince', { time: sinceLabel(since, now, zone) }), figure: null };
-    }
-    case 'threshold': {
-      const what = watchedOf(alert, rule);
-      return what ? watched(t, alert, what) : { label: t('alerts.what.threshold'), figure: alert.value === null ? null : String(alert.value) };
-    }
+  if (alert.kind === 'offline') {
+    const device = alert.deviceId ? names.devices.get(alert.deviceId) : undefined;
+    return said('offline', device ? deviceName(device, t) : (alert.spaceId && names.spaces.get(alert.spaceId)) || t('shell.gone.title.device'));
   }
+  if (alert.kind === 'camera_stale') return said('camera', (alert.cameraId && names.cameras.get(alert.cameraId)) || t('shell.gone.title.camera'));
+
+  const watch = alert.watched?.watch ?? rule?.watch;
+  if (watch?.kind === 'output_running') return said('running', outputName(t, watch.output));
+  const crossed = watch ? crossedBound(watch, alert.value ?? alert.extremeValue) : null;
+  if (watch && crossed)
+    return said(crossed.over ? 'high' : 'low', watch.kind === 'reading' ? metricName(t, watch.metric) : outputName(t, watch.output));
+
+  return ruleName(t, alert, rule) ?? t('alerts.what.threshold');
+};
+
+/**
+ * Since when it stands, or when it began. A device gone offline is dated from
+ * when it was last heard rather than from the alert's start, and a camera from
+ * its last picture - the staleness is on the alert, so that picture is that
+ * many seconds before it was raised: what a reader wants to know is how long
+ * the tent has gone unwatched, not how long ago the cloud noticed.
+ */
+const whenOf = (t: Translate, alert: Alert, now: DateTime, zone: string | null): string => {
+  const quiet = alert.kind === 'camera_stale' ? (alert.value ?? alert.extremeValue) : null;
+  const began = quiet === null ? beganAt(alert) : (zoned(alert.startedAt, zone).minus({ seconds: quiet }).toISO() ?? alert.startedAt);
+  const time = sinceLabel(began, now, zone);
+
+  return alert.resolvedAt ? time : t('alerts.since', { time });
+};
+
+/**
+ * The third part of the line: how far out it is while it stands - the reading
+ * and the edge it crossed, how long an output was asked to pause -, and once
+ * it is over that it is. An episode its rule stopped watching - the stage's
+ * "too humid" resting in germination - did not get better, and is not said to
+ * have.
+ */
+const stateOf = (t: Translate, alert: Alert, rule: AlarmRule | null): string | null => {
+  const what = alert.kind === 'threshold' ? watchedOf(alert, rule) : null;
+  if (alert.resolvedAt) return t(`alerts.state.${alert.rested ? 'rested' : what?.watch.kind === 'output_running' ? 'running' : alert.kind}`);
+
+  return what ? figuresOf(t, alert, what) : alert.kind === 'threshold' && alert.value !== null ? String(alert.value) : null;
 };
 
 /** What the episode watched, from whichever of the two still knows. */
@@ -213,15 +264,12 @@ const watchedOf = (alert: Alert, rule: AlarmRule | null): Watched | null => {
   return watch ? { watch, forSeconds: rule ? rule.forSeconds : null } : null;
 };
 
-const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): What => {
+const figuresOf = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): string | null => {
+  // A rule that trips the moment its output starts has no span to name, and
+  // neither has an episode whose rule is gone: the duration the rule asked
+  // for was the rule's and is not part of what happened.
   if (watch.kind === 'output_running') {
-    return {
-      label: t('alerts.what.running', { output: outputName(t, watch.output) }),
-      // A rule that trips the moment its output starts has no span to name, and
-      // neither has an episode whose rule is gone: the duration the rule asked
-      // for was the rule's and is not part of what happened.
-      figure: forSeconds !== null && forSeconds > 0 ? unbroken(t('alarms.bound.longer', { duration: spanLabel(forSeconds) })) : null,
-    };
+    return forSeconds !== null && forSeconds > 0 ? unbroken(t('alarms.bound.longer', { duration: spanLabel(forSeconds) })) : null;
   }
 
   const value = alert.value ?? alert.extremeValue;
@@ -238,24 +286,14 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
       : null,
   ].filter((part): part is string => part !== null);
 
-  return {
-    label: watch.kind === 'reading' ? metricName(t, watch.metric) : outputName(t, watch.output),
-    figure: figures.length ? figures.map(unbroken).join(' · ') : null,
-  };
+  return figures.length ? figures.map(unbroken).join(' · ') : null;
 };
 
 /**
- * Each "·"-separated piece of a short phrase kept on one line - "resolved 18:08",
- * "lasted 56 min" - so the line breaks at a dot and never splits a figure from
- * the word it belongs to.
- */
-const whole = (phrase: string): string => phrase.split(' · ').map(unbroken).join(' · ');
-
-/**
- * Which rule raised it, how much it matters, when it began and how long it
- * stood, then what will go on being done about it. The rule leads the line
- * because two rules on one sensor make two cards that are otherwise the same,
- * and the severity follows it because a colour is not a word.
+ * Which rule raised it and how much it matters, then - while it stands - what
+ * will go on being done about it. The rule leads the line because two rules
+ * on one sensor make two cards that are otherwise the same. An episode that is
+ * over says when it ended.
  *
  * The severity is the alert's own - the grade the episode was raised and
  * announced at - and so is everything said about being told; where the rule's
@@ -267,25 +305,12 @@ const whole = (phrase: string): string => phrase.split(' · ').map(unbroken).joi
  * carries today, the silence resting on it, how often it says itself again -
  * stays behind one.
  */
-const metaOf = (
-  t: Translate,
-  alert: Alert,
-  rule: AlarmRule | null,
-  device: Device | null,
-  me: Me | undefined,
-  now: DateTime,
-  severity: string,
-): ReactNode => {
+const metaOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Device | null, me: Me | undefined, now: DateTime): ReactNode[] => {
   const zone = zoneOf(me);
   const parts: ReactNode[] = [
     ruleName(t, alert, rule),
-    severity,
-    whole(
-      // An episode its rule stopped watching - the stage's "too humid" resting in germination - did not get better, and is not said to have.
-      alert.resolvedAt
-        ? t(alert.rested ? 'alerts.meta.rested' : 'alerts.meta.resolved', { time: clock(alert.resolvedAt, zone), age: lastedLabel(alert, now) })
-        : t('alerts.meta.since', { time: sinceLabel(beganAt(alert), now, zone), age: lastedLabel(alert, now) }),
-    ),
+    t(`alerts.severity.${alert.severity}`),
+    alert.resolvedAt ? unbroken(t('alerts.meta.until', { time: sinceLabel(alert.resolvedAt, now, zone) })) : null,
   ].filter((part): part is string => part !== null);
 
   if (!alert.resolvedAt) {
@@ -293,12 +318,12 @@ const metaOf = (
 
     const delivery = deliveryOf(alert, rule, me);
     if (delivery === 'repeats' && rule) parts.push(t('alerts.meta.repeats', { every: spanLabel(repeatsEvery(rule)) }));
-    // Nobody was told for a reason the account can change, so it is said as the way there.
+    // Nobody was told for a reason the account can change: said in the warning's colour, with the way there among the card's actions.
     else if (delivery === 'unheard') {
       parts.push(
-        <Link key="unheard" to="/me/notifications" className={styles.fix}>
+        <span key="unheard" className={styles.fix}>
           {t('alerts.meta.unheard')}
-        </Link>,
+        </span>,
       );
     } else if (delivery !== null && delivery !== 'repeats') parts.push(t(`alerts.meta.${delivery}`));
 
@@ -312,12 +337,7 @@ const metaOf = (
     if (quiet) parts.push(t(quiet.parked ? 'alerts.meta.inMaintenance' : 'alerts.meta.settling', { time: clock(quiet.alarmsUntil, zone) }));
   }
 
-  return parts.map((part, index) => (
-    <Fragment key={index}>
-      {index > 0 ? ' · ' : null}
-      {part}
-    </Fragment>
-  ));
+  return parts;
 };
 
 /**
@@ -329,93 +349,92 @@ const ruleName = (t: Translate, alert: Alert, rule: AlarmRule | null): string | 
   rule ? ruleTitle(t, rule) : alert.watched ? ruleTitle(t, { name: alert.watched.name }) : null;
 
 /**
- * The Timeline of the place, opened on what the episode was about and when it
- * began: the curve of the reading it crossed, or the lane of the output it
- * watched, in the shortest window that holds the start - so yesterday's "Zu
- * warm" opens on yesterday and not on a quiet day after it.
+ * Verlauf of the place, opened on what the episode was about, when it began
+ * and on the device it happened to: the curve of the reading it crossed, or
+ * the lane of the output it watched, with the cursor on its start - so
+ * yesterday's "Zu warm" opens on yesterday, and in a place of two climates on
+ * the one that raised it.
  */
-function TimelineChip({ spaceId, alert, rule }: { spaceId: string; alert: Alert; rule: AlarmRule | null }) {
-  const { t } = useTranslation();
+const timelineOf = (spaceId: string, alert: Alert, rule: AlarmRule | null): string => {
   const watch = alert.watched?.watch ?? rule?.watch ?? null;
   const focus = !watch ? null : watch.kind === 'reading' ? (watch.metric === 'offline' ? null : watch.metric) : watch.output;
 
-  return (
-    <Link to={timelinePath(spaceId, focus, alert.startedAt)} className={ui.chip}>
-      {t('alerts.action.timeline')}
-    </Link>
-  );
-}
+  return timelinePath(spaceId, focus, alert.startedAt, null, null, alert.deviceId);
+};
 
 /**
- * The chips on a card that is over: the timeline it happened in, and deleting
- * it for whoever may manage the device. Deleting asks first, because the card
+ * What can be done with an alert, each a finger high. Its curves are for
+ * everybody who sees the place. While it stands, whoever manages the place
+ * may silence its rule for an hour and edit the rule; a camera that stopped
+ * delivering is looked at rather than silenced, and a device gone quiet has
+ * its own page. Once it is over it can be deleted - asked first, because it
  * goes for everyone the place is shared with.
  */
-function ClosedChips({ alert, rule, mayManage }: { alert: Alert; rule: AlarmRule | null; mayManage: boolean }) {
+function Actions({
+  alert,
+  rule,
+  device,
+  mayManage,
+  now,
+  explainSilence,
+  unheard = false,
+  onRemoved,
+}: {
+  alert: Alert;
+  rule: AlarmRule | null;
+  device: Device | null;
+  mayManage: boolean;
+  now: DateTime;
+  /** The first card that offers Silence says once what silencing is. */
+  explainSilence?: boolean;
+  /** It reached nobody, for a reason the account can change: the way there. */
+  unheard?: boolean;
+  onRemoved?: () => void;
+}) {
   const { t } = useTranslation();
+  const { tell } = useLog();
+  // A chip that writes is drawn only where the alert names a device, so the empty id is never sent.
+  const silence = useSilence(rule, alert.deviceId ?? '', now);
   const remove = useRemoveAlert();
   const [asking, setAsking] = useState(false);
-  if (!alert.spaceId && !mayManage) return null;
+  const open = alert.resolvedAt === null;
+  const camera = alert.kind === 'camera_stale';
+  const ruled = open && mayManage && !camera && rule !== null;
 
   return (
     <>
-      <div className={styles.chips}>
-        {alert.spaceId ? <TimelineChip spaceId={alert.spaceId} alert={alert} rule={rule} /> : null}
-        {mayManage ? (
-          <button type="button" className={ui.chip} disabled={remove.isPending} aria-expanded={asking} onClick={() => setAsking(!asking)}>
+      <div className={styles.actions}>
+        {alert.spaceId ? <Link to={timelineOf(alert.spaceId, alert, rule)}>{t('alerts.action.timeline')}</Link> : null}
+        {open && camera && alert.cameraId ? <Link to={`/cameras/${alert.cameraId}`}>{t('alerts.action.checkCam')}</Link> : null}
+        {open && alert.kind === 'offline' && device ? <Link to={devicePath(device.id)}>{t('alerts.action.device')}</Link> : null}
+        {ruled && alert.deviceId ? <SilenceChip silence={silence} /> : null}
+        {ruled && alert.deviceId && explainSilence ? <Help topic="silence" /> : null}
+        {ruled && alert.spaceId ? <Link to={controlPath(alert.spaceId, 'alarms', { rule: rule.id })}>{t('alerts.action.editRule')}</Link> : null}
+        {open && unheard ? <Link to="/me/notifications">{t('alerts.action.notify')}</Link> : null}
+        {!open && mayManage ? (
+          <button type="button" disabled={remove.isPending} aria-expanded={asking} onClick={() => setAsking(!asking)}>
             {t('alerts.action.remove')}
           </button>
         ) : null}
       </div>
-      {asking || remove.error ? (
-        <div className={styles.wide}>
-          {asking ? (
-            <Asking
-              note={t('alerts.remove.ask')}
-              yes={t('alerts.action.remove')}
-              danger
-              busy={remove.isPending}
-              onYes={() => remove.mutate(alert.id, { onSuccess: () => setAsking(false) })}
-              onCancel={() => setAsking(false)}
-            />
-          ) : null}
-          <Refused error={remove.error} />
-        </div>
+      {asking ? (
+        <Asking
+          note={t('alerts.remove.ask')}
+          yes={t('alerts.action.remove')}
+          danger
+          busy={remove.isPending}
+          onYes={() =>
+            remove.mutate(alert.id, {
+              onSuccess: () => {
+                tell({ label: t('alerts.told.removed'), undo: null });
+                onRemoved?.();
+              },
+            })
+          }
+          onCancel={() => setAsking(false)}
+        />
       ) : null}
-    </>
-  );
-}
-
-/**
- * The chips on an open card. A camera that stopped delivering is looked at
- * rather than silenced, so it gets its own page instead of the rule's actions.
- * Maintenance is not started from here: it is the place's, on Start and with
- * the device under Steuerung.
- */
-function OpenChips({ alert, rule, now, explainSilence }: { alert: Alert; rule: AlarmRule | null; now: DateTime; explainSilence?: boolean }) {
-  const { t } = useTranslation();
-  // A chip that writes is drawn only where the alert names a device, so the empty id is never sent.
-  const silence = useSilence(rule, alert.deviceId ?? '', now);
-  const camera = alert.kind === 'camera_stale';
-
-  return (
-    <>
-      <div className={styles.chips}>
-        {camera && alert.cameraId ? (
-          <Link to={`/cameras/${alert.cameraId}`} className={ui.chip}>
-            {t('alerts.action.checkCam')}
-          </Link>
-        ) : null}
-        {!camera && rule && alert.deviceId ? <SilenceChip silence={silence} /> : null}
-        {explainSilence && !camera && rule && alert.deviceId ? <Help topic="silence" /> : null}
-        {alert.spaceId ? <TimelineChip spaceId={alert.spaceId} alert={alert} rule={rule} /> : null}
-        {!camera && rule && alert.spaceId ? (
-          <Link to={controlPath(alert.spaceId, 'alarms', { rule: rule.id })} className={ui.chip}>
-            {t('alerts.action.editRule')}
-          </Link>
-        ) : null}
-      </div>
-      <Refused error={silence.error} />
+      <Refused error={silence.error ?? remove.error} />
     </>
   );
 }

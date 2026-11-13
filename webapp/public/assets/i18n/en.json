@@ -477,7 +477,11 @@
       "diary": "The grow diary is on. The bar now has “Grow” with the diary and “Log” for watering, feeding, photos and notes; what is due is on Home and behind the bell.",
       "places": "There are {{count}} places now: Home shows each as a card. The place named at the top holds for Grow, Timeline and Control; tap its name to switch.",
       "ok": "Got it",
-      "diaryOff": "Turn it off under Me › Appearance"
+      "diaryOff": "Turn it off under Me › Grow diary",
+      "before": {
+        "phone": "The app has a new layout. The bar at the bottom holds {{items}}: Timeline shows the curves, Control holds the targets, the alarms and the devices. Alerts and your account are at the top right – the bell and “Me”.",
+        "wide": "The app has a new layout. The bar on the left holds {{items}}: Timeline shows the curves, Control holds the targets, the alarms and the devices. Alerts and Me are at its foot."
+      }
     },
     "skipToContent": "Skip to the page"
   },
@@ -622,7 +626,6 @@
     "title": "Me",
     "appearance": {
       "title": "Appearance",
-      "display": "Display",
       "themeLine": "follows the system until you choose",
       "language": "Language",
       "languageLine": "kept in this browser",
@@ -631,18 +634,6 @@
         "de": "Deutsch"
       },
       "units": "Units",
-      "clock": "Clock",
-      "features": "Features",
-      "diary": "Grow diary",
-      "diaryLine": "kept with your account · Automatic: appears once you start a grow or log something",
-      "diaryChoice": {
-        "auto": "Automatic",
-        "on": "On",
-        "off": "Off"
-      },
-      "timezone": "Time zone",
-      "timezoneLine": "kept with your account · quiet hours and every clock time the app draws are read in it.",
-      "timezoneHere": "This device is in {{zone}}.",
       "temperature": "Temperature",
       "weight": "Weight",
       "volume": "Volume",
@@ -653,8 +644,7 @@
         "ounces": "oz",
         "liters": "l",
         "gallons": "gal"
-      },
-      "unitsNote": "Kept with your account. The screens still show °C, grams and litres for now."
+      }
     },
     "theme": {
       "label": "Theme",
@@ -663,20 +653,8 @@
       "dark": "Dark"
     },
     "signOut": "Sign out",
-    "demo": "The demo has no account of its own, so there is nothing of it to change.",
-    "identity": {
-      "profileOn": "public profile on",
-      "profileOff": "public profile off"
-    },
+    "demo": "The demo has no account of its own: there are no notifications, no account and no privacy settings here.",
     "door": {
-      "public": {
-        "none": "no grows yet",
-        "public_one": "{{count}} public",
-        "public_other": "{{count}} public",
-        "private_one": "{{count}} private",
-        "private_other": "{{count}} private",
-        "profileOff": "profile off"
-      },
       "following": {
         "none": "nobody yet",
         "grows_one": "{{count}} grow",
@@ -691,45 +669,14 @@
         "revoked_one": "{{count}} revoked",
         "revoked_other": "{{count}} revoked"
       },
-      "premium": {
-        "none": "no cameras",
-        "cameras_one": "{{count}} camera",
-        "cameras_other": "{{count}} cameras",
-        "premium_one": "{{count}} premium",
-        "premium_other": "{{count}} premium",
-        "noEntitlement": "no entitlement",
-        "grant": {
-          "included": "included until {{date}}",
-          "migration": "carried over until {{date}}",
-          "purchase": "paid until {{date}}"
-        },
-        "state": {
-          "active": "active",
-          "expired": "expired",
-          "free": "free",
-          "partly": "partly"
-        },
-        "ungated_one": "{{count}} camera · nothing is gated on this install",
-        "ungated_other": "{{count}} cameras · nothing is gated on this install"
-      },
       "notifications": {
         "none": "no channel on",
         "muted": "muted",
         "quiet": "quiet {{from}}–{{to}}"
       },
       "privacy": {
-        "weights": "weights hidden in shared views",
-        "counts": "plant counts hidden in shared views",
-        "both": "weights and counts hidden in shared views",
-        "nothing": "nothing hidden in shared views",
-        "retention": "retention {{keep}}",
         "days_one": "{{count}} day",
         "days_other": "{{count}} days"
-      },
-      "appearance": {
-        "theme": "theme: {{theme}}",
-        "units": "units: {{units}}",
-        "language": "language: {{language}}"
       },
       "schemes": {
         "none": "none in use",
@@ -739,26 +686,38 @@
         "own_other": "{{count}} own",
         "noOwn": "no own yet"
       },
-      "account": "e-mail · password · sessions · export · delete",
+      "account": "E-mail, password, time zone",
       "about": "v{{version}} · {{build}}",
-      "addDevice": {
-        "title": "Add a device or a camera",
-        "line": "A controller measures and steers the climate, a camera takes pictures for the diary"
-      },
       "grows": {
         "running_one": "{{count}} running",
         "running_other": "{{count}} running",
         "finished_one": "{{count}} finished",
         "finished_other": "{{count}} finished",
         "none": "no grows yet"
-      }
+      },
+      "theme": {
+        "system": "as the system",
+        "light": "light",
+        "dark": "dark"
+      },
+      "diary": {
+        "on": "on",
+        "off": "off"
+      },
+      "profile": {
+        "on": "profile public",
+        "off": "profile private",
+        "noGrows": "no grow public",
+        "grows_one": "{{count}} grow public",
+        "grows_other": "{{count}} grows public"
+      },
+      "admin": "Fleet, firmware, users, demo device",
+      "adminOnly": "admin only"
     },
     "privacy": {
-      "title": "Privacy",
-      "demo": "The demo has no account of its own, so there is nothing here to settle.",
-      "sharing": "Sharing",
-      "data": "Data",
-      "premium": "Premium",
+      "title": "Privacy and profile",
+      "sharing": "Shared views",
+      "data": "Retention",
       "weights": {
         "title": "Hide harvest weights in shared views",
         "line": "links, public page, exports · you still see them"
@@ -769,7 +728,8 @@
       },
       "profile": {
         "title": "Public profile",
-        "line": "@{{handle}} · lists only grows you set public"
+        "line": "@{{handle}} · lists only grows you set public",
+        "copy": "Copy the profile address"
       },
       "climate": {
         "title": "Keep climate history",
@@ -794,43 +754,16 @@
         "keptDays_one": "Premium: the whole grow · free: {{count}} day",
         "keptDays_other": "Premium: the whole grow · free: {{count}} days"
       },
-      "export": {
-        "title": "Export everything",
-        "line": "JSON + CSV + diary photos + films · yours to keep",
-        "ask": "Export"
-      },
-      "delete": {
-        "title": "Delete my account",
-        "line": "really deleted, not hidden · devices stay claimable",
-        "open": "…",
-        "what": "Everything this account owns goes: the places, the grows, the entries, the photos, the plans and the alarms. It is deleted rather than hidden, and there is no way back.",
-        "grows": "Devices you claimed become claimable again by whoever holds them. A single grow is deleted from the grow's own page.",
-        "typeHandle": "Type {{handle}} to confirm",
-        "notHandle": "That is not your handle.",
-        "yes": "Delete my account"
-      },
       "footnote": {
         "location": "No location is ever stored.",
         "servers": "Servers in the EU."
-      }
-    },
-    "public": {
-      "title": "Public grows and profile",
-      "demo": "The demo has no grows of its own to publish.",
-      "profile": "Profile",
-      "grows": "Grows",
-      "profileOff": "not public · the switch is under Privacy",
-      "copyProfile": "Copy the profile address",
-      "publicCount_one": "{{count}} public",
-      "publicCount_other": "{{count}} public",
-      "privateCount_one": "{{count}} private",
-      "privateCount_other": "{{count}} private",
-      "private": "private",
+      },
       "links_one": "{{count}} link opens it",
       "links_other": "{{count}} links open it",
+      "private": "private",
       "switch": "Public page of {{name}}",
-      "none": "No grows of your own yet",
-      "stranger": "A public grow shows a stranger the diary from its first day: the phases, the days with their photos and the camera's pictures, the climate averages, the strains, and your handle. Harvest weights and plant counts follow your privacy settings. It never shows the place's live values, its devices, its alarms or its tasks, and never your e-mail. Followers see the same page, and nobody can write."
+      "noGrows": "No grows of your own yet",
+      "grows": "Public grows"
     },
     "following": {
       "title": "Following",
@@ -980,8 +913,6 @@
     },
     "account": {
       "title": "Account",
-      "demo": "The demo has no account of its own, so there is nothing here to settle.",
-      "signIn": "Sign-in",
       "email": {
         "title": "E-mail",
         "line": "how you sign in · this server offers no way to change it"
@@ -1001,7 +932,6 @@
       },
       "sessions": {
         "title": "Sessions",
-        "line": "every browser and script signed in as you",
         "thisDevice": "this device",
         "signOut": "Sign out",
         "lastSeen": "last seen {{age}} ago",
@@ -1015,21 +945,36 @@
           "what": "Every other browser and script signed in as you is signed out at once - the ones listed here and the ones that are not, wherever they are. Whoever holds one has to sign in again with your e-mail and password.",
           "thisOne": "This browser stays signed in, and nothing else about the account changes. A session that ends this way cannot be brought back; signing in again makes a new one.",
           "yes": "Sign the others out",
-          "signingOut": "Signing them out …"
-        }
+          "signingOut": "Signing them out …",
+          "done": "Every other browser signed out"
+        },
+        "signedOut": "{{device}} signed out"
       },
       "data": "Data",
       "export": {
         "title": "Export everything",
-        "note": "Every grow, your diary photos and the finished films in one zip: JSON, CSV and the pictures. The climate comes as a row a minute, averaged, rather than as the reading every few seconds it was measured at. Single camera stills stay in the app - there are tens of thousands of them - and the zip counts them per camera.",
         "ask": "Build the zip",
         "again": "Try again",
         "queued": "queued",
         "rendering": "building the file…",
         "download": "Download · {{size}}",
         "downloadAged": "Download · {{size}} · built {{age}} ago",
-        "failedPlain": "The file could not be built."
-      }
+        "failedPlain": "The file could not be built.",
+        "line": "JSON, CSV, diary photos and films in one zip"
+      },
+      "delete": {
+        "title": "Delete my account",
+        "line": "really deleted, not hidden · devices stay claimable",
+        "open": "…",
+        "what": "Everything this account owns goes: the places, the grows, the entries, the photos, the plans and the alarms. It is deleted rather than hidden, and there is no way back.",
+        "grows": "Devices you claimed become claimable again by whoever holds them. A single grow is deleted from the grow's own page.",
+        "typeHandle": "Type {{handle}} to confirm",
+        "notHandle": "That is not your handle.",
+        "yes": "Delete my account"
+      },
+      "timezone": "Time zone",
+      "timezoneLine": "clock times and quiet hours follow it",
+      "timezoneHere": "This device is in {{zone}}."
     },
     "about": {
       "title": "About",
@@ -1039,6 +984,46 @@
       "build": {
         "production": "production build",
         "development": "development build"
+      }
+    },
+    "back": "Back to Home",
+    "backHere": "Back to Me",
+    "diary": {
+      "title": "Grow diary",
+      "label": "Keep the diary",
+      "choice": {
+        "auto": "Automatic",
+        "on": "On",
+        "off": "Off"
+      },
+      "line": {
+        "auto": "on once you start a grow or log something",
+        "on": "Grow and Log are in the bar",
+        "off": "the app shows the climate and the devices alone"
+      },
+      "told": {
+        "auto": "Grow diary: automatic",
+        "on": "The grow diary is on",
+        "off": "The grow diary is off"
+      }
+    },
+    "saved": {
+      "setting": "{{what}}: {{value}}",
+      "hideWeights": {
+        "on": "Harvest weights are hidden in shared views",
+        "off": "Harvest weights show in shared views again"
+      },
+      "hideCounts": {
+        "on": "Plant counts are hidden in shared views",
+        "off": "Plant counts show in shared views again"
+      },
+      "profile": {
+        "on": "Your profile is public",
+        "off": "Your profile is private"
+      },
+      "grow": {
+        "public": "{{name}} is public now",
+        "private": "{{name}} is private now"
       }
     }
   },
@@ -1442,7 +1427,8 @@
       "sharedBy": "by @{{handle}}",
       "harvested": "harvested in {{month}}",
       "ended": "ended in {{month}}",
-      "partial": "There are more than could be read in one go; open the page again to read on."
+      "partial": "There are more than could be read in one go; open the page again to read on.",
+      "back": "Back to all grows"
     },
     "diary": {
       "today": "Today",
@@ -2402,7 +2388,8 @@
         "open": "Open the camera",
         "username": "User",
         "password": "Password",
-        "loginInAddress": "The login is already written into the address and is used as it is."
+        "loginInAddress": "The login is already written into the address and is used as it is.",
+        "noCarrier": "No device stands at {{place}} to fetch the stream from your network · an address of your home network will not answer the cloud"
       }
     }
   },
@@ -3011,7 +2998,15 @@
       "offTitle": "Off"
     },
     "demo": "The demo has no account settings.",
-    "edit": "Edit"
+    "edit": "Edit",
+    "told": {
+      "on": "{{what}} · on",
+      "off": "{{what}} · off",
+      "quiet": "Quiet hours {{from}}–{{to}}",
+      "unlinked": "Telegram unlinked",
+      "email": "E-mail to {{address}}",
+      "webhook": "Webhook to {{host}}"
+    }
   },
   "notify": {
     "title": "Alarms do not reach you",
@@ -3038,21 +3033,10 @@
   "alerts": {
     "bell_one": "Alerts · {{count}} open",
     "bell_other": "Alerts · {{count}} open",
-    "muteAll": "Mute all 1 h",
     "mutedUntil": "your channels muted until {{time}}",
     "unmute": "Unmute",
-    "group": {
-      "now": "Now",
-      "earlierToday": "Earlier today",
-      "yesterday": "Yesterday"
-    },
-    "active_one": "{{count}} active",
-    "active_other": "{{count}} active",
     "what": {
-      "running": "{{output}} running non-stop",
-      "threshold": "alarm",
-      "wasOffline": "was offline",
-      "cameraSince": "no image since {{time}}"
+      "threshold": "alarm"
     },
     "meta": {
       "since": "since {{time}} · for {{age}}",
@@ -3064,8 +3048,9 @@
       "resolved": "resolved {{time}} · lasted {{age}}",
       "rested": "resting during germination · since {{time}} · not resolved · lasted {{age}}",
       "notAnnounced": "not announced",
-      "unheard": "did not reach you · set up ›",
-      "ruleNow": "the rule now says {{severity}}"
+      "unheard": "did not reach you",
+      "ruleNow": "the rule now says {{severity}}",
+      "until": "until {{time}}"
     },
     "action": {
       "silence": "Silence 1 h",
@@ -3073,12 +3058,14 @@
       "timeline": "Open timeline",
       "editRule": "Edit rule",
       "checkCam": "Check cam",
-      "remove": "Delete"
+      "remove": "Delete",
+      "device": "To the device",
+      "notify": "Set up notifications"
     },
     "remove": {
       "ask": "The alert is deleted for everyone you share the place with. Its line in the timeline stays."
     },
-    "nothing": "Nothing has gone wrong.",
+    "nothing": "Nothing is open right now.",
     "output": {
       "heater": "heater",
       "dehumidifier": "dehumidifier",
@@ -3111,15 +3098,41 @@
       "info": "info"
     },
     "namesFailed": "Could not read the names · places, devices and cams are shown by their id",
-    "tasks": {
-      "due_one": "1 task due",
-      "due_other": "{{count}} tasks due",
-      "later_one": "nothing due · 1 planned",
-      "later_other": "nothing due · {{count}} planned",
-      "none": "nothing planned"
-    },
     "bellTasks_one": "Alerts · {{count}} task due",
-    "bellTasks_other": "Alerts · {{count}} tasks due"
+    "bellTasks_other": "Alerts · {{count}} tasks due",
+    "back": "Back to Alerts",
+    "open": "Open",
+    "over": "Over",
+    "allTasks": "All tasks and reminders",
+    "settings": "Set up notifications",
+    "ago": "{{age}} ago",
+    "since": "since {{time}}",
+    "mute": "Mute 1 h",
+    "update": "Firmware {{build}} is here",
+    "told": {
+      "muted": "Everything muted until {{time}}",
+      "loud": "Unmuted",
+      "removed": "Alert deleted"
+    },
+    "title": {
+      "high": "{{what}} too high",
+      "highWas": "{{what}} too high for {{span}}",
+      "low": "{{what}} too low",
+      "lowWas": "{{what}} too low for {{span}}",
+      "offline": "{{what}} offline",
+      "offlineWas": "{{what}} offline for {{span}}",
+      "camera": "{{what}} without a picture",
+      "cameraWas": "{{what}} without a picture for {{span}}",
+      "running": "{{what}} runs without a pause",
+      "runningWas": "{{what}} ran too long without a pause"
+    },
+    "state": {
+      "threshold": "back in range since then",
+      "running": "has paused since then",
+      "offline": "back online since then",
+      "camera_stale": "delivers pictures again",
+      "rested": "rests in germination · not resolved"
+    }
   },
   "claim": {
     "title": "Add a device",
@@ -3287,7 +3300,6 @@
       "home": "Back to home"
     },
     "narrow": {
-      "title": "Made for a wide window",
       "line": "The fleet screens are tables a dozen columns wide, and there is no phone layout of them. Open this on a desktop, {{width}} px or wider."
     },
     "fleet": {
@@ -3497,7 +3509,8 @@
       "clockTimeThere": "{{utc}} UTC · {{there}} for the customer",
       "open": "Open the place"
     },
-    "asOf": "as of {{age}} ago"
+    "asOf": "as of {{age}} ago",
+    "backToFleet": "Back to the fleet"
   },
   "units": {
     "s": "s",
@@ -3616,7 +3629,7 @@
     },
     "lightsOn": {
       "title": "Light on at",
-      "text": "When the light comes on and the day begins, on your account’s clock (Me › Appearance). When the clocks change for summer or winter time it stays at this time - the cloud resets the device itself on the night of the change, once your account’s time zone is set: the app takes it on your first sign-in, and Me › Appearance changes it. For cheaper night power or a cooler summer tent, move the day into the night, from 22:00 for example. A running plan keeps this time unless its step brings one of its own."
+      "text": "When the light comes on and the day begins, on your account’s clock (Me › Account). When the clocks change for summer or winter time it stays at this time - the cloud resets the device itself on the night of the change, once your account’s time zone is set: the app takes it on your first sign-in, and Me › Account changes it. For cheaper night power or a cooler summer tent, move the day into the night, from 22:00 for example. A running plan keeps this time unless its step brings one of its own."
     },
     "resumePlan": {
       "title": "Resume the plan",
@@ -3832,7 +3845,7 @@
     },
     "diaryLayer": {
       "title": "Grow diary",
-      "text": "The diary is where you keep what you do to your plants – watering, feeding, photos, notes – and run grows with days and phases. While you do not use it, the app shows the climate and the device alone. It switches itself on once you start a grow or log something, and puts “Grow” and “Log” in the bar; under Me › Appearance you can also switch it on or off by hand."
+      "text": "The diary is where you keep what you do to your plants – watering, feeding, photos, notes – and run grows with days and phases. While you do not use it, the app shows the climate and the device alone. It switches itself on once you start a grow or log something, and puts “Grow” and “Log” in the bar; under Me › Grow diary you can also switch it on or off by hand."
     },
     "follow": {
       "title": "Follow",
@@ -4051,6 +4064,26 @@
     "claimLater": {
       "title": "It can wait",
       "text": "The device works without a cam too. A cam is paired later with the devices under Control, where the presets change as well; notifications under Me."
+    },
+    "accountExport": {
+      "title": "Export everything",
+      "text": "Every grow, your diary photos and the finished films in one zip: JSON, CSV and the pictures. The climate comes as a row a minute, averaged, rather than as the reading every few seconds it was measured at. Single camera stills stay in the app - there are tens of thousands of them - and the zip counts them per camera."
+    },
+    "publicGrow": {
+      "title": "Public grows",
+      "text": "A public grow shows a stranger the diary from its first day: the phases, the days with their photos and the camera's pictures, the climate averages, the strains, and your handle. Harvest weights and plant counts follow your privacy settings. It never shows the place's live values, its devices, its alarms or its tasks, and never your e-mail. Followers see the same page, and nobody can write."
+    },
+    "units": {
+      "title": "Units",
+      "text": "The units are kept with your account. The screens still show °C, grams and litres for now."
+    },
+    "timezone": {
+      "title": "Time zone",
+      "text": "The time zone is kept with your account. Every clock time the app draws and the quiet hours are read in it - the same on every device, wherever it is."
+    },
+    "sessions": {
+      "title": "Sessions",
+      "text": "Every browser and script signed in as you. A session that was ended has to sign in again."
     }
   },
   "place": {
@@ -4794,7 +4827,7 @@
       "today": "today",
       "week": "for a week",
       "date": "Pick a date",
-      "declined": "The diary stays off. You can switch it on under Me › Appearance.",
+      "declined": "The diary stays off. You can switch it on under Me › Grow diary.",
       "declinedHere": "The app no longer asks for {{name}}. You start a grow under Grow › All grows."
     },
     "device": {

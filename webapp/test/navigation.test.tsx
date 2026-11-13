@@ -331,10 +331,14 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json({ items: [], nextCursor: null });
 });
 
+/** The client of the app last opened. */
+let client = testClient();
+
 const open = (path: string) => {
   const router = createMemoryRouter([{ element: <AppShell />, children: screens }], { initialEntries: [path] });
+  client = testClient();
   render(
-    <QueryClientProvider client={testClient()}>
+    <QueryClientProvider client={client}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
@@ -468,12 +472,14 @@ describe('the bar', () => {
     expect(marked()).toEqual(['Grow']);
   });
 
-  it('leads back from the task list to Meldungen, whose door opens it', async () => {
+  it('leads from Meldungen to the task list, and from the list opened by its address back to Meldungen', async () => {
     withDiary();
-    open('/tasks');
+    const router = open('/alerts');
 
+    fireEvent.click(await screen.findByRole('link', { name: 'All tasks and reminders ›' }));
+    expect(where(router)).toBe('/tasks');
     const title = await screen.findByRole('heading', { level: 1, name: 'Tasks' });
-    expect(within(title.closest('header')!).getByRole('link', { name: 'Alerts' })).toHaveAttribute('href', '/alerts');
+    expect(within(title.closest('header')!).getByRole('link', { name: 'Back to Alerts' })).toHaveAttribute('href', '/alerts');
   });
 
   it('draws the shape this account had last time before its answers are in, rather than jumping by an item', async () => {
@@ -817,13 +823,76 @@ describe('Grow, the bar´s item', () => {
 describe('a change to the shape of the app', () => {
   const patches = () => server.sent.filter(one => one.method === 'PATCH' && one.path === '/me');
 
-  it('records an account seen for the first time as it stands, and says nothing', async () => {
+  /** The shape has been written and the write answered, which is when a notice would be drawn: the moment to look for none. */
+  const recorded = async () => {
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    await waitFor(() => expect(client.isMutating()).toBe(0));
+  };
+
+  it('records a new account, which owns no device yet, as it stands and says nothing', async () => {
+    server.places = [];
     server.me = meOf(false, null);
     open(QUIET);
 
-    await waitFor(() => expect(patches()).toHaveLength(1));
+    await recorded();
     expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: false } } });
     expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
+  });
+
+  it('says nothing to a guest seen for the first time either: the devices there are the host´s', async () => {
+    server.youMay = 'log';
+    server.me = meOf(false, null);
+    open(QUIET);
+
+    await recorded();
+    expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
+  });
+
+  it('tells an account from before, which owns a device and was never shown a shape, once where everything is now', async () => {
+    server.me = meOf(false, null);
+    open(QUIET);
+
+    // A window without `matchMedia` counts as wide, where the bar is the rail.
+    const notice = await screen.findByRole('status', { name: 'What changed' });
+    expect(notice).toHaveTextContent('The app has a new layout. The bar on the left holds Home, Timeline, and Control: Timeline shows the curves');
+    expect(notice).toHaveTextContent('Alerts and Me are at its foot.');
+    // Nothing came in for it, so nothing is said to have, and there is no diary to turn off.
+    expect(notice).not.toHaveTextContent('The grow diary is on');
+    expect(within(notice).queryByRole('link')).not.toBeInTheDocument();
+    expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: false } } });
+
+    fireEvent.click(within(notice).getByRole('button', { name: 'Got it' }));
+    expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
+    expect(patches()).toHaveLength(1);
+  });
+
+  it('names that account´s own bar on a phone, Grow included where it keeps the diary', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    server.diary = true;
+    server.me = meOf(true, null);
+    open(QUIET);
+
+    const notice = await screen.findByRole('status', { name: 'What changed' });
+    expect(notice).toHaveTextContent('The bar at the bottom holds Home, Grow, Timeline, and Control: Timeline shows the curves');
+    expect(notice).toHaveTextContent('Alerts and your account are at the top right');
+    // The diary was there before the layout: it is part of the bar named, and not news.
+    expect(notice).not.toHaveTextContent('The grow diary is on');
+  });
+
+  it('records the account on a page drawn without the bar too, so that claiming its first device there is not taken for a life before', async () => {
+    server.places = [];
+    server.me = meOf(false, null);
+    const router = open('/claim');
+
+    await recorded();
+    expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: false } } });
+
+    // The device it then claims is its own, and still nothing is said: the shape is on record.
+    server.places = [['space-1', 'Fridge 1']];
+    await act(() => router.navigate(QUIET));
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
+    expect(patches()).toHaveLength(1);
   });
 
   it('says once that a second place turned Start into cards and put the chosen place into the header', async () => {
@@ -847,7 +916,8 @@ describe('a change to the shape of the app', () => {
 
     const notice = await screen.findByRole('status', { name: 'What changed' });
     expect(notice).toHaveTextContent('The grow diary is on. The bar now has “Grow” with the diary and “Log”');
-    expect(within(notice).getByRole('link', { name: 'Turn it off under Me › Appearance' })).toHaveAttribute('href', '/me/appearance');
+    expect(notice).not.toHaveTextContent('The app has a new layout');
+    expect(within(notice).getByRole('link', { name: 'Turn it off under Me › Grow diary' })).toHaveAttribute('href', '/me/diary');
   });
 
   it('records what setup switched on itself without a word: the grower chose it on the page before', async () => {
@@ -857,7 +927,7 @@ describe('a change to the shape of the app', () => {
     server.me = meOf(true, { diary: false, places: false });
     open(QUIET);
 
-    await waitFor(() => expect(patches()).toHaveLength(1));
+    await recorded();
     expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: true, places: false } } });
     expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
     // The word holds for that one change: it is used up with it.
@@ -880,7 +950,7 @@ describe('a change to the shape of the app', () => {
     server.me = meOf(false, { diary: true, places: true });
     open(QUIET);
 
-    await waitFor(() => expect(patches()).toHaveLength(1));
+    await recorded();
     expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: false } } });
     expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
   });

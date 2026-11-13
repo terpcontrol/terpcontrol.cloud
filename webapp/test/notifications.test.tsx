@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,6 +23,7 @@ import { translate } from './translations';
  * to check about every switch is not only the cell it moved but that every
  * other cell went back exactly as it was read. The fetch is stubbed by route
  * so that the body on the wire is what is asserted, not what a hook was asked.
+ * A write that landed is answered by a toast, which names what holds now.
  */
 
 const session = vi.hoisted(() => ({ demo: false }));
@@ -98,6 +99,12 @@ const drawLoaded = async () => {
 };
 
 const lastPatch = (): NotificationSettings => server.patched.at(-1)!.notifications!;
+
+const toastHost = () => document.querySelector<HTMLElement>('[role="status"][aria-live]');
+
+/** What the toasts say, without their buttons; a figure is bound to what follows it by a space that does not break. */
+const toasts = () =>
+  [...(toastHost()?.querySelectorAll(':scope > div > :first-child') ?? [])].map(label => label.textContent.replace(/\u00a0/g, ' '));
 
 beforeAll(() => translate());
 
@@ -208,6 +215,7 @@ describe('an account with an address', () => {
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().channels.email).toBe('other@example.org');
     await waitFor(() => expect(screen.queryByLabelText('Address')).not.toBeInTheDocument());
+    expect(toasts()).toEqual(['E-mail to other@example.org']);
   });
 
   it('closes the field again when the change is taken back', async () => {
@@ -236,6 +244,30 @@ describe('an account with an address', () => {
       routing: { alerts: ['email'], warnings: ['email'], tasks: ['email'], plan: [], weekly_timelapse: [] },
     });
     await waitFor(() => expect(screen.getByRole('switch', { name: 'Warnings by E-mail' })).toHaveAttribute('aria-checked', 'true'));
+    expect(toasts()).toEqual(['Warnings by E-mail · on']);
+  });
+
+  /**
+   * A cell's toast outlives the next tap. Taken back then, it must not carry
+   * the settings it was read from: that would take the quiet hours switched
+   * on in between back with it.
+   */
+  it('takes one cell back out of the settings as they stand by then, so what was set in between stays', async () => {
+    server.me = me(WITH_MAIL);
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Warnings by E-mail' }));
+    await waitFor(() => expect(toasts()).toEqual(['Warnings by E-mail · on']));
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Quiet hours' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('switch', { name: 'Quiet hours' }));
+    await waitFor(() => expect(toasts()).toEqual(['Warnings by E-mail · on', 'Quiet hours 23:00–07:00']));
+
+    fireEvent.click(within(toastHost()!).getAllByRole('button', { name: 'Undo' })[0]);
+
+    await waitFor(() => expect(server.patched).toHaveLength(3));
+    expect(lastPatch()).toEqual({ ...NOTHING, ...WITH_MAIL, quietHours: { fromMinute: 1380, toMinute: 420 } });
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Warnings by E-mail' })).toHaveAttribute('aria-checked', 'false'));
+    expect(screen.getByRole('switch', { name: 'Quiet hours' })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('keeps the columns of the channels that are not configured disabled', async () => {
@@ -277,6 +309,7 @@ describe('an account with an address', () => {
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().channels).toEqual({ email: null, telegram: null, webhook: null });
     expect(lastPatch().routing).toEqual(WITH_MAIL.routing);
+    await waitFor(() => expect(toasts()).toEqual(['E-mail · off']));
   });
 
   it('shows the refusal under the card that asked', async () => {
@@ -288,6 +321,7 @@ describe('an account with an address', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('That address cannot be delivered to.');
     expect(screen.getByRole('switch', { name: 'E-mail' })).toHaveAttribute('aria-checked', 'true');
+    expect(toasts()).toEqual([]);
   });
 });
 
@@ -428,6 +462,7 @@ describe('quiet hours', () => {
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().quietHours).toEqual({ fromMinute: 1380, toMinute: 420 });
     expect(await screen.findByText('23:00 – 07:00')).toBeInTheDocument();
+    expect(toasts()).toEqual(['Quiet hours 23:00–07:00']);
     expect(screen.getByText(/critical still comes through/)).toBeInTheDocument();
     expect(screen.getByText('in your time zone (Europe/Berlin)')).toBeInTheDocument();
   });
@@ -512,6 +547,7 @@ describe('quiet hours', () => {
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().quietHours).toBeNull();
+    await waitFor(() => expect(toasts()).toEqual(['Quiet hours · off']));
   });
 });
 
@@ -525,6 +561,7 @@ describe('the mute', () => {
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().mutedUntil).toBeNull();
+    await waitFor(() => expect(toasts()).toEqual(['Unmuted']));
   });
 
   /**
@@ -614,6 +651,7 @@ describe('linking Telegram', () => {
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().channels.telegram).toBeNull();
+    await waitFor(() => expect(toasts()).toEqual(['Telegram unlinked']));
   });
 });
 
@@ -630,6 +668,7 @@ describe('the webhook', () => {
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().channels.webhook).toEqual({ url: 'https://ha.local/api/webhook/terp', method: 'PUT', headers: { Authorization: 'Bearer x' } });
     expect(await screen.findByText('ha.local · JSON')).toBeInTheDocument();
+    expect(toasts()).toEqual(['Webhook to ha.local']);
   });
 
   /**
@@ -665,7 +704,7 @@ describe('the demo', () => {
     expect(fetchStub.mock.calls.filter(([input]) => String(input).endsWith('/v1/me'))).toHaveLength(0);
   });
 
-  it('is not offered the door to them on Me either', () => {
+  it('has no row to them on Me either, which says why', () => {
     session.demo = true;
     wrapped(
       <ThemeProvider>
@@ -673,8 +712,9 @@ describe('the demo', () => {
       </ThemeProvider>,
     );
 
-    expect(screen.queryByRole('link', { name: 'Notifications' })).not.toBeInTheDocument();
-    expect(screen.getByText('The demo has no account settings.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Appearance/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Notifications/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/^The demo has no account of its own: there are no notifications/)).toBeInTheDocument();
   });
 });
 

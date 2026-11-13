@@ -605,30 +605,21 @@
   }
 }
 
-/* A line of short items joined by middle dots - "Nothing growing here yet ·
-   Start a grow · Move a grow here" - that breaks between items and never
-   leaves a dot hanging at either end of a line. Every item after the first
-   is a `.dot` starting with its own " · ", kept on one line. A line
-   always starts in the strip left of the column, `--dot-lead` wide, which
-   is cut away: a wrapped item's dot falls in it and is not drawn, and the
-   first line is pushed past it. The strip is a little wider than the dot
-   and narrower than the dot and its space, so no letter is ever cut. */
-.dots {
-  --dot-lead: 0.4em;
-  --dot-gap: 0.26em;
-
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: var(--dot-gap);
-  margin-inline-start: calc(var(--dot-lead) * -1);
-  clip-path: inset(-4px -4px -4px var(--dot-lead));
-}
-
-.dots::before {
-  content: '';
-  flex: none;
-  width: calc(var(--dot-lead) - var(--dot-gap));
+/* A chip or a field that is a menu: the native select, keeping its keyboard
+   and the platform's own picker, giving up only its arrow and its padding. The
+   caret is drawn 8 to 16 px in from the edge, so the padding has to reach past
+   it or the widest option's last letter sits against the triangle. */
+.menu {
+  appearance: none;
+  padding-right: var(--space-5);
+  background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%);
+  background-position:
+    right 12px top 50%,
+    right 8px top 50%;
+  background-size:
+    4px 4px,
+    4px 4px;
+  background-repeat: no-repeat;
 }
 
 /* One answer out of two or three, as one control: a track, the chosen

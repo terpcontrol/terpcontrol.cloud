@@ -1,24 +1,31 @@
 import { useTranslation } from 'react-i18next';
-import { useUpdateMe } from '@/api/account';
+import type { GrowListItem, Me } from '@fg2/shared-types/v1';
+import { useGrows, useUpdateGrow } from '@/api/grows';
+import { useShareLinks } from '@/api/sharing';
+import { useLog } from '@/log/log-context';
+import { appUrl } from '@/ui/clipboard';
+import { CopyButton } from '@/ui/CopyButton';
 import { Help } from '@/ui/Help';
-import { Refused } from '@/ui/PageState';
+import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { AccountPage, ExportRow, Row } from '../parts';
+import { AccountPage, Row } from '../parts';
+import { useSaveAccount } from '../save';
+import { isDead } from '../sharing/links';
 import { ClimateRow } from './ClimateRow';
-import { DeleteRow } from './DeleteRow';
+import { retentionLabel } from './climate';
 
 /**
- * Me › Privacy: what other people are shown, how long anything is kept, and
- * the way out.
+ * Ich › Privatsphäre und Profil: what a stranger finds, what other people are
+ * shown, and how long anything is kept.
  *
- * The two halves are different promises and are labelled as two. The first is
- * about what leaves this account - a link, a public page, an export - and every
- * switch on it hides something from everybody but the owner, who goes on seeing
- * their own figures. The second is about the server itself: how long it keeps
- * what it was given, that all of it can be taken away as a file, and that
- * leaving really is leaving.
+ * The profile and the grows it lists come first: whether `/@handle` answers
+ * at all, and which of the account's own grows have a page anybody can open -
+ * only its own, because a page is the owner's to open and to take back. Then
+ * what is hidden wherever something is shared, and how long the server keeps
+ * what it was given. Taking everything away as a file, and leaving, are the
+ * account's (Ich › Konto).
  *
  * `PATCH /me` replaces each object it is given rather than merging into it, so
  * every control here sends the whole object it belongs to with one field
@@ -32,66 +39,70 @@ import { DeleteRow } from './DeleteRow';
  * which is the one that enforces Premium; a self-hosted one stands wherever
  * its owner put it, and is promised nothing about that here.
  */
-
 export function Privacy() {
   const { t } = useTranslation();
   const now = useNow();
-  const update = useUpdateMe();
+  const { save, error } = useSaveAccount();
 
   return (
-    <AccountPage title={t('me.privacy.title')} demo={t('me.privacy.demo')}>
+    <AccountPage title={t('me.privacy.title')} demo={t('me.demo')}>
       {(account, held) => {
-        const privacy = account.privacy;
+        const { privacy, handle } = account;
+        const profile = appUrl(`/@${handle}`);
+        const hides = (key: 'hideWeights' | 'hideCounts') => (hidden: boolean) =>
+          save({ privacy: { ...privacy, [key]: hidden } }, t(`me.saved.${key}.${hidden ? 'on' : 'off'}`), now => ({
+            privacy: { ...now.privacy, [key]: !hidden },
+          }));
 
         return (
           <>
-            <span className="label">
-              {t('me.privacy.sharing')}
-              <Help topic="privacyRedaction" />
-            </span>
-
-            <Row title={t('me.privacy.weights.title')} line={t('me.privacy.weights.line')}>
-              <Switch
-                label={t('me.privacy.weights.title')}
-                on={privacy.hideWeights}
-                disabled={held}
-                onChange={hideWeights => update.mutate({ privacy: { ...privacy, hideWeights } })}
-              />
-            </Row>
-
-            <Row title={t('me.privacy.counts.title')} line={t('me.privacy.counts.line')}>
-              <Switch
-                label={t('me.privacy.counts.title')}
-                on={privacy.hideCounts}
-                disabled={held}
-                onChange={hideCounts => update.mutate({ privacy: { ...privacy, hideCounts } })}
-              />
-            </Row>
-
-            <Row title={t('me.privacy.profile.title')} line={t('me.privacy.profile.line', { handle: account.handle })} help="publicProfile">
+            <Row
+              title={t('me.privacy.profile.title')}
+              help="publicProfile"
+              line={account.publicProfile ? <span className="mono">{profile}</span> : t('me.privacy.profile.line', { handle })}
+            >
+              {account.publicProfile ? <CopyButton value={profile} label={t('me.privacy.profile.copy')} /> : null}
               <Switch
                 label={t('me.privacy.profile.title')}
                 on={account.publicProfile}
                 disabled={held}
-                onChange={publicProfile => update.mutate({ publicProfile })}
+                onChange={publicProfile =>
+                  save({ publicProfile }, t(`me.saved.profile.${publicProfile ? 'on' : 'off'}`), () => ({ publicProfile: !publicProfile }))
+                }
               />
             </Row>
 
-            <span className="label">{t('me.privacy.data')}</span>
+            <OwnGrows account={account} held={held} />
 
+            <span className="label">
+              {t('me.privacy.sharing')}
+              <Help topic="privacyRedaction" />
+            </span>
+            <Row title={t('me.privacy.weights.title')} line={t('me.privacy.weights.line')}>
+              <Switch label={t('me.privacy.weights.title')} on={privacy.hideWeights} disabled={held} onChange={hides('hideWeights')} />
+            </Row>
+            <Row title={t('me.privacy.counts.title')} line={t('me.privacy.counts.line')}>
+              <Switch label={t('me.privacy.counts.title')} on={privacy.hideCounts} disabled={held} onChange={hides('hideCounts')} />
+            </Row>
+
+            <span className="label">{t('me.privacy.data')}</span>
+            {/* No way back from the toast: a narrower window has thrown readings away, and narrowing a wider one again is the question the menu asks. */}
             <ClimateRow
               retention={account.climateRetention}
               climateDays={account.retention.climateDays}
               disabled={held}
               now={now}
-              onChange={climateDays => update.mutate({ retention: { climateDays } })}
+              onChange={climateDays =>
+                save(
+                  { retention: { climateDays } },
+                  t('me.saved.setting', { what: t('me.privacy.climate.title'), value: retentionLabel(t, climateDays) }),
+                )
+              }
             />
-
             {/*
               What a free camera's pictures are actually kept for is the install's own
               configuration, so the line states the days this install names and says
-              plainly that nothing is deleted where it names none - which is the
-              default, and was the promise made when the sweep was left off.
+              plainly that nothing is deleted where it names none.
             */}
             <Row
               title={t('me.privacy.stills.title')}
@@ -100,20 +111,9 @@ export function Privacy() {
                   ? t('me.privacy.stills.kept')
                   : t('me.privacy.stills.keptDays', { count: account.premium.free.stillDays })
               }
-            >
-              {/*
-                The chip is a price tag, and an install that gates nothing is not
-                selling this - the Premium screen says so in as many words, and a
-                badge here saying otherwise is the same claim twice removed.
-              */}
-              {account.premium.enforced ? <span className={ui.chip}>{t('me.privacy.premium')}</span> : null}
-            </Row>
+            />
 
-            <ExportRow title={t('me.privacy.export.title')} line={t('me.privacy.export.line')} ask={t('me.privacy.export.ask')} />
-
-            <DeleteRow handle={account.handle} disabled={held} />
-
-            <Refused error={update.error} />
+            <Refused error={error} />
             <p className={ui.note}>
               {t('me.privacy.footnote.location')}
               {account.premium.enforced ? ` ${t('me.privacy.footnote.servers')}` : ''}
@@ -122,5 +122,106 @@ export function Privacy() {
         );
       }}
     </AccountPage>
+  );
+}
+
+/**
+ * The account's own grows, each with the switch that gives it a page anybody
+ * can open. Under each stands its address, or that it is private, and how
+ * many live links open it - so that a grow made private is not read as
+ * unreachable while a link still reaches it.
+ */
+function OwnGrows({ account, held }: { account: Me; held: boolean }) {
+  const { t } = useTranslation();
+  const now = useNow();
+  const grows = useGrows();
+  const links = useShareLinks();
+  const label = (
+    <span className="label">
+      {t('me.privacy.grows')}
+      <Help topic="publicGrow" />
+    </span>
+  );
+
+  if (grows.isPending) {
+    return (
+      <>
+        {label}
+        <Waiting lines={2} />
+      </>
+    );
+  }
+  if (!grows.data) {
+    return (
+      <>
+        {label}
+        <LoadFailed retry={() => void grows.refetch()} />
+      </>
+    );
+  }
+
+  /**
+   * How many live links open a grow, which is a second read and lands later.
+   * Until it does the answer is not nought: the row says that the count is
+   * still coming, or that it could not be read, and only ever states a figure
+   * it has. A public-page link is the public address in another form and stops
+   * working the moment the grow goes private, so it is counted only on a
+   * public grow.
+   */
+  const linksOpening = (grow: GrowListItem): string | null => {
+    if (!links.data) return links.isPending ? t('home.waiting') : t('shell.loadFailed');
+    const open = links.data.items.filter(
+      link =>
+        !isDead(link, now) && link.subject.type === 'grow' && link.subject.id === grow.id && (link.kind === 'view' || grow.visibility === 'public'),
+    ).length;
+
+    return open > 0 ? t('me.privacy.links', { count: open }) : null;
+  };
+  const own = grows.data.items.filter(grow => grow.ownerId === account.id && !grow.isDemo);
+
+  return (
+    <>
+      {label}
+      {own.length === 0 ? (
+        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.privacy.noGrows')}</p>
+      ) : (
+        own.map(grow => <GrowRow key={grow.id} grow={grow} links={linksOpening(grow)} held={held} />)
+      )}
+    </>
+  );
+}
+
+/**
+ * One grow and its switch. The grows list is read again after a change rather
+ * than patched, because the list is where this row came from, and a switch
+ * that snapped back while the server had agreed would be the worst of both.
+ */
+function GrowRow({ grow, links, held }: { grow: GrowListItem; links: string | null; held: boolean }) {
+  const { t } = useTranslation();
+  const { tell } = useLog();
+  const update = useUpdateGrow(grow.id);
+  const isPublic = grow.visibility === 'public';
+  const line = [isPublic ? appUrl(`/g/${grow.slug}`) : t('me.privacy.private'), links].filter(Boolean).join(' · ');
+  const set = (visibility: 'public' | 'private') =>
+    update.mutateAsync({ visibility }).then(() => t(`me.saved.grow.${visibility}`, { name: grow.name }));
+
+  return (
+    <>
+      <Row title={grow.name} line={<span className="mono">{line}</span>}>
+        <Switch
+          label={t('me.privacy.switch', { name: grow.name })}
+          on={isPublic}
+          disabled={held || update.isPending}
+          onChange={on =>
+            void set(on ? 'public' : 'private').then(
+              label => tell({ label, undo: () => set(on ? 'private' : 'public'), from: `grow-public:${grow.id}` }),
+              // Said under the row, from the write that was refused.
+              () => undefined,
+            )
+          }
+        />
+      </Row>
+      <Refused error={update.error} />
+    </>
   );
 }

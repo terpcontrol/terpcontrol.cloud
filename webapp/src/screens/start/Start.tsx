@@ -4,7 +4,7 @@ import { fetchedAt } from '@/api/clock';
 import { useHome } from '@/api/home';
 import { failingSince } from '@/api/read';
 import { useSession } from '@/api/session';
-import { useSpaces } from '@/api/spaces';
+import { useEndedSpaces, useSpaces } from '@/api/spaces';
 import { isPlace } from '@/app/places';
 import { NoLongerHere } from '@/ui/PageState';
 import { EmptyStart } from './EmptyStart';
@@ -64,13 +64,17 @@ export function StartOfPlace() {
   const cards = home.data?.spaces ?? [];
   const room = spaces.data?.items.some(space => space.id === spaceId && space.kind === 'room') === true;
 
+  const inUse = spaces.data?.items.some(space => space.id === spaceId && space.archivedAt === null) === true;
+  const ended = useEndedSpaces(user?.isAdmin === true && spaces.data !== undefined && !inUse);
+
   if (cards.length === 1 && cards[0].spaceId === spaceId) return <Navigate to="/" replace />;
   if (room && home.data && !cards.some(card => card.spaceId === spaceId)) return <Navigate to="/" replace />;
   // Whether the address names a room is known once the places have answered; until then nothing of a place is drawn for it.
-  if (spaces.isPending || home.isPending) return <StartWaiting />;
+  if (spaces.isPending || home.isPending || ended.isLoading) return <StartWaiting />;
   // A place that has ended still answers its own read, so the account's places say that it is gone, as they do
-  // where it is edited and removed. Support reads a place that is not its own, which only that read answers for.
-  if (spaces.data && !user?.isAdmin && !spaces.data.items.some(space => space.id === spaceId && space.archivedAt === null)) {
+  // where it is edited and removed. Support reads a place that is not its own, which only that read answers for -
+  // an administrator's own ended place is gone like anybody's.
+  if (spaces.data && !inUse && (!user?.isAdmin || ended.data?.items.some(space => space.id === spaceId))) {
     return <NoLongerHere what="space" />;
   }
 

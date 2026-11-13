@@ -6,28 +6,32 @@ import { itemsOf } from '@/api/pages';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
+import { Help } from '@/ui/Help';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { calendarDay, useZone } from '@/ui/zone';
-import { AccountPage, ExportRow, Row } from '../parts';
-import { DeleteRow } from '../privacy/DeleteRow';
+import { useLog } from '@/log/log-context';
+import { browserZone, calendarDay, useZone, zoneNames } from '@/ui/zone';
+import { AccountPage, ExportRow, Menu, Row } from '../parts';
+import { useSaveAccount } from '../save';
+import { DeleteRow } from './DeleteRow';
 import { deviceLabel, sortedSessions } from './sessions';
 import styles from './Account.module.css';
 
 /**
- * Me › Account: how this person signs in, where they are signed in, and the
- * two ways of taking the account away - as a file, and for good.
+ * Ich › Konto: how this person signs in, the zone their clock times are read
+ * in, where they are signed in, and the two ways of taking the account away -
+ * as a file, and for good.
  *
  * The address is shown and not changed: it is the login identity, and this
  * server has no route that moves it. The password is changed with the current
  * one in hand, so that a session somebody else is holding cannot lock the
- * owner out. The sessions are every browser and script signed in as this
- * account; this one is named as this device and cannot be ended from here by
- * accident, because the way to end it is the sign-out button and not a row in
- * a list. The export is the same job a grow's export is, for everything at
- * once, and deletion is the same sheet the privacy page carries, because a
- * second door to the same irreversible thing should be the same door.
+ * owner out. The zone is the one setting the server acts on rather than
+ * merely draws - quiet hours are read in it - so the browser's zone is
+ * offered as a hint and never written by itself. The sessions are every
+ * browser and script signed in as this account; this one is named as this
+ * device and cannot be ended from here by accident, because the way to end it
+ * is the sign-out button and not a row in a list.
  */
 export function Account() {
   const { t } = useTranslation();
@@ -35,11 +39,9 @@ export function Account() {
   const { sessionId } = useSession();
 
   return (
-    <AccountPage title={t('me.account.title')} demo={t('me.account.demo')}>
+    <AccountPage title={t('me.account.title')} demo={t('me.demo')}>
       {(account, held) => (
         <>
-          <span className="label">{t('me.account.signIn')}</span>
-
           <Row
             title={t('me.account.email.title')}
             line={
@@ -48,14 +50,17 @@ export function Account() {
               </>
             }
           />
-
           <PasswordRow held={held} />
+          <ZoneRow kept={account.preferences.timezone} held={held} />
 
-          <span className="label">{t('me.account.sessions.title')}</span>
+          <span className="label">
+            {t('me.account.sessions.title')}
+            <Help topic="sessions" />
+          </span>
           <Sessions currentId={sessionId} now={now} held={held} />
 
           <span className="label">{t('me.account.data')}</span>
-          <ExportRow title={t('me.account.export.title')} line={t('me.account.export.note')} ask={t('me.account.export.ask')} />
+          <ExportRow />
           <DeleteRow handle={account.handle} disabled={held} />
         </>
       )}
@@ -64,16 +69,70 @@ export function Account() {
 }
 
 /**
+ * The zones the menu offers: everything this browser knows, plus UTC, the
+ * account's own and this device's. The three are added by hand because the
+ * browser's list is of places rather than of offsets and holds no UTC at all,
+ * and an account that keeps a zone it cannot be given back - which is every
+ * account the migration left on UTC - would be a menu that only goes one way.
+ */
+const offeredZones = (kept: string): string[] => {
+  const known = new Set(zoneNames());
+  known.add('UTC');
+  known.add(kept);
+  const here = browserZone();
+  if (here) known.add(here);
+
+  return [...known].sort();
+};
+
+/** The zone every clock time is drawn in, with what this device is in where that is something else - the one hint an account still on the migration's UTC needs. */
+function ZoneRow({ kept, held }: { kept: string; held: boolean }) {
+  const { t } = useTranslation();
+  const { save, error } = useSaveAccount();
+  const here = browserZone();
+
+  return (
+    <>
+      <Row
+        title={t('me.account.timezone')}
+        help="timezone"
+        line={here && here !== kept ? t('me.account.timezoneHere', { zone: here }) : t('me.account.timezoneLine')}
+      >
+        <Menu
+          name={t('me.account.timezone')}
+          value={kept}
+          className={styles.zone}
+          disabled={held}
+          onChange={timezone =>
+            save({ preferences: { timezone } }, t('me.saved.setting', { what: t('me.account.timezone'), value: timezone }), () => ({
+              preferences: { timezone: kept },
+            }))
+          }
+        >
+          {offeredZones(kept).map(zone => (
+            <option key={zone} value={zone}>
+              {zone}
+            </option>
+          ))}
+        </Menu>
+      </Row>
+      <Refused error={error} />
+    </>
+  );
+}
+
+/**
  * The password, changed in place. The form checks only what keeps a pointless
  * request from being sent - the new password typed the same way twice - and
  * whether the current one is right is the server's answer, said under the
- * form where the tap was.
+ * form where the tap was. A change that landed is said in a toast; it cannot
+ * be taken back.
  */
 function PasswordRow({ held }: { held: boolean }) {
   const { t } = useTranslation();
   const change = useChangePassword();
+  const { tell } = useLog();
   const [open, setOpen] = useState(false);
-  const [changed, setChanged] = useState(false);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [again, setAgain] = useState('');
@@ -93,7 +152,7 @@ function PasswordRow({ held }: { held: boolean }) {
     <Row
       title={t('me.account.password.title')}
       help="passwordChange"
-      line={changed && !open ? t('me.account.password.changed') : t('me.account.password.line')}
+      line={t('me.account.password.line')}
       below={
         open ? (
           <form
@@ -106,7 +165,7 @@ function PasswordRow({ held }: { held: boolean }) {
                 {
                   onSuccess: () => {
                     close();
-                    setChanged(true);
+                    tell({ label: t('me.account.password.changed'), undo: null });
                   },
                 },
               );
@@ -151,15 +210,7 @@ function PasswordRow({ held }: { held: boolean }) {
       }
     >
       {open ? null : (
-        <button
-          type="button"
-          className={ui.chip}
-          disabled={held}
-          onClick={() => {
-            setChanged(false);
-            setOpen(true);
-          }}
-        >
+        <button type="button" className={ui.chip} disabled={held} onClick={() => setOpen(true)}>
           {t('me.account.password.change')}
         </button>
       )}
@@ -195,6 +246,7 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
   const sessions = useSessions();
   const revoke = useRevokeSession();
   const others = useRevokeOtherSessions();
+  const { tell } = useLog();
   const [all, setAll] = useState(false);
   const [sweeping, setSweeping] = useState(false);
 
@@ -207,7 +259,6 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
 
   return (
     <section className={`${ui.card} ${styles.sessions}`}>
-      <p className={ui.note}>{t('me.account.sessions.line')}</p>
       <ul className={styles.sessionList}>
         {shown.map(row => (
           <li key={row.id} className={styles.session}>
@@ -221,7 +272,20 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
             {row.id === currentId ? (
               <span className={`${ui.chip} ${styles.thisDevice}`}>{t('me.account.sessions.thisDevice')}</span>
             ) : (
-              <button type="button" className={ui.chip} disabled={held || revoke.isPending} onClick={() => revoke.mutate(row.id)}>
+              <button
+                type="button"
+                className={ui.chip}
+                disabled={held || revoke.isPending}
+                onClick={() =>
+                  revoke.mutate(row.id, {
+                    onSuccess: () =>
+                      tell({
+                        label: t('me.account.sessions.signedOut', { device: deviceLabel(row.userAgent) ?? t('me.account.sessions.unknownDevice') }),
+                        undo: null,
+                      }),
+                  })
+                }
+              >
                 {t('me.account.sessions.signOut')}
               </button>
             )}
@@ -260,7 +324,16 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
         </button>
       ) : null}
       <Refused error={revoke.error} />
-      {sweeping ? <SweepSheet sweep={others} onClose={() => setSweeping(false)} /> : null}
+      {sweeping ? (
+        <SweepSheet
+          sweep={others}
+          onClose={() => setSweeping(false)}
+          onDone={() => {
+            setSweeping(false);
+            tell({ label: t('me.account.sessions.sweep.done'), undo: null });
+          }}
+        />
+      ) : null}
     </section>
   );
 }
@@ -280,7 +353,7 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
  * they already have. The sheet closes only once the server has answered, so a
  * refusal is read where the tap was rather than on the card behind it.
  */
-function SweepSheet({ sweep, onClose }: { sweep: ReturnType<typeof useRevokeOtherSessions>; onClose: () => void }) {
+function SweepSheet({ sweep, onClose, onDone }: { sweep: ReturnType<typeof useRevokeOtherSessions>; onClose: () => void; onDone: () => void }) {
   const { t } = useTranslation();
 
   return (
@@ -292,13 +365,13 @@ function SweepSheet({ sweep, onClose }: { sweep: ReturnType<typeof useRevokeOthe
           type="button"
           className={`${ui.button} ${ui.primary}`}
           disabled={sweep.isPending}
-          onClick={() => sweep.mutate(undefined, { onSuccess: onClose })}
+          onClick={() => sweep.mutate(undefined, { onSuccess: onDone })}
         >
           {sweep.isPending ? t('me.account.sessions.sweep.signingOut') : t('me.account.sessions.sweep.yes')}
         </button>
       }
     >
-      <div className={styles.sweepSheet}>
+      <div className={styles.asked}>
         <p>{t('me.account.sessions.sweep.what')}</p>
         <p>{t('me.account.sessions.sweep.thisOne')}</p>
         <Refused error={sweep.error} />

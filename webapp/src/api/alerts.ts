@@ -1,7 +1,6 @@
 import { LIVE_BEAT_MS, useReadPages } from './read';
 import type { AlertPage } from '@fg2/shared-types/v1';
 import { api } from './client';
-import { itemsOf } from './pages';
 import { invalidate, useWriteSettled } from './write';
 
 /**
@@ -42,19 +41,6 @@ export const useOpenAlerts = () => useAlerts(true);
  * with it so a card cannot go stale while it is on screen.
  */
 export const useResolvedAlerts = () => useAlerts(false);
-
-/** What the bell knows: how many alerts are open, and whether another page stands behind them. */
-export interface OpenAlerts {
-  open: number;
-  more: boolean;
-}
-
-export const useOpenAlertCount = (): OpenAlerts | undefined => {
-  const open = useOpenAlerts();
-  if (!open.data) return undefined;
-
-  return { open: itemsOf(open.data).length, more: open.hasNextPage };
-};
 
 /** Takes an episode that is over off the record; the server refuses one still open. */
 export const useRemoveAlert = () =>

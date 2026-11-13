@@ -1,74 +1,35 @@
 import { Sparkles } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { LayoutSeen } from '@fg2/shared-types/v1';
-import { useMe } from '@/api/account';
-import { takeExpected, useSeeLayout } from '@/api/layers';
-import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
-import { newsOf, useShape } from './shape';
+import { useWideWindow } from '@/ui/wide-window';
+import type { LayoutNews } from './layout-news';
+import { useTabs } from './tabs';
 import styles from './LayoutNotice.module.css';
 
-/**
- * Two things rearrange the app under a grower's thumb: the diary coming in,
- * which puts Grow and the green Eintrag button into the bar, and a second
- * place, which turns Start from that place's own page into a card per place
- * and puts the chosen place's name into the header. Either is said once, the
- * first time the app is opened after it, in a line that names what appeared
- * and what it is for - never a silent flip.
- *
- * The shape the account was last shown is kept with the account, so the line
- * comes once and not once per phone. An account seen for the first time is
- * recorded as it stands and told nothing: nothing changed for it. What goes
- * away - a place given up, the diary switched off by its owner - is recorded
- * without a word, because the person did it. So is what setup switched on:
- * the grow started as the last step of claiming a device (`expectLayout`).
- */
-export function LayoutNotice() {
-  const { t } = useTranslation();
-  const mayWrite = useMayManage();
-  const me = useMe(false, mayWrite);
-  const shape = useShape();
-  const see = useSeeLayout();
-  const [news, setNews] = useState<{ news: LayoutSeen; places: number } | null>(null);
-  const recorded = useRef<string | null>(null);
-
-  const account = me.data;
-  const { ready, diary, places } = shape;
-  const { mutate } = see;
-
-  useEffect(() => {
-    if (!mayWrite || !ready || !account) return;
-    const now: LayoutSeen = { diary, places: places > 1 };
-    const seen = account.preferences.layoutSeen ?? null;
-    const key = `${now.diary}:${now.places}`;
-    if ((seen !== null && seen.diary === now.diary && seen.places === now.places) || recorded.current === key) return;
-
-    recorded.current = key;
-    // What setup switched on itself is recorded like any other change and not announced: the person just chose it.
-    const own = takeExpected();
-    const came = newsOf(seen, now);
-    const news = came ? { diary: came.diary && own.diary !== true, places: came.places && own.places !== true } : null;
-    const told = news && (news.diary || news.places) ? news : null;
-    // Said whether or not the write lands: a server that did not keep it says it again next time, which is no worse.
-    mutate(now, { onSettled: () => told && setNews({ news: told, places }) });
-  }, [mayWrite, ready, account, diary, places, mutate]);
-
-  if (!news) return null;
+/** What moved, said once (`layout-news.ts`): a sentence per change, "Verstanden", and where the diary is switched off again. */
+export function LayoutNotice({ news, onClose }: { news: LayoutNews; onClose: () => void }) {
+  const { t, i18n } = useTranslation();
+  const wide = useWideWindow();
+  const items = new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(
+    useTabs()
+      .filter(tab => !tab.log)
+      .map(tab => t(tab.labelKey)),
+  );
 
   return (
     <section className={styles.notice} role="status" aria-label={t('shell.layout.label')}>
       <Sparkles size={16} strokeWidth={2} aria-hidden className={styles.icon} />
       <div className={styles.text}>
-        {news.news.diary ? <p>{t('shell.layout.diary')}</p> : null}
-        {news.news.places ? <p>{t('shell.layout.places', { count: news.places })}</p> : null}
+        {news.before ? <p>{t(wide ? 'shell.layout.before.wide' : 'shell.layout.before.phone', { items })}</p> : null}
+        {news.diary ? <p>{t('shell.layout.diary')}</p> : null}
+        {news.places ? <p>{t('shell.layout.places', { count: news.count })}</p> : null}
         <p className={styles.actions}>
-          <button type="button" className={ui.button} onClick={() => setNews(null)}>
+          <button type="button" className={ui.button} onClick={onClose}>
             {t('shell.layout.ok')}
           </button>
-          {news.news.diary ? (
-            <Link to="/me/appearance" className={ui.headLink} onClick={() => setNews(null)}>
+          {news.diary ? (
+            <Link to="/me/diary" className={ui.headLink} onClick={onClose}>
               {t('shell.layout.diaryOff')}
             </Link>
           ) : null}

@@ -243,6 +243,8 @@ export const server = {
   youMay: 'own' as AccessNeed,
   /** The spaces the account lists; left empty, the one place and a second for the pickers. */
   spaces: null as ReturnType<typeof spaceWhere>[] | null,
+  /** The account's own places that have ended, as `?archived=true` lists them. */
+  ended: [] as ReturnType<typeof spaceWhere>[],
   devices: [fridge()],
   live: deviceLive(),
   home: null as HomeAnswer | null,
@@ -269,6 +271,7 @@ export const resetServer = () => {
   server.me = meOf(false);
   server.youMay = 'own';
   server.spaces = null;
+  server.ended = [];
   server.devices = [fridge()];
   server.live = deviceLive();
   server.home = null;
@@ -286,7 +289,7 @@ export const resetServer = () => {
 export const writes = () => server.calls.filter(call => !call.startsWith('GET '));
 
 export const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-  const { pathname } = new URL(String(input), 'http://localhost');
+  const { pathname, searchParams } = new URL(String(input), 'http://localhost');
   const path = pathname.replace(/^\/v1/, '');
   const method = init?.method ?? 'GET';
   server.calls.push(`${method} ${path}`);
@@ -301,6 +304,7 @@ export const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestIn
   }
 
   if (path === '/me') return json(server.me);
+  if (path === '/spaces' && searchParams.get('archived') === 'true') return json(spacePage(...server.ended));
   if (path === '/spaces')
     return json(spacePage(...(server.spaces ?? [spaceWhere(server.youMay), spaceWhere(server.youMay, { id: 'space-2', name: 'Tent 2' })])));
   if (path === '/devices') return json({ items: server.devices, nextCursor: null });

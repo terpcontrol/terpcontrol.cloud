@@ -42,7 +42,7 @@ export function DeviceDiagnosis() {
   const people = useAdminUsers();
   useFollowCursor(people);
 
-  const head = <AdminHead title={t('admin.diagnosis.title')} crumb={deviceId} readAt={device.dataUpdatedAt} />;
+  const head = <AdminHead title={t('admin.diagnosis.title')} of={deviceId} readAt={device.dataUpdatedAt} />;
 
   if (device.isPending) return <AdminNotLoaded head={head} />;
   if (!device.data) {

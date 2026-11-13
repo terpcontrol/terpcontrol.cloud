@@ -42,7 +42,7 @@ export function Demo() {
   useFollowCursor(devices);
   useFollowCursor(cameras);
 
-  const header = <AdminHead title={t('admin.demo.title')} crumb={t('admin.demo.title')} readAt={devices.dataUpdatedAt} />;
+  const header = <AdminHead title={t('admin.demo.title')} readAt={devices.dataUpdatedAt} />;
 
   if (devices.isPending) return <AdminNotLoaded head={header} lines={3} />;
 

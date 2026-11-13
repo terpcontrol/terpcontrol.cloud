@@ -46,7 +46,7 @@ export function Users() {
 
   useFollowCursor(people);
 
-  const header = <AdminHead title={t('admin.users.title')} crumb={t('admin.users.title')} />;
+  const header = <AdminHead title={t('admin.users.title')} />;
 
   if (people.isPending) return <AdminNotLoaded head={header} />;
 

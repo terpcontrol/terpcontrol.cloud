@@ -3,6 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { Rail } from '@/app/shell/Rail';
 import { TabBar } from '@/app/shell/TabBar';
 import { LogProvider } from '@/log/LogProvider';
+import { deviceWith } from './fixtures';
 import { drawAt, json } from './harness';
 import { translate } from './translations';
 
@@ -19,7 +20,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
   if (path === '/home') return json({ spaces: [], followedGrows: [], people: [], layers: { diary: wire.diary } });
   if (path === '/me') return json({ preferences: { layoutSeen: null }, layers: { diary: wire.diary } });
-  if (path === '/devices') return json({ items: [{ id: 'device-1', ownerId: 'user-1', spaceId: null }].slice(0, wire.devices), nextCursor: null });
+  if (path === '/devices') return json({ items: [deviceWith({ spaceId: null })].slice(0, wire.devices), nextCursor: null });
   return json({ items: [], nextCursor: null });
 });
 

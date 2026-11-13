@@ -151,7 +151,7 @@ export function ClassRollout({
               {`${t(`devices.channel.${channel}`)} · ${t('admin.count.devices', { count: stand.devices })} · ${t('admin.count.online', { count: stand.online })}`}
             </span>
             <select
-              className={`mono ${ui.input} ${styles.menu}`}
+              className={`mono ${ui.input} ${ui.menu}`}
               value={draft[channel] ?? ''}
               onChange={event => setDraft({ ...draft, [channel]: event.target.value || null })}
             >

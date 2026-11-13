@@ -11,7 +11,7 @@ const homeQuery = queryOptions({ queryKey: ['home'], queryFn: ({ signal }) => ap
  * the last answer in place - every value on it carries its own age, which is
  * what tells the person how old what they see is.
  */
-export const useHome = () => useRead({ ...homeQuery, refetchInterval: LIVE_BEAT_MS });
+export const useHome = (enabled = true) => useRead({ ...homeQuery, refetchInterval: LIVE_BEAT_MS, enabled });
 
 /** The home as some screen last read it, for the navigation and the hints over it. */
 export const useHomeShape = (enabled = true) => useQuery({ ...homeQuery, ...FOLLOWED, enabled });

@@ -22,7 +22,7 @@ import { readingFacts, readingsOf } from './readings';
 import { useLamp } from './reads';
 import { startOrder } from './rooms';
 import { DemoBanner, GuestLine } from './states';
-import { dueNow, useWaitingSteps, type Due } from './due';
+import { dueNow, dueOfCards, placesOfCards, useWaitingSteps } from './due';
 import { Today } from './Today';
 import styles from './Start.module.css';
 
@@ -61,15 +61,8 @@ export function Places({
     const space = spaceOf(card);
     return space && user && !demo && space.ownerId !== user.id ? space : null;
   };
-  const due: Due[] = [...places, ...loose].flatMap(card =>
-    card.dueTasks.map(task => ({
-      task,
-      spaceId: card.spaceId,
-      place: card.name,
-      grow: card.grow ? { growId: card.grow.growId, name: card.grow.name } : null,
-    })),
-  );
-  const named = places.map(place => ({ spaceId: place.spaceId, name: place.name, growIds: place.grow ? [place.grow.growId] : [] }));
+  const due = dueOfCards([...places, ...loose]);
+  const named = placesOfCards(places);
   // What a card says is due is what "Heute" lists for it: the diary's reminders, and a plan step waiting for its word.
   const reminders = demo || !diary ? [] : dueNow(due, now, zone);
   const steps = useWaitingSteps(demo ? [] : named, now);

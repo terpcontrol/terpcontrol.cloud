@@ -40,7 +40,19 @@
   flex: none;
   align-items: center;
   gap: var(--space-2);
+  min-height: var(--control-height);
   margin-left: auto;
+}
+
+/* The pill's word explains itself: a finger's room round it, inside the row's own height. */
+.headEnd [data-liveness] > button {
+  position: relative;
+}
+
+.headEnd [data-liveness] > button::after {
+  content: '';
+  position: absolute;
+  inset: -13px -12px;
 }
 
 .menu {

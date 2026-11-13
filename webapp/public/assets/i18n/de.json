@@ -477,7 +477,11 @@
       "diary": "Das Grow-Tagebuch ist an. In der Leiste stehen jetzt „Grow“ mit dem Tagebuch und „Eintrag“ für Gießen, Düngen, Fotos und Notizen; was fällig ist, steht auf Start und hinter der Glocke.",
       "places": "Jetzt sind es {{count}} Orte: Start zeigt jeden als Karte. Der Ort, dessen Name oben steht, gilt für Grow, Verlauf und Steuerung; ein Tipp auf den Namen wechselt ihn.",
       "ok": "Verstanden",
-      "diaryOff": "Ausschalten unter Ich › Darstellung"
+      "diaryOff": "Ausschalten unter Ich › Grow-Tagebuch",
+      "before": {
+        "phone": "Die App ist neu aufgebaut. Unten in der Leiste stehen {{items}}: Verlauf zeigt die Kurven, unter Steuerung findest du Zielwerte, Alarme und Geräte. Meldungen und dein Konto sind oben rechts – die Glocke und „Ich“.",
+        "wide": "Die App ist neu aufgebaut. Links in der Leiste stehen {{items}}: Verlauf zeigt die Kurven, unter Steuerung findest du Zielwerte, Alarme und Geräte. Meldungen und Ich stehen an ihrem Fuß."
+      }
     },
     "skipToContent": "Zum Seiteninhalt springen"
   },
@@ -632,7 +636,6 @@
     "title": "Ich",
     "appearance": {
       "title": "Darstellung",
-      "display": "Anzeige",
       "themeLine": "folgt dem System, bis du wählst",
       "language": "Sprache",
       "languageLine": "in diesem Browser gemerkt",
@@ -641,18 +644,6 @@
         "de": "Deutsch"
       },
       "units": "Einheiten",
-      "clock": "Uhrzeit",
-      "features": "Funktionen",
-      "diary": "Grow-Tagebuch",
-      "diaryLine": "beim Konto gespeichert · Automatisch: erscheint, sobald du einen Grow startest oder etwas einträgst",
-      "diaryChoice": {
-        "auto": "Automatisch",
-        "on": "An",
-        "off": "Aus"
-      },
-      "timezone": "Zeitzone",
-      "timezoneLine": "beim Konto gespeichert · Ruhezeiten und jede Uhrzeit, die die App zeigt, werden darin gelesen.",
-      "timezoneHere": "Dieses Gerät steht in {{zone}}.",
       "temperature": "Temperatur",
       "weight": "Gewicht",
       "volume": "Volumen",
@@ -663,8 +654,7 @@
         "ounces": "oz",
         "liters": "l",
         "gallons": "gal"
-      },
-      "unitsNote": "Beim Konto gespeichert. Die Ansichten zeigen vorerst noch °C, Gramm und Liter."
+      }
     },
     "theme": {
       "label": "Design",
@@ -673,20 +663,8 @@
       "dark": "Dunkel"
     },
     "signOut": "Abmelden",
-    "demo": "Die Demo hat kein eigenes Konto, hier gibt es also nichts davon zu ändern.",
-    "identity": {
-      "profileOn": "Profil öffentlich",
-      "profileOff": "Profil privat"
-    },
+    "demo": "Die Demo hat kein eigenes Konto: Benachrichtigungen, Konto und Privatsphäre gibt es hier nicht.",
     "door": {
-      "public": {
-        "none": "noch keine Grows",
-        "public_one": "{{count}} öffentlich",
-        "public_other": "{{count}} öffentlich",
-        "private_one": "{{count}} privat",
-        "private_other": "{{count}} privat",
-        "profileOff": "Profil aus"
-      },
       "following": {
         "none": "noch niemand",
         "grows_one": "{{count}} Grow",
@@ -701,45 +679,14 @@
         "revoked_one": "{{count}} zurückgezogen",
         "revoked_other": "{{count}} zurückgezogen"
       },
-      "premium": {
-        "none": "keine Kameras",
-        "cameras_one": "{{count}} Kamera",
-        "cameras_other": "{{count}} Kameras",
-        "premium_one": "{{count}} Premium",
-        "premium_other": "{{count}} Premium",
-        "noEntitlement": "kein Anspruch",
-        "grant": {
-          "included": "inklusive bis {{date}}",
-          "migration": "übernommen bis {{date}}",
-          "purchase": "bezahlt bis {{date}}"
-        },
-        "state": {
-          "active": "aktiv",
-          "expired": "abgelaufen",
-          "free": "gratis",
-          "partly": "teils"
-        },
-        "ungated_one": "{{count}} Kamera · auf dieser Installation ist nichts eingeschränkt",
-        "ungated_other": "{{count}} Kameras · auf dieser Installation ist nichts eingeschränkt"
-      },
       "notifications": {
         "none": "kein Kanal an",
         "muted": "stumm",
-        "quiet": "Ruhe {{from}}–{{to}}"
+        "quiet": "Ruhezeit {{from}}–{{to}}"
       },
       "privacy": {
-        "weights": "Gewichte in geteilten Ansichten verborgen",
-        "counts": "Pflanzenzahlen in geteilten Ansichten verborgen",
-        "both": "Gewichte und Zahlen in geteilten Ansichten verborgen",
-        "nothing": "nichts in geteilten Ansichten verborgen",
-        "retention": "Aufbewahrung {{keep}}",
         "days_one": "{{count}} Tag",
         "days_other": "{{count}} Tage"
-      },
-      "appearance": {
-        "theme": "Design: {{theme}}",
-        "units": "Einheiten: {{units}}",
-        "language": "Sprache: {{language}}"
       },
       "schemes": {
         "none": "keins in Gebrauch",
@@ -749,26 +696,38 @@
         "own_other": "{{count}} eigene",
         "noOwn": "noch kein eigenes"
       },
-      "account": "E-Mail · Passwort · Sitzungen · Export · Löschen",
+      "account": "E-Mail, Passwort, Zeitzone",
       "about": "v{{version}} · {{build}}",
-      "addDevice": {
-        "title": "Gerät oder Kamera hinzufügen",
-        "line": "Ein Controller misst und regelt das Klima, eine Kamera macht Bilder fürs Tagebuch"
-      },
       "grows": {
         "running_one": "{{count}} laufend",
         "running_other": "{{count}} laufend",
         "finished_one": "{{count}} beendet",
         "finished_other": "{{count}} beendet",
         "none": "noch keine Grows"
-      }
+      },
+      "theme": {
+        "system": "wie das System",
+        "light": "hell",
+        "dark": "dunkel"
+      },
+      "diary": {
+        "on": "an",
+        "off": "aus"
+      },
+      "profile": {
+        "on": "Profil öffentlich",
+        "off": "Profil privat",
+        "noGrows": "kein Grow öffentlich",
+        "grows_one": "{{count}} Grow öffentlich",
+        "grows_other": "{{count}} Grows öffentlich"
+      },
+      "admin": "Flotte, Firmware, Benutzer, Demo-Gerät",
+      "adminOnly": "nur Admin"
     },
     "privacy": {
-      "title": "Privatsphäre",
-      "demo": "Die Demo hat kein eigenes Konto, hier gibt es also nichts einzustellen.",
-      "sharing": "Teilen",
-      "data": "Daten",
-      "premium": "Premium",
+      "title": "Privatsphäre und Profil",
+      "sharing": "Geteilte Ansichten",
+      "data": "Aufbewahrung",
       "weights": {
         "title": "Erntegewichte in geteilten Ansichten verbergen",
         "line": "Links, öffentliche Seite, Exporte · du selbst siehst sie weiter"
@@ -779,7 +738,8 @@
       },
       "profile": {
         "title": "Öffentliches Profil",
-        "line": "@{{handle}} · zeigt nur Grows, die du öffentlich gestellt hast"
+        "line": "@{{handle}} · zeigt nur Grows, die du öffentlich gestellt hast",
+        "copy": "Profiladresse kopieren"
       },
       "climate": {
         "title": "Klimaverlauf aufbewahren",
@@ -804,43 +764,16 @@
         "keptDays_one": "Premium: der ganze Grow · gratis: {{count}} Tag",
         "keptDays_other": "Premium: der ganze Grow · gratis: {{count}} Tage"
       },
-      "export": {
-        "title": "Alles exportieren",
-        "line": "JSON + CSV + Tagebuchfotos + Filme · gehört dir",
-        "ask": "Exportieren"
-      },
-      "delete": {
-        "title": "Mein Konto löschen",
-        "line": "wirklich gelöscht, nicht versteckt · Geräte lassen sich neu beanspruchen",
-        "open": "…",
-        "what": "Alles, was diesem Konto gehört, ist weg: die Orte, die Grows, die Einträge, die Fotos, die Pläne und die Alarme. Es wird gelöscht und nicht versteckt, und es gibt keinen Weg zurück.",
-        "grows": "Geräte, die du beansprucht hast, kann danach wieder beanspruchen, wer sie in der Hand hat. Einen einzelnen Grow löschst du auf seiner eigenen Seite.",
-        "typeHandle": "Tippe {{handle}} zur Bestätigung",
-        "notHandle": "Das ist nicht dein Handle.",
-        "yes": "Mein Konto löschen"
-      },
       "footnote": {
         "location": "Es wird nie ein Standort gespeichert.",
         "servers": "Server in der EU."
-      }
-    },
-    "public": {
-      "title": "Öffentliche Grows und Profil",
-      "demo": "Die Demo hat keine eigenen Grows zu veröffentlichen.",
-      "profile": "Profil",
-      "grows": "Grows",
-      "profileOff": "nicht öffentlich · der Schalter ist unter Privatsphäre",
-      "copyProfile": "Profiladresse kopieren",
-      "publicCount_one": "{{count}} öffentlich",
-      "publicCount_other": "{{count}} öffentlich",
-      "privateCount_one": "{{count}} privat",
-      "privateCount_other": "{{count}} privat",
-      "private": "privat",
+      },
       "links_one": "{{count}} Link öffnet ihn",
       "links_other": "{{count}} Links öffnen ihn",
+      "private": "privat",
       "switch": "Öffentliche Seite von {{name}}",
-      "none": "Noch keine eigenen Grows",
-      "stranger": "Ein öffentlicher Grow zeigt einem Fremden das Tagebuch vom ersten Tag an: die Phasen, die Tage mit ihren Fotos und den Bildern der Kamera, die Klimamittelwerte, die Sorten und deinen Handle. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen. Nie zu sehen sind die Live-Werte des Orts, seine Geräte, seine Alarme oder seine Aufgaben, und nie deine E-Mail. Wer folgt, sieht dieselbe Seite, und schreiben kann niemand."
+      "noGrows": "Noch keine eigenen Grows",
+      "grows": "Öffentliche Grows"
     },
     "following": {
       "title": "Abonniert",
@@ -990,8 +923,6 @@
     },
     "account": {
       "title": "Konto",
-      "demo": "Die Demo hat kein eigenes Konto, hier gibt es also nichts einzustellen.",
-      "signIn": "Anmeldung",
       "email": {
         "title": "E-Mail",
         "line": "damit meldest du dich an · dieser Server bietet keinen Weg, sie zu ändern"
@@ -1011,7 +942,6 @@
       },
       "sessions": {
         "title": "Sitzungen",
-        "line": "jeder Browser und jedes Skript, das als du angemeldet ist",
         "thisDevice": "dieses Gerät",
         "signOut": "Abmelden",
         "lastSeen": "zuletzt vor {{age}}",
@@ -1025,21 +955,36 @@
           "what": "Jeder andere Browser und jedes Skript, das als du angemeldet ist, wird sofort abgemeldet - die hier aufgeführten und die übrigen, wo immer sie stehen. Wer eine dieser Sitzungen hat, muss sich mit deiner E-Mail und deinem Passwort neu anmelden.",
           "thisOne": "Dieser Browser bleibt angemeldet, und sonst ändert sich nichts am Konto. Eine so beendete Sitzung lässt sich nicht zurückholen; wer sich neu anmeldet, bekommt eine neue.",
           "yes": "Die anderen abmelden",
-          "signingOut": "Meldet ab …"
-        }
+          "signingOut": "Meldet ab …",
+          "done": "Alle anderen Browser abgemeldet"
+        },
+        "signedOut": "{{device}} abgemeldet"
       },
       "data": "Daten",
       "export": {
         "title": "Alles exportieren",
-        "note": "Jeder Grow, deine Tagebuchfotos und die fertigen Filme in einem Zip: JSON, CSV und die Bilder. Das Klima kommt als eine Zeile pro Minute, gemittelt, und nicht als der Messwert alle paar Sekunden, mit dem es gemessen wurde. Einzelne Kamerabilder bleiben in der App - es sind Zehntausende - und das Zip zählt sie pro Kamera.",
         "ask": "ZIP erstellen",
         "again": "Erneut versuchen",
         "queued": "in der Warteschlange",
         "rendering": "Datei wird erstellt …",
         "download": "Herunterladen · {{size}}",
         "downloadAged": "Herunterladen · {{size}} · erstellt vor {{age}}",
-        "failedPlain": "Die Datei konnte nicht erstellt werden."
-      }
+        "failedPlain": "Die Datei konnte nicht erstellt werden.",
+        "line": "JSON, CSV, Tagebuchfotos und Filme in einem Zip"
+      },
+      "delete": {
+        "title": "Mein Konto löschen",
+        "line": "wirklich gelöscht, nicht versteckt · Geräte lassen sich neu beanspruchen",
+        "open": "…",
+        "what": "Alles, was diesem Konto gehört, ist weg: die Orte, die Grows, die Einträge, die Fotos, die Pläne und die Alarme. Es wird gelöscht und nicht versteckt, und es gibt keinen Weg zurück.",
+        "grows": "Geräte, die du beansprucht hast, kann danach wieder beanspruchen, wer sie in der Hand hat. Einen einzelnen Grow löschst du auf seiner eigenen Seite.",
+        "typeHandle": "Tippe {{handle}} zur Bestätigung",
+        "notHandle": "Das ist nicht dein Handle.",
+        "yes": "Mein Konto löschen"
+      },
+      "timezone": "Zeitzone",
+      "timezoneLine": "Uhrzeiten und Ruhezeiten richten sich danach",
+      "timezoneHere": "Dieses Gerät steht in {{zone}}."
     },
     "about": {
       "title": "Über",
@@ -1049,6 +994,46 @@
       "build": {
         "production": "Produktions-Build",
         "development": "Entwicklungs-Build"
+      }
+    },
+    "back": "Zurück zu Start",
+    "backHere": "Zurück zu Ich",
+    "diary": {
+      "title": "Grow-Tagebuch",
+      "label": "Tagebuch führen",
+      "choice": {
+        "auto": "Automatisch",
+        "on": "An",
+        "off": "Aus"
+      },
+      "line": {
+        "auto": "an, sobald du einen Grow startest oder etwas einträgst",
+        "on": "Grow und Eintrag stehen in der Leiste",
+        "off": "die App zeigt nur Klima und Geräte"
+      },
+      "told": {
+        "auto": "Grow-Tagebuch: automatisch",
+        "on": "Grow-Tagebuch ist an",
+        "off": "Grow-Tagebuch ist aus"
+      }
+    },
+    "saved": {
+      "setting": "{{what}}: {{value}}",
+      "hideWeights": {
+        "on": "Erntegewichte sind in geteilten Ansichten verborgen",
+        "off": "Erntegewichte sind in geteilten Ansichten wieder zu sehen"
+      },
+      "hideCounts": {
+        "on": "Pflanzenzahlen sind in geteilten Ansichten verborgen",
+        "off": "Pflanzenzahlen sind in geteilten Ansichten wieder zu sehen"
+      },
+      "profile": {
+        "on": "Dein Profil ist öffentlich",
+        "off": "Dein Profil ist privat"
+      },
+      "grow": {
+        "public": "{{name}} ist jetzt öffentlich",
+        "private": "{{name}} ist jetzt privat"
       }
     }
   },
@@ -1452,7 +1437,8 @@
       "sharedBy": "von @{{handle}}",
       "harvested": "geerntet im {{month}}",
       "ended": "beendet im {{month}}",
-      "partial": "Es sind mehr, als auf einmal gelesen werden konnten; öffne die Seite erneut, um weiterzulesen."
+      "partial": "Es sind mehr, als auf einmal gelesen werden konnten; öffne die Seite erneut, um weiterzulesen.",
+      "back": "Zurück zu allen Grows"
     },
     "diary": {
       "today": "Heute",
@@ -2412,7 +2398,8 @@
         "open": "Kamera öffnen",
         "username": "Benutzer",
         "password": "Passwort",
-        "loginInAddress": "Die Anmeldung steht schon in der Adresse und wird so verwendet."
+        "loginInAddress": "Die Anmeldung steht schon in der Adresse und wird so verwendet.",
+        "noCarrier": "An {{place}} steht kein Gerät, das den Stream aus deinem Netz holt · eine Adresse aus dem Heimnetz antwortet der Cloud nicht"
       }
     }
   },
@@ -3021,7 +3008,15 @@
       "offTitle": "Aus"
     },
     "demo": "Die Demo hat keine Kontoeinstellungen.",
-    "edit": "Bearbeiten"
+    "edit": "Bearbeiten",
+    "told": {
+      "on": "{{what}} · an",
+      "off": "{{what}} · aus",
+      "quiet": "Ruhezeiten {{from}}–{{to}}",
+      "unlinked": "Telegram getrennt",
+      "email": "E-Mail an {{address}}",
+      "webhook": "Webhook an {{host}}"
+    }
   },
   "notify": {
     "title": "Alarme erreichen dich nicht",
@@ -3048,21 +3043,10 @@
   "alerts": {
     "bell_one": "Meldungen · {{count}} offen",
     "bell_other": "Meldungen · {{count}} offen",
-    "muteAll": "Alles 1 Std stumm",
     "mutedUntil": "deine Kanäle stumm bis {{time}}",
     "unmute": "Wieder laut",
-    "group": {
-      "now": "Jetzt",
-      "earlierToday": "Früher heute",
-      "yesterday": "Gestern"
-    },
-    "active_one": "{{count}} aktiv",
-    "active_other": "{{count}} aktiv",
     "what": {
-      "running": "{{output}} läuft ohne Pause",
-      "threshold": "Alarm",
-      "wasOffline": "war offline",
-      "cameraSince": "kein Bild seit {{time}}"
+      "threshold": "Alarm"
     },
     "meta": {
       "since": "seit {{time}} · schon {{age}}",
@@ -3074,8 +3058,9 @@
       "resolved": "behoben {{time}} · dauerte {{age}}",
       "rested": "ruht in der Keimung · seit {{time}} · nicht behoben · dauerte {{age}}",
       "notAnnounced": "nicht gemeldet",
-      "unheard": "hat dich nicht erreicht · einrichten ›",
-      "ruleNow": "die Regel sagt inzwischen {{severity}}"
+      "unheard": "hat dich nicht erreicht",
+      "ruleNow": "die Regel sagt inzwischen {{severity}}",
+      "until": "bis {{time}}"
     },
     "action": {
       "silence": "1 Std stumm",
@@ -3083,12 +3068,14 @@
       "timeline": "Verlauf öffnen",
       "editRule": "Regel bearbeiten",
       "checkCam": "Cam prüfen",
-      "remove": "Löschen"
+      "remove": "Löschen",
+      "device": "Zum Gerät",
+      "notify": "Benachrichtigungen einrichten"
     },
     "remove": {
       "ask": "Die Meldung wird für alle gelöscht, mit denen du den Ort teilst. Ihre Zeile im Verlauf bleibt."
     },
-    "nothing": "Nichts ist schiefgegangen.",
+    "nothing": "Gerade ist nichts offen.",
     "output": {
       "heater": "Heizung",
       "dehumidifier": "Entfeuchter",
@@ -3121,15 +3108,41 @@
       "info": "Info"
     },
     "namesFailed": "Namen nicht lesbar · Orte, Geräte und Cams stehen mit ihrer Id",
-    "tasks": {
-      "due_one": "1 Aufgabe fällig",
-      "due_other": "{{count}} Aufgaben fällig",
-      "later_one": "nichts fällig · 1 geplant",
-      "later_other": "nichts fällig · {{count}} geplant",
-      "none": "nichts geplant"
-    },
     "bellTasks_one": "Meldungen · {{count}} Aufgabe fällig",
-    "bellTasks_other": "Meldungen · {{count}} Aufgaben fällig"
+    "bellTasks_other": "Meldungen · {{count}} Aufgaben fällig",
+    "back": "Zurück zu Meldungen",
+    "open": "Offen",
+    "over": "Erledigt",
+    "allTasks": "Alle Aufgaben und Erinnerungen",
+    "settings": "Benachrichtigungen einstellen",
+    "ago": "vor {{age}}",
+    "since": "seit {{time}}",
+    "mute": "1 Std stumm",
+    "update": "Firmware {{build}} ist da",
+    "told": {
+      "muted": "Alles stumm bis {{time}}",
+      "loud": "Wieder laut",
+      "removed": "Meldung gelöscht"
+    },
+    "title": {
+      "high": "{{what}} zu hoch",
+      "highWas": "{{what}} {{span}} zu hoch",
+      "low": "{{what}} zu niedrig",
+      "lowWas": "{{what}} {{span}} zu niedrig",
+      "offline": "{{what}} offline",
+      "offlineWas": "{{what}} {{span}} offline",
+      "camera": "{{what}} ohne Bild",
+      "cameraWas": "{{what}} {{span}} ohne Bild",
+      "running": "{{what}} läuft ohne Pause",
+      "runningWas": "{{what}} lief zu lange ohne Pause"
+    },
+    "state": {
+      "threshold": "seitdem wieder im Ziel",
+      "running": "hat seitdem pausiert",
+      "offline": "seitdem wieder online",
+      "camera_stale": "liefert wieder Bilder",
+      "rested": "ruht in der Keimung · nicht behoben"
+    }
   },
   "claim": {
     "title": "Gerät hinzufügen",
@@ -3297,7 +3310,6 @@
       "home": "Zurück zur Startseite"
     },
     "narrow": {
-      "title": "Für ein breites Fenster gemacht",
       "line": "Die Flottenseiten sind Tabellen mit einem Dutzend Spalten, ein Handy-Layout dafür gibt es nicht. Öffne sie am Rechner, ab {{width}} px Breite."
     },
     "fleet": {
@@ -3507,7 +3519,8 @@
       "clockTimeThere": "{{utc}} UTC · {{there}} beim Kunden",
       "open": "Ort öffnen"
     },
-    "asOf": "Stand vor {{age}}"
+    "asOf": "Stand vor {{age}}",
+    "backToFleet": "Zurück zur Flotte"
   },
   "units": {
     "s": "s",
@@ -3626,7 +3639,7 @@
     },
     "lightsOn": {
       "title": "Licht an um",
-      "text": "Wann das Licht angeht und der Tag beginnt, nach der Uhr deines Kontos (Ich › Darstellung). Bei der Umstellung auf Sommer- oder Winterzeit bleibt es bei dieser Uhrzeit – die Cloud stellt das Gerät in der Nacht der Umstellung selbst um, sobald die Zeitzone deines Kontos feststeht: Die App übernimmt sie beim ersten Anmelden, ändern lässt sie sich unter Ich › Darstellung. Für Nachtstrom oder gegen Sommerhitze den Tag in die Nacht legen, zum Beispiel ab 22:00. Ein laufender Plan behält diese Uhrzeit, außer sein Schritt bringt eine eigene mit."
+      "text": "Wann das Licht angeht und der Tag beginnt, nach der Uhr deines Kontos (Ich › Konto). Bei der Umstellung auf Sommer- oder Winterzeit bleibt es bei dieser Uhrzeit – die Cloud stellt das Gerät in der Nacht der Umstellung selbst um, sobald die Zeitzone deines Kontos feststeht: Die App übernimmt sie beim ersten Anmelden, ändern lässt sie sich unter Ich › Konto. Für Nachtstrom oder gegen Sommerhitze den Tag in die Nacht legen, zum Beispiel ab 22:00. Ein laufender Plan behält diese Uhrzeit, außer sein Schritt bringt eine eigene mit."
     },
     "resumePlan": {
       "title": "Plan fortsetzen",
@@ -3842,7 +3855,7 @@
     },
     "diaryLayer": {
       "title": "Grow-Tagebuch",
-      "text": "Im Tagebuch hältst du fest, was du an deinen Pflanzen machst – Gießen, Düngen, Fotos, Notizen – und führst Grows mit Tagen und Phasen. Solange du es nicht nutzt, zeigt die App nur Klima und Gerät. Es schaltet sich ein, sobald du einen Grow startest oder etwas einträgst, und bringt „Grow“ und „Eintrag“ in die Leiste; unter Ich › Darstellung kannst du es auch von Hand ein- oder ausschalten."
+      "text": "Im Tagebuch hältst du fest, was du an deinen Pflanzen machst – Gießen, Düngen, Fotos, Notizen – und führst Grows mit Tagen und Phasen. Solange du es nicht nutzt, zeigt die App nur Klima und Gerät. Es schaltet sich ein, sobald du einen Grow startest oder etwas einträgst, und bringt „Grow“ und „Eintrag“ in die Leiste; unter Ich › Grow-Tagebuch kannst du es auch von Hand ein- oder ausschalten."
     },
     "follow": {
       "title": "Folgen",
@@ -4061,6 +4074,26 @@
     "claimLater": {
       "title": "Das hat Zeit",
       "text": "Das Gerät arbeitet auch ohne Cam. Eine Cam koppelst du später bei den Geräten unter Steuerung; dort ändern sich auch die Vorgaben, Benachrichtigungen unter Ich."
+    },
+    "accountExport": {
+      "title": "Alles exportieren",
+      "text": "Jeder Grow, deine Tagebuchfotos und die fertigen Filme in einem Zip: JSON, CSV und die Bilder. Das Klima kommt als eine Zeile pro Minute, gemittelt, und nicht als der Messwert alle paar Sekunden, mit dem es gemessen wurde. Einzelne Kamerabilder bleiben in der App - es sind Zehntausende - und das Zip zählt sie pro Kamera."
+    },
+    "publicGrow": {
+      "title": "Öffentliche Grows",
+      "text": "Ein öffentlicher Grow zeigt einem Fremden das Tagebuch vom ersten Tag an: die Phasen, die Tage mit ihren Fotos und den Bildern der Kamera, die Klimamittelwerte, die Sorten und deinen Handle. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen. Nie zu sehen sind die Live-Werte des Orts, seine Geräte, seine Alarme oder seine Aufgaben, und nie deine E-Mail. Wer folgt, sieht dieselbe Seite, und schreiben kann niemand."
+    },
+    "units": {
+      "title": "Einheiten",
+      "text": "Die Einheiten sind beim Konto gespeichert. Die Ansichten zeigen vorerst noch °C, Gramm und Liter."
+    },
+    "timezone": {
+      "title": "Zeitzone",
+      "text": "Die Zeitzone ist beim Konto gespeichert. Jede Uhrzeit, die die App zeigt, und die Ruhezeiten werden darin gelesen – auf jedem Gerät gleich, wo immer es gerade steht."
+    },
+    "sessions": {
+      "title": "Sitzungen",
+      "text": "Jeder Browser und jedes Skript, das als du angemeldet ist. Eine beendete Sitzung muss sich neu anmelden."
     }
   },
   "place": {
@@ -4804,7 +4837,7 @@
       "today": "heute",
       "week": "seit einer Woche",
       "date": "Datum wählen",
-      "declined": "Das Tagebuch bleibt aus. Einschalten kannst du es unter Ich › Darstellung.",
+      "declined": "Das Tagebuch bleibt aus. Einschalten kannst du es unter Ich › Grow-Tagebuch.",
       "declinedHere": "Für {{name}} fragt die App nicht mehr. Einen Grow startest du unter Grow › Alle Grows."
     },
     "device": {

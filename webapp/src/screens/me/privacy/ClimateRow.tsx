@@ -14,7 +14,7 @@ import styles from './Privacy.module.css';
  * a shorter answer and the readings it throws away.
  *
  * Widening the window costs nothing and is sent as soon as it is chosen.
- * Narrowing it is the other irreversible control on this screen: the sweep
+ * Narrowing it cannot be taken back: the sweep
  * summarises every day outside the window to one figure and deletes the raw
  * points for good, and a one-tap menu whose line reads "raw samples · then
  * daily summaries" does not say that to a beginner. So a narrower choice opens
@@ -103,7 +103,7 @@ function ClimateSheet({ days, now, onClose, onKeep }: { days: number; now: DateT
       aside={keep}
       onClose={onClose}
       actions={
-        <button type="button" className={`${ui.button} ${styles.dangerButton}`} onClick={onKeep}>
+        <button type="button" className={ui.dangerOutline} onClick={onKeep}>
           {t('me.privacy.climate.ask.yes', { keep })}
         </button>
       }

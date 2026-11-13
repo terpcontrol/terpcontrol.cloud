@@ -437,18 +437,20 @@ describe('a camera at a stream address', () => {
     }
   });
 
-  it('says how the cloud reaches the address behind the help beside it, and in no line under the field', async () => {
+  it('says how the cloud reaches the address behind the help beside it, and under the field only where no device stands to fetch it', async () => {
     await openRtsp();
     const field = screen.getByLabelText('Stream address').closest('section')!;
 
     const help = within(field).getByRole('button', { name: 'About Stream address' });
     expect(help).toHaveAccessibleDescription(/the cloud pulls the stream from your network through it/);
     expect(help).toHaveAccessibleDescription(/Otherwise it opens the stream itself, and the address has to be reachable from the internet\./);
-    // Whatever place is chosen - one with a device, one without - the field keeps no sentence about the way in.
-    for (const place of ['Tent 1', 'Balcony']) {
-      fireEvent.click(screen.getByRole('button', { name: place }));
-      expect(within(field).queryByRole('paragraph')).not.toBeInTheDocument();
-    }
+    // A place with a device keeps no sentence about the way in; one without says what that means for the address.
+    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
+    expect(within(field).queryByRole('paragraph')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Balcony' }));
+    expect(within(field).getByRole('paragraph')).toHaveTextContent(
+      'No device stands at Balcony to fetch the stream from your network · an address of your home network will not answer the cloud',
+    );
   });
 
   it('pulls the stream through a fridge module, the only device in the place', async () => {

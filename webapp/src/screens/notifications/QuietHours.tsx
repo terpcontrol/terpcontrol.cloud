@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Me, QuietHours } from '@fg2/shared-types/v1';
 import { Refused } from '@/ui/PageState';
+import { Row } from '@/screens/me/parts';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useWriteNotifications } from './write';
@@ -42,47 +43,50 @@ export function QuietHoursCard({ me, held, locked }: { me: Me; held: boolean; lo
     if (!shown) return;
     const next = { ...shown, [field]: minute };
     setWanted(next);
-    write({ quietHours: next });
+    write({ quietHours: next }, t('notifications.told.quiet', { from: timeOf(next.fromMinute), to: timeOf(next.toMinute) }));
   };
 
   const toggle = () => {
     setWanted(null);
-    write({ quietHours: shown ? null : DEFAULT_QUIET });
+    write(
+      { quietHours: shown ? null : DEFAULT_QUIET },
+      shown
+        ? t('notifications.told.off', { what: t('notifications.quietHours') })
+        : t('notifications.told.quiet', { from: timeOf(DEFAULT_QUIET.fromMinute), to: timeOf(DEFAULT_QUIET.toMinute) }),
+    );
   };
 
   return (
-    <div className={`${ui.card} ${ui.joined} ${styles.channel}`}>
-      <div className={styles.channelHead}>
-        <div className={styles.channelText}>
-          <span className={`${styles.channelTitle} ${shown ? 'mono' : ''}`}>
-            {shown
-              ? t('notifications.quiet.window', { from: timeOf(shown.fromMinute), to: timeOf(shown.toMinute) })
-              : t('notifications.quiet.offTitle')}
-          </span>
-          <span className={`${ui.note} ${styles.channelLine}`}>{t(shown ? 'notifications.quiet.critical' : 'notifications.quiet.offLine')}</span>
-        </div>
-        <Switch label={t('notifications.quietHours')} on={shown !== null} disabled={held} onChange={toggle} />
-      </div>
-
-      {shown ? (
-        <div className={styles.times}>
-          <TimeField
-            label={t('notifications.quiet.from')}
-            value={timeOf(shown.fromMinute)}
-            locked={locked}
-            onCommit={minute => set('fromMinute', minute)}
-          />
-          <TimeField
-            label={t('notifications.quiet.to')}
-            value={timeOf(shown.toMinute)}
-            locked={locked}
-            onCommit={minute => set('toMinute', minute)}
-          />
-        </div>
-      ) : null}
-      <p className={ui.note}>{t('notifications.quiet.zone', { zone: me.preferences.timezone })}</p>
-      <Refused error={error} />
-    </div>
+    <Row
+      title={
+        shown ? t('notifications.quiet.window', { from: timeOf(shown.fromMinute), to: timeOf(shown.toMinute) }) : t('notifications.quiet.offTitle')
+      }
+      line={t(shown ? 'notifications.quiet.critical' : 'notifications.quiet.offLine')}
+      below={
+        <>
+          {shown ? (
+            <div className={styles.times}>
+              <TimeField
+                label={t('notifications.quiet.from')}
+                value={timeOf(shown.fromMinute)}
+                locked={locked}
+                onCommit={minute => set('fromMinute', minute)}
+              />
+              <TimeField
+                label={t('notifications.quiet.to')}
+                value={timeOf(shown.toMinute)}
+                locked={locked}
+                onCommit={minute => set('toMinute', minute)}
+              />
+            </div>
+          ) : null}
+          <p className={ui.note}>{t('notifications.quiet.zone', { zone: me.preferences.timezone })}</p>
+          <Refused error={error} />
+        </>
+      }
+    >
+      <Switch label={t('notifications.quietHours')} on={shown !== null} disabled={held} onChange={toggle} />
+    </Row>
   );
 }
 

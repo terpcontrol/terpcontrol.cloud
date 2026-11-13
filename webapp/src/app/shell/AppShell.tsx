@@ -5,6 +5,7 @@ import { LogProvider } from '@/log/LogProvider';
 import { Rail } from './Rail';
 import { TabBar } from './TabBar';
 import { TopBar } from './TopBar';
+import { useLayoutNews } from './layout-news';
 import { LayoutNotice } from './LayoutNotice';
 import { ZoneAdoption } from './ZoneAdoption';
 import { useFocusRescue } from '@/ui/focus-rescue';
@@ -31,6 +32,7 @@ export function AppShell() {
   const main = useRef<HTMLElement>(null);
   const bare = useMatches().some(match => (match.handle as { bare?: boolean } | undefined)?.bare === true);
   usePageTitle(main);
+  const [news, seen] = useLayoutNews();
   useFocusRescue();
 
   return (
@@ -50,7 +52,7 @@ export function AppShell() {
             <TopBar />
             <main className={styles.main} ref={main} id="main" tabIndex={-1}>
               <ZoneAdoption />
-              <LayoutNotice />
+              {news ? <LayoutNotice news={news} onClose={seen} /> : null}
               <Outlet />
             </main>
           </div>

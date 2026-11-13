@@ -15,7 +15,7 @@ import { enough, growStanding, useMayLogIn, useMayManage, useMayWith, type Stand
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, useZone } from '@/ui/zone';
-import { BackLink } from '@/ui/BackLink';
+import { PageHead } from '@/ui/PageHead';
 import { ReminderSheet } from './tasks/ReminderSheet';
 import { DoneCard, RhythmCard, TaskCard } from './tasks/TaskCard';
 import {
@@ -76,18 +76,14 @@ export function Tasks() {
   return <List tasks={waiting.data.items} failedAt={waiting.isError ? waiting.dataUpdatedAt : null} now={now} />;
 }
 
-/** The title, with the way back to Meldungen, whose door opens the list: no item of the bar is this page's own. */
+/** The title, with the way back to Meldungen, where the list is reached: no item of the bar is this page's own. */
 function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => void }) {
   const { t } = useTranslation();
 
   return (
-    <header className={styles.head}>
-      <div className={styles.titleRow}>
-        <BackLink to="/alerts" label={t('shell.alerts')} />
-        <h1>{t('tasks.title')}</h1>
-      </div>
+    <PageHead back={{ to: '/alerts', label: t('alerts.back') }} title={t('tasks.title')}>
       {scope && onScope ? (
-        <div className={ui.segments} role="radiogroup" aria-label={t('tasks.scopeLabel')}>
+        <div className={`${ui.segments} ${styles.scope}`} role="radiogroup" aria-label={t('tasks.scopeLabel')}>
           {SCOPES.map(one => (
             <button key={one} type="button" role="radio" aria-checked={scope === one} className={ui.segment} onClick={() => onScope(one)}>
               {t(`tasks.scope.${one}`)}
@@ -95,7 +91,7 @@ function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => v
           ))}
         </div>
       ) : null}
-    </header>
+    </PageHead>
   );
 }
 

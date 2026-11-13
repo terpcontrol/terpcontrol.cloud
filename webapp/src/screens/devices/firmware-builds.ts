@@ -1,6 +1,9 @@
 import type { Device, DeviceFirmware } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
-import { useDeviceFirmwares } from '@/api/devices';
+import { useQueries } from '@tanstack/react-query';
+import { deviceFirmwaresQuery, useDeviceFirmwares, useDevicesShape } from '@/api/devices';
+import { FOLLOWED } from '@/api/read';
+import { enough, useMayWith } from '@/ui/session-access';
 import { buildLabel } from '@/ui/naming';
 import { DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY, nowThere, useZone, zoned } from '@/ui/zone';
 
@@ -14,10 +17,7 @@ import { DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY, nowThere, useZone, zoned } fro
  * channel is handed such a build by the rollout itself; one whose updates are
  * off is offered it, and nothing installs it until somebody says so.
  */
-export const useFirmware = (device: Device, enabled = true) => {
-  const zone = useZone();
-  const firmwares = useDeviceFirmwares(device.id, enabled);
-  const builds = firmwares.data?.items ?? [];
+const buildsOf = (device: Device, builds: readonly DeviceFirmware[]) => {
   const running = builds.find(one => one.id === device.state.firmwareId) ?? null;
   const owedId = device.firmware.targetId && device.firmware.targetId !== device.state.firmwareId ? device.firmware.targetId : null;
   const current = (channel: string): DeviceFirmware | null => builds.find(one => (one.channels as string[]).includes(channel)) ?? null;
@@ -26,9 +26,7 @@ export const useFirmware = (device: Device, enabled = true) => {
   const manual = device.firmware.channel === 'manual';
 
   return {
-    builds,
     running,
-    madeOn: (build: DeviceFirmware): string => buildDay(build, builds, zone),
     /** The build the device was told to install and does not report yet. */
     owedId,
     owed: builds.find(one => one.id === owedId) ?? null,
@@ -36,10 +34,50 @@ export const useFirmware = (device: Device, enabled = true) => {
     offered: manual ? newer(current('stable')) : null,
     /** A newer build of the device's own channel, which the rollout hands it. */
     coming: manual ? null : newer(current(device.firmware.channel)),
+  };
+};
+
+export const useFirmware = (device: Device, enabled = true) => {
+  const zone = useZone();
+  const firmwares = useDeviceFirmwares(device.id, enabled);
+  const builds = firmwares.data?.items ?? [];
+
+  return {
+    builds,
+    ...buildsOf(device, builds),
+    madeOn: (build: DeviceFirmware): string => buildDay(build, builds, zone),
     isPending: firmwares.isPending,
     isError: firmwares.isError,
     refetch: () => void firmwares.refetch(),
   };
+};
+
+/** A device with a build waiting for somebody's word. */
+export interface OfferedUpdate {
+  device: Device;
+  build: DeviceFirmware;
+}
+
+/**
+ * The updates that wait for a person, across the devices this session may
+ * manage: a newer stable build for a device whose updates are off. Only such
+ * a device is asked for its builds - every other is handed its update by the
+ * rollout and has nothing to say here - so an account that never switched
+ * updates off reads nothing. The bell counts them and the inbox lists them;
+ * the devices and their builds are followed, not polled - the shell asks this on every page.
+ */
+export const useOfferedUpdates = (): OfferedUpdate[] => {
+  const mayWith = useMayWith();
+  const manual = (useDevicesShape().data?.items ?? []).filter(device => device.firmware.channel === 'manual' && enough(mayWith(device), 'manage'));
+
+  return useQueries({
+    queries: manual.map(device => ({ ...deviceFirmwaresQuery(device.id), ...FOLLOWED })),
+    combine: results =>
+      results.flatMap((result, index) => {
+        const build = result.data ? buildsOf(manual[index], result.data.items).offered : null;
+        return build ? [{ device: manual[index], build }] : [];
+      }),
+  });
 };
 
 /** A build by what its container stamped it with. */

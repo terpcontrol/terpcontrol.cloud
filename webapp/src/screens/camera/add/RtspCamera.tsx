@@ -223,6 +223,10 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
             />
           </div>
         )}
+        {/* The cloud opens the stream itself where no device stands to fetch it: said as the state of the place, not only behind the help. */}
+        {placeId !== null && carriers.length === 0 ? (
+          <p className={styles.text}>{t('cameras.add.rtsp.noCarrier', { place: places.find(space => space.id === placeId)?.name })}</p>
+        ) : null}
         {carrier && liveness && liveness !== 'live' ? (
           <p className={styles.text} {...ageAttribute(liveness)}>
             {t(`cameras.add.rtsp.carrier.${liveness}`, {

@@ -172,7 +172,7 @@ function Filters({ filter, onChange, types }: { filter: FleetFilter; onChange: (
   return (
     <div className={styles.chips}>
       <select
-        className={`${ui.chip} ${styles.menu}`}
+        className={`${ui.chip} ${ui.menu}`}
         aria-label={t('admin.fleet.filter.type')}
         value={filter.type ?? ''}
         onChange={event => onChange({ ...filter, type: event.target.value || null })}

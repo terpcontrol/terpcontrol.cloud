@@ -25,6 +25,18 @@ export const spacesQuery = queryOptions({ queryKey: ['spaces'], queryFn: ({ sign
 export const useSpaces = (enabled = true) => useRead({ ...spacesQuery, enabled });
 
 /**
+ * The account's own places that have ended. An administrator may read any
+ * place, so one that is not among their places in use is a customer's - unless
+ * it is one of their own that has ended, which only this list says.
+ */
+export const useEndedSpaces = (enabled: boolean) =>
+  useRead({
+    queryKey: ['spaces', 'ended'],
+    queryFn: ({ signal }) => api.get<SpacePage>('/spaces', { archived: true }, signal),
+    enabled,
+  });
+
+/**
  * Every place, to the last page of them, for the screens that look a name up
  * rather than list what they were given. One page is enough to draw a picker or
  * a board; it is not enough to decide that the tent a share link points at no

@@ -264,7 +264,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the way in', () => {
-  it('gives an administrator the four fleet screens under Ich, and the rail none of them', () => {
+  it('gives an administrator one row under Ich that leads to the fleet, and the rail none', () => {
     wrapped(
       <LogProvider>
         <Rail />
@@ -274,20 +274,24 @@ describe('the way in', () => {
       </LogProvider>,
     );
 
-    const doors = within(screen.getByRole('region', { name: 'Admin' }))
-      .getAllByRole('link')
-      .map(link => link.getAttribute('href'));
-    expect(doors).toEqual(['/admin/fleet', '/admin/firmware', '/admin/users', '/admin/demo']);
+    const page = within(screen.getByRole('main'));
+    expect(page.getByRole('link', { name: /^Admin/ })).toHaveTextContent('admin only');
+    expect(
+      page
+        .getAllByRole('link')
+        .map(link => link.getAttribute('href'))
+        .filter(to => to?.startsWith('/admin')),
+    ).toEqual(['/admin/fleet']);
     const rail = within(screen.getByRole('navigation', { name: 'Main navigation' }));
     expect(rail.getAllByRole('link').map(link => link.getAttribute('href'))).not.toContain('/admin/fleet');
   });
 
-  it('shows an ordinary account no admin section at all', () => {
+  it('shows an ordinary account no admin row at all', () => {
     session.who = 'grower';
     wrapped(<Me />);
 
     expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).not.toContain('/admin/fleet');
-    expect(screen.queryByRole('region', { name: 'Admin' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Admin/ })).not.toBeInTheDocument();
   });
 
   it('answers an account that follows the link anyway with the reason, and asks the server for nothing', () => {
@@ -318,8 +322,71 @@ describe('a window too narrow for a table a dozen columns wide', () => {
       </AdminOnly>,
     );
 
-    expect(screen.getByText('Made for a wide window')).toBeInTheDocument();
+    // Under the heading the row on Ich carries, with the way back there: the arrow and the button.
+    expect(screen.getByRole('heading', { name: 'Admin' })).toBeInTheDocument();
+    expect(screen.getByText(/there is no phone layout of them\. Open this on a desktop, 900 px or wider\./)).toBeInTheDocument();
+    const back = screen.getAllByRole('link', { name: 'Back to Me' });
+    expect(back).toHaveLength(2);
+    for (const way of back) expect(way).toHaveAttribute('href', '/me');
+    expect(screen.queryByRole('navigation', { name: 'Admin' })).not.toBeInTheDocument();
     expect(server.asked).toHaveLength(0);
+  });
+});
+
+/**
+ * Ich has one row for the four screens, so the way from one to the next is
+ * the strip under the head, and the way out is the arrow back to Ich.
+ */
+describe('the head of an admin screen', () => {
+  const drawScreens = (at: string) =>
+    drawAt(
+      <ThemeProvider>
+        <Routes>
+          <Route path="/me" element={<h1>Me</h1>} />
+          <Route path="/admin/fleet" element={<Fleet />} />
+          <Route path="/admin/firmware" element={<FirmwareScreen />} />
+          <Route path="/admin/users" element={<Users />} />
+          <Route path="/admin/demo" element={<h1>Demo device</h1>} />
+        </Routes>
+      </ThemeProvider>,
+      { at },
+    );
+
+  const strip = () => within(screen.getByRole('navigation', { name: 'Admin' }));
+  const tabs = () => strip().getAllByRole('link');
+
+  it('names the four screens as tabs, the one on screen marked, and each of the others one tap away', async () => {
+    drawScreens('/admin/users');
+    await screen.findByText('@mo');
+
+    expect(tabs().map(tab => [tab.textContent, tab.getAttribute('href'), tab.getAttribute('aria-current')])).toEqual([
+      ['Fleet', '/admin/fleet', null],
+      ['Firmware', '/admin/firmware', null],
+      ['Users', '/admin/users', 'page'],
+      ['Demo device', '/admin/demo', null],
+    ]);
+
+    fireEvent.click(strip().getByRole('link', { name: 'Firmware' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Firmware' })).toBeInTheDocument();
+    expect(tabs().map(tab => tab.getAttribute('aria-current'))).toEqual([null, 'page', null, null]);
+
+    fireEvent.click(strip().getByRole('link', { name: 'Fleet' }));
+    expect(await screen.findByText('tc-7f3a')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Fleet' })).toBeInTheDocument();
+
+    fireEvent.click(strip().getByRole('link', { name: 'Demo device' }));
+    expect(await screen.findByRole('heading', { name: 'Demo device' })).toBeInTheDocument();
+  });
+
+  it('leads back to Ich by its arrow', async () => {
+    drawScreens('/admin/firmware');
+
+    const back = await screen.findByRole('link', { name: 'Back to Me' });
+    expect(back).toHaveAttribute('href', '/me');
+    fireEvent.click(back);
+
+    expect(await screen.findByRole('heading', { name: 'Me' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Admin' })).not.toBeInTheDocument();
   });
 });
 
@@ -499,6 +566,9 @@ describe('support for a customer', () => {
     );
 
     expect(await screen.findByText('day.temperature')).toBeInTheDocument();
+    // One device of the fleet's: it leads back there, and is none of the four tabs.
+    expect(screen.getByRole('link', { name: 'Back to the fleet' })).toHaveAttribute('href', '/admin/fleet');
+    expect(screen.queryByRole('navigation', { name: 'Admin' })).not.toBeInTheDocument();
     expect(screen.getByText('26')).toBeInTheDocument();
     expect(screen.getByText('workmode')).toBeInTheDocument();
     expect(await screen.findByText('@mo · mo@example.invalid')).toBeInTheDocument();

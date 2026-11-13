@@ -1,27 +1,34 @@
 import type { DateTime } from 'luxon';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { Alert, Me } from '@fg2/shared-types/v1';
 import { notificationsWith, useAccountMe, useUpdateMe } from '@/api/account';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
 import { itemsOf } from '@/api/pages';
 import { useSession } from '@/api/session';
-import type { Translate } from '@/i18n/i18n';
-import { instantOf } from '@/ui/age';
+import { devicePath } from '@/app/places';
+import { useLog } from '@/log/log-context';
+import { buildName, useOfferedUpdates } from '@/screens/devices/firmware-builds';
+import { useDueEverywhere } from '@/screens/start/due';
+import { DueList } from '@/screens/start/Today';
+import { instantOf, isAhead } from '@/ui/age';
 import { Help } from '@/ui/Help';
+import { deviceName } from '@/ui/naming';
+import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { Rows } from '@/ui/Rows';
 import { enough, useMayInEach, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { clock, WEEKDAY_DAY, zoneOf } from '@/ui/zone';
-import { AlertCard } from './alerts/AlertCard';
-import { TasksDoor } from './alerts/TasksDoor';
-import { isAhead } from '@/ui/age';
-import { groupsOf, type GroupHeading } from './alerts/inbox';
+import { clock, zoneOf } from '@/ui/zone';
+import { AlertCard, ResolvedRow } from './alerts/AlertCard';
+import { worstFirst } from './alerts/inbox';
 import { useInboxNames } from './alerts/names';
 import styles from './alerts/Alerts.module.css';
 
-/** How long "Mute all" holds. */
+/** How long "1 Std stumm" holds. */
 const MUTE_SECONDS = 3600;
 
 /**
@@ -31,11 +38,16 @@ const MUTE_SECONDS = 3600;
  */
 const RULES_BEAT_MS = 300_000;
 
+/** How many of what is over the page lists before "Früher" is asked for, and how many each asking adds: a record, not the page. */
+const OVER_FIRST = 5;
+const OVER_MORE = 20;
+
 /**
- * The inbox behind the bell: one line per event, graded by severity, with what
- * can be done about it on the card. Everything still open is at the top, worst
- * first, and everything that has resolved stays below it under the day it began
- * - dimmed, dated, and never dropped for being old.
+ * Meldungen, behind the bell: what is open - the alerts still standing, worst
+ * first, and an update waiting for somebody's word -, what is due in the
+ * diary, and what is over - the newest few, more behind "Früher" - as rows
+ * that open the whole of it. The bell counts
+ * what the first two list (`app/shell/bell.ts`).
  *
  * The list is the alarm engine's own record, read on the beat live values age
  * on, and it is drawn the moment it arrives. What a name and a rule add to a
@@ -50,8 +62,8 @@ export function Alerts() {
   const { t } = useTranslation();
   const now = useNow();
   // The mute is the account's own and stands above every place; silencing a
-  // rule or sending a device into maintenance is `manage` on the device the
-  // card is about, which is why the two are asked separately.
+  // rule is `manage` on the place the card is about, which is why the two are
+  // asked separately.
   const mayWriteAtAll = useMayManage();
   const mayManageIn = useMayInEach();
   // An alert that names no place is about something standing nowhere, which
@@ -59,29 +71,30 @@ export function Alerts() {
   // is the whole answer, and everywhere else the place decides.
   const mayActOn = (alert: Alert): boolean => (alert.spaceId === null ? mayWriteAtAll : enough(mayManageIn(alert.spaceId), 'manage'));
   const { user } = useSession();
-  // The demo has no account of its own and the route says so with a refusal, so
-  // it is not asked; what the account would have given this screen - the zone
-  // its clock times are drawn in, the channels its cards promise - the demo has
-  // no answer to anyway, and an empty inbox draws no card and no mute.
+  // The demo has no account of its own, so it is not asked for one; what the
+  // account would have given this screen - the zone its clock times are drawn
+  // in, the channels its cards promise - the demo has no answer to anyway.
   const me = useAccountMe();
   const open = useOpenAlerts();
   const resolved = useResolvedAlerts();
+  const updates = useOfferedUpdates();
+  const due = useDueEverywhere(now, true);
   const { names, watching } = useInboxNames();
+  const [shown, setShown] = useState(OVER_FIRST);
 
-  const items = [...itemsOf(open.data), ...itemsOf(resolved.data)];
+  const standing = worstFirst(itemsOf(open.data));
+  const over = itemsOf(resolved.data);
   // Only the devices something has actually gone wrong on: a rule is read to
   // say what a card watched, and a device with no card on the page says nothing.
-  const ruleDevices = [...new Set(items.filter(alert => alert.ruleId && alert.deviceId).map(alert => alert.deviceId!))];
+  const ruleDevices = [...new Set([...standing, ...over].filter(alert => alert.ruleId && alert.deviceId).map(alert => alert.deviceId!))];
   const rules = useAlarmRulesOf(ruleDevices, { refetchIntervalMs: RULES_BEAT_MS });
-
-  const readAt = Math.min(open.dataUpdatedAt || Infinity, resolved.dataUpdatedAt || Infinity);
+  const ruleOf = (alert: Alert) => (alert.ruleId ? (rules.rules.get(alert.ruleId) ?? null) : null);
 
   const head = (
-    <header className={styles.head}>
-      <h1>{t('shell.alerts')}</h1>
+    <PageHead back={{ to: '/', label: t('me.back') }} title={t('shell.alerts')}>
       {/* Nothing here can raise an alarm without a device or a cam, so there is nothing to mute either. */}
-      {mayWriteAtAll && watching ? <MuteCorner account={me.data} now={now} /> : null}
-    </header>
+      {mayWriteAtAll && watching && me.data ? <Mute account={me.data} now={now} /> : null}
+    </PageHead>
   );
 
   // What is open is the half a reader came for, so the page waits for that one
@@ -110,89 +123,104 @@ export function Alerts() {
     );
   }
 
-  const groups = groupsOf(items, now, zoneOf(me.data));
   // What silencing does is said once, beside the first Silence the page offers.
   const silenceTeacher =
-    groups
-      .flatMap(group => group.alerts)
-      .find(
-        alert =>
-          alert.resolvedAt === null &&
-          alert.kind !== 'camera_stale' &&
-          alert.deviceId !== null &&
-          alert.ruleId !== null &&
-          rules.rules.has(alert.ruleId) &&
-          mayActOn(alert),
-      ) ?? null;
+    standing.find(alert => alert.kind !== 'camera_stale' && alert.deviceId !== null && ruleOf(alert) !== null && mayActOn(alert)) ?? null;
   // What is on screen is as old as its older half, whichever half failed.
+  const readAt = Math.min(open.dataUpdatedAt || Infinity, resolved.dataUpdatedAt || Infinity);
   const failedAt = (open.isError || resolved.isError) && Number.isFinite(readAt) ? readAt : null;
   const more = open.hasNextPage || resolved.hasNextPage;
-  const fetchMore = () => {
-    if (open.hasNextPage) void open.fetchNextPage();
-    if (resolved.hasNextPage) void resolved.fetchNextPage();
-  };
+  const fetching = open.isFetchingNextPage || resolved.isFetchingNextPage;
+  const card = (alert: Alert) => ({ alert, rule: ruleOf(alert), names, me: me.data, mayManage: mayActOn(alert), now });
 
   return (
     <section className={styles.page}>
       {head}
-      {/* Read off the account the page holds anyway, so an account that keeps no diary is asked for no task list. */}
-      {me.data?.layers?.diary === true ? <TasksDoor /> : null}
       <RefreshFailed failedAt={failedAt} now={now} />
       {names.failed ? (
-        <p className={`mono ${styles.namesFailed}`} role="status">
+        <p className={styles.namesFailed} role="status">
           {t('alerts.namesFailed')}
         </p>
       ) : null}
 
-      {groups.length === 0 && !resolved.isPending ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t(emptyKey(user?.isDemo === true, watching))}</p>
+      {standing.length + updates.length > 0 ? (
+        <section className={styles.section} aria-labelledby="alerts-open">
+          <h2 id="alerts-open">{t('alerts.open')}</h2>
+          <ul className={styles.list}>
+            {standing.map(alert => (
+              <AlertCard key={alert.id} {...card(alert)} explainSilence={alert === silenceTeacher} />
+            ))}
+            {updates.map(({ device, build }) => (
+              <li key={device.id} className={`${styles.card} ${styles.beside}`}>
+                <p className={styles.title}>
+                  {t('alerts.update', { build: buildName(build) })}
+                  <span className={styles.line}>{deviceName(device, t)}</span>
+                </p>
+                <div className={styles.actions}>
+                  <Link to={devicePath(device.id)}>{t('alerts.action.device')}</Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : (
-        groups.map(group => (
-          <section key={group.key} className={styles.group}>
-            <header className={styles.groupHead}>
-              <span className="label">{headingOf(t, group.heading)}</span>
-              {group.heading.kind === 'now' ? (
-                <span className={`mono ${styles.aside}`}>{t('alerts.active', { count: group.alerts.length })}</span>
-              ) : null}
-            </header>
-            <ul className={styles.list}>
-              {group.alerts.map((alert: Alert) => (
-                <AlertCard
-                  key={alert.id}
-                  alert={alert}
-                  rule={alert.ruleId ? (rules.rules.get(alert.ruleId) ?? null) : null}
-                  names={names}
-                  me={me.data}
-                  mayManage={mayActOn(alert)}
-                  now={now}
-                  explainSilence={alert === silenceTeacher}
-                />
-              ))}
-            </ul>
-          </section>
-        ))
+        <p className={`${ui.cardDashed} ${ui.note}`}>{t(emptyKey(user?.isDemo === true, watching))}</p>
       )}
 
-      {resolved.isPending ? <Waiting lines={2} /> : null}
+      {due.kept ? (
+        <section className={styles.section} aria-labelledby="alerts-tasks">
+          <h2 id="alerts-tasks">{t('tasks.title')}</h2>
+          <div className={styles.card}>
+            {due.rows.length + due.steps.length > 0 ? <DueList rows={due.rows} steps={due.steps} across now={now} /> : null}
+            <Link to="/tasks" className={styles.onward}>
+              {t('alerts.allTasks')} ›
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
-      {more ? (
-        <button type="button" className={ui.button} disabled={open.isFetchingNextPage || resolved.isFetchingNextPage} onClick={fetchMore}>
-          {open.isFetchingNextPage || resolved.isFetchingNextPage ? t('home.waiting') : t('alerts.earlier')}
-        </button>
+      {resolved.isPending ? <Waiting lines={2} /> : null}
+      {over.length > 0 ? (
+        <section className={styles.section} aria-labelledby="alerts-over">
+          <h2 id="alerts-over">{t('alerts.over')}</h2>
+          <Rows>
+            {over.slice(0, shown).map(alert => (
+              <ResolvedRow key={alert.id} {...card(alert)} />
+            ))}
+          </Rows>
+          {over.length > shown || more ? (
+            <button
+              type="button"
+              className={ui.button}
+              disabled={fetching}
+              onClick={() => {
+                setShown(shown + OVER_MORE);
+                if (shown + OVER_MORE <= over.length) return;
+                if (open.hasNextPage) void open.fetchNextPage();
+                if (resolved.hasNextPage) void resolved.fetchNextPage();
+              }}
+            >
+              {fetching ? t('home.waiting') : t('alerts.earlier')}
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+
+      {user !== null && !user.isDemo ? (
+        <Link to="/me/notifications" className={styles.onward}>
+          {t('alerts.settings')} ›
+        </Link>
       ) : null}
     </section>
   );
 }
 
-const headingOf = (t: Translate, heading: GroupHeading): string =>
-  heading.kind === 'day' ? heading.day.toFormat(WEEKDAY_DAY) : t(`alerts.group.${heading.kind}`);
-
 /**
- * What an empty inbox means, which is three different things. The demo account
- * is answered an empty page whatever its tents hold, so it is told where the
- * alarms it can see are instead; an account with neither a device nor a cam has
- * nothing that could raise an alert, and saying nothing has gone wrong there
- * would be a promise nothing is keeping.
+ * What a page with nothing open says, which is three different things. The
+ * demo account is answered an empty page whatever its tents hold, so it is
+ * told where the alarms it can see are instead; an account with neither a
+ * device nor a cam has nothing that could raise an alert, and saying nothing
+ * has gone wrong there would be a promise nothing is keeping.
  */
 const emptyKey = (isDemo: boolean, watching: boolean): string =>
   isDemo ? 'alerts.demoNoInbox' : watching ? 'alerts.nothing' : 'alerts.nothingWatching';
@@ -200,40 +228,38 @@ const emptyKey = (isDemo: boolean, watching: boolean): string =>
 /**
  * The one switch that reaches every channel at once: an hour of nothing, for
  * this person only. The settings travel whole, so the rest of them go back as
- * they were read; while the mute holds, the corner says until when and offers
- * the way out.
- *
- * The account is handed down rather than read again here. The page above holds
- * the one read of it and holds the one decision about whether to make it at
- * all, and a second call would have been a second place to remember that a
- * session which is nobody must not ask.
+ * they were read; while the mute holds, the head says until when and offers
+ * the way out. Either tap is answered by a toast, and taken back there.
  */
-function MuteCorner({ account, now }: { account: Me | undefined; now: DateTime }) {
+function Mute({ account, now }: { account: Me; now: DateTime }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const update = useUpdateMe();
-  if (!account) return null;
-
-  const zone = zoneOf(account);
   const { notifications } = account;
-  const muted = isAhead(notifications.mutedUntil, now);
-  const set = (mutedUntil: string | null) => update.mutate({ notifications: notificationsWith(notifications, { mutedUntil }) });
+  const until = isAhead(notifications.mutedUntil, now) ? notifications.mutedUntil : null;
+  const time = (instant: string) => clock(instant, zoneOf(account));
+  const set = (mutedUntil: string | null) => update.mutateAsync({ notifications: notificationsWith(notifications, { mutedUntil }) });
+  const toggle = () => {
+    const next = until ? null : instantOf(now.plus({ seconds: MUTE_SECONDS }));
+    void set(next).then(
+      () => tell({ label: next ? t('alerts.told.muted', { time: time(next) }) : t('alerts.told.loud'), undo: () => set(until), from: 'mute-all' }),
+      // Said under the head, from the write that was refused.
+      () => undefined,
+    );
+  };
 
   return (
-    <div className={styles.corner}>
-      {muted ? <span className={`mono ${styles.mutedUntil}`}>{t('alerts.mutedUntil', { time: clock(notifications.mutedUntil!, zone) })}</span> : null}
-      <span className={styles.cornerChip}>
-        {muted ? (
-          <button type="button" className={ui.chip} disabled={update.isPending} onClick={() => set(null)}>
-            {t('alerts.unmute')}
-          </button>
-        ) : (
-          <button type="button" className={ui.chip} disabled={update.isPending} onClick={() => set(instantOf(now.plus({ seconds: MUTE_SECONDS })))}>
-            {t('alerts.muteAll')}
-          </button>
-        )}
-        <Help topic="muteAll" />
-      </span>
+    <>
+      <button type="button" className={styles.mute} disabled={update.isPending} onClick={toggle}>
+        {t(until ? 'alerts.unmute' : 'alerts.mute')}
+      </button>
+      <Help topic="muteAll" />
+      {until ? (
+        <p className={styles.muted} role="status">
+          {t('alerts.mutedUntil', { time: time(until) })}
+        </p>
+      ) : null}
       <Refused error={update.error} />
-    </div>
+    </>
   );
 }

@@ -9,18 +9,10 @@
   padding-top: var(--space-2);
 }
 
-.head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.titleRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
+/* Whose tasks, beside the title: two answers, each a finger high. */
+.scope button {
+  height: 40px;
+  min-width: var(--control-height);
 }
 
 .group {
@@ -84,8 +76,16 @@
     background-color 120ms ease-out;
 }
 
+/* The tick is smaller than a finger; its row lends it the rest. */
 button.circle {
+  position: relative;
   cursor: pointer;
+}
+
+button.circle::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
 }
 
 /* The tick answers a finger with the colour of something done well. */
@@ -122,6 +122,9 @@ button.circle:hover {
 }
 
 .edit {
+  height: var(--control-height);
+  min-width: var(--control-height);
+  justify-content: center;
   flex: none;
 }
 

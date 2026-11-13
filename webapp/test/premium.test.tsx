@@ -8,6 +8,7 @@ import { Premium } from '@/screens/me/premium/Premium';
 import { Privacy } from '@/screens/me/privacy/Privacy';
 import { drawAt, json, NOT_FOUND } from './harness';
 import { meWith, spacePage, spaceWhere } from './session';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
@@ -32,12 +33,7 @@ const session = vi.hoisted(() => ({ demo: false }));
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN, ON_THE_DEMO } = await import('./session');
 
-  return {
-    ...(await importOriginal<object>()),
-    // A test session carries no media token; the privacy screen's export row only wants an address.
-    mediaUrl: (id: string) => `/media/${id}/content`,
-    useSession: () => (session.demo ? ON_THE_DEMO : SIGNED_IN),
-  };
+  return { ...(await importOriginal<object>()), useSession: () => (session.demo ? ON_THE_DEMO : SIGNED_IN) };
 });
 
 vi.mock('@/ui/useNow', () => ({ useNow: () => NOW }));
@@ -421,7 +417,14 @@ describe('what Premium covers', () => {
 });
 
 describe('the two screens that describe the free tier', () => {
-  const drawPrivacy = () => drawAt(<Privacy />, { at: '/me/privacy' });
+  // The privacy page answers its writes through the toast, so it is drawn with one.
+  const drawPrivacy = () =>
+    drawAt(
+      <Toast>
+        <Privacy />
+      </Toast>,
+      { at: '/me/privacy' },
+    );
 
   it('agree that nothing of a free camera is deleted where the install names no window', async () => {
     server.me = me({ enforced: false, extendUrl: null, priceLabel: null });

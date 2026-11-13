@@ -8,10 +8,10 @@ import { Refused } from '@/ui/PageState';
 import { HandleField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { Row } from '../parts';
-import styles from './Privacy.module.css';
+import styles from './Account.module.css';
 
 /**
- * The end of the account, which is the one thing on this screen that cannot be
+ * The end of the account, which is the one thing on its page that cannot be
  * taken back.
  *
  * So the sheet asks for the handle to be typed rather than for a tap to be
@@ -29,15 +29,15 @@ export function DeleteRow({ handle, disabled }: { handle: string; disabled: bool
 
   return (
     <>
-      <Row title={t('me.privacy.delete.title')} line={t('me.privacy.delete.line')} danger help="deleteAccount">
+      <Row title={t('me.account.delete.title')} line={t('me.account.delete.line')} danger help="deleteAccount">
         <button
           type="button"
           className={`${ui.chip} ${ui.danger}`}
-          aria-label={t('me.privacy.delete.title')}
+          aria-label={t('me.account.delete.title')}
           disabled={disabled}
           onClick={() => setAsking(true)}
         >
-          {t('me.privacy.delete.open')}
+          {t('me.account.delete.open')}
         </button>
       </Row>
       {asking ? <DeleteSheet handle={handle} onClose={() => setAsking(false)} /> : null}
@@ -59,24 +59,26 @@ function DeleteSheet({ handle, onClose }: { handle: string; onClose: () => void 
 
   return (
     <Sheet
-      title={t('me.privacy.delete.title')}
+      title={t('me.account.delete.title')}
       onClose={onClose}
       actions={
         <button
           type="button"
-          className={`${ui.button} ${styles.dangerButton}`}
+          className={ui.dangerOutline}
           disabled={!sure || remove.isPending}
           onClick={() => remove.mutate(undefined, { onSuccess: () => void navigate('/sign-in', { replace: true }) })}
         >
-          {t('me.privacy.delete.yes')}
+          {t('me.account.delete.yes')}
         </button>
       }
     >
-      <p className={styles.sheetBody}>{t('me.privacy.delete.what')}</p>
-      <p className={styles.sheetBody}>{t('me.privacy.delete.grows')}</p>
-      <HandleField className={styles.confirm} label={t('me.privacy.delete.typeHandle', { handle })} value={typed} onChange={setTyped} />
-      {typedHandle(typed) !== '' && !sure ? <p className={ui.problem}>{t('me.privacy.delete.notHandle')}</p> : null}
-      <Refused error={remove.error} />
+      <div className={styles.asked}>
+        <p>{t('me.account.delete.what')}</p>
+        <p>{t('me.account.delete.grows')}</p>
+        <HandleField className={styles.field} label={t('me.account.delete.typeHandle', { handle })} value={typed} onChange={setTyped} />
+        {typedHandle(typed) !== '' && !sure ? <p className={ui.problem}>{t('me.account.delete.notHandle')}</p> : null}
+        <Refused error={remove.error} />
+      </div>
     </Sheet>
   );
 }

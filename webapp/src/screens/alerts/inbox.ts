@@ -3,22 +3,13 @@ import type { AlarmRule, Alert, Me, OutputLevelWatch, ReadingWatch, Severity } f
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { severityReaches } from '@/screens/notifications/reach';
 import { ageLabel, silentSince } from '@/ui/age';
-import { nowThere, zoned } from '@/ui/zone';
 
 /**
- * How the inbox is cut up, which bound a reading crossed, and whether anybody
+ * How the inbox is ordered, which bound a reading crossed, and whether anybody
  * was told. All of it is plain arithmetic on the server's instants and on the
  * account's own grid, kept out of the card so it can be checked without drawing
  * anything.
  */
-
-export type GroupHeading = { kind: 'now' } | { kind: 'earlierToday' } | { kind: 'yesterday' } | { kind: 'day'; day: DateTime };
-
-interface AlertGroup {
-  key: string;
-  heading: GroupHeading;
-  alerts: Alert[];
-}
 
 const startedMillis = (alert: Alert) => DateTime.fromISO(alert.startedAt).toMillis();
 
@@ -26,41 +17,14 @@ const startedMillis = (alert: Alert) => DateTime.fromISO(alert.startedAt).toMill
 const WORST_FIRST: Record<Severity, number> = { critical: 0, warning: 1, info: 2 };
 
 /**
- * Everything still open comes first, whatever day it began on: it is what is
- * wrong now. Inside that group the worst comes first and the clock decides only
- * between equals - a second critical tent below three warnings is off the
- * bottom of a phone, and the order a thing happened in is no help to somebody
- * deciding what to deal with. What has resolved is a record rather than a queue
- * and stays in the order it happened: filed under the day it started on in the
- * account's own zone, today and yesterday by name and every earlier day by its
- * date, newest first inside each. Nothing is left out for being old.
+ * What is open, the worst first, the clock deciding only between equals - a
+ * second critical tent below three warnings is off the bottom of a phone, and
+ * the order a thing happened in is no help to somebody deciding what to deal
+ * with. What is over is a record rather than a queue and stays in the order
+ * the server lists it, newest first.
  */
-export const groupsOf = (alerts: Alert[], now: DateTime, zone: string | null): AlertGroup[] => {
-  const newestFirst = [...alerts].sort((a, b) => startedMillis(b) - startedMillis(a));
-  const open = newestFirst
-    .filter(alert => alert.resolvedAt === null)
-    .sort((a, b) => WORST_FIRST[a.severity] - WORST_FIRST[b.severity] || startedMillis(b) - startedMillis(a));
-  const groups: AlertGroup[] = open.length ? [{ key: 'now', heading: { kind: 'now' }, alerts: open }] : [];
-
-  const here = nowThere(now, zone);
-  const today = here.startOf('day').toISODate();
-  const yesterday = here.startOf('day').minus({ days: 1 }).toISODate();
-  const days = new Map<string, AlertGroup>();
-  for (const alert of newestFirst) {
-    if (alert.resolvedAt === null) continue;
-    const day = zoned(alert.startedAt, zone).startOf('day');
-    const key = day.toISODate()!;
-    let group = days.get(key);
-    if (!group) {
-      const heading: GroupHeading = key === today ? { kind: 'earlierToday' } : key === yesterday ? { kind: 'yesterday' } : { kind: 'day', day };
-      group = { key, heading, alerts: [] };
-      days.set(key, group);
-    }
-    group.alerts.push(alert);
-  }
-
-  return [...groups, ...days.values()];
-};
+export const worstFirst = (open: Alert[]): Alert[] =>
+  [...open].sort((a, b) => WORST_FIRST[a.severity] - WORST_FIRST[b.severity] || startedMillis(b) - startedMillis(a));
 
 /**
  * The bound the reading went past, so the card can say "68 % › 60" rather than

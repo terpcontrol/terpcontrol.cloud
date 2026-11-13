@@ -78,9 +78,12 @@ export const timelinePath = (
   growId: string | null = null,
   /** A window named outright, as two instants: one day of a grow, the stretch of an old bookmark. */
   window: { from: string; to: string } | null = null,
+  /** The device whose curves are meant, where the place may hold a second climate: an alert's. */
+  deviceId: string | null = null,
 ): string =>
   withQuery('/timeline', {
     space: spaceId,
+    ...(deviceId ? { device: deviceId } : {}),
     ...(focus ? { focus } : {}),
     ...(at ? { at } : {}),
     ...(growId ? { grow: growId } : {}),

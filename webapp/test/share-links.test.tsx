@@ -254,6 +254,12 @@ describe('the active list', () => {
     expect(within(week).getByRole('button', { name: 'Copy the link' })).toBeInTheDocument();
   });
 
+  it('leads back to all grows, which is where it is reached from, rather than to Me', async () => {
+    await drawLoaded();
+
+    expect(screen.getByRole('link', { name: 'Back to all grows' })).toHaveAttribute('href', '/grows');
+  });
+
   it('says a link nobody has opened has not been opened, rather than counting a zero', async () => {
     server.links = [link({ includeCameras: false })];
     await drawLoaded();
@@ -445,7 +451,7 @@ describe('the new-link sheet', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Balcony tomatoes' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Public page' }));
     expect(within(sheet).getByText(/Balcony tomatoes is private/)).toBeInTheDocument();
-    expect(within(sheet).getByRole('link', { name: 'Public grows and profile' })).toHaveAttribute('href', '/me/public');
+    expect(within(sheet).getByRole('link', { name: 'Privacy and profile' })).toHaveAttribute('href', '/me/privacy');
     expect(within(sheet).getByRole('button', { name: 'Create link' })).toBeDisabled();
     expect(within(sheet).queryByRole('button', { name: '7 days' })).not.toBeInTheDocument();
 

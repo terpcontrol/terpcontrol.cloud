@@ -67,15 +67,3 @@
   text-decoration: underline;
 }
 
-/* The yes to deleting a scheme, outlined in the alarm colour as the privacy
-   page's is. */
-.dangerButton {
-  background: transparent;
-  border-color: var(--alarm);
-  color: var(--alarm);
-}
-
-.dangerButton:disabled {
-  border-color: var(--rule);
-  color: var(--muted);
-}

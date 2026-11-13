@@ -26,8 +26,8 @@ import {
 import { spaceWhere, THE_HOST } from './session';
 import { translate } from './translations';
 
-/** Who reads Start: the grower, or the demo. */
-const who = vi.hoisted(() => ({ demo: false }));
+/** Who reads Start: the grower, whoever runs the install, or the demo. */
+const who = vi.hoisted(() => ({ demo: false, admin: false }));
 
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN, ON_THE_DEMO } = await import('./session');
@@ -35,7 +35,7 @@ vi.mock('@/api/session', async importOriginal => {
   return {
     ...(await importOriginal<object>()),
     mediaUrl: (id: string) => `/media/${id}`,
-    useSession: () => (who.demo ? ON_THE_DEMO : SIGNED_IN),
+    useSession: () => (who.demo ? ON_THE_DEMO : who.admin ? { ...SIGNED_IN, user: { ...SIGNED_IN.user, isAdmin: true } } : SIGNED_IN),
   };
 });
 
@@ -89,6 +89,7 @@ beforeEach(() => {
   localStorage.clear();
   resetServer();
   who.demo = false;
+  who.admin = false;
   // Leaving a session and opening the demo are the store's; Start only asks for them.
   vi.spyOn(session, 'logOut').mockResolvedValue(undefined);
   vi.spyOn(session, 'openDemo').mockResolvedValue(undefined as never);
@@ -520,7 +521,7 @@ describe('Start of a place that only regulates', () => {
     // The card is gone with the tap, so a toast answers it: what holds now, where it is changed, and the way back.
     await waitFor(() => expect(log.tell).toHaveBeenCalledTimes(1));
     const told = log.tell.mock.calls[0][0] as { label: string; undo: () => Promise<unknown> };
-    expect(told.label).toBe('The diary stays off. You can switch it on under Me › Appearance.');
+    expect(told.label).toBe('The diary stays off. You can switch it on under Me › Grow diary.');
     await told.undo();
     expect(server.bodies.get('PATCH /me')).toEqual({ preferences: { diary: null } });
   });
@@ -943,6 +944,21 @@ describe('the states of Start', () => {
     expect(screen.getByText('This place cannot be opened.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(screen.queryByText('Removed tent')).not.toBeInTheDocument();
+  });
+  it('says it of an administrator´s own removed place too, and still draws a customer´s', async () => {
+    who.admin = true;
+    server.home = homeOf([cardOf(), cardOf({ spaceId: 'space-2', name: 'Tent 2' })]);
+    server.overviews.set('space-9', overviewOf({ spaceId: 'space-9', name: 'Removed tent', deviceIds: [] }));
+    server.overviews.set('space-7', overviewOf({ spaceId: 'space-7', name: 'A customer´s tent', deviceIds: [] }));
+    server.ended = [spaceWhere('own', { id: 'space-9', name: 'Removed tent', archivedAt: '2026-05-01T00:00:00.000Z' })];
+    const { unmount } = draw('/spaces/space-9');
+
+    expect(await screen.findByText('This place cannot be opened.')).toBeInTheDocument();
+    expect(screen.queryByText('Removed tent')).not.toBeInTheDocument();
+    unmount();
+
+    draw('/spaces/space-7');
+    expect(await screen.findByRole('heading', { level: 1, name: 'A customer´s tent' })).toBeInTheDocument();
   });
 });
 

@@ -1,7 +1,6 @@
 import { Download } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import type { Me } from '@fg2/shared-types/v1';
 import { useAccountMe, useUpdatingMe } from '@/api/account';
 import { exportFilename, useAskAccountExport, useAskedExport, useDownloadExport } from '@/api/exports';
@@ -16,48 +15,31 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { ALL_GROWS } from '@/app/places';
-import { BackLink } from '@/ui/BackLink';
+import { PageHead } from '@/ui/PageHead';
 import styles from './parts.module.css';
 
 /**
- * What every page below Me is built from: the page with its title and the way
+ * What every page below Ich is built from: the page with its head and the way
  * back, the setting row, the menu in a chip, and the row that exports the
- * account.
- *
- * Every page under Me shares this one, so that a row on Appearance and a row
- * on Account are the same row and not two that drifted, and so that the way
- * back is fixed once. They are deliberately the same shapes, to the pixel: a
- * person walking from one page to the next should not be able to tell where
- * one slice of the work ended and another began.
+ * account; how a save is answered is `useSaveAccount` (`save.ts`). One set of parts, so that a row on
+ * Darstellung and a row on Konto are the same row.
  */
 
 /**
- * The page: its title, the chevron back to Me, and on a width that has room
- * for it the trail as well. The chevron is there at every width because the
- * phone's top bar carries no way back - the logo, the bell and the way to Ich
- * - and a leaf route with no exit but the browser's own gesture is a dead end
- * in an installed app.
- *
- * A page with something to keep that the demo has none of says so in `demo`,
- * and the demo is shown that line in place of the page. `grows` is a page
- * that belongs to growing rather than to the account - the feeding schemes,
- * the share links, the grows somebody follows - and is reached from "Alle
- * Grows", so that is where it leads back.
+ * The page: the arrow back and its title. A page with something to keep that
+ * the demo has none of says so in `demo`, and the demo is shown that line in
+ * place of the page. `grows` is a page that belongs to growing rather than to
+ * the account - the feeding schemes, the share links, the grows somebody
+ * follows - and is reached from "Alle Grows", so that is where it leads back.
  */
 export function MePage({ title, demo, grows = false, children }: { title: string; demo?: string; grows?: boolean; children: ReactNode }) {
   const { t } = useTranslation();
   const { user } = useSession();
-  const back = grows ? { to: ALL_GROWS, label: t('grow.all.title') } : { to: '/me', label: t('me.title') };
+  const back = grows ? { to: ALL_GROWS, label: t('grow.all.back') } : { to: '/me', label: t('me.backHere') };
 
   return (
     <section className={styles.page}>
-      <header className={styles.head}>
-        <BackLink to={back.to} label={back.label} className={styles.back} />
-        <h1 className={styles.title}>{title}</h1>
-        <span className={`mono ${styles.crumb}`}>
-          <Link to={back.to}>{back.label}</Link> › {title}
-        </span>
-      </header>
+      <PageHead back={back} title={title} />
       {demo !== undefined && user?.isDemo === true ? <p className={`${ui.cardDashed} ${ui.note}`}>{demo}</p> : children}
     </section>
   );
@@ -161,7 +143,7 @@ export function Menu({
 }) {
   return (
     <select
-      className={`mono ${ui.chip} ${styles.menu} ${className ?? ''}`}
+      className={`mono ${ui.chip} ${ui.menu} ${className ?? ''}`}
       value={value}
       aria-label={name}
       disabled={disabled}
@@ -177,10 +159,8 @@ export function Menu({
  * so this is a button and then a job: the row it is asked for is polled until
  * it is ready or has failed, and a failure says what went wrong rather than
  * sitting at "building" for ever - the same shape, and the same polling, as
- * the export at the end of a grow's report. Two pages promise this export, the
- * account and the privacy screen, so it is one row with two sets of words
- * rather than two rows that could be told apart. The control is a chip like
- * every other control in the column, and turns green once there is a file.
+ * the export at the end of a grow's report. What the file holds is behind the
+ * help button. The control turns green once there is a file.
  *
  * Which job it is drawing comes from the cache rather than from this
  * component, so that walking away and back finds the file instead of a button
@@ -189,7 +169,7 @@ export function Menu({
  * under an hour old and a zip from before this morning's entry must not be
  * handed over as the thing that was just asked for.
  */
-export function ExportRow({ title, line, ask }: { title: string; line: ReactNode; ask: string }) {
+export function ExportRow() {
   const { t } = useTranslation();
   const now = useNow();
   const request = useAskAccountExport();
@@ -204,8 +184,9 @@ export function ExportRow({ title, line, ask }: { title: string; line: ReactNode
 
   return (
     <Row
-      title={title}
-      line={line}
+      title={t('me.account.export.title')}
+      line={t('me.account.export.line')}
+      help="accountExport"
       below={
         <>
           {status === 'queued' || status === 'rendering' ? (
@@ -239,7 +220,7 @@ export function ExportRow({ title, line, ask }: { title: string; line: ReactNode
         </button>
       ) : (
         <button type="button" className={ui.chip} disabled={request.isPending || isBuilding(row)} onClick={() => request.mutate()}>
-          {status === 'failed' ? t('me.account.export.again') : ask}
+          {status === 'failed' ? t('me.account.export.again') : t('me.account.export.ask')}
         </button>
       )}
     </Row>

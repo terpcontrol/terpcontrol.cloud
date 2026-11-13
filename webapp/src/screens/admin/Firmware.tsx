@@ -48,7 +48,7 @@ export function FirmwareScreen() {
   useFollowCursor(firmwares);
   useFollowCursor(devices);
 
-  const header = <AdminHead title={t('admin.firmware.title')} crumb={t('admin.firmware.title')} readAt={firmwares.dataUpdatedAt} />;
+  const header = <AdminHead title={t('admin.firmware.title')} readAt={firmwares.dataUpdatedAt} />;
 
   if (classes.isPending || firmwares.isPending) return <AdminNotLoaded head={header} />;
 
@@ -126,7 +126,7 @@ function Register({ classes }: { classes: DeviceClass[] }) {
       <div className={styles.fields}>
         <label className={styles.field}>
           <span className="label">{t('admin.firmware.column.class')}</span>
-          <select className={`${ui.input} ${styles.menu}`} value={classId} onChange={event => setClassId(event.target.value)}>
+          <select className={`${ui.input} ${ui.menu}`} value={classId} onChange={event => setClassId(event.target.value)}>
             {classes.map(deviceClass => (
               <option key={deviceClass.id} value={deviceClass.id}>
                 {deviceClass.name}

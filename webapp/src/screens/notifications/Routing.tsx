@@ -64,16 +64,25 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
               </th>
               {CHANNELS.map(channel => {
                 const on = routes(routing, category, channel);
+                const cell = t('notifications.grid.cell', {
+                  category: t(`notifications.category.${category}`),
+                  channel: t(`notifications.channel.${channel}`),
+                });
                 return (
                   <td key={channel} className={styles.gridCell}>
                     <Switch
-                      label={t('notifications.grid.cell', {
-                        category: t(`notifications.category.${category}`),
-                        channel: t(`notifications.channel.${channel}`),
-                      })}
+                      label={cell}
                       on={on && configured(channel)}
                       disabled={held || !configured(channel)}
-                      onChange={() => write({ routing: routingWith(routing, category, channel, !on) })}
+                      onChange={() =>
+                        write(
+                          { routing: routingWith(routing, category, channel, !on) },
+                          t(`notifications.told.${on ? 'off' : 'on'}`, { what: cell }),
+                          now => ({
+                            routing: routingWith(now.routing, category, channel, on),
+                          }),
+                        )
+                      }
                     />
                   </td>
                 );

@@ -1,9 +1,10 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Alert } from '@fg2/shared-types/v1';
 import { clockOffsetMs, fetchedAt, forgetServerClock, noteServerDate, serverNow } from '@/api/clock';
 import { Alerts } from '@/screens/Alerts';
+import { deviceWith } from './fixtures';
 import { drawAt } from './harness';
 import { Toast } from './toast';
 import { spaceWhere } from './session';
@@ -40,32 +41,31 @@ const SKEW_MS = 3600_000;
 
 const iso = (at: DateTime) => at.toISO()!;
 
-/** An alert about a device that stopped speaking: an age on one line, the instant it began on the next. */
-const quietTent: Alert = {
-  id: 'alert-1',
-  createdAt: iso(SERVER_NOW.minus({ minutes: 27 })),
+/** An alert about a device that stopped speaking and was heard again: the inbox says how long ago that was. */
+const quietTent = (id: string, ended: DateTime): Alert => ({
+  id,
+  createdAt: iso(ended.minus({ hours: 2 })),
   ruleId: null,
   deviceId: 'device-1',
   cameraId: null,
   spaceId: 'space-1',
   kind: 'offline',
   severity: 'critical',
-  startedAt: iso(SERVER_NOW.minus({ minutes: 27 })),
-  resolvedAt: null,
+  startedAt: iso(ended.minus({ hours: 2 })),
+  resolvedAt: iso(ended),
   rested: false,
   value: null,
   extremeValue: null,
   watched: null,
-};
+});
 
-const device = {
-  id: 'device-1',
-  type: 'controller',
-  name: 'Blue Dream tent',
-  spaceId: 'space-1',
+const over = [
+  quietTent('alert-1', SERVER_NOW.minus({ minutes: 27 })),
   // Three days and all but an hour: an hour added to it is a fourth day, which is what a browser an hour fast would draw.
-  state: { lastSeenAt: iso(SERVER_NOW.minus({ days: 3, hours: 23 })) },
-};
+  quietTent('alert-2', SERVER_NOW.minus({ days: 3, hours: 23 })),
+];
+
+const device = deviceWith({ name: 'Blue Dream tent', state: { lastSeenAt: iso(SERVER_NOW.minus({ minutes: 1 })) } });
 
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -77,7 +77,7 @@ const json = (body: unknown) =>
 const answer = (path: string): Response => {
   if (path.startsWith('/v1/alerts')) {
     const open = new URL(path, 'http://x').searchParams.get('open') === 'true';
-    return json({ items: open ? [quietTent] : [], nextCursor: null });
+    return json({ items: open ? [] : over, nextCursor: null });
   }
   if (path === '/v1/spaces') return json({ items: [spaceWhere('own', { id: 'space-1', name: 'Flower room B' })], nextCursor: null });
   if (path === '/v1/devices') return json({ items: [device], nextCursor: null });
@@ -108,10 +108,12 @@ const draw = () =>
     </Toast>,
   );
 
-/** The one card, once the reads behind it have landed: the whole of what a reader is told about the quiet tent. */
-const inbox = async (): Promise<string> => {
-  const card = await screen.findByText((_, node) => node?.tagName === 'LI' && /offline since/.test(node.textContent ?? ''));
-  return card.textContent!.replace(/\u00a0/g, ' ');
+/** The rows of what is over, once the reads behind them have landed: the whole of what a reader is told about the quiet tent. */
+const inbox = async (): Promise<string[]> => {
+  await screen.findAllByText(/^Blue Dream tent offline for/);
+  return within(screen.getByRole('region', { name: 'Over' }))
+    .getAllByRole('button')
+    .map(row => row.textContent.replace(/\u00a0/g, ' '));
 };
 
 beforeAll(async () => {
@@ -196,14 +198,13 @@ describe('the inbox on a browser whose clock is out', () => {
   it('draws the same ages as one whose clock is right', async () => {
     const onTime = draw();
     const right = await inbox();
-    expect(right).toContain(`offline since ${DateTime.fromISO(device.state.lastSeenAt).toFormat('d LLL HH:mm')}`);
-    expect(right).toContain('for 27 min');
+    expect(right).toEqual(['Blue Dream tent offline for 2 h27 min ago', 'Blue Dream tent offline for 2 h3 d ago']);
     onTime.unmount();
 
     forgetServerClock();
     vi.setSystemTime(SERVER_NOW.plus({ milliseconds: SKEW_MS }).toJSDate());
     draw();
 
-    expect(await inbox()).toBe(right);
+    expect(await inbox()).toEqual(right);
   });
 });

@@ -39,6 +39,8 @@ interface RowProps {
   onOpen?: () => void;
   /** What stands before the title: a camera's picture. */
   lead?: ReactNode;
+  /** A word about the row before its chevron: whom it is for. */
+  tag?: ReactNode;
   alone?: boolean;
   /** Not now, the line saying why: drawn, read out as unavailable and deaf to a tap. */
   waits?: boolean;
@@ -62,13 +64,27 @@ export function RowText({ title, line = null, warn = false }: Pick<RowProps, 'ti
   );
 }
 
-export function Row({ title, line, warn, to, state, onOpen, lead = null, alone = false, waits = false, acts = false, unfolded }: RowProps) {
+export function Row({
+  title,
+  line,
+  warn,
+  to,
+  state,
+  onOpen,
+  lead = null,
+  tag = null,
+  alone = false,
+  waits = false,
+  acts = false,
+  unfolded,
+}: RowProps) {
   const className = alone ? `${styles.row} ${styles.alone}` : styles.row;
   const Mark = unfolded === undefined ? ChevronRight : ChevronDown;
   const inside = (
     <>
       {lead}
       <RowText title={title} line={line} warn={warn} />
+      {tag}
       {waits || acts ? null : <Mark className={styles.chevron} size={20} strokeWidth={2} aria-hidden />}
     </>
   );

@@ -266,12 +266,13 @@ export const useRemoveSocket = () =>
  * name: the server always counts the build it runs and the one it is told to
  * run among them.
  */
-export const useDeviceFirmwares = (deviceId: string, enabled: boolean) =>
-  useRead({
+export const deviceFirmwaresQuery = (deviceId: string) =>
+  queryOptions({
     queryKey: ['devices', deviceId, 'firmwares'],
     queryFn: ({ signal }) => api.get<DeviceFirmwarePage>(`/devices/${deviceId}/firmwares`, undefined, signal),
-    enabled,
   });
+
+export const useDeviceFirmwares = (deviceId: string, enabled: boolean) => useRead({ ...deviceFirmwaresQuery(deviceId), enabled });
 
 /**
  * Forcing a socket, and handing it back to its role.

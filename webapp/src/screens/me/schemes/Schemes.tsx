@@ -228,7 +228,7 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
             <div className={ui.askingActions}>
               <button
                 type="button"
-                className={`${ui.button} ${styles.dangerButton}`}
+                className={ui.dangerOutline}
                 disabled={remove.isPending}
                 onClick={() => remove.mutate(scheme.id, { onSuccess: onClose })}
               >

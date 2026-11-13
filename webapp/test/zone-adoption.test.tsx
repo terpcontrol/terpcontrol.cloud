@@ -58,7 +58,7 @@ describe('an account whose zone nobody picked', () => {
     expect(state.sent).toEqual([{ preferences: { timezone: 'Europe/Berlin', timezoneChosen: true } }]);
     expect(screen.getByRole('status')).toHaveTextContent('Clock times now follow Europe/Berlin');
     expect(screen.getByRole('status')).toHaveTextContent('still on UTC');
-    expect(screen.getByRole('link', { name: 'Change it' })).toHaveAttribute('href', '/me/appearance');
+    expect(screen.getByRole('link', { name: 'Change it' })).toHaveAttribute('href', '/me/account');
   });
 
   it('asks nothing where the device is in the zone the account already has', () => {

@@ -9,7 +9,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding-top: var(--space-2);
 }
 
 /* What a refused screen is: the sentence, and the way back. It keeps the
@@ -17,16 +16,17 @@
 .refusal {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: var(--space-3);
   max-width: var(--column-width);
-  padding-top: var(--space-2);
+}
+
+.refusal > a {
+  align-self: flex-start;
 }
 
 @media (min-width: 900px) {
   .refusal {
     max-width: var(--reading-width);
-    padding-top: 0;
   }
 }
 
@@ -44,35 +44,11 @@
   color: var(--muted);
 }
 
-.crumb {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-.crumb a {
-  color: var(--muted);
-}
-
 .chips {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-}
-
-/* A chip that is a menu: the native select, keeping its keyboard and the
-   platform's own picker, giving up only its arrow and its padding. */
-.menu {
-  appearance: none;
-  padding-right: var(--space-5);
-  background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%);
-  background-position:
-    right 12px top 50%,
-    right 8px top 50%;
-  background-size:
-    4px 4px,
-    4px 4px;
-  background-repeat: no-repeat;
 }
 
 /* A search field the width of what is typed into it, beside the chips rather

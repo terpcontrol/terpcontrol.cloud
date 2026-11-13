@@ -18,6 +18,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-2) var(--space-3);
+  /* A finger high by itself, into the notice's own padding and gap: the (i) and "Later" reach nothing under them. */
+  min-height: var(--control-height);
+  margin-block: calc(-1 * var(--space-3)) calc(-1 * var(--space-2));
 }
 
 .title {
@@ -76,7 +79,7 @@
 }
 
 .address a {
-  margin-block: -15px;
+  margin-block: -14px;
 }
 
 @media (max-width: 599px) {
@@ -135,6 +138,10 @@
 .notice[data-compact] {
   gap: var(--space-1);
   padding: var(--space-2) var(--space-3);
+}
+
+.notice[data-compact] .head {
+  margin-block: calc(-1 * var(--space-2)) calc(-1 * var(--space-1));
 }
 
 .offer[data-compact] {

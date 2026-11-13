@@ -1,11 +1,10 @@
-import { useOpenAlertCount, type OpenAlerts } from '@/api/alerts';
-import { useDiaryLayer } from '@/api/layers';
-import { useTasks } from '@/api/tasks';
-import { daysUntil } from '@/screens/tasks/tasks';
+import { useOpenAlerts } from '@/api/alerts';
+import { itemsOf } from '@/api/pages';
+import { useOfferedUpdates } from '@/screens/devices/firmware-builds';
+import { useDueEverywhere } from '@/screens/start/due';
 import { useNow } from '@/ui/useNow';
-import { useZone } from '@/ui/zone';
 
-/** What the bell carries, and whether it is alarms (red) or only work that is due (the brand's blue). */
+/** What the bell carries, and whether it is something open (amber) or only work that is due (the brand's blue). */
 interface Bell {
   text: string;
   key: string;
@@ -17,34 +16,24 @@ interface Bell {
 const MANY_OPEN = 99;
 
 /**
- * What the bell draws and what it says it is, or nothing at all while no alert
- * is open, so a quiet account reads as quiet rather than as a zero. A count
- * taken from one page would understate an account with more than fits on it,
- * so that one says "99+" and means it.
- */
-const bellOf = (alerts: OpenAlerts | undefined): { text: string; key: string; count: number } | null => {
-  if (!alerts || alerts.open === 0) return null;
-
-  return alerts.more
-    ? { text: `${MANY_OPEN}+`, key: 'alerts.bellMore', count: MANY_OPEN }
-    : { text: String(alerts.open), key: 'alerts.bell', count: alerts.open };
-};
-
-/**
- * The badge on the bell. An open alarm is what it is for and is counted first;
- * where the diary is kept and no alarm is open, the tasks that are due are
- * counted instead, in a quieter colour, so a due task is not left to the inbox.
+ * The badge on the bell, counted from what the inbox lists, so the two agree.
+ * What is open is what it is for and is counted first: the alerts still
+ * standing, and an update that waits for somebody's word. A count taken from
+ * one page of alerts would understate an account with more than fits on it,
+ * so that one says "99+" and means it. Where the diary is kept and nothing is
+ * open, what is due is counted instead, in a quieter colour. Nothing at all
+ * while there is nothing, so a quiet account reads as quiet rather than as a
+ * zero.
  */
 export const useBell = (): Bell | null => {
-  const alarms = bellOf(useOpenAlertCount());
-  const diary = useDiaryLayer();
-  const tasks = useTasks(false, diary);
-  const now = useNow();
-  const zone = useZone();
+  const alerts = useOpenAlerts();
+  const updates = useOfferedUpdates().length;
+  const due = useDueEverywhere(useNow());
 
-  if (alarms) return { ...alarms, kind: 'alerts' };
-  if (!diary) return null;
-  const due = (tasks.data?.items ?? []).filter(task => daysUntil(task.dueAt, now, zone) <= 0).length;
+  const open = itemsOf(alerts.data).length + updates;
+  if (alerts.hasNextPage) return { text: `${MANY_OPEN}+`, key: 'alerts.bellMore', count: MANY_OPEN, kind: 'alerts' };
+  if (open > 0) return { text: String(open), key: 'alerts.bell', count: open, kind: 'alerts' };
+  const waiting = due.rows.length + due.steps.length;
 
-  return due > 0 ? { text: String(due), key: 'alerts.bellTasks', count: due, kind: 'tasks' } : null;
+  return waiting > 0 ? { text: String(waiting), key: 'alerts.bellTasks', count: waiting, kind: 'tasks' } : null;
 };
