@@ -10,7 +10,7 @@ import { PlaceChoices } from '@/ui/PlaceChoices';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
-import { keptPreset } from '@/ui/presets';
+import { keptPreset, presetsOf } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
@@ -117,7 +117,9 @@ export function SplitSheet({
             ))}
           </Choices>
 
-          {stage ? <StageClimates label={t('grow.lifecycle.phase.presetLabel')} stage={stage} chosen={preset} onPick={setPreset} /> : null}
+          {/* Named as the correction names it: the phase's row and its climate's can carry the same word. */}
+          {stage && presetsOf(stage).length > 0 ? <span className="label">{t('grow.lifecycle.phase.presetLabel')}</span> : null}
+          {stage ? <StageClimates label={t('grow.lifecycle.phase.presetLabel')} stage={stage} chosen={preset} onPick={setPreset} keep /> : null}
         </Block>
 
         <Block label={t('grow.lifecycle.split.theirPlace')}>

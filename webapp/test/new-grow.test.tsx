@@ -175,6 +175,26 @@ describe('the form a grow is started with', () => {
     expect(vi.mocked(api.post).mock.calls.map(call => call[0])).toEqual(['/grows', '/grows/grow-new/phases']);
   });
 
+  /** A count the form cannot read is refused in words that say what it takes, never turned into one it can. */
+  it('refuses a plant count that is no whole number from 1, and starts nothing until it is one', async () => {
+    await drawLoaded('space-1');
+    const plants = screen.getByRole('spinbutton', { name: 'Plants' });
+
+    for (const typed of ['0', '-3', '2.5', '']) {
+      fireEvent.change(plants, { target: { value: typed } });
+      expect(plants).toHaveValue(typed === '' ? null : Number(typed));
+      expect(plants).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByRole('alert')).toHaveTextContent('Plants: a whole number from 1.');
+      expect(screen.getByRole('button', { name: 'Start a grow' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Start a grow' })).toHaveAccessibleDescription('Plants: a whole number from 1.');
+    }
+
+    fireEvent.change(plants, { target: { value: '3' } });
+    expect(plants).not.toHaveAttribute('aria-invalid');
+    fireEvent.click(screen.getByRole('button', { name: 'Start a grow' }));
+    await waitFor(() => expect(sent('/grows')).toMatchObject({ plants: [{ count: 3 }] }));
+  });
+
   // The stage's name stands whole on the button: no line of it ends on the dot.
   it('puts the place on a stage the grower chose, and the button says so before the tap', async () => {
     await drawLoaded('space-1');

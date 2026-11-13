@@ -72,6 +72,7 @@ export function WhatGrows({
 }) {
   const { t } = useTranslation();
   const form = useId();
+  const countRefusal = useId();
   const zone = useZone();
   const grows = useGrows();
   const spaces = useSpaces(fixed === null);
@@ -81,7 +82,8 @@ export function WhatGrows({
   const [name, setName] = useState('');
   const [since, setSince] = useState<Since>('today');
   const [date, setDate] = useState(() => serverNow().toJSDate());
-  const [count, setCount] = useState(1);
+  // As typed: a count the form cannot read is refused under the field, never turned into one it can.
+  const [count, setCount] = useState('1');
   const [picked, setStage] = useState<GrowthStage | null>(null);
   const [where, setWhere] = useState<string | null>(null);
   const [germination, setGermination] = useState<Partial<Choices>>({});
@@ -100,6 +102,8 @@ export function WhatGrows({
   const stage = picked ?? opened;
   const climate = picked !== null && picked !== on && controller !== null && !recordsOnly(picked, spaceId ? growIn(running, spaceId) : null);
   const germinates = climate && stage === 'germination';
+  const plants = /^\s*\d+\s*$/.test(count) ? Number(count) : 0;
+  const countRefused = plants < 1;
   // Asked of the place's sockets only once the choices are on the form.
   const humidifier = useHumidifier(germinates ? controller : null);
   // The choices open under the stage that was tapped, which on a short screen is behind the sheet's foot: they are
@@ -111,12 +115,12 @@ export function WhatGrows({
 
   const submit = async () => {
     // Not before the place has said which stage it is on: what is chosen is told apart from it.
-    if (stage === null || opened === null) return;
+    if (stage === null || opened === null || countRefused) return;
     const now = serverNow().toJSDate();
     const startedAt = since === 'today' ? now : since === 'week' ? new Date(now.getTime() - 7 * DAY_MS) : date;
     const typed = name.trim();
     const body = growBody(
-      { name: typed || suggestedName(running, spaceId, t('grow.new.firstName')), strain: typed || t('grow.new.unnamedStrain'), count },
+      { name: typed || suggestedName(running, spaceId, t('grow.new.firstName')), strain: typed || t('grow.new.unnamedStrain'), count: plants },
       spaceId,
       startedAt,
     );
@@ -140,7 +144,8 @@ export function WhatGrows({
         type="submit"
         form={form}
         className={`${submitClass ?? `${ui.button} ${ui.primary}`} ${styles.start}`}
-        disabled={busy || grows.isPending || opened === null || (fixed === null && spaces.isPending)}
+        disabled={busy || grows.isPending || opened === null || countRefused || (fixed === null && spaces.isPending)}
+        aria-describedby={countRefused ? countRefusal : undefined}
       >
         {busy
           ? t('grow.new.starting')
@@ -180,11 +185,19 @@ export function WhatGrows({
             type="number"
             inputMode="numeric"
             min={1}
+            step={1}
             value={count}
-            onChange={event => setCount(Math.max(1, Math.round(Number(event.target.value)) || 1))}
+            aria-invalid={countRefused || undefined}
+            aria-describedby={countRefused ? countRefusal : undefined}
+            onChange={event => setCount(event.target.value)}
           />
         </label>
       </div>
+      {countRefused ? (
+        <p id={countRefusal} className={ui.problem} role="alert">
+          {t('grow.new.plantsRefused')}
+        </p>
+      ) : null}
       {since === 'date' ? (
         <label className={styles.field}>
           {t('grow.new.startedOn')}

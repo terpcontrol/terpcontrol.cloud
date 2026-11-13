@@ -74,14 +74,9 @@ const series = {
   range: 'grow',
   startsAt: at(35),
   endsAt: at(0),
-  stepSeconds: 0,
   originAt: at(35),
   dayFrom: 1,
   dayTo: 35,
-  deviceIds: [],
-  climate: [],
-  outputs: [],
-  nights: [],
   measurements: [
     {
       key: 'height',

@@ -113,9 +113,19 @@ const UNREACHED: NotificationSettings = {
   mutedUntil: null,
 };
 
-/** The account with nothing but the ways it is reached changed. */
+/**
+ * The account with nothing but the ways it is reached changed. It keeps no diary, so a controller's claim asks what
+ * its place is doing; an account that keeps one (`keepingADiary`) is asked what grows there instead.
+ */
 const meReaching = (notifications: NotificationSettings): Me =>
-  meWith({ email: 'grower@example.org', preferences: { ...meWith().preferences, timezone: 'UTC', notifyLaterUntil: null }, notifications });
+  meWith({
+    email: 'grower@example.org',
+    preferences: { ...meWith().preferences, timezone: 'UTC', notifyLaterUntil: null, diary: 'off' },
+    notifications,
+  });
+
+/** The same account keeping a diary: its claim ends on what grows here, which sets the place's climate with the phase. */
+const keepingADiary = (me: Me): Me => ({ ...me, preferences: { ...me.preferences, diary: 'on' } });
 
 const state = {
   spaces: [] as Space[],
@@ -188,8 +198,11 @@ const draw = (at = '/claim') =>
     { at },
   );
 
-/** What a controller's claim says it will ask of an account nothing reaches yet. */
-const ASKED = 'doing.hardware.notify.grow';
+/** What a controller's claim says it will ask of an account nothing reaches yet and that keeps no diary. */
+const ASKED = 'doing.hardware.notify';
+
+/** What it asks of one that keeps a diary: what grows, and no stage before it. */
+const GROWS = 'hardware.notify.grow';
 
 /** The address of a flow that was left on a question, as a locked phone comes back to it. */
 const left = (at: string, { device: id = 'sim-controller-7f3a', ask = ASKED, made = '' } = {}) =>
@@ -204,6 +217,9 @@ const claim = (at?: string) => {
 
   return drawn;
 };
+
+/** What the first step says the device reported, as one line of facts. */
+const claimedFacts = () => screen.getByText(/online 20 s ago/).closest('p')!;
 
 /** The step of the list that is open, by its heading. */
 const openStep = () => document.querySelector('[aria-current="step"] h2');
@@ -343,7 +359,7 @@ describe('adding a device', () => {
     vi.mocked(api.get).mockImplementation(
       (path: string) => Promise.resolve(path === '/devices/sim-controller-7f3a' ? state.devices[0] : answers(path)) as never,
     );
-    const { unmount } = draw(left('grow'));
+    const { unmount } = draw(left('grow', { ask: GROWS }));
     await screen.findByRole('heading', { level: 2, name: 'What grows here?' });
     fireEvent.click(screen.getByRole('button', { name: 'Stop adding' }));
 
@@ -352,7 +368,7 @@ describe('adding a device', () => {
     unmount();
 
     told.length = 0;
-    draw(left('grow'));
+    draw(left('grow', { ask: GROWS }));
     fireEvent.click(await screen.findByRole('button', { name: 'Not now' }));
     expect(address()).toBe('/spaces/space-new');
     expect(told).toEqual([]);
@@ -382,7 +398,7 @@ describe('adding a device', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(openStep()).toHaveTextContent('What is it doing right now?'));
-    fireEvent.click(screen.getByRole('button', { name: 'Next · sockets and cam?' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next · sockets and camera' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Next · notifications' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Done · open the place' }));
 
@@ -418,30 +434,64 @@ describe('adding a device', () => {
     // The device by its name, and nothing of its id: one controller needs no telling apart.
     expect(screen.getByRole('heading', { level: 2, name: /Added/ })).toHaveTextContent(/^Added · Terp Controller$/);
     // Its build and its sockets are read once the device is.
-    await waitFor(() =>
-      expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('online 20 s ago · firmware 082eda0-stable · 0 sockets · Cam: none'),
-    );
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 5$/);
-    expect(screen.getByRole('button', { name: /Next/ })).toHaveTextContent('Next · sockets and cam?');
+    await waitFor(() => expect(claimedFacts()).toHaveTextContent('online 20 s ago · firmware 082eda0-stable · 0 sockets · no camera'));
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 4$/);
+    expect(screen.getByRole('button', { name: /Next/ })).toHaveTextContent('Next · sockets and camera');
   });
 
   it('draws every step the count names - the last one, which is a page of its own, too - and explains none of them in a paragraph', async () => {
-    await drawClaimed();
+    state.me = keepingADiary(state.me);
+    claim();
+    await waitFor(() => expect(openStep()).toHaveTextContent('Sockets and camera'));
 
     const steps = screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent);
-    expect(steps).toEqual([
-      'Added · Terp Controller',
-      'What is it doing right now?',
-      'Sockets and cam',
-      'How will you hear about problems?',
-      'What grows here?',
-    ]);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/of 5$/);
+    expect(steps).toEqual(['Added · Terp Controller', 'Sockets and camera', 'How will you hear about problems?', 'What grows here?']);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/of 4$/);
     // What a question is about stands behind the help button beside it; a step still ahead is its title and no more.
-    expect(screen.getByRole('button', { name: 'About Climate preset' })).toHaveAccessibleDescription(/^A ready climate for a phase/);
+    expect(screen.getByRole('button', { name: 'About Pairing by IP' })).toBeInTheDocument();
     expect(document.querySelectorAll('[data-state="ahead"] p')).toHaveLength(0);
     // Under the button stands nothing: what can wait is not explained on the way past it.
-    expect(document.querySelector('footer')).toHaveTextContent(/^Next · sockets and cam\?$/);
+    expect(document.querySelector('footer')).toHaveTextContent(/^Next · notifications$/);
+  });
+
+  /**
+   * "Was wächst hier?" sets the phase and the place's climate in one answer, so an account that keeps a diary is
+   * not asked what the tent is doing before it: the stage would be asked twice (Chris, 2026-11-13).
+   */
+  it('asks an account that keeps a diary what grows here, and no stage before it', async () => {
+    state.me = keepingADiary(state.me);
+    claim();
+
+    await waitFor(() => expect(address()).toBe(`/claim?device=sim-controller-7f3a&ask=${GROWS}&at=hardware&made=space-new`));
+    expect(screen.queryByRole('heading', { level: 2, name: 'What is it doing right now?' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 4$/);
+  });
+
+  it('asks an account without a diary what the place is doing, with what a climate preset is behind the help', async () => {
+    await drawClaimed();
+
+    expect(screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent)).toEqual([
+      'Added · Terp Controller',
+      'What is it doing right now?',
+      'Sockets and camera',
+      'How will you hear about problems?',
+    ]);
+    expect(screen.getByRole('button', { name: 'About Climate preset' })).toHaveAccessibleDescription(/^A ready climate for a phase/);
+  });
+
+  /** A camera is said as what it is and whether it answers, never by the tail of its id ("Cam F33B"). */
+  it('says a coupled camera as a Terp Cam, and offers to couple one only where none is', async () => {
+    const coupled = { ...device, state: { ...device.state, hardware: { ...device.state.hardware, webcam_did: 'VSTB123456F33B' } } };
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/sim-controller-7f3a' ? coupled : answers(path)) as never,
+    );
+    draw(left('hardware'));
+
+    const reported = await screen.findByText('Reported sockets');
+    expect(reported.closest('ul')).toHaveTextContent(/Camera\s*Terp Cam paired$/);
+    expect(claimedFacts()).toHaveTextContent(/· Terp Cam paired$/);
+    expect(document.body).not.toHaveTextContent(/F33B/);
+    expect(screen.queryByRole('link', { name: 'Pair a Terp Cam' })).not.toBeInTheDocument();
   });
 
   /**
@@ -467,21 +517,22 @@ describe('adding a device', () => {
    * hardware left out the cam they can have.
    */
   it('asks a smart socket about the cam it can pair, and nothing about sockets or a climate', async () => {
+    state.me = keepingADiary(state.me);
     state.claim = { device: plug, spaceCreated: true };
     state.devices = [plug];
     claim();
 
     // A socket sets no climate of its own, so no stage is asked of it: the cam is its first question.
-    await waitFor(() => expect(openStep()).toHaveTextContent('Cam'));
+    await waitFor(() => expect(openStep()).toHaveTextContent('Camera'));
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add Plantalytix Socket · step 2 of 4$/);
     expect(screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent)).toEqual([
       'Added · Plantalytix Socket',
-      'Cam',
+      'Camera',
       'How will you hear about problems?',
       'What grows here?',
     ]);
     // What the first step says it found names the cam and no sockets a plug cannot have.
-    expect(screen.getByText(/Cam: none/)).toBeInTheDocument();
+    expect(claimedFacts()).toHaveTextContent(/· no camera$/);
     expect(screen.queryByText(/0 sockets/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Pair a Terp Cam' })).toHaveAttribute('href', '/cameras/add');
     expect(screen.queryByText('Reported sockets')).not.toBeInTheDocument();
@@ -490,6 +541,7 @@ describe('adding a device', () => {
   });
 
   it('asks a light nothing about sockets and a cam it cannot have, and counts three steps', async () => {
+    state.me = keepingADiary(state.me);
     state.claim = { device: light, spaceCreated: true };
     state.devices = [light];
     claim();
@@ -497,8 +549,8 @@ describe('adding a device', () => {
     await waitFor(() => expect(openStep()).toHaveTextContent('How will you hear about problems?'));
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add light · step 2 of 3$/);
     expect(screen.queryByRole('heading', { level: 2, name: /Cam/ })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Cam: none|0 sockets/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next · what grows?' })).toBeEnabled();
+    expect(claimedFacts()).not.toHaveTextContent(/camera|sockets/);
+    expect(screen.getByRole('button', { name: 'Next · grow' })).toBeEnabled();
   });
 
   /**
@@ -508,12 +560,12 @@ describe('adding a device', () => {
    * by the server from the tap alone, so nothing of the address is sent.
    */
   it('asks how alarms will reach anybody, and mails critical ones to the login address in one tap', async () => {
-    draw(left('notify'));
+    draw(left('notify', { ask: GROWS }));
 
     expect(await screen.findByRole('heading', { level: 2, name: 'How will you hear about problems?' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'About Alarms by e-mail' })).toHaveAccessibleDescription(/^Until a way is set up, nothing reaches you/);
     expect(await screen.findByText('to grower@example.org')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next · what grows?' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Next · grow' })).toBeEnabled();
     // The bottom button stays the one green action of the screen.
     expect(screen.getByRole('button', { name: 'Notify me by e-mail' }).className).not.toMatch(/primary/);
 
@@ -522,26 +574,28 @@ describe('adding a device', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/me/email-alarms'));
     expect(await screen.findByText('Critical alarms by e-mail to grower@example.org')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', '/me/notifications');
-    // Answered, the step is still the fourth of five: the count was said when the device was claimed.
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 4 of 5$/);
+    // Answered, the step is still the third of four: the count was said when the device was claimed.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 3 of 4$/);
   });
 
   /**
    * The diary is offered from the first day: setting a device up ends by
    * asking what grows there, on a page of its own. An answer starts the grow
-   * and its phase and leaves the climate alone, which the step before set.
+   * and its phase; the place's climate moves only with a stage the grower
+   * picked, which the form's button then says.
    */
   it('ends by asking what grows here, and an answer starts the grow and opens the place', async () => {
+    state.me = keepingADiary(state.me);
     vi.mocked(api.post).mockImplementation((path: string) => Promise.resolve(path === '/grows' ? { id: 'grow-new' } : {}) as never);
-    draw(left('notify'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Next · what grows?' }));
+    draw(left('notify', { ask: GROWS }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Next · grow' }));
 
     // The place is not glued to the question: it was settled a page earlier, and "here" is where the device hangs.
     const question = await screen.findByRole('heading', { level: 2, name: 'What grows here?' });
     expect(question).toHaveFocus();
     // The head's line names the window on this page as on every other of the flow; the question stands under it.
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 5 of 5$/);
-    expect(address()).toBe(left('grow'));
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 4 of 4$/);
+    expect(address()).toBe(left('grow', { ask: GROWS }));
     // The steps before are answered and written; this page asks its one question.
     expect(screen.queryByRole('heading', { level: 2, name: /Added/ })).not.toBeInTheDocument();
 
@@ -562,26 +616,13 @@ describe('adding a device', () => {
   });
 
   it('leaves the question for Start when it is skipped, writing nothing', async () => {
-    draw(left('grow'));
+    draw(left('grow', { ask: GROWS }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Not now' }));
 
     expect(address()).toBe('/spaces/space-new');
     expect(api.post).not.toHaveBeenCalled();
     expect(told).toEqual([]);
-  });
-
-  it('opens the question on the stage the place was just put on', async () => {
-    await drawClaimed();
-    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
-    await screen.findByText('The targets went to 1 device.');
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Next/ }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Next · what grows?' }));
-
-    await screen.findByRole('heading', { level: 2, name: 'What grows here?' });
-    expect(screen.getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   /**
@@ -604,7 +645,7 @@ describe('adding a device', () => {
     vi.mocked(api.get).mockImplementation(
       (path: string) => Promise.resolve(path === '/devices' ? { items: [flowering], nextCursor: null } : answers(path)) as never,
     );
-    draw(left('grow'));
+    draw(left('grow', { ask: GROWS }));
 
     await screen.findByRole('heading', { level: 2, name: 'What grows here?' });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true'));
@@ -612,7 +653,7 @@ describe('adding a device', () => {
   });
 
   it('opens it on growth where nothing says which stage the place is on', async () => {
-    draw(left('grow'));
+    draw(left('grow', { ask: GROWS }));
 
     await screen.findByRole('heading', { level: 2, name: 'What grows here?' });
     // Not before the place has said so: a device list being read again is waited for (`usePlaceStage`).
@@ -625,6 +666,7 @@ describe('adding a device', () => {
    * sending, and the shell is told beforehand that the diary about to appear is setup´s own doing.
    */
   it('keeps the question on screen while its answer is on the way, and says the diary it brings is its own doing', async () => {
+    state.me = keepingADiary(state.me);
     let phaseWritten = () => {};
     vi.mocked(api.post).mockImplementation((path: string) => {
       if (path === '/grows') {
@@ -633,7 +675,7 @@ describe('adding a device', () => {
       }
       return new Promise(resolve => (phaseWritten = () => resolve({}))) as never;
     });
-    draw(left('grow'));
+    draw(left('grow', { ask: GROWS }));
 
     await screen.findByRole('heading', { level: 2, name: 'What grows here?' });
     expect(takeExpected()).toEqual({ diary: true });
@@ -654,7 +696,7 @@ describe('adding a device', () => {
   });
 
   it('takes its word about the diary back when the question is left unanswered', async () => {
-    draw(left('grow'));
+    draw(left('grow', { ask: GROWS }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Not now' }));
 
@@ -673,10 +715,10 @@ describe('adding a device', () => {
 
   it('ends a step early where a grow already stands, with the count it said', async () => {
     state.grows = [{ ...spring, placements: [{ ...spring.placements[0], spaceId: 'space-new' }] } as GrowListItem];
-    draw(left('notify'));
+    draw(left('notify', { ask: GROWS }));
 
     expect(await screen.findByRole('button', { name: 'Done · open the place' })).toBeEnabled();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 4 of 5$/);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 3 of 4$/);
     fireEvent.click(screen.getByRole('button', { name: 'Done · open the place' }));
     expect(address()).toBe('/spaces/space-new');
   });
@@ -689,7 +731,7 @@ describe('adding a device', () => {
     });
     await drawClaimed();
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 4$/);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 3$/);
     expect(screen.queryByRole('heading', { level: 2, name: 'How will you hear about problems?' })).not.toBeInTheDocument();
   });
 
@@ -704,7 +746,7 @@ describe('adding a device', () => {
           path === '/grows' && (query as { spaceId?: string } | undefined)?.spaceId ? { items: [], nextCursor: null } : answers(path),
         ) as never,
     );
-    draw(left('grow'));
+    draw(left('grow', { ask: GROWS }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Or move a grow here' }));
 
@@ -855,7 +897,7 @@ describe('adding a device', () => {
   it('comes back on the step it was left on rather than asking for a code that is spent', async () => {
     draw(left('doing'));
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add controller · step 2 of 5'));
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add controller · step 2 of 4'));
     expect(openStep()).toHaveTextContent('What is it doing right now?');
     expect(screen.queryByRole('textbox', { name: 'Code on the display' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Next/ })).toBeEnabled();
@@ -886,7 +928,7 @@ describe('adding a device', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: 'What is it doing right now?' })).toHaveFocus();
     // The open step keeps a region of its own for what its write did, so the screen has two.
-    expect(screen.getAllByRole('status').map(one => one.textContent)).toContain('What is it doing right now? · step 2 of 5');
+    expect(screen.getAllByRole('status').map(one => one.textContent)).toContain('What is it doing right now? · step 2 of 4');
   });
 
   it('writes the stage that was picked when the bottom button is the one pressed', async () => {
@@ -896,8 +938,8 @@ describe('adding a device', () => {
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'seedling' }));
     // Written, it moves on: what grows here is the flow's last question, not this step's.
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add controller · step 3 of 5'));
-    expect(openStep()).toHaveTextContent('Sockets and cam');
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add controller · step 3 of 4'));
+    expect(openStep()).toHaveTextContent('Sockets and camera');
   });
 
   it('offers germination in the dark first, and says what it holds before it is written', async () => {
@@ -996,8 +1038,8 @@ describe('adding a device', () => {
     // The version and not the name: every build carried over from the old
     // cloud is named after its class, so the name says "controller" about
     // every controller build there has ever been.
-    expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('firmware 082eda0-stable');
-    expect(screen.getByText(/online 20 s ago/)).not.toHaveTextContent('build-uuid');
+    expect(claimedFacts()).toHaveTextContent('firmware 082eda0-stable');
+    expect(claimedFacts()).not.toHaveTextContent('build-uuid');
   });
 
   it('leaves the build out altogether rather than naming it after a uuid nobody named', async () => {
@@ -1009,7 +1051,7 @@ describe('adding a device', () => {
 
     await drawClaimed();
 
-    await waitFor(() => expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('online 20 s ago · 0 sockets · Cam: none'));
+    await waitFor(() => expect(claimedFacts()).toHaveTextContent('online 20 s ago · 0 sockets · no camera'));
   });
 
   /**
@@ -1020,7 +1062,7 @@ describe('adding a device', () => {
     const drawn = await drawClaimed();
     await settled(drawn);
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 5$/);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 4$/);
     expect(openStep()).toHaveTextContent('What is it doing right now?');
     expect(screen.queryByRole('heading', { name: 'Where it hangs' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^At a new place/ })).not.toBeInTheDocument();
@@ -1037,6 +1079,7 @@ describe('adding a device', () => {
    * the question leaves nothing behind.
    */
   it('claims a fan into the tent the account has in the one write, and asks where it hangs without a count', async () => {
+    state.me = keepingADiary(state.me);
     state.spaces = [mother];
     joins(fan, mother);
     state.devices = [{ ...device, id: 'sim-controller-0001', spaceId: 'space-mother' }, fan];
@@ -1137,6 +1180,7 @@ describe('adding a device', () => {
   });
 
   it('counts the steps from the answer on where a fan hangs in a place without a controller, and says the place in the step it settled', async () => {
+    state.me = keepingADiary(state.me);
     const dream: Space = { ...mother, name: 'Blue Dream' };
     state.spaces = [dream];
     joins(fan, dream);
@@ -1149,7 +1193,7 @@ describe('adding a device', () => {
     expect(screen.getByText('No device is there yet.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Blue Dream/ }));
 
-    await waitFor(() => expect(openStep()).toHaveTextContent('Cam'));
+    await waitFor(() => expect(openStep()).toHaveTextContent('Camera'));
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add fan · step 3 of 5$/);
     // The step that was asked is ticked and says the place: its name, and the kind where the name does not say it.
     expect(screen.getByRole('button', { name: 'Where it hangs' })).toBeInTheDocument();
@@ -1160,6 +1204,7 @@ describe('adding a device', () => {
   });
 
   it('makes a place for a fan that is to hang at a new one and moves the fan there - and ends it again if the fan goes back', async () => {
+    state.me = keepingADiary(state.me);
     state.spaces = [mother];
     joins(fan, mother);
     state.devices = [{ ...device, id: 'sim-controller-0001', spaceId: 'space-mother' }, fan];
@@ -1170,7 +1215,7 @@ describe('adding a device', () => {
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'tent', name: 'Tent' }));
     await waitFor(() => expect(moves().at(-1)).toEqual(['/devices/sim-fan-1', { spaceId: 'space-made' }]));
-    await waitFor(() => expect(openStep()).toHaveTextContent('Cam'));
+    await waitFor(() => expect(openStep()).toHaveTextContent('Camera'));
     expect(address()).toBe('/claim?device=sim-fan-1&ask=place.hardware.notify.grow&at=hardware&made=space-made');
 
     // Back on the question, whose entry was written before the place was made: the page still knows it made one.
@@ -1207,7 +1252,7 @@ describe('adding a device', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveAttribute('aria-current', 'true'));
 
     fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
-    await waitFor(() => expect(openStep()).toHaveTextContent('Cam'));
+    await waitFor(() => expect(openStep()).toHaveTextContent('Camera'));
     expect(moves().at(-1)).toEqual(['/devices/sim-fan-1', { spaceId: 'space-made' }]);
     expect(state.spaces.map(one => one.id)).toEqual(['space-mother', 'space-made']);
   });
@@ -1224,7 +1269,7 @@ describe('adding a device', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server. Try again.');
     fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
 
-    await waitFor(() => expect(openStep()).toHaveTextContent('Cam'));
+    await waitFor(() => expect(openStep()).toHaveTextContent('Camera'));
     expect(vi.mocked(api.post).mock.calls.filter(([path]) => path === '/spaces')).toHaveLength(1);
     expect(moves().at(-1)).toEqual(['/devices/sim-fan-1', { spaceId: 'space-made' }]);
   });
@@ -1249,8 +1294,8 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
 
     await waitFor(() => expect(openStep()).toHaveTextContent('What is it doing right now?'));
-    // Counted from here on: the code, where it hangs, and the four that follow.
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 3 of 6$/);
+    // Counted from here on: the code, where it hangs, and the three that follow.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 3 of 5$/);
     expect(screen.getByRole('heading', { level: 2, name: 'Where it hangs' })).toBeInTheDocument();
     expect(address()).toBe(left('doing', { ask: `place.${ASKED}`, made: 'space-new' }));
     // The claim made the place and gave it its name; the answer added nothing to that.
@@ -1265,6 +1310,7 @@ describe('adding a device', () => {
    * beside the first is therefore not asked for one - and a step that is not asked is not counted and not ticked.
    */
   it('asks a controller hung beside another for no climate: the step is neither counted nor drawn', async () => {
+    state.me = keepingADiary(state.me);
     state.spaces = [space, mother];
     state.devices = [{ ...device, id: 'sim-controller-0001', spaceId: 'space-mother' }, device];
     const drawn = claim();
@@ -1272,14 +1318,14 @@ describe('adding a device', () => {
     await hangQuestion('controller');
     fireEvent.click(screen.getByRole('button', { name: /^Mother tent/ }));
 
-    await waitFor(() => expect(openStep()).toHaveTextContent('Sockets and cam'));
+    await waitFor(() => expect(openStep()).toHaveTextContent('Sockets and camera'));
     expect(moves()).toContainEqual(['/devices/sim-controller-7f3a', { spaceId: 'space-mother' }]);
     expect(api.delete).toHaveBeenCalledWith('/spaces/space-new');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 3 of 5$/);
     expect(screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent)).toEqual([
       'Added · Terp Controller',
       'Where it hangs',
-      'Sockets and cam',
+      'Sockets and camera',
       'How will you hear about problems?',
       'What grows here?',
     ]);
@@ -1313,7 +1359,7 @@ describe('adding a device', () => {
     await settled(drawn);
 
     expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS });
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 5$/);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 4$/);
     expect(openStep()).toHaveTextContent('What is it doing right now?');
     expect(screen.queryByRole('heading', { name: 'Where it hangs' })).not.toBeInTheDocument();
     expect(moves()).toEqual([]);
@@ -1345,7 +1391,7 @@ describe('adding a device', () => {
     await screen.findByRole('heading', { level: 2, name: /Added/ });
     await settled(drawn);
     // No place question is asked, so the count is said as soon as the code is taken.
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 5$/);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 4$/);
     expect(openStep()).toHaveTextContent('What is it doing right now?');
     // No place was made, so none is named and none is carried in the address.
     expect(api.patch).not.toHaveBeenCalled();
@@ -1363,8 +1409,8 @@ describe('adding a device', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
-    await waitFor(() => expect(openStep()).toHaveTextContent('Sockets and cam'));
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 4$/);
+    await waitFor(() => expect(openStep()).toHaveTextContent('Sockets and camera'));
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 3$/);
     expect(screen.queryByRole('heading', { level: 2, name: 'What is it doing right now?' })).not.toBeInTheDocument();
   });
 
@@ -1459,15 +1505,15 @@ describe('adding a device', () => {
    */
   it('goes one question back on Back, and from the first to the Start of the place - never to the code', async () => {
     await drawClaimed();
-    fireEvent.click(screen.getByRole('button', { name: 'Next · sockets and cam?' }));
-    await waitFor(() => expect(openStep()).toHaveTextContent('Sockets and cam'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next · sockets and camera' }));
+    await waitFor(() => expect(openStep()).toHaveTextContent('Sockets and camera'));
     expect(address()).toBe(left('hardware', { made: 'space-new' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'browser back' }));
     await waitFor(() => expect(openStep()).toHaveTextContent('What is it doing right now?'));
     expect(address()).toBe(left('doing', { made: 'space-new' }));
     // The step that was reached stays answered: Back corrects one, it does not take the others back.
-    expect(screen.getByRole('button', { name: 'Sockets and cam' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sockets and camera' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'browser back' }));
     await waitFor(() => expect(address()).toBe('/spaces/space-new'));

@@ -490,7 +490,11 @@ describe('the split sheet over a grow whose record carries no plants', () => {
     expect(screen.queryByText(/No plants are recorded/)).not.toBeInTheDocument();
   });
 
-  it('names the climates of the phase the plants go into as the phase sheet and Control do, and their places and none', () => {
+  /**
+   * A split names no climate unless a preset is chosen, so its first chip is the phase sheet's "Leave as they are"
+   * (Chris, 2026-11-13): it was called after the stage, "Flower", and wrote nothing.
+   */
+  it('offers the climates of the phase the plants go into behind "Leave as they are", and their places and none', () => {
     drawAt(
       <LogProvider>
         <SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />
@@ -503,8 +507,12 @@ describe('the split sheet over a grow whose record carries no plants', () => {
       within(climates)
         .getAllByRole('button')
         .map(one => one.textContent),
-    ).toEqual(['Flower', 'Late flower', 'Auto · Flower']);
-    expect(within(climates).getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true');
+    ).toEqual(['Leave as they are', 'Late flower', 'Auto · Flower']);
+    expect(within(climates).getByRole('button', { name: 'Leave as they are' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Climate preset', { selector: '.label' })).toBeInTheDocument();
+    // A stage nothing refines offers no choice at all: the lone chip would be no question.
+    fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
+    expect(screen.queryByRole('group', { name: 'Climate preset' })).not.toBeInTheDocument();
 
     const places = screen.getByRole('group', { name: 'Their place' });
     expect(

@@ -1,16 +1,19 @@
 import { ChevronRight } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router';
 import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
 import { growSchemeLabel, schemeVersionLabel, useOwnSchemes, useScheme, useSchemes } from '@/api/schemes';
 import { looseFigure, typedFigure } from '@/ui/figures';
 import { Help, Term } from '@/ui/Help';
+import { Asking } from '@/ui/Asking';
 import { NothingHere, Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { sameScheme, useSchemeEdit } from './scheme/edit-store';
 import { withFlipWeek } from './scheme/grid';
 import { GridEditor } from './scheme/GridEditor';
+import { LeaveGuard } from './scheme/LeaveGuard';
 import { useAnswered } from './told';
 import { SchemeSheet } from './scheme/SchemeSheet';
 import styles from './scheme/Scheme.module.css';
@@ -53,6 +56,9 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
   const answer = useAnswered(update, `scheme-${grow.id}`);
 
   const [edit, setEdit] = useSchemeEdit(grow.id);
+  const here = useLocation();
+  // The grow's own pages, between which what is typed is kept (`useSchemeEdit`): its address without the tab.
+  const grows = here.pathname.replace(/\/feeding$/, '');
   const [choosing, setChoosing] = useState(false);
 
   // With nothing typed the screen is the stored grow, so a correction saved
@@ -99,22 +105,44 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
     );
   };
 
+  // Leaving the grow with cells typed asks first, in the bar that says they are not saved; a switch between the
+  // grow's own tabs keeps them and asks nothing.
   const unsaved =
     mayManage && dirty ? (
       <div className={styles.unsaved} role={moved ? 'alert' : undefined}>
-        <span className={styles.unsavedNote}>{moved ? t('grow.scheme.movedUnder') : t('grow.scheme.unsaved')}</span>
-        <button type="button" className={ui.button} disabled={update.isPending} onClick={() => setEdit(null)}>
-          {moved ? t('grow.scheme.takeTheirs') : t('grow.scheme.discard')}
-        </button>
-        {moved ? (
-          <button type="button" className={ui.button} onClick={() => setEdit({ draft, against: stored })}>
-            {t('grow.scheme.keepMine')}
+        <LeaveGuard
+          dirty
+          stays={next => next.search === here.search && (next.pathname === grows || next.pathname.startsWith(`${grows}/`))}
+          asking={held => (
+            <div className={styles.leaving}>
+              <Asking
+                note={t('grow.scheme.leaveUnsaved')}
+                yes={t('grow.scheme.discard')}
+                danger
+                busy={false}
+                onYes={() => {
+                  setEdit(null);
+                  held.proceed();
+                }}
+                onCancel={held.stay}
+              />
+            </div>
+          )}
+        >
+          <span className={styles.unsavedNote}>{moved ? t('grow.scheme.movedUnder') : t('grow.scheme.unsaved')}</span>
+          <button type="button" className={ui.button} disabled={update.isPending} onClick={() => setEdit(null)}>
+            {moved ? t('grow.scheme.takeTheirs') : t('grow.scheme.discard')}
           </button>
-        ) : (
-          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={update.isPending} onClick={save}>
-            {update.isPending ? t('grow.scheme.saving') : t('grow.scheme.save')}
-          </button>
-        )}
+          {moved ? (
+            <button type="button" className={ui.button} onClick={() => setEdit({ draft, against: stored })}>
+              {t('grow.scheme.keepMine')}
+            </button>
+          ) : (
+            <button type="button" className={`${ui.button} ${ui.primary}`} disabled={update.isPending} onClick={save}>
+              {update.isPending ? t('grow.scheme.saving') : t('grow.scheme.save')}
+            </button>
+          )}
+        </LeaveGuard>
       </div>
     ) : null;
 

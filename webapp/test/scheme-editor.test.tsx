@@ -1,11 +1,13 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
+import { createMemoryRouter, Link, RouterProvider, useLocation } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
 import type { Told } from '@/log/log-context';
 import { Feeding } from '@/screens/grow/Feeding';
 import { forgetSchemeEdit } from '@/screens/grow/scheme/edit-store';
-import { drawAt, json } from './harness';
+import { drawAt, json, testClient } from './harness';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
 import { Toast } from './toast';
 import { translate } from './translations';
@@ -445,6 +447,94 @@ describe('the feeding tab', () => {
 
     await waitFor(() => expect(patched()).toHaveLength(1));
     expect(patched()[0].body.scheme.grid[0].amounts[0].value).toBe(5);
+  });
+
+  /**
+   * Typed cells are not let go without a word (Chris, 2026-11-13): leaving the grow asks first, in the bar that
+   * says they are not saved, and so does the browser's own leaving. A switch to another of the grow's tabs keeps
+   * them and asks nothing.
+   */
+  it('asks before the grow is left with cells typed, and lets it go only once they are discarded', async () => {
+    function Address() {
+      const at = useLocation();
+      return <span data-testid="address">{at.pathname}</span>;
+    }
+    const page = (
+      <Toast told={told}>
+        <Feeding grow={growOn(SCHEME)} mayManage />
+        <Link to="/grows/grow-1">Diary</Link>
+        <Link to="/">Home</Link>
+        <Address />
+      </Toast>
+    );
+    const router = createMemoryRouter(
+      [
+        { path: '/grows/grow-1/feeding', element: page },
+        { path: '*', element: <Address /> },
+      ],
+      { initialEntries: ['/grows/grow-1/feeding'] },
+    );
+    render(
+      <QueryClientProvider client={testClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    await screen.findByText('Biobizz \u00b7 Light\u00b7Mix');
+    const leaving = () => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(leaving()).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bio\u00b7Grow, week 1' }));
+    fireEvent.change(screen.getByLabelText('Bio\u00b7Grow, week 1'), { target: { value: '7' } });
+    fireEvent.blur(screen.getByLabelText('Bio\u00b7Grow, week 1'));
+    expect(leaving()).toBe(true);
+
+    fireEvent.click(screen.getByRole('link', { name: 'Home' }));
+    expect(await screen.findByText('What you changed in the scheme is not saved yet.')).toBeInTheDocument();
+    expect(screen.getByTestId('address')).toHaveTextContent('/grows/grow-1/feeding');
+    expect(screen.getByRole('button', { name: 'Discard' }).className).toMatch(/dangerFilled/);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByText('not saved')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Bio\u00b7Grow, week 1' })).toHaveTextContent('7');
+
+    fireEvent.click(screen.getByRole('link', { name: 'Home' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent(/^\/$/));
+    expect(leaving()).toBe(false);
+    expect(patched()).toEqual([]);
+  });
+
+  it('asks nothing when only another tab of the grow is opened, which keeps the typed cells', async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/grows/grow-1/feeding',
+          element: (
+            <Toast told={told}>
+              <Feeding grow={growOn(SCHEME)} mayManage />
+              <Link to="/grows/grow-1">Diary</Link>
+            </Toast>
+          ),
+        },
+        { path: '/grows/grow-1', element: <p>the diary</p> },
+      ],
+      { initialEntries: ['/grows/grow-1/feeding'] },
+    );
+    render(
+      <QueryClientProvider client={testClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    await screen.findByText('Biobizz \u00b7 Light\u00b7Mix');
+    fireEvent.click(screen.getByRole('button', { name: 'Bio\u00b7Grow, week 1' }));
+    fireEvent.change(screen.getByLabelText('Bio\u00b7Grow, week 1'), { target: { value: '7' } });
+    fireEvent.blur(screen.getByLabelText('Bio\u00b7Grow, week 1'));
+
+    fireEvent.click(screen.getByRole('link', { name: 'Diary' }));
+    expect(await screen.findByText('the diary')).toBeInTheDocument();
   });
 
   /** The grow page mounts one tab at a time, so leaving the tab must not be how a half-filled grid is thrown away. */

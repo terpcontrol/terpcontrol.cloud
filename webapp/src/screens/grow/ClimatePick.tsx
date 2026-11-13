@@ -114,12 +114,17 @@ export function ClimatePick({
  * phase (above, behind the answer that leaves the targets alone), where a phase is corrected and where plants are
  * split off into one. `chosen` is null for the stage's own climate. A stage nothing refines has nothing to choose
  * between, so by itself the row is not drawn for it.
+ *
+ * `keep` is for a sheet where no preset writes no climate - plants split off into a phase of their own: there the
+ * first chip is "Lassen, wie sie sind", as beside a phase, and stands for null, since a chip called "Blüte" that
+ * wrote nothing would say the opposite of what it does.
  */
 export function StageClimates(props: {
   label: string;
   stage: GrowthStage;
   chosen: string | null | undefined;
   onPick: (preset: string | null) => void;
+  keep?: boolean;
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -130,7 +135,7 @@ export function StageClimates(props: {
       {props.children}
       {[null, ...presetsOf(props.stage)].map(preset => (
         <Choice key={preset ?? ''} chosen={props.chosen === preset} onChoose={() => props.onPick(preset)}>
-          {climateChoiceName(t, { stage: props.stage, preset })}
+          {preset === null && props.keep ? t('climatePick.keep') : climateChoiceName(t, { stage: props.stage, preset })}
         </Choice>
       ))}
     </Choices>

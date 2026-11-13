@@ -188,6 +188,27 @@ describe('the own shelf', () => {
     expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 
+  /** Typed cells are not let go without a word: closing the sheet asks, and only "Discard" lets them go. */
+  it('asks before a sheet with changes is closed, and closes it only once they are discarded', async () => {
+    draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Biobizz, my way/ }));
+    const sheet = await screen.findByRole('dialog', { name: 'Biobizz, my way' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Bio·Bloom, week 4' }));
+    fireEvent.change(within(sheet).getByLabelText('Bio·Bloom, week 4'), { target: { value: '3' } });
+    fireEvent.blur(within(sheet).getByLabelText('Bio·Bloom, week 4'));
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+    expect(within(sheet).getByText('What you changed in the scheme is not saved yet.')).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
+    expect(within(sheet).getByRole('button', { name: 'Save' })).toBeEnabled();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(server.patched).toEqual([]);
+  });
+
   it('asks before deleting, and then sends exactly one request', async () => {
     draw();
 

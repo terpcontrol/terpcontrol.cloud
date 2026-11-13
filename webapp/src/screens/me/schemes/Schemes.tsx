@@ -8,6 +8,7 @@ import type { Translate } from '@/i18n/i18n';
 import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { GridEditor } from '@/screens/grow/scheme/GridEditor';
+import { LeaveGuard } from '@/screens/grow/scheme/LeaveGuard';
 import { useAnswered } from '@/screens/grow/told';
 import { SchemeGrid } from '@/screens/grow/scheme/SchemeGrid';
 import { LoadFailed, NothingHere, Refused, Waiting } from '@/ui/PageState';
@@ -182,6 +183,7 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
   const [name, setName] = useState(scheme.name);
   const [grid, setGrid] = useState<SchemeWeek[]>(scheme.grid);
   const [asking, setAsking] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const origin = shipped.find(summary => summary.id === scheme.origin.assetId) ?? null;
   const asset = useScheme(origin?.id ?? null);
@@ -202,14 +204,38 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
     <Sheet
       title={scheme.name}
       aside={origin ? t('me.schemes.fromAsset', { name: origin.name }) : t('me.schemes.byHand')}
-      onClose={onClose}
+      // Hand edits are not let go without a word: closing the sheet asks, and so does leaving the page under it.
+      onClose={() => (dirty ? setLeaving(true) : onClose())}
       actions={
-        <>
-          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={!dirty || name.trim() === '' || update.isPending} onClick={save}>
-            {update.isPending ? t('me.schemes.saving') : t('me.schemes.save')}
-          </button>
-          <Refused error={update.error} />
-        </>
+        leaving ? (
+          <Asking
+            note={t('grow.scheme.leaveUnsaved')}
+            yes={t('grow.scheme.discard')}
+            danger
+            busy={false}
+            onYes={onClose}
+            onCancel={() => setLeaving(false)}
+          />
+        ) : (
+          <LeaveGuard
+            dirty={dirty}
+            asking={held => (
+              <Asking
+                note={t('grow.scheme.leaveUnsaved')}
+                yes={t('grow.scheme.discard')}
+                danger
+                busy={false}
+                onYes={held.proceed}
+                onCancel={held.stay}
+              />
+            )}
+          >
+            <button type="button" className={`${ui.button} ${ui.primary}`} disabled={!dirty || name.trim() === '' || update.isPending} onClick={save}>
+              {update.isPending ? t('me.schemes.saving') : t('me.schemes.save')}
+            </button>
+            <Refused error={update.error} />
+          </LeaveGuard>
+        )
       }
     >
       <div className={ui.stack3}>

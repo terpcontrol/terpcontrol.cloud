@@ -59,7 +59,9 @@ const addressOf = (device: string, plan: readonly Asked[], at = '', made: string
 /**
  * Adding a device: the code that proves the hardware is yours, then the things
  * that have to be true before it is of any use, in the order they can be
- * answered, and last what grows here, where the diary begins (`GrowStep`).
+ * answered, and last what grows here, where the diary begins (`GrowStep`) and
+ * the place's climate is set with the phase; an account without the diary is
+ * asked what the place is doing instead (`DoingStep`).
  *
  * It is a screen of its own rather than a sheet because somebody stands in a
  * room with hardware in their hands, and every answer is written the moment it
@@ -258,9 +260,10 @@ export function Claim() {
       setMade((madeId = null));
     }
 
-    // Where it hangs decides whether a climate is asked for, so the steps are counted from this answer on.
+    // Where it hangs decides whether a climate is asked for - never where what grows is asked, which sets it - so the
+    // steps are counted from this answer on.
     const beside = to !== null && climateIn(every, to.id, claimed.id);
-    const rest = ASKED.filter(one => (one === 'doing' ? ownClimate && !beside : plan.includes(one)));
+    const rest = ASKED.filter(one => (one === 'doing' ? ownClimate && !beside && !plan.includes('grow') : plan.includes(one)));
     if (to && beside && !ownClimate) joined(claimed, to);
     else if (rest[1]) go(rest[1], madeId, rest);
     else leaveTo(to?.id ?? madeId);

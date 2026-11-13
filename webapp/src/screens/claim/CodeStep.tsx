@@ -17,7 +17,7 @@ import ui from '@/ui/ui.module.css';
 import { LegacyMove } from './LegacyMove';
 import { pairsACam } from '@/screens/camera/add/pairers';
 import { buildLabel, deviceName } from '@/ui/naming';
-import { cameraName } from './steps';
+import { cameraSaid } from './steps';
 import styles from './Claim.module.css';
 
 /**
@@ -162,13 +162,16 @@ export function ClaimedFacts({ device, sockets, now }: { device: Device; sockets
 
   if (!seen) return t('claim.code.neverHeard');
 
+  // Facts side by side, which break between two of them and never inside "Terp Cam gekoppelt". What hangs on it is
+  // said for the hardware that can have it: a plug pairs no sockets, a light no camera either.
   return (
-    <>
-      {t(`claim.code.${deviceLiveness(seen, now)}`, { age: ageLabel(seen, now) })}
-      {label ? ` · ${t('claim.code.firmware', { version: label })}` : ''}
-      {/* What hangs on it, for the hardware that can have it: a plug pairs no sockets, a light no cam either. */}
-      {sockets && SOCKET_HOST_TYPES.includes(device.type) ? ` · ${t('claim.code.sockets', { count: sockets.items.length })}` : ''}
-      {pairsACam(device) ? ` · ${t('claim.code.camera', { name: cameraName(device, t) })}` : ''}
-    </>
+    <Facts
+      facts={[
+        t(`claim.code.${deviceLiveness(seen, now)}`, { age: ageLabel(seen, now) }),
+        label ? t('claim.code.firmware', { version: label }) : null,
+        sockets && SOCKET_HOST_TYPES.includes(device.type) ? t('claim.code.sockets', { count: sockets.items.length }) : null,
+        pairsACam(device) ? cameraSaid(device, t) : null,
+      ]}
+    />
   );
 }

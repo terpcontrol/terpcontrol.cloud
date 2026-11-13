@@ -253,6 +253,16 @@
   color: var(--label);
 }
 
+/* The question a navigation held back by the unsaved cells asks, in the bar's own frame. */
+.leaving {
+  flex: 1;
+}
+
+.leaving > * {
+  padding: 0;
+  border: none;
+}
+
 /* Adding a row: a name, the unit it is measured in, and the tap that makes it. */
 .newProductName {
   flex: 1;

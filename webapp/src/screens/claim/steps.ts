@@ -13,7 +13,7 @@ import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js
 import type { Translate } from '@/i18n/i18n';
 import { pairsACam } from '@/screens/camera/add/pairers';
 import { alarmsReach, channelsLabel, reachedBy } from '@/screens/notifications/reach';
-import { camTag, placeKindOf } from '@/ui/naming';
+import { placeKindOf } from '@/ui/naming';
 
 /**
  * What each step of the claim flow has settled, and the one line it says once
@@ -55,17 +55,29 @@ export const climateIn = (devices: readonly Device[], spaceId: string | null, be
 export const joinOrder = (places: readonly Space[], devices: readonly Device[], but = ''): Space[] =>
   [true, false].flatMap(held => places.filter(one => climateIn(devices, one.id, but) === held));
 
+/** Whether the claim ends on what grows here: for every account but one that said no to the diary. */
+export const asksWhatGrows = (me: Me | undefined): boolean => me?.preferences.diary !== 'off';
+
 /**
  * The questions a claim will ask: where it hangs where there is more than one
- * answer, a climate only of the device that sets its place's (`beside`), a
- * camera of one that can carry it, how alarms arrive of an account they do
- * not reach yet, and what grows unless it said no to the diary. The head
- * counts them once where it hangs is settled; no later answer adds one.
+ * answer, a camera of one that can carry it, how alarms arrive of an account
+ * they do not reach yet, and what grows unless it said no to the diary. What
+ * the place is doing - its climate - is asked only where what grows is not, of
+ * the device that sets its place's climate (`beside`): "Was wächst hier?" sets
+ * the phase and its climate in one answer, and a stage asked before it was the
+ * same question twice. The head counts them once where it hangs is settled; no
+ * later answer adds one.
  */
 export const planOf = (device: Pick<Device, 'type'>, place: boolean, beside: boolean, me: Me | undefined): Asked[] => {
-  const asked = { place, doing: OWN_CLIMATE_TYPES.includes(device.type) && !beside, hardware: pairsACam(device), notify: !me || !alarmsReach(me) };
+  const grows = asksWhatGrows(me);
+  const asked = {
+    place,
+    doing: !grows && OWN_CLIMATE_TYPES.includes(device.type) && !beside,
+    hardware: pairsACam(device),
+    notify: !me || !alarmsReach(me),
+  };
 
-  return ASKED.filter(step => (step === 'grow' ? me?.preferences.diary !== 'off' : asked[step]));
+  return ASKED.filter(step => (step === 'grow' ? grows : asked[step]));
 };
 
 /** A sentence about where a device hangs, in the verb of its kind: a fan hangs, a socket is plugged in, and both say so every time. */
@@ -107,9 +119,7 @@ export const doingSummary = ({ chosen, applied }: Doing, onServer: GrowthStage |
 
 /** What the device reported, rather than anything that was set up in the step. */
 export const hardwareSummary = (device: Device | null, sockets: SocketPage | undefined, t: Translate, camOnly = false): string =>
-  camOnly
-    ? t('claim.code.camera', { name: cameraName(device, t) })
-    : `${t('claim.code.sockets', { count: sockets?.items.length ?? 0 })} · ${t('claim.code.camera', { name: cameraName(device, t) })}`;
+  camOnly ? cameraSaid(device, t) : `${t('claim.code.sockets', { count: sockets?.items.length ?? 0 })} · ${cameraSaid(device, t)}`;
 
 /** How a critical alarm reaches the account, or that nothing does; nothing at all while the account has yet to answer. */
 export const notifySummary = (me: Me | undefined, t: Translate): string | null => {
@@ -118,9 +128,11 @@ export const notifySummary = (me: Me | undefined, t: Translate): string | null =
   return alarmsReach(me) ? t('claim.notify.reaches', { channels: channelsLabel(t, reachedBy(me)) }) : t('claim.notify.none');
 };
 
-/** The paired camera by the tail of its id, as its row will be called ("Terp Cam · 7171"). */
-export const cameraName = (device: Device | null, t: Translate): string => {
+/** Whether a Terp Cam is coupled to the device: it reports the camera's id, or `none`. */
+export const camCoupled = (device: Device | null): boolean => {
   const paired = device?.state.hardware.webcam_did;
-
-  return paired && paired !== 'none' ? camTag(paired) : t('claim.code.noCamera');
+  return Boolean(paired && paired !== 'none');
 };
+
+/** "Terp Cam gekoppelt" or "keine Kamera": whether a camera answers through the device, and never a piece of its id. */
+export const cameraSaid = (device: Device | null, t: Translate): string => t(camCoupled(device) ? 'claim.code.camCoupled' : 'claim.code.noCamera');
