@@ -109,7 +109,7 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     session decided about them - not Chris's word - is built (2026-11-13; rules in
     [app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night), the reads in
     [data.md](knowledge/data.md#influxdb) and [server-engines.md](knowledge/server-engines.md#read-models));
-    the stack's images are older, so the server's part was seen in tests and against the store, not yet walked:
+    a fifth walk checked the server's part on the real route, against the samples:
       - At rest the card says the last thing that was heard: the answer's last reading, as "jetzt" while the
         server calls it fresh and as "letzter Wert · …" once it is stale, on every range, for the owner and
         through a link; in a past window the window's last drawn point. (A reading five to ten minutes old
@@ -119,8 +119,8 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
         table, "x % der Zeit an" and the strip come from these, not from runs rounded out to the step (a
         valve open 3 % of the time read as 75 %); a point where nothing was heard says "—", never "aus".
         One count read replaces the read of levels: 183 for 158 ms on the 120-day window.
-      - A five-minute grain in which the lamp switched is worked out from its own samples (232 ms more on
-        the 120-day read of a tent without a leaf sensor, none with one); within three days the lamp's
+      - A five-minute grain in which the lamp switched is worked out from its own samples (the fifth walk
+        measured 35 to 50 ms on the whole 120-day read of a tent without a leaf sensor); within three days the lamp's
         switch times are the samples', to the minute, and the night begins where its stretch ends.
       - A window without a reading is a gap at every range, and no night is shaded through hours nobody
         reported; the table's last row is the last reading; the arrows of a stretch no chip names say whole
@@ -128,6 +128,18 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     Not built of that walk: nothing of its list. Left as they were: the leaf coverage threshold at one half,
     and what the walk did not check (the widths between 900 and 1200, whose lamp is read across a change of
     device with different schedules).
+    The fifth walk (2026-11-13) found the server's part holding at every range - the outputs' figures, the
+    split grain, the lamp's times, silences, each lamp over its own stay, the cost (0.93 s at most) - and one
+    major and seven minors in the web app; decided by the redesign session, not built yet, and not Chris's
+    word:
+      - "Zeitraum abspielen" from rest plays the window from its first picture. (Rest is the reading's instant
+        now, so a picture newer than the reading stopped play at once.)
+      - At rest the card is the reading whatever is ticked, and one card is one point: near a silence the
+        outputs follow the point the curves snapped to.
+      - A lamp's stretch that ends because the device fell silent says "bis letzter Wert …" with the reading's
+        own time; an output at level 0 is "aus", as on Start; "x % der Zeit an" is written in each output's
+        lane, and the lamp's line is on a desktop too.
+      - No target band where nobody reported; at 30 Tage on a desktop the diary column takes the room there is.
     Open, for Chris:
       1. No free panning (the old Ctrl-drag, a two-finger pan), and the three things that went with "Graphen":
          a range typed as two dates, renaming a saved view, the four kinds a line was filtered by.
