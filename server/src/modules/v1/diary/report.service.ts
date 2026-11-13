@@ -257,18 +257,23 @@ export class GrowReportService {
    * keeps them inside the window and the kinds this already clamps to, so a
    * share link cannot be told about a picture from outside its own weeks.
    *
+   * The entries counted are the grower's own: an alarm's line is the diary's to
+   * tell and no entry, and a share link, which is given no such line, must read
+   * the same figure as the owner.
+   *
    * A line about a camera's own picture is left out where the reader was not
    * given the cameras, matching the covers and the stills the rest of the page
    * withholds from that reader.
    */
   public async totalsOf(growId: string, grant: Grant): Promise<GrowTotals> {
     const pictures = { $size: { $ifNull: ['$mediaIds', []] } };
-    const rows = await this.entries.aggregate<{ _id: EntryKind; count: number; pictures: number }>([
+    const rows = await this.entries.aggregate<{ _id: EntryKind; count: number; own: number; pictures: number }>([
       { $match: { $and: [{ growId, kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', clampRange(grant)), writtenFor(grant)] } },
       {
         $group: {
           _id: '$kind',
           count: { $sum: 1 },
+          own: { $sum: { $cond: [{ $eq: ['$source', 'human'] }, 1, 0] } },
           pictures: { $sum: grant.includeCameras ? pictures : { $cond: [{ $eq: ['$cameraId', null] }, pictures, 0] } },
         },
       },
@@ -277,7 +282,7 @@ export class GrowReportService {
     const of = (kind: EntryKind): number => rows.find(row => row._id === kind)?.count ?? 0;
 
     return {
-      entryCount: rows.reduce((sum, row) => sum + row.count, 0),
+      entryCount: rows.reduce((sum, row) => sum + row.own, 0),
       waterCount: of('water'),
       feedCount: of('feed'),
       photoCount: rows.reduce((sum, row) => sum + row.pictures, 0),

@@ -730,6 +730,16 @@ describe('the report', () => {
     expect(answer.totals).toEqual({ entryCount: 7, waterCount: 2, feedCount: 1, photoCount: 0 });
   });
 
+  it('counts the grower´s entries only: an alarm´s line is told by the diary and is no entry', async () => {
+    await db.entries.create([
+      entry({ id: 'entry-alarm', growId: GROW, kind: 'alarm', source: 'alarm', authorId: null, occurredAt: onDay(30), values: { kind: 'alarm' } }),
+    ]);
+
+    const answer = await report.read(GROW, await grantFor(session(OWNER)), NOW);
+
+    expect(answer.totals.entryCount).toBe(7);
+  });
+
   it('counts the pictures the diary carries, whatever kind of line is carrying them', async () => {
     await db.entries.create([
       entry({ id: 'entry-two-shots', growId: GROW, kind: 'note', occurredAt: onDay(31), text: 'The two in front', mediaIds: ['shot-a', 'shot-b'] }),
