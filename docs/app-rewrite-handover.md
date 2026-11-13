@@ -139,19 +139,24 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)).
   - Where rounds 6 and 7 meet, state of 2026-11-13 (the redesign session). Both rounds' fix passes were walked
     together on the session's stack: both lists are built and the server's rules for place and room hold under
-    direct attack, with one gap (an ended room still takes a share link). No blocker, three majors and ten
+    direct attack, with one gap (an ended room still took a share link). No blocker, three majors and ten
     minors, all in what an alert, a task and a guest are told after a move or a removal; decided by the redesign
-    session, not built yet, and not Chris's word:
-      - An open alert stands where its device stands: it moves with the device in the same write and ends when
-        the device is given up; an alert that is over keeps the place it happened in, under that place's name.
-        (After a removal a card was headed by the place's id and had lost its actions; after a move Start marked
-        both places and a guest of the old place kept the device's alerts and values.) For open alerts this
-        replaces "an alarm counts for the place it was raised in"; for Verlauf's past that stays.
+    session, not Chris's word. The server's and the place pages' part is built (2026-11-13; the server's seen in
+    tests only, not yet walked), the inbox's, Start's tasks' and Ich's part is not:
+      - An open alert stands where its device stands: it moves with the device in the same write
+        (`DevicesService.place`), and giving a device up deletes its alerts as before; an alert that is over
+        keeps the place it happened in, and every alert read names that place (`Alert.spaceName`, an ended
+        place's too). Built on the server; the cards, rows and sheets of Meldungen and Start's marks still read
+        the old way. For open alerts this replaces "an alarm counts for the place it was raised in"; for
+        Verlauf's past that stays. Migration step 030 moves the open alerts earlier moves left behind.
       - "Ort entfernen" keeps every answer across a refusal - a camera's "entkoppeln" was dropped by the re-read
-        and never sent - and a place's reminders end with the place, said in the confirmation.
-      - A guest whose access ended while the app is open is told so, and bell and tasks follow.
-      - Start's "Heute", the inbox and the bell offer one list of what is due for me; deleting a folded "Vorbei"
-        row deletes the fold; every "Widerrufen" answers, from the shared toast.
+        and never sent - and a place's reminders end with the place, said in the confirmation (built; step 029
+        deletes those an ended place left behind, which any database that ran the rewrite can hold).
+      - A guest whose access ended while the app is open is told so, and bell and tasks follow (built).
+      - An ended room takes no share link; a claim names the place it makes in its own write; the cross of
+        the claim says where the device hangs (built).
+      - Not built yet: Start's "Heute", the inbox and the bell offer one list of what is due for me; deleting
+        a folded "Vorbei" row deletes the fold; every "Widerrufen" answers, from the shared toast.
   - Round 7 (Ich and Meldungen), state of 2026-11-13 (the redesign session; rules in
     [app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)). Built:
     Ich as one card of rows with a page per subject - the zone moved to Konto, the diary's answers to a page of
@@ -252,9 +257,9 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
       6. A guest who may manage may rename the owner's place and change its kind (the server allows it); only the
          owner moves a device, sets the room and ends the place.
       7. The last place of an account cannot be removed, as before the round.
-      8. Verlauf counts an alarm for the place it was raised in: one a device raised elsewhere and that is still
-         open after the device came here stands on Start and the overview, which go by the device, not in
-         Verlauf.
+      8. An alarm that is over counts for the place it happened in, in Verlauf and in the inbox; an open one
+         stands where its device stands and moves with it (the redesign session of 2026-11-13, replacing
+         "Verlauf counts an alarm for the place it was raised in" for open alerts).
       9. A move's diary line keeps the names the two places had then; renaming a place later does not rewrite it.
       10. A stream camera at a place without a device: that a home-network address will not answer there is now
           only behind the help button, so it is learnt from the failed test.
