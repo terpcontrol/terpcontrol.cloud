@@ -2379,11 +2379,11 @@ export interface GrowSummary {
    */
   zone: string;
   /**
-   * Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a diary week’s own `stageWeek` is, so the header and the diary beneath it state one figure. Null before the first phase.
+   * Which week of its stage the grow is in, counted from the stage’s own start: days 1 to 7 of the stage are week 1 (`stageWeekOf`). Null before the first phase.
    */
   stageWeek: number | null;
   /**
-   * The phase was set by a preset or by the plan rather than by hand.
+   * The phase was set by the plan rather than by a person: what the app marks "von allein".
    */
   isAuto: boolean;
   /**
@@ -3671,7 +3671,7 @@ export interface GrowCard {
    */
   phaseDay: number | null;
   /**
-   * Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and the weeks of its diary state.
+   * Which week of its stage the grow is in, counted from the stage’s own start (days 1 to 7 are week 1) - the same figure the grow page’s own header states.
    */
   stageWeek: number | null;
   stage: GrowthStage | null;
@@ -3869,7 +3869,7 @@ export interface OverviewGrow {
    */
   phaseDay: number | null;
   /**
-   * Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and the weeks of its diary state.
+   * Which week of its stage the grow is in, counted from the stage’s own start (days 1 to 7 are week 1) - the same figure the grow page’s own header states.
    */
   stageWeek: number | null;
   stage: GrowthStage | null;
@@ -4347,7 +4347,7 @@ export interface GrowDiaryWeek {
   stage: GrowthStage | null;
   preset: string | null;
   /**
-   * 1 in the week the stage began; null before the first phase.
+   * Which week of its stage the week’s stage was in, from the stage’s own start (days 1 to 7 are week 1): at the week’s middle for a week that is over, today for the week still running. The week itself is seven days of the grow, named by its days. Null before the first phase.
    */
   stageWeek: number | null;
   film: {
@@ -4574,7 +4574,7 @@ export interface PublicGrowPage {
   stage: GrowthStage | null;
   preset: string | null;
   /**
-   * Which week of the stage above the diary is in, counted against the grow’s own weeks exactly as the weeks below count them - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`: that gives the week of the whole grow, a different number entirely once a grow has changed stage. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.
+   * Which week of the stage above the diary is in, counted from the stage’s own start (days 1 to 7 are week 1) - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`, which counts the whole grow. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.
    */
   stageWeek: number | null;
   plantCount: number | null;

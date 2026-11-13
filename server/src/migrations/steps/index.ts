@@ -29,6 +29,7 @@ import { emptyRooms } from './027-empty-rooms';
 import { uniquePlaceNames } from './028-unique-place-names';
 import { remindersOfEndedPlaces } from './029-reminders-of-ended-places';
 import { openAlertsWhereTheDeviceStands } from './030-open-alerts-where-the-device-stands';
+import { handSetPhases } from './031-hand-set-phases';
 
 /**
  * In order, and the order matters in eight places:
@@ -92,4 +93,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   uniquePlaceNames,
   remindersOfEndedPlaces,
   openAlertsWhereTheDeviceStands,
+  handSetPhases,
 ];

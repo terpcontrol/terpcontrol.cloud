@@ -110,7 +110,12 @@ export declare const invite: z.ZodObject<{
     }, z.core.$strip>;
     createdAt: z.ZodISODateTime;
 }, z.core.$strip>;
-/** Who put the grow into this phase. `preset` and `plan` are what the "auto" tag is drawn from. */
+/**
+ * Who put the grow into this phase: a person (`human`, with a climate or
+ * without), or the plan by itself, which is what "von allein" is drawn from.
+ * `preset` is no longer written - a phase somebody set with a climate preset is
+ * theirs - and a phase stored with it before is a person's (migration 031).
+ */
 export declare const phaseSource: z.ZodEnum<{
     plan: "plan";
     human: "human";

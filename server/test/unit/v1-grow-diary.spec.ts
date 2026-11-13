@@ -1,5 +1,5 @@
 import type { DeviceSeries, GrowDiaryDay, GrowDiaryPage, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
-import { growDayAt } from '@fg2/shared-types/v1-schemas';
+import { growDayAt, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { AccessService } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { DataService, DeviceHistory } from '@modules/data/data.service';
@@ -374,13 +374,27 @@ describe('the days of a diary', () => {
     expect(last.items.flatMap(week => week.days.flatMap(day => day.entries.map(line => line.id)))).not.toContain('note-too-early');
   });
 
-  it('name a week after the stage it lay in, counted in the diary´s own weeks', async () => {
+  it('name a week after the stage it lay in, and that stage´s own week', async () => {
     const page = await read();
 
     expect(page.items.map(week => [week.stage, week.stageWeek])).toEqual([
       ['flowering', 1],
       ['vegetative', 1],
     ]);
+  });
+
+  /**
+   * A stage's week is counted from the stage's own start, as a grower counts:
+   * on the thirteenth day of flowering it is in its second week, whichever day
+   * of the grow's own week it began on.
+   */
+  it('count a stage´s week from its own first day: days 1 to 7 are week 1', () => {
+    const flowering = berlin(10, '09:00');
+    const first = growDayAt(ORIGIN, flowering, 'Europe/Berlin');
+
+    expect([0, 6, 7, 12, 13, 14].map(after => stageWeekOf(ORIGIN, flowering, first + after, 'Europe/Berlin'))).toEqual([1, 1, 2, 2, 2, 3]);
+    // A day before the stage began is counted as its first week, never a week 0.
+    expect(stageWeekOf(ORIGIN, flowering, first - 3, 'Europe/Berlin')).toBe(1);
   });
 
   it('come a few weeks at a time', async () => {

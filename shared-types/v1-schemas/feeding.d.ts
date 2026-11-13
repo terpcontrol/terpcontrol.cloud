@@ -53,10 +53,8 @@ export declare const growDayUpTo: (origin: Date, endsAt: string | Date, zone: st
  * Which week of the grow a day of it falls in: weeks are seven of those days,
  * so week 1 is days 1 to 7 and lines up with a scheme's first row.
  *
- * It takes a *grow* day. Handing it a phase's own day counter looks like it
- * works and answers a different question - how many sevens of that phase have
- * gone by, rather than which of the grow's weeks the stage is in - which is
- * what `stageWeekOf` answers.
+ * It takes a *grow* day. Which week of its own stage a day is in is another
+ * count, from the stage's start: `stageWeekOf`.
  */
 export declare const growWeekOfDay: (day: number) => number;
 /**

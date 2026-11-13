@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { z } from 'zod';
 import type { GrowDayEvent, GrowDiaryDay, GrowDiaryPage, GrowDiaryWeek } from '@fg2/shared-types/v1';
-import { growDayAt, growOriginOf, growWeekOfDay } from '@fg2/shared-types/v1-schemas';
+import { growDayAt, growOriginOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { pageOf } from '@common/v1/pages';
 import { peopleNamed } from '@common/v1/people';
@@ -164,10 +164,12 @@ export class GrowDiaryService {
 
   private weekOf(week: DiaryWeek, world: PageWorld, devices: RecordedController[]): GrowDiaryWeek {
     const { grow, origin, horizon, zone } = world;
-    // A week that is over is named after the stage standing at its middle,
-    // the week still running after the stage the grow is in now.
+    // A week that is over is named after the stage standing at its middle, and
+    // that stage's week then; the week still running after the stage the grow
+    // is in now, and its week today - which is what the grow's head says.
     const over = week.endsAt <= horizon;
-    const phase = headlinePhaseAt(grow, over ? new Date((week.startsAt.getTime() + week.endsAt.getTime()) / 2) : new Date(horizon.getTime() - 1));
+    const at = over ? new Date((week.startsAt.getTime() + week.endsAt.getTime()) / 2) : new Date(horizon.getTime() - 1);
+    const phase = headlinePhaseAt(grow, at);
     // A film is cut on the calendar's weeks, which are not the grow's: it is this week's where most of it lies here,
     // which is where its middle does.
     const film =
@@ -180,7 +182,7 @@ export class GrowDiaryService {
       dayTo: week.dayTo,
       stage: phase?.stage ?? null,
       preset: phase?.preset ?? null,
-      stageWeek: phase ? Math.max(1, week.weekNumber - growWeekOfDay(growDayAt(origin, phase.startedAt, zone)) + 1) : null,
+      stageWeek: phase ? stageWeekOf(origin, phase.startedAt, growDayAt(origin, at, zone), zone) : null,
       film: film
         ? {
             mediaId: film.id,

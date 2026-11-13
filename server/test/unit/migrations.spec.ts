@@ -42,6 +42,7 @@ import { emptyRooms } from '@/migrations/steps/027-empty-rooms';
 import { uniquePlaceNames } from '@/migrations/steps/028-unique-place-names';
 import { remindersOfEndedPlaces } from '@/migrations/steps/029-reminders-of-ended-places';
 import { openAlertsWhereTheDeviceStands } from '@/migrations/steps/030-open-alerts-where-the-device-stands';
+import { handSetPhases } from '@/migrations/steps/031-hand-set-phases';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -920,6 +921,64 @@ describe('what a place took with it', () => {
     const again = new MigrationContext(db(), false, new Date(AT + DAY));
     await openAlertsWhereTheDeviceStands.run(again);
     expect(again.stats).toEqual({ 'alerts.movedToTheirDevice': 0, rejected: 0 });
+  });
+});
+
+describe('who set a phase', () => {
+  it('gives a phase entered with a climate preset, and its line, to a person, and leaves the plan´s alone', async () => {
+    const phase = (id: string, source: string, setBy: string | null = null) => ({ id, stage: 'vegetative', source, setBy });
+    await collection('grows').insertMany([
+      { id: 'grow', ownerId: 'owner', phases: [phase('by-a-preset', 'preset'), phase('by-the-plan', 'plan'), phase('by-hand', 'human', 'member')] },
+      { id: 'named', ownerId: 'owner', phases: [phase('named-preset', 'preset', 'member')] },
+      { id: 'nobodys', ownerId: null, phases: [phase('of-nobody', 'preset')] },
+    ]);
+    const line = (id: string, growId: string, phaseId: string, source: string) => ({
+      id,
+      growId,
+      source,
+      authorId: null,
+      values: { kind: 'phase', phaseId, stage: 'vegetative', preset: null },
+    });
+    await collection('entries').insertMany([
+      line('line-of-the-preset', 'grow', 'by-a-preset', 'preset'),
+      line('line-of-the-plan', 'grow', 'by-the-plan', 'plan'),
+      line('line-of-nobody', 'nobodys', 'of-nobody', 'preset'),
+    ]);
+    const phases = async () =>
+      Object.fromEntries(
+        (await collection('grows').find({}).toArray()).flatMap(grow =>
+          (grow.phases as { id: string; source: string; setBy: string | null }[]).map(one => [one.id, [one.source, one.setBy]]),
+        ),
+      );
+    const lines = async () => Object.fromEntries((await collection('entries').find({}).toArray()).map(row => [row.id, [row.source, row.authorId]]));
+    const before = await phases();
+
+    const rehearsal = new MigrationContext(db(), true, new Date(AT));
+    await handSetPhases.run(rehearsal);
+    expect(await phases()).toEqual(before);
+    expect(rehearsal.stats).toEqual({ 'phases.givenToTheirPerson': 2, 'entries.givenToTheirPerson': 1, rejected: 0 });
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await handSetPhases.run(context);
+    expect(await phases()).toEqual({
+      'by-a-preset': ['human', 'owner'],
+      'by-the-plan': ['plan', null],
+      'by-hand': ['human', 'member'],
+      // Where a person was stored, it is theirs.
+      'named-preset': ['human', 'member'],
+      'of-nobody': ['preset', null],
+    });
+    expect(await lines()).toEqual({
+      'line-of-the-preset': ['human', 'owner'],
+      'line-of-the-plan': ['plan', null],
+      'line-of-nobody': ['preset', null],
+    });
+    expect(context.stats).toEqual({ 'phases.givenToTheirPerson': 2, 'entries.givenToTheirPerson': 1, rejected: 0 });
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await handSetPhases.run(again);
+    expect(again.stats).toEqual({ rejected: 0 });
+    expect(await phases()).toEqual({ ...before, 'by-a-preset': ['human', 'owner'], 'named-preset': ['human', 'member'] });
   });
 });
 

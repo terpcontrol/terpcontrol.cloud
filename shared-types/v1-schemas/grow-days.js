@@ -60,12 +60,11 @@ const stageSpansOf = (grow, horizon, zone) => {
 };
 exports.stageSpansOf = stageSpansOf;
 /**
- * Which week of its stage a week of the grow is: 1 in the week the stage began.
- *
- * It counts the grow's weeks the stage has touched rather than seven-day blocks
- * of the stage itself, which is what makes a diary week's title and the header
- * above it the same figure - a stage begun on a Wednesday is in its second week
- * on the following Monday, the same Monday that begins the grow's next week.
+ * Which week of its stage a day of the grow is in: counted from the stage's own
+ * start, so days 1 to 7 of the stage are its week 1 and day 8 begins week 2,
+ * whatever day of the grow's week the stage began on - "Blüte, Woche 2" on the
+ * thirteenth day of flowering is what a grower counts. A day before the stage
+ * began is in its week 1.
  */
-const stageWeekOf = (origin, phaseStartedAt, weekNumber, zone) => weekNumber - (0, feeding_js_1.growWeekAt)(origin, phaseStartedAt, zone) + 1;
+const stageWeekOf = (origin, phaseStartedAt, day, zone) => Math.max(1, Math.floor((day - (0, feeding_js_1.growDayAt)(origin, phaseStartedAt, zone)) / 7) + 1);
 exports.stageWeekOf = stageWeekOf;

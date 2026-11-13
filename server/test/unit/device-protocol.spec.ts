@@ -396,19 +396,21 @@ describe('the hardware report', () => {
     await report('webcam_did=ABCD1234');
 
     const camera = await db.cameras.findOne({ deviceId: DEVICE }).lean();
-    expect(camera).toMatchObject({ kind: 'terpcam_controller', did: 'ABCD1234', spaceId: 'space-1', name: 'Tent', ownerId: OWNER });
+    expect(camera).toMatchObject({ kind: 'terpcam_controller', did: 'ABCD1234', spaceId: 'space-1', name: 'Terp Cam', ownerId: OWNER });
     expect(camera?.entitlement.grant).toBe('included');
     expect(camera?.entitlement.validUntil?.getTime()).toBeGreaterThan(Date.now());
   });
 
-  it('names the camera after the controller it hangs on, and after the cam itself where nobody has named that', async () => {
-    // A claim stores the device's type where no name was given, and copying
-    // that onto the camera would head a camera row with a translation key.
+  it('names a camera it pairs "Terp Cam", whatever the device is called, and leaves a name given before alone', async () => {
     await device({ spaceId: 'space-1', name: 'controller' });
 
     await report('webcam_did=TCAM00A41C');
+    expect((await db.cameras.findOne({ deviceId: DEVICE }).lean())?.name).toBe('Terp Cam');
 
-    expect((await db.cameras.findOne({ deviceId: DEVICE }).lean())?.name).toBe('Terp Cam · 00A41C');
+    // Paired again after being renamed: the row comes back with the name it carries.
+    await db.cameras.updateOne({ deviceId: DEVICE }, { $set: { name: 'Zeltkamera' } });
+    await report('webcam_did=TCAM00B52D');
+    expect((await db.cameras.findOne({ deviceId: DEVICE }).lean())?.name).toBe('Zeltkamera');
   });
 
   it('retires the camera when the device says it has none, and gives it back its year when it is paired again', async () => {

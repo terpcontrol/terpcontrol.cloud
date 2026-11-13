@@ -118,7 +118,12 @@ export const invite = named(
   }),
 );
 
-/** Who put the grow into this phase. `preset` and `plan` are what the "auto" tag is drawn from. */
+/**
+ * Who put the grow into this phase: a person (`human`, with a climate or
+ * without), or the plan by itself, which is what "von allein" is drawn from.
+ * `preset` is no longer written - a phase somebody set with a climate preset is
+ * theirs - and a phase stored with it before is a person's (migration 031).
+ */
 export const phaseSource = named('PhaseSource', z.enum(['preset', 'plan', 'human']));
 
 /** Day and night, as the controller's configuration states them. */
@@ -421,8 +426,8 @@ export const growSummary = named(
       .number()
       .int()
       .nullable()
-      .describe('Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a diary week’s own `stageWeek` is, so the header and the diary beneath it state one figure. Null before the first phase.'),
-    isAuto: z.boolean().describe('The phase was set by a preset or by the plan rather than by hand.'),
+      .describe('Which week of its stage the grow is in, counted from the stage’s own start: days 1 to 7 of the stage are week 1 (`stageWeekOf`). Null before the first phase.'),
+    isAuto: z.boolean().describe('The phase was set by the plan rather than by a person: what the app marks "von allein".'),
     groups: z.array(phaseGroup).describe('Empty while every plant shares the headline phase; otherwise every group, that one included.'),
     locations: z.array(growLocation),
   }),

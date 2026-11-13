@@ -64,12 +64,11 @@ export declare const stageSpansOf: <P extends StagePhase>(grow: GrowSpine & {
     phases: readonly P[];
 }, horizon: Date, zone: string | null) => StageSpan<P>[];
 /**
- * Which week of its stage a week of the grow is: 1 in the week the stage began.
- *
- * It counts the grow's weeks the stage has touched rather than seven-day blocks
- * of the stage itself, which is what makes a diary week's title and the header
- * above it the same figure - a stage begun on a Wednesday is in its second week
- * on the following Monday, the same Monday that begins the grow's next week.
+ * Which week of its stage a day of the grow is in: counted from the stage's own
+ * start, so days 1 to 7 of the stage are its week 1 and day 8 begins week 2,
+ * whatever day of the grow's week the stage began on - "Blüte, Woche 2" on the
+ * thirteenth day of flowering is what a grower counts. A day before the stage
+ * began is in its week 1.
  */
-export declare const stageWeekOf: (origin: Date, phaseStartedAt: string | Date, weekNumber: number, zone: string | null) => number;
+export declare const stageWeekOf: (origin: Date, phaseStartedAt: string | Date, day: number, zone: string | null) => number;
 export {};

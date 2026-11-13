@@ -200,11 +200,8 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
     phaseDay: headline ? phaseDayOf(origin, headline.startedAt, asOf, zone) : null,
     weekNumber: dayNumber === null ? null : growWeekOfDay(dayNumber),
     zone: zone || 'UTC',
-    // Which week of its stage, counted against the grow's own weeks rather than
-    // by dividing the phase's days by seven. The diary's weeks count it that
-    // way, and the header sits directly above the first of them: a stage begun
-    // mid-week is in its second week on the day the grow's next week begins.
-    stageWeek: headline ? stageWeekOf(origin, headline.startedAt, growWeekOfDay(growDayUpTo(origin, asOf, zone)), zone) : null,
+    // Which week of its stage, counted from the stage's own start: days 1 to 7 of it are week 1.
+    stageWeek: headline ? stageWeekOf(origin, headline.startedAt, growDayUpTo(origin, asOf, zone), zone) : null,
     // What the "auto" tag is drawn from: a preset or the plan put the grow here.
     isAuto: headline !== null && headline.source !== 'human',
     // One group is every plant in the same phase, which the headline already says.

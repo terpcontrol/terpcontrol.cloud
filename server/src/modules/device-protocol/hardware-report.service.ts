@@ -183,7 +183,7 @@ export class HardwareReportService {
       kind: 'terpcam_controller',
       deviceId: device.id,
       spaceId: device.spaceId,
-      name: cameraName(device, paired),
+      name: PAIRED_CAMERA_NAME,
       did: paired,
       uid: notNone(device.state.hardware.webcam_uid),
       ip: notNone(device.state.hardware.webcam_ip),
@@ -294,18 +294,12 @@ export class HardwareReportService {
 const swapped = (was: Socket, now: Socket): boolean => was.hardwareId !== '' && now.hardwareId !== '' && was.hardwareId !== now.hardwareId;
 
 /**
- * What the camera is called before anybody has called it anything.
- *
- * It hangs on a controller, so the controller's name is the one thing that says
- * which of an account's cameras this is. A claim stores the device's type where
- * nobody gave it a name, and a type is a key rather than a word - copied onto
- * the camera it would put "controller" at the head of a camera row, in English
- * whatever language the app is read in. So a device named only by its type
- * hands the camera the few characters printed on the cam instead, which is what
- * a person standing at the tent can read off it.
+ * What a camera a device pairs is called before anybody has called it
+ * anything: what it is, in both languages. Two of them in one account are told
+ * apart by the app, not by a piece of an id in the name; a row made before this
+ * keeps the name it was given.
  */
-const cameraName = (device: StoredDevice, did: string): string =>
-  device.name && device.name !== device.type ? device.name : `Terp Cam · ${did.slice(-6).toUpperCase()}`;
+const PAIRED_CAMERA_NAME = 'Terp Cam';
 
 const notNone = (value: string | undefined): string | null => {
   const text = (value ?? '').trim();

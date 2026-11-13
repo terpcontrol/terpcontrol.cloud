@@ -73,10 +73,10 @@ export class PresetApplicationsService {
             growId,
             stage: body.stage,
             preset,
-            source: 'preset',
-            // A preset wrote the phase, so nobody picked the stage: that is what
-            // the "auto" tag on the grow card is drawn from.
-            setBy: null,
+            // Somebody applied the preset, so the phase is theirs: "von allein"
+            // is what a plan did by itself.
+            source: 'human',
+            setBy: ctx.userId,
             plantIds: null,
             deviceId: controller?.deviceId ?? null,
             spaceId,
