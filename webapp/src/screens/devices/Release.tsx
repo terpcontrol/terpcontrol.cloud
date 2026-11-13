@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDevices, useReleaseDevice } from '@/api/devices';
 import { useSpaces } from '@/api/spaces';
+import { leaveUnderSheet } from '@/app/places';
 import { Sheet } from '@/ui/Sheet';
 import { Answered, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { deviceTitle } from '@/ui/naming';
+import { deviceTitle, standingWith } from '@/ui/naming';
 import sheet from './Maintenance.module.css';
 
 /**
@@ -27,15 +28,16 @@ export function ReleaseSheet({ deviceId, onClose, onReleased }: { deviceId: stri
   const device = devices.data?.items.find(one => one.id === deviceId);
   if (!device) return null;
 
-  const name = deviceTitle(device, t, devices.data?.items);
+  const name = deviceTitle(device, t, standingWith(device, devices.data?.items));
   const place = spaces.data?.items.find(space => space.id === device.spaceId)?.name ?? null;
   // The device is still in the list while the answer is read; it is let go of
-  // with the sheet, and its page with it.
-  const done = () => {
-    onClose();
-    forget();
-    onReleased();
-  };
+  // with the sheet, and its page with it - whose entry of the history is the one `onReleased` replaces.
+  const done = () =>
+    leaveUnderSheet(() => {
+      onClose();
+      forget();
+      onReleased();
+    });
 
   const actions =
     sure || release.isSuccess ? (

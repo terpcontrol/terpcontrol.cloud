@@ -158,7 +158,7 @@ describe('the page', () => {
 
   it('leads up to Grow where it was opened by its address', async () => {
     draw(<Grows />);
-    expect(await screen.findByRole('link', { name: 'Back to Grow' })).toHaveAttribute('href', '/grow');
+    expect(await screen.findByRole('link', { name: 'Back to the grow' })).toHaveAttribute('href', '/grow');
   });
 
   it('leaves a half out that holds nothing, and says so where there is no grow at all', async () => {

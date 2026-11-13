@@ -1014,8 +1014,6 @@ describe('Start with several places', () => {
       values: values().map(value => (value.metric === 'humidity' ? { ...value, value: 72 } : value)),
       grow: growOf({ growId: 'grow-2', name: 'Autumn cuttings', dayNumber: 9, stage: 'vegetative' }),
       latestStill: { mediaId: 'still-2', cameraId: 'cam-2', capturedAt: ago(4), lightOff: false },
-      // The home's own word that something is due here, which lifts the card; what is due for the reader is the task list's.
-      dueTasks: [{ id: 'task-2', kind: 'water', label: 'Water', dueAt: ago(30), subject: { type: 'grow', id: 'grow-2' }, assigneeId: null }],
     });
 
   beforeEach(() => {

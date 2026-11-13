@@ -6,7 +6,7 @@ import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { Visited, VisitingTitle } from './place/PlaceTitle';
+import { PlaceEnded, Visited, VisitingTitle } from './place/PlaceTitle';
 import { Timeline as TimelineScreen } from './timeline/Timeline';
 import { withParams } from './timeline/view';
 import styles from './timeline/Timeline.module.css';
@@ -17,12 +17,13 @@ import styles from './timeline/Timeline.module.css';
  * alert open it) chooses it; which one that is stands in the header from the
  * second place on. A link that names a device (`?device=`) is about that
  * device: its curves, in the place it stands in - whichever place the address
- * or the header named before.
+ * or the header named before. A link that names a place of the account's own
+ * that has ended is told so, rather than shown another place's curves.
  */
 export function Timeline() {
   const { t } = useTranslation();
   const { user } = useSession();
-  const { home, here, places, visiting } = useCurrentPlace();
+  const { home, here, places, visiting, ended } = useCurrentPlace(true);
   const [params, setParams] = useSearchParams();
   const devices = useDevices();
   const deviceId = params.get('device');
@@ -35,7 +36,7 @@ export function Timeline() {
   }, [elsewhere]);
 
   // Not the place chosen before, for the moment it takes to learn where the device stands.
-  if (home.isPending || elsewhere || (deviceId && devices.isPending)) return <Waiting lines={3} />;
+  if (home.isPending || elsewhere || ended === undefined || (deviceId && devices.isPending)) return <Waiting lines={3} />;
   if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
 
   if (visiting) {
@@ -43,6 +44,14 @@ export function Timeline() {
       <Visited spaceId={visiting}>
         <TimelineScreen spaceId={visiting} title={<VisitingTitle title={t('shell.tabs.timeline')} spaceId={visiting} />} />
       </Visited>
+    );
+  }
+
+  if (ended) {
+    return (
+      <section className={styles.screen}>
+        <PlaceEnded title={t('shell.tabs.timeline')} name={ended.name} />
+      </section>
     );
   }
 

@@ -13,6 +13,7 @@ import { useSpaces } from '@/api/spaces';
 import { isAboutPlace, isPlace, usePlaceChoice, type PlaceCard } from '@/app/places';
 import { useCardStatus } from '@/screens/start/card-status';
 import { toneOf } from '@/screens/start/place';
+import { duePlaces, useDue } from '@/screens/start/due';
 import { startOrder } from '@/screens/start/rooms';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { Sheet } from '@/ui/Sheet';
@@ -89,7 +90,7 @@ function PlaceSheet({ chosen, onChoose, onClose }: { chosen: string; onChoose: (
   const diary = useDiaryLayer();
   const places = (home.data?.spaces ?? []).filter(isPlace);
   const devices = useDevices(places.some(place => place.deviceIds.length > 0));
-  const groups = startOrder(places, spaces.data?.items ?? []);
+  const groups = startOrder(places, spaces.data?.items ?? [], duePlaces(useDue(now).rows));
   const row = (card: PlaceCard, apart = false) => (
     <PlaceRow
       key={card.spaceId}

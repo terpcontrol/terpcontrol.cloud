@@ -1,16 +1,17 @@
 import { DateTime } from 'luxon';
 import { useState } from 'react';
+import type { GrowListItem } from '@fg2/shared-types/v1';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import { useMoveGrowHere } from '@/api/lifecycle';
+import { useSpaces } from '@/api/spaces';
 import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
-import { Block, WhenField } from '@/ui/SheetParts';
+import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { GrowPicker } from './GrowPicker';
 import { useMovableGrows } from './movable-grows';
 import styles from './MoveHereSheet.module.css';
 
@@ -23,6 +24,13 @@ import styles from './MoveHereSheet.module.css';
  * grows already standing here are not among the answers, because a move to
  * where the plants already are is not a move.
  *
+ * Every chip says where its grow stands now, because that is the whole of what
+ * a move costs: the one on offer may be day 35 of a flowering run in another
+ * tent, with a plan and a set of alarm rules that follow it. A grow standing
+ * nowhere in particular says that instead of nothing. Choosing is not
+ * committing: the pick is spent by the button, so a mis-tap on a list of names
+ * cannot take a running grow out of the tent it is in.
+ *
  * A tent with nothing to move into it is a tent waiting for its first grow, so
  * that is what it is offered: the new-grow sheet takes this one's place with
  * the tent already answered.
@@ -32,12 +40,21 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
   const movable = useMovableGrows(spaceId);
   const move = useMoveGrowHere(spaceId);
   const mayManage = useMayManage(spaceId);
+  const spaces = useSpaces();
 
   const [growId, setGrowId] = useState<string | null>(null);
   const [at, setAt] = useState(() => serverNow().toJSDate());
   const [starting, setStarting] = useState(false);
 
   if (starting) return <StartGrowSheet spaceId={spaceId} name={spaceName} onClose={onClose} />;
+
+  const standing = (grow: GrowListItem): string | null => {
+    const open = grow.placements.find(one => one.endedAt === null);
+    if (!open) return null;
+    if (open.spaceId === null) return t('space.presets.growStandsNowhere');
+
+    return spaces.data?.items.find(one => one.id === open.spaceId)?.name ?? null;
+  };
 
   return (
     <Sheet title={t('space.moveHereTitle', { name: spaceName })} onClose={onClose}>
@@ -55,7 +72,19 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
               ) : null}
             </>
           ) : (
-            <GrowPicker grows={movable.items} chosen={growId} onChoose={setGrowId} />
+            <div className={styles.list}>
+              <Choices label={t('space.presets.whichGrow')}>
+                {movable.items.map(grow => {
+                  const place = standing(grow);
+
+                  return (
+                    <Choice key={grow.id} chosen={growId === grow.id} onChoose={() => setGrowId(grow.id)}>
+                      {place === null ? grow.name : t('space.presets.growAt', { name: grow.name, place })}
+                    </Choice>
+                  );
+                })}
+              </Choices>
+            </div>
           )}
         </Block>
 

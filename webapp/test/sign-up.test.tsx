@@ -135,7 +135,7 @@ describe('the stranger an invitation was sent to', () => {
   it('is offered an account before a sign-in, and told in the invitation’s words what one takes', async () => {
     draw('/join/K7QZ4M2P');
 
-    expect(await screen.findByText('You are invited to Blue Dream tent')).toBeInTheDocument();
+    expect(await screen.findByText('Blue Dream tent: you are invited')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Create an account to join' })).toHaveAttribute('href', '/sign-up');
     expect(screen.getByRole('link', { name: 'Sign in to join' })).toHaveAttribute('href', '/sign-in');
     expect(screen.getByText(/You need an account of your own/)).toBeInTheDocument();
@@ -213,7 +213,7 @@ describe('the stranger an invitation was sent to', () => {
     fireEvent.change(await screen.findByLabelText('Invitation code'), { target: { value: ' k7qz-4m2p ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open the invitation' }));
 
-    expect(await screen.findByText('You are invited to Blue Dream tent')).toBeInTheDocument();
+    expect(await screen.findByText('Blue Dream tent: you are invited')).toBeInTheDocument();
     expect(String(vi.mocked(fetchStub).mock.calls.at(-1)?.[0])).toMatch(/\/invites\/K7QZ4M2P$/);
   });
 });

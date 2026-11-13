@@ -1,6 +1,7 @@
 import type { DateTime } from 'luxon';
 import type { FollowedGrowCard } from '@fg2/shared-types/v1';
 import type { Translate } from '@/i18n/i18n';
+import { growDay } from '@/screens/grow/progress';
 import { ageLabel } from '@/ui/age';
 import { calendarDay } from '@/ui/zone';
 
@@ -14,7 +15,7 @@ import { calendarDay } from '@/ui/zone';
  */
 export const followedMeta = (t: Translate, grow: FollowedGrowCard, now: DateTime, zone: string | null): string =>
   [
-    grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,
+    growDay(t, grow),
     grow.stage ? t(`home.stage.${grow.stage}`) : null,
     grow.endedAt ? t('grow.ended', { date: calendarDay(grow.endedAt, zone) }) : null,
     t('home.card.ago', { age: ageLabel(grow.updatedAt, now) }),

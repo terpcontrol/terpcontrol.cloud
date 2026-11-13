@@ -17,6 +17,7 @@ import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { ClimatePick } from './ClimatePick';
+import { RepairAnswer } from './RepairAnswer';
 import { climateRequest, defaultPick, usePlaceController, type PhaseClimate } from './phase-climate';
 import { correctionEffect, phasesInOrder, withdrawalEffect, type PhaseEffect } from './phase-effect';
 import styles from './Lifecycle.module.css';
@@ -281,19 +282,13 @@ function PhaseEditor({ grow, phase, onDone }: { grow: GrowListItem; phase: Phase
       <Effect effect={effect} changed={changed} entry="grow.lifecycle.phase.effect.entry" />
       <Refused error={correct.error} />
 
-      <div className={styles.rowActions}>
-        <button
-          type="button"
-          className={`${ui.button} ${ui.primary}`}
-          disabled={correct.isPending || !changed}
-          onClick={() => correct.mutate({ phaseId: phase.id, body: { stage, preset, startedAt } }, { onSuccess: onDone })}
-        >
-          {correct.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.phase.saveCorrection')}
-        </button>
-        <button type="button" className={ui.button} onClick={onDone}>
-          {t('grow.lifecycle.cancel')}
-        </button>
-      </div>
+      <RepairAnswer
+        yes={t('grow.lifecycle.saveCorrection')}
+        busy={correct.isPending}
+        disabled={!changed}
+        onYes={() => correct.mutate({ phaseId: phase.id, body: { stage, preset, startedAt } }, { onSuccess: onDone })}
+        onDone={onDone}
+      />
     </div>
   );
 }
@@ -309,19 +304,13 @@ function PhaseWithdrawal({ grow, phase, onDone }: { grow: GrowListItem; phase: P
       <Effect effect={effect} changed entry="grow.lifecycle.phase.effect.entryGone" />
       <Refused error={withdraw.error} />
 
-      <div className={styles.rowActions}>
-        <button
-          type="button"
-          className={`${ui.button} ${ui.dangerFilled}`}
-          disabled={withdraw.isPending}
-          onClick={() => withdraw.mutate(phase.id, { onSuccess: onDone })}
-        >
-          {withdraw.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.phase.confirmWithdraw')}
-        </button>
-        <button type="button" className={ui.button} onClick={onDone}>
-          {t('grow.lifecycle.cancel')}
-        </button>
-      </div>
+      <RepairAnswer
+        yes={t('grow.lifecycle.phase.confirmWithdraw')}
+        danger
+        busy={withdraw.isPending}
+        onYes={() => withdraw.mutate(phase.id, { onSuccess: onDone })}
+        onDone={onDone}
+      />
     </div>
   );
 }

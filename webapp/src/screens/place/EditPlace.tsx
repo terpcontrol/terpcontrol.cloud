@@ -7,14 +7,14 @@ import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useMembers, useRoomsMembers } from '@/api/members';
 import { useSavePlace, useSpaces } from '@/api/spaces';
-import { cameraPath, devicePath, membersPath, placePath, removePath, usePageOfPlace } from '@/app/places';
+import { cameraPath, devicePath, membersPath, placePath, placesOf, removePath, usePageOfPlace } from '@/app/places';
 import { useLog } from '@/log/log-context';
 import { DeviceSettingsSheet } from '@/screens/devices/DeviceSettingsSheet';
 import { Members } from '@/screens/space/members/Members';
 import { inSentence, mentionsOn } from '@/screens/space/members/people';
-import { cameraCalled } from '@/ui/camera-name';
+import { camerasCalled } from '@/ui/camera-name';
 import { Help } from '@/ui/Help';
-import { cameraTitle, deviceTitle, givenName, typeName } from '@/ui/naming';
+import { cameraTitle, deviceTitle, givenName, PLACE_KINDS, typeName } from '@/ui/naming';
 import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, NoLongerHere, Refused, Waiting } from '@/ui/PageState';
 import { usePlaceDevices } from '@/ui/place-devices';
@@ -24,12 +24,10 @@ import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import styles from './Place.module.css';
 
-/** The kinds a place is; a room is none of them - it is the field below. */
-const KINDS: readonly SpaceKind[] = ['tent', 'fridge', 'balcony', 'other'];
-
-/** The room select's two entries that are no room. */
+/** The room select's entries that are no room: none, one still to be made, and another name for the one the place stands in. */
 const NO_ROOM = 'none';
 const NEW_ROOM = 'new';
+const RENAME_ROOM = 'rename';
 
 /**
  * "Ort bearbeiten", which the ⋯ beside a place's name opens: what a place is
@@ -41,7 +39,8 @@ const NEW_ROOM = 'new';
  * shown who else is here instead, which is where they leave. The room, the
  * people and the end are the owner's. A room says whom it lets in where it is
  * chosen, the save says who sees the place now and who no longer does, and
- * the save that ends a room with people in it asks first.
+ * the save that ends a room with people in it asks first. A room has no page
+ * of its own, so the one the place stands in is renamed here as well.
  */
 export function EditPlace() {
   const { spaceId = '' } = useParams();
@@ -72,10 +71,10 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
   const { tell } = useLog();
   const owns = useMayIn(space.id, 'own');
   const save = useSavePlace(space.id);
+  const renameRoom = useSavePlace(space.roomId ?? '');
 
-  const own = listed.filter(one => one.ownerId === space.ownerId && one.archivedAt === null);
-  const places = own.filter(one => one.kind !== 'room');
-  const rooms = own.filter(one => one.kind === 'room');
+  const places = placesOf(listed, space.ownerId);
+  const rooms = listed.filter(one => one.kind === 'room' && one.ownerId === space.ownerId && one.archivedAt === null);
   const room = rooms.find(one => one.id === space.roomId) ?? null;
   // Whom each room lets in, and this place by itself: what a change of room gives and takes is said before and after it.
   const roomMembers = useRoomsMembers(owns ? rooms.map(one => one.id) : []);
@@ -99,13 +98,25 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
     chosenRoom === NEW_ROOM
       ? (rooms.find(one => nameKey(one.name) === nameKey(newRoom)) ?? null)
       : (rooms.find(one => one.id === chosenRoom) ?? null);
-  const roomMoves = chosenRoom === NEW_ROOM ? newRoom !== '' && (into === null || into.id !== room?.id) : chosenRoom !== stands;
+  const naming = chosenRoom === RENAME_ROOM && room !== null;
+  const roomNamed = naming && newRoom !== room.name;
+  // Names are unique among an account's rooms as among its places: said before the server refuses it.
+  const roomTaken = (roomNamed && rooms.find(one => one.id !== room.id && nameKey(one.name) === nameKey(newRoom))) || null;
+  const roomMoves = chosenRoom === NEW_ROOM ? newRoom !== '' && (into === null || into.id !== room?.id) : !naming && chosenRoom !== stands;
   const taken = places.find(one => one.id !== space.id && nameKey(one.name) === nameKey(name)) ?? null;
   const renamed = name !== space.name;
-  const changed = renamed || chosenKind !== space.kind || roomMoves;
+  const placeChanged = renamed || chosenKind !== space.kind || roomMoves;
+  const typing = chosenRoom === NEW_ROOM || naming;
   // A room is left only once it is known whom it lets in: the answer comes with the place's own people.
   const ready =
-    changed && name !== '' && taken === null && !(chosenRoom === NEW_ROOM && newRoom === '') && !(roomMoves && members.isPending) && !save.isPending;
+    (placeChanged || roomNamed) &&
+    name !== '' &&
+    taken === null &&
+    roomTaken === null &&
+    !(typing && newRoom === '') &&
+    !(roomMoves && members.isPending) &&
+    !save.isPending &&
+    !renameRoom.isPending;
   // A room comes with the second place: one tent has nothing to be grouped with.
   const asksRoom = owns && (places.length > 1 || room !== null);
 
@@ -119,14 +130,10 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
   const said = (was: Stand, now: Stand, sees: string[], seesNoMore: string[]) =>
     [
       was.name !== now.name ? t('place.edit.told.named', { was: was.name, name: now.name }) : null,
-      // The name stands by itself before the kind, unless the line before has just said it.
-      was.kind !== now.kind && was.name === now.name ? now.name : null,
+      // The name stands by itself before the kind and the room, unless the line before has just said it.
+      (was.kind !== now.kind || (was.room !== now.room && now.room !== null)) && was.name === now.name ? now.name : null,
       was.kind !== now.kind ? t('place.edit.told.kind', { kind: t(`place.edit.kind.${now.kind}`) }) : null,
-      was.room === now.room
-        ? null
-        : now.room
-          ? t('place.edit.told.room', { name: now.name, room: now.room })
-          : t('place.edit.told.noRoom', { name: now.name }),
+      was.room === now.room ? null : now.room ? t('place.edit.told.room', { room: now.room }) : t('place.edit.told.noRoom', { name: now.name }),
       sees.length > 0 ? t('place.edit.told.sees', { count: sees.length, people: inSentence(sees, i18n.language) }) : null,
       seesNoMore.length > 0 ? t('place.edit.told.seesNoMore', { count: seesNoMore.length, people: inSentence(seesNoMore, i18n.language) }) : null,
     ]
@@ -148,6 +155,18 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
     const [sees, seesNoMore] = [only(joins, leaves), only(leaves, joins)];
     setAsking(false);
     try {
+      if (roomNamed) {
+        const named = await renameRoom.mutateAsync({ name: newRoom });
+        tell({
+          label: t('place.edit.told.named', { was: room.name, name: named.name }),
+          undo: () => renameRoom.mutateAsync({ name: room.name }),
+          undone: t('place.edit.told.named', { was: named.name, name: room.name }),
+          from: `room-${room.id}`,
+        });
+        setRoomChoice(null);
+        setRoomTyped('');
+      }
+      if (!placeChanged) return;
       const saved = await save.mutateAsync(body);
       const was: Stand = { name: space.name, kind: space.kind, room: room?.name ?? null };
       // The room by the name it is stored under, not as it was typed.
@@ -217,7 +236,7 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
           <label className={styles.field}>
             {t('place.edit.kindLabel')}
             <select className={ui.input} value={chosenKind} onChange={event => setKind(event.target.value as SpaceKind)}>
-              {KINDS.map(one => (
+              {PLACE_KINDS.map(one => (
                 <option key={one} value={one}>
                   {t(`place.edit.kind.${one}`)}
                 </option>
@@ -227,7 +246,15 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
           {asksRoom ? (
             <label className={styles.field}>
               {t('place.edit.room')}
-              <select className={ui.input} value={chosenRoom} onChange={event => setRoomChoice(event.target.value)}>
+              <select
+                className={ui.input}
+                value={chosenRoom}
+                onChange={event => {
+                  setRoomChoice(event.target.value);
+                  // The field starts on the name there is to change, and empty for one still to be given.
+                  setRoomTyped(event.target.value === RENAME_ROOM ? (room?.name ?? '') : '');
+                }}
+              >
                 {rooms.map(one => (
                   <option key={one.id} value={one.id}>
                     {inRoom(one).size > 0 ? t('place.edit.roomWith', { room: one.name, count: inRoom(one).size }) : one.name}
@@ -235,11 +262,12 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
                 ))}
                 <option value={NEW_ROOM}>{t('place.edit.newRoom')}</option>
                 <option value={NO_ROOM}>{t('place.edit.noRoom')}</option>
+                {room ? <option value={RENAME_ROOM}>{t('place.edit.renameRoom', { room: room.name })}</option> : null}
               </select>
             </label>
           ) : null}
         </div>
-        {asksRoom && chosenRoom === NEW_ROOM ? (
+        {asksRoom && typing ? (
           <label className={styles.field}>
             {t('place.edit.newRoomName')}
             {/* Chosen a moment ago, so the keyboard comes up for the one thing left to type. */}
@@ -249,11 +277,17 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
               autoComplete="off"
               maxLength={80}
               autoFocus
+              aria-invalid={roomTaken !== null || undefined}
               onChange={event => setRoomTyped(event.target.value)}
             />
           </label>
         ) : null}
-        <Refused error={save.error} />
+        {roomTaken ? (
+          <p className={ui.problem} role="alert">
+            {t('place.edit.roomTaken', { name: roomTaken.name })}
+          </p>
+        ) : null}
+        <Refused error={renameRoom.error ?? save.error} />
       </form>
 
       <DevicesHere space={space} />
@@ -308,10 +342,8 @@ function DevicesHere({ space }: { space: Space }) {
   const { t } = useTranslation();
   const here = usePlaceDevices(space.id).items;
   const every = useDevices().data?.items;
-  const cameras = (useCameras(space.id).data?.items.filter(camera => camera.removedAt === null) ?? []).map(
-    camera => [camera.id, cameraTitle(camera, here.find(device => device.id === camera.deviceId) ?? null, t)] as const,
-  );
-  const oneUnnamed = cameras.filter(([, title]) => cameraCalled(title, true) !== title).length < 2;
+  const cameras = useCameras(space.id).data?.items.filter(camera => camera.removedAt === null) ?? [];
+  const called = camerasCalled(cameras.map(camera => cameraTitle(camera, here.find(device => device.id === camera.deviceId) ?? null, t)));
   const spaces = useSpaces().data?.items ?? [];
   // A device stands only in a place of its owner: only the owner of the place brings one, and only one of their own.
   const owns = useMayIn(space.id, 'own');
@@ -319,6 +351,9 @@ function DevicesHere({ space }: { space: Space }) {
   const [bringing, setBringing] = useState(false);
   const [moving, setMoving] = useState<Device | null>(null);
   const claim = `/claim?space=${encodeURIComponent(space.id)}`;
+
+  // Somebody who may not bring a device is shown no heading over nothing.
+  if (!owns && here.length === 0 && cameras.length === 0) return null;
 
   return (
     <section className={styles.block} aria-labelledby="place-devices">
@@ -334,8 +369,8 @@ function DevicesHere({ space }: { space: Space }) {
             to={devicePath(device.id)}
           />
         ))}
-        {cameras.map(([id, title]) => (
-          <Row key={id} title={cameraCalled(title, oneUnnamed)} line={t('place.edit.camera')} to={cameraPath(id)} />
+        {cameras.map((camera, at) => (
+          <Row key={camera.id} title={called[at]} line={t('place.edit.camera')} to={cameraPath(camera.id)} />
         ))}
         {!owns ? null : elsewhere.length > 0 ? (
           <button type="button" className={styles.add} onClick={() => setBringing(true)}>
@@ -355,7 +390,7 @@ function DevicesHere({ space }: { space: Space }) {
                 <Row
                   key={device.id}
                   title={deviceTitle(device, t, elsewhere)}
-                  line={t('place.edit.standsIn', { place: spaces.find(one => one.id === device.spaceId)?.name ?? t('place.edit.nowhere') })}
+                  line={spaces.find(one => one.id === device.spaceId)?.name ?? t('place.edit.nowhere')}
                   onOpen={() => {
                     setBringing(false);
                     setMoving(device);

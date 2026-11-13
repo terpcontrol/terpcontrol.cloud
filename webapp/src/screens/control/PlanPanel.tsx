@@ -137,7 +137,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
                 </button>
                 {anyTemplate && !ready ? (
                   <button type="button" className={ui.button} onClick={() => setPicking(true)}>
-                    {t('space.control.fromTemplate')}
+                    {t('space.control.template.startTitle')}
                   </button>
                 ) : null}
               </div>
@@ -177,12 +177,12 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
             {t('space.control.edit')}
           </button>
           <button type="button" className={ui.button} onClick={() => setKeeping(true)}>
-            {t('space.control.keepAsTemplate')}
+            {t('space.control.template.keepTitle')}
           </button>
           {/* Editing stays where no climate lands - emptying the steps is how such a plan is taken off - but no fresh one is started. */}
           {landing === 'document' && anyTemplate ? (
             <button type="button" className={ui.button} onClick={() => setPicking(true)}>
-              {t('space.control.fromTemplate')}
+              {t('space.control.template.startTitle')}
             </button>
           ) : null}
         </div>

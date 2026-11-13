@@ -2,7 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowCard } from '@fg2/shared-types/v1';
-import { useProgress } from '@/screens/grow/progress';
+import { growDay, useProgress } from '@/screens/grow/progress';
 import styles from './Start.module.css';
 
 /** "Blüte · Woche 3 … Ernte in etwa 6 Wochen" over the bar. */
@@ -42,7 +42,7 @@ export function GrowHead({ grow, to }: { grow: GrowCard; to: string }) {
   return (
     <Link to={to} className={styles.growCard}>
       <span className={styles.growName}>
-        <span>{[grow.name, grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null].filter(Boolean).join(' · ')}</span>
+        <span>{[grow.name, growDay(t, grow)].filter(Boolean).join(' · ')}</span>
         <ChevronRight size={20} strokeWidth={2} className={styles.chevron} aria-hidden />
       </span>
       <PhaseWords grow={grow} />

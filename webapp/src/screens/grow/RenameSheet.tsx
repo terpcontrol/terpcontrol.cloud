@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
-import { Sheet } from '@/ui/Sheet';
-import { Refused } from '@/ui/PageState';
+import { NameSheet } from '@/ui/NameSheet';
 import { Block } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import styles from './Lifecycle.module.css';
@@ -25,45 +24,28 @@ import styles from './Lifecycle.module.css';
 export function RenameSheet({ grow, onClose }: { grow: GrowListItem; onClose: () => void }) {
   const { t } = useTranslation();
   const rename = useUpdateGrow(grow.id);
-  const [name, setName] = useState(grow.name);
   const [type, setType] = useState(grow.type);
 
-  const named = name.trim();
-
   return (
-    <Sheet title={t('grow.rename.title', { name: grow.name })} onClose={onClose}>
-      <div className={ui.sheetBody}>
-        <Block label={t('grow.rename.name')}>
-          <input
-            className={ui.input}
-            value={name}
-            aria-label={t('grow.rename.name')}
-            autoComplete="off"
-            onChange={event => setName(event.target.value)}
-          />
-        </Block>
-
-        <Block label={t('grow.new.type')} help="autoflower">
-          <div className={`${ui.segments} ${ui.segmentsFill} ${styles.kinds}`} role="group" aria-label={t('grow.new.type')}>
-            {(['photoperiod', 'autoflower'] as const).map(one => (
-              <button key={one} type="button" className={ui.segment} aria-pressed={type === one} onClick={() => setType(one)}>
-                {t(one === 'autoflower' ? 'grow.new.autoflower' : 'grow.new.photoperiod')}
-              </button>
-            ))}
-          </div>
-        </Block>
-
-        <Refused error={rename.error} />
-
-        <button
-          type="button"
-          className={`${ui.button} ${ui.primary} ${styles.submit}`}
-          disabled={rename.isPending || named === '' || (named === grow.name && type === grow.type)}
-          onClick={() => rename.mutate({ name: named, type }, { onSuccess: onClose })}
-        >
-          {rename.isPending ? t('grow.lifecycle.saving') : t('grow.rename.save')}
-        </button>
-      </div>
-    </Sheet>
+    <NameSheet
+      title={t('grow.rename.title', { name: grow.name })}
+      fields={{ name: { label: t('grow.rename.name'), value: grow.name } }}
+      error={rename.error}
+      busy={rename.isPending}
+      save={rename.isPending ? t('grow.lifecycle.saving') : t('grow.rename.save')}
+      ready={({ name }) => name !== '' && (name !== grow.name || type !== grow.type)}
+      onSave={({ name }) => rename.mutate({ name, type }, { onSuccess: onClose })}
+      onClose={onClose}
+    >
+      <Block label={t('grow.new.type')} help="autoflower">
+        <div className={`${ui.segments} ${ui.segmentsFill} ${styles.kinds}`} role="group" aria-label={t('grow.new.type')}>
+          {(['photoperiod', 'autoflower'] as const).map(one => (
+            <button key={one} type="button" className={ui.segment} aria-pressed={type === one} onClick={() => setType(one)}>
+              {t(one === 'autoflower' ? 'grow.new.autoflower' : 'grow.new.photoperiod')}
+            </button>
+          ))}
+        </div>
+      </Block>
+    </NameSheet>
   );
 }

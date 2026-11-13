@@ -167,7 +167,9 @@ describe('which place needs a person first', () => {
       cardOf({ spaceId: 'e', name: 'Fine too' }),
     ];
 
-    expect(sortedByAttention(cards).map(card => card.name)).toEqual(['Alarm', 'Due', 'Silent', 'Fine', 'Fine too']);
+    expect(sortedByAttention(cards, new Set(['b'])).map(card => card.name)).toEqual(['Alarm', 'Due', 'Silent', 'Fine', 'Fine too']);
+    // What the home says is due somewhere moves nothing: the card's own count is the reader's list, and so is its rank.
+    expect(sortedByAttention(cards).map(card => card.name)).toEqual(['Alarm', 'Silent', 'Fine', 'Due', 'Fine too']);
   });
 
   it('gathers the places of a room under its name, where its most urgent place stood, and leaves a room the reader cannot see ungrouped', () => {

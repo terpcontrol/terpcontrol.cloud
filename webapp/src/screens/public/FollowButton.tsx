@@ -7,9 +7,9 @@ import ui from '@/ui/ui.module.css';
 import styles from './Public.module.css';
 
 /**
- * Keeping a diary on your home screen, and stopping.
+ * Keeping a diary among the ones you follow, and stopping.
  *
- * Only a real account has anywhere to put it: a stranger has no home screen and
+ * Only a real account has anywhere to put it: a stranger has no such list and
  * the demo is somebody else's account, which the server refuses to write a
  * follow against - so neither is offered a button that would be refused.
  * Following is a state rather than an event, which is why one button says both

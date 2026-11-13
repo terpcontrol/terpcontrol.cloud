@@ -45,7 +45,8 @@ export const groupedByRoom = <T extends HomeSpaceCard>(cards: readonly T[], spac
  * The order Start lists the places in, and the one order there is: the place
  * that needs a person first, each room where its most urgent place stands.
  * The header's list is in it, and a browser that has chosen no place is shown
- * the first in it that suits (`firstChoice`).
+ * the first in it that suits (`firstChoice`). `due` is the places with
+ * something due for the reader (`duePlaces`).
  */
-export const startOrder = <T extends HomeSpaceCard>(cards: T[], spaces: readonly Space[]): CardGroup<T>[] =>
-  groupedByRoom(sortedByAttention(cards), spaces);
+export const startOrder = <T extends HomeSpaceCard>(cards: T[], spaces: readonly Space[], due?: ReadonlySet<string>): CardGroup<T>[] =>
+  groupedByRoom(sortedByAttention(cards, due), spaces);

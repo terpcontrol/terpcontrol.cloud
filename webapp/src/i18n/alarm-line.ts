@@ -49,7 +49,7 @@ export const ruleTitle = (t: Translate, { name, origin, watch }: Pick<AlarmRule,
 };
 
 /** What a reading is called wherever an alarm names it, in full: "Blatttemperatur zu hoch". */
-export const metricName = (t: Translate, metric: Metric): string => t(`alarms.metric.${metric}`, { defaultValue: metric });
+export const metricName = (t: Translate, metric: Metric): string => t(`home.metric.${metric}`, { defaultValue: metric });
 
 /**
  * An alarm's diary line, in the reader's language.

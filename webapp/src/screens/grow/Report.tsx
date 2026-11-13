@@ -227,7 +227,7 @@ function Chapter({
             where,
           ]}
         />
-        {/* The same three figures a week card of this grow carries, in the same
+        {/* The same three figures a day card of this grow carries, in the same
             order - the temperatures, the humidity and the hours of light - and
             then how much of the chapter sat inside its own band. The light was
             the one the report left out, though the server had measured it for

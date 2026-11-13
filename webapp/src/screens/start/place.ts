@@ -5,6 +5,7 @@ import type {
   ClimateVerdict,
   Device,
   DeviceLive,
+  Entry,
   Metric,
   OpenAlert,
   OverviewCamera,
@@ -403,7 +404,7 @@ export const statusText = (t: Translate, status: Status, now: DateTime, zone: st
       return t('home.invite.noSensor');
     case 'off': {
       const words = t(`start.status.${status.high ? 'high' : 'low'}${status.since === null ? 'Now' : ''}`, {
-        metric: t(`start.metric.${status.metric}`),
+        metric: t(`home.metric.${status.metric}`),
         delta: figureWithUnit(status.delta, status.metric),
       });
       return status.since ? `${words} · ${t('start.status.since', { time: sinceLabel(status.since, now, zone) })}` : words;
@@ -436,3 +437,7 @@ export const shownStill = (camera: OverviewCamera): { mediaId: string; capturedA
   const newest = camera.stills.at(-1);
   return newest ? { ...newest, dark: false } : null;
 };
+
+/** The newest photo somebody wrote into the diary, which a grow without a camera is shown by. */
+export const ownPhotoOf = (entries: Entry[], growId: string): Entry | null =>
+  entries.find(entry => entry.growId === growId && entry.cameraId === null && entry.mediaIds.length > 0) ?? null;

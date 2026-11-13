@@ -4,15 +4,14 @@ import { useConfigure, useDeviceLive, useHeardAt } from '@/api/devices';
 import { useLog } from '@/log/log-context';
 import { fieldValue, heldSetting } from '@/ui/advanced/field-values';
 import { deviceLiveness } from '@/ui/age';
-import { deviceName } from '@/ui/naming';
 import { useNow } from '@/ui/useNow';
 import { fieldOf, pendingByPath, pendingField } from './figures';
 
 /**
  * How every save of a device's settings is answered, whatever was set and
  * wherever: the toast that names what changed - "… gespeichert", and for a
- * device that is not heard that it takes the setting over when it next
- * connects - with the way to take it back where that is one write. A device
+ * device that is not heard "noch nicht am Gerät", the page's own words for
+ * it - with the way to take it back where that is one write. A device
  * acknowledges nothing, so nothing here says that it took anything. `from`
  * names the setting, so saving it again answers in the same toast.
  */
@@ -25,7 +24,7 @@ export const useSaved = (device: Device) => {
     offline,
     say: (what: string, undo: (() => Promise<unknown>) | null = null, from?: string) =>
       tell({
-        label: t(offline ? 'control.saved.later' : 'control.saved.now', { what, device: deviceName(device, t) }),
+        label: t(offline ? 'control.saved.later' : 'control.saved.now', { what }),
         undo,
         from: from === undefined ? undefined : `${device.id}:${from}`,
       }),

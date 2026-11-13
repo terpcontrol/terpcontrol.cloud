@@ -258,6 +258,8 @@ const server = {
   room: false,
   /** The place an alert is open in, which Start then lists first. */
   alerting: null as string | null,
+  /** The account's own places that have ended, which only the list asked for them names. */
+  ended: [] as [string, string][],
   /** The grows the lists answer: every one of the account, which a place then asks for its own of. */
   grows: [] as GrowListItem[],
   youMay: 'own' as AccessNeed,
@@ -310,6 +312,9 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (path === '/devices') return json({ items: server.places.map(([id]) => device(`device-${id.slice(-1)}`, id)), nextCursor: null });
   if (path === '/cameras')
     return json({ items: Array.from({ length: server.cameras }, (_, index) => ({ id: `cam-${index}`, spaceId: 'space-1' })), nextCursor: null });
+  if (path === '/spaces' && searchParams.get('archived')) {
+    return json(spacePage(...server.ended.map(([id, name]) => ({ ...spaceWhere('own', { id, name }), archivedAt: ago(60) }))));
+  }
   if (path === '/spaces') {
     const room = server.room ? [spaceWhere(server.youMay, { id: 'room-1', name: 'Cellar', kind: 'room' })] : [];
     return json(spacePage(...server.places.map(([id, name]) => spaceWhere(server.youMay, { id, name })), ...room));
@@ -372,6 +377,7 @@ beforeEach(() => {
   server.grows = [];
   server.room = false;
   server.alerting = null;
+  server.ended = [];
   server.youMay = 'own';
   server.me = meOf(false, { diary: false, places: false });
   server.sent = [];
@@ -519,7 +525,7 @@ describe('a place´s page', () => {
     open('/spaces/space-1/members');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Who sees Fridge 1' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to Fridge 1' })).toHaveAttribute('href', '/spaces/space-1');
+    expect(screen.getByRole('link', { name: 'Back: Fridge 1' })).toHaveAttribute('href', '/spaces/space-1');
   });
 
   it('answers the address of who is let in with the page that edits the place, for whoever manages it', async () => {
@@ -733,6 +739,21 @@ describe('the choice of place', () => {
     await waitFor(() => expect(where(router)).toBe('/control/alarms'));
     expect(chips('Tent 2')).toHaveLength(2);
     expect(chosen()).toBe('space-2');
+  });
+
+  /** An old alert and a bookmark still name a place that was removed: the page says so, and draws no other place in its stead. */
+  it.each([
+    ['/timeline', 'Timeline'],
+    ['/control', 'Control'],
+  ])('says at %s that a place of the account´s own has ended, keeps the address and leads to Start', async (item, title) => {
+    server.ended = [['space-9', 'Old tent']];
+    const router = open(`${item}?space=space-9`);
+
+    expect(await screen.findByText('Old tent has been removed. You see its curves only with grows that stood there.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument();
+    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(where(router)).toBe(`${item}?space=space-9`);
+    expect(timelinesAsked()).toEqual([]);
   });
 
   it('opens the Log sheet on the place the page shows', () => {

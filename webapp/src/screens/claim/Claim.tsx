@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { placePath } from '@/app/places';
+import { placePath, placesOf } from '@/app/places';
 import type { Device, DeviceClaimResult, Space } from '@fg2/shared-types/v1';
 import { OWN_CLIMATE_TYPES, SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useMe } from '@/api/account';
-import { useClaimedDevice, useEndInvented, usePlaceDevice } from '@/api/claims';
-import { useDevices, useSocketTables } from '@/api/devices';
+import { useClaimedDevice, useEndInvented } from '@/api/claims';
+import { useDevices, useSocketTables, useUpdateDevice } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
 import { useApplyPreset } from '@/api/lifecycle';
 import { ApiError } from '@/api/problem';
@@ -15,7 +15,7 @@ import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { useLog } from '@/log/log-context';
 import { NotifyStep } from '@/screens/notifications/NotifyNotice';
 import type { HelpTopic } from '@/ui/explain';
-import { deviceName } from '@/ui/naming';
+import { deviceName, placeKindOf } from '@/ui/naming';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -35,7 +35,6 @@ import {
   hardwareSummary,
   joinOrder,
   MEASURE,
-  newPlaceKind,
   newPlaceName,
   NOTHING_DOING,
   notifySummary,
@@ -47,9 +46,11 @@ import {
 } from './steps';
 import styles from './Claim.module.css';
 
-/** What a read holds, asked for where it has not answered yet. */
-const known = async <T,>(read: { data: T | undefined; refetch: () => Promise<{ data: T | undefined }> }): Promise<T | undefined> =>
-  read.data ?? (await read.refetch()).data;
+/** What a read holds, asked for where it has not answered yet; `must` is for an answer nothing may be written without, and throws what the read failed with. */
+const known = async <T,>(
+  read: { data: T | undefined; refetch: (how: { throwOnError: boolean }) => Promise<{ data: T | undefined }> },
+  must = false,
+): Promise<T | undefined> => read.data ?? (await read.refetch({ throwOnError: must })).data;
 
 /** Where a question stands: the device, what its claim said it would ask, which of that is open, and the place the flow made. */
 const addressOf = (device: string, plan: readonly Asked[], at = '', made: string | null = null): Record<string, string> =>
@@ -106,7 +107,7 @@ export function Claim() {
   const spaces = useSpaces();
   const devices = useDevices();
   const makePlace = useCreateSpace();
-  const move = usePlaceDevice();
+  const move = useUpdateDevice(deviceId ?? '');
   const end = useEndInvented();
   const me = useMe(false, mayManage);
 
@@ -125,7 +126,7 @@ export function Claim() {
     spaceId === null || !growsHere.isPending ? (growsHere.data?.items.find(grow => grow.endedAt === null)?.summary.stage ?? null) : undefined;
 
   // The account's own places, which a device may hang in: what a guest adds is theirs, and stands in a place of theirs.
-  const own = (items: readonly Space[]) => items.filter(one => one.kind !== 'room' && one.archivedAt === null && one.ownerId === user?.id);
+  const own = (items: readonly Space[]) => placesOf(items, user?.id);
   // The place the flow was opened from ("Gerät hierher holen"): the claim puts the device there and asks nothing.
   const opened = own(places).find(one => one.id === params.get('space')) ?? null;
 
@@ -191,9 +192,10 @@ export function Claim() {
 
   // Where the claim puts the device, in its one write: the place the flow was opened from, else - for a fan, a socket
   // or a lamp, which the server tells apart - the first answer the question of where it hangs will give; and what a
-  // place it makes is called, in the reader's language, which the server has none of.
+  // place it makes is called, in the reader's language, which the server has none of. A code is not spent on places
+  // that could not be read: the claim would stand the device somewhere by guesswork.
   const whereTo = async () => {
-    const join = joinOrder(own((await known(spaces))?.items ?? []), (await known(devices))?.items ?? [])[0];
+    const join = joinOrder(own((await known(spaces, true))?.items ?? []), (await known(devices, true))?.items ?? [])[0];
     const spaceNames = { tent: t('claim.place.newName.tent'), fridge: t('claim.place.newName.fridge') };
     return opened ? { spaceId: opened.id } : { spaceNames, ...(join ? { joinSpaceId: join.id } : {}) };
   };
@@ -242,15 +244,16 @@ export function Claim() {
   const hang = async (to: Space | null) => {
     let madeId = made;
     if (to === null && (made === null || spaceId !== made)) {
-      const into = made ?? (await makePlace.mutateAsync({ kind: newPlaceKind(claimed.type), name: newPlaceName(claimed.type, own(places), t) })).id;
+      const kind = placeKindOf(claimed.type, 'tent');
+      const into = made ?? (await makePlace.mutateAsync({ kind, name: newPlaceName(claimed.type, own(places), t) })).id;
       setMade((madeId = into));
-      await move.mutateAsync({ deviceId: claimed.id, spaceId: into }).catch(async (refused: unknown) => {
+      await move.mutateAsync({ spaceId: into }).catch(async (refused: unknown) => {
         const ended = end.mutateAsync(into).then(() => setMade(null));
         await ended.catch(() => undefined);
         throw refused;
       });
     } else if (to !== null) {
-      if (spaceId !== to.id) await move.mutateAsync({ deviceId: claimed.id, spaceId: to.id });
+      if (spaceId !== to.id) await move.mutateAsync({ spaceId: to.id });
       if (made) await end.mutateAsync(made);
       setMade((madeId = null));
     }

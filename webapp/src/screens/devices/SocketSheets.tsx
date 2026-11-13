@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DeviceCapabilities, SocketPage, SocketRole } from '@fg2/shared-types/v1';
 import { useRemoveSocket, useSetSocket } from '@/api/devices';
+import { leaveUnderSheet } from '@/app/places';
 import { useLog } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
 import { Facts } from '@/ui/Facts';
@@ -332,7 +333,8 @@ export function RemoveSocketSheet({
           forgetRow(client, deviceId, row);
           answerSoon(client, deviceId);
           tell({ label: t('socketForm.remove.told', { name }), undo: null });
-          onRemoved();
+          // The socket's page is gone with it: what follows takes its entry of the history, not the sheet's.
+          leaveUnderSheet(onRemoved);
         },
       },
     );

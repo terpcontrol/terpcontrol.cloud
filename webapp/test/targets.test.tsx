@@ -814,7 +814,7 @@ describe('the climate under Steuerung', () => {
       expect(screen.queryByText('Control off.')).not.toBeInTheDocument();
       tap('Switch control on');
       await waitFor(() => expect(sent('PATCH')[0]?.body).toEqual({ set: { control: true } }));
-      await waitFor(() => expect(said()).toBe('Control on · saved, Blue Dream tent takes it over when it next connects'));
+      await waitFor(() => expect(said()).toBe('Control on · saved, not with the device yet'));
     });
 
     it('still saves, and the toast says when the device takes it over', async () => {
@@ -825,7 +825,7 @@ describe('the climate under Steuerung', () => {
       save();
 
       await waitFor(() => expect(told).toHaveLength(1));
-      expect(said()).toBe('Day temperature 24.0 °C · saved, Blue Dream tent takes it over when it next connects');
+      expect(said()).toBe('Day temperature 24.0 °C · saved, not with the device yet');
     });
   });
 

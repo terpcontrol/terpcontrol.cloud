@@ -12,7 +12,7 @@ import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { PlantPicker } from './PlantPicker';
-import { growPlaces } from './placement';
+import { PlaceChoices } from './PlaceChoices';
 import styles from './Lifecycle.module.css';
 
 /**
@@ -55,7 +55,6 @@ export function SplitSheet({
   const { t } = useTranslation();
   const split = useSplit(grow.id);
 
-  const open = growPlaces(spaces);
   const [chosen, setChosen] = useState<string[]>(preselect ?? []);
   const [stage, setStage] = useState<GrowthStage | null>(null);
   const [preset, setPreset] = useState<string | null>(null);
@@ -128,19 +127,13 @@ export function SplitSheet({
         </Block>
 
         <Block label={t('grow.lifecycle.split.theirPlace')}>
-          <Choices label={t('grow.lifecycle.split.theirPlace')}>
-            <Choice chosen={spaceId === undefined} onChoose={() => setSpaceId(undefined)}>
-              {t('grow.lifecycle.split.keepPlace')}
-            </Choice>
-            {open.map(space => (
-              <Choice key={space.id} chosen={spaceId === space.id} onChoose={() => setSpaceId(space.id)}>
-                {space.name}
-              </Choice>
-            ))}
-            <Choice chosen={spaceId === null} onChoose={() => setSpaceId(null)}>
-              {t('grow.noFixedPlace')}
-            </Choice>
-          </Choices>
+          <PlaceChoices
+            label={t('grow.lifecycle.split.theirPlace')}
+            spaces={spaces}
+            chosen={spaceId}
+            keep={t('grow.lifecycle.split.keepPlace')}
+            onChoose={setSpaceId}
+          />
         </Block>
 
         <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />

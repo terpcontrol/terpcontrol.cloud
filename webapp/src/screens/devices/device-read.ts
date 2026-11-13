@@ -3,6 +3,7 @@ import { noLongerThere } from '@/api/problem';
 import type { Device } from '@fg2/shared-types/v1';
 import type { DateTime } from 'luxon';
 import { deviceLiveness } from '@/ui/age';
+import { standingWith } from '@/ui/naming';
 
 /**
  * One device by its id, for a page about it: out of the account's own list,
@@ -19,8 +20,8 @@ export const useDevice = (deviceId: string) => {
 
   return {
     device,
-    /** Every device of the account, which says whether a name needs the tail of its id. */
-    among: own.data?.items,
+    /** The devices standing where it stands, which say whether its name needs the tail of its id: its page is headed as its card. */
+    among: device ? standingWith(device, own.data?.items) : undefined,
     isPending: device === null && (own.isPending || (elsewhere && (single?.isPending ?? false))),
     gone: device === null && elsewhere && noLongerThere(single?.error),
     refetch: () => {

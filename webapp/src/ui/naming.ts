@@ -8,8 +8,8 @@ import type { Translate } from '@/i18n/i18n';
  * type is a key rather than a word, so a stored name that is exactly the type
  * is no name at all: drawn as it stands it reads as lowercase English, in the
  * German app as much as in the English one. Every line that prints a device
- * goes through here, so the same hardware is called the same thing on the
- * Devices page, under a stream address and beside a camera that has just been
+ * goes through here, so the same hardware is called the same thing under
+ * Steuerung, under a stream address and beside a camera that has just been
  * paired.
  */
 export const givenName = (device: Pick<Device, 'name' | 'type'>): string | null => (device.name && device.name !== device.type ? device.name : null);
@@ -21,14 +21,20 @@ const deviceTag = (device: Device): string =>
     .slice(-4)
     .toUpperCase();
 
-/** A device type in words: the type is the firmware's key for itself, and a key is not a word. */
+/** The kinds a place is; a room is none of them - it groups places. Their words are `place.edit.kind.*`. */
+export const PLACE_KINDS: readonly SpaceKind[] = ['tent', 'fridge', 'balcony', 'other'];
+
 /**
  * The kind of place a device of this type stands in when a place is made for
- * it, as a claim makes it: a fridge module in a fridge, a tent controller in a
- * tent, anything else in a place nothing is said about.
+ * it: a fridge module in a fridge, a tent controller in a tent. For anything
+ * else it depends on who makes the place (`rest`): a move or a removal says
+ * nothing about it, while a claim makes a tent, which is what its "Zelt 2"
+ * says.
  */
-export const placeKindOf = (type: string): SpaceKind => (type === 'fridge' ? 'fridge' : type === 'controller' ? 'tent' : 'other');
+export const placeKindOf = (type: string, rest: SpaceKind = 'other'): SpaceKind =>
+  type === 'fridge' ? 'fridge' : type === 'controller' ? 'tent' : rest;
 
+/** A device type in words: the type is the firmware's key for itself, and a key is not a word. */
 export const typeName = (type: string, t: Translate): string => t(`devices.type.${type}`, { defaultValue: type });
 
 /** What to call a device inside a sentence, where the sentence already says which one is meant. */
@@ -45,6 +51,9 @@ export const deviceName = (device: Pick<Device, 'name' | 'type'>, t: Translate):
  * with one fridge module read "Fridge module · DC891B" on one screen and the
  * place's name on the next, and the six characters told nothing apart. Without
  * the list there is no telling, and the tag stays.
+ *
+ * `among` is the list the name is read in - the devices of one place on its
+ * card, its own page and the sheets opened from either (`standingWith`).
  */
 export const deviceTitle = (device: Device, t: Translate, among?: Device[]): string => {
   const name = givenName(device);
@@ -56,12 +65,19 @@ export const deviceTitle = (device: Device, t: Translate, among?: Device[]): str
   return alike ? t('devices.unnamed', { type: word, tag: deviceTag(device) }) : word;
 };
 
+/** The devices standing where a device stands (or in `spaceId`, where it is about to), itself among them: the list its card is drawn in. */
+export const standingWith = (device: Device, every: Device[] | undefined, spaceId: string | null = device.spaceId): Device[] | undefined =>
+  every?.filter(one => one.id === device.id || one.spaceId === spaceId);
+
 /**
  * The few characters printed on the cam, which is what it is called before
  * anybody has called it anything. A camera the cloud reached without a pairing
  * id falls back to its own, which is no worse a label and is never empty.
  */
-export const cameraTag = (camera: Camera): string => (camera.did ?? camera.id).slice(-4).toUpperCase();
+export const cameraTag = (camera: Pick<Camera, 'did' | 'id'>): string => camTag(camera.did ?? camera.id);
+
+/** The same few characters of a pairing id a device reports before the camera exists. */
+export const camTag = (did: string): string => did.slice(-4).toUpperCase();
 
 /**
  * What to call a camera in its row. A camera a controller pairs is made from

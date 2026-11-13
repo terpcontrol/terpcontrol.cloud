@@ -20,6 +20,7 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, useZone, zoned } from '@/ui/zone';
+import { growDay } from './progress';
 import { StartGrowSheet } from './new/WhatGrows';
 import styles from './Grows.module.css';
 
@@ -63,7 +64,7 @@ export function Grows() {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <BackLink to={GROW} label={t('place.backTo', { name: t('shell.tabs.grow') })} />
+        <BackLink to={GROW} label={t('grow.measurements.back')} />
         <h1>{t('grow.all.title')}</h1>
         {mayManage ? (
           <button type="button" className={styles.new} onClick={() => setStarting(true)}>
@@ -189,7 +190,7 @@ function Cover({ mediaId }: { mediaId: string | null }) {
 
 /** "Tag 29 · Blüte, Woche 3", as the grow's own page states it; a grow with no phase yet says that. */
 const progressOf = (t: Translate, grow: MyGrowCard): (string | null)[] => [
-  grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,
+  growDay(t, grow),
   grow.stage
     ? [t(`home.stage.${grow.stage}`), grow.stageWeek !== null ? t('grow.week', { week: grow.stageWeek }) : null].filter(Boolean).join(', ')
     : t('home.card.noPhase'),

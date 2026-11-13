@@ -6,7 +6,7 @@ import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { NothingHere } from '../control/ByDevice';
 import { Control } from '../control/Control';
-import { Visited } from './PlaceTitle';
+import { PlaceEnded, Visited } from './PlaceTitle';
 import styles from './Place.module.css';
 
 /**
@@ -19,9 +19,9 @@ export function ControlTab() {
   const { t } = useTranslation();
   const { user } = useSession();
   const { page = null } = useParams();
-  const { home, places, here, visiting } = useCurrentPlace();
+  const { home, places, here, visiting, ended } = useCurrentPlace(true);
 
-  if (home.isPending) return <Waiting lines={4} />;
+  if (home.isPending || ended === undefined) return <Waiting lines={4} />;
   if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
 
   // Support, reading a customer's place: the place the address names, read only,
@@ -33,6 +33,14 @@ export function ControlTab() {
           <Control spaceId={visiting} sub={page} />
         </section>
       </Visited>
+    );
+  }
+
+  if (ended) {
+    return (
+      <section className={`${styles.page} ${styles.steering}`}>
+        <PlaceEnded title={t('shell.tabs.control')} name={ended.name} />
+      </section>
     );
   }
 

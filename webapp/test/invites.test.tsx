@@ -189,7 +189,7 @@ describe('the links a tent has out', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Revoke the link BBBBBBBB' }));
     fireEvent.click(within(row).getByRole('button', { name: 'Revoke' }));
 
-    await waitFor(() => expect(told).toEqual([{ label: 'The link BBBBBBBB no longer works · for Blue Dream tent · can manage', undo: null }]));
+    await waitFor(() => expect(told).toEqual([{ label: 'The link BBBBBBBB no longer works · Blue Dream tent · can manage', undo: null }]));
     expect(server.wrote).toEqual([expect.objectContaining({ method: 'PUT', path: '/invites/BBBBBBBB/revocation' })]);
     await waitFor(() => expect(screen.queryByText(/BBBBBBBB/)).not.toBeInTheDocument());
     expect(screen.getByText(/\/join\/AAAAAAAA$/)).toBeInTheDocument();

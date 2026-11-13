@@ -138,7 +138,7 @@ export interface PendingItem {
 
 /** The firmware's word for a work mode, in the app's: the one catalogue key both the stored and the held mode are said with. */
 const MODE_KEYS: Readonly<Record<string, string>> = {
-  off: 'control.pending.modeOff',
+  off: 'control.state.off',
   small: 'operatingMode.standard',
   full: 'operatingMode.standard',
   temp: 'operatingMode.greenhouse',

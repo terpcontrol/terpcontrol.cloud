@@ -8,11 +8,11 @@ import { gaveUp, useCaptureOnce, useCreateCamera, useRemoveCamera, useUpdateCame
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import type { Translate } from '@/i18n/i18n';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
-import { deviceName } from '@/ui/naming';
+import { placesFor } from '@/app/places';
+import { deviceName, PLACE_KINDS } from '@/ui/naming';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { Help, Term } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -23,8 +23,8 @@ import styles from './AddCamera.module.css';
 /** Where the reason a button cannot be pressed is written, so both buttons can point a screen reader at it. */
 const REASON = 'rtsp-missing';
 
-/** The kinds of place a camera is hung in: every kind but the fridge nobody points one into. A room is no place - it groups them. */
-const PLACE_KINDS: SpaceKind[] = ['tent', 'balcony', 'other'];
+/** The kinds of place a camera is hung in: every kind but the fridge nobody points one into. */
+const CAMERA_PLACES = PLACE_KINDS.filter(kind => kind !== 'fridge');
 
 /**
  * A camera of somebody else's making, reached at the address its stream is at.
@@ -80,11 +80,9 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   if (spaces.isPending) return <Waiting lines={3} />;
   if (!spaces.data) return <LoadFailed retry={() => void spaces.refetch()} />;
 
-  // Putting a camera somewhere is managing that place, so a tent this account
-  // only writes lines in is not among the answers: offering it would end in a
-  // refusal after the address and the name had already been typed.
-  // A room is no place: it groups them, and a camera hangs in one of them.
-  const places = spaces.data.items.filter(space => space.kind !== 'room' && enough(space.youMay, 'manage'));
+  // Offering a place this account may not manage would end in a refusal after
+  // the address and the name had already been typed.
+  const places = placesFor(spaces.data.items);
   // With one place there is nothing to choose: the camera looks at that one.
   const placeId = spaceId ?? (places.length === 1 ? places[0].id : null);
 
@@ -380,9 +378,9 @@ function NewPlace({ onMade }: { onMade: (space: Space) => void }) {
         onChange={event => setName(event.target.value)}
       />
       <Choices label={t('cameras.add.rtsp.placeKind')}>
-        {PLACE_KINDS.map(one => (
+        {CAMERA_PLACES.map(one => (
           <Choice key={one} chosen={kind === one} onChoose={() => setKind(one)}>
-            {t(`cameras.add.rtsp.kind.${one}`)}
+            {t(`place.edit.kind.${one}`)}
           </Choice>
         ))}
       </Choices>

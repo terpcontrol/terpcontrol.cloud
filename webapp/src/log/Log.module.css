@@ -238,11 +238,6 @@
   border-top: var(--rule-solid);
 }
 
-.takeBackRow {
-  display: flex;
-  gap: var(--space-3);
-}
-
 .picture {
   position: relative;
   margin-bottom: var(--space-3);

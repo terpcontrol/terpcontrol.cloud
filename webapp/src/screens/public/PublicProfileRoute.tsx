@@ -93,7 +93,7 @@ function Diaries({ page, now }: { page: PublicUserPage; now: DateTime }) {
   );
 }
 
-/** The same card the home screen draws for a diary somebody follows: a public grow reads one way wherever it is listed. */
+/** The same card the list of followed diaries draws: a public grow reads one way wherever it is listed. */
 function DiaryCard({ grow, now, own }: { grow: FollowedGrowCard; now: DateTime; own: boolean }) {
   const { t } = useTranslation();
   const cover = grow.coverMediaId ? publicPicture(grow.slug)(grow.coverMediaId, PUBLIC_WIDTH.card) : null;

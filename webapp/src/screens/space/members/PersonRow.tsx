@@ -59,7 +59,8 @@ export function PersonRow({
   const { tell } = useLog();
   const setRole = useSetMemberRole();
   const name = handle ?? t('space.members.someone');
-  const room = roomName ?? t('space.members.theRoom');
+  // Whoever is here through the room came with an answer that names it.
+  const room = roomName ?? '';
   const ends = guest.here ?? guest.viaRoom!;
   const nameOf = (spaceId: string) => (spaceId === place.id ? place.name : room);
   const facts = [

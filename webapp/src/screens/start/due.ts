@@ -18,10 +18,10 @@ import { groupOf, isMine, subjectName } from '@/screens/tasks/tasks';
  * on, which is `manage` - as the server decides both. Nothing is answered
  * before the grows and the places are, so no tick is drawn on a guess.
  */
-export const useSubjects = () => {
+export const useSubjects = (asks = true) => {
   const { user } = useSession();
-  const grows = useGrows().data?.items;
-  const spaces = useSpaces().data?.items;
+  const grows = useGrows(asks).data?.items;
+  const spaces = useSpaces(asks).data?.items;
   const standingOf = (subject: GrowOrSpaceRef): Standing | null => {
     if (subject.type === 'space') return { ownerId: null, spaceId: subject.id };
     const grow = grows?.find(one => one.id === subject.id);
@@ -73,7 +73,7 @@ export const useDue = (now: DateTime): { rows: Due[]; kept: boolean; across: boo
   const zone = useZone();
   const signedIn = user !== null && !user.isDemo;
   const kept = useDiaryAnswer() === true && signedIn;
-  const { grows, spaces, mayTick, nameOf } = useSubjects();
+  const { grows, spaces, mayTick, nameOf } = useSubjects(signedIn);
   const steers = spaces?.some(space => enough(space.youMay, 'manage')) === true;
   const waiting = useTasks(false, kept || (signedIn && steers)).data?.items ?? [];
   const across = (useHomeShape(signedIn).data?.spaces ?? []).length > 1;
@@ -91,3 +91,6 @@ export const useDue = (now: DateTime): { rows: Due[]; kept: boolean; across: boo
 
   return { rows, kept, across };
 };
+
+/** The places with something due for the reader, which is what Start's order moves a card up for. */
+export const duePlaces = (rows: readonly Due[]): ReadonlySet<string> => new Set(rows.flatMap(row => (row.spaceId ? [row.spaceId] : [])));

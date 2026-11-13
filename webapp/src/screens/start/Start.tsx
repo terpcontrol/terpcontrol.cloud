@@ -5,7 +5,7 @@ import { useHome } from '@/api/home';
 import { failingSince } from '@/api/read';
 import { useSession } from '@/api/session';
 import { useEndedSpaces, useSpaces } from '@/api/spaces';
-import { isPlace } from '@/app/places';
+import { hasLeft, isPlace } from '@/app/places';
 import { NoLongerHere } from '@/ui/PageState';
 import { EmptyStart } from './EmptyStart';
 import { GrowStart } from './GrowStart';
@@ -67,7 +67,7 @@ export function StartOfPlace() {
   const inUse = spaces.data?.items.some(space => space.id === spaceId && space.archivedAt === null) === true;
   const ended = useEndedSpaces(user?.isAdmin === true && spaces.data !== undefined && !inUse);
 
-  if (cards.length === 1 && cards[0].spaceId === spaceId) return <Navigate to="/" replace />;
+  if (hasLeft(spaceId) || (cards.length === 1 && cards[0].spaceId === spaceId)) return <Navigate to="/" replace />;
   if (room && home.data && !cards.some(card => card.spaceId === spaceId)) return <Navigate to="/" replace />;
   // Whether the address names a room is known once the places have answered; until then nothing of a place is drawn for it.
   if (spaces.isPending || home.isPending || ended.isLoading) return <StartWaiting />;

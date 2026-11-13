@@ -169,7 +169,7 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
           facts={[
             place ? (
               <Link key="place" to={placePath(place.id)}>
-                {t('device.in', { place: place.name })}
+                {place.name}
               </Link>
             ) : null,
             stored ? <strong key="stored">{stored}</strong> : regulation,
@@ -201,7 +201,7 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
       )}
 
       <Rows>
-        {mayManage ? <Row title={settings} line={place ? t('device.standsIn', { place: place.name }) : null} onOpen={() => setNaming(true)} /> : null}
+        {mayManage ? <Row title={settings} line={place?.name ?? null} onOpen={() => setNaming(true)} /> : null}
         {hosts && mayManage && !device.isDemo ? (
           <PairSocketRow deviceId={device.id} deviceName={name} table={table} failed={tables.isError} unheard={offline || waiting} now={now} />
         ) : null}

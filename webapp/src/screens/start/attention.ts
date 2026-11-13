@@ -73,13 +73,13 @@ export const measuredAtOf = (values: CardValue[]): string | null =>
   values.reduce<string | null>((newest, value) => (value.measuredAt && (!newest || value.measuredAt > newest) ? value.measuredAt : newest), null);
 
 const SEVERITY: Record<Severity, number> = { critical: 3, warning: 2, info: 1 };
+const NOTHING_DUE: ReadonlySet<string> = new Set();
 
 /** How badly a card wants a person: an alarm first, then something due, then something offline. */
-const attentionOf = (card: HomeSpaceCard): number => {
+const attentionOf = (card: HomeSpaceCard, due: boolean): number => {
   const alarm = Math.max(0, ...card.openAlerts.map(alert => SEVERITY[alert.severity] * 10));
-  const due = card.dueTasks.length > 0 ? 5 : 0;
   const offline = livenessOf(card) === 'offline' ? 1 : 0;
-  return alarm + due + offline;
+  return alarm + (due ? 5 : 0) + offline;
 };
 
 /** The one alert that sets the card's tone. */
@@ -89,9 +89,13 @@ export const worstAlertOf = (card: Pick<HomeSpaceCard, 'openAlerts'>) =>
     null,
   );
 
-/** Stable: two cards that need nothing keep the order the server gave them, which is the order the places were set up in. */
-export const sortedByAttention = <T extends HomeSpaceCard>(cards: T[]): T[] =>
+/**
+ * Stable: two cards that need nothing keep the order the server gave them, which is the order the places were set up
+ * in. `due` holds the places with something due for the reader (`duePlaces`): the one list a card's count is read
+ * from, so no card moves up for a task its own count does not show.
+ */
+export const sortedByAttention = <T extends HomeSpaceCard>(cards: T[], due: ReadonlySet<string> = NOTHING_DUE): T[] =>
   cards
-    .map((card, index) => ({ card, index, attention: attentionOf(card) }))
+    .map((card, index) => ({ card, index, attention: attentionOf(card, card.spaceId !== null && due.has(card.spaceId)) }))
     .sort((a, b) => b.attention - a.attention || a.index - b.index)
     .map(row => row.card);

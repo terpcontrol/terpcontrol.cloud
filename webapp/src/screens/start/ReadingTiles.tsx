@@ -8,9 +8,8 @@ import styles from './Start.module.css';
 /**
  * The readings of a place as four tiles, where no camera's picture carries
  * them: the figure, and under it whether it is where it should be. Every tile
- * is the way to its curve - a panel of Verlauf, and Graphen for VPD, which
- * Verlauf does not draw. What "im Ziel" means is said on the first tile judged
- * against a band, and VPD is explained beside its name.
+ * is the way to its curve, a panel of Verlauf. What "im Ziel" means is said on
+ * the first tile judged against a band, and VPD is explained beside its name.
  */
 export function ReadingTiles({ spaceId, readings }: { spaceId: string; readings: Reading[] }) {
   const explained = readings.find(reading => reading.judged)?.key;

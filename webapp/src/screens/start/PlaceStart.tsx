@@ -2,7 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { Device, Entry, OverviewCamera, OverviewGrow, SpaceOverview } from '@fg2/shared-types/v1';
+import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useAccountMe } from '@/api/account';
 import { useLatestStills } from '@/api/cameras';
@@ -13,7 +13,7 @@ import { useHomeShape } from '@/api/home';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { controlPath, devicePath, editPath, GROW, membersPath, timelinePath, usePageOfPlace } from '@/app/places';
-import { ageLabel, dayStamp, sinceLabel } from '@/ui/age';
+import { ageLabel, sinceLabel } from '@/ui/age';
 import { BackLink } from '@/ui/BackLink';
 import { useCameraCalled } from '@/ui/camera-name';
 import { factsOf, unbroken } from '@/ui/fact-text';
@@ -41,12 +41,13 @@ import { DayCurves } from './DayCurves';
 import { Latest } from './Latest';
 import { DeviceOffer, GrowOffer } from './Offers';
 import { GrowHead, PhaseLine } from './Phase';
-import { Picture } from './Picture';
-import { climateDeviceOf, controlOffOf, shownStill, statusOf, statusText, toneOf, type HumidifierHold, type Status } from './place';
+import { OwnPhoto, Picture } from './Picture';
+import { climateDeviceOf, controlOffOf, ownPhotoOf, shownStill, statusOf, statusText, toneOf, type HumidifierHold, type Status } from './place';
 import { Menu, MenuLink } from '@/ui/Menu';
 import { curvePath, darkOf, extrasOf, readingsOf, type Extra, type Reading } from './readings';
 import { ReadingTiles } from './ReadingTiles';
 import { usePlace, useHumidifierHold, useLamp } from './reads';
+import { growDay } from '@/screens/grow/progress';
 import { DemoBanner, GuestLine, StartFailed, StartWaiting } from './states';
 import { Targets } from './Targets';
 import { Today } from './Today';
@@ -86,10 +87,6 @@ const quietOf = (devices: Device[], now: DateTime): Quiet | null => {
 /** The camera here that delivered last, which is the one the place is shown by. */
 const newestCamera = (overview: SpaceOverview): OverviewCamera | null =>
   [...overview.cameras].sort((one, other) => (other.lastStillAt ?? '').localeCompare(one.lastStillAt ?? ''))[0] ?? null;
-
-/** The newest photo somebody wrote into the diary, which a grow without a camera is shown by. */
-const ownPhotoOf = (entries: Entry[], growId: string): Entry | null =>
-  entries.find(entry => entry.growId === growId && entry.cameraId === null && entry.mediaIds.length > 0) ?? null;
 
 function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: boolean; failedAt: number | null }) {
   const { t } = useTranslation();
@@ -214,7 +211,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
               camera={camera}
               name={overview.name}
               label={grow ? grow.name : called(camera.name)}
-              day={grow?.dayNumber != null ? t('home.card.dayN', { day: grow.dayNumber }) : null}
+              day={grow ? growDay(t, grow) : null}
               readings={readings}
               curveOf={reading => curvePath(spaceId, reading)}
               age={offline ? 'offline' : liveness === 'stale' ? 'stale' : 'live'}
@@ -223,7 +220,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
               }
             />
           ) : null}
-          {kept && ownMedia ? <OwnPhoto grow={kept} mediaId={ownMedia} entries={overview.entries} userId={user?.id ?? null} /> : null}
+          {kept && ownMedia ? <OwnPhoto grow={kept} entries={overview.entries} named /> : null}
           {grow && !camera && !(kept && ownMedia) ? <GrowHead grow={grow} to={GROW} /> : null}
           {/* What only some places measure stands directly under what carries the four readings: the picture, or the tiles. */}
           {camera ? further : null}
@@ -339,36 +336,13 @@ function CameraHead({
       opens={t('start.picture.open', { name: called(camera.name) })}
       name={label}
       day={day}
-      right={time ? t(offline ? 'start.picture.last' : still?.dark ? 'start.picture.lightOff' : 'start.picture.takenAt', { time }) : null}
+      right={time ? t(offline ? 'camera.picture.last' : still?.dark ? 'camera.picture.lightOff' : 'start.picture.takenAt', { time }) : null}
       warns={offline}
       readings={readings}
       curveOf={curveOf}
       age={age}
       stand={stand}
       empty={t('start.camera.none')}
-    />
-  );
-}
-
-/** A grow without a camera is shown by the newest photo written into its diary, and failing that by its cover. */
-function OwnPhoto({ grow, mediaId, entries, userId }: { grow: OverviewGrow; mediaId: string; entries: Entry[]; userId: string | null }) {
-  const { t } = useTranslation();
-  const now = useNow();
-  const zone = useZone();
-  const photo = ownPhotoOf(entries, grow.growId);
-
-  return (
-    <Picture
-      to={GROW}
-      src={mediaUrl(mediaId, THUMBNAIL_WIDTH.frame)}
-      alt={t('start.picture.photoAlt', { name: grow.name })}
-      opens={t('start.picture.openGrow')}
-      name={grow.name}
-      day={grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null}
-      right={
-        photo ? t(photo.authorId === userId ? 'start.picture.yours' : 'start.picture.photo', { day: dayStamp(photo.occurredAt, now, zone) }) : null
-      }
-      empty=""
     />
   );
 }
@@ -524,7 +498,7 @@ function ModeLine({
       <span>
         {kind === 'germination' && humidifierHold
           ? t('start.mode.germinationHumidified', { humidity: targetWithUnit(humidifierHold.target, 'humidity') })
-          : t(`start.mode.${kind}`)}
+          : t(kind === 'germination' ? 'operatingMode.germination' : `start.mode.${kind}`)}
         <Help topic={kind === 'greenhouse' ? 'advanced.operatingMode' : kind} />
       </span>
       {mayManage ? (

@@ -188,7 +188,7 @@ describe('the fine settings themselves', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Change Sunset, 15 min' }));
     type('Sunset', '20');
     save();
-    await waitFor(() => expect(said()).toBe('Sunset 20 min · saved, Fridge takes it over when it next connects'));
+    await waitFor(() => expect(said()).toBe('Sunset 20 min · saved, not with the device yet'));
   });
 
   /** The leaf offsets are the cloud's own reckoning: nothing of them is handed to a device, silent or not. */

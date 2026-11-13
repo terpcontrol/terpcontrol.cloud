@@ -2,7 +2,7 @@ import { useNavigate, useNavigationType, useSearchParams } from 'react-router';
 import { useMayManage } from '@/ui/session-access';
 import { Start } from '@/screens/start/Start';
 import { useSpaces } from '@/api/spaces';
-import { growPlaces } from '../placement';
+import { placesFor } from '@/app/places';
 import { StartGrowSheet } from './WhatGrows';
 
 /**
@@ -29,7 +29,7 @@ export function NewGrowRoute() {
   const mayManage = useMayManage();
   const [search] = useSearchParams();
 
-  const places = growPlaces(useSpaces().data?.items ?? []);
+  const places = placesFor(useSpaces().data?.items ?? []);
   const place = places.find(one => one.id === search.get('space')) ?? null;
   const close = () => void (arrival === 'PUSH' ? navigate(-1) : navigate('/', { replace: true }));
 

@@ -248,9 +248,7 @@ describe('a Plantalytix Socket where a controller’s climate stands', () => {
     fireEvent.click(setting('On above'));
     type('Switch points: On above', 29);
     save();
-    await waitFor(() =>
-      expect(said()).toBe('Switch points On above 29.0 °C, Off below 25.0 °C · saved, Plantalytix Socket takes it over when it next connects'),
-    );
+    await waitFor(() => expect(said()).toBe('Switch points On above 29.0 °C, Off below 25.0 °C · saved, not with the device yet'));
   });
 
   /** A switch the document kept as `false` and the cloud now stores as 0 is the same switch, off. */
@@ -337,7 +335,7 @@ describe('an AIR fan', () => {
     fireEvent.click(setting('The fan runs'));
     fireEvent.click(within(sheet()).getByRole('button', { name: 'By humidity' }));
     save();
-    await waitFor(() => expect(said()).toBe('The fan runs By humidity · saved, Fan takes it over when it next connects'));
+    await waitFor(() => expect(said()).toBe('The fan runs By humidity · saved, not with the device yet'));
   });
 });
 
@@ -395,7 +393,7 @@ describe('a LIGHT', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Change times' }));
     fireEvent.click(within(sheet()).getByRole('button', { name: 'Light on for: more' }));
     save();
-    await waitFor(() => expect(said()).toBe('Light on 06:00–22:00 · 16 h · saved, Light takes it over when it next connects'));
+    await waitFor(() => expect(said()).toBe('Light on 06:00–22:00 · 16 h · saved, not with the device yet'));
   });
 });
 
@@ -427,7 +425,7 @@ describe('a fridge’s fans, among its outputs', () => {
     fireEvent.click(setting('Inner fans, at least'));
     type('Inner fans, at least', 40);
     save();
-    await waitFor(() => expect(said()).toBe('Inner fans, at least 40 % · saved, Fridge module takes it over when it next connects'));
+    await waitFor(() => expect(said()).toBe('Inner fans, at least 40 % · saved, not with the device yet'));
   });
 });
 

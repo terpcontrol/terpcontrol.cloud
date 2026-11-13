@@ -285,13 +285,13 @@ beforeEach(() => {
               planEffect: 'none',
             }) as never),
   );
-  vi.mocked(api.patch).mockResolvedValue({ ...space, name: 'Tent' } as never);
-  // The two writes of hanging a device somewhere else, as the server takes them: the device stands in the place
-  // it was sent to from then on, and an ended place is gone from the list.
-  vi.mocked(api.put).mockImplementation((path: string) => {
-    const [, spaceId, deviceId] = /^\/spaces\/([^/]+)\/devices\/([^/]+)$/.exec(path) ?? [];
-    if (!deviceId) throw new Error(`nothing mocked for PUT ${path}`);
-    state.hangs[deviceId] = spaceId;
+  // The write of hanging a device somewhere else, as the server takes it: the device stands in the place it was
+  // sent to from then on. An ended place is gone from the list.
+  vi.mocked(api.patch).mockImplementation((path: string, body?: unknown) => {
+    const [, deviceId] = /^\/devices\/([^/]+)$/.exec(path) ?? [];
+    const to = (body as { spaceId?: string } | undefined)?.spaceId;
+    if (!deviceId || !to) return Promise.resolve({ ...space, name: 'Tent' }) as never;
+    state.hangs[deviceId] = to;
 
     return Promise.resolve(answers(`/devices/${deviceId}`)) as never;
   });
@@ -301,6 +301,9 @@ beforeEach(() => {
     return Promise.resolve(undefined) as never;
   });
 });
+
+/** The moves that were written, each as the device and the place it was sent to. */
+const moves = () => vi.mocked(api.patch).mock.calls.filter(([path]) => String(path).startsWith('/devices/'));
 
 /** What the claim calls a place it makes, by what the device turns out to be. */
 const WORDS = { tent: 'Tent', fridge: 'Fridge' };
@@ -782,6 +785,28 @@ describe('adding a device', () => {
     expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('ABCD1234');
   });
 
+  /**
+   * Where the device goes is said with the claim, from the account's places: while those cannot be read the code
+   * is not spent on a guess, and what went wrong is said where a refused code is - the same button tries again.
+   */
+  it('spends no code while the places cannot be read, says so under the field and claims on the next try', async () => {
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => (path === '/spaces' ? Promise.reject(new TypeError('Failed to fetch')) : Promise.resolve(answers(path))) as never,
+    );
+
+    draw();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server. Try again.');
+    expect(api.post).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('ABCD1234');
+
+    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
+    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS, joinSpaceId: 'space-new' }));
+  });
+
   it('says the claim never reached the server, rather than blaming a page that was not being loaded', async () => {
     vi.mocked(api.post).mockRejectedValue(new TypeError('Failed to fetch'));
 
@@ -1001,7 +1026,7 @@ describe('adding a device', () => {
     expect(screen.queryByRole('button', { name: /^At a new place/ })).not.toBeInTheDocument();
     // The claim, and the name of the place it made, are all that was written.
     expect(api.post).toHaveBeenCalledTimes(1);
-    expect(api.put).not.toHaveBeenCalled();
+    expect(moves()).toEqual([]);
     expect(api.delete).not.toHaveBeenCalled();
   });
 
@@ -1035,7 +1060,7 @@ describe('adding a device', () => {
     // The claim is all that was written: nothing moved, nothing ended, nothing named.
     await settled(drawn);
     expect(api.post).toHaveBeenCalledTimes(1);
-    expect(api.put).not.toHaveBeenCalled();
+    expect(moves()).toEqual([]);
     expect(api.delete).not.toHaveBeenCalled();
     expect(api.patch).not.toHaveBeenCalled();
   });
@@ -1095,7 +1120,7 @@ describe('adding a device', () => {
     expect(told).toEqual([{ label: 'Mother tent: Fan now hangs here', undo: null }]);
     await settled(drawn);
     expect(api.post).toHaveBeenCalledTimes(1);
-    expect(api.put).not.toHaveBeenCalled();
+    expect(moves()).toEqual([]);
     expect(api.delete).not.toHaveBeenCalled();
   });
 
@@ -1131,7 +1156,7 @@ describe('adding a device', () => {
     expect(screen.getByText('Blue Dream · Tent')).toBeInTheDocument();
     expect(told).toEqual([]);
     expect(address()).toBe('/claim?device=sim-fan-1&ask=place.hardware.notify.grow&at=hardware');
-    expect(api.put).not.toHaveBeenCalled();
+    expect(moves()).toEqual([]);
   });
 
   it('makes a place for a fan that is to hang at a new one and moves the fan there - and ends it again if the fan goes back', async () => {
@@ -1144,7 +1169,7 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'tent', name: 'Tent' }));
-    await waitFor(() => expect(api.put).toHaveBeenLastCalledWith('/spaces/space-made/devices/sim-fan-1'));
+    await waitFor(() => expect(moves().at(-1)).toEqual(['/devices/sim-fan-1', { spaceId: 'space-made' }]));
     await waitFor(() => expect(openStep()).toHaveTextContent('Cam'));
     expect(address()).toBe('/claim?device=sim-fan-1&ask=place.hardware.notify.grow&at=hardware&made=space-made');
 
@@ -1156,7 +1181,7 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Mother tent/ }));
 
     await waitFor(() => expect(api.delete).toHaveBeenLastCalledWith('/spaces/space-made'));
-    expect(api.put).toHaveBeenLastCalledWith('/spaces/space-mother/devices/sim-fan-1');
+    expect(moves().at(-1)).toEqual(['/devices/sim-fan-1', { spaceId: 'space-mother' }]);
     await waitFor(() => expect(address()).toBe('/spaces/space-mother'));
   });
 
@@ -1170,7 +1195,7 @@ describe('adding a device', () => {
     claim();
 
     await hangQuestion('fan');
-    vi.mocked(api.put).mockRejectedValueOnce(
+    vi.mocked(api.patch).mockRejectedValueOnce(
       new ApiError({ status: 403, code: 'forbidden', title: 'Refused', detail: 'You may not put a device there.', errors: [] }),
     );
     fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
@@ -1183,7 +1208,7 @@ describe('adding a device', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
     await waitFor(() => expect(openStep()).toHaveTextContent('Cam'));
-    expect(api.put).toHaveBeenLastCalledWith('/spaces/space-made/devices/sim-fan-1');
+    expect(moves().at(-1)).toEqual(['/devices/sim-fan-1', { spaceId: 'space-made' }]);
     expect(state.spaces.map(one => one.id)).toEqual(['space-mother', 'space-made']);
   });
 
@@ -1193,7 +1218,7 @@ describe('adding a device', () => {
     claim();
 
     await hangQuestion('fan');
-    vi.mocked(api.put).mockRejectedValueOnce(new Error('offline'));
+    vi.mocked(api.patch).mockRejectedValueOnce(new Error('offline'));
     vi.mocked(api.delete).mockRejectedValueOnce(new Error('offline'));
     fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server. Try again.');
@@ -1201,7 +1226,7 @@ describe('adding a device', () => {
 
     await waitFor(() => expect(openStep()).toHaveTextContent('Cam'));
     expect(vi.mocked(api.post).mock.calls.filter(([path]) => path === '/spaces')).toHaveLength(1);
-    expect(api.put).toHaveBeenLastCalledWith('/spaces/space-made/devices/sim-fan-1');
+    expect(moves().at(-1)).toEqual(['/devices/sim-fan-1', { spaceId: 'space-made' }]);
   });
 
   /**
@@ -1231,7 +1256,7 @@ describe('adding a device', () => {
     // The claim made the place and gave it its name; the answer added nothing to that.
     expect(api.post).toHaveBeenCalledTimes(1);
     expect(api.patch).not.toHaveBeenCalled();
-    expect(api.put).not.toHaveBeenCalled();
+    expect(moves()).toEqual([]);
     expect(api.delete).not.toHaveBeenCalled();
   });
 
@@ -1248,7 +1273,7 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Mother tent/ }));
 
     await waitFor(() => expect(openStep()).toHaveTextContent('Sockets and cam'));
-    expect(api.put).toHaveBeenCalledWith('/spaces/space-mother/devices/sim-controller-7f3a');
+    expect(moves()).toContainEqual(['/devices/sim-controller-7f3a', { spaceId: 'space-mother' }]);
     expect(api.delete).toHaveBeenCalledWith('/spaces/space-new');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 3 of 5$/);
     expect(screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent)).toEqual([
@@ -1291,7 +1316,7 @@ describe('adding a device', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 5$/);
     expect(openStep()).toHaveTextContent('What is it doing right now?');
     expect(screen.queryByRole('heading', { name: 'Where it hangs' })).not.toBeInTheDocument();
-    expect(api.put).not.toHaveBeenCalled();
+    expect(moves()).toEqual([]);
   });
 
   it("offers a guest who has a place of their own that place, and nothing of the host's", async () => {
@@ -1355,7 +1380,7 @@ describe('adding a device', () => {
 
     await waitFor(() => expect(address()).toBe('/spaces/space-mother'));
     expect(told).toEqual([{ label: 'Mother tent: Fan now hangs here', undo: null }]);
-    expect(api.put).not.toHaveBeenCalled();
+    expect(moves()).toEqual([]);
   });
 
   it("does not claim into a place of somebody else's that the address names", async () => {
@@ -1387,14 +1412,34 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Mother tent/ }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/spaces/space-new'));
-    expect(api.put).toHaveBeenCalledWith('/spaces/space-mother/devices/sim-controller-7f3a');
+    expect(moves()).toContainEqual(['/devices/sim-controller-7f3a', { spaceId: 'space-mother' }]);
     // Picked up, not claimed again: the code is spent.
     expect(api.post).not.toHaveBeenCalled();
   });
 
+  it('says under the answers why a new place for a controller could not be made, and makes it on the same tap again', async () => {
+    state.spaces = [space, mother];
+    const picked = left('place', { ask: `place.${ASKED}` });
+    draw(picked);
+
+    await hangQuestion('controller');
+    vi.mocked(api.post).mockRejectedValueOnce(
+      new ApiError({ status: 409, code: 'name_taken', title: 'Refused', detail: 'Another place is already called that.', errors: [] }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Another place is already called that.');
+    expect(screen.getByRole('heading', { level: 2, name: 'Where does the controller hang?' })).toBeInTheDocument();
+    expect(moves()).toEqual([]);
+
+    fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
+    await waitFor(() => expect(moves()).toEqual([['/devices/sim-controller-7f3a', { spaceId: 'space-made' }]]));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('says what the server said about a move it refused, stays on the question and ends no place', async () => {
     state.spaces = [space, mother];
-    vi.mocked(api.put).mockRejectedValue(
+    vi.mocked(api.patch).mockRejectedValue(
       new ApiError({ status: 403, code: 'forbidden', title: 'Refused', detail: 'You may not put a device there.', errors: [] }),
     );
     claim();
@@ -1438,7 +1483,7 @@ describe('adding a device', () => {
 
     await waitFor(() => expect(address()).toBe('/spaces/space-new'));
     // The device stays in the place its claim made, which is no stray one: the controller stands in it.
-    expect(api.put).not.toHaveBeenCalled();
+    expect(moves()).toEqual([]);
     expect(api.delete).not.toHaveBeenCalled();
   });
 

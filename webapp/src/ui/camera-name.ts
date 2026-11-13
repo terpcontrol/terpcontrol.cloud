@@ -1,6 +1,6 @@
 import { useShape } from '@/app/shell/shape';
 
-/** How a camera a controller pairs is named until somebody names it: "Terp Cam · B07171". */
+/** How a camera a controller pairs is named until somebody names it: "Terp Cam · 7171". */
 const PAIRED = /^Terp Cam · [0-9A-Z]+$/;
 
 /**
@@ -11,6 +11,12 @@ const PAIRED = /^Terp Cam · [0-9A-Z]+$/;
  * alone.
  */
 export const cameraCalled = (name: string, only: boolean): string => (only && PAIRED.test(name) ? 'Terp Cam' : name);
+
+/** The cameras of one list by their names: the tag stays only where that list holds two nobody named. */
+export const camerasCalled = (names: readonly string[]): string[] => {
+  const only = names.filter(name => PAIRED.test(name)).length < 2;
+  return names.map(name => cameraCalled(name, only));
+};
 
 export const useCameraCalled = (): ((name: string) => string) => {
   const { cameras } = useShape();

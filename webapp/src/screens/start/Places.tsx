@@ -21,8 +21,9 @@ import { toneOf } from './place';
 import { readingFacts, readingsOf } from './readings';
 import { useLamp } from './reads';
 import { startOrder } from './rooms';
+import { growDay } from '@/screens/grow/progress';
 import { DemoBanner, GuestLine } from './states';
-import { useDue } from './due';
+import { duePlaces, useDue } from './due';
 import { Today } from './Today';
 import styles from './Start.module.css';
 
@@ -52,7 +53,6 @@ export function Places({
   const diary = useDiaryLayer();
   const devices = useDevices(places.some(place => place.deviceIds.length > 0)).data?.items;
   const spaces = useSpaces().data?.items ?? [];
-  const groups = startOrder(places, spaces);
   const demo = user?.isDemo === true;
   const spaceOf = (card: Place): Space | undefined => spaces.find(one => one.id === card.spaceId);
   // Somebody else's place says whose it is and what the reader may do there.
@@ -60,8 +60,9 @@ export function Places({
     const space = spaceOf(card);
     return space && user && !demo && space.ownerId !== user.id ? space : null;
   };
-  // What a card says is due is what "Heute" lists for it.
+  // What a card says is due is what "Heute" lists for it, and what moves it up.
   const due = useDue(now).rows;
+  const groups = startOrder(places, spaces, duePlaces(due));
   const dueIn = (spaceId: string): number => due.filter(one => one.spaceId === spaceId).length;
   // A refresh that fails ages the page, not the devices: each place is judged as the last answer left it.
   const judged = judgedAt(now, failedAt);
@@ -156,14 +157,7 @@ function PlaceCard({
   const figures = readingFacts(t, readings);
   const pill = offline ? 'home.reading.offline' : PILL[tone];
   const still = card.latestStill ? mediaUrl(card.latestStill.mediaId, THUMBNAIL_WIDTH.still) : null;
-  const grow =
-    diary && card.grow
-      ? [
-          card.grow.name,
-          card.grow.dayNumber !== null ? t('home.card.dayN', { day: card.grow.dayNumber }) : null,
-          card.grow.stage ? t(`home.stage.${card.grow.stage}`) : null,
-        ]
-      : [];
+  const grow = diary && card.grow ? [card.grow.name, growDay(t, card.grow), card.grow.stage ? t(`home.stage.${card.grow.stage}`) : null] : [];
 
   return (
     <Link to={placePath(card.spaceId)} className={styles.place} data-asks={asks || undefined}>
@@ -204,14 +198,7 @@ function LooseGrowCard({ card }: { card: HomeSpaceCard }) {
     <Link to={`/grows/${grow.growId}`} className={styles.place}>
       <span className={styles.placeText}>
         <span className={styles.placeName}>{grow.name}</span>
-        <Facts
-          className={styles.placeGrow}
-          facts={[
-            t('grow.noFixedPlace'),
-            grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,
-            grow.stage ? t(`home.stage.${grow.stage}`) : null,
-          ]}
-        />
+        <Facts className={styles.placeGrow} facts={[t('grow.noFixedPlace'), growDay(t, grow), grow.stage ? t(`home.stage.${grow.stage}`) : null]} />
       </span>
     </Link>
   );

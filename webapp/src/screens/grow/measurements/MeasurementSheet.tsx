@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, MeasurementDefinition } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
+import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { looseFigure, typedFigure } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
@@ -154,17 +155,14 @@ export function MeasurementSheet({ grow, definition, readings, onClose }: Measur
                 })}
               </p>
             ) : askingDelete ? (
-              <>
-                <p className={ui.note}>{t('grow.measurements.sheet.deleteAsk')}</p>
-                <div className={styles.actions}>
-                  <button type="button" className={`${ui.button} ${ui.danger}`} disabled={update.isPending} onClick={remove}>
-                    {t('grow.measurements.sheet.deleteYes')}
-                  </button>
-                  <button type="button" className={ui.button} onClick={() => setAskingDelete(false)}>
-                    {t('grow.measurements.sheet.cancel')}
-                  </button>
-                </div>
-              </>
+              <Asking
+                note={t('grow.measurements.sheet.deleteAsk')}
+                yes={t('grow.measurements.sheet.deleteYes')}
+                danger
+                busy={update.isPending}
+                onYes={remove}
+                onCancel={() => setAskingDelete(false)}
+              />
             ) : (
               <button type="button" className={`${ui.button} ${ui.dangerInk}`} disabled={update.isPending} onClick={() => setAskingDelete(true)}>
                 {t('grow.measurements.sheet.delete')}

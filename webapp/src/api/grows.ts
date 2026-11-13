@@ -94,10 +94,11 @@ export const useUpdateGrow = (growId: string) =>
  * about a tent a preset was applied to with no grow in it. One page is every
  * grow anybody has, so there is no cursor to follow.
  */
-export const useGrows = () =>
+export const useGrows = (enabled = true) =>
   useRead({
     queryKey: ['grows', 'all'],
     queryFn: ({ signal }) => api.get<GrowPage>('/grows', { limit: 100 }, signal),
+    enabled,
   });
 
 /**

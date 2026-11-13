@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
 import { parksAnything } from '@/ui/maintenance';
-import { deviceTitle } from '@/ui/naming';
+import { deviceTitle, standingWith } from '@/ui/naming';
 import { enough, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -44,7 +44,9 @@ export function DeviceActions({ device, offline }: { device: Device; offline: bo
       </button>
       {/* A sentence about a device names only what that device does: a plug has no maintenance to wait for. */}
       {offline ? <p className={ui.note}>{t(parks ? 'device.waitsForDevice' : 'device.waitsForRestart')}</p> : null}
-      {restarting ? <RebootSheet device={device} name={deviceTitle(device, t, devices.data?.items)} onClose={() => setRestarting(false)} /> : null}
+      {restarting ? (
+        <RebootSheet device={device} name={deviceTitle(device, t, standingWith(device, devices.data?.items))} onClose={() => setRestarting(false)} />
+      ) : null}
     </div>
   );
 }

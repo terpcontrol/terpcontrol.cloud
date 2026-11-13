@@ -8,6 +8,7 @@ import { EntryRow } from '@/ui/EntryRow';
 import { Term } from '@/ui/Help';
 import { readingNamesOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
+import { growDay } from '@/screens/grow/progress';
 import { livenessOf, measuredAtOf } from '@/screens/start/attention';
 import { LivenessPill } from '@/ui/LivenessPill';
 import { figure, targetFigure, UNIT } from '@/ui/units';
@@ -17,14 +18,14 @@ import styles from './Public.module.css';
 import { windowIsCurrent } from './window';
 import { clock, DATED_CLOCK } from '@/ui/zone';
 
-/** The four the tent page shows: the three a controller steers and the one it derives. */
+/** The four a shared place shows: the three a controller steers and the one it derives. */
 const TILES: Metric[] = ['temperature', 'humidity', 'vpd', 'co2'];
 
 /**
  * A tent as somebody holding a link to it reads it: what it is doing now, how
  * the last day went, what the cameras saw and what was written down.
  *
- * It is not the owner's tent page and does not try to be. That page is a way in
+ * It is not the owner's Start of the place and does not try to be. That page is a way in
  * - to the timeline, to the devices, to logging a line - and every one of those
  * roads is shut to a reader with no account. What is left is the part that was
  * worth sharing: the readings with their ages, and the diary.
@@ -111,7 +112,7 @@ export function SharedSpace({
               <span className={`name ${styles.cardTitle}`}>{grow.name}</span>
               <span className={`mono ${styles.cardMeta}`}>
                 {[
-                  grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,
+                  growDay(t, grow),
                   grow.stage ? t(`home.stage.${grow.stage}`) : null,
                   grow.strains.join(', ') || null,
                   grow.plantCount ? t('home.card.plants', { count: grow.plantCount }) : null,
@@ -124,10 +125,10 @@ export function SharedSpace({
         </ul>
       ) : null}
 
-      <section className={styles.weeks} aria-label={t('space.latest')}>
-        <span className="label">{t('space.latest')}</span>
+      <section className={styles.weeks} aria-label={t('start.latest.title')}>
+        <span className="label">{t('start.latest.title')}</span>
         {space.entries.length === 0 ? (
-          <p className={styles.quiet}>{t('home.card.noEntries')}</p>
+          <p className={styles.quiet}>{t('grow.diary.empty')}</p>
         ) : (
           <ul className={styles.entries}>
             {space.entries.map(entry => (

@@ -9,18 +9,18 @@ import { dayLabel } from './invites';
  * else: the role it lets somebody in with, the day it stops or the fact that
  * it never does, how often it has been redeemed, and that it can be taken back.
  *
- * It is the one line under a code on the Members tab and under the code on the
- * sheet, so it is one component: the board's terms line is a description of
- * the link drawn above it, and two places wording that description apart would
- * sooner or later describe two different links.
+ * It is the one line under a code in the list of who sees a place and under
+ * the code on the sheet, so it is one component: the terms line is a
+ * description of the link drawn above it, and two places wording that
+ * description apart would sooner or later describe two different links.
  */
 export function InviteTerms({ invite, into, className = '' }: { invite: Invite; into?: string; className?: string }) {
   const { t, i18n } = useTranslation();
   const now = useNow();
 
   const parts = [
-    // What it lets into, where a place's links stand beside its room's.
-    ...(into ? [t('space.members.links.into', { name: into })] : []),
+    // What it lets into, by its name, where a place's links stand beside its room's.
+    ...(into ? [into] : []),
     t('space.members.links.role', { role: t(`space.members.role.${invite.role}`) }),
     invite.expiresAt === null
       ? t('space.members.links.never')

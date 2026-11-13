@@ -13,6 +13,7 @@ import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js
 import type { Translate } from '@/i18n/i18n';
 import { pairsACam } from '@/screens/camera/add/pairers';
 import { alarmsReach, channelsLabel, reachedBy } from '@/screens/notifications/reach';
+import { camTag, placeKindOf } from '@/ui/naming';
 
 /**
  * What each step of the claim flow has settled, and the one line it says once
@@ -71,16 +72,14 @@ export const planOf = (device: Pick<Device, 'type'>, place: boolean, beside: boo
 export const hangWords = (t: Translate, form: 'title' | 'done' | 'joined', type: string, values?: Record<string, string>): string =>
   t(`claim.air.${form}.${type}`, { ...values, defaultValue: t(`claim.air.${form}.other`, values) });
 
-/** What a place the app makes by itself for a device is: a fridge for a fridge module, a tent for everything else. Its page changes that. */
-export const newPlaceKind = (type: string): 'fridge' | 'tent' => (type === 'fridge' ? 'fridge' : 'tent');
-
 /**
- * What to call such a place: the word for what it is, in the language the
- * grower reads - the server has none - and the first of its kind without a
- * number, "Zelt", then "Zelt 2".
+ * What to call a place the app makes by itself for a device - a fridge for a
+ * fridge module, a tent for everything else, which its page changes: the word
+ * for what it is, in the language the grower reads - the server has none -
+ * and the first of its kind without a number, "Zelt", then "Zelt 2".
  */
 export const newPlaceName = (type: string, spaces: readonly Pick<Space, 'name'>[], t: Translate): string =>
-  numbered(t(`claim.place.newName.${newPlaceKind(type)}`), new Set(spaces.map(one => nameKey(one.name))));
+  numbered(t(`claim.place.newName.${placeKindOf(type, 'tent')}`), new Set(spaces.map(one => nameKey(one.name))));
 
 /** The place by its name, and what kind of place it is where the name does not say. */
 export const placeSummary = (space: Space | null, t: Translate): string => {
@@ -119,9 +118,9 @@ export const notifySummary = (me: Me | undefined, t: Translate): string | null =
   return alarmsReach(me) ? t('claim.notify.reaches', { channels: channelsLabel(t, reachedBy(me)) }) : t('claim.notify.none');
 };
 
-/** The tail of the paired camera's id, which is as much of it as anybody reads off a screen. */
+/** The paired camera by the tail of its id, as its row will be called ("Terp Cam · 7171"). */
 export const cameraName = (device: Device | null, t: Translate): string => {
   const paired = device?.state.hardware.webcam_did;
 
-  return paired && paired !== 'none' ? paired.slice(-6).toUpperCase() : t('claim.code.noCamera');
+  return paired && paired !== 'none' ? camTag(paired) : t('claim.code.noCamera');
 };

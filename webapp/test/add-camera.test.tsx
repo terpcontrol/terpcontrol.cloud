@@ -449,7 +449,7 @@ describe('a camera at a stream address', () => {
     expect(within(field).queryByRole('paragraph')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Balcony' }));
     expect(within(field).getByRole('paragraph')).toHaveTextContent(
-      'No device stands at Balcony to fetch the stream from your network · an address of your home network will not answer the cloud',
+      'Balcony: no device stands here to fetch the stream from your network · an address of your home network will not answer the cloud',
     );
   });
 
@@ -649,7 +649,7 @@ describe('a camera at a stream address', () => {
 
     // The camera exists from here on, so the screen stops drawing the primary
     // button as the tap that would commit it.
-    expect(screen.getByText('Added to Tent 1. It is with your devices now, and testing again updates it.')).toBeInTheDocument();
+    expect(screen.getByText('Tent 1: camera added. It is under Control now, and testing again updates it.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add camera' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open the camera' })).toBeInTheDocument();
   });
@@ -665,7 +665,7 @@ describe('a camera at a stream address', () => {
     });
 
     expect(api.delete).toHaveBeenCalledWith('/cameras/camera-rtsp');
-    expect(screen.queryByText(/It is with your devices now/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/It is under Control now/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add camera' })).toBeInTheDocument();
     // The next tap makes a camera rather than amending the one just removed.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

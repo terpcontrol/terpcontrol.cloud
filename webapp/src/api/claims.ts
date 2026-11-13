@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
-import type { Device, DeviceClaimCreate, DeviceClaimResult } from '@fg2/shared-types/v1';
+import type { DeviceClaimCreate, DeviceClaimResult } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { deviceQuery } from './devices';
 import { ApiError } from './problem';
@@ -18,17 +18,15 @@ import { invalidate, useWrite } from './write';
  */
 const claimChanged = (client: QueryClient): void => void invalidate(client, ['devices'], ['spaces'], ['home']);
 
-const deviceClaimed = (client: QueryClient, device: Device): void => {
-  client.setQueryData(['devices', device.id], device);
-  claimChanged(client);
-};
-
 export const useClaimDevice = () =>
   useWrite(
     (body: DeviceClaimCreate) => api.post<DeviceClaimResult>('/devices/claims', body),
     // The answer is the device, so the steps after the claim have it before
     // the first read comes back and never stand empty on a claim that worked.
-    (client, result) => deviceClaimed(client, result.device),
+    (client, result) => {
+      client.setQueryData(['devices', result.device.id], result.device);
+      claimChanged(client);
+    },
   );
 
 /**
@@ -51,14 +49,6 @@ export const useClaimedDevice = (deviceId: string | null) =>
     enabled: deviceId !== null,
     refetchInterval: query => (query.state.error ? false : CLAIM_REFRESH_MS),
   });
-
-/**
- * Putting a claimed device in another of the account's places, where the
- * answer to where it hangs is changed: the route puts one device in one space
- * and nothing else, so it carries no name or firmware channel by accident.
- */
-export const usePlaceDevice = () =>
-  useWrite((to: { deviceId: string; spaceId: string }) => api.put<Device>(`/spaces/${to.spaceId}/devices/${to.deviceId}`), deviceClaimed);
 
 /**
  * Ending a place the flow made that the device does not stand in after all: a

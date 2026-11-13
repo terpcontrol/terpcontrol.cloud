@@ -51,8 +51,8 @@ export const modesOf = (device: Device): readonly WorkMode[] => workModesOf(devi
 export const hasMode = (device: Device): boolean =>
   Boolean(device.control) && (modesOf(device).length > 1 || configurationFieldsOf(device.type).energySaving !== undefined);
 
-/** "Normal", "Trocknung", "Keimung · dunkel": the mode the device runs. */
-const modeWord = (t: Translate, device: Device): string =>
+/** "Standard", "Trocknung", "Keimung · dunkel": the mode the device runs, by the one name it has on Start, in Steuerung's head and on Betriebsart. */
+export const modeWord = (t: Translate, device: Device): string =>
   device.control ? t(`operatingMode.${device.control.drying ? 'drying' : device.control.mode}`) : '';
 
 /** "3 Regeln · alle ruhig", or which rule has raised; "1 von 7 Regeln an" where some are off - in amber when the offline rule is one of them. */
@@ -198,7 +198,7 @@ export const modeLine = (
   const waits = held && what ? notTaken(t, what, held.savedAt, now, zone) : null;
   const others = modesOf(device)
     .filter(one => one !== running)
-    .map(one => t(`control.rows.mode.${one}`));
+    .map(one => t(`operatingMode.${one}`));
   if (configurationFieldsOf(device.type).energySaving) others.push(t('control.rows.mode.energySaving'));
   const beside =
     running === 'drying' || running === 'germination'

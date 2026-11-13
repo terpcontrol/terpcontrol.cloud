@@ -1,8 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { ValueState } from '@fg2/shared-types/v1';
-import { ageAttribute } from '@/ui/age';
+import type { Entry, ValueState } from '@fg2/shared-types/v1';
+import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
+import { GROW } from '@/app/places';
+import { growDay } from '@/screens/grow/progress';
+import { ageAttribute, dayStamp } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
+import { useNow } from '@/ui/useNow';
+import { useZone } from '@/ui/zone';
+import { ownPhotoOf } from './place';
 import type { Reading } from './readings';
 import styles from './Start.module.css';
 
@@ -103,5 +109,42 @@ export function Picture({
         </span>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A grow without a camera is shown by the newest photo written into its diary, and failing that by its cover; by
+ * nothing where it has neither. `named` where no heading over the picture names the grow already.
+ */
+export function OwnPhoto({
+  grow,
+  entries,
+  named = false,
+}: {
+  grow: { growId: string; name: string; dayNumber: number | null; coverMediaId: string | null };
+  entries: Entry[];
+  named?: boolean;
+}) {
+  const { t } = useTranslation();
+  const now = useNow();
+  const zone = useZone();
+  const { user } = useSession();
+  const photo = ownPhotoOf(entries, grow.growId);
+  const mediaId = photo?.mediaIds[0] ?? grow.coverMediaId;
+  if (!mediaId) return null;
+
+  return (
+    <Picture
+      to={GROW}
+      src={mediaUrl(mediaId, THUMBNAIL_WIDTH.frame)}
+      alt={t('start.picture.photoAlt', { name: grow.name })}
+      opens={t('start.picture.openGrow')}
+      name={named ? grow.name : null}
+      day={growDay(t, grow)}
+      right={
+        photo ? t(photo.authorId === user?.id ? 'start.picture.yours' : 'start.picture.photo', { day: dayStamp(photo.occurredAt, now, zone) }) : null
+      }
+      empty=""
+    />
   );
 }

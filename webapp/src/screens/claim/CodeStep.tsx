@@ -1,6 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -53,21 +53,24 @@ export function CodeStep({
   const claim = useClaimDevice();
   const form = useForm<DeviceClaimCreate>({ defaultValues: { code: initialCode } });
 
+  /** What kept the claim from being sent at all: the places could not be read. */
+  const [unsent, setUnsent] = useState<unknown>(null);
+
   const busy = form.formState.isSubmitting;
 
   // The refusal is the mutation's own and is drawn under the field, so a code
-  // the server would not take leaves the form exactly as it was typed.
+  // the server would not take leaves the form exactly as it was typed; what
+  // went wrong before the claim was sent is said in the same place.
   const submit = form.handleSubmit(async body => {
     const code = claimCodeOf(body.code).trim();
     if (!code) return;
-    let result: DeviceClaimResult;
-    try {
-      result = await claim.mutateAsync({ code, ...(await where()) });
-    } catch {
-      form.setFocus('code');
-      return;
-    }
-    await onClaimed(result);
+    setUnsent(null);
+    const result = await where().then(
+      place => claim.mutateAsync({ code, ...place }).catch(() => null),
+      (failed: unknown) => (setUnsent(failed), null),
+    );
+    if (result) await onClaimed(result);
+    else form.setFocus('code');
   });
 
   const { scan, note, scanner } = useQrScan(
@@ -115,7 +118,7 @@ export function CodeStep({
 
       {into ? <p className={ui.note}>{t('claim.code.into', { name: into.name })}</p> : null}
 
-      <Refused error={claim.error} />
+      <Refused error={unsent ?? claim.error} />
 
       <button type="submit" className={`${ui.button} ${ui.primary} ${styles.wide}`} disabled={busy}>
         {busy ? t('claim.code.claiming') : t('claim.code.claim')}

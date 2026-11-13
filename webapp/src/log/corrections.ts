@@ -37,7 +37,7 @@ const correctableKind = (entry: Entry): TileKind | null =>
 
 /**
  * What the correction is about, taken from the line rather than from the screen
- * it was opened on: a line corrected from a tent's rail must not quietly move
+ * it was opened on: a line corrected from a place's "Zuletzt" must not quietly move
  * onto that tent, and one corrected from a plant's page must not move onto that
  * plant.
  */
@@ -57,7 +57,7 @@ interface LineOn {
   label: string;
   /** The grow's day the line falls on, where the surface counts in them. */
   dayNumber?: number | null;
-  /** Who owns the thing being drawn, where the surface is of one thing; a tent's rail draws many and has none. */
+  /** Who owns the thing being drawn, where the surface is of one thing; a place's "Zuletzt" draws many and has none. */
   ownerId?: string | null;
   /** The place that decides what may be done here, which is the place the server decides by. */
   spaceId: string | null;

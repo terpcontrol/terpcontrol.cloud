@@ -245,16 +245,6 @@
   font-size: var(--text-xs);
 }
 
-.sheetBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.submit {
-  width: 100%;
-}
-
 @media (min-width: 900px) {
   .page {
     max-width: var(--reading-width);

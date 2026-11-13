@@ -3,7 +3,7 @@ import type { Device, DeviceFirmware } from '@fg2/shared-types/v1';
 import { useDevices, useUpdateDevice } from '@/api/devices';
 import { useLog } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
-import { deviceTitle } from '@/ui/naming';
+import { deviceTitle, standingWith } from '@/ui/naming';
 import { SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { buildName } from './firmware-builds';
@@ -21,7 +21,7 @@ export function PinSheet({ device, build, onClose }: { device: Device; build: De
   const { tell } = useLog();
   const devices = useDevices();
   const pin = useUpdateDevice(device.id);
-  const name = deviceTitle(device, t, devices.data?.items);
+  const name = deviceTitle(device, t, standingWith(device, devices.data?.items));
 
   const install = async () => {
     try {

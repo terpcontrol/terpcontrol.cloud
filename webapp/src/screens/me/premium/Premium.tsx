@@ -9,7 +9,7 @@ import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
-import { cameraCalled } from '@/ui/camera-name';
+import { camerasCalled } from '@/ui/camera-name';
 import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
@@ -114,7 +114,7 @@ function Account({ title }: { title: string }) {
   const placeOf = (id: string | null): string | null => spaces.data?.items.find(space => space.id === id)?.name ?? null;
   // A camera nobody named is drawn by what is printed on the cam, and without that where it is the only such one.
   const titles = list.map(camera => cameraTitle(camera, devices.data?.items.find(device => device.id === camera.deviceId) ?? null, t));
-  const oneUnnamed = titles.filter(title => cameraCalled(title, true) !== title).length < 2;
+  const called = camerasCalled(titles);
 
   return (
     <MePage title={title}>
@@ -127,14 +127,7 @@ function Account({ title }: { title: string }) {
       ) : (
         <ul className={ui.group}>
           {list.map((camera, index) => (
-            <CameraCard
-              key={camera.id}
-              camera={camera}
-              name={cameraCalled(titles[index], oneUnnamed)}
-              place={placeOf(camera.spaceId)}
-              premium={premium}
-              now={now}
-            />
+            <CameraCard key={camera.id} camera={camera} name={called[index]} place={placeOf(camera.spaceId)} premium={premium} now={now} />
           ))}
         </ul>
       )}

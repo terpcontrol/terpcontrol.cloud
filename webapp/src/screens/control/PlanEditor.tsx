@@ -359,7 +359,7 @@ function StepFields({
         {hasCo2Sensor(device) || dark ? null : (
           <span className={styles.figure}>
             <span className={styles.figureLabel}>{t('space.control.figure.co2')}</span>
-            <span className={`mono ${styles.figureNeeds}`}>{t('targets.needsCo2')}</span>
+            <span className={`mono ${styles.figureNeeds}`}>{t('alarms.needs.co2')}</span>
           </span>
         )}
       </div>

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import type { Device, DeviceCapabilities } from '@fg2/shared-types/v1';
 import { useSocketTables, useTestSocket } from '@/api/devices';
-import { useSpaceVerdicts } from '@/api/spaces';
+import { useSpaceOverview } from '@/api/spaces';
 import { backOf, controlPath, devicePath, usePageOfPlace } from '@/app/places';
 import { useLog } from '@/log/log-context';
 import { ageLabel, sinceLabel } from '@/ui/age';
@@ -81,7 +81,8 @@ function Socket({
   const { state } = useLocation();
   const mayManage = enough(useMayWith()(device), 'manage');
   const { heard, liveness, waiting, offline } = useDeviceLiveness(device, now);
-  const verdicts = useSpaceVerdicts(device.spaceId ? [device.spaceId] : []);
+  // How often an output came on today is the place's answer: its overview counts it, and Start has read it already.
+  const verdict = useSpaceOverview(device.spaceId ?? '').data?.verdict;
   const [editing, setEditing] = useState(false);
   const [removing, setRemoving] = useState(false);
   const title = deviceTitle(device, t, among);
@@ -109,7 +110,7 @@ function Socket({
   // Why the device would not hear anything at all, and why this build holds nothing: the first stops strictly more.
   const unheard = offline || waiting;
   const refusal = unheard ? t('devices.socket.offline') : capabilities.socketOverride ? null : t('devices.socket.needsFirmware');
-  const runs = runsOf(verdicts.get(device.spaceId ?? ''), row.role);
+  const runs = runsOf(verdict, row.role);
   const timed = isTimed(row.role);
 
   return (

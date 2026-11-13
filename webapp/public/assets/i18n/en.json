@@ -246,8 +246,9 @@
       "withSockets_other": "{{count}} sockets",
       "told": {
         "named": "{{was}} is now called {{name}}",
-        "moved": "{{name}} is now in {{place}}",
-        "with": "with {{what}}"
+        "moved": "{{place}}: {{name}} now stands here",
+        "with": "with {{what}}",
+        "nowhere": "{{name}} now stands in no place"
       },
       "rename": "Rename"
     },
@@ -528,7 +529,6 @@
       "plants_other": "{{count}} plants",
       "day": "day",
       "dayN": "Day {{day}}",
-      "noEntries": "Nothing in the diary yet",
       "ago": "{{age}} ago",
       "stillAlt": "The newest picture of {{name}}",
       "enteredPhase": "Entered {{stage}}"
@@ -1137,7 +1137,6 @@
         },
         "correct": "Correct",
         "withdraw": "Withdraw",
-        "saveCorrection": "Save the correction",
         "confirmWithdraw": "Withdraw this phase",
         "effect": {
           "nothingYet": "Nothing changed yet.",
@@ -1166,7 +1165,6 @@
         "correct": "Correct",
         "withdraw": "Withdraw",
         "correctionNote": "This repairs the row that is already there, and the line that announced the move moves with it. Moving the plants again is the button above.",
-        "saveCorrection": "Save the correction",
         "withdrawEffect": "The row goes, as if the move had never been recorded.",
         "confirmWithdraw": "Withdraw this move",
         "nowhereThenWithdraw": "Put the grow nowhere, then withdraw this row",
@@ -1217,7 +1215,8 @@
         "needsOne": "Pick the plants, and a phase or a place for them: a split that gives them neither has not split anything.",
         "submit_one": "Split off {{count}} plant",
         "submit_other": "Split off {{count}} plants"
-      }
+      },
+      "saveCorrection": "Save the correction"
     },
     "new": {
       "title": "New grow",
@@ -1283,7 +1282,6 @@
         "targetNote": "Both ends empty is a measurement nobody aims at; one end alone is a limit.",
         "save": "Save",
         "saving": "Saving…",
-        "cancel": "Cancel",
         "delete": "Delete",
         "deleteAsk": "Delete this measurement? Nothing has been written under it.",
         "deleteYes": "Delete it",
@@ -1500,8 +1498,6 @@
       "waitingHasPlan": "This device has not sent its settings yet, so these steps are held back rather than sent. What a step carries would not be added to the device's own tuning but put in place of it: the work mode, the light schedule, the dehumidifier's timings and the dimming ramps would all be back at a factory value, and none of them has ever reached the cloud to be put back. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
       "write": "Write a plan",
       "edit": "Edit the plan",
-      "keepAsTemplate": "Keep as a template",
-      "fromTemplate": "Start from a template",
       "noSteps": "This plan has no steps, so there is nothing for it to run.",
       "noStage": "No stage",
       "waits": "waits for you",
@@ -1729,7 +1725,6 @@
     "stillAlt": "{{name}} at {{time}}",
     "climate24h": "Climate · 24 h",
     "inBand": "{{percent}} % in band",
-    "latest": "Latest",
     "moveHereTitle": "{{name}}: move a grow here",
     "presets": {
       "whichGrow": "Which grow",
@@ -1750,35 +1745,34 @@
       "you": "You",
       "theOwner": "The owner",
       "someone": "somebody",
-      "theRoom": "the room",
-      "viaRoom": "via {{room}}",
+      "viaRoom": "via the room {{room}}",
       "lastLogged": "last logged {{age}}",
       "neverLogged": "nothing logged yet",
       "owns": "manages this place",
       "roleOf": "What {{name}} may do here",
-      "removeOf": "Take {{name}} out of {{place}}",
+      "removeOf": "{{place}}: take {{name}} out",
       "role": {
         "can_log": "can log",
         "can_manage": "can manage"
       },
       "remove": {
-        "title": "Take @{{name}} out of {{place}}?",
+        "title": "{{place}}: take @{{name}} out?",
         "body": "They lose this place and everything standing in it. What they wrote here stays here and goes on carrying their name.",
-        "bodyKeepsRoom": "They keep this place through {{room}} and lose only what they held here. What they wrote here stays here and goes on carrying their name.",
+        "bodyKeepsRoom": "They keep this place through the room {{room}} and lose only what they held here. What they wrote here stays here and goes on carrying their name.",
         "yes": "Take them out",
         "alsoTheLink": "They came in on the link {{code}}, and taking them out stops it: anybody else you sent that one to can no longer join. Whoever is already in stays in, your other links are untouched, and a new link is one tap away.",
-        "bodyRoom": "They lose every place in {{place}} and everything standing there. What they wrote there stays and goes on carrying their name."
+        "bodyRoom": "They lose every place of this room and everything standing there. What they wrote there stays and goes on carrying their name."
       },
       "leave": {
         "title": "Leave {{place}}?",
         "body": "{{place}} goes off your home and you can only come back in if you are let in again. What you wrote here stays here and goes on carrying your name.",
-        "bodyKeepsRoom": "You keep this place through {{room}} and give up only the role you held here. What you wrote here stays here and goes on carrying your name.",
+        "bodyKeepsRoom": "You keep this place through the room {{room}} and give up only the role you held here. What you wrote here stays here and goes on carrying your name.",
         "yes": "Leave",
-        "bodyRoom": "Every place in {{place}} goes off your home and you can only come back in if you are let in again. What you wrote there stays and goes on carrying your name."
+        "bodyRoom": "Every place of this room goes off your home and you can only come back in if you are let in again. What you wrote there stays and goes on carrying your name."
       },
       "join": {
         "label": "Invitation",
-        "title": "You are invited to {{name}}",
+        "title": "{{name}}: you are invited",
         "by": "from @{{handle}}",
         "bySomebody": "from somebody who grows here",
         "asRole": {
@@ -1815,7 +1809,6 @@
         "show": "Code · QR",
         "showOf": "Show {{code}} as a code and a QR",
         "revokeOf": "Revoke the link {{code}}",
-        "into": "for {{name}}",
         "revokeAsk": "Nobody joins {{name}} with this link any more; it cannot be taken back."
       },
       "sheet": {
@@ -1860,9 +1853,9 @@
           "can_manage": "@{{name}} can now manage"
         },
         "removed": "@{{name}} no longer sees {{place}}",
-        "removedKeeps": "@{{name}} still sees {{place}} through {{room}}",
+        "removedKeeps": "@{{name}} still sees {{place}} through the room {{room}}",
         "left": "You have left {{place}}",
-        "leftKeeps": "You still see {{place}} through {{room}}",
+        "leftKeeps": "You still see {{place}} through the room {{room}}",
         "linkStopped": "The link {{code}} no longer works"
       }
     }
@@ -1895,11 +1888,9 @@
     "now": "now",
     "save": "Save",
     "saveDay": "Save · Day {{day}}",
-    "saveCorrection": "Save the correction",
     "takeBack": "Take this line back",
     "takeBackAsk": "Take this line back? It leaves the diary for good.",
     "takeBackYes": "Take it back",
-    "cancel": "Cancel",
     "logAsPlanned": "Log as planned",
     "saveFailed": "Could not save that line",
     "photoTitle": "Photo entry",
@@ -2368,26 +2359,21 @@
         },
         "placeName": "Name of the place",
         "placeKind": "Kind of place",
-        "kind": {
-          "tent": "Tent",
-          "balcony": "Balcony",
-          "other": "Other place"
-        },
         "makePlace": "Make the place",
         "makingPlace": "Making the place …",
         "needAddress": "Type the stream address first.",
         "needPlace": "Say where it looks first.",
         "needName": "Give it a name first.",
         "testAdds": "Test adds the camera and then asks it for one picture. You can take it away again here.",
-        "made": "Added to {{place}}. It is with your devices now, and testing again updates it.",
-        "madeSomewhere": "The camera has been added. It is with your devices now, and testing again updates it.",
+        "made": "{{place}}: camera added. It is under Control now, and testing again updates it.",
+        "madeSomewhere": "The camera has been added. It is under Control now, and testing again updates it.",
         "remove": "Take it away again",
         "removing": "Taking it away …",
         "open": "Open the camera",
         "username": "User",
         "password": "Password",
         "loginInAddress": "The login is already written into the address and is used as it is.",
-        "noCarrier": "No device stands at {{place}} to fetch the stream from your network · an address of your home network will not answer the cloud"
+        "noCarrier": "{{place}}: no device stands here to fetch the stream from your network · an address of your home network will not answer the cloud"
       }
     }
   },
@@ -2588,16 +2574,6 @@
       "co2": "needs a CO₂ sensor",
       "leaf": "needs a leaf sensor",
       "light": "needs a light sensor"
-    },
-    "metric": {
-      "temperature": "Temperature",
-      "humidity": "Humidity",
-      "vpd": "VPD",
-      "co2": "CO₂",
-      "leafTemperature": "Leaf temperature",
-      "lux": "Lux",
-      "ppfd": "PPFD",
-      "offline": "Offline"
     },
     "output": {
       "heater": "Heater",
@@ -2805,7 +2781,6 @@
     "title": "Targets",
     "waiting": "{{device}} has not sent its settings yet, so there is nothing to write a climate into. Changing any setting on the device itself sends them; connecting alone does not, and nothing written here can stand in for them.",
     "presets": "Climate presets",
-    "needsCo2": "needs a CO₂ sensor",
     "aria": {
       "dayTemperature": "Day temperature",
       "dayHumidity": "Day humidity",
@@ -3530,7 +3505,8 @@
       "camera_here": "A camera still looks in here.",
       "grow_here": "A grow is still running here.",
       "room_ended": "That room is gone: it ended with its last place.",
-      "current_password_wrong": "That is not your current password."
+      "current_password_wrong": "That is not your current password.",
+      "name_taken": "Another place or room already carries that name. Choose another."
     }
   },
   "alarmLine": {
@@ -4081,7 +4057,7 @@
     }
   },
   "place": {
-    "backTo": "Back to {{name}}",
+    "backTo": "Back: {{name}}",
     "members": {
       "lookOnly": "Just to look, without an account:",
       "shareLink": "Create a share link"
@@ -4110,7 +4086,7 @@
       "told": {
         "named": "{{was}} is now called {{name}}",
         "kind": "Kind: {{kind}}",
-        "room": "{{name}} now stands in {{room}}",
+        "room": "Room: {{room}}",
         "noRoom": "{{name}} no longer stands in a room",
         "sees_one": "{{people}} now sees it too",
         "sees_other": "{{people}} now see it too",
@@ -4119,9 +4095,8 @@
       },
       "devices": "Devices here",
       "bring": "Bring a device here",
-      "bringTitle": "Bring a device to {{name}}",
-      "standsIn": "stands in {{place}}",
-      "nowhere": "no place",
+      "bringTitle": "{{name}}: bring a device here",
+      "nowhere": "in no place",
       "claim": "Add a new device",
       "people": "Who sees {{name}}",
       "remove": "Remove {{name}}",
@@ -4129,20 +4104,22 @@
       "roomWith_one": "{{room}} · {{count}} person sees it too",
       "roomWith_other": "{{room}} · {{count}} people see it too",
       "endRoom": {
-        "title": "Take {{name}} out of {{room}}?",
+        "title": "{{name}}: take it out of the room {{room}}?",
         "says_one": "That ends {{room}}, and {{people}} no longer sees any of it.",
         "says_other": "That ends {{room}}, and {{people}} no longer see any of it.",
         "final": "This cannot be taken back.",
         "yes": "End {{room}}",
         "no": "Cancel"
-      }
+      },
+      "renameRoom": "Rename {{room}} …",
+      "roomTaken": "Another room is already called “{{name}}”."
     },
     "remove": {
       "title": "Remove {{name}}",
       "back": "Back to “Edit {{name}}”",
       "holds": "Still standing here",
       "stay": "stays with {{device}}",
-      "move": "moves to {{place}}",
+      "move": "moves to: {{place}}",
       "device": {
         "new": "gets a new place",
         "release": "give up"
@@ -4154,7 +4131,6 @@
       "grow": {
         "ask": "Where are the plants now?",
         "with": "at the new place of {{device}}",
-        "move": "in {{place}}",
         "nowhere": "in no fixed place",
         "end": "End the grow"
       },
@@ -4167,7 +4143,7 @@
       "final": "This cannot be taken back.",
       "will": {
         "make": "{{name}} gets a new place: {{place}}",
-        "move": "{{name}} moves to {{place}}",
+        "move": "{{name}} moves to: {{place}}",
         "stay": "{{name}} stays with {{beside}}",
         "release": "{{name}} is given up and then no longer belongs to your account",
         "uncouple": "{{name}} is unpaired",
@@ -4180,11 +4156,12 @@
         "unseen_one": "{{name}} then no longer sees {{place}}",
         "unseen_other": "{{name}} then no longer see {{place}}",
         "roomEnds_one": "The room {{place}} ends – {{name}} then no longer sees it",
-        "roomEnds_other": "The room {{place}} ends – {{name}} then no longer see it"
+        "roomEnds_other": "The room {{place}} ends – {{name}} then no longer see it",
+        "roomEmpty": "The room {{place}} ends"
       },
       "did": {
-        "stands_one": "{{names}} now stands in {{place}}.",
-        "stands_other": "{{names}} now stand in {{place}}.",
+        "stands_one": "{{place}}: {{names}} now stands here.",
+        "stands_other": "{{place}}: {{names}} now stand here.",
         "nowhere_one": "{{names}} stands in no fixed place.",
         "nowhere_other": "{{names}} stand in no fixed place.",
         "release": "{{names}} given up.",
@@ -4196,7 +4173,8 @@
         "unseen_one": "{{names}} no longer sees {{place}}.",
         "unseen_other": "{{names}} no longer see {{place}}.",
         "roomEnds_one": "The room {{place}} has ended – {{names}} no longer sees it.",
-        "roomEnds_other": "The room {{place}} has ended – {{names}} no longer see it."
+        "roomEnds_other": "The room {{place}} has ended – {{names}} no longer see it.",
+        "roomEmpty": "The room {{place}} has ended."
       },
       "half": {
         "still": "{{name}} is not removed yet.",
@@ -4205,7 +4183,8 @@
       },
       "told": "{{name}} removed.",
       "last": "{{name}} is your only place, so it cannot be removed."
-    }
+    },
+    "ended": "{{name}} has been removed. You see its curves only with grows that stood there."
   },
   "climatePick": {
     "label": "Targets",
@@ -4784,8 +4763,6 @@
     },
     "picture": {
       "takenAt": "Picture from {{time}}",
-      "lightOff": "Light off · picture from {{time}}",
-      "last": "last picture {{time}}",
       "stand": "As of {{time}} · {{age}} ago",
       "open": "Open {{name}}",
       "photoAlt": "The newest photo of {{name}}",
@@ -4878,7 +4855,6 @@
     },
     "mode": {
       "drying": "Drying",
-      "germination": "Germination · dark",
       "germinationHumidified": "Germination · dark · humidifier holds {{humidity}}",
       "greenhouse": "Greenhouse mode"
     },
@@ -4898,10 +4874,7 @@
       "controlOff": "Control off: the device holds no targets"
     },
     "metric": {
-      "temperature": "Temperature",
-      "humidity": "Humidity",
-      "light": "Light",
-      "co2": "CO₂"
+      "light": "Light"
     },
     "tile": {
       "high": "{{delta}} too high",
@@ -4936,9 +4909,7 @@
   "device": {
     "back": "Back",
     "backToControl": "Back to Control",
-    "backTo": "Back to {{name}}",
-    "in": "in {{place}}",
-    "standsIn": "in {{place}}",
+    "backTo": "Back: {{name}}",
     "offlineKeeps": "What you set here reaches the device as soon as it is heard again.",
     "waitsForDevice": "Maintenance, restart and update have to wait until the device is back online.",
     "curves": "This device's curves",
@@ -5032,7 +5003,7 @@
     },
     "saved": {
       "now": "{{what}} · saved",
-      "later": "{{what}} · saved, {{device}} takes it over when it next connects"
+      "later": "{{what}} · saved, not with the device yet"
     },
     "pending": {
       "atClock": "at {{time}}",
@@ -5046,7 +5017,6 @@
       "one": "{{name}}: {{value}} · the device still holds {{held}}",
       "oneUnknown": "{{name}}: {{value}}",
       "off": "Control off saved {{saved}}, not with the device yet: {{device}} goes on regulating until it is back online.",
-      "modeOff": "Control off",
       "stored": "{{what}} saved {{saved}}, not with the device yet"
     },
     "offline": {
@@ -5054,10 +5024,7 @@
     },
     "state": {
       "on": "Control on",
-      "off": "Control off",
-      "drying": "Drying",
-      "germination": "Germination",
-      "maintenance": "Maintenance until {{until}}"
+      "off": "Control off"
     },
     "rows": {
       "label": "More about this place",
@@ -5073,8 +5040,6 @@
       "light": "Light",
       "allAuto": "all on auto",
       "mode": {
-        "standard": "Standard",
-        "greenhouse": "Greenhouse",
         "energySaving": "Energy saving"
       },
       "planPaused": "{{step}} paused",
@@ -5093,9 +5058,7 @@
       "all": "Everything about {{name}}"
     },
     "camera": {
-      "last": "last picture {{time}}",
-      "none": "no picture yet",
-      "waits": "waiting for {{device}}"
+      "none": "no picture yet"
     },
     "add": {
       "title": "Add a device or a camera",

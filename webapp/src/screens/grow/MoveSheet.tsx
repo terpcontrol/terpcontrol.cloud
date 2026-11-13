@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, Placement, Plant, Space } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
+import { placesFor } from '@/app/places';
 import { refusalCode } from '@/api/problem';
 import { useCorrectPlacement, useMovePlants, useWithdrawPlacement } from '@/api/lifecycle';
 import { Sheet } from '@/ui/Sheet';
@@ -11,7 +12,9 @@ import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
-import { growPlaces, lastPlaceOf, placeName } from './placement';
+import { lastPlaceOf, placeName } from './placement';
+import { RepairAnswer } from './RepairAnswer';
+import { PlaceChoices } from './PlaceChoices';
 import { PlantPicker } from './PlantPicker';
 import styles from './Lifecycle.module.css';
 
@@ -42,7 +45,7 @@ export function MoveSheet({
   const { t } = useTranslation();
   const move = useMovePlants(grow.id);
 
-  const open = growPlaces(spaces);
+  const open = placesFor(spaces);
   const [spaceId, setSpaceId] = useState<string | null>(() => open.find(space => !standsIn(grow, space.id))?.id ?? null);
   const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
   // Now as the server reckons it. The day field below caps at the server's
@@ -77,16 +80,7 @@ export function MoveSheet({
           <p className={ui.note}>{t('grow.lifecycle.move.endedNote')}</p>
         ) : (
           <Block label={t('grow.lifecycle.move.moveTo')}>
-            <Choices label={t('grow.lifecycle.move.moveTo')}>
-              {open.map(space => (
-                <Choice key={space.id} chosen={spaceId === space.id} onChoose={() => setSpaceId(space.id)}>
-                  {space.name}
-                </Choice>
-              ))}
-              <Choice chosen={spaceId === null} onChoose={() => setSpaceId(null)}>
-                {t('grow.noFixedPlace')}
-              </Choice>
-            </Choices>
+            <PlaceChoices label={t('grow.lifecycle.move.moveTo')} spaces={spaces} chosen={spaceId} onChoose={id => setSpaceId(id ?? null)} />
 
             <PlantPicker
               plants={plants}
@@ -202,16 +196,7 @@ function PlacementEditor({ grow, placement, spaces, onDone }: { grow: GrowListIt
 
   return (
     <div className={styles.editor}>
-      <Choices label={t('grow.lifecycle.move.moveTo')}>
-        {growPlaces(spaces).map(space => (
-          <Choice key={space.id} chosen={spaceId === space.id} onChoose={() => setSpaceId(space.id)}>
-            {space.name}
-          </Choice>
-        ))}
-        <Choice chosen={spaceId === null} onChoose={() => setSpaceId(null)}>
-          {t('grow.noFixedPlace')}
-        </Choice>
-      </Choices>
+      <PlaceChoices label={t('grow.lifecycle.move.moveTo')} spaces={spaces} chosen={spaceId} onChoose={id => setSpaceId(id ?? null)} />
 
       <WhenField label={t('grow.lifecycle.move.from')} at={from} onChange={setFrom} until={endOf(grow)} />
 
@@ -228,19 +213,13 @@ function PlacementEditor({ grow, placement, spaces, onDone }: { grow: GrowListIt
       <p className={ui.note}>{t('grow.lifecycle.move.correctionNote')}</p>
       <Refused error={correct.error} />
 
-      <div className={styles.rowActions}>
-        <button
-          type="button"
-          className={`${ui.button} ${ui.primary}`}
-          disabled={correct.isPending || !changed}
-          onClick={() => correct.mutate({ placementId: placement.id, body }, { onSuccess: onDone })}
-        >
-          {correct.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.saveCorrection')}
-        </button>
-        <button type="button" className={ui.button} onClick={onDone}>
-          {t('grow.lifecycle.cancel')}
-        </button>
-      </div>
+      <RepairAnswer
+        yes={t('grow.lifecycle.saveCorrection')}
+        busy={correct.isPending}
+        disabled={!changed}
+        onYes={() => correct.mutate({ placementId: placement.id, body }, { onSuccess: onDone })}
+        onDone={onDone}
+      />
     </div>
   );
 }
@@ -280,25 +259,17 @@ function PlacementWithdrawal({ grow, placement, onDone }: { grow: GrowListItem; 
       <Refused error={withdraw.error} />
       <Refused error={move.error} />
 
-      <div className={styles.rowActions}>
-        {standsNowhere ? (
-          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={move.isPending || withdraw.isPending} onClick={rescue}>
-            {move.isPending || withdraw.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.nowhereThenWithdraw')}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={`${ui.button} ${ui.dangerFilled}`}
-            disabled={withdraw.isPending}
-            onClick={() => withdraw.mutate(placement.id, { onSuccess: onDone })}
-          >
-            {withdraw.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.confirmWithdraw')}
-          </button>
-        )}
-        <button type="button" className={ui.button} onClick={onDone}>
-          {t('grow.lifecycle.cancel')}
-        </button>
-      </div>
+      {standsNowhere ? (
+        <RepairAnswer yes={t('grow.lifecycle.move.nowhereThenWithdraw')} busy={move.isPending || withdraw.isPending} onYes={rescue} onDone={onDone} />
+      ) : (
+        <RepairAnswer
+          yes={t('grow.lifecycle.move.confirmWithdraw')}
+          danger
+          busy={withdraw.isPending}
+          onYes={() => withdraw.mutate(placement.id, { onSuccess: onDone })}
+          onDone={onDone}
+        />
+      )}
     </div>
   );
 }

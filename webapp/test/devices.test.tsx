@@ -231,10 +231,10 @@ describe('a device on its own page', () => {
     await draw();
 
     expect(screen.getByRole('link', { name: 'Back to Control' })).toHaveAttribute('href', '/control?space=space-1');
-    expect(screen.getByRole('link', { name: 'in Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
+    expect(screen.getByRole('link', { name: 'Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
     // How it is heard is the pill's to say: the line under the name does not say it a second time, in a second word.
     expect(pill()).toBe('live');
-    expect(screen.getByRole('link', { name: 'in Tent 1' }).closest('p')).toHaveTextContent(/^in Tent 1$/);
+    expect(screen.getByRole('link', { name: 'Tent 1' }).closest('p')).toHaveTextContent(/^Tent 1$/);
     expect(screen.queryByText(/connected/)).not.toBeInTheDocument();
   });
 
@@ -259,6 +259,13 @@ describe('a device on its own page', () => {
     cleanup();
 
     await draw('/devices/device-2', 'East tent');
+  });
+
+  /** The card under Steuerung tells a device from the others standing in its place, and the page it opens is headed the same. */
+  it('is headed as its card names it: one of its kind standing in another place adds no scrap of an id', async () => {
+    wire.devices = [controller({}), controller({ id: 'device-2', spaceId: 'space-2' })];
+
+    await draw('/devices/device-1', 'Controller');
   });
 
   /** Migrated devices carry a `lastSeenAt` older than their own samples; the page dates the device by the newer of the two. */
@@ -682,14 +689,14 @@ describe('a device on its own page', () => {
       expect(moves).toEqual([{ kind: 'pause', reason: 'Control was switched off.' }, { kind: 'resume' }]);
     });
 
-    it('says of a device that is not heard that it takes the switch over when it next connects', async () => {
+    it('says of a device that is not heard that the switch is saved and not with the device yet', async () => {
       wire.devices = [{ ...regulating(), state: { ...regulating().state, lastSeenAt: NOW.minus({ minutes: 25 }).toISO()! } }];
       vi.mocked(api.patch).mockResolvedValue(regulating({ running: false }) as never);
       await draw('/devices/device-1', 'Fridge module');
       fireEvent.click(screen.getByRole('button', { name: 'Switch control off' }));
       fireEvent.click(within(await screen.findByRole('dialog', { name: 'Switch control off?' })).getByRole('button', { name: 'Switch off' }));
 
-      await waitFor(() => expect(said()).toEqual(['Control off · saved, Fridge module takes it over when it next connects']));
+      await waitFor(() => expect(said()).toEqual(['Control off · saved, not with the device yet']));
     });
 
     it('says that control is off, switches it back on with one tap, and says that it did', async () => {
@@ -720,7 +727,7 @@ describe('a device on its own page', () => {
 
       const stored = /Control off saved at \d\d:\d\d, not with the device yet$/;
       const head = await screen.findByText(stored, { selector: 'p strong' });
-      expect(head.closest('p')).toHaveTextContent(/^in Tent 1 · Control off saved at/);
+      expect(head.closest('p')).toHaveTextContent(/^Tent 1 · Control off saved at/);
       const row = screen.getByRole('button', { name: /^Switch control on/ });
       expect(within(row).getByText(stored)).toHaveAttribute('data-tone', 'warn');
       expect(screen.queryByText('Control off')).not.toBeInTheDocument();
@@ -761,7 +768,7 @@ describe('a device on its own page', () => {
       wire.sockets = [socket()];
       await draw();
 
-      expect(screen.getByRole('button', { name: /^Rename or move/ })).toHaveTextContent('in Tent 1');
+      expect(screen.getByRole('button', { name: /^Rename or move/ })).toHaveTextContent('Tent 1');
       // The sockets themselves are listed where they are switched, under Steuerung: here they are counted, and another is paired.
       await waitFor(() => expect(screen.getByRole('button', { name: /^Pair a socket/ })).toHaveTextContent('1 paired'));
       expect(screen.queryByRole('link', { name: /Heater/ })).not.toBeInTheDocument();
@@ -775,7 +782,7 @@ describe('a device on its own page', () => {
       await draw();
 
       // Where a device stands is asked of its owner alone: whoever manages it is offered its name.
-      expect(screen.getByRole('button', { name: /^Rename\s?in Tent 1$/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Rename\s?Tent 1$/ })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Give the device up' })).not.toBeInTheDocument();
     });
 
@@ -785,7 +792,7 @@ describe('a device on its own page', () => {
       wire.devices = [controller({ configuration: { lights: LIGHTS } })];
       await draw();
 
-      expect(screen.getByRole('link', { name: 'Back to Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
+      expect(screen.getByRole('link', { name: 'Back: Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
       for (const name of [/^Rename or move/, 'Restart', 'Maintenance · 15 min', 'Give the device up']) {
         expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
       }

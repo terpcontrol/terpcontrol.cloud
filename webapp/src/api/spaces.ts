@@ -1,4 +1,3 @@
-import { queryOptions, useQueries } from '@tanstack/react-query';
 import { LIVE_BEAT_MS, useRead } from './read';
 import type { Device, PresetPrompt, Space, SpaceCreate, SpaceLive, SpaceOverview, SpacePage, SpaceUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
@@ -49,33 +48,12 @@ export const useEverySpace = () =>
     queryFn: ({ signal }) => readEvery<Space>('/spaces', signal),
   });
 
-const overviewQuery = (spaceId: string) =>
-  queryOptions({
+export const useSpaceOverview = (spaceId: string, enabled = true) =>
+  useRead({
     queryKey: ['space', spaceId, 'overview'],
     queryFn: ({ signal }) => api.get<SpaceOverview>(`/spaces/${spaceId}/overview`, undefined, signal),
-  });
-
-export const useSpaceOverview = (spaceId: string, enabled = true) =>
-  useRead({ ...overviewQuery(spaceId), refetchInterval: OVERVIEW_REFRESH_MS, enabled: enabled && spaceId !== '' });
-
-/**
- * The 24 h verdict of several places at once, for a list that draws rows from
- * more than one of them.
- *
- * How often an output came on today is the place's answer and not the device's
- * - it is counted by the same aggregation that decides whether the tent was in
- * band - so a list spanning the whole account has to ask each place it draws a
- * row from. The key is the one a tent's own page reads its overview under, so
- * the tent tab costs nothing extra: the answer is already in hand, and the
- * account-wide tab is the only caller that pays for a read.
- *
- * A place whose overview has not landed, or would not, simply has no counts,
- * which is what a row with no run figure has always meant.
- */
-export const useSpaceVerdicts = (spaceIds: readonly string[]) =>
-  useQueries({
-    queries: spaceIds.map(spaceId => ({ ...overviewQuery(spaceId), refetchInterval: OVERVIEW_REFRESH_MS })),
-    combine: (results: { data?: SpaceOverview }[]) => new Map(spaceIds.map((spaceId, index) => [spaceId, results[index]?.data?.verdict])),
+    refetchInterval: OVERVIEW_REFRESH_MS,
+    enabled: enabled && spaceId !== '',
   });
 
 export const useSpaceLive = (spaceId: string, enabled: boolean) =>
@@ -123,8 +101,8 @@ export const useSavePlace = (spaceId: string) =>
   );
 
 /**
- * A new place, written the moment it is named: a tent invented while a grow is
- * started, a room on the Members tab, or the place an RTSP camera looks at. What
+ * A new place, written the moment it is named: the one a device is moved out
+ * into, the one a claim hangs it in, or the place an RTSP camera looks at. What
  * a sheet then offers as somewhere to put something is a real space with a real
  * id, and not a promise the next write would have to keep.
  */
@@ -165,7 +143,7 @@ export const useEndPlace = (spaceId: string) =>
             note({ made: step.id, place });
           }
           try {
-            await api.put<Device>(`/spaces/${placeOf(step.to)}/devices/${step.id}`);
+            await api.patch<Device>(`/devices/${step.id}`, { spaceId: placeOf(step.to) });
           } catch (error) {
             if (step.make)
               await api.delete(`/spaces/${made.get(step.id)}`).then(

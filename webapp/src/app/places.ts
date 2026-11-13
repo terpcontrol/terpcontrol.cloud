@@ -3,9 +3,9 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import type { HomeSpaceCard, Placement, Space } from '@fg2/shared-types/v1';
 import { useHome, useHomeShape } from '@/api/home';
 import { useSession } from '@/api/session';
-import { useSpaces } from '@/api/spaces';
+import { useEndedSpaces, useSpaces } from '@/api/spaces';
 import { startOrder } from '@/screens/start/rooms';
-import { isVisiting, standsIn } from '@/ui/session-access';
+import { enough, isVisiting, standsIn } from '@/ui/session-access';
 import { readStored, writeStored } from '@/ui/stored';
 
 /**
@@ -20,6 +20,19 @@ import { readStored, writeStored } from '@/ui/stored';
 export type PlaceCard = HomeSpaceCard & { spaceId: string };
 
 export const isPlace = (card: HomeSpaceCard): card is PlaceCard => card.spaceId !== null;
+
+/**
+ * The places something can be put in - a device, a camera, a grow: putting it
+ * there is managing that place, so one this account only writes lines in is
+ * left out rather than refused on save. A room groups places and holds
+ * nothing, and a place that has ended takes nothing.
+ */
+export const placesFor = (spaces: readonly Space[]): Space[] =>
+  spaces.filter(space => space.kind !== 'room' && space.archivedAt === null && enough(space.youMay, 'manage'));
+
+/** The places of one owner that are in use: what a device of theirs may stand in, and what ending one of them is counted against. */
+export const placesOf = (spaces: readonly Space[], ownerId: string | null | undefined): Space[] =>
+  spaces.filter(space => space.kind !== 'room' && space.archivedAt === null && space.ownerId === ownerId);
 
 const withQuery = (path: string, query: Record<string, string>): string => `${path}?${new URLSearchParams(query).toString()}`;
 
@@ -105,8 +118,6 @@ export const cameraPath = (cameraId: string): string => `/cameras/${encodeURICom
 /**
  * The addresses of the bar's items that show the chosen place: each with the
  * pages under it, and with the place in `?space=` where a link names one.
- * Graphen stands under Verlauf for as long as it is a page of its own, and is
- * about a grow instead where its address names one.
  */
 const ITEMS = [GROW, '/timeline', '/control'];
 
@@ -164,8 +175,35 @@ export const loseSight = (userId: string | null) => {
   told();
 };
 export const useLostSight = (): boolean => useSyncExternalStore(subscribe, () => lostBy) === useSession().user?.id;
-export const walkOut = (spaceId: string) => void left.add(spaceId);
+const gone = new Set<string>();
+export const walkOut = (spaceId: string) => void (left.add(spaceId), gone.add(spaceId));
 export const walkedOutOf = (space: Pick<Space, 'id' | 'roomId'>): boolean => left.delete(space.id) || left.has(space.roomId);
+/** Whether the reader walked out of this place since the app was opened: an entry of the history still names it, and leads to Start instead. */
+export const hasLeft = (spaceId: string): boolean => gone.has(spaceId);
+
+/**
+ * Leaving a page for good from a sheet standing on it - its subject was given
+ * up, removed or left: the sheet stands on a history entry of its own
+ * (`ui/sheet-back.ts`), so that one is stepped back from first, which closes
+ * the sheet, and `go` then replaces the page's own entry. Back from where it
+ * leads finds no page of what is gone. Where no sheet is open, `go` runs at once.
+ */
+let leaving = false;
+export const leaveUnderSheet = (go: () => void): void => {
+  if (leaving) return;
+  // A mark of a sheet that is open; one a closed sheet left spent passes a step back on to the page, so it is left as it is.
+  if (typeof (window.history.state as { sheet?: unknown } | null)?.sheet !== 'number') return go();
+  leaving = true;
+  window.addEventListener(
+    'popstate',
+    () => {
+      leaving = false;
+      go();
+    },
+    { once: true },
+  );
+  window.history.back();
+};
 
 /**
  * A page that belongs to one of the account's places says so: the place's
@@ -232,9 +270,11 @@ const placeShown = (places: PlaceCard[], asked: string | null, chosen: string | 
  * `visiting` is the place the address names where `isVisiting` says it is a
  * customer's, which is drawn as that place rather than swapped for one of
  * ours. `stray` is an address naming a place the account has not got, which
- * the page that reads it takes out again.
+ * the page that reads it takes out again - unless the page says of a place of
+ * the account's own that has ended that it has (`saysEnded`): then `ended` is
+ * that place - undefined while that is being asked - and its address stays.
  */
-export const usePlaceChoice = (places: PlaceCard[] | undefined) => {
+export const usePlaceChoice = (places: PlaceCard[] | undefined, saysEnded = false) => {
   const { user } = useSession();
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -248,7 +288,11 @@ export const usePlaceChoice = (places: PlaceCard[] | undefined) => {
   const here = placeShown(places ?? [], asked, chosen, spaces.data?.items ?? (spaces.isError ? [] : undefined));
   const own = places?.map(place => place.spaceId);
   const visiting = asked && isVisiting(user, asked, own) ? asked : null;
-  const stray = asked !== null && own !== undefined && !own.includes(asked) && !visiting;
+  const off = asked !== null && own !== undefined && !own.includes(asked) && !visiting;
+  const over = useEndedSpaces(off && saysEnded);
+  // Not known while the ended places are read: nothing of another place is drawn meanwhile.
+  const ended = !off ? null : over.isLoading ? undefined : (over.data?.items.find(space => space.id === asked && space.kind !== 'room') ?? null);
+  const stray = off && ended === null;
   const kept = here && here.spaceId !== chosen ? here.spaceId : null;
 
   useEffect(() => {
@@ -263,15 +307,15 @@ export const usePlaceChoice = (places: PlaceCard[] | undefined) => {
     else choosePlace(spaceId);
   };
 
-  return { here, visiting, stray, choose };
+  return { here, visiting, stray, ended, choose };
 };
 
-/** The chosen place for a page about it, with the home it is read from. */
-export const useCurrentPlace = () => {
+/** The chosen place for a page about it, with the home it is read from; `saysEnded` as in `usePlaceChoice`. */
+export const useCurrentPlace = (saysEnded = false) => {
   const home = useHome();
   const [, setParams] = useSearchParams();
   const places = (home.data?.spaces ?? []).filter(isPlace);
-  const choice = usePlaceChoice(home.data && places);
+  const choice = usePlaceChoice(home.data && places, saysEnded);
   // Not while the home is being read again: a place made a moment ago is named by a link before the home lists it.
   const stray = choice.stray && !home.isFetching;
 

@@ -9,11 +9,11 @@ import { useSpaceGrows } from '@/api/grows';
 import { useMembers } from '@/api/members';
 import { useReminders } from '@/api/reminders';
 import { useEndPlace, useSpaces, type EndNote } from '@/api/spaces';
-import { editPath } from '@/app/places';
+import { editPath, leaveUnderSheet, placesOf } from '@/app/places';
 import { useLog } from '@/log/log-context';
 import { newPlaceName } from '@/screens/claim/steps';
 import { inSentence, mentionsOn } from '@/screens/space/members/people';
-import { cameraCalled } from '@/ui/camera-name';
+import { camerasCalled } from '@/ui/camera-name';
 import { cameraTitle, deviceTitle } from '@/ui/naming';
 import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
@@ -49,8 +49,9 @@ import styles from './Place.module.css';
  * somewhere first - the devices together unless told otherwise, each camera,
  * each running grow. The button waits until every grow has been answered -
  * where the plants stand is not guessed - and then asks once, with every line
- * as it will happen and everybody who then no longer sees the place or its
- * room; nothing is written before that answer, and nobody has to be let go
+ * as it will happen and everybody who then no longer sees the place - its
+ * guests and the members of its room, which ends where this was its last
+ * place; nothing is written before that answer, and nobody has to be let go
  * first.
  *
  * What was measured and written here stays with the grow that stood here.
@@ -78,7 +79,7 @@ export function RemovePlace() {
     return <LoadFailed retry={() => reads.forEach(read => void read.refetch())} />;
   }
 
-  const places = spaces.data.items.filter(one => one.kind !== 'room' && one.archivedAt === null && one.ownerId === space.ownerId);
+  const places = placesOf(spaces.data.items, space.ownerId);
   const back = { to: editPath(space.id), label: t('place.remove.back', { name: space.name }) };
   const running = grows.data.items.filter(grow => grow.endedAt === null).map(grow => ({ id: grow.id, name: grow.name, day: grow.summary.dayNumber }));
 
@@ -139,30 +140,32 @@ function Removing({ space, places: listed, every, here, alive, letIn, reminders 
   const held = new Set(every.flatMap(device => (device.spaceId && OWN_CLIMATE_TYPES.includes(device.type) ? [device.spaceId] : [])));
   const choices = choicesOf(standing, elsewhere, chosen, held, done);
   const leader = leaderOf(standing, choices);
-  const guests = [...mentionsOn(letIn, space.id).values()];
-  const roomMembers = [...mentionsOn(letIn, space.roomId).values()];
-  const cameras = [...standing.paired, ...standing.loose].map(
-    camera => [camera.id, cameraTitle(camera, standing.devices.find(device => device.id === camera.deviceId) ?? null, t)] as const,
-  );
+  const guests = mentionsOn(letIn, space.id);
+  const roomMembers = mentionsOn(letIn, space.roomId);
+  // Whoever sees the place, through it or through its room: a room that goes on still loses this place.
+  const everyone = new Map([...guests, ...roomMembers]);
+  const cameras = [...standing.paired, ...standing.loose];
   // A camera nobody named is "Terp Cam"; what is printed on it tells two of them apart, and only then.
-  const oneUnnamed = cameras.filter(([, title]) => cameraCalled(title, true) !== title).length < 2;
-  const names = new Map<string, string>([
-    // A device nobody named is its kind, told from another of its kind among those standing here.
-    ...standing.devices.map(device => [device.id, deviceTitle(device, t, [...standing.devices])] as const),
-    ...cameras.map(([id, title]) => [id, cameraCalled(title, oneUnnamed)] as const),
-    ...standing.grows.map(grow => [grow.id, grow.name] as const),
-    [GUESTS, inSentence(guests, i18n.language)],
-    [MEMBERS, inSentence(roomMembers, i18n.language)],
-  ]);
-  // Inside a sentence a name is one thing: the dot in "Terp Cam · A1B2" parts no line, and a toast makes no two facts of it.
-  const name = (id: string | null) => (names.get(id ?? '') ?? '').replaceAll(' · ', '\u00a0·\u00a0');
+  const called = camerasCalled(cameras.map(camera => cameraTitle(camera, standing.devices.find(device => device.id === camera.deviceId) ?? null, t)));
   // A place is named as a claim names the one it makes: "Zelt 2", not after the hardware.
   const fates = fatesOf(standing, choices, device => newPlaceName(device.type, places, t), places, space, made, {
     reminders,
-    guests: guests.length,
+    guests: guests.size,
+    everyone: everyone.size,
     room: letIn.room?.name ?? '',
-    members: roomMembers.length,
+    members: roomMembers.size,
   });
+  const names = new Map<string, string>([
+    // A device nobody named is its kind, told from another of its kind among those standing here.
+    ...standing.devices.map(device => [device.id, deviceTitle(device, t, [...standing.devices])] as const),
+    ...cameras.map((camera, at) => [camera.id, called[at]] as const),
+    ...standing.grows.map(grow => [grow.id, grow.name] as const),
+    // Where the room ends, its members are named with it; where it goes on, with the guests who lose the place.
+    [GUESTS, inSentence([...(fates.some(fate => fate.id === MEMBERS) ? guests : everyone).values()], i18n.language)],
+    [MEMBERS, inSentence([...roomMembers.values()], i18n.language)],
+  ]);
+  // Inside a sentence a name is one thing: the dot in "Terp Cam · A1B2" parts no line, and a toast makes no two facts of it.
+  const name = (id: string | null) => (names.get(id ?? '') ?? '').replaceAll(' · ', '\u00a0·\u00a0');
   // A camera with no write of its own went when the device it is with did.
   const gone = new Set(fates.filter(fate => (fate.step ? fate.id : (fate.beside ?? '')) in done).map(fate => fate.id));
   const open = fates.filter(fate => !gone.has(fate.id));
@@ -189,11 +192,15 @@ function Removing({ space, places: listed, every, here, alive, letIn, reminders 
     );
   };
   const answer = () => {
-    setAsking(false);
     setAgreed(open.map(agreedTo));
     // The defaults are answers from here on: a place made on the way is one more to choose, and must not move them.
     setChosen(choices);
-    remove();
+    // The question is left before anything is written, so the Start that follows takes the page's own entry of
+    // the history, and Back from it finds no page of a place that is gone.
+    leaveUnderSheet(() => {
+      setAsking(false);
+      remove();
+    });
   };
 
   /** One thing standing here, and the select that says where it goes; a grow is the one that starts unanswered. */
@@ -217,9 +224,7 @@ function Removing({ space, places: listed, every, here, alive, letIn, reminders 
       {label}
     </option>
   );
-  const into = (words: 'place.remove.move' | 'place.remove.grow.move') =>
-    elsewhere.map(place => option(moveTo(place.id), t(words, { place: place.name })));
-  const moves = into('place.remove.move');
+  const moves = elsewhere.map(place => option(moveTo(place.id), t('place.remove.move', { place: place.name })));
   // Nothing stays or goes with a device that has left already: it goes to where that one now stands.
   const stays = (id?: string | null) => (!id || id in done ? null : option(STAY, t('place.remove.stay', { device: name(id) })));
   const rows = [
@@ -242,7 +247,8 @@ function Removing({ space, places: listed, every, here, alive, letIn, reminders 
           standing.devices
             .filter(device => choices[device.id] === NEW_PLACE && !(device.id in done))
             .map(device => option(withDevice(device.id), t('place.remove.grow.with', { device: name(device.id) }))),
-          into('place.remove.grow.move'),
+          // The answer to where the plants stand is the place by its name.
+          elsewhere.map(place => option(moveTo(place.id), place.name)),
           option(NOWHERE, t('place.remove.grow.nowhere')),
           option(END, t('place.remove.grow.end')),
         ],

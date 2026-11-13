@@ -34,7 +34,7 @@ import { OwnSettings } from './OwnSettings';
 import { PageRows } from './PageRows';
 import { PlanPanel } from './PlanPanel';
 import { usePauseReasons } from './plan-labels';
-import { followsPlan, planLine, standOf } from './rows';
+import { followsPlan, modeWord, planLine, standOf } from './rows';
 import styles from './Control.module.css';
 
 const isSub = (value: string | null): value is ControlPage => (CONTROL_PAGES as readonly string[]).includes(value ?? '');
@@ -177,14 +177,12 @@ const stateOf = (t: Translate, lead: Device, devices: Device[], spoke: string | 
   if (!control || spoke === null) return null;
   const quiet = devices.map(device => maintenanceQuiet(device, DateTime.max(now, serverNow()))).find(one => one?.parked) ?? null;
   const [text, warn] = quiet
-    ? [t('control.state.maintenance', { until: clock(quiet.until, zone) }), true]
+    ? [t('maintenance.running', { until: clock(quiet.until, zone) }), true]
     : !control.running
       ? [t('control.state.off'), true]
-      : control.drying
-        ? [t('control.state.drying'), true]
-        : control.mode === 'germination'
-          ? [t('control.state.germination'), true]
-          : [t('control.state.on'), false];
+      : control.drying || control.mode === 'germination'
+        ? [modeWord(t, lead), true]
+        : [t('control.state.on'), false];
   const stand = standOf(t, spoke, now, zone);
 
   return (

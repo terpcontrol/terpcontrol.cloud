@@ -6,6 +6,7 @@ import type { Camera, Device, Space } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import type { Told } from '@/log/log-context';
+import { leaveUnderSheet } from '@/app/places';
 import { EditPlace } from '@/screens/place/EditPlace';
 import { RemovePlace } from '@/screens/place/RemovePlace';
 import {
@@ -37,7 +38,7 @@ import { translate } from './translations';
  */
 
 vi.mock('@/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
 
 vi.mock('@/api/session', async importOriginal => {
@@ -77,6 +78,14 @@ const state = {
   members: [] as { spaceId: string; userId: string }[],
 };
 
+/** The room a place's member list names, as the server answers it: the one the place stands in. */
+const roomOf = (path: string) => {
+  const place = state.spaces.find(one => path === `/spaces/${one.id}/members`);
+  const room = state.spaces.find(one => one.id === place?.roomId);
+
+  return room ? { id: room.id, name: room.name } : null;
+};
+
 function Watch() {
   const location = useLocation();
   return <span data-testid="address">{location.pathname}</span>;
@@ -102,13 +111,14 @@ beforeEach(() => {
   state.cameras = [];
   state.grows = [];
   state.members = [];
-  for (const method of [api.get, api.post, api.patch, api.put, api.delete]) vi.mocked(method).mockReset();
+  for (const method of [api.get, api.post, api.patch, api.delete]) vi.mocked(method).mockReset();
   vi.mocked(api.get).mockImplementation((path: string) => {
     if (path === '/spaces') return Promise.resolve({ items: state.spaces, nextCursor: null }) as never;
     if (path === '/devices') return Promise.resolve({ items: state.devices, nextCursor: null }) as never;
     if (path.startsWith('/cameras')) return Promise.resolve({ items: state.cameras, nextCursor: null }) as never;
     if (path === '/grows') return Promise.resolve({ items: state.grows, nextCursor: null }) as never;
-    if (path.endsWith('/members')) return Promise.resolve({ items: state.members, nextCursor: null, people: [], room: null, activity: [] }) as never;
+    if (path.endsWith('/members'))
+      return Promise.resolve({ items: state.members, nextCursor: null, people: [], room: roomOf(path), activity: [] }) as never;
     return Promise.resolve({ items: [], nextCursor: null }) as never;
   });
   vi.mocked(api.patch).mockImplementation((_path: string, body: unknown) => Promise.resolve({ ...TENT, ...(body as object) }) as never);
@@ -116,7 +126,6 @@ beforeEach(() => {
     (path: string, body: unknown) =>
       Promise.resolve(path === '/spaces' ? { ...TENT, id: `made-${(body as { name: string }).name}`, ...(body as object) } : {}) as never,
   );
-  vi.mocked(api.put).mockResolvedValue({ id: 'device-1' } as never);
   vi.mocked(api.delete).mockResolvedValue(null as never);
 });
 
@@ -156,12 +165,12 @@ describe('editing a place', () => {
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/tent', { name: 'Flower tent', kind: 'other', roomName: 'Cellar' }));
     await waitFor(() => expect(told).toHaveLength(1));
-    expect(told[0].label).toBe('Tent is now called Flower tent · Kind: Other place · Flower tent now stands in Cellar');
+    expect(told[0].label).toBe('Tent is now called Flower tent · Kind: Other place · Room: Cellar');
 
     // Taken back by the room's name: the room it left may have ended with its last place. The toast is handed what is back.
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/spaces/tent', { name: 'Tent', kind: 'tent', roomName: 'Grow room' });
-    expect(told).toMatchObject([{ undone: 'Flower tent is now called Tent · Kind: Tent · Tent now stands in Grow room' }]);
+    expect(told).toMatchObject([{ undone: 'Flower tent is now called Tent · Kind: Tent · Room: Grow room' }]);
   });
 
   /** A place's name stands by itself in a sentence: before the kind, and only where the toast has not just said it. */
@@ -199,7 +208,7 @@ describe('editing a place', () => {
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/tent', { roomName: 'attic' }));
     await waitFor(() => expect(told).toHaveLength(1));
-    expect(told[0].label).toBe('Tent now stands in Attic');
+    expect(told[0].label).toBe('Tent · Room: Attic');
   });
 
   it('says in the room´s options whom each room lets in', async () => {
@@ -217,7 +226,7 @@ describe('editing a place', () => {
         within(room)
           .getAllByRole('option')
           .map(option => option.textContent),
-      ).toEqual(['Grow room · 2 people see it too', 'Attic · 1 person sees it too', 'Shed', 'New room …', 'No room']),
+      ).toEqual(['Grow room · 2 people see it too', 'Attic · 1 person sees it too', 'Shed', 'New room …', 'No room', 'Rename Grow room …']),
     );
   });
 
@@ -239,11 +248,11 @@ describe('editing a place', () => {
     // The fridge still stands in the room: it does not end, so nothing is asked.
     await waitFor(() => expect(told).toHaveLength(1));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(told[0].label).toBe('Tent now stands in Attic · @lea now sees it too · @mara no longer sees it');
+    expect(told[0].label).toBe('Tent · Room: Attic · @lea now sees it too · @mara no longer sees it');
 
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/spaces/tent', { roomName: 'Grow room' });
-    expect(told).toMatchObject([{ undone: 'Tent now stands in Grow room · @mara now sees it too · @lea no longer sees it' }]);
+    expect(told).toMatchObject([{ undone: 'Tent · Room: Grow room · @mara now sees it too · @lea no longer sees it' }]);
   });
 
   it('asks before the last place leaves a room people are let into, names them, and offers no way back afterwards', async () => {
@@ -256,7 +265,7 @@ describe('editing a place', () => {
     fireEvent.change(await screen.findByRole('combobox', { name: 'Room' }), { target: { value: 'none' } });
     fireEvent.click(await saveReady());
 
-    const sheet = await screen.findByRole('dialog', { name: /Take Tent out of Grow room\?/ });
+    const sheet = await screen.findByRole('dialog', { name: 'Tent: take it out of the room Grow room?' });
     expect(within(sheet).getByText('That ends Grow room, and @mara and @jonas no longer see any of it.')).toBeInTheDocument();
     expect(within(sheet).getByText('This cannot be taken back.')).toBeInTheDocument();
     expect(api.patch).not.toHaveBeenCalled();
@@ -324,6 +333,51 @@ describe('editing a place', () => {
     expect(told).toHaveLength(0);
   });
 
+  /** A room has no page of its own: the one the place stands in is renamed where it is chosen, in a write of its own. */
+  it('renames the room the place stands in from the room field, says so with the way back, and writes nothing to the place', async () => {
+    draw('/spaces/tent/edit');
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Room' }), { target: { value: 'rename' } });
+    const field = screen.getByRole('textbox', { name: 'Name of the room' });
+    expect(field).toHaveValue('Grow room');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    fireEvent.change(field, { target: { value: ' Cellar ' } });
+    fireEvent.click(await saveReady());
+
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(vi.mocked(api.patch).mock.calls).toEqual([['/spaces/room', { name: 'Cellar' }]]);
+    expect(told[0]).toMatchObject({ label: 'Grow room is now called Cellar', undone: 'Cellar is now called Grow room' });
+    await told[0].undo?.();
+    expect(api.patch).toHaveBeenLastCalledWith('/spaces/room', { name: 'Grow room' });
+  });
+
+  it('says that another room already carries the name before anything is written, and keeps what was typed', async () => {
+    state.spaces = [TENT, FRIDGE, ROOM, ATTIC];
+    draw('/spaces/tent/edit');
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Room' }), { target: { value: 'rename' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name of the room' }), { target: { value: ' attic' } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Another room is already called “Attic”.');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Name of the room' })).toHaveValue(' attic');
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('says what the server said where it refuses the room´s new name all the same', async () => {
+    vi.mocked(api.patch).mockRejectedValue(
+      new ApiError({ status: 409, code: 'name_taken', title: 'Refused', detail: 'Another room is already called "Loft".', errors: [] }),
+    );
+    draw('/spaces/tent/edit');
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Room' }), { target: { value: 'rename' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name of the room' }), { target: { value: 'Loft' } });
+    fireEvent.click(await saveReady());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Another room is already called "Loft".');
+    expect(told).toHaveLength(0);
+  });
+
   it('asks about a room only from the second place on, and offers no end for the only place', async () => {
     state.spaces = [spaceWhere('own', { id: 'tent', name: 'Tent' })];
     draw('/spaces/tent/edit');
@@ -363,7 +417,7 @@ describe('editing a place', () => {
     expect(screen.getByRole('link', { name: /^Terp Cam\s?Camera$/ })).toHaveAttribute('href', '/cameras/cam-1');
 
     fireEvent.click(screen.getByRole('button', { name: '+ Bring a device here' }));
-    expect(within(await screen.findByRole('dialog')).getByRole('button', { name: /^Controller\s?stands in KS Black$/ })).toBeInTheDocument();
+    expect(within(await screen.findByRole('dialog')).getByRole('button', { name: /^Controller\s?KS Black$/ })).toBeInTheDocument();
   });
 
   it('brings a device standing elsewhere through its own sheet, with this place chosen and nothing written yet', async () => {
@@ -371,14 +425,22 @@ describe('editing a place', () => {
     draw('/spaces/tent/edit');
 
     fireEvent.click(await screen.findByRole('button', { name: '+ Bring a device here' }));
-    const sheet = await screen.findByRole('dialog', { name: 'Bring a device to Tent' });
+    const sheet = await screen.findByRole('dialog', { name: 'Tent: bring a device here' });
     expect(within(sheet).getByRole('link', { name: /Add a new device/ })).toHaveAttribute('href', '/claim?space=tent');
-    fireEvent.click(within(sheet).getByRole('button', { name: /Fan.*stands in KS Black/ }));
+    fireEvent.click(within(sheet).getByRole('button', { name: /^Fan\s?KS Black$/ }));
 
     const moving = await screen.findByRole('dialog', { name: 'Rename or move' });
     expect(within(moving).getByRole('button', { name: 'Tent', pressed: true })).toBeInTheDocument();
-    expect(api.put).not.toHaveBeenCalled();
     expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('shows a member who manages a place nothing stands in no heading over an empty card', async () => {
+    state.spaces = [spaceWhere('manage', { id: 'tent', name: 'Tent' }), FRIDGE];
+    state.devices = [];
+    draw('/spaces/tent/edit');
+
+    expect(await screen.findByRole('combobox', { name: 'Kind' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Devices here' })).not.toBeInTheDocument();
   });
 
   it('offers a member who manages the place no device to bring: a device stands only in a place of its owner', async () => {
@@ -430,7 +492,7 @@ describe('what ending a place does with what stands in it', () => {
   const loose = camera({ id: 'cam-loose', name: 'Door cam' });
   const grow = { id: 'grow-1', name: 'Spring run', day: 29 };
   const LOFT = spaceWhere('own', { id: 'loft', name: 'Loft' });
-  const NOBODY = { reminders: 0, guests: 0, room: '', members: 0 };
+  const NOBODY = { reminders: 0, guests: 0, everyone: 0, room: 'Grow room', members: 0 };
   const standing = standingIn(
     'tent',
     [fan, tent, device({ id: 'other', spaceId: 'fridge' })],
@@ -496,35 +558,39 @@ describe('what ending a place does with what stands in it', () => {
     ]);
   });
 
-  it('lists what ends with the place last: its reminders, its guests, and the members of its room where the room ends with it', () => {
+  it('lists what ends with the place last: its reminders, who no longer sees it, and its room where that ends with it', () => {
     const moved = { ctrl: moveTo('fridge'), fan: STAY, 'cam-paired': STAY, 'cam-loose': STAY, 'grow-1': END };
+    const LET_IN = { reminders: 3, guests: 2, everyone: 3, room: 'Grow room', members: 1 };
     const people = (choices: Record<string, string>, places = [TENT, FRIDGE], made = {}) =>
-      fatesOf(standing, choices, nameOf, places, TENT, made, { reminders: 3, guests: 2, room: 'Grow room', members: 1 }).filter(
-        fate => fate.what === 'ends' && fate.id !== REMINDERS,
-      );
+      fatesOf(standing, choices, nameOf, places, TENT, made, LET_IN).filter(fate => fate.what === 'ends' && fate.id !== REMINDERS);
 
-    expect(fatesOf(standing, moved, nameOf, [TENT, FRIDGE], TENT, {}, { ...NOBODY, reminders: 3 }).slice(-1)).toEqual([
+    expect(fatesOf(standing, moved, nameOf, [TENT, FRIDGE], TENT, {}, { ...NOBODY, reminders: 3 }).filter(fate => fate.id === REMINDERS)).toEqual([
       { id: REMINDERS, what: 'ends', fate: 'reminders', count: 3, place: null, beside: null, step: null },
     ]);
     expect(people(moved)).toEqual([
       { id: GUESTS, what: 'ends', fate: 'unseen', count: 2, place: 'Tent', beside: null, step: null },
       { id: MEMBERS, what: 'ends', fate: 'roomEnds', count: 1, place: 'Grow room', beside: null, step: null },
     ]);
-    expect(
-      gathered(fatesOf(standing, moved, nameOf, [TENT, FRIDGE], TENT, {}, { reminders: 3, guests: 2, room: 'Grow room', members: 1 })).slice(-3),
-    ).toEqual([
+    expect(gathered(fatesOf(standing, moved, nameOf, [TENT, FRIDGE], TENT, {}, LET_IN)).slice(-3)).toEqual([
       { how: 'reminders', place: null, ids: [REMINDERS], count: 3 },
       { how: 'unseen', place: 'Tent', ids: [GUESTS], count: 2 },
       { how: 'roomEnds', place: 'Grow room', ids: [MEMBERS], count: 1 },
     ]);
-    // The room goes on where another place stands in it, or what stood here gets a new place in it.
-    expect(people(moved, [TENT, FRIDGE, { ...LOFT, roomId: 'room' }]).map(fate => fate.id)).toEqual([GUESTS]);
+    // The room goes on where another place stands in it, or what stood here gets a new place in it: its members
+    // lose this place with the guests, each person counted once.
+    expect(people(moved, [TENT, FRIDGE, { ...LOFT, roomId: 'room' }])).toEqual([
+      { id: GUESTS, what: 'ends', fate: 'unseen', count: 3, place: 'Tent', beside: null, step: null },
+    ]);
     expect(people({ ...moved, ctrl: NEW_PLACE }).map(fate => fate.id)).toEqual([GUESTS]);
     // A place an earlier attempt made keeps the room only while something is sent into it.
     const made = { ctrl: { id: 'made-1', name: 'Tent 2', roomId: 'room' } };
     expect(people({ ...moved, ctrl: NEW_PLACE }, [TENT, FRIDGE], made).map(fate => fate.id)).toEqual([GUESTS]);
     expect(people(moved, [TENT, FRIDGE], made).map(fate => fate.id)).toEqual([GUESTS, MEMBERS]);
-    expect(fatesOf(standing, moved, nameOf, [TENT, FRIDGE], TENT, {}, NOBODY).filter(fate => fate.what === 'ends')).toEqual([]);
+    // A room nobody was let into ends all the same, and is said to; a place in no room ends alone.
+    expect(fatesOf(standing, moved, nameOf, [TENT, FRIDGE], TENT, {}, NOBODY).filter(fate => fate.what === 'ends')).toEqual([
+      { id: MEMBERS, what: 'ends', fate: 'roomEmpty', count: 0, place: 'Grow room', beside: null, step: null },
+    ]);
+    expect(fatesOf(standing, moved, nameOf, [TENT, FRIDGE], { ...TENT, roomId: null }, {}, NOBODY).filter(fate => fate.what === 'ends')).toEqual([]);
   });
 
   it('makes one place at most, with the move of the device it is made for, and sends the rest into it', () => {
@@ -608,7 +674,9 @@ describe('removing a place', () => {
       .getAllByRole('listitem')
       .map(line => line.textContent);
   const answer = (sheet: HTMLElement) => fireEvent.click(within(sheet).getByRole('button', { name: 'Remove Tent' }));
-  const written = () => [api.post, api.put, api.patch, api.delete].flatMap(method => vi.mocked(method).mock.calls);
+  const written = () => [api.post, api.patch, api.delete].flatMap(method => vi.mocked(method).mock.calls);
+  /** A device moved into a place, as it is written. */
+  const moved = (deviceId: string, spaceId: string) => [`/devices/${deviceId}`, { spaceId }];
   /** Who is let in besides the owner: a row each, on the place or on its room, by the handle they go by. */
   const letIn = (...rows: [spaceId: string, handle: string][]) => {
     const read = vi.mocked(api.get).getMockImplementation()!;
@@ -631,8 +699,10 @@ describe('removing a place', () => {
       state.spaces = [...state.spaces, made];
       return Promise.resolve(made) as never;
     });
-    vi.mocked(api.put).mockImplementation((path: string) => {
-      const [, spaceId, deviceId] = /^\/spaces\/(.+)\/devices\/(.+)$/.exec(path)!;
+    vi.mocked(api.patch).mockImplementation((path: string, body: unknown) => {
+      const deviceId = /^\/devices\/(.+)$/.exec(path)?.[1];
+      const { spaceId } = body as { spaceId?: string };
+      if (!deviceId || !spaceId) return Promise.resolve({ ...TENT, ...(body as object) }) as never;
       state.devices = state.devices.map(one => (one.id === deviceId ? { ...one, spaceId } : one));
       state.cameras = state.cameras.map(one => (one.deviceId === deviceId ? { ...one, spaceId } : one));
       return Promise.resolve({ id: deviceId }) as never;
@@ -653,7 +723,7 @@ describe('removing a place', () => {
       within(plants)
         .getAllByRole('option')
         .map(option => option.textContent),
-    ).toEqual(['Where are the plants now?', 'at the new place of Tent controller', 'in KS Black', 'in no fixed place', 'End the grow']);
+    ).toEqual(['Where are the plants now?', 'at the new place of Tent controller', 'KS Black', 'in no fixed place', 'End the grow']);
     expect(screen.getByText('Curves and pictures up to today stay with the grow Spring run.')).toBeInTheDocument();
 
     fireEvent.change(plants, { target: { value: 'with:device-1' } });
@@ -672,10 +742,10 @@ describe('removing a place', () => {
     expect(vi.mocked(api.post).mock.calls.filter(([path]) => path === '/spaces')).toEqual([
       ['/spaces', { kind: 'tent', name: 'Tent 2', roomId: 'room' }],
     ]);
-    expect(vi.mocked(api.put).mock.calls).toEqual([['/spaces/made-Tent 2/devices/device-1'], ['/spaces/made-Tent 2/devices/device-2']]);
+    // Nothing else is patched: no camera is moved by itself and no grow is ended.
+    expect(vi.mocked(api.patch).mock.calls).toEqual([moved('device-1', 'made-Tent 2'), moved('device-2', 'made-Tent 2')]);
     expect(api.post).toHaveBeenCalledWith('/grows/grow-1/placements', expect.objectContaining({ spaceId: 'made-Tent 2' }));
-    expect(api.patch).not.toHaveBeenCalled();
-    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Tent removed. Tent controller, Fan, and Spring run now stand in Tent 2.']));
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Tent removed. Tent 2: Tent controller, Fan, and Spring run now stand here.']));
     expect(told[0].undo).toBeNull();
     expect(screen.getByTestId('address')).toHaveTextContent('/');
   });
@@ -689,17 +759,23 @@ describe('removing a place', () => {
     expect(select('Fan')).toHaveValue('stay');
     fireEvent.change(select('Spring run · Day 29'), { target: { value: 'move:loft' } });
     const sheet = await ask();
+    // The loft stands in no room: the room the tent was the last place of ends, which is said though nobody was let into it.
     expect(linesOf(sheet)).toEqual([
-      'Tent controller moves to Loft',
+      'Tent controller moves to: Loft',
       'Fan stays with Tent controller',
       'Canopy cam stays with Tent controller',
-      'Spring run moves to Loft',
+      'Spring run moves to: Loft',
+      'The room Grow room ends',
     ]);
 
     answer(sheet);
-    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Tent removed. Tent controller, Fan, and Spring run now stand in Loft.']));
+    await waitFor(() =>
+      expect(told.map(one => one.label)).toEqual([
+        'Tent removed. Loft: Tent controller, Fan, and Spring run now stand here. The room Grow room has ended.',
+      ]),
+    );
     expect(api.post).not.toHaveBeenCalledWith('/spaces', expect.anything());
-    expect(vi.mocked(api.put).mock.calls).toEqual([['/spaces/loft/devices/device-1'], ['/spaces/loft/devices/device-2']]);
+    expect(vi.mocked(api.patch).mock.calls).toEqual([moved('device-1', 'loft'), moved('device-2', 'loft')]);
   });
 
   it('hands the lead on when the controller is given up, and says at the end what was given up and what ended', async () => {
@@ -721,7 +797,7 @@ describe('removing a place', () => {
     answer(sheet);
 
     await waitFor(() =>
-      expect(told.map(one => one.label)).toEqual(['Tent removed. Tent controller given up. Fan now stands in Tent 2. Spring run ended.']),
+      expect(told.map(one => one.label)).toEqual(['Tent removed. Tent controller given up. Tent 2: Fan now stands here. Spring run ended.']),
     );
     expect(api.delete).toHaveBeenCalledWith('/devices/device-1/claim');
     expect(api.patch).toHaveBeenCalledWith('/grows/grow-1', { endedAt: expect.any(String) });
@@ -740,8 +816,8 @@ describe('removing a place', () => {
   /** A removal with a camera to take off, a socket, a fan to give up, a grow, a guest and a room: its writes, in their order. */
   const WRITES = [
     'post /spaces {"kind":"tent","name":"Tent 2","roomId":"room"}',
-    'put /spaces/made-Tent 2/devices/device-1',
-    'put /spaces/made-Tent 2/devices/plug',
+    'patch /devices/device-1 {"spaceId":"made-Tent 2"}',
+    'patch /devices/plug {"spaceId":"made-Tent 2"}',
     'delete /devices/device-2/claim',
     'delete /cameras/cam-paired',
     'post /grows/grow-1/placements {"spaceId":"made-Tent 2"}',
@@ -756,14 +832,14 @@ describe('removing a place', () => {
     ['Spring run · Day 29', 6, 'with:device-1', 'move:made-Tent 2'],
   ];
   const ALL = 'Tent controller, Plantalytix Socket, Fan, Canopy cam, and Spring run';
-  const MOVED = 'Tent controller and Plantalytix Socket now stand in Tent 2.';
-  const SETTLED = 'Tent controller, Plantalytix Socket, and Spring run now stand in Tent 2. Fan given up. Canopy cam unpaired.';
+  const MOVED = 'Tent 2: Tent controller and Plantalytix Socket now stand here.';
+  const SETTLED = 'Tent 2: Tent controller, Plantalytix Socket, and Spring run now stand here. Fan given up. Canopy cam unpaired.';
 
   it.each([
     [1, null, ALL],
     // The place made for the controller is taken away again, so none stands empty - and made again by the next attempt.
     [2, null, ALL],
-    [3, 'Tent controller now stands in Tent 2.', 'Plantalytix Socket, Fan, Canopy cam, and Spring run'],
+    [3, 'Tent 2: Tent controller now stands here.', 'Plantalytix Socket, Fan, Canopy cam, and Spring run'],
     [4, MOVED, 'Fan, Canopy cam, and Spring run'],
     [5, `${MOVED} Fan given up.`, 'Canopy cam and Spring run'],
     [6, `${MOVED} Fan given up. Canopy cam unpaired.`, 'Spring run'],
@@ -774,13 +850,13 @@ describe('removing a place', () => {
       state.devices = [state.devices[0], device({ id: 'plug', type: 'plug', name: 'plug' }), state.devices[1]];
       letIn(['tent', 'guest'], ['room', 'mara']);
       const sent: string[] = [];
-      for (const method of ['post', 'put', 'delete'] as const) {
+      for (const method of ['post', 'patch', 'delete'] as const) {
         const write = vi.mocked(api[method]).getMockImplementation()!;
         vi.mocked(api[method]).mockImplementation((path: string, body?: object) => {
           sent.push(`${method} ${path}${body ? ` ${JSON.stringify({ ...body, startedAt: undefined })}` : ''}`);
           if (sent.length === nth) return Promise.reject(refused());
           // What was given up, taken off, moved away or taken away again is in no list of the place read after it.
-          if (method !== 'put')
+          if (method !== 'patch')
             for (const list of ['spaces', 'devices', 'cameras', 'grows'] as const)
               state[list] = state[list].filter(one => one.id !== path.split('/')[2]) as never;
           return write(path, body) as never;
@@ -809,13 +885,14 @@ describe('removing a place', () => {
       await waitFor(() => expect(sent.slice(-1)).toEqual(['delete /spaces/tent']));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(sent.slice(nth === 2 ? 3 : nth)).toEqual(WRITES.slice(nth > 2 ? nth - 1 : 0));
-      await waitFor(() => expect(told.map(one => one.label)).toEqual([`Tent removed. ${SETTLED} @guest no longer sees Tent.`]));
+      // The room goes on in the place made for the controller: its member loses this place with the guest.
+      await waitFor(() => expect(told.map(one => one.label)).toEqual([`Tent removed. ${SETTLED} @guest and @mara no longer see Tent.`]));
     },
   );
 
   it('tells a lost connection from a refusal, and the next attempt moves into the place the first one made', async () => {
-    const move = vi.mocked(api.put).getMockImplementation()!;
-    vi.mocked(api.put).mockRejectedValue(new TypeError('Failed to fetch'));
+    const move = vi.mocked(api.patch).getMockImplementation()!;
+    vi.mocked(api.patch).mockRejectedValue(new TypeError('Failed to fetch'));
     vi.mocked(api.delete).mockRejectedValue(new TypeError('Failed to fetch'));
     draw('/spaces/tent/remove');
 
@@ -823,20 +900,20 @@ describe('removing a place', () => {
     answer(await ask());
     expect(await screen.findByRole('alert')).toHaveTextContent('Tent is not removed yet. Could not reach the server. Try again.');
 
-    vi.mocked(api.put).mockImplementation(move);
+    vi.mocked(api.patch).mockImplementation(move);
     vi.mocked(api.delete)
       .mockReset()
       .mockResolvedValue(null as never);
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/spaces/tent'));
     expect(vi.mocked(api.post).mock.calls.filter(([path]) => path === '/spaces')).toHaveLength(1);
-    expect(api.put).toHaveBeenCalledWith('/spaces/made-Tent 2/devices/device-1');
+    expect(api.patch).toHaveBeenCalledWith(...moved('device-1', 'made-Tent 2'));
     expect(api.delete).not.toHaveBeenCalledWith('/spaces/made-Tent 2');
   });
 
   it('asks again once an answer changed after a failure, and removes the place the first attempt made for nothing', async () => {
-    const move = vi.mocked(api.put).getMockImplementation()!;
-    vi.mocked(api.put).mockRejectedValue(new TypeError('Failed to fetch'));
+    const move = vi.mocked(api.patch).getMockImplementation()!;
+    vi.mocked(api.patch).mockRejectedValue(new TypeError('Failed to fetch'));
     vi.mocked(api.delete).mockRejectedValue(new TypeError('Failed to fetch'));
     draw('/spaces/tent/remove');
 
@@ -844,18 +921,18 @@ describe('removing a place', () => {
     answer(await ask());
     await screen.findByRole('alert');
 
-    vi.mocked(api.put).mockImplementation(move);
+    vi.mocked(api.patch).mockImplementation(move);
     vi.mocked(api.delete)
       .mockReset()
       .mockResolvedValue(null as never);
     fireEvent.change(select('Tent controller'), { target: { value: 'move:fridge' } });
     const sheet = await ask();
-    expect(linesOf(sheet)[0]).toBe('Tent controller moves to KS Black');
+    expect(linesOf(sheet)[0]).toBe('Tent controller moves to: KS Black');
     expect(api.delete).not.toHaveBeenCalled();
     answer(sheet);
 
     await waitFor(() => expect(vi.mocked(api.delete).mock.calls).toEqual([['/spaces/made-Tent 2'], ['/spaces/tent']]));
-    expect(api.put).toHaveBeenLastCalledWith('/spaces/fridge/devices/device-2');
+    expect(api.patch).toHaveBeenCalledWith(...moved('device-2', 'fridge'));
     expect(vi.mocked(api.post).mock.calls.filter(([path]) => path === '/spaces')).toHaveLength(1);
   });
 
@@ -873,13 +950,13 @@ describe('removing a place', () => {
     draw('/spaces/tent/remove');
 
     const sheet = await ask();
-    // The controller gets a new place in the room, so the room goes on and its member is told nothing.
+    // The controller gets a new place in the room, so the room goes on: its member loses this place with the guest.
     expect(linesOf(sheet)).toEqual([
       'Tent controller gets a new place: Tent 2',
       'Fan stays with Tent controller',
       'Canopy cam stays with Tent controller',
       '2 reminders end',
-      '@guest then no longer sees Tent',
+      '@guest and @mara then no longer see Tent',
     ]);
     // No grow keeps the curves: said in one line.
     expect(screen.getByText('After that you see the curves of Tent only with grows that stood here.')).toBeInTheDocument();
@@ -889,7 +966,7 @@ describe('removing a place', () => {
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/spaces/tent'));
     await waitFor(() =>
       expect(told.map(one => one.label)).toEqual([
-        'Tent removed. Tent controller and Fan now stand in Tent 2. 2 reminders ended. @guest no longer sees Tent.',
+        'Tent removed. Tent 2: Tent controller and Fan now stand here. 2 reminders ended. @guest and @mara no longer see Tent.',
       ]),
     );
   });
@@ -906,7 +983,7 @@ describe('removing a place', () => {
     answer(sheet);
     await waitFor(() =>
       expect(told.map(one => one.label)).toEqual([
-        'Tent removed. Tent controller and Fan now stand in KS Black. @guest no longer sees Tent. The room Grow room has ended – @mara and @jonas no longer see it.',
+        'Tent removed. KS Black: Tent controller and Fan now stand here. @guest no longer sees Tent. The room Grow room has ended – @mara and @jonas no longer see it.',
       ]),
     );
   });
@@ -921,7 +998,7 @@ describe('removing a place', () => {
     expect(linesOf(sheet)[2]).toBe('Terp Cam is unpaired');
     answer(sheet);
     await waitFor(() =>
-      expect(told.map(one => one.label)).toEqual(['Tent removed. Tent controller and Fan now stand in Tent 2. Terp Cam unpaired.']),
+      expect(told.map(one => one.label)).toEqual(['Tent removed. Tent 2: Tent controller and Fan now stand here. Terp Cam unpaired.']),
     );
   });
 
@@ -951,10 +1028,10 @@ describe('removing a place', () => {
   });
 
   it('reads the place again after a refusal: what left by another way is no longer said to be here, and the same tap goes through', async () => {
-    const move = vi.mocked(api.put).getMockImplementation()!;
+    const move = vi.mocked(api.patch).getMockImplementation()!;
     // The fan was given up behind the page: the server knows no such device any more.
-    vi.mocked(api.put).mockImplementation((path: string) => {
-      if (!path.endsWith('device-2')) return move(path);
+    vi.mocked(api.patch).mockImplementation((path: string, body: unknown) => {
+      if (!path.endsWith('device-2')) return move(path, body);
       state.devices = state.devices.filter(one => one.id !== 'device-2');
       return Promise.reject(new ApiError({ status: 404, code: 'device_not_found', title: 'Not found', detail: 'No such device.', errors: [] }));
     });
@@ -964,7 +1041,7 @@ describe('removing a place', () => {
     answer(await ask());
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Already done: Tent controller now stands in Tent 2.');
+    expect(alert).toHaveTextContent('Already done: Tent 2: Tent controller now stands here.');
     expect(alert).toHaveTextContent('Still open: Spring run.');
     expect(screen.queryByRole('combobox', { name: 'Fan' })).not.toBeInTheDocument();
     // The answer stands, by the name of the place the controller now stands in.
@@ -972,13 +1049,13 @@ describe('removing a place', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/spaces/tent'));
-    expect(vi.mocked(api.put).mock.calls.filter(([path]) => path.endsWith('device-2'))).toHaveLength(1);
-    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Tent removed. Tent controller and Spring run now stand in Tent 2.']));
+    expect(vi.mocked(api.patch).mock.calls.filter(([path]) => path.endsWith('device-2'))).toHaveLength(1);
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Tent removed. Tent 2: Tent controller and Spring run now stand here.']));
   });
 
   it('asks again where the lists read after a refusal change what the answers mean', async () => {
     // The controller left behind the page, with its camera: the fan has nobody to stay with and leads now.
-    vi.mocked(api.put).mockImplementation(() => {
+    vi.mocked(api.patch).mockImplementation(() => {
       state.devices = state.devices.filter(one => one.id !== 'device-1');
       state.cameras = [];
       return Promise.reject(new ApiError({ status: 404, code: 'device_not_found', title: 'Not found', detail: 'No such device.', errors: [] }));
@@ -1045,5 +1122,26 @@ describe('removing a place', () => {
 
     expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 1, name: 'Place' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * A sheet stands on a history entry of its own. A page left for good from one - its place was removed, its device
+ * given up - is replaced on its own entry, so Back from where that leads finds no page of what is gone.
+ */
+describe('leaving a page from a sheet standing on it', () => {
+  it('steps back from the sheet´s entry first, and goes at once where no sheet is open', async () => {
+    const go = vi.fn(() => window.history.state as { sheet?: number } | null);
+    window.history.pushState({ key: 'page' }, '');
+    leaveUnderSheet(go);
+    expect(go).toHaveBeenCalledTimes(1);
+
+    window.history.pushState({ key: 'page', sheet: 0.5 }, '');
+    leaveUnderSheet(go);
+    // A second ask while the step back is on its way - the sheet closing itself - is the same leave.
+    leaveUnderSheet(go);
+    expect(go).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(go).toHaveBeenCalledTimes(2));
+    expect(go.mock.results[1].value).toEqual({ key: 'page' });
   });
 });

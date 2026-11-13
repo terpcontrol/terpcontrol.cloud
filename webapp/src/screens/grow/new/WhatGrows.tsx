@@ -6,7 +6,7 @@ import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-prese
 import { serverNow } from '@/api/clock';
 import { useGrows } from '@/api/grows';
 import { useSpaces } from '@/api/spaces';
-import { GROW } from '@/app/places';
+import { GROW, placesFor } from '@/app/places';
 import { GerminationChoices } from '@/screens/control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '@/screens/control/germination/germination-choices';
 import { usePlaceStage } from '@/screens/start/stage';
@@ -18,7 +18,6 @@ import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
 import { usePlaceController } from '../phase-climate';
-import { growPlaces } from '../placement';
 import { growBody, growIn, recordsOnly, START_STAGES, suggestedName } from './new-grow';
 import { useStartGrow } from './start-grow';
 import styles from './NewGrow.module.css';
@@ -84,7 +83,7 @@ export function WhatGrows({
   const [where, setWhere] = useState<string | null>(null);
   const [germination, setGermination] = useState<Partial<Choices>>({});
 
-  const places = growPlaces(spaces.data?.items ?? []);
+  const places = placesFor(spaces.data?.items ?? []);
   const running = grows.data?.items ?? [];
   // Asked for, the first free place stands chosen: defaulting into a flowering tent would put a second grow in it.
   const spaceId = fixed ?? (where === null ? (places.find(one => growIn(running, one.id) === null)?.id ?? null) : where || null);

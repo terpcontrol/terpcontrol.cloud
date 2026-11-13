@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { PlaceCard } from '@/app/places';
 import { useDevices } from '@/api/devices';
 import { noLongerThere } from '@/api/problem';
@@ -8,6 +9,7 @@ import { NoLongerHere } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
 import { livenessOf, measuredAtOf, silenceOf } from '@/screens/start/attention';
 import { LivenessPill } from '@/ui/LivenessPill';
+import ui from '@/ui/ui.module.css';
 import styles from './PlaceTitle.module.css';
 
 /**
@@ -85,4 +87,24 @@ export function Visited({ spaceId, children }: { spaceId: string; children: Reac
   const overview = useSpaceOverview(spaceId);
 
   return !overview.data && noLongerThere(overview.error) ? <NoLongerHere what="space" /> : children;
+}
+
+/**
+ * What Verlauf and Steuerung say at an address that names a place of the
+ * account's own that has ended - an old alert leads there, and a bookmark:
+ * that it is gone and where its curves still are, rather than another place
+ * drawn without a word.
+ */
+export function PlaceEnded({ title, name }: { title: string; name: string }) {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <h1>{title}</h1>
+      <p className={`${ui.cardDashed} ${ui.note}`}>{t('place.ended', { name })}</p>
+      <Link to="/" className={ui.button}>
+        {t('shell.gone.home')}
+      </Link>
+    </>
+  );
 }

@@ -113,7 +113,7 @@ function LinkRow({ invite, into, apart, onShow }: { invite: Invite; into: string
   const [asking, setAsking] = useState(false);
   const { code } = invite;
   const role = t(`space.members.role.${invite.role}`);
-  const stopped = [t('space.members.told.linkStopped', { code }), t('space.members.links.into', { name: into }), role].join(' · ');
+  const stopped = [t('space.members.told.linkStopped', { code }), into, role].join(' · ');
   const told = () => tell({ label: stopped, undo: null });
 
   return (

@@ -174,11 +174,6 @@
   border-top: var(--rule-solid);
 }
 
-.actions {
-  display: flex;
-  gap: var(--space-3);
-}
-
 @media (min-width: 900px) {
   .page {
     max-width: var(--reading-width);

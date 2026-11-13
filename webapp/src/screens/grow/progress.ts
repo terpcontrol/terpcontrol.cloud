@@ -1,6 +1,7 @@
 import { growWeekOfDay } from '@fg2/shared-types/v1-schemas/feeding.js';
 import type { GrowthStage } from '@fg2/shared-types/v1';
 import { useGrow } from '@/api/grows';
+import type { Translate } from '@/i18n/i18n';
 import { STAGES } from '@/ui/stages';
 
 /** The stages a grow is harvested after: once it dries, nothing is left to wait for. */
@@ -24,3 +25,7 @@ export const useProgress = (grow: {
   }
   return { fill: (at + 1) / STAGES.length, weeksLeft: null };
 };
+
+/** "Tag 29" of a grow, wherever it stands beside the grow's name or stage; nothing for one that has not begun. */
+export const growDay = (t: Translate, grow: { dayNumber: number | null }): string | null =>
+  grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null;

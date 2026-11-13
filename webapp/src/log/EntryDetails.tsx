@@ -26,6 +26,7 @@ import { assetTitle } from '@/screens/grow/scheme';
 import { climateRequest, defaultPick, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
 import { Facts } from '@/ui/Facts';
 import { factsOf, unbroken } from '@/ui/fact-text';
+import { Asking } from '@/ui/Asking';
 import { looseFigure, typedFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
 import { useMayManage } from '@/ui/session-access';
@@ -437,17 +438,14 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
       {entry && entry.source === 'human' ? (
         <div className={styles.takingBack}>
           {askingBack ? (
-            <>
-              <p className={ui.note}>{t('log.takeBackAsk')}</p>
-              <div className={styles.takeBackRow}>
-                <button type="button" className={`${ui.button} ${ui.danger}`} disabled={saving} onClick={() => void takeBack()}>
-                  {t('log.takeBackYes')}
-                </button>
-                <button type="button" className={ui.button} onClick={() => setAskingBack(false)}>
-                  {t('log.cancel')}
-                </button>
-              </div>
-            </>
+            <Asking
+              note={t('log.takeBackAsk')}
+              yes={t('log.takeBackYes')}
+              danger
+              busy={saving}
+              onYes={() => void takeBack()}
+              onCancel={() => setAskingBack(false)}
+            />
           ) : (
             <button type="button" className={`${ui.button} ${ui.dangerInk}`} disabled={saving} onClick={() => setAskingBack(true)}>
               {t('log.takeBack')}
@@ -530,7 +528,7 @@ const schemeLine = (grow: GrowListItem | undefined): string => {
 
 /** What the button says it will do. */
 const saveLabel = (t: Translate, kind: TileKind, entry: Entry | null, target: LogTarget, planned: boolean): string => {
-  if (entry) return t('log.saveCorrection');
+  if (entry) return t('grow.lifecycle.saveCorrection');
   if (kind === 'feed' && planned) return t('log.logAsPlanned');
   return target.dayNumber === null ? t('log.save') : t('log.saveDay', { day: target.dayNumber });
 };

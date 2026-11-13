@@ -123,7 +123,7 @@ export interface Fate {
   id: string;
   what: 'device' | 'camera' | 'grow' | 'ends';
   /** How the catalogue words it, under `place.remove.will`. */
-  fate: 'make' | 'move' | 'stay' | 'release' | 'uncouple' | 'remove' | 'with' | 'nowhere' | 'end' | 'reminders' | 'unseen' | 'roomEnds';
+  fate: 'make' | 'move' | 'stay' | 'release' | 'uncouple' | 'remove' | 'with' | 'nowhere' | 'end' | 'reminders' | 'unseen' | 'roomEnds' | 'roomEmpty';
   /** How many the line is about: one, but for reminders and people. */
   count: number;
   /** The name of the place it then stands in; null where it stands in none. For people, what they no longer see. */
@@ -141,8 +141,10 @@ export interface Fate {
  * carries that name. A place an earlier attempt made for a device (`made`) is
  * moved into instead of making a second. What ends with the place comes last:
  * its reminders - a grow's go where the grow goes -, then whoever is let in:
- * the guests of the place lose it, and the members of its room lose the room where
- * it ends with its last place - not where what stood here gets a place in it.
+ * the guests of the place lose it, and so do the members of its room where
+ * the room goes on (`everyone` counts both, a person once). Where the room
+ * ends with its last place - not where what stood here gets a place in it -
+ * its members lose the room, and a room nobody was let into is said to end.
  */
 export const fatesOf = (
   standing: Standing,
@@ -151,7 +153,7 @@ export const fatesOf = (
   places: readonly Place[],
   space: Place,
   made: Readonly<Record<string, Place | null>>,
-  ends: { reminders: number; guests: number; room: string; members: number },
+  ends: { reminders: number; guests: number; everyone: number; room: string; members: number },
 ): Fate[] => {
   const names = new Set(places.map(place => nameKey(place.name)));
   const named = (spaceId: string): string => places.find(place => place.id === spaceId)?.name ?? '';
@@ -217,8 +219,10 @@ export const fatesOf = (
     fates.some(({ fate }) => fate === 'make') ||
     [...places, ...Object.values(made)].some(place => place && place.id !== space.id && place.roomId === space.roomId && !dropped.has(place.id));
   if (ends.reminders > 0) add('ends', REMINDERS, 'reminders', null, null, null, ends.reminders);
-  if (ends.guests > 0) add('ends', GUESTS, 'unseen', space.name, null, null, ends.guests);
-  if (ends.members > 0 && !roomStays) add('ends', MEMBERS, 'roomEnds', ends.room, null, null, ends.members);
+  const roomEnds = space.roomId !== null && !roomStays;
+  const unseen = roomEnds ? ends.guests : ends.everyone;
+  if (unseen > 0) add('ends', GUESTS, 'unseen', space.name, null, null, unseen);
+  if (roomEnds) add('ends', MEMBERS, ends.members > 0 ? 'roomEnds' : 'roomEmpty', ends.room, null, null, ends.members);
 
   return fates;
 };

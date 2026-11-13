@@ -170,7 +170,7 @@ describe('the work mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Change Operating mode, Greenhouse/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Standard' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(said()).toBe('Operating mode Standard · saved, Fridge takes it over when it next connects'));
+    await waitFor(() => expect(said()).toBe('Operating mode Standard · saved, not with the device yet'));
   });
 });
 

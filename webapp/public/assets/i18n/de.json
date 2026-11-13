@@ -246,8 +246,9 @@
       "withSockets_other": "{{count}} Steckdosen",
       "told": {
         "named": "{{was}} heißt jetzt {{name}}",
-        "moved": "{{name}} steht jetzt in {{place}}",
-        "with": "mit {{what}}"
+        "moved": "{{place}}: {{name}} steht jetzt hier",
+        "with": "mit {{what}}",
+        "nowhere": "{{name}} steht jetzt an keinem Ort"
       },
       "rename": "Umbenennen"
     },
@@ -528,7 +529,6 @@
       "plants_other": "{{count}} Pflanzen",
       "day": "Tag",
       "dayN": "Tag {{day}}",
-      "noEntries": "Noch nichts im Tagebuch",
       "ago": "vor {{age}}",
       "stillAlt": "Das neueste Bild aus {{name}}",
       "enteredPhase": "{{stage}} begonnen"
@@ -1147,7 +1147,6 @@
         },
         "correct": "Korrigieren",
         "withdraw": "Zurücknehmen",
-        "saveCorrection": "Korrektur speichern",
         "confirmWithdraw": "Diese Phase zurücknehmen",
         "effect": {
           "nothingYet": "Noch nichts geändert.",
@@ -1176,7 +1175,6 @@
         "correct": "Korrigieren",
         "withdraw": "Zurücknehmen",
         "correctionNote": "Das repariert die vorhandene Zeile, und die Tagebuchzeile zum Umzug zieht mit. Die Pflanzen erneut umzuziehen macht der Knopf oben.",
-        "saveCorrection": "Korrektur speichern",
         "withdrawEffect": "Die Zeile verschwindet, als wäre der Umzug nie aufgeschrieben worden.",
         "confirmWithdraw": "Diesen Umzug zurücknehmen",
         "nowhereThenWithdraw": "Grow auf „kein fester Ort“ setzen und diese Zeile zurücknehmen",
@@ -1227,7 +1225,8 @@
         "needsOne": "Pflanzen auswählen und dazu eine Phase oder einen Ort: Eine Aufteilung, die ihnen keines von beidem gibt, teilt nichts auf.",
         "submit_one": "{{count}} Pflanze abtrennen",
         "submit_other": "{{count}} Pflanzen abtrennen"
-      }
+      },
+      "saveCorrection": "Korrektur speichern"
     },
     "new": {
       "title": "Neuer Grow",
@@ -1293,7 +1292,6 @@
         "targetNote": "Beide Enden leer heißt: kein Ziel; ein Ende allein ist eine Grenze.",
         "save": "Speichern",
         "saving": "Speichert…",
-        "cancel": "Abbrechen",
         "delete": "Löschen",
         "deleteAsk": "Diesen Messwert löschen? Es wurde noch nichts darunter eingetragen.",
         "deleteYes": "Ja, löschen",
@@ -1510,8 +1508,6 @@
       "waitingHasPlan": "Dieses Gerät hat seine Einstellungen noch nicht geschickt; diese Schritte werden deshalb zurückgehalten und nicht gesendet. Was ein Schritt trägt, käme nicht zur Abstimmung des Geräts hinzu, sondern träte an ihre Stelle: Betriebsart, Lichtzeiten, die Zeiten des Entfeuchters und die Dimmrampen stünden wieder auf einem Werkswert, und keine davon hat die Cloud je erreicht, um sie zurückschreiben zu können. Ein Schritt ohne Einstellungen sendet gar nichts, und ein gestoppter Plan sendet nichts, bis er wieder gestartet wird.",
       "write": "Plan schreiben",
       "edit": "Plan bearbeiten",
-      "keepAsTemplate": "Als Vorlage sichern",
-      "fromTemplate": "Mit einer Vorlage beginnen",
       "noSteps": "Dieser Plan hat keine Schritte, also gibt es nichts zu laufen.",
       "noStage": "Kein Stadium",
       "waits": "wartet auf dich",
@@ -1739,7 +1735,6 @@
     "stillAlt": "{{name}} um {{time}}",
     "climate24h": "Klima · 24 Std",
     "inBand": "{{percent}} % im Zielband",
-    "latest": "Zuletzt",
     "moveHereTitle": "{{name}}: Grow hierher umziehen",
     "presets": {
       "whichGrow": "Welcher Grow",
@@ -1760,35 +1755,34 @@
       "you": "Du",
       "theOwner": "Besitzer:in",
       "someone": "jemand",
-      "theRoom": "den Raum",
-      "viaRoom": "über {{room}}",
+      "viaRoom": "über den Raum {{room}}",
       "lastLogged": "geloggt vor {{age}}",
       "neverLogged": "noch nichts geloggt",
       "owns": "verwaltet",
       "roleOf": "Was {{name}} hier darf",
-      "removeOf": "{{name}} aus {{place}} entfernen",
+      "removeOf": "{{place}}: {{name}} entfernen",
       "role": {
         "can_log": "darf eintragen",
         "can_manage": "darf steuern"
       },
       "remove": {
-        "title": "@{{name}} aus {{place}} entfernen?",
+        "title": "{{place}}: @{{name}} entfernen?",
         "body": "Damit ist dieser Ort für sie weg, samt allem, was dort steht. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
-        "bodyKeepsRoom": "Dieser Ort bleibt ihnen über {{room}} erhalten; sie verlieren nur die Rolle, die sie hier hatten. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
+        "bodyKeepsRoom": "Dieser Ort bleibt ihnen über den Raum {{room}} erhalten; sie verlieren nur die Rolle, die sie hier hatten. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
         "yes": "Entfernen",
         "alsoTheLink": "Sie sind über den Link {{code}} hereingekommen, und mit ihnen hört der Link auf zu funktionieren: Wer genau diesen Link sonst noch bekommen hat, kommt damit nicht mehr herein. Wer schon drin ist, bleibt drin, deine anderen Links bleiben unberührt, und ein neuer ist einen Tipp entfernt.",
-        "bodyRoom": "Damit ist jeder Ort in {{place}} für sie weg, samt allem, was dort steht. Was sie dort geschrieben haben, bleibt und trägt weiter ihren Namen."
+        "bodyRoom": "Damit ist jeder Ort dieses Raums für sie weg, samt allem, was dort steht. Was sie dort geschrieben haben, bleibt und trägt weiter ihren Namen."
       },
       "leave": {
         "title": "{{place}} verlassen?",
         "body": "{{place}} verschwindet von deiner Startseite, und zurück kommst du nur, wenn du wieder hereingelassen wirst. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
-        "bodyKeepsRoom": "Dieser Ort bleibt dir über {{room}} erhalten; du gibst nur die Rolle auf, die du hier hattest. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
+        "bodyKeepsRoom": "Dieser Ort bleibt dir über den Raum {{room}} erhalten; du gibst nur die Rolle auf, die du hier hattest. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
         "yes": "Verlassen",
-        "bodyRoom": "Jeder Ort in {{place}} verschwindet von deiner Startseite, und zurück kommst du nur, wenn du wieder hereingelassen wirst. Was du dort geschrieben hast, bleibt und trägt weiter deinen Namen."
+        "bodyRoom": "Jeder Ort dieses Raums verschwindet von deiner Startseite, und zurück kommst du nur, wenn du wieder hereingelassen wirst. Was du dort geschrieben hast, bleibt und trägt weiter deinen Namen."
       },
       "join": {
         "label": "Einladung",
-        "title": "Du bist zu {{name}} eingeladen",
+        "title": "{{name}}: Du bist eingeladen",
         "by": "von @{{handle}}",
         "bySomebody": "von jemandem, der hier growt",
         "asRole": {
@@ -1825,7 +1819,6 @@
         "show": "Code · QR",
         "showOf": "{{code}} als Code und QR zeigen",
         "revokeOf": "Den Link {{code}} zurückziehen",
-        "into": "für {{name}}",
         "revokeAsk": "Mit diesem Link tritt dann niemand mehr {{name}} bei; es lässt sich nicht zurücknehmen."
       },
       "sheet": {
@@ -1870,9 +1863,9 @@
           "can_manage": "@{{name}} darf jetzt steuern"
         },
         "removed": "@{{name}} sieht {{place}} nicht mehr",
-        "removedKeeps": "@{{name}} sieht {{place}} weiter über {{room}}",
+        "removedKeeps": "@{{name}} sieht {{place}} weiter über den Raum {{room}}",
         "left": "Du hast {{place}} verlassen",
-        "leftKeeps": "Du siehst {{place}} weiter über {{room}}",
+        "leftKeeps": "Du siehst {{place}} weiter über den Raum {{room}}",
         "linkStopped": "Der Link {{code}} gilt nicht mehr"
       }
     }
@@ -1905,11 +1898,9 @@
     "now": "jetzt",
     "save": "Speichern",
     "saveDay": "Speichern · Tag {{day}}",
-    "saveCorrection": "Korrektur speichern",
     "takeBack": "Eintrag widerrufen",
     "takeBackAsk": "Diesen Eintrag widerrufen? Er verschwindet endgültig aus dem Tagebuch.",
     "takeBackYes": "Widerrufen",
-    "cancel": "Abbrechen",
     "logAsPlanned": "Wie geplant eintragen",
     "saveFailed": "Der Eintrag konnte nicht gespeichert werden",
     "photoTitle": "Fotoeintrag",
@@ -2378,26 +2369,21 @@
         },
         "placeName": "Name des Orts",
         "placeKind": "Art des Orts",
-        "kind": {
-          "tent": "Zelt",
-          "balcony": "Balkon",
-          "other": "Anderer Ort"
-        },
         "makePlace": "Ort anlegen",
         "makingPlace": "Wird angelegt …",
         "needAddress": "Trag zuerst die Stream-Adresse ein.",
         "needPlace": "Sag zuerst, wohin sie schaut.",
         "needName": "Gib ihr zuerst einen Namen.",
         "testAdds": "Der Test fügt die Kamera hinzu und holt dann ein Bild. Du kannst sie hier wieder entfernen.",
-        "made": "Zu {{place}} hinzugefügt. Sie steht jetzt bei den Geräten, ein weiterer Test aktualisiert sie.",
-        "madeSomewhere": "Die Kamera wurde hinzugefügt. Sie steht jetzt bei den Geräten, ein weiterer Test aktualisiert sie.",
+        "made": "{{place}}: Kamera hinzugefügt. Sie steht jetzt unter Steuerung, ein weiterer Test aktualisiert sie.",
+        "madeSomewhere": "Die Kamera wurde hinzugefügt. Sie steht jetzt unter Steuerung, ein weiterer Test aktualisiert sie.",
         "remove": "Wieder entfernen",
         "removing": "Wird entfernt …",
         "open": "Kamera öffnen",
         "username": "Benutzer",
         "password": "Passwort",
         "loginInAddress": "Die Anmeldung steht schon in der Adresse und wird so verwendet.",
-        "noCarrier": "An {{place}} steht kein Gerät, das den Stream aus deinem Netz holt · eine Adresse aus dem Heimnetz antwortet der Cloud nicht"
+        "noCarrier": "{{place}}: Hier steht kein Gerät, das den Stream aus deinem Netz holt · eine Adresse aus dem Heimnetz antwortet der Cloud nicht"
       }
     }
   },
@@ -2598,16 +2584,6 @@
       "co2": "braucht einen CO₂-Sensor",
       "leaf": "braucht einen Blattsensor",
       "light": "braucht einen Lichtsensor"
-    },
-    "metric": {
-      "temperature": "Temperatur",
-      "humidity": "Luftfeuchte",
-      "vpd": "VPD",
-      "co2": "CO₂",
-      "leafTemperature": "Blatttemperatur",
-      "lux": "Lux",
-      "ppfd": "PPFD",
-      "offline": "Offline"
     },
     "output": {
       "heater": "Heizung",
@@ -2815,7 +2791,6 @@
     "title": "Zielwerte",
     "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin ein Klima stehen könnte. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht, und was hier stünde, kann sie nicht ersetzen.",
     "presets": "Klima-Presets",
-    "needsCo2": "braucht einen CO₂-Sensor",
     "aria": {
       "dayTemperature": "Temperatur am Tag",
       "dayHumidity": "Luftfeuchte am Tag",
@@ -3540,7 +3515,8 @@
       "camera_here": "Hier schaut noch eine Kamera hinein.",
       "grow_here": "Hier läuft noch ein Grow.",
       "room_ended": "Diesen Raum gibt es nicht mehr: Er endete mit seinem letzten Ort.",
-      "current_password_wrong": "Das aktuelle Passwort stimmt nicht."
+      "current_password_wrong": "Das aktuelle Passwort stimmt nicht.",
+      "name_taken": "Diesen Namen trägt schon ein anderer Ort oder Raum. Wähle einen anderen."
     }
   },
   "alarmLine": {
@@ -4091,7 +4067,7 @@
     }
   },
   "place": {
-    "backTo": "Zurück zu {{name}}",
+    "backTo": "Zurück: {{name}}",
     "members": {
       "lookOnly": "Nur zum Ansehen, ohne Konto:",
       "shareLink": "Freigabelink erstellen"
@@ -4120,7 +4096,7 @@
       "told": {
         "named": "{{was}} heißt jetzt {{name}}",
         "kind": "Art: {{kind}}",
-        "room": "{{name}} steht jetzt in {{room}}",
+        "room": "Raum: {{room}}",
         "noRoom": "{{name}} steht in keinem Raum mehr",
         "sees_one": "{{people}} sieht es jetzt mit",
         "sees_other": "{{people}} sehen es jetzt mit",
@@ -4129,9 +4105,8 @@
       },
       "devices": "Geräte hier",
       "bring": "Gerät hierher holen",
-      "bringTitle": "Gerät nach {{name}} holen",
-      "standsIn": "steht in {{place}}",
-      "nowhere": "keinem Ort",
+      "bringTitle": "{{name}}: Gerät hierher holen",
+      "nowhere": "an keinem Ort",
       "claim": "Neues Gerät hinzufügen",
       "people": "Wer {{name}} sieht",
       "remove": "{{name}} entfernen",
@@ -4139,20 +4114,22 @@
       "roomWith_one": "{{room}} · {{count}} Person sieht mit",
       "roomWith_other": "{{room}} · {{count}} Personen sehen mit",
       "endRoom": {
-        "title": "{{name}} aus {{room}} nehmen?",
+        "title": "{{name}}: aus dem Raum {{room}} nehmen?",
         "says_one": "{{room}} endet damit, und {{people}} sieht nichts mehr davon.",
         "says_other": "{{room}} endet damit, und {{people}} sehen nichts mehr davon.",
         "final": "Das lässt sich nicht zurücknehmen.",
         "yes": "{{room}} beenden",
         "no": "Abbrechen"
-      }
+      },
+      "renameRoom": "{{room}} umbenennen …",
+      "roomTaken": "Ein anderer Raum heißt schon „{{name}}“."
     },
     "remove": {
       "title": "{{name}} entfernen",
       "back": "Zurück zu „{{name}} bearbeiten“",
       "holds": "Hier steht noch",
       "stay": "bleibt bei {{device}}",
-      "move": "zieht in {{place}}",
+      "move": "zieht um: {{place}}",
       "device": {
         "new": "bekommt einen neuen Ort",
         "release": "abgeben"
@@ -4164,7 +4141,6 @@
       "grow": {
         "ask": "Wo stehen die Pflanzen jetzt?",
         "with": "am neuen Ort von {{device}}",
-        "move": "in {{place}}",
         "nowhere": "an keinem festen Ort",
         "end": "Grow beenden"
       },
@@ -4177,7 +4153,7 @@
       "final": "Das lässt sich nicht zurücknehmen.",
       "will": {
         "make": "{{name}} bekommt einen neuen Ort: {{place}}",
-        "move": "{{name}} zieht in {{place}}",
+        "move": "{{name}} zieht um: {{place}}",
         "stay": "{{name}} bleibt bei {{beside}}",
         "release": "{{name}} wird abgegeben und gehört dann nicht mehr zu deinem Konto",
         "uncouple": "{{name}} wird entkoppelt",
@@ -4190,11 +4166,12 @@
         "unseen_one": "{{name}} sieht {{place}} dann nicht mehr",
         "unseen_other": "{{name}} sehen {{place}} dann nicht mehr",
         "roomEnds_one": "Raum {{place}} endet – {{name}} sieht ihn dann nicht mehr",
-        "roomEnds_other": "Raum {{place}} endet – {{name}} sehen ihn dann nicht mehr"
+        "roomEnds_other": "Raum {{place}} endet – {{name}} sehen ihn dann nicht mehr",
+        "roomEmpty": "Raum {{place}} endet"
       },
       "did": {
-        "stands_one": "{{names}} steht in {{place}}.",
-        "stands_other": "{{names}} stehen in {{place}}.",
+        "stands_one": "{{place}}: {{names}} steht jetzt hier.",
+        "stands_other": "{{place}}: {{names}} stehen jetzt hier.",
         "nowhere_one": "{{names}} steht an keinem festen Ort.",
         "nowhere_other": "{{names}} stehen an keinem festen Ort.",
         "release": "{{names}} abgegeben.",
@@ -4206,7 +4183,8 @@
         "unseen_one": "{{names}} sieht {{place}} nicht mehr.",
         "unseen_other": "{{names}} sehen {{place}} nicht mehr.",
         "roomEnds_one": "Raum {{place}} ist beendet – {{names}} sieht ihn nicht mehr.",
-        "roomEnds_other": "Raum {{place}} ist beendet – {{names}} sehen ihn nicht mehr."
+        "roomEnds_other": "Raum {{place}} ist beendet – {{names}} sehen ihn nicht mehr.",
+        "roomEmpty": "Raum {{place}} ist beendet."
       },
       "half": {
         "still": "{{name}} ist noch nicht entfernt.",
@@ -4215,7 +4193,8 @@
       },
       "told": "{{name}} entfernt.",
       "last": "{{name}} ist dein einziger Ort und lässt sich deshalb nicht entfernen."
-    }
+    },
+    "ended": "{{name}} wurde entfernt. Seine Kurven siehst du nur noch bei Grows, die dort standen."
   },
   "climatePick": {
     "label": "Zielwerte",
@@ -4794,8 +4773,6 @@
     },
     "picture": {
       "takenAt": "Bild von {{time}}",
-      "lightOff": "Licht aus · Bild von {{time}}",
-      "last": "letztes Bild {{time}}",
       "stand": "Stand {{time}} · vor {{age}}",
       "open": "{{name}} öffnen",
       "photoAlt": "Das neueste Foto von {{name}}",
@@ -4888,7 +4865,6 @@
     },
     "mode": {
       "drying": "Trocknung läuft",
-      "germination": "Keimung · dunkel",
       "germinationHumidified": "Keimung · dunkel · Befeuchter hält {{humidity}}",
       "greenhouse": "Betriebsart Gewächshaus"
     },
@@ -4908,10 +4884,7 @@
       "controlOff": "Regelung aus: Das Gerät hält keine Zielwerte"
     },
     "metric": {
-      "temperature": "Temperatur",
-      "humidity": "Luftfeuchte",
-      "light": "Licht",
-      "co2": "CO₂"
+      "light": "Licht"
     },
     "tile": {
       "high": "{{delta}} zu hoch",
@@ -4946,9 +4919,7 @@
   "device": {
     "back": "Zurück",
     "backToControl": "Zurück zur Steuerung",
-    "backTo": "Zurück zu {{name}}",
-    "in": "in {{place}}",
-    "standsIn": "steht in {{place}}",
+    "backTo": "Zurück: {{name}}",
     "offlineKeeps": "Was du hier einstellst, übernimmt das Gerät, sobald es sich wieder meldet.",
     "waitsForDevice": "Wartung, Neustart und Update gehen erst, wenn das Gerät wieder online ist.",
     "curves": "Kurven dieses Geräts",
@@ -5042,7 +5013,7 @@
     },
     "saved": {
       "now": "{{what}} · gespeichert",
-      "later": "{{what}} · gespeichert, {{device}} übernimmt es beim nächsten Verbinden"
+      "later": "{{what}} · gespeichert, noch nicht am Gerät"
     },
     "pending": {
       "atClock": "um {{time}}",
@@ -5056,7 +5027,6 @@
       "one": "{{name}}: {{value}} · am Gerät noch {{held}}",
       "oneUnknown": "{{name}}: {{value}}",
       "off": "Regelung aus gespeichert {{saved}}, noch nicht am Gerät: {{device}} regelt weiter, bis es wieder online ist.",
-      "modeOff": "Regelung aus",
       "stored": "{{what}} gespeichert {{saved}}, noch nicht am Gerät"
     },
     "offline": {
@@ -5064,10 +5034,7 @@
     },
     "state": {
       "on": "Regelung ein",
-      "off": "Regelung aus",
-      "drying": "Trocknung",
-      "germination": "Keimung",
-      "maintenance": "Wartung bis {{until}}"
+      "off": "Regelung aus"
     },
     "rows": {
       "label": "Mehr zu diesem Ort",
@@ -5083,8 +5050,6 @@
       "light": "Licht",
       "allAuto": "alle Auto",
       "mode": {
-        "standard": "Standard",
-        "greenhouse": "Gewächshaus",
         "energySaving": "Energiesparen"
       },
       "planPaused": "{{step}} pausiert",
@@ -5103,9 +5068,7 @@
       "all": "Alles zum {{name}}"
     },
     "camera": {
-      "last": "letztes Bild {{time}}",
-      "none": "noch kein Bild",
-      "waits": "wartet auf {{device}}"
+      "none": "noch kein Bild"
     },
     "add": {
       "title": "Gerät oder Kamera hinzufügen",

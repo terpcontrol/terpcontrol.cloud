@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useSpaceOverview, useSpaces } from '@/api/spaces';
-import { removePath } from '@/app/places';
+import { placesOf, removePath } from '@/app/places';
 import { Row } from '@/ui/Rows';
 import { enough } from '@/ui/session-access';
 
@@ -18,7 +18,7 @@ export function EmptyPlace({ spaceId }: { spaceId: string }) {
   const overview = useSpaceOverview(spaceId).data;
   const spaces = useSpaces().data?.items ?? [];
   const space = spaces.find(one => one.id === spaceId);
-  const others = spaces.some(one => one.id !== spaceId && one.kind !== 'room' && one.archivedAt === null && one.ownerId === space?.ownerId);
+  const others = placesOf(spaces, space?.ownerId).some(one => one.id !== spaceId);
   const empty = overview?.deviceIds?.length === 0 && overview.cameras.length === 0 && overview.grows.length === 0;
 
   if (!overview || !space || !empty || !others || !enough(space.youMay, 'own')) return null;

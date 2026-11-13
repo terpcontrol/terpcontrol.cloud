@@ -193,9 +193,9 @@ const unsaid = (pending: PendingSettings | null, leads: boolean): number =>
 /** "online · letztes Bild 14:31", or that the camera waits for the device it is read through. */
 const cameraFacts = (t: Translate, camera: Camera, carrier: Device | null, carrierOffline: boolean, now: DateTime, zone: string | null): string[] => {
   const last = camera.state.lastStillAt
-    ? t('control.camera.last', { time: sinceLabel(camera.state.lastStillAt, now, zone) })
+    ? t('camera.picture.last', { time: sinceLabel(camera.state.lastStillAt, now, zone) })
     : t('control.camera.none');
-  if (carrier && carrierOffline) return [last, t('control.camera.waits', { device: deviceName(carrier, t) })];
+  if (carrier && carrierOffline) return [last, t('camera.pill.waits', { device: deviceName(carrier, t) })];
   const fresh = cameraFreshness(camera, now);
   return [...(fresh === 'live' ? [t('home.reading.live')] : []), last];
 };

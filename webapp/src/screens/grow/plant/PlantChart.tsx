@@ -11,7 +11,7 @@ import styles from './Plant.module.css';
 /** How much room the figures need above and below the line before the card looks cramped. */
 const PADDING = 0.08;
 
-/** Tall enough for the shape of a curve and no taller: this is a page about a plant, not a charts view. */
+/** Tall enough for the shape of a curve and no taller: this is a page about a plant, not Verlauf. */
 const HEIGHT = 120;
 
 interface PlantChartProps {

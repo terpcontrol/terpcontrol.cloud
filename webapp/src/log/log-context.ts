@@ -8,7 +8,7 @@ import type { Entry, HumanEntryKind } from '@fg2/shared-types/v1';
  * written stays on screen long enough to be taken back.
  *
  * The state lives above the routes because none of it belongs to a screen - a
- * line written on the home is still being saved while the tent page is open.
+ * line written on Start is still being saved while another page is open.
  */
 
 /** What a line is written against: a grow, the space it stands in, or single plants of it. */
