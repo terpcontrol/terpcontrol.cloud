@@ -23,8 +23,8 @@ import styles from './AddCamera.module.css';
 /** Where the reason a button cannot be pressed is written, so both buttons can point a screen reader at it. */
 const REASON = 'rtsp-missing';
 
-/** The kinds of place a camera is hung in, which is every kind but the fridge nobody points one into. */
-const PLACE_KINDS: SpaceKind[] = ['tent', 'room', 'balcony', 'other'];
+/** The kinds of place a camera is hung in: every kind but the fridge nobody points one into. A room is no place - it groups them. */
+const PLACE_KINDS: SpaceKind[] = ['tent', 'balcony', 'other'];
 
 /**
  * A camera of somebody else's making, reached at the address its stream is at.
@@ -81,7 +81,8 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   // Putting a camera somewhere is managing that place, so a tent this account
   // only writes lines in is not among the answers: offering it would end in a
   // refusal after the address and the name had already been typed.
-  const places = spaces.data.items.filter(space => enough(space.youMay, 'manage'));
+  // A room is no place: it groups them, and a camera hangs in one of them.
+  const places = spaces.data.items.filter(space => space.kind !== 'room' && enough(space.youMay, 'manage'));
   // With one place there is nothing to choose: the camera looks at that one.
   const placeId = spaceId ?? (places.length === 1 ? places[0].id : null);
 

@@ -1,6 +1,6 @@
-/* The invite block on the Members tab and the sheet it opens. Every colour,
-   radius and step is a token; what is here is the arrangement the two boards
-   draw and nothing else. */
+/* The ways in under the list of who sees a place, and the sheet an
+   invitation is made on. Every colour, radius and step is a token; what is
+   here is the arrangement and nothing else. */
 
 /* ------------------------------------------------------------------ block */
 
@@ -9,13 +9,6 @@
   flex-direction: column;
   gap: var(--space-2);
   margin-top: var(--space-2);
-}
-
-.head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
 }
 
 .links {
@@ -68,11 +61,28 @@
   gap: var(--space-1);
 }
 
-.none {
+/* What the next invitation is for, where a place stands in a room: the words over the choice. */
+.target {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+}
+
+/* The button that makes a link is as wide as its words, not as the page. */
+.make {
+  align-self: flex-start;
+}
+
+/* The way to a share link, a finger high where it is tapped. */
+.shareLink {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  min-height: var(--control-height);
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
 }
 
 .handleRow {
@@ -165,8 +175,9 @@
   gap: var(--space-2);
 }
 
-/* A chip a finger taps is a finger high: the block's own, and the one that copies an address. */
+/* What a finger taps is a finger high: the block's chips, the one that copies an address, the three ways of the sheet. */
 .finger,
-.addressRow button {
+.addressRow button,
+.made [role='tab'] {
   height: var(--control-height);
 }

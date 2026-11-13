@@ -100,7 +100,9 @@ export function DemoBanner() {
 /**
  * Whose place this is and what the reader may do in it, for somebody let into
  * it: "Keller · von @handle" and "du darfst eintragen". The owner is named
- * where the answer names them; the room where the reader can see it. On the
+ * where the answer names them; the room where the reader can see it. A room
+ * or a handle longer than the line is cut in its own box, the shorter of the
+ * two whole, and what the reader may do keeps its size beside them. On the
  * place's own Start the line is the way to who else is here (`to`), which is
  * also where a member leaves: a reader who may change nothing about the place
  * has no menu beside its name.
@@ -109,19 +111,24 @@ export function GuestLine({ space, people, room = null, to = null }: { space: Sp
   const { t } = useTranslation();
   const handle = people.find(person => person.id === space.ownerId)?.handle ?? null;
   const from = handle ? t('start.guest.by', { handle }) : t('start.guest.shared');
-  const said = [room, from].filter(Boolean).join(' · ');
+  const said = (
+    <>
+      {room ? <span>{room}</span> : null}
+      <span>{room ? ` · ${from}` : from}</span>
+    </>
+  );
 
   return (
     <div className={styles.guest}>
       <h2 className={styles.kicker}>
         {to ? (
-          <Link to={to} className={styles.guestLink}>
+          <Link to={to} className={styles.guestSaid}>
             {said}
             <span className={ui.visuallyHidden}>{`, ${t('start.guest.members')}`}</span>
             <span aria-hidden> ›</span>
           </Link>
         ) : (
-          said
+          <span className={styles.guestSaid}>{said}</span>
         )}
       </h2>
       {space.youMay === 'log' || space.youMay === 'manage' ? <span className={styles.role}>{t(`start.guest.may.${space.youMay}`)}</span> : null}

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Navigate, useParams } from 'react-router';
 import { editPath, placePath, usePageOfPlace } from '@/app/places';
 import { useSpaces } from '@/api/spaces';
+import { Help } from '@/ui/Help';
 import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
@@ -17,13 +18,13 @@ export function PlaceMembers() {
   const { t } = useTranslation();
   const { spaceId = '' } = useParams();
   const spaces = useSpaces();
-  const space = spaces.data?.items.find(one => one.id === spaceId) ?? null;
+  const space = spaces.data?.items.find(one => one.id === spaceId && one.archivedAt === null) ?? null;
   const mayManage = useMayManage(spaceId);
   usePageOfPlace(spaceId || null);
 
   if (spaces.isPending) return <Waiting lines={4} />;
   if (!spaces.data) return <LoadFailed retry={() => void spaces.refetch()} />;
-  // A room has no page: who is in it is chosen on a place standing in it.
+  // A place that has ended is as little there as one that never was; a room has no page - who is in it stands on its places.
   if (!space || space.kind === 'room') return <NoLongerHere what="space" />;
   if (mayManage) return <Navigate to={editPath(space.id)} replace />;
 
@@ -32,7 +33,9 @@ export function PlaceMembers() {
       <PageHead
         back={{ to: placePath(space.id), label: t('place.backTo', { name: space.name }) }}
         title={t('place.edit.people', { name: space.name })}
-      />
+      >
+        <Help topic="memberRole" />
+      </PageHead>
       <Members spaceId={space.id} name={space.name} kind={space.kind} roomId={space.roomId} />
     </section>
   );

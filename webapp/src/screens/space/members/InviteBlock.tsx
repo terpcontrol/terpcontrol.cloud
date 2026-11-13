@@ -1,9 +1,10 @@
-import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { Invite, SpaceKind } from '@fg2/shared-types/v1';
 import { useAddMember } from '@/api/members';
 import { useInvites, useRevokeInvite } from '@/api/invites';
+import { SHARE_LINKS } from '@/app/places';
 import { CopyButton } from '@/ui/CopyButton';
 import { typedHandle } from '@/ui/handle';
 import { Help } from '@/ui/Help';
@@ -15,108 +16,140 @@ import { InviteTerms } from './InviteTerms';
 import { inviteAddress, liveInvites, shownAddress } from './invites';
 import styles from './Invite.module.css';
 
+/** What an invitation lets somebody into: the place, or the room it stands in. */
+type Target = { id: string; name: string; kind: SpaceKind };
+
 /**
- * The two ways somebody gets into a tent, which are deliberately not the same
- * act.
+ * The ways somebody gets into a place, under the list of who is in it.
  *
- * A **link** goes to a stranger: it is a code anybody holding it may redeem,
- * so it is cut with a role and a life chosen on the sheet, and it can be
- * stopped at any moment. A **handle** goes to somebody already known: the
- * field reaches only accounts this one already grows with, and every other
- * name - taken or free - is refused alike, so it can never be asked who has an
- * account here.
+ * Every code still out is listed, the place's and its room's alike, each with
+ * what it grants and its own way to take it back - whether or not anybody is
+ * being invited just now, so a link made yesterday is on the page today. Two
+ * links can be out at once, and a block that showed the newest and stopped
+ * only that one would tell a host a key was dead while another stayed live.
  *
- * Every code that is still live is listed, each with what it grants and its
- * own Revoke. Two links can be out at once - a phone and a laptop each cut
- * one, or a week-long one for the club and a day-long one for a visitor - and
- * a card that showed the newest and stopped only that one would tell a host a
- * key was dead while another stayed live. What a row says about its link is
- * read off the row the server answered, not off what the sheet asked for.
+ * Inviting (`open`) is two acts that are deliberately not the same. A **link**
+ * goes to a stranger: a code anybody holding it may redeem, cut with a role
+ * and a life chosen on the sheet. A **handle** goes to somebody already known:
+ * the field reaches only accounts this one already grows with, and every
+ * other name is refused alike, so it can never be asked who has an account
+ * here. Where the place stands in a room, the next invitation is for either;
+ * the choice changes nothing that is already there.
  */
-export function InviteBlock({ spaceId, spaceName, kind }: { spaceId: string; spaceName: string; kind: SpaceKind }) {
+export function InviteBlock({ id, place, room, open }: { id: string; place: Target; room: Target | null; open: boolean }) {
   const { t } = useTranslation();
   const now = useNow();
-  const invites = useInvites(spaceId);
-  const revoke = useRevokeInvite(spaceId);
-  const [sheet, setSheet] = useState<{ open: boolean; shown: Invite | null }>({ open: false, shown: null });
+  const ofPlace = useInvites(place.id);
+  const ofRoom = useInvites(room?.id ?? '', room !== null);
+  const [forRoom, setForRoom] = useState(false);
+  const [sheet, setSheet] = useState<{ target: Target; shown: Invite | null } | null>(null);
 
-  const live = liveInvites(invites.data?.items ?? [], now);
-  const open = (shown: Invite | null) => () => setSheet({ open: true, shown });
+  const target = forRoom && room ? room : place;
+  const targetOf = (invite: Invite): Target => (room && invite.spaceId === room.id ? room : place);
+  const live = liveInvites([...(ofPlace.data?.items ?? []), ...(ofRoom.data?.items ?? [])], now);
+
+  if (!open && live.length === 0) return null;
 
   return (
-    <section className={styles.block}>
-      <header className={styles.head}>
-        <span className="label">
-          {t('space.members.invite')}
-          <Help topic="invite" />
-        </span>
-        {live.length > 0 ? (
-          <button type="button" className={`${ui.chip} ${styles.finger}`} onClick={open(null)}>
-            <Plus size={13} strokeWidth={2} aria-hidden />
-            {t('space.members.newLink')}
-          </button>
-        ) : null}
-      </header>
-
-      {invites.isPending ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('home.waiting')}</p>
-      ) : live.length === 0 ? (
-        <div className={`${ui.cardDashed} ${styles.none}`}>
-          <span className={ui.note}>{t('space.members.noLink')}</span>
-          <button type="button" className={`${ui.button} ${ui.primary}`} onClick={open(null)}>
-            {t('space.members.makeLink')}
-          </button>
-        </div>
-      ) : (
+    <section id={id} className={styles.block}>
+      <span className="label">
+        {t('space.members.invite')}
+        <Help topic="invite" />
+      </span>
+      {live.length > 0 ? (
         <ul className={styles.links}>
           {live.map(invite => (
-            <li key={invite.id} className={`${ui.card} ${styles.link}`} aria-label={invite.code}>
-              <div className={styles.addressRow}>
-                <code className={`mono ${styles.address}`}>{shownAddress(invite.code)}</code>
-                <CopyButton value={inviteAddress(invite.code)} label={t('space.members.copyLink')} />
-              </div>
-              <div className={styles.termsRow}>
-                <InviteTerms invite={invite} className={styles.terms} />
-                <span className={styles.termsActions}>
-                  <button
-                    type="button"
-                    className={`${ui.chip} ${styles.finger}`}
-                    aria-label={t('space.members.links.showOf', { code: invite.code })}
-                    onClick={open(invite)}
-                  >
-                    {t('space.members.links.show')}
-                  </button>
-                  <button
-                    type="button"
-                    className={`${ui.chip} ${styles.finger}`}
-                    aria-label={t('space.members.links.revokeOf', { code: invite.code })}
-                    disabled={revoke.isPending}
-                    onClick={() => revoke.mutate(invite.code)}
-                  >
-                    {t('space.members.revoke')}
-                  </button>
-                </span>
-              </div>
-            </li>
+            <LinkRow
+              key={invite.id}
+              invite={invite}
+              // Which of the two it lets into is said only where there are two.
+              target={room ? targetOf(invite) : null}
+              onShow={() => setSheet({ target: targetOf(invite), shown: invite })}
+            />
           ))}
         </ul>
-      )}
-      <Refused error={revoke.error} />
+      ) : null}
 
-      <AddByHandle spaceId={spaceId} />
+      {open ? (
+        <>
+          {room ? (
+            <label className={styles.target}>
+              {t('space.members.inviteFor')}
+              <select className={ui.input} value={forRoom ? 'room' : 'place'} onChange={event => setForRoom(event.target.value === 'room')}>
+                <option value="place">{place.name}</option>
+                <option value="room">{room.name}</option>
+              </select>
+            </label>
+          ) : null}
+          <button type="button" className={`${ui.button} ${ui.primary} ${styles.make}`} onClick={() => setSheet({ target, shown: null })}>
+            {t('space.members.makeLink')}
+          </button>
+          <AddByHandle spaceId={target.id} />
+          {/* Letting somebody look without an account is not an invitation: it is a link of another kind. */}
+          <p className={ui.note}>
+            {t('place.members.lookOnly')}{' '}
+            <Link to={SHARE_LINKS} className={styles.shareLink}>
+              {t('place.members.shareLink')} ›
+            </Link>
+          </p>
+        </>
+      ) : null}
 
-      {sheet.open ? (
-        <InviteSheet spaceId={spaceId} spaceName={spaceName} kind={kind} shown={sheet.shown} onClose={() => setSheet({ open: false, shown: null })} />
+      {sheet ? (
+        <InviteSheet
+          spaceId={sheet.target.id}
+          spaceName={sheet.target.name}
+          kind={sheet.target.kind}
+          shown={sheet.shown}
+          onClose={() => setSheet(null)}
+        />
       ) : null}
     </section>
+  );
+}
+
+/** One code that is out: its address, what it is worth - read off the row the server answered -, and what can be done about it. */
+function LinkRow({ invite, target, onShow }: { invite: Invite; target: Target | null; onShow: () => void }) {
+  const { t } = useTranslation();
+  const revoke = useRevokeInvite(invite.spaceId);
+
+  return (
+    <li className={`${ui.card} ${styles.link}`} aria-label={invite.code}>
+      <div className={styles.addressRow}>
+        <code className={`mono ${styles.address}`}>{shownAddress(invite.code)}</code>
+        <CopyButton value={inviteAddress(invite.code)} label={t('space.members.copyLink')} />
+      </div>
+      <div className={styles.termsRow}>
+        <InviteTerms invite={invite} into={target?.name} className={styles.terms} />
+        <span className={styles.termsActions}>
+          <button
+            type="button"
+            className={`${ui.chip} ${styles.finger}`}
+            aria-label={t('space.members.links.showOf', { code: invite.code })}
+            onClick={onShow}
+          >
+            {t('space.members.links.show')}
+          </button>
+          <button
+            type="button"
+            className={`${ui.chip} ${styles.finger}`}
+            aria-label={t('space.members.links.revokeOf', { code: invite.code })}
+            disabled={revoke.isPending}
+            onClick={() => revoke.mutate(invite.code)}
+          >
+            {t('space.members.revoke')}
+          </button>
+        </span>
+      </div>
+      <Refused error={revoke.error} />
+    </li>
   );
 }
 
 /**
  * Adding by name. It is a form so that Enter sends it, which is how a field
  * with one button beside it is used. Somebody added by name walks in able to
- * log, as the board says under the field; a wider role is a change on their
- * row afterwards.
+ * log; a wider role is a change on their row afterwards.
  */
 function AddByHandle({ spaceId }: { spaceId: string }) {
   const { t } = useTranslation();

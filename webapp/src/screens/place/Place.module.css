@@ -44,6 +44,20 @@
   gap: var(--space-4);
 }
 
+/* "Ort bearbeiten" ends in a control, and a toast stands over the foot of the
+   window - on a phone a bar's height up, also where the page has no bar: the
+   page keeps a toast's room under it, so its last control can be scrolled
+   clear of one that names two changes. */
+.saving {
+  padding-bottom: calc(var(--tabbar-height) + var(--space-8) + var(--space-7));
+}
+
+@media (min-width: 900px) {
+  .saving {
+    padding-bottom: calc(var(--space-8) + var(--space-7));
+  }
+}
+
 .fields {
   display: flex;
   flex-direction: column;
@@ -70,6 +84,11 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: var(--space-3);
+}
+
+/* A room that says whom it lets in needs the line to itself. */
+.pair[data-stacked] {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* The page's one action stands in its head, a pill, and never wraps its word. */
@@ -109,34 +128,6 @@
   color: var(--brand);
   font-weight: var(--weight-semibold);
   text-align: left;
-}
-
-/* What an invitation is for: the words, and the choice beside them - under them where the two do not fit. */
-.scope {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) var(--card-padding);
-}
-
-.scopeText {
-  display: flex;
-  flex: 1 1 11rem;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.scopeNote {
-  font-size: var(--text-sm);
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-
-.scopeSelect {
-  flex: 1 1 8rem;
-  width: auto;
-  max-width: 100%;
 }
 
 /* Ending the place is said in amber and stands apart at the foot: it leads to a page that asks first. */

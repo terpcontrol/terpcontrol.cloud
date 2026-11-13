@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { onlineManager } from '@tanstack/react-query';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes, useLocation } from 'react-router';
 import type { Camera, Device, Space } from '@fg2/shared-types/v1';
@@ -50,12 +51,7 @@ vi.mock('@/log/log-context', async importOriginal => ({
 
 // The people of a place are their own screen's business (`members.test.tsx`).
 vi.mock('@/screens/space/members/Members', () => ({
-  Members: ({ name, scope }: { name: string; scope?: React.ReactNode }) => (
-    <div data-testid="members">
-      people of {name}
-      {scope}
-    </div>
-  ),
+  Members: ({ name }: { name: string }) => <div data-testid="members">people of {name}</div>,
 }));
 
 beforeAll(() => translate());
@@ -122,6 +118,28 @@ beforeEach(() => {
 });
 
 describe('editing a place', () => {
+  /** Who is let in where, as the server answers it: a place's list carries its room's rows, a room's its own. */
+  const letIn = (rows: { spaceId: string; handle: string }[]) => {
+    const read = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      const id = /^\/spaces\/([^/]+)\/members$/.exec(path)?.[1];
+      if (!id) return read(path);
+      const roomId = state.spaces.find(one => one.id === id)?.roomId ?? null;
+      const items = rows
+        .filter(row => row.spaceId === id || row.spaceId === roomId)
+        .map(row => ({ spaceId: row.spaceId, userId: `user-${row.handle}` }));
+      const people = [...new Set(rows.map(row => row.handle))].map(handle => ({ id: `user-${handle}`, handle }));
+      return Promise.resolve({ items, nextCursor: null, people, room: null, activity: [] }) as never;
+    });
+  };
+
+  /** The button once the page knows whom the room lets in, which a change of room waits for. */
+  const saveReady = async () => {
+    const save = screen.getByRole('button', { name: 'Save' });
+    await waitFor(() => expect(save).toBeEnabled());
+    return save;
+  };
+
   it('saves the name, the kind and a room still to be made in one write, says what changed and how to take it back', async () => {
     draw('/spaces/tent/edit');
 
@@ -131,15 +149,19 @@ describe('editing a place', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Kind' }), { target: { value: 'other' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Room' }), { target: { value: 'new' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Name of the room' }), { target: { value: 'Cellar' } });
-    fireEvent.click(save);
+    fireEvent.click(await saveReady());
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/tent', { name: 'Flower tent', kind: 'other', roomName: 'Cellar' }));
     await waitFor(() => expect(told).toHaveLength(1));
     expect(told[0].label).toBe('Tent is now called Flower tent · Kind of Flower tent: Other place · Flower tent now stands in Cellar');
 
-    // Taken back by the room's name: the room it left may have ended with its last place.
+    // Taken back by the room's name: the room it left may have ended with its last place. The undo says what is back.
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/spaces/tent', { name: 'Tent', kind: 'tent', roomName: 'Grow room' });
+    expect(told[1]).toMatchObject({
+      label: 'Undone · Flower tent is now called Tent · Kind of Tent: Tent · Tent now stands in Grow room',
+      undo: null,
+    });
   });
 
   it('sends only what changed, and a room that exists by its id', async () => {
@@ -147,13 +169,120 @@ describe('editing a place', () => {
     draw('/spaces/tent/edit');
 
     fireEvent.change(await screen.findByRole('combobox', { name: 'Room' }), { target: { value: 'attic' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(await saveReady());
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/tent', { roomId: 'attic' }));
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Room' }), { target: { value: 'none' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(await saveReady());
     await waitFor(() => expect(api.patch).toHaveBeenLastCalledWith('/spaces/tent', { roomId: null }));
     expect(told[1].label).toBe('Tent no longer stands in a room');
+  });
+
+  it('names a room in the toast as it is stored, not as it was typed', async () => {
+    state.spaces = [TENT, FRIDGE, ROOM, ATTIC];
+    draw('/spaces/tent/edit');
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Room' }), { target: { value: 'new' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name of the room' }), { target: { value: '  attic ' } });
+    fireEvent.click(await saveReady());
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/tent', { roomName: 'attic' }));
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(told[0].label).toBe('Tent now stands in Attic');
+  });
+
+  it('says in the room´s options whom each room lets in', async () => {
+    state.spaces = [TENT, FRIDGE, ROOM, ATTIC, spaceWhere('own', { id: 'shed', name: 'Shed', kind: 'room' })];
+    letIn([
+      { spaceId: 'room', handle: 'mara' },
+      { spaceId: 'room', handle: 'jonas' },
+      { spaceId: 'attic', handle: 'lea' },
+    ]);
+    draw('/spaces/tent/edit');
+
+    const room = await screen.findByRole('combobox', { name: 'Room' });
+    await waitFor(() =>
+      expect(
+        within(room)
+          .getAllByRole('option')
+          .map(option => option.textContent),
+      ).toEqual(['Grow room · 2 people see it too', 'Attic · 1 person sees it too', 'Shed', 'New room …', 'No room']),
+    );
+  });
+
+  it('says in the toast who sees the place now and who no longer does, and takes both back', async () => {
+    state.spaces = [TENT, { ...FRIDGE, roomId: 'room' }, ROOM, ATTIC];
+    letIn([
+      { spaceId: 'room', handle: 'mara' },
+      { spaceId: 'room', handle: 'jonas' },
+      // Let into the tent itself as well: the tent stays theirs wherever it stands.
+      { spaceId: 'tent', handle: 'jonas' },
+      { spaceId: 'attic', handle: 'lea' },
+    ]);
+    draw('/spaces/tent/edit');
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Room' }), { target: { value: 'attic' } });
+    await screen.findByRole('option', { name: 'Attic · 1 person sees it too' });
+    fireEvent.click(await saveReady());
+
+    // The fridge still stands in the room: it does not end, so nothing is asked.
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(told[0].label).toBe('Tent now stands in Attic · @lea now sees it too · @mara no longer sees it');
+
+    await told[0].undo!();
+    expect(api.patch).toHaveBeenLastCalledWith('/spaces/tent', { roomName: 'Grow room' });
+    expect(told[1]).toMatchObject({ label: 'Undone · Tent now stands in Grow room · @mara now sees it too · @lea no longer sees it', undo: null });
+  });
+
+  it('asks before the last place leaves a room people are let into, names them, and offers no way back afterwards', async () => {
+    letIn([
+      { spaceId: 'room', handle: 'mara' },
+      { spaceId: 'room', handle: 'jonas' },
+    ]);
+    draw('/spaces/tent/edit');
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Room' }), { target: { value: 'none' } });
+    fireEvent.click(await saveReady());
+
+    const sheet = await screen.findByRole('dialog', { name: /Take Tent out of Grow room\?/ });
+    expect(within(sheet).getByText('That ends Grow room, and @mara and @jonas no longer see any of it.')).toBeInTheDocument();
+    expect(within(sheet).getByText('This cannot be taken back.')).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(screen.getByRole('combobox', { name: 'Room' })).toHaveValue('none');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'End Grow room' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/tent', { roomId: null }));
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(told[0]).toMatchObject({ label: 'Tent no longer stands in a room · @mara and @jonas no longer see it', undo: null });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('says a lost connection like any refused write and can be sent again, also while the browser believes it is offline', async () => {
+    vi.mocked(api.patch).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    draw('/spaces/tent/edit');
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Name' }), { target: { value: 'Loft' } });
+
+    onlineManager.setOnline(false);
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(await screen.findByText('Could not reach the server. Try again.')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+      expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('Loft');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(told).toHaveLength(1));
+      expect(api.patch).toHaveBeenCalledTimes(2);
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it('says a name another of the owner´s places carries before anything is sent, however it is typed', async () => {
@@ -234,14 +363,6 @@ describe('editing a place', () => {
     expect(await screen.findByRole('link', { name: '+ Bring a device here' })).toHaveAttribute('href', '/claim?space=tent');
   });
 
-  it('lets the owner choose whether an invitation is for the place or for its room', async () => {
-    draw('/spaces/tent/edit');
-
-    expect(await screen.findByTestId('members')).toHaveTextContent('people of Tent');
-    fireEvent.change(screen.getByRole('combobox', { name: /An invitation is for/ }), { target: { value: 'room' } });
-    expect(screen.getByTestId('members')).toHaveTextContent('people of Grow room');
-  });
-
   it('shows a member who may not manage the place who else is here instead', async () => {
     state.spaces = [spaceWhere('log', { id: 'tent', name: 'Tent' })];
     draw('/spaces/tent/edit');
@@ -249,11 +370,23 @@ describe('editing a place', () => {
     await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent('/spaces/tent/members'));
   });
 
-  it('has no page for a room, nor for a place that has ended', async () => {
-    draw('/spaces/room/edit');
+  it.each(['room', 'ended', 'nowhere'])('has one page for what is not there - a room, a place that has ended, an unknown id (%s)', async id => {
+    state.spaces = [...state.spaces, { ...FRIDGE, id: 'ended', archivedAt: '2026-11-01T00:00:00.000Z' }];
+    draw(`/spaces/${id}/edit`);
 
-    expect(await screen.findByText('This place cannot be opened.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Place' })).toBeInTheDocument();
+    expect(screen.getByText('This place cannot be opened.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();
+  });
+
+  it('offers to read again where the places could not be read', async () => {
+    vi.mocked(api.get).mockRejectedValue(new TypeError('Failed to fetch'));
+    draw('/spaces/tent/edit');
+
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Place' })).not.toBeInTheDocument();
   });
 });
 

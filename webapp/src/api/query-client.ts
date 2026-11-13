@@ -6,6 +6,13 @@ import { ApiError } from './problem';
  * server, so a screen decides its own refetch interval; what is set here is
  * only what every query shares.
  */
+/**
+ * A write is sent whatever the browser believes about the connection, and fails
+ * at once where there is none: held back until the browser says "online", a
+ * button read "Sichert …" for as long as a tunnel is.
+ */
+export const WRITES = { networkMode: 'always' } as const;
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -18,6 +25,7 @@ export const queryClient = new QueryClient({
         return failureCount < 2;
       },
     },
+    mutations: WRITES,
   },
 });
 

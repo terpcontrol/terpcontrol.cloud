@@ -1742,7 +1742,7 @@
     "noReadingsYet": "Noch nichts gemeldet",
     "growingHere": "Wächst hier",
     "empty": {
-      "says": "In {{name}} steht nichts mehr: kein Gerät, keine Kamera, kein Grow.",
+      "says": "Hier steht nichts mehr: kein Gerät, keine Kamera, kein Grow.",
       "remove": "{{name}} entfernen"
     },
     "lastStill": "letztes vor {{age}}",
@@ -1761,72 +1761,40 @@
     "members": {
       "demo": "Die Demo schaut auf einen fremden Ort und besitzt nichts — es gibt also niemanden hereinzulassen und niemanden hinauszuschicken.",
       "invite": "Einladen",
-      "noLink": "Noch kein Einladungslink",
       "makeLink": "Link erzeugen",
       "copyLink": "Einladungslink kopieren",
       "revoke": "Zurückziehen",
       "handleLabel": "Ein Name, mit dem du schon gemeinsam growst",
       "handlePlaceholder": "oder @Name eines Kontos",
       "add": "Hinzufügen",
-      "viaTheRoom_one": "{{count}} über den Raum",
-      "viaTheRoom_other": "{{count}} über den Raum",
       "you": "Du",
       "theOwner": "Besitzer:in",
       "someone": "jemand",
       "theRoom": "den Raum",
-      "viaLink": "per Link",
-      "added": "von Hand",
       "viaRoom": "über {{room}}",
-      "alsoViaRoom": "{{how}} · auch über {{room}}",
       "lastLogged": "geloggt vor {{age}}",
       "neverLogged": "noch nichts geloggt",
-      "owns": "Besitzer:in von {{name}}",
+      "owns": "verwaltet",
       "roleOf": "Was {{name}} hier darf",
-      "removeOf": "{{name}} von diesem Ort entfernen",
-      "leaveThis": "Diesen Ort verlassen",
+      "removeOf": "{{name}} aus {{place}} entfernen",
       "role": {
-        "owner": "Besitzer:in",
         "can_log": "darf eintragen",
         "can_manage": "darf steuern"
       },
-      "roleShort": {
-        "owner": "Besitzer:in",
-        "can_log": "eintragen",
-        "can_manage": "steuern",
-        "can_manageDiary": "verwalten"
-      },
-      "can": {
-        "see": "Den Ort und seine Werte sehen",
-        "seeCams": "Den Ort, seine Werte und Kameras sehen",
-        "seeGrows": "Den Ort, seine Werte und Grows sehen",
-        "seeAll": "Den Ort, seine Grows und Kameras sehen",
-        "log": "Einträge, Aufgaben, Fotos",
-        "steer": "Zielwerte, Plan, Alarme, Wartung",
-        "own": "Geräte, Teilen, Löschen",
-        "seeRoom": "Jeden Ort im Raum und seine Werte sehen",
-        "seeRoomCams": "Jeden Ort im Raum, seine Werte und Kameras sehen",
-        "seeRoomGrows": "Jeden Ort im Raum, seine Werte und Grows sehen",
-        "seeRoomAll": "Jeden Ort im Raum, seine Grows und Kameras sehen",
-        "manageDiary": "Grows, Phasen und Erinnerungen"
-      },
-      "mark": {
-        "yes": "ja",
-        "no": "nein"
-      },
-      "noViewerRole": "Zum bloßen Mitlesen gibt es Freigabelinks; eine Zuschauer-Rolle gibt es nicht. Jeder Eintrag zeigt, wer ihn geschrieben hat. Aufgaben lassen sich nach Meine / Alle filtern, Benachrichtigungen gibt es pro Person.",
-      "noViewerRolePlain": "Zum bloßen Mitlesen gibt es Freigabelinks; eine Zuschauer-Rolle gibt es nicht. Benachrichtigungen gibt es pro Person.",
       "remove": {
-        "title": "@{{name}} von diesem Ort entfernen?",
+        "title": "@{{name}} aus {{place}} entfernen?",
         "body": "Damit ist dieser Ort für sie weg, samt allem, was dort steht. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
         "bodyKeepsRoom": "Dieser Ort bleibt ihnen über {{room}} erhalten; sie verlieren nur die Rolle, die sie hier hatten. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
-        "yes": "Vom Ort entfernen",
-        "alsoTheLink": "Sie sind über den Link {{code}} hereingekommen, und mit ihnen hört der Link auf zu funktionieren: Wer genau diesen Link sonst noch bekommen hat, kommt damit nicht mehr herein. Wer schon drin ist, bleibt drin, deine anderen Links bleiben unberührt, und ein neuer ist einen Tipp entfernt."
+        "yes": "Entfernen",
+        "alsoTheLink": "Sie sind über den Link {{code}} hereingekommen, und mit ihnen hört der Link auf zu funktionieren: Wer genau diesen Link sonst noch bekommen hat, kommt damit nicht mehr herein. Wer schon drin ist, bleibt drin, deine anderen Links bleiben unberührt, und ein neuer ist einen Tipp entfernt.",
+        "bodyRoom": "Damit ist jeder Ort in {{place}} für sie weg, samt allem, was dort steht. Was sie dort geschrieben haben, bleibt und trägt weiter ihren Namen."
       },
       "leave": {
-        "title": "Diesen Ort verlassen?",
-        "body": "Es verschwindet von deiner Startseite, und zurück kommst du nur, wenn du wieder hereingelassen wirst. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
+        "title": "{{place}} verlassen?",
+        "body": "{{place}} verschwindet von deiner Startseite, und zurück kommst du nur, wenn du wieder hereingelassen wirst. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
         "bodyKeepsRoom": "Dieser Ort bleibt dir über {{room}} erhalten; du gibst nur die Rolle auf, die du hier hattest. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
-        "yes": "Ort verlassen"
+        "yes": "Verlassen",
+        "bodyRoom": "Jeder Ort in {{place}} verschwindet von deiner Startseite, und zurück kommst du nur, wenn du wieder hereingelassen wirst. Was du dort geschrieben hast, bleibt und trägt weiter deinen Namen."
       },
       "join": {
         "label": "Einladung",
@@ -1857,7 +1825,6 @@
           "open": "Einladung öffnen"
         }
       },
-      "newLink": "Neuer Link",
       "links": {
         "role": "kommt als „{{role}}“ herein",
         "until": "bis {{date}}",
@@ -1867,7 +1834,8 @@
         "revokeAnyTime": "jederzeit zurückziehbar",
         "show": "Code · QR",
         "showOf": "{{code}} als Code und QR zeigen",
-        "revokeOf": "Den Link {{code}} zurückziehen"
+        "revokeOf": "Den Link {{code}} zurückziehen",
+        "into": "für {{name}}"
       },
       "sheet": {
         "title": "Einladen in {{name}}",
@@ -1907,8 +1875,21 @@
         "copyFailed": "Kopieren ging nicht · von Hand kopieren",
         "done": "Fertig"
       },
-      "linkStopped": "Der Link {{code}} wurde zurückgezogen, als @{{name}} vom Ort entfernt wurde.",
-      "inviteSomebody": "Jemanden einladen"
+      "inviteSomebody": "Jemanden einladen",
+      "youOwn": "verwaltest",
+      "leaveOf": "{{place}} verlassen",
+      "inviteFor": "Einladung gilt für",
+      "told": {
+        "role": {
+          "can_log": "@{{name}} darf jetzt eintragen",
+          "can_manage": "@{{name}} darf jetzt steuern"
+        },
+        "removed": "@{{name}} sieht {{place}} nicht mehr",
+        "removedKeeps": "@{{name}} sieht {{place}} weiter über {{room}}",
+        "left": "Du hast {{place}} verlassen",
+        "leftKeeps": "Du siehst {{place}} weiter über {{room}}",
+        "linkStopped": "Der Link {{code}} gilt nicht mehr"
+      }
     }
   },
   "log": {
@@ -2409,7 +2390,6 @@
         "placeKind": "Art des Orts",
         "kind": {
           "tent": "Zelt",
-          "room": "Raum",
           "balcony": "Balkon",
           "other": "Anderer Ort"
         },
@@ -3850,11 +3830,11 @@
     },
     "memberRole": {
       "title": "Rollen",
-      "text": "„Darf loggen“ schreibt Einträge, lädt Fotos hoch und hakt Aufgaben ab. „Darf steuern“ ändert außerdem Zielwerte, Pläne, Alarmregeln, Steckdosen und Kameraeinstellungen und korrigiert Einträge anderer; Einladen, Entfernen und Teilen-Links bleiben bei dir als Besitzer:in."
+      "text": "Wer „darf eintragen“, sieht den Ort mit seinen Werten, Grows und Kameras, schreibt Einträge, lädt Fotos hoch und hakt Aufgaben ab. Wer „darf steuern“, ändert außerdem Zielwerte, Plan, Alarme, Steckdosen und Kameraeinstellungen und korrigiert Einträge anderer. Geräte, Einladen und Entfernen bleiben bei der Person, die den Ort verwaltet. Nur zum Mitlesen gibt es Freigabelinks, keine eigene Rolle."
     },
     "invite": {
       "title": "Einladen",
-      "text": "Wer einen Einladungslink hat, kann damit beitreten, so oft er benutzt wird, bis er abläuft oder du ihn zurückziehst – Zurückziehen verhindert neue Beitritte, wer drin ist, bleibt. Ein Benutzername, mit dem du schon einen Ort teilst, wird sofort mit „darf loggen“ hinzugefügt, ohne gefragt zu werden."
+      "text": "Wer einen Einladungslink hat, kann damit beitreten, so oft er benutzt wird, bis er abläuft oder du ihn zurückziehst – Zurückziehen verhindert neue Beitritte, wer drin ist, bleibt. Ein Benutzername, mit dem du schon einen Ort teilst, wird sofort mit „darf eintragen“ hinzugefügt, ohne gefragt zu werden."
     },
     "diaryLayer": {
       "title": "Grow-Tagebuch",
@@ -4110,7 +4090,12 @@
         "named": "{{was}} heißt jetzt {{name}}",
         "kind": "Art von {{name}}: {{kind}}",
         "room": "{{name}} steht jetzt in {{room}}",
-        "noRoom": "{{name}} steht in keinem Raum mehr"
+        "noRoom": "{{name}} steht in keinem Raum mehr",
+        "sees_one": "{{people}} sieht es jetzt mit",
+        "sees_other": "{{people}} sehen es jetzt mit",
+        "seesNoMore_one": "{{people}} sieht es nicht mehr",
+        "seesNoMore_other": "{{people}} sehen es nicht mehr",
+        "undone": "Widerrufen"
       },
       "devices": "Geräte hier",
       "bring": "Gerät hierher holen",
@@ -4119,10 +4104,18 @@
       "nowhere": "keinem Ort",
       "claim": "Neues Gerät hinzufügen",
       "people": "Wer {{name}} sieht",
-      "scope": "Einladung gilt für",
-      "scopeNote": "nur {{name}} oder den ganzen Raum {{room}}",
       "remove": "{{name}} entfernen",
-      "camera": "Kamera"
+      "camera": "Kamera",
+      "roomWith_one": "{{room}} · {{count}} Person sieht mit",
+      "roomWith_other": "{{room}} · {{count}} Personen sehen mit",
+      "endRoom": {
+        "title": "{{name}} aus {{room}} nehmen?",
+        "says_one": "{{room}} endet damit, und {{people}} sieht nichts mehr davon.",
+        "says_other": "{{room}} endet damit, und {{people}} sehen nichts mehr davon.",
+        "final": "Das lässt sich nicht zurücknehmen.",
+        "yes": "{{room}} beenden",
+        "no": "Abbrechen"
+      }
     },
     "remove": {
       "title": "{{name}} entfernen",

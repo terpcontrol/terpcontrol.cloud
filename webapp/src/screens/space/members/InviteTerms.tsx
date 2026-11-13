@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { Invite } from '@fg2/shared-types/v1';
+import { Facts } from '@/ui/Facts';
 import { useNow } from '@/ui/useNow';
 import { dayLabel } from './invites';
 
@@ -13,11 +14,13 @@ import { dayLabel } from './invites';
  * the link drawn above it, and two places wording that description apart would
  * sooner or later describe two different links.
  */
-export function InviteTerms({ invite, className = '' }: { invite: Invite; className?: string }) {
+export function InviteTerms({ invite, into, className = '' }: { invite: Invite; into?: string; className?: string }) {
   const { t, i18n } = useTranslation();
   const now = useNow();
 
   const parts = [
+    // What it lets into, where a place's links stand beside its room's.
+    ...(into ? [t('space.members.links.into', { name: into })] : []),
     t('space.members.links.role', { role: t(`space.members.role.${invite.role}`) }),
     invite.expiresAt === null
       ? t('space.members.links.never')
@@ -26,5 +29,5 @@ export function InviteTerms({ invite, className = '' }: { invite: Invite; classN
     t('space.members.links.revokeAnyTime'),
   ];
 
-  return <span className={`mono ${className}`}>{parts.join(' · ')}</span>;
+  return <Facts facts={parts} className={`mono ${className}`} />;
 }

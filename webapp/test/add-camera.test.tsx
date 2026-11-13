@@ -92,7 +92,7 @@ const plainStream = { username: '', password: '', transport: 'tcp' };
 // standing that decides whether they are offered at all.
 const spaces = [spaceWhere('own'), spaceWhere('own', { id: 'space-2', name: 'Balcony' })];
 
-const madeSpace = spaceWhere('own', { id: 'space-3', name: 'Attic', kind: 'room' });
+const madeSpace = spaceWhere('own', { id: 'space-3', name: 'Attic', kind: 'other' });
 
 const me = (enforced: boolean): Me =>
   ({ id: 'user-1', premium: { enforced, extendUrl: null, priceLabel: '29 € a year' }, pushPublicKey: null }) as unknown as Me;
@@ -690,13 +690,15 @@ describe('a camera at a stream address', () => {
 
     expect(screen.getByText(/There is no place to put a camera in yet/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Name of the place'), { target: { value: 'Attic' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Room' }));
+    // A room groups places and is none itself: the form makes no room.
+    expect(screen.queryByRole('button', { name: 'Room' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Other place' }));
     state.spaces = [madeSpace];
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Make the place' }));
     });
 
-    expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'room', name: 'Attic' });
+    expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'other', name: 'Attic' });
     // The place it just made is the chosen one, so nothing typed is lost.
     expect(await screen.findByRole('button', { name: 'Attic' })).toHaveAttribute('aria-pressed', 'true');
   });

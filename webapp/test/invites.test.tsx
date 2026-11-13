@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Invite, InviteCreate, MembershipPage, Space, SpaceCreate, SpaceKind, SpaceUpdate } from '@fg2/shared-types/v1';
+import type { Invite, InviteCreate, MembershipPage, Space } from '@fg2/shared-types/v1';
 import { Members } from '@/screens/space/members/Members';
 import { expiresAtFor, liveInvites } from '@/screens/space/members/invites';
 import { ThemeProvider } from '@/theme/ThemeProvider';
@@ -9,14 +9,13 @@ import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
 
 /**
- * The invitation an owner makes, and the room half of the sharing model.
+ * The invitation an owner makes.
  *
  * What is checked hardest: that every code still out is listed and each can be
  * stopped on its own, because a card that showed the newest and stopped only
- * that one would tell a host a key was dead while another stayed live; that
- * the sheet sends exactly the role and the life chosen and then describes the
- * link from the server's answer rather than from what it asked for; and that
- * a tent can be put into a room at all, which nothing in the app could do.
+ * that one would tell a host a key was dead while another stayed live; and
+ * that the sheet sends exactly the role and the life chosen and then describes
+ * the link from the server's answer rather than from what it asked for.
  *
  * The fetch is stubbed by route rather than the hooks being mocked, so what is
  * asserted about a write is the body that went on the wire.
@@ -96,27 +95,14 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     return json(server.invites.find(row => row.code === revocation[1]));
   }
 
-  if (method === 'POST' && path === '/spaces') {
-    const asked = body as SpaceCreate;
-    const room = space({ id: 'room-9', kind: asked.kind, name: asked.name, createdAt: NOW.toISO()! });
-    server.spaces = [...server.spaces, room];
-    return json(room, 201);
-  }
-  if (method === 'PATCH' && path === '/spaces/space-1') {
-    const asked = body as SpaceUpdate;
-    server.spaces = server.spaces.map(row => (row.id === 'space-1' ? { ...row, ...asked } : row));
-    return json(server.spaces.find(row => row.id === 'space-1'));
-  }
-
   return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
 const wrapped = (node: React.ReactNode) => drawAt(<ThemeProvider>{node}</ThemeProvider>);
 
-const drawTab = (roomId: string | null = null, kind: SpaceKind = 'tent', spaceId = 'space-1', name = 'Blue Dream tent') =>
-  wrapped(<Members spaceId={spaceId} name={name} kind={kind} roomId={roomId} />);
+const drawTab = () => wrapped(<Members spaceId="space-1" name="Blue Dream tent" kind="tent" roomId={null} />);
 
-/** The links, the name field and the roles stand behind the row that invites: opened, as the owner opens them. */
+/** The ways to invite stand behind the row that invites: opened, as the owner opens them. */
 const inviting = async () => {
   drawTab();
   fireEvent.click(await screen.findByRole('button', { name: '+ Invite somebody' }));
@@ -167,20 +153,21 @@ describe('the links a tent has out', () => {
   });
 
   it('lists every link still live with what it grants, read off the row, and none of the ones that have stopped', async () => {
-    await inviting();
+    drawTab();
     await screen.findByRole('button', { name: 'Revoke the link AAAAAAAA' });
 
     const rows = linkRows();
     expect(rows.map(row => row.getAttribute('aria-label'))).toEqual(['AAAAAAAA', 'BBBBBBBB']);
     expect(within(rows[0]).getByText(/\/join\/AAAAAAAA$/)).toBeInTheDocument();
-    expect(within(rows[0]).getByText(/joins as “can log” · until .* · used 2× · revoke any time/)).toBeInTheDocument();
-    expect(within(rows[1]).getByText(/joins as “can manage” · never expires · used 0× · revoke any time/)).toBeInTheDocument();
+    // A place in no room has nothing to tell its links apart from, so none says what it is for.
+    expect(rows[0]).toHaveTextContent(/Copy\s*joins as “can log” · until .* · used 2× · revoke any time/);
+    expect(rows[1]).toHaveTextContent(/joins as “can manage” · never expires · used 0× · revoke any time/);
     expect(screen.queryByText(/CCCCCCCC/)).not.toBeInTheDocument();
     expect(screen.queryByText(/DDDDDDDD/)).not.toBeInTheDocument();
   });
 
   it('revokes one link on its own and leaves the other out', async () => {
-    await inviting();
+    drawTab();
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke the link BBBBBBBB' }));
 
     await waitFor(() => expect(server.wrote).toHaveLength(1));
@@ -190,7 +177,7 @@ describe('the links a tent has out', () => {
   });
 
   it('opens a link that is already out as a code and a QR without cutting another', async () => {
-    await inviting();
+    drawTab();
     fireEvent.click(await screen.findByRole('button', { name: 'Show AAAAAAAA as a code and a QR' }));
 
     const sheet = screen.getByRole('dialog', { name: 'Invite to Blue Dream tent' });
@@ -222,7 +209,7 @@ describe('the invitation sheet', () => {
     expect(DateTime.fromISO(body.expiresAt!).diff(NOW, 'hours').hours).toBeCloseTo(24, 1);
 
     expect(await within(sheet).findByText(/\/join\/NEWCADE2$/)).toBeInTheDocument();
-    expect(within(sheet).getByText(/joins as “can manage” · until .* · used 0× · revoke any time/)).toBeInTheDocument();
+    expect(sheet).toHaveTextContent(/joins as “can manage” · until .* · used 0× · revoke any time/);
   });
 
   it('makes a link that never expires when told to, and says so in those words', async () => {
@@ -235,11 +222,12 @@ describe('the invitation sheet', () => {
 
     await waitFor(() => expect(server.wrote).toHaveLength(1));
     expect(server.wrote[0].body).toEqual({ role: 'can_log', expiresAt: null });
-    expect(await within(sheet).findByText(/joins as “can log” · never expires · used 0×/)).toBeInTheDocument();
+    await within(sheet).findByText(/\/join\/NEWCADE2$/);
+    expect(sheet).toHaveTextContent(/joins as “can log” · never expires · used 0×/);
 
     // The list under the sheet reads the same row and says the same thing.
     fireEvent.click(within(sheet).getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(linkRows()).toHaveLength(1));
-    expect(within(linkRows()[0]).getByText(/never expires/)).toBeInTheDocument();
+    expect(linkRows()[0]).toHaveTextContent(/never expires/);
   });
 });

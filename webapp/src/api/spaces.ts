@@ -94,8 +94,13 @@ export const useSetPresetPrompt = (spaceId: string) =>
 /**
  * What "Ort bearbeiten" saves in one write: the name, the kind and the room -
  * by its id, by the name of one still to be made (`roomName`), or none. The
- * server makes a room a place names and ends one its last place has left, and
- * refuses a name another place carries, in a sentence the page shows.
+ * server makes a room a place names, ends one its last place has left - with
+ * whoever was let into it -, and refuses a name another place carries, in a
+ * sentence the page shows.
+ *
+ * It is sent whatever the browser believes about its connection: held back
+ * until the connection returns, the page would say "Sichert …" for as long,
+ * where a write that failed is said and can be sent again.
  *
  * The home and the space list are read again because both draw the grouping,
  * and a membership held on the room reaches into every place grouped under it.

@@ -1733,7 +1733,7 @@
     "noReadingsYet": "Nothing reported yet",
     "growingHere": "Growing here",
     "empty": {
-      "says": "Nothing stands in {{name}} any more: no device, no camera, no grow.",
+      "says": "Nothing stands here any more: no device, no camera, no grow.",
       "remove": "Remove {{name}}"
     },
     "lastStill": "last one {{age}} ago",
@@ -1752,72 +1752,40 @@
     "members": {
       "demo": "The demo looks at somebody else's place and owns nothing, so there is nobody to let in and nobody to let go.",
       "invite": "Invite",
-      "noLink": "No invitation link yet",
       "makeLink": "Make a link",
       "copyLink": "Copy the invite link",
       "revoke": "Revoke",
       "handleLabel": "A username you already grow with",
       "handlePlaceholder": "or the @name of an account",
       "add": "Add",
-      "viaTheRoom_one": "{{count}} via the room",
-      "viaTheRoom_other": "{{count}} via the room",
       "you": "You",
       "theOwner": "The owner",
       "someone": "somebody",
       "theRoom": "the room",
-      "viaLink": "joined via link",
-      "added": "added by hand",
       "viaRoom": "via {{room}}",
-      "alsoViaRoom": "{{how}} · also via {{room}}",
       "lastLogged": "last logged {{age}}",
       "neverLogged": "nothing logged yet",
-      "owns": "owner of {{name}}",
+      "owns": "manages this place",
       "roleOf": "What {{name}} may do here",
-      "removeOf": "Take {{name}} out of this place",
-      "leaveThis": "Leave this place",
+      "removeOf": "Take {{name}} out of {{place}}",
       "role": {
-        "owner": "owner",
         "can_log": "can log",
         "can_manage": "can manage"
       },
-      "roleShort": {
-        "owner": "owner",
-        "can_log": "log",
-        "can_manage": "manage",
-        "can_manageDiary": "manage"
-      },
-      "can": {
-        "see": "See the place and its readings",
-        "seeCams": "See the place, its readings and cams",
-        "seeGrows": "See the place, its readings and grows",
-        "seeAll": "See the place, its grows and cams",
-        "log": "Log entries, tick tasks, photos",
-        "steer": "Targets, plan, alarms, maintenance",
-        "own": "Devices, sharing, delete",
-        "seeRoom": "See every place in the room and its readings",
-        "seeRoomCams": "See every place in the room, its readings and cams",
-        "seeRoomGrows": "See every place in the room, its readings and grows",
-        "seeRoomAll": "See every place in the room, its grows and cams",
-        "manageDiary": "Grows, phases and reminders"
-      },
-      "mark": {
-        "yes": "yes",
-        "no": "no"
-      },
-      "noViewerRole": "Read-only viewing is what share links do; there is no viewer role. Every entry carries its author. Tasks filter Mine / All, notifications are per person.",
-      "noViewerRolePlain": "Read-only viewing is what share links do; there is no viewer role. Notifications are per person.",
       "remove": {
-        "title": "Take @{{name}} out?",
+        "title": "Take @{{name}} out of {{place}}?",
         "body": "They lose this place and everything standing in it. What they wrote here stays here and goes on carrying their name.",
         "bodyKeepsRoom": "They keep this place through {{room}} and lose only what they held here. What they wrote here stays here and goes on carrying their name.",
         "yes": "Take them out",
-        "alsoTheLink": "They came in on the link {{code}}, and taking them out stops it: anybody else you sent that one to can no longer join. Whoever is already in stays in, your other links are untouched, and a new link is one tap away."
+        "alsoTheLink": "They came in on the link {{code}}, and taking them out stops it: anybody else you sent that one to can no longer join. Whoever is already in stays in, your other links are untouched, and a new link is one tap away.",
+        "bodyRoom": "They lose every place in {{place}} and everything standing there. What they wrote there stays and goes on carrying their name."
       },
       "leave": {
-        "title": "Leave this place?",
-        "body": "It goes off your home and you can only come back in if you are let in again. What you wrote here stays here and goes on carrying your name.",
+        "title": "Leave {{place}}?",
+        "body": "{{place}} goes off your home and you can only come back in if you are let in again. What you wrote here stays here and goes on carrying your name.",
         "bodyKeepsRoom": "You keep this place through {{room}} and give up only the role you held here. What you wrote here stays here and goes on carrying your name.",
-        "yes": "Leave the place"
+        "yes": "Leave",
+        "bodyRoom": "Every place in {{place}} goes off your home and you can only come back in if you are let in again. What you wrote there stays and goes on carrying your name."
       },
       "join": {
         "label": "Invitation",
@@ -1848,7 +1816,6 @@
           "open": "Open the invitation"
         }
       },
-      "newLink": "New link",
       "links": {
         "role": "joins as “{{role}}”",
         "until": "until {{date}}",
@@ -1858,7 +1825,8 @@
         "revokeAnyTime": "revoke any time",
         "show": "Code · QR",
         "showOf": "Show {{code}} as a code and a QR",
-        "revokeOf": "Revoke the link {{code}}"
+        "revokeOf": "Revoke the link {{code}}",
+        "into": "for {{name}}"
       },
       "sheet": {
         "title": "Invite to {{name}}",
@@ -1898,8 +1866,21 @@
         "copyFailed": "Could not copy · copy it by hand",
         "done": "Done"
       },
-      "linkStopped": "The link {{code}} was stopped when @{{name}} was taken out.",
-      "inviteSomebody": "Invite somebody"
+      "inviteSomebody": "Invite somebody",
+      "youOwn": "manage this place",
+      "leaveOf": "Leave {{place}}",
+      "inviteFor": "An invitation is for",
+      "told": {
+        "role": {
+          "can_log": "@{{name}} can now log",
+          "can_manage": "@{{name}} can now manage"
+        },
+        "removed": "@{{name}} no longer sees {{place}}",
+        "removedKeeps": "@{{name}} still sees {{place}} through {{room}}",
+        "left": "You have left {{place}}",
+        "leftKeeps": "You still see {{place}} through {{room}}",
+        "linkStopped": "The link {{code}} no longer works"
+      }
     }
   },
   "log": {
@@ -2400,7 +2381,6 @@
         "placeKind": "Kind of place",
         "kind": {
           "tent": "Tent",
-          "room": "Room",
           "balcony": "Balcony",
           "other": "Other place"
         },
@@ -3841,7 +3821,7 @@
     },
     "memberRole": {
       "title": "Roles",
-      "text": "Can log may write entries, add photos and tick off tasks. Can manage may also change targets, plans, alarm rules, sockets and camera settings, and correct other people's entries; inviting, removing people and share links stay with you as the owner."
+      "text": "“Can log” sees the place with its readings, grows and cams, writes entries, adds photos and ticks off tasks. “Can manage” also changes targets, the plan, alarms, sockets and camera settings, and corrects other people's entries. Devices, inviting and removing people stay with whoever manages the place. Read-only viewing is what share links do; there is no role for it."
     },
     "invite": {
       "title": "Inviting",
@@ -4101,7 +4081,12 @@
         "named": "{{was}} is now called {{name}}",
         "kind": "Kind of {{name}}: {{kind}}",
         "room": "{{name}} now stands in {{room}}",
-        "noRoom": "{{name}} no longer stands in a room"
+        "noRoom": "{{name}} no longer stands in a room",
+        "sees_one": "{{people}} now sees it too",
+        "sees_other": "{{people}} now see it too",
+        "seesNoMore_one": "{{people}} no longer sees it",
+        "seesNoMore_other": "{{people}} no longer see it",
+        "undone": "Undone"
       },
       "devices": "Devices here",
       "bring": "Bring a device here",
@@ -4110,10 +4095,18 @@
       "nowhere": "no place",
       "claim": "Add a new device",
       "people": "Who sees {{name}}",
-      "scope": "An invitation is for",
-      "scopeNote": "only {{name}}, or the whole room {{room}}",
       "remove": "Remove {{name}}",
-      "camera": "Camera"
+      "camera": "Camera",
+      "roomWith_one": "{{room}} · {{count}} person sees it too",
+      "roomWith_other": "{{room}} · {{count}} people see it too",
+      "endRoom": {
+        "title": "Take {{name}} out of {{room}}?",
+        "says_one": "That ends {{room}}, and {{people}} no longer sees any of it.",
+        "says_other": "That ends {{room}}, and {{people}} no longer see any of it.",
+        "final": "This cannot be taken back.",
+        "yes": "End {{room}}",
+        "no": "Cancel"
+      }
     },
     "remove": {
       "title": "Remove {{name}}",

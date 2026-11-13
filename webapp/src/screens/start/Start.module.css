@@ -140,11 +140,26 @@
   color: var(--label);
 }
 
-/* Whose place it is, as the way to who else is here: a finger high. */
-.guestLink {
-  display: inline-flex;
+/* Whose place it is, on one line: the room and the owner each in a box of
+   their own that is cut where the line ends - the shorter one whole, since
+   the tracks share the line evenly up to what each needs. As the way to who
+   else is here it is a finger high. */
+.guestSaid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, max-content);
+  justify-content: start;
   align-items: center;
+}
+
+a.guestSaid {
   min-height: var(--control-height);
+}
+
+.guestSaid > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
 }
 
 /* --- the demo's banner --- */

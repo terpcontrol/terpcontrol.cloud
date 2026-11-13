@@ -1,16 +1,15 @@
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import { useSpaceOverview, useSpaces } from '@/api/spaces';
 import { removePath } from '@/app/places';
+import { Row } from '@/ui/Rows';
 import { enough } from '@/ui/session-access';
-import ui from '@/ui/ui.module.css';
 
 /**
  * A place with nothing left in it - no device, no camera, no grow - said to
- * its owner on its Start, with the way to end it: devices moved together leave
- * their old places empty, and an empty place stays a card of its own until
- * somebody ends it. Nothing removes it on its own, because an empty tent
- * between two grows is a place somebody still means to use.
+ * its owner on its Start, in a row that leads to ending it: devices moved
+ * together leave their old places empty, and an empty place stays a card of
+ * its own until somebody ends it. Nothing removes it on its own, because an
+ * empty tent between two grows is a place somebody still means to use.
  *
  * Only where the account has another place: the last one is Start itself.
  */
@@ -25,11 +24,8 @@ export function EmptyPlace({ spaceId }: { spaceId: string }) {
   if (!overview || !space || !empty || !others || !enough(space.youMay, 'own')) return null;
 
   return (
-    <p className={ui.note} role="status">
-      {t('space.empty.says', { name: overview.name })}{' '}
-      <Link to={removePath(spaceId)} className={ui.headLink}>
-        {t('space.empty.remove', { name: overview.name })} ›
-      </Link>
-    </p>
+    <div role="status">
+      <Row alone to={removePath(spaceId)} title={t('space.empty.says')} line={t('space.empty.remove', { name: overview.name })} />
+    </div>
   );
 }

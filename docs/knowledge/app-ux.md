@@ -209,7 +209,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   when this browser last had an answer (`terp.loaded.<user>`), and its "Nochmal versuchen" says "Versuche es …"
   for as long as it is asking. An account with nothing is asked "Womit fängst du an?" - a device, a grow without
   one, the demo, an invitation. A member let into somebody's place is told whose it is and what they may do ("von
-  @… · du darfst eintragen") and reads the targets with who can change them; the demo says under a banner that
+  @… · du darfst eintragen"; a long room or handle is cut inside its own box and never runs under the pill) and reads the targets with who can change them; the demo says under a banner that
   nothing can be changed, with the way to an account.
 - **A place is one climate on Start** (Chris, 2026-11-11): its readings, its sentence and its targets are those of
   the device the server names first as the place's climate; whatever else stands there is listed under Steuerung,
@@ -280,26 +280,41 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   menu with its sheets for renaming, the room, a device brought here and the removal, and the page "Mitglieder &
   Teilen".
   - *Name, kind and room are one save*, answered by a toast that names each change and takes all of it back
-    ("Zelt 1 heißt jetzt Blütezelt · Blütezelt steht jetzt in Dachboden"). Renaming or regrouping writes nothing
-    into a grow.
+    ("Zelt 1 heißt jetzt Blütezelt · Blütezelt steht jetzt in Dachboden"); the toast says the room's stored name,
+    not what was typed, and "Widerrufen" is answered with what holds again. Renaming or regrouping writes nothing
+    into a grow. Without a connection the save fails at once, with the sentence for a lost connection and the
+    button to send it again: every write is sent whatever the browser believes about the connection (`WRITES`,
+    `api/query-client.ts`), because one held back until the browser said "online" left "Sichert …" standing.
   - *A name is unique among one's places.* The page says "Ein anderer Ort heißt schon „…“" under the field while it
     is typed and keeps "Sichern" off; the server refuses the same (`name_taken`), and its sentence is shown where
     the page could not know. Upper and lower case and blanks make no second name (`nameKey`, shared with the server).
-  - *A room is a field*: one of the owner's rooms, "Neuer Raum …" with its name, or "Kein Raum". It is asked from
-    the second place on, and of the owner only. Nobody makes, renames or deletes a room by itself: the server makes
-    the one a place names and ends it with its last place.
-  - *"Geräte hier"* lists the devices and cameras standing there, each leading to its page, and "+ Gerät hierher
-    holen": a device standing elsewhere moves by the device's own sheet, opened with this place chosen - it says
-    what goes along, and the toast takes the move back -, a new one by its code (`/claim?space=`).
-  - *"Wer … sieht"* is one card (`screens/space/members/Members.tsx`): the owner, each guest with what they may do
-    and the way out, "+ Jemanden einladen", and "Einladung gilt für" - this place or its room, which switches whose
-    list and links the card is. The links with their terms, the QR code, adding by @name, the table of what each
-    role may do and the way to a share link open under the card from "+ Jemanden einladen"; closed, the page shows
-    none of it. A member who may not manage the place is shown the same card as a page of its own
-    (`/spaces/:id/members`, from "von @…" on Start), with the one control that lets them leave; whoever manages the
-    place is sent from that address to the edit page.
+  - *A room is a field, and says whom it lets in* (the redesign session of 2026-11-12, after the round's walk): one
+    of the owner's rooms, "Neuer Raum …" with its name, or "Kein Raum", asked from the second place on and of the
+    owner only. An option carries its people ("Keller · 1 Person sieht mit"), and the save toast names who sees the
+    place now and who no longer does. **A room exists only while a place stands in it**: taking the last place out
+    of a room that has members asks first, in a sheet that names them - the room ends and their way in with it -
+    and that write has no undo. Nobody makes, renames or deletes a room by itself.
+  - *"Geräte hier"* lists the devices and cameras standing there, each leading to its page, and, for the owner of
+    the place, "+ Gerät hierher holen": a device of the same account standing elsewhere moves by the device's own
+    sheet, opened with this place chosen - it says what goes along, and the toast takes the move back -, a new one
+    by its code (`/claim?space=`). A device stands only in a place of its owner (ADR 0001), so a member who manages
+    the place is offered neither, and the device's sheet asks only its owner where it stands.
+  - *"Wer … sieht" is one list of everybody who sees the place* (`screens/space/members/Members.tsx`): the owner
+    ("Du · verwaltest"), the place's own guests, and the members of its room tagged "über Keller", each row with
+    what they may do and the way out; a write goes to the row it is about, the room's included. What each role may
+    do is behind the help button beside the heading - no table on the page. The links that are out stand under the
+    list, each saying what it is for; "+ Jemanden einladen" opens the ways in, and "Einladung gilt für" inside it
+    changes only what the next invitation is for - this place or its room - and closes nothing. **Every write here
+    answers**: a role with a toast and undo, a removal with a toast that also names the link it stopped, an undo
+    with what holds again.
+  - A member who may not manage the place is shown the same list as a page of its own (`/spaces/:id/members`, from
+    "von @…" on Start); whoever manages the place is sent from that address to the edit page. **A guest who leaves
+    lands on Start** with a toast that names what was left; one who still sees the place through its room stays
+    and is told so.
   - What needs the owner - the room, the people, the end - is drawn for the owner only; a member who may manage
     edits the name and the kind and sees who is here.
+  - A place that has ended and an id that names nothing are the same page here too: a heading, the way to Start, no
+    retry; a list that could not be read is another state and keeps its retry.
 - **"Ort entfernen" gives everything standing there its own destination** (Chris, 2026-10-13: "irgendwie muss es
   möglich sein, einen Raum, den ich nicht mehr haben will, zu löschen"; 2026-11-11, decision 5; built by the
   redesign session of 2026-11-12, and again after its critic's walk - the rules below are that session's;
