@@ -726,6 +726,140 @@ describe('applying a climate preset', () => {
     expect(Date.parse(heater.spans[0].startsAt)).toBeLessThan(base + 329 * 60_000);
   });
 
+  // What a gap is - the interval the device was keeping there - asked of the route itself. The seventh walk's
+  // rule reached the lanes and the nights and not the curve: the route handed the curve no samples' counts, and
+  // the unit tests, which passed them by hand, could not see it.
+  describe('a silence by the interval the device was keeping, as the route answers it', () => {
+    const MINUTE = 60_000;
+    /** A tent whose controller wrote these samples, the lamp lit in all of them. */
+    const staged = async (samples: number[]): Promise<string> => {
+      const spaceId = await tentWithAController();
+      const deviceId = (await owner.client.get('/v1/devices').expect(200)).body.items.find((one: { spaceId: string }) => one.spaceId === spaceId).id;
+      await seedMeasurements(samples.map(time => ({ time, device_id: deviceId, fields: { temperature: 24, humidity: 55, out_light: 70 } })));
+      return spaceId;
+    };
+    const every = (seconds: number, from: number, to: number, quiet: (at: number) => boolean = () => false): number[] => {
+      const samples: number[] = [];
+      for (let at = from; at < to; at += seconds * 1000) if (!quiet(at)) samples.push(at);
+      return samples;
+    };
+    type Span = { startsAt: string; endsAt: string };
+    /** What the answer says of the window: its step, and where the curve, the lamp's lane, its points and the silences break. */
+    const read = async (spaceId: string, query: string) => {
+      const body = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?${query}&metrics=temperature`).expect(200)).body;
+      const lamp = body.outputs.find((one: { output: string }) => one.output === 'light');
+      const points = body.panels[0].points as { value: number | null }[];
+      const inside = (body.silences as Span[]).filter(one => one.startsAt !== body.startsAt && one.endsAt !== body.endsAt);
+      return {
+        step: body.stepSeconds as number,
+        curve: points.slice(0, -1).filter(point => point.value === null).length,
+        lamp: (lamp.spans as Span[]).length - 1,
+        strip: (lamp.points as { resumed?: boolean }[]).slice(1).filter(point => point.resumed).length,
+        silences: inside.map(one => [Date.parse(one.startsAt), Date.parse(one.endsAt)]),
+      };
+    };
+    /** A window named outright, ending where the samples end. */
+    const window = (to: number, hours: number) => `range=24h&from=${new Date(to - hours * 3_600_000).toISOString()}&to=${new Date(to).toISOString()}`;
+    const whole = (step: number) => ({ step, curve: 0, lamp: 0, strip: 0, silences: [] });
+
+    it.each([
+      [300, 32, 240],
+      [300, 36, 270],
+      [300, 38, 285],
+      [600, 64, 480],
+      [600, 72, 540],
+      [900, 120, 900],
+    ])('draws a device that reports every %i s as one line over %i h, at a step of %i s', async (seconds, hours, step) => {
+      const to = Math.floor((Date.now() - 10 * MINUTE) / (15 * MINUTE)) * 15 * MINUTE;
+      const spaceId = await staged(every(seconds, to - hours * 3_600_000, to));
+
+      // Just under its interval every tenth window stands empty - and at a quarter of an hour none - and none is a silence.
+      expect(await read(spaceId, window(to, hours))).toEqual(whole(step));
+    });
+
+    it('draws a device heard twice as two pieces at a week and at a month, never one line across the half day between', async () => {
+      const now = Math.floor(Date.now() / MINUTE) * MINUTE;
+      const [evening, morning] = [now - 20 * 3_600_000, now - 8 * 3_600_000];
+      const spaceId = await staged([...every(5, evening, evening + 10 * MINUTE), ...every(5, morning, morning + 10 * MINUTE)]);
+
+      for (const range of ['7d', '30d']) {
+        const answer = await read(spaceId, `range=${range}`);
+        expect([range, answer.curve, answer.lamp, answer.strip]).toEqual([range, 1, 1, 1]);
+        // From the last sample of the evening to the first of the morning, by the samples at either step.
+        expect(answer.silences).toEqual([[evening + 10 * MINUTE - 5000, morning]]);
+      }
+    });
+
+    it('takes no trickle for a rhythm: three samples every two hours are two hours of silence between them', async () => {
+      const to = Math.floor((Date.now() - 10 * MINUTE) / (2 * 3_600_000)) * 2 * 3_600_000;
+      const bursts = Array.from({ length: 12 }, (_, index) => to - (index + 1) * 2 * 3_600_000 + 20 * MINUTE).reverse();
+      const spaceId = await staged(bursts.flatMap(at => [at, at + 5000, at + 10_000]));
+
+      for (const hours of [24, 168]) {
+        const answer = await read(spaceId, window(to, hours));
+        expect([hours, answer.curve, answer.strip, answer.silences.length]).toEqual([hours, 11, 11, 11]);
+        expect(answer.silences[0]).toEqual([bursts[0] + 10_000, bursts[1]]);
+      }
+    });
+
+    it('gives one pause one verdict at every range finer than it: four intervals are slow, five are a silence', async () => {
+      const to = Math.floor((Date.now() - 10 * MINUTE) / (15 * MINUTE)) * 15 * MINUTE;
+      // A device every quarter of an hour that misses one report, three, five, and six hours of them.
+      const pauses = [
+        [19 * 60, 30],
+        [16 * 60, 60],
+        [13 * 60, 90],
+        [10 * 60, 375],
+      ].map(([before, minutes]) => [to - before * MINUTE, to - before * MINUTE + minutes * MINUTE]);
+      const spaceId = await staged(every(900, to - 7 * DAY_MS, to, at => pauses.some(([from, until]) => at > from && at < until)));
+
+      for (const [hours, step] of [
+        [24, 180],
+        [36, 270],
+        [48, 360],
+        [72, 540],
+        [168, 1500],
+      ]) {
+        const answer = await read(spaceId, window(to, hours));
+        // The pauses of an hour and a half and of six hours, each from its last sample to its next - and nothing else.
+        expect([answer.step, ...answer.silences]).toEqual([step, pauses[2], pauses[3]]);
+        expect([answer.curve, answer.lamp, answer.strip]).toEqual([2, 2, 2]);
+      }
+    });
+
+    it('reads a device every five seconds as before: each pause a silence from the range on that its limit allows', async () => {
+      const to = Math.floor((Date.now() - 10 * MINUTE) / (30 * MINUTE)) * 30 * MINUTE;
+      // Pauses of 35 s, 125 s, 605 s and 3605 s, each begun after a sample on an even minute. A pause about a step long
+      // is told by whether a window stands empty in it, and this store closes a window with the sample at its end
+      // where InfluxDB opens the next with it: there the same pauses begin after a sample at :55.
+      const pauses = [
+        [to - 2 * MINUTE, 35],
+        [to - 6 * MINUTE, 125],
+        [to - 50 * MINUTE, 605],
+        [to - 200 * MINUTE, 3605],
+      ].map(([from, seconds]) => [from, from + seconds * 1000]);
+      const spaceId = await staged(every(5, to - 5 * 3_600_000, to, at => pauses.some(([from, until]) => at > from && at < until)));
+      const verdicts = async (hours: number) => {
+        const answer = await read(spaceId, window(to, hours));
+        const said = pauses.map(([from, until]) =>
+          from < to - hours * 3_600_000 ? '-' : answer.silences.some(one => one[0] === from && one[1] === until) ? 'silence' : 'line',
+        );
+        // One verdict in every part of the answer: the curve, the lamp's lane and its points break where the silences are.
+        expect([answer.curve, answer.lamp, answer.strip]).toEqual(Array(3).fill(said.filter(one => one === 'silence').length));
+        return `${answer.step} s: ${said.join(' ')}`;
+      };
+
+      expect(await verdicts(1 / 3)).toBe('5 s: silence silence - -');
+      expect(await verdicts(1)).toBe('10 s: line silence silence -');
+      expect(await verdicts(4)).toBe('30 s: line silence silence silence');
+      expect(await verdicts(8)).toBe('60 s: line silence silence silence');
+      expect(await verdicts(16)).toBe('120 s: line silence silence silence');
+      expect(await verdicts(24)).toBe('180 s: line line silence silence');
+      expect(await verdicts(7 * 24)).toBe('1500 s: line line line silence');
+      expect(await verdicts(30 * 24)).toBe('5400 s: line line line line');
+    });
+  });
+
   // Read over a grow, a point is hours wide and no multiple of a day, so a window held a different share of
   // day and night every time. Worked out from the window's own means with one leaf offset, the same climate
   // read 0.92 to 1.2 kPa in one month and 1.0 to 1.1 in another - a bow-tie no tent ever drew.

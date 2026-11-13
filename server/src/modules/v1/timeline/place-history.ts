@@ -109,11 +109,15 @@ export const fromHandover = (leading: DeviceHistory, chain: readonly Predecessor
   };
 };
 
-/** The samples per window of the histories a curve is joined from, each up to where the next one takes over. */
-const samplesAcross = (parts: readonly { history: DeviceHistory; until: number }[]): Pick<DeviceHistory, 'samples'> =>
-  parts.some(part => part.history.samples)
-    ? { samples: new Map(parts.flatMap(({ history, until }) => [...(history.samples ?? [])].filter(([stamp]) => stamp <= until))) }
-    : {};
+/** What the reads a curve is joined from say of their samples - how many each window held, the edges of each pause -, each up to where the next takes over. */
+const sampledAcross = (parts: readonly { history: DeviceHistory; until: number }[]): Pick<DeviceHistory, 'samples' | 'edges'> => {
+  const joined = <T>(of: (history: DeviceHistory) => ReadonlyMap<number, T> | undefined) =>
+    new Map(parts.flatMap(({ history, until }) => [...(of(history) ?? [])].filter(([stamp]) => stamp <= until)));
+  return {
+    ...(parts.some(part => part.history.samples) ? { samples: joined(history => history.samples) } : {}),
+    ...(parts.some(part => part.history.edges) ? { edges: joined(history => history.edges) } : {}),
+  };
+};
 
 /** The leading device's history - from the hand-over on - with its predecessors' readings in front of it, each over the stretch it held. */
 export const withPredecessors = (leading: DeviceHistory, chain: readonly Predecessor[], histories: readonly DeviceHistory[]): DeviceHistory => {
@@ -125,7 +129,7 @@ export const withPredecessors = (leading: DeviceHistory, chain: readonly Predece
 
   return {
     ...leading,
-    ...samplesAcross([...earlier, { history: leading, until: Number.POSITIVE_INFINITY }]),
+    ...sampledAcross([...earlier, { history: leading, until: Number.POSITIVE_INFINITY }]),
     series: {
       ...leading.series,
       startsAt: earlier[0].history.series.startsAt,

@@ -561,9 +561,9 @@ export const edgesOf = (rows: readonly FluxRow[], asked: readonly EdgeAsked[]): 
  * stretch of what was heard begins in (its first sample) and the one it ends
  * in (its last). The first stretch begins in the read's first window only if
  * that is not the first there is, and the last ends at the device's newest
- * sample, which the read knows without this. `limits` say how far apart two
- * stamps may stand without a silence between them (`quietLimits`); without
- * them any empty window is one.
+ * sample, which the read knows without this. `limits` say how long the
+ * device may say nothing at each place (`quietLimits`); without them any
+ * empty window is asked about.
  */
 export const edgesAround = (stamps: readonly number[], window: FluxWindow, limits?: readonly number[]): EdgeAsked[] => {
   const step = Math.max(1, Math.trunc(window.stepSeconds)) * 1000;
@@ -575,9 +575,13 @@ export const edgesAround = (stamps: readonly number[], window: FluxWindow, limit
     end,
   });
 
+  // A gap may be a silence where a window stands empty in it and, measured by its samples - a step to either
+  // side of what the stamps say - it could be longer than its limit: those are asked about, and judged by the answer.
+  const open = (index: number) => stamps[index] - stamps[index - 1] > step && stamps[index] - stamps[index - 1] + step > (limits?.[index] ?? 0);
+
   return stamps.flatMap((stamp, index) => [
-    ...((index === 0 ? stamp - step > starts : stamp - stamps[index - 1] > (limits?.[index] ?? step)) ? [asked(stamp, 'first')] : []),
-    ...(index < stamps.length - 1 && stamps[index + 1] - stamp > (limits?.[index + 1] ?? step) ? [asked(stamp, 'last')] : []),
+    ...((index === 0 ? stamp - step > starts : open(index)) ? [asked(stamp, 'first')] : []),
+    ...(index < stamps.length - 1 && open(index + 1) ? [asked(stamp, 'last')] : []),
   ]);
 };
 

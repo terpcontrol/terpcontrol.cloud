@@ -79,6 +79,7 @@ const answer = (over: Partial<SpaceTimeline> = {}): SpaceTimeline => ({
     { metric: 'co2', points: Array.from({ length: 24 }, (_, hour) => ({ measuredAt: at(hour + 1), value: 820 })), targets: [] },
   ],
   nights: [{ startsAt: at(6), endsAt: at(12) }],
+  silences: [],
   transitions: [],
   alarms: [
     {

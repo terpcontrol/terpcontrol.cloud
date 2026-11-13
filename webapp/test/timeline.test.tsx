@@ -87,6 +87,7 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
       { metric: 'co2', points: points(820), targets: [] },
     ],
     nights: [],
+    silences: [],
     transitions: [],
     alarms: [],
     outputs: [

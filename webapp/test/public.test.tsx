@@ -145,6 +145,7 @@ const sharedTimeline = {
   ],
   lastReadingAt: null,
   nights: [],
+  silences: [],
   alarms: [],
   outputs: [],
   events: [],

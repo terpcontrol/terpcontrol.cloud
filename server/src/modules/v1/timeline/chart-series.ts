@@ -52,7 +52,7 @@ export const chartSeriesOf = async (
     recordOf(sources.targetRecord, steeringOf(devices)?.id ?? null, window),
     framesOf(sources.media, cameras, window, CHART_FRAME_SLOTS),
   ]);
-  const climate = panelsOf(ownOf(devices, histories)?.series ?? null, stretchesOf(grow, devices, window, now, aimed), metrics);
+  const climate = panelsOf(ownOf(devices, histories), stretchesOf(grow, devices, window, now, aimed), metrics);
 
   return {
     startsAt: window.startsAt.toISOString(),

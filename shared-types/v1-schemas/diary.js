@@ -1326,6 +1326,10 @@ exports.timelineOutputPoint = (0, common_js_1.named)('TimelineOutputPoint', zod_
         .number()
         .nullable()
         .describe('The mean level over all of the samples in per cent of full output, to a tenth, a sample in which the output was off counting as 0: a heater at 80 % in one sample of three is 26.7. Null for an output that only switches, and for the CO2 valve, whose share of samples says all there is.'),
+    resumed: zod_1.z
+        .boolean()
+        .optional()
+        .describe('True where the device had fallen silent before this window, by the interval it was keeping there: the point then stands for its own window alone. Elsewhere it stands for the stretch since the point before it - a device slower than the step is one stretch - and a lane\'s first point for the stretch since the read began.'),
 }));
 /** One output over the window, as the lanes under the panels draw it: when it was on, and what its samples came to point by point. */
 exports.timelineOutputLane = (0, common_js_1.named)('TimelineOutputLane', zod_1.z.object({
@@ -1433,6 +1437,9 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
         .array(exports.timelineSpan)
         .optional()
         .describe('When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.'),
+    silences: zod_1.z
+        .array(exports.timelineSpan)
+        .describe('The stretches of the window the device the panels are of said nothing in, by the interval it was keeping, each to the second where the read knew its samples: what a cursor standing in one is told, and the one verdict the curve, the lanes and the nights are cut by. One that begins with the window or ends with it was not seen to begin or end. Empty where nothing is drawn of a device.'),
     alarms: zod_1.z.array(exports.timelineAlarm),
     outputs: zod_1.z.array(exports.timelineOutputLane),
     events: zod_1.z.array(exports.entry).describe('The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),

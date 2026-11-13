@@ -13119,6 +13119,10 @@
           "number",
           "null"
         ]
+      },
+      "resumed": {
+        "description": "True where the device had fallen silent before this window, by the interval it was keeping there: the point then stands for its own window alone. Elsewhere it stands for the stretch since the point before it - a device slower than the step is one stretch - and a lane's first point for the stretch since the read began.",
+        "type": "boolean"
       }
     },
     "required": [
@@ -13463,6 +13467,13 @@
           "$ref": "#/components/schemas/TimelineSpan"
         }
       },
+      "silences": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineSpan"
+        },
+        "description": "The stretches of the window the device the panels are of said nothing in, by the interval it was keeping, each to the second where the read knew its samples: what a cursor standing in one is told, and the one verdict the curve, the lanes and the nights are cut by. One that begins with the window or ends with it was not seen to begin or end. Empty where nothing is drawn of a device."
+      },
       "alarms": {
         "type": "array",
         "items": {
@@ -13566,6 +13577,7 @@
       "reading",
       "lastReadingAt",
       "nights",
+      "silences",
       "alarms",
       "outputs",
       "events",

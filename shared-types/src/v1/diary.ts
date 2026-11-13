@@ -1739,6 +1739,12 @@ export const timelineOutputPoint = named(
       .describe(
         'The mean level over all of the samples in per cent of full output, to a tenth, a sample in which the output was off counting as 0: a heater at 80 % in one sample of three is 26.7. Null for an output that only switches, and for the CO2 valve, whose share of samples says all there is.',
       ),
+    resumed: z
+      .boolean()
+      .optional()
+      .describe(
+        'True where the device had fallen silent before this window, by the interval it was keeping there: the point then stands for its own window alone. Elsewhere it stands for the stretch since the point before it - a device slower than the step is one stretch - and a lane\'s first point for the stretch since the read began.',
+      ),
   }),
 );
 
@@ -1885,6 +1891,11 @@ export const spaceTimeline = named(
       .optional()
       .describe(
         'When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.',
+      ),
+    silences: z
+      .array(timelineSpan)
+      .describe(
+        'The stretches of the window the device the panels are of said nothing in, by the interval it was keeping, each to the second where the read knew its samples: what a cursor standing in one is told, and the one verdict the curve, the lanes and the nights are cut by. One that begins with the window or ends with it was not seen to begin or end. Empty where nothing is drawn of a device.',
       ),
     alarms: z.array(timelineAlarm),
     outputs: z.array(timelineOutputLane),

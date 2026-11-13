@@ -4892,6 +4892,7 @@ export declare const timelineOutputPoint: z.ZodObject<{
     heard: z.ZodNumber;
     on: z.ZodNumber;
     level: z.ZodNullable<z.ZodNumber>;
+    resumed: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 /** One output over the window, as the lanes under the panels draw it: when it was on, and what its samples came to point by point. */
 export declare const timelineOutputLane: z.ZodObject<{
@@ -4918,6 +4919,7 @@ export declare const timelineOutputLane: z.ZodObject<{
         heard: z.ZodNumber;
         on: z.ZodNumber;
         level: z.ZodNullable<z.ZodNumber>;
+        resumed: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
 /**
@@ -5122,6 +5124,10 @@ export declare const spaceTimeline: z.ZodObject<{
         startsAt: z.ZodISODateTime;
         endsAt: z.ZodISODateTime;
     }, z.core.$strip>>>;
+    silences: z.ZodArray<z.ZodObject<{
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
     alarms: z.ZodArray<z.ZodObject<{
         alertId: z.ZodString;
         kind: z.ZodEnum<{
@@ -5173,6 +5179,7 @@ export declare const spaceTimeline: z.ZodObject<{
             heard: z.ZodNumber;
             on: z.ZodNumber;
             level: z.ZodNullable<z.ZodNumber>;
+            resumed: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>;
     events: z.ZodArray<z.ZodObject<{
@@ -6720,6 +6727,7 @@ export declare const growSeries: z.ZodObject<{
             heard: z.ZodNumber;
             on: z.ZodNumber;
             level: z.ZodNullable<z.ZodNumber>;
+            resumed: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>;
     nights: z.ZodArray<z.ZodObject<{
@@ -6842,6 +6850,7 @@ export declare const spaceSeries: z.ZodObject<{
             heard: z.ZodNumber;
             on: z.ZodNumber;
             level: z.ZodNullable<z.ZodNumber>;
+            resumed: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>;
     nights: z.ZodArray<z.ZodObject<{

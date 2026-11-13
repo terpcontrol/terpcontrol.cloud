@@ -1,12 +1,13 @@
 import type { DeviceLive, DeviceSeries, Metric, OutputMetric, TimelineRange, TimelineSpan } from '@fg2/shared-types/v1';
 import { spaceTimeline } from '@fg2/shared-types/v1-schemas';
+import { quietLimits } from '@fg2/shared-types/v1-schemas/cadence.js';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { movedTo } from '@common/v1/device-placements';
 import { DataService, DeviceHistory, SeriesRequest } from '@modules/data/data.service';
-import { FluxRow, switchingsByField } from '@modules/data/flux';
+import { edgesAround, edgesOf, FluxRow, switchingsByField } from '@modules/data/flux';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
-import { lanesOf, nightsOf, panelsOf, readingOf } from '@modules/v1/timeline/timeline-series';
+import { lanesOf, nightsOf, panelsOf, readingOf, silencesOf } from '@modules/v1/timeline/timeline-series';
 import { TimelineService } from '@modules/v1/timeline/timeline.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { session, visitor } from './support/callers';
@@ -592,13 +593,13 @@ describe('the stacked panels', () => {
     });
 
     // A door open for forty seconds: the sensor saw 71.5 %, the three-minute mean barely moved.
-    expect(panelsOf(one({ value: 56.04, min: 54.96, max: 71.52 }), [], ['humidity'])[0].points).toEqual([
+    expect(panelsOf({ series: one({ value: 56.04, min: 54.96, max: 71.52 }) }, [], ['humidity'])[0].points).toEqual([
       { measuredAt: at, value: 56, min: 55, max: 71.5 },
     ]);
     // A window of one sample has no extremes to tell from its value.
-    expect(panelsOf(one({ value: 56 }), [], ['humidity'])[0].points).toEqual([{ measuredAt: at, value: 56 }]);
+    expect(panelsOf({ series: one({ value: 56 }) }, [], ['humidity'])[0].points).toEqual([{ measuredAt: at, value: 56 }]);
     // A deficit of 1.04 in every sample beside a mean that came to 1.05 stays the figure that occurred.
-    expect(panelsOf(one({ value: 56.3, min: 56.1, max: 56.1 }), [], ['humidity'])[0].points[0]).toMatchObject({ min: 56.1, max: 56.1 });
+    expect(panelsOf({ series: one({ value: 56.3, min: 56.1, max: 56.1 }) }, [], ['humidity'])[0].points[0]).toMatchObject({ min: 56.1, max: 56.1 });
     // Nothing measures: no panel.
     expect(panelsOf(null, [], ['humidity'])).toEqual([]);
   });
@@ -640,13 +641,13 @@ describe('the stacked panels', () => {
   });
 
   it('answers the windows something was read in and not the empty ones between them', async () => {
-    // A backfilled history: one sample an hour, into windows of three minutes.
-    sampleEverySeconds = 3600;
+    // A backfilled history: one sample every quarter of an hour, into windows of three minutes.
+    sampleEverySeconds = 900;
     const points = (await readAs(session(OWNER))).panels[0].points;
 
-    expect(points).toHaveLength(24);
-    // Nothing missing, so nothing to break at: an hourly history draws a line
-    // rather than twenty-four readings no two of which are neighbours.
+    expect(points).toHaveLength(96);
+    // Nothing missing, so nothing to break at: such a history draws a line
+    // rather than ninety-six readings no two of which are neighbours.
     expect(points.every(point => point.value !== null)).toBe(true);
   });
 
@@ -2020,31 +2021,48 @@ describe('a silence by the interval the device was keeping', () => {
   const OPENS = new Date('2026-03-01T00:00:00.000Z');
   const CLOSES = new Date('2026-03-04T00:00:00.000Z');
   const WINDOW = { startsAt: OPENS, endsAt: CLOSES };
+  const MINUTE = 60_000;
   /** Twelve hours on from six, every day. */
   const lit = (at: number): boolean => new Date(at).getUTCHours() >= 6 && new Date(at).getUTCHours() < 18;
 
   /**
-   * A device read the way the route reads it, from its samples: one every `everyAt(time)` seconds, none where
-   * `quiet` says so, into windows of `stepSeconds` cut on the epoch and stamped at their close.
+   * A device's read made from its samples as the store's read makes it: windows of `stepSeconds` cut on the epoch
+   * and stamped at their close, the samples of each counted, and the store asked for the first and the last
+   * sample beside every gap that may be a silence.
    */
-  const read = (everyAt: (at: number) => number, stepSeconds: number, quiet: (at: number) => boolean = () => false): DeviceHistory => {
+  const staged = (samples: number[], stepSeconds: number, window = WINDOW): DeviceHistory => {
     const step = stepSeconds * 1000;
-    const samples: number[] = [];
-    for (let at = OPENS.getTime() + 7000; at < CLOSES.getTime(); at += everyAt(at) * 1000) if (!quiet(at)) samples.push(at);
     const windows = new Map<number, number[]>();
-    for (const at of samples) {
-      const stamp = Math.min((Math.floor(at / step) + 1) * step, CLOSES.getTime());
-      windows.set(stamp, [...(windows.get(stamp) ?? []), at]);
+    for (const at of samples.filter(at => at >= window.startsAt.getTime() && at < window.endsAt.getTime())) {
+      const stamp = Math.min((Math.floor(at / step) + 1) * step, window.endsAt.getTime());
+      if (!windows.has(stamp)) windows.set(stamp, []);
+      windows.get(stamp)!.push(at);
     }
+    const stamps = [...windows.keys()];
+    const counts = new Map([...windows].map(([stamp, inside]) => [stamp, inside.length]));
     const points = (value: (inside: number[]) => number) =>
       [...windows].map(([stamp, inside]) => ({ measuredAt: new Date(stamp).toISOString(), value: value(inside) }));
     const light = points(inside => inside.filter(lit).length / inside.length);
+    const heard = [...windows.values()].flat();
+    const asked = edgesAround(
+      stamps,
+      { ...window, stepSeconds },
+      quietLimits(
+        stamps,
+        step,
+        stamps.map(stamp => counts.get(stamp)),
+      ),
+    );
+    const rows = asked.flatMap(one => {
+      const inside = heard.filter(at => at >= one.startsAt.getTime() && at < one.endsAt.getTime());
+      return inside.length > 0 ? [{ _time: new Date(one.end === 'first' ? inside[0] : inside.at(-1)!).toISOString() }] : [];
+    });
 
     return {
       series: {
         deviceId: CONTROLLER,
-        startsAt: OPENS.toISOString(),
-        endsAt: CLOSES.toISOString(),
+        startsAt: window.startsAt.toISOString(),
+        endsAt: window.endsAt.toISOString(),
         stepSeconds,
         metrics: [{ metric: 'temperature', points: points(inside => (lit(inside[0]) ? 25 : 20)) }],
         outputs: [{ output: 'light', points: light }],
@@ -2052,8 +2070,8 @@ describe('a silence by the interval the device was keeping', () => {
       outputs: [
         {
           output: 'light',
-          switchings: samples.flatMap((at, index) =>
-            index === 0 || lit(at) !== lit(samples[index - 1]) ? [{ at: new Date(at).toISOString(), on: lit(at) }] : [],
+          switchings: heard.flatMap((at, index) =>
+            index === 0 || lit(at) !== lit(heard[index - 1]) ? [{ at: new Date(at).toISOString(), on: lit(at) }] : [],
           ),
           figures: light.map(point => {
             const inside = windows.get(Date.parse(point.measuredAt)) ?? [];
@@ -2061,26 +2079,48 @@ describe('a silence by the interval the device was keeping', () => {
           }),
         },
       ],
-      lastSampleAt: new Date(samples.at(-1)!).toISOString(),
-      samples: new Map([...windows].map(([stamp, inside]) => [stamp, inside.length])),
+      lastSampleAt: heard.length > 0 ? new Date(heard.at(-1)!).toISOString() : null,
+      samples: counts,
+      ...(asked.length > 0 ? { edges: edgesOf(rows as FluxRow[], asked) } : {}),
     };
   };
-  const drawn = (history: DeviceHistory) => ({
-    stretches: lanesOf([history], WINDOW)[0].spans.length,
-    nights: nightsOf([history], WINDOW).length,
-    breaks: panelsOf(history.series, [], ['temperature'], history.samples)[0]
-      .points.slice(0, -1)
-      .filter(point => point.value === null).length,
-  });
+  /** A sample every `everyAt(time)` seconds over the three days, none where `quiet` says so. */
+  const sampled = (everyAt: (at: number) => number, quiet: (at: number) => boolean = () => false, from = OPENS.getTime() + 7000): number[] => {
+    const samples: number[] = [];
+    for (let at = from; at < CLOSES.getTime(); at += everyAt(at) * 1000) if (!quiet(at)) samples.push(at);
+    return samples;
+  };
+  const read = (everyAt: (at: number) => number, stepSeconds: number, quiet?: (at: number) => boolean) =>
+    staged(sampled(everyAt, quiet), stepSeconds);
+  /** What every part of the answer says of one read: they are one verdict, so the curve breaks where the lane, the night and the silences do. */
+  const drawn = (history: DeviceHistory, window = WINDOW) => {
+    const [lane] = lanesOf([history], window);
+    const points = panelsOf(history, [], ['temperature'])[0].points;
+    const silences = silencesOf(history, window).filter(
+      one => one.startsAt !== window.startsAt.toISOString() && one.endsAt !== window.endsAt.toISOString(),
+    );
+    // The curve's breaks, the lane's points that resume and the silences inside the window are one count.
+    const breaks = points.slice(0, -1).filter(point => point.value === null).length;
+    expect((lane.points ?? []).slice(1).filter(point => point.resumed).length).toBe(breaks);
+    expect(silences.length).toBe(breaks);
+    return { stretches: lane.spans.length, nights: nightsOf([history], window).length, breaks };
+  };
+  /** Which of some pauses a read calls a silence, by the minute each began at. */
+  const silent = (history: DeviceHistory, window: typeof WINDOW, pauses: number[]) =>
+    pauses.map(began => silencesOf(history, window).some(one => Math.abs(Date.parse(one.startsAt) - began) < MINUTE));
 
   it.each([
     [60, 50],
     [60, 70],
+    [300, 240],
     [300, 270],
+    [300, 285],
     [300, 330],
+    [600, 480],
     [600, 540],
     [600, 660],
     [900, 810],
+    [900, 900],
     [900, 990],
   ])('draws a device that reports every %i s whole at a step of %i s: three days, four nights, one line', (every, step) => {
     // Just under and just over its interval, where every other window - or every tenth - stands empty and none is a silence.
@@ -2088,8 +2128,8 @@ describe('a silence by the interval the device was keeping', () => {
   });
 
   it('cannot tell without the counts: a read that counted nothing takes a device that leaves few windows empty for a fast one', () => {
-    const uncounted = { ...read(() => 300, 270), samples: undefined };
-    expect(drawn(uncounted).stretches).toBeGreaterThan(3);
+    const uncounted = { ...read(() => 300, 270), samples: undefined, edges: undefined };
+    expect(lanesOf([uncounted], WINDOW)[0].spans.length).toBeGreaterThan(3);
   });
 
   it('measures the interval beside each gap: a history of quarter hours is whole though live samples outnumber it', () => {
@@ -2097,6 +2137,78 @@ describe('a silence by the interval the device was keeping', () => {
     // window, the live day set the rhythm and every second point of the history was a silence.
     const live = CLOSES.getTime() - 24 * 3600_000;
     expect(drawn(read(at => (at < live ? 900 : 30), 540))).toEqual({ stretches: 3, nights: 4, breaks: 0 });
+  });
+
+  it('is not silent in the first quarter of an hour of a window whose device reported that slowly until live samples began', () => {
+    // Every quarter of an hour for half an hour, then every five seconds: the window's first gap has no other
+    // before it to be measured by, and was taken for a pause of the live device.
+    const live = OPENS.getTime() + 30 * MINUTE;
+    const history = staged(
+      sampled(at => (at < live ? 900 : 5), undefined, OPENS.getTime()).filter(at => at < OPENS.getTime() + 6 * 3600_000),
+      45,
+      { startsAt: OPENS, endsAt: new Date(OPENS.getTime() + 6 * 3600_000) },
+    );
+    expect(silencesOf(history, { startsAt: OPENS, endsAt: new Date(OPENS.getTime() + 6 * 3600_000) })).toEqual([]);
+  });
+
+  it('takes no trickle for a rhythm: three samples every two hours are two hours of silence between them', () => {
+    // Nothing reports more slowly than a history's quarter of an hour, so this device is one that gets little through.
+    const bursts = sampled(() => 5).filter(at => (at - OPENS.getTime()) % (2 * 3600_000) < 15_000);
+    for (const step of [180, 540, 1500]) {
+      const history = staged(bursts, step);
+      expect(drawn(history).breaks).toBe(35);
+      // The lamp is said for what was heard: a tick per burst, not twelve hours of light.
+      expect(lanesOf([history], WINDOW)[0].spans.every(span => Date.parse(span.endsAt) - Date.parse(span.startsAt) < 2 * step * 1000)).toBe(true);
+    }
+  });
+
+  it('draws a device heard twice as two pieces at every range, never one line across the half day between', () => {
+    const [evening, morning] = [Date.parse('2026-03-03T03:00:00.000Z'), Date.parse('2026-03-03T15:00:00.000Z')];
+    const twice = sampled(() => 5).filter(at => (at >= evening && at < evening + 10 * MINUTE) || (at >= morning && at < morning + 10 * MINUTE));
+    for (const [days, step] of [
+      [1, 180],
+      [3, 540],
+      [7, 1500],
+      [30, 5400],
+    ]) {
+      const window = { startsAt: new Date(CLOSES.getTime() - days * 86_400_000), endsAt: CLOSES };
+      expect(drawn(staged(twice, step, window), window).breaks).toBe(1);
+    }
+  });
+
+  it('gives one pause one verdict at every range finer than it: four intervals are slow, five are a silence', () => {
+    // A device every quarter of an hour that misses one report, three, five, and six hours of them.
+    const day = Date.parse('2026-03-03T00:00:00.000Z');
+    const pauses = [
+      [2 * 60, 30],
+      [6 * 60, 60],
+      [10 * 60, 90],
+      [14 * 60, 375],
+    ].map(([after, minutes]) => [day + after * MINUTE, day + (after + minutes) * MINUTE]);
+    const samples = sampled(
+      () => 900,
+      at => pauses.some(([from, to]) => at > from && at < to),
+      OPENS.getTime(),
+    );
+    for (const [hours, step] of [
+      [24, 180],
+      [36, 270],
+      [48, 360],
+      [72, 540],
+      [168, 1500],
+    ]) {
+      const window = { startsAt: new Date(CLOSES.getTime() - hours * 3600_000), endsAt: CLOSES };
+      // Where a window holds one sample or two, the interval of a single gap read 12.5 or 25 minutes, and the pause
+      // of an hour was a line at one of these ranges and cut at the next.
+      expect([
+        step,
+        ...silent(
+          staged(samples, step, window),
+          window,
+          pauses.map(([from]) => from),
+        ),
+      ]).toEqual([step, false, false, true, true]);
+    }
   });
 
   it('still breaks where a slow device missed clearly more than its interval, and not where it was slow once', () => {
@@ -2135,5 +2247,43 @@ describe('a silence by the interval the device was keeping', () => {
         ),
       ),
     ).toEqual({ stretches: 4, nights: 4, breaks: 1 });
+  });
+
+  it('reads a device every five seconds as the eighth walk found it: each pause a silence from the range on that its limit allows', () => {
+    // Five hours of samples up to the window's end, with pauses of 35 s, 125 s, 605 s and 3605 s - each begun
+    // after a sample at :55, as a device that restarts leaves them.
+    const end = CLOSES.getTime();
+    const pauses = [
+      [end - 100_000 + 55_000 - 60_000, 35],
+      [end - 6 * MINUTE - 5000, 125],
+      [end - 50 * MINUTE - 5000, 605],
+      [end - 200 * MINUTE - 5000, 3605],
+    ].map(([from, seconds]) => [from, from + seconds * 1000]);
+    const samples = sampled(
+      () => 5,
+      at => pauses.some(([from, to]) => at > from && at < to),
+      end - 5 * 3600_000,
+    );
+    const verdicts = (seconds: number, step: number) => {
+      const window = { startsAt: new Date(end - seconds * 1000), endsAt: CLOSES };
+      return silent(
+        staged(samples, step, window),
+        window,
+        pauses.map(([from]) => from),
+      )
+        .map((quiet, index) => (pauses[index][0] < window.startsAt.getTime() ? '-' : quiet ? 'silence' : 'line'))
+        .join(' ');
+    };
+
+    expect(verdicts(20 * 60, 5)).toBe('silence silence - -');
+    expect(verdicts(3600, 10)).toBe('line silence silence -');
+    expect(verdicts(4 * 3600, 30)).toBe('line silence silence silence');
+    expect(verdicts(8 * 3600, 60)).toBe('line silence silence silence');
+    expect(verdicts(16 * 3600, 120)).toBe('line silence silence silence');
+    expect(verdicts(24 * 3600, 180)).toBe('line line silence silence');
+    expect(verdicts(7 * 86_400, 1500)).toBe('line line line silence');
+    expect(verdicts(30 * 86_400, 5400)).toBe('line line line line');
+    // At three days a pause of ten minutes is about a step long: it may fall into two windows and leave none empty.
+    expect(verdicts(3 * 86_400, 540)).toMatch(/^line line (line|silence) silence$/);
   });
 });
