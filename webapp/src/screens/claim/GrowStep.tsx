@@ -4,7 +4,6 @@ import type { Device, GrowthStage, Space } from '@fg2/shared-types/v1';
 import { expectLayout } from '@/api/layers';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaceOverview } from '@/api/spaces';
-import { typeName } from '@/ui/naming';
 import ui from '@/ui/ui.module.css';
 import { WhatGrows } from '@/screens/grow/new/WhatGrows';
 import { MoveHereSheet } from '@/screens/space/MoveHereSheet';
@@ -74,7 +73,7 @@ export function GrowStep({
 
   return (
     <section className={styles.screen}>
-      <FlowHead device={typeName(device.type, t)} step={step} of={of} onClose={skip} />
+      <FlowHead type={device.type} step={step} of={of} onClose={skip} />
       {still ? (
         <img
           className={styles.growPicture}
@@ -82,9 +81,9 @@ export function GrowStep({
           alt={t('home.card.stillAlt', { name: space.name })}
         />
       ) : null}
-      <h1 ref={headingRef} tabIndex={-1} className={styles.growTitle}>
-        {t('start.grow.title', { name: space.name })}
-      </h1>
+      <h2 ref={headingRef} tabIndex={-1} className={styles.growTitle}>
+        {t('start.grow.here')}
+      </h2>
       <p className={styles.growText}>{t(still ? 'start.grow.textPictured' : 'start.grow.text')}</p>
       <WhatGrows
         spaceId={space.id}

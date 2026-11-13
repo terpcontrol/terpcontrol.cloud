@@ -9,18 +9,16 @@ import type {
   Space,
 } from '@fg2/shared-types/v1';
 import { nameKey, numbered } from '@fg2/shared-types/v1-schemas/place-names.js';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import type { Translate } from '@/i18n/i18n';
 import { pairsACam } from '@/screens/camera/add/pairers';
 import { alarmsReach, channelsLabel, reachedBy } from '@/screens/notifications/reach';
 
 /**
  * What each step of the claim flow has settled, and the one line it says once
- * it is closed.
- *
- * A step is only rendered while it is open, so what it decided cannot live in
- * it: the screen holds the answers and these put them into the sentence the
- * ticked step carries. They are here rather than beside the steps because that
- * is the one thing the five have in common.
+ * it is closed. A step is only rendered while it is open, so what it decided
+ * cannot live in it: the screen holds the answers and these put them into the
+ * sentence the ticked step carries.
  */
 
 /** Monitoring only: the place is watched and charted, and nothing is written to the controller. */
@@ -45,22 +43,26 @@ export const NOTHING_DOING: Doing = { chosen: null, applied: null };
 export const ASKED = ['place', 'doing', 'hardware', 'notify', 'grow'] as const;
 export type Asked = (typeof ASKED)[number];
 
-/** The types that hold a climate by targets of their own; a fan, a socket and a lamp hang in the climate of one of these. */
-export const OWN_CLIMATE = ['controller', 'fridge'];
-
-/** Whether a device with targets of its own stands in the place beside this one. */
+/** Whether a device with targets of its own - a controller, a fridge module - stands in the place beside this one. */
 export const climateIn = (devices: readonly Device[], spaceId: string | null, beside: string): boolean =>
-  devices.some(one => one.spaceId === spaceId && one.id !== beside && OWN_CLIMATE.includes(one.type));
+  devices.some(one => one.spaceId === spaceId && one.id !== beside && OWN_CLIMATE_TYPES.includes(one.type));
 
 /**
- * The questions a claim will ask, decided once so that the count in the head
- * holds: where it hangs where there is more than one answer, a climate only of
- * a device that sets one, a camera of one that can carry it, how alarms arrive
- * of an account they do not reach yet, and what grows unless it said no to the
- * diary. An answer can end the flow early; none adds a question.
+ * The places a device is offered, one that holds a climate before one that does not. The first is where a fan, a
+ * socket or a lamp hangs until somebody says otherwise: its claim names it (`joinSpaceId`) before the type is known.
  */
-export const planOf = (device: Pick<Device, 'type'>, place: boolean, me: Me | undefined): Asked[] => {
-  const asked = { place, doing: OWN_CLIMATE.includes(device.type), hardware: pairsACam(device), notify: !me || !alarmsReach(me) };
+export const joinOrder = (places: readonly Space[], devices: readonly Device[], but = ''): Space[] =>
+  [true, false].flatMap(held => places.filter(one => climateIn(devices, one.id, but) === held));
+
+/**
+ * The questions a claim will ask: where it hangs where there is more than one
+ * answer, a climate only of the device that sets its place's (`beside`), a
+ * camera of one that can carry it, how alarms arrive of an account they do
+ * not reach yet, and what grows unless it said no to the diary. The head
+ * counts them once where it hangs is settled; no later answer adds one.
+ */
+export const planOf = (device: Pick<Device, 'type'>, place: boolean, beside: boolean, me: Me | undefined): Asked[] => {
+  const asked = { place, doing: OWN_CLIMATE_TYPES.includes(device.type) && !beside, hardware: pairsACam(device), notify: !me || !alarmsReach(me) };
 
   return ASKED.filter(step => (step === 'grow' ? me?.preferences.diary !== 'off' : asked[step]));
 };
@@ -80,19 +82,20 @@ export const newPlaceKind = (type: string): 'fridge' | 'tent' => (type === 'frid
 export const newPlaceName = (type: string, spaces: readonly Pick<Space, 'name'>[], t: Translate): string =>
   numbered(t(`claim.place.newName.${newPlaceKind(type)}`), new Set(spaces.map(one => nameKey(one.name))));
 
-/** The place, and what kind of place it is. */
-export const placeSummary = (space: Space | null, t: Translate): string =>
-  space ? `${space.name} · ${t(`place.edit.kind.${space.kind}`, { defaultValue: space.kind })}` : t('claim.place.unknown');
+/** The place by its name, and what kind of place it is where the name does not say. */
+export const placeSummary = (space: Space | null, t: Translate): string => {
+  if (!space) return t('claim.place.unknown');
+  const kind = t(`place.edit.kind.${space.kind}`, { defaultValue: space.kind });
+
+  return nameKey(space.name).includes(nameKey(kind)) ? space.name : `${space.name} · ${kind}`;
+};
 
 /**
- * The stage the place was put on, or that it is only being watched.
- *
- * What this screen chose lives in the screen and what it wrote lives on the
- * server, and only the second of those survives a locked phone. So where the
- * flow has no answer of its own it falls back to the stage the place is
- * actually on, and says nothing at all - null, for the question to be asked
- * again - until that is known: "nothing set yet" is a claim about the world,
- * and a ticked step is the worst place to guess one.
+ * The stage the place was put on, or that it is only being watched. What the
+ * screen chose does not survive a locked phone, so where the flow has no
+ * answer of its own it falls back to the stage the place is on, and says
+ * nothing - null, for the question to be asked again - until that is known:
+ * "nothing set yet" is a claim about the world, and no ticked step guesses one.
  */
 export const doingSummary = ({ chosen, applied }: Doing, onServer: GrowthStage | null | undefined, t: Translate): string | null => {
   const stage = applied?.stage ?? (chosen === MEASURE ? null : onServer);

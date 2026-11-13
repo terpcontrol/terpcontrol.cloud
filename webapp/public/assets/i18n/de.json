@@ -1741,7 +1741,7 @@
     "climate24h": "Klima · 24 Std",
     "inBand": "{{percent}} % im Zielband",
     "latest": "Zuletzt",
-    "moveHereTitle": "Grow nach {{name}} umziehen",
+    "moveHereTitle": "{{name}}: Grow hierher umziehen",
     "presets": {
       "whichGrow": "Welcher Grow",
       "growAt": "{{name}} · {{place}}",
@@ -3162,7 +3162,7 @@
       "camera": "Cam: {{name}}",
       "noCamera": "keine",
       "rtsp": "Eine Kamera ohne Controller (RTSP) hinzufügen",
-      "into": "Kommt nach {{name}}.",
+      "into": "Ort: {{name}}",
       "notYours": "Dieses Gerät gehört nicht zu deinem Konto."
     },
     "place": {
@@ -3214,8 +3214,7 @@
     "grow": {
       "next": "was wächst?",
       "skip": "Jetzt nicht",
-      "move": "Oder einen Grow hierher umziehen",
-      "title": "Was wächst hier?"
+      "move": "Oder einen Grow hierher umziehen"
     },
     "step": "Schritt {{step}} von {{of}}",
     "close": "Hinzufügen abbrechen",
@@ -3238,13 +3237,12 @@
         "other": "Wo es hängt"
       },
       "joined": {
-        "fan": "{{device}} hängt jetzt in {{place}}",
-        "plug": "{{device}} steckt jetzt in {{place}}",
-        "light": "{{device}} hängt jetzt in {{place}}",
-        "other": "{{device}} hängt jetzt in {{place}}"
+        "fan": "{{place}}: {{device}} hängt jetzt hier",
+        "plug": "{{place}}: {{device}} steckt jetzt hier",
+        "light": "{{place}}: {{device}} hängt jetzt hier",
+        "other": "{{place}}: {{device}} hängt jetzt hier"
       },
-      "here": "In {{name}}",
-      "hereNote": "Bei {{devices}}: ein Klima, eine Kamera, eine Wartung.",
+      "hereNote": "{{devices}}: ein Klima, eine Kamera, eine Wartung.",
       "hereEmpty": "Dort steht noch kein Gerät.",
       "new": "An einem neuen Ort",
       "newNote": {
@@ -3254,7 +3252,13 @@
       },
       "back": "Zurück"
     },
-    "adding": "{{device}} hinzufügen"
+    "adding": {
+      "fan": "Lüfter hinzufügen",
+      "controller": "Controller hinzufügen",
+      "fridge": "Kühlschrankmodul hinzufügen",
+      "plug": "Plantalytix Socket hinzufügen",
+      "light": "Licht hinzufügen"
+    }
   },
   "admin": {
     "section": "Verwaltung",
@@ -4831,7 +4835,7 @@
       "roundTheClock": "Rund um die Uhr"
     },
     "grow": {
-      "title": "Was wächst in {{name}}?",
+      "title": "{{name}}: Was wächst hier?",
       "text": "Mit einem Grow schreibt die App das Tagebuch mit: Klima, Phasen und deine Einträge.",
       "textPictured": "Dann schreibt die App das Tagebuch mit: jeden Tag ein Bild und das Klima.",
       "name": "Sorte oder Name",
@@ -4840,7 +4844,8 @@
       "week": "seit einer Woche",
       "date": "Datum wählen",
       "declined": "Das Tagebuch bleibt aus. Einschalten kannst du es unter Ich › Grow-Tagebuch.",
-      "declinedHere": "Für {{name}} fragt die App nicht mehr. Einen Grow startest du unter Grow › Alle Grows."
+      "declinedHere": "Hier fragt die App nicht mehr. Einen Grow startest du unter Grow › Alle Grows.",
+      "here": "Was wächst hier?"
     },
     "device": {
       "title": "Mit einem Gerät misst es hier von selbst"

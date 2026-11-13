@@ -67,7 +67,9 @@ export const useLayoutNews = (): [LayoutNews | null, () => void] => {
       count: places,
     };
     // Said whether or not the write lands: a server that did not keep it says it again next time, which is no worse.
-    mutate(now, { onSettled: () => (told.before || told.diary || told.places) && setNews(told) });
+    // A second place gone again before its line was read - a claim's guess, ended by the next answer - takes the line along.
+    const unsaid = (was: LayoutNews | null) => (was && !now.places ? (was.before || was.diary ? { ...was, places: false } : null) : was);
+    mutate(now, { onSettled: () => setNews(told.before || told.diary || told.places ? told : unsaid) });
   }, [mayWrite, ready, account, devices, diary, places, mutate]);
 
   return [news, () => setNews(null)];

@@ -31,17 +31,21 @@ import styles from './Claim.module.css';
  *
  * Where the device hangs is not asked here: what kind of device it is is only
  * known once its code has been read, and the question depends on it (`AirStep`).
- * Only a flow opened from a place - "Gerät hierher holen" - already knows, and
- * claims straight into that place.
+ * The claim says it all the same (`where`), so the device stands there in the
+ * one write: the place the flow was opened from - "Gerät hinzufügen" behind a
+ * place's ⋯ - or the one a device without a climate of its own joins.
  */
 export function CodeStep({
   initialCode,
   into,
+  where,
   onClaimed,
 }: {
   initialCode: string;
-  /** The place the flow was opened from, which the device is claimed into. */
+  /** The place the flow was opened from, which is said under the field. */
   into: Space | null;
+  /** What the claim carries about the place, read when the code is sent. */
+  where: () => Promise<Pick<DeviceClaimCreate, 'spaceId' | 'joinSpaceId'>>;
   /** What follows a claim - where the device hangs, what will be asked - which the form waits for as it waits for the claim. */
   onClaimed: (result: DeviceClaimResult) => Promise<void>;
 }) {
@@ -58,7 +62,7 @@ export function CodeStep({
     if (!code) return;
     let result: DeviceClaimResult;
     try {
-      result = await claim.mutateAsync(into === null ? { code } : { code, spaceId: into.id });
+      result = await claim.mutateAsync({ code, ...(await where()) });
     } catch {
       form.setFocus('code');
       return;
@@ -139,17 +143,13 @@ export function ClaimedTitle({ device }: { device: Device }) {
 /**
  * What the device itself says it is: how long ago it spoke, the build it
  * reports, how many sockets it has found and whether a camera answers through
- * it.
+ * it - its own words rather than anything this flow decided. A device that
+ * has never spoken says exactly that instead of a line of dashes that could
+ * be read as zeroes.
  *
- * All four are the device's own words rather than anything this flow decided,
- * and a device that has never spoken says exactly that instead of showing a
- * line of dashes that could be read as zeroes.
- *
- * The build is named rather than identified. What the hardware reports is the
- * uuid its build container stamped it with, which is three lines of hex to a
- * grower and cannot be compared with anything; so the build list is what turns
- * it into something readable, and a build with nothing readable about it is
- * left out of the line altogether rather than printed as the uuid it is.
+ * The build is named rather than identified: the hardware reports the uuid of
+ * its build, which the build list turns into something readable, and a build
+ * with nothing readable about it is left out rather than printed as a uuid.
  */
 export function ClaimedFacts({ device, sockets, now }: { device: Device; sockets: SocketPage | undefined; now: DateTime }) {
   const { t } = useTranslation();

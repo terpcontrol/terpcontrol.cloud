@@ -5,28 +5,16 @@ import styles from './Claim.module.css';
 
 /**
  * The head of every page of adding a device, which stands outside the app's
- * bar: the way out, what is being added and, once a claim has said what will
- * be asked, how far along. `titled` makes the line the page's heading.
+ * bar: the way out, what is being added and, once it is settled what will be
+ * asked, how far along. The line is the page's heading on every one of them,
+ * so the window is named alike from the code to the last question.
  */
-export function FlowHead({
-  device,
-  step,
-  of,
-  titled = false,
-  onClose,
-}: {
-  /** What is being added, by its type; null before a code has said. */
-  device: string | null;
-  step?: number;
-  of?: number;
-  titled?: boolean;
-  onClose: () => void;
-}) {
+export function FlowHead({ type, step, of, onClose }: { type: string | null; step?: number; of?: number; onClose: () => void }) {
   const { t } = useTranslation();
-  const Line = titled ? 'h1' : 'span';
-  // The line names the window, where a type's soft hyphen would be printed; the count stays on one line.
-  const adding = device ? t('claim.adding', { device: device.replaceAll('\u00ad', '') }) : t('claim.title');
-  const count = step && of ? t('claim.step', { step, of }).replaceAll(' ', '\u00a0') : null;
+  // What is being added by the word for its type; "a device" before a code has said, and for a type without a word.
+  const adding = t(`claim.adding.${type}`, { defaultValue: t('claim.title') });
+  // The count stays on one line.
+  const count = step && of ? t('claim.step', { step, of }).replaceAll(' ', ' ') : null;
 
   return (
     <header className={styles.flowHead}>
@@ -34,9 +22,9 @@ export function FlowHead({
         <X size={22} strokeWidth={2} aria-hidden />
       </button>
       <span className={styles.flowProgress}>
-        <Line className={styles.flowLine}>
+        <h1 className={styles.flowLine}>
           <Facts facts={[adding, count]} />
-        </Line>
+        </h1>
         {step && of ? (
           <span className={styles.flowBar} aria-hidden>
             <span style={{ width: `${Math.round((step / of) * 100)}%` }} />

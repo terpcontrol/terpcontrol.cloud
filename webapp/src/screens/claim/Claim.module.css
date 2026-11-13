@@ -102,8 +102,17 @@
   outline: none;
 }
 
-/* The question names the place, and a word of a name that is longer than its line breaks inside it. */
+/* A question that is a page of its own is set as a page's title, under the head that names the window. */
 .growTitle {
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-title);
+}
+
+/* A word longer than its line - of a name a person gave, or a long one of the app's - breaks inside it with a hyphen. */
+.growTitle,
+.airTitle,
+.airNote {
   overflow-wrap: anywhere;
   hyphens: auto;
   hyphenate-limit-chars: 16;
@@ -294,7 +303,7 @@
   min-width: 0;
 }
 
-/* The line is the page's heading where its questions are a list, and looks the same either way. */
+/* The line is the page's heading and reads as a line of the head, not as a title. */
 .flowLine {
   margin: 0;
   font-family: var(--font-text);
@@ -348,7 +357,6 @@
 .airTitle {
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
-  overflow-wrap: anywhere;
 }
 
 .air[aria-current] .airTitle {
@@ -358,7 +366,6 @@
 .airNote {
   font-size: var(--text-sm);
   color: var(--muted);
-  overflow-wrap: anywhere;
 }
 
 .growPicture {

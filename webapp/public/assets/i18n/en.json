@@ -1731,7 +1731,7 @@
     "climate24h": "Climate · 24 h",
     "inBand": "{{percent}} % in band",
     "latest": "Latest",
-    "moveHereTitle": "Move a grow into {{name}}",
+    "moveHereTitle": "{{name}}: move a grow here",
     "presets": {
       "whichGrow": "Which grow",
       "growAt": "{{name}} · {{place}}",
@@ -3152,7 +3152,7 @@
       "camera": "Cam: {{name}}",
       "noCamera": "none",
       "rtsp": "Add a camera without a controller (RTSP)",
-      "into": "Goes into {{name}}.",
+      "into": "Place: {{name}}",
       "notYours": "This device is not on your account."
     },
     "place": {
@@ -3204,8 +3204,7 @@
     "grow": {
       "next": "what grows?",
       "skip": "Not now",
-      "move": "Or move a grow here",
-      "title": "What grows here?"
+      "move": "Or move a grow here"
     },
     "step": "step {{step}} of {{of}}",
     "close": "Stop adding",
@@ -3228,13 +3227,12 @@
         "other": "Where it hangs"
       },
       "joined": {
-        "fan": "{{device}} now hangs in {{place}}",
-        "plug": "{{device}} is now plugged in in {{place}}",
-        "light": "{{device}} now hangs in {{place}}",
-        "other": "{{device}} now hangs in {{place}}"
+        "fan": "{{place}}: {{device}} now hangs here",
+        "plug": "{{place}}: {{device}} is now plugged in here",
+        "light": "{{place}}: {{device}} now hangs here",
+        "other": "{{place}}: {{device}} now hangs here"
       },
-      "here": "In {{name}}",
-      "hereNote": "With {{devices}}: one climate, one camera, one maintenance.",
+      "hereNote": "{{devices}}: one climate, one camera, one maintenance window.",
       "hereEmpty": "No device stands there yet.",
       "new": "At a new place",
       "newNote": {
@@ -3244,7 +3242,13 @@
       },
       "back": "Back"
     },
-    "adding": "Add {{device}}"
+    "adding": {
+      "fan": "Add fan",
+      "controller": "Add controller",
+      "fridge": "Add fridge module",
+      "plug": "Add Plantalytix Socket",
+      "light": "Add light"
+    }
   },
   "admin": {
     "section": "Admin",
@@ -4821,7 +4825,7 @@
       "roundTheClock": "Round the clock"
     },
     "grow": {
-      "title": "What grows in {{name}}?",
+      "title": "{{name}}: What grows here?",
       "text": "With a grow the app keeps the diary: climate, phases and your entries.",
       "textPictured": "Then the app keeps the diary: a picture and the climate every day.",
       "name": "Strain or name",
@@ -4830,7 +4834,8 @@
       "week": "for a week",
       "date": "Pick a date",
       "declined": "The diary stays off. You can switch it on under Me › Grow diary.",
-      "declinedHere": "The app no longer asks for {{name}}. You start a grow under Grow › All grows."
+      "declinedHere": "The app no longer asks here. You start a grow under Grow › All grows.",
+      "here": "What grows here?"
     },
     "device": {
       "title": "With a device it measures by itself here"

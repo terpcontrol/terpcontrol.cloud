@@ -10,7 +10,7 @@ import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
 import styles from './Start.module.css';
 
 /**
- * "Was wächst im Zelt?" - the diary, offered where a device regulates and
+ * "Was wächst hier?" - the diary, offered where a device regulates and
  * nothing is said to grow: the card a skipped last step of the setup leaves
  * on Start. An answer starts the grow, and with the first grow the diary.
  * "Nein danke" is kept so the card does not come back on the next phone:
@@ -34,7 +34,7 @@ export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: str
   const decline = () => {
     if (diary) {
       void place.mutateAsync('never').then(
-        () => tell({ label: t('start.grow.declinedHere', { name }), undo: () => place.mutateAsync('ask') }),
+        () => tell({ label: t('start.grow.declinedHere'), undo: () => place.mutateAsync('ask') }),
         () => undefined,
       );
       return;
@@ -50,7 +50,7 @@ export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: str
   return (
     <section className={styles.card} aria-labelledby="start-grow-offer">
       <h2 className={styles.offerTitle} id="start-grow-offer">
-        {t('start.grow.title', { name })}
+        {t('start.grow.here')}
       </h2>
       <p className={styles.cardText}>{t('start.grow.text')}</p>
       <div className={styles.pair}>

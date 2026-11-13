@@ -113,7 +113,7 @@ describe('the form a grow is started with', () => {
   it('is named after the place it was opened for, and asks what cannot wait and nothing else', async () => {
     await drawLoaded('space-1');
 
-    const sheet = screen.getByRole('dialog', { name: 'What grows in Blue Dream tent?' });
+    const sheet = screen.getByRole('dialog', { name: 'Blue Dream tent: What grows here?' });
     expect(within(sheet).getByRole('textbox', { name: 'Strain or name' })).toBeInTheDocument();
     expect(within(sheet).getByRole('combobox', { name: 'Since when?' })).toBeInTheDocument();
     expect(within(sheet).getByRole('spinbutton', { name: 'Plants' })).toBeInTheDocument();

@@ -43,7 +43,7 @@ import { DeviceOffer, GrowOffer } from './Offers';
 import { GrowHead, PhaseLine } from './Phase';
 import { Picture } from './Picture';
 import { climateDeviceOf, controlOffOf, shownStill, statusOf, statusText, toneOf, type HumidifierHold, type Status } from './place';
-import { MenuLink } from '@/ui/Menu';
+import { Menu, MenuLink } from '@/ui/Menu';
 import { curvePath, darkOf, extrasOf, readingsOf, type Extra, type Reading } from './readings';
 import { ReadingTiles } from './ReadingTiles';
 import { usePlace, useHumidifierHold, useLamp } from './reads';
@@ -187,7 +187,15 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           {hasDevice ? <LivenessPill liveness={liveness} measuredAt={measuredAt} now={now} explain waiting={waiting} /> : null}
           {menu ? (
             <span className={styles.menu}>
-              <MenuLink to={editPath(spaceId)} label={t('start.menu.label', { name: overview.name })} words={t('start.menu.words')} />
+              {/* A device stands in a place of its owner's, so the owner's ⋯ also adds one here; a guest's leads to the one page. */}
+              {space && !guest ? (
+                <Menu label={t('grow.menu.label', { name: overview.name })} words={t('grow.menu.more')}>
+                  <Link to={editPath(spaceId)}>{t('start.menu.words')}</Link>
+                  <Link to={`/claim?space=${encodeURIComponent(spaceId)}`}>{t('home.addDevice.title')}</Link>
+                </Menu>
+              ) : (
+                <MenuLink to={editPath(spaceId)} label={t('start.menu.label', { name: overview.name })} words={t('start.menu.words')} />
+              )}
             </span>
           ) : null}
         </div>

@@ -56,7 +56,7 @@ describe('opening the form a grow is started with by address', () => {
   it('is about the place the address names', async () => {
     await draw('/grows/new?space=space-1');
 
-    expect(screen.getByRole('dialog', { name: 'What grows in Blue Dream tent?' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Blue Dream tent: What grows here?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Start a grow' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/grows', expect.objectContaining({ spaceId: 'space-1' })));
   });

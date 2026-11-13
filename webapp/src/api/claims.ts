@@ -7,13 +7,14 @@ import { ApiError } from './problem';
 import { invalidate, useWrite } from './write';
 
 /**
- * Claiming a device with the code on its display, and the two reads the steps
- * that follow a claim are answered from.
+ * Claiming a device with the code on its display, in one write: the claim
+ * says where the device goes - the place the flow was opened from, or the one
+ * a fan, a socket or a lamp joins (`joinSpaceId`) - and the server makes a
+ * place only for a device that holds a climate, or in an account without one.
  *
- * A claim ends in a space whichever way it is made, so it changes the device
- * list, the places and the home cards at once, and all three are read again
- * rather than patched here: what the claim answers is the device as it stood at
- * that instant, and the space it made is not in the answer at all.
+ * It changes the device list, the places and the home cards at once, and all
+ * three are read again rather than patched: the answer is the device as it
+ * stood at that instant, and a place it made is not in the answer at all.
  */
 const claimChanged = (client: QueryClient): void => void invalidate(client, ['devices'], ['spaces'], ['home']);
 
@@ -31,22 +32,18 @@ export const useClaimDevice = () =>
   );
 
 /**
- * How often the device just claimed is read again.
- *
- * Faster than the device list's own beat, because this is the one screen where
- * somebody is standing in front of the hardware waiting for it to say something:
- * a controller that has just been given Wi-Fi reports within a few seconds, and
- * half a minute of "not heard from yet" reads as a box that does not work.
+ * How often the device just claimed is read again: faster than the device
+ * list's own beat, because somebody is standing in front of the hardware. A
+ * controller just given Wi-Fi reports within seconds, and half a minute of
+ * "not heard from yet" reads as a box that does not work.
  */
 const CLAIM_REFRESH_MS = 10_000;
 
 /**
  * The claimed device on its own, so that its firmware, its age and its camera
- * are the device's own words.
- *
- * The beat stops once the server has refused the read: an id carried in the
- * address may be stale or somebody else's, and asking again every ten seconds
- * would not make it any more readable.
+ * are the device's own words. The beat stops once the server has refused the
+ * read: an id in the address may be stale or somebody else's, and asking
+ * again would not make it readable.
  */
 export const useClaimedDevice = (deviceId: string | null) =>
   useRead({
@@ -56,32 +53,27 @@ export const useClaimedDevice = (deviceId: string | null) =>
   });
 
 /**
- * Naming the place a claim has just made.
- *
- * The space is named in the call rather than in the hook, because at the
- * instant a claim answers there is no space on the screen to bind one to. The
- * word is the app's to choose and not the server's: a name has to be in the
- * language the grower reads, and the server has no language.
+ * Naming the place a claim has just made, which is named in the call: when a
+ * claim answers there is no space on the screen to bind a hook to. The word is
+ * the app's to choose: a name has to be in the language the grower reads, and
+ * the server has no language.
  */
 export const useNameNewPlace = () =>
   useWrite(({ spaceId, name }: { spaceId: string; name: string }) => api.patch<Space>(`/spaces/${spaceId}`, { name }), claimChanged);
 
 /**
- * Putting a device in one of the account's places, by the narrower of the two
- * ways to say it: the route puts one device in one space and answers nothing
- * else, so it cannot carry a name or a firmware channel with it by accident.
- * The device is named in the call, because the first of these is written the
- * moment a claim answers, before any screen stands on that device.
+ * Putting a claimed device in another of the account's places, where the
+ * answer to where it hangs is changed: the route puts one device in one space
+ * and nothing else, so it carries no name or firmware channel by accident.
  */
 export const usePlaceDevice = () =>
   useWrite((to: { deviceId: string; spaceId: string }) => api.put<Device>(`/spaces/${to.spaceId}/devices/${to.deviceId}`), deviceClaimed);
 
 /**
- * Ending the place a claim made, once the device has been sent on to a place
- * the account already had. It held nothing else, so it goes the way a removed
- * place goes; what it buys is a Start that does not grow an empty "Zelt 2"
- * every time a fan is hung in the tent that is already there. A place already
- * gone is what was asked for: an address can name it for longer than it stood.
+ * Ending a place the flow made that the device does not stand in after all: a
+ * second controller hung beside the first, a new place the move into was
+ * refused. It holds nothing, so no empty "Zelt 2" is left on Start. A place
+ * already gone is what was asked for: an address can name it for longer.
  */
 const gone = (error: unknown) => (error instanceof ApiError && error.status === 404 ? undefined : Promise.reject(error));
 

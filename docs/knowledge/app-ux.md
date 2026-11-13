@@ -28,7 +28,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
 - **The diary is offered from the first day, and the device-only Start stays lean** (Chris, 2026-11-11; it replaces
   the rule of 2026-10-01 to design every screen first for one device, no grow and no diary). Setting a device up ends
   by asking "Was wächst hier?" (`screens/claim/GrowStep.tsx`): an answer starts the grow, so Grow and the Eintrag
-  button are in the bar at once. Whoever skips finds the same question as a card on Start, "Was wächst in …?" with
+  button are in the bar at once. Whoever skips finds the same question as a card on Start, "Was wächst hier?" with
   "Grow starten" and "Nein danke" (`screens/start/Offers.tsx`): "Nein danke" is kept with the account while it keeps
   no diary at all (`preferences.diary`, also under Ich › Grow-Tagebuch: Automatisch / An / Aus), and with the one place
   (`presetPrompt: never`) for somebody who keeps a diary elsewhere. Until an answer the Start of a device is its
@@ -274,15 +274,27 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   or fridge module the new one, because that is a second climate. The first device of an account is asked nothing;
   a flow opened from a place ("Gerät hierher holen") claims into that place and asks nothing; what hangs on a
   controller's smart socket is never claimed and never asked.
-  - *The claim leaves no stray place* (the redesign session of 2026-11-12, after the round's walk): as soon as the
-    code is taken, a fan, a socket or a lamp is hung in the place the question's first answer names - the place the
-    flow was opened from, else the first of the account's own - and the place its claim made is ended, before the
-    question is drawn. The question then shows the answer that holds and changes it: another place, or "An einem
-    neuen Ort", which makes one and moves the device. A second controller or fridge module stays in the place its
-    claim made. A flow left at the question leaves the device somewhere sensible and no "Ort 1".
+  - *The claim leaves no stray place, and is one write* (the redesign session of 2026-11-12 and, after the second
+    walk, of 2026-11-13): the claim itself names the place a fan, a socket or a lamp joins (`joinSpaceId` - the
+    place the flow was opened from as `spaceId`, else the first of the account's own that holds a controller or a
+    fridge module, else the first; `joinOrder`, `screens/claim/steps.ts`, which is also the order the question
+    offers), and the server makes a place only for a device with a climate of its own or in an account without a
+    place (ADR 0001). The earlier three writes - claim, move, end the place the claim made - failed silently
+    half-way and left "Zelt 2". The question then shows the answer that holds and changes it: another place, or "An
+    einem neuen Ort", which makes one and moves the device - a new place whose move is refused is taken away
+    again (`hang`, `Claim.tsx`). A second controller or fridge module stays in the place its claim made, and that
+    place ends where the answer is a place that exists. A write of the flow that fails is said with the sentence
+    for a refusal or a lost connection and tried again by the same tap. A flow left at the question leaves the
+    device somewhere sensible and no "Ort 1"; the notice about a second place is withdrawn where that place was
+    gone before it was read (`app/shell/layout-news.ts`).
+  - *A place's name stands by itself* (the redesign session of 2026-11-13): no sentence glues a preposition to
+    it. A place option is the name alone, with what stands there in a second line ("Controller, Lüfter: ein Klima,
+    eine Kamera, eine Wartung."); the settled step reads "Wo er hängt" with the name beneath, the kind added only
+    where the name does not say it; the toast "Zelt: Lüfter hängt jetzt hier"; a place's own Start and the claim's
+    last step ask "Was wächst hier?", and a sheet opened elsewhere is titled "<Name>: Was wächst hier?".
   - *A device that joins a climate is done there.* A fan, a socket or a lamp hung beside a controller or a fridge
     module is asked nothing more - no climate, no camera, no alarms, no grow: the flow ends on that place's Start
-    with a toast that names what hangs where ("Lüfter hängt jetzt in Zelt"). The step that sets a climate writes
+    with a toast that names what hangs where ("Zelt: Lüfter hängt jetzt hier"). The step that sets a climate writes
     the place's targets, so it is asked only of a controller or fridge module that is its place's first; the camera
     step only of a device that can carry one; how alarms reach somebody only while nothing reaches the account.
   - *A place the app names itself* is "Zelt", then "Zelt 2" - "Kühlschrank" for a fridge module - by the rule the
@@ -293,10 +305,12 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *Adding a device leaves the bar* (`handle: BARE` on the route, `app/shell/AppShell.tsx`, as editing and ending a
     place do; on such a page the toasts stand at the window's foot - `:root:has(main[data-bare])`,
     `log/Toasts.module.css` - and the bare frame keeps a two-change toast's room under the last control,
-    `.setup`): a cross ("Hinzufügen abbrechen") and "Lüfter hinzufügen · Schritt 2 von 5" over a bar. **The count is
-    said once it is fixed**: before the code is taken the head says "Gerät hinzufügen" and no count; then the steps
-    that will be asked are worked out once and kept in the address (`?device=&ask=&at=&made=`), so a reload and an
-    answer that makes a later step unnecessary do not change it. **Each step after the code is a history entry**:
+    `.setup`): a cross ("Hinzufügen abbrechen") and "Lüfter hinzufügen · Schritt 3 von 5" over a bar, the `h1` of
+    every page of the flow (`FlowHead.tsx`), so the window is titled alike throughout. **The count is said once
+    it is fixed**: not before the code is taken and not on "Wo hängt …?" - that answer decides what is asked (a
+    second controller beside a first is asked no climate), so the plan is fixed with it and kept in the address
+    (`?device=&ask=&at=&made=`); where no place is asked, with the code. A step that is not asked is neither
+    counted nor drawn nor ticked (the second walk found a count that changed and a tick on a step nobody saw). **Each step after the code is a history entry**:
     Back goes one step back, never to the code - it is spent - and from the first of them to the Start of the place
     the device hangs in; the question's own "Zurück" is that Back. One verb per kind, in the question, the settled
     step and the toast ("Wo steckt der Plantalytix Socket?" - "Wo er steckt"). What explains a step is behind its
@@ -325,8 +339,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   the camera paired to the other device is left out; a camera paired to none stays.
 - **"Ort bearbeiten" is the one page of what is done to a place** (Chris, 2026-11-11, decision 5; built by the
   redesign session of 2026-11-12 after the prototype, `screens/place/EditPlace.tsx` at `/spaces/:id/edit`). The ⋯
-  beside a place's name on Start leads straight to it - on a desktop it says "Ort bearbeiten", the place's name in
-  its accessible name alone - and no list opens in between. In this order: the name, the kind and the room with the
+  beside a place's name on Start leads straight to it for a guest who manages the place - on a desktop it says
+  "Ort bearbeiten", the place's name in its accessible name alone. For the owner it is a list of two rows, "Ort
+  bearbeiten" and "Gerät hinzufügen" (`/claim?space=<id>`; `screens/start/PlaceStart.tsx`; the redesign session
+  of 2026-11-13: one tent, add a fan, was six taps and is three), and reads "Mehr" on a desktop. In this order: the name, the kind and the room with the
   page's one button "Sichern" in its head; "Geräte hier"; "Wer … sieht"; "… entfernen …". It replaced the place's
   menu with its sheets for renaming, the room, a device brought here and the removal, and the page "Mitglieder &
   Teilen".
@@ -349,7 +365,14 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     the place, "+ Gerät hierher holen": a device of the same account standing elsewhere moves by the device's own
     sheet, opened with this place chosen - it says what goes along, and the toast takes the move back -, a new one
     by its code (`/claim?space=`). A device stands only in a place of its owner (ADR 0001), so a member who manages
-    the place is offered neither, and the device's sheet asks only its owner where it stands.
+    the place is offered neither, and the device's sheet asks only its owner where it stands: for anybody else
+    the row and the sheet read "Umbenennen" (`screens/devices/DevicePage.tsx`). "Widerrufen" of a move or a name
+    is answered like every undo of the page, "Widerrufen · … steht jetzt in …" (`DeviceSettingsSheet.tsx`).
+    **A device or a Terp Cam nobody named is called by its kind** and carries the last four letters or figures of
+    its id only where two of a kind without a name stand in that one list ("Lüfter · FAN1", "Lüfter · 6FAN"; the
+    redesign session of 2026-11-13) - `deviceTitle(device, t, among)` with `among` the list the row stands in,
+    `cameraCalled` for cameras; the tag is never broken from the kind (`devices.unnamed`). A camera that carries
+    its device's name or type has no name of its own (`cameraTitle`, `ui/naming.ts`).
   - *"Wer … sieht" is one list of everybody who sees the place* (`screens/space/members/Members.tsx`): the owner
     ("Du · verwaltest"), the place's own guests, and the members of its room tagged "über Keller", each row with
     what they may do and the way out; a write goes to the row it is about, the room's included. What each role may
@@ -357,11 +380,19 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     list, each saying what it is for; "+ Jemanden einladen" opens the ways in, and "Einladung gilt für" inside it
     changes only what the next invitation is for - this place or its room - and closes nothing. **Every write here
     answers**: a role with a toast and undo, a removal with a toast that also names the link it stopped, an undo
-    with what holds again.
+    with what holds again. Taking an invitation link back cannot be taken back - the server keeps a revoked code
+    revoked - so "Zurückziehen" asks first, in the link's card, in one sentence (`ui/Asking.tsx`), and the toast
+    names what the link was for ("Der Link … gilt nicht mehr · für Zelt · darf steuern"; `InviteBlock.tsx`; the
+    redesign session of 2026-11-13). The invitation sheet has no paragraph: that a guest needs an account and
+    what they will and will not see is behind the (i) beside "Gültig" (`help.invite`). A row answered by a toast
+    at the window's foot moves clear of it (the role select, `scroll-margin-bottom`, `Members.module.css`).
   - A member who may not manage the place is shown the same list as a page of its own (`/spaces/:id/members`, from
     "von @…" on Start); whoever manages the place is sent from that address to the edit page. **A guest who leaves
     lands on Start** with a toast that names what was left; one who still sees the place through its room stays
-    and is told so.
+    and is told so. Back from there does not find the page that was left: the leave sheet stands on a history
+    entry over its page's, so it is stepped back from first and Start then replaces the page's own entry
+    (`RemoveSheet.tsx`, `ui/sheet-back.ts`) - a `navigate(…, { replace: true })` from inside an open sheet
+    replaces the sheet's entry, not the page's.
   - What needs the owner - the room, the people, the end - is drawn for the owner only; a member who may manage
     edits the name and the kind and sees who is here.
   - A place that has ended and an id that names nothing are the same page here too: a heading, the way to Start, no
@@ -383,13 +414,23 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *It asks once, with everything it will do.* The page's button opens a sheet that lists each line as it will
     happen - "Zeltcontroller zieht in Fridge Black", "Lüfter bleibt bei Zeltcontroller", "Lüfter wird abgegeben und
     gehört dann nicht mehr zu deinem Konto", "Blue Dream wird beendet" - under "Das lässt sich nicht
-    zurücknehmen."; only its button writes. A disabled button is neutral, the danger colour is for one that can be
+    zurücknehmen."; only its button writes. **It names everybody who loses sight** (the redesign session of
+    2026-11-13, after the second walk found a direct guest blocking the removal and a room's member ended
+    without a word): the place's guests in one line ("@gast sieht Zelt dann nicht mehr") and, where the room ends
+    with this place, the room and its members ("Raum Lager endet – @gast2 sieht ihn dann nicht mehr"); the toast
+    says the same. Guests do not block a removal: the question is the confirmation, and the server ends their
+    access with the place (ADR 0001). The room does not end where what stood here gets a new place in it. People
+    are fates like devices (`fatesOf`, `what: 'people'`, `remove-plan.ts`). A disabled button is neutral, the danger colour is for one that can be
     tapped.
   - *Nothing is left half-made.* The writes are made one after another, and a new place is made only with the
     move of its device into it and taken away again if that move is refused. A refusal half-way says that the
     place is not removed yet, the server's sentence or that the server cannot be reached, what is done and what is
     still here, by name; every answer is kept, the grow's included, and "Noch einmal versuchen" goes on with what
-    is left - into the place an attempt already made. Changing an answer asks again.
+    is left - into the place an attempt already made. Changing an answer asks again. **After a refusal the page
+    reads places, devices, cameras, grows and members again before it says what is still here** (`useEndPlace`
+    waits for its reads on a refusal; `withSettled`): what left by another way is neither listed nor sent, a
+    grow that was to go with it is asked about again, and the same tap goes on only while every line left was
+    agreed to.
   - *The toast names where things went*: "Zelt Eins entfernt. Zeltcontroller und Lüfter stehen in Zelt 2. Blue
     Dream beendet.", without undo. The line the move writes into the grow's diary names both places - "Du hast
     von Zelt Eins nach Zelt 1 umgestellt" - by the names the server wrote into the line (`values.from`,
@@ -399,8 +440,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     from two places say "hast umgestellt" as before, and a reader from outside is told neither name.
   - With a grow the page says that curves and pictures up to today stay with it; without one, that the place's
     curves are afterwards only seen with grows that stood there - an ended place has no page.
-  - A place people are still let into is not ended: the page says how many and leads to them. Only the owner ends a
-    place, and never the last one - that one is Start. A place that has ended and an id that names nothing are the
+  - Only the owner ends a place, and never the last one - that one is Start: its `/remove` says so in a
+    sentence, with the way back. A camera is called by its own name in the row, the question and the toast, "Terp
+    Cam" where it has none; the grow's row carries its day once it has a phase. A place that has ended and an id that names nothing are the
     same page: a heading, the way to Start, no retry.
 - **Steuerung is the chosen place's climate, then its devices** (Chris, 2026-11-11, decision 7;
   `screens/control/Control.tsx`, built after the prototype by the redesign session of 2026-11-12, whose rules the
@@ -820,7 +862,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   `screens/grow/GrowPage.module.css`), a stepper's typed figure is as high as its buttons (`.stepInput`,
   `screens/control/targets/DayNight.module.css`), a switch in a settings row is lent its 44 px by the row with
   the inset counted from inside the switch's rule (`screens/devices/DevicePage.module.css`), and the once-only
-  notices' "Verstanden" is the outlined button, not the 36 px quiet one (the redesign session of 2026-11-12).
+  notices' "Verstanden" is the outlined button, not the 36 px quiet one (the redesign session of 2026-11-12). The
+  word of a status pill that explains itself reaches out of the pill (`.live > button`, `ui/ui.module.css`), and
+  a tab is at least a finger wide (`ui/Tabs.module.css`; the gap is 9 px under 360 px so five fit).
   **That reach ends where an ancestor cuts**: a row of `Facts` clips what leaves its box (the clip that hides a
   line's leading "·"), so the link under a device's or a socket's name was 33 px high behind an `::after` of 45
   (the redesign session of 2026-11-12, its critic's second walk). The row takes the room as padding it gives back
@@ -1086,7 +1130,7 @@ page the same day ("after the walk" below) - none of those is Chris's.
   stamp sets the cursor on its moment; its words
   open its correction for whoever may correct it. Once the cursor was set down, "Notiz zu 03:10 schreiben"
   writes a note dated to it. **A change of the measuring device is a line** (the redesign session of
-  2026-11-12): where another device took over the place's climate inside the window, the list says "Ab 23:09
+  2026-11-12): where another device took over the place's climate inside the window, the list says "Ab hier
   misst Controller B", marked "von allein", and the grow's diary says the same on that day (`changesOf`,
   `server/src/modules/v1/timeline/place-history.ts`; `dayLines`, `screens/grow/diary/days.ts`; `DiaryCard`).
   An unnamed device is called by its type. It stands with the devices' own lines and is not told to a reader
@@ -1209,8 +1253,14 @@ page the same day ("after the walk" below) - none of those is Chris's.
   place's name widened Start by 43 px and the claim's last step by 172 at 320 px): the element that holds it
   breaks a word longer than its line, with a hyphen where the browser knows one and only in words of 16 letters
   or more (`hyphens: auto; hyphenate-limit-chars: 16` - Safari and Firefox ignore the limit and hyphenate any
-  word): a place's h1, its card, "Was wächst in …?" on Start, in the claim and as a sheet's title. A choice chip
+  word): a place's h1 on Start and on the pages that edit and end it, the red button there, its card, the claim's place
+  options and a sheet's title. A choice chip
   wraps its name (`ui/SheetParts.module.css`).
+- **A name is shown as it was typed.** Inter's contextual alternates turn "120x120" into "120×120" in running
+  text but not in a heading, whose letter-spacing switches them off, so one place name read two ways on one
+  page; the pages that edit and end a place set `font-variant-ligatures: no-contextual`
+  (`screens/place/Place.module.css`; the redesign session of 2026-11-13). Start's cards, chips and toasts still
+  draw the "×" - switching it off for the whole app would also lower Inter's raised colon in times.
 - A picture as bright as the page - a lit tent - keeps a hairline edge against it (`screens/start/Start.module.css`).
 - **A primary button that cannot be pressed** takes the card's second surface, and its words step back towards
   that surface (`.primary:disabled`, `ui/ui.module.css`; the redesign session of 2026-11-12): the muted ink alone

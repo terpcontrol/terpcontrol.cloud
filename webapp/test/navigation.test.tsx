@@ -796,7 +796,7 @@ describe('Grow, the bar´s item', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Start a grow' }));
 
     // Started here, the grow is drawn here: the address stays Grow's.
-    expect(await screen.findByRole('dialog', { name: /^What grows in / })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: /: What grows here\?$/ })).toBeInTheDocument();
     expect(where(router)).toBe('/grow?space=space-2');
   });
 
@@ -946,6 +946,26 @@ describe('a change to the shape of the app', () => {
     expect(notice).not.toHaveTextContent('The grow diary is on');
   });
 
+  /**
+   * A second controller's claim makes a place, and the answer to where it hangs may end it on the next page. The
+   * claim stands without the bar, so the line about two places was never read - and is not said about one.
+   */
+  it('takes the line about a second place back where that place is gone before the line was read', async () => {
+    server.places = TWO;
+    const router = open('/claim');
+    await recorded();
+
+    server.places = [['space-1', 'Fridge 1']];
+    await act(() => client.invalidateQueries());
+    await waitFor(() => expect(patches()).toHaveLength(2));
+    await waitFor(() => expect(client.isMutating()).toBe(0));
+    expect(patches()[1].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: false } } });
+
+    await act(() => router.navigate(QUIET));
+    expect(await screen.findAllByRole('navigation', { name: 'Main navigation' })).not.toHaveLength(0);
+    expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
+  });
+
   it('records what went away without a word, because the grower did it', async () => {
     server.me = meOf(false, { diary: true, places: true });
     open(QUIET);
@@ -971,7 +991,8 @@ describe('the place menu', () => {
   it('leads from the ⋯ beside the name to the page that edits the place, which renames it under the name every screen calls it by', async () => {
     open('/');
 
-    fireEvent.click(await screen.findByRole('link', { name: 'Edit place: Fridge 1' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Edit place' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Edit Fridge 1' })).toBeInTheDocument();
     // One task with one way on and one way out: the page stands without the bar.
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();

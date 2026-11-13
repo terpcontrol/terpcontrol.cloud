@@ -717,7 +717,7 @@ describe('the log sheet', () => {
     fireEvent.click(await within(phase).findByRole('button', { name: 'Start a grow in Place 2' }));
 
     // The form a grow is started with takes this one's place, already about the place asked about.
-    expect(await screen.findByRole('dialog', { name: 'What grows in Place 2?' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Place 2: What grows here?' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Phase' })).not.toBeInTheDocument();
   });
 

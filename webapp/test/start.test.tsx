@@ -513,7 +513,8 @@ describe('Start of a place that only regulates', () => {
   it('offers the diary as a card, and keeps "no thanks" with the account', async () => {
     draw();
 
-    const card = (await screen.findByRole('heading', { name: 'What grows in Fridge 1?' })).closest('section')!;
+    // On the place's own Start the question says "here": the name stands in the head, not behind a preposition.
+    const card = (await screen.findByRole('heading', { name: 'What grows here?' })).closest('section')!;
     expect(within(card).getByRole('button', { name: 'Start a grow' })).toBeInTheDocument();
     fireEvent.click(within(card).getByRole('button', { name: 'No thanks' }));
 
@@ -531,7 +532,7 @@ describe('Start of a place that only regulates', () => {
     draw();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Start a grow' }));
-    const sheet = await screen.findByRole('dialog', { name: 'What grows in Fridge 1?' });
+    const sheet = await screen.findByRole('dialog', { name: 'Fridge 1: What grows here?' });
     await waitFor(() => expect(within(sheet).getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true'));
     expect(within(sheet).getByRole('button', { name: 'Germination' })).toHaveAttribute('aria-pressed', 'false');
   });
@@ -540,7 +541,7 @@ describe('Start of a place that only regulates', () => {
     draw();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Start a grow' }));
-    const sheet = await screen.findByRole('dialog', { name: 'What grows in Fridge 1?' });
+    const sheet = await screen.findByRole('dialog', { name: 'Fridge 1: What grows here?' });
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'Strain or name' }), { target: { value: 'Blue Dream' } });
     fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'Plants' }), { target: { value: '3' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Flower' }));
@@ -578,7 +579,7 @@ describe('Start of a place that only regulates', () => {
     expect(server.bodies.has('PATCH /me')).toBe(false);
     await waitFor(() => expect(log.tell).toHaveBeenCalledTimes(1));
     const told = log.tell.mock.calls[0][0] as { label: string; undo: () => Promise<unknown> };
-    expect(told.label).toBe('The app no longer asks for Fridge 1. You start a grow under Grow › All grows.');
+    expect(told.label).toBe('The app no longer asks here. You start a grow under Grow › All grows.');
     await told.undo();
     expect(server.bodies.get('PATCH /spaces/space-1')).toEqual({ presetPrompt: 'ask' });
   });
@@ -605,15 +606,26 @@ describe('Start of a place that only regulates', () => {
     ).toEqual(['/claim', '/grows/new', '/cameras/add']);
   });
 
-  it('leads from the ⋯ beside the name to the one page that edits the place', async () => {
+  it('offers the owner two things behind the ⋯ beside the name: the page that edits the place, and adding a device to it', async () => {
     draw();
 
-    // It says what it is for and not the place's whole name again, which is in its accessible name alone.
+    fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
+    // Name, kind, room, devices, people and the end are that one page's.
+    expect(screen.getByRole('link', { name: 'Edit place' })).toHaveAttribute('href', '/spaces/space-1/edit');
+    // A fan for the one tent is three taps: the ⋯, this row, and the claim, which knows the place and asks nothing.
+    expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/claim?space=space-1');
+  });
+
+  it('leads a guest who manages the place from the ⋯ to the one page that edits it, and offers no device to add', async () => {
+    server.youMay = 'manage';
+    draw();
+
+    // A device stands in a place of its owner, so there is nothing for a list: the ⋯ says what it is for and leads there.
     const menu = await screen.findByRole('link', { name: 'Edit place: Fridge 1' });
     expect(menu).toHaveTextContent(/^Edit place$/);
     expect(menu).toHaveAttribute('href', '/spaces/space-1/edit');
-    // No list opens from it: name, kind, room, devices, people and the end are that page's.
-    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
   });
 
   it('lets the device the server names as the place´s climate speak, where several stand there', async () => {
@@ -810,7 +822,8 @@ describe('the states of Start', () => {
     // nothing about the place has no menu beside its name.
     expect(await screen.findByRole('link', { name: 'by @host, see the members' })).toHaveAttribute('href', '/spaces/space-1/members');
     expect(screen.getByText('you may log')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Edit place/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Edit place/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
     // What a member may do is there: the watering is theirs to enter.
     expect(screen.getByRole('button', { name: 'Enter: Water' })).toBeInTheDocument();
     // What they may not is absent rather than refused: the targets are read, not opened.
@@ -844,7 +857,8 @@ describe('the states of Start', () => {
     expect(screen.getByRole('heading', { name: 'Targets' }).closest('section')).toHaveTextContent(/Light \d\d:00 to \d\d:00/);
     // Nothing that writes: nothing to tick, no menu, no place to add, and nobody to ask for a change.
     expect(screen.queryByRole('heading', { name: 'Today' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Edit place/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Edit place/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ Add a place' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Whoever manages/)).not.toBeInTheDocument();
     // The demo has no account to read.

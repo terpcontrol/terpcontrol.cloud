@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { placePath } from '@/app/places';
 import type { Device, DeviceClaimResult, Space } from '@fg2/shared-types/v1';
-import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
+import { OWN_CLIMATE_TYPES, SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useMe } from '@/api/account';
 import { useClaimedDevice, useEndInvented, useNameNewPlace, usePlaceDevice } from '@/api/claims';
 import { useDevices, useSocketTables } from '@/api/devices';
@@ -15,7 +15,7 @@ import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { useLog } from '@/log/log-context';
 import { NotifyStep } from '@/screens/notifications/NotifyNotice';
 import type { HelpTopic } from '@/ui/explain';
-import { deviceName, typeName } from '@/ui/naming';
+import { deviceName } from '@/ui/naming';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -33,12 +33,12 @@ import {
   doingSummary,
   hangWords,
   hardwareSummary,
+  joinOrder,
   MEASURE,
   newPlaceKind,
   newPlaceName,
   NOTHING_DOING,
   notifySummary,
-  OWN_CLIMATE,
   placeSummary,
   planOf,
   presetBodyOf,
@@ -60,16 +60,15 @@ const addressOf = (device: string, plan: readonly Asked[], at = '', made: string
  * that have to be true before it is of any use, in the order they can be
  * answered, and last what grows here, where the diary begins (`GrowStep`).
  *
- * It is a screen of its own rather than a sheet because it is the one stretch
- * of the app where somebody stands in a room with hardware in their hands, and
- * because every answer is written the moment it is given: there is no Save at
- * the end and nothing is lost by leaving - the rest are the ordinary screens,
- * reached from Steuerung, from a device's page and from Ich. It stands outside
- * the app's bar (`BARE`, `app/shell/AppShell.tsx`): a string of questions has one way on and one out.
+ * It is a screen of its own rather than a sheet because somebody stands in a
+ * room with hardware in their hands, and every answer is written the moment it
+ * is given: there is no Save at the end and nothing is lost by leaving. It is
+ * reached from Steuerung and from a place's ⋯ on Start, and stands outside the
+ * app's bar (`BARE`, `app/shell/AppShell.tsx`): a string of questions has one way on and one out.
  *
- * What is asked depends on the device and the account, so the head counts no
- * steps before the claim and afterwards the ones decided then (`planOf`): an
- * answer may end the flow early, none makes it longer.
+ * What is asked depends on the device, the account and the place, so the head
+ * counts no steps before it is settled where the device hangs, and then the
+ * ones decided (`planOf`): an answer may end the flow early, none adds to it.
  *
  * The device, what will be asked and which question is open live in the
  * address, because the phone in that room locks, drops the tab and follows
@@ -136,7 +135,7 @@ export function Claim() {
   // What of the plan is still a question. A fan, a socket or a lamp beside a controller hangs in its climate and is
   // asked nothing but where; a second controller there is not asked for a climate, which would be written to the
   // first as well; and what grows is not asked where something does - except while that very answer is on its way.
-  const ownClimate = claimed !== null && OWN_CLIMATE.includes(claimed.type);
+  const ownClimate = claimed !== null && OWN_CLIMATE_TYPES.includes(claimed.type);
   const beside = claimed !== null && climateIn(every, spaceId, claimed.id);
   const growing = growsHere.data?.items.some(grow => grow.endedAt === null) === true;
   const asks = (step: Asked) =>
@@ -166,7 +165,7 @@ export function Claim() {
 
   const leaveTo = (to: string | null) => void navigate(to ? placePath(to) : '/', { replace: true });
   const leave = () => leaveTo(spaceId);
-  const go = (step: Asked, madeId = made) => setParams(addressOf(deviceId!, plan!, step, madeId));
+  const go = (step: Asked, madeId = made, asking = plan!) => setParams(addressOf(deviceId!, asking, step, madeId));
 
   // A device that joined a climate is done: it is said where it hangs now, on the Start of that place.
   const joined = (which: Device, where: Space) => {
@@ -174,27 +173,24 @@ export function Claim() {
     leaveTo(where.id);
   };
 
-  // What a claim sets in motion before anything is asked. A fan, a socket or a lamp in an account that has a place
-  // is hung where the question's first answer says and the place its claim made is ended, so a flow left at that
-  // question leaves no place that holds nothing; a place that stays is named. Then what will be asked is decided.
+  // Where the claim puts the device, in its one write: the place the flow was opened from, else - for a fan, a socket
+  // or a lamp, which the server tells apart - the first answer the question of where it hangs will give.
+  const whereTo = async () => {
+    const join = joinOrder(own((await known(spaces))?.items ?? []), (await known(devices))?.items ?? [])[0];
+    return opened ? { spaceId: opened.id } : join ? { joinSpaceId: join.id } : {};
+  };
+
+  // What a claim sets in motion before anything is asked: a place it made - for a controller or a fridge module,
+  // or in an account that had none - is named, and what will be asked is decided.
   const entered = async ({ device: got, spaceCreated }: DeviceClaimResult) => {
-    const others = own((await known(spaces))?.items ?? []).filter(one => one.id !== got.spaceId);
-    const asksPlace = spaceCreated && others.length > 0;
-    let madeId = spaceCreated ? got.spaceId : null;
-    if (asksPlace && madeId && !OWN_CLIMATE.includes(got.type)) {
-      try {
-        await move.mutateAsync({ deviceId: got.id, spaceId: others[0].id });
-        await end.mutateAsync(madeId);
-        madeId = null;
-      } catch {
-        // It stays where the refused write left it, and the question shows that answer.
-      }
-    }
+    const madeId = spaceCreated ? got.spaceId : null;
+    const others = own((await known(spaces))?.items ?? []).filter(one => one.id !== madeId);
+    const beside = climateIn((await known(devices))?.items ?? [], got.spaceId, got.id);
     if (madeId) namePlace.mutate({ spaceId: madeId, name: newPlaceName(got.type, others, t) });
     setMade(madeId);
 
-    if (opened && !OWN_CLIMATE.includes(got.type) && climateIn((await known(devices))?.items ?? [], opened.id, got.id)) return joined(got, opened);
-    const asking = planOf(got, asksPlace, await known(me));
+    if (opened && beside && !OWN_CLIMATE_TYPES.includes(got.type)) return joined(got, opened);
+    const asking = planOf(got, !opened && others.length > 0, beside, await known(me));
     entering.current = addressOf(got.id, asking, asking[0], madeId);
     setParams({ device: got.id }, { replace: true });
   };
@@ -205,10 +201,10 @@ export function Claim() {
   if (before || !claimed || !plan || !open || (open === 'grow' && (!space || growsHere.isPending))) {
     return (
       <section className={styles.screen}>
-        {before || (!claimed && device.isError) ? <FlowHead device={null} titled onClose={leave} /> : null}
+        {before || (!claimed && device.isError) ? <FlowHead type={null} onClose={leave} /> : null}
         {before ? (
           <Step number={1} state="open" title={t('claim.code.title')} help="claimCode" text={lost ? t('claim.code.notYours') : null}>
-            <CodeStep initialCode={params.get('code') ?? ''} into={opened} onClaimed={entered} />
+            <CodeStep initialCode={params.get('code') ?? ''} into={opened} where={whereTo} onClaimed={entered} />
           </Step>
         ) : !claimed && device.isError ? (
           <LoadFailed retry={() => void device.refetch()} />
@@ -223,24 +219,33 @@ export function Claim() {
   const of = plan.length + 1;
   const after = plan.slice(here + 1).find(asks) ?? null;
 
-  // The answer to where it hangs, written. A place that exists takes the device and ends the place this flow made;
-  // a new one is made only where the device does not stand in one this flow made, and is kept in mind before the
-  // device is moved, so a move that was refused is tried again into the same place rather than into a second one.
+  // The name of the place the claim made did not get through: why, and the same write once more.
+  const unnamed = made && namePlace.isError ? <LoadFailed error={namePlace.error} retry={() => namePlace.mutate(namePlace.variables)} /> : null;
+
+  // The answer to where it hangs, written; a refusal is said under the answers, and the same tap tries again. A
+  // place that exists takes the device and ends the one this flow made. A new one is made only where the device
+  // stands in none of the flow's, and ends again if the device does not get in - or is kept for the next answer.
   const hang = async (to: Space | null) => {
     let madeId = made;
     if (to === null && (made === null || spaceId !== made)) {
-      madeId = made ?? (await makePlace.mutateAsync({ kind: newPlaceKind(claimed.type), name: newPlaceName(claimed.type, own(places), t) })).id;
-      setMade(madeId);
-      await move.mutateAsync({ deviceId: claimed.id, spaceId: madeId });
+      const into = made ?? (await makePlace.mutateAsync({ kind: newPlaceKind(claimed.type), name: newPlaceName(claimed.type, own(places), t) })).id;
+      setMade((madeId = into));
+      await move.mutateAsync({ deviceId: claimed.id, spaceId: into }).catch(async (refused: unknown) => {
+        const ended = end.mutateAsync(into).then(() => setMade(null));
+        await ended.catch(() => undefined);
+        throw refused;
+      });
     } else if (to !== null) {
       if (spaceId !== to.id) await move.mutateAsync({ deviceId: claimed.id, spaceId: to.id });
       if (made) await end.mutateAsync(made);
       setMade((madeId = null));
     }
 
-    // Where it hangs is the first thing asked, so what follows it is the second of the plan.
-    if (to && !ownClimate && climateIn(every, to.id, claimed.id)) joined(claimed, to);
-    else if (plan[1]) go(plan[1], madeId);
+    // Where it hangs decides whether a climate is asked for, so the steps are counted from this answer on.
+    const beside = to !== null && climateIn(every, to.id, claimed.id);
+    const rest = ASKED.filter(one => (one === 'doing' ? ownClimate && !beside : plan.includes(one)));
+    if (to && beside && !ownClimate) joined(claimed, to);
+    else if (rest[1]) go(rest[1], madeId, rest);
     else leaveTo(to?.id ?? madeId);
   };
 
@@ -248,10 +253,8 @@ export function Claim() {
     return (
       <AirStep
         device={claimed}
-        places={own(places).filter(one => one.id !== made)}
+        places={joinOrder(own(places), every, claimed.id).filter(one => one.id !== made)}
         every={every}
-        step={step}
-        of={of}
         headingRef={heading}
         hang={hang}
         onBack={() => void navigate(-1)}
@@ -292,7 +295,7 @@ export function Claim() {
     },
     // About every device, and asked all the same: the offline rule is armed from the claim on, and nobody would hear it.
     notify: { title: t('claim.notify.title'), settled: notifySummary(me.data, t), help: 'emailAlarms', body: <NotifyStep me={me.data} /> },
-    grow: { title: t('claim.grow.title') },
+    grow: { title: t('start.grow.here') },
   };
 
   // A stage picked but not yet written: the bottom button is where every step is left, so it carries the choice into the write.
@@ -314,7 +317,7 @@ export function Claim() {
 
   return (
     <section className={styles.screen}>
-      <FlowHead device={typeName(claimed.type, t)} step={step} of={of} titled onClose={leave} />
+      <FlowHead type={claimed.type} step={step} of={of} onClose={leave} />
 
       {/* A step change announces nothing by itself: this says what has opened. */}
       <p className={ui.visuallyHidden} role="status">
@@ -322,6 +325,7 @@ export function Claim() {
       </p>
 
       {device.isError ? <RefreshFailed failedAt={device.dataUpdatedAt} now={now} /> : null}
+      {unnamed}
 
       <Step number={1} state="done" title={<ClaimedTitle device={claimed} />} text={<ClaimedFacts device={claimed} sockets={sockets} now={now} />} />
 
