@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
 updated: 2026-11-13
-source: Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
+source: the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/**
   - shared-types/**
@@ -297,3 +297,8 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   that can `require` ESM.
 - sharp 0.35 refuses corrupt images, so test fixtures must be valid files. Which packages may run install scripts
   (`allowScripts`): [ci-and-release.md](ci-and-release.md).
+- The image compiles `server/` with swc (`npm run build`), not with `tsc`, and the swc in the lockfile does not parse
+  every syntax `tsc` accepts: `as const satisfies Record<…>` in `src/modules/v1/sharing/link-card.ts` passed `tsc`,
+  lint and every suite and still broke the image build ("Expected a semicolon"). Run `npm run build` in `server/`
+  before a commit that adds new TypeScript syntax; `npx swc <file> -o /dev/null` names the line (the redesign
+  session, 2026-11-13).
