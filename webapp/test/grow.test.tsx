@@ -457,7 +457,7 @@ describe('a day of the diary', () => {
       cameras,
       byline: session.user.user?.isDemo !== true,
       correct: (line, dayNumber) => correcting(line, { label: grow.name, dayNumber, ...growStanding(grow) }),
-      curveOf: (metric, moment) => `/timeline?space=space-1&focus=${metric}&at=${moment}`,
+      curveOf: (metric, moment) => `/timeline?space=space-1${metric ? `&focus=${metric}` : ''}&at=${moment}`,
     };
 
     return (
@@ -549,12 +549,16 @@ describe('a day of the diary', () => {
 
   it('says when another device took over the measuring, by its name or else by its kind, as a line nobody wrote', () => {
     drawDay(day(1, { events: [{ kind: 'device', at: at(1, 23), name: 'Controller B', type: 'controller' }] }));
-    expect(linesOf()).toEqual(['23:00Controller B measures from 23:00by itself']);
+    expect(linesOf()).toEqual([expect.stringMatching(/^23:00Controller B measures from 23:00/)]);
+    // It leads to the curves of that moment, as a stretch outside the targets does, with no reading marked.
+    expect(screen.getByRole('link', { name: reads(/Controller B measures from 23:00/) }).getAttribute('href')).toMatch(
+      /^\/timeline\?space=space-1&at=/,
+    );
     cleanup();
 
     // A claim stores the type where nobody said a name, and a type is a key, not a word.
     drawDay(day(1, { events: [{ kind: 'device', at: at(1, 23), name: 'controller', type: 'controller' }] }));
-    expect(linesOf()).toEqual(['23:00Controller measures from 23:00by itself']);
+    expect(linesOf()).toEqual([expect.stringMatching(/^23:00Controller measures from 23:00/)]);
   });
 
   it('says a reading that left its targets as one line however often and on whichever side, and leads to the curve of that moment', () => {

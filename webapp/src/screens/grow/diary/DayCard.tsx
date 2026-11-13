@@ -110,7 +110,7 @@ export function DayCard({
                   people={people}
                   measurements={reader.readingNames}
                   byline={reader.byline}
-                  to={line.what.kind === 'said' && line.what.metric ? reader.curveOf(line.what.metric, line.at) : null}
+                  to={line.what.kind === 'said' && (line.what.metric || line.what.moment) ? reader.curveOf(line.what.metric, line.at) : null}
                   onOpen={correct ?? (pictures[0] ? () => onPicture(pictures[0]) : null)}
                   opens={correct ? undefined : t('grow.diary.openPicture')}
                 />

@@ -36,7 +36,7 @@ export interface DiaryReader {
   /** The sheet that corrects a line, where this reader may correct it. */
   correct: (entry: Entry, dayNumber: number | null) => (() => void) | undefined;
   /** The curve of a reading at a moment of the diary, where the reader has one to open. */
-  curveOf: (metric: Metric, at: string) => string | null;
+  curveOf: (metric: Metric | null, at: string) => string | null;
   /** The curves of one whole day, which its climate line leads to. */
   curvesOf: (day: Pick<GrowDiaryDay, 'startsAt' | 'endsAt'>) => string | null;
 }
@@ -97,8 +97,11 @@ export interface DayLine {
     | { kind: 'entry'; entry: Entry; count: number; since: string }
     /** An alarm, named by its rule: how often it fired that day, and the reading and the edge it crossed. */
     | { kind: 'alarm'; entry: Entry; rule: string; count: number; since: string; limit: string | null; over: boolean }
-    /** Something worked out from the record: the lamp, a stretch outside the targets (`metric`), maintenance, another device measuring. */
-    | { kind: 'said'; words: string; metric: Metric | null };
+    /**
+     * Something worked out from the record: the lamp, a stretch outside the targets (`metric`), maintenance, another
+     * device measuring. `moment` says the line leads to the curves of its moment where it names no reading of its own.
+     */
+    | { kind: 'said'; words: string; metric: Metric | null; moment?: true };
 }
 
 /**
@@ -118,13 +121,13 @@ export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entr
   const written = foldRepeats(day.entries.filter(entry => !alarms.told.has(entry.id))).map(({ entry, count, since }) =>
     writtenLine(entry, count, since),
   );
-  const said = (key: string, at: string, words: string, over: Partial<DayLine> = {}, metric: Metric | null = null): DayLine => ({
+  const said = (key: string, at: string, words: string, over: Partial<DayLine> = {}, metric: Metric | null = null, moment = false): DayLine => ({
     key,
     at,
     own: false,
     routine: false,
     ...over,
-    what: { kind: 'said', words, metric },
+    what: { kind: 'said', words, metric, ...(moment ? { moment: true as const } : {}) },
   });
 
   const maintenance = day.events.flatMap(event =>
@@ -176,7 +179,8 @@ export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entr
   // The place's climate passed to another device: from then on the day's figures are that one's.
   const measuring = day.events.flatMap(event =>
     event.kind === 'device'
-      ? [said(`device-${event.at}`, event.at, t('grow.diary.measuredBy', { at: clock(event.at, zone), name: deviceName(event, t) }))]
+      ? // The moment the curves change hands is one to look at, as a stretch outside the targets is.
+        [said(`device-${event.at}`, event.at, t('grow.diary.measuredBy', { at: clock(event.at, zone), name: deviceName(event, t) }), {}, null, true)]
       : [],
   );
 
