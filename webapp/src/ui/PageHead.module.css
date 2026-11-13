@@ -9,7 +9,8 @@
 }
 
 /* The name keeps its words whole: the pill goes under it before a word is cut in two, and only a word longer than
-   the line beside the way back - a finger wide, less what it hangs out by - breaks. */
+   the line beside the way back - a finger wide, less what it hangs out by - breaks, between two syllables where
+   the browser knows them (`h1` in global.css) and between two letters only where it does not. */
 .head h1 {
   flex: 1 1 8rem;
   min-width: auto;

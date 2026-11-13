@@ -289,6 +289,14 @@
   --qr-paper: #ffffff;
 }
 
+/* The narrowest phones: a page's title a size down, so a long German word
+   beside the way back fits its line more often than it breaks. */
+@media (max-width: 359px) {
+  :root {
+    --text-title: 26px;
+  }
+}
+
 /* A desktop's title and figures: the rail frees the width, and the reader sits
    further back. */
 @media (min-width: 900px) {

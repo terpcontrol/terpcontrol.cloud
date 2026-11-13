@@ -1188,7 +1188,7 @@ describe('Start with several places', () => {
     // The one that asks says what is wrong in the sentence of its own Start; the one that is fine says only that.
     // It also says that something is due there, which "Today" lists further down a phone's page.
     await waitFor(() =>
-      expect(cards[0]).toHaveTextContent('Tent 2checkHumidity 12 % too high25.1 °C · 72 % · Light 65 %Autumn cuttings · Day 9 · Veg1 task due'),
+      expect(cards[0]).toHaveTextContent('Tent 2off targetHumidity 12 % too high25.1 °C · 72 % · Light 65 %Autumn cuttings · Day 9 · Veg1 task due'),
     );
     expect(within(cards[0]).getByRole('img', { name: 'Tent 2: the newest picture' })).toHaveAttribute('src', '/media/still-2');
     expect(cards[1]).toHaveTextContent('Fridge 1on target25.1 °C · 61 % · Light 65 %');
@@ -1219,6 +1219,30 @@ describe('Start with several places', () => {
     fireEvent.click(await within(today).findByRole('button', { name: 'Log: Water' }));
     expect(within(today).getByRole('listitem')).toHaveTextContent(`WaterAutumn cuttings · Tent 2 · due since ${hhmm(ago(30))}Log`);
     expect(log.openSheet).toHaveBeenCalledWith({ growId: 'grow-2', spaceId: 'space-2', kind: 'water' });
+  });
+
+  /** The pill names the state as a device's pill and Steuerung do, and "check" named nothing. */
+  it('says in the pill what state a place is in, in the words a device´s pill uses', async () => {
+    server.devices = [
+      fridge({ state: { lastSeenAt: ago(0), hardware: {}, maintenanceUntil: ago(-10) } as never }),
+      fridge({
+        id: 'device-2',
+        type: 'controller',
+        spaceId: 'space-2',
+        state: { lastSeenAt: ago(5), hardware: {}, maintenanceUntil: null } as never,
+      }),
+    ];
+    server.home = homeOf([cardOf(), { ...tent(), values: values(5).map(value => ({ ...value, state: 'stale' as const })) }], true);
+    draw();
+
+    const pill = (spaceId: string) =>
+      screen
+        .getAllByRole('link')
+        .find(link => link.getAttribute('href') === `/spaces/${spaceId}`)
+        ?.querySelector('[data-tone]');
+    await waitFor(() => expect(pill('space-1')).toHaveTextContent(/^Maintenance$/));
+    expect(pill('space-2')).toHaveTextContent(/^stale$/);
+    expect(screen.queryByText('check')).not.toBeInTheDocument();
   });
 
   it('says a place gone quiet is offline, and judges none of its figures', async () => {

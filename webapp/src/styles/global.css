@@ -68,8 +68,15 @@ h2,
   text-wrap: balance;
 }
 
+/* A page's title fits the narrowest phone: a word longer than its line -
+   "Benachrichtigungen" beside a way back at 320 px - breaks between two of
+   its syllables with a hyphen, never between two letters, and only a word of
+   16 letters or more does (Safari and Firefox ignore the limit). Below 360 px
+   the title steps down a size as well (`--text-title`). */
 h1 {
   font-size: var(--text-title);
+  hyphens: auto;
+  hyphenate-limit-chars: 16;
 }
 
 h2,

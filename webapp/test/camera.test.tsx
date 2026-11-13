@@ -405,12 +405,12 @@ describe('the composer', () => {
   /** One camera or two side by side is a choice only where a second one stands there; nothing is said about one that does not. */
   it('offers a second camera only where one stands there', () => {
     const alone = draw(grow);
-    expect(screen.queryByRole('group', { name: 'Cam' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Camera' })).not.toBeInTheDocument();
     alone.unmount();
 
     state.beside = [camera, { ...camera, id: 'camera-2', name: 'Side cam' }];
     draw(grow);
-    fireEvent.click(within(screen.getByRole('group', { name: 'Cam' })).getByRole('button', { name: 'Both · Side cam' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Camera' })).getByRole('button', { name: 'Both · Side cam' }));
     fireEvent.click(screen.getByRole('button', { name: 'Render · SD' }));
 
     expect(state.asked[0].secondCameraId).toBe('camera-2');

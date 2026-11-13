@@ -26,9 +26,13 @@ const unitSymbol = (unit: DurationUnit): string => (i18next.exists(`units.${unit
 /** A figure and its unit of time: "4 min", "3 T". */
 export const durationFigure = (figure: number | string, unit: DurationUnit): string => `${figure} ${unitSymbol(unit)}`;
 
-/** "20 s", "4 min", "2 h", "3 d" - short, so it fits beside the figure it belongs to. */
+/**
+ * "20 s", "4 min", "2 h", "3 d" - short, so it fits beside the figure it belongs to. Its figure and unit are bound
+ * by a space that does not break: an age ends the sentence it is said in ("Stand vor 1 T"), and at a line's end
+ * its unit stood alone on the next line.
+ */
 export const ageLabel = (measuredAt: string | null, now: DateTime = serverNow()): string =>
-  measuredAt ? spanLabel((now.toMillis() - DateTime.fromISO(measuredAt).toMillis()) / 1000) : '—';
+  measuredAt ? spanLabel((now.toMillis() - DateTime.fromISO(measuredAt).toMillis()) / 1000).replace(' ', '\u00a0') : '—';
 
 /**
  * The same words for a span somebody hands us in seconds rather than as an

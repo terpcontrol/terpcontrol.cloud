@@ -1,4 +1,5 @@
 import { type QueryClient } from '@tanstack/react-query';
+import i18next from 'i18next';
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device, Me } from '@fg2/shared-types/v1';
@@ -8,7 +9,7 @@ import { ApiError } from '@/api/problem';
 import { AddCamera } from '@/screens/camera/add/AddCamera';
 import { drawAt, testClient } from './harness';
 import { spaceWhere } from './session';
-import { translate } from './translations';
+import { catalogue, translate } from './translations';
 
 /**
  * Adding a camera: what the two tabs offer, what turns up while somebody
@@ -87,6 +88,8 @@ const lamp = device({ id: 'device-8', name: 'Lamp', type: 'light', spaceId: 'spa
 
 /** What every stream body says beyond the place, the name and the address, where nothing else was chosen. */
 const plainStream = { username: '', password: '', transport: 'tcp' };
+/** What the camera a test asks through says beside: it writes no line and raises no alert. */
+const testOnly = { logErrors: false, staleWarning: false };
 
 // A camera is put into a place by managing it, so the tents on offer carry the
 // standing that decides whether they are offered at all.
@@ -187,10 +190,10 @@ describe('pairing a Terp Cam at a device', () => {
   it('says what to press, and waits with nothing to tap', async () => {
     await drawPairing();
 
-    expect(screen.getByText('Plug the cam in nearby')).toBeInTheDocument();
+    expect(screen.getByText('Plug the Terp Cam in nearby')).toBeInTheDocument();
     // The path the display's own menu takes, word for word.
     expect(screen.getByText('At the controller: press the knob, then Terp Cam › connect cam')).toBeInTheDocument();
-    expect(screen.getByText('No phone app, no Wi-Fi password: the device hands the cam its network. One cam per device.')).toBeInTheDocument();
+    expect(screen.getByText('No phone app, no Wi-Fi password: the device hands the camera its network. One camera per device.')).toBeInTheDocument();
     expect(screen.getByText('It shows up here')).toBeInTheDocument();
 
     // The camera this account already had is not something that turned up.
@@ -371,7 +374,8 @@ describe('a camera at a stream address', () => {
     await screen.findByLabelText('Stream address');
   };
 
-  it('makes the camera through the device standing in the chosen tent, then asks it for one picture', async () => {
+  /** A test capture is a camera's own route: the test asks through a silent camera of its own and takes it away again. */
+  it('asks for one picture through the device standing in the chosen tent, and adds nothing', async () => {
     await openRtsp();
     fill();
     await act(async () => {
@@ -386,8 +390,11 @@ describe('a camera at a stream address', () => {
       deviceId: 'device-1',
       tunnel: true,
       ...plainStream,
+      ...testOnly,
     });
     expect(api.post).toHaveBeenNthCalledWith(2, '/cameras/camera-rtsp/test-captures');
+    expect(api.delete).toHaveBeenCalledWith('/cameras/camera-rtsp');
+    expect(screen.getByRole('button', { name: 'Add camera' })).toBeInTheDocument();
     // A wrong address is an ordinary outcome of this button, so the kind of
     // failure is what is drawn, in the screen's language - and the camera's
     // own words, English ffmpeg with the tunnel's port in it, are folded under
@@ -471,6 +478,7 @@ describe('a camera at a stream address', () => {
       deviceId: 'device-5',
       tunnel: true,
       ...plainStream,
+      ...testOnly,
     });
   });
 
@@ -583,7 +591,7 @@ describe('a camera at a stream address', () => {
     expect(api.post).toHaveBeenNthCalledWith(1, '/cameras', expect.objectContaining({ tunnel: true, transport: 'http' }));
   });
 
-  it('moves the camera´s device when the place is changed after a test', async () => {
+  it('adds the camera as the form stands when the place is changed after a test, and opens it', async () => {
     await openRtsp();
     fill();
     await act(async () => {
@@ -591,12 +599,13 @@ describe('a camera at a stream address', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Balcony' }));
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Open the camera' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add camera' }));
     });
 
-    // The tunnel is worked out again on every write, so the stored camera never
-    // keeps a device the screen has stopped promising.
-    expect(api.patch).toHaveBeenCalledWith('/cameras/camera-rtsp', {
+    // The tunnel is worked out again on every write, so the camera never keeps
+    // a device the screen has stopped promising.
+    expect(api.post).toHaveBeenLastCalledWith('/cameras', {
+      kind: 'rtsp',
       name: 'Balcony cam',
       spaceId: 'space-2',
       url: 'rtsp://192.168.1.40/stream1',
@@ -604,6 +613,37 @@ describe('a camera at a stream address', () => {
       tunnel: false,
       ...plainStream,
     });
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('says a refused address in the field´s own words, once, whatever language the server wrote it in', async () => {
+    vi.mocked(api.post).mockRejectedValue(
+      new ApiError({
+        status: 422,
+        title: 'Unprocessable',
+        detail: 'A stream is opened at an address that begins with rtsp:// or rtsps:// and names a host.',
+        code: 'not_a_stream_address',
+        errors: [{ field: 'url', code: 'not_a_stream_address', detail: 'Write the address as rtsp://host/path.' }],
+      } as never),
+    );
+    await openTab('RTSP');
+    await screen.findByLabelText('Stream address');
+    fill();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add camera' }));
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent(/^A stream is opened at an address/);
+
+    // The server writes English only: German says it in the field's words, and the field's own refusal once.
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
+    await act(() => i18next.changeLanguage('de'));
+    try {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        /^Eine Stream-Adresse beginnt mit rtsp:\/\/ oder rtsps:\/\/ und nennt die Kamera, etwa rtsp:\/\/192\.168\.1\.40:554\/stream1\.$/,
+      );
+    } finally {
+      await act(() => i18next.changeLanguage('en'));
+    }
   });
 
   it('says what the server said when the camera was refused', async () => {
@@ -630,45 +670,49 @@ describe('a camera at a stream address', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
     expect(screen.getByText('Give it a name first.')).toBeInTheDocument();
-    // The reason reaches a screen reader through the button that cannot be pressed.
+    // The reason reaches a screen reader through the button that cannot be pressed; a test needs no name.
     expect(screen.getByRole('button', { name: 'Add camera' })).toHaveAccessibleDescription('Give it a name first.');
+    expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Balcony cam' } });
     expect(screen.getByRole('button', { name: 'Add camera' })).toBeEnabled();
   });
 
-  it('says beforehand that testing adds the camera, and afterwards where it went', async () => {
+  it('says that the test adds nothing, and adds the camera on "Add camera" alone, opening its page', async () => {
     await openRtsp();
     fill();
 
-    expect(screen.getByText(/“Test” adds the camera and then asks it for one picture/)).toBeInTheDocument();
-
+    expect(screen.getByText('“Test” asks for one picture and adds nothing.')).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add camera' }));
     });
 
-    // The camera exists from here on, so the screen stops drawing the primary
-    // button as the tap that would commit it.
-    expect(screen.getByText('Tent 1: camera added. It is under Control now, and testing again updates it.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Add camera' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open the camera' })).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith('/cameras', expect.not.objectContaining({ logErrors: false }));
+    expect(api.delete).not.toHaveBeenCalled();
   });
 
-  it('takes the camera away again from the screen the address was mistyped on', async () => {
+  /** "quatsch" made a camera that could never show a picture. */
+  it('refuses an address that is no stream address under the field, before anything is written', async () => {
     await openRtsp();
+    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'rtsp:/' } });
+    // Still on its way to rtsp://: not refused yet, only not there.
+    expect(screen.getByLabelText('Stream address')).not.toHaveAttribute('aria-invalid');
     fill();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Test' }));
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Remove it again' }));
-    });
+    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'quatsch' } });
 
-    expect(api.delete).toHaveBeenCalledWith('/cameras/camera-rtsp');
-    expect(screen.queryByText(/It is under Control now/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add camera' })).toBeInTheDocument();
-    // The next tap makes a camera rather than amending the one just removed.
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    const refusal = 'A stream address starts with rtsp:// or rtsps:// and names the camera, such as rtsp://192.168.1.40:554/stream1.';
+    expect(screen.getByLabelText('Stream address')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Stream address')).toHaveAccessibleDescription(refusal);
+    for (const name of ['Test', 'Add camera']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+      expect(screen.getByRole('button', { name })).toHaveAccessibleDescription(refusal);
+    }
+    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'http://192.168.1.40/stream1' } });
+    expect(screen.getByRole('button', { name: 'Add camera' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'rtsps://cam.example.org/live' } });
+    expect(screen.getByRole('button', { name: 'Add camera' })).toBeEnabled();
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('makes the place the camera looks at where the account has none', async () => {
@@ -677,9 +721,13 @@ describe('a camera at a stream address', () => {
 
     expect(screen.getByText(/There is no place to put a camera in yet/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Name of the place'), { target: { value: 'Attic' } });
-    // A room groups places and is none itself: the form makes no room.
-    expect(screen.queryByRole('button', { name: 'Room' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Other place' }));
+    // The kinds of a place a camera looks into: a room that groups places is none of them, a room that is the place is.
+    expect(
+      within(screen.getByRole('group', { name: 'Kind of place' }))
+        .getAllByRole('button')
+        .map(chip => chip.textContent),
+    ).toEqual(['Tent', 'Balcony', 'Drying box', 'Greenhouse', 'Room', 'Other']);
+    fireEvent.click(screen.getByRole('button', { name: 'Other' }));
     state.spaces = [madeSpace];
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Make the place' }));
@@ -694,7 +742,19 @@ describe('a camera at a stream address', () => {
     state.premium = false;
     await openRtsp();
 
-    expect(await screen.findByText('Premium is not charged on this installation, so an RTSP camera costs you nothing here.')).toBeInTheDocument();
+    expect(await screen.findByText('An RTSP camera costs nothing on this installation.')).toBeInTheDocument();
+  });
+});
+
+describe('a guest with no place of his own', () => {
+  it('is told he needs a place of his own first, and offered one, rather than the steps of pairing at a device he may not touch', async () => {
+    state.spaces = [spaceWhere('log', { id: 'space-9', name: 'Their tent', ownerId: 'user-2' })];
+    state.devices = [device({ id: 'device-9', spaceId: 'space-9', ownerId: 'user-2' } as Partial<Device>)];
+    draw();
+
+    expect(await screen.findByText(/A camera goes into a place of your own, and so far you only see other people’s places/)).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Which camera' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Name of the place')).toBeInTheDocument();
   });
 });
 

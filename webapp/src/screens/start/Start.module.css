@@ -820,6 +820,12 @@ a.tileLabel::after {
   color: var(--warning);
 }
 
+/* Maintenance is somebody's choice: said, in the quiet surface's ink. */
+.pill[data-tone='quiet'] {
+  background: var(--card-2);
+  color: var(--muted);
+}
+
 .placeStatus {
   font-size: var(--text-sm);
   color: var(--muted);

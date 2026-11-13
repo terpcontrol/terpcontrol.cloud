@@ -537,7 +537,7 @@ describe('a place´s page', () => {
   it('answers the address of who is let in with the page that edits the place, for whoever manages it', async () => {
     const router = open('/spaces/space-1/members');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Edit Fridge 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Edit place' })).toBeInTheDocument();
     expect(where(router)).toBe('/spaces/space-1/edit');
   });
 });
@@ -756,20 +756,31 @@ describe('the choice of place', () => {
   });
 
   /** An old alert and a bookmark still name a place that was removed: the page says so, and draws no other place in its stead. */
-  it.each([
-    ['/timeline', 'Timeline'],
-    ['/control', 'Control'],
-  ])('says at %s that a place of the account´s own has ended, keeps the address and leads to Start', async (item, title) => {
+  it('says at /control that a place of the account´s own has ended, keeps the address and leads to Start', async () => {
     server.ended = [['space-9', 'Old tent']];
-    const router = open(`${item}?space=space-9`);
+    const router = open('/control?space=space-9');
+
+    expect(await screen.findByText('The place Old tent no longer exists. Its curves can still be read in the Timeline.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Control' })).toBeInTheDocument();
+    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(where(router)).toBe('/control?space=space-9');
+    expect(timelinesAsked()).toEqual([]);
+  });
+
+  /** Its curves stay its owner's to read: Verlauf draws them, says the place has ended and offers nothing that writes. */
+  it('draws at /timeline the curves of a place of the account´s own that has ended, read only', async () => {
+    server.ended = [['space-9', 'Old tent']];
+    const router = open('/timeline?space=space-9');
 
     expect(
-      await screen.findByText('The place Old tent no longer exists. You can still see its curves on the grows that were there.'),
+      await screen.findByText('The place Old tent no longer exists. Its curves can still be read here; nothing can be changed any more.'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument();
-    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
-    expect(where(router)).toBe(`${item}?space=space-9`);
-    expect(timelinesAsked()).toEqual([]);
+    expect(screen.getByRole('heading', { level: 1, name: 'Timeline' })).toBeInTheDocument();
+    expect(where(router)).toBe('/timeline?space=space-9');
+    await waitFor(() => expect(timelinesAsked()).toEqual(['space-9']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Adjust' }));
+    expect(screen.queryByText('Share')).not.toBeInTheDocument();
+    expect(screen.queryByText('Views')).not.toBeInTheDocument();
   });
 
   it('opens the Log sheet on the place the page shows', () => {
@@ -1107,6 +1118,36 @@ describe('a place taken out of sight while the app is open', () => {
     expect(screen.getAllByText('You no longer see Fridge 1')).toHaveLength(1);
   });
 
+  /** Left standing, the page turned into the empty account's Steuerung, which offered to add a device. */
+  it('leads a guest from a page about the place that went to Start, and says it there', async () => {
+    server.youMay = 'log';
+    const router = open('/control?space=space-1');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Control' })).toBeInTheDocument();
+    await waitFor(() => expect(reads('/spaces')).toBeGreaterThan(0));
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+
+    server.places = [];
+    await beat();
+
+    expect(await screen.findByText('You no longer see Fridge 1')).toBeInTheDocument();
+    await waitFor(() => expect(where(router)).toBe('/'));
+    expect(await screen.findByRole('heading', { level: 1, name: 'You see no place right now' })).toBeInTheDocument();
+  });
+
+  it('leaves a guest on the page of a place that is still seen when another one goes', async () => {
+    server.youMay = 'log';
+    server.places = [...TWO];
+    const router = open('/control?space=space-2');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Control' })).toBeInTheDocument();
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+
+    server.places = [['space-2', 'Tent 2']];
+    await beat();
+
+    expect(await screen.findByText('You no longer see Fridge 1')).toBeInTheDocument();
+    expect(where(router)).toBe('/control?space=space-2');
+  });
+
   it('names each place that went, and keeps the cards of what is still seen', async () => {
     server.youMay = 'log';
     server.places = [...TWO, ['space-3', 'Balcony']];
@@ -1164,7 +1205,7 @@ describe('the place menu', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
     fireEvent.click(screen.getByRole('link', { name: 'Edit place' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Edit Fridge 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Edit place' })).toBeInTheDocument();
     // One task with one way on and one way out: the page stands without the bar.
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'Blue Dream' } });

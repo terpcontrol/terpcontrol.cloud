@@ -13,11 +13,12 @@ import { Facts } from '@/ui/Facts';
 import { RefreshFailed } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
+import type { Translate } from '@/i18n/i18n';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { AddPlace } from './AddPlace';
 import { judgedAt, livenessOf } from './attention';
 import { useCardStatus } from './card-status';
-import { toneOf } from './place';
+import { toneOf, type Status } from './place';
 import { readingFacts, readingsOf } from './readings';
 import { useLamp } from './reads';
 import { startOrder } from './rooms';
@@ -126,7 +127,33 @@ export function Places({
   );
 }
 
-const PILL: Partial<Record<ReturnType<typeof toneOf>, string>> = { good: 'start.card.good', warn: 'start.card.check', alarm: 'start.card.check' };
+/**
+ * The pill beside a card's name: the place's state in the words a device's
+ * pill and Steuerung say it with - "im Ziel", "Alarm", "veraltet", "Wartung",
+ * "Regelung aus" -, never a bare "prüfen" that names nothing. A place that is
+ * waiting, has no targets or nothing to judge carries none.
+ */
+const pillOf = (t: Translate, status: Status): string | null => {
+  switch (status.kind) {
+    case 'good':
+      return t('start.card.good');
+    case 'off':
+      return t('start.card.off');
+    case 'alert':
+      return t('start.card.alarm');
+    case 'offline':
+    case 'stale':
+      return t(`home.reading.${status.kind}`);
+    case 'maintenance':
+      return t('maintenance.title');
+    case 'controlOff':
+      return t('control.state.off');
+    case 'mode':
+      return t(`home.stage.${status.mode}`);
+    default:
+      return null;
+  }
+};
 
 /**
  * One place among several: its name and whether it wants looking at, the
@@ -160,7 +187,7 @@ function PlaceCard({
   const setpoints = card.climates[0]?.setpoints ?? card.setpoints;
   const readings = readingsOf(t, { values, setpoints, device, lit: offline ? null : lit, held, hold: null, now, zone });
   const figures = readingFacts(t, readings);
-  const pill = offline ? 'home.reading.offline' : PILL[tone];
+  const pill = pillOf(t, status);
   const still = card.latestStill ? mediaUrl(card.latestStill.mediaId, THUMBNAIL_WIDTH.still) : null;
   const grow = diary && card.grow ? [card.grow.name, growDay(t, card.grow), card.grow.stage ? t(`home.stage.${card.grow.stage}`) : null] : [];
 
@@ -172,7 +199,7 @@ function PlaceCard({
           <span className={styles.placeName}>{card.name}</span>
           {pill ? (
             <span className={styles.pill} data-tone={tone}>
-              {t(pill)}
+              {pill}
             </span>
           ) : null}
         </span>

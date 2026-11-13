@@ -162,6 +162,9 @@ export const useChosenPlace = (): string | null => useSyncExternalStore(subscrib
 
 const pagePlace = (): string | null => pageOf;
 
+/** The place the page on screen belongs to, where it says it belongs to one (`usePageOfPlace`). */
+export const usePagePlace = (): string | null => useSyncExternalStore(subscribe, pagePlace, pagePlace);
+
 /**
  * A place of somebody else's taken out of the reader's sight while the app was open (`shell/LostSight.tsx`): the
  * account it was taken from, whose empty Start is then no first one, and what the reader walked out of themself -
@@ -282,7 +285,7 @@ export const usePlaceChoice = (places: PlaceCard[] | undefined, saysEnded = fals
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const chosen = useChosenPlace();
-  const belongs = useSyncExternalStore(subscribe, pagePlace, pagePlace) !== null;
+  const belongs = usePagePlace() !== null;
   const item = itemOf(pathname);
   const asked = item ? params.get('space') : null;
   const spaces = useSpaces(user !== null);
