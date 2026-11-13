@@ -13,6 +13,7 @@ import { deviceName, PLACE_KINDS } from '@/ui/naming';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { Help, Term } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
+import { PlaceChoices } from '@/ui/PlaceChoices';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -100,7 +101,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   const working = create.isPending || amend.isPending || capture.isPending || drop.isPending;
 
   /** A different place is a different set of devices, so the one picked here does not follow. */
-  const putIn = (id: string) => {
+  const putIn = (id: string | null) => {
     setSpaceId(id);
     setCarrierId(null);
   };
@@ -240,13 +241,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         {places.length === 0 ? (
           <NewPlace onMade={space => putIn(space.id)} />
         ) : (
-          <Choices label={t('cameras.add.rtsp.where')}>
-            {places.map(space => (
-              <Choice key={space.id} chosen={space.id === placeId} onChoose={() => putIn(space.id)}>
-                {space.name}
-              </Choice>
-            ))}
-          </Choices>
+          <PlaceChoices label={t('cameras.add.rtsp.where')} places={places} chosen={placeId} onChoose={putIn} />
         )}
       </section>
 

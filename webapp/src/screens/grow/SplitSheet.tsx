@@ -4,15 +4,17 @@ import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowthStage, Plant, Space } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useSplit } from '@/api/lifecycle';
+import { placesFor } from '@/app/places';
+import { PlaceChoices } from '@/ui/PlaceChoices';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
-import { presetsOf } from '@/ui/presets';
+import { keptPreset } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
+import { StageClimates } from './ClimatePick';
 import { PlantPicker } from './PlantPicker';
-import { PlaceChoices } from './PlaceChoices';
 import styles from './Lifecycle.module.css';
 
 /**
@@ -104,7 +106,7 @@ export function SplitSheet({
                 chosen={stage === one}
                 onChoose={() => {
                   setStage(one);
-                  setPreset(current => (presetsOf(one).includes(current ?? '') ? current : null));
+                  setPreset(current => keptPreset(one, current));
                 }}
               >
                 {t(`home.stage.${one}`)}
@@ -112,24 +114,14 @@ export function SplitSheet({
             ))}
           </Choices>
 
-          {stage !== null && presetsOf(stage).length > 0 ? (
-            <Choices label={t('grow.lifecycle.phase.presetLabel')}>
-              <Choice chosen={preset === null} onChoose={() => setPreset(null)}>
-                {t('grow.lifecycle.phase.noPreset')}
-              </Choice>
-              {presetsOf(stage).map(one => (
-                <Choice key={one} chosen={preset === one} onChoose={() => setPreset(one)}>
-                  {t(`grow.presetName.${one}`, { defaultValue: one })}
-                </Choice>
-              ))}
-            </Choices>
-          ) : null}
+          {stage ? <StageClimates label={t('grow.lifecycle.phase.presetLabel')} stage={stage} chosen={preset} onPick={setPreset} /> : null}
         </Block>
 
         <Block label={t('grow.lifecycle.split.theirPlace')}>
           <PlaceChoices
             label={t('grow.lifecycle.split.theirPlace')}
-            spaces={spaces}
+            places={placesFor(spaces)}
+            nowhere
             chosen={spaceId}
             keep={t('grow.lifecycle.split.keepPlace')}
             onChoose={setSpaceId}

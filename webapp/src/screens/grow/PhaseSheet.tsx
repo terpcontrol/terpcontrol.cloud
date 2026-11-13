@@ -10,13 +10,13 @@ import { Sheet } from '@/ui/Sheet';
 import { nextStage } from '@/log/defaults';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
-import { climateChoiceName, presetsOf } from '@/ui/presets';
+import { keptPreset } from '@/ui/presets';
 import { standsIn } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
-import { ClimatePick } from './ClimatePick';
+import { ClimatePick, StageClimates } from './ClimatePick';
 import { RepairAnswer } from './RepairAnswer';
 import { climateRequest, defaultPick, usePlaceController, type PhaseClimate } from './phase-climate';
 import { correctionEffect, phasesInOrder, withdrawalEffect, type PhaseEffect } from './phase-effect';
@@ -177,29 +177,6 @@ const nowLine = (t: Translate, grow: GrowListItem, zone: string | null): string 
 const label = (t: Translate, stage: GrowthStage, preset: string | null): string =>
   preset === null ? t(`home.stage.${stage}`) : `${t(`home.stage.${stage}`)} · ${t(`grow.presetName.${preset}`, { defaultValue: preset })}`;
 
-/**
- * Which climate of the stage a phase is recorded as, when one is being
- * corrected: the record's label and nothing else, so it writes no climate.
- * The names are the climate list's own - "Flower", "Late flower", "Auto ·
- * Flower" - so a corrected phase reads as what the chips under Steuerung call
- * it. A stage with no refinement has nothing to choose and draws nothing.
- */
-function PresetRow({ stage, preset, onPick }: { stage: GrowthStage; preset: string | null; onPick: (preset: string | null) => void }) {
-  const { t } = useTranslation();
-  const offered = presetsOf(stage);
-  if (offered.length === 0) return null;
-
-  return (
-    <Choices label={t('grow.lifecycle.phase.presetLabel')}>
-      {[null, ...offered].map(one => (
-        <Choice key={one ?? ''} chosen={preset === one} onChoose={() => onPick(one)}>
-          {climateChoiceName(t, { stage, preset: one })}
-        </Choice>
-      ))}
-    </Choices>
-  );
-}
-
 /** One phase of the story: what it was, when it began, who put the grow there, and the two ways to repair it. */
 function PhaseRow({
   grow,
@@ -268,7 +245,7 @@ function PhaseEditor({ grow, phase, onDone }: { grow: GrowListItem; phase: Phase
             chosen={one === stage}
             onChoose={() => {
               setStage(one);
-              setPreset(current => (presetsOf(one).includes(current ?? '') ? current : null));
+              setPreset(current => keptPreset(one, current));
             }}
           >
             {t(`home.stage.${one}`)}
@@ -276,7 +253,8 @@ function PhaseEditor({ grow, phase, onDone }: { grow: GrowListItem; phase: Phase
         ))}
       </Choices>
 
-      <PresetRow stage={stage} preset={preset} onPick={setPreset} />
+      {/* The record's label and nothing else: correcting a phase writes no climate. */}
+      <StageClimates label={t('grow.lifecycle.phase.presetLabel')} stage={stage} chosen={preset} onPick={setPreset} />
       <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} until={grow.endedAt ? new Date(grow.endedAt) : null} />
 
       <Effect effect={effect} changed={changed} entry="grow.lifecycle.phase.effect.entry" />

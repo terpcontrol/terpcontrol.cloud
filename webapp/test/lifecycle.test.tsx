@@ -384,6 +384,26 @@ describe('the split sheet over a grow whose record carries no plants', () => {
     expect(screen.getByRole('button', { name: /Split off/ })).toBeInTheDocument();
     expect(screen.queryByText(/No plants are recorded/)).not.toBeInTheDocument();
   });
+
+  it('names the climates of the phase the plants go into as the phase sheet and Control do, and their places and none', () => {
+    drawAt(<SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    const climates = screen.getByRole('group', { name: 'Climate preset' });
+    expect(
+      within(climates)
+        .getAllByRole('button')
+        .map(one => one.textContent),
+    ).toEqual(['Flower', 'Late flower', 'Auto · Flower']);
+    expect(within(climates).getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true');
+
+    const places = screen.getByRole('group', { name: 'Their place' });
+    expect(
+      within(places)
+        .getAllByRole('button')
+        .map(one => one.textContent),
+    ).toEqual(['Keep the place', 'Blue Dream tent', 'No fixed place']);
+  });
 });
 
 /**

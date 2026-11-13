@@ -6,6 +6,7 @@ import { serverNow } from '@/api/clock';
 import { placesFor } from '@/app/places';
 import { refusalCode } from '@/api/problem';
 import { useCorrectPlacement, useMovePlants, useWithdrawPlacement } from '@/api/lifecycle';
+import { PlaceChoices } from '@/ui/PlaceChoices';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
@@ -14,7 +15,6 @@ import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { lastPlaceOf, placeName } from './placement';
 import { RepairAnswer } from './RepairAnswer';
-import { PlaceChoices } from './PlaceChoices';
 import { PlantPicker } from './PlantPicker';
 import styles from './Lifecycle.module.css';
 
@@ -80,7 +80,7 @@ export function MoveSheet({
           <p className={ui.note}>{t('grow.lifecycle.move.endedNote')}</p>
         ) : (
           <Block label={t('grow.lifecycle.move.moveTo')}>
-            <PlaceChoices label={t('grow.lifecycle.move.moveTo')} spaces={spaces} chosen={spaceId} onChoose={id => setSpaceId(id ?? null)} />
+            <PlaceChoices label={t('grow.lifecycle.move.moveTo')} places={open} nowhere chosen={spaceId} onChoose={setSpaceId} />
 
             <PlantPicker
               plants={plants}
@@ -196,7 +196,7 @@ function PlacementEditor({ grow, placement, spaces, onDone }: { grow: GrowListIt
 
   return (
     <div className={styles.editor}>
-      <PlaceChoices label={t('grow.lifecycle.move.moveTo')} spaces={spaces} chosen={spaceId} onChoose={id => setSpaceId(id ?? null)} />
+      <PlaceChoices label={t('grow.lifecycle.move.moveTo')} places={placesFor(spaces)} nowhere chosen={spaceId} onChoose={setSpaceId} />
 
       <WhenField label={t('grow.lifecycle.move.from')} at={from} onChange={setFrom} until={endOf(grow)} />
 

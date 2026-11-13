@@ -13,7 +13,8 @@ import { Facts } from '@/ui/Facts';
 import { cameraTitle, deviceTitle, givenName, placeKindOf, standingWith } from '@/ui/naming';
 import { Refused } from '@/ui/PageState';
 import { Sheet } from '@/ui/Sheet';
-import { Block, Choice, Choices } from '@/ui/SheetParts';
+import { PlaceChoices } from '@/ui/PlaceChoices';
+import { Block, Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import styles from './Devices.module.css';
 
@@ -139,16 +140,17 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
 
         {mine ? (
           <Block label={t('devices.settings.place')} help="deviceMove">
-            <Choices label={t('devices.settings.place')}>
-              {placesOf(listed, device.ownerId).map(space => (
-                <Choice key={space.id} chosen={space.id === (chosen ?? device.spaceId)} disabled={busy} onChoose={() => setChosen(space.id)}>
-                  {space.name}
-                </Choice>
-              ))}
+            <PlaceChoices
+              label={t('devices.settings.place')}
+              places={placesOf(listed, device.ownerId)}
+              chosen={chosen ?? device.spaceId}
+              disabled={busy}
+              onChoose={setChosen}
+            >
               <Choice chosen={chosen === NEW} disabled={busy} onChoose={() => setChosen(NEW)}>
                 + {t('devices.settings.newPlace')}
               </Choice>
-            </Choices>
+            </PlaceChoices>
             {chosen === NEW ? (
               <input
                 className={ui.input}

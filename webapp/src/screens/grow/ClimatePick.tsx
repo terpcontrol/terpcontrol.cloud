@@ -1,5 +1,6 @@
 import type { GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import type { Translate } from '@/i18n/i18n';
@@ -77,7 +78,6 @@ export function ClimatePick({
   if (!controller?.configuration) return null;
   if (!writesClimate(stage)) return <p className={ui.note}>{t('climatePick.noClimate', { stage: t(`home.stage.${stage}`) })}</p>;
 
-  const options = [null, ...presetsOf(stage)].map(preset => ({ stage, preset }));
   const now = draftOf(controller.configuration);
   const choices = { ...choicesOf(controller), ...(value.germination ?? {}) };
   const preset = value.climate ? climatePreset(stage, value.preset) : null;
@@ -105,20 +105,16 @@ export function ClimatePick({
 
   return (
     <Block label={t('climatePick.label')} help="phasePreset">
-      <Choices label={t('climatePick.label')}>
+      <StageClimates
+        label={t('climatePick.label')}
+        stage={stage}
+        chosen={value.climate ? value.preset : undefined}
+        onPick={preset => onChange({ climate: true, preset })}
+      >
         <Choice chosen={!value.climate} onChoose={() => onChange(KEEP_CLIMATE)}>
           {t('climatePick.keep')}
         </Choice>
-        {options.map(option => (
-          <Choice
-            key={option.preset ?? ''}
-            chosen={value.climate && value.preset === option.preset}
-            onChoose={() => onChange({ climate: true, preset: option.preset })}
-          >
-            {climateChoiceName(t, option)}
-          </Choice>
-        ))}
-      </Choices>
+      </StageClimates>
       {/* The answer in figures, and nothing explained: what the choices mean is behind the help beside the label. */}
       <p className={ui.note} role="status">
         <Facts facts={factsOf(t(moves ? 'climatePick.sets' : 'climatePick.keeps', { figures: after() }))} />
@@ -133,6 +129,35 @@ export function ClimatePick({
         />
       ) : null}
     </Block>
+  );
+}
+
+/**
+ * The climates of one stage as chips: the stage's own and what refines it, under the names Steuerung's chips carry
+ * ("Blüte", "Späte Blüte", "Auto · Blüte"). It is the one row wherever a phase names its climate: asked beside a
+ * phase (above, behind the answer that leaves the targets alone), where a phase is corrected and where plants are
+ * split off into one. `chosen` is null for the stage's own climate. A stage nothing refines has nothing to choose
+ * between, so by itself the row is not drawn for it.
+ */
+export function StageClimates(props: {
+  label: string;
+  stage: GrowthStage;
+  chosen: string | null | undefined;
+  onPick: (preset: string | null) => void;
+  children?: ReactNode;
+}) {
+  const { t } = useTranslation();
+  if (!props.children && presetsOf(props.stage).length === 0) return null;
+
+  return (
+    <Choices label={props.label}>
+      {props.children}
+      {[null, ...presetsOf(props.stage)].map(preset => (
+        <Choice key={preset ?? ''} chosen={props.chosen === preset} onChoose={() => props.onPick(preset)}>
+          {climateChoiceName(t, { stage: props.stage, preset })}
+        </Choice>
+      ))}
+    </Choices>
   );
 }
 
