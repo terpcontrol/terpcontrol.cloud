@@ -342,7 +342,12 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     still here, by name; every answer is kept, the grow's included, and "Noch einmal versuchen" goes on with what
     is left - into the place an attempt already made. Changing an answer asks again.
   - *The toast names where things went*: "Zelt Eins entfernt. Zeltcontroller und Lüfter stehen in Zelt 2. Blue
-    Dream beendet.", without undo.
+    Dream beendet.", without undo. The line the move writes into the grow's diary names both places - "Du hast
+    von Zelt Eins nach Zelt 1 umgestellt" - by the names the server wrote into the line (`values.from`,
+    `values.to`; `movePlants`, `server/src/modules/v1/grow/grows.service.ts`; `doneByOf`, `ui/entries.ts`): the
+    place left is removed a moment later and in no list a page could look its name up in. They are the names of
+    that moment, as a diary line is; a line written before, a split that stays where it is and plants gathered
+    from two places say "hast umgestellt" as before, and a reader from outside is told neither name.
   - With a grow the page says that curves and pictures up to today stay with it; without one, that the place's
     curves are afterwards only seen with grows that stood there - an ended place has no page.
   - A place people are still let into is not ended: the page says how many and leads to them. Only the owner ends a

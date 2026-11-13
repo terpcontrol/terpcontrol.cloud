@@ -187,6 +187,20 @@ export const moveEntryValues = named(
     kind: z.literal('move'),
     placementId: id(),
     spaceId: id().nullable().describe('Where the plants moved to; null is "no fixed place".'),
+    to: z
+      .string()
+      .nullable()
+      .optional()
+      .describe(
+        'What the place moved to was called then; null for no fixed place. Absent on a line written before a move named its places, and on a read that hides the place.',
+      ),
+    from: z
+      .string()
+      .nullable()
+      .optional()
+      .describe(
+        'What the place the plants left was called then - a place that has since been removed still has its name here. Absent like `to`, and where the plants came from more than one place.',
+      ),
   }),
 );
 

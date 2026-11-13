@@ -229,6 +229,22 @@ describe('a diary row', () => {
     expect(screen.getByText(/Entered Germination · Steckling von Sensi Seeds/)).toBeInTheDocument();
   });
 
+  it('says from where to where a move went, by the names its line was told - the place left may be gone', () => {
+    const move = { kind: 'move', placementId: 'placement-2', spaceId: 'space-2' } as const;
+    render(
+      <ul>
+        <EntryRow entry={entryOf({ kind: 'move', values: { ...move, from: 'Zelt Eins', to: 'Zelt 1' } })} people={[]} />
+        <EntryRow entry={entryOf({ id: 'entry-2', kind: 'move', values: { ...move, spaceId: null, from: 'Zelt 1', to: null } })} people={[]} />
+        <EntryRow entry={entryOf({ id: 'entry-3', kind: 'move', values: move })} people={[]} />
+      </ul>,
+    );
+
+    expect(screen.getByText(/moved it from Zelt Eins to Zelt 1/)).toBeInTheDocument();
+    expect(screen.getByText(/moved it from Zelt 1 to no fixed place/)).toBeInTheDocument();
+    // A line written before a move named its places says what it always said.
+    expect(screen.getByText(/moved it$/)).toBeInTheDocument();
+  });
+
   it('still translates what a device wrote, which is a key and not words', () => {
     render(
       <ul>

@@ -587,6 +587,8 @@
       "measurement": "measured",
       "training": "trained",
       "move": "moved it",
+      "moveFromTo": "moved it from {{from}} to {{to}}",
+      "nowhere": "no fixed place",
       "visit": "started maintenance",
       "still": "kept a camera picture"
     },

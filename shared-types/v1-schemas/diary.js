@@ -123,6 +123,16 @@ exports.moveEntryValues = (0, common_js_1.named)('MoveEntryValues', zod_1.z.obje
     kind: zod_1.z.literal('move'),
     placementId: (0, common_js_1.id)(),
     spaceId: (0, common_js_1.id)().nullable().describe('Where the plants moved to; null is "no fixed place".'),
+    to: zod_1.z
+        .string()
+        .nullable()
+        .optional()
+        .describe('What the place moved to was called then; null for no fixed place. Absent on a line written before a move named its places, and on a read that hides the place.'),
+    from: zod_1.z
+        .string()
+        .nullable()
+        .optional()
+        .describe('What the place the plants left was called then - a place that has since been removed still has its name here. Absent like `to`, and where the plants came from more than one place.'),
 }));
 /** Weights are the plant's; they are repeated here for the timeline and stripped from shared views with it. */
 exports.harvestEntryValues = (0, common_js_1.named)('HarvestEntryValues', zod_1.z.object({

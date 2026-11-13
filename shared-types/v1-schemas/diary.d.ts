@@ -148,6 +148,8 @@ export declare const moveEntryValues: z.ZodObject<{
     kind: z.ZodLiteral<"move">;
     placementId: z.ZodString;
     spaceId: z.ZodNullable<z.ZodString>;
+    to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 /** Weights are the plant's; they are repeated here for the timeline and stripped from shared views with it. */
 export declare const harvestEntryValues: z.ZodObject<{
@@ -226,6 +228,8 @@ export declare const entryValues: z.ZodDiscriminatedUnion<[z.ZodObject<{
     kind: z.ZodLiteral<"move">;
     placementId: z.ZodString;
     spaceId: z.ZodNullable<z.ZodString>;
+    to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>, z.ZodObject<{
     kind: z.ZodLiteral<"harvest">;
     wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -358,6 +362,8 @@ export declare const entry: z.ZodObject<{
         kind: z.ZodLiteral<"move">;
         placementId: z.ZodString;
         spaceId: z.ZodNullable<z.ZodString>;
+        to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"harvest">;
         wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -481,6 +487,8 @@ export declare const entryPage: z.ZodObject<{
             kind: z.ZodLiteral<"move">;
             placementId: z.ZodString;
             spaceId: z.ZodNullable<z.ZodString>;
+            to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"harvest">;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -2790,6 +2798,8 @@ export declare const homeSpaceCard: z.ZodObject<{
             kind: z.ZodLiteral<"move">;
             placementId: z.ZodString;
             spaceId: z.ZodNullable<z.ZodString>;
+            to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"harvest">;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -3180,6 +3190,8 @@ export declare const homeAnswer: z.ZodObject<{
                 kind: z.ZodLiteral<"move">;
                 placementId: z.ZodString;
                 spaceId: z.ZodNullable<z.ZodString>;
+                to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"harvest">;
                 wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -4373,6 +4385,8 @@ export declare const spaceOverview: z.ZodObject<{
             kind: z.ZodLiteral<"move">;
             placementId: z.ZodString;
             spaceId: z.ZodNullable<z.ZodString>;
+            to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"harvest">;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -5204,6 +5218,8 @@ export declare const spaceTimeline: z.ZodObject<{
             kind: z.ZodLiteral<"move">;
             placementId: z.ZodString;
             spaceId: z.ZodNullable<z.ZodString>;
+            to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"harvest">;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -5457,6 +5473,8 @@ export declare const growDiaryDay: z.ZodObject<{
             kind: z.ZodLiteral<"move">;
             placementId: z.ZodString;
             spaceId: z.ZodNullable<z.ZodString>;
+            to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"harvest">;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -5652,6 +5670,8 @@ export declare const growDiaryWeek: z.ZodObject<{
                 kind: z.ZodLiteral<"move">;
                 placementId: z.ZodString;
                 spaceId: z.ZodNullable<z.ZodString>;
+                to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"harvest">;
                 wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -5849,6 +5869,8 @@ export declare const growDiaryPage: z.ZodObject<{
                     kind: z.ZodLiteral<"move">;
                     placementId: z.ZodString;
                     spaceId: z.ZodNullable<z.ZodString>;
+                    to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                 }, z.core.$strip>, z.ZodObject<{
                     kind: z.ZodLiteral<"harvest">;
                     wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -5978,6 +6000,8 @@ export declare const growDiaryPage: z.ZodObject<{
             kind: z.ZodLiteral<"move">;
             placementId: z.ZodString;
             spaceId: z.ZodNullable<z.ZodString>;
+            to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"harvest">;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -6145,6 +6169,8 @@ export declare const growReportPhase: z.ZodObject<{
             kind: z.ZodLiteral<"move">;
             placementId: z.ZodString;
             spaceId: z.ZodNullable<z.ZodString>;
+            to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"harvest">;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -6344,6 +6370,8 @@ export declare const growReport: z.ZodObject<{
                 kind: z.ZodLiteral<"move">;
                 placementId: z.ZodString;
                 spaceId: z.ZodNullable<z.ZodString>;
+                to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"harvest">;
                 wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -7009,6 +7037,8 @@ export declare const publicGrowPage: z.ZodObject<{
                     kind: z.ZodLiteral<"move">;
                     placementId: z.ZodString;
                     spaceId: z.ZodNullable<z.ZodString>;
+                    to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                 }, z.core.$strip>, z.ZodObject<{
                     kind: z.ZodLiteral<"harvest">;
                     wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -7222,6 +7252,8 @@ export declare const publicWeekPage: z.ZodObject<{
                     kind: z.ZodLiteral<"move">;
                     placementId: z.ZodString;
                     spaceId: z.ZodNullable<z.ZodString>;
+                    to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                 }, z.core.$strip>, z.ZodObject<{
                     kind: z.ZodLiteral<"harvest">;
                     wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -7489,6 +7521,8 @@ export declare const sharedGrow: z.ZodObject<{
                         kind: z.ZodLiteral<"move">;
                         placementId: z.ZodString;
                         spaceId: z.ZodNullable<z.ZodString>;
+                        to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                     }, z.core.$strip>, z.ZodObject<{
                         kind: z.ZodLiteral<"harvest">;
                         wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -8070,6 +8104,8 @@ export declare const sharedSpace: z.ZodObject<{
                 kind: z.ZodLiteral<"move">;
                 placementId: z.ZodString;
                 spaceId: z.ZodNullable<z.ZodString>;
+                to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"harvest">;
                 wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -8392,6 +8428,8 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         kind: z.ZodLiteral<"move">;
                         placementId: z.ZodString;
                         spaceId: z.ZodNullable<z.ZodString>;
+                        to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                     }, z.core.$strip>, z.ZodObject<{
                         kind: z.ZodLiteral<"harvest">;
                         wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -8967,6 +9005,8 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 kind: z.ZodLiteral<"move">;
                 placementId: z.ZodString;
                 spaceId: z.ZodNullable<z.ZodString>;
+                to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"harvest">;
                 wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -9306,6 +9346,8 @@ export declare const sharedResolution: z.ZodObject<{
                             kind: z.ZodLiteral<"move">;
                             placementId: z.ZodString;
                             spaceId: z.ZodNullable<z.ZodString>;
+                            to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                         }, z.core.$strip>, z.ZodObject<{
                             kind: z.ZodLiteral<"harvest">;
                             wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -9881,6 +9923,8 @@ export declare const sharedResolution: z.ZodObject<{
                     kind: z.ZodLiteral<"move">;
                     placementId: z.ZodString;
                     spaceId: z.ZodNullable<z.ZodString>;
+                    to: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    from: z.ZodOptional<z.ZodNullable<z.ZodString>>;
                 }, z.core.$strip>, z.ZodObject<{
                     kind: z.ZodLiteral<"harvest">;
                     wetWeightG: z.ZodNullable<z.ZodNumber>;

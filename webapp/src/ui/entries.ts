@@ -118,6 +118,13 @@ export const headlineOf = (t: Translate, i18n: I18n, entry: Entry): string => {
 export const doneByOf = (t: Translate, i18n: I18n, entry: Entry, byYou: boolean): string | null => {
   if (entry.source !== 'human' || entry.values.kind === 'phase' || entry.values.kind === 'harvest' || entryHeadline(i18n, entry)) return null;
 
+  // A move says from where to where, where its line was told: a place that has since been removed is in no list.
+  if (entry.values.kind === 'move' && entry.values.from !== undefined && entry.values.to !== undefined) {
+    const nowhere = t('home.entryDone.nowhere');
+    const places = { from: entry.values.from ?? nowhere, to: entry.values.to ?? nowhere };
+    return t('home.entryDone.moveFromTo', { context: byYou ? 'you' : undefined, ...places });
+  }
+
   // A camera's still somebody made a line of was kept, not taken: nobody held a phone up.
   const done = entry.kind === 'photo' && entry.cameraId !== null ? 'still' : entry.kind;
   return t(`home.entryDone.${done}`, { context: byYou ? 'you' : undefined, defaultValue: '' }) || null;

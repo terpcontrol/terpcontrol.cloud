@@ -488,6 +488,25 @@ describe('who may read a timeline', () => {
     expect(own?.values).toMatchObject({ readings: [{ key: 'height', value: 52, plantId: PLANT }] });
   });
 
+  it('does not spell out to a reader from outside which places a move went between', async () => {
+    await db.grows.updateOne({ id: GROW }, { $set: { visibility: 'public' } });
+    await db.entries.create(
+      entry({
+        id: 'entry-moved',
+        growId: GROW,
+        kind: 'move',
+        occurredAt: onDay(20),
+        values: { kind: 'move', placementId: 'placement-2', spaceId: null, from: 'Cellar tent', to: null },
+      }),
+    );
+
+    const seen = (await entries.list(anonymous, { growId: GROW })).items.find(line => line.id === 'entry-moved');
+    const own = (await entries.list(session(OWNER), { growId: GROW })).items.find(line => line.id === 'entry-moved');
+
+    expect(seen?.values).toEqual({ kind: 'move', placementId: 'placement-2', spaceId: null });
+    expect(own?.values).toMatchObject({ from: 'Cellar tent', to: null });
+  });
+
   /**
    * A grant reaches the grow and not each of its lines, so a link that was sent
    * one fortnight of a diary would otherwise hand out every other line of it

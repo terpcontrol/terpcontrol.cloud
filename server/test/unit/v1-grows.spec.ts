@@ -507,7 +507,17 @@ describe('moving plants', () => {
 
     const written = await db.entries.find({ growId: grow.id, kind: 'move' }).lean();
     expect(written).toHaveLength(1);
-    expect(written[0].values).toMatchObject({ kind: 'move', spaceId: FRIDGE });
+    expect(written[0].values).toMatchObject({ kind: 'move', spaceId: FRIDGE, from: 'Tent 1', to: 'The fridge' });
+  });
+
+  it('names no place the plants came from where a split stays where it is', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    await grows.addPlacement(session(OWNER), grow.id, { spaceId: TENT, plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN);
+
+    const [line] = await db.entries.find({ growId: grow.id, kind: 'move' }).lean();
+    expect(line.values).toMatchObject({ to: 'Tent 1' });
+    expect(line.values).not.toHaveProperty('from');
   });
 
   it('refuses a space the caller may not manage', async () => {
@@ -740,7 +750,7 @@ describe('correcting a placement', () => {
     await grows.updatePlacement(session(OWNER), grow.id, moved.id, { spaceId: null }, NOTHING_HIDDEN);
 
     const line = await moveLineOf(grow.id, moved.id);
-    expect(line?.values).toMatchObject({ kind: 'move', spaceId: null });
+    expect(line?.values).toMatchObject({ kind: 'move', spaceId: null, from: 'Tent 1', to: null });
     expect(line?.spaceId).toBeNull();
   });
 

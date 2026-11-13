@@ -617,9 +617,11 @@ export class GrowsService {
       plantIds: move.plantIds,
     };
 
+    const left = new Set<string | null>();
     const placements = grow.placements.flatMap<PlacementDocument>(existing => {
       const covered = existing.plantIds ?? everything;
       if (existing.endedAt !== null || !(takesEverything || covered.some(plantId => moving.has(plantId)))) return [existing];
+      left.add(existing.spaceId);
 
       const stayed = covered.filter(plantId => !moving.has(plantId));
       return [
@@ -630,6 +632,14 @@ export class GrowsService {
 
     await this.grows.updateOne({ id: grow.id }, { $set: { placements: [...placements, placement] } });
 
+    // The line says from where to where, by the names the places have now: the
+    // one left may be removed a moment later - a removal moves the grow first -
+    // and a removed place is in no list a reader could look its name up in.
+    // Plants gathered from two places, and a split that stays where it is, have
+    // no one place they came from.
+    const [origin] = left.size === 1 && !left.has(move.spaceId) ? [...left] : [];
+    const names = await this.namesOf([move.spaceId, ...left]);
+
     await this.entries.write({
       source: 'human',
       authorId,
@@ -637,10 +647,24 @@ export class GrowsService {
       spaceId: move.spaceId,
       plantIds: move.plantIds ?? [],
       occurredAt: move.startedAt,
-      values: { kind: 'move', placementId: placement.id, spaceId: move.spaceId },
+      values: {
+        kind: 'move',
+        placementId: placement.id,
+        spaceId: move.spaceId,
+        to: names(move.spaceId),
+        ...(origin === undefined ? {} : { from: names(origin) }),
+      },
     });
 
     return placement;
+  }
+
+  /** What each of these places is called, a removed one included; null for "no fixed place" and for a place that is not there. */
+  private async namesOf(spaceIds: (string | null)[]): Promise<(spaceId: string | null) => string | null> {
+    const ids = spaceIds.filter(spaceId => spaceId !== null);
+    const rows = ids.length > 0 ? await this.spaces.find({ id: { $in: ids } }, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>[]>() : [];
+
+    return spaceId => rows.find(row => row.id === spaceId)?.name ?? null;
   }
 
   /**
@@ -686,6 +710,8 @@ export class GrowsService {
           spaceId: corrected.spaceId,
           plantIds: corrected.plantIds ?? [],
           'values.spaceId': corrected.spaceId,
+          // And the place's name with it, where the place is what was corrected.
+          ...(body.spaceId === undefined ? {} : { 'values.to': (await this.namesOf([corrected.spaceId]))(corrected.spaceId) }),
         },
       },
     );

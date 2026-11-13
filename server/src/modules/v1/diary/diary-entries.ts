@@ -61,6 +61,9 @@ export const serialiseDiaryEntry = (entry: EntryDocument, hide: Redaction, grant
  * which is what a null `plantId` already means.
  */
 const valuesOf = (values: Entry['values'], hide: Redaction): Entry['values'] => {
+  // A line whose place is hidden does not spell the place out either.
+  if (hide.authors && values.kind === 'move') return { kind: values.kind, placementId: values.placementId, spaceId: values.spaceId };
+
   const weighed = hide.weights && values.kind === 'harvest' ? { ...values, wetWeightG: null, dryWeightG: null } : values;
 
   return hide.counts && 'readings' in weighed ? { ...weighed, readings: weighed.readings.map(reading => ({ ...reading, plantId: null })) } : weighed;

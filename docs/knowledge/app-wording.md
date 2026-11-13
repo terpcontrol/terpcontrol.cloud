@@ -22,7 +22,8 @@ string exists in English and German, with no English left in the German catalogu
 - No machine key reaches the screen: slugs, type keys (`fridge`), model codes (`terp_cam`), firmware setting keys.
 - Diary lines read "Du hast gegossen" / "<Name> hat gegossen"; one's own words stand without a name. A watering says
   how much, a feed also the week of the scheme it was dosed by: "Du hast gegossen · 1,5 l", "Du hast gedüngt · 5 l ·
-  Schema-Woche 5" (`amountOf`, `ui/entries.ts`).
+  Schema-Woche 5" (`amountOf`, `ui/entries.ts`). A move names from where to where: "Du hast von Zelt Eins nach
+  Zelt 1 umgestellt" (`home.entryDone.moveFromTo`; the redesign session of 2026-11-12).
 - A machine line says only what is known: the firmware's update line is "Update angefordert" - the device was told;
   whether it took is a line of its own ("Firmware-Update abgeschlossen", "Update kam nicht an").
 - Thresholds are written in words ("über 28 °C"), not with arrows or "›", since every link ends in one; metric names
