@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
 updated: 2026-11-13
-source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13
+source: a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -187,9 +187,12 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
 - **What was heard begins and ends with its samples** (`heardStretches`, `edgesQuery`; the redesign session of
   2026-11-13 after the fifth walk). A window says that something was heard in it, not when: a lamp lit
   across a silence ended "17:00" at an hour to the point for a last sample at 16:18, and a device's first
-  reading began a step early. The timeline's read asks each drawn window's first and last sample by their
-  own instants ([data.md](data.md#influxdb)), and a stretch - a lane's span, a night - begins with the first
-  of its first window and ends with the last of its last, the same at every step. A read without them
+  reading began a step early. The timeline's read asks the windows either side of a silence for their first
+  and last sample by their own instants ([data.md](data.md#influxdb)), and a stretch - a lane's span, a night -
+  begins with the first of its first window and ends with the last of its last, the same at every step. **A
+  device is heard when any of its fields reports** (after the sixth walk): the edges are the device's, of
+  whichever field - asked of one field, a heater that began to report later than its controller moved the
+  lamp's edges. A read without them
   (`/spaces/{id}/series` counts no samples) keeps the window its first point stands for and its last stamp.
 - **A reading is of one instant** (`readingOf`, the same session): the answer's `reading` carries an output
   only if it was heard within the two minutes a reading stays fresh before the reading's own instant - a

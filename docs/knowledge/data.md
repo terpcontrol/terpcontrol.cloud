@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
 updated: 2026-11-13
-source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
+source: the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -138,12 +138,16 @@ Pitfalls, each met at least once:
   Within three days the lamp and an AIR's `day` are a read of their own at five seconds, so a lamp's stretch
   is its samples' on every zoom: 25 ms over a day and 67 ms over three at a sample every 5 s, beside the other
   reads.
-- **Each drawn window's first and last sample** (`edgesQuery`, `edgesByWindow`; the redesign session of
-  2026-11-13 after the fifth walk; what it is for: [server-engines.md](server-engines.md#read-models)): two
-  `aggregateWindow` with the selectors `first` and `last` and `timeSrc: "_time"`, which keeps a selector's own
-  instant where a window is otherwise stamped at its stop. Of one field - a sample carries all of them -,
-  chosen once the series says which the device was heard in, so the read follows the series': 11 ms on a
-  day and on a week, 40 ms on 120 days (18 and 43 ms for the two selectors apart).
+- **The first and last sample beside a silence** (`edgesQuery`, `edgesAround`, `edgesOf`; the redesign session of
+  2026-11-13 after the sixth walk; what it is for: [server-engines.md](server-engines.md#read-models)): for
+  each drawn window that stands beside a silence the series read found, a `range |> first()` or `|> last()`
+  over one step and all of the device's fields - a selector keeps its sample's own instant, and the earliest
+  (latest) of the fields' rows is the device's. All of them are one script, a `union`. A device without a
+  silence is asked nothing, and beyond 120 edges (`MAX_EDGES`, a device slower than its step) the grid's
+  stamps stand. Against the store: 2 to 5 edges in 5 to 9 ms, on a week as on 120 days. The fifth walk's
+  version asked every drawn window of one field with two `aggregateWindow(timeSrc: "_time")`: 11 ms on a day
+  and 40 ms on 120 days for every device, and an output that began to report later took the edges of the
+  field beside it.
 - **An output's samples are counted per drawn window** (`countsQuery`, `figuresOf`; rule B of the redesign
   session, 2026-11-13; what it is for: [server-engines.md](server-engines.md#read-models)): one
   script with two `aggregateWindow(count)` beside the series' means - every sample of every output, and the

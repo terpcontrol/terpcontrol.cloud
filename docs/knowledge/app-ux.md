@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
 updated: 2026-11-13
-source: what the clearing-up round settled - an ended place at Verlauf's and Steuerung's address, a sheet that leaves its page, the one list that ranks Start, a room renamed, a toast and its row (the redesign session's clearing-up round of 2026-11-13, not Chris); where the rounds of place and room and of Ich and Meldungen meet - an alert's place, one list of what is due, the answer to "Widerrufen" (the redesign session of 2026-11-13, not Chris); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13, after the prototype Chris accepted on 2026-11-12) and what that session decided after its critic's walk (2026-11-13, not Chris); round 6 of the navigation redesign - the pages of a place, where a device hangs (the redesign session of 2026-11-12, after Chris's decision 5 of 2026-11-11); Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
+source: Verlauf after its sixth walk - rest in a zoom, the card's values, a lane's label, a help text cut between lines (the redesign session of 2026-11-13, not Chris); what the clearing-up round settled - an ended place at Verlauf's and Steuerung's address, a sheet that leaves its page, the one list that ranks Start, a room renamed, a toast and its row (the redesign session's clearing-up round of 2026-11-13, not Chris); where the rounds of place and room and of Ich and Meldungen meet - an alert's place, one list of what is due, the answer to "Widerrufen" (the redesign session of 2026-11-13, not Chris); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13, after the prototype Chris accepted on 2026-11-12) and what that session decided after its critic's walk (2026-11-13, not Chris); round 6 of the navigation redesign - the pages of a place, where a device hangs (the redesign session of 2026-11-12, after Chris's decision 5 of 2026-11-11); Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -1119,7 +1119,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
 - **The app explains itself: every term (VPD, phase, stage, preset, plan, maintenance, share window, …) and every
   complex control gets a help text, in English and German** (Chris, 2026-09-24).
 - One primitive, `ui/Help.tsx`: `Help` is the (i) beside a control, `Term` a word with a dotted underline; both open
-  `help.<topic>` as a toggletip ([topics and their test](webapp-time-and-language.md#help-topics)).
+  `help.<topic>` as a toggletip ([topics and their test](webapp-time-and-language.md#help-topics)). One too
+  tall for the side it opens on scrolls inside itself and is cut between two lines of its text, never through one
+  (`placeBubble`; the redesign session after Verlauf's sixth walk).
 - A term is explained where it first appears on a screen - not inside a link, not where a sentence already explains
   it, not on admin-only screens. A help text must be true of the code: the first check of them all found eleven
   places where copy and behaviour disagreed, so writing one is an audit.
@@ -1176,7 +1178,12 @@ page the same day ("after the walk" below) - none of those is Chris's.
   "jetzt" with outputs that contradicted it, and a window zoomed into the past rested on "— · — · —". With
   the cursor set down beside the reading the card names it the same way, with the reading's own time.
   Rest holds whatever is ticked (after the fifth walk): with no curve drawn, and for a place of outputs alone,
-  the card is still the reading - its time, its levels. **One card is one point** (`readAt`, the same walk):
+  the card is still the reading - its time, its levels. **A window that reaches now rests on the reading at
+  every zoom** (after the sixth walk): the reading's instant is up to a beat past such a window's end, and a
+  cursor clamped to the end read a point's mean under "letzter Wert" in about half the loads of a zoom; only a
+  cursor somebody set is held inside the window. On the reading the card shows every value the reading
+  carries - one older than a reading stays fresh says its own time ("CO₂ 801 ppm · 09:15") - and a dash never
+  stands without its name ("CO₂ —"). **One card is one point** (`readAt`, the same walk):
   the nearest point on any line drawn, every curve's figure at that same instant - a curve that has none
   there is named with its "—" - and the outputs of that point's window; near the edge of a silence the
   figures had snapped to the last point while the outputs said "—". **Rest is not a cursor**: "Zeitraum
@@ -1199,7 +1206,8 @@ page the same day ("after the walk" below) - none of those is Chris's.
   the card stays under the header while the panels scroll; beside the rail it stands right of them. The cursor
   reads the point nearest to it and its dot sits on the line. A single sample - a window read at the five seconds
   a device reports in - stands at its own time, to the second; a point of a wider step is a mean and says so,
-  with its stretch ("Mittel 03:09–03:12"). Two figures in one unit are told apart by name. This card is the one place a moment's picture inside a day is seen - the camera's page
+  with its stretch ("Mittel 03:09–03:12") - unless it holds one sample, of a device slower than the step, which
+  is stamped as that sample (after the sixth walk). Two figures in one unit are told apart by name. This card is the one place a moment's picture inside a day is seen - the camera's page
   scrubs no day - and it can play the window through its pictures.
 - **A point is the mean of its window with the lowest and highest sample around it**, drawn as a pale area behind
   the line: a door open for forty seconds moves a three-minute mean by a fraction of what it moved the air, and
@@ -1243,16 +1251,20 @@ page the same day ("after the walk" below) - none of those is Chris's.
   one driven at a level - a dimmed lamp, a fan's speed, the heater's demand - is filled to its mean level, so
   a sunrise is a ramp and a heater's demand no row of ticks. "x % der Zeit an" is the samples it ran in of
   the samples heard, and it is on the screen beside each output's name ("Heizung · 3 % der Zeit an"), not
-  only for a screen reader; the lamp's line - its stretches by the clock, how bright, its share - is that
-  label, beside the rail as on a phone (after the fifth walk). At the cursor one form per output: one driven
+  only for a screen reader; the lamp's line - its stretches by the clock, its share, how bright - is that
+  label, beside the rail as on a phone (after the fifth walk). The label is facts in that one order at every
+  range and never ends a line on its dot (`Facts`); the level is said once where every stretch ran alike, and
+  an output driven at a level adds its mean over the samples heard ("Heizung · 38 % der Zeit an · im Mittel
+  12 %"; after the sixth walk). At the cursor one form per output: one driven
   at a level in per cent, on a mean point its mean level, and "aus" at none, as on Start and Steuerung (the
   fifth walk; the fourth had written "Licht 0 %"); a switch "an" or "aus", and over a point it ran in part
   of "33 % an". Where no sample was heard - inside a silence, before a device's first reading, an output the
   reading did not say - the strip is blank and the card says "—", never "aus". The lamp's stretches by the
   clock are its samples' within three days ("07:02 bis 19:02", the same on every zoom) and to five minutes
   beyond; one that ended because the device fell silent is named by its last reading at any second and every
-  step ("06:02 bis letzter Wert 09:59"), also one that runs up to a reading gone stale, and "an seit 06:00"
-  is said only of a lamp heard now. A device that reports more slowly than it is drawn - every five minutes
+  step ("06:02 bis letzter Wert 09:59"), also one that runs up to a reading gone stale; one cut by a silence that has ended says the gap instead
+  ("07:03 bis 10:59 · Lücke bis 16:00"). "an seit 06:00" is said only of a lamp heard now whose switch lies in
+  the window: lit through the whole of it the lamp is "durchgehend an" (after the sixth walk). A device that reports more slowly than it is drawn - every five minutes
   into windows of three - has a continuous strip where its curve is a line. The picture puts a
   strip's name left of it; it stands over the strip instead, because a strip that starts a name's width to the
   right no longer lines up with the curve above.

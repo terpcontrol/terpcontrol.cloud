@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-13
-source: the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -61,10 +61,9 @@ second list below is that session's decision, not Chris's word, until he confirm
 - **Verlauf**: one page of curves with its whole view in the address, points from 5 s with each window's lowest
   and highest, outputs counted from their samples; `/charts` and the page "Graphen" are gone
   ([app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night); [data.md](knowledge/data.md#influxdb);
-  [server-engines.md](knowledge/server-engines.md#read-models)). **Its state:** five walks' lists are built; the
-  fifth walk's list was walked a sixth time on the session's stack and held against the samples, and that walk
-  left six things decided and not built - they stand in the second list. The Verlauf builder builds them next,
-  so `webapp/src/screens/timeline/` and the timeline's server reads were left alone by the clearing-up round.
+  [server-engines.md](knowledge/server-engines.md#read-models)). **Its state:** six walks' lists are built. The
+  sixth list was seen by its builder - in a browser, in tests and against the store's samples - and by no critic
+  yet; what of it nobody saw stands in the last list.
 - **Place and room**: a device keeps where it stood, names are unique, a room is a field of the place, "Ort
   bearbeiten" and "Ort entfernen" as pages, the claim outside the bar asking once where a device hangs, five
   migration steps `026` to `030` (the amendment to
@@ -156,19 +155,17 @@ Each is built unless it says otherwise, and each can be refused by itself.
   three days a lamp's times are to five minutes.
 - A chosen step is bounded at 5,000 windows; Ctrl and the wheel zoom while the plain wheel scrolls the page; the
   names of the strips stand above them; the ticks of "Anpassen" are kept by the browser, and CO₂ starts unticked.
-- **Decided after the sixth walk and not built yet:**
-  1. A window that reaches now rests on the reading at every zoom - a window given relative to now never rests
-     on a cursor clamped to its end (major).
-  2. Verlauf never scrolls sideways on a desktop; between about 1590 and 1795 px the page was wider than the
-     window (major).
-  3. "an seit" names a switch that lies in the window; a lamp lit through all of it is "durchgehend an".
-  4. A device is heard when any of its fields reports: the edges of a silence come from the device's samples,
-     read only around the gaps the series read found, so the 120-day read of a place with two devices is under
-     a second again.
-  5. At rest the card shows every value the reading carries, an older one with its own time, and no dash
-     without its name.
-  6. The lamp's and the outputs' labels read as one line of words, and an output with a level adds how hard it
-     ran.
+- After the sixth walk: a window that reaches now rests on the reading at every zoom, and only a cursor somebody
+  set is held inside the window. At rest the card shows every value the reading carries, an older one with its
+  own time, and no dash without its name.
+- "an seit" names a switch that lies in the window; a lamp lit through all of it is "durchgehend an", and a
+  stretch cut by a silence that has ended says the gap ("07:03 bis 10:59 · Lücke bis 16:00"). A lane's label is
+  facts in one order at every range, the level once where every stretch ran alike, and an output driven at a
+  level adds its mean ("im Mittel 12 %").
+- A device is heard when any of its fields reports: the edges of a silence are the device's samples, read only
+  beside a silence the series read found ([data.md](knowledge/data.md#influxdb)).
+- Verlauf's page is never wider than the room beside the shell's margin; a help text too tall for its side is cut
+  between two lines.
 
 **Place and room** (the amendment to [ADR 0001](adr/0001-app-rewrite-data-model.md#places-rooms-and-where-a-device-stood))
 - `devices.placements[]` beside `devices.spaceId`; a stay under five minutes leaves no trace; a device's first
@@ -336,10 +333,10 @@ Each with what stands until he answers, and the session's recommendation where i
 44. Humidity to a tenth on Verlauf and whole on Start: two figures for one reading, on purpose.
 45. VPD's true extremes exist up to three days of window; storing VPD per sample would make them cheap
     everywhere and is a new stored field.
-46. Not built, of the walks' trifles, because Verlauf is still being walked: a place whose history is part
-    sparse, part dense still draws band and night in stripes over the sparse part; a curve of few points as a
-    line with its points; the band's help popover at 320 and 390 px; the English temperature row at 390 px and
-    "last logged".
+46. Not built, of the walks' trifles: a place whose history is part sparse, part dense still draws band and
+    night in stripes over the sparse part. The band's help text at 320 px still scrolls inside itself, cut
+    between two lines now. Looked at and found as they should be: a curve of few points is a line with its
+    points, and the English temperature row at 390 px is one line.
 
 **Left by the clearing-up round**
 47. The firmware screen's rename sheet is not on the shared name sheet, and the ideas still built twice named
@@ -360,9 +357,11 @@ Each with what stands until he answers, and the session's recommendation where i
   second fix pass of place and room; everything the clearing-up round changed, beyond one walk of every screen
   compared with the walk before it.
 - **Verlauf**: the CSV download was opened in no browser; the widths between 900 and 1200 px; whose lamp is read
-  across a change of device with different schedules; a device change older than a day; a plug's schedule in a
-  grain in which it switched; the lamp's line in English; "Kein Bild um diese Zeit" at 320 px; an unknown grow
-  "asked once" has no test. The integration fake windows `(start, stop]` where the store windows
+  across a change of device with different schedules; a device change older than a day and a plug's schedule in
+  a grain in which it switched (each has a unit test and no staged place); "Kein Bild um diese Zeit" at 320 px;
+  an unknown grow "asked once" has no test. Of the sixth list: no critic has walked it; the edges read was run
+  through its functions against the store and in the suites, and the route's time with it was not measured on a
+  running server; rest in a zoom was seen on simulated tents, one of them kept live, not on a real device. The integration fake windows `(start, stop]` where the store windows
   `[start, stop)` ([data.md](knowledge/data.md#influxdb)).
 - **Of the clearing-up round, by tests alone**: a folded alert of an output that ran too long, the scheme's and
   the measurement's delete questions, the plant's rename sheet, a wrong current password's answer, a guest's
